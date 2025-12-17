@@ -487,7 +487,11 @@ const CareRecords: React.FC = () => {
                       key={dateString}
                       className={`px-2 py-3 text-center text-sm border cursor-pointer ${
                         inHospital ? 'bg-gray-100' :
-                        record ? 'bg-blue-50 hover:bg-blue-100' :
+                        record ? (
+                          record.notes && ['入院', '渡假', '外出'].includes(record.notes)
+                            ? 'bg-orange-50 hover:bg-orange-100'
+                            : 'bg-blue-50 hover:bg-blue-100'
+                        ) :
                         'hover:bg-blue-50'
                       }`}
                       onClick={() => !inHospital && handleCellClick(dateString, slot.time, record)}
@@ -495,23 +499,30 @@ const CareRecords: React.FC = () => {
                       {inHospital ? (
                         <span className="text-gray-500">入院</span>
                       ) : record ? (
-                        <div className="space-y-1">
-                          <div className="font-medium text-gray-900">
-                            {record.has_urine && '小便'}
-                            {record.has_urine && record.has_stool && '/'}
-                            {record.has_stool && '大便'}
-                            {record.has_none && '無'}
+                        record.notes && ['入院', '渡假', '外出'].includes(record.notes) ? (
+                          <div className="space-y-1">
+                            <div className="font-medium text-orange-600">{record.notes}</div>
+                            <div className="text-xs text-gray-500">{record.recorder}</div>
                           </div>
-                          {record.has_urine && record.urine_amount && (
-                            <div className="text-xs text-gray-600">小便: {record.urine_amount}</div>
-                          )}
-                          {record.has_stool && (
-                            <div className="text-xs text-gray-600">
-                              大便: {record.stool_color || ''}{record.stool_texture ? ` ${record.stool_texture}` : ''}{record.stool_amount ? ` ${record.stool_amount}` : ''}
+                        ) : (
+                          <div className="space-y-1">
+                            <div className="font-medium text-gray-900">
+                              {record.has_urine && '小便'}
+                              {record.has_urine && record.has_stool && '/'}
+                              {record.has_stool && '大便'}
+                              {record.has_none && '無'}
                             </div>
-                          )}
-                          <div className="text-xs text-gray-500">{record.recorder}</div>
-                        </div>
+                            {record.has_urine && record.urine_amount && (
+                              <div className="text-xs text-gray-600">小便: {record.urine_amount}</div>
+                            )}
+                            {record.has_stool && (
+                              <div className="text-xs text-gray-600">
+                                大便: {record.stool_color || ''}{record.stool_texture ? ` ${record.stool_texture}` : ''}{record.stool_amount ? ` ${record.stool_amount}` : ''}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500">{record.recorder}</div>
+                          </div>
+                        )
                       ) : (
                         <span className="text-gray-400 text-xs">待記錄</span>
                       )}
@@ -568,9 +579,11 @@ const CareRecords: React.FC = () => {
                       className={`px-2 py-3 text-center text-sm border cursor-pointer ${
                         inHospital ? 'bg-gray-100' :
                         record ? (
-                          record.observation_status === 'N' ? 'bg-green-50 hover:bg-green-100' :
-                          record.observation_status === 'P' ? 'bg-red-50 hover:bg-red-100' :
-                          'bg-orange-50 hover:bg-orange-100'
+                          record.notes && ['入院', '渡假', '外出'].includes(record.notes)
+                            ? 'bg-orange-50 hover:bg-orange-100'
+                            : record.observation_status === 'N' ? 'bg-green-50 hover:bg-green-100'
+                            : record.observation_status === 'P' ? 'bg-red-50 hover:bg-red-100'
+                            : 'bg-orange-50 hover:bg-orange-100'
                         ) :
                         'hover:bg-blue-50'
                       }`}
@@ -579,17 +592,24 @@ const CareRecords: React.FC = () => {
                       {inHospital ? (
                         <span className="text-gray-500">入院</span>
                       ) : record ? (
-                        <div>
-                          <div className={`font-bold ${
-                            record.observation_status === 'N' ? 'text-green-600' :
-                            record.observation_status === 'P' ? 'text-red-600' :
-                            'text-orange-600'
-                          }`}>
-                            {record.observation_status === 'N' ? '🟢N' :
-                             record.observation_status === 'P' ? '🔴P' : '🟠S'}
+                        record.notes && ['入院', '渡假', '外出'].includes(record.notes) ? (
+                          <div>
+                            <div className="font-medium text-orange-600">{record.notes}</div>
+                            <div className="text-xs text-gray-500">{record.recorder}</div>
                           </div>
-                          <div className="text-xs text-gray-600">{record.recorder}</div>
-                        </div>
+                        ) : (
+                          <div>
+                            <div className={`font-bold ${
+                              record.observation_status === 'N' ? 'text-green-600' :
+                              record.observation_status === 'P' ? 'text-red-600' :
+                              'text-orange-600'
+                            }`}>
+                              {record.observation_status === 'N' ? '🟢N' :
+                               record.observation_status === 'P' ? '🔴P' : '🟠S'}
+                            </div>
+                            <div className="text-xs text-gray-600">{record.recorder}</div>
+                          </div>
+                        )
                       ) : (
                         <span className="text-gray-400 text-xs">待觀察</span>
                       )}
@@ -646,7 +666,11 @@ const CareRecords: React.FC = () => {
                       key={dateString}
                       className={`px-2 py-3 text-center text-sm border cursor-pointer ${
                         inHospital ? 'bg-gray-100' :
-                        record ? 'bg-purple-50 hover:bg-purple-100' :
+                        record ? (
+                          record.notes && ['入院', '渡假', '外出'].includes(record.notes)
+                            ? 'bg-orange-50 hover:bg-orange-100'
+                            : 'bg-purple-50 hover:bg-purple-100'
+                        ) :
                         'hover:bg-blue-50'
                       }`}
                       onClick={() => !inHospital && handleCellClick(dateString, timeSlot, record)}
@@ -654,10 +678,17 @@ const CareRecords: React.FC = () => {
                       {inHospital ? (
                         <span className="text-gray-500">入院</span>
                       ) : record ? (
-                        <div>
-                          <div className="font-medium text-purple-600">{record.position}</div>
-                          <div className="text-xs text-gray-600">{record.recorder}</div>
-                        </div>
+                        record.notes && ['入院', '渡假', '外出'].includes(record.notes) ? (
+                          <div>
+                            <div className="font-medium text-orange-600">{record.notes}</div>
+                            <div className="text-xs text-gray-500">{record.recorder}</div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="font-medium text-purple-600">{record.position}</div>
+                            <div className="text-xs text-gray-600">{record.recorder}</div>
+                          </div>
+                        )
                       ) : (
                         <span className="text-gray-400 text-xs">[{expectedPosition}]</span>
                       )}

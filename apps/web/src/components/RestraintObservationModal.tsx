@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Clock, User, FileText, AlertTriangle, CheckCircle, PauseCircle, Trash2, Info, Shield, Calendar } from 'lucide-react';
+import { X, Clock, User, AlertTriangle, CheckCircle, PauseCircle, Trash2, Info, Shield, Calendar } from 'lucide-react';
 import type { Patient, RestraintObservationRecord, PatientRestraintAssessment } from '../lib/database';
 import { addRandomOffset } from '../utils/careRecordHelper';
 import DeleteConfirmModal from './DeleteConfirmModal';
@@ -141,6 +141,28 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
     }
   };
 
+  const handleNoteButtonClick = (value: string) => {
+    if (notes === value) {
+      setNotes('');
+    } else {
+      setNotes(value);
+      if (['入院', '渡假', '外出'].includes(value)) {
+        setObservationStatus('N');
+        setSelectedRestraints([]);
+      }
+    }
+  };
+
+  const isSpecialStatus = ['入院', '渡假', '外出'].includes(notes);
+
+  const getNoteButtonClass = (value: string) => {
+    const baseClass = "flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200";
+    if (notes === value) {
+      return `${baseClass} bg-blue-600 text-white shadow-lg`;
+    }
+    return `${baseClass} bg-gray-100 text-gray-700 hover:bg-gray-200`;
+  };
+
   const getStatusText = () => {
     switch (observationStatus) {
       case 'N': return '正常';
@@ -152,6 +174,9 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
 
   const getStatusButtonClass = (status: 'N' | 'P' | 'S') => {
     const baseClass = "flex-1 py-4 px-4 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2";
+    if (isSpecialStatus) {
+      return `${baseClass} bg-gray-100 text-gray-400 cursor-not-allowed opacity-50`;
+    }
     if (observationStatus === status) {
       if (status === 'N') return `${baseClass} bg-green-600 text-white shadow-lg`;
       if (status === 'P') return `${baseClass} bg-red-600 text-white shadow-lg`;
@@ -230,7 +255,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-3">
               <Shield className="w-4 h-4 inline mr-1" />
-              院友約束物品建議
+              使用的約束物品
             </label>
             {!latestAssessment ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -258,7 +283,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   {suggestedRestraints.map((item) => (
-                    <label key={item} className="flex items-center space-x-2 p-3 border border-blue-400 bg-blue-50 rounded-lg hover:bg-blue-100 cursor-pointer">
+                    <label key={item} className={`flex items-center space-x-2 p-3 border rounded-lg ${isSpecialStatus ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed' : 'border-blue-400 bg-blue-50 hover:bg-blue-100 cursor-pointer'}`}>
                       <input
                         type="checkbox"
                         checked={selectedRestraints.includes(item)}
@@ -269,7 +294,8 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
                             setSelectedRestraints(selectedRestraints.filter(r => r !== item));
                           }
                         }}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        disabled={isSpecialStatus}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <span className="text-sm text-gray-700">{item}</span>
                     </label>
@@ -301,6 +327,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
               <button
                 type="button"
                 onClick={() => setObservationStatus('N')}
+                disabled={isSpecialStatus}
                 className={getStatusButtonClass('N')}
               >
                 <CheckCircle className="w-5 h-5" />
@@ -309,6 +336,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
               <button
                 type="button"
                 onClick={() => setObservationStatus('P')}
+                disabled={isSpecialStatus}
                 className={getStatusButtonClass('P')}
               >
                 <AlertTriangle className="w-5 h-5" />
@@ -317,6 +345,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
               <button
                 type="button"
                 onClick={() => setObservationStatus('S')}
+                disabled={isSpecialStatus}
                 className={getStatusButtonClass('S')}
               >
                 <PauseCircle className="w-5 h-5" />
@@ -343,17 +372,32 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              <FileText className="w-4 h-4 inline mr-1" />
+            <label className="block text-sm font-medium text-gray-900 mb-2">
               備註
             </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="選填，如有特殊情況請記錄"
-            />
+            <div className="flex space-x-2">
+              <button
+                type="button"
+                onClick={() => handleNoteButtonClick('入院')}
+                className={getNoteButtonClass('入院')}
+              >
+                入院
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNoteButtonClick('渡假')}
+                className={getNoteButtonClass('渡假')}
+              >
+                渡假
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNoteButtonClick('外出')}
+                className={getNoteButtonClass('外出')}
+              >
+                外出
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-between items-center pt-4">
@@ -430,8 +474,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
             },
             {
               label: '備註',
-              value: notes || '無',
-              icon: <FileText className="w-4 h-4 text-gray-500" />
+              value: notes || '無'
             }
           ]}
         />

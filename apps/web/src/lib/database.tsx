@@ -398,6 +398,7 @@ export interface DiaperChangeRecord {
   stool_texture?: string;
   stool_amount?: string;
   recorder: string;
+  notes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -423,6 +424,7 @@ export interface PositionChangeRecord {
   scheduled_time: string;
   position: '左' | '平' | '右';
   recorder: string;
+  notes?: string;
   created_at: string;
   updated_at: string;
 }

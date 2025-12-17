@@ -211,8 +211,6 @@ interface PatientContextType {
   addHospitalEpisode: (episodeData: any) => Promise<void>;
   updateHospitalEpisode: (episodeData: any) => Promise<void>;
   deleteHospitalEpisode: (id: string) => Promise<void>;
-  generateRandomTemperaturesForActivePatients: () => Promise<void>;
-  recordDailyTemperatureGenerationCompletion: () => Promise<void>;
   getOverdueDailySystemTasks: () => Promise<db.DailySystemTask[]>;
   recordPatientAdmissionEvent: (eventData: {
     patient_id: number;
@@ -1455,26 +1453,6 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     }
   };
 
-  const generateRandomTemperaturesForActivePatients = async () => {
-    try {
-      await db.generateRandomTemperaturesForActivePatients();
-      await refreshData();
-    } catch (error) {
-      console.error('Error generating random temperatures:', error);
-      throw error;
-    }
-  };
-
-  const recordDailyTemperatureGenerationCompletion = async () => {
-    try {
-      await db.recordDailyTemperatureGenerationCompletion();
-      await refreshData();
-    } catch (error) {
-      console.error('Error recording daily temperature generation completion:', error);
-      throw error;
-    }
-  };
-
   const getOverdueDailySystemTasks = async () => {
     try {
       return await db.getOverdueDailySystemTasks();
@@ -2165,8 +2143,6 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       addDrug,
       updateDrug,
       deleteDrug,
-      generateRandomTemperaturesForActivePatients,
-      recordDailyTemperatureGenerationCompletion,
       getOverdueDailySystemTasks,
       refreshData,
       refreshHealthData,
