@@ -490,7 +490,7 @@ export const translations = {
     
     // 表單標籤
     actualPatrolTime: '實際巡房時間',
-    noteOrStatus: '備註 / 狀態',
+    noteOrStatus: '備註',
     excretionStatus: '排泄情況',
     urineVolume: '小便量',
     stoolColor: '大便顏色',
@@ -761,7 +761,7 @@ export const translations = {
     
     // 表单标签
     actualPatrolTime: '实际巡房时间',
-    noteOrStatus: '备注 / 状态',
+    noteOrStatus: '备注',
     excretionStatus: '排泄情况',
     urineVolume: '小便量',
     stoolColor: '大便颜色',
@@ -1032,7 +1032,7 @@ export const translations = {
     
     // Form Labels
     actualPatrolTime: 'Actual Patrol Time',
-    noteOrStatus: 'Notes / Status',
+    noteOrStatus: 'Notes',
     excretionStatus: 'Excretion Status',
     urineVolume: 'Urine Volume',
     stoolColor: 'Stool Color',

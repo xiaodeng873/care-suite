@@ -1274,6 +1274,15 @@ const HealthAssessment: React.FC = () => {
             setShowModal(false);
             setSelectedRecord(null);
           }}
+          onTaskCompleted={async (taskId, recordDateTime) => {
+            console.log('[HealthAssessment] 任務完成回調:', taskId);
+            try {
+              await syncTaskStatus(taskId);
+              if (refreshData) await refreshData();
+            } catch (error) {
+              console.error('[HealthAssessment] syncTaskStatus 失敗:', error);
+            }
+          }}
         />
       )}
 

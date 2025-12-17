@@ -23,9 +23,6 @@ export function isEveningCarePlanTask(taskType: string): boolean {
 
 // [核心修正+調試] 判斷某一天是否應該有任務
 export function isTaskScheduledForDate(task: any, date: Date): boolean {
-  const DEBUG_TASK_ID = task.patient_id === 52 && task.health_record_type === '生命表徵'; // 調試院友 ID 52 的生命表徵任務
-
-  // 輔助函數：正確格式化本地日期為 YYYY-MM-DD（避免時區偏移）
   const formatLocalDate = (d: Date): string => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -33,70 +30,39 @@ export function isTaskScheduledForDate(task: any, date: Date): boolean {
     return `${y}-${m}-${day}`;
   };
 
-  // 1. 每日任務：需考慮頻率數值 (例如每 2 天)
   if (task.frequency_unit === 'daily') {
     const freqValue = task.frequency_value || 1;
 
-    // 如果是「每天」，則每天都回傳 true
     if (freqValue === 1) return true;
 
-    // 如果是「每 X 天」，需要一個基準日來計算週期
     const targetDate = new Date(date);
     targetDate.setHours(0, 0, 0, 0);
-    const targetDateStr = formatLocalDate(targetDate);  // 🔧 修復：使用本地時間
 
     let anchorDate: Date | null = null;
 
-    if (DEBUG_TASK_ID) {
-      console.log(`  [isTaskScheduledForDate] 檢查日期: ${targetDateStr}`);
-      console.log(`    任務ID: ${task.id}, 院友ID: ${task.patient_id}`);
-      console.log(`    頻率: 每 ${freqValue} 天`);
-      console.log(`    last_completed_at: ${task.last_completed_at || '無'}`);
-      console.log(`    created_at: ${task.created_at || '無'}`);
-    }
-
-    // [關鍵修正] 優先使用 last_completed_at 作為基準點 (針對未來/未完成的日期)
-    // 這確保了如果用戶在 2號 做了(打破規律)，下次會自動變 4號，而不是死板的 3號
     if (task.last_completed_at) {
        const lastCompleted = new Date(task.last_completed_at);
        lastCompleted.setHours(0, 0, 0, 0);
-       const lastCompletedStr = formatLocalDate(lastCompleted);  // 🔧 修復：使用本地時間
 
-       // 只有當目標日期在最後完成日「之後」，才使用它作為基準
        if (targetDate > lastCompleted) {
          anchorDate = lastCompleted;
-         if (DEBUG_TASK_ID) console.log(`    ✓ 使用 last_completed_at 作為基準: ${lastCompletedStr}`);
-       } else {
-         if (DEBUG_TASK_ID) console.log(`    ✗ 目標日期 ${targetDateStr} 不在 last_completed_at ${lastCompletedStr} 之後，不使用`);
        }
     }
 
-    // 如果沒有 last_completed_at 或目標日期在它之前 (檢查歷史)，退回使用 created_at
     if (!anchorDate && task.created_at) {
       anchorDate = new Date(task.created_at);
       anchorDate.setHours(0, 0, 0, 0);
-      if (DEBUG_TASK_ID) console.log(`    ✓ 使用 created_at 作為基準: ${formatLocalDate(anchorDate)}`);
     }
 
     if (anchorDate) {
-      // 計算相差天數
       const diffTime = targetDate.getTime() - anchorDate.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       const canDivide = diffDays % freqValue === 0;
       const isScheduled = diffDays >= 0 && canDivide;
 
-      if (DEBUG_TASK_ID) {
-        console.log(`    相差天數: ${diffDays}`);
-        console.log(`    ${diffDays} % ${freqValue} = ${diffDays % freqValue} (能整除: ${canDivide})`);
-        console.log(`    最終結果: ${isScheduled ? '✅ 該做' : '❌ 不該做'}`);
-      }
-
-      // 1. diffDays 必須 >= 0 (不能早於基準日)
-      // 2. 能夠被頻率整除
       return isScheduled;
     }
 
-    if (DEBUG_TASK_ID) console.log(`    ❌ 無法確定基準日期，返回 false`);
     return false;
   }
   
@@ -107,31 +73,18 @@ export function isTaskScheduledForDate(task: any, date: Date): boolean {
        targetDate.setHours(0, 0, 0, 0);
        const targetDateStr = formatLocalDate(targetDate);
 
-       // [修復] 先檢查該日期是否在任務創建日期之後
        if (task.created_at) {
          const createdDate = new Date(task.created_at);
          createdDate.setHours(0, 0, 0, 0);
 
          if (targetDate < createdDate) {
-           if (DEBUG_TASK_ID) {
-             console.log(`  [weekly 檢查] 檢查日期: ${targetDateStr}`);
-             console.log(`    ❌ 該日期在任務創建日期 ${formatLocalDate(createdDate)} 之前，不該做`);
-           }
            return false;
          }
        }
 
-       const day = date.getDay(); // JS: 0=Sun...6=Sat
+       const day = date.getDay();
        const dbDay = day === 0 ? 7 : day;
        const isScheduled = task.specific_days_of_week.includes(dbDay);
-
-       if (DEBUG_TASK_ID) {
-         console.log(`  [weekly 檢查] 檢查日期: ${targetDateStr}`);
-         console.log(`    date.getDay(): ${day} (0=週日, 5=週五, 6=週六)`);
-         console.log(`    dbDay: ${dbDay}`);
-         console.log(`    specific_days_of_week: ${JSON.stringify(task.specific_days_of_week)}`);
-         console.log(`    結果: ${isScheduled ? '✅ 該做' : '❌ 不該做'}`);
-       }
 
        return isScheduled;
     }
@@ -144,16 +97,11 @@ export function isTaskScheduledForDate(task: any, date: Date): boolean {
        const targetDate = new Date(date);
        targetDate.setHours(0, 0, 0, 0);
 
-       // [修復] 先檢查該日期是否在任務創建日期之後
        if (task.created_at) {
          const createdDate = new Date(task.created_at);
          createdDate.setHours(0, 0, 0, 0);
 
          if (targetDate < createdDate) {
-           if (DEBUG_TASK_ID) {
-             console.log(`  [monthly 檢查] 檢查日期: ${formatLocalDate(targetDate)}`);
-             console.log(`    ❌ 該日期在任務創建日期 ${formatLocalDate(createdDate)} 之前，不該做`);
-           }
            return false;
          }
        }
@@ -242,8 +190,6 @@ export async function findFirstMissingDate(
   supabase: any,
   maxDaysToCheck: number = 90
 ): Promise<Date> {
-  console.log('🔍 開始查找第一個未完成日期，起點:', startDate);
-
   const checkDate = new Date(startDate);
   checkDate.setHours(0, 0, 0, 0);
 
@@ -252,39 +198,82 @@ export async function findFirstMissingDate(
   while (daysChecked < maxDaysToCheck) {
     // 檢查這一天是否應該有任務
     if (isTaskScheduledForDate(task, checkDate)) {
-      // 查詢數據庫確認該日期是否有記錄
       const dateStr = checkDate.toISOString().split('T')[0];
-      const { data: records, error } = await supabase
-        .from('健康記錄主表')
-        .select('記錄id')
-        .eq('task_id', task.id)
-        .eq('記錄日期', dateStr)
-        .limit(1);
 
-      if (error) {
-        console.error('❌ 查詢記錄時出錯:', error);
-        break;
-      }
+      // [修復] 對於多時間點任務，需要檢查特定時間點的記錄
+      if (task.specific_times && task.specific_times.length > 0) {
+        // 標準化時間格式
+        const normalizeTime = (time: string) => {
+          if (!time) return '';
+          return time.substring(0, 5); // 取前5個字符 "HH:MM"
+        };
 
-      // 如果這一天沒有記錄，就是我們要找的日期
-      if (!records || records.length === 0) {
-        console.log('✅ 找到第一個未完成日期:', dateStr);
+        // [優化] 一次性查詢該日期的所有記錄
+        const { data: records, error } = await supabase
+          .from('健康記錄主表')
+          .select('記錄id, 記錄時間, 院友id, 記錄類型, task_id')
+          .eq('記錄日期', dateStr)
+          .or(`task_id.eq.${task.id},and(院友id.eq.${task.patient_id},記錄類型.eq.${task.health_record_type})`);
 
-        // 設置時間
-        if (task.specific_times && task.specific_times.length > 0) {
-          const timeStr = task.specific_times[0];
-          if (timeStr.includes(':')) {
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            checkDate.setHours(hours, minutes, 0, 0);
-          }
-        } else if (isMonitoringTask(task.health_record_type)) {
-          checkDate.setHours(8, 0, 0, 0);
+        if (error) {
+          break;
         }
 
-        return checkDate;
-      }
+        // 過濾出屬於該任務的記錄
+        const taskRecords = records.filter(r => {
+          if (r.task_id === task.id) return true;
+          return r.院友id === task.patient_id && r.記錄類型 === task.health_record_type;
+        });
 
-      console.log(`   ✓ ${dateStr} 已有記錄，繼續檢查...`);
+        // 收集已完成的時間點
+        const completedTimes = new Set(
+          taskRecords.map(r => normalizeTime(r.記錄時間))
+        );
+
+        // 檢查每個時間點是否都有記錄
+        let allTimesCompleted = true;
+        let firstMissingTime: string | null = null;
+
+        for (const time of task.specific_times) {
+          const normalizedTime = normalizeTime(time);
+          if (!completedTimes.has(normalizedTime)) {
+            allTimesCompleted = false;
+            firstMissingTime = time;
+            break;
+          }
+        }
+
+        if (!allTimesCompleted && firstMissingTime) {
+          const [hours, minutes] = firstMissingTime.split(':').map(Number);
+          checkDate.setHours(hours, minutes, 0, 0);
+          return checkDate;
+        }
+      } else {
+        const { data: records, error } = await supabase
+          .from('健康記錄主表')
+          .select('記錄id')
+          .eq('task_id', task.id)
+          .eq('記錄日期', dateStr)
+          .limit(1);
+
+        if (error) {
+          break;
+        }
+
+        if (!records || records.length === 0) {
+          if (task.specific_times && task.specific_times.length > 0) {
+            const timeStr = task.specific_times[0];
+            if (timeStr.includes(':')) {
+              const [hours, minutes] = timeStr.split(':').map(Number);
+              checkDate.setHours(hours, minutes, 0, 0);
+            }
+          } else if (isMonitoringTask(task.health_record_type)) {
+            checkDate.setHours(8, 0, 0, 0);
+          }
+
+          return checkDate;
+        }
+      }
     }
 
     // 檢查下一天
@@ -310,11 +299,39 @@ export function isTaskOverdue(task: PatientHealthTask, recordLookup?: Set<string
     return false;
   }
 
-  // [優先檢查] 如果提供了 recordLookup，先檢查今天是否已完成
-  if (recordLookup && todayStr) {
-    const todayKey = `${task.id}_${todayStr}`;
-    if (recordLookup.has(todayKey)) {
-      return false; // 今天已完成，不算逾期
+  // [優先檢查] 如果提供了 recordLookup，先檢查 next_due_at 指向的日期是否已完成
+  if (recordLookup) {
+    const dueDateStr = dueDate.toISOString().split('T')[0];
+    
+    // [修復] 對於多時間點任務，檢查 next_due_at 時間點是否已完成
+    if (task.specific_times && task.specific_times.length > 0) {
+      const normalizeTime = (time: string) => time ? time.substring(0, 5) : '';
+      const dueTimeStr = dueDate.toTimeString().substring(0, 5); // HH:MM
+      const normalizedDueTime = normalizeTime(dueTimeStr);
+      
+      const keyWithTime = `${task.id}_${dueDateStr}_${normalizedDueTime}`;
+      const keyWithTimePatient = `${task.patient_id}_${task.health_record_type}_${dueDateStr}_${normalizedDueTime}`;
+      
+      if (recordLookup.has(keyWithTime) || recordLookup.has(keyWithTimePatient)) {
+        return false; // next_due_at 指向的時間點已完成，不算逾期
+      }
+    } else {
+      // 單時間點或無時間點任務
+      const dueKey = `${task.id}_${dueDateStr}`;
+      const dueKeyPatient = `${task.patient_id}_${task.health_record_type}_${dueDateStr}`;
+      
+      if (recordLookup.has(dueKey) || recordLookup.has(dueKeyPatient)) {
+        return false; // next_due_at 指向的日期已完成，不算逾期
+      }
+    }
+    
+    // 另外檢查今天是否已完成（額外保險）
+    if (todayStr) {
+      const todayKey = `${task.id}_${todayStr}`;
+      const todayKeyPatient = `${task.patient_id}_${task.health_record_type}_${todayStr}`;
+      if (recordLookup.has(todayKey) || recordLookup.has(todayKeyPatient)) {
+        return false; // 今天已完成，不算逾期
+      }
     }
   }
 
@@ -350,11 +367,39 @@ export function isTaskPendingToday(task: PatientHealthTask, recordLookup?: Set<s
     return false;
   }
 
-  // [優先檢查] 如果提供了 recordLookup，先檢查今天是否已完成
-  if (recordLookup && todayStr) {
-    const todayKey = `${task.id}_${todayStr}`;
-    if (recordLookup.has(todayKey)) {
-      return false; // 今天已完成，不算待辦
+  // [優先檢查] 如果提供了 recordLookup，先檢查 next_due_at 指向的日期是否已完成
+  if (recordLookup) {
+    const dueDateStr = dueDate.toISOString().split('T')[0];
+    
+    // [修復] 對於多時間點任務，檢查 next_due_at 時間點是否已完成
+    if (task.specific_times && task.specific_times.length > 0) {
+      const normalizeTime = (time: string) => time ? time.substring(0, 5) : '';
+      const dueTimeStr = dueDate.toTimeString().substring(0, 5); // HH:MM
+      const normalizedDueTime = normalizeTime(dueTimeStr);
+      
+      const keyWithTime = `${task.id}_${dueDateStr}_${normalizedDueTime}`;
+      const keyWithTimePatient = `${task.patient_id}_${task.health_record_type}_${dueDateStr}_${normalizedDueTime}`;
+      
+      if (recordLookup.has(keyWithTime) || recordLookup.has(keyWithTimePatient)) {
+        return false; // next_due_at 指向的時間點已完成，不算待辦
+      }
+    } else {
+      // 單時間點或無時間點任務
+      const dueKey = `${task.id}_${dueDateStr}`;
+      const dueKeyPatient = `${task.patient_id}_${task.health_record_type}_${dueDateStr}`;
+      
+      if (recordLookup.has(dueKey) || recordLookup.has(dueKeyPatient)) {
+        return false; // next_due_at 指向的日期已完成，不算待辦
+      }
+    }
+    
+    // 另外檢查今天是否已完成（額外保險）
+    if (todayStr) {
+      const todayKey = `${task.id}_${todayStr}`;
+      const todayKeyPatient = `${task.patient_id}_${task.health_record_type}_${todayStr}`;
+      if (recordLookup.has(todayKey) || recordLookup.has(todayKeyPatient)) {
+        return false; // 今天已完成，不算待辦
+      }
     }
   }
 

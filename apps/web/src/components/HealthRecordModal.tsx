@@ -470,6 +470,19 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
         console.log('[saveRecord] 更新成功，準備關閉 Modal');
         onClose();
         console.log('[saveRecord] 已調用 onClose()');
+        
+        // [核心修復] 更新記錄時也需要同步任務狀態
+        if (onTaskCompleted && (initialData?.task?.id || record?.task_id)) {
+          const taskId = initialData?.task?.id || record?.task_id;
+          console.log('[saveRecord] 更新記錄後調用 onTaskCompleted', {
+            taskId,
+            recordDate: formData.記錄日期,
+            recordTime: formData.記錄時間
+          });
+          const recordDateTime = new Date(`${formData.記錄日期}T${formData.記錄時間}`);
+          onTaskCompleted(taskId, recordDateTime);
+          console.log('[saveRecord] onTaskCompleted 已調用');
+        }
       } else {
         console.log('[saveRecord] 新增記錄');
         await addHealthRecord(recordData);

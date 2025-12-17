@@ -1832,62 +1832,46 @@ export const createBatchHealthRecords = async (records: Omit<HealthRecord, '記�
 
 // [修復可能性2] 核心同步功能 - 使用智能推進策略並添加詳細日誌
 export const syncTaskStatus = async (taskId: string) => {
-  console.log('\n🔄 [syncTaskStatus] 開始同步任務狀態（智能推進）:', taskId);
-
-  // 使用全域定義的 CUTOFF
   const SYNC_CUTOFF_DATE = new Date(SYNC_CUTOFF_DATE_STR);
 
   const { data: task, error: taskError } = await supabase.from('patient_health_tasks').select('*').eq('id', taskId).single();
   if (taskError || !task) {
-    console.error('❌ [syncTaskStatus] 無法找到任務:', taskId);
     return;
   }
 
-  console.log(`  任務類型: ${task.health_record_type}`);
-  console.log(`  當前 next_due_at: ${task.next_due_at}`);
-  console.log(`  當前 last_completed_at: ${task.last_completed_at}`);
-
   const { data: latestRecord } = await supabase.from('健康記錄主表').select('記錄日期, 記錄時間, task_id').eq('task_id', taskId).order('記錄日期', { ascending: false }).order('記錄時間', { ascending: false }).limit(1).maybeSingle();
-
-  console.log(`  查詢最新記錄: ${latestRecord ? `${latestRecord.記錄日期} ${latestRecord.記錄時間}` : '無記錄'}`);
 
   let updates = {};
 
   if (latestRecord) {
     const recordDate = new Date(latestRecord.記錄日期);
-    // [修復可能性2] 如果最新記錄早於或等於分界線，則不進行同步
     if (recordDate <= SYNC_CUTOFF_DATE) {
-      console.log('  ⚠️ 最新記錄早於分界線，跳過同步:', latestRecord.記錄日期);
       return;
     }
     const lastCompletedAt = new Date(`${latestRecord.記錄日期}T${latestRecord.記錄時間}`);
 
-    // [修復可能性2] 策略2：智能推進 - 從 next_due_at 開始找第一個未完成的日期
     const { findFirstMissingDate } = await import('../utils/taskScheduler');
-    const startDate = task.next_due_at ? new Date(task.next_due_at) : new Date();
-    console.log(`  從 ${startDate.toISOString().split('T')[0]} 開始查找第一個未完成日期...`);
+    const startDate = new Date(latestRecord.記錄日期);
+    startDate.setDate(startDate.getDate() - 14);
+    startDate.setHours(0, 0, 0, 0);
+    
+    if (startDate < SYNC_CUTOFF_DATE) {
+      startDate.setTime(SYNC_CUTOFF_DATE.getTime());
+    }
 
     const nextDueAt = await findFirstMissingDate(task, startDate, supabase);
 
-    console.log(`  ✅ 找到最新記錄 (${latestRecord.記錄日期})，智能推進到: ${nextDueAt.toISOString()}`);
     updates = {
       last_completed_at: lastCompletedAt.toISOString(),
       next_due_at: nextDueAt.toISOString()
     };
-    console.log('  更新內容:', updates);
   } else {
-    console.log('  ⚠️ 該任務已無任何記錄，重置為初始狀態');
     const resetDate = new Date();
     resetDate.setHours(8, 0, 0, 0);
     updates = { last_completed_at: null, next_due_at: resetDate.toISOString() };
   }
 
-  const { error: updateError } = await supabase.from('patient_health_tasks').update(updates).eq('id', taskId);
-  if (updateError) {
-    console.error('❌ [syncTaskStatus] 更新任務狀態失敗:', updateError);
-  } else {
-    console.log('✅ [syncTaskStatus] 任務狀態更新成功');
-  }
+  await supabase.from('patient_health_tasks').update(updates).eq('id', taskId);
 };
 
 export default null;

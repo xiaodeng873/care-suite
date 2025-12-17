@@ -264,6 +264,25 @@ const TaskManagement: React.FC = () => {
     return sortedTasks.slice(startIndex, endIndex);
   }, [sortedTasks, startIndex, endIndex]);
 
+  const scheduledTasks = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return patientHealthTasks.filter(task => getTaskStatus(task, recordLookup, todayStr) === 'scheduled');
+  }, [patientHealthTasks, recordLookup]);
+
+  const stats = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return {
+      total: patientHealthTasks.length,
+      overdue: patientHealthTasks.filter(task => isTaskOverdue(task, recordLookup, todayStr)).length,
+      pending: patientHealthTasks.filter(task => isTaskPendingToday(task, recordLookup, todayStr)).length,
+      dueSoon: patientHealthTasks.filter(task => getTaskStatus(task, recordLookup, todayStr) === 'due_soon').length,
+      vitalSigns: patientHealthTasks.filter(task => task.health_record_type === '生命表徵').length,
+      bloodSugar: patientHealthTasks.filter(task => task.health_record_type === '血糖控制').length,
+      weight: patientHealthTasks.filter(task => task.health_record_type === '體重控制').length,
+      scheduled: scheduledTasks.length
+    };
+  }, [patientHealthTasks, recordLookup, scheduledTasks]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -459,11 +478,6 @@ const TaskManagement: React.FC = () => {
     }
   };
 
-  const scheduledTasks = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    return patientHealthTasks.filter(task => getTaskStatus(task, recordLookup, todayStr) === 'scheduled');
-  }, [patientHealthTasks, recordLookup]);
-
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode }> = ({ field, children }) => (
     <th 
       className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
@@ -479,20 +493,6 @@ const TaskManagement: React.FC = () => {
       </div>
     </th>
   );
-
-  const stats = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    return {
-      total: patientHealthTasks.length,
-      overdue: patientHealthTasks.filter(task => isTaskOverdue(task, recordLookup, todayStr)).length,
-      pending: patientHealthTasks.filter(task => isTaskPendingToday(task, recordLookup, todayStr)).length,
-      dueSoon: patientHealthTasks.filter(task => getTaskStatus(task, recordLookup, todayStr) === 'due_soon').length,
-      vitalSigns: patientHealthTasks.filter(task => task.health_record_type === '生命表徵').length,
-      bloodSugar: patientHealthTasks.filter(task => task.health_record_type === '血糖控制').length,
-      weight: patientHealthTasks.filter(task => task.health_record_type === '體重控制').length,
-      scheduled: scheduledTasks.length
-    };
-  }, [patientHealthTasks, recordLookup, scheduledTasks]);
 
   return (
     <div className="space-y-6">
