@@ -1,0 +1,594 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* iPad 橫向模式專用樣式 - 大幅縮小所有元件 */
+@media (min-width: 1024px) and (max-width: 1280px) {
+  /* 整體間距縮小 */
+  .space-y-6 {
+    row-gap: 0.5rem !important;
+  }
+
+  /* Dashboard 任務卡片 */
+  .dashboard-task-card {
+    padding: 0.375rem;
+    column-gap: 0.375rem;
+  }
+
+  .dashboard-task-card .task-avatar {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .dashboard-task-card .task-avatar .lucide {
+    height: 0.75rem;
+    width: 0.75rem;
+  }
+
+  /* 監測任務卡片通用文字縮小 */
+  .dashboard-task-card .flex-1 > .flex.items-center > p.font-medium {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .dashboard-task-card .flex-1 > .flex.items-center > span.text-xs {
+    font-size: 9px;
+    line-height: 0.875rem;
+  }
+
+  .dashboard-task-card .flex-1 > .flex.items-center > p.text-sm {
+    font-size: 0.65rem;
+    line-height: 0.875rem;
+  }
+
+  .dashboard-task-card .flex-1 > p.text-xs {
+    font-size: 9px;
+    line-height: 0.875rem;
+    margin-top: 0.125rem;
+  }
+
+  .dashboard-task-card .flex-1 > .flex.items-center {
+    margin-top: 0.125rem;
+  }
+
+  .dashboard-task-card .status-badge {
+    font-size: 9px;
+    padding: 0.125rem 0.25rem;
+  }
+
+  .dashboard-task-card .task-note-badge {
+    font-size: 9px;
+    padding: 0.125rem 0.25rem;
+    top: 0.25rem;
+    right: 0.25rem;
+  }
+
+  /* 時段標題 */
+  .time-slot-title {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    margin-bottom: 0.25rem;
+  }
+
+  /* 卡片標題 */
+  .section-title {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  /* 統計卡片 */
+  .stats-card {
+    padding: 0.5rem;
+  }
+
+  .stats-card .stat-title {
+    font-size: 0.65rem;
+    line-height: 0.875rem;
+  }
+
+  .stats-card .stat-value {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
+  .stats-card .stat-change {
+    font-size: 0.65rem;
+    line-height: 0.875rem;
+    margin-top: 0.125rem;
+  }
+
+  .stats-card .stat-icon-wrapper {
+    padding: 0.375rem;
+  }
+
+  .stats-card .stat-icon-wrapper .lucide {
+    height: 1rem;
+    width: 1rem;
+  }
+
+  /* 待辦事項和近期覆診卡片 */
+  .card.lg\:p-4 {
+    padding: 0.75rem;
+  }
+
+  /* 待辦事項和近期覆診的內容項目 */
+  .card .space-y-3 {
+    row-gap: 0.5rem !important;
+  }
+
+  .card .space-y-3 > div {
+    padding: 0.375rem;
+    column-gap: 0.375rem;
+  }
+
+  .card .space-y-3 > div .w-10.h-10 {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .card .space-y-3 > div .w-10.h-10 .lucide {
+    height: 0.75rem;
+    width: 0.75rem;
+  }
+
+  .card .space-y-3 > div .flex-1 p.font-medium {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .card .space-y-3 > div .flex-1 span.text-xs,
+  .card .space-y-3 > div .flex-1 p.text-xs {
+    font-size: 9px;
+    line-height: 0.875rem;
+  }
+
+  .card .space-y-3 > div .flex-1 p.text-sm {
+    font-size: 0.65rem;
+    line-height: 0.875rem;
+  }
+
+  .card .space-y-3 > div .status-badge {
+    font-size: 9px;
+    padding: 0.125rem 0.25rem;
+  }
+
+  .card .space-y-3 > div .flex-1 .lucide {
+    height: 0.75rem;
+    width: 0.75rem;
+  }
+
+  /* 卡片標題區域 */
+  .card .flex.items-center.justify-between.mb-4 {
+    margin-bottom: 0.5rem;
+  }
+
+  .card .flex.items-center.justify-between a.text-sm {
+    font-size: 0.65rem;
+    line-height: 0.875rem;
+  }
+
+  /* 網格間距 */
+  .grid.gap-6 {
+    gap: 0.5rem !important;
+  }
+
+  .grid.lg\:gap-3 {
+    gap: 0.375rem !important;
+  }
+
+  .grid.gap-3.lg\:gap-2 {
+    gap: 0.375rem !important;
+  }
+
+  /* 頂部更新時間 */
+  .text-sm.text-gray-500 {
+    font-size: 0.65rem;
+    line-height: 0.875rem;
+  }
+
+  /* ===== 第一組卡片：欠缺必要項目、執核派藥逾期、待變更處方 ===== */
+
+  /* 通用卡片 p-6 縮小 */
+  .card.p-6 {
+    padding: 0.75rem !important;
+  }
+
+  /* 卡片標題區域的圖標容器 */
+  .card .p-2.rounded-lg {
+    padding: 0.375rem;
+  }
+
+  /* 卡片標題區域的圖標 */
+  .card .p-2.rounded-lg .lucide {
+    height: 1rem;
+    width: 1rem;
+  }
+
+  /* 卡片主標題 */
+  .card h2.text-lg {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  /* 卡片副標題 */
+  .card p.text-sm.text-gray-600 {
+    font-size: 0.65rem;
+    line-height: 0.875rem;
+  }
+
+  /* space-y-2 間距縮小 */
+  .card .space-y-2 {
+    row-gap: 0.375rem !important;
+  }
+
+  /* 列表項目內邊距 */
+  .card .space-y-2 > div.p-3 {
+    padding: 0.375rem;
+    column-gap: 0.375rem;
+  }
+
+  /* 列表項目圖標 */
+  .card .space-y-2 > div .lucide {
+    height: 0.75rem;
+    width: 0.75rem;
+  }
+
+  /* 列表項目文字 - font-medium */
+  .card .space-y-2 > div span.font-medium {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  /* 列表項目文字 - text-sm */
+  .card .space-y-2 > div span.text-sm,
+  .card .space-y-2 > div .text-sm {
+    font-size: 0.65rem;
+    line-height: 0.875rem;
+  }
+
+  /* 列表項目按鈕 */
+  .card .space-y-2 > div button.text-xs {
+    font-size: 9px;
+    padding: 0.125rem 0.25rem;
+  }
+
+  /* 展開/收起按鈕 */
+  .card button.p-3.border-2 {
+    padding: 0.5rem;
+    font-size: 0.65rem;
+  }
+
+  .card button.p-3.border-2 .lucide {
+    height: 0.75rem;
+    width: 0.75rem;
+  }
+
+  /* 執核派藥逾期卡片 - 展開/收起小按鈕 */
+  .card button.p-1 {
+    padding: 0.125rem;
+  }
+
+  .card button.p-1 .lucide {
+    height: 0.875rem;
+    width: 0.875rem;
+  }
+
+  /* 執核派藥逾期卡片 - 日期網格 */
+  .card .grid.grid-cols-2.gap-2 {
+    gap: 0.375rem;
+  }
+
+  .card .grid.grid-cols-2.gap-2 button {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.65rem;
+  }
+
+  .card .grid.grid-cols-2.gap-2 button .font-medium {
+    font-size: 0.65rem;
+  }
+
+  .card .grid.grid-cols-2.gap-2 button .text-xs {
+    font-size: 9px;
+  }
+
+  /* 執核派藥逾期卡片 - px-3 pb-3 區域 */
+  .card .px-3.pb-3 {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .card .px-3.pb-3 .text-xs {
+    font-size: 9px;
+  }
+
+  /* 待變更處方卡片 - space-x-1 按鈕組 */
+  .card .flex.space-x-1 {
+    column-gap: 0.25rem;
+  }
+
+  /* ArrowRight 圖標縮小 */
+  .card .lucide-arrow-right {
+    height: 0.75rem;
+    width: 0.75rem;
+  }
+
+  /* space-x-3 間距縮小 */
+  .card .flex.items-center.space-x-3 {
+    column-gap: 0.5rem;
+  }
+
+  /* 確保 mb-4 在 iPad 橫向模式下變小 */
+  .card .mb-4 {
+    margin-bottom: 0.5rem;
+  }
+
+  /* 空狀態圖標和文字 */
+  .card .text-center.py-8 {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .card .text-center .h-12.w-12 {
+    height: 2rem;
+    width: 2rem;
+  }
+
+  .card .text-center .mb-3 {
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* 藥物工作流程表格固定表頭 */
+.overflow-x-auto table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.overflow-x-auto table thead th {
+  background-color: rgb(249, 250, 251); /* bg-gray-50 */
+  border-bottom: 2px solid rgb(229, 231, 235); /* border-gray-200 */
+}
+
+/* 確保固定表頭在 iPad 橫向模式也正常工作 */
+@media (min-width: 1024px) and (max-width: 1280px) {
+  .overflow-x-auto table thead th {
+    background-color: rgb(249, 250, 251);
+    font-size: 0.65rem;
+    padding: 0.375rem 0.25rem;
+  }
+}
+
+/* 手機直向模式響應式樣式 */
+@media (max-width: 640px) {
+  /* 移除所有強制不換行的設定 */
+  .whitespace-nowrap {
+    white-space: normal !important;
+  }
+
+  /* 模態框容器優化 */
+  .fixed.inset-0 > div {
+    margin: 0.5rem;
+    max-height: 95vh;
+  }
+
+  /* 按鈕響應式優化 */
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+  }
+
+  /* 卡片內邊距優化 */
+  .card {
+    padding: 0.75rem !important;
+  }
+
+  .card.p-6 {
+    padding: 0.75rem !important;
+  }
+
+  /* 表單輸入框優化 */
+  .form-input {
+    font-size: 1rem;
+    padding: 0.625rem 0.75rem;
+  }
+
+  /* 表單標籤優化 */
+  .form-label {
+    font-size: 0.875rem;
+    margin-bottom: 0.375rem;
+  }
+
+  /* 狀態徽章優化 */
+  .status-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    white-space: normal;
+    text-align: center;
+  }
+
+  /* 標題優化 */
+  h1 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+    line-height: 1.5rem;
+  }
+
+  /* 網格布局優化 - 強制單列 */
+  .grid.md\:grid-cols-2,
+  .grid.lg\:grid-cols-2,
+  .grid.grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .grid.md\:grid-cols-3,
+  .grid.lg\:grid-cols-3,
+  .grid.grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .grid.md\:grid-cols-4,
+  .grid.lg\:grid-cols-4,
+  .grid.grid-cols-4 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* 間距優化 */
+  .space-x-2 > * + * {
+    margin-left: 0.375rem;
+  }
+
+  .space-x-3 > * + * {
+    margin-left: 0.5rem;
+  }
+
+  .space-x-4 > * + * {
+    margin-left: 0.75rem;
+  }
+
+  .space-y-2 > * + * {
+    margin-top: 0.375rem;
+  }
+
+  .space-y-3 > * + * {
+    margin-top: 0.5rem;
+  }
+
+  .space-y-4 > * + * {
+    margin-top: 0.75rem;
+  }
+
+  /* 圖標尺寸優化 */
+  .lucide {
+    flex-shrink: 0;
+  }
+
+  /* Dashboard 任務卡片優化 */
+  .dashboard-task-card {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .dashboard-task-card .task-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    flex-shrink: 0;
+  }
+
+  .dashboard-task-card .flex-1 {
+    min-width: 0;
+  }
+
+  .dashboard-task-card .flex-1 p,
+  .dashboard-task-card .flex-1 span {
+    word-break: break-word;
+  }
+
+  /* 確保彈性容器內的文字能正確換行 */
+  .flex .flex-1 {
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  /* 表格響應式 */
+  table {
+    font-size: 0.875rem;
+  }
+
+  table th,
+  table td {
+    padding: 0.5rem 0.375rem;
+  }
+
+  /* 模態框標題區域優化 */
+  .fixed .bg-white.rounded-lg > div:first-child {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* 按鈕組優化 */
+  .flex.space-x-3 button {
+    min-width: 0;
+    flex: 1;
+    white-space: normal;
+    word-break: keep-all;
+  }
+
+  /* 輸入框容器優化 */
+  .grid.gap-4 {
+    gap: 0.75rem;
+  }
+
+  /* 確保所有文字容器都能正確換行 */
+  p, span, label, button {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+  }
+
+  /* 監測狀態卡片優化 */
+  .bg-red-50,
+  .bg-orange-50,
+  .bg-blue-50,
+  .bg-green-50 {
+    padding: 0.75rem;
+  }
+
+  /* 選擇框優化 */
+  select.form-input {
+    font-size: 1rem;
+    padding: 0.625rem 0.75rem;
+  }
+
+  /* 文字域優化 */
+  textarea.form-input {
+    font-size: 1rem;
+    padding: 0.625rem 0.75rem;
+  }
+
+  /* 避免按鈕內文字過長溢出 */
+  button {
+    word-break: keep-all;
+    hyphens: auto;
+  }
+
+  /* 確保模態框內容可滾動 */
+  .fixed.inset-0 .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 內邊距優化 */
+  .p-4 {
+    padding: 0.75rem;
+  }
+
+  .p-6 {
+    padding: 1rem;
+  }
+
+  /* 外邊距優化 */
+  .m-4 {
+    margin: 0.75rem;
+  }
+
+  .mb-4 {
+    margin-bottom: 0.75rem;
+  }
+
+  .mt-4 {
+    margin-top: 0.75rem;
+  }
+}

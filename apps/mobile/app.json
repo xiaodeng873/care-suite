@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "護理記錄",
+    "slug": "care-records-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2563eb"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stationc.carerecords",
+      "infoPlist": {
+        "NSCameraUsageDescription": "此應用程式需要存取您的相機以掃描床位 QR Code"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2563eb"
+      },
+      "package": "com.stationc.carerecords",
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "此應用程式需要存取您的相機以掃描床位 QR Code"
+        }
+      ]
+    ]
+  }
+}

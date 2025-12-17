@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPad 數字鍵盤測試</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #007AFF;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #007AFF;
+            margin-top: 0;
+        }
+        label {
+            display: block;
+            margin: 15px 0 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: #007AFF;
+            background: #f0f8ff;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f5e9;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .info {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #ffc107;
+            margin-bottom: 20px;
+        }
+        .success {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        .error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 iPad 數字鍵盤測試頁面</h1>
+
+    <div class="info">
+        <strong>測試說明：</strong><br>
+        請在 iPad 橫向模式下測試以下輸入欄位。<br>
+        點擊輸入框時，應該會看到對應的數字鍵盤而非完整 QWERTY 鍵盤。
+    </div>
+
+    <!-- 測試 1: type="number" + inputMode -->
+    <div class="test-section">
+        <h2>❌ 測試 1: type="number" + inputMode（預期失敗）</h2>
+        <p>在 iOS Safari 上，這個方法<strong>不會生效</strong>。</p>
+
+        <label>血壓收縮壓 (type="number" + inputmode="numeric")</label>
+        <input
+            type="number"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            placeholder="120"
+            id="test1"
+        >
+        <div class="result">
+            配置: type="number" + inputmode="numeric"<br>
+            預期: 完整鍵盤（iOS Safari 會忽略 inputmode）
+        </div>
+    </div>
+
+    <!-- 測試 2: type="text" + inputMode -->
+    <div class="test-section">
+        <h2>✅ 測試 2: type="text" + inputMode（應該成功）</h2>
+
+        <label>血壓收縮壓 (type="text" + inputmode="numeric")</label>
+        <input
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            placeholder="120"
+            id="test2-numeric"
+            oninput="validateNumeric(this, 0, 300)"
+        >
+        <div class="result" id="result2-numeric">
+            配置: type="text" + inputmode="numeric"<br>
+            預期: 純數字鍵盤 (0-9)
+        </div>
+
+        <label>體溫 (type="text" + inputmode="decimal")</label>
+        <input
+            type="text"
+            inputmode="decimal"
+            pattern="[0-9.]*"
+            placeholder="36.5"
+            id="test2-decimal"
+            oninput="validateDecimal(this, 30, 45)"
+        >
+        <div class="result" id="result2-decimal">
+            配置: type="text" + inputmode="decimal"<br>
+            預期: 帶小數點的數字鍵盤
+        </div>
+    </div>
+
+    <!-- 測試 3: type="tel" -->
+    <div class="test-section">
+        <h2>📱 測試 3: type="tel"（備選方案）</h2>
+
+        <label>血壓收縮壓 (type="tel")</label>
+        <input
+            type="tel"
+            placeholder="120"
+            id="test3"
+            oninput="validateNumeric(this, 0, 300)"
+        >
+        <div class="result">
+            配置: type="tel"<br>
+            預期: 電話號碼鍵盤（包含數字和部分符號）
+        </div>
+    </div>
+
+    <!-- 裝置資訊 -->
+    <div class="test-section">
+        <h2>📱 裝置資訊</h2>
+        <div class="result">
+            <strong>User Agent:</strong><br>
+            <span id="userAgent"></span><br><br>
+            <strong>螢幕寬度:</strong> <span id="screenWidth"></span>px<br>
+            <strong>視窗寬度:</strong> <span id="windowWidth"></span>px<br>
+            <strong>裝置方向:</strong> <span id="orientation"></span><br>
+            <strong>觸控支援:</strong> <span id="touchSupport"></span>
+        </div>
+    </div>
+
+    <!-- 測試記錄 -->
+    <div class="test-section">
+        <h2>📝 測試記錄</h2>
+        <div id="testLog" class="result">
+            等待測試輸入...
+        </div>
+    </div>
+
+    <script>
+        // 顯示裝置資訊
+        document.getElementById('userAgent').textContent = navigator.userAgent;
+        document.getElementById('screenWidth').textContent = screen.width;
+        document.getElementById('windowWidth').textContent = window.innerWidth;
+        document.getElementById('orientation').textContent =
+            window.innerWidth > window.innerHeight ? '橫向 (Landscape)' : '直向 (Portrait)';
+        document.getElementById('touchSupport').textContent =
+            'ontouchstart' in window ? '是' : '否';
+
+        // 純數字驗證
+        function validateNumeric(input, min, max) {
+            const value = input.value.replace(/[^0-9]/g, '');
+            if (value === '' || (parseInt(value) >= min && parseInt(value) <= max)) {
+                input.value = value;
+                logInput(input.id, value);
+            } else {
+                input.value = input.value.slice(0, -1);
+            }
+        }
+
+        // 小數驗證
+        function validateDecimal(input, min, max) {
+            const value = input.value.replace(/[^0-9.]/g, '');
+            const parts = value.split('.');
+            if (parts.length > 2) {
+                input.value = input.value.slice(0, -1);
+                return;
+            }
+            if (value === '' || value === '.' ||
+                (parseFloat(value) >= min && parseFloat(value) <= max) ||
+                value.endsWith('.')) {
+                input.value = value;
+                logInput(input.id, value);
+            } else {
+                input.value = input.value.slice(0, -1);
+            }
+        }
+
+        // 記錄輸入
+        const logEntries = [];
+        function logInput(inputId, value) {
+            const timestamp = new Date().toLocaleTimeString('zh-TW');
+            logEntries.unshift(`[${timestamp}] ${inputId}: "${value}"`);
+            document.getElementById('testLog').innerHTML =
+                logEntries.slice(0, 10).join('<br>');
+        }
+
+        // 監聽焦點事件
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('focus', function() {
+                console.log('Input focused:', this.id);
+                console.log('Type:', this.type);
+                console.log('InputMode:', this.getAttribute('inputmode'));
+                console.log('Pattern:', this.pattern);
+            });
+        });
+
+        // 監聽方向改變
+        window.addEventListener('orientationchange', function() {
+            setTimeout(() => {
+                document.getElementById('orientation').textContent =
+                    window.innerWidth > window.innerHeight ? '橫向 (Landscape)' : '直向 (Portrait)';
+                document.getElementById('windowWidth').textContent = window.innerWidth;
+            }, 100);
+        });
+    </script>
+</body>
+</html>
