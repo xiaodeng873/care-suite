@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../lib/i18n';
 
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -15,7 +16,19 @@ import RecordDetailScreen from '../screens/RecordDetailScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+const HomeStack = () => {
+  const Home = createNativeStackNavigator();
+  return (
+    <Home.Navigator screenOptions={{ headerShown: false }}>
+      <Home.Screen name="HomeScreen" component={HomeScreen} />
+      <Home.Screen name="CareRecords" component={CareRecordsScreen} />
+      <Home.Screen name="RecordDetail" component={RecordDetailScreen} />
+    </Home.Navigator>
+  );
+};
+
 const MainTabs = () => {
+  const { t } = useTranslation();
   return (
     <Tab.Navigator
       initialRouteName="Scan"
@@ -51,17 +64,23 @@ const MainTabs = () => {
       <Tab.Screen
         name="Scan"
         component={ScanScreen}
-        options={{ tabBarLabel: '掃描' }}
+        options={{ tabBarLabel: t('scan') }}
       />
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
-        options={{ tabBarLabel: '院友列表' }}
+        component={HomeStack}
+        options={{ tabBarLabel: t('patientList') }}
+        listeners={({ navigation }) => ({
+          tabPress: e => {
+            // When Home tab is pressed, ensure we go to the HomeScreen (pop to top)
+            navigation.navigate('Home', { screen: 'HomeScreen' });
+          },
+        })}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ tabBarLabel: '設定' }}
+        options={{ tabBarLabel: t('settings') }}
       />
     </Tab.Navigator>
   );
@@ -80,16 +99,6 @@ const AppNavigator = () => {
         {user ? (
           <>
             <Stack.Screen name="MainTabs" component={MainTabs} />
-            <Stack.Screen
-              name="CareRecords"
-              component={CareRecordsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="RecordDetail"
-              component={RecordDetailScreen}
-              options={{ headerShown: false }}
-            />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

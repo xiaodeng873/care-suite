@@ -8,6 +8,8 @@ export interface Patient {
   中文姓氏: string;
   中文名字: string;
   英文姓名?: string;
+  英文姓氏?: string;
+  英文名字?: string;
   性別: '男' | '女';
   身份證號碼: string;
   出生日期?: string;
@@ -20,6 +22,14 @@ export interface Patient {
   在住狀態?: '在住' | '待入住' | '已退住';
   station_id?: string;
   bed_id?: string;
+}
+
+export interface Station {
+  id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Bed {
@@ -57,6 +67,7 @@ export interface DiaperChangeRecord {
   stool_color?: string;
   stool_texture?: string;
   stool_amount?: string;
+  notes?: string;
   recorder: string;
   created_at: string;
   updated_at: string;
@@ -82,6 +93,7 @@ export interface PositionChangeRecord {
   change_date: string;
   scheduled_time: string;
   position: '左' | '平' | '右';
+  notes?: string;
   recorder: string;
   created_at: string;
   updated_at: string;
@@ -112,6 +124,28 @@ export interface PatientAdmissionRecord {
   updated_at: string;
 }
 
+export interface PatientCareTab {
+  id: string;
+  patient_id: number;
+  tab_type: 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training';
+  is_manually_added: boolean;
+  is_hidden: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HealthAssessment {
+  id: string;
+  patient_id: number;
+  assessment_date: string;
+  next_due_date?: string;
+  daily_activities?: {
+    max_activity?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
 // 資料庫操作函數
 export const getPatients = async (): Promise<Patient[]> => {
   const { data, error } = await supabase
@@ -119,6 +153,15 @@ export const getPatients = async (): Promise<Patient[]> => {
     .select('*')
     .eq('在住狀態', '在住')
     .order('床號', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const getStations = async (): Promise<Station[]> => {
+  const { data, error } = await supabase
+    .from('stations')
+    .select('*')
+    .order('name', { ascending: true });
   if (error) throw error;
   return data || [];
 };
@@ -184,8 +227,13 @@ export const getPatrolRoundsInDateRange = async (startDate: string, endDate: str
 };
 
 export const createPatrolRound = async (round: Omit<PatrolRound, 'id' | 'created_at' | 'updated_at'>): Promise<PatrolRound> => {
+  console.log('[DB] Creating patrol round:', round);
   const { data, error } = await supabase.from('patrol_rounds').insert([round]).select().single();
-  if (error) throw error;
+  if (error) {
+    console.error('[DB] Failed to create patrol round:', error);
+    throw error;
+  }
+  console.log('[DB] Patrol round created successfully:', data.id);
   return data;
 };
 
@@ -279,7 +327,34 @@ export const createPositionChangeRecord = async (record: Omit<PositionChangeReco
   return data;
 };
 
+export const updatePositionChangeRecord = async (record: PositionChangeRecord): Promise<PositionChangeRecord> => {
+  const { id, created_at, updated_at, ...updateData } = record;
+  const { data, error } = await supabase.from('position_change_records').update(updateData).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+
 export const deletePositionChangeRecord = async (recordId: string): Promise<void> => {
   const { error } = await supabase.from('position_change_records').delete().eq('id', recordId);
   if (error) throw error;
+};
+
+export const getPatientCareTabs = async (patientId: number): Promise<PatientCareTab[]> => {
+  const { data, error } = await supabase
+    .from('patient_care_tabs')
+    .select('*')
+    .eq('patient_id', patientId)
+    .eq('is_hidden', false)
+    .order('tab_type', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const getHealthAssessments = async (): Promise<HealthAssessment[]> => {
+  const { data, error } = await supabase
+    .from('health_assessments')
+    .select('*')
+    .order('assessment_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
 };

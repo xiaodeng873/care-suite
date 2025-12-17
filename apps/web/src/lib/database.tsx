@@ -381,7 +381,6 @@ export interface PatrolRound {
   patrol_time: string;
   scheduled_time: string;
   recorder: string;
-  notes?: string;
   created_at: string;
   updated_at: string;
 }

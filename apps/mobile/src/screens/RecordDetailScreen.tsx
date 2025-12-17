@@ -28,16 +28,55 @@ import {
   updateRestraintObservationRecord,
   deleteRestraintObservationRecord,
   createPositionChangeRecord,
+  updatePositionChangeRecord,
   deletePositionChangeRecord,
 } from '../lib/database';
-import { addRandomOffset, getPositionSequence } from '../utils/careRecordHelper';
+import { supabase } from '../lib/supabase';
+import { addRandomOffset, getPositionSequence, STATUS_OPTIONS, isStatusNote } from '../utils/careRecordHelper';
+import { eventBus } from '../lib/eventBus';
+import { useTranslation, usePatientName } from '../lib/i18n';
 
 type RecordType = 'patrol' | 'diaper' | 'restraint' | 'position';
 
+// Helper function to translate option values
+const translateOption = (opt: string, t: (key: any) => string): string => {
+  const optionMap: { [key: string]: string } = {
+    '多': t('large'),
+    '中': t('medium'),
+    '少': t('small'),
+    '黃': t('yellowStool'),
+    '啡': t('brownStool'),
+    '綠': t('greenStool'),
+    '黑': t('blackStool'),
+    '紅': t('redStool'),
+    '硬': t('constipation'),
+    '軟': t('softStool'),
+    '稀': t('looseStool'),
+    '水狀': t('diarrhea'),
+    '左': t('leftPosition'),
+    '平': t('centerPosition'),
+    '右': t('rightPosition'),
+    '床欄': t('bedRail'),
+    '輪椅安全帶': t('wheelchairBelt'),
+    '輪椅餐桌板': t('wheelchairTable'),
+    '約束背心': t('vest'),
+    '手部約束帶': t('wristRestraint'),
+    '腳部約束帶': t('ankleRestraint'),
+    '手套': t('mitt'),
+    '入院': t('noteInHospital'),
+    '渡假': t('noteOnLeave'),
+    '外出': t('noteOutpatient'),
+  };
+  return optionMap[opt] || opt;
+};
+
 const RecordDetailScreen: React.FC = () => {
+  const { t } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { patient, recordType, date, timeSlot, existingRecord, staffName, restraintAssessments } = route.params;
+  const getPatientName = usePatientName();
+  const patientName = getPatientName(patient);
 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -46,6 +85,7 @@ const RecordDetailScreen: React.FC = () => {
   const [patrolTime, setPatrolTime] = useState('');
   const [recorder, setRecorder] = useState('');
   const [notes, setNotes] = useState('');
+  const [status, setStatus] = useState<'' | '入院' | '渡假' | '外出'>('');
 
   // Diaper Change state
   const [hasUrine, setHasUrine] = useState(false);
@@ -63,6 +103,62 @@ const RecordDetailScreen: React.FC = () => {
 
   // Position Change state
   const [position, setPosition] = useState<'左' | '平' | '右'>('左');
+
+  const clearPatrolFields = () => {
+    setNotes('');
+  };
+
+  const handlePatrolStatusSelect = (opt: '' | '入院' | '渡假' | '外出') => {
+    const next = status === opt ? '' : opt;
+    setStatus(next);
+    if (next) {
+      clearPatrolFields();
+    }
+  };
+
+  const clearDiaperFields = () => {
+    setHasUrine(false);
+    setHasStool(false);
+    setHasNone(false);
+    setUrineAmount('');
+    setStoolColor('');
+    setStoolTexture('');
+    setStoolAmount('');
+  };
+
+  const handleDiaperStatusSelect = (opt: '' | '入院' | '渡假' | '外出') => {
+    const next = status === opt ? '' : opt;
+    setStatus(next);
+    if (next) {
+      clearDiaperFields();
+    }
+  };
+
+  const clearRestraintFields = () => {
+    setObservationTime('');
+    setObservationStatus('N');
+    setSelectedRestraints([]);
+  };
+
+  const handleRestraintStatusSelect = (opt: '' | '入院' | '渡假' | '外出') => {
+    const next = status === opt ? '' : opt;
+    setStatus(next);
+    if (next) {
+      clearRestraintFields();
+    }
+  };
+
+  const clearPositionFields = () => {
+    setPosition('左');
+  };
+
+  const handlePositionStatusSelect = (opt: '' | '入院' | '渡假' | '外出') => {
+    const next = status === opt ? '' : opt;
+    setStatus(next);
+    if (next) {
+      clearPositionFields();
+    }
+  };
 
   // Get suggested restraints from assessment
   const getSuggestedRestraints = (): string[] => {
@@ -105,12 +201,21 @@ const RecordDetailScreen: React.FC = () => {
   useEffect(() => {
     if (existingRecord) {
       setRecorder(existingRecord.recorder || staffName);
-      setNotes(existingRecord.notes || '');
-
+      
       switch (recordType) {
         case 'patrol':
-          setPatrolTime(existingRecord.patrol_time || '');
+          // normalize to HH:MM (strip seconds if present)
+          setPatrolTime(existingRecord.patrol_time ? String(existingRecord.patrol_time).slice(0,5) : '');
           break;
+        case 'diaper':
+        case 'restraint':
+        case 'position':
+          setNotes(existingRecord.notes || '');
+          setStatus(isStatusNote(existingRecord.notes) ? existingRecord.notes as any : '');
+          break;
+      }
+
+      switch (recordType) {
         case 'diaper':
           setHasUrine(existingRecord.has_urine || false);
           setHasStool(existingRecord.has_stool || false);
@@ -121,7 +226,8 @@ const RecordDetailScreen: React.FC = () => {
           setStoolAmount(existingRecord.stool_amount || '');
           break;
         case 'restraint':
-          setObservationTime(existingRecord.observation_time || '');
+          // normalize to HH:MM
+          setObservationTime(existingRecord.observation_time ? String(existingRecord.observation_time).slice(0,5) : '');
           setObservationStatus(existingRecord.observation_status || 'N');
           if (existingRecord.used_restraints) {
             setSelectedRestraints(Object.keys(existingRecord.used_restraints).filter(k => existingRecord.used_restraints[k]));
@@ -137,7 +243,8 @@ const RecordDetailScreen: React.FC = () => {
         setPatrolTime(addRandomOffset(timeSlot));
       } else if (recordType === 'restraint') {
         setObservationTime(addRandomOffset(timeSlot));
-        setSelectedRestraints(suggestedRestraints);
+        // do not auto-select suggested restraints by default
+        setSelectedRestraints([]);
       } else if (recordType === 'position') {
         setPosition(getPositionSequence(timeSlot));
       }
@@ -146,11 +253,21 @@ const RecordDetailScreen: React.FC = () => {
 
   const handleSave = async () => {
     if (!recorder.trim()) {
-      Alert.alert('錯誤', '請輸入記錄者姓名');
+      Alert.alert(t('error'), t('pleaseEnterRecorderName'));
+      return;
+    }
+
+    if (!patient || !patient.院友id) {
+      console.error('Missing patient object or patient.院友id when saving');
+      Alert.alert(t('error'), t('patientDataNotFound'));
       return;
     }
 
     setLoading(true);
+    
+    // Emit optimistic update before saving
+    let savedRecord: any = null;
+    
     try {
       switch (recordType) {
         case 'patrol':
@@ -163,19 +280,38 @@ const RecordDetailScreen: React.FC = () => {
             patient_id: patient.院友id,
             patrol_date: date,
             scheduled_time: timeSlot,
-            patrol_time: patrolTime,
+            patrol_time: String(patrolTime).slice(0,5),
             recorder: recorder.trim(),
-            notes: notes.trim() || undefined,
           };
+          console.log('Saving patrolData:', patrolData);
+          console.log('Current user session:', (await supabase.auth.getSession()).data.session?.user?.email);
+          
+          // Emit optimistic update
+          const optimisticPatrol = existingRecord ? { ...existingRecord, ...patrolData } : { 
+            ...patrolData, 
+            id: 'temp-' + Date.now(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          eventBus.emit('recordSaved', { 
+            patientId: patient.院友id, 
+            recordType, 
+            record: optimisticPatrol,
+            isOptimistic: true 
+          });
+          
           if (existingRecord) {
-            await updatePatrolRound({ ...existingRecord, ...patrolData });
+            savedRecord = await updatePatrolRound({ ...existingRecord, ...patrolData });
+            console.log('✓ Patrol round updated in Supabase:', savedRecord.id);
           } else {
-            await createPatrolRound(patrolData);
+            savedRecord = await createPatrolRound(patrolData);
+            console.log('✓ Patrol round created in Supabase:', savedRecord.id);
+            console.log('✓ Full saved record:', JSON.stringify(savedRecord, null, 2));
           }
           break;
 
         case 'diaper':
-          if (!hasUrine && !hasStool && !hasNone) {
+          if (!hasUrine && !hasStool && !hasNone && !status) {
             Alert.alert('錯誤', '請選擇排泄情況');
             setLoading(false);
             return;
@@ -191,18 +327,35 @@ const RecordDetailScreen: React.FC = () => {
             stool_color: stoolColor || undefined,
             stool_texture: stoolTexture || undefined,
             stool_amount: stoolAmount || undefined,
+            notes: status ? status : (notes.trim() || undefined),
             recorder: recorder.trim(),
           };
+          console.log('Saving diaperData:', diaperData);
+          
+          // Emit optimistic update
+          const optimisticDiaper = existingRecord ? { ...existingRecord, ...diaperData } : { 
+            ...diaperData, 
+            id: 'temp-' + Date.now(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          eventBus.emit('recordSaved', { 
+            patientId: patient.院友id, 
+            recordType, 
+            record: optimisticDiaper,
+            isOptimistic: true 
+          });
+          
           if (existingRecord) {
-            await updateDiaperChangeRecord({ ...existingRecord, ...diaperData });
+            savedRecord = await updateDiaperChangeRecord({ ...existingRecord, ...diaperData });
           } else {
-            await createDiaperChangeRecord(diaperData);
+            savedRecord = await createDiaperChangeRecord(diaperData);
           }
           break;
 
         case 'restraint':
-          if (!observationTime) {
-            Alert.alert('錯誤', '請輸入實際觀察時間');
+          if (!observationTime && !status) {
+            Alert.alert('錯誤', '請選擇狀態或輸入實際觀察時間');
             setLoading(false);
             return;
           }
@@ -211,39 +364,104 @@ const RecordDetailScreen: React.FC = () => {
           const restraintData: Omit<RestraintObservationRecord, 'id' | 'created_at' | 'updated_at'> = {
             patient_id: patient.院友id,
             observation_date: date,
-            observation_time: observationTime,
+            observation_time: observationTime ? String(observationTime).slice(0,5) : '00:00',
             scheduled_time: timeSlot,
             observation_status: observationStatus,
             recorder: recorder.trim(),
-            notes: notes.trim() || undefined,
+            notes: status ? status : (notes.trim() || undefined),
             used_restraints: selectedRestraints.length > 0 ? usedRestraintsObj : undefined,
           };
+          console.log('Saving restraintData:', restraintData);
+          
+          // Emit optimistic update
+          const optimisticRestraint = existingRecord ? { ...existingRecord, ...restraintData } : { 
+            ...restraintData, 
+            id: 'temp-' + Date.now(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          eventBus.emit('recordSaved', { 
+            patientId: patient.院友id, 
+            recordType, 
+            record: optimisticRestraint,
+            isOptimistic: true 
+          });
+          
           if (existingRecord) {
-            await updateRestraintObservationRecord({ ...existingRecord, ...restraintData });
+            savedRecord = await updateRestraintObservationRecord({ ...existingRecord, ...restraintData });
           } else {
-            await createRestraintObservationRecord(restraintData);
+            savedRecord = await createRestraintObservationRecord(restraintData);
           }
           break;
 
         case 'position':
+          if (!status && !position) {
+            Alert.alert('錯誤', '請選擇轉身位置或狀態');
+            setLoading(false);
+            return;
+          }
           const positionData: Omit<PositionChangeRecord, 'id' | 'created_at' | 'updated_at'> = {
             patient_id: patient.院友id,
             change_date: date,
             scheduled_time: timeSlot,
-            position,
+            position: status ? '左' : position, // 当有状态时使用默认值
+            notes: status ? status : (notes.trim() || undefined),
             recorder: recorder.trim(),
           };
-          // Position records can only be created, not updated (per Web App design)
-          if (!existingRecord) {
-            await createPositionChangeRecord(positionData);
+          console.log('Saving positionData:', positionData);
+          
+          // Emit optimistic update
+          const optimisticPosition = existingRecord ? { ...existingRecord, ...positionData } : { 
+            ...positionData, 
+            id: 'temp-' + Date.now(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          eventBus.emit('recordSaved', { 
+            patientId: patient.院友id, 
+            recordType, 
+            record: optimisticPosition,
+            isOptimistic: true 
+          });
+          
+          if (existingRecord) {
+            savedRecord = await updatePositionChangeRecord({ ...existingRecord, ...positionData });
+          } else {
+            savedRecord = await createPositionChangeRecord(positionData);
           }
           break;
       }
 
+      // Confirm successful save with actual record
+      if (savedRecord) {
+        console.log('✓ Record confirmed saved to database');
+        console.log('  - Record ID:', savedRecord.id);
+        console.log('  - Record Type:', recordType);
+        console.log('  - Patient ID:', patient.院友id);
+        
+        eventBus.emit('recordSaved', { 
+          patientId: patient.院友id, 
+          recordType,
+          record: savedRecord,
+          isOptimistic: false 
+        });
+      }
+
       navigation.goBack();
     } catch (error) {
-      console.error('保存記錄失敗:', error);
-      Alert.alert('錯誤', '保存記錄失敗，請重試');
+      console.error('❌ 保存記錄失敗:', error);
+      console.error('  - Error type:', error.constructor.name);
+      console.error('  - Error message:', error.message);
+      console.error('  - Full error:', JSON.stringify(error, null, 2));
+      
+      // Emit rollback event on error
+      eventBus.emit('recordSaveFailed', { 
+        patientId: patient.院友id, 
+        recordType,
+        error 
+      });
+      
+      Alert.alert(t('error'), t('saveRecordFailed'));
     } finally {
       setLoading(false);
     }
@@ -252,13 +470,22 @@ const RecordDetailScreen: React.FC = () => {
   const handleDelete = () => {
     if (!existingRecord) return;
 
-    Alert.alert('確認刪除', '您確定要刪除此記錄嗎？', [
-      { text: '取消', style: 'cancel' },
+    Alert.alert(t('confirmDelete'), t('confirmDeleteMessage'), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: '刪除',
+        text: t('delete'),
         style: 'destructive',
         onPress: async () => {
           setDeleting(true);
+          
+          // Emit optimistic delete
+          eventBus.emit('recordDeleted', { 
+            patientId: patient.院友id, 
+            recordType,
+            recordId: existingRecord.id,
+            isOptimistic: true 
+          });
+          
           try {
             switch (recordType) {
               case 'patrol':
@@ -274,10 +501,27 @@ const RecordDetailScreen: React.FC = () => {
                 await deletePositionChangeRecord(existingRecord.id);
                 break;
             }
+            
+            // Confirm successful delete
+            eventBus.emit('recordDeleted', { 
+              patientId: patient.院友id, 
+              recordType,
+              recordId: existingRecord.id,
+              isOptimistic: false 
+            });
+            
             navigation.goBack();
           } catch (error) {
             console.error('刪除記錄失敗:', error);
-            Alert.alert('錯誤', '刪除記錄失敗，請重試');
+            
+            // Emit rollback event on error
+            eventBus.emit('recordDeleteFailed', { 
+              patientId: patient.院友id, 
+              recordType,
+              record: existingRecord
+            });
+            
+            Alert.alert(t('error'), t('deleteRecordFailed'));
           } finally {
             setDeleting(false);
           }
@@ -288,34 +532,23 @@ const RecordDetailScreen: React.FC = () => {
 
   const getTitle = () => {
     const titles: Record<RecordType, string> = {
-      patrol: '巡房記錄',
-      diaper: '換片記錄',
-      restraint: '約束觀察記錄',
-      position: '轉身記錄',
+      patrol: t('patrolRecord'),
+      diaper: t('diaperChange'),
+      restraint: t('restraintObservation'),
+      position: t('positionChange'),
     };
-    return `${existingRecord ? '編輯' : '新增'}${titles[recordType as RecordType]}`;
+    return `${existingRecord ? t('editRecord') : t('addRecord')}${titles[recordType as RecordType]}`;
   };
 
   const renderPatrolForm = () => (
     <>
       <View style={styles.formGroup}>
-        <Text style={styles.label}>實際巡房時間 *</Text>
+        <Text style={styles.label}>{t('actualPatrolTime')} *</Text>
         <TextInput
           style={styles.input}
           value={patrolTime}
           onChangeText={setPatrolTime}
           placeholder="HH:MM"
-        />
-      </View>
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>備註</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="選填，如有特殊情況請記錄"
-          multiline
-          numberOfLines={3}
         />
       </View>
     </>
@@ -324,11 +557,12 @@ const RecordDetailScreen: React.FC = () => {
   const renderDiaperForm = () => (
     <>
       <View style={styles.formGroup}>
-        <Text style={styles.label}>排泄情況 *</Text>
+        <Text style={styles.label}>{t('excretionStatus')} {!status && '*'}</Text>
         <View style={styles.checkboxGroup}>
           <TouchableOpacity
-            style={[styles.checkbox, hasUrine && styles.checkboxActive]}
+            style={[styles.checkbox, hasUrine && styles.checkboxActive, status && styles.disabledCheckbox]}
             onPress={() => {
+              if (status) return;
               setHasUrine(!hasUrine);
               if (!hasUrine) setHasNone(false);
             }}
@@ -338,11 +572,12 @@ const RecordDetailScreen: React.FC = () => {
               size={24}
               color={hasUrine ? '#2563eb' : '#6b7280'}
             />
-            <Text style={styles.checkboxText}>小便</Text>
+            <Text style={styles.checkboxText}>{t('hasUrine').replace('有', '')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.checkbox, hasStool && styles.checkboxActive]}
+            style={[styles.checkbox, hasStool && styles.checkboxActive, status && styles.disabledCheckbox]}
             onPress={() => {
+              if (status) return;
               setHasStool(!hasStool);
               if (!hasStool) setHasNone(false);
             }}
@@ -352,11 +587,12 @@ const RecordDetailScreen: React.FC = () => {
               size={24}
               color={hasStool ? '#2563eb' : '#6b7280'}
             />
-            <Text style={styles.checkboxText}>大便</Text>
+            <Text style={styles.checkboxText}>{t('hasStool').replace('有', '')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.checkbox, hasNone && styles.checkboxActive]}
+            style={[styles.checkbox, hasNone && styles.checkboxActive, status && styles.disabledCheckbox]}
             onPress={() => {
+              if (status) return;
               setHasNone(!hasNone);
               if (!hasNone) {
                 setHasUrine(false);
@@ -369,22 +605,22 @@ const RecordDetailScreen: React.FC = () => {
               size={24}
               color={hasNone ? '#2563eb' : '#6b7280'}
             />
-            <Text style={styles.checkboxText}>無</Text>
+            <Text style={styles.checkboxText}>{t('noExcretion')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {hasUrine && (
         <View style={styles.formGroup}>
-          <Text style={styles.label}>小便量</Text>
+          <Text style={styles.label}>{t('urineVolume')}</Text>
           <View style={styles.optionGroup}>
-            {['少', '中', '多'].map((opt) => (
+            {['多', '中', '少'].map((opt) => (
               <TouchableOpacity
                 key={opt}
-                style={[styles.optionButton, urineAmount === opt && styles.optionButtonActive]}
-                onPress={() => setUrineAmount(opt)}
+                style={[styles.optionButton, urineAmount === opt && styles.optionButtonActive, status && styles.disabledCheckbox]}
+                onPress={() => { if (status) return; setUrineAmount(opt); }}
               >
-                <Text style={[styles.optionText, urineAmount === opt && styles.optionTextActive]}>{opt}</Text>
+                <Text style={[styles.optionText, urineAmount === opt && styles.optionTextActive]}>{translateOption(opt, t)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -394,49 +630,64 @@ const RecordDetailScreen: React.FC = () => {
       {hasStool && (
         <>
           <View style={styles.formGroup}>
-            <Text style={styles.label}>大便顏色</Text>
+            <Text style={styles.label}>{t('stoolColor')}</Text>
             <View style={styles.optionGroup}>
               {['黃', '啡', '綠', '黑', '紅'].map((opt) => (
                 <TouchableOpacity
                   key={opt}
-                  style={[styles.optionButton, stoolColor === opt && styles.optionButtonActive]}
-                  onPress={() => setStoolColor(opt)}
+                  style={[styles.optionButton, stoolColor === opt && styles.optionButtonActive, status && styles.disabledCheckbox]}
+                  onPress={() => { if (status) return; setStoolColor(opt); }}
                 >
-                  <Text style={[styles.optionText, stoolColor === opt && styles.optionTextActive]}>{opt}</Text>
+                  <Text style={[styles.optionText, stoolColor === opt && styles.optionTextActive]}>{translateOption(opt, t)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
           <View style={styles.formGroup}>
-            <Text style={styles.label}>大便質地</Text>
+            <Text style={styles.label}>{t('stoolTexture')}</Text>
             <View style={styles.optionGroup}>
               {['硬', '軟', '稀', '水狀'].map((opt) => (
                 <TouchableOpacity
                   key={opt}
-                  style={[styles.optionButton, stoolTexture === opt && styles.optionButtonActive]}
-                  onPress={() => setStoolTexture(opt)}
+                  style={[styles.optionButton, stoolTexture === opt && styles.optionButtonActive, status && styles.disabledCheckbox]}
+                  onPress={() => { if (status) return; setStoolTexture(opt); }}
                 >
-                  <Text style={[styles.optionText, stoolTexture === opt && styles.optionTextActive]}>{opt}</Text>
+                  <Text style={[styles.optionText, stoolTexture === opt && styles.optionTextActive]}>{translateOption(opt, t)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
           <View style={styles.formGroup}>
-            <Text style={styles.label}>大便量</Text>
+            <Text style={styles.label}>{t('stoolAmount')}</Text>
             <View style={styles.optionGroup}>
               {['少', '中', '多'].map((opt) => (
                 <TouchableOpacity
                   key={opt}
-                  style={[styles.optionButton, stoolAmount === opt && styles.optionButtonActive]}
-                  onPress={() => setStoolAmount(opt)}
+                  style={[styles.optionButton, stoolAmount === opt && styles.optionButtonActive, status && styles.disabledCheckbox]}
+                  onPress={() => { if (status) return; setStoolAmount(opt); }}
                 >
-                  <Text style={[styles.optionText, stoolAmount === opt && styles.optionTextActive]}>{opt}</Text>
+                  <Text style={[styles.optionText, stoolAmount === opt && styles.optionTextActive]}>{translateOption(opt, t)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
         </>
       )}
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('noteOrStatus')}</Text>
+        <View style={styles.statusOptionsRow}>
+          {Array.from(STATUS_OPTIONS).map(opt => (
+            <TouchableOpacity
+              key={opt}
+              style={[styles.statusOptionButton, status === opt && styles.statusOptionButtonActive]}
+              onPress={() => handleDiaperStatusSelect(opt)}
+            >
+              <Text style={status === opt ? styles.statusOptionTextActive : styles.statusOptionText}>{translateOption(opt, t)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
     </>
   );
 
@@ -444,13 +695,14 @@ const RecordDetailScreen: React.FC = () => {
     <>
       {suggestedRestraints.length > 0 && (
         <View style={styles.formGroup}>
-          <Text style={styles.label}>約束物品</Text>
+          <Text style={styles.label}>{t('restraintItems')}</Text>
           <View style={styles.restraintGrid}>
             {suggestedRestraints.map((item) => (
               <TouchableOpacity
                 key={item}
-                style={[styles.restraintItem, selectedRestraints.includes(item) && styles.restraintItemActive]}
+                style={[styles.restraintItem, selectedRestraints.includes(item) && styles.restraintItemActive, status && styles.disabledCheckbox]}
                 onPress={() => {
+                  if (status) return;
                   if (selectedRestraints.includes(item)) {
                     setSelectedRestraints(selectedRestraints.filter(r => r !== item));
                   } else {
@@ -463,7 +715,7 @@ const RecordDetailScreen: React.FC = () => {
                   size={20}
                   color={selectedRestraints.includes(item) ? '#2563eb' : '#6b7280'}
                 />
-                <Text style={styles.restraintText}>{item}</Text>
+                <Text style={styles.restraintText}>{translateOption(item, t)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -471,55 +723,59 @@ const RecordDetailScreen: React.FC = () => {
       )}
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>實際觀察時間 *</Text>
+        <Text style={styles.label}>{t('actualObservationTime')} {!status && '*'}</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, status && styles.disabledInput]}
           value={observationTime}
           onChangeText={setObservationTime}
           placeholder="HH:MM"
+          editable={!status}
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>觀察狀態 *</Text>
+        <Text style={styles.label}>{t('observationStatus')} {!status && '*'}</Text>
         <View style={styles.statusGroup}>
           <TouchableOpacity
-            style={[styles.statusButton, styles.statusNormal, observationStatus === 'N' && styles.statusButtonActive]}
-            onPress={() => setObservationStatus('N')}
+            style={[styles.statusButton, styles.statusNormal, observationStatus === 'N' && styles.statusButtonActive, status && styles.disabledCheckbox]}
+            onPress={() => { if (status) return; setObservationStatus('N'); }}
           >
             <Text style={[styles.statusButtonText, observationStatus === 'N' && styles.statusButtonTextActive]}>
-              🟢 正常 (N)
+              🟢 {t('normalStatus')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.statusButton, styles.statusProblem, observationStatus === 'P' && styles.statusButtonActiveRed]}
-            onPress={() => setObservationStatus('P')}
+            style={[styles.statusButton, styles.statusProblem, observationStatus === 'P' && styles.statusButtonActiveRed, status && styles.disabledCheckbox]}
+            onPress={() => { if (status) return; setObservationStatus('P'); }}
           >
             <Text style={[styles.statusButtonText, observationStatus === 'P' && styles.statusButtonTextActive]}>
-              🔴 異常 (P)
+              🔴 {t('problemStatus')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.statusButton, styles.statusPaused, observationStatus === 'S' && styles.statusButtonActiveOrange]}
-            onPress={() => setObservationStatus('S')}
+            style={[styles.statusButton, styles.statusPaused, observationStatus === 'S' && styles.statusButtonActiveOrange, status && styles.disabledCheckbox]}
+            onPress={() => { if (status) return; setObservationStatus('S'); }}
           >
             <Text style={[styles.statusButtonText, observationStatus === 'S' && styles.statusButtonTextActive]}>
-              🟠 暫停 (S)
+              🟠 {t('suspendedStatus')}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
-
+      
       <View style={styles.formGroup}>
-        <Text style={styles.label}>備註</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="選填，如有特殊情況請記錄"
-          multiline
-          numberOfLines={3}
-        />
+        <Text style={styles.label}>{t('noteOrStatus')}</Text>
+        <View style={styles.statusOptionsRow}>
+            {Array.from(STATUS_OPTIONS).map(opt => (
+            <TouchableOpacity
+              key={opt}
+              style={[styles.statusOptionButton, status === opt && styles.statusOptionButtonActive]}
+              onPress={() => handleRestraintStatusSelect(opt)}
+            >
+              <Text style={status === opt ? styles.statusOptionTextActive : styles.statusOptionText}>{translateOption(opt, t)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
     </>
   );
@@ -529,29 +785,44 @@ const RecordDetailScreen: React.FC = () => {
       <View style={styles.infoBox}>
         <Ionicons name="refresh" size={20} color="#2563eb" />
         <View style={styles.infoBoxContent}>
-          <Text style={styles.infoBoxTitle}>轉身順序提示</Text>
-          <Text style={styles.infoBoxText}>左 → 平 → 右 → 左（循環）</Text>
+          <Text style={styles.infoBoxTitle}>{t('autoPositionHint')}</Text>
+          <Text style={styles.infoBoxText}>{t('leftPosition')} → {t('centerPosition')} → {t('rightPosition')} → {t('leftPosition')}</Text>
         </View>
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>轉身位置 *</Text>
+        <Text style={styles.label}>{t('turnPosition')} {!status && '*'}</Text>
         <View style={styles.positionGroup}>
           {(['左', '平', '右'] as const).map((pos) => (
             <TouchableOpacity
               key={pos}
-              style={[styles.positionButton, position === pos && styles.positionButtonActive]}
-              onPress={() => setPosition(pos)}
+              style={[styles.positionButton, position === pos && styles.positionButtonActive, status && styles.disabledCheckbox]}
+              onPress={() => { if (status) return; setPosition(pos); }}
             >
               <Text style={[styles.positionButtonText, position === pos && styles.positionButtonTextActive]}>
-                {pos}
+                {translateOption(pos, t)}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
         {!existingRecord && (
-          <Text style={styles.hintText}>系統已根據時段自動選擇建議位置，您可以手動調整</Text>
+          <Text style={styles.hintText}>{t('suggestedPosition')}</Text>
         )}
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('noteOrStatus')}</Text>
+        <View style={styles.statusOptionsRow}>
+          {Array.from(STATUS_OPTIONS).map(opt => (
+            <TouchableOpacity
+              key={opt}
+              style={[styles.statusOptionButton, status === opt && styles.statusOptionButtonActive]}
+              onPress={() => handlePositionStatusSelect(opt)}
+            >
+              <Text style={status === opt ? styles.statusOptionTextActive : styles.statusOptionText}>{translateOption(opt, t)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
     </>
   );
@@ -569,9 +840,6 @@ const RecordDetailScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#374151" />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>{getTitle()}</Text>
         <View style={styles.headerRight} />
       </View>
@@ -579,15 +847,15 @@ const RecordDetailScreen: React.FC = () => {
       <ScrollView style={styles.content}>
         <View style={styles.infoSection}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>院友姓名</Text>
-            <Text style={styles.infoValue}>{patient.中文姓名}</Text>
+            <Text style={styles.infoLabel}>{t('patientName')}</Text>
+            <Text style={styles.infoValue}>{patientName}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>日期</Text>
+            <Text style={styles.infoLabel}>{t('date')}</Text>
             <Text style={styles.infoValue}>{date}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>時段</Text>
+            <Text style={styles.infoLabel}>{t('timeSlotLabel')}</Text>
             <Text style={styles.infoValue}>{timeSlot}</Text>
           </View>
         </View>
@@ -595,12 +863,12 @@ const RecordDetailScreen: React.FC = () => {
         {renderForm()}
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>記錄者 *</Text>
+          <Text style={styles.label}>{t('recorder')} *</Text>
           <TextInput
             style={styles.input}
             value={recorder}
             onChangeText={setRecorder}
-            placeholder="請輸入記錄者姓名"
+            placeholder={t('pleaseEnterRecorder')}
           />
         </View>
       </ScrollView>
@@ -617,7 +885,7 @@ const RecordDetailScreen: React.FC = () => {
             ) : (
               <>
                 <Ionicons name="trash-outline" size={20} color="#dc2626" />
-                <Text style={styles.deleteButtonText}>刪除</Text>
+                <Text style={styles.deleteButtonText}>{t('deleteButton')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -630,8 +898,14 @@ const RecordDetailScreen: React.FC = () => {
           {loading ? (
             <ActivityIndicator size="small" color="#ffffff" />
           ) : (
-            <Text style={styles.saveButtonText}>{existingRecord ? '更新記錄' : '確認記錄'}</Text>
+            <Text style={styles.saveButtonText}>{t('saveButton')}</Text>
           )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.backFooterButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backFooterText}>{t('backButton')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -654,7 +928,16 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e5e7eb',
   },
   backButton: {
-    padding: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#2563eb',
+    fontWeight: '500',
+    marginLeft: 4,
   },
   headerTitle: {
     fontSize: 18,
@@ -820,6 +1103,42 @@ const styles = StyleSheet.create({
   statusButtonTextActive: {
     color: '#ffffff',
   },
+  statusOptionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  statusOptionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  statusOptionButtonActive: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+  },
+  statusOptionText: {
+    color: '#374151',
+    fontWeight: '500',
+  },
+  statusOptionTextActive: {
+    color: '#b91c1c',
+    fontWeight: '700',
+  },
+  disabledCheckbox: {
+    opacity: 0.4,
+  },
+  disabledInput: {
+    backgroundColor: '#f3f4f6',
+    opacity: 0.8,
+  },
   infoBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -909,6 +1228,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  backFooterButton: {
+    marginLeft: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backFooterText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
   },
 });
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, User, FileText, Trash2, Calendar } from 'lucide-react';
+import { X, Clock, User, Trash2, Calendar } from 'lucide-react';
 import type { Patient, PatrolRound } from '../lib/database';
 import { addRandomOffset } from '../utils/careRecordHelper';
 import DeleteConfirmModal from './DeleteConfirmModal';
@@ -27,19 +27,16 @@ const PatrolRoundModal: React.FC<PatrolRoundModalProps> = ({
 }) => {
   const [patrolTime, setPatrolTime] = useState('');
   const [recorder, setRecorder] = useState('');
-  const [notes, setNotes] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (existingRecord) {
       setPatrolTime(existingRecord.patrol_time || '');
       setRecorder(existingRecord.recorder || '');
-      setNotes(existingRecord.notes || '');
     } else {
       const randomTime = addRandomOffset(timeSlot);
       setPatrolTime(randomTime);
       setRecorder(staffName);
-      setNotes('');
     }
   }, [existingRecord, timeSlot, staffName]);
 
@@ -51,8 +48,7 @@ const PatrolRoundModal: React.FC<PatrolRoundModalProps> = ({
       patrol_date: date,
       scheduled_time: timeSlot,
       patrol_time: patrolTime,
-      recorder: recorder,
-      notes: notes.trim() || undefined
+      recorder: recorder
     };
 
     onSubmit(data);
@@ -148,20 +144,6 @@ const PatrolRoundModal: React.FC<PatrolRoundModalProps> = ({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              <FileText className="w-4 h-4 inline mr-1" />
-              備註
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="選填，如有特殊情況請記錄"
-            />
-          </div>
-
           <div className="flex justify-between items-center pt-4">
             {existingRecord && onDelete && (
               <button
@@ -225,11 +207,6 @@ const PatrolRoundModal: React.FC<PatrolRoundModalProps> = ({
               label: '記錄者',
               value: recorder,
               icon: <User className="w-4 h-4 text-gray-500" />
-            },
-            {
-              label: '備註',
-              value: notes || '無',
-              icon: <FileText className="w-4 h-4 text-gray-500" />
             }
           ]}
         />

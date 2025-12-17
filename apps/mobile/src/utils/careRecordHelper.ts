@@ -32,7 +32,11 @@ export const getWeekStartDate = (referenceDate: Date = new Date()): Date => {
 };
 
 export const formatDate = (date: Date): string => {
-  return date.toISOString().split('T')[0];
+  // Use local timezone instead of UTC to avoid date shifts
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 export const addRandomOffset = (baseTime: string): string => {
@@ -72,7 +76,13 @@ export const isInHospital = (
     new Date(r.event_date) > new Date(latestAdmission.event_date)
   );
 
+  // interpret times before 07:00 as belonging to the next calendar day
+  const [hStr] = targetTime.split(':');
+  const hour = Number(hStr);
   const target = new Date(`${targetDate}T${targetTime}:00`);
+  if (!Number.isNaN(hour) && hour < 7) {
+    target.setDate(target.getDate() + 1);
+  }
   const admitTime = new Date(`${latestAdmission.event_date}T${latestAdmission.event_time || '00:00'}:00`);
 
   if (discharge) {
@@ -81,6 +91,44 @@ export const isInHospital = (
   }
 
   return target >= admitTime;
+};
+
+// Parse a time slot string to a HH:MM start time, handling formats like '07:00', '7AM-10AM', '11AM-2PM'
+export const parseSlotStartTime = (timeSlot: string): string | null => {
+  if (!timeSlot) return null;
+  // If already HH:MM
+  if (/^\d{1,2}:\d{2}$/.test(timeSlot)) {
+    const parts = timeSlot.split(':');
+    return `${String(Number(parts[0])).padStart(2,'0')}:${String(parts[1]).padStart(2,'0')}`;
+  }
+  // If contains '-' like '7AM-10AM' or '7AM'
+  const dash = timeSlot.split('-')[0].trim();
+  // Convert '7AM' or '11PM' to HH:MM
+  const match = dash.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i);
+  if (!match) return null;
+  let h = Number(match[1]);
+  const m = match[2] ? Number(match[2]) : 0;
+  const ampm = match[3];
+  if (ampm) {
+    if (ampm.toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+  }
+  h = h % 24;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
+export const isPastSlot = (dateStr: string, timeSlot: string): boolean => {
+  const now = new Date();
+  const targetTime = parseSlotStartTime(timeSlot);
+  if (!targetTime) return false;
+  const [hStr] = targetTime.split(':');
+  const hour = Number(hStr);
+  const target = new Date(`${dateStr}T${targetTime}:00`);
+  // If slot time is before 07:00, it belongs to the following calendar day
+  if (!Number.isNaN(hour) && hour < 7) {
+    target.setDate(target.getDate() + 1);
+  }
+  return target.getTime() < now.getTime();
 };
 
 export const formatObservationStatus = (status: 'N' | 'P' | 'S'): string => {
@@ -94,4 +142,12 @@ export const formatObservationStatus = (status: 'N' | 'P' | 'S'): string => {
     default:
       return '';
   }
+};
+
+export const STATUS_OPTIONS = ['入院', '渡假', '外出'] as const;
+export type PatientStatus = typeof STATUS_OPTIONS[number];
+
+export const isStatusNote = (note?: string | null): note is PatientStatus => {
+  if (!note) return false;
+  return (STATUS_OPTIONS as readonly string[]).includes(note);
 };

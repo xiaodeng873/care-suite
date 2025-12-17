@@ -12,8 +12,10 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from '../lib/i18n';
 
 const LoginScreen: React.FC = () => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,7 +24,7 @@ const LoginScreen: React.FC = () => {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('錯誤', '請輸入電子郵件和密碼');
+      Alert.alert(t('loginError'), t('loginErrorEmpty'));
       return;
     }
 
@@ -34,13 +36,13 @@ const LoginScreen: React.FC = () => {
       console.log('signIn 返回:', { error });
       if (error) {
         console.error('登入錯誤:', error);
-        Alert.alert('登入失敗', error.message || '請檢查您的電子郵件和密碼');
+        Alert.alert(t('loginFailed'), error.message || t('loginFailedMessage'));
       } else {
         console.log('登入成功!');
       }
     } catch (err) {
       console.error('登入異常:', err);
-      Alert.alert('錯誤', '發生未知錯誤，請稍後再試');
+      Alert.alert(t('loginError'), t('unknownError'));
     } finally {
       setLoading(false);
     }
@@ -56,8 +58,8 @@ const LoginScreen: React.FC = () => {
           <View style={styles.iconCircle}>
             <Ionicons name="clipboard-outline" size={48} color="#2563eb" />
           </View>
-          <Text style={styles.title}>護理記錄</Text>
-          <Text style={styles.subtitle}>請登入以繼續使用系統</Text>
+          <Text style={styles.title}>{t('loginTitle')}</Text>
+          <Text style={styles.subtitle}>{t('loginSubtitle')}</Text>
         </View>
 
         <View style={styles.form}>
@@ -65,7 +67,7 @@ const LoginScreen: React.FC = () => {
             <Ionicons name="mail-outline" size={20} color="#6b7280" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="電子郵件"
+              placeholder={t('emailPlaceholder')}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -79,7 +81,7 @@ const LoginScreen: React.FC = () => {
             <Ionicons name="lock-closed-outline" size={20} color="#6b7280" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="密碼"
+              placeholder={t('passwordPlaceholder')}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
@@ -107,18 +109,18 @@ const LoginScreen: React.FC = () => {
             disabled={loading}
             accessible={true}
             accessibilityRole="button"
-            accessibilityLabel="登入按鈕"
+            accessibilityLabel={t('loginButtonLabel')}
           >
             {loading ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text style={styles.loginButtonText}>登入</Text>
+              <Text style={styles.loginButtonText}>{t('loginButton')}</Text>
             )}
           </Pressable>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Station C 護理記錄系統</Text>
+          <Text style={styles.footerText}>{t('footer')}</Text>
         </View>
       </View>
     </KeyboardAvoidingView>

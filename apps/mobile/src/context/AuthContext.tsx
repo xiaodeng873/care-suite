@@ -37,6 +37,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (mounted) {
           if (error) {
             console.warn('Auth session error:', error);
+            // 如果 refresh token 无效，清除会话
+            if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid')) {
+              console.log('Clearing invalid session...');
+              await supabase.auth.signOut();
+            }
           }
           setSession(session);
           setUser(session?.user ?? null);
@@ -46,6 +51,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } catch (err) {
         console.warn('Auth initialization error:', err);
         if (mounted) {
+          // 清除无效的认证状态
+          try {
+            await supabase.auth.signOut();
+          } catch (signOutErr) {
+            console.warn('SignOut during error handling failed:', signOutErr);
+          }
           setSession(null);
           setUser(null);
           setDisplayName(null);
