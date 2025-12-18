@@ -258,7 +258,7 @@ export const getPatientsWithOverdueWorkflow = (
     }
 
     if (patient.在住狀態 !== '在住') {
-      console.log(`⚠️ 院友 ${patient.床號} 不是在住狀態: ${patient.在住狀態}`);
+   
       return;
     }
 

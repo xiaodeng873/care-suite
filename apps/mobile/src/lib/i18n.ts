@@ -1046,7 +1046,7 @@ export const translations = {
     pleaseEnterRecorder: 'Please enter recorder name',
     
     // Excretion Options
-    hasUrine: 'Has Urine',
+    hasUrine: 'Has Urine'
     hasStool: 'Has Stool',
     noExcretion: 'None',
     large: 'Large',
