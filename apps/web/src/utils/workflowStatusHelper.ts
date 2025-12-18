@@ -177,12 +177,6 @@ export const getPatientsWithOverdueWorkflow = (
   overdueDates: string[]; // 逾期的日期列表
   earliestOverdueDate: string; // 最早逾期的日期
 }> => {
-  console.log('🔍 getPatientsWithOverdueWorkflow 開始:', {
-    記錄總數: records.length,
-    院友總數: patients.length,
-    處方總數: prescriptions?.length || 0
-  });
-
   // 如果提供了處方列表，建立處方ID到處方對象的Map用於快速查找
   const prescriptionMap = prescriptions
     ? new Map(prescriptions.map(p => [p.id, p]))
@@ -241,14 +235,6 @@ export const getPatientsWithOverdueWorkflow = (
     console.warn(`⚠️ 總共跳過 ${inactiveRecordCount} 條pending_change處方的工作流程記錄`);
   }
 
-  console.log('📊 逾期記錄 Map:', {
-    有逾期記錄的院友ID: Array.from(patientOverdueMap.keys()),
-    各院友逾期數量: Array.from(patientOverdueMap.entries()).map(([id, records]) => ({
-      院友ID: id,
-      逾期數: records.length
-    }))
-  });
-
   // 轉換為結果數組，並關聯院友資料
   const result: Array<{
     patient: any;
@@ -258,14 +244,11 @@ export const getPatientsWithOverdueWorkflow = (
     earliestOverdueDate: string;
   }> = [];
 
-  patientOverdueMap.forEach((overdueRecords, patientId) => { 
-    console.log(`🔍 查找院友 ID: ${patientId} (類型: ${typeof patientId})`);
-
+  patientOverdueMap.forEach((overdueRecords, patientId) => {
     // 嘗試多種匹配方式
     const patient = patients.find(p => {
       const pId = p.院友id;
       const match = parseInt(String(pId)) === parseInt(String(patientId));
-      if (match) 
       return match;
     });
 

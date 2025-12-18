@@ -410,16 +410,29 @@ const Dashboard: React.FC = () => {
       const patient = patientsMap.get(task.patient_id);
       if (!patient || patient.在住狀態 !== '在住') return;
 
+      // 获取院友入住日期
+      const admissionDate = patient.入住日期 ? new Date(patient.入住日期) : null;
+      if (admissionDate) {
+        admissionDate.setHours(0, 0, 0, 0);
+      }
+
       const normalizedTaskTimes = task.specific_times?.map(normalizeTime) || [];
       let firstIncompleteDate: Date | null = null;
       const incompleteDates: Date[] = [];
 
-      for (let i = 0; i <= 14; i++) {
+      for (let i = 0; i <= 28; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(checkDate.getDate() - i);
         const dateStr = formatLocalDate(checkDate);
 
-        if (!isTaskScheduledForDate(task, checkDate)) continue;
+        // 如果检查日期早于入住日期，跳过
+        if (admissionDate && checkDate < admissionDate) {
+          continue;
+        }
+
+        if (!isTaskScheduledForDate(task, checkDate)) {
+          continue;
+        }
 
         let isDateCompleted = false;
         if (normalizedTaskTimes.length > 0) {
