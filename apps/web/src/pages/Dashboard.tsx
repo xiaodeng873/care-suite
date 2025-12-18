@@ -425,6 +425,11 @@ const Dashboard: React.FC = () => {
         checkDate.setDate(checkDate.getDate() - i);
         const dateStr = formatLocalDate(checkDate);
 
+        // 如果检查日期早于 CUT OFF DATE，跳过
+        if (dateStr <= SYNC_CUTOFF_DATE_STR) {
+          continue;
+        }
+
         // 如果检查日期早于入住日期，跳过
         if (admissionDate && checkDate < admissionDate) {
           continue;
