@@ -458,17 +458,10 @@ const Dashboard: React.FC = () => {
       const patient = patientsMap.get(task.patient_id);
       if (!patient || patient.在住狀態 !== '在住') return;
 
-      // 调试：呂葉少芳
-      const isLyuPatient = patient.中文姓名 === '呂葉少芳';
-
       // 获取院友入住日期
       const admissionDate = patient.入住日期 ? new Date(patient.入住日期) : null;
       if (admissionDate) {
         admissionDate.setHours(0, 0, 0, 0);
-      }
-
-      if (isLyuPatient) {
-        console.log(`[呂葉少芳调试] 任务: ${task.health_record_type}, 入住日期: ${patient.入住日期}, CUT OFF: ${SYNC_CUTOFF_DATE_STR}`);
       }
 
       const normalizedTaskTimes = task.specific_times?.map(normalizeTime) || [];
@@ -482,17 +475,11 @@ const Dashboard: React.FC = () => {
 
         // 如果检查日期早于 CUT OFF DATE，跳过
         if (dateStr <= SYNC_CUTOFF_DATE_STR) {
-          if (isLyuPatient) {
-            console.log(`[呂葉少芳调试] ${dateStr} <= CUT OFF (${SYNC_CUTOFF_DATE_STR}), 跳过`);
-          }
           continue;
         }
 
         // 如果检查日期早于入住日期，跳过
         if (admissionDate && checkDate < admissionDate) {
-          if (isLyuPatient) {
-            console.log(`[呂葉少芳调试] ${dateStr} < 入住日期 (${patient.入住日期}), 跳过`);
-          }
           continue;
         }
 
@@ -519,17 +506,7 @@ const Dashboard: React.FC = () => {
           if (!firstIncompleteDate) {
             firstIncompleteDate = incompleteDate;
           }
-          if (isLyuPatient) {
-            console.log(`[呂葉少芳调试] ${dateStr} 未完成`);
-          }
-        } else if (isLyuPatient) {
-          console.log(`[呂葉少芳调试] ${dateStr} 已完成`);
         }
-      }
-
-      if (isLyuPatient && incompleteDates.length > 0) {
-        console.log(`[呂葉少芳调试] 未完成日期:`, incompleteDates.map(d => formatLocalDate(d)));
-        console.log(`[呂葉少芳调试] firstIncompleteDate:`, firstIncompleteDate ? formatLocalDate(firstIncompleteDate) : 'null');
       }
 
       if (firstIncompleteDate) {
@@ -1141,7 +1118,7 @@ const Dashboard: React.FC = () => {
             setShowHealthRecordModal(false);
             setTimeout(() => { setSelectedHealthRecordInitialData({}); }, 150);
           }}
-          onTaskCompleted={(recordDateTime) => handleTaskCompleted(selectedHealthRecordInitialData.task.id, recordDateTime)}
+          onTaskCompleted={handleTaskCompleted}
         />
       )}
       

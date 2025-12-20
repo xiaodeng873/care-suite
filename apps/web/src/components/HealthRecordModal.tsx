@@ -22,7 +22,7 @@ interface HealthRecordModalProps {
     預設時間?: string;
   };
   onClose: () => void;
-  onTaskCompleted?: (recordDateTime: Date) => void;
+  onTaskCompleted?: (taskId: string, recordDateTime: Date) => void;
 }
 
 const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialData, onClose, onTaskCompleted }) => {
