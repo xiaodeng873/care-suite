@@ -166,7 +166,7 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
           創建時間: appointment.創建時間,
           更新時間: appointment.更新時間,
           ...appointmentData
-        });
+        }, true); // 使用樂觀更新
       } else {
         await addFollowUpAppointment(appointmentData);
       }

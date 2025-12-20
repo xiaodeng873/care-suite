@@ -158,7 +158,8 @@ interface PatientContextType {
   updateHealthRecord: (record: db.HealthRecord) => Promise<void>;
   deleteHealthRecord: (id: number) => Promise<void>;
   addFollowUpAppointment: (appointment: Omit<db.FollowUpAppointment, '覆診id' | '創建時間' | '更新時間'>) => Promise<void>;
-  updateFollowUpAppointment: (appointment: db.FollowUpAppointment) => Promise<void>;
+  updateFollowUpAppointment: (appointment: db.FollowUpAppointment, optimistic?: boolean) => Promise<void>;
+  batchUpdateFollowUpStatus: (ids: string[], status: string) => Promise<void>;
   deleteFollowUpAppointment: (id: string) => Promise<void>;
   addMealGuidance: (guidance: Omit<db.MealGuidance, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateMealGuidance: (guidance: db.MealGuidance) => Promise<void>;
@@ -963,12 +964,55 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     }
   };
 
-  const updateFollowUpAppointment = async (appointment: db.FollowUpAppointment) => {
+  const updateFollowUpAppointment = async (appointment: db.FollowUpAppointment, optimistic: boolean = false) => {
+    if (optimistic) {
+      // 樂觀更新：立即更新本地狀態
+      setFollowUpAppointments(prev => 
+        prev.map(a => a.覆診id === appointment.覆診id ? appointment : a)
+      );
+    }
+
     try {
       await db.updateFollowUp(appointment);
-      await refreshData();
+      if (!optimistic) {
+        await refreshData();
+      }
     } catch (error) {
       console.error('Error updating follow-up appointment:', error);
+      // 如果是樂觀更新失敗，需要回滾
+      if (optimistic) {
+        await refreshData();
+      }
+      throw error;
+    }
+  };
+
+  const batchUpdateFollowUpStatus = async (ids: string[], status: string) => {
+    // 樂觀更新：立即更新本地狀態
+    const now = new Date().toISOString();
+    setFollowUpAppointments(prev => 
+      prev.map(a => 
+        ids.includes(a.覆診id) 
+          ? { ...a, 狀態: status as any, 更新時間: now }
+          : a
+      )
+    );
+
+    try {
+      // 批量更新數據庫
+      await Promise.all(
+        ids.map(id => {
+          const appointment = followUpAppointments.find(a => a.覆診id === id);
+          if (appointment) {
+            return db.updateFollowUp({ ...appointment, 狀態: status as any, 更新時間: now });
+          }
+          return Promise.resolve();
+        })
+      );
+    } catch (error) {
+      console.error('Error batch updating follow-up status:', error);
+      // 失敗時回滾
+      await refreshData();
       throw error;
     }
   };
@@ -2075,6 +2119,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       deleteHealthRecord,
       addFollowUpAppointment,
       updateFollowUpAppointment,
+      batchUpdateFollowUpStatus,
       deleteFollowUpAppointment,
       addMealGuidance,
       updateMealGuidance,

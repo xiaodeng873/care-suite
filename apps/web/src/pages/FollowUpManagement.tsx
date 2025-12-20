@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { CalendarCheck, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Clock, MapPin, Car, UserCheck, ChevronUp, ChevronDown, Copy, MessageSquare, X } from 'lucide-react';
+import { CalendarCheck, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Clock, MapPin, Car, UserCheck, ChevronUp, ChevronDown, Copy, MessageSquare, X, FileText } from 'lucide-react';
 import { usePatients, type FollowUpAppointment } from '../context/PatientContext';
 import FollowUpModal from '../components/FollowUpModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { exportFollowUpListToExcel, type FollowUpExportData } from '../utils/followUpListGenerator';
+import { generateFollowUpRecordWorksheet, type FollowUpRecordData } from '../utils/followUpRecordWorksheetGenerator';
 
 type SortField = '覆診日期' | '覆診時間' | '院友姓名' | '覆診地點' | '覆診專科' | '狀態' | '交通安排' | '陪診人員';
 type SortDirection = 'asc' | 'desc';
@@ -23,7 +24,7 @@ interface AdvancedFilters {
 }
 
 const FollowUpManagement: React.FC = () => {
-  const { followUpAppointments, patients, deleteFollowUpAppointment, loading } = usePatients();
+  const { followUpAppointments, patients, deleteFollowUpAppointment, batchUpdateFollowUpStatus, loading } = usePatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<FollowUpAppointment | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,6 +48,7 @@ const FollowUpManagement: React.FC = () => {
     在住狀態: '在住'
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
 
   // Reset to first page when filters change
   React.useEffect(() => {
@@ -322,6 +324,33 @@ const FollowUpManagement: React.FC = () => {
     }
   };
 
+  const handleBatchComplete = async () => {
+    if (selectedRows.size === 0) {
+      alert('請先勾選要標記為已完成的覆診記錄');
+      return;
+    }
+
+    const confirmMessage = `確定要將 ${selectedRows.size} 筆覆診安排標記為「已完成」嗎？`;
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    const updatingArray = Array.from(selectedRows);
+    setUpdatingIds(new Set(updatingArray));
+    
+    try {
+      await batchUpdateFollowUpStatus(updatingArray, '已完成');
+      setSelectedRows(new Set());
+      alert(`成功將 ${updatingArray.length} 筆覆診安排標記為已完成`);
+    } catch (error) {
+      console.error('批量更新覆診狀態失敗:', error);
+      alert('批量更新覆診狀態失敗，請重試');
+    } finally {
+      setUpdatingIds(new Set());
+    }
+  };
+
   const handleBatchDelete = async () => {
     if (selectedRows.size === 0) {
       alert('請先選擇要刪除的記錄');
@@ -389,6 +418,38 @@ const FollowUpManagement: React.FC = () => {
     }
 
     handleExportFollowUpList(selectedAppointments);
+  };
+
+  const handleExportWorksheet = () => {
+    const selectedAppointments = paginatedAppointments.filter(a => selectedRows.has(a.覆診id));
+    
+    if (selectedAppointments.length === 0) {
+      alert('請先勾選要匯出的覆診記錄');
+      return;
+    }
+
+    const worksheetData: FollowUpRecordData[] = selectedAppointments.map(appointment => {
+      const patient = patients.find(p => p.院友id === appointment.院友id);
+      return {
+        覆診id: appointment.覆診id,
+        院友id: appointment.院友id,
+        覆診日期: appointment.覆診日期,
+        出發時間: appointment.出發時間,
+        覆診時間: appointment.覆診時間,
+        覆診地點: appointment.覆診地點,
+        覆診專科: appointment.覆診專科,
+        交通安排: appointment.交通安排,
+        陪診人員: appointment.陪診人員,
+        備註: appointment.備註,
+        院友: {
+          床號: patient?.床號 || '',
+          中文姓氏: patient?.中文姓氏 || '',
+          中文名字: patient?.中文名字 || ''
+        }
+      };
+    });
+
+    generateFollowUpRecordWorksheet(worksheetData);
   };
 
   const handleExportFollowUpList = async (appointments: FollowUpAppointment[]) => {
@@ -544,6 +605,14 @@ const FollowUpManagement: React.FC = () => {
           <div className="flex items-center space-x-2">
             {selectedRows.size > 0 && (
               <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleExportWorksheet}
+                  className="btn-secondary flex items-center space-x-2"
+                  title={`匯出覆診記錄工作紙（已選 ${selectedRows.size} 筆）`}
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>覆診記錄工作紙</span>
+                </button>
                 <button
                   onClick={handleExportSelected}
                   className="btn-primary flex items-center space-x-2"
@@ -802,13 +871,22 @@ const FollowUpManagement: React.FC = () => {
                   反選
                 </button>
                 {selectedRows.size > 0 && (
-                  <button
-                    onClick={handleBatchDelete}
-                    className="text-sm text-red-600 hover:text-red-700 font-medium"
-                    disabled={deletingIds.size > 0}
-                  >
-                    刪除選定記錄 ({selectedRows.size})
-                  </button>
+                  <>
+                    <button
+                      onClick={handleBatchComplete}
+                      className="text-sm text-green-600 hover:text-green-700 font-medium"
+                      disabled={updatingIds.size > 0}
+                    >
+                      批量已完成 ({selectedRows.size})
+                    </button>
+                    <button
+                      onClick={handleBatchDelete}
+                      className="text-sm text-red-600 hover:text-red-700 font-medium"
+                      disabled={deletingIds.size > 0}
+                    >
+                      刪除選定記錄 ({selectedRows.size})
+                    </button>
+                  </>
                 )}
               </div>
               <div className="text-sm text-gray-600">
