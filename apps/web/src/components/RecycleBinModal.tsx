@@ -53,9 +53,15 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
   const filteredRecords = deletedHealthRecords.filter(record => {
     if (!searchTerm) return true;
     const patientInfo = getPatientInfo(record.院友id);
+    const patient = patients.find(p => p.院友id === record.院友id);
+    const searchLower = searchTerm.toLowerCase();
     return (
-      patientInfo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patientInfo.bed.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patientInfo.name.toLowerCase().includes(searchLower) ||
+      patientInfo.bed.toLowerCase().includes(searchLower) ||
+      (patient?.英文姓氏?.toLowerCase().includes(searchLower) || false) ||
+      (patient?.英文名字?.toLowerCase().includes(searchLower) || false) ||
+      (patient?.英文姓名?.toLowerCase().includes(searchLower) || false) ||
+      (patient?.身份證號碼?.toLowerCase().includes(searchLower) || false) ||
       record.記錄類型.includes(searchTerm) ||
       record.deletion_reason?.includes(searchTerm)
     );

@@ -29,6 +29,11 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
   const { addHealthRecord, updateHealthRecord, patients, hospitalEpisodes, admissionRecords } = usePatients();
   const { displayName } = useAuth();
 
+  // 自動聚焦輸入框的 ref
+  const bloodPressureInputRef = React.useRef<HTMLInputElement>(null);
+  const bloodSugarInputRef = React.useRef<HTMLInputElement>(null);
+  const weightInputRef = React.useRef<HTMLInputElement>(null);
+
   // 日期確認模態框 state (需在 useEffect 之前宣告)
   const [showDateWarningModal, setShowDateWarningModal] = useState(false);
   const [isDateWarningConfirmed, setIsDateWarningConfirmed] = useState(false);
@@ -190,7 +195,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
     customAbsenceReason: ''
   });
 
-  // 組件掛載時記錄初始狀態
+  // 組件掛載時記錄初始狀態和自動聚焦
   React.useEffect(() => {
     console.log('[HealthRecordModal] 組件掛載，初始表單數據:', {
       院友id: formData.院友id,
@@ -201,6 +206,19 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
       備註: formData.備註,
       initialIsPatientAbsent
     });
+
+    // 自動聚焦到對應的輸入框
+    setTimeout(() => {
+      if (!formData.isAbsent) {
+        if (formData.記錄類型 === '生命表徵' && bloodPressureInputRef.current) {
+          bloodPressureInputRef.current.focus();
+        } else if (formData.記錄類型 === '血糖控制' && bloodSugarInputRef.current) {
+          bloodSugarInputRef.current.focus();
+        } else if (formData.記錄類型 === '體重控制' && weightInputRef.current) {
+          weightInputRef.current.focus();
+        }
+      }
+    }, 100);
   }, []);
 
   // 計算當前院友是否在指定日期時間處於入院狀態（用於 UI 顯示）
@@ -666,7 +684,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                         <input
                           type="text"
                           value={formData.customAbsenceReason || ''}
-                          onChange={(e) => setFormData(prev => ({ ...prev, customAbsenceReason: e.target.value }))}
+                          onCref={bloodPressureInputRef} hange={(e) => setFormData(prev => ({ ...prev, customAbsenceReason: e.target.value }))}
                           className="form-input text-sm w-full"
                           placeholder="請輸入原因..."
                           required
@@ -684,7 +702,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                   <div>
                     <label className="form-label">血壓 (mmHg)</label>
                     <div className="flex space-x-2">
-                      <input type="text" value={formData.血壓收縮壓} onChange={(e) => updateFormData('血壓收縮壓', e.target.value.replace(/[^0-9]/g, ''))} className="form-input" placeholder="120" disabled={formData.isAbsent} inputMode="numeric" />
+                      <input ref={bloodPressureInputRef} type="text" value={formData.血壓收縮壓} onChange={(e) => updateFormData('血壓收縮壓', e.target.value.replace(/[^0-9]/g, ''))} className="form-input" placeholder="120" disabled={formData.isAbsent} inputMode="numeric" />
                       <span className="flex items-center text-gray-500">/</span>
                       <input type="text" value={formData.血壓舒張壓} onChange={(e) => updateFormData('血壓舒張壓', e.target.value.replace(/[^0-9]/g, ''))} className="form-input" placeholder="80" disabled={formData.isAbsent} inputMode="numeric" />
                     </div>
@@ -719,7 +737,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div>
                   <label className="form-label">血糖值 (mmol/L) *</label>
-                  <input type="text" value={formData.血糖值} onChange={(e) => updateFormData('血糖值', e.target.value)} className="form-input" placeholder="5.5" required disabled={formData.isAbsent} inputMode="decimal" />
+                  <input ref={bloodSugarInputRef} type="text" value={formData.血糖值} onChange={(e) => updateFormData('血糖值', e.target.value)} className="form-input" placeholder="5.5" required disabled={formData.isAbsent} inputMode="decimal" />
                 </div>
                 <div>
                   <label className="form-label">備註</label>

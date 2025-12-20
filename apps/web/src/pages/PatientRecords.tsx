@@ -72,7 +72,11 @@ const PatientRecords: React.FC = () => {
     if (advancedFilters.床號 && !patient.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
       return false;
     }
-    if (advancedFilters.中文姓名 && !patient.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())) {
+    if (advancedFilters.中文姓名 && !(
+      patient.中文姓氏.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase()) ||
+      patient.中文名字.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase()) ||
+      patient.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())
+    )) {
       return false;
     }
     if (advancedFilters.英文姓名 && !(

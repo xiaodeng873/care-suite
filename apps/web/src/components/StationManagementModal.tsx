@@ -72,7 +72,12 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
       bed.bed_name?.toLowerCase().includes(searchLower) ||
       station?.name.toLowerCase().includes(searchLower) ||
       patient?.中文姓氏.toLowerCase().includes(searchLower) ||
-      patient?.中文名字.toLowerCase().includes(searchLower)
+      patient?.中文名字.toLowerCase().includes(searchLower) ||
+      patient?.中文姓名.toLowerCase().includes(searchLower) ||
+      (patient?.英文姓氏?.toLowerCase().includes(searchLower) || false) ||
+      (patient?.英文名字?.toLowerCase().includes(searchLower) || false) ||
+      (patient?.英文姓名?.toLowerCase().includes(searchLower) || false) ||
+      (patient?.身份證號碼?.toLowerCase().includes(searchLower) || false)
     );
   });
 

@@ -106,7 +106,11 @@ const TaskManagement: React.FC = () => {
       if (filters.床號 && !patient?.床號.toLowerCase().includes(filters.床號.toLowerCase())) {
         return false;
       }
-      if (filters.中文姓名 && !patient?.中文姓名.toLowerCase().includes(filters.中文姓名.toLowerCase())) {
+      if (filters.中文姓名 && !(
+        patient?.中文姓氏.toLowerCase().includes(filters.中文姓名.toLowerCase()) ||
+        patient?.中文名字.toLowerCase().includes(filters.中文姓名.toLowerCase()) ||
+        patient?.中文姓名.toLowerCase().includes(filters.中文姓名.toLowerCase())
+      )) {
         return false;
       }
       if (filters.health_record_type && task.health_record_type !== filters.health_record_type) {
@@ -136,13 +140,18 @@ const TaskManagement: React.FC = () => {
       // 然後應用搜索條件
       let matchesSearch = true;
       if (filters.searchTerm) {
+        const searchLower = filters.searchTerm.toLowerCase();
         matchesSearch = 
-        patient?.中文姓氏.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        patient?.中文名字.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        patient?.床號.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        task.health_record_type.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        task.notes?.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        formatFrequencyDescription(task).toLowerCase().includes(filters.searchTerm.toLowerCase());
+        patient?.中文姓氏.toLowerCase().includes(searchLower) ||
+        patient?.中文名字.toLowerCase().includes(searchLower) ||
+        patient?.中文姓名.toLowerCase().includes(searchLower) ||
+        (patient?.英文姓氏?.toLowerCase().includes(searchLower) || false) ||
+        (patient?.英文名字?.toLowerCase().includes(searchLower) || false) ||
+        (patient?.英文姓名?.toLowerCase().includes(searchLower) || false) ||
+        patient?.身份證號碼.toLowerCase().includes(searchLower) ||
+        task.health_record_type.toLowerCase().includes(searchLower) ||
+        task.notes?.toLowerCase().includes(searchLower) ||
+        formatFrequencyDescription(task).toLowerCase().includes(searchLower);
       }
       
       // 類型篩選
@@ -753,9 +762,11 @@ const TaskManagement: React.FC = () => {
                   </th>
                   <SortableHeader field="patient_name">院友</SortableHeader>
                   <SortableHeader field="health_record_type">任務類型</SortableHeader>
+                  <SortableHeader field="created_at">開始日期</SortableHeader>
                   <SortableHeader field="frequency">頻率</SortableHeader>
-                  <SortableHeader field="next_due_at">下次到期</SortableHeader>
-                  <SortableHeader field="last_completed_at">最後完成</SortableHeader>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    特定時間
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     狀態
                   </th>
@@ -820,30 +831,31 @@ const TaskManagement: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatFrequencyDescription(task)}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <span>
-                            {isDocumentTask(task.health_record_type) || isNursingTask(task.health_record_type)
-                              ? new Date(task.next_due_at).toLocaleDateString('zh-TW')
-                              : new Date(task.next_due_at).toLocaleDateString('zh-TW') + ' ' + new Date(task.next_due_at).toLocaleTimeString('zh-TW', { hour: 'numeric', minute: '2-digit', hour12: true, second: undefined })}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {task.last_completed_at && new Date(task.last_completed_at).toISOString().split('T')[0] > SYNC_CUTOFF_DATE_STR ? (
+                        {task.start_date ? (
                           <div className="flex items-center space-x-1">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            <Calendar className="h-4 w-4 text-gray-400" />
                             <span>
-                              {isDocumentTask(task.health_record_type) || isNursingTask(task.health_record_type)
-                                ? new Date(task.last_completed_at).toLocaleDateString('zh-TW')
-                                : new Date(task.last_completed_at).toLocaleDateString('zh-TW') + ' ' + new Date(task.last_completed_at).toLocaleTimeString('zh-TW', { hour: 'numeric', minute: '2-digit', hour12: true, second: undefined })}
+                              {new Date(task.start_date).toLocaleDateString('zh-TW')}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-gray-500">尚未完成</span>
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatFrequencyDescription(task)}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {task.specific_times && task.specific_times.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {task.specific_times.map((time, idx) => (
+                              <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700">
+                                {time}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
                         )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">

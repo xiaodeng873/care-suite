@@ -61,11 +61,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
     end_time: task?.end_time || '',
     tube_type: task?.tube_type || '',
     tube_size: task?.tube_size || '',
-    start_date: task?.last_completed_at
-      ? new Date(task.last_completed_at).toISOString().split('T')[0]
+    start_date: task?.start_date
+      ? new Date(task.start_date).toISOString().split('T')[0]
       : getHongKongDate(),
-    start_time: task?.last_completed_at
-      ? new Date(task.last_completed_at).toTimeString().slice(0, 5)
+    start_time: task?.start_date
+      ? new Date(task.start_date).toTimeString().slice(0, 5)
       : getHongKongTime(),
   });
 
@@ -171,6 +171,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
         specific_days_of_month: formData.specific_days_of_month,
         last_completed_at: lastCompletedAt,
         next_due_at: nextDueAt.toISOString(),
+        start_date: formData.start_date,  // 保存任務開始執行日期
         tube_type: formData.tube_type || null,
         tube_size: formData.tube_size || null,
         notes: (formData.notes && formData.notes.trim() !== '') ? formData.notes as MonitoringTaskNotes : null,

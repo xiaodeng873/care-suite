@@ -46,6 +46,11 @@ interface MixedItem {
   missingInfo?: string;
 }
 
+interface GroupedPatientMissing {
+  patient: Patient;
+  items: MixedItem[];
+}
+
 const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
   missingTasks,
   missingMealGuidance,
@@ -101,8 +106,40 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
     return items.sort((a, b) => a.priority - b.priority);
   }, [missingTasks, missingMealGuidance, missingDeathDate, missingVaccination]);
 
-  const totalMissing = allMissingItems.length;
-  const displayItems = showAll ? allMissingItems : allMissingItems.slice(0, 2);
+  // 按院友分組
+  const groupedByPatient = useMemo<GroupedPatientMissing[]>(() => {
+    const patientMap = new Map<string, MixedItem[]>();
+
+    allMissingItems.forEach(item => {
+      const patientId = item.patient.院友id;
+      if (!patientMap.has(patientId)) {
+        patientMap.set(patientId, []);
+      }
+      patientMap.get(patientId)!.push(item);
+    });
+
+    const grouped: GroupedPatientMissing[] = Array.from(patientMap.entries()).map(([_, items]) => ({
+      patient: items[0].patient,
+      items: items.sort((a, b) => a.priority - b.priority)
+    }));
+
+    // 按床號排序
+    return grouped.sort((a, b) => a.patient.床號.localeCompare(b.patient.床號, 'zh-Hant', { numeric: true }));
+  }, [allMissingItems]);
+
+  // 展平為單個項目列表，但保持分組順序
+  const flattenedItems = useMemo(() => {
+    const flattened: MixedItem[] = [];
+    groupedByPatient.forEach(group => {
+      group.items.forEach(item => {
+        flattened.push(item);
+      });
+    });
+    return flattened;
+  }, [groupedByPatient]);
+
+  const totalMissing = groupedByPatient.length;
+  const displayItems = showAll ? flattenedItems : flattenedItems.slice(0, 2);
 
   if (totalMissing === 0) return null;
 
@@ -210,11 +247,7 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
           <div>
             <h2 className="text-lg font-semibold text-gray-900">欠缺必要項目</h2>
             <p className="text-sm text-gray-600">
-              共 {totalMissing} 項 ·
-              任務{missingTasks.length} ·
-              餐膳{missingMealGuidance.length} ·
-              死亡{missingDeathDate.length} ·
-              疫苗{missingVaccination.length}
+              共 {totalMissing} 位院友欠缺必要項目
             </p>
           </div>
         </div>

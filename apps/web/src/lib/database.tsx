@@ -192,6 +192,7 @@ export interface PatientHealthTask {
   next_due_at: string;
   notes?: MonitoringTaskNotes | null;
   is_recurring?: boolean;
+  start_date?: string;  // 任務開始執行日期
   end_date?: string;
   end_time?: string;
   tube_type?: string;

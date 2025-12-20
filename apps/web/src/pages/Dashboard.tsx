@@ -128,18 +128,57 @@ const Dashboard: React.FC = () => {
   const handleTaskClick = (task: HealthTask, date?: string) => {
     const patient = patients.find(p => p.院友id === task.patient_id);
 
+    // 调试：呂葉少芳
+    const isLyuPatient = patient?.中文姓名 === '呂葉少芳';
+    
+    if (isLyuPatient) {
+      console.log('[handleTaskClick] 呂葉少芳, date参数:', date);
+    }
+
     let targetDate = date;
     if (!targetDate) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      
+      // 获取院友入住日期
+      const admissionDate = patient?.入住日期 ? new Date(patient.入住日期) : null;
+      if (admissionDate) {
+        admissionDate.setHours(0, 0, 0, 0);
+      }
+      
       const normalizedTaskTimes = task.specific_times?.map(normalizeTime) || [];
 
-      for (let i = 0; i <= 14; i++) {
+      if (isLyuPatient) {
+        console.log('[handleTaskClick] 开始查找未完成日期, 入住日期:', patient?.入住日期);
+      }
+
+      for (let i = 0; i <= 28; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(checkDate.getDate() - i);
         const dateStr = formatLocalDate(checkDate);
 
-        if (!isTaskScheduledForDate(task, checkDate)) continue;
+        // 如果检查日期早于 CUT OFF DATE，跳过
+        if (dateStr <= SYNC_CUTOFF_DATE_STR) {
+          if (isLyuPatient) {
+            console.log(`[handleTaskClick] ${dateStr} <= CUT OFF, 跳过`);
+          }
+          continue;
+        }
+
+        // 如果检查日期早于入住日期，跳过
+        if (admissionDate && checkDate < admissionDate) {
+          if (isLyuPatient) {
+            console.log(`[handleTaskClick] ${dateStr} < 入住日期, 跳过`);
+          }
+          continue;
+        }
+
+        if (!isTaskScheduledForDate(task, checkDate)) {
+          if (isLyuPatient) {
+            console.log(`[handleTaskClick] ${dateStr} 不在排程`);
+          }
+          continue;
+        }
 
         let isDateCompleted = false;
         if (normalizedTaskTimes.length > 0) {
@@ -156,7 +195,16 @@ const Dashboard: React.FC = () => {
 
         if (!isDateCompleted) {
           targetDate = dateStr;
+          if (isLyuPatient) {
+            console.log(`[handleTaskClick] ${dateStr} 未完成，设为目标日期`);
+          }
+        } else if (isLyuPatient) {
+          console.log(`[handleTaskClick] ${dateStr} 已完成`);
         }
+      }
+
+      if (isLyuPatient) {
+        console.log('[handleTaskClick] targetDate:', targetDate);
       }
 
       if (!targetDate) {
@@ -410,10 +458,17 @@ const Dashboard: React.FC = () => {
       const patient = patientsMap.get(task.patient_id);
       if (!patient || patient.在住狀態 !== '在住') return;
 
+      // 调试：呂葉少芳
+      const isLyuPatient = patient.中文姓名 === '呂葉少芳';
+
       // 获取院友入住日期
       const admissionDate = patient.入住日期 ? new Date(patient.入住日期) : null;
       if (admissionDate) {
         admissionDate.setHours(0, 0, 0, 0);
+      }
+
+      if (isLyuPatient) {
+        console.log(`[呂葉少芳调试] 任务: ${task.health_record_type}, 入住日期: ${patient.入住日期}, CUT OFF: ${SYNC_CUTOFF_DATE_STR}`);
       }
 
       const normalizedTaskTimes = task.specific_times?.map(normalizeTime) || [];
@@ -427,11 +482,17 @@ const Dashboard: React.FC = () => {
 
         // 如果检查日期早于 CUT OFF DATE，跳过
         if (dateStr <= SYNC_CUTOFF_DATE_STR) {
+          if (isLyuPatient) {
+            console.log(`[呂葉少芳调试] ${dateStr} <= CUT OFF (${SYNC_CUTOFF_DATE_STR}), 跳过`);
+          }
           continue;
         }
 
         // 如果检查日期早于入住日期，跳过
         if (admissionDate && checkDate < admissionDate) {
+          if (isLyuPatient) {
+            console.log(`[呂葉少芳调试] ${dateStr} < 入住日期 (${patient.入住日期}), 跳过`);
+          }
           continue;
         }
 
@@ -458,7 +519,17 @@ const Dashboard: React.FC = () => {
           if (!firstIncompleteDate) {
             firstIncompleteDate = incompleteDate;
           }
+          if (isLyuPatient) {
+            console.log(`[呂葉少芳调试] ${dateStr} 未完成`);
+          }
+        } else if (isLyuPatient) {
+          console.log(`[呂葉少芳调试] ${dateStr} 已完成`);
         }
+      }
+
+      if (isLyuPatient && incompleteDates.length > 0) {
+        console.log(`[呂葉少芳调试] 未完成日期:`, incompleteDates.map(d => formatLocalDate(d)));
+        console.log(`[呂葉少芳调试] firstIncompleteDate:`, firstIncompleteDate ? formatLocalDate(firstIncompleteDate) : 'null');
       }
 
       if (firstIncompleteDate) {

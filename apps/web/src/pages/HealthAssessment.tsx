@@ -208,6 +208,11 @@ const HealthAssessment: React.FC = () => {
     if (searchTerm) {
       matchesSearch = patient?.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          patient?.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         patient?.中文姓名.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (patient?.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+                         (patient?.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+                         (patient?.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+                         patient?.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          patient?.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          record.備註?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          new Date(record.記錄日期).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase()) ||

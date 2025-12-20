@@ -75,6 +75,24 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
       return 'none';
     }
 
+    // [新增] 如果日期早於任務開始執行日期（start_date），不應顯示任何狀態
+    if (task.start_date) {
+      const taskStartDate = new Date(task.start_date);
+      taskStartDate.setHours(0, 0, 0, 0);
+      if (checkDate < taskStartDate) {
+        return 'none';
+      }
+    }
+
+    // [新增] 如果日期早於院友入住日期，不應顯示任何狀態
+    if (patient && patient.入住日期) {
+      const admissionDate = new Date(patient.入住日期);
+      admissionDate.setHours(0, 0, 0, 0);
+      if (checkDate < admissionDate) {
+        return 'none';
+      }
+    }
+
     // [修改] 如果指定了 specificTime，只檢查那個時間點
     if (specificTime) {
       // [修正] 標準化時間格式為 HH:MM

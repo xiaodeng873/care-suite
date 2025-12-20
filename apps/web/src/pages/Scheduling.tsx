@@ -204,9 +204,12 @@ const Scheduling: React.FC = () => {
         return (
           patient?.中文姓氏?.toLowerCase().includes(searchLower) ||
           patient?.中文名字?.toLowerCase().includes(searchLower) ||
+          patient?.中文姓名?.toLowerCase().includes(searchLower) ||
           patient?.床號?.toLowerCase().includes(searchLower) ||
           patient?.英文姓氏?.toLowerCase().includes(searchLower) ||
           patient?.英文名字?.toLowerCase().includes(searchLower) ||
+          patient?.英文姓名?.toLowerCase().includes(searchLower) ||
+          patient?.身份證號碼?.toLowerCase().includes(searchLower) ||
           item.症狀說明?.toLowerCase().includes(searchLower) ||
           item.備註?.toLowerCase().includes(searchLower) ||
           item.reasons?.some(reason => reason.原因名稱.toLowerCase().includes(searchLower))

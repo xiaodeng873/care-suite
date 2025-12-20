@@ -152,6 +152,11 @@ const StaffWorkPanel: React.FC = () => {
         return (
           task.patient.中文姓氏.toLowerCase().includes(searchLower) ||
           task.patient.中文名字.toLowerCase().includes(searchLower) ||
+          task.patient.中文姓名.toLowerCase().includes(searchLower) ||
+          (task.patient.英文姓氏?.toLowerCase().includes(searchLower) || false) ||
+          (task.patient.英文名字?.toLowerCase().includes(searchLower) || false) ||
+          (task.patient.英文姓名?.toLowerCase().includes(searchLower) || false) ||
+          task.patient.身份證號碼.toLowerCase().includes(searchLower) ||
           task.patient.床號.toLowerCase().includes(searchLower) ||
           task.prescription.medication_name.toLowerCase().includes(searchLower) ||
           task.label.toLowerCase().includes(searchLower)

@@ -136,6 +136,11 @@ const WoundManagement: React.FC = () => {
     if (searchTerm) {
       matchesSearch = patient?.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          patient?.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         patient?.中文姓名.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (patient?.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+                         (patient?.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+                         (patient?.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+                         patient?.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          patient?.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          assessment.assessor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          assessment.stage?.toLowerCase().includes(searchTerm.toLowerCase()) ||
