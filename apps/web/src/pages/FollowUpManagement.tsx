@@ -6,6 +6,7 @@ import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { exportFollowUpListToExcel, type FollowUpExportData } from '../utils/followUpListGenerator';
 import { generateFollowUpRecordWorksheet, type FollowUpRecordData } from '../utils/followUpRecordWorksheetGenerator';
+import { generateFollowUpBagCover, type FollowUpBagCoverData } from '../utils/followUpBagCoverGenerator';
 
 type SortField = '覆診日期' | '覆診時間' | '院友姓名' | '覆診地點' | '覆診專科' | '狀態' | '交通安排' | '陪診人員';
 type SortDirection = 'asc' | 'desc';
@@ -444,12 +445,46 @@ const FollowUpManagement: React.FC = () => {
         院友: {
           床號: patient?.床號 || '',
           中文姓氏: patient?.中文姓氏 || '',
-          中文名字: patient?.中文名字 || ''
+          中文名字: patient?.中文名字 || '',
+          英文名字: patient?.英文名字
         }
       };
     });
 
     generateFollowUpRecordWorksheet(worksheetData);
+  };
+
+  const handleExportBagCover = () => {
+    const selectedAppointments = paginatedAppointments.filter(a => selectedRows.has(a.覆診id));
+    
+    if (selectedAppointments.length === 0) {
+      alert('請先勾選要匯出的覆診記錄');
+      return;
+    }
+
+    const bagCoverData: FollowUpBagCoverData[] = selectedAppointments.map(appointment => {
+      const patient = patients.find(p => p.院友id === appointment.院友id);
+      return {
+        覆診id: appointment.覆診id,
+        院友id: appointment.院友id,
+        覆診日期: appointment.覆診日期,
+        出發時間: appointment.出發時間,
+        覆診時間: appointment.覆診時間,
+        覆診地點: appointment.覆診地點,
+        覆診專科: appointment.覆診專科,
+        交通安排: appointment.交通安排,
+        陪診人員: appointment.陪診人員,
+        備註: appointment.備註,
+        院友: {
+          床號: patient?.床號 || '',
+          中文姓氏: patient?.中文姓氏 || '',
+          中文名字: patient?.中文名字 || '',
+          英文名字: patient?.英文名字
+        }
+      };
+    });
+
+    generateFollowUpBagCover(bagCoverData);
   };
 
   const handleExportFollowUpList = async (appointments: FollowUpAppointment[]) => {
@@ -608,10 +643,18 @@ const FollowUpManagement: React.FC = () => {
                 <button
                   onClick={handleExportWorksheet}
                   className="btn-secondary flex items-center space-x-2"
-                  title={`匯出覆診記錄工作紙（已選 ${selectedRows.size} 筆）`}
+                  title={`匯出覆診記錄表（已選 ${selectedRows.size} 筆）`}
                 >
                   <FileText className="h-4 w-4" />
-                  <span>覆診記錄工作紙</span>
+                  <span>覆診記錄表</span>
+                </button>
+                <button
+                  onClick={handleExportBagCover}
+                  className="btn-secondary flex items-center space-x-2"
+                  title={`匯出覆診袋封面（已選 ${selectedRows.size} 筆）`}
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>覆診袋封面</span>
                 </button>
                 <button
                   onClick={handleExportSelected}
