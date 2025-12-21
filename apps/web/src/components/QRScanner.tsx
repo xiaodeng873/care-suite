@@ -80,6 +80,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
         aspectRatio: 1.0,
       };
 
+      setDebugMessage('🔄 正在啟動掃描器...');
+
       await html5QrCode.start(
         { facingMode: facingMode },
         config,
@@ -113,11 +115,16 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
             }
           }
         },
-        undefined
+        (errorMessage) => {
+          // 掃描錯誤回調（非致命錯誤）
+          console.log('⚠️ 掃描錯誤:', errorMessage);
+          // 不顯示這些錯誤，因為它們是正常的「未檢測到二維碼」消息
+        }
       );
 
       setIsScanning(true);
       setShouldStartScanning(false);
+      setDebugMessage('✅ 掃描器已啟動，請對準二維碼');
     } catch (err: any) {
       console.error('啟動掃描器失敗:', err);
       
