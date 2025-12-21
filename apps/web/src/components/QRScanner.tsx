@@ -168,6 +168,9 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       </div>
 
       <div className="p-3">
+        {/* 始終渲染掃描器容器，避免 DOM 時序問題 */}
+        <div id={scannerIdRef.current} className={isScanning ? "rounded-lg overflow-hidden border border-gray-300 mb-2" : "hidden"} />
+        
         {!shouldStartScanning && !isScanning ? (
           <div className="flex flex-col items-center space-y-3">
             <button
@@ -203,8 +206,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
           </div>
         ) : (
           <div className="space-y-2">
-            <div id={scannerIdRef.current} className="rounded-lg overflow-hidden border border-gray-300" />
-
             <div className="flex items-center justify-between">
               <button
                 onClick={toggleCamera}
