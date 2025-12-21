@@ -424,7 +424,7 @@ const StationBedManagement: React.FC = () => {
             const totalSelfCare = maleSelfCare + femaleSelfCare;
             
             return (
-              <div className="p-4"> 
+              <div key={station.id} className="p-4"> 
               </div>
             );
           })

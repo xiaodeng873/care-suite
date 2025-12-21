@@ -15,6 +15,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [error, setError] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [debugMessage, setDebugMessage] = useState<string>('');
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerIdRef = useRef('qr-scanner-' + Math.random().toString(36).substr(2, 9));
 
@@ -83,19 +84,29 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
         { facingMode: facingMode },
         config,
         async (decodedText) => {
+          console.log('📷 掃描到原始內容:', decodedText);
+          setDebugMessage(`掃描到: ${decodedText.substring(0, 50)}...`);
           try {
             const qrData = JSON.parse(decodedText);
+            console.log('📋 解析後的數據:', qrData);
+            setDebugMessage(`解析成功: type=${qrData.type}, qr_code_id=${qrData.qr_code_id}`);
             
             if (qrData.type === 'bed' && qrData.qr_code_id) {
+              console.log('✅ 有效的床位二維碼，qr_code_id:', qrData.qr_code_id);
+              setDebugMessage(`✅ 有效床位碼: ${qrData.qr_code_id}`);
               await stopScanner();
               onScanSuccess(qrData.qr_code_id);
             } else {
+              console.log('❌ 無效的床位二維碼，缺少必要字段');
+              setDebugMessage('❌ 無效的床位二維碼');
               setError('這不是有效的床位二維碼');
               if (onError) {
                 onError('這不是有效的床位二維碼');
               }
             }
           } catch (parseError) {
+            console.error('❌ JSON 解析失敗:', parseError);
+            setDebugMessage(`❌ JSON解析失敗: ${parseError}`);
             setError('無法解析二維碼資料');
             if (onError) {
               onError('無法解析二維碼資料');
@@ -225,6 +236,12 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
 
             {/* 右側：控制按鈕 */}
             <div className="flex flex-col justify-center space-y-2 flex-1">
+              {debugMessage && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mb-2">
+                  <p className="text-xs text-blue-800 break-all">{debugMessage}</p>
+                </div>
+              )}
+              
               <button
                 onClick={toggleCamera}
                 className="flex items-center justify-center space-x-2 px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors w-full"
