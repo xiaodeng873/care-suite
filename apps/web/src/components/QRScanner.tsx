@@ -15,6 +15,16 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
   const [permissionDenied, setPermissionDenied] = useState(false);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerIdRef = useRef('qr-scanner-' + Math.random().toString(36).substr(2, 9));
+  const [isMounted, setIsMounted] = useState(false);
+
+  // 確保組件已掛載
+  useEffect(() => {
+    setIsMounted(true);
+    return () => {
+      setIsMounted(false);
+      cleanupScanner();
+    };
+  }, []);
 
   const cleanupScanner = async () => {
     if (html5QrCodeRef.current) {
@@ -34,8 +44,23 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
     setError(null);
     setPermissionDenied(false);
 
+    // 確保 DOM 元素存在
+    if (!isMounted) {
+      console.error('組件尚未掛載');
+      return;
+    }
+
+    // 等待 DOM 更新
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     try {
       await cleanupScanner();
+
+      // 檢查 DOM 元素是否存在
+      const element = document.getElementById(scannerIdRef.current);
+      if (!element) {
+        throw new Error(`找不到掃描器容器元素: ${scannerIdRef.current}`);
+      }
 
       const html5QrCode = new Html5Qrcode(scannerIdRef.current);
       html5QrCodeRef.current = html5QrCode;
@@ -104,15 +129,9 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       await stopScanner();
       setTimeout(() => {
         startScanner();
-      }, 100);
+      }, 200);
     }
   };
-
-  useEffect(() => {
-    return () => {
-      cleanupScanner();
-    };
-  }, []);
 
   return (
     <div className={`bg-white rounded-lg border border-gray-200 ${className}`}>
