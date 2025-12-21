@@ -75,14 +75,21 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       document.head.appendChild(style);
 
       const config = {
-        fps: 20,
+        fps: 30,
         aspectRatio: 1.0,
+        disableFlip: false,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true
+        }
       };
 
       setDebugMessage('🔄 正在啟動掃描器...');
 
       await html5QrCode.start(
-        { facingMode: facingMode },
+        { 
+          facingMode: facingMode,
+          advanced: [{ zoom: 1.0 }]
+        },
         config,
         async (decodedText) => {
           console.log('📷 掃描到原始內容:', decodedText);
