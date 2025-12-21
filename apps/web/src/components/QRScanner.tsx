@@ -75,8 +75,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       document.head.appendChild(style);
 
       const config = {
-        fps: 10,
-        qrbox: { width: 100, height: 100 },
+        fps: 20,
         aspectRatio: 1.0,
       };
 

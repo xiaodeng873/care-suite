@@ -489,17 +489,15 @@ const MedicationWorkflow: React.FC = () => {
       const patient = patients.find(p => p.bed_id === bed.id && p.在住狀態 === '在住');
 
       if (!patient) {
-        alert(`床位 ${bed.bed_number} 目前無院友入住`);
+        // 空床位，不顯示彈框，只記錄日誌
+        console.log(`床位 ${bed.bed_number} 目前無院友入住`);
         return;
       }
 
       console.log('👤 找到院友:', patient.中文姓名);
 
-      // 設定選中的院友
+      // 設定選中的院友（直接跳轉，無彈框）
       setSelectedPatientId(patient.院友id.toString());
-
-      // 顯示成功訊息
-      alert(`✓ 成功識別床位 ${bed.bed_number}\n院友: ${patient.中文姓名}`);
     } catch (error) {
       console.error('❌ 處理二維碼掃描失敗:', error);
       alert('處理二維碼失敗，請重試');
