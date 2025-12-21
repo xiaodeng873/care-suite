@@ -61,7 +61,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
 
       const config = {
         fps: 10,
-        qrbox: { width: 150, height: 150 },
+        qrbox: { width: 100, height: 100 },
         aspectRatio: 1.0,
       };
 
@@ -206,7 +206,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
           <div className="flex gap-3">
             {/* 左側：掃描器實時畫面 */}
             <div className="flex-shrink-0">
-              <div id={scannerIdRef.current} className="rounded-lg overflow-hidden border border-gray-300" style={{ width: '150px', height: '150px' }} />
+              <div id={scannerIdRef.current} className="rounded-lg overflow-hidden" style={{ width: '100px', height: '100px' }} />
             </div>
 
             {/* 右側：控制按鈕 */}
