@@ -6,11 +6,12 @@ interface QRScannerProps {
   onScanSuccess: (qrCodeId: string) => void;
   onError?: (error: string) => void;
   className?: string;
+  autoStart?: boolean;
 }
 
-const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className = '' }) => {
+const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className = '', autoStart = false }) => {
   const [isScanning, setIsScanning] = useState(false);
-  const [shouldStartScanning, setShouldStartScanning] = useState(false);
+  const [shouldStartScanning, setShouldStartScanning] = useState(autoStart);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [error, setError] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -60,7 +61,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
 
       const config = {
         fps: 10,
-        qrbox: { width: 250, height: 250 },
+        qrbox: { width: 150, height: 150 },
         aspectRatio: 1.0,
       };
 
@@ -168,9 +169,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       </div>
 
       <div className="p-3">
-        {/* 始終渲染掃描器容器，避免 DOM 時序問題 */}
-        <div id={scannerIdRef.current} className={isScanning ? "rounded-lg overflow-hidden border border-gray-300 mb-2" : "hidden"} />
-        
         {!shouldStartScanning && !isScanning ? (
           <div className="flex flex-col items-center space-y-3">
             <button
@@ -205,11 +203,17 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
             )}
           </div>
         ) : (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+          <div className="flex gap-3">
+            {/* 左側：掃描器實時畫面 */}
+            <div className="flex-shrink-0">
+              <div id={scannerIdRef.current} className="rounded-lg overflow-hidden border border-gray-300" style={{ width: '200px', height: '200px' }} />
+            </div>
+
+            {/* 右側：控制按鈕 */}
+            <div className="flex flex-col justify-center space-y-2 flex-1">
               <button
                 onClick={toggleCamera}
-                className="flex items-center space-x-1 px-3 py-1.5 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                className="flex items-center justify-center space-x-2 px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors w-full"
               >
                 <SwitchCamera className="h-4 w-4" />
                 <span>{facingMode === 'user' ? '切換到後置' : '切換到前置'}</span>
@@ -217,20 +221,20 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
 
               <button
                 onClick={stopScanner}
-                className="px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                className="px-3 py-2 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors w-full"
               >
                 停止掃描
               </button>
-            </div>
 
-            {error && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2">
-                <div className="flex items-start space-x-2">
-                  <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-yellow-800">{error}</p>
+              {error && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2">
+                  <div className="flex items-start space-x-2">
+                    <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-yellow-800">{error}</p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>

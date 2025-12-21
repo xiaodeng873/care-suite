@@ -3068,6 +3068,7 @@ const MedicationWorkflow: React.FC = () => {
               <QRScanner
                 onScanSuccess={handleQRScanSuccess}
                 onError={handleQRScanError}
+                autoStart={true}
               />
             }
             onOptimisticUpdate={(patientId, needsCrushing) => {
