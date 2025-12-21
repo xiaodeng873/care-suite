@@ -7,14 +7,27 @@ interface PatientInfoCardProps {
   patient: Patient | null;
   onToggleCrushMedication?: (patientId: number, needsCrushing: boolean) => void;
   onOptimisticUpdate?: (patientId: number, needsCrushing: boolean) => void;
+  showScanner?: boolean; // 是否顯示掃描器（右側）
+  scannerSlot?: React.ReactNode; // 掃描器插槽
 }
 
-const PatientInfoCard: React.FC<PatientInfoCardProps> = ({ patient, onToggleCrushMedication, onOptimisticUpdate }) => {
+const PatientInfoCard: React.FC<PatientInfoCardProps> = ({ 
+  patient, 
+  onToggleCrushMedication, 
+  onOptimisticUpdate,
+  showScanner = false,
+  scannerSlot 
+}) => {
   if (!patient) {
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex items-center justify-center text-gray-500">
-        <User className="w-5 h-5 mr-2" />
-        <span>請選擇院友</span>
+      <div className={`grid ${showScanner ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'} gap-3`}>
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-center text-gray-500">
+          <User className="w-5 h-5 mr-2" />
+          <span>請選擇院友</span>
+        </div>
+        {showScanner && scannerSlot && (
+          <div>{scannerSlot}</div>
+        )}
       </div>
     );
   }
@@ -89,82 +102,76 @@ const PatientInfoCard: React.FC<PatientInfoCardProps> = ({ patient, onToggleCrus
                        (patient.不良藥物反應 && patient.不良藥物反應.length > 0);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* 左側：院友個人資訊 */}
-        <div className="space-y-3">
-          {/* 基本資訊行 */}
-          <div className="flex items-start space-x-3">
-            {/* 相片 */}
-            <div className="flex-shrink-0">
-              {patient.院友相片 ? (
-                <img
-                  src={patient.院友相片}
-                  alt={patient.中文姓名}
-                  className="w-16 h-16 rounded-lg object-cover border-2 border-gray-200"
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-lg bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
-                  <User className="w-8 h-8 text-gray-400" />
+    <div className={`grid ${showScanner ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'} gap-3`}>
+      {/* 左側：院友資訊（左右兩欄佈局） */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="grid grid-cols-2 gap-4 h-full">
+          {/* 左小欄：個人資訊 + 碎藥需求 */}
+          <div className="flex flex-col justify-between">
+            {/* 基本資訊 */}
+            <div className="flex items-start space-x-3">
+              {/* 相片 */}
+              <div className="flex-shrink-0">
+                {patient.院友相片 ? (
+                  <img
+                    src={patient.院友相片}
+                    alt={patient.中文姓名}
+                    className="w-16 h-16 rounded-lg object-cover border-2 border-gray-200"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-lg bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
+                    <User className="w-8 h-8 text-gray-400" />
+                  </div>
+                )}
+              </div>
+
+              {/* 基本資訊 */}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm mb-2">
+                  <span className="font-medium text-blue-600">床號: {patient.床號}</span>
+                  <span className="font-bold text-gray-900 text-base">{patient.中文姓名}</span>
+                  {patient.英文姓名 && (
+                    <span className="text-gray-600 text-sm">{patient.英文姓名}</span>
+                  )}
                 </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
+                  <span>{patient.性別} | {calculateAge(patient.出生日期)}</span>
+                  {patient.出生日期 && (
+                    <span>生日: {patient.出生日期}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 碎藥需求 */}
+            <div className="flex items-center space-x-2 pt-3 border-t border-gray-200 mt-3">
+              <span className="text-sm font-medium text-gray-700">特殊需求: 碎藥</span>
+              <button
+                onClick={handleCrushToggle}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                  patient.needs_medication_crushing ? 'bg-green-600' : 'bg-gray-300'
+                }`}
+                aria-label="碎藥需求開關"
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                    patient.needs_medication_crushing ? 'translate-x-5' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+              {patient.needs_medication_crushing && (
+                <span className="text-sm font-medium text-green-700">✓ 已啟用</span>
               )}
             </div>
+          </div>
 
-            {/* 基本資訊 */}
-            <div className="flex-1 min-w-0 text-sm">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="font-medium text-blue-600">床號: {patient.床號}</span>
-                <span className="font-bold text-gray-900 text-base">{patient.中文姓名}</span>
-                {patient.英文姓名 && (
-                  <span className="text-gray-600">{patient.英文姓名}</span>
-                )}
-                <span className="text-gray-600">
-                  {patient.性別} | {calculateAge(patient.出生日期)}
-                </span>
-              </div>
-
-              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-gray-600">
-                {patient.出生日期 && (
-                  <span>生日: {patient.出生日期}</span>
-                )}
-                {patient.身份證號碼 && (
-                  <span>身份證: {patient.身份證號碼}</span>
-                )}
+          {/* 右小欄：藥物安全資訊 */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="flex items-center space-x-2 mb-3">
+              <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+              <span className="text-sm font-semibold text-yellow-900">藥物安全資訊</span>
+            </div>
             
-              </div>
-            </div>
-          </div>
-
-          {/* 碎藥需求 Toggle - 靠左對齊 */}
-          <div className="flex items-center space-x-3 pt-2 border-t border-gray-200">
-            <span className="text-sm font-medium text-gray-700">特殊需求: 碎藥</span>
-            <button
-              onClick={handleCrushToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                patient.needs_medication_crushing ? 'bg-green-600' : 'bg-gray-300'
-              }`}
-              aria-label="碎藥需求開關"
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  patient.needs_medication_crushing ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-            {patient.needs_medication_crushing && (
-              <span className="text-sm font-medium text-green-700">✓ 已啟用</span>
-            )}
-          </div>
-        </div>
-
-        {/* 右側：藥物安全資訊 */}
-        <div className="space-y-3">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 h-full">
-            <div className="flex items-center space-x-2 mb-2">
-              <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-              <p className="text-sm font-semibold text-yellow-900">藥物安全資訊</p>
-            </div>
-
             <div className="space-y-3">
               {/* 藥物敏感 */}
               <div>
@@ -208,6 +215,11 @@ const PatientInfoCard: React.FC<PatientInfoCardProps> = ({ patient, onToggleCrus
           </div>
         </div>
       </div>
+
+      {/* 右側：掃描器插槽 */}
+      {showScanner && scannerSlot && (
+        <div>{scannerSlot}</div>
+      )}
     </div>
   );
 };

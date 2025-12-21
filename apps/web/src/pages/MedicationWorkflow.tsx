@@ -29,6 +29,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import PatientAutocomplete from '../components/PatientAutocomplete';
 import PatientInfoCard from '../components/PatientInfoCard';
+import QRScanner from '../components/QRScanner';
 import PrescriptionModal from '../components/PrescriptionModal';
 import DispenseConfirmModal from '../components/DispenseConfirmModal';
 import BatchDispenseConfirmModal from '../components/BatchDispenseConfirmModal';
@@ -40,6 +41,7 @@ import { Portal } from '../components/Portal';
 import { generateDailyWorkflowRecords, generateBatchWorkflowRecords } from '../utils/workflowGenerator';
 import { diagnoseWorkflowDisplayIssue } from '../utils/diagnoseTool';
 import { supabase } from '../lib/supabase';
+import { getBedByQrCodeId } from '../lib/database';
 import {
   hasOverdueWorkflowOnDate,
   calculateOverdueCountByDate,
@@ -467,6 +469,47 @@ const MedicationWorkflow: React.FC = () => {
   const [startTime, setStartTime] = useState(0);
   const [dragVelocity, setDragVelocity] = useState(0);
   const [dragDistance, setDragDistance] = useState(0);
+
+  // QR 掃描處理函數
+  const handleQRScanSuccess = async (qrCodeId: string) => {
+    try {
+      console.log('🔍 掃描到床位二維碼:', qrCodeId);
+
+      // 查找床位
+      const bed = await getBedByQrCodeId(qrCodeId);
+      
+      if (!bed) {
+        alert('找不到對應的床位，請確認二維碼是否正確');
+        return;
+      }
+
+      console.log('🛏️ 找到床位:', bed.bed_number);
+
+      // 查找該床位的院友
+      const patient = patients.find(p => p.bed_id === bed.id && p.在住狀態 === '在住');
+
+      if (!patient) {
+        alert(`床位 ${bed.bed_number} 目前無院友入住`);
+        return;
+      }
+
+      console.log('👤 找到院友:', patient.中文姓名);
+
+      // 設定選中的院友
+      setSelectedPatientId(patient.院友id.toString());
+
+      // 顯示成功訊息
+      alert(`✓ 成功識別床位 ${bed.bed_number}\n院友: ${patient.中文姓名}`);
+    } catch (error) {
+      console.error('❌ 處理二維碼掃描失敗:', error);
+      alert('處理二維碼失敗，請重試');
+    }
+  };
+
+  const handleQRScanError = (error: string) => {
+    console.error('掃描錯誤:', error);
+    // 錯誤已在 QRScanner 元件中顯示，這裡不需要額外處理
+  };
 
   // 計算一週日期（周日開始）
   const computeWeekDates = (dateStr: string): string[] => {
@@ -3015,34 +3058,39 @@ const MedicationWorkflow: React.FC = () => {
         </div>
       </div>
 
-      {/* 院友資訊卡 */}
-      {selectedPatient && (
-        <div className="sticky top-24 bg-white z-[5] shadow-sm">
-          <div className="card p-4">
-            <PatientInfoCard
-              patient={selectedPatient}
-              onOptimisticUpdate={(patientId, needsCrushing) => {
-                // 立即更新 UI（樂觀更新）
-                setOptimisticCrushState(prev => {
-                  const next = new Map(prev);
-                  next.set(patientId, needsCrushing);
-                  return next;
-                });
-              }}
-              onToggleCrushMedication={async (patientId, needsCrushing) => {
-                // 資料庫更新成功後刷新數據
-                await refreshData();
-                // 清除樂觀更新狀態
-                setOptimisticCrushState(prev => {
-                  const next = new Map(prev);
-                  next.delete(patientId);
-                  return next;
-                });
-              }}
-            />
-          </div>
+      {/* 院友資訊卡 - 總是顯示（包含掃描器） */}
+      <div className="sticky top-24 bg-white z-[5] shadow-sm">
+        <div className="card p-3">
+          <PatientInfoCard
+            patient={selectedPatient}
+            showScanner={true}
+            scannerSlot={
+              <QRScanner
+                onScanSuccess={handleQRScanSuccess}
+                onError={handleQRScanError}
+              />
+            }
+            onOptimisticUpdate={(patientId, needsCrushing) => {
+              // 立即更新 UI（樂觀更新）
+              setOptimisticCrushState(prev => {
+                const next = new Map(prev);
+                next.set(patientId, needsCrushing);
+                return next;
+              });
+            }}
+            onToggleCrushMedication={async (patientId, needsCrushing) => {
+              // 資料庫更新成功後刷新數據
+              await refreshData();
+              // 清除樂觀更新狀態
+              setOptimisticCrushState(prev => {
+                const next = new Map(prev);
+                next.delete(patientId);
+                return next;
+              });
+            }}
+          />
         </div>
-      )}
+      </div>
 
       {/* 工作流程表格 */}
       {selectedPatientId ? (

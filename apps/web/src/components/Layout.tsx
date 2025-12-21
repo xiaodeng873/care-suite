@@ -28,6 +28,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const { displayName } = useAuth();
   const location = useLocation();
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 香港時區輔助函數
   const getHongKongDate = () => {
@@ -141,19 +142,38 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
     };
   }, [mobileMenuOpen]);
 
+  // 清理 timeout
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleDropdownToggle = (categoryName: string) => {
     setOpenDropdown(openDropdown === categoryName ? null : categoryName);
   };
 
   const handleDropdownHover = (categoryName: string) => {
+    // 清除任何待處理的關閉timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
     setOpenDropdown(categoryName);
   };
 
   const handleDropdownLeave = () => {
-    // 延遲關閉，讓用戶有時間移動到下拉選單
-    setTimeout(() => {
+    // 清除舊的timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    // 設置新的延遲關閉
+    hoverTimeoutRef.current = setTimeout(() => {
       setOpenDropdown(null);
-    }, 200);
+      hoverTimeoutRef.current = null;
+    }, 150);
   };
 
   const isActive = (path: string) => location.pathname === path;
