@@ -59,6 +59,20 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       const html5QrCode = new Html5Qrcode(scannerIdRef.current);
       html5QrCodeRef.current = html5QrCode;
 
+      // 添加樣式確保視頻填充容器
+      const style = document.createElement('style');
+      style.textContent = `
+        #${scannerIdRef.current} video {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+        }
+        #${scannerIdRef.current} {
+          line-height: 0 !important;
+        }
+      `;
+      document.head.appendChild(style);
+
       const config = {
         fps: 10,
         qrbox: { width: 100, height: 100 },
