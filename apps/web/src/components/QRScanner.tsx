@@ -10,21 +10,12 @@ interface QRScannerProps {
 
 const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className = '' }) => {
   const [isScanning, setIsScanning] = useState(false);
+  const [shouldStartScanning, setShouldStartScanning] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [error, setError] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerIdRef = useRef('qr-scanner-' + Math.random().toString(36).substr(2, 9));
-  const [isMounted, setIsMounted] = useState(false);
-
-  // 確保組件已掛載
-  useEffect(() => {
-    setIsMounted(true);
-    return () => {
-      setIsMounted(false);
-      cleanupScanner();
-    };
-  }, []);
 
   const cleanupScanner = async () => {
     if (html5QrCodeRef.current) {
@@ -40,24 +31,26 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
     }
   };
 
-  const startScanner = async () => {
+  const initializeScanner = async () => {
     setError(null);
     setPermissionDenied(false);
-
-    // 確保 DOM 元素存在
-    if (!isMounted) {
-      console.error('組件尚未掛載');
-      return;
-    }
-
-    // 等待 DOM 更新
-    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       await cleanupScanner();
 
-      // 檢查 DOM 元素是否存在
-      const element = document.getElementById(scannerIdRef.current);
+      // 等待 DOM 元素渲染，最多嘗試 10 次
+      let element = null;
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      while (!element && attempts < maxAttempts) {
+        element = document.getElementById(scannerIdRef.current);
+        if (!element) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+          attempts++;
+        }
+      }
+
       if (!element) {
         throw new Error(`找不到掃描器容器元素: ${scannerIdRef.current}`);
       }
@@ -98,6 +91,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       );
 
       setIsScanning(true);
+      setShouldStartScanning(false);
     } catch (err: any) {
       console.error('啟動掃描器失敗:', err);
       
@@ -113,12 +107,20 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       if (onError) {
         onError(err.message || '無法啟動鏡頭');
       }
+      
+      setShouldStartScanning(false);
+      setIsScanning(false);
     }
+  };
+
+  const startScanner = () => {
+    setShouldStartScanning(true);
   };
 
   const stopScanner = async () => {
     await cleanupScanner();
     setIsScanning(false);
+    setShouldStartScanning(false);
   };
 
   const toggleCamera = async () => {
@@ -132,6 +134,20 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       }, 200);
     }
   };
+
+  // 當 shouldStartScanning 變為 true 時，啟動掃描器
+  useEffect(() => {
+    if (shouldStartScanning && !isScanning) {
+      initializeScanner();
+    }
+  }, [shouldStartScanning, facingMode]);
+
+  // 清理掃描器
+  useEffect(() => {
+    return () => {
+      cleanupScanner();
+    };
+  }, []);
 
   return (
     <div className={`bg-white rounded-lg border border-gray-200 ${className}`}>
@@ -152,7 +168,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       </div>
 
       <div className="p-3">
-        {!isScanning ? (
+        {!shouldStartScanning && !isScanning ? (
           <div className="flex flex-col items-center space-y-3">
             <button
               onClick={startScanner}
