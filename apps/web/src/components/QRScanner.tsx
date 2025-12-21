@@ -75,7 +75,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       document.head.appendChild(style);
 
       const config = {
-        fps: 30,
+        fps: 60,
         aspectRatio: 1.0,
         disableFlip: false,
         experimentalFeatures: {
@@ -243,8 +243,17 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
         ) : (
           <div className="flex gap-3">
             {/* 左側：掃描器實時畫面 */}
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 relative">
               <div id={scannerIdRef.current} className="rounded-lg overflow-hidden" style={{ width: '100px', height: '100px' }} />
+              {/* 二維碼指引框 */}
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div className="w-16 h-16 border-2 border-green-400 rounded-lg">
+                  <div className="absolute top-0 left-0 w-3 h-3 border-t-4 border-l-4 border-green-500"></div>
+                  <div className="absolute top-0 right-0 w-3 h-3 border-t-4 border-r-4 border-green-500"></div>
+                  <div className="absolute bottom-0 left-0 w-3 h-3 border-b-4 border-l-4 border-green-500"></div>
+                  <div className="absolute bottom-0 right-0 w-3 h-3 border-b-4 border-r-4 border-green-500"></div>
+                </div>
+              </div>
             </div>
 
             {/* 右側：控制按鈕 */}
@@ -261,13 +270,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
               >
                 <SwitchCamera className="h-4 w-4" />
                 <span>{facingMode === 'user' ? '切換到後置' : '切換到前置'}</span>
-              </button>
-
-              <button
-                onClick={stopScanner}
-                className="px-3 py-2 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors w-full"
-              >
-                停止掃描
               </button>
 
               {error && (
