@@ -189,18 +189,8 @@ export const isInHospital = (
   admissionRecords: PatientAdmissionRecord[],
   hospitalEpisodes: any[] = []
 ): boolean => {
-  console.log('[isInHospital] 開始檢查:', {
-    patientId: patient.院友id,
-    patientName: patient.中文姓名,
-    targetDate,
-    targetTime,
-    admissionRecordsCount: admissionRecords.length,
-    hospitalEpisodesCount: hospitalEpisodes.length
-  });
-
   // 1. 先檢查 hospital_episodes 表（新的住院事件記錄）
   const patientEpisodes = hospitalEpisodes.filter(ep => ep.patient_id === patient.院友id);
-  console.log('[isInHospital] 該院友的住院事件:', patientEpisodes);
 
   const target = new Date(`${targetDate}T${targetTime}:00`);
 
@@ -212,74 +202,43 @@ export const isInHospital = (
       if (episode.episode_end_date) {
         const endDate = new Date(`${episode.episode_end_date}T23:59:59`);
         if (target >= startDate && target <= endDate) {
-          console.log('[isInHospital] ✅ 在住院事件期間內（已出院）:', {
-            episodeId: episode.id,
-            startDate: episode.episode_start_date,
-            endDate: episode.episode_end_date,
-            hospital: episode.primary_hospital
-          });
           return true;
         }
       } else {
         // 沒有結束日期（仍在住院中），只檢查是否在開始日期之後
         if (target >= startDate) {
-          console.log('[isInHospital] ✅ 在住院期間（尚未出院）:', {
-            episodeId: episode.id,
-            startDate: episode.episode_start_date,
-            endDate: '尚未出院',
-            hospital: episode.primary_hospital,
-            status: episode.status
-          });
           return true;
         }
       }
     }
   }
 
-  console.log('[isInHospital] ❌ 不在任何住院事件期間內');
-
   // 2. 檢查 patient_admission_records 表（舊的入院/出院記錄）
   const patientAdmissions = admissionRecords.filter(r => r.patient_id === patient.院友id);
-  console.log('[isInHospital] 該院友的入院記錄:', patientAdmissions);
 
   const admissions = patientAdmissions
     .filter(r => r.event_type === 'hospital_admission')
     .sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime());
 
-  console.log('[isInHospital] 入院事件記錄:', admissions);
-
   if (admissions.length === 0) {
-    console.log('[isInHospital] 沒有入院記錄，返回 false');
     return false;
   }
 
   const latestAdmission = admissions[0];
-  console.log('[isInHospital] 最近的入院記錄:', latestAdmission);
 
   const discharge = patientAdmissions.find(r =>
     r.event_type === 'hospital_discharge' &&
     new Date(r.event_date) > new Date(latestAdmission.event_date)
   );
-  console.log('[isInHospital] 對應的出院記錄:', discharge);
 
   const admitTime = new Date(`${latestAdmission.event_date}T${latestAdmission.event_time || '00:00'}:00`);
 
-  console.log('[isInHospital] 時間比較:', {
-    targetTime: target.toISOString(),
-    admitTime: admitTime.toISOString(),
-    dischargeTime: discharge ? new Date(`${discharge.event_date}T${discharge.event_time || '23:59'}:00`).toISOString() : 'N/A'
-  });
-
   if (discharge) {
     const dischargeTime = new Date(`${discharge.event_date}T${discharge.event_time || '23:59'}:00`);
-    const result = target >= admitTime && target <= dischargeTime;
-    console.log('[isInHospital] 有出院記錄，檢查是否在入院期間內:', result);
-    return result;
+    return target >= admitTime && target <= dischargeTime;
   }
 
-  const result = target >= admitTime;
-  console.log('[isInHospital] 無出院記錄，檢查是否在入院時間之後:', result);
-  return result;
+  return target >= admitTime;
 };
 
 export const formatObservationStatus = (status: 'N' | 'P' | 'S'): string => {

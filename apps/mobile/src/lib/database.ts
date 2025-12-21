@@ -99,6 +99,36 @@ export interface PositionChangeRecord {
   updated_at: string;
 }
 
+export interface HygieneRecord {
+  id: string;
+  patient_id: number;
+  record_date: string;
+  time_slot: string; // 固定為 'daily'
+  // 護理項目
+  has_bath: boolean;
+  has_face_wash: boolean;
+  has_shave: boolean;
+  has_oral_care: boolean;
+  has_denture_care: boolean;
+  has_nail_trim: boolean;
+  has_bedding_change: boolean;
+  has_sheet_pillow_change: boolean;
+  has_cup_wash: boolean;
+  has_bedside_cabinet: boolean;
+  has_wardrobe: boolean;
+  // 大便相關
+  bowel_count: number | null;
+  bowel_amount: string | null;
+  bowel_consistency: string | null;
+  bowel_medication: string | null;
+  // 標準欄位
+  status_notes?: string;
+  notes?: string;
+  recorder: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PatientRestraintAssessment {
   id: string;
   patient_id: number;
@@ -127,9 +157,10 @@ export interface PatientAdmissionRecord {
 export interface PatientCareTab {
   id: string;
   patient_id: number;
-  tab_type: 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training';
+  tab_type: 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene';
   is_manually_added: boolean;
   is_hidden: boolean;
+  last_activated_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -357,4 +388,33 @@ export const getHealthAssessments = async (): Promise<HealthAssessment[]> => {
     .order('assessment_date', { ascending: false });
   if (error) throw error;
   return data || [];
+};
+
+// 衛生記錄
+export const getHygieneRecordsInDateRange = async (startDate: string, endDate: string): Promise<HygieneRecord[]> => {
+  const { data, error } = await supabase
+    .from('hygiene_records')
+    .select('*')
+    .gte('record_date', startDate)
+    .lte('record_date', endDate)
+    .order('record_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+export const createHygieneRecord = async (record: Omit<HygieneRecord, 'id' | 'created_at' | 'updated_at'>): Promise<HygieneRecord> => {
+  const { data, error } = await supabase.from('hygiene_records').insert([record]).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const updateHygieneRecord = async (id: string, updates: Partial<Omit<HygieneRecord, 'id' | 'created_at' | 'updated_at'>>): Promise<HygieneRecord | null> => {
+  const { data, error } = await supabase.from('hygiene_records').update(updates).eq('id', id).select();
+  if (error) throw error;
+  return data && data.length > 0 ? data[0] : null;
+};
+
+export const deleteHygieneRecord = async (recordId: string): Promise<void> => {
+  const { error } = await supabase.from('hygiene_records').delete().eq('id', recordId);
+  if (error) throw error;
 };

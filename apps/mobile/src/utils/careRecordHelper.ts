@@ -119,6 +119,13 @@ export const parseSlotStartTime = (timeSlot: string): string | null => {
 
 export const isPastSlot = (dateStr: string, timeSlot: string): boolean => {
   const now = new Date();
+  
+  // 處理 'daily' 時段：過了當天 23:59:59 就算過去
+  if (timeSlot === 'daily') {
+    const endOfDay = new Date(`${dateStr}T23:59:59`);
+    return endOfDay.getTime() < now.getTime();
+  }
+  
   const targetTime = parseSlotStartTime(timeSlot);
   if (!targetTime) return false;
   const [hStr] = targetTime.split(':');

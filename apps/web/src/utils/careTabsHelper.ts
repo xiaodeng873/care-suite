@@ -169,9 +169,10 @@ export function getVisibleTabTypes(
   patrolRounds: any[],
   diaperChangeRecords: any[],
   restraintObservationRecords: any[],
-  positionChangeRecords: any[]
-): ('patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training')[] {
-  const visibleTabs = new Set<'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training'>();
+  positionChangeRecords: any[],
+  hygieneRecords?: any[]
+): ('patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene')[] {
+  const visibleTabs = new Set<'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene'>();
 
   const configuredTabs = patientCareTabs.filter(t => t.patient_id === patientId && !t.is_hidden);
   configuredTabs.forEach(t => visibleTabs.add(t.tab_type));
@@ -187,6 +188,9 @@ export function getVisibleTabTypes(
   }
   if (positionChangeRecords.some(r => r.patient_id === patientId)) {
     visibleTabs.add('position');
+  }
+  if (hygieneRecords && hygieneRecords.some(r => r.patient_id === patientId)) {
+    visibleTabs.add('hygiene');
   }
 
   if (!visibleTabs.has('patrol')) {

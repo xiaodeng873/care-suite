@@ -21,6 +21,7 @@ import PatrolRoundModal from '../components/PatrolRoundModal';
 import DiaperChangeModal from '../components/DiaperChangeModal';
 import RestraintObservationModal from '../components/RestraintObservationModal';
 import PositionChangeModal from '../components/PositionChangeModal';
+import HygieneModal from '../components/HygieneModal';
 import {
   TIME_SLOTS,
   DIAPER_CHANGE_SLOTS,
@@ -30,7 +31,7 @@ import {
   isInHospital,
   getPositionSequence
 } from '../utils/careRecordHelper';
-import type { Patient, PatrolRound, DiaperChangeRecord, RestraintObservationRecord, PositionChangeRecord, PatientCareTab } from '../lib/database';
+import type { Patient, PatrolRound, DiaperChangeRecord, RestraintObservationRecord, PositionChangeRecord, HygieneRecord, PatientCareTab } from '../lib/database';
 import * as db from '../lib/database';
 import { supabase } from '../lib/supabase';
 import {
@@ -41,7 +42,27 @@ import {
   getVisibleTabTypes
 } from '../utils/careTabsHelper';
 
-type TabType = 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training';
+type TabType = 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene';
+
+// 衛生記錄項目配置（16項：備註 + 11護理項目 + 4大便項目）
+const HYGIENE_ITEMS = [
+  { key: 'status_notes', label: '備註', isStatus: true },
+  { key: 'has_bath', label: '沐浴' },
+  { key: 'has_face_wash', label: '洗面' },
+  { key: 'has_shave', label: '剃鬚' },
+  { key: 'has_oral_care', label: '洗牙漱口' },
+  { key: 'has_denture_care', label: '洗口受假牙' },
+  { key: 'has_nail_trim', label: '剪指甲' },
+  { key: 'has_bedding_change', label: '換被套' },
+  { key: 'has_sheet_pillow_change', label: '換床單枕袋' },
+  { key: 'has_cup_wash', label: '洗杯' },
+  { key: 'has_bedside_cabinet', label: '終理床頭櫃' },
+  { key: 'has_wardrobe', label: '終理衣箱' },
+  { key: 'bowel_count', label: '大便次數', isBowelCount: true },
+  { key: 'bowel_amount', label: '大便量', isBowelAmount: true },
+  { key: 'bowel_consistency', label: '大便性質', isBowelConsistency: true },
+  { key: 'bowel_medication', label: '大便藥', isBowelMedication: true },
+] as const;
 
 const CareRecords: React.FC = () => {
   const {
@@ -58,6 +79,7 @@ const CareRecords: React.FC = () => {
   const [diaperChangeRecords, setDiaperChangeRecords] = useState<DiaperChangeRecord[]>([]);
   const [restraintObservationRecords, setRestraintObservationRecords] = useState<RestraintObservationRecord[]>([]);
   const [positionChangeRecords, setPositionChangeRecords] = useState<PositionChangeRecord[]>([]);
+  const [hygieneRecords, setHygieneRecords] = useState<HygieneRecord[]>([]);
 
   const { user } = useAuth();
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || '未知';
@@ -70,6 +92,7 @@ const CareRecords: React.FC = () => {
   const [showDiaperModal, setShowDiaperModal] = useState(false);
   const [showRestraintModal, setShowRestraintModal] = useState(false);
   const [showPositionModal, setShowPositionModal] = useState(false);
+  const [showHygieneModal, setShowHygieneModal] = useState(false);
 
   const [modalDate, setModalDate] = useState('');
   const [modalTimeSlot, setModalTimeSlot] = useState('');
@@ -135,9 +158,10 @@ const CareRecords: React.FC = () => {
       patrolRounds,
       diaperChangeRecords,
       restraintObservationRecords,
-      positionChangeRecords
+      positionChangeRecords,
+      hygieneRecords
     ) as TabType[];
-  }, [selectedPatient, patientCareTabs, patrolRounds, diaperChangeRecords, restraintObservationRecords, positionChangeRecords]);
+  }, [selectedPatient, patientCareTabs, patrolRounds, diaperChangeRecords, restraintObservationRecords, positionChangeRecords, hygieneRecords]);
 
   const patientPatrolRounds = useMemo(() => {
     if (!selectedPatientId) return [];
@@ -167,6 +191,13 @@ const CareRecords: React.FC = () => {
     return filtered;
   }, [selectedPatientId, positionChangeRecords]);
 
+  const patientHygieneRecords = useMemo(() => {
+    if (!selectedPatientId) return [];
+    const patientIdNum = parseInt(selectedPatientId);
+    const filtered = hygieneRecords.filter(r => r.patient_id === patientIdNum);
+    return filtered;
+  }, [selectedPatientId, hygieneRecords]);
+
   const handlePreviousWeek = () => {
     const prevWeek = new Date(weekStartDate);
     prevWeek.setDate(prevWeek.getDate() - 7);
@@ -180,17 +211,19 @@ const CareRecords: React.FC = () => {
       setLoading(true);
     }
     try {
-      const [patrolData, diaperData, restraintData, positionData] = await Promise.all([
+      const [patrolData, diaperData, restraintData, positionData, hygieneData] = await Promise.all([
         db.getPatrolRoundsInDateRange(startDate, endDate),
         db.getDiaperChangeRecordsInDateRange(startDate, endDate),
         db.getRestraintObservationRecordsInDateRange(startDate, endDate),
-        db.getPositionChangeRecordsInDateRange(startDate, endDate)
+        db.getPositionChangeRecordsInDateRange(startDate, endDate),
+        db.getHygieneRecordsInDateRange(startDate, endDate).catch(() => []) // 如果衛生記錄表不存在，返回空數組
       ]);
 
       setPatrolRounds(patrolData);
       setDiaperChangeRecords(diaperData);
       setRestraintObservationRecords(restraintData);
       setPositionChangeRecords(positionData);
+      setHygieneRecords(hygieneData);
     } catch (error) {
       console.error('載入護理記錄失敗:', error);
     } finally {
@@ -274,7 +307,8 @@ const CareRecords: React.FC = () => {
       (tabType === 'diaper' && diaperChangeRecords.some(r => r.patient_id === selectedPatient.院友id)) ||
       (tabType === 'restraint' && restraintObservationRecords.some(r => r.patient_id === selectedPatient.院友id)) ||
       (tabType === 'position' && positionChangeRecords.some(r => r.patient_id === selectedPatient.院友id)) ||
-      (tabType === 'patrol' && patrolRounds.some(r => r.patient_id === selectedPatient.院友id));
+      (tabType === 'patrol' && patrolRounds.some(r => r.patient_id === selectedPatient.院友id)) ||
+      (tabType === 'hygiene' && hygieneRecords.some(r => r.patient_id === selectedPatient.院友id));
 
     const confirmMessage = hasRecords
       ? `該選項卡有記錄，刪除後選項卡將隱藏但記錄仍保留，確定要刪除嗎？`
@@ -311,6 +345,168 @@ const CareRecords: React.FC = () => {
       case 'position':
         setShowPositionModal(true);
         break;
+      case 'hygiene':
+        setShowHygieneModal(true);
+        break;
+    }
+  };
+
+  // 衛生記錄：inline toggle護理項目
+  const toggleHygieneCareItem = async (date: string, itemKey: string, currentValue: boolean) => {
+    if (!selectedPatient) return;
+    
+    try {
+      const existingRecord = hygieneRecords.find(r => r.record_date === date && r.patient_id === selectedPatient.院友id);
+      
+      if (existingRecord) {
+        const updated = await db.updateHygieneRecord(existingRecord.id, {
+          [itemKey]: !currentValue,
+        });
+        if (updated) {
+          setHygieneRecords(prev => prev.map(r => r.id === existingRecord.id ? updated : r));
+        }
+      } else {
+        const newRecord = await db.createHygieneRecord({
+          patient_id: selectedPatient.院友id,
+          record_date: date,
+          time_slot: 'daily',
+          has_bath: itemKey === 'has_bath',
+          has_face_wash: itemKey === 'has_face_wash',
+          has_shave: itemKey === 'has_shave',
+          has_oral_care: itemKey === 'has_oral_care',
+          has_denture_care: itemKey === 'has_denture_care',
+          has_nail_trim: itemKey === 'has_nail_trim',
+          has_bedding_change: itemKey === 'has_bedding_change',
+          has_sheet_pillow_change: itemKey === 'has_sheet_pillow_change',
+          has_cup_wash: itemKey === 'has_cup_wash',
+          has_bedside_cabinet: itemKey === 'has_bedside_cabinet',
+          has_wardrobe: itemKey === 'has_wardrobe',
+          bowel_count: null,
+          bowel_amount: null,
+          bowel_consistency: null,
+          bowel_medication: null,
+          recorder: displayName,
+        });
+        if (newRecord) {
+          setHygieneRecords(prev => [...prev, newRecord]);
+        }
+      }
+    } catch (error) {
+      console.error('Toggle hygiene care item failed:', error);
+    }
+  };
+
+  // 衛生記錄：更新備註狀態（入院/渡假/外出） - 下拉選單版本
+  const updateHygieneStatus = async (date: string, status: string, e: any) => {
+    e.stopPropagation();
+    if (!selectedPatient) return;
+    
+    try {
+      const existingRecord = hygieneRecords.find(r => r.record_date === date && r.patient_id === selectedPatient.院友id);
+      
+      // 準備更新數據：當選擇入院/渡假/外出時，清空所有其他欄位
+      const updates: any = { status_notes: status || null };
+      
+      if (status) {
+        // 選擇了入院/渡假/外出，清空所有護理項目和大便欄位
+        updates.has_bath = false;
+        updates.has_face_wash = false;
+        updates.has_shave = false;
+        updates.has_oral_care = false;
+        updates.has_denture_care = false;
+        updates.has_nail_trim = false;
+        updates.has_bedding_change = false;
+        updates.has_sheet_pillow_change = false;
+        updates.has_cup_wash = false;
+        updates.has_bedside_cabinet = false;
+        updates.has_wardrobe = false;
+        updates.bowel_count = null;
+        updates.bowel_amount = null;
+        updates.bowel_consistency = null;
+        updates.bowel_medication = null;
+      }
+      
+      if (existingRecord) {
+        const updated = await db.updateHygieneRecord(existingRecord.id, updates);
+        if (updated) {
+          setHygieneRecords(prev => prev.map(r => r.id === existingRecord.id ? updated : r));
+        }
+      } else if (status) {
+        // 只有選擇非空值時才創建新記錄
+        const newRecord = await db.createHygieneRecord({
+          patient_id: selectedPatient.院友id,
+          record_date: date,
+          time_slot: 'daily',
+          has_bath: false,
+          has_face_wash: false,
+          has_shave: false,
+          has_oral_care: false,
+          has_denture_care: false,
+          has_nail_trim: false,
+          has_bedding_change: false,
+          has_sheet_pillow_change: false,
+          has_cup_wash: false,
+          has_bedside_cabinet: false,
+          has_wardrobe: false,
+          bowel_count: null,
+          bowel_amount: null,
+          bowel_consistency: null,
+          bowel_medication: null,
+          status_notes: status,
+          recorder: displayName,
+        });
+        if (newRecord) {
+          setHygieneRecords(prev => [...prev, newRecord]);
+        }
+      }
+    } catch (error) {
+      console.error('Update hygiene status failed:', error);
+    }
+  };
+
+  // 衛生記錄：更新大便欄位（次數/量/性質/藥）
+  const updateHygieneBowel = async (date: string, field: string, value: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!selectedPatient) return;
+    
+    try {
+      const existingRecord = hygieneRecords.find(r => r.record_date === date && r.patient_id === selectedPatient.院友id);
+      
+      if (existingRecord) {
+        const updated = await db.updateHygieneRecord(existingRecord.id, {
+          [field]: value,
+        });
+        if (updated) {
+          setHygieneRecords(prev => prev.map(r => r.id === existingRecord.id ? updated : r));
+        }
+      } else {
+        const newRecord = await db.createHygieneRecord({
+          patient_id: selectedPatient.院友id,
+          record_date: date,
+          time_slot: 'daily',
+          has_bath: false,
+          has_face_wash: false,
+          has_shave: false,
+          has_oral_care: false,
+          has_denture_care: false,
+          has_nail_trim: false,
+          has_bedding_change: false,
+          has_sheet_pillow_change: false,
+          has_cup_wash: false,
+          has_bedside_cabinet: false,
+          has_wardrobe: false,
+          bowel_count: field === 'bowel_count' ? value : null,
+          bowel_amount: field === 'bowel_amount' ? value : null,
+          bowel_consistency: field === 'bowel_consistency' ? value : null,
+          bowel_medication: field === 'bowel_medication' ? value : null,
+          recorder: displayName,
+        });
+        if (newRecord) {
+          setHygieneRecords(prev => [...prev, newRecord]);
+        }
+      }
+    } catch (error) {
+      console.error('Update hygiene bowel failed:', error);
     }
   };
 
@@ -371,6 +567,22 @@ const CareRecords: React.FC = () => {
       await loadCareRecordsForWeek(weekDateStrings[0], weekDateStrings[weekDateStrings.length - 1], true);
     } catch (error) {
       console.error('❌ 創建轉身記錄失敗:', error);
+    }
+  };
+
+  const handleHygieneSubmit = async (data: Omit<HygieneRecord, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      if (modalExistingRecord) {
+        await db.updateHygieneRecord(modalExistingRecord.id, data);
+      } else {
+        await db.createHygieneRecord(data);
+      }
+      setShowHygieneModal(false);
+      setModalExistingRecord(null);
+      // 靜默重新加載當前週數據，避免畫面閃爍
+      await loadCareRecordsForWeek(weekDateStrings[0], weekDateStrings[weekDateStrings.length - 1], true);
+    } catch (error) {
+      console.error('❌ 保存衛生記錄失敗:', error);
     }
   };
 
@@ -703,6 +915,177 @@ const CareRecords: React.FC = () => {
     );
   };
 
+  const renderHygieneTable = () => {
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full border-collapse">
+          <thead className="bg-gray-50 sticky top-0 z-10">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                項目 \ 日期
+              </th>
+              {weekDates.map((date) => {
+                const d = new Date(date);
+                const month = d.getMonth() + 1;
+                const dayOfMonth = d.getDate();
+                const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+                const weekday = weekdays[d.getDay()];
+                return (
+                  <th key={date} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                    {month}/{dayOfMonth}<br/>({weekday})
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody className="bg-white">
+            {HYGIENE_ITEMS.map((item) => (
+              <tr key={item.key} className="hover:bg-gray-50">
+                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border">
+                  {item.label}
+                </td>
+                {weekDates.map((date, dateIndex) => {
+                  const dateString = weekDateStrings[dateIndex];
+                  const record = patientHygieneRecords.find(
+                    r => r.record_date === dateString
+                  );
+                  const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, 'daily', admissionRecords, hospitalEpisodes);
+                  const hasStatusNotes = record?.status_notes && ['入院', '渡假', '外出'].includes(record.status_notes);
+                  const isDisabled = hasStatusNotes && !item.isStatus;
+
+                  let cellContent: React.ReactNode = null;
+                  let cellClassName = 'px-2 py-3 text-center text-sm border ';
+
+                  if (inHospital) {
+                    cellClassName += 'bg-gray-100 text-gray-500';
+                    cellContent = <span>入院</span>;
+                  } else if (isDisabled) {
+                    // 當有狀態備註時，其他項目變灰
+                    cellClassName += 'bg-gray-200 text-gray-400 cursor-not-allowed';
+                    cellContent = <span>-</span>;
+                  } else if (item.isStatus) {
+                    // 備註行 - 下拉選單
+                    cellClassName += 'p-1';
+                    cellContent = (
+                      <select
+                        value={record?.status_notes || ''}
+                        onChange={(e) => updateHygieneStatus(dateString, e.target.value, e as any)}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">-- 選擇 --</option>
+                        <option value="入院">入院</option>
+                        <option value="渡假">渡假</option>
+                        <option value="外出">外出</option>
+                      </select>
+                    );
+                  } else if (item.isBowelCount) {
+                    // 大便次數行 - inline數字輸入
+                    cellClassName += 'p-1';
+                    cellContent = (
+                      <input
+                        type="number"
+                        min="0"
+                        max="10"
+                        value={record?.bowel_count ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? null : parseInt(e.target.value);
+                          if (value === null || (value >= 0 && value <= 10)) {
+                            updateHygieneBowel(dateString, 'bowel_count', value, e as any);
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        disabled={isDisabled}
+                        className="w-16 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="0"
+                      />
+                    );
+                  } else if (item.isBowelAmount) {
+                    // 大便量行 - 下拉選單
+                    cellClassName += 'p-1';
+                    cellContent = (
+                      <select
+                        value={record?.bowel_amount || ''}
+                        onChange={(e) => updateHygieneBowel(dateString, 'bowel_amount', e.target.value || null, e as any)}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isDisabled}
+                      >
+                        <option value="">-- 選擇 --</option>
+                        <option value="少">少</option>
+                        <option value="中">中</option>
+                        <option value="多">多</option>
+                      </select>
+                    );
+                  } else if (item.isBowelConsistency) {
+                    // 大便性質行 - 下拉選單
+                    cellClassName += 'p-1';
+                    cellContent = (
+                      <select
+                        value={record?.bowel_consistency || ''}
+                        onChange={(e) => updateHygieneBowel(dateString, 'bowel_consistency', e.target.value || null, e as any)}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isDisabled}
+                      >
+                        <option value="">-- 選擇 --</option>
+                        <option value="硬">硬</option>
+                        <option value="軟">軟</option>
+                        <option value="稀">稀</option>
+                        <option value="水狀">水狀</option>
+                      </select>
+                    );
+                  } else if (item.isBowelMedication) {
+                    // 大便藥行 - 下拉選單
+                    cellClassName += 'p-1';
+                    cellContent = (
+                      <select
+                        value={record?.bowel_medication || ''}
+                        onChange={(e) => updateHygieneBowel(dateString, 'bowel_medication', e.target.value || null, e as any)}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isDisabled}
+                      >
+                        <option value="">-- 選擇 --</option>
+                        <option value="樂可舒">樂可舒</option>
+                        <option value="氧化鎂">氧化鎂</option>
+                        <option value="軟便劑">軟便劑</option>
+                        <option value="其他">其他</option>
+                      </select>
+                    );
+                  } else {
+                    // 護理項目行 - 點擊toggle
+                    if (record && (record as any)[item.key]) {
+                      cellClassName += 'bg-green-50 hover:bg-green-100 cursor-pointer';
+                      cellContent = <div className="font-medium text-green-600">✓</div>;
+                    } else {
+                      cellClassName += 'hover:bg-blue-50 cursor-pointer';
+                      cellContent = <span className="text-gray-400 text-xs">-</span>;
+                    }
+                  }
+
+                  // 護理項目用click toggle
+                  const isCareItem = !item.isStatus && !item.isBowelCount && !item.isBowelAmount && !item.isBowelConsistency && !item.isBowelMedication;
+                  
+                  const handleClick = () => {
+                    if (inHospital || isDisabled || !isCareItem) return;
+                    toggleHygieneCareItem(dateString, item.key, record ? (record as any)[item.key] : false);
+                  };
+
+                  return (
+                    <td
+                      key={`${item.key}-${dateString}`}
+                      className={cellClassName}
+                      onClick={handleClick}
+                    >
+                      {cellContent}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   const renderPlaceholder = (tabName: string) => {
     return (
       <div className="flex items-center justify-center h-96">
@@ -855,7 +1238,8 @@ const CareRecords: React.FC = () => {
                     intake_output: { icon: Droplets, label: '出入量記錄' },
                     restraint: { icon: Shield, label: '約束觀察' },
                     position: { icon: RotateCcw, label: '轉身記錄' },
-                    toilet_training: { icon: GraduationCap, label: '如廁訓練' }
+                    toilet_training: { icon: GraduationCap, label: '如廁訓練' },
+                    hygiene: { icon: Droplets, label: '衛生記錄' }
                   }[tabType];
 
                   const Icon = tabConfig.icon;
@@ -898,7 +1282,7 @@ const CareRecords: React.FC = () => {
 
                   {showAddTabMenu && (
                     <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 min-w-[150px]">
-                      {(['diaper', 'intake_output', 'restraint', 'position', 'toilet_training'] as TabType[])
+                      {(['diaper', 'intake_output', 'restraint', 'position', 'toilet_training', 'hygiene'] as TabType[])
                         .filter(tabType => !visibleTabTypes.includes(tabType))
                         .map(tabType => {
                           const labels = {
@@ -906,7 +1290,8 @@ const CareRecords: React.FC = () => {
                             intake_output: '出入量記錄',
                             restraint: '約束觀察',
                             position: '轉身記錄',
-                            toilet_training: '如廁訓練'
+                            toilet_training: '如廁訓練',
+                            hygiene: '衛生記錄'
                           };
 
                           return (
@@ -919,7 +1304,7 @@ const CareRecords: React.FC = () => {
                             </button>
                           );
                         })}
-                      {(['diaper', 'intake_output', 'restraint', 'position', 'toilet_training'] as TabType[])
+                      {(['diaper', 'intake_output', 'restraint', 'position', 'toilet_training', 'hygiene'] as TabType[])
                         .filter(tabType => !visibleTabTypes.includes(tabType)).length === 0 && (
                         <div className="px-4 py-2 text-sm text-gray-500">
                           所有選項卡已添加
@@ -966,6 +1351,7 @@ const CareRecords: React.FC = () => {
               {activeTab === 'restraint' && renderRestraintTable()}
               {activeTab === 'position' && renderPositionTable()}
               {activeTab === 'toilet_training' && renderPlaceholder('如廁訓練記錄')}
+              {activeTab === 'hygiene' && renderHygieneTable()}
             </div>
           </div>
         </>
@@ -1075,6 +1461,32 @@ const CareRecords: React.FC = () => {
             } catch (error) {
               console.error('❌ 刪除轉身記錄失敗:', error);
               alert('刪除轉身記錄失敗，請重試');
+            }
+          }}
+        />
+      )}
+
+      {showHygieneModal && selectedPatient && (
+        <HygieneModal
+          key={modalExistingRecord?.id || `new-hygiene-${modalDate}`}
+          patient={selectedPatient}
+          date={modalDate}
+          staffName={displayName}
+          existingRecord={modalExistingRecord}
+          onClose={() => { setShowHygieneModal(false); setModalExistingRecord(null); }}
+          onSubmit={handleHygieneSubmit}
+          onDelete={async (id) => {
+            try {
+              await db.deleteHygieneRecord(id);
+              setShowHygieneModal(false);
+              setModalExistingRecord(null);
+              // 立即從本地狀態中移除記錄
+              setHygieneRecords(prev => prev.filter(r => r.id !== id));
+              // 在背景静默重新加載以確保同步（不顯示 loading 動畫）
+              await loadCareRecordsForWeek(weekDateStrings[0], weekDateStrings[weekDateStrings.length - 1], true);
+            } catch (error) {
+              console.error('❌ 刪除衛生記錄失敗:', error);
+              alert('刪除衛生記錄失敗，請重試');
             }
           }}
         />

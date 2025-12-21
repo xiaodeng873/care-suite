@@ -17,6 +17,7 @@ import {
   DiaperChangeRecord,
   RestraintObservationRecord,
   PositionChangeRecord,
+  HygieneRecord,
   PatientRestraintAssessment,
   createPatrolRound,
   updatePatrolRound,
@@ -30,13 +31,16 @@ import {
   createPositionChangeRecord,
   updatePositionChangeRecord,
   deletePositionChangeRecord,
+  createHygieneRecord,
+  updateHygieneRecord,
+  deleteHygieneRecord,
 } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { addRandomOffset, getPositionSequence, STATUS_OPTIONS, isStatusNote } from '../utils/careRecordHelper';
 import { eventBus } from '../lib/eventBus';
 import { useTranslation, usePatientName } from '../lib/i18n';
 
-type RecordType = 'patrol' | 'diaper' | 'restraint' | 'position';
+type RecordType = 'patrol' | 'diaper' | 'restraint' | 'position' | 'hygiene';
 
 // Helper function to translate option values
 const translateOption = (opt: string, t: (key: any) => string): string => {
@@ -103,6 +107,22 @@ const RecordDetailScreen: React.FC = () => {
 
   // Position Change state
   const [position, setPosition] = useState<'左' | '平' | '右'>('左');
+
+  // Hygiene Record state
+  const [hasBath, setHasBath] = useState(false);
+  const [hasFaceWash, setHasFaceWash] = useState(false);
+  const [hasShave, setHasShave] = useState(false);
+  const [hasOralCare, setHasOralCare] = useState(false);
+  const [hasDentureCare, setHasDentureCare] = useState(false);
+  const [hasNailTrim, setHasNailTrim] = useState(false);
+  const [hasBeddingChange, setHasBeddingChange] = useState(false);
+  const [hasSheetPillowChange, setHasSheetPillowChange] = useState(false);
+  const [hasCupWash, setHasCupWash] = useState(false);
+  const [hasBedsideCabinet, setHasBedsideCabinet] = useState(false);
+  const [hasWardrobe, setHasWardrobe] = useState(false);
+  const [bowelCount, setBowelCount] = useState<string>('');
+  const [bowelAmount, setBowelAmount] = useState('');
+  const [bowelConsistency, setBowelConsistency] = useState('');
 
   const clearPatrolFields = () => {
     setNotes('');
