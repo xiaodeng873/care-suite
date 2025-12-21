@@ -16,7 +16,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
   const [error, setError] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [debugMessage, setDebugMessage] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState(false);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerIdRef = useRef('qr-scanner-' + Math.random().toString(36).substr(2, 9));
 
@@ -76,16 +75,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       document.head.appendChild(style);
 
       const config = {
-        fps: 30,
-        qrbox: { width: 300, height: 300 },
+        fps: 20,
         aspectRatio: 1.0,
-        formatsToSupport: [0],
-        disableFlip: false,
-        videoConstraints: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          facingMode: facingMode
-        }
       };
 
       setDebugMessage('🔄 正在啟動掃描器...');
@@ -94,18 +85,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
         { facingMode: facingMode },
         config,
         async (decodedText) => {
-          if (isProcessing) return;
-          
           console.log('📷 掃描到原始內容:', decodedText);
           setDebugMessage(`掃描到: ${decodedText.substring(0, 50)}...`);
-          
-          setIsProcessing(true);
-          
-          // 觸覺反饋（如果支持）
-          if (navigator.vibrate) {
-            navigator.vibrate(100);
-          }
-          
           try {
             const qrData = JSON.parse(decodedText);
             console.log('📋 解析後的數據:', qrData);
@@ -114,12 +95,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
             if (qrData.type === 'bed' && qrData.qr_code_id) {
               console.log('✅ 有效的床位二維碼，qr_code_id:', qrData.qr_code_id);
               setDebugMessage(`✅ 有效床位碼: ${qrData.qr_code_id}`);
-              
-              // 成功振動
-              if (navigator.vibrate) {
-                navigator.vibrate([100, 50, 100]);
-              }
-              
               await stopScanner();
               onScanSuccess(qrData.qr_code_id);
             } else {
@@ -129,7 +104,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
               if (onError) {
                 onError('這不是有效的床位二維碼');
               }
-              setIsProcessing(false);
             }
           } catch (parseError) {
             console.error('❌ JSON 解析失敗:', parseError);
@@ -138,7 +112,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
             if (onError) {
               onError('無法解析二維碼資料');
             }
-            setIsProcessing(false);
           }
         },
         (errorMessage) => {
@@ -180,7 +153,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
     await cleanupScanner();
     setIsScanning(false);
     setShouldStartScanning(false);
-    setIsProcessing(false);
   };
 
   const toggleCamera = async () => {
@@ -265,7 +237,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
           <div className="flex gap-3">
             {/* 左側：掃描器實時畫面 */}
             <div className="flex-shrink-0">
-              <div id={scannerIdRef.current} className="rounded-lg overflow-hidden" style={{ width: '200px', height: '200px' }} />
+              <div id={scannerIdRef.current} className="rounded-lg overflow-hidden" style={{ width: '100px', height: '100px' }} />
             </div>
 
             {/* 右側：控制按鈕 */}
