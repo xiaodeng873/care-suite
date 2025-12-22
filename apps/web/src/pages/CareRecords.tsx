@@ -22,16 +22,18 @@ import DiaperChangeModal from '../components/DiaperChangeModal';
 import RestraintObservationModal from '../components/RestraintObservationModal';
 import PositionChangeModal from '../components/PositionChangeModal';
 import HygieneModal from '../components/HygieneModal';
+import IntakeOutputModal from '../components/IntakeOutputModal';
 import {
   TIME_SLOTS,
   DIAPER_CHANGE_SLOTS,
+  INTAKE_OUTPUT_SLOTS,
   generateWeekDates,
   getWeekStartDate,
   formatDate,
   isInHospital,
   getPositionSequence
 } from '../utils/careRecordHelper';
-import type { Patient, PatrolRound, DiaperChangeRecord, RestraintObservationRecord, PositionChangeRecord, HygieneRecord, PatientCareTab } from '../lib/database';
+import type { Patient, PatrolRound, DiaperChangeRecord, RestraintObservationRecord, PositionChangeRecord, HygieneRecord, IntakeOutputRecord, PatientCareTab } from '../lib/database';
 import * as db from '../lib/database';
 import { supabase } from '../lib/supabase';
 import {
@@ -80,6 +82,7 @@ const CareRecords: React.FC = () => {
   const [restraintObservationRecords, setRestraintObservationRecords] = useState<RestraintObservationRecord[]>([]);
   const [positionChangeRecords, setPositionChangeRecords] = useState<PositionChangeRecord[]>([]);
   const [hygieneRecords, setHygieneRecords] = useState<HygieneRecord[]>([]);
+  const [intakeOutputRecords, setIntakeOutputRecords] = useState<IntakeOutputRecord[]>([]);
 
   const { user } = useAuth();
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || '未知';
@@ -93,6 +96,7 @@ const CareRecords: React.FC = () => {
   const [showRestraintModal, setShowRestraintModal] = useState(false);
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [showHygieneModal, setShowHygieneModal] = useState(false);
+  const [showIntakeOutputModal, setShowIntakeOutputModal] = useState(false);
 
   const [modalDate, setModalDate] = useState('');
   const [modalTimeSlot, setModalTimeSlot] = useState('');
@@ -211,12 +215,13 @@ const CareRecords: React.FC = () => {
       setLoading(true);
     }
     try {
-      const [patrolData, diaperData, restraintData, positionData, hygieneData] = await Promise.all([
+      const [patrolData, diaperData, restraintData, positionData, hygieneData, intakeOutputData] = await Promise.all([
         db.getPatrolRoundsInDateRange(startDate, endDate),
         db.getDiaperChangeRecordsInDateRange(startDate, endDate),
         db.getRestraintObservationRecordsInDateRange(startDate, endDate),
         db.getPositionChangeRecordsInDateRange(startDate, endDate),
-        db.getHygieneRecordsInDateRange(startDate, endDate).catch(() => []) // 如果衛生記錄表不存在，返回空數組
+        db.getHygieneRecordsInDateRange(startDate, endDate).catch(() => []), // 如果衛生記錄表不存在，返回空數組
+        db.getIntakeOutputRecords().catch(() => []) // 出入量記錄
       ]);
 
       setPatrolRounds(patrolData);
@@ -224,6 +229,9 @@ const CareRecords: React.FC = () => {
       setRestraintObservationRecords(restraintData);
       setPositionChangeRecords(positionData);
       setHygieneRecords(hygieneData);
+      setIntakeOutputRecords(intakeOutputData.filter((r: IntakeOutputRecord) => 
+        r.record_date >= startDate && r.record_date <= endDate
+      ));
     } catch (error) {
       console.error('載入護理記錄失敗:', error);
     } finally {
@@ -347,6 +355,9 @@ const CareRecords: React.FC = () => {
         break;
       case 'hygiene':
         setShowHygieneModal(true);
+        break;
+      case 'intake_output':
+        setShowIntakeOutputModal(true);
         break;
     }
   };
@@ -583,6 +594,39 @@ const CareRecords: React.FC = () => {
       await loadCareRecordsForWeek(weekDateStrings[0], weekDateStrings[weekDateStrings.length - 1], true);
     } catch (error) {
       console.error('❌ 保存衛生記錄失敗:', error);
+    }
+  };
+
+  const handleIntakeOutputSubmit = async (data: Omit<IntakeOutputRecord, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      if (modalExistingRecord) {
+        await db.updateIntakeOutputRecord(modalExistingRecord.id, data);
+      } else {
+        await db.createIntakeOutputRecord(data);
+      }
+      setShowIntakeOutputModal(false);
+      setModalExistingRecord(null);
+      setModalTimeSlot('');
+      // 靜默重新加載當前週數據
+      await loadCareRecordsForWeek(weekDateStrings[0], weekDateStrings[weekDateStrings.length - 1], true);
+    } catch (error) {
+      console.error('❌ 保存出入量記錄失敗:', error);
+    }
+  };
+
+  const handleIntakeOutputDelete = async (recordId: string) => {
+    try {
+      await db.deleteIntakeOutputRecord(recordId);
+      setShowIntakeOutputModal(false);
+      setModalExistingRecord(null);
+      setModalTimeSlot('');
+      // 立即從本地狀態中移除記錄
+      setIntakeOutputRecords(prev => prev.filter(r => r.id !== recordId));
+      // 在背景静默重新加載以確保同步
+      await loadCareRecordsForWeek(weekDateStrings[0], weekDateStrings[weekDateStrings.length - 1], true);
+    } catch (error) {
+      console.error('❌ 刪除出入量記錄失敗:', error);
+      alert('刪除出入量記錄失敗，請重試');
     }
   };
 
@@ -903,6 +947,125 @@ const CareRecords: React.FC = () => {
                         )
                       ) : (
                         <span className="text-gray-400 text-xs">[{expectedPosition}]</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // 出入量記錄渲染函數
+  const renderIntakeOutputTable = () => {
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full border-collapse">
+          <thead className="bg-gray-50 sticky top-0 z-10">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                時段
+              </th>
+              {weekDates.map((date) => {
+                const d = new Date(date);
+                const month = d.getMonth() + 1;
+                const dayOfMonth = d.getDate();
+                const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+                const weekday = weekdays[d.getDay()];
+                return (
+                  <th key={date} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                    {month}/{dayOfMonth}<br/>({weekday})
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {INTAKE_OUTPUT_SLOTS.map((slot) => (
+              <tr key={slot.time} className="hover:bg-gray-50">
+                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border">
+                  {slot.label}
+                </td>
+                {weekDates.map((date, index) => {
+                  const dateString = weekDateStrings[index];
+                  const hourSlot = parseInt(slot.time.split(':')[0]);
+                  const record = intakeOutputRecords.find(
+                    r => r.record_date === dateString && r.hour_slot === hourSlot
+                  );
+                  const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, slot.time, admissionRecords, hospitalEpisodes);
+
+                  // 计算入量和出量
+                  const intakeTotal = record ? (
+                    (record.beverage_water || 0) +
+                    (record.beverage_soup || 0) +
+                    (record.beverage_milk || 0) +
+                    (record.beverage_juice || 0) +
+                    (record.beverage_sugar_water || 0) +
+                    (record.beverage_tea || 0) +
+                    (record.tube_isocal || 0) +
+                    (record.tube_ultracal || 0) +
+                    (record.tube_glucerna || 0) +
+                    (record.tube_isosource || 0) +
+                    (record.tube_compleat || 0)
+                  ) : 0;
+
+                  const outputTotal = record ? (
+                    (record.urine_volume || 0) +
+                    (record.gastric_volume || 0)
+                  ) : 0;
+
+                  const hasMeals = record && (record.meal_breakfast || record.meal_lunch || record.meal_afternoon_tea || record.meal_dinner);
+
+                  return (
+                    <td
+                      key={dateString}
+                      className={`px-2 py-3 text-center text-sm border cursor-pointer ${
+                        inHospital ? 'bg-gray-100' :
+                        record ? (
+                          record.notes && ['入院', '渡假', '外出'].includes(record.notes)
+                            ? 'bg-orange-50 hover:bg-orange-100'
+                            : 'bg-blue-50 hover:bg-blue-100'
+                        ) :
+                        'hover:bg-blue-50'
+                      }`}
+                      onClick={() => !inHospital && handleCellClick(dateString, slot.time, record)}
+                    >
+                      {inHospital ? (
+                        <span className="text-gray-500">入院</span>
+                      ) : record ? (
+                        record.notes && ['入院', '渡假', '外出'].includes(record.notes) ? (
+                          <div className="space-y-1">
+                            <div className="font-medium text-orange-600">{record.notes}</div>
+                            <div className="text-xs text-gray-500">{record.recorder}</div>
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            {hasMeals && (
+                              <div className="text-xs text-gray-700">
+                                {record.meal_breakfast && `早:${record.meal_breakfast} `}
+                                {record.meal_lunch && `午:${record.meal_lunch} `}
+                                {record.meal_afternoon_tea && `茶:${record.meal_afternoon_tea} `}
+                                {record.meal_dinner && `晚:${record.meal_dinner}`}
+                              </div>
+                            )}
+                            {intakeTotal > 0 && (
+                              <div className="text-xs font-medium text-green-600">
+                                ▲ {intakeTotal}ml
+                              </div>
+                            )}
+                            {outputTotal > 0 && (
+                              <div className="text-xs font-medium text-red-600">
+                                ▼ {outputTotal}ml
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500">{record.recorder}</div>
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-gray-400 text-xs">待記錄</span>
                       )}
                     </td>
                   );
@@ -1347,7 +1510,7 @@ const CareRecords: React.FC = () => {
             <div className="p-4">
               {activeTab === 'patrol' && renderPatrolTable()}
               {activeTab === 'diaper' && renderDiaperTable()}
-              {activeTab === 'intake_output' && renderPlaceholder('出入量記錄')}
+              {activeTab === 'intake_output' && renderIntakeOutputTable()}
               {activeTab === 'restraint' && renderRestraintTable()}
               {activeTab === 'position' && renderPositionTable()}
               {activeTab === 'toilet_training' && renderPlaceholder('如廁訓練記錄')}
@@ -1489,6 +1652,24 @@ const CareRecords: React.FC = () => {
               alert('刪除衛生記錄失敗，請重試');
             }
           }}
+        />
+      )}
+
+      {showIntakeOutputModal && selectedPatient && modalTimeSlot && (
+        <IntakeOutputModal
+          key={modalExistingRecord?.id || `new-intake-output-${modalDate}-${modalTimeSlot}`}
+          patient={selectedPatient}
+          date={modalDate}
+          timeSlot={modalTimeSlot}
+          staffName={displayName}
+          existingRecord={modalExistingRecord}
+          onClose={() => {
+            setShowIntakeOutputModal(false);
+            setModalExistingRecord(null);
+            setModalTimeSlot('');
+          }}
+          onSubmit={handleIntakeOutputSubmit}
+          onDelete={handleIntakeOutputDelete}
         />
       )}
     </div>

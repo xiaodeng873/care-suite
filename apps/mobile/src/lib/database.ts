@@ -165,6 +165,56 @@ export interface PatientCareTab {
   updated_at: string;
 }
 
+// ============================================
+// 攝入項目類型定義
+// ============================================
+export type IntakeCategory = 'meal' | 'beverage' | 'other' | 'tube_feeding';
+export type IntakeUnit = 'portion' | 'ml' | 'piece';
+
+export interface IntakeItem {
+  id: string;
+  record_id: string;
+  category: IntakeCategory;
+  item_type: string; // 早餐/午餐/水/湯/餅乾/Isocal 等
+  amount: string; // 顯示用: '1/2', '200ml', '3塊'
+  amount_numeric: number; // 計算用數值
+  unit: IntakeUnit;
+  created_at: string;
+}
+
+// ============================================
+// 排出項目類型定義
+// ============================================
+export type OutputCategory = 'urine' | 'gastric';
+
+export interface OutputItem {
+  id: string;
+  record_id: string;
+  category: OutputCategory;
+  color?: string; // 透明/黃/啡/紅
+  ph_value?: number; // pH值 (僅胃液)
+  amount_ml: number; // 容量(ml)
+  created_at: string;
+}
+
+// ============================================
+// 出入量主記錄
+// ============================================
+export interface IntakeOutputRecord {
+  id: string;
+  patient_id: number;
+  record_date: string;
+  hour_slot: number; // 0-23
+  time_slot: string; // '08:00', '12:00', '16:00', '20:00', '00:00'
+  recorder: string;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  // 關聯數據 (可選，用於聯表查詢)
+  intake_items?: IntakeItem[];
+  output_items?: OutputItem[];
+}
+
 export interface HealthAssessment {
   id: string;
   patient_id: number;
@@ -375,10 +425,10 @@ export const getPatientCareTabs = async (patientId: number): Promise<PatientCare
     .from('patient_care_tabs')
     .select('*')
     .eq('patient_id', patientId)
-    .eq('is_hidden', false)
     .order('tab_type', { ascending: true });
   if (error) throw error;
-  return data || [];
+  // 在客户端过滤 is_hidden，避免类型转换问题
+  return (data || []).filter(tab => tab.is_hidden === false || tab.is_hidden === 'false' || !tab.is_hidden);
 };
 
 export const getHealthAssessments = async (): Promise<HealthAssessment[]> => {
@@ -416,5 +466,225 @@ export const updateHygieneRecord = async (id: string, updates: Partial<Omit<Hygi
 
 export const deleteHygieneRecord = async (recordId: string): Promise<void> => {
   const { error } = await supabase.from('hygiene_records').delete().eq('id', recordId);
+  if (error) throw error;
+};
+
+// Intake/Output Records
+// ============================================
+// 出入量記錄 CRUD 操作
+// ============================================
+
+// 獲取出入量記錄 (包含關聯的 items)
+export const getIntakeOutputRecords = async (): Promise<IntakeOutputRecord[]> => {
+  const { data: records, error } = await supabase
+    .from('intake_output_records')
+    .select('*')
+    .order('record_date', { ascending: false })
+    .order('time_slot', { ascending: true });
+  
+  if (error) throw error;
+  if (!records) return [];
+
+  // 為每條記錄獲取關聯的items
+  const recordsWithItems = await Promise.all(
+    records.map(async (record) => {
+      // 獲取攝入項目
+      const { data: intakeItems, error: intakeError } = await supabase
+        .from('intake_items')
+        .select('*')
+        .eq('record_id', record.id)
+        .order('created_at', { ascending: true });
+      
+      if (intakeError) console.error('Error fetching intake items:', intakeError);
+
+      // 獲取排出項目
+      const { data: outputItems, error: outputError } = await supabase
+        .from('output_items')
+        .select('*')
+        .eq('record_id', record.id)
+        .order('created_at', { ascending: true });
+      
+      if (outputError) console.error('Error fetching output items:', outputError);
+
+      return {
+        ...record,
+        intake_items: intakeItems || [],
+        output_items: outputItems || []
+      };
+    })
+  );
+
+  return recordsWithItems;
+};
+
+// 獲取單條記錄及其所有關聯項目
+export const getIntakeOutputRecordWithItems = async (recordId: string): Promise<IntakeOutputRecord | null> => {
+  const { data: record, error: recordError } = await supabase
+    .from('intake_output_records')
+    .select('*')
+    .eq('id', recordId)
+    .single();
+  
+  if (recordError) throw recordError;
+  if (!record) return null;
+
+  // 獲取攝入項目
+  const { data: intakeItems, error: intakeError } = await supabase
+    .from('intake_items')
+    .select('*')
+    .eq('record_id', recordId)
+    .order('created_at', { ascending: true });
+  
+  if (intakeError) throw intakeError;
+
+  // 獲取排出項目
+  const { data: outputItems, error: outputError } = await supabase
+    .from('output_items')
+    .select('*')
+    .eq('record_id', recordId)
+    .order('created_at', { ascending: true });
+  
+  if (outputError) throw outputError;
+
+  return {
+    ...record,
+    intake_items: intakeItems || [],
+    output_items: outputItems || []
+  };
+};
+
+// 創建出入量記錄
+export const createIntakeOutputRecord = async (
+  record: Omit<IntakeOutputRecord, 'id' | 'created_at' | 'updated_at' | 'intake_items' | 'output_items'>
+): Promise<IntakeOutputRecord> => {
+  const { data, error } = await supabase
+    .from('intake_output_records')
+    .insert([record])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// 更新出入量記錄
+export const updateIntakeOutputRecord = async (
+  id: string,
+  updates: Partial<Omit<IntakeOutputRecord, 'id' | 'created_at' | 'updated_at' | 'intake_items' | 'output_items'>>
+): Promise<IntakeOutputRecord | null> => {
+  const { data, error } = await supabase
+    .from('intake_output_records')
+    .update(updates)
+    .eq('id', id)
+    .select();
+  if (error) throw error;
+  return data && data.length > 0 ? data[0] : null;
+};
+
+// 刪除出入量記錄 (級聯刪除關聯的 items)
+export const deleteIntakeOutputRecord = async (recordId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('intake_output_records')
+    .delete()
+    .eq('id', recordId);
+  if (error) throw error;
+};
+
+// ============================================
+// 攝入項目 CRUD 操作
+// ============================================
+
+// 創建攝入項目
+export const createIntakeItem = async (
+  item: Omit<IntakeItem, 'id' | 'created_at'>
+): Promise<IntakeItem> => {
+  const { data, error } = await supabase
+    .from('intake_items')
+    .insert([item])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// 批量創建攝入項目
+export const createIntakeItems = async (
+  items: Omit<IntakeItem, 'id' | 'created_at'>[]
+): Promise<IntakeItem[]> => {
+  if (items.length === 0) return [];
+  const { data, error } = await supabase
+    .from('intake_items')
+    .insert(items)
+    .select();
+  if (error) throw error;
+  return data || [];
+};
+
+// 獲取記錄的所有攝入項目
+export const getIntakeItems = async (recordId: string): Promise<IntakeItem[]> => {
+  const { data, error } = await supabase
+    .from('intake_items')
+    .select('*')
+    .eq('record_id', recordId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+// 刪除攝入項目
+export const deleteIntakeItem = async (itemId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('intake_items')
+    .delete()
+    .eq('id', itemId);
+  if (error) throw error;
+};
+
+// ============================================
+// 排出項目 CRUD 操作
+// ============================================
+
+// 創建排出項目
+export const createOutputItem = async (
+  item: Omit<OutputItem, 'id' | 'created_at'>
+): Promise<OutputItem> => {
+  const { data, error } = await supabase
+    .from('output_items')
+    .insert([item])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// 批量創建排出項目
+export const createOutputItems = async (
+  items: Omit<OutputItem, 'id' | 'created_at'>[]
+): Promise<OutputItem[]> => {
+  if (items.length === 0) return [];
+  const { data, error } = await supabase
+    .from('output_items')
+    .insert(items)
+    .select();
+  if (error) throw error;
+  return data || [];
+};
+
+// 獲取記錄的所有排出項目
+export const getOutputItems = async (recordId: string): Promise<OutputItem[]> => {
+  const { data, error } = await supabase
+    .from('output_items')
+    .select('*')
+    .eq('record_id', recordId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+// 刪除排出項目
+export const deleteOutputItem = async (itemId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('output_items')
+    .delete()
+    .eq('id', itemId);
   if (error) throw error;
 };

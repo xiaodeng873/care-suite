@@ -460,6 +460,53 @@ export interface HygieneRecord {
   updated_at: string;
 }
 
+export interface IntakeOutputRecord {
+  id: string;
+  patient_id: number;
+  record_date: string;
+  hour_slot: number; // 0-23
+  
+  // 攝入 - 餐膳
+  meal_breakfast?: '1/4' | '2/4' | '3/4' | '全份' | null;
+  meal_lunch?: '1/4' | '2/4' | '3/4' | '全份' | null;
+  meal_afternoon_tea?: '1/4' | '2/4' | '3/4' | '全份' | null;
+  meal_dinner?: '1/4' | '2/4' | '3/4' | '全份' | null;
+  
+  // 攝入 - 飲料 (ml)
+  beverage_water?: number | null;
+  beverage_soup?: number | null;
+  beverage_milk?: number | null;
+  beverage_juice?: number | null;
+  beverage_sugar_water?: number | null;
+  beverage_tea?: number | null;
+  
+  // 攝入 - 其他 (塊/粒)
+  other_cookies?: number | null;
+  other_snacks?: number | null;
+  other_candy?: number | null;
+  other_dessert?: number | null;
+  
+  // 攝入 - 鼻胃飼 (ml)
+  tube_isocal?: number | null;
+  tube_ultracal?: number | null;
+  tube_glucerna?: number | null;
+  tube_isosource?: number | null;
+  tube_compleat?: number | null;
+  
+  // 排出 - 尿液
+  urine_volume?: number | null;
+  urine_color?: '透明' | '黃' | '啡' | '紅' | null;
+  
+  // 排出 - 胃液
+  gastric_volume?: number | null;
+  gastric_ph?: number | null;
+  gastric_color?: '透明' | '黃' | '啡' | '紅' | null;
+  
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PatientCareTab {
   id: string;
   patient_id: number;
@@ -1721,6 +1768,34 @@ export const updateHygieneRecord = async (id: string, updates: Partial<Omit<Hygi
 
 export const deleteHygieneRecord = async (recordId: string): Promise<void> => {
   const { error } = await supabase.from('hygiene_records').delete().eq('id', recordId);
+  if (error) throw error;
+};
+
+// Intake/Output Records
+export const getIntakeOutputRecords = async (): Promise<IntakeOutputRecord[]> => {
+  const { data, error } = await supabase
+    .from('intake_output_records')
+    .select('*')
+    .order('record_date', { ascending: false })
+    .order('hour_slot', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const createIntakeOutputRecord = async (record: Omit<IntakeOutputRecord, 'id' | 'created_at' | 'updated_at'>): Promise<IntakeOutputRecord> => {
+  const { data, error } = await supabase.from('intake_output_records').insert([record]).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const updateIntakeOutputRecord = async (id: string, updates: Partial<Omit<IntakeOutputRecord, 'id' | 'created_at' | 'updated_at'>>): Promise<IntakeOutputRecord | null> => {
+  const { data, error } = await supabase.from('intake_output_records').update(updates).eq('id', id).select();
+  if (error) throw error;
+  return data && data.length > 0 ? data[0] : null;
+};
+
+export const deleteIntakeOutputRecord = async (recordId: string): Promise<void> => {
+  const { error } = await supabase.from('intake_output_records').delete().eq('id', recordId);
   if (error) throw error;
 };
 
