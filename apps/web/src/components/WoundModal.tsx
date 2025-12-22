@@ -95,6 +95,13 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
     setIsLoading(true);
 
     try {
+      // 計算下次評估日期：發現日期 + 7 天
+      const calculateNextAssessmentDue = (discoveryDate: string): string => {
+        const date = new Date(discoveryDate);
+        date.setDate(date.getDate() + 7);
+        return date.toISOString().split('T')[0];
+      };
+
       const woundData = {
         patient_id: Number(formData.patient_id),
         wound_code: formData.wound_code,
@@ -105,12 +112,16 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
         wound_type_other: formData.wound_type === 'other' ? formData.wound_type_other : undefined,
         wound_origin: formData.wound_origin,
         remarks: formData.remarks || undefined,
-        status: 'active' as const
+        status: 'active' as const,
+        // 自動設定下次評估日期為發現日期 + 7 天
+        next_assessment_due: calculateNextAssessmentDue(formData.discovery_date)
       };
 
       let savedWound: Wound | null = null;
       if (wound?.id) {
-        savedWound = await updateWound({ id: wound.id, ...woundData });
+        // 編輯時不更新 next_assessment_due（由評估記錄控制）
+        const { next_assessment_due, ...updateData } = woundData;
+        savedWound = await updateWound({ id: wound.id, ...updateData });
       } else {
         savedWound = await addWound(woundData);
       }

@@ -100,8 +100,8 @@ function AppContent() {
             <Route path="/restraint" element={<RestraintManagement />} />
             <Route path="/admission-records" element={<AdmissionRecords />} />
             <Route path="/print-forms" element={<PrintForms />} />
-            <Route path="/wound" element={<WoundManagement />} />
-            <Route path="/wound-new" element={<WoundManagementNew />} />
+            <Route path="/wound" element={<WoundManagementNew />} />
+            <Route path="/wound-old" element={<WoundManagement />} />
             <Route path="/prescriptions" element={<PrescriptionManagement />} />
             <Route path="/drug-database" element={<DrugDatabase />} />
             <Route path="/medication-workflow" element={<MedicationWorkflow />} />
