@@ -257,19 +257,96 @@ export interface HealthAssessment {
   updated_at: string;
 }
 
-export interface WoundAssessment {
+// ============================================
+// 傷口管理類型定義
+// ============================================
+
+export type WoundType = 'pressure_ulcer' | 'trauma' | 'surgical' | 'diabetic' | 'venous' | 'arterial' | 'other';
+export type WoundOrigin = 'facility' | 'admission' | 'hospital_referral';
+export type WoundStatus = 'active' | 'healed' | 'transferred';
+export type WoundAssessmentStatus = 'untreated' | 'treating' | 'improving' | 'healed';
+
+// 傷口主表 - 記錄每個傷口的基本資料和生命週期
+export interface Wound {
   id: string;
   patient_id: number;
+  wound_code: string;
+  wound_name?: string;
+  discovery_date: string;
+  wound_location: {
+    x: number;
+    y: number;
+    side: 'front' | 'back';
+    description?: string;
+  };
+  wound_type: WoundType;
+  wound_type_other?: string;
+  wound_origin: WoundOrigin;
+  status: WoundStatus;
+  healed_date?: string;
+  next_assessment_due?: string;
+  remarks?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// 傷口評估記錄表 - 記錄每次傷口評估的詳細資料
+export interface WoundAssessment {
+  id: string;
+  wound_id?: string;           // 關聯到傷口主表
+  patient_id: number;
   assessment_date: string;
-  next_assessment_date?: string;
+  next_assessment_date?: string;  // 保留舊欄位以兼容
   assessor?: string;
+  // 舊結構兼容
   wound_details?: any[];
+  // 新結構：單傷口評估欄位
+  area_length?: number;
+  area_width?: number;
+  area_depth?: number;
+  stage?: string;
+  wound_status?: WoundAssessmentStatus;
+  exudate_present?: boolean;
+  exudate_amount?: string;
+  exudate_color?: string;
+  exudate_type?: string;
+  odor?: string;
+  granulation?: string;
+  necrosis?: string;
+  infection?: string;
+  temperature?: string;
+  surrounding_skin_condition?: string;
+  surrounding_skin_color?: string;
+  cleanser?: string;
+  cleanser_other?: string;
+  dressings?: string[];
+  dressing_other?: string;
+  wound_photos?: string[];
+  remarks?: string;
   status: 'active' | 'archived';
-  assessment_status: 'active' | 'improved' | 'healed';
-  is_archived: boolean;
   archived_at?: string;
   created_at: string;
   updated_at: string;
+}
+
+// 傷口及其評估記錄的組合視圖
+export interface WoundWithAssessments extends Wound {
+  assessments: WoundAssessment[];
+  latest_assessment?: WoundAssessment;
+  assessment_count: number;
+  is_overdue: boolean;
+  days_until_due?: number;
+}
+
+// 病人及其傷口的組合視圖
+export interface PatientWithWounds {
+  patient_id: number;
+  bed_number: string;
+  patient_name: string;
+  wounds: WoundWithAssessments[];
+  active_wound_count: number;
+  healed_wound_count: number;
+  overdue_assessment_count: number;
 }
 
 export type AdmissionEventType = 'hospital_admission' | 'hospital_discharge' | 'transfer_out';
@@ -460,51 +537,55 @@ export interface HygieneRecord {
   updated_at: string;
 }
 
+// ============================================
+// 攝入項目類型定義
+// ============================================
+export type IntakeCategory = 'meal' | 'beverage' | 'other' | 'tube_feeding';
+export type IntakeUnit = 'portion' | 'ml' | 'piece';
+
+export interface IntakeItem {
+  id: string;
+  record_id: string;
+  category: IntakeCategory;
+  item_type: string; // 早餐/午餐/水/湯/餅乾/Isocal 等
+  amount: string; // 顯示用: '1/2', '200ml', '3塊'
+  amount_numeric?: number; // 計算用數值
+  volume?: number; // 飲品容量(ml)
+  unit: IntakeUnit;
+  created_at: string;
+}
+
+// ============================================
+// 排出項目類型定義
+// ============================================
+export type OutputCategory = 'urine' | 'gastric';
+
+export interface OutputItem {
+  id: string;
+  record_id: string;
+  category: OutputCategory;
+  color?: string; // 透明/白/黃/啡/紅/綠/紫/無
+  ph_value?: number; // pH值 (僅胃液)
+  amount_ml: number; // 容量(ml)
+  created_at: string;
+}
+
+// ============================================
+// 出入量主記錄 (新設計 - 與 mobile 端同步)
+// ============================================
 export interface IntakeOutputRecord {
   id: string;
   patient_id: number;
   record_date: string;
   hour_slot: number; // 0-23
-  
-  // 攝入 - 餐膳
-  meal_breakfast?: '1/4' | '2/4' | '3/4' | '全份' | null;
-  meal_lunch?: '1/4' | '2/4' | '3/4' | '全份' | null;
-  meal_afternoon_tea?: '1/4' | '2/4' | '3/4' | '全份' | null;
-  meal_dinner?: '1/4' | '2/4' | '3/4' | '全份' | null;
-  
-  // 攝入 - 飲料 (ml)
-  beverage_water?: number | null;
-  beverage_soup?: number | null;
-  beverage_milk?: number | null;
-  beverage_juice?: number | null;
-  beverage_sugar_water?: number | null;
-  beverage_tea?: number | null;
-  
-  // 攝入 - 其他 (塊/粒)
-  other_cookies?: number | null;
-  other_snacks?: number | null;
-  other_candy?: number | null;
-  other_dessert?: number | null;
-  
-  // 攝入 - 鼻胃飼 (ml)
-  tube_isocal?: number | null;
-  tube_ultracal?: number | null;
-  tube_glucerna?: number | null;
-  tube_isosource?: number | null;
-  tube_compleat?: number | null;
-  
-  // 排出 - 尿液
-  urine_volume?: number | null;
-  urine_color?: '透明' | '黃' | '啡' | '紅' | null;
-  
-  // 排出 - 胃液
-  gastric_volume?: number | null;
-  gastric_ph?: number | null;
-  gastric_color?: '透明' | '黃' | '啡' | '紅' | null;
-  
+  time_slot: string; // '08:00', '12:00' 等
+  recorder: string;
   notes?: string | null;
   created_at: string;
   updated_at: string;
+  // 關聯數據 (可選，用於聯表查詢)
+  intake_items?: IntakeItem[];
+  output_items?: OutputItem[];
 }
 
 export interface PatientCareTab {
@@ -1168,6 +1249,349 @@ export const deleteHealthAssessment = async (assessmentId: string): Promise<void
   if (error) throw error;
 };
 
+// ============================================
+// 傷口主表 CRUD 操作
+// ============================================
+
+// 取得所有傷口
+export const getWounds = async (statusFilter?: WoundStatus | 'all'): Promise<Wound[]> => {
+  try {
+    let query = supabase.from('wounds').select('*');
+
+    if (statusFilter && statusFilter !== 'all') {
+      query = query.eq('status', statusFilter);
+    }
+
+    const { data, error } = await query.order('discovery_date', { ascending: false });
+    if (error) {
+      // 表不存在時返回空陣列
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.warn('wounds 表尚未創建，請執行數據庫遷移');
+        return [];
+      }
+      throw error;
+    }
+    return data || [];
+  } catch (err: any) {
+    console.warn('獲取傷口數據失敗:', err?.message);
+    return [];
+  }
+};
+
+// 取得特定病人的所有傷口
+export const getPatientWounds = async (patientId: number, statusFilter?: WoundStatus | 'all'): Promise<Wound[]> => {
+  try {
+    let query = supabase.from('wounds').select('*').eq('patient_id', patientId);
+
+    if (statusFilter && statusFilter !== 'all') {
+      query = query.eq('status', statusFilter);
+    }
+
+    const { data, error } = await query.order('discovery_date', { ascending: false });
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return [];
+      }
+      throw error;
+    }
+    return data || [];
+  } catch (err) {
+    return [];
+  }
+};
+
+// 取得傷口及其評估記錄
+export const getWoundWithAssessments = async (woundId: string): Promise<WoundWithAssessments | null> => {
+  const { data: wound, error: woundError } = await supabase
+    .from('wounds')
+    .select('*')
+    .eq('id', woundId)
+    .single();
+    
+  if (woundError) throw woundError;
+  if (!wound) return null;
+  
+  const { data: assessments, error: assessmentsError } = await supabase
+    .from('wound_assessments')
+    .select('*')
+    .eq('wound_id', woundId)
+    .order('assessment_date', { ascending: false });
+    
+  if (assessmentsError) throw assessmentsError;
+  
+  const today = new Date();
+  const dueDate = wound.next_assessment_due ? new Date(wound.next_assessment_due) : null;
+  
+  return {
+    ...wound,
+    assessments: assessments || [],
+    latest_assessment: assessments?.[0],
+    assessment_count: assessments?.length || 0,
+    is_overdue: wound.status === 'active' && dueDate ? dueDate < today : false,
+    days_until_due: dueDate && wound.status === 'active' 
+      ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      : undefined
+  };
+};
+
+// 取得所有病人及其傷口的組合視圖
+export const getPatientsWithWounds = async (): Promise<PatientWithWounds[]> => {
+  try {
+    // 取得所有傷口
+    const { data: wounds, error: woundsError } = await supabase
+      .from('wounds')
+      .select('*')
+      .order('discovery_date', { ascending: false });
+      
+    if (woundsError) {
+      // 表不存在時返回空陣列
+      if (woundsError.code === '42P01' || woundsError.message?.includes('does not exist')) {
+        console.warn('wounds 表尚未創建，請執行數據庫遷移');
+        return [];
+      }
+      throw woundsError;
+    }
+    
+    // 如果沒有傷口數據，直接返回空陣列
+    if (!wounds || wounds.length === 0) {
+      return [];
+    }
+    
+    // 取得所有評估記錄
+    const { data: assessments, error: assessmentsError } = await supabase
+      .from('wound_assessments')
+      .select('*')
+      .not('wound_id', 'is', null)
+      .order('assessment_date', { ascending: false });
+      
+    if (assessmentsError && assessmentsError.code !== '42P01') {
+      throw assessmentsError;
+    }
+    
+    // 取得所有在住病人
+    const { data: patients, error: patientsError } = await supabase
+      .from('院友主表')
+      .select('院友id, 床號, 中文姓氏, 中文名字')
+      .eq('在住狀態', '在住');
+      
+    if (patientsError) throw patientsError;
+    
+    const today = new Date();
+    
+    // 組合數據
+    const result: PatientWithWounds[] = (patients || []).map(patient => {
+      const patientWounds = (wounds || []).filter(w => w.patient_id === patient.院友id);
+      const woundsWithAssessments: WoundWithAssessments[] = patientWounds.map(wound => {
+        const woundAssessments = (assessments || []).filter(a => a.wound_id === wound.id);
+        const dueDate = wound.next_assessment_due ? new Date(wound.next_assessment_due) : null;
+        
+        return {
+          ...wound,
+          assessments: woundAssessments,
+          latest_assessment: woundAssessments[0],
+          assessment_count: woundAssessments.length,
+          is_overdue: wound.status === 'active' && dueDate ? dueDate < today : false,
+          days_until_due: dueDate && wound.status === 'active'
+            ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            : undefined
+        };
+      });
+      
+      return {
+        patient_id: patient.院友id,
+        bed_number: patient.床號,
+        patient_name: `${patient.中文姓氏}${patient.中文名字}`,
+        wounds: woundsWithAssessments,
+        active_wound_count: woundsWithAssessments.filter(w => w.status === 'active').length,
+        healed_wound_count: woundsWithAssessments.filter(w => w.status === 'healed').length,
+        overdue_assessment_count: woundsWithAssessments.filter(w => w.is_overdue).length
+      };
+    });
+    
+    return result.filter(p => p.wounds.length > 0);
+  } catch (err: any) {
+    console.warn('獲取病人傷口數據失敗:', err?.message);
+    return [];
+  }
+};
+
+// 生成傷口編號
+export const generateWoundCode = async (patientId: number): Promise<string> => {
+  try {
+    const { data, error } = await supabase
+      .from('wounds')
+      .select('wound_code')
+      .eq('patient_id', patientId)
+      .order('wound_code', { ascending: false })
+      .limit(1);
+      
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.warn('wounds 表尚未創建');
+        return 'W001';
+      }
+      throw error;
+    }
+    
+    let nextNum = 1;
+    if (data && data.length > 0) {
+      const lastCode = data[0].wound_code;
+      const match = lastCode.match(/W(\d+)/);
+      if (match) {
+        nextNum = parseInt(match[1], 10) + 1;
+      }
+    }
+    
+    return `W${nextNum.toString().padStart(3, '0')}`;
+  } catch (err: any) {
+    console.warn('生成傷口編號失敗:', err?.message);
+    return 'W001';
+  }
+};
+
+// 創建傷口
+export const createWound = async (wound: Omit<Wound, 'id' | 'created_at' | 'updated_at'>): Promise<Wound | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('wounds')
+      .insert([wound])
+      .select()
+      .single();
+      
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.warn('wounds 表尚未創建，請執行數據庫遷移');
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  } catch (err: any) {
+    console.error('創建傷口失敗:', err?.message);
+    throw err;
+  }
+};
+
+// 更新傷口
+export const updateWound = async (wound: Partial<Wound> & { id: string }): Promise<Wound | null> => {
+  try {
+    const { id, created_at, updated_at, ...updateData } = wound as any;
+    const { data, error } = await supabase
+      .from('wounds')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.warn('wounds 表尚未創建，請執行數據庫遷移');
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  } catch (err: any) {
+    console.error('更新傷口失敗:', err?.message);
+    throw err;
+  }
+};
+
+// 刪除傷口（同時刪除相關評估記錄）
+export const deleteWound = async (woundId: string): Promise<boolean> => {
+  try {
+    // 先刪除相關評估記錄
+    const { error: assessmentError } = await supabase
+      .from('wound_assessments')
+      .delete()
+      .eq('wound_id', woundId);
+      
+    if (assessmentError && assessmentError.code !== '42P01') {
+      throw assessmentError;
+    }
+    
+    // 再刪除傷口
+    const { error } = await supabase
+      .from('wounds')
+      .delete()
+      .eq('id', woundId);
+      
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.warn('wounds 表尚未創建，請執行數據庫遷移');
+        return false;
+      }
+      throw error;
+    }
+    return true;
+  } catch (err: any) {
+    console.error('刪除傷口失敗:', err?.message);
+    throw err;
+  }
+};
+
+// 標記傷口為痊癒
+export const healWound = async (woundId: string, healedDate?: string): Promise<Wound | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('wounds')
+      .update({
+        status: 'healed',
+        healed_date: healedDate || new Date().toISOString().split('T')[0],
+        next_assessment_due: null
+      })
+      .eq('id', woundId)
+      .select()
+      .single();
+      
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.warn('wounds 表尚未創建，請執行數據庫遷移');
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  } catch (err: any) {
+    console.error('標記傷口痊癒失敗:', err?.message);
+    throw err;
+  }
+};
+
+// 取得需要評估的傷口（逾期或即將到期）
+export const getWoundsNeedingAssessment = async (): Promise<Wound[]> => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const threeDaysLater = new Date();
+    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+    const threeDaysLaterStr = threeDaysLater.toISOString().split('T')[0];
+    
+    const { data, error } = await supabase
+      .from('wounds')
+      .select('*')
+      .eq('status', 'active')
+      .not('next_assessment_due', 'is', null)
+      .lte('next_assessment_due', threeDaysLaterStr)
+      .order('next_assessment_due', { ascending: true });
+      
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.warn('wounds 表尚未創建');
+        return [];
+      }
+      throw error;
+    }
+    return data || [];
+  } catch (err: any) {
+    console.warn('獲取需要評估的傷口失敗:', err?.message);
+    return [];
+  }
+};
+
+// ============================================
+// 傷口評估記錄 CRUD 操作（更新版）
+// ============================================
+
 export const getWoundAssessments = async (statusFilter?: 'active' | 'archived' | 'all'): Promise<WoundAssessment[]> => {
   let query = supabase.from('wound_assessments').select('*');
 
@@ -1180,6 +1604,114 @@ export const getWoundAssessments = async (statusFilter?: 'active' | 'archived' |
   return data || [];
 };
 
+// 取得特定傷口的所有評估記錄
+export const getWoundAssessmentsByWound = async (woundId: string): Promise<WoundAssessment[]> => {
+  const { data, error } = await supabase
+    .from('wound_assessments')
+    .select('*')
+    .eq('wound_id', woundId)
+    .order('assessment_date', { ascending: false });
+    
+  if (error) throw error;
+  return data || [];
+};
+
+// 創建傷口評估記錄（新版：關聯到特定傷口）
+export const createWoundAssessmentForWound = async (
+  assessment: Omit<WoundAssessment, 'id' | 'created_at' | 'updated_at' | 'status' | 'archived_at'>
+): Promise<WoundAssessment> => {
+  const {
+    wound_id,
+    patient_id,
+    assessment_date,
+    assessor,
+    area_length,
+    area_width,
+    area_depth,
+    stage,
+    wound_status,
+    exudate_present,
+    exudate_amount,
+    exudate_color,
+    exudate_type,
+    odor,
+    granulation,
+    necrosis,
+    infection,
+    temperature,
+    surrounding_skin_condition,
+    surrounding_skin_color,
+    cleanser,
+    cleanser_other,
+    dressings,
+    dressing_other,
+    wound_photos,
+    remarks
+  } = assessment;
+
+  // 插入評估記錄
+  const { data: assessmentRecord, error: assessmentError } = await supabase
+    .from('wound_assessments')
+    .insert([{
+      wound_id,
+      patient_id,
+      assessment_date,
+      assessor,
+      area_length,
+      area_width,
+      area_depth,
+      stage,
+      wound_status,
+      exudate_present,
+      exudate_amount,
+      exudate_color,
+      exudate_type,
+      odor,
+      granulation,
+      necrosis,
+      infection,
+      temperature,
+      surrounding_skin_condition,
+      surrounding_skin_color,
+      cleanser,
+      cleanser_other,
+      dressings: dressings || [],
+      dressing_other,
+      wound_photos: wound_photos || [],
+      remarks,
+      status: 'active'
+    }])
+    .select()
+    .single();
+    
+  if (assessmentError) throw assessmentError;
+  
+  // 更新傷口的下次評估日期
+  if (wound_id) {
+    const nextDueDate = new Date(assessment_date);
+    nextDueDate.setDate(nextDueDate.getDate() + 7);
+    
+    const woundUpdate: any = {
+      next_assessment_due: nextDueDate.toISOString().split('T')[0]
+    };
+    
+    // 如果評估狀態為痊癒，更新傷口狀態
+    if (wound_status === 'healed') {
+      woundUpdate.status = 'healed';
+      woundUpdate.healed_date = assessment_date;
+      woundUpdate.next_assessment_due = null;
+    }
+    
+    await supabase
+      .from('wounds')
+      .update(woundUpdate)
+      .eq('id', wound_id);
+  }
+  
+  return assessmentRecord;
+};
+
+// 舊版創建傷口評估（保持向後兼容）
 export const createWoundAssessment = async (assessment: Omit<WoundAssessment, 'id' | 'created_at' | 'updated_at' | 'status' | 'archived_at'>): Promise<WoundAssessment> => {
   const { wound_details, ...assessmentData } = assessment as any;
 
@@ -1771,7 +2303,7 @@ export const deleteHygieneRecord = async (recordId: string): Promise<void> => {
   if (error) throw error;
 };
 
-// Intake/Output Records
+// Intake/Output Records (新設計 - 與 mobile 端同步)
 export const getIntakeOutputRecords = async (): Promise<IntakeOutputRecord[]> => {
   const { data, error } = await supabase
     .from('intake_output_records')
@@ -1779,16 +2311,41 @@ export const getIntakeOutputRecords = async (): Promise<IntakeOutputRecord[]> =>
     .order('record_date', { ascending: false })
     .order('hour_slot', { ascending: true });
   if (error) throw error;
-  return data || [];
+  
+  // 為每個記錄加載 intake_items 和 output_items
+  const records = data || [];
+  for (const record of records) {
+    const { data: intakeItems, error: intakeError } = await supabase
+      .from('intake_items')
+      .select('*')
+      .eq('record_id', record.id)
+      .order('created_at', { ascending: true });
+    
+    const { data: outputItems, error: outputError } = await supabase
+      .from('output_items')
+      .select('*')
+      .eq('record_id', record.id)
+      .order('created_at', { ascending: true });
+    
+    record.intake_items = intakeItems || [];
+    record.output_items = outputItems || [];
+  }
+  
+  return records;
 };
 
-export const createIntakeOutputRecord = async (record: Omit<IntakeOutputRecord, 'id' | 'created_at' | 'updated_at'>): Promise<IntakeOutputRecord> => {
+export const createIntakeOutputRecord = async (
+  record: Omit<IntakeOutputRecord, 'id' | 'created_at' | 'updated_at' | 'intake_items' | 'output_items'>
+): Promise<IntakeOutputRecord> => {
   const { data, error } = await supabase.from('intake_output_records').insert([record]).select().single();
   if (error) throw error;
   return data;
 };
 
-export const updateIntakeOutputRecord = async (id: string, updates: Partial<Omit<IntakeOutputRecord, 'id' | 'created_at' | 'updated_at'>>): Promise<IntakeOutputRecord | null> => {
+export const updateIntakeOutputRecord = async (
+  id: string, 
+  updates: Partial<Omit<IntakeOutputRecord, 'id' | 'created_at' | 'updated_at' | 'intake_items' | 'output_items'>>
+): Promise<IntakeOutputRecord | null> => {
   const { data, error } = await supabase.from('intake_output_records').update(updates).eq('id', id).select();
   if (error) throw error;
   return data && data.length > 0 ? data[0] : null;
@@ -1796,6 +2353,96 @@ export const updateIntakeOutputRecord = async (id: string, updates: Partial<Omit
 
 export const deleteIntakeOutputRecord = async (recordId: string): Promise<void> => {
   const { error } = await supabase.from('intake_output_records').delete().eq('id', recordId);
+  if (error) throw error;
+};
+
+// ============================================
+// 攝入項目 CRUD 操作
+// ============================================
+export const createIntakeItem = async (
+  item: Omit<IntakeItem, 'id' | 'created_at'>
+): Promise<IntakeItem> => {
+  const { data, error } = await supabase
+    .from('intake_items')
+    .insert([item])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const createIntakeItems = async (
+  items: Omit<IntakeItem, 'id' | 'created_at'>[]
+): Promise<IntakeItem[]> => {
+  if (items.length === 0) return [];
+  const { data, error } = await supabase
+    .from('intake_items')
+    .insert(items)
+    .select();
+  if (error) throw error;
+  return data || [];
+};
+
+export const getIntakeItems = async (recordId: string): Promise<IntakeItem[]> => {
+  const { data, error } = await supabase
+    .from('intake_items')
+    .select('*')
+    .eq('record_id', recordId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const deleteIntakeItem = async (itemId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('intake_items')
+    .delete()
+    .eq('id', itemId);
+  if (error) throw error;
+};
+
+// ============================================
+// 排出項目 CRUD 操作
+// ============================================
+export const createOutputItem = async (
+  item: Omit<OutputItem, 'id' | 'created_at'>
+): Promise<OutputItem> => {
+  const { data, error } = await supabase
+    .from('output_items')
+    .insert([item])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const createOutputItems = async (
+  items: Omit<OutputItem, 'id' | 'created_at'>[]
+): Promise<OutputItem[]> => {
+  if (items.length === 0) return [];
+  const { data, error } = await supabase
+    .from('output_items')
+    .insert(items)
+    .select();
+  if (error) throw error;
+  return data || [];
+};
+
+export const getOutputItems = async (recordId: string): Promise<OutputItem[]> => {
+  const { data, error } = await supabase
+    .from('output_items')
+    .select('*')
+    .eq('record_id', recordId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const deleteOutputItem = async (itemId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('output_items')
+    .delete()
+    .eq('id', itemId);
   if (error) throw error;
 };
 

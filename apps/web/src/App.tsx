@@ -24,6 +24,7 @@ const RestraintManagement = lazy(() => import('./pages/RestraintManagement'));
 const AdmissionRecords = lazy(() => import('./pages/AdmissionRecords'));
 const PrintForms = lazy(() => import('./pages/PrintForms'));
 const WoundManagement = lazy(() => import('./pages/WoundManagement'));
+const WoundManagementNew = lazy(() => import('./pages/WoundManagementNew'));
 const PrescriptionManagement = lazy(() => import('./pages/PrescriptionManagement'));
 const DrugDatabase = lazy(() => import('./pages/DrugDatabase'));
 const MedicationWorkflow = lazy(() => import('./pages/MedicationWorkflow'));
@@ -100,6 +101,7 @@ function AppContent() {
             <Route path="/admission-records" element={<AdmissionRecords />} />
             <Route path="/print-forms" element={<PrintForms />} />
             <Route path="/wound" element={<WoundManagement />} />
+            <Route path="/wound-new" element={<WoundManagementNew />} />
             <Route path="/prescriptions" element={<PrescriptionManagement />} />
             <Route path="/drug-database" element={<DrugDatabase />} />
             <Route path="/medication-workflow" element={<MedicationWorkflow />} />

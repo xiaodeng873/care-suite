@@ -14,14 +14,8 @@ export const DIAPER_CHANGE_SLOTS = [
   { time: '3AM-6AM', label: '3AM-6AM' }
 ];
 
+// 出入量時段 - 從07:00開始，順序與mobile端一致
 export const INTAKE_OUTPUT_SLOTS = [
-  { time: '00:00', label: '00:00' },
-  { time: '01:00', label: '01:00' },
-  { time: '02:00', label: '02:00' },
-  { time: '03:00', label: '03:00' },
-  { time: '04:00', label: '04:00' },
-  { time: '05:00', label: '05:00' },
-  { time: '06:00', label: '06:00' },
   { time: '07:00', label: '07:00' },
   { time: '08:00', label: '08:00' },
   { time: '09:00', label: '09:00' },
@@ -39,6 +33,13 @@ export const INTAKE_OUTPUT_SLOTS = [
   { time: '21:00', label: '21:00' },
   { time: '22:00', label: '22:00' },
   { time: '23:00', label: '23:00' },
+  { time: '00:00', label: '00:00' },
+  { time: '01:00', label: '01:00' },
+  { time: '02:00', label: '02:00' },
+  { time: '03:00', label: '03:00' },
+  { time: '04:00', label: '04:00' },
+  { time: '05:00', label: '05:00' },
+  { time: '06:00', label: '06:00' },
 ];
 
 export const generateWeekDates = (startDate: Date): Date[] => {

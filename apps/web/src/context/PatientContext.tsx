@@ -6,7 +6,7 @@ import { generateDailyWorkflowRecords } from '../utils/workflowGenerator';
 import { useAuth } from './AuthContext';
 
 // Re-export types from database module
-export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote } from '../lib/database';
+export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote } from '../lib/database';
 
 // Wound photo interface
 export interface WoundPhoto {
@@ -92,6 +92,8 @@ interface PatientContextType {
   patientRestraintAssessments: db.PatientRestraintAssessment[];
   healthAssessments: db.HealthAssessment[];
   woundAssessments: db.WoundAssessment[];
+  wounds: db.Wound[];
+  patientsWithWounds: db.PatientWithWounds[];
   patientAdmissionRecords: db.PatientAdmissionRecord[];
   hospitalEpisodes: any[];
   annualHealthCheckups: any[];
@@ -120,7 +122,7 @@ interface PatientContextType {
   hospitalOutreachRecordHistory: any[];
   doctorVisitSchedule: any[];
   fetchHospitalOutreachRecords: () => Promise<void>;
-  fetchHospitalOutreachRecordHistory: (patientId: number) => Promise<void>;
+  fetchHospitalOutreachRecordHistory: (patientId: number) => Promise<any[]>;
   addHospitalOutreachRecord: (recordData: any) => Promise<void>;
   updateHospitalOutreachRecord: (recordData: any) => Promise<void>;
   deleteHospitalOutreachRecord: (recordId: string) => Promise<void>;
@@ -151,10 +153,10 @@ interface PatientContextType {
   addPatientToSchedule: (scheduleId: number, patientId: number, symptoms: string, notes: string, reasons: string[]) => Promise<void>;
   updateScheduleDetail: (detail: any) => Promise<void>;
   deleteScheduleDetail: (detailId: number) => Promise<void>;
-  addPrescription: (prescription: Omit<db.Prescription, '處方id'>) => Promise<void>;
+  addPrescription: (prescription: any) => Promise<void>;
   updatePrescription: (prescription: db.Prescription) => Promise<void>;
   deletePrescription: (id: number) => Promise<void>;
-  addHealthRecord: (record: Omit<db.HealthRecord, '記錄id'>) => Promise<void>;
+  addHealthRecord: (record: Omit<db.HealthRecord, '記錄id'>) => Promise<db.HealthRecord>;
   updateHealthRecord: (record: db.HealthRecord) => Promise<void>;
   deleteHealthRecord: (id: number) => Promise<void>;
   addFollowUpAppointment: (appointment: Omit<db.FollowUpAppointment, '覆診id' | '創建時間' | '更新時間'>) => Promise<void>;
@@ -167,7 +169,7 @@ interface PatientContextType {
   addPatientLog: (log: Omit<db.PatientLog, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updatePatientLog: (log: db.PatientLog) => Promise<void>;
   deletePatientLog: (id: string) => Promise<void>;
-  addPatientHealthTask: (task: Omit<db.PatientHealthTask, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  addPatientHealthTask: (task: Omit<db.PatientHealthTask, 'id' | 'created_at' | 'updated_at'>) => Promise<db.PatientHealthTask>;
   updatePatientHealthTask: (task: db.PatientHealthTask) => Promise<void>;
   deletePatientHealthTask: (id: string) => Promise<void>;
   setPatientHealthTasks: React.Dispatch<React.SetStateAction<db.PatientHealthTask[]>>;
@@ -177,9 +179,20 @@ interface PatientContextType {
   addHealthAssessment: (assessment: Omit<db.HealthAssessment, 'id' | 'created_at' | 'updated_at' | 'status' | 'archived_at'>) => Promise<void>;
   updateHealthAssessment: (assessment: db.HealthAssessment) => Promise<void>;
   deleteHealthAssessment: (id: string) => Promise<void>;
+  // 傷口管理函數（新結構）
+  addWound: (wound: Omit<db.Wound, 'id' | 'created_at' | 'updated_at'>) => Promise<db.Wound | null>;
+  updateWound: (wound: Partial<db.Wound> & { id: string }) => Promise<db.Wound | null>;
+  deleteWound: (id: string) => Promise<void>;
+  healWound: (woundId: string, healedDate?: string) => Promise<db.Wound | null>;
+  getWoundWithAssessments: (woundId: string) => Promise<db.WoundWithAssessments | null>;
+  getWoundsNeedingAssessment: () => Promise<db.Wound[]>;
+  generateWoundCode: (patientId: number) => Promise<string>;
+  addWoundAssessmentForWound: (assessment: Omit<db.WoundAssessment, 'id' | 'created_at' | 'updated_at' | 'status' | 'archived_at'>) => Promise<void>;
+  // 傷口評估函數（兼容舊結構）
   addWoundAssessment: (assessment: Omit<db.WoundAssessment, 'id' | 'created_at' | 'updated_at' | 'status' | 'archived_at'>) => Promise<void>;
   updateWoundAssessment: (assessment: db.WoundAssessment) => Promise<void>;
   deleteWoundAssessment: (id: string) => Promise<void>;
+  refreshWoundData: () => Promise<void>;
   addAnnualHealthCheckup: (checkup: any) => Promise<void>;
   updateAnnualHealthCheckup: (checkup: any) => Promise<void>;
   deleteAnnualHealthCheckup: (id: string) => Promise<void>;
@@ -231,9 +244,9 @@ interface PatientContextType {
   updatePrescriptionWorkflowRecord: (recordId: string, updateData: Partial<PrescriptionWorkflowRecord>) => Promise<void>;
   prepareMedication: (recordId: string, staffId: string) => Promise<void>;
   verifyMedication: (recordId: string, staffId: string) => Promise<void>;
-  dispenseMedication: (recordId: string, staffId: string, failureReason?: string, customReason?: string, newVitalSignData?: Omit<db.HealthRecord, '記錄id'>) => Promise<void>;
-  checkPrescriptionInspectionRules: (prescriptionId: string, patientId: number, newVitalSignData?: Omit<db.HealthRecord, '記錄id'>) => Promise<InspectionCheckResult>;
-  fetchLatestVitalSigns: (patientId: number, vitalSignType: string) => Promise<db.HealthRecord | null>;
+  dispenseMedication: (recordId: string, staffId: string, failureReason?: string, customReason?: string, patientId?: number, scheduledDate?: string, notes?: string, inspectionCheckResult?: any) => Promise<void>;
+  checkPrescriptionInspectionRules: (prescriptionId: string, patientId: number, scheduledDate?: string, scheduledTime?: string) => Promise<InspectionCheckResult>;
+  fetchLatestVitalSigns: (patientId: number, vitalSignType: string, targetDate?: string, targetTime?: string) => Promise<{ record: db.HealthRecord | null; isExactMatch: boolean }>;
   batchSetDispenseFailure: (patientId: number, scheduledDate: string, scheduledTime: string, reason: string) => Promise<void>;
   
   // 撤銷工作流程步驟
@@ -266,7 +279,7 @@ interface PatientProviderProps {
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
 
 export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) => {
-  const { user, authReady } = useAuth();
+  const { user, authReady, displayName } = useAuth();
 
   // 1. 狀態 State 定義 (Loading 放在這裡)
   const [loading, setLoading] = useState(true);
@@ -294,6 +307,8 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   const [patientRestraintAssessments, setPatientRestraintAssessments] = useState<db.PatientRestraintAssessment[]>([]);
   const [healthAssessments, setHealthAssessments] = useState<db.HealthAssessment[]>([]);
   const [woundAssessments, setWoundAssessments] = useState<db.WoundAssessment[]>([]);
+  const [wounds, setWounds] = useState<db.Wound[]>([]);
+  const [patientsWithWounds, setPatientsWithWounds] = useState<db.PatientWithWounds[]>([]);
   const [annualHealthCheckups, setAnnualHealthCheckups] = useState<any[]>([]);
   const [incidentReports, setIncidentReports] = useState<db.IncidentReport[]>([]);
   const [diagnosisRecords, setDiagnosisRecords] = useState<db.DiagnosisRecord[]>([]);
@@ -541,6 +556,8 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
         patientRestraintAssessmentsData,
         healthAssessmentsData,
         woundAssessmentsData,
+        woundsData,
+        patientsWithWoundsData,
         patientAdmissionRecordsData,
         hospitalEpisodesData,
         prescriptionsData,
@@ -562,7 +579,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
         db.getBeds(),
         db.getSchedules(),
         db.getReasons(),
-        db.getHealthRecords(undefined, startDateStr),
+        db.getHealthRecords(),
         db.getFollowUps(),
         db.getHealthTasks(),
         db.getMealGuidances(),
@@ -570,6 +587,8 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
         db.getRestraintAssessments(),
         db.getHealthAssessments(),
         db.getWoundAssessments(),
+        db.getWounds(),
+        db.getPatientsWithWounds(),
         db.getPatientAdmissionRecords(),
         db.getHospitalEpisodes(),
         db.getPrescriptions(),
@@ -609,6 +628,8 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       setPatientRestraintAssessments(patientRestraintAssessmentsData);
       setHealthAssessments(healthAssessmentsData);
       setWoundAssessments(woundAssessmentsData);
+      setWounds(woundsData || []);
+      setPatientsWithWounds(patientsWithWoundsData || []);
       setHospitalEpisodes(hospitalEpisodesData);
       setPrescriptions(prescriptionsData);
       setDrugDatabase(drugDatabaseData);
@@ -751,7 +772,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       }
 
       const [healthRecordsData, patientHealthTasksData] = await Promise.all([
-        db.getHealthRecords(undefined, startDateStr),
+        db.getHealthRecords(),
         db.getHealthTasks()
       ]);
 
@@ -919,7 +940,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     }
   };
 
-  const addPrescription = async (prescription: Omit<db.Prescription, '處方id'>) => {
+  const addPrescription = async (prescription: any) => {
     try {
       await db.createPrescription(prescription);
       await refreshData();
@@ -1147,6 +1168,124 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     }
   };
 
+  // ============================================
+  // 傷口管理函數（新結構）
+  // ============================================
+
+  // 刷新傷口數據
+  const refreshWoundData = async () => {
+    try {
+      const [woundsData, patientsWithWoundsData, woundAssessmentsData] = await Promise.all([
+        db.getWounds(),
+        db.getPatientsWithWounds(),
+        db.getWoundAssessments()
+      ]);
+      setWounds(woundsData || []);
+      setPatientsWithWounds(patientsWithWoundsData || []);
+      setWoundAssessments(woundAssessmentsData || []);
+    } catch (error) {
+      console.error('Error refreshing wound data:', error);
+      throw error;
+    }
+  };
+
+  // 新增傷口
+  const addWound = async (wound: Omit<db.Wound, 'id' | 'created_at' | 'updated_at'>): Promise<db.Wound | null> => {
+    try {
+      const newWound = await db.createWound(wound);
+      if (newWound) {
+        await refreshWoundData();
+      }
+      return newWound;
+    } catch (error) {
+      console.error('Error adding wound:', error);
+      throw error;
+    }
+  };
+
+  // 更新傷口
+  const updateWound = async (wound: Partial<db.Wound> & { id: string }): Promise<db.Wound | null> => {
+    try {
+      const updatedWound = await db.updateWound(wound);
+      if (updatedWound) {
+        await refreshWoundData();
+      }
+      return updatedWound;
+    } catch (error) {
+      console.error('Error updating wound:', error);
+      throw error;
+    }
+  };
+
+  // 刪除傷口
+  const deleteWound = async (id: string) => {
+    try {
+      const success = await db.deleteWound(id);
+      if (success) {
+        await refreshWoundData();
+      }
+    } catch (error) {
+      console.error('Error deleting wound:', error);
+      throw error;
+    }
+  };
+
+  // 標記傷口為痊癒
+  const healWound = async (woundId: string, healedDate?: string): Promise<db.Wound | null> => {
+    try {
+      const healedWound = await db.healWound(woundId, healedDate);
+      if (healedWound) {
+        await refreshWoundData();
+      }
+      return healedWound;
+    } catch (error) {
+      console.error('Error healing wound:', error);
+      throw error;
+    }
+  };
+
+  // 取得傷口及其評估記錄
+  const getWoundWithAssessments = async (woundId: string): Promise<db.WoundWithAssessments | null> => {
+    try {
+      return await db.getWoundWithAssessments(woundId);
+    } catch (error) {
+      console.error('Error getting wound with assessments:', error);
+      throw error;
+    }
+  };
+
+  // 取得需要評估的傷口
+  const getWoundsNeedingAssessment = async (): Promise<db.Wound[]> => {
+    try {
+      return await db.getWoundsNeedingAssessment();
+    } catch (error) {
+      console.error('Error getting wounds needing assessment:', error);
+      throw error;
+    }
+  };
+
+  // 生成傷口編號
+  const generateWoundCode = async (patientId: number): Promise<string> => {
+    try {
+      return await db.generateWoundCode(patientId);
+    } catch (error) {
+      console.error('Error generating wound code:', error);
+      throw error;
+    }
+  };
+
+  // 為特定傷口新增評估記錄
+  const addWoundAssessmentForWound = async (assessment: Omit<db.WoundAssessment, 'id' | 'created_at' | 'updated_at' | 'status' | 'archived_at'>) => {
+    try {
+      await db.createWoundAssessmentForWound(assessment);
+      await refreshWoundData();
+    } catch (error) {
+      console.error('Error adding wound assessment for wound:', error);
+      throw error;
+    }
+  };
+
+  // 新增傷口評估（舊版兼容）
   const addWoundAssessment = async (assessment: Omit<db.WoundAssessment, 'id' | 'created_at' | 'updated_at' | 'status' | 'archived_at'>) => {
     try {
       await db.createWoundAssessment(assessment);
@@ -2137,6 +2276,19 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       addHealthAssessment,
       updateHealthAssessment,
       deleteHealthAssessment,
+      // 傷口管理（新結構）
+      wounds,
+      patientsWithWounds,
+      addWound,
+      updateWound,
+      deleteWound,
+      healWound,
+      getWoundWithAssessments,
+      getWoundsNeedingAssessment,
+      generateWoundCode,
+      addWoundAssessmentForWound,
+      refreshWoundData,
+      // 傷口評估（兼容舊結構）
       addWoundAssessment,
       updateWoundAssessment,
       deleteWoundAssessment,

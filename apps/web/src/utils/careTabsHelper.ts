@@ -103,7 +103,7 @@ export async function initializePatientCareTabs(
 
 export async function addPatientCareTab(
   patientId: number,
-  tabType: 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training'
+  tabType: 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene'
 ): Promise<PatientCareTab | null> {
   const existingTab = await supabase
     .from('patient_care_tabs')

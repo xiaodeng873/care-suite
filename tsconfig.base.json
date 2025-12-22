@@ -3,6 +3,7 @@
     "target": "ES2020",
     "moduleResolution": "Bundler",
     "module": "ESNext",
+    "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
     "baseUrl": ".",

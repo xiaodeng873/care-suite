@@ -47,7 +47,17 @@ import {
 type TabType = 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene';
 
 // 衛生記錄項目配置（16項：備註 + 11護理項目 + 4大便項目）
-const HYGIENE_ITEMS = [
+type HygieneItemConfig = {
+  key: string;
+  label: string;
+  isStatus?: boolean;
+  isBowelCount?: boolean;
+  isBowelAmount?: boolean;
+  isBowelConsistency?: boolean;
+  isBowelMedication?: boolean;
+};
+
+const HYGIENE_ITEMS: HygieneItemConfig[] = [
   { key: 'status_notes', label: '備註', isStatus: true },
   { key: 'has_bath', label: '沐浴' },
   { key: 'has_face_wash', label: '洗面' },
@@ -64,7 +74,7 @@ const HYGIENE_ITEMS = [
   { key: 'bowel_amount', label: '大便量', isBowelAmount: true },
   { key: 'bowel_consistency', label: '大便性質', isBowelConsistency: true },
   { key: 'bowel_medication', label: '大便藥', isBowelMedication: true },
-] as const;
+];
 
 const CareRecords: React.FC = () => {
   const {
@@ -315,7 +325,6 @@ const CareRecords: React.FC = () => {
       (tabType === 'diaper' && diaperChangeRecords.some(r => r.patient_id === selectedPatient.院友id)) ||
       (tabType === 'restraint' && restraintObservationRecords.some(r => r.patient_id === selectedPatient.院友id)) ||
       (tabType === 'position' && positionChangeRecords.some(r => r.patient_id === selectedPatient.院友id)) ||
-      (tabType === 'patrol' && patrolRounds.some(r => r.patient_id === selectedPatient.院友id)) ||
       (tabType === 'hygiene' && hygieneRecords.some(r => r.patient_id === selectedPatient.院友id));
 
     const confirmMessage = hasRecords
@@ -597,23 +606,6 @@ const CareRecords: React.FC = () => {
     }
   };
 
-  const handleIntakeOutputSubmit = async (data: Omit<IntakeOutputRecord, 'id' | 'created_at' | 'updated_at'>) => {
-    try {
-      if (modalExistingRecord) {
-        await db.updateIntakeOutputRecord(modalExistingRecord.id, data);
-      } else {
-        await db.createIntakeOutputRecord(data);
-      }
-      setShowIntakeOutputModal(false);
-      setModalExistingRecord(null);
-      setModalTimeSlot('');
-      // 靜默重新加載當前週數據
-      await loadCareRecordsForWeek(weekDateStrings[0], weekDateStrings[weekDateStrings.length - 1], true);
-    } catch (error) {
-      console.error('❌ 保存出入量記錄失敗:', error);
-    }
-  };
-
   const handleIntakeOutputDelete = async (recordId: string) => {
     try {
       await db.deleteIntakeOutputRecord(recordId);
@@ -646,7 +638,7 @@ const CareRecords: React.FC = () => {
                 const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
                 const weekday = weekdays[d.getDay()];
                 return (
-                  <th key={date} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                  <th key={date.toISOString()} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
                     {month}/{dayOfMonth}<br/>({weekday})
                   </th>
                 );
@@ -716,7 +708,7 @@ const CareRecords: React.FC = () => {
                 const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
                 const weekday = weekdays[d.getDay()];
                 return (
-                  <th key={date} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                  <th key={date.toISOString()} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
                     {month}/{dayOfMonth}<br/>({weekday})
                   </th>
                 );
@@ -809,7 +801,7 @@ const CareRecords: React.FC = () => {
                 const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
                 const weekday = weekdays[d.getDay()];
                 return (
-                  <th key={date} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                  <th key={date.toISOString()} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
                     {month}/{dayOfMonth}<br/>({weekday})
                   </th>
                 );
@@ -896,7 +888,7 @@ const CareRecords: React.FC = () => {
                 const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
                 const weekday = weekdays[d.getDay()];
                 return (
-                  <th key={date} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                  <th key={date.toISOString()} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
                     {month}/{dayOfMonth}<br/>({weekday})
                   </th>
                 );
@@ -915,7 +907,7 @@ const CareRecords: React.FC = () => {
                     r => r.change_date === dateString && r.scheduled_time === timeSlot
                   );
                   const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, timeSlot, admissionRecords, hospitalEpisodes);
-                  const expectedPosition = getPositionSequence(index);
+                  const expectedPosition = getPositionSequence(timeSlot);
 
                   return (
                     <td
@@ -976,7 +968,7 @@ const CareRecords: React.FC = () => {
                 const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
                 const weekday = weekdays[d.getDay()];
                 return (
-                  <th key={date} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                  <th key={date.toISOString()} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
                     {month}/{dayOfMonth}<br/>({weekday})
                   </th>
                 );
@@ -993,31 +985,47 @@ const CareRecords: React.FC = () => {
                   const dateString = weekDateStrings[index];
                   const hourSlot = parseInt(slot.time.split(':')[0]);
                   const record = intakeOutputRecords.find(
-                    r => r.record_date === dateString && r.hour_slot === hourSlot
+                    r => r.record_date === dateString && (r.hour_slot === hourSlot || r.time_slot === slot.time)
                   );
                   const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, slot.time, admissionRecords, hospitalEpisodes);
+                  const statusLabel = record && record.notes && ['入院', '渡假', '外出'].includes(String(record.notes)) ? String(record.notes) : undefined;
 
-                  // 计算入量和出量
-                  const intakeTotal = record ? (
-                    (record.beverage_water || 0) +
-                    (record.beverage_soup || 0) +
-                    (record.beverage_milk || 0) +
-                    (record.beverage_juice || 0) +
-                    (record.beverage_sugar_water || 0) +
-                    (record.beverage_tea || 0) +
-                    (record.tube_isocal || 0) +
-                    (record.tube_ultracal || 0) +
-                    (record.tube_glucerna || 0) +
-                    (record.tube_isosource || 0) +
-                    (record.tube_compleat || 0)
-                  ) : 0;
-
-                  const outputTotal = record ? (
-                    (record.urine_volume || 0) +
-                    (record.gastric_volume || 0)
-                  ) : 0;
-
-                  const hasMeals = record && (record.meal_breakfast || record.meal_lunch || record.meal_afternoon_tea || record.meal_dinner);
+                  // 從 intake_items 構建詳細項目列表
+                  const intakeDetails: string[] = [];
+                  const outputDetails: string[] = [];
+                  
+                  if (record?.intake_items && record.intake_items.length > 0) {
+                    record.intake_items.forEach(item => {
+                      if (item.category === 'meal') {
+                        intakeDetails.push(`${item.item_type}${item.amount || ''}`);
+                      } else if (item.category === 'beverage') {
+                        intakeDetails.push(`${item.item_type}${item.volume || 0}ml`);
+                      } else if (item.category === 'tube_feeding') {
+                        intakeDetails.push(`${item.item_type}${item.volume || 0}ml`);
+                      } else if (item.category === 'other') {
+                        intakeDetails.push(`${item.item_type}${item.amount || ''}`);
+                      }
+                    });
+                  }
+                  
+                  if (record?.output_items && record.output_items.length > 0) {
+                    record.output_items.forEach(item => {
+                      if (item.category === 'urine') {
+                        if (item.color === '無' || item.amount_ml === 0) {
+                          outputDetails.push('無尿');
+                        } else {
+                          outputDetails.push(`尿(${item.color || ''}) ${item.amount_ml}ml`);
+                        }
+                      } else if (item.category === 'gastric') {
+                        if (item.color === '無' || item.amount_ml === 0) {
+                          outputDetails.push('無胃液');
+                        } else {
+                          const phText = item.ph_value ? ` pH${item.ph_value}` : '';
+                          outputDetails.push(`胃液(${item.color || ''})${phText} ${item.amount_ml}ml`);
+                        }
+                      }
+                    });
+                  }
 
                   return (
                     <td
@@ -1025,7 +1033,7 @@ const CareRecords: React.FC = () => {
                       className={`px-2 py-3 text-center text-sm border cursor-pointer ${
                         inHospital ? 'bg-gray-100' :
                         record ? (
-                          record.notes && ['入院', '渡假', '外出'].includes(record.notes)
+                          statusLabel
                             ? 'bg-orange-50 hover:bg-orange-100'
                             : 'bg-blue-50 hover:bg-blue-100'
                         ) :
@@ -1036,32 +1044,22 @@ const CareRecords: React.FC = () => {
                       {inHospital ? (
                         <span className="text-gray-500">入院</span>
                       ) : record ? (
-                        record.notes && ['入院', '渡假', '外出'].includes(record.notes) ? (
+                        statusLabel ? (
                           <div className="space-y-1">
-                            <div className="font-medium text-orange-600">{record.notes}</div>
-                            <div className="text-xs text-gray-500">{record.recorder}</div>
+                            <div className="font-medium text-orange-600">{statusLabel}</div>
                           </div>
                         ) : (
                           <div className="space-y-1">
-                            {hasMeals && (
-                              <div className="text-xs text-gray-700">
-                                {record.meal_breakfast && `早:${record.meal_breakfast} `}
-                                {record.meal_lunch && `午:${record.meal_lunch} `}
-                                {record.meal_afternoon_tea && `茶:${record.meal_afternoon_tea} `}
-                                {record.meal_dinner && `晚:${record.meal_dinner}`}
+                            {intakeDetails.length > 0 && (
+                              <div className="text-xs text-green-600 truncate" title={intakeDetails.join('、')}>
+                                ▲ {intakeDetails.join('、')}
                               </div>
                             )}
-                            {intakeTotal > 0 && (
-                              <div className="text-xs font-medium text-green-600">
-                                ▲ {intakeTotal}ml
+                            {outputDetails.length > 0 && (
+                              <div className="text-xs text-red-600 truncate" title={outputDetails.join('、')}>
+                                ▼ {outputDetails.join('、')}
                               </div>
                             )}
-                            {outputTotal > 0 && (
-                              <div className="text-xs font-medium text-red-600">
-                                ▼ {outputTotal}ml
-                              </div>
-                            )}
-                            <div className="text-xs text-gray-500">{record.recorder}</div>
                           </div>
                         )
                       ) : (
@@ -1094,7 +1092,7 @@ const CareRecords: React.FC = () => {
                 const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
                 const weekday = weekdays[d.getDay()];
                 return (
-                  <th key={date} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
+                  <th key={date.toISOString()} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border">
                     {month}/{dayOfMonth}<br/>({weekday})
                   </th>
                 );
@@ -1114,7 +1112,7 @@ const CareRecords: React.FC = () => {
                   );
                   const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, 'daily', admissionRecords, hospitalEpisodes);
                   const hasStatusNotes = record?.status_notes && ['入院', '渡假', '外出'].includes(record.status_notes);
-                  const isDisabled = hasStatusNotes && !item.isStatus;
+                  const isDisabled = Boolean(hasStatusNotes && !item.isStatus);
 
                   let cellContent: React.ReactNode = null;
                   let cellClassName = 'px-2 py-3 text-center text-sm border ';
@@ -1448,7 +1446,8 @@ const CareRecords: React.FC = () => {
                       {(['diaper', 'intake_output', 'restraint', 'position', 'toilet_training', 'hygiene'] as TabType[])
                         .filter(tabType => !visibleTabTypes.includes(tabType))
                         .map(tabType => {
-                          const labels = {
+                          const labels: Record<TabType, string> = {
+                            patrol: '巡視記錄',
                             diaper: '換片記錄',
                             intake_output: '出入量記錄',
                             restraint: '約束觀察',
@@ -1668,7 +1667,20 @@ const CareRecords: React.FC = () => {
             setModalExistingRecord(null);
             setModalTimeSlot('');
           }}
-          onSubmit={handleIntakeOutputSubmit}
+          onSave={async (record) => {
+            // 更新本地狀態
+            setIntakeOutputRecords(prev => {
+              const existing = prev.find(r => r.id === record.id);
+              if (existing) {
+                return prev.map(r => r.id === record.id ? record : r);
+              } else {
+                return [...prev, record];
+              }
+            });
+            setShowIntakeOutputModal(false);
+            setModalExistingRecord(null);
+            setModalTimeSlot('');
+          }}
           onDelete={handleIntakeOutputDelete}
         />
       )}

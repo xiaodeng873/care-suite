@@ -10,7 +10,7 @@ interface PatientTooltipProps {
     英文姓氏?: string;
     英文名字?: string;
     身份證號碼: string;
-    出生日期: string;
+    出生日期?: string;
     床號: string;
   };
   children: React.ReactNode;
@@ -64,7 +64,9 @@ const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) =>
             <div className="flex items-center space-x-2">
               <Calendar className="h-4 w-4 text-gray-500" />
               <div className="text-sm text-gray-700">
-                {calculateAge(patient.出生日期)}歲 ({new Date(patient.出生日期).toLocaleDateString('zh-TW')})
+                {patient.出生日期 
+                  ? `${calculateAge(patient.出生日期)}歲 (${new Date(patient.出生日期).toLocaleDateString('zh-TW')})`
+                  : '未知'}
               </div>
             </div>
           </div>
