@@ -11,7 +11,6 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -1170,12 +1169,20 @@ const CareRecordsScreen: React.FC = () => {
           if (record?.output_items && record.output_items.length > 0) {
             record.output_items.forEach(item => {
               if (item.category === 'urine') {
-                // 尿液：黃300ml
-                outputDetails.push(`尿${item.color || ''}${item.amount_ml}ml`);
+                // 尿液：無尿 或 尿(黃) 100ml
+                if (item.color === '無' || item.amount_ml === 0) {
+                  outputDetails.push('無尿');
+                } else {
+                  outputDetails.push(`尿(${item.color || ''}) ${item.amount_ml}ml`);
+                }
               } else if (item.category === 'gastric') {
-                // 胃液：啡pH4 100ml
-                const phText = item.ph_value ? `pH${item.ph_value}` : '';
-                outputDetails.push(`胃${item.color || ''}${phText}${item.amount_ml}ml`);
+                // 胃液：無胃液 或 胃液(透明) pH4 100ml
+                if (item.color === '無' || item.amount_ml === 0) {
+                  outputDetails.push('無胃液');
+                } else {
+                  const phText = item.ph_value ? ` pH${item.ph_value}` : '';
+                  outputDetails.push(`胃液(${item.color || ''})${phText} ${item.amount_ml}ml`);
+                }
               }
             });
           }
@@ -1195,26 +1202,22 @@ const CareRecordsScreen: React.FC = () => {
                 {statusLabel ? (
                   <Text style={styles.statusLabel}>{statusLabel}</Text>
                 ) : record ? (
-                  <View style={styles.completedContent}>
-                    <View style={{ gap: 2, flex: 1 }}>
-                      {intakeDetails.length > 0 && (
-                        <Text style={[styles.diaperText, { fontSize: 11, color: '#059669' }]} numberOfLines={3}>
-                          ▲ {intakeDetails.join('、')}
-                        </Text>
-                      )}
-                      {outputDetails.length > 0 && (
-                        <Text style={[styles.diaperText, { fontSize: 11, color: '#dc2626' }]} numberOfLines={2}>
-                          ▼ {outputDetails.join('、')}
-                        </Text>
-                      )}
-                    </View>
+                  <View style={{ gap: 1 }}>
+                    {intakeDetails.length > 0 && (
+                      <Text style={{ fontSize: 10, color: '#059669' }} numberOfLines={1}>
+                        ▲ {intakeDetails.join('、')}
+                      </Text>
+                    )}
+                    {outputDetails.length > 0 && (
+                      <Text style={{ fontSize: 10, color: '#dc2626' }} numberOfLines={1}>
+                        ▼ {outputDetails.join('、')}
+                      </Text>
+                    )}
                   </View>
                 ) : (
                   <Text style={styles.pendingText}>{t('pendingRecord')}</Text>
                 )}
-                {isPastSlot(dateString, timeSlot) && !record && !statusLabel && (
-                  <View style={styles.missingDot} />
-                )}
+
               </Pressable>
             </View>
           );
@@ -1858,658 +1861,6 @@ const CareRecordsScreen: React.FC = () => {
     );
   };
 
-  const renderIntakeOutputModal = () => {
-    if (!showIntakeOutputModal || !selectedTimeSlot) return null;
-
-    const existingRecord = intakeOutputRecords.find(
-      r => r.record_date === selectedDateString && r.time_slot === selectedTimeSlot
-    );
-
-    const isSpecialStatus = Boolean(editingIntakeOutput.notes && ['入院', '渡假', '外出'].includes(editingIntakeOutput.notes));
-
-    const handleStatusButtonClick = (status: string) => {
-      if (editingIntakeOutput.notes === status) {
-        setEditingIntakeOutput(prev => ({ ...prev, notes: '' }));
-      } else {
-        // 清空所有輸入欄位
-        setEditingIntakeOutput({
-          meals: [],
-          beverages: [],
-          tube_feeding: [],
-          urine_output: [],
-          gastric_output: [],
-          recorder: editingIntakeOutput.recorder || displayName || '未知',
-          notes: status,
-        });
-      }
-    };
-
-    const mealTypes = ['早餐', '午餐', '下午茶', '晚餐'];
-    const mealAmounts = ['1', '1/4', '1/2', '3/4'];
-    const beverageTypes = ['清水', '湯', '奶', '果汁', '糖水', '茶'];
-    const tubeFeedingTypes = ['Isocal', 'Glucerna', 'Compleat'];
-
-    return (
-      <Modal
-        visible={showIntakeOutputModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-          setShowIntakeOutputModal(false);
-          setSelectedTimeSlot('');
-          setEditingIntakeOutput({});
-        }}
-      >
-        <Pressable 
-          style={styles.modalOverlay} 
-          onPress={() => {
-            setShowIntakeOutputModal(false);
-            setSelectedTimeSlot('');
-            setEditingIntakeOutput({});
-          }}
-        >
-          <Pressable 
-            style={[styles.modalContent, { maxHeight: '90%', width: '92%' }]} 
-            onPress={(e) => e.stopPropagation()}
-          >
-            <ScrollView showsVerticalScrollIndicator={true}>
-              <Text style={styles.modalTitle}>
-                {existingRecord ? '查看/編輯出入量記錄' : '新增出入量記錄'}
-              </Text>
-
-              {/* 院友姓名 */}
-              <View style={{ marginBottom: 12 }}>
-                <Text style={{ fontSize: 14, color: '#4b5563', marginBottom: 4 }}>院友姓名</Text>
-                <TextInput
-                  value={patient.中文姓名}
-                  editable={false}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: '#d1d5db',
-                    borderRadius: 6,
-                    padding: 8,
-                    fontSize: 16,
-                    backgroundColor: '#f3f4f6',
-                    color: '#6b7280',
-                  }}
-                />
-              </View>
-
-              {/* 記錄日期和時段 */}
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, color: '#4b5563', marginBottom: 4 }}>記錄日期</Text>
-                  <TextInput
-                    value={selectedDateString}
-                    editable={false}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: '#d1d5db',
-                      borderRadius: 6,
-                      padding: 8,
-                      fontSize: 16,
-                      backgroundColor: '#f3f4f6',
-                      color: '#6b7280',
-                    }}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, color: '#4b5563', marginBottom: 4 }}>時段</Text>
-                  <TextInput
-                    value={selectedTimeSlot}
-                    editable={false}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: '#d1d5db',
-                      borderRadius: 6,
-                      padding: 8,
-                      fontSize: 16,
-                      backgroundColor: '#f3f4f6',
-                      color: '#6b7280',
-                    }}
-                  />
-                </View>
-              </View>
-
-              {/* 記錄者 */}
-              <View style={{ marginBottom: 12 }}>
-                <Text style={{ fontSize: 14, color: '#4b5563', marginBottom: 4 }}>記錄者 *</Text>
-                <TextInput
-                  value={editingIntakeOutput.recorder || ''}
-                  onChangeText={(text) => setEditingIntakeOutput(prev => ({ ...prev, recorder: text }))}
-                  editable={!isSpecialStatus}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: '#d1d5db',
-                    borderRadius: 6,
-                    padding: 8,
-                    fontSize: 16,
-                    backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fff',
-                    color: isSpecialStatus ? '#6b7280' : '#111827',
-                  }}
-                  placeholder="請輸入記錄者姓名"
-                />
-              </View>
-
-              {/* 狀態按鈕 */}
-              <View style={{ marginBottom: 16 }}>
-                <Text style={{ fontSize: 14, color: '#4b5563', marginBottom: 6 }}>狀態</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  {['入院', '渡假', '外出'].map(status => (
-                    <Pressable
-                      key={status}
-                      onPress={() => handleStatusButtonClick(status)}
-                      style={{
-                        flex: 1,
-                        paddingVertical: 10,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        backgroundColor: editingIntakeOutput.notes === status ? '#2563eb' : '#f3f4f6',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Text style={{
-                        fontSize: 14,
-                        fontWeight: '500',
-                        color: editingIntakeOutput.notes === status ? '#fff' : '#374151',
-                      }}>
-                        {status}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              <View style={{ borderTopWidth: 1, borderTopColor: '#e5e7eb', paddingTop: 12 }}>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: '#059669', marginBottom: 10 }}>
-                  ▲ 攝入量
-                </Text>
-
-                {/* 餐食動態列表 */}
-                <View style={{ marginBottom: 16 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>餐食</Text>
-                    <Pressable
-                      onPress={() => {
-                        const newMeals = [...(editingIntakeOutput.meals || []), { meal_type: '早餐', amount: '1' }];
-                        setEditingIntakeOutput(prev => ({ ...prev, meals: newMeals }));
-                      }}
-                      disabled={isSpecialStatus}
-                      style={{
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        backgroundColor: isSpecialStatus ? '#f3f4f6' : '#10b981',
-                        borderRadius: 6,
-                      }}
-                    >
-                      <Text style={{ color: isSpecialStatus ? '#9ca3af' : '#fff', fontSize: 14, fontWeight: '500' }}>+ 新增餐食</Text>
-                    </Pressable>
-                  </View>
-                  {(editingIntakeOutput.meals || []).map((meal, index) => (
-                    <View key={index} style={{ flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>類型</Text>
-                        <View style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 6, backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fff' }}>
-                          <Picker
-                            selectedValue={meal.meal_type}
-                            onValueChange={(value) => {
-                              const newMeals = [...(editingIntakeOutput.meals || [])];
-                              newMeals[index].meal_type = value;
-                              setEditingIntakeOutput(prev => ({ ...prev, meals: newMeals }));
-                            }}
-                            enabled={!isSpecialStatus}
-                            style={{ height: 40 }}
-                          >
-                            {mealTypes.map(type => (
-                              <Picker.Item key={type} label={type} value={type} />
-                            ))}
-                          </Picker>
-                        </View>
-                      </View>
-                      <View style={{ width: 100 }}>
-                        <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>份量</Text>
-                        <View style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 6, backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fff' }}>
-                          <Picker
-                            selectedValue={meal.amount}
-                            onValueChange={(value) => {
-                              const newMeals = [...(editingIntakeOutput.meals || [])];
-                              newMeals[index].amount = value;
-                              setEditingIntakeOutput(prev => ({ ...prev, meals: newMeals }));
-                            }}
-                            enabled={!isSpecialStatus}
-                            style={{ height: 40 }}
-                          >
-                            {mealAmounts.map(amount => (
-                              <Picker.Item key={amount} label={amount} value={amount} />
-                            ))}
-                          </Picker>
-                        </View>
-                      </View>
-                      <Pressable
-                        onPress={() => {
-                          const newMeals = (editingIntakeOutput.meals || []).filter((_, i) => i !== index);
-                          setEditingIntakeOutput(prev => ({ ...prev, meals: newMeals }));
-                        }}
-                        disabled={isSpecialStatus}
-                        style={{
-                          width: 40,
-                          height: 40,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fee2e2',
-                          borderRadius: 6,
-                          marginTop: 14,
-                        }}
-                      >
-                        <Ionicons name="trash-outline" size={20} color={isSpecialStatus ? '#9ca3af' : '#dc2626'} />
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-
-                {/* 飲品動態列表 */}
-                <View style={{ marginBottom: 16 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>飲品 (ml)</Text>
-                    <Pressable
-                      onPress={() => {
-                        const newBeverages = [...(editingIntakeOutput.beverages || []), { type: '清水', amount: 0 }];
-                        setEditingIntakeOutput(prev => ({ ...prev, beverages: newBeverages }));
-                      }}
-                      disabled={isSpecialStatus}
-                      style={{
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        backgroundColor: isSpecialStatus ? '#f3f4f6' : '#10b981',
-                        borderRadius: 6,
-                      }}
-                    >
-                      <Text style={{ color: isSpecialStatus ? '#9ca3af' : '#fff', fontSize: 14, fontWeight: '500' }}>+ 新增飲品</Text>
-                    </Pressable>
-                  </View>
-                  {(editingIntakeOutput.beverages || []).map((beverage, index) => (
-                    <View key={index} style={{ flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>類型</Text>
-                        <View style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 6, backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fff' }}>
-                          <Picker
-                            selectedValue={beverage.type}
-                            onValueChange={(value) => {
-                              const newBeverages = [...(editingIntakeOutput.beverages || [])];
-                              newBeverages[index].type = value;
-                              setEditingIntakeOutput(prev => ({ ...prev, beverages: newBeverages }));
-                            }}
-                            enabled={!isSpecialStatus}
-                            style={{ height: 40 }}
-                          >
-                            {beverageTypes.map(type => (
-                              <Picker.Item key={type} label={type} value={type} />
-                            ))}
-                          </Picker>
-                        </View>
-                      </View>
-                      <View style={{ width: 100 }}>
-                        <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>ml</Text>
-                        <TextInput
-                          keyboardType="numeric"
-                          value={String(beverage.amount)}
-                          onChangeText={(text) => {
-                            const newBeverages = [...(editingIntakeOutput.beverages || [])];
-                            newBeverages[index].amount = parseInt(text) || 0;
-                            setEditingIntakeOutput(prev => ({ ...prev, beverages: newBeverages }));
-                          }}
-                          editable={!isSpecialStatus}
-                          style={{
-                            borderWidth: 1,
-                            borderColor: '#d1d5db',
-                            borderRadius: 6,
-                            padding: 8,
-                            fontSize: 14,
-                            backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fff',
-                          }}
-                          placeholder="0"
-                        />
-                      </View>
-                      <Pressable
-                        onPress={() => {
-                          const newBeverages = (editingIntakeOutput.beverages || []).filter((_, i) => i !== index);
-                          setEditingIntakeOutput(prev => ({ ...prev, beverages: newBeverages }));
-                        }}
-                        disabled={isSpecialStatus}
-                        style={{
-                          width: 40,
-                          height: 40,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fee2e2',
-                          borderRadius: 6,
-                          marginTop: 14,
-                        }}
-                      >
-                        <Ionicons name="trash-outline" size={20} color={isSpecialStatus ? '#9ca3af' : '#dc2626'} />
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-
-                {/* 管飼動態列表 */}
-                <View style={{ marginBottom: 16 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>管飼 (ml)</Text>
-                    <Pressable
-                      onPress={() => {
-                        const newTubeFeeding = [...(editingIntakeOutput.tube_feeding || []), { type: 'Isocal', amount: 0 }];
-                        setEditingIntakeOutput(prev => ({ ...prev, tube_feeding: newTubeFeeding }));
-                      }}
-                      disabled={isSpecialStatus}
-                      style={{
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        backgroundColor: isSpecialStatus ? '#f3f4f6' : '#10b981',
-                        borderRadius: 6,
-                      }}
-                    >
-                      <Text style={{ color: isSpecialStatus ? '#9ca3af' : '#fff', fontSize: 14, fontWeight: '500' }}>+ 新增管飼</Text>
-                    </Pressable>
-                  </View>
-                  {(editingIntakeOutput.tube_feeding || []).map((tube, index) => (
-                    <View key={index} style={{ flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>類型</Text>
-                        <View style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 6, backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fff' }}>
-                          <Picker
-                            selectedValue={tube.type}
-                            onValueChange={(value) => {
-                              const newTubeFeeding = [...(editingIntakeOutput.tube_feeding || [])];
-                              newTubeFeeding[index].type = value;
-                              setEditingIntakeOutput(prev => ({ ...prev, tube_feeding: newTubeFeeding }));
-                            }}
-                            enabled={!isSpecialStatus}
-                            style={{ height: 40 }}
-                          >
-                            {tubeFeedingTypes.map(type => (
-                              <Picker.Item key={type} label={type} value={type} />
-                            ))}
-                          </Picker>
-                        </View>
-                      </View>
-                      <View style={{ width: 100 }}>
-                        <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>ml</Text>
-                        <TextInput
-                          keyboardType="numeric"
-                          value={String(tube.amount)}
-                          onChangeText={(text) => {
-                            const newTubeFeeding = [...(editingIntakeOutput.tube_feeding || [])];
-                            newTubeFeeding[index].amount = parseInt(text) || 0;
-                            setEditingIntakeOutput(prev => ({ ...prev, tube_feeding: newTubeFeeding }));
-                          }}
-                          editable={!isSpecialStatus}
-                          style={{
-                            borderWidth: 1,
-                            borderColor: '#d1d5db',
-                            borderRadius: 6,
-                            padding: 8,
-                            fontSize: 14,
-                            backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fff',
-                          }}
-                          placeholder="0"
-                        />
-                      </View>
-                      <Pressable
-                        onPress={() => {
-                          const newTubeFeeding = (editingIntakeOutput.tube_feeding || []).filter((_, i) => i !== index);
-                          setEditingIntakeOutput(prev => ({ ...prev, tube_feeding: newTubeFeeding }));
-                        }}
-                        disabled={isSpecialStatus}
-                        style={{
-                          width: 40,
-                          height: 40,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fee2e2',
-                          borderRadius: 6,
-                          marginTop: 14,
-                        }}
-                      >
-                        <Ionicons name="trash-outline" size={20} color={isSpecialStatus ? '#9ca3af' : '#dc2626'} />
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              <View style={{ borderTopWidth: 1, borderTopColor: '#e5e7eb', paddingTop: 12, marginTop: 8 }}>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: '#dc2626', marginBottom: 10 }}>
-                  ▼ 排出量
-                </Text>
-
-                {/* 尿液動態列表 */}
-                <View style={{ marginBottom: 16 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>尿液</Text>
-                    <Pressable
-                      onPress={() => {
-                        const newUrineOutput = [...(editingIntakeOutput.urine_output || []), { volume: 0, color: '' }];
-                        setEditingIntakeOutput(prev => ({ ...prev, urine_output: newUrineOutput }));
-                      }}
-                      disabled={isSpecialStatus}
-                      style={{
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        backgroundColor: isSpecialStatus ? '#f3f4f6' : '#dc2626',
-                        borderRadius: 6,
-                      }}
-                    >
-                      <Text style={{ color: isSpecialStatus ? '#9ca3af' : '#fff', fontSize: 14, fontWeight: '500' }}>+ 新增尿液記錄</Text>
-                    </Pressable>
-                  </View>
-                  {(editingIntakeOutput.urine_output || []).map((urine, index) => (
-                    <View key={index} style={{ flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                      <View style={{ width: 100 }}>
-                        <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>容量 (ml)</Text>
-                        <TextInput
-                          keyboardType="numeric"
-                          value={String(urine.volume)}
-                          onChangeText={(text) => {
-                            const newUrineOutput = [...(editingIntakeOutput.urine_output || [])];
-                            newUrineOutput[index].volume = parseInt(text) || 0;
-                            setEditingIntakeOutput(prev => ({ ...prev, urine_output: newUrineOutput }));
-                          }}
-                          editable={!isSpecialStatus}
-                          style={{
-                            borderWidth: 1,
-                            borderColor: '#d1d5db',
-                            borderRadius: 6,
-                            padding: 8,
-                            fontSize: 14,
-                            backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fff',
-                          }}
-                          placeholder="ml"
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>顏色</Text>
-                        <TextInput
-                          value={urine.color}
-                          onChangeText={(text) => {
-                            const newUrineOutput = [...(editingIntakeOutput.urine_output || [])];
-                            newUrineOutput[index].color = text;
-                            setEditingIntakeOutput(prev => ({ ...prev, urine_output: newUrineOutput }));
-                          }}
-                          editable={!isSpecialStatus}
-                          style={{
-                            borderWidth: 1,
-                            borderColor: '#d1d5db',
-                            borderRadius: 6,
-                            padding: 8,
-                            fontSize: 14,
-                            backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fff',
-                          }}
-                          placeholder="透明、黃、啡"
-                        />
-                      </View>
-                      <Pressable
-                        onPress={() => {
-                          const newUrineOutput = (editingIntakeOutput.urine_output || []).filter((_, i) => i !== index);
-                          setEditingIntakeOutput(prev => ({ ...prev, urine_output: newUrineOutput }));
-                        }}
-                        disabled={isSpecialStatus}
-                        style={{
-                          width: 40,
-                          height: 40,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fee2e2',
-                          borderRadius: 6,
-                          marginTop: 14,
-                        }}
-                      >
-                        <Ionicons name="trash-outline" size={20} color={isSpecialStatus ? '#9ca3af' : '#dc2626'} />
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-
-                {/* 胃液動態列表 */}
-                <View style={{ marginBottom: 16 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>胃液</Text>
-                    <Pressable
-                      onPress={() => {
-                        const newGastricOutput = [...(editingIntakeOutput.gastric_output || []), { volume: 0, ph: 7, color: '' }];
-                        setEditingIntakeOutput(prev => ({ ...prev, gastric_output: newGastricOutput }));
-                      }}
-                      disabled={isSpecialStatus}
-                      style={{
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        backgroundColor: isSpecialStatus ? '#f3f4f6' : '#dc2626',
-                        borderRadius: 6,
-                      }}
-                    >
-                      <Text style={{ color: isSpecialStatus ? '#9ca3af' : '#fff', fontSize: 14, fontWeight: '500' }}>+ 新增胃液記錄</Text>
-                    </Pressable>
-                  </View>
-                  {(editingIntakeOutput.gastric_output || []).map((gastric, index) => (
-                    <View key={index} style={{ marginBottom: 8 }}>
-                      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                        <View style={{ width: 80 }}>
-                          <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>容量 (ml)</Text>
-                          <TextInput
-                            keyboardType="numeric"
-                            value={String(gastric.volume)}
-                            onChangeText={(text) => {
-                              const newGastricOutput = [...(editingIntakeOutput.gastric_output || [])];
-                              newGastricOutput[index].volume = parseInt(text) || 0;
-                              setEditingIntakeOutput(prev => ({ ...prev, gastric_output: newGastricOutput }));
-                            }}
-                            editable={!isSpecialStatus}
-                            style={{
-                              borderWidth: 1,
-                              borderColor: '#d1d5db',
-                              borderRadius: 6,
-                              padding: 8,
-                              fontSize: 14,
-                              backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fff',
-                            }}
-                            placeholder="ml"
-                          />
-                        </View>
-                        <View style={{ width: 80 }}>
-                          <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>pH (0-14)</Text>
-                          <TextInput
-                            keyboardType="numeric"
-                            value={String(gastric.ph)}
-                            onChangeText={(text) => {
-                              const newGastricOutput = [...(editingIntakeOutput.gastric_output || [])];
-                              const ph = parseFloat(text) || 0;
-                              if (ph >= 0 && ph <= 14) {
-                                newGastricOutput[index].ph = ph;
-                                setEditingIntakeOutput(prev => ({ ...prev, gastric_output: newGastricOutput }));
-                              }
-                            }}
-                            editable={!isSpecialStatus}
-                            style={{
-                              borderWidth: 1,
-                              borderColor: '#d1d5db',
-                              borderRadius: 6,
-                              padding: 8,
-                              fontSize: 14,
-                              backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fff',
-                            }}
-                            placeholder="pH"
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>顏色</Text>
-                          <TextInput
-                            value={gastric.color}
-                            onChangeText={(text) => {
-                              const newGastricOutput = [...(editingIntakeOutput.gastric_output || [])];
-                              newGastricOutput[index].color = text;
-                              setEditingIntakeOutput(prev => ({ ...prev, gastric_output: newGastricOutput }));
-                            }}
-                            editable={!isSpecialStatus}
-                            style={{
-                              borderWidth: 1,
-                              borderColor: '#d1d5db',
-                              borderRadius: 6,
-                              padding: 8,
-                              fontSize: 14,
-                              backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fff',
-                            }}
-                            placeholder="顏色"
-                          />
-                        </View>
-                        <Pressable
-                          onPress={() => {
-                            const newGastricOutput = (editingIntakeOutput.gastric_output || []).filter((_, i) => i !== index);
-                            setEditingIntakeOutput(prev => ({ ...prev, gastric_output: newGastricOutput }));
-                          }}
-                          disabled={isSpecialStatus}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            backgroundColor: isSpecialStatus ? '#f3f4f6' : '#fee2e2',
-                            borderRadius: 6,
-                            marginTop: 14,
-                          }}
-                        >
-                          <Ionicons name="trash-outline" size={20} color={isSpecialStatus ? '#9ca3af' : '#dc2626'} />
-                        </Pressable>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              {/* 按鈕 */}
-              <View style={styles.modalButtons}>
-                <Pressable
-                  style={[styles.modalButton, styles.modalButtonCancel]}
-                  onPress={() => {
-                    setShowIntakeOutputModal(false);
-                    setSelectedTimeSlot('');
-                    setEditingIntakeOutput({});
-                  }}
-                >
-                  <Text style={styles.modalButtonTextCancel}>{t('cancel')}</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.modalButton, styles.modalButtonConfirm]}
-                  onPress={saveIntakeOutputRecord}
-                >
-                  <Text style={styles.modalButtonTextConfirm}>{t('save')}</Text>
-                </Pressable>
-              </View>
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
-    );
-  };
 
   const visibleTabs = getVisibleTabs();
   const hasVisibleTabs = visibleTabs.length > 0;
@@ -2908,6 +2259,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+    height: 60,
+    maxHeight: 60,
   },
   timeSlotCell: {
     width: 90,
@@ -2936,11 +2289,11 @@ const styles = StyleSheet.create({
   },
   singleDataCell: {
     flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
     justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: 70,
+    alignItems: 'flex-start',
+    overflow: 'hidden',
     position: 'relative',
   },
   hospitalCell: {

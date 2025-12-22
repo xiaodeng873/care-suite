@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import {
   IntakeOutputRecord,
   IntakeItem,
@@ -58,6 +59,8 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
   onDelete,
   staffName,
 }) => {
+  const navigation = useNavigation<any>();
+  
   // 基本資料
   const [recorder, setRecorder] = useState(staffName);
   const [notes, setNotes] = useState('');
@@ -74,29 +77,37 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
   // 判斷是否為特殊狀態（入院/渡假/外出）
   const isSpecialStatus = Boolean(notes && ['入院', '渡假', '外出'].includes(notes));
 
-  // 載入已有記錄 - 只在visible变为true时执行一次
+  // 載入已有記錄 - 當 visible 改變或記錄 ID 改變時執行
   useEffect(() => {
-    if (!visible) return; // 关闭时不执行
-    
-    if (existingRecord) {
-      console.log('載入現有記錄:', {
-        recorder: existingRecord.recorder,
-        notes: existingRecord.notes,
-        intakeItemsCount: existingRecord.intake_items?.length || 0,
-        outputItemsCount: existingRecord.output_items?.length || 0,
-      });
-      setRecorder(existingRecord.recorder);
-      setNotes(existingRecord.notes || '');
-      setIntakeItems(existingRecord.intake_items || []);
-      setOutputItems(existingRecord.output_items || []);
+    if (visible) {
+      // Modal 打開時載入資料
+      if (existingRecord) {
+        console.log('載入現有記錄:', {
+          id: existingRecord.id,
+          recorder: existingRecord.recorder,
+          notes: existingRecord.notes,
+          intakeItemsCount: existingRecord.intake_items?.length || 0,
+          outputItemsCount: existingRecord.output_items?.length || 0,
+        });
+        setRecorder(existingRecord.recorder);
+        setNotes(existingRecord.notes || '');
+        setIntakeItems(existingRecord.intake_items || []);
+        setOutputItems(existingRecord.output_items || []);
+      } else {
+        console.log('新增記錄，使用默認值');
+        setRecorder(staffName);
+        setNotes('');
+        setIntakeItems([]);
+        setOutputItems([]);
+      }
     } else {
-      console.log('新增記錄，使用默認值');
+      // Modal 關閉時清空狀態，防止殘留資料
       setRecorder(staffName);
       setNotes('');
       setIntakeItems([]);
       setOutputItems([]);
     }
-  }, [visible]); // 只依赖visible，打开时加载一次
+  }, [visible, existingRecord?.id, staffName]); // 依賴 visible、記錄ID 和 staffName
 
   // 重置表單
   const resetForm = () => {
@@ -300,7 +311,6 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
         record.output_items = createdOutputItems;
       }
 
-      Alert.alert('成功', '出入量記錄已保存');
       onSave(record);
       resetForm();
       onClose();
@@ -402,35 +412,69 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
             </View>
           </View>
           </View>
-
-          {/* 按鈕區域 - 根據是否為編輯模式顯示刪除按鈕 */}
-          <View style={styles.modalButtons}>
-            {existingRecord && (
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonDelete]}
-                onPress={handleDelete}
-              >
-                <Ionicons name="trash-outline" size={18} color="#dc2626" style={{ marginRight: 4 }} />
-                <Text style={styles.modalButtonTextDelete}>刪除記錄</Text>
-              </Pressable>
-            )}
-            <Pressable
-              style={[styles.modalButton, styles.modalButtonConfirm, { flex: existingRecord ? 1 : 2 }]}
-              onPress={handleSave}
-            >
-              <Text style={styles.modalButtonTextConfirm}>儲存</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.modalButton, styles.modalButtonCancel]}
-              onPress={() => {
-                resetForm();
-                onClose();
-              }}
-            >
-              <Text style={styles.modalButtonTextCancel}>返回</Text>
-            </Pressable>
-          </View>
         </ScrollView>
+
+        {/* 底部固定按鈕區域 - 跟其他modal一樣 */}
+        <View style={styles.footer}>
+          {existingRecord && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDelete}
+            >
+              <Ionicons name="trash-outline" size={20} color="#dc2626" />
+              <Text style={styles.deleteButtonText}>刪除記錄</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.saveButton, { flex: existingRecord ? 1 : 2 }]}
+            onPress={handleSave}
+          >
+            <Text style={styles.saveButtonText}>儲存</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backFooterButton}
+            onPress={() => {
+              resetForm();
+              onClose();
+            }}
+          >
+            <Text style={styles.backFooterText}>返回</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 底部導航欄 - 跟App主導航一樣 */}
+        <View style={styles.bottomTabBar}>
+          <TouchableOpacity 
+            style={styles.tabItem} 
+            onPress={() => {
+              onClose();
+              navigation.navigate('Scan');
+            }}
+          >
+            <Ionicons name="qr-code-outline" size={24} color="#6b7280" />
+            <Text style={styles.tabLabel}>掃描</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.tabItem} 
+            onPress={() => {
+              onClose();
+              navigation.navigate('Home');
+            }}
+          >
+            <Ionicons name="home" size={24} color="#2563eb" />
+            <Text style={[styles.tabLabel, styles.tabLabelActive]}>院友列表</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.tabItem} 
+            onPress={() => {
+              onClose();
+              navigation.navigate('Settings');
+            }}
+          >
+            <Ionicons name="settings-outline" size={24} color="#6b7280" />
+            <Text style={styles.tabLabel}>設定</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* 新增項目子模態框 */}
         <AddIntakeOutputItemModal
@@ -546,45 +590,80 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e9ecef',
   },
-  modalButtons: {
+  // 底部固定按鈕區域 - 跟RecordDetailScreen一樣
+  footer: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
   },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+  deleteButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    marginRight: 12,
   },
-  modalButtonCancel: {
-    backgroundColor: '#f3f4f6',
-  },
-  modalButtonConfirm: {
-    backgroundColor: '#2563eb',
-  },
-  modalButtonTextCancel: {
+  deleteButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: '#dc2626',
+    marginLeft: 6,
   },
-  modalButtonTextConfirm: {
+  saveButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+  },
+  saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
   },
-  modalButtonDelete: {
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    flexDirection: 'row',
+  backFooterButton: {
+    marginLeft: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  modalButtonTextDelete: {
+  backFooterText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#dc2626',
+    color: '#374151',
+  },
+  // 底部導航欄
+  bottomTabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingBottom: 4,
+    height: 60,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  tabLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  tabLabelActive: {
+    color: '#2563eb',
   },
 });
 

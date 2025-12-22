@@ -53,6 +53,7 @@ const AddIntakeOutputItemModal: React.FC<AddIntakeOutputItemModalProps> = ({
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [phValue, setPhValue] = useState<string>('');
   const [outputMl, setOutputMl] = useState<string>('');
+  const [isNone, setIsNone] = useState<boolean>(false); // 「無」選項
 
   // 選單顯示狀態
   const [showTypeMenu, setShowTypeMenu] = useState(false);
@@ -70,6 +71,7 @@ const AddIntakeOutputItemModal: React.FC<AddIntakeOutputItemModalProps> = ({
     setSelectedColor('');
     setPhValue('');
     setOutputMl('');
+    setIsNone(false);
     setShowTypeMenu(false);
     setShowAmountMenu(false);
     setShowColorMenu(false);
@@ -150,12 +152,27 @@ const AddIntakeOutputItemModal: React.FC<AddIntakeOutputItemModalProps> = ({
       const outputCategory = category as OutputCategory;
       const config = OUTPUT_CATEGORIES[outputCategory];
 
+      // 如果選擇「無」，直接提交
+      if (isNone) {
+        const item: Partial<OutputItem> = {
+          category: outputCategory,
+          color: '無',
+          amount_ml: 0,
+        };
+        onAdd(item);
+        resetForm();
+        onClose();
+        return;
+      }
+
       if (!selectedColor) {
         Alert.alert('錯誤', '請選擇顏色');
         return;
       }
 
-      if (!outputMl || parseInt(outputMl) <= 0) {
+      const volume = parseInt(outputMl) || 0;
+
+      if (!outputMl || volume <= 0) {
         Alert.alert('錯誤', '請輸入容量');
         return;
       }
@@ -163,7 +180,7 @@ const AddIntakeOutputItemModal: React.FC<AddIntakeOutputItemModalProps> = ({
       const item: Partial<OutputItem> = {
         category: outputCategory,
         color: selectedColor,
-        amount_ml: parseInt(outputMl),
+        amount_ml: volume,
       };
 
       if (config.hasPH && phValue) {
@@ -306,22 +323,50 @@ const AddIntakeOutputItemModal: React.FC<AddIntakeOutputItemModalProps> = ({
 
     return (
       <>
-        {/* 顏色選擇 */}
+        {/* 「無」選項按鈕 */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>顏色</Text>
-          {showColorMenu ? (
-            renderOptionsList(
-              config.colors || [],
-              setSelectedColor,
-              () => setShowColorMenu(false)
-            )
-          ) : (
-            renderMenuButton('顏色', selectedColor, () => setShowColorMenu(true))
-          )}
+          <TouchableOpacity
+            style={[
+              styles.noneButton,
+              isNone && styles.noneButtonActive,
+            ]}
+            onPress={() => {
+              setIsNone(!isNone);
+              if (!isNone) {
+                // 選擇「無」時清空其他輸入
+                setSelectedColor('');
+                setOutputMl('');
+                setPhValue('');
+              }
+            }}
+          >
+            <Text style={[
+              styles.noneButtonText,
+              isNone && styles.noneButtonTextActive,
+            ]}>
+              無
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* pH值 (僅胃液) */}
-        {config.hasPH && (
+        {/* 顏色選擇 - 只在非「無」時顯示 */}
+        {!isNone && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>顏色</Text>
+            {showColorMenu ? (
+              renderOptionsList(
+                config.colors || [],
+                setSelectedColor,
+                () => setShowColorMenu(false)
+              )
+            ) : (
+              renderMenuButton('顏色', selectedColor, () => setShowColorMenu(true))
+            )}
+          </View>
+        )}
+
+        {/* pH值 (僅胃液) - 只在非「無」時顯示 */}
+        {!isNone && config.hasPH && (
           <View style={styles.formGroup}>
             <Text style={styles.label}>pH值 (選填)</Text>
             <TextInput
@@ -334,17 +379,19 @@ const AddIntakeOutputItemModal: React.FC<AddIntakeOutputItemModalProps> = ({
           </View>
         )}
 
-        {/* 容量 */}
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>容量 (ml)</Text>
-          <TextInput
-            style={styles.input}
-            keyboardType="number-pad"
-            placeholder="請輸入容量"
-            value={outputMl}
-            onChangeText={setOutputMl}
-          />
-        </View>
+        {/* 容量 - 只在非「無」時顯示 */}
+        {!isNone && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>容量 (ml)</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="number-pad"
+              placeholder="請輸入容量"
+              value={outputMl}
+              onChangeText={setOutputMl}
+            />
+          </View>
+        )}
       </>
     );
   };
@@ -504,6 +551,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  noneButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    backgroundColor: '#f9fafb',
+    alignItems: 'center',
+  },
+  noneButtonActive: {
+    borderColor: '#2563eb',
+    backgroundColor: '#eff6ff',
+  },
+  noneButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  noneButtonTextActive: {
+    color: '#2563eb',
   },
 });
 

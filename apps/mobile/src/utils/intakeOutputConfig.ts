@@ -62,14 +62,14 @@ export const OUTPUT_CATEGORIES: {
   urine: {
     label: '尿液',
     labelEn: 'Urine',
-    colors: ['透明', '黃', '啡', '紅'],
+    colors: ['透明', '白', '黃', '啡', '紅', '綠', '紫'],
     hasPH: false,
     icon: '💧'
   },
   gastric: {
     label: '胃液',
     labelEn: 'Gastric',
-    colors: ['透明', '黃', '啡', '紅'],
+    colors: ['透明', '白', '黃', '啡', '紅', '綠', '紫'],
     hasPH: true,
     icon: '🧪'
   }
