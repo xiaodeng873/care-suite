@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 interface HumanBodyDiagramProps {
   selectedLocation: { x: number; y: number; side: 'front' | 'back' };
@@ -9,12 +9,48 @@ const HumanBodyDiagram: React.FC<HumanBodyDiagramProps> = ({
   selectedLocation,
   onLocationChange
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  // 追蹤容器尺寸變化，觸發重新渲染以確保標記位置正確
+  const [, setRenderKey] = useState(0);
+
+  // 監聯容器尺寸變化，確保響應式正確計算
+  useEffect(() => {
+    const updateSize = () => {
+      // 觸發重新渲染
+      setRenderKey(prev => prev + 1);
+    };
+
+    window.addEventListener('resize', updateSize);
+    
+    // 使用 ResizeObserver 監聽容器尺寸變化
+    const resizeObserver = new ResizeObserver(updateSize);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateSize);
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const x = Math.round(((event.clientX - rect.left) / rect.width) * 100);
     const y = Math.round(((event.clientY - rect.top) / rect.height) * 100);
     
     // 固定使用 'front' 作為 side，因為只有一面
+    onLocationChange({ x, y, side: 'front' });
+  };
+
+  // 處理觸摸事件（移動設備）
+  const handleTouch = (event: React.TouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const touch = event.touches[0];
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.round(((touch.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((touch.clientY - rect.top) / rect.height) * 100);
+    
     onLocationChange({ x, y, side: 'front' });
   };
 
@@ -26,11 +62,14 @@ const HumanBodyDiagram: React.FC<HumanBodyDiagramProps> = ({
         </h4>
       </div>
 
-      <div className="relative bg-gray-50 rounded-lg p-6 flex justify-center">
+      <div className="relative bg-gray-50 rounded-lg p-2 sm:p-6 flex justify-center">
+        {/* 使用 aspect-ratio 保持正方形比例，響應式寬度 */}
         <div
-          className="relative cursor-crosshair border border-gray-300 rounded-lg bg-white shadow-sm"
-          style={{ width: '600px', height: '600px' }}
+          ref={containerRef}
+          className="relative cursor-crosshair border border-gray-300 rounded-lg bg-white shadow-sm w-full max-w-[600px]"
+          style={{ aspectRatio: '1 / 1' }}
           onClick={handleClick}
+          onTouchStart={handleTouch}
         >
           {/* Background image - 放大1倍 */}
           <img

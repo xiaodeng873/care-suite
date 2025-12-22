@@ -142,6 +142,7 @@ const TaskManagement: React.FC = () => {
       if (filters.searchTerm) {
         const searchLower = filters.searchTerm.toLowerCase();
         matchesSearch = 
+        patient?.床號.toLowerCase().includes(searchLower) ||
         patient?.中文姓氏.toLowerCase().includes(searchLower) ||
         patient?.中文名字.toLowerCase().includes(searchLower) ||
         patient?.中文姓名.toLowerCase().includes(searchLower) ||
@@ -532,7 +533,7 @@ const TaskManagement: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="搜索院友姓名、床號、任務類型、頻率或備註..."
+                  placeholder="搜索床號、英文姓名、身分證號碼、中文姓名、任務類型或備註..."
                   value={filters.searchTerm}
                   onChange={(e) => updateFilter('searchTerm', e.target.value)}
                   className="form-input pl-10"
