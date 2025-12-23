@@ -153,125 +153,372 @@ export const generateMonitoringTaskWorksheet = async (startDate: Date) => {
   }
 
   console.log('生成 HTML...');
-  const html = generateHTML(daysData);
+  // 配對：Day1+Day2 和 Day3+Day4，每對放在一張A4上（上半A5+下半A5）
+  const html = generatePairedHTML(daysData);
   console.log('HTML 長度:', html.length);
   console.log('開啟打印窗口...');
   openPrintWindow(html);
 };
 
-const generateHTML = (daysData: DayData[]): string => {
-  // 計算每天的總行數以確定是否需要縮放
-  const calculateTotalRows = (dayData: DayData): number => {
-    let totalRows = 0;
-    totalRows += dayData.tasks.早餐.length || 1; // 至少1行（無任務提示）
-    totalRows += dayData.tasks.午餐.length || 1;
-    totalRows += dayData.tasks.晚餐.length || 1;
-    if (dayData.tasks.宵夜.length > 0) {
-      totalRows += dayData.tasks.宵夜.length;
+// 生成時段表格的HTML
+const generateTimeSlotTableHTML = (tasks: MonitoringTask[], slotName: string, day: DayData): string => {
+  if (tasks.length === 0) return '';
+
+  return `
+    <table class="task-table">
+      <thead>
+        <tr class="page-header-row">
+          <th colspan="9" class="page-header-cell">
+            <div class="running-header">
+              <span class="date-text">${day.date}（${day.weekday}）</span>
+              <span class="title-text">監測任務工作紙</span>
+            </div>
+            <div class="header-line"></div>
+            <div class="slot-title">${slotName}</div>
+          </th>
+        </tr>
+        <tr class="column-header-row">
+          <th style="width: 9%">床號</th>
+          <th style="width: 9%">姓名</th>
+          <th style="width: 9%">任務</th>
+          <th style="width: 9%">備註</th>
+          <th style="width: 7%">時間</th>
+          <th style="width: 14%">上壓</th>
+          <th style="width: 14%">下壓</th>
+          <th style="width: 14%">脈搏</th>
+          <th style="width: 15%">血糖</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tasks.map(task => {
+          const isVitalSigns = task.任務類型 === '生命表徵';
+          const isBloodSugar = task.任務類型 === '血糖控制';
+
+          return `
+            <tr>
+              <td>${task.床號}</td>
+              <td>${task.姓名}</td>
+              <td>${task.任務類型}</td>
+              <td>${task.備註}</td>
+              <td>${task.時間}</td>
+              <td class="${isBloodSugar ? 'disabled-cell' : 'value-cell'}"></td>
+              <td class="${isBloodSugar ? 'disabled-cell' : 'value-cell'}"></td>
+              <td class="${isBloodSugar ? 'disabled-cell' : 'value-cell'}"></td>
+              <td class="${isVitalSigns ? 'disabled-cell' : 'value-cell'}"></td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+};
+
+// 生成單天的內容HTML（不含外層wrapper）
+const generateDayContent = (day: DayData): string => {
+  const hasSupper = day.tasks.宵夜.length > 0;
+
+  return `
+    <div class="day-header-main">
+      <span class="date-text">${day.date}（${day.weekday}）</span>
+      <span class="title-text">監測任務工作紙</span>
+    </div>
+    <div class="header-line-main"></div>
+
+    <div class="time-slot">
+      <h3 class="slot-title-main">早餐 (07:00-09:59)</h3>
+      ${generateTimeSlotTableHTML(day.tasks.早餐, '早餐 (07:00-09:59)', day)}
+    </div>
+
+    <div class="time-slot">
+      <h3 class="slot-title-main">午餐 (10:00-12:59)</h3>
+      ${generateTimeSlotTableHTML(day.tasks.午餐, '午餐 (10:00-12:59)', day)}
+    </div>
+
+    <div class="time-slot">
+      <h3 class="slot-title-main">晚餐 (13:00-17:59)</h3>
+      ${generateTimeSlotTableHTML(day.tasks.晚餐, '晚餐 (13:00-17:59)', day)}
+    </div>
+
+    ${hasSupper ? `
+    <div class="time-slot">
+      <h3 class="slot-title-main">宵夜 (18:00-20:00)</h3>
+      ${generateTimeSlotTableHTML(day.tasks.宵夜, '宵夜 (18:00-20:00)', day)}
+    </div>
+    ` : ''}
+  `;
+};
+
+// 高度估算常數 (單位: mm) - A5高度210mm，扣除margin後約202mm
+// 估算值比實際稍大10%，確保不會溢出
+const A5_CONTENT_HEIGHT = 200; // A5可用內容高度
+const HEADER_HEIGHT = 5.5;     // 頁眉高度
+const SLOT_TITLE_HEIGHT = 4.5; // 時段標題高度
+const TABLE_HEADER_HEIGHT = 4.5; // 表格欄位標題高度（14px ≈ 4mm + 10%）
+const ROW_HEIGHT = 4.6;        // 每行數據高度（16px ≈ 4.2mm + 10%）
+const SLOT_MARGIN = 1.5;       // 時段之間的間距
+
+// 計算單個時段需要的高度
+const calculateSlotHeight = (taskCount: number): number => {
+  if (taskCount === 0) return 0;
+  return SLOT_TITLE_HEIGHT + TABLE_HEADER_HEIGHT + (taskCount * ROW_HEIGHT) + SLOT_MARGIN;
+};
+
+// 定義頁面內容結構
+interface PageContent {
+  slots: Array<{
+    name: string;
+    fullName: string;
+    tasks: MonitoringTask[];
+    startIndex: number;  // 從第幾個任務開始
+    endIndex: number;    // 到第幾個任務結束
+  }>;
+}
+
+// 將一天的內容分割成多個A5頁面
+const splitDayIntoPages = (day: DayData): PageContent[] => {
+  const pages: PageContent[] = [];
+  let currentPage: PageContent = { slots: [] };
+  let currentHeight = HEADER_HEIGHT;
+
+  const slots = [
+    { name: '早餐', fullName: '早餐 (07:00-09:59)', tasks: day.tasks.早餐 },
+    { name: '午餐', fullName: '午餐 (10:00-12:59)', tasks: day.tasks.午餐 },
+    { name: '晚餐', fullName: '晚餐 (13:00-17:59)', tasks: day.tasks.晚餐 },
+    { name: '宵夜', fullName: '宵夜 (18:00-20:00)', tasks: day.tasks.宵夜 }
+  ];
+
+  for (const slot of slots) {
+    if (slot.tasks.length === 0) continue;
+
+    let taskIndex = 0;
+    while (taskIndex < slot.tasks.length) {
+      // 計算這個時段標題+表頭需要的基礎高度
+      const baseSlotHeight = SLOT_TITLE_HEIGHT + TABLE_HEADER_HEIGHT + SLOT_MARGIN;
+      
+      // 計算當前頁面還能容納多少行
+      const remainingHeight = A5_CONTENT_HEIGHT - currentHeight - baseSlotHeight;
+      const maxRowsInCurrentPage = Math.max(0, Math.floor(remainingHeight / ROW_HEIGHT));
+
+      if (maxRowsInCurrentPage <= 0) {
+        // 當前頁放不下，開新頁
+        if (currentPage.slots.length > 0) {
+          pages.push(currentPage);
+          currentPage = { slots: [] };
+          currentHeight = HEADER_HEIGHT;
+        }
+        continue;
+      }
+
+      // 確定這一頁能放多少個任務
+      const tasksForThisPage = Math.min(maxRowsInCurrentPage, slot.tasks.length - taskIndex);
+      
+      currentPage.slots.push({
+        name: slot.name,
+        fullName: slot.fullName,
+        tasks: slot.tasks.slice(taskIndex, taskIndex + tasksForThisPage),
+        startIndex: taskIndex,
+        endIndex: taskIndex + tasksForThisPage - 1
+      });
+
+      currentHeight += baseSlotHeight + (tasksForThisPage * ROW_HEIGHT);
+      taskIndex += tasksForThisPage;
+
+      // 如果這個時段還沒處理完，開新頁繼續
+      if (taskIndex < slot.tasks.length) {
+        pages.push(currentPage);
+        currentPage = { slots: [] };
+        currentHeight = HEADER_HEIGHT;
+      }
     }
-    return totalRows;
-  };
+  }
 
-  // 計算縮放比例
-  const calculateScale = (daysData: DayData[]): number => {
-    const maxRows = Math.max(
-      calculateTotalRows(daysData[0]),
-      calculateTotalRows(daysData[1]),
-      calculateTotalRows(daysData[2]),
-      calculateTotalRows(daysData[3])
-    );
+  // 最後一頁
+  if (currentPage.slots.length > 0) {
+    pages.push(currentPage);
+  }
 
-    // 假設每行約需20px，加上標題和邊距，一頁最多約35行
-    const maxRowsPerPage = 35;
+  // 如果沒有任何內容，至少返回一個空白頁
+  if (pages.length === 0) {
+    pages.push({ slots: [] });
+  }
 
-    if (maxRows > maxRowsPerPage) {
-      // 計算需要縮小的比例
-      const scale = maxRowsPerPage / maxRows;
-      return Math.max(scale, 0.65); // 最小縮放到65%
-    }
+  return pages;
+};
 
-    return 1; // 不需要縮放
-  };
-
-  const scale = calculateScale(daysData);
-
-  const generateTimeSlotTable = (tasks: MonitoringTask[], showSlot: boolean) => {
-    // 只在有任務時才顯示時段
-    if (!showSlot || tasks.length === 0) return '';
-
-    return `
-      <table class="task-table">
-        <thead>
-          <tr>
-            <th style="width: 8%">床號</th>
-            <th style="width: 10%">姓名</th>
-            <th style="width: 12%">任務</th>
-            <th style="width: 10%">備註</th>
-            <th style="width: 8%">時間</th>
-            <th style="width: 13%">上壓</th>
-            <th style="width: 13%">下壓</th>
-            <th style="width: 13%">脈搏</th>
-            <th style="width: 13%">血糖</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tasks.map(task => {
-            const isVitalSigns = task.任務類型 === '生命表徵';
-            const isBloodSugar = task.任務類型 === '血糖控制';
-
-            return `
-              <tr>
-                <td>${task.床號}</td>
-                <td>${task.姓名}</td>
-                <td>${task.任務類型}</td>
-                <td>${task.備註}</td>
-                <td>${task.時間}</td>
-                <td class="${isBloodSugar ? 'disabled-cell' : 'value-cell'}"></td>
-                <td class="${isBloodSugar ? 'disabled-cell' : 'value-cell'}"></td>
-                <td class="${isBloodSugar ? 'disabled-cell' : 'value-cell'}"></td>
-                <td class="${isVitalSigns ? 'disabled-cell' : 'value-cell'}"></td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    `;
-  };
-
-  const generateDayColumn = (day: DayData) => {
-    const hasSupper = day.tasks.宵夜.length > 0;
-
-    return `
-      <div class="day-column">
-        <div class="day-header">
-          <span class="date-text">${day.date}（${day.weekday}）</span>
-          <span class="title-text">監測任務工作紙</span>
-        </div>
-
-        <div class="time-slot">
-          <h3>早餐 (07:00-09:59)</h3>
-          ${generateTimeSlotTable(day.tasks.早餐, true)}
-        </div>
-
-        <div class="time-slot">
-          <h3>午餐 (10:00-12:59)</h3>
-          ${generateTimeSlotTable(day.tasks.午餐, true)}
-        </div>
-
-        <div class="time-slot">
-          <h3>晚餐 (13:00-17:59)</h3>
-          ${generateTimeSlotTable(day.tasks.晚餐, true)}
-        </div>
-
-        ${hasSupper ? `
-        <div class="time-slot">
-          <h3>宵夜 (18:00-20:00)</h3>
-          ${generateTimeSlotTable(day.tasks.宵夜, true)}
-        </div>
-        ` : ''}
+// 生成單個A5頁面的HTML內容
+const generateA5PageContent = (
+  day: DayData, 
+  pageContent: PageContent, 
+  pageNumber: number, 
+  totalPages: number,
+  isLeftHalf: boolean
+): string => {
+  const dayNum = day.date.match(/(\d+)日/)?.[1] || '';
+  
+  let slotsHTML = '';
+  for (const slot of pageContent.slots) {
+    slotsHTML += `
+      <div class="time-slot">
+        <h3 class="slot-title-main">${slot.fullName}${slot.startIndex > 0 ? ' (續)' : ''}</h3>
+        ${generateTimeSlotTableHTMLForPage(slot.tasks, slot.fullName, day)}
       </div>
     `;
-  };
+  }
+
+  // 如果沒有內容，顯示空白頁提示
+  if (pageContent.slots.length === 0) {
+    slotsHTML = '<div class="empty-page">（無監測任務）</div>';
+  }
+
+  return `
+    <div class="day-header-main">
+      <span class="date-text">${day.date}（${day.weekday}）</span>
+      <span class="title-text">監測任務工作紙</span>
+    </div>
+    <div class="header-line-main"></div>
+    ${slotsHTML}
+    <div class="page-number-inline">${dayNum}日 - 第${pageNumber}頁${totalPages > 1 ? ` / 共${totalPages}頁` : ''}</div>
+    ${isLeftHalf ? '<div class="print-note">雙面列印：長邊翻轉</div>' : ''}
+  `;
+};
+
+// 為頁面生成時段表格HTML（不含page-header-row）
+const generateTimeSlotTableHTMLForPage = (tasks: MonitoringTask[], slotName: string, day: DayData): string => {
+  if (tasks.length === 0) return '';
+
+  return `
+    <table class="task-table">
+      <thead>
+        <tr class="column-header-row">
+          <th style="width: 9%">床號</th>
+          <th style="width: 9%">姓名</th>
+          <th style="width: 9%">任務</th>
+          <th style="width: 9%">備註</th>
+          <th style="width: 7%">時間</th>
+          <th style="width: 14%">上壓</th>
+          <th style="width: 14%">下壓</th>
+          <th style="width: 14%">脈搏</th>
+          <th style="width: 15%">血糖</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tasks.map(task => {
+          const isVitalSigns = task.任務類型 === '生命表徵';
+          const isBloodSugar = task.任務類型 === '血糖控制';
+
+          return `
+            <tr>
+              <td>${task.床號}</td>
+              <td>${task.姓名}</td>
+              <td>${task.任務類型}</td>
+              <td>${task.備註}</td>
+              <td>${task.時間}</td>
+              <td class="${isBloodSugar ? 'disabled-cell' : 'value-cell'}"></td>
+              <td class="${isBloodSugar ? 'disabled-cell' : 'value-cell'}"></td>
+              <td class="${isBloodSugar ? 'disabled-cell' : 'value-cell'}"></td>
+              <td class="${isVitalSigns ? 'disabled-cell' : 'value-cell'}"></td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+};
+
+// 生成配對的HTML：Day1+Day2配對，Day3+Day4配對
+// A4橫向，雙面列印後可剪開
+// 
+// 布局邏輯（長邊翻轉）：
+// - 第1張A4正面：左=Day1-P1，右=Day2-P1
+// - 第1張A4背面：左=Day2-P2，右=Day1-P2（交換！）
+// 
+// 長邊翻轉後，正面左半對應背面右半，正面右半對應背面左半
+// 剪開後：
+// - 左半紙：正面Day1-P1，背面Day1-P2 ✓
+// - 右半紙：正面Day2-P1，背面Day2-P2 ✓
+
+const generatePairedHTML = (daysData: DayData[]): string => {
+  // 將每天的內容分割成頁面（最多2頁）
+  const day1Pages = splitDayIntoPages(daysData[0]);
+  const day2Pages = splitDayIntoPages(daysData[1]);
+  const day3Pages = splitDayIntoPages(daysData[2]);
+  const day4Pages = splitDayIntoPages(daysData[3]);
+
+  // 確保最多2頁
+  const d1p1 = day1Pages[0] || { slots: [] };
+  const d1p2 = day1Pages[1] || null;
+  const d2p1 = day2Pages[0] || { slots: [] };
+  const d2p2 = day2Pages[1] || null;
+  const d3p1 = day3Pages[0] || { slots: [] };
+  const d3p2 = day3Pages[1] || null;
+  const d4p1 = day4Pages[0] || { slots: [] };
+  const d4p2 = day4Pages[1] || null;
+
+  // 判斷是否需要第2張A4
+  const pair1NeedsPage2 = d1p2 !== null || d2p2 !== null;
+  const pair2NeedsPage2 = d3p2 !== null || d4p2 !== null;
+
+  let a4PagesHTML = '';
+
+  // === 第一組：Day1 + Day2 ===
+  // 第1張A4（正面）：左=Day1-P1，右=Day2-P1
+  a4PagesHTML += `
+    <div class="a4-page">
+      <div class="a5-left">
+        ${generateA5PageContent(daysData[0], d1p1, 1, day1Pages.length, true)}
+      </div>
+      <div class="a5-right">
+        ${generateA5PageContent(daysData[1], d2p1, 1, day2Pages.length, false)}
+      </div>
+    </div>
+  `;
+
+  // 第2張A4（背面）：左=Day2-P2，右=Day1-P2（交換位置！）
+  if (pair1NeedsPage2) {
+    const leftContent = d2p2 
+      ? generateA5PageContent(daysData[1], d2p2, 2, day2Pages.length, true)
+      : '<div class="empty-page"></div>';
+    const rightContent = d1p2 
+      ? generateA5PageContent(daysData[0], d1p2, 2, day1Pages.length, false)
+      : '<div class="empty-page"></div>';
+
+    a4PagesHTML += `
+      <div class="a4-page">
+        <div class="a5-left">${leftContent}</div>
+        <div class="a5-right">${rightContent}</div>
+      </div>
+    `;
+  }
+
+  // === 第二組：Day3 + Day4 ===
+  // 第1張A4（正面）：左=Day3-P1，右=Day4-P1
+  a4PagesHTML += `
+    <div class="a4-page">
+      <div class="a5-left">
+        ${generateA5PageContent(daysData[2], d3p1, 1, day3Pages.length, true)}
+      </div>
+      <div class="a5-right">
+        ${generateA5PageContent(daysData[3], d4p1, 1, day4Pages.length, false)}
+      </div>
+    </div>
+  `;
+
+  // 第2張A4（背面）：左=Day4-P2，右=Day3-P2（交換位置！）
+  if (pair2NeedsPage2) {
+    const leftContent = d4p2 
+      ? generateA5PageContent(daysData[3], d4p2, 2, day4Pages.length, true)
+      : '<div class="empty-page"></div>';
+    const rightContent = d3p2 
+      ? generateA5PageContent(daysData[2], d3p2, 2, day3Pages.length, false)
+      : '<div class="empty-page"></div>';
+
+    a4PagesHTML += `
+      <div class="a4-page">
+        <div class="a5-left">${leftContent}</div>
+        <div class="a5-right">${rightContent}</div>
+      </div>
+    `;
+  }
 
   return `
     <!DOCTYPE html>
@@ -283,7 +530,7 @@ const generateHTML = (daysData: DayData[]): string => {
       <style>
         @page {
           size: A4 landscape;
-          margin: 8mm;
+          margin: 4mm;
         }
 
         * {
@@ -294,94 +541,101 @@ const generateHTML = (daysData: DayData[]): string => {
 
         body {
           font-family: 'Microsoft JhengHei', 'Arial', sans-serif;
-          font-size: ${7 * scale}pt;
-          line-height: 1.2;
+          font-size: 8pt;
+          line-height: 1.15;
         }
 
-        .page {
-          page-break-after: always;
-          width: 100%;
-          height: 100vh;
+        /* A4橫向頁面容器 */
+        .a4-page {
           display: flex;
-          flex-direction: column;
+          flex-direction: row;
+          width: 289mm;
+          height: 202mm;
+          page-break-after: always;
+          overflow: hidden;
         }
 
-        .page:last-child {
+        .a4-page:last-child {
           page-break-after: auto;
         }
 
-        .page-header {
-          display: none;
+        /* 左半部A5 */
+        .a5-left {
+          width: 50%;
+          height: 100%;
+          padding: 2mm;
+          border-right: 1px dashed #999;
+          overflow: hidden;
+          position: relative;
         }
 
-        .page-content {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: ${10 * scale}px;
-          flex: 1;
-          transform-origin: top left;
+        /* 右半部A5 */
+        .a5-right {
+          width: 50%;
+          height: 100%;
+          padding: 2mm;
+          overflow: hidden;
+          position: relative;
         }
 
-        .day-column {
-          border: 1px solid #333;
-          padding: ${5 * scale}px;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .day-header {
+        .day-header-main {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: ${4 * scale}px;
+          padding: 1px 4px;
           background-color: #f0f0f0;
-          border-bottom: 2px solid #333;
-          margin-bottom: ${5 * scale}px;
         }
 
-        .day-header .date-text {
-          font-size: 8pt;
+        .day-header-main .date-text,
+        .day-header-main .title-text {
+          font-size: 9pt;
           font-weight: bold;
         }
 
-        .day-header .title-text {
-          font-size: 8pt;
-          font-weight: bold;
+        .header-line-main {
+          height: 1.5px;
+          background-color: #333;
+          margin-bottom: 2px;
         }
 
         .time-slot {
-          margin-bottom: ${5 * scale}px;
+          margin-bottom: 2px;
         }
 
-        .time-slot h3 {
-          font-size: ${8 * scale}pt;
+        .slot-title-main {
+          font-size: 9pt;
           font-weight: bold;
-          margin-bottom: ${2 * scale}px;
-          padding: ${2 * scale}px ${4 * scale}px;
+          padding: 0px 4px;
           background-color: #e8e8e8;
+          margin: 0 0 1px 0;
         }
 
         .task-table {
           width: 100%;
           border-collapse: collapse;
-          margin-bottom: ${3 * scale}px;
         }
 
-        .task-table th,
-        .task-table td {
-          border: 1px solid #666;
-          padding: ${2 * scale}px ${3 * scale}px;
-          text-align: center;
-          font-size: ${7 * scale}pt;
-        }
-
-        .task-table th {
+        .column-header-row th {
           background-color: #d0d0d0;
           font-weight: bold;
+          border: 1px solid #666;
+          padding: 0px 2px;
+          text-align: center;
+          font-size: 7pt;
+          height: 14px;
         }
 
-        .task-table td {
-          min-height: ${20 * scale}px;
+        .task-table tbody td {
+          border: 1px solid #666;
+          padding: 0px 1px;
+          text-align: center;
+          font-size: 8pt;
+          height: 18px;
+          line-height: 17px;
+        }
+
+        .task-table tbody td:first-child {
+          white-space: nowrap;
         }
 
         .value-cell {
@@ -392,28 +646,54 @@ const generateHTML = (daysData: DayData[]): string => {
           background-color: #d0d0d0;
         }
 
+        .page-number-inline {
+          position: absolute;
+          bottom: 1mm;
+          right: 2mm;
+          font-size: 7pt;
+          color: #666;
+        }
+
+        .print-note {
+          position: absolute;
+          bottom: 1mm;
+          left: 2mm;
+          font-size: 6pt;
+          color: #999;
+        }
+
+        .empty-page {
+          color: #999;
+          font-style: italic;
+          text-align: center;
+          padding-top: 50mm;
+        }
+
         @media print {
           body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
+          .print-note {
+            display: none;
+          }
+        }
+
+        @media screen {
+          body {
+            background: #ccc;
+            padding: 10px;
+          }
+          .a4-page {
+            background: white;
+            margin: 10px auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          }
         }
       </style>
     </head>
     <body>
-      <div class="page">
-        <div class="page-content">
-          ${generateDayColumn(daysData[0])}
-          ${generateDayColumn(daysData[1])}
-        </div>
-      </div>
-
-      <div class="page">
-        <div class="page-content">
-          ${generateDayColumn(daysData[2])}
-          ${generateDayColumn(daysData[3])}
-        </div>
-      </div>
+      ${a4PagesHTML}
     </body>
     </html>
   `;
