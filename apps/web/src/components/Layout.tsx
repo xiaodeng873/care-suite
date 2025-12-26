@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Bandage, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ChevronDown, Menu, X } from 'lucide-react';
+import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Bandage, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
 
@@ -43,6 +43,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       name: '院友',
       items: [
         { name: '院友列表', href: '/patients', icon: Users },
+        { name: '院友聯絡人', href: '/patient-contacts', icon: UserSearch },
         { name: '床位管理', href: '/station-bed', icon: Bed },
         { name: '報表查詢', href: '/reports', icon: BarChart3 },
       ]
@@ -78,6 +79,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       items: [
         { name: '年度體檢', href: '/annual-health-checkup', icon: BicepsFlexed },
         { name: '健康評估', href: '/health-assessments', icon: UserSearch },
+        { name: '個人照顧計劃', href: '/individual-care-plan', icon: ClipboardList },
         { name: '約束物品', href: '/restraint', icon: Shield },
         { name: '傷口管理', href: '/wound', icon: Bandage },
       ]

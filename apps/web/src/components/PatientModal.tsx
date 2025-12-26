@@ -4,6 +4,7 @@ import { usePatients } from '../context/PatientContext';
 import { formatEnglishGivenName, formatEnglishSurname } from '../utils/nameFormatter';
 import SimpleStationBedSelector from './SimpleStationBedSelector';
 import OCRIDCardBlock from './OCRIDCardBlock';
+import PatientContactsTab from './PatientContactsTab';
 
 interface PatientModalProps {
   patient?: any;
@@ -12,6 +13,7 @@ interface PatientModalProps {
 
 const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
   const { addPatient, updatePatient, stations, beds } = usePatients();
+  const [activeTab, setActiveTab] = useState<'basic' | 'contacts'>('basic');
 
   // 獲取當天日期作為預設入住日期
   const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -429,7 +431,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-xl font-semibold text-gray-900">
               {patient ? '編輯院友' : '新增院友'}
             </h2>
@@ -440,9 +442,37 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
               <X className="h-6 w-6" />
             </button>
           </div>
+          
+          {/* 標籤頁 */}
+          {patient && (
+            <div className="flex space-x-1 border-b border-gray-200">
+              <button
+                onClick={() => setActiveTab('basic')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'basic'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                基本資料
+              </button>
+              <button
+                onClick={() => setActiveTab('contacts')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'contacts'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                聯絡人
+              </button>
+            </div>
+          )}
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {/* 標籤頁內容 */}
+        {activeTab === 'basic' ? (
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* OCR 身份證識別區塊 */}
           <OCRIDCardBlock
             onOCRComplete={handleOCRComplete}
@@ -1062,6 +1092,11 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
             </button>
           </div>
         </form>
+        ) : (
+          <div className="p-6">
+            <PatientContactsTab patientId={patient?.院友id} />
+          </div>
+        )}
 
         {/* 退住確認模態框 */}
         {showDischargeModal && (

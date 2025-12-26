@@ -60,12 +60,12 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
   };
   
   const [formData, setFormData] = useState({
-    smoking_habit: '',
-    smoking_quantity: '', // 每天吸煙支數
-    drinking_habit: '',
-    drinking_quantity: '', // 每天飲酒罐數
+    // smoking_habit: '',
+    // smoking_quantity: '', // 每天吸煙支數
+    // drinking_habit: '',
+    // drinking_quantity: '', // 每天飲酒罐數
     daily_activities: {
-      max_activity: '',
+      // max_activity: '',
       limb_movement_left: [], // 改為陣列支援複選
       limb_movement_right: [], // 改為陣列支援複選
       eating: '',
@@ -112,10 +112,10 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
       toilet_training: false
     },
     treatment_items: [],
-    emotional_expression: [],
+    // emotional_expression: [],
     behavior_expression: [],
     emotional_other: '',
-    remarks: '',
+    // remarks: '',
     assessment_date: getDefaultAssessmentDate(healthAssessments, selectedPatientId),
     assessor: '',
     next_due_date: ''
@@ -506,75 +506,9 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
               </div>
             </div>
 
-            {/* 1. 吸煙習慣 */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">1. 吸煙習慣</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <select
-                    value={formData.smoking_habit}
-                    onChange={(e) => setFormData(prev => ({ ...prev, smoking_habit: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">請選擇</option>
-                    <option value="從不">從不</option>
-                    <option value="已戒煙">已戒煙</option>
-                    <option value="每天吸">每天吸</option>
-                    <option value="間中吸">間中吸</option>
-                  </select>
-                </div>
-                {(formData.smoking_habit === '每天吸' || formData.smoking_habit === '已戒煙') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {formData.smoking_habit === '每天吸' ? '每天吸煙支數' : '已戒煙多少年'}
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.smoking_quantity}
-                      onChange={(e) => setFormData(prev => ({ ...prev, smoking_quantity: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder={formData.smoking_habit === '每天吸' ? '輸入支數' : '輸入年數'}
-                      min="0"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* 吸煙習慣已移除 */}
 
-            {/* 2. 飲酒習慣 */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">2. 飲酒習慣</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <select
-                    value={formData.drinking_habit}
-                    onChange={(e) => setFormData(prev => ({ ...prev, drinking_habit: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">請選擇</option>
-                    <option value="從不">從不</option>
-                    <option value="已戒酒">已戒酒</option>
-                    <option value="每天飲">每天飲</option>
-                    <option value="間中飲">間中飲</option>
-                  </select>
-                </div>
-                {(formData.drinking_habit === '每天飲' || formData.drinking_habit === '已戒酒') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {formData.drinking_habit === '每天飲' ? '每天飲酒罐數' : '已戒酒多少年'}
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.drinking_quantity}
-                      onChange={(e) => setFormData(prev => ({ ...prev, drinking_quantity: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder={formData.drinking_habit === '每天飲' ? '輸入罐數' : '輸入年數'}
-                      min="0"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* 飲酒習慣已移除 */}
 
             {/* 3. 日常活動及自理能力 */}
             <div className="bg-gray-50 p-4 rounded-lg">
@@ -583,22 +517,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                 3. 日常活動及自理能力
               </h3>
               
-              {/* a. 最高活動能力 */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">a. 最高活動能力</label>
-                <select
-                  value={formData.daily_activities.max_activity}
-                  onChange={(e) => updateDailyActivities('max_activity', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">請選擇</option>
-                  <option value="完全獨立">完全獨立</option>
-                  <option value="已戒酒">已戒酒</option>
-                  <option value="輪椅">輪椅</option>
-                  <option value="坐椅">坐椅</option>
-                  <option value="臥床">臥床</option>
-                </select>
-              </div>
+              {/* 最高活動能力已移除 */}
 
               {/* b. 肢體活動 */}
               <div className="mb-4">

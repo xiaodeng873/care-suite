@@ -88,6 +88,13 @@ const WOUND_STATUS_LABELS: Record<string, string> = {
   transferred: '已轉移'
 };
 
+const RESPONSIBLE_UNIT_LABELS: Record<string, string> = {
+  community_health: '社康',
+  cgat: 'CGAT',
+  facility_staff: '本院職員',
+  other: '其他'
+};
+
 const WoundManagementNew: React.FC = () => {
   const { patientsWithWounds, patients, deleteWound, refreshWoundData, loading } = usePatients();
   
@@ -527,7 +534,7 @@ const WoundManagementNew: React.FC = () => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">床號</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">院友姓名</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">傷口數量</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">傷口狀態概覽</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">負責換症單位</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">評估狀態</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
               </tr>
@@ -585,19 +592,31 @@ const WoundManagementNew: React.FC = () => {
                           {patientData.bed_number}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="flex items-center space-x-2">
-                            <User className="h-4 w-4 text-gray-400" />
-                            {patient ? (
-                              <PatientTooltip patient={patient}>
-                                <span className="text-sm font-medium text-gray-900 cursor-help hover:text-blue-600">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0">
+                              {patient?.院友相片 ? (
+                                <img
+                                  src={patient.院友相片}
+                                  alt={patient.中文姓名}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <User className="h-5 w-5 text-blue-600" />
+                              )}
+                            </div>
+                            <div>
+                              {patient ? (
+                                <PatientTooltip patient={patient}>
+                                  <span className="text-sm font-medium text-gray-900 cursor-help hover:text-blue-600">
+                                    {patientData.patient_name}
+                                  </span>
+                                </PatientTooltip>
+                              ) : (
+                                <span className="text-sm font-medium text-gray-900">
                                   {patientData.patient_name}
                                 </span>
-                              </PatientTooltip>
-                            ) : (
-                              <span className="text-sm font-medium text-gray-900">
-                                {patientData.patient_name}
-                              </span>
-                            )}
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
@@ -614,28 +633,22 @@ const WoundManagementNew: React.FC = () => {
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex flex-wrap gap-1">
-                            {displayWounds.slice(0, 4).map(wound => (
-                              <span
-                                key={wound.id}
-                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                  wound.status === 'healed'
-                                    ? 'bg-green-100 text-green-800'
-                                    : wound.is_overdue
-                                    ? 'bg-red-100 text-red-800 animate-pulse'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                }`}
-                                title={`${wound.wound_code}: ${WOUND_TYPE_LABELS[wound.wound_type]} - ${WOUND_STATUS_LABELS[wound.status]}`}
-                              >
-                                {wound.wound_code}
-                                {wound.is_overdue && ' ⚠️'}
-                                {wound.status === 'healed' && ' ✓'}
-                              </span>
-                            ))}
-                            {displayWounds.length > 4 && (
-                              <span className="text-xs text-gray-500 self-center">
-                                +{displayWounds.length - 4} 個
-                              </span>
-                            )}
+                            {displayWounds.map(wound => {
+                              const unitLabel = wound.responsible_unit 
+                                ? (wound.responsible_unit === 'other' 
+                                    ? wound.responsible_unit_other || '其他' 
+                                    : RESPONSIBLE_UNIT_LABELS[wound.responsible_unit])
+                                : '未設定';
+                              return (
+                                <span
+                                  key={wound.id}
+                                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                  title={`${wound.wound_code}: ${unitLabel}`}
+                                >
+                                  {wound.wound_code}: {unitLabel}
+                                </span>
+                              );
+                            })}
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
@@ -860,11 +873,14 @@ const WoundManagementNew: React.FC = () => {
                                                 )}
                                               </div>
                                               
-                                              <div className={`p-3 rounded-lg border ${
-                                                isLatest 
-                                                  ? 'bg-blue-50 border-blue-200' 
-                                                  : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                                              }`}>
+                                              <div 
+                                                className={`p-3 rounded-lg border cursor-pointer ${
+                                                  isLatest 
+                                                    ? 'bg-blue-50 border-blue-200' 
+                                                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                                                }`}
+                                                onDoubleClick={() => handleViewAssessment(wound, assessment)}
+                                              >
                                                 <div className="flex items-center justify-between flex-wrap gap-2">
                                                   <div className="flex items-center flex-wrap gap-3">
                                                     {/* 日期和最新標記 */}

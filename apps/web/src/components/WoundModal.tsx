@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, MapPin, Calendar, User, AlertCircle } from 'lucide-react';
-import { usePatients, type Wound, type WoundType, type WoundOrigin } from '../context/PatientContext';
+import { usePatients, type Wound, type WoundType, type WoundOrigin, type ResponsibleUnit } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import HumanBodyDiagram from './HumanBodyDiagram';
@@ -28,6 +28,13 @@ const WOUND_ORIGINS: { value: WoundOrigin; label: string }[] = [
   { value: 'hospital_referral', label: '醫院轉介' }
 ];
 
+const RESPONSIBLE_UNITS: { value: ResponsibleUnit; label: string }[] = [
+  { value: 'community_health', label: '社康' },
+  { value: 'cgat', label: 'CGAT' },
+  { value: 'facility_staff', label: '本院職員' },
+  { value: 'other', label: '其他' }
+];
+
 const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSave }) => {
   const { addWound, updateWound, generateWoundCode, patients } = usePatients();
   const { displayName } = useAuth();
@@ -48,6 +55,8 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
     wound_type: wound?.wound_type || ('pressure_ulcer' as WoundType),
     wound_type_other: wound?.wound_type_other || '',
     wound_origin: wound?.wound_origin || ('facility' as WoundOrigin),
+    responsible_unit: wound?.responsible_unit || ('facility_staff' as ResponsibleUnit),
+    responsible_unit_other: wound?.responsible_unit_other || '',
     remarks: wound?.remarks || ''
   });
 
@@ -92,6 +101,11 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
       return;
     }
 
+    if (!formData.responsible_unit) {
+      setError('請選擇負責換症單位');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -111,6 +125,8 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
         wound_type: formData.wound_type,
         wound_type_other: formData.wound_type === 'other' ? formData.wound_type_other : undefined,
         wound_origin: formData.wound_origin,
+        responsible_unit: formData.responsible_unit,
+        responsible_unit_other: formData.responsible_unit === 'other' ? formData.responsible_unit_other : undefined,
         remarks: formData.remarks || undefined,
         status: 'active' as const,
         // 自動設定下次評估日期為發現日期 + 7 天
@@ -143,8 +159,14 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
   const selectedPatient = patients.find(p => p.院友id === Number(formData.patient_id));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -288,6 +310,42 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* 負責換症單位 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                負責換症單位 <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="responsible_unit"
+                value={formData.responsible_unit}
+                onChange={handleChange}
+                className="form-input w-full"
+                required
+              >
+                {RESPONSIBLE_UNITS.map(unit => (
+                  <option key={unit.value} value={unit.value}>{unit.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {formData.responsible_unit === 'other' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  請說明其他單位
+                </label>
+                <input
+                  type="text"
+                  name="responsible_unit_other"
+                  value={formData.responsible_unit_other}
+                  onChange={handleChange}
+                  className="form-input w-full"
+                  placeholder="請輸入單位名稱..."
+                />
+              </div>
+            )}
           </div>
 
           {/* 傷口位置 */}

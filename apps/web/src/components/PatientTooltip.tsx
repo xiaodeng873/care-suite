@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { User, Calendar, CreditCard } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Calendar, CreditCard, Phone } from 'lucide-react';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import { getPatientContacts } from '../lib/database';
 
 interface PatientTooltipProps {
   patient: {
+    院友id?: number;
     中文姓氏: string;
     中文名字: string;
     英文姓名?: string;
@@ -18,6 +20,23 @@ interface PatientTooltipProps {
 
 const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [firstContact, setFirstContact] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchFirstContact = async () => {
+      if (patient.院友id && showTooltip) {
+        try {
+          const contacts = await getPatientContacts(patient.院友id);
+          if (contacts && contacts.length > 0) {
+            setFirstContact(contacts[0]);
+          }
+        } catch (error) {
+          console.error('Error fetching first contact:', error);
+        }
+      }
+    };
+    fetchFirstContact();
+  }, [patient.院友id, showTooltip]);
 
   const calculateAge = (birthDate: string) => {
     const today = new Date();
@@ -69,6 +88,25 @@ const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) =>
                   : '未知'}
               </div>
             </div>
+            
+            {firstContact && (
+              <>
+                <div className="border-t border-gray-200 my-2"></div>
+                <div className="text-xs text-gray-500 font-medium mb-1">第一聯絡人</div>
+                <div className="flex items-center space-x-2">
+                  <Phone className="h-4 w-4 text-green-600" />
+                  <div className="text-sm">
+                    <div className="font-medium text-gray-900">
+                      {firstContact.聯絡人姓名}
+                      {firstContact.關係 && <span className="text-gray-500 ml-1">({firstContact.關係})</span>}
+                    </div>
+                    {firstContact.聯絡電話 && (
+                      <div className="text-xs text-gray-600">{firstContact.聯絡電話}</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -258,6 +258,88 @@ export interface HealthAssessment {
 }
 
 // ============================================
+// 個人照顧計劃 (ICP) 類型定義
+// ============================================
+
+export type PlanType = '首月計劃' | '半年計劃' | '年度計劃';
+export type ProblemCategory = '護理' | '物理治療' | '職業治療' | '言語治療' | '營養師' | '醫生';
+export type OutcomeReview = '保持現狀' | '滿意' | '部分滿意' | '需要持續改善';
+
+export interface ProblemLibrary {
+  id: string;
+  code: string;
+  name: string;
+  category: ProblemCategory;
+  description?: string;
+  expected_goals: string[];
+  interventions: string[];
+  is_active: boolean;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NursingNeedItem {
+  id: string;
+  name: string;
+  is_default: boolean;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CarePlan {
+  id: string;
+  patient_id: number;
+  parent_plan_id?: string;
+  version_number: number;
+  plan_type: PlanType;
+  plan_date: string;
+  review_due_date?: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+  created_by?: string;
+  status: 'active' | 'archived';
+  archived_at?: string;
+  remarks?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CarePlanNursingNeed {
+  id: string;
+  care_plan_id: string;
+  nursing_need_item_id: string;
+  has_need: boolean;
+  remarks?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CarePlanProblem {
+  id: string;
+  care_plan_id: string;
+  problem_library_id?: string;
+  problem_category: ProblemCategory;
+  problem_description: string;
+  expected_goals: string[];
+  interventions: string[];
+  outcome_review?: OutcomeReview;
+  problem_assessor?: string;
+  outcome_assessor?: string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CarePlanWithDetails extends CarePlan {
+  nursing_needs: (CarePlanNursingNeed & { item_name?: string })[];
+  problems: CarePlanProblem[];
+  problem_count: number;
+}
+
+// ============================================
 // 傷口管理類型定義
 // ============================================
 
@@ -265,6 +347,7 @@ export type WoundType = 'pressure_ulcer' | 'trauma' | 'surgical' | 'diabetic' | 
 export type WoundOrigin = 'facility' | 'admission' | 'hospital_referral';
 export type WoundStatus = 'active' | 'healed' | 'transferred';
 export type WoundAssessmentStatus = 'untreated' | 'treating' | 'improving' | 'healed';
+export type ResponsibleUnit = 'community_health' | 'cgat' | 'facility_staff' | 'other';
 
 // 傷口主表 - 記錄每個傷口的基本資料和生命週期
 export interface Wound {
@@ -282,6 +365,8 @@ export interface Wound {
   wound_type: WoundType;
   wound_type_other?: string;
   wound_origin: WoundOrigin;
+  responsible_unit: ResponsibleUnit;
+  responsible_unit_other?: string;
   status: WoundStatus;
   healed_date?: string;
   next_assessment_due?: string;
@@ -692,6 +777,20 @@ export interface PatientNote {
   created_at: string;
   updated_at: string;
   created_by?: string;
+}
+
+export interface PatientContact {
+  id: string;
+  院友id: number;
+  聯絡人姓名: string;
+  關係?: string;
+  聯絡電話?: string;
+  電郵?: string;
+  地址?: string;
+  備註?: string;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface MedicationWorkflowSettings {
@@ -2641,15 +2740,450 @@ export const syncTaskStatus = async (taskId: string) => {
 
     updates = {
       last_completed_at: lastCompletedAt.toISOString(),
-      next_due_at: nextDueAt.toISOString()
+      next_due_at: nextDueAt.toISOString(),
+      status: (nextDueAt <= new Date()) ? 'overdue' : 'pending'
     };
   } else {
-    const resetDate = new Date();
-    resetDate.setHours(8, 0, 0, 0);
-    updates = { last_completed_at: null, next_due_at: resetDate.toISOString() };
+    updates = {
+      last_completed_at: null,
+      next_due_at: task.next_due_at,
+      status: (new Date(task.next_due_at) <= new Date()) ? 'overdue' : 'pending'
+    };
   }
 
-  await supabase.from('patient_health_tasks').update(updates).eq('id', taskId);
+  const { error: updateError } = await supabase.from('patient_health_tasks').update(updates).eq('id', taskId);
+  if (updateError) {
+    console.error('[syncTaskStatus] Error updating task:', updateError);
+  }
+};
+
+// ==================== Patient Contacts ====================
+
+export const getPatientContacts = async (patientId: number): Promise<PatientContact[]> => {
+  const { data, error } = await supabase
+    .from('patient_contacts')
+    .select('*')
+    .eq('院友id', patientId)
+    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const createPatientContact = async (
+  contact: Omit<PatientContact, 'id' | 'created_at' | 'updated_at'>
+): Promise<PatientContact> => {
+  const { data, error } = await supabase
+    .from('patient_contacts')
+    .insert([contact])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const updatePatientContact = async (
+  contact: PatientContact
+): Promise<PatientContact> => {
+  const { data, error } = await supabase
+    .from('patient_contacts')
+    .update(contact)
+    .eq('id', contact.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const deletePatientContact = async (contactId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('patient_contacts')
+    .delete()
+    .eq('id', contactId);
+  if (error) throw error;
+};
+
+export const setPrimaryContact = async (
+  patientId: number,
+  contactId: string
+): Promise<void> => {
+  // 先將該院友的所有聯絡人設為非主要
+  await supabase
+    .from('patient_contacts')
+    .update({ is_primary: false })
+    .eq('院友id', patientId);
+
+  // 再將指定聯絡人設為主要
+  const { error } = await supabase
+    .from('patient_contacts')
+    .update({ is_primary: true })
+    .eq('id', contactId);
+  
+  if (error) throw error;
+};
+
+// ==================== 個人照顧計劃 (ICP) ====================
+
+// 獲取所有問題庫項目
+export const getAllProblemLibrary = async (): Promise<ProblemLibrary[]> => {
+  const { data, error } = await supabase
+    .from('problem_library')
+    .select('*')
+    .eq('is_active', true)
+    .order('category')
+    .order('code');
+  if (error) throw error;
+  return data || [];
+};
+
+// 按專業獲取問題庫
+export const getProblemLibraryByCategory = async (category: ProblemCategory): Promise<ProblemLibrary[]> => {
+  const { data, error } = await supabase
+    .from('problem_library')
+    .select('*')
+    .eq('category', category)
+    .eq('is_active', true)
+    .order('code');
+  if (error) throw error;
+  return data || [];
+};
+
+// 新增問題到問題庫
+export const createProblemLibrary = async (
+  problem: Omit<ProblemLibrary, 'id' | 'created_at' | 'updated_at'>
+): Promise<ProblemLibrary> => {
+  const { data, error } = await supabase
+    .from('problem_library')
+    .insert([problem])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// 更新問題庫項目
+export const updateProblemLibrary = async (
+  problem: Partial<ProblemLibrary> & { id: string }
+): Promise<ProblemLibrary> => {
+  const { data, error } = await supabase
+    .from('problem_library')
+    .update(problem)
+    .eq('id', problem.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// 刪除問題庫項目（軟刪除）
+export const deleteProblemLibrary = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('problem_library')
+    .update({ is_active: false })
+    .eq('id', id);
+  if (error) throw error;
+};
+
+// 獲取所有護理需要項目
+export const getAllNursingNeedItems = async (): Promise<NursingNeedItem[]> => {
+  const { data, error } = await supabase
+    .from('nursing_need_items')
+    .select('*')
+    .eq('is_active', true)
+    .order('display_order');
+  if (error) throw error;
+  return data || [];
+};
+
+// 新增自訂護理需要項目
+export const createNursingNeedItem = async (
+  item: Omit<NursingNeedItem, 'id' | 'created_at' | 'updated_at'>
+): Promise<NursingNeedItem> => {
+  const { data, error } = await supabase
+    .from('nursing_need_items')
+    .insert([{ ...item, is_default: false }])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// 獲取所有個人照顧計劃
+export const getAllCarePlans = async (): Promise<CarePlan[]> => {
+  const { data, error } = await supabase
+    .from('care_plans')
+    .select('*')
+    .order('plan_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+// 獲取院友的所有個人照顧計劃
+export const getPatientCarePlans = async (patientId: number): Promise<CarePlan[]> => {
+  const { data, error } = await supabase
+    .from('care_plans')
+    .select('*')
+    .eq('patient_id', patientId)
+    .order('plan_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+// 獲取計劃的歷史版本鏈
+export const getCarePlanHistory = async (planId: string): Promise<CarePlan[]> => {
+  // 先取得當前計劃
+  const { data: currentPlan, error: currentError } = await supabase
+    .from('care_plans')
+    .select('*')
+    .eq('id', planId)
+    .single();
+  if (currentError) throw currentError;
+  
+  // 找出同一院友的所有計劃，按版本號排序
+  const { data, error } = await supabase
+    .from('care_plans')
+    .select('*')
+    .eq('patient_id', currentPlan.patient_id)
+    .order('version_number', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+// 獲取單一計劃及其明細
+export const getCarePlanWithDetails = async (planId: string): Promise<CarePlanWithDetails | null> => {
+  // 獲取計劃主表
+  const { data: plan, error: planError } = await supabase
+    .from('care_plans')
+    .select('*')
+    .eq('id', planId)
+    .single();
+  if (planError) throw planError;
+  if (!plan) return null;
+
+  // 獲取護理需要
+  const { data: nursingNeeds, error: nnError } = await supabase
+    .from('care_plan_nursing_needs')
+    .select(`
+      *,
+      nursing_need_items (name)
+    `)
+    .eq('care_plan_id', planId);
+  if (nnError) throw nnError;
+
+  // 獲取問題明細
+  const { data: problems, error: probError } = await supabase
+    .from('care_plan_problems')
+    .select('*')
+    .eq('care_plan_id', planId)
+    .order('display_order');
+  if (probError) throw probError;
+
+  return {
+    ...plan,
+    nursing_needs: (nursingNeeds || []).map((nn: any) => ({
+      ...nn,
+      item_name: nn.nursing_need_items?.name
+    })),
+    problems: problems || [],
+    problem_count: problems?.length || 0
+  };
+};
+
+// 創建新的個人照顧計劃
+export const createCarePlan = async (
+  plan: Omit<CarePlan, 'id' | 'created_at' | 'updated_at' | 'review_due_date'>,
+  nursingNeeds?: { nursing_need_item_id: string; has_need: boolean; remarks?: string }[],
+  problems?: Omit<CarePlanProblem, 'id' | 'care_plan_id' | 'created_at' | 'updated_at'>[]
+): Promise<CarePlan> => {
+  // 創建計劃主表
+  const { data: newPlan, error: planError } = await supabase
+    .from('care_plans')
+    .insert([plan])
+    .select()
+    .single();
+  if (planError) throw planError;
+
+  // 創建護理需要記錄
+  if (nursingNeeds && nursingNeeds.length > 0) {
+    const nursingNeedRecords = nursingNeeds.map(nn => ({
+      care_plan_id: newPlan.id,
+      ...nn
+    }));
+    const { error: nnError } = await supabase
+      .from('care_plan_nursing_needs')
+      .insert(nursingNeedRecords);
+    if (nnError) throw nnError;
+  }
+
+  // 創建問題記錄
+  if (problems && problems.length > 0) {
+    const problemRecords = problems.map((p, index) => ({
+      care_plan_id: newPlan.id,
+      ...p,
+      display_order: index
+    }));
+    const { error: probError } = await supabase
+      .from('care_plan_problems')
+      .insert(problemRecords);
+    if (probError) throw probError;
+  }
+
+  return newPlan;
+};
+
+// 更新個人照顧計劃
+export const updateCarePlan = async (
+  planId: string,
+  plan: Partial<CarePlan>,
+  nursingNeeds?: { nursing_need_item_id: string; has_need: boolean; remarks?: string }[],
+  problems?: Omit<CarePlanProblem, 'id' | 'care_plan_id' | 'created_at' | 'updated_at'>[]
+): Promise<CarePlan> => {
+  // 更新計劃主表
+  const { data: updatedPlan, error: planError } = await supabase
+    .from('care_plans')
+    .update(plan)
+    .eq('id', planId)
+    .select()
+    .single();
+  if (planError) throw planError;
+
+  // 更新護理需要（先刪後插）
+  if (nursingNeeds !== undefined) {
+    await supabase.from('care_plan_nursing_needs').delete().eq('care_plan_id', planId);
+    if (nursingNeeds.length > 0) {
+      const nursingNeedRecords = nursingNeeds.map(nn => ({
+        care_plan_id: planId,
+        ...nn
+      }));
+      const { error: nnError } = await supabase
+        .from('care_plan_nursing_needs')
+        .insert(nursingNeedRecords);
+      if (nnError) throw nnError;
+    }
+  }
+
+  // 更新問題（先刪後插）
+  if (problems !== undefined) {
+    await supabase.from('care_plan_problems').delete().eq('care_plan_id', planId);
+    if (problems.length > 0) {
+      const problemRecords = problems.map((p, index) => ({
+        care_plan_id: planId,
+        ...p,
+        display_order: index
+      }));
+      const { error: probError } = await supabase
+        .from('care_plan_problems')
+        .insert(problemRecords);
+      if (probError) throw probError;
+    }
+  }
+
+  return updatedPlan;
+};
+
+// 複製計劃（用於復檢）
+export const duplicateCarePlan = async (
+  sourcePlanId: string,
+  newPlanType: PlanType,
+  newPlanDate: string,
+  createdBy: string
+): Promise<CarePlan> => {
+  // 獲取原計劃及其明細
+  const sourcePlan = await getCarePlanWithDetails(sourcePlanId);
+  if (!sourcePlan) throw new Error('Source plan not found');
+
+  // 計算新版本號
+  const { data: existingPlans } = await supabase
+    .from('care_plans')
+    .select('version_number')
+    .eq('patient_id', sourcePlan.patient_id)
+    .order('version_number', { ascending: false })
+    .limit(1);
+  const newVersionNumber = (existingPlans?.[0]?.version_number || 0) + 1;
+
+  // 創建新計劃
+  const newPlan: Omit<CarePlan, 'id' | 'created_at' | 'updated_at' | 'review_due_date'> = {
+    patient_id: sourcePlan.patient_id,
+    parent_plan_id: sourcePlanId,
+    version_number: newVersionNumber,
+    plan_type: newPlanType,
+    plan_date: newPlanDate,
+    created_by: createdBy,
+    status: 'active',
+    remarks: `由版本 ${sourcePlan.version_number} 復檢建立`
+  };
+
+  // 複製護理需要
+  const nursingNeeds = sourcePlan.nursing_needs.map(nn => ({
+    nursing_need_item_id: nn.nursing_need_item_id,
+    has_need: nn.has_need,
+    remarks: nn.remarks
+  }));
+
+  // 複製問題（不複製成效檢討，需要重新評估）
+  const problems = sourcePlan.problems.map(p => ({
+    problem_library_id: p.problem_library_id,
+    problem_category: p.problem_category,
+    problem_description: p.problem_description,
+    expected_goals: p.expected_goals,
+    interventions: p.interventions,
+    outcome_review: undefined,
+    problem_assessor: p.problem_assessor,
+    outcome_assessor: undefined,
+    display_order: p.display_order
+  }));
+
+  // 標記原計劃為已復檢
+  await supabase
+    .from('care_plans')
+    .update({ 
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: createdBy
+    })
+    .eq('id', sourcePlanId);
+
+  return createCarePlan(newPlan, nursingNeeds, problems as any);
+};
+
+// 封存計劃
+export const archiveCarePlan = async (planId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('care_plans')
+    .update({ 
+      status: 'archived',
+      archived_at: new Date().toISOString()
+    })
+    .eq('id', planId);
+  if (error) throw error;
+};
+
+// 刪除計劃
+export const deleteCarePlan = async (planId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('care_plans')
+    .delete()
+    .eq('id', planId);
+  if (error) throw error;
+};
+
+// 判斷院友是否需要首月計劃
+export const checkFirstMonthPlanRequired = async (patientId: number, admissionDate: string): Promise<boolean> => {
+  const admission = new Date(admissionDate);
+  const deadline = new Date(admission);
+  deadline.setDate(deadline.getDate() + 30);
+  
+  // 檢查是否已有首月計劃
+  const { data } = await supabase
+    .from('care_plans')
+    .select('id')
+    .eq('patient_id', patientId)
+    .eq('plan_type', '首月計劃')
+    .limit(1);
+  
+  const hasFirstMonthPlan = (data?.length || 0) > 0;
+  const isWithinDeadline = new Date() <= deadline;
+  
+  return !hasFirstMonthPlan && isWithinDeadline;
 };
 
 export default null;

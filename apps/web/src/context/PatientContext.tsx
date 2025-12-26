@@ -6,7 +6,7 @@ import { generateDailyWorkflowRecords } from '../utils/workflowGenerator';
 import { useAuth } from './AuthContext';
 
 // Re-export types from database module
-export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote } from '../lib/database';
+export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, ResponsibleUnit, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote, CarePlan, CarePlanProblem, CarePlanNursingNeed, CarePlanWithDetails, ProblemLibrary, NursingNeedItem, PlanType, ProblemCategory, OutcomeReview } from '../lib/database';
 
 // Wound photo interface
 export interface WoundPhoto {
@@ -107,6 +107,11 @@ interface PatientContextType {
   positionChangeRecords: db.PositionChangeRecord[];
   admissionRecords: db.PatientAdmissionRecord[];
   loading: boolean;
+  
+  // 個人照顧計劃 (ICP) 相關屬性
+  carePlans: db.CarePlan[];
+  problemLibrary: db.ProblemLibrary[];
+  nursingNeedItems: db.NursingNeedItem[];
   
   // 新增的處方工作流程相關屬性
   prescriptionWorkflowRecords: PrescriptionWorkflowRecord[];
@@ -270,6 +275,28 @@ interface PatientContextType {
 
   // [新增] 載入所有歷史記錄
   loadFullHealthRecords: () => Promise<void>;
+  
+  // 個人照顧計劃 (ICP) 相關函數
+  addCarePlan: (
+    plan: Omit<db.CarePlan, 'id' | 'created_at' | 'updated_at' | 'review_due_date'>,
+    nursingNeeds?: { nursing_need_item_id: string; has_need: boolean; remarks?: string }[],
+    problems?: Omit<db.CarePlanProblem, 'id' | 'care_plan_id' | 'created_at' | 'updated_at'>[]
+  ) => Promise<db.CarePlan>;
+  updateCarePlan: (
+    planId: string,
+    plan: Partial<db.CarePlan>,
+    nursingNeeds?: { nursing_need_item_id: string; has_need: boolean; remarks?: string }[],
+    problems?: Omit<db.CarePlanProblem, 'id' | 'care_plan_id' | 'created_at' | 'updated_at'>[]
+  ) => Promise<db.CarePlan>;
+  deleteCarePlan: (planId: string) => Promise<void>;
+  duplicateCarePlan: (sourcePlanId: string, newPlanType: db.PlanType, newPlanDate: string, createdBy: string) => Promise<db.CarePlan>;
+  getCarePlanWithDetails: (planId: string) => Promise<db.CarePlanWithDetails | null>;
+  getCarePlanHistory: (planId: string) => Promise<db.CarePlan[]>;
+  addProblemToLibrary: (problem: Omit<db.ProblemLibrary, 'id' | 'created_at' | 'updated_at'>) => Promise<db.ProblemLibrary>;
+  updateProblemLibrary: (problem: Partial<db.ProblemLibrary> & { id: string }) => Promise<db.ProblemLibrary>;
+  deleteProblemLibrary: (id: string) => Promise<void>;
+  addNursingNeedItem: (item: Omit<db.NursingNeedItem, 'id' | 'created_at' | 'updated_at'>) => Promise<db.NursingNeedItem>;
+  refreshCarePlanData: () => Promise<void>;
 }
 
 interface PatientProviderProps {
@@ -328,6 +355,11 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   const [prescriptionWorkflowRecords, setPrescriptionWorkflowRecords] = useState<any[]>([]);
   const [prescriptionTimeSlotDefinitions, setPrescriptionTimeSlotDefinitions] = useState<PrescriptionTimeSlotDefinition[]>([]);
   const [dailySystemTasks, setDailySystemTasks] = useState<db.DailySystemTask[]>([]);
+  
+  // 個人照顧計劃 (ICP) 相關狀態
+  const [carePlans, setCarePlans] = useState<db.CarePlan[]>([]);
+  const [problemLibrary, setProblemLibrary] = useState<db.ProblemLibrary[]>([]);
+  const [nursingNeedItems, setNursingNeedItems] = useState<db.NursingNeedItem[]>([]);
 
   // 2. 輔助函式定義
   const getHongKongDate = () => {
@@ -572,7 +604,10 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
         patrolRoundsData,
         diaperChangeRecordsData,
         restraintObservationRecordsData,
-        positionChangeRecordsData
+        positionChangeRecordsData,
+        carePlansData,
+        problemLibraryData,
+        nursingNeedItemsData
       ] = await Promise.all([
         db.getPatients(),
         db.getStations(),
@@ -603,7 +638,10 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
         db.getPatrolRounds(),
         db.getDiaperChangeRecords(),
         db.getRestraintObservationRecords(),
-        db.getPositionChangeRecords()
+        db.getPositionChangeRecords(),
+        db.getAllCarePlans(),
+        db.getAllProblemLibrary(),
+        db.getAllNursingNeedItems()
       ]);
 
       
@@ -645,6 +683,9 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       setRestraintObservationRecords(restraintObservationRecordsData || []);
       setPositionChangeRecords(positionChangeRecordsData || []);
       setPatientAdmissionRecords(patientAdmissionRecordsData || []);
+      setCarePlans(carePlansData || []);
+      setProblemLibrary(problemLibraryData || []);
+      setNursingNeedItems(nursingNeedItemsData || []);
 
       try {
         const overdueTasks = await db.getOverdueDailySystemTasks();
@@ -683,6 +724,97 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       console.error('載入完整記錄失敗:', error);
     }
   }, []);
+
+  // ==================== 個人照顧計劃 (ICP) CRUD 函數 ====================
+  
+  const refreshCarePlanData = useCallback(async () => {
+    try {
+      const [plansData, libraryData, needItemsData] = await Promise.all([
+        db.getAllCarePlans(),
+        db.getAllProblemLibrary(),
+        db.getAllNursingNeedItems()
+      ]);
+      setCarePlans(plansData || []);
+      setProblemLibrary(libraryData || []);
+      setNursingNeedItems(needItemsData || []);
+    } catch (error) {
+      console.error('刷新個人照顧計劃資料失敗:', error);
+    }
+  }, []);
+
+  const addCarePlan = useCallback(async (
+    plan: Omit<db.CarePlan, 'id' | 'created_at' | 'updated_at' | 'review_due_date'>,
+    nursingNeeds?: { nursing_need_item_id: string; has_need: boolean; remarks?: string }[],
+    problems?: Omit<db.CarePlanProblem, 'id' | 'care_plan_id' | 'created_at' | 'updated_at'>[]
+  ): Promise<db.CarePlan> => {
+    const newPlan = await db.createCarePlan(plan, nursingNeeds, problems);
+    await refreshCarePlanData();
+    return newPlan;
+  }, [refreshCarePlanData]);
+
+  const updateCarePlanFn = useCallback(async (
+    planId: string,
+    plan: Partial<db.CarePlan>,
+    nursingNeeds?: { nursing_need_item_id: string; has_need: boolean; remarks?: string }[],
+    problems?: Omit<db.CarePlanProblem, 'id' | 'care_plan_id' | 'created_at' | 'updated_at'>[]
+  ): Promise<db.CarePlan> => {
+    const updatedPlan = await db.updateCarePlan(planId, plan, nursingNeeds, problems);
+    await refreshCarePlanData();
+    return updatedPlan;
+  }, [refreshCarePlanData]);
+
+  const deleteCarePlanFn = useCallback(async (planId: string): Promise<void> => {
+    await db.deleteCarePlan(planId);
+    await refreshCarePlanData();
+  }, [refreshCarePlanData]);
+
+  const duplicateCarePlanFn = useCallback(async (
+    sourcePlanId: string,
+    newPlanType: db.PlanType,
+    newPlanDate: string,
+    createdBy: string
+  ): Promise<db.CarePlan> => {
+    const newPlan = await db.duplicateCarePlan(sourcePlanId, newPlanType, newPlanDate, createdBy);
+    await refreshCarePlanData();
+    return newPlan;
+  }, [refreshCarePlanData]);
+
+  const getCarePlanWithDetails = useCallback(async (planId: string): Promise<db.CarePlanWithDetails | null> => {
+    return db.getCarePlanWithDetails(planId);
+  }, []);
+
+  const getCarePlanHistory = useCallback(async (planId: string): Promise<db.CarePlan[]> => {
+    return db.getCarePlanHistory(planId);
+  }, []);
+
+  const addProblemToLibrary = useCallback(async (
+    problem: Omit<db.ProblemLibrary, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<db.ProblemLibrary> => {
+    const newProblem = await db.createProblemLibrary(problem);
+    await refreshCarePlanData();
+    return newProblem;
+  }, [refreshCarePlanData]);
+
+  const updateProblemLibraryFn = useCallback(async (
+    problem: Partial<db.ProblemLibrary> & { id: string }
+  ): Promise<db.ProblemLibrary> => {
+    const updated = await db.updateProblemLibrary(problem);
+    await refreshCarePlanData();
+    return updated;
+  }, [refreshCarePlanData]);
+
+  const deleteProblemLibraryFn = useCallback(async (id: string): Promise<void> => {
+    await db.deleteProblemLibrary(id);
+    await refreshCarePlanData();
+  }, [refreshCarePlanData]);
+
+  const addNursingNeedItem = useCallback(async (
+    item: Omit<db.NursingNeedItem, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<db.NursingNeedItem> => {
+    const newItem = await db.createNursingNeedItem(item);
+    await refreshCarePlanData();
+    return newItem;
+  }, [refreshCarePlanData]);
 
   // 創建防抖版本的 refreshData
   const debouncedRefreshData = useCallback(() => {
@@ -730,6 +862,9 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       setHospitalEpisodes([]);
       setPrescriptions([]);
       setDrugDatabase([]);
+      setCarePlans([]);
+      setProblemLibrary([]);
+      setNursingNeedItems([]);
       setLoading(false);
       setDataLoaded(false);
       return;
@@ -2383,7 +2518,23 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       batchDeleteDuplicateRecords,
 
       // [新增] 載入完整記錄
-      loadFullHealthRecords
+      loadFullHealthRecords,
+      
+      // 個人照顧計劃 (ICP) 相關
+      carePlans,
+      problemLibrary,
+      nursingNeedItems,
+      addCarePlan,
+      updateCarePlan: updateCarePlanFn,
+      deleteCarePlan: deleteCarePlanFn,
+      duplicateCarePlan: duplicateCarePlanFn,
+      getCarePlanWithDetails,
+      getCarePlanHistory,
+      addProblemToLibrary,
+      updateProblemLibrary: updateProblemLibraryFn,
+      deleteProblemLibrary: deleteProblemLibraryFn,
+      addNursingNeedItem,
+      refreshCarePlanData
     }}>
       {children}
     </PatientContext.Provider>

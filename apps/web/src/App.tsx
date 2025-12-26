@@ -12,6 +12,7 @@ const Scheduling = lazy(() => import('./pages/Scheduling'));
 const StationBedManagement = lazy(() => import('./pages/StationBedManagement'));
 const StationManagement = lazy(() => import('./pages/StationManagement'));
 const PatientRecords = lazy(() => import('./pages/PatientRecords'));
+const PatientContacts = lazy(() => import('./pages/PatientContacts'));
 const TemplateManagement = lazy(() => import('./pages/TemplateManagement'));
 const HealthAssessment = lazy(() => import('./pages/HealthAssessment'));
 const HealthAssessments = lazy(() => import('./pages/HealthAssessments'));
@@ -37,6 +38,7 @@ const OCRDocumentRecognition = lazy(() => import('./pages/OCRDocumentRecognition
 const CareRecords = lazy(() => import('./pages/CareRecords'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Rehabilitation = lazy(() => import('./pages/Rehabilitation'));
+const IndividualCarePlan = lazy(() => import('./pages/IndividualCarePlan'));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-64">
@@ -113,9 +115,11 @@ function AppContent() {
             <Route path="/ocr" element={<OCRDocumentRecognition />} />
             <Route path="/care-records" element={<CareRecords />} />
             <Route path="/patients" element={<PatientRecords />} />
+            <Route path="/patient-contacts" element={<PatientContacts />} />
             <Route path="/templates" element={<TemplateManagement />} />
             <Route path="/health" element={<HealthAssessment />} />
             <Route path="/health-assessments" element={<HealthAssessments />} />
+            <Route path="/individual-care-plan" element={<IndividualCarePlan />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/rehabilitation" element={<Rehabilitation />} />

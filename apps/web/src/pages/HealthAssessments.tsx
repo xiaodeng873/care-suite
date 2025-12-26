@@ -31,10 +31,10 @@ interface AdvancedFilters {
   床號: string;
   中文姓名: string;
   評估人員: string;
-  吸煙習慣: string;
-  飲酒習慣: string;
-  最高活動能力: string;
-  情緒表現: string;
+  // 吸煙習慣: string;
+  // 飲酒習慣: string;
+  // 最高活動能力: string;
+  // 情緒表現: string;
   startDate: string;
   endDate: string;
   在住狀態: string;
@@ -56,10 +56,10 @@ const HealthAssessments: React.FC = () => {
     床號: '',
     中文姓名: '',
     評估人員: '',
-    吸煙習慣: '',
-    飲酒習慣: '',
-    最高活動能力: '',
-    情緒表現: '',
+    // 吸煙習慣: '',
+    // 飲酒習慣: '',
+    // 最高活動能力: '',
+    // 情緒表現: '',
     startDate: '',
     endDate: '',
     在住狀態: '在住',
@@ -112,18 +112,7 @@ const HealthAssessments: React.FC = () => {
     if (advancedFilters.評估人員 && !assessment.assessor?.toLowerCase().includes(advancedFilters.評估人員.toLowerCase())) {
       return false;
     }
-    if (advancedFilters.吸煙習慣 && assessment.smoking_habit !== advancedFilters.吸煙習慣) {
-      return false;
-    }
-    if (advancedFilters.飲酒習慣 && assessment.drinking_habit !== advancedFilters.飲酒習慣) {
-      return false;
-    }
-    if (advancedFilters.最高活動能力 && assessment.daily_activities?.max_activity !== advancedFilters.最高活動能力) {
-      return false;
-    }
-    if (advancedFilters.情緒表現 && assessment.emotional_expression !== advancedFilters.情緒表現) {
-      return false;
-    }
+    // 吸煙/飲酒/最高活動能力/情緒表現篩選已移除
     
     // 日期區間篩選
     if (advancedFilters.startDate || advancedFilters.endDate) {
@@ -497,16 +486,16 @@ const HealthAssessments: React.FC = () => {
         評估日期: new Date(assessment.assessment_date).toLocaleDateString('zh-TW'),
         下次評估日期: assessment.next_due_date ? new Date(assessment.next_due_date).toLocaleDateString('zh-TW') : '',
         評估人員: assessment.assessor || '',
-        吸煙習慣: assessment.smoking_habit || '',
-        飲酒習慣: assessment.drinking_habit || '',
-        最高活動能力: assessment.daily_activities?.max_activity || '',
-        情緒表現: assessment.emotional_expression || '',
-        備註: assessment.remarks || '',
+        // 吸煙習慣: assessment.smoking_habit || '',
+        // 飲酒習慣: assessment.drinking_habit || '',
+        // 最高活動能力: assessment.daily_activities?.max_activity || '',
+        // 情緒表現: assessment.emotional_expression || '',
+        // 備註: assessment.remarks || '',
         建立日期: new Date(assessment.created_at).toLocaleDateString('zh-TW')
       };
     });
 
-    const headers = ['床號', '中文姓名', '評估日期', '下次評估日期', '評估人員', '吸煙習慣', '飲酒習慣', '最高活動能力', '情緒表現', '備註', '建立日期'];
+    const headers = ['床號', '中文姓名', '評估日期', '下次評估日期', '評估人員', '建立日期'];
     const csvContent = [
       `"健康評估記錄"`,
       `"生成日期: ${new Date().toLocaleDateString('zh-TW')}"`,
@@ -677,68 +666,13 @@ const HealthAssessments: React.FC = () => {
                     </datalist>
                   </div>
                   
-                  <div>
-                    <label className="form-label">吸煙習慣</label>
-                    <select
-                      value={advancedFilters.吸煙習慣}
-                      onChange={(e) => updateAdvancedFilter('吸煙習慣', e.target.value)}
-                      className="form-input"
-                    >
-                      <option value="">所有習慣</option>
-                      <option value="從不">從不</option>
-                      <option value="已戒年">已戒年</option>
-                      <option value="每天吸">每天吸</option>
-                      <option value="間中吸">間中吸</option>
-                    </select>
-                  </div>
+                  {/* 吸煙習慣篩選已移除 */}
                   
-                  <div>
-                    <label className="form-label">飲酒習慣</label>
-                    <select
-                      value={advancedFilters.飲酒習慣}
-                      onChange={(e) => updateAdvancedFilter('飲酒習慣', e.target.value)}
-                      className="form-input"
-                    >
-                      <option value="">所有習慣</option>
-                      <option value="從不">從不</option>
-                      <option value="已戒年">已戒年</option>
-                      <option value="每天飲">每天飲</option>
-                      <option value="間中飲">間中飲</option>
-                    </select>
-                  </div>
+                  {/* 飲酒習慣篩選已移除 */}
                   
-                  <div>
-                    <label className="form-label">最高活動能力</label>
-                    <select
-                      value={advancedFilters.最高活動能力}
-                      onChange={(e) => updateAdvancedFilter('最高活動能力', e.target.value)}
-                      className="form-input"
-                    >
-                      <option value="">所有能力</option>
-                      <option value="完全獨立">完全獨立</option>
-                      <option value="協助步行">協助步行</option>
-                      <option value="輪椅">輪椅</option>
-                      <option value="坐椅">坐椅</option>
-                      <option value="臥床">臥床</option>
-                    </select>
-                  </div>
+                  {/* 最高活動能力篩選已移除 */}
                   
-                  <div>
-                    <label className="form-label">情緒表現</label>
-                    <select
-                      value={advancedFilters.情緒表現}
-                      onChange={(e) => updateAdvancedFilter('情緒表現', e.target.value)}
-                      className="form-input"
-                    >
-                      <option value="">所有表現</option>
-                      <option value="喜樂">喜樂</option>
-                      <option value="平靜">平靜</option>
-                      <option value="冷漠">冷漠</option>
-                      <option value="抑鬱">抑鬱</option>
-                      <option value="激動">激動</option>
-                      <option value="其他">其他</option>
-                    </select>
-                  </div>
+                  {/* 情緒表現篩選已移除 */}
                   
                   <div>
                     <label className="form-label">在住狀態</label>
@@ -859,21 +793,7 @@ const HealthAssessments: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     記錄狀態
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    吸煙習慣
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    飲酒習慣
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    最高活動能力
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    情緒表現
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    備註
-                  </th>
+                  {/* 吸煙/飲酒/最高活動能力/情緒表現/備註表頭已移除 */}
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     操作
                   </th>
@@ -1036,25 +956,7 @@ const HealthAssessments: React.FC = () => {
                               {assessment.status === 'active' ? '生效中' : '已歸檔'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {assessment.smoking_habit || '-'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {assessment.drinking_habit || '-'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {assessment.daily_activities?.max_activity || '-'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {Array.isArray(assessment.emotional_expression)
-                              ? assessment.emotional_expression.join('、')
-                              : (assessment.emotional_expression || '-')}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 max-w-xs">
-                            <div className="truncate" title={assessment.remarks || ''}>
-                              {assessment.remarks || '-'}
-                            </div>
-                          </td>
+                          {/* 吸煙/飲酒/最高活動能力/情緒表現/備註資料列已移除 */}
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                             <div className="flex space-x-2">
                               <button
