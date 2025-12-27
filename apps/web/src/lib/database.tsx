@@ -262,7 +262,7 @@ export interface HealthAssessment {
 // ============================================
 
 export type PlanType = '首月計劃' | '半年計劃' | '年度計劃';
-export type ProblemCategory = '護理' | '物理治療' | '職業治療' | '言語治療' | '營養師' | '醫生';
+export type ProblemCategory = '護理' | '物理治療' | '職業治療' | '言語治療' | '營養師' | '醫生' | '社工';
 export type OutcomeReview = '保持現狀' | '滿意' | '部分滿意' | '需要持續改善';
 
 export interface ProblemLibrary {
@@ -289,6 +289,13 @@ export interface NursingNeedItem {
   updated_at: string;
 }
 
+// 個案會議專業評估記錄
+export interface CaseConferenceProfessional {
+  category: ProblemCategory;
+  assessor: string;
+  assessment_date: string;
+}
+
 export interface CarePlan {
   id: string;
   patient_id: number;
@@ -303,6 +310,11 @@ export interface CarePlan {
   status: 'active' | 'archived';
   archived_at?: string;
   remarks?: string;
+  // 個案會議欄位
+  case_conference_date?: string;
+  case_conference_professionals?: CaseConferenceProfessional[];
+  family_contact_date?: string;
+  family_member_name?: string;
   created_at: string;
   updated_at: string;
 }

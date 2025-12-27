@@ -13,7 +13,8 @@ import {
   History,
   CheckCircle,
   AlertCircle,
-  Clock
+  Clock,
+  Users
 } from 'lucide-react';
 import { 
   usePatients, 
@@ -25,27 +26,31 @@ import {
   type ProblemCategory,
   type OutcomeReview,
   type ProblemLibrary,
-  type NursingNeedItem
+  type NursingNeedItem,
+  type CaseConferenceProfessional
 } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
+import { getPatientContacts, type PatientContact } from '../lib/database';
 import PatientAutocomplete from './PatientAutocomplete';
 
 interface CarePlanModalProps {
   plan?: CarePlan | null;
   onClose: () => void;
   defaultPatientId?: number;
+  isDuplicate?: boolean; // 是否為另存模式
 }
 
-type TabType = 'basic' | 'nursing' | 'problems' | 'history';
+type TabType = 'basic' | 'nursing' | 'problems' | 'review' | 'conference';
 
 const PLAN_TYPES: PlanType[] = ['首月計劃', '半年計劃', '年度計劃'];
-const PROBLEM_CATEGORIES: ProblemCategory[] = ['護理', '物理治療', '職業治療', '言語治療', '營養師', '醫生'];
+const PROBLEM_CATEGORIES: ProblemCategory[] = ['護理', '社工', '物理治療', '職業治療', '言語治療', '營養師', '醫生'];
 const OUTCOME_REVIEWS: OutcomeReview[] = ['保持現狀', '滿意', '部分滿意', '需要持續改善'];
 
 const CarePlanModal: React.FC<CarePlanModalProps> = ({
   plan,
   onClose,
-  defaultPatientId
+  defaultPatientId,
+  isDuplicate = false
 }) => {
   const { 
     patients, 
@@ -55,9 +60,9 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     problemLibrary,
     nursingNeedItems,
     getCarePlanWithDetails,
-    getCarePlanHistory,
     addProblemToLibrary,
-    addNursingNeedItem
+    addNursingNeedItem,
+    diagnosisRecords
   } = usePatients();
   const { displayName } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -70,14 +75,20 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
   
   // 基本資訊
   const [formData, setFormData] = useState({
-    plan_date: plan?.plan_date || new Date().toISOString().split('T')[0],
-    plan_type: (plan?.plan_type || '首月計劃') as PlanType,
+    plan_date: isDuplicate ? new Date().toISOString().split('T')[0] : (plan?.plan_date || new Date().toISOString().split('T')[0]),
+    plan_type: (isDuplicate ? '半年計劃' : (plan?.plan_type || '首月計劃')) as PlanType,
     remarks: plan?.remarks || ''
   });
   
+  // 計算的復檢到期日（用於顯示）
+  const [calculatedReviewDueDate, setCalculatedReviewDueDate] = useState<string>('');
+  
   // 護理需要
-  const [nursingNeeds, setNursingNeeds] = useState<Map<string, { has_need: boolean; remarks: string }>>(new Map());
+  const [nursingNeeds, setNursingNeeds] = useState<Map<string, boolean>>(new Map());
   const [newNursingNeedName, setNewNursingNeedName] = useState('');
+  
+  // 一鍵檢討下拉選單的 key，用於強制重置
+  const [bulkReviewKey, setBulkReviewKey] = useState(0);
   
   // 計劃問題
   const [problems, setProblems] = useState<Array<{
@@ -91,10 +102,6 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     problem_assessor: string;
     outcome_assessor: string;
   }>>([]);
-  
-  // 歷史版本
-  const [historyPlans, setHistoryPlans] = useState<CarePlan[]>([]);
-  const [selectedHistoryPlan, setSelectedHistoryPlan] = useState<CarePlanWithDetails | null>(null);
   
   // 問題庫選擇
   const [selectedCategory, setSelectedCategory] = useState<ProblemCategory>('護理');
@@ -111,6 +118,48 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     interventions: ['']
   });
 
+  // 個案會議
+  const [caseConference, setCaseConference] = useState<{
+    conference_date: string;
+    professionals: { category: ProblemCategory; assessor: string; assessment_date: string }[];
+    family_contact_date: string;
+    family_member_name: string;
+  }>({
+    conference_date: plan?.case_conference_date || '',
+    professionals: plan?.case_conference_professionals || [],
+    family_contact_date: plan?.family_contact_date || '',
+    family_member_name: plan?.family_member_name || ''
+  });
+  const [patientContacts, setPatientContacts] = useState<PatientContact[]>([]);
+
+  // 載入患者聯絡人
+  useEffect(() => {
+    const loadContacts = async () => {
+      if (selectedPatientId) {
+        try {
+          const contacts = await getPatientContacts(selectedPatientId);
+          setPatientContacts(contacts);
+        } catch (error) {
+          console.error('載入聯絡人失敗:', error);
+        }
+      }
+    };
+    loadContacts();
+  }, [selectedPatientId]);
+
+  // 初始化復檢到期日
+  useEffect(() => {
+    if (formData.plan_date && formData.plan_type) {
+      const reviewDate = new Date(formData.plan_date);
+      if (formData.plan_type === '首月計劃' || formData.plan_type === '半年計劃') {
+        reviewDate.setMonth(reviewDate.getMonth() + 6);
+      } else if (formData.plan_type === '年度計劃') {
+        reviewDate.setFullYear(reviewDate.getFullYear() + 1);
+      }
+      setCalculatedReviewDueDate(reviewDate.toISOString().split('T')[0]);
+    }
+  }, []);
+
   // 載入現有計劃詳情
   useEffect(() => {
     const loadPlanDetails = async () => {
@@ -120,12 +169,9 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
           const details = await getCarePlanWithDetails(plan.id);
           if (details) {
             // 設定護理需要
-            const needsMap = new Map<string, { has_need: boolean; remarks: string }>();
+            const needsMap = new Map<string, boolean>();
             details.nursing_needs.forEach(nn => {
-              needsMap.set(nn.nursing_need_item_id, {
-                has_need: nn.has_need,
-                remarks: nn.remarks || ''
-              });
+              needsMap.set(nn.nursing_need_item_id, nn.has_need);
             });
             setNursingNeeds(needsMap);
             
@@ -142,10 +188,6 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
               outcome_assessor: p.outcome_assessor || ''
             })));
           }
-          
-          // 載入歷史版本
-          const history = await getCarePlanHistory(plan.id);
-          setHistoryPlans(history);
         } catch (error) {
           console.error('載入計劃詳情失敗:', error);
         } finally {
@@ -153,16 +195,16 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
         }
       } else {
         // 新增模式：初始化護理需要
-        const needsMap = new Map<string, { has_need: boolean; remarks: string }>();
+        const needsMap = new Map<string, boolean>();
         nursingNeedItems.forEach(item => {
-          needsMap.set(item.id, { has_need: false, remarks: '' });
+          needsMap.set(item.id, false);
         });
         setNursingNeeds(needsMap);
       }
     };
     
     loadPlanDetails();
-  }, [plan, getCarePlanWithDetails, getCarePlanHistory, nursingNeedItems]);
+  }, [plan, getCarePlanWithDetails, nursingNeedItems]);
   
   // 計算「整體」護理需要（自動計算）
   const overallNursingNeed = useMemo(() => {
@@ -171,9 +213,9 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     
     // 檢查除了「整體」之外是否有任何「有」的需要
     let hasAnyNeed = false;
-    nursingNeeds.forEach((value, key) => {
+    nursingNeeds.forEach((hasNeed, key) => {
       const item = nursingNeedItems.find(i => i.id === key);
-      if (item && item.name !== '整體' && value.has_need) {
+      if (item && item.name !== '整體' && hasNeed) {
         hasAnyNeed = true;
       }
     });
@@ -204,11 +246,10 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     return !hasFirstMonthPlan && new Date() <= deadline;
   }, [selectedPatientId, patients, carePlans, plan]);
   
-  const handleNursingNeedChange = (itemId: string, field: 'has_need' | 'remarks', value: boolean | string) => {
+  const handleNursingNeedChange = (itemId: string, value: boolean) => {
     setNursingNeeds(prev => {
       const newMap = new Map(prev);
-      const current = newMap.get(itemId) || { has_need: false, remarks: '' };
-      newMap.set(itemId, { ...current, [field]: value });
+      newMap.set(itemId, value);
       return newMap;
     });
   };
@@ -303,7 +344,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
       // 添加到當前護理需要
       setNursingNeeds(prev => {
         const newMap = new Map(prev);
-        newMap.set(newItem.id, { has_need: false, remarks: '' });
+        newMap.set(newItem.id, false);
         return newMap;
       });
       
@@ -348,15 +389,6 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     }
   };
   
-  const handleViewHistoryPlan = async (historyPlan: CarePlan) => {
-    try {
-      const details = await getCarePlanWithDetails(historyPlan.id);
-      setSelectedHistoryPlan(details);
-    } catch (error) {
-      console.error('載入歷史計劃失敗:', error);
-    }
-  };
-  
   const handleSubmit = async () => {
     if (!selectedPatientId) {
       alert('請選擇院友');
@@ -373,19 +405,17 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     try {
       // 準備護理需要資料（包含自動計算的整體）
       const overallItem = nursingNeedItems.find(item => item.name === '整體');
-      const nursingNeedsData = Array.from(nursingNeeds.entries()).map(([itemId, value]) => {
+      const nursingNeedsData = Array.from(nursingNeeds.entries()).map(([itemId, hasNeed]) => {
         // 如果是整體項目，使用自動計算的值
         if (overallItem && itemId === overallItem.id) {
           return {
             nursing_need_item_id: itemId,
-            has_need: overallNursingNeed,
-            remarks: value.remarks
+            has_need: overallNursingNeed
           };
         }
         return {
           nursing_need_item_id: itemId,
-          has_need: value.has_need,
-          remarks: value.remarks
+          has_need: hasNeed
         };
       });
       
@@ -402,14 +432,18 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
         display_order: 0
       }));
       
-      if (plan?.id) {
+      if (plan?.id && !isDuplicate) {
         // 更新
         await updateCarePlan(
           plan.id,
           {
             plan_date: formData.plan_date,
             plan_type: formData.plan_type,
-            remarks: formData.remarks
+            remarks: formData.remarks,
+            case_conference_date: caseConference.conference_date || undefined,
+            case_conference_professionals: caseConference.professionals.length > 0 ? caseConference.professionals : undefined,
+            family_contact_date: caseConference.family_contact_date || undefined,
+            family_member_name: caseConference.family_member_name || undefined
           },
           nursingNeedsData,
           problemsData
@@ -428,7 +462,11 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
             version_number: maxVersion + 1,
             created_by: displayName || '',
             status: 'active',
-            remarks: formData.remarks
+            remarks: formData.remarks,
+            case_conference_date: caseConference.conference_date || undefined,
+            case_conference_professionals: caseConference.professionals.length > 0 ? caseConference.professionals : undefined,
+            family_contact_date: caseConference.family_contact_date || undefined,
+            family_member_name: caseConference.family_member_name || undefined
           },
           nursingNeedsData,
           problemsData
@@ -448,7 +486,8 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     { id: 'basic' as TabType, label: '基本資訊', icon: User },
     { id: 'nursing' as TabType, label: '護理需要', icon: Activity },
     { id: 'problems' as TabType, label: '計劃內容', icon: FileText },
-    { id: 'history' as TabType, label: '歷史版本', icon: History }
+    { id: 'review' as TabType, label: '成效檢討', icon: CheckCircle },
+    { id: 'conference' as TabType, label: '個案會議', icon: Users }
   ];
 
   return (
@@ -457,7 +496,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">
-            {plan ? '編輯個人照顧計劃' : '新增個人照顧計劃'}
+            {isDuplicate ? '另存個人照顧計劃' : (plan ? '編輯個人照顧計劃' : '新增個人照顧計劃')}
           </h2>
           <button
             onClick={onClose}
@@ -522,23 +561,72 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                           const patient = patients.find(p => p.院友id === selectedPatientId);
                           const patientPlans = carePlans.filter(p => p.patient_id === selectedPatientId && p.id !== plan?.id).sort((a, b) => new Date(b.plan_date).getTime() - new Date(a.plan_date).getTime());
                           const lastPlan = patientPlans[0];
+                          const patientDiagnoses = diagnosisRecords.filter(d => d.patient_id === selectedPatientId);
+                          const hasDiagnosis = patientDiagnoses.length > 0;
+                          const hasAllergy = patient?.藥物敏感 && patient.藥物敏感.length > 0;
+                          const hasAdverseReaction = patient?.不良藥物反應 && patient.不良藥物反應.length > 0;
+                          
                           return (
-                            <div className="grid grid-cols-3 gap-4 text-sm">
-                              <div>
-                                <span className="text-gray-500">上次復檢日期：</span>
-                                <span className="font-medium">
-                                  {lastPlan?.plan_date ? new Date(lastPlan.plan_date).toLocaleDateString('zh-TW') : '-'}
-                                </span>
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-3 gap-4 text-sm">
+                                <div>
+                                  <span className="text-gray-500">上次復檢日期：</span>
+                                  <span className="font-medium">
+                                    {lastPlan?.review_due_date ? new Date(lastPlan.review_due_date).toLocaleDateString('zh-TW') : '-'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">入住日期：</span>
+                                  <span className="font-medium">
+                                    {patient?.入住日期 ? new Date(patient.入住日期).toLocaleDateString('zh-TW') : '-'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">在住狀態：</span>
+                                  <span className="font-medium">{patient?.在住狀態 || '-'}</span>
+                                </div>
                               </div>
-                              <div>
-                                <span className="text-gray-500">入住日期：</span>
-                                <span className="font-medium">
-                                  {patient?.入住日期 ? new Date(patient.入住日期).toLocaleDateString('zh-TW') : '-'}
-                                </span>
+                              <div className="grid grid-cols-3 gap-4 text-sm">
+                                <div>
+                                  <span className="text-gray-500">入住類型：</span>
+                                  <span className="font-medium">{patient?.入住類型 || '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">護理等級：</span>
+                                  <span className="font-medium">{patient?.護理等級 || '-'}</span>
+                                </div>
                               </div>
-                              <div>
-                                <span className="text-gray-500">在住狀態：</span>
-                                <span className="font-medium">{patient?.在住狀態 || '-'}</span>
+                              
+                              <div className="border-t border-blue-200 pt-3 mt-3">
+                                <div className="space-y-2">
+                                  <div className="text-sm">
+                                    <span className="text-gray-500">診斷：</span>
+                                    <span className="font-medium ml-2">
+                                      {hasDiagnosis ? (
+                                        patientDiagnoses.map((record, idx) => (
+                                          <span key={idx}>
+                                            {idx > 0 && '、'}
+                                            {record.diagnosis_item}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        '-'
+                                      )}
+                                    </span>
+                                  </div>
+                                  <div className="text-sm">
+                                    <span className="text-gray-500">藥物過敏：</span>
+                                    <span className="font-medium ml-2">
+                                      {hasAllergy ? patient?.藥物敏感?.join('、') : 'NKDA'}
+                                    </span>
+                                  </div>
+                                  <div className="text-sm">
+                                    <span className="text-gray-500">藥物不良反應：</span>
+                                    <span className="font-medium ml-2">
+                                      {hasAdverseReaction ? patient?.不良藥物反應?.join('、') : 'NKADR'}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           );
@@ -546,48 +634,109 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                       </div>
                     )}
                     
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        計劃日期 <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.plan_date}
-                        onChange={(e) => setFormData(prev => ({ ...prev, plan_date: e.target.value }))}
-                        className="form-input"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        計劃類型 <span className="text-red-500">*</span>
-                      </label>
+                    <div className="col-span-2 grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          計劃類型 <span className="text-red-500">*</span>
+                        </label>
                       <select
                         value={formData.plan_type}
-                        onChange={(e) => setFormData(prev => ({ ...prev, plan_type: e.target.value as PlanType }))}
+                        onChange={(e) => {
+                          const newPlanType = e.target.value as PlanType;
+                          setFormData(prev => ({ ...prev, plan_type: newPlanType }));
+                          
+                          // 自動計算計劃日期和復檢到期日（僅在另存或新增模式時）
+                          if (selectedPatientId && (isDuplicate || !plan)) {
+                            const patient = patients.find(p => p.院友id === selectedPatientId);
+                            const patientPlans = carePlans
+                              .filter(p => p.patient_id === selectedPatientId && (!plan || p.id !== plan.id))
+                              .sort((a, b) => new Date(b.plan_date).getTime() - new Date(a.plan_date).getTime());
+                            const lastPlan = patientPlans[0];
+                            
+                            let calculatedPlanDate = new Date();
+                            
+                            if (newPlanType === '首月計劃') {
+                              // 首月計劃：入住日期 + 30天
+                              if (patient?.入住日期) {
+                                calculatedPlanDate = new Date(patient.入住日期);
+                                calculatedPlanDate.setDate(calculatedPlanDate.getDate() + 30);
+                              }
+                            } else if (newPlanType === '半年計劃') {
+                              // 半年計劃：上次復檢到期日（如果沒有則用今天）
+                              if (lastPlan?.review_due_date) {
+                                calculatedPlanDate = new Date(lastPlan.review_due_date);
+                              }
+                            } else if (newPlanType === '年度計劃') {
+                              // 年度計劃：上次復檢到期日（如果沒有則用今天）
+                              if (lastPlan?.review_due_date) {
+                                calculatedPlanDate = new Date(lastPlan.review_due_date);
+                              }
+                            }
+                            
+                            const planDateStr = calculatedPlanDate.toISOString().split('T')[0];
+                            setFormData(prev => ({ ...prev, plan_date: planDateStr }));
+                            
+                            // 計算復檢到期日
+                            const reviewDate = new Date(calculatedPlanDate);
+                            if (newPlanType === '首月計劃' || newPlanType === '半年計劃') {
+                              reviewDate.setMonth(reviewDate.getMonth() + 6);
+                            } else if (newPlanType === '年度計劃') {
+                              reviewDate.setFullYear(reviewDate.getFullYear() + 1);
+                            }
+                            setCalculatedReviewDueDate(reviewDate.toISOString().split('T')[0]);
+                          }
+                        }}
                         className="form-input"
                       >
                         {PLAN_TYPES.map(type => (
                           <option key={type} value={type}>{type}</option>
                         ))}
                       </select>
-                      {shouldBeFirstMonthPlan && formData.plan_type !== '首月計劃' && (
-                        <p className="mt-1 text-sm text-amber-600 flex items-center">
-                          <AlertCircle className="h-4 w-4 mr-1" />
-                          此院友尚在入住30天內，建議選擇「首月計劃」
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">備註</label>
-                      <textarea
-                        value={formData.remarks}
-                        onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
-                        className="form-input"
-                        rows={3}
-                        placeholder="輸入備註..."
-                      />
+                        {shouldBeFirstMonthPlan && formData.plan_type !== '首月計劃' && (
+                          <p className="mt-1 text-sm text-amber-600 flex items-center">
+                            <AlertCircle className="h-4 w-4 mr-1" />
+                            此院友尚在入住30天內，建議選擇「首月計劃」
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          計劃日期 <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.plan_date}
+                          onChange={(e) => {
+                            const newPlanDate = e.target.value;
+                            setFormData(prev => ({ ...prev, plan_date: newPlanDate }));
+                            
+                            // 當手動修改計劃日期時，重新計算復檢到期日
+                            if (newPlanDate) {
+                              const reviewDate = new Date(newPlanDate);
+                              if (formData.plan_type === '首月計劃' || formData.plan_type === '半年計劃') {
+                                reviewDate.setMonth(reviewDate.getMonth() + 6);
+                              } else if (formData.plan_type === '年度計劃') {
+                                reviewDate.setFullYear(reviewDate.getFullYear() + 1);
+                              }
+                              setCalculatedReviewDueDate(reviewDate.toISOString().split('T')[0]);
+                            }
+                          }}
+                          className="form-input"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          下次復檢日期
+                        </label>
+                        <input
+                          type="date"
+                          value={calculatedReviewDueDate}
+                          readOnly
+                          className="form-input bg-gray-50 cursor-not-allowed"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -605,9 +754,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                   <div className="space-y-4">
                     {nursingNeedItems.map(item => {
                       const isOverall = item.name === '整體';
-                      const needValue = isOverall 
-                        ? { has_need: overallNursingNeed, remarks: nursingNeeds.get(item.id)?.remarks || '' }
-                        : (nursingNeeds.get(item.id) || { has_need: false, remarks: '' });
+                      const hasNeed = isOverall ? overallNursingNeed : (nursingNeeds.get(item.id) || false);
                       
                       return (
                         <div key={item.id} className={`flex items-center space-x-4 p-3 rounded-lg ${isOverall ? 'bg-blue-50' : 'bg-gray-50'}`}>
@@ -621,8 +768,8 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                               <input
                                 type="radio"
                                 name={`nursing-${item.id}`}
-                                checked={!needValue.has_need}
-                                onChange={() => !isOverall && handleNursingNeedChange(item.id, 'has_need', false)}
+                                checked={!hasNeed}
+                                onChange={() => !isOverall && handleNursingNeedChange(item.id, false)}
                                 disabled={isOverall}
                                 className="form-radio"
                               />
@@ -632,8 +779,8 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                               <input
                                 type="radio"
                                 name={`nursing-${item.id}`}
-                                checked={needValue.has_need}
-                                onChange={() => !isOverall && handleNursingNeedChange(item.id, 'has_need', true)}
+                                checked={hasNeed}
+                                onChange={() => !isOverall && handleNursingNeedChange(item.id, true)}
                                 disabled={isOverall}
                                 className="form-radio"
                               />
@@ -697,13 +844,6 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                       >
                         <FileText className="h-4 w-4" />
                         <span>從問題庫選取</span>
-                      </button>
-                      <button
-                        onClick={() => setShowAddProblem(true)}
-                        className="btn-secondary flex items-center space-x-1"
-                      >
-                        <Plus className="h-4 w-4" />
-                        <span>新增至問題庫</span>
                       </button>
                       <button
                         onClick={handleAddProblem}
@@ -865,140 +1005,294 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                 </div>
               )}
 
-              {/* 歷史版本 Tab */}
-              {activeTab === 'history' && (
+              {/* 成效檢討 Tab */}
+              {activeTab === 'review' && (
                 <div className="space-y-6">
-                  {!plan ? (
+                  {problems.length === 0 ? (
                     <div className="text-center py-8 bg-gray-50 rounded-lg">
-                      <History className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                      <p className="text-gray-500">新增計劃後可查看歷史版本</p>
-                    </div>
-                  ) : historyPlans.length === 0 ? (
-                    <div className="text-center py-8 bg-gray-50 rounded-lg">
-                      <History className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                      <p className="text-gray-500">暫無歷史版本</p>
+                      <CheckCircle className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                      <p className="text-gray-500">尚未新增問題，請在「計劃內容」分頁中新增問題</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-4">
-                      {/* 版本列表 */}
-                      <div className="col-span-1 space-y-2">
-                        <h4 className="font-medium text-gray-700 mb-2">版本列表</h4>
-                        {historyPlans.map(hp => (
-                          <button
-                            key={hp.id}
-                            onClick={() => handleViewHistoryPlan(hp)}
-                            className={`w-full text-left p-3 rounded border transition-colors ${
-                              selectedHistoryPlan?.id === hp.id
-                                ? 'border-blue-500 bg-blue-50'
-                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            } ${hp.id === plan.id ? 'ring-2 ring-blue-300' : ''}`}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="bg-blue-50 p-4 rounded-lg flex-1">
+                          <p className="text-sm text-blue-800">
+                            請對每個問題進行成效檢討，選擇最合適的評估結果。
+                          </p>
+                        </div>
+                        
+                        {/* 一鍵檢訊 */}
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-600">一鍵檢討：</span>
+                          <select
+                            key={bulkReviewKey}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                const review = e.target.value as OutcomeReview;
+                                setProblems(prev => prev.map(p => ({ ...p, outcome_review: review })));
+                                // 增加 key 值來強制重置組件
+                                setBulkReviewKey(prev => prev + 1);
+                              }
+                            }}
+                            className="form-input text-sm"
+                            defaultValue=""
                           >
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium">v{hp.version_number}</span>
-                              <span className={`text-xs px-2 py-0.5 rounded ${
-                                hp.plan_type === '首月計劃' ? 'bg-green-100 text-green-700' :
-                                hp.plan_type === '半年計劃' ? 'bg-blue-100 text-blue-700' :
-                                'bg-purple-100 text-purple-700'
-                              }`}>
-                                {hp.plan_type}
-                              </span>
-                            </div>
-                            <div className="text-sm text-gray-500 mt-1">
-                              {new Date(hp.plan_date).toLocaleDateString('zh-TW')}
-                            </div>
-                            {hp.id === plan.id && (
-                              <span className="text-xs text-blue-600">（當前版本）</span>
-                            )}
-                            {hp.reviewed_at && (
-                              <div className="flex items-center text-xs text-green-600 mt-1">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                已復檢
-                              </div>
-                            )}
-                          </button>
-                        ))}
+                            <option value="">選擇評估...</option>
+                            {OUTCOME_REVIEWS.map(review => (
+                              <option key={review} value={review}>{review}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                       
-                      {/* 版本詳情 */}
-                      <div className="col-span-2">
-                        {selectedHistoryPlan ? (
-                          <div className="border rounded-lg p-4 bg-gray-50">
-                            <h4 className="font-medium text-gray-700 mb-4">
-                              版本 {selectedHistoryPlan.version_number} 詳情
-                            </h4>
-                            
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <span className="text-gray-500">計劃日期：</span>
-                                  <span className="font-medium">
-                                    {new Date(selectedHistoryPlan.plan_date).toLocaleDateString('zh-TW')}
+                      {problems
+                        .map((problem, originalIndex) => ({ problem, originalIndex }))
+                        .sort((a, b) => {
+                          // 未檢討的排在前面
+                          const aReviewed = a.problem.outcome_review ? 1 : 0;
+                          const bReviewed = b.problem.outcome_review ? 1 : 0;
+                          return aReviewed - bReviewed;
+                        })
+                        .map(({ problem, originalIndex: index }) => (
+                        <div key={index} className="border rounded-lg p-4 bg-white">
+                          <div className="space-y-3">
+                            {/* 問題標題 */}
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-sm font-medium">
+                                    問題 {index + 1}
+                                  </span>
+                                  <span className={`px-2 py-1 rounded text-xs ${
+                                    problem.problem_category === '護理' ? 'bg-blue-100 text-blue-700' :
+                                    problem.problem_category === '物理治療' ? 'bg-green-100 text-green-700' :
+                                    problem.problem_category === '職業治療' ? 'bg-purple-100 text-purple-700' :
+                                    problem.problem_category === '言語治療' ? 'bg-amber-100 text-amber-700' :
+                                    problem.problem_category === '營養師' ? 'bg-pink-100 text-pink-700' :
+                                    'bg-red-100 text-red-700'
+                                  }`}>
+                                    {problem.problem_category}
                                   </span>
                                 </div>
-                                <div>
-                                  <span className="text-gray-500">計劃類型：</span>
-                                  <span className="font-medium">{selectedHistoryPlan.plan_type}</span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">建立人員：</span>
-                                  <span className="font-medium">{selectedHistoryPlan.created_by || '-'}</span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">問題數量：</span>
-                                  <span className="font-medium">{selectedHistoryPlan.problem_count}</span>
-                                </div>
-                              </div>
-                              
-                              {/* 護理需要摘要 */}
-                              <div>
-                                <h5 className="text-sm font-medium text-gray-700 mb-2">護理需要</h5>
-                                <div className="flex flex-wrap gap-2">
-                                  {selectedHistoryPlan.nursing_needs
-                                    .filter(nn => nn.has_need)
-                                    .map(nn => (
-                                      <span key={nn.id} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-                                        {nn.item_name}
-                                      </span>
-                                    ))}
-                                  {selectedHistoryPlan.nursing_needs.filter(nn => nn.has_need).length === 0 && (
-                                    <span className="text-gray-500 text-sm">無</span>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              {/* 問題列表 */}
-                              <div>
-                                <h5 className="text-sm font-medium text-gray-700 mb-2">問題列表</h5>
-                                {selectedHistoryPlan.problems.length === 0 ? (
-                                  <span className="text-gray-500 text-sm">無問題記錄</span>
-                                ) : (
-                                  <div className="space-y-2">
-                                    {selectedHistoryPlan.problems.map((p, i) => (
-                                      <div key={p.id} className="bg-white p-3 rounded border text-sm">
-                                        <div className="flex items-center justify-between">
-                                          <span className="font-medium">{i + 1}. {p.problem_description}</span>
-                                          <span className="text-xs text-gray-500">{p.problem_category}</span>
-                                        </div>
-                                        {p.outcome_review && (
-                                          <div className="mt-1 text-xs text-gray-600">
-                                            成效：{p.outcome_review}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
+                                <p className="text-sm font-medium text-gray-900">{problem.problem_description}</p>
                               </div>
                             </div>
+                            
+                            {/* 期待目標 */}
+                            {problem.expected_goals.filter(g => g.trim()).length > 0 && (
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">期待目標</label>
+                                <ul className="list-disc list-inside space-y-1">
+                                  {problem.expected_goals.filter(g => g.trim()).map((goal, gi) => (
+                                    <li key={gi} className="text-sm text-gray-600">{goal}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            {/* 介入方式 */}
+                            {problem.interventions.filter(i => i.trim()).length > 0 && (
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">介入方式</label>
+                                <ul className="list-disc list-inside space-y-1">
+                                  {problem.interventions.filter(i => i.trim()).map((intervention, ii) => (
+                                    <li key={ii} className="text-sm text-gray-600">{intervention}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            {/* 成效檢討選項 */}
+                            <div className="pt-3 border-t">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">成效檢討</label>
+                              <div className="flex flex-wrap gap-3">
+                                {OUTCOME_REVIEWS.map(review => (
+                                  <label 
+                                    key={review} 
+                                    className="flex items-center space-x-2 cursor-pointer"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      // 如果再次點擊已選中的選項，則取消選擇
+                                      if (problem.outcome_review === review) {
+                                        handleProblemChange(index, 'outcome_review', undefined);
+                                      } else {
+                                        handleProblemChange(index, 'outcome_review', review);
+                                      }
+                                    }}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name={`outcome-review-${index}`}
+                                      checked={problem.outcome_review === review}
+                                      onChange={() => {}} // 空函數避免 React 警告
+                                      className="form-radio h-4 w-4 text-blue-600 pointer-events-none"
+                                    />
+                                    <span className="text-sm">{review}</span>
+                                  </label>
+                                ))}
+                              </div>
+                              {problem.outcome_review ? (
+                                <div className="mt-2 flex items-center text-xs text-green-600">
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  已選擇：{problem.outcome_review}
+                                </div>
+                              ) : (
+                                <div className="mt-2 flex items-center text-xs text-amber-600">
+                                  <AlertCircle className="h-4 w-4 mr-1" />
+                                  待檢討
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        ) : (
-                          <div className="flex items-center justify-center h-full text-gray-400">
-                            選擇版本查看詳情
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* 個案會議 Tab */}
+              {activeTab === 'conference' && (
+                <div className="space-y-6">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="text-lg font-medium text-blue-800 mb-2">個案會議記錄</h3>
+                    <p className="text-sm text-blue-600">記錄個案會議資訊，包括各專業評估者和評估日期</p>
+                  </div>
+
+                  {/* 會議日期 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">會議日期</label>
+                    <input
+                      type="date"
+                      value={caseConference.conference_date}
+                      onChange={(e) => setCaseConference(prev => ({ ...prev, conference_date: e.target.value }))}
+                      className="form-input w-full max-w-xs"
+                    />
+                  </div>
+
+                  {/* 各專業評估 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">各專業評估</label>
+                    <div className="space-y-3">
+                      {PROBLEM_CATEGORIES.map(category => {
+                        // 檢查計劃是否有該專業的問題
+                        const hasProblem = problems.some(p => p.problem_category === category);
+                        const profData = caseConference.professionals.find(p => p.category === category);
+                        // 獲取該專業問題的評估者作為默認值
+                        const defaultAssessor = problems.find(p => p.problem_category === category)?.problem_assessor || '';
+                        
+                        return (
+                          <div key={category} className={`grid grid-cols-3 gap-4 p-3 rounded-lg ${hasProblem ? 'bg-gray-50' : 'bg-gray-100 opacity-60'}`}>
+                            <div className="flex items-center">
+                              <span className={`text-sm font-medium ${hasProblem ? 'text-gray-900' : 'text-gray-400'}`}>
+                                {category}
+                              </span>
+                              {!hasProblem && <span className="text-xs text-gray-400 ml-2">(無相關問題)</span>}
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">評估者</label>
+                              <input
+                                type="text"
+                                placeholder={hasProblem ? (defaultAssessor || '輸入評估者') : ''}
+                                value={profData?.assessor || (hasProblem ? defaultAssessor : '')}
+                                onChange={(e) => {
+                                  setCaseConference(prev => {
+                                    const existing = prev.professionals.find(p => p.category === category);
+                                    if (existing) {
+                                      return {
+                                        ...prev,
+                                        professionals: prev.professionals.map(p => 
+                                          p.category === category ? { ...p, assessor: e.target.value } : p
+                                        )
+                                      };
+                                    } else {
+                                      return {
+                                        ...prev,
+                                        professionals: [...prev.professionals, {
+                                          category,
+                                          assessor: e.target.value,
+                                          assessment_date: formData.plan_date
+                                        }]
+                                      };
+                                    }
+                                  });
+                                }}
+                                disabled={!hasProblem}
+                                className="form-input text-sm w-full"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">評估日期</label>
+                              <input
+                                type="date"
+                                value={profData?.assessment_date || (hasProblem ? formData.plan_date : '')}
+                                max={formData.plan_date}
+                                onChange={(e) => {
+                                  setCaseConference(prev => {
+                                    const existing = prev.professionals.find(p => p.category === category);
+                                    if (existing) {
+                                      return {
+                                        ...prev,
+                                        professionals: prev.professionals.map(p => 
+                                          p.category === category ? { ...p, assessment_date: e.target.value } : p
+                                        )
+                                      };
+                                    } else {
+                                      return {
+                                        ...prev,
+                                        professionals: [...prev.professionals, {
+                                          category,
+                                          assessor: defaultAssessor,
+                                          assessment_date: e.target.value
+                                        }]
+                                      };
+                                    }
+                                  });
+                                }}
+                                disabled={!hasProblem}
+                                className="form-input text-sm w-full"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 家屬聯絡 */}
+                  <div className="border-t pt-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">家屬聯絡</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">聯絡家屬/聽取報告日期 (選填)</label>
+                        <input
+                          type="date"
+                          value={caseConference.family_contact_date}
+                          onChange={(e) => setCaseConference(prev => ({ ...prev, family_contact_date: e.target.value }))}
+                          className="form-input w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">院友家屬姓名 (選填)</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            list="family-contacts"
+                            value={caseConference.family_member_name}
+                            onChange={(e) => setCaseConference(prev => ({ ...prev, family_member_name: e.target.value }))}
+                            className="form-input w-full"
+                            placeholder="輸入或選擇聯絡人"
+                          />
+                          <datalist id="family-contacts">
+                            {patientContacts.map(contact => (
+                              <option key={contact.id} value={`${contact.聯絡人姓名}${contact.關係 ? ` (${contact.關係})` : ''}`} />
+                            ))}
+                          </datalist>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </>

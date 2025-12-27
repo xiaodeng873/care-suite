@@ -78,7 +78,7 @@ interface HealthRecord {
 }
 
 const Dashboard: React.FC = () => {
-  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, loading, updatePatientHealthTask, refreshData } = usePatients();
+  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, loading, updatePatientHealthTask, refreshData } = usePatients();
   const [showHealthRecordModal, setShowHealthRecordModal] = useState(false);
   const [selectedHealthRecordInitialData, setSelectedHealthRecordInitialData] = useState<any>({});
   const [showDocumentTaskModal, setShowDocumentTaskModal] = useState(false);
@@ -419,6 +419,18 @@ const Dashboard: React.FC = () => {
     return patients.filter(patient => !vaccinationRecords.some(record => record.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '疫苗記錄' }));
   }, [patients, vaccinationRecords]);
 
+  // 欠缺健康評估的在住院友
+  const missingHealthAssessment = useMemo(() => {
+    const activePatients = patients.filter(p => p.在住狀態 === '在住');
+    return activePatients.filter(patient => !healthAssessments.some(assessment => assessment.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '健康評估' }));
+  }, [patients, healthAssessments]);
+
+  // 欠缺個人護理計劃的在住院友
+  const missingCarePlan = useMemo(() => {
+    const activePatients = patients.filter(p => p.在住狀態 === '在住');
+    return activePatients.filter(patient => !carePlans.some(plan => plan.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '個人護理計劃' }));
+  }, [patients, carePlans]);
+
   const overdueWorkflows = useMemo(() => {
     const result = getPatientsWithOverdueWorkflow(prescriptionWorkflowRecords, patients);
     return result.map(({ patient, overdueCount, overdueDates }) => {
@@ -642,6 +654,20 @@ const Dashboard: React.FC = () => {
     setShowVaccinationModal(true);
   };
 
+  const handleAddHealthAssessment = (patient: any) => {
+    setSelectedHealthAssessment({
+      patient_id: patient.院友id,
+      patient_name: `${patient.中文姓氏}${patient.中文名字}`,
+      bed_number: patient.床號
+    });
+    setShowHealthAssessmentModal(true);
+  };
+
+  const handleAddCarePlan = (patient: any) => {
+    // Navigate to individual care plan page with the patient selected
+    window.location.href = `/individual-care-plan?patient_id=${patient.院友id}`;
+  };
+
   const handleTaskCompleted = async (taskId: string, recordDateTime: Date) => {
     // 1. 立即關閉模態框
     setShowHealthRecordModal(false);
@@ -812,10 +838,14 @@ const Dashboard: React.FC = () => {
             missingMealGuidance={missingMealGuidance}
             missingDeathDate={missingDeathDate}
             missingVaccination={missingVaccination}
+            missingHealthAssessment={missingHealthAssessment}
+            missingCarePlan={missingCarePlan}
             onCreateTask={handleCreateMissingTask}
             onAddMealGuidance={handleAddMealGuidance}
             onEditPatient={handleEditPatientForDeathDate}
             onAddVaccinationRecord={handleAddVaccinationRecord}
+            onAddHealthAssessment={handleAddHealthAssessment}
+            onAddCarePlan={handleAddCarePlan}
           />
         </div>
         <div className="col-span-1"><OverdueWorkflowCard overdueWorkflows={overdueWorkflows} /></div>

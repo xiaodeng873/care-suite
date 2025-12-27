@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Syringe, Utensils, Calendar, AlertTriangle, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
+import { Syringe, Utensils, Calendar, AlertTriangle, ChevronDown, ChevronUp, ArrowRight, Stethoscope, ClipboardList, User } from 'lucide-react';
 
 interface Patient {
-  院友id: string;
+  院友id: number;
   中文姓名: string;
   床號: string;
   中文姓氏?: string;
   中文名字?: string;
+  院友相片?: string;
 }
 
 interface MissingTask {
@@ -24,31 +25,41 @@ interface MissingVaccination {
   missingInfo: string;
 }
 
+interface MissingHealthAssessment {
+  patient: Patient;
+  missingInfo: string;
+}
+
+interface MissingCarePlan {
+  patient: Patient;
+  missingInfo: string;
+}
+
 interface MissingRequirementsCardProps {
   missingTasks: MissingTask[];
   missingMealGuidance: Patient[];
   missingDeathDate: MissingDeathDate[];
   missingVaccination: MissingVaccination[];
+  missingHealthAssessment: MissingHealthAssessment[];
+  missingCarePlan: MissingCarePlan[];
   onCreateTask: (patient: Patient, taskType: '年度體檢' | '生命表徵') => void;
   onAddMealGuidance: (patient: Patient) => void;
   onEditPatient: (patient: Patient) => void;
   onAddVaccinationRecord: (patient: Patient) => void;
+  onAddHealthAssessment: (patient: Patient) => void;
+  onAddCarePlan: (patient: Patient) => void;
 }
 
-interface MixedItem {
-  type: 'task' | 'meal' | 'death' | 'vaccination';
-  patient: Patient;
-  priority: number;
-  color: string;
-  icon: any;
+interface MissingItem {
+  type: 'task' | 'meal' | 'death' | 'vaccination' | 'health-assessment' | 'care-plan';
   label: string;
+  icon: any;
   missingTaskTypes?: string[];
-  missingInfo?: string;
 }
 
-interface GroupedPatientMissing {
+interface PatientMissing {
   patient: Patient;
-  items: MixedItem[];
+  items: MissingItem[];
 }
 
 const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
@@ -56,185 +67,139 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
   missingMealGuidance,
   missingDeathDate,
   missingVaccination,
+  missingHealthAssessment,
+  missingCarePlan,
   onCreateTask,
   onAddMealGuidance,
   onEditPatient,
   onAddVaccinationRecord,
+  onAddHealthAssessment,
+  onAddCarePlan,
 }) => {
   const [showAll, setShowAll] = useState(false);
 
-  // 混合所有欠缺項目
-  const allMissingItems = useMemo<MixedItem[]>(() => {
-    const items: MixedItem[] = [
-      ...missingTasks.map(item => ({
-        type: 'task' as const,
-        patient: item.patient,
-        priority: 1,
-        color: 'red',
-        icon: AlertTriangle,
-        label: `欠缺${item.missingTaskTypes.join('、')}`,
-        missingTaskTypes: item.missingTaskTypes
-      })),
-      ...missingMealGuidance.map(patient => ({
-        type: 'meal' as const,
-        patient,
-        priority: 2,
-        color: 'orange',
-        icon: Utensils,
-        label: '欠缺餐膳指引'
-      })),
-      ...missingDeathDate.map(item => ({
-        type: 'death' as const,
-        patient: item.patient,
-        priority: 3,
-        color: 'purple',
-        icon: Calendar,
-        label: item.missingInfo,
-        missingInfo: item.missingInfo
-      })),
-      ...missingVaccination.map(item => ({
-        type: 'vaccination' as const,
-        patient: item.patient,
-        priority: 4,
-        color: 'teal',
-        icon: Syringe,
-        label: '欠缺疫苗記錄',
-        missingInfo: item.missingInfo
-      }))
-    ];
+  // 按院友分組所有欠缺項目
+  const groupedByPatient = useMemo<PatientMissing[]>(() => {
+    const patientMap = new Map<number, { patient: Patient; items: MissingItem[] }>();
 
-    return items.sort((a, b) => a.priority - b.priority);
-  }, [missingTasks, missingMealGuidance, missingDeathDate, missingVaccination]);
-
-  // 按院友分組
-  const groupedByPatient = useMemo<GroupedPatientMissing[]>(() => {
-    const patientMap = new Map<string, MixedItem[]>();
-
-    allMissingItems.forEach(item => {
-      const patientId = item.patient.院友id;
-      if (!patientMap.has(patientId)) {
-        patientMap.set(patientId, []);
+    // 健康評估
+    missingHealthAssessment.forEach(item => {
+      if (!patientMap.has(item.patient.院友id)) {
+        patientMap.set(item.patient.院友id, { patient: item.patient, items: [] });
       }
-      patientMap.get(patientId)!.push(item);
-    });
-
-    const grouped: GroupedPatientMissing[] = Array.from(patientMap.entries()).map(([_, items]) => ({
-      patient: items[0].patient,
-      items: items.sort((a, b) => a.priority - b.priority)
-    }));
-
-    // 按床號排序
-    return grouped.sort((a, b) => a.patient.床號.localeCompare(b.patient.床號, 'zh-Hant', { numeric: true }));
-  }, [allMissingItems]);
-
-  // 展平為單個項目列表，但保持分組順序
-  const flattenedItems = useMemo(() => {
-    const flattened: MixedItem[] = [];
-    groupedByPatient.forEach(group => {
-      group.items.forEach(item => {
-        flattened.push(item);
+      patientMap.get(item.patient.院友id)!.items.push({
+        type: 'health-assessment',
+        label: '健康評估',
+        icon: Stethoscope
       });
     });
-    return flattened;
-  }, [groupedByPatient]);
+
+    // 個人護理計劃
+    missingCarePlan.forEach(item => {
+      if (!patientMap.has(item.patient.院友id)) {
+        patientMap.set(item.patient.院友id, { patient: item.patient, items: [] });
+      }
+      patientMap.get(item.patient.院友id)!.items.push({
+        type: 'care-plan',
+        label: '個人護理計劃',
+        icon: ClipboardList
+      });
+    });
+
+    // 任務 (年度體檢、生命表徵)
+    missingTasks.forEach(item => {
+      if (!patientMap.has(item.patient.院友id)) {
+        patientMap.set(item.patient.院友id, { patient: item.patient, items: [] });
+      }
+      patientMap.get(item.patient.院友id)!.items.push({
+        type: 'task',
+        label: item.missingTaskTypes.join('、'),
+        icon: AlertTriangle,
+        missingTaskTypes: item.missingTaskTypes
+      });
+    });
+
+    // 餐膳指引
+    missingMealGuidance.forEach(patient => {
+      if (!patientMap.has(patient.院友id)) {
+        patientMap.set(patient.院友id, { patient, items: [] });
+      }
+      patientMap.get(patient.院友id)!.items.push({
+        type: 'meal',
+        label: '餐膳指引',
+        icon: Utensils
+      });
+    });
+
+    // 死亡日期
+    missingDeathDate.forEach(item => {
+      if (!patientMap.has(item.patient.院友id)) {
+        patientMap.set(item.patient.院友id, { patient: item.patient, items: [] });
+      }
+      patientMap.get(item.patient.院友id)!.items.push({
+        type: 'death',
+        label: '死亡日期',
+        icon: Calendar
+      });
+    });
+
+    // 疫苗記錄
+    missingVaccination.forEach(item => {
+      if (!patientMap.has(item.patient.院友id)) {
+        patientMap.set(item.patient.院友id, { patient: item.patient, items: [] });
+      }
+      patientMap.get(item.patient.院友id)!.items.push({
+        type: 'vaccination',
+        label: '疫苗記錄',
+        icon: Syringe
+      });
+    });
+
+    // 轉換為陣列並按床號排序
+    return Array.from(patientMap.values()).sort((a, b) => 
+      a.patient.床號.localeCompare(b.patient.床號, 'zh-Hant', { numeric: true })
+    );
+  }, [missingTasks, missingMealGuidance, missingDeathDate, missingVaccination, missingHealthAssessment, missingCarePlan]);
 
   const totalMissing = groupedByPatient.length;
-  const displayItems = showAll ? flattenedItems : flattenedItems.slice(0, 2);
+  const displayPatients = showAll ? groupedByPatient : groupedByPatient.slice(0, 3);
 
   if (totalMissing === 0) return null;
 
-  const getColorClasses = (color: string) => {
-    const classes = {
-      red: {
-        bg: 'bg-red-50',
-        border: 'border-red-200',
-        text: 'text-red-800',
-        btn: 'bg-red-600 hover:bg-red-700',
-        hover: 'hover:bg-red-50'
-      },
-      orange: {
-        bg: 'bg-orange-50',
-        border: 'border-orange-200',
-        text: 'text-orange-800',
-        btn: 'bg-orange-600 hover:bg-orange-700',
-        hover: 'hover:bg-orange-50'
-      },
-      purple: {
-        bg: 'bg-purple-50',
-        border: 'border-purple-200',
-        text: 'text-purple-800',
-        btn: 'bg-purple-600 hover:bg-purple-700',
-        hover: 'hover:bg-purple-50'
-      },
-      teal: {
-        bg: 'bg-teal-50',
-        border: 'border-teal-200',
-        text: 'text-teal-800',
-        btn: 'bg-teal-600 hover:bg-teal-700',
-        hover: 'hover:bg-teal-50'
-      }
-    };
-    return classes[color as keyof typeof classes] || classes.red;
-  };
-
-  const renderAction = (item: MixedItem) => {
-    const colorClass = getColorClasses(item.color);
-
+  const renderActionButton = (patient: Patient, item: MissingItem) => {
     if (item.type === 'task' && item.missingTaskTypes) {
-      return (
-        <div className="flex space-x-1">
-          {item.missingTaskTypes.map(taskType => (
-            <button
-              key={taskType}
-              onClick={() => onCreateTask(item.patient, taskType as '年度體檢' | '生命表徵')}
-              className={`text-xs text-white px-2 py-1 rounded transition-colors ${colorClass.btn}`}
-              title={`新增${taskType}任務`}
-            >
-              +{taskType}
-            </button>
-          ))}
-        </div>
-      );
-    }
-
-    if (item.type === 'meal') {
-      return (
+      return item.missingTaskTypes.map(taskType => (
         <button
-          onClick={() => onAddMealGuidance(item.patient)}
-          className={`text-xs text-white px-2 py-1 rounded transition-colors ${colorClass.btn}`}
-          title="新增餐膳指引"
+          key={taskType}
+          onClick={(e) => { e.stopPropagation(); onCreateTask(patient, taskType as '年度體檢' | '生命表徵'); }}
+          className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded transition-colors"
+          title={`新增${taskType}`}
         >
-          +餐膳指引
+          +{taskType}
         </button>
-      );
+      ));
     }
 
-    if (item.type === 'death') {
-      return (
-        <button
-          onClick={() => onEditPatient(item.patient)}
-          className={`text-xs text-white px-2 py-1 rounded transition-colors flex items-center space-x-1 ${colorClass.btn}`}
-          title="補充死亡日期"
-        >
-          <span>補充資料</span>
-          <ArrowRight className="h-3 w-3" />
-        </button>
-      );
-    }
+    const buttonConfig: Record<string, { onClick: () => void; label: string }> = {
+      'meal': { onClick: () => onAddMealGuidance(patient), label: '+餐膳指引' },
+      'death': { onClick: () => onEditPatient(patient), label: '補充資料' },
+      'vaccination': { onClick: () => onAddVaccinationRecord(patient), label: '+疫苗記錄' },
+      'health-assessment': { onClick: () => onAddHealthAssessment(patient), label: '+健康評估' },
+      'care-plan': { onClick: () => onAddCarePlan(patient), label: '+個人照顧計劃' },
+    };
 
-    if (item.type === 'vaccination') {
-      return (
-        <button
-          onClick={() => onAddVaccinationRecord(item.patient)}
-          className={`text-xs text-white px-2 py-1 rounded transition-colors ${colorClass.btn}`}
-          title="新增疫苗記錄"
-        >
-          +疫苗記錄
-        </button>
-      );
-    }
+    const config = buttonConfig[item.type];
+    if (!config) return null;
 
-    return null;
+    return (
+      <button
+        onClick={(e) => { e.stopPropagation(); config.onClick(); }}
+        className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded transition-colors"
+        title={config.label}
+      >
+        {config.label}
+      </button>
+    );
   };
 
   return (
@@ -254,59 +219,60 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
       </div>
 
       <div className="space-y-2">
-        {displayItems.map((item, index) => {
-          const colorClass = getColorClasses(item.color);
-          const Icon = item.icon;
-
-          return (
-            <div
-              key={`${item.type}-${item.patient.院友id}-${index}`}
-              className={`p-3 rounded-lg border ${colorClass.bg} ${colorClass.border} ${colorClass.hover} transition-colors`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3 flex-1">
-                  <Icon className={`h-4 w-4 ${colorClass.text}`} />
-                  <div className="flex items-center space-x-2">
-                    <span className={`font-medium ${colorClass.text}`}>
-                      {item.patient.床號} {item.patient.中文姓氏}{item.patient.中文名字}
-                    </span>
-                    <span className="text-sm text-gray-600">- {item.label}</span>
-                  </div>
-                </div>
-                <div className="flex-shrink-0">
-                  {renderAction(item)}
-                </div>
+        {displayPatients.map((group) => (
+          <div
+            key={group.patient.院友id}
+            className="p-3 rounded-lg border bg-red-50 border-red-200 hover:bg-red-100 transition-colors"
+          >
+            {/* 院友信息行 */}
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {group.patient.院友相片 ? (
+                  <img src={group.patient.院友相片} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="h-4 w-4 text-red-600" />
+                )}
+              </div>
+              <div className="flex-1">
+                <span className="font-medium text-red-800">
+                  {group.patient.床號} {group.patient.中文姓氏}{group.patient.中文名字}
+                </span>
+                <span className="ml-2 text-xs text-red-600">
+                  ({group.items.length} 項欠缺)
+                </span>
               </div>
             </div>
-          );
-        })}
 
-        {totalMissing > 2 && (
+            {/* 欠缺項目列表 */}
+            <div className="flex flex-wrap gap-1.5 pl-11">
+              {group.items.map((item, idx) => (
+                <div key={`${item.type}-${idx}`} className="flex space-x-1">
+                  {renderActionButton(group.patient, item)}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {totalMissing > 3 && (
           <button
             onClick={() => setShowAll(!showAll)}
-            className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+            className="w-full p-3 border-2 border-dashed border-red-200 rounded-lg text-sm text-red-600 hover:border-red-300 hover:bg-red-50 transition-colors flex items-center justify-center space-x-2"
           >
             {showAll ? (
               <>
                 <ChevronUp className="h-4 w-4" />
-                <span>收起 (顯示前 2 項)</span>
+                <span>收起 (顯示前 3 位)</span>
               </>
             ) : (
               <>
                 <ChevronDown className="h-4 w-4" />
-                <span>展開查看另外 {totalMissing - 2} 項</span>
+                <span>展開查看另外 {totalMissing - 3} 位院友</span>
               </>
             )}
           </button>
         )}
       </div>
-
-      {totalMissing === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          <AlertTriangle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <p>所有院友資料完整</p>
-        </div>
-      )}
     </div>
   );
 };

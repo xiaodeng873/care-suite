@@ -16,10 +16,12 @@ import {
   CheckCircle,
   Copy,
   History,
-  AlertCircle
+  AlertCircle,
+  BookOpen
 } from 'lucide-react';
 import { usePatients, type CarePlan, type PlanType } from '../context/PatientContext';
 import CarePlanModal from '../components/CarePlanModal';
+import ProblemLibraryModal from '../components/ProblemLibraryModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { useAuth } from '../context/AuthContext';
 
@@ -40,6 +42,7 @@ const IndividualCarePlan: React.FC = () => {
   const { carePlans, patients, deleteCarePlan, duplicateCarePlan, loading, getCarePlanWithDetails } = usePatients();
   const { displayName } = useAuth();
   const [showModal, setShowModal] = useState(false);
+  const [showProblemLibraryModal, setShowProblemLibraryModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<CarePlan | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -60,6 +63,52 @@ const IndividualCarePlan: React.FC = () => {
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [isDuplicateMode, setIsDuplicateMode] = useState(false);
+  const [planReviewStatus, setPlanReviewStatus] = useState<Map<string, { 
+    reviewed: number; 
+    total: number;
+    problemsByCategory: Record<string, number>;
+  }>>(new Map());
+
+  // 載入計劃的檢討狀態和問題分類
+  React.useEffect(() => {
+    const loadReviewStatus = async () => {
+      const statusMap = new Map<string, { 
+        reviewed: number; 
+        total: number; 
+        problemsByCategory: Record<string, number>;
+      }>();
+      
+      for (const plan of carePlans) {
+        try {
+          const details = await getCarePlanWithDetails(plan.id);
+          if (details && details.problems) {
+            const total = details.problems.length;
+            const reviewed = details.problems.filter(p => p.outcome_review).length;
+            
+            // 計算各專業問題數目
+            const problemsByCategory: Record<string, number> = {};
+            details.problems.forEach(p => {
+              if (!problemsByCategory[p.problem_category]) {
+                problemsByCategory[p.problem_category] = 0;
+              }
+              problemsByCategory[p.problem_category]++;
+            });
+            
+            statusMap.set(plan.id, { reviewed, total, problemsByCategory });
+          }
+        } catch (error) {
+          console.error(`載入計劃 ${plan.id} 的檢討狀態失敗:`, error);
+        }
+      }
+      
+      setPlanReviewStatus(statusMap);
+    };
+    
+    if (carePlans.length > 0) {
+      loadReviewStatus();
+    }
+  }, [carePlans, getCarePlanWithDetails]);
 
   // Reset to first page when filters change
   React.useEffect(() => {
@@ -307,28 +356,15 @@ const IndividualCarePlan: React.FC = () => {
 
   const handleEdit = (plan: CarePlan) => {
     setSelectedPlan(plan);
+    setIsDuplicateMode(false);
     setShowModal(true);
   };
 
   const handleDuplicate = async (plan: CarePlan) => {
-    const planTypeOptions = ['半年計劃', '年度計劃'];
-    const selectedType = prompt(`選擇新計劃類型:\n1. 半年計劃\n2. 年度計劃\n\n請輸入 1 或 2:`, '1');
-    
-    if (!selectedType) return;
-    
-    const newPlanType = selectedType === '2' ? '年度計劃' : '半年計劃';
-    const today = new Date().toISOString().split('T')[0];
-    
-    try {
-      setDuplicatingId(plan.id);
-      await duplicateCarePlan(plan.id, newPlanType as PlanType, today, displayName || '');
-      alert('已成功建立復檢計劃');
-    } catch (error) {
-      console.error('複製計劃失敗:', error);
-      alert('複製計劃失敗，請重試');
-    } finally {
-      setDuplicatingId(null);
-    }
+    // 直接打開modal，讓使用者在modal中選擇計劃類型
+    setSelectedPlan(plan);
+    setIsDuplicateMode(true);
+    setShowModal(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -387,14 +423,47 @@ const IndividualCarePlan: React.FC = () => {
     }
   };
 
-  const isOverdue = (reviewDueDate: string | undefined) => {
-    if (!reviewDueDate) return false;
-    return new Date(reviewDueDate) < new Date();
+  const isOverdue = (plan: CarePlan, patientId: number) => {
+    if (!plan.review_due_date) return false;
+    
+    // 檢查是否有後續計劃銜接此計劃的復檢到期日
+    const patientPlans = carePlans
+      .filter(p => p.patient_id === patientId)
+      .sort((a, b) => new Date(a.plan_date).getTime() - new Date(b.plan_date).getTime());
+    
+    const currentIndex = patientPlans.findIndex(p => p.id === plan.id);
+    if (currentIndex !== -1 && currentIndex < patientPlans.length - 1) {
+      // 有後續計劃，檢查後續計劃的計劃日期是否已銜接或超過此計劃的復檢到期日
+      const nextPlan = patientPlans[currentIndex + 1];
+      if (nextPlan && new Date(nextPlan.plan_date) >= new Date(plan.review_due_date)) {
+        // 已被後續計劃銜接，不算逾期
+        return false;
+      }
+    }
+    
+    // 檢查是否真的逾期（只有最新計劃或未被銜接的計劃才檢查）
+    return new Date(plan.review_due_date) < new Date();
   };
 
-  const isDueSoon = (reviewDueDate: string | undefined) => {
-    if (!reviewDueDate) return false;
-    const dueDate = new Date(reviewDueDate);
+  const isDueSoon = (plan: CarePlan, patientId: number) => {
+    if (!plan.review_due_date) return false;
+    
+    // 檢查是否有後續計劃銜接此計劃的復檢到期日
+    const patientPlans = carePlans
+      .filter(p => p.patient_id === patientId)
+      .sort((a, b) => new Date(a.plan_date).getTime() - new Date(b.plan_date).getTime());
+    
+    const currentIndex = patientPlans.findIndex(p => p.id === plan.id);
+    if (currentIndex !== -1 && currentIndex < patientPlans.length - 1) {
+      // 有後續計劃，檢查後續計劃的計劃日期是否已銜接或超過此計劃的復檢到期日
+      const nextPlan = patientPlans[currentIndex + 1];
+      if (nextPlan && new Date(nextPlan.plan_date) >= new Date(plan.review_due_date)) {
+        // 已被後續計劃銜接，不算即將到期
+        return false;
+      }
+    }
+    
+    const dueDate = new Date(plan.review_due_date);
     const today = new Date();
     const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return daysUntilDue > 0 && daysUntilDue <= 30;
@@ -431,6 +500,13 @@ const IndividualCarePlan: React.FC = () => {
                 <span>匯出選定記錄</span>
               </button>
             )}
+            <button
+              onClick={() => setShowProblemLibraryModal(true)}
+              className="btn-secondary flex items-center space-x-2"
+            >
+              <BookOpen className="h-4 w-4" />
+              <span>問題庫</span>
+            </button>
             <button
               onClick={() => {
                 setSelectedPlan(null);
@@ -610,15 +686,21 @@ const IndividualCarePlan: React.FC = () => {
                 <SortableHeader field="plan_type">計劃類型</SortableHeader>
                 <SortableHeader field="plan_date">計劃日期</SortableHeader>
                 <SortableHeader field="review_due_date">復檢到期日</SortableHeader>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">版本</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">建立人員</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">護理</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">社工</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">物理治療</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">職業治療</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">言語治療</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">營養師</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">醫生</th>
+
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedGroups.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={16} className="px-4 py-12 text-center text-gray-500">
                     <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                     <p className="text-lg font-medium">暫無個人照顧計劃</p>
                     <p className="text-sm mt-1">點擊「新增計劃」開始建立</p>
@@ -697,21 +779,59 @@ const IndividualCarePlan: React.FC = () => {
                       <td className="px-4 py-3 text-sm">
                         {plan.review_due_date ? (
                           <div className={`flex items-center space-x-1 ${
-                            isOverdue(plan.review_due_date) ? 'text-red-600' : 
-                            isDueSoon(plan.review_due_date) ? 'text-amber-600' : 'text-gray-900'
+                            isOverdue(plan, group.patient.院友id) ? 'text-red-600' : 
+                            isDueSoon(plan, group.patient.院友id) ? 'text-amber-600' : 'text-gray-900'
                           }`}>
-                            {isOverdue(plan.review_due_date) && <AlertCircle className="h-4 w-4" />}
-                            {isDueSoon(plan.review_due_date) && !isOverdue(plan.review_due_date) && <Clock className="h-4 w-4" />}
+                            {isOverdue(plan, group.patient.院友id) && <AlertCircle className="h-4 w-4" />}
+                            {isDueSoon(plan, group.patient.院友id) && !isOverdue(plan, group.patient.院友id) && <Clock className="h-4 w-4" />}
                             <span>{new Date(plan.review_due_date).toLocaleDateString('zh-TW')}</span>
                             {plan.reviewed_at && <CheckCircle className="h-4 w-4 text-green-500" />}
                           </div>
                         ) : '-'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        v{plan.version_number}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        {plan.created_by || '-'}
+                      {/* 各專業問題數目欄位 */}
+                      {['護理', '社工', '物理治療', '職業治療', '言語治療', '營養師', '醫生'].map(category => {
+                        const status = planReviewStatus.get(plan.id);
+                        const count = status?.problemsByCategory?.[category] || 0;
+                        return (
+                          <td key={category} className="px-4 py-3 text-sm text-center">
+                            {count > 0 ? (
+                              <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-2 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+                                {count}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-xs">無</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="px-4 py-3 text-sm">
+                        {(() => {
+                          const status = planReviewStatus.get(plan.id);
+                          if (!status || status.total === 0) {
+                            return (
+                              <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600">
+                                無問題
+                              </span>
+                            );
+                          }
+                          
+                          const pending = status.total - status.reviewed;
+                          if (pending === 0) {
+                            return (
+                              <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 flex items-center space-x-1">
+                                <CheckCircle className="h-3 w-3" />
+                                <span>已檢討</span>
+                              </span>
+                            );
+                          } else {
+                            return (
+                              <span className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700">
+                                {pending}個待檢討
+                              </span>
+                            );
+                          }
+                        })()}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
@@ -826,12 +946,20 @@ const IndividualCarePlan: React.FC = () => {
       {showModal && (
         <CarePlanModal
           plan={selectedPlan}
+          isDuplicate={isDuplicateMode}
           onClose={() => {
             setShowModal(false);
             setSelectedPlan(null);
+            setIsDuplicateMode(false);
           }}
         />
       )}
+
+      {/* 問題庫 Modal */}
+      <ProblemLibraryModal
+        isOpen={showProblemLibraryModal}
+        onClose={() => setShowProblemLibraryModal(false)}
+      />
     </div>
   );
 };
