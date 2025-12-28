@@ -112,7 +112,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
       toilet_training: false
     },
     treatment_items: [],
-    // emotional_expression: [],
+    emotional_expression: [],
     behavior_expression: [],
     emotional_other: '',
     // remarks: '',

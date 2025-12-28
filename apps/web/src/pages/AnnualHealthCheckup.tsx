@@ -15,7 +15,8 @@ import {
   FileWarning,
   ChevronUp,
   ChevronDown,
-  X
+  X,
+  FileText
 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import AnnualHealthCheckupModal from '../components/AnnualHealthCheckupModal';
@@ -28,6 +29,7 @@ import {
   type CheckupStatus
 } from '../utils/annualHealthCheckupHelper';
 import { exportAnnualHealthCheckupsToExcel } from '../utils/annualHealthCheckupExcelGenerator';
+import { printMedicalExaminationForm } from '../utils/annualHealthCheckupFormGenerator';
 import { getTemplatesMetadata } from '../lib/database';
 
 type SortField = '院友姓名' | 'last_doctor_signature_date' | 'next_due_date' | 'created_at';
@@ -795,6 +797,18 @@ const AnnualHealthCheckup: React.FC = () => {
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              if (patient) {
+                                printMedicalExaminationForm(checkup, patient);
+                              }
+                            }}
+                            className="text-green-600 hover:text-green-900"
+                            title="列印體檢報告書"
+                            disabled={!patient}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
                           <button
                             onClick={() => handleEdit(checkup)}
                             className="text-blue-600 hover:text-blue-900"

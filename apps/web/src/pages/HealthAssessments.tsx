@@ -161,10 +161,6 @@ const HealthAssessments: React.FC = () => {
       床號: '',
       中文姓名: '',
       評估人員: '',
-      吸煙習慣: '',
-      飲酒習慣: '',
-      最高活動能力: '',
-      情緒表現: '',
       startDate: '',
       endDate: '',
       在住狀態: '在住',
@@ -705,67 +701,25 @@ const HealthAssessments: React.FC = () => {
             )}
             
             <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 筆健康評估 (共 {healthAssessments.length} 筆)</span>
-              {(searchTerm || hasAdvancedFilters()) && (
-                <span className="text-blue-600">已套用篩選條件</span>
-              )}
+              <div className="flex items-center space-x-4">
+                <span>共 {groupedAssessments.length} 位院友，{totalItems} 份評估</span>
+                {selectedRows.size > 0 && (
+                  <span className="text-blue-600">已選擇 {selectedRows.size} 筆</span>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <button onClick={expandAll} className="text-blue-600 hover:text-blue-800">全部展開</button>
+                <span>|</span>
+                <button onClick={collapseAll} className="text-blue-600 hover:text-blue-800">全部收合</button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {totalItems > 0 && (
-        <div className="sticky top-40 bg-white z-10 shadow-sm">
-          <div className="card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={expandAll}
-                  className="text-sm text-green-600 hover:text-green-700 font-medium flex items-center space-x-1"
-                >
-                  <ChevronDown className="h-4 w-4" />
-                  <span>全部展開</span>
-                </button>
-                <button
-                  onClick={collapseAll}
-                  className="text-sm text-gray-600 hover:text-gray-700 font-medium flex items-center space-x-1"
-                >
-                  <ChevronUp className="h-4 w-4" />
-                  <span>全部收合</span>
-                </button>
-                <div className="border-l border-gray-300 h-6"></div>
-                <button
-                  onClick={handleSelectAll}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  {selectedRows.size === paginatedAssessments.length && paginatedAssessments.length > 0 ? '取消全選' : '全選'}
-                </button>
-                <button
-                  onClick={handleInvertSelection}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  反選
-                </button>
-                {selectedRows.size > 0 && (
-                  <button
-                    onClick={handleBatchDelete}
-                    className="text-sm text-red-600 hover:text-red-700 font-medium"
-                    disabled={deletingIds.size > 0}
-                  >
-                    刪除選定記錄 ({selectedRows.size})
-                  </button>
-                )}
-              </div>
-              <div className="text-sm text-gray-600">
-                已選擇 {selectedRows.size} / {totalItems} 筆記錄 | 共 {groupedAssessments.length} 位院友
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="card overflow-hidden">
-        {paginatedAssessments.length > 0 ? (
+      {/* 主表格 */}
+      <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+        {paginatedGroups.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -775,13 +729,14 @@ const HealthAssessments: React.FC = () => {
                       type="checkbox"
                       checked={selectedRows.size === paginatedAssessments.length && paginatedAssessments.length > 0}
                       onChange={handleSelectAll}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="form-checkbox"
                     />
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                     展開
                   </th>
-                  <SortableHeader field="院友姓名">院友</SortableHeader>
+                  <SortableHeader field="院友姓名">院友資訊</SortableHeader>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">入住日期</th>
                   <SortableHeader field="assessment_date">評估日期</SortableHeader>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     下次評估日期
@@ -793,296 +748,253 @@ const HealthAssessments: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     記錄狀態
                   </th>
-                  {/* 吸煙/飲酒/最高活動能力/情緒表現/備註表頭已移除 */}
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     操作
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white">
-                {paginatedGroups.map(group => {
-                  const isExpanded = expandedPatients.has(group.patientId);
-                  const isFullySelected = isPatientFullySelected(group);
-                  const isPartiallySelected = isPatientPartiallySelected(group);
-
-                  return (
-                    <React.Fragment key={`group-${group.patientId}`}>
-                      {/* 院友分組標題行 */}
-                      <tr className="bg-gradient-to-r from-blue-50 to-blue-100 border-y-2 border-blue-200 hover:from-blue-100 hover:to-blue-150 transition-all">
-                        <td className="px-4 py-3">
+              <tbody className="bg-white divide-y divide-gray-200">
+                {paginatedGroups.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-12 text-center text-gray-500">
+                      <Heart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">暫無健康評估</p>
+                      <p className="text-sm mt-1">點擊「新增健康評估」開始建立</p>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedGroups.map(group => {
+                    const isExpanded = expandedPatients.has(group.patientId);
+                    const displayAssessments = isExpanded ? group.assessments : group.assessments.slice(0, 1);
+                    
+                    return (
+                      <React.Fragment key={`group-${group.patientId}`}>
+                        {displayAssessments.map((assessment, assessmentIndex) => (
+                          <tr 
+                            key={assessment.id}
+                            className={`hover:bg-blue-50 ${deletingIds.has(assessment.id) ? 'opacity-50' : ''}`}
+                            onDoubleClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleEdit(assessment);
+                            }}
+                          >
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
-                            checked={isFullySelected}
-                            ref={(el) => {
-                              if (el) {
-                                el.indeterminate = isPartiallySelected;
-                              }
-                            }}
-                            onChange={() => togglePatientSelection(group)}
-                            className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            checked={selectedRows.has(assessment.id)}
+                            onChange={() => handleSelectRow(assessment.id)}
+                            className="form-checkbox"
                           />
                         </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => togglePatientExpand(group.patientId)}
-                            className="p-1 hover:bg-blue-200 rounded-lg transition-colors"
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="h-5 w-5 text-blue-700" />
-                            ) : (
-                              <ChevronUp className="h-5 w-5 text-blue-700" />
-                            )}
-                          </button>
+                        {assessmentIndex === 0 && (
+                          <>
+                            <td 
+                              className="px-4 py-3 cursor-pointer"
+                              rowSpan={displayAssessments.length}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePatientExpand(group.patientId);
+                              }}
+                            >
+                              {group.assessments.length > 1 && (
+                                <div className="flex items-center text-gray-500 hover:text-blue-600">
+                                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                  <span className="text-xs ml-1">{group.assessments.length}</span>
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3" rowSpan={displayAssessments.length} onClick={(e) => e.stopPropagation()}>
+                              <PatientTooltip patient={group.patient}>
+                                <div className="flex items-center space-x-2 cursor-help hover:opacity-80 transition-opacity">
+                                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 overflow-hidden flex items-center justify-center">
+                                    {group.patient.院友相片 ? (
+                                      <img
+                                        src={group.patient.院友相片}
+                                        alt={group.patient.中文姓名}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <User className="h-4 w-4 text-blue-600" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">{group.patient.中文姓名}</div>
+                                    <div className="text-xs text-gray-500">{group.patient.床號}</div>
+                                  </div>
+                                </div>
+                              </PatientTooltip>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-500" rowSpan={displayAssessments.length} onClick={(e) => e.stopPropagation()}>
+                              {group.patient.入住日期 ? new Date(group.patient.入住日期).toLocaleDateString('zh-TW') : '-'}
+                            </td>
+                          </>
+                        )}
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <span>{new Date(assessment.assessment_date).toLocaleDateString('zh-TW')}</span>
+                          </div>
                         </td>
-                        <td colSpan={12} className="px-4 py-3">
-                          <div className="flex items-center space-x-4">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-12 h-12 bg-blue-200 rounded-full overflow-hidden flex items-center justify-center ring-2 ring-blue-300">
-                                {group.patient.院友相片 ? (
-                                  <img
-                                    src={group.patient.院友相片}
-                                    alt={group.patient.中文姓名}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <User className="h-6 w-6 text-blue-700" />
-                                )}
-                              </div>
-                              <div>
-                                <div className="flex items-center space-x-2">
-                                  <span className="text-base font-bold text-blue-900">
-                                    {group.patient.中文姓名}
-                                  </span>
-                                  <span className="text-sm text-blue-700 bg-blue-200 px-2 py-0.5 rounded-full">
-                                    {group.patient.床號}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-blue-700">
-                                  {getFormattedEnglishName(group.patient.英文姓氏, group.patient.英文名字)}
-                                </div>
-                              </div>
+                        <td className="px-4 py-3 text-sm">
+                          {assessment.next_due_date ? (
+                            <div className={`flex items-center space-x-1 ${
+                              isHealthAssessmentOverdue(assessment) ? 'text-red-600' : 
+                              isHealthAssessmentDueSoon(assessment) ? 'text-amber-600' : 'text-gray-900'
+                            }`}>
+                              {isHealthAssessmentOverdue(assessment) && <AlertTriangle className="h-4 w-4" />}
+                              {isHealthAssessmentDueSoon(assessment) && !isHealthAssessmentOverdue(assessment) && <Clock className="h-4 w-4" />}
+                              <span>{new Date(assessment.next_due_date).toLocaleDateString('zh-TW')}</span>
                             </div>
-                            <div className="flex items-center space-x-4 text-sm">
-                              <span className="text-blue-800 font-medium">
-                                共 {group.assessments.length} 筆評估記錄
-                              </span>
-                              {isPartiallySelected || isFullySelected ? (
-                                <span className="text-blue-700 bg-blue-200 px-3 py-1 rounded-full">
-                                  已選 {group.assessments.filter(a => selectedRows.has(a.id)).length} 筆
+                          ) : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {assessment.assessor || '-'}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {(() => {
+                            if (isHealthAssessmentOverdue(assessment)) {
+                              return (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  逾期
                                 </span>
-                              ) : null}
-                            </div>
+                              );
+                            } else if (isHealthAssessmentDueSoon(assessment)) {
+                              return (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  即將到期
+                                </span>
+                              );
+                            } else {
+                              return (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  有效
+                                </span>
+                              );
+                            }
+                          })()}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            assessment.status === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {assessment.status === 'active' ? '生效中' : '已歸檔'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleEdit(assessment)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="編輯"
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleSaveAs(assessment)}
+                              className="text-green-600 hover:text-green-900"
+                              title="另存新檔"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(assessment.id)}
+                              className="text-red-600 hover:text-red-900"
+                              title="刪除"
+                              disabled={deletingIds.has(assessment.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>
-
-                      {/* 展開時顯示該院友的所有評估記錄 */}
-                      {isExpanded && group.assessments.map((assessment, index) => (
-                        <tr
-                          key={assessment.id}
-                          className={`hover:bg-gray-50 ${selectedRows.has(assessment.id) ? 'bg-blue-50' : ''} ${index === group.assessments.length - 1 ? 'border-b-2 border-blue-100' : ''}`}
-                          onDoubleClick={() => handleEdit(assessment)}
-                        >
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <input
-                              type="checkbox"
-                              checked={selectedRows.has(assessment.id)}
-                              onChange={() => handleSelectRow(assessment.id)}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                          </td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="text-xs text-gray-500 pl-4">
-                              記錄 #{index + 1}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            <div className="flex items-center space-x-1">
-                              <Calendar className="h-4 w-4 text-gray-400" />
-                              <span>{new Date(assessment.assessment_date).toLocaleDateString('zh-TW')}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {assessment.next_due_date ? (
-                              <div className="flex items-center space-x-1">
-                                <Calendar className="h-4 w-4 text-gray-400" />
-                                <span className={
-                                  isHealthAssessmentOverdue(assessment) ? 'text-red-600 font-medium' :
-                                  isHealthAssessmentDueSoon(assessment) ? 'text-orange-600 font-medium' : ''
-                                }>
-                                  {new Date(assessment.next_due_date).toLocaleDateString('zh-TW')}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-gray-500">-</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {assessment.assessor || '-'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            {(() => {
-                              if (isHealthAssessmentOverdue(assessment)) {
-                                return (
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                    <AlertTriangle className="h-3 w-3 mr-1" />
-                                    逾期
-                                  </span>
-                                );
-                              } else if (isHealthAssessmentDueSoon(assessment)) {
-                                return (
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                    <Clock className="h-3 w-3 mr-1" />
-                                    即將到期
-                                  </span>
-                                );
-                              } else {
-                                return (
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                    有效
-                                  </span>
-                                );
-                              }
-                            })()}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              assessment.status === 'active'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              {assessment.status === 'active' ? '生效中' : '已歸檔'}
-                            </span>
-                          </td>
-                          {/* 吸煙/飲酒/最高活動能力/情緒表現/備註資料列已移除 */}
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => handleSaveAs(assessment)}
-                                className="text-green-600 hover:text-green-900"
-                                title="另存新檔"
-                                disabled={deletingIds.has(assessment.id)}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleEdit(assessment)}
-                                className="text-blue-600 hover:text-blue-900"
-                                title="編輯"
-                                disabled={deletingIds.has(assessment.id)}
-                              >
-                                <Edit3 className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(assessment.id)}
-                                className="text-red-600 hover:text-red-900"
-                                title="刪除"
-                                disabled={deletingIds.has(assessment.id)}
-                              >
-                                {deletingIds.has(assessment.id) ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                                ) : (
-                                  <Trash2 className="h-4 w-4" />
-                                )}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </React.Fragment>
-                  );
-                })}
+                        ))}
+                      </React.Fragment>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="text-center py-12">
-            <Heart className="h-24 w-24 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || hasAdvancedFilters() ? '找不到符合條件的健康評估' : '暫無健康評估'}
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm || hasAdvancedFilters() ? '請嘗試調整搜索條件' : '開始為院友建立健康評估'}
-            </p>
-            {!searchTerm && !hasAdvancedFilters() ? (
-              <button
-                onClick={() => setShowModal(true)}
-                className="btn-primary"
-              >
-                新增健康評估
-              </button>
-            ) : (
-              <button
-                onClick={clearFilters}
-                className="btn-secondary"
-              >
-                清除所有篩選
-              </button>
-            )}
+          <div className="px-4 py-12 text-center text-gray-500">
+            <Heart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <p className="text-lg font-medium">暫無健康評估</p>
+            <p className="text-sm mt-1">點擊「新增健康評估」開始建立</p>
           </div>
         )}
       </div>
 
-      {/* Pagination Controls */}
-      {totalItems > 0 && (
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
-          <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-700">每頁顯示:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                className="form-input text-sm w-20"
+      {/* 分頁 */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-700">每頁顯示</span>
+            <select
+              value={pageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              className="form-input py-1 px-2 text-sm"
+            >
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span className="text-sm text-gray-700">筆</span>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+              className="px-2 py-1 text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed"
+            >
+              首頁
+            </button>
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-2 py-1 text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed"
+            >
+              上一頁
+            </button>
+            
+            {generatePageNumbers().map(page => (
+              <button
+                key={page}
+                onClick={() => handlePageChange(page)}
+                className={`px-3 py-1 text-sm rounded ${
+                  currentPage === page
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
               >
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-                <option value={150}>150</option>
-                <option value={200}>200</option>
-                <option value={500}>500</option>
-                <option value={999999}>全部</option>
-              </select>
-              <span className="text-sm text-gray-700">筆記錄</span>
-            </div>
+                {page}
+              </button>
+            ))}
             
-            {totalPages > 1 && (
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  上一頁
-                </button>
-                
-                {generatePageNumbers().map(page => (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    className={`px-3 py-1 text-sm border rounded-md ${
-                      currentPage === page
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-                
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  下一頁
-                </button>
-              </div>
-            )}
-            
-            <div className="text-sm text-gray-700">
-              第 {currentPage} 頁，共 {totalPages} 頁
-            </div>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-2 py-1 text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed"
+            >
+              下一頁
+            </button>
+            <button
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              className="px-2 py-1 text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed"
+            >
+              末頁
+            </button>
+          </div>
+          
+          <div className="text-sm text-gray-700">
+            第 {currentPage} / {totalPages} 頁
           </div>
         </div>
       )}
