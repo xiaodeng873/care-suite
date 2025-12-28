@@ -70,17 +70,16 @@ export const getActivePrescriptions = async (patientId: number): Promise<Medicat
   }
 };
 
-// 格式化頻次 - 返回 QD/BD/TDS/QID 或其他頻率
+// 格式化頻次 - 返回 QD/BD/TDS/QID 或其他頻率（只顯示字母縮寫）
 const formatFrequencyDisplay = (prescription: MedicationPrescription): string => {
   const dailyFreq = prescription.daily_frequency || 1;
-  const isPrn = prescription.is_prn || false;
   
-  // 頻率代碼映射
+  // 頻率代碼映射 - 只顯示字母縮寫
   const freqCodeMap: { [key: number]: string } = {
-    1: 'QD (每日1次)',
-    2: 'BD (每日2次)',
-    3: 'TDS (每日3次)',
-    4: 'QID (每日4次)'
+    1: 'QD',
+    2: 'BD',
+    3: 'TDS',
+    4: 'QID'
   };
   
   let freqText = '';
@@ -88,36 +87,31 @@ const formatFrequencyDisplay = (prescription: MedicationPrescription): string =>
   // 根據 frequency_type 決定顯示
   switch (prescription.frequency_type) {
     case 'daily':
-      freqText = freqCodeMap[dailyFreq] || `每日${dailyFreq}次`;
+      freqText = freqCodeMap[dailyFreq] || `${dailyFreq}次/日`;
       break;
     case 'every_x_days':
-      freqText = `隔${prescription.frequency_value || 1}日1次`;
+      freqText = `Q${prescription.frequency_value || 1}D`;
       break;
     case 'every_x_months':
-      freqText = `隔${prescription.frequency_value || 1}月1次`;
+      freqText = `Q${prescription.frequency_value || 1}M`;
       break;
     case 'weekly_days':
-      freqText = '每週指定日';
+      freqText = 'QW';
       break;
     case 'odd_even_days':
-      freqText = '單/雙日';
+      freqText = 'EOD';
       break;
     case 'hourly':
-      freqText = `每小時${prescription.frequency_value || 1}次`;
+      freqText = `Q${prescription.frequency_value || 1}H`;
       break;
     default:
-      freqText = freqCodeMap[dailyFreq] || `每日${dailyFreq}次`;
-  }
-  
-  // 如果是 PRN，加上標記
-  if (isPrn) {
-    freqText += ' PRN';
+      freqText = freqCodeMap[dailyFreq] || `${dailyFreq}次/日`;
   }
   
   return freqText;
 };
 
-// 格式化處方列表 - 新格式: 藥名 劑型 給藥途徑 每日N次 (每次)N(單位)
+// 格式化處方列表 - 新格式: 藥名 劑型 給藥途徑 頻次 PRN (每次)N(單位)
 const formatPrescriptionList = (prescriptions: MedicationPrescription[]): string => {
   if (!prescriptions || prescriptions.length === 0) return '';
   
@@ -127,6 +121,7 @@ const formatPrescriptionList = (prescriptions: MedicationPrescription[]): string
     if (p.administration_route) parts.push(p.administration_route);
     const freq = formatFrequencyDisplay(p);
     if (freq) parts.push(freq);
+    if (p.is_prn) parts.push('PRN');
     if (p.dosage_amount) parts.push(`每次${p.dosage_amount}${p.dosage_unit || ''}`);
     return parts.join(' ');
   }).join('\n');
@@ -208,33 +203,33 @@ export const generateMedicalExaminationFormHTML = (
   </div>
 
   <!-- Part I -->
-  <table style="margin-bottom:3mm;">
+  <table style="margin-bottom:3mm; border-collapse:collapse; border:1px solid #000;">
     <tr class="section-header">
-      <td style="width:18%;">Part I<br/>第一部分</td>
-      <td>Particulars of Resident<br/>住客資料</td>
+      <td style="width:18%; border-right:1px solid #000;">Part I<br/>第一部分</td>
+      <td style="">Particulars of Resident<br/>住客資料</td>
     </tr>
     <tr>
-      <td>Name<br/>姓名</td>
-      <td>
+      <td style="border:none; padding:5px;">Name<br/>姓名</td>
+      <td style="border:none; padding:5px;">
         <table class="no-border" style="width:100%;">
           <tr>
-            <td class="no-border" style="width:32%;"><span class="field-line">${patient.中文姓名 || ''}</span></td>
+            <td class="no-border" style="width:32%; text-align:center;"><span class="field-line">${patient.中文姓名 || ''}</span></td>
             <td class="no-border" style="width:15%;">Sex 性別</td>
-            <td class="no-border" style="width:15%;"><span class="field-line">${patient.性別 || ''}</span></td>
+            <td class="no-border" style="width:15%; text-align:center;"><span class="field-line">${patient.性別 || ''}</span></td>
             <td class="no-border" style="width:15%;">Age 年齡</td>
-            <td class="no-border" style="width:15%;"><span class="field-line">${calculateAge(patient.出生日期)}</span></td>
+            <td class="no-border" style="width:15%; text-align:center;"><span class="field-line">${calculateAge(patient.出生日期)}</span></td>
           </tr>
         </table>
       </td>
     </tr>
     <tr>
-      <td>HKIC No.<br/>香港身份證號碼</td>
-      <td>
+      <td style="border:none; padding:5px;">HKIC No.<br/>香港身份證號碼</td>
+      <td style="border:none; padding:5px;">
         <table class="no-border" style="width:100%;">
           <tr>
-            <td class="no-border" style="width:45%;"><span class="field-line">${patient.身份證號碼 || ''}</span></td>
+            <td class="no-border" style="width:45%; text-align:center;"><span class="field-line">${patient.身份證號碼 || ''}</span></td>
             <td class="no-border" style="width:28%;">Hospital/Clinic Ref. No.<br/>醫院／診所檔號</td>
-            <td class="no-border" style="width:30%;"><span class="field-line">${checkup.followup_treatment_details || ''}</span></td>
+            <td class="no-border" style="width:30%; text-align:center;"><span class="field-line">${checkup.followup_treatment_details || ''}</span></td>
           </tr>
         </table>
       </td>
@@ -242,76 +237,76 @@ export const generateMedicalExaminationFormHTML = (
   </table>
 
   <!-- Part II -->
-  <table>
+  <table style="border-collapse:collapse; border:1px solid #000;">
     <tr class="section-header">
-      <td style="width:15%;">Part II<br/>第二部分</td>
-      <td colspan="2">Medical History<br/>病歷</td>
+      <td style="width:12%; border-right:1px solid #000;">Part II<br/>第二部分</td>
+      <td colspan="2" style="">Medical History<br/>病歷</td>
     </tr>
     <tr>
-      <td style="border-bottom:none;">(1)</td>
-      <td style="border-bottom:none; border-right:none;">Any history of major illnesses/operations?<br/>曾否患嚴重疾病／接受大型手術？<br/>If yes, please specify the diagnosis: 如有，請註明診斷結果：</td>
-      <td style="width:18%; text-align:right; border-bottom:none; border-left:none;">Yes 有 ${checkbox(checkup.has_serious_illness)}<br/>No 無 ${checkbox(!checkup.has_serious_illness)}</td>
+      <td style="border:none; padding:5px;">(1)</td>
+      <td style="border:none; padding:5px;">Any history of major illnesses/operations?<br/>曾否患嚴重疾病／接受大型手術？<br/>If yes, please specify the diagnosis: 如有，請註明診斷結果：</td>
+      <td style="width:18%; text-align:right; border:none; padding:5px; white-space:nowrap;">Yes 有 ${checkbox(checkup.has_serious_illness)} No 無 ${checkbox(!checkup.has_serious_illness)}</td>
     </tr>
     <tr>
-      <td style="border-top:none;"></td>
-      <td colspan="2" style="border-top:none;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.serious_illness_details || ''}</div></td>
+      <td style="border:none; padding:5px;"></td>
+      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.serious_illness_details || ''}</div></td>
     </tr>
     <tr>
-      <td style="border-bottom:none;">(2)</td>
-      <td style="border-bottom:none; border-right:none;">Any allergy to food or drugs?<br/>有否食物或藥物過敏？<br/>If yes, please specify: 如有，請註明：</td>
-      <td style="text-align:right; border-bottom:none; border-left:none;">Yes 有 ${checkbox(checkup.has_allergy)}<br/>No 無 ${checkbox(!checkup.has_allergy)}</td>
+      <td style="border:none; padding:5px;">(2)</td>
+      <td style="border:none; padding:5px;">Any allergy to food or drugs?<br/>有否食物或藥物過敏？<br/>If yes, please specify: 如有，請註明：</td>
+      <td style="text-align:right; border:none; padding:5px; white-space:nowrap;">Yes 有 ${checkbox(checkup.has_allergy)} No 無 ${checkbox(!checkup.has_allergy)}</td>
     </tr>
     <tr>
-      <td style="border-top:none;"></td>
-      <td colspan="2" style="border-top:none;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.allergy_details || (patient.藥物敏感?.join('、') || '')}</div></td>
+      <td style="border:none; padding:5px;"></td>
+      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.allergy_details || (patient.藥物敏感?.join('、') || '')}</div></td>
     </tr>
     <tr>
-      <td style="border-bottom:none;">(3)<br/>(a)</td>
-      <td style="border-bottom:none; border-right:none;">Any signs of infectious disease?<br/>有否傳染病徵狀？<br/>If yes, please specify: 如有，請註明：</td>
-      <td style="text-align:right; border-bottom:none; border-left:none;">Yes 有 ${checkbox(checkup.has_infectious_disease)}<br/>No 無 ${checkbox(!checkup.has_infectious_disease)}</td>
+      <td style="border:none; padding:5px;">(3)<br/>(a)</td>
+      <td style="border:none; padding:5px;">Any signs of infectious disease?<br/>有否傳染病徵狀？<br/>If yes, please specify: 如有，請註明：</td>
+      <td style="text-align:right; border:none; padding:5px; white-space:nowrap;">Yes 有 ${checkbox(checkup.has_infectious_disease)} No 無 ${checkbox(!checkup.has_infectious_disease)}</td>
     </tr>
     <tr>
-      <td style="border-top:none;"></td>
-      <td colspan="2" style="border-top:none;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.infectious_disease_details || (patient.感染控制?.join('、') || '')}</div></td>
+      <td style="border:none; padding:5px;"></td>
+      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.infectious_disease_details || (patient.感染控制?.join('、') || '')}</div></td>
     </tr>
     <tr>
-      <td style="border-bottom:none;">(3)<br/>(b)</td>
-      <td style="border-bottom:none; border-right:none;">Any further investigation or treatment required?<br/>是否需要接受跟進檢查或治療？<br/>If yes, please specify and also state the hospital/clinic attended and reference number.<br/>如有，請註明並填寫覆診的醫院／診所和檔號。</td>
-      <td style="text-align:right; border-bottom:none; border-left:none;">Yes 有 ${checkbox(checkup.needs_followup_treatment)}<br/>No 無 ${checkbox(!checkup.needs_followup_treatment)}</td>
+      <td style="border:none; padding:5px;">(3)<br/>(b)</td>
+      <td style="border:none; padding:5px;">Any further investigation or treatment required?<br/>是否需要接受跟進檢查或治療？<br/>If yes, please specify and also state the hospital/clinic attended and reference number.<br/>如有，請註明並填寫覆診的醫院／診所和檔號。</td>
+      <td style="text-align:right; border:none; padding:5px; white-space:nowrap;">Yes 有 ${checkbox(checkup.needs_followup_treatment)} No 無 ${checkbox(!checkup.needs_followup_treatment)}</td>
     </tr>
     <tr>
-      <td style="border-top:none;"></td>
-      <td colspan="2" style="border-top:none;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.followup_treatment_details || ''}</div></td>
+      <td style="border:none; padding:5px;"></td>
+      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.followup_treatment_details || ''}</div></td>
     </tr>
     <tr>
-      <td style="border-bottom:none;">(4)</td>
-      <td style="border-bottom:none; border-right:none;">Any swallowing difficulties/easy choking?<br/>有否吞嚥困難／容易哽塞？<br/>If yes, please specify: 如有，請註明：</td>
-      <td style="text-align:right; border-bottom:none; border-left:none;">Yes 有 ${checkbox(checkup.has_swallowing_difficulty)}<br/>No 無 ${checkbox(!checkup.has_swallowing_difficulty)}</td>
+      <td style="border:none; padding:5px;">(4)</td>
+      <td style="border:none; padding:5px;">Any swallowing difficulties/easy choking?<br/>有否吞嚥困難／容易哽塞？<br/>If yes, please specify: 如有，請註明：</td>
+      <td style="text-align:right; border:none; padding:5px; white-space:nowrap;">Yes 有 ${checkbox(checkup.has_swallowing_difficulty)} No 無 ${checkbox(!checkup.has_swallowing_difficulty)}</td>
     </tr>
     <tr>
-      <td style="border-top:none;"></td>
-      <td colspan="2" style="border-top:none;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.swallowing_difficulty_details || ''}</div></td>
+      <td style="border:none; padding:5px;"></td>
+      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.swallowing_difficulty_details || ''}</div></td>
     </tr>
     <tr>
-      <td style="border-bottom:none;">(5)</td>
-      <td style="border-bottom:none; border-right:none;">Any need of special diet?<br/>有否特別膳食需要？<br/>If yes, please specify: 如有，請註明：</td>
-      <td style="text-align:right; border-bottom:none; border-left:none;">Yes 有 ${checkbox(checkup.has_special_diet)}<br/>No 無 ${checkbox(!checkup.has_special_diet)}</td>
+      <td style="border:none; padding:5px;">(5)</td>
+      <td style="border:none; padding:5px;">Any need of special diet?<br/>有否特別膳食需要？<br/>If yes, please specify: 如有，請註明：</td>
+      <td style="text-align:right; border:none; padding:5px; white-space:nowrap;">Yes 有 ${checkbox(checkup.has_special_diet)} No 無 ${checkbox(!checkup.has_special_diet)}</td>
     </tr>
     <tr>
-      <td style="border-top:none;"></td>
-      <td colspan="2" style="border-top:none;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.special_diet_details || ''}</div></td>
+      <td style="border:none; padding:5px;"></td>
+      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.special_diet_details || ''}</div></td>
     </tr>
     <tr>
-      <td style="border-bottom:none;">(6)</td>
-      <td colspan="2" style="border-bottom:none;">Past psychiatric history, if any, including the diagnosis and whether regular follow-up treatment is required.<br/>如過往有精神病紀錄，請詳述病歷及是否需要定期跟進治療。</td>
+      <td style="border:none; padding:5px;">(6)</td>
+      <td colspan="2" style="border:none; padding:5px;">Past psychiatric history, if any, including the diagnosis and whether regular follow-up treatment is required.<br/>如過往有精神病紀錄，請詳述病歷及是否需要定期跟進治療。</td>
     </tr>
     <tr>
-      <td style="border-top:none;"></td>
-      <td colspan="2" style="border-top:none;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.mental_illness_record || ''}</div></td>
+      <td style="border:none; padding:5px;"></td>
+      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.mental_illness_record || ''}</div></td>
     </tr>
     <tr>
-      <td>(7)</td>
-      <td colspan="2">Details of present medication, if any, including the name and dosage.<br/>如目前須服用藥物，請詳述藥名及服用量。<span style="font-size:8pt;color:#666;">（見附頁：個人藥物記錄）</span></td>
+      <td style="border:none; padding:5px;">(7)</td>
+      <td colspan="2" style="border:none; padding:5px;">Details of present medication, if any, including the name and dosage.<br/>如目前須服用藥物，請詳述藥名及服用量。<span style="font-size:8pt;color:#666;">（見附頁：個人藥物記錄）</span></td>
     </tr>
   </table>
   
@@ -332,27 +327,28 @@ export const generateMedicalExaminationFormHTML = (
 
   <table style="margin-bottom:5mm;">
     <tr>
-      <td style="width:20%; background:#f0f0f0; font-weight:bold;">Name 姓名</td>
-      <td style="width:30%;">${patient.中文姓名 || ''}</td>
-      <td style="width:20%; background:#f0f0f0; font-weight:bold;">Bed No. 床號</td>
-      <td style="width:30%;">${patient.床號 || ''}</td>
+      <td style="width:25%; background:#f0f0f0; font-weight:bold; vertical-align:top;">Name 姓名</td>
+      <td style="width:25%; vertical-align:top;">${patient.中文姓名 || ''}</td>
+      <td style="width:25%; background:#f0f0f0; font-weight:bold; vertical-align:top;">Bed No. 床號</td>
+      <td style="width:25%; vertical-align:top;">${patient.床號 || ''}</td>
     </tr>
     <tr>
-      <td style="background:#f0f0f0; font-weight:bold;">HKIC No. 身份證號碼</td>
-      <td>${patient.身份證號碼 || ''}</td>
-      <td style="background:#f0f0f0; font-weight:bold;">Date 日期</td>
-      <td>${new Date().toLocaleDateString('zh-TW')}</td>
+      <td style="background:#f0f0f0; font-weight:bold; vertical-align:top;">HKID No. 身份證號碼</td>
+      <td style="vertical-align:top;">${patient.身份證號碼 || ''}</td>
+      <td style="background:#f0f0f0; font-weight:bold; vertical-align:top;">Date 日期</td>
+      <td style="vertical-align:top;">${new Date().toLocaleDateString('zh-TW')}</td>
     </tr>
   </table>
 
   <table>
     <tr style="background:#d9d9d9; font-weight:bold;">
       <td style="width:5%; text-align:center; vertical-align:top;">#</td>
-      <td style="width:30%; vertical-align:top;">Medication Name<br/>藥物名稱</td>
-      <td style="width:12%; vertical-align:top;">Form<br/>劑型</td>
-      <td style="width:13%; vertical-align:top;">Route<br/>給藥途徑</td>
-      <td style="width:20%; vertical-align:top;">Frequency<br/>頻次</td>
-      <td style="width:20%; vertical-align:top;">Dosage<br/>劑量</td>
+      <td style="width:26%; vertical-align:top;">Medication Name<br/>藥物名稱</td>
+      <td style="width:10%; vertical-align:top;">Form<br/>劑型</td>
+      <td style="width:12%; vertical-align:top;">Route<br/>給藥途徑</td>
+      <td style="width:10%; vertical-align:top;">Frequency<br/>頻次</td>
+      <td style="width:8%; text-align:center; vertical-align:top;">PRN<br/>需要時</td>
+      <td style="width:17%; vertical-align:top;">Dosage<br/>劑量</td>
     </tr>
     ${prescriptions.length > 0 ? prescriptions.map((p, index) => `
     <tr>
@@ -361,16 +357,17 @@ export const generateMedicalExaminationFormHTML = (
       <td style="vertical-align:top;">${p.dosage_form || ''}</td>
       <td style="vertical-align:top;">${p.administration_route || ''}</td>
       <td style="vertical-align:top;">${formatFrequencyDisplay(p)}</td>
+      <td style="text-align:center; vertical-align:top;">${p.is_prn ? '✓' : ''}</td>
       <td style="vertical-align:top;">${p.dosage_amount ? `每次${p.dosage_amount}${p.dosage_unit || ''}` : ''}</td>
     </tr>
     `).join('') : `
     <tr>
-      <td colspan="6" style="text-align:center; padding:20px; color:#666; vertical-align:top;">暫無在服藥物記錄</td>
+      <td colspan="7" style="text-align:center; padding:20px; color:#666; vertical-align:top;">暫無在服藥物記錄</td>
     </tr>
     `}
   </table>
   
-  <p style="text-align:center; margin-top:5mm; font-size:9pt;">附件 12.1 - 1a（個人藥物記錄）</p>
+  <p style="text-align:center; margin-top:5mm; font-size:9pt;">附件 12.1 - 1a</p>
 </div>
 
 <!-- ===== 第2頁: Part III ===== -->
@@ -394,62 +391,62 @@ export const generateMedicalExaminationFormHTML = (
       <td style="width:34%; text-align:center; font-weight:bold;">Body Weight 體重</td>
     </tr>
     <tr>
-      <td style="text-align:center; height:30px; vertical-align:middle;"><span style="float:left;padding-left:20px;">${checkup.blood_pressure_systolic || ''}/${checkup.blood_pressure_diastolic || ''}</span><span style="float:right;padding-right:10px;">mmHg</span></td>
-      <td style="text-align:center; height:30px; vertical-align:middle;"><span style="float:left;padding-left:30px;">${checkup.pulse || ''}</span><span style="float:right;padding-right:10px;">/min</span></td>
-      <td style="text-align:center; height:30px; vertical-align:middle;"><span style="float:left;padding-left:30px;">${checkup.body_weight || ''}</span><span style="float:right;padding-right:10px;">kg</span></td>
+      <td style="text-align:center; height:30px; vertical-align:middle;">${checkup.blood_pressure_systolic || ''}/${checkup.blood_pressure_diastolic || ''} mmHg</td>
+      <td style="text-align:center; height:30px; vertical-align:middle;">${checkup.pulse || ''} /min</td>
+      <td style="text-align:center; height:30px; vertical-align:middle;">${checkup.body_weight || ''} kg</td>
     </tr>
   </table>
   
   <p style="margin-bottom:3mm; font-size:10pt;">Please specify: 請註明:</p>
   
-  <table>
+  <table style="border-collapse:collapse;">
     <tr>
-      <td style="width:35%;">Cardiovascular System<br/>循環系統</td>
-      <td style="width:65%;"><span class="field-line">${checkup.cardiovascular_notes || ''}</span></td>
+      <td style="width:35%; border:none; border-left:1px solid #000; border-top:1px solid #000; padding:3px 5px;">Cardiovascular System<br/>循環系統</td>
+      <td style="width:65%; border:none; border-right:1px solid #000; border-top:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.cardiovascular_notes || ''}</span></td>
     </tr>
     <tr>
-      <td>Respiratory System<br/>呼吸系統</td>
-      <td><span class="field-line">${checkup.respiratory_notes || ''}</span></td>
+      <td style="border:none; border-left:1px solid #000; padding:3px 5px;">Respiratory System<br/>呼吸系統</td>
+      <td style="border:none; border-right:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.respiratory_notes || ''}</span></td>
     </tr>
     <tr>
-      <td>Central Nervous System<br/>中樞神經系統</td>
-      <td><span class="field-line">${checkup.central_nervous_notes || ''}</span></td>
+      <td style="border:none; border-left:1px solid #000; padding:3px 5px;">Central Nervous System<br/>中樞神經系統</td>
+      <td style="border:none; border-right:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.central_nervous_notes || ''}</span></td>
     </tr>
     <tr>
-      <td>Musculo-skeletal<br/>肌骨</td>
-      <td><span class="field-line">${checkup.musculo_skeletal_notes || ''}</span></td>
+      <td style="border:none; border-left:1px solid #000; padding:3px 5px;">Musculo-skeletal<br/>肌骨</td>
+      <td style="border:none; border-right:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.musculo_skeletal_notes || ''}</span></td>
     </tr>
     <tr>
-      <td>Abdomen/Urogenital System<br/>腹/泌尿及生殖系統</td>
-      <td><span class="field-line">${checkup.abdomen_urogenital_notes || ''}</span></td>
+      <td style="border:none; border-left:1px solid #000; padding:3px 5px;">Abdomen/Urogenital System<br/>腹/泌尿及生殖系統</td>
+      <td style="border:none; border-right:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.abdomen_urogenital_notes || ''}</span></td>
     </tr>
     <tr>
-      <td>Lymphatic System<br/>淋巴系統</td>
-      <td><span class="field-line">${checkup.lymphatic_notes || ''}</span></td>
+      <td style="border:none; border-left:1px solid #000; padding:3px 5px;">Lymphatic System<br/>淋巴系統</td>
+      <td style="border:none; border-right:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.lymphatic_notes || ''}</span></td>
     </tr>
     <tr>
-      <td>Thyroid<br/>甲狀腺</td>
-      <td><span class="field-line">${checkup.thyroid_notes || ''}</span></td>
+      <td style="border:none; border-left:1px solid #000; padding:3px 5px;">Thyroid<br/>甲狀腺</td>
+      <td style="border:none; border-right:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.thyroid_notes || ''}</span></td>
     </tr>
     <tr>
-      <td>Skin Condition, e.g. pressure injuries (pressure sores)<br/>皮膚狀況,如:壓力性損傷(壓瘡)</td>
-      <td><span class="field-line">${checkup.skin_condition_notes || ''}</span></td>
+      <td style="border:none; border-left:1px solid #000; padding:3px 5px;">Skin Condition, e.g. pressure injuries (pressure sores)<br/>皮膚狀況,如:壓力性損傷(壓瘡)</td>
+      <td style="border:none; border-right:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.skin_condition_notes || ''}</span></td>
     </tr>
     <tr>
-      <td>Foot<br/>足部</td>
-      <td><span class="field-line">${checkup.foot_notes || ''}</span></td>
+      <td style="border:none; border-left:1px solid #000; padding:3px 5px;">Foot<br/>足部</td>
+      <td style="border:none; border-right:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.foot_notes || ''}</span></td>
     </tr>
     <tr>
-      <td>Eye/Ear, Nose and Throat<br/>眼/耳鼻喉</td>
-      <td><span class="field-line">${checkup.eye_ear_nose_throat_notes || ''}</span></td>
+      <td style="border:none; border-left:1px solid #000; padding:3px 5px;">Eye/Ear, Nose and Throat<br/>眼/耳鼻喉</td>
+      <td style="border:none; border-right:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.eye_ear_nose_throat_notes || ''}</span></td>
     </tr>
     <tr>
-      <td>Oral/Dental Condition<br/>口腔/牙齒狀況</td>
-      <td><span class="field-line">${checkup.oral_dental_notes || ''}</span></td>
+      <td style="border:none; border-left:1px solid #000; padding:3px 5px;">Oral/Dental Condition<br/>口腔/牙齒狀況</td>
+      <td style="border:none; border-right:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.oral_dental_notes || ''}</span></td>
     </tr>
     <tr>
-      <td>Others<br/>其他</td>
-      <td><span class="field-line">${checkup.physical_exam_others || ''}</span></td>
+      <td style="border:none; border-left:1px solid #000; border-bottom:1px solid #000; padding:3px 5px;">Others<br/>其他</td>
+      <td style="border:none; border-right:1px solid #000; border-bottom:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.physical_exam_others || ''}</span></td>
     </tr>
   </table>
   
@@ -470,79 +467,79 @@ export const generateMedicalExaminationFormHTML = (
     </tr>
   </table>
   
-  <table>
+  <table style="border-collapse:collapse; border:1px solid #000;">
     <tr>
-      <td style="width:18%; font-weight:bold; vertical-align:top;">Vision 視力<br/><span style="font-weight:normal;font-size:8pt;">(with/without* visual corrective devices<br/>有/沒有*配戴視力矯正器)</span></td>
-      <td style="width:20.5%; vertical-align:top;">${checkbox(checkup.vision_assessment === '正常')} normal<br/>正常</td>
-      <td style="width:20.5%; vertical-align:top;">${checkbox(checkup.vision_assessment === '不能閱讀報紙字體')} unable to read newspaper print<br/>不能閱讀報紙字體</td>
-      <td style="width:20.5%; vertical-align:top;">${checkbox(checkup.vision_assessment === '只能見光影')} see lights only<br/>只能見光影</td>
-      <td style="width:20.5%; vertical-align:top;">${checkbox(checkup.vision_assessment === '不能觀看電視')} unable to watch TV<br/>不能觀看到電視</td>
+      <td style="width:18%; font-weight:bold; vertical-align:top; border:none; padding:5px;">Vision 視力<br/><span style="font-weight:normal;font-size:8pt;">(with/without* visual corrective devices<br/>有/沒有*配戴視力矯正器)</span></td>
+      <td style="width:20.5%; vertical-align:top; border:none; padding:5px;">${checkbox(checkup.vision_assessment === '正常')} normal<br/>正常</td>
+      <td style="width:20.5%; vertical-align:top; border:none; padding:5px;">${checkbox(checkup.vision_assessment === '不能閱讀報紙字體')} unable to read newspaper print<br/>不能閱讀報紙字體</td>
+      <td style="width:20.5%; vertical-align:top; border:none; padding:5px;">${checkbox(checkup.vision_assessment === '只能見光影')} see lights only<br/>只能見光影</td>
+      <td style="width:20.5%; vertical-align:top; border:none; padding:5px;">${checkbox(checkup.vision_assessment === '不能觀看電視')} unable to watch TV<br/>不能觀看到電視</td>
     </tr>
     <tr>
-      <td style="font-weight:bold; vertical-align:top;">Hearing 聽覺<br/><span style="font-weight:normal;font-size:8pt;">(with/without* hearing aids<br/>有/沒有*配戴助聽器)</span></td>
-      <td style="vertical-align:top;">${checkbox(checkup.hearing_assessment === '正常')} normal<br/>正常</td>
-      <td style="vertical-align:top;">${checkbox(checkup.hearing_assessment === '難以正常聲浪溝通')} difficult to communicate with normal voice<br/>普通聲量下難以溝通</td>
-      <td style="vertical-align:top;">${checkbox(checkup.hearing_assessment === '難以話語的情況下也難以溝通')} difficult to communicate with loud voice<br/>大聲說話的情況下也難以溝通</td>
-      <td style="vertical-align:top;">${checkbox(checkup.hearing_assessment === '大聲話語情況下也不能溝通')} cannot communicate with loud voice<br/>大聲說話的情況下也不能溝通</td>
+      <td style="font-weight:bold; vertical-align:top; border:none; padding:5px;">Hearing 聽覺<br/><span style="font-weight:normal;font-size:8pt;">(with/without* hearing aids<br/>有/沒有*配戴助聽器)</span></td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.hearing_assessment === '正常')} normal<br/>正常</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.hearing_assessment === '難以正常聲浪溝通')} difficult to communicate with normal voice<br/>普通聲量下難以溝通</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.hearing_assessment === '難以話語的情況下也難以溝通')} difficult to communicate with loud voice<br/>大聲說話的情況下也難以溝通</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.hearing_assessment === '大聲話語情況下也不能溝通')} cannot communicate with loud voice<br/>大聲說話的情況下也不能溝通</td>
     </tr>
     <tr>
-      <td style="font-weight:bold; vertical-align:top;">Speech<br/>語言能力</td>
-      <td style="vertical-align:top;">${checkbox(checkup.speech_assessment === '能正常表達')} able to express<br/>能正常表達</td>
-      <td style="vertical-align:top;">${checkbox(checkup.speech_assessment === '需慢慢表達')} need time to express<br/>需慢慢表達</td>
-      <td style="vertical-align:top;">${checkbox(checkup.speech_assessment === '需靠提示表達')} need clues to express<br/>需靠提示表達</td>
-      <td style="vertical-align:top;">${checkbox(checkup.speech_assessment === '不能以語言表達')} unable to express<br/>不能以語言表達</td>
+      <td style="font-weight:bold; vertical-align:top; border:none; padding:5px;">Speech<br/>語言能力</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.speech_assessment === '能正常表達')} able to express<br/>能正常表達</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.speech_assessment === '需慢慢表達')} need time to express<br/>需慢慢表達</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.speech_assessment === '需靠提示表達')} need clues to express<br/>需靠提示表達</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.speech_assessment === '不能以語言表達')} unable to express<br/>不能以語言表達</td>
     </tr>
     <tr>
-      <td style="font-weight:bold; vertical-align:top;" rowspan="2">Mental state<br/>精神狀況</td>
-      <td style="vertical-align:top;">${checkbox(mentalState.mental_state === '正常警覺穩定')} normal/alert/stable<br/>正常/敏銳/穩定</td>
-      <td style="vertical-align:top;">${checkbox(mentalState.mental_state === '輕度受困擾')} mildly disturbed<br/>輕度受困擾</td>
-      <td style="vertical-align:top;">${checkbox(mentalState.mental_state === '中度受困擾')} moderately disturbed<br/>中度受困擾</td>
-      <td style="vertical-align:top;">${checkbox(mentalState.mental_state === '嚴重受困擾')} seriously disturbed<br/>嚴重受困擾</td>
+      <td style="font-weight:bold; vertical-align:top; border:none; padding:5px;" rowspan="2">Mental state<br/>精神狀況</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(mentalState.mental_state === '正常警覺穩定')} normal/alert/stable<br/>正常/敏銳/穩定</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(mentalState.mental_state === '輕度受困擾')} mildly disturbed<br/>輕度受困擾</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(mentalState.mental_state === '中度受困擾')} moderately disturbed<br/>中度受困擾</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(mentalState.mental_state === '嚴重受困擾')} seriously disturbed<br/>嚴重受困擾</td>
     </tr>
     <tr>
-      <td style="vertical-align:top;">${checkbox(mentalState.dementia_stage === '早期認知障礙症')} early stage of dementia<br/>早期認知障礙症</td>
-      <td style="vertical-align:top;">${checkbox(mentalState.dementia_stage === '中期認知障礙症')} middle stage of dementia<br/>中期認知障礙症</td>
-      <td style="vertical-align:top;">${checkbox(mentalState.dementia_stage === '後期認知障礙症')} late stage of dementia<br/>後期認知障礙症</td>
-      <td></td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(mentalState.dementia_stage === '早期認知障礙症')} early stage of dementia<br/>早期認知障礙症</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(mentalState.dementia_stage === '中期認知障礙症')} middle stage of dementia<br/>中期認知障礙症</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(mentalState.dementia_stage === '後期認知障礙症')} late stage of dementia<br/>後期認知障礙症</td>
+      <td style="border:none; padding:5px;"></td>
     </tr>
     <tr>
-      <td style="font-weight:bold; vertical-align:top;">Mobility<br/>活動能力</td>
-      <td style="vertical-align:top;">${checkbox(checkup.mobility_assessment === '獨立行動')} independent<br/>行動自如</td>
-      <td style="vertical-align:top;">${checkbox(checkup.mobility_assessment === '可自行用助行器或輪椅移動')} self-ambulatory with walking aid or wheelchair<br/>可自行用助行器或輪椅移動</td>
-      <td style="vertical-align:top;">${checkbox(checkup.mobility_assessment === '經常需要別人幫助')} always need assistance from other people<br/>經常需要別人幫助</td>
-      <td style="vertical-align:top;">${checkbox(checkup.mobility_assessment === '長期臥床')} bedridden<br/>長期臥床</td>
+      <td style="font-weight:bold; vertical-align:top; border:none; padding:5px;">Mobility<br/>活動能力</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.mobility_assessment === '獨立行動')} independent<br/>行動自如</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.mobility_assessment === '可自行用助行器或輪椅移動')} self-ambulatory with walking aid or wheelchair<br/>可自行用助行器或輪椅移動</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.mobility_assessment === '經常需要別人幫助')} always need assistance from other people<br/>經常需要別人幫助</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.mobility_assessment === '長期臥床')} bedridden<br/>長期臥床</td>
     </tr>
     <tr>
-      <td style="font-weight:bold; vertical-align:top;">Continence<br/>禁制能力</td>
-      <td style="vertical-align:top;">${checkbox(checkup.continence_assessment === '正常')} normal<br/>正常</td>
-      <td style="vertical-align:top;">${checkbox(checkup.continence_assessment === '偶然大小便失禁')} occasional faecal or urinary incontinence<br/>大/小便偶爾失禁</td>
-      <td style="vertical-align:top;">${checkbox(checkup.continence_assessment === '頻繁大小便失禁')} frequent faecal or urinary incontinence<br/>大/小便經常失禁</td>
-      <td style="vertical-align:top;">${checkbox(checkup.continence_assessment === '大小便完全失禁')} double incontinence<br/>大小便完全失禁</td>
+      <td style="font-weight:bold; vertical-align:top; border:none; padding:5px;">Continence<br/>禁制能力</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.continence_assessment === '正常')} normal<br/>正常</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.continence_assessment === '偶然大小便失禁')} occasional faecal or urinary incontinence<br/>大/小便偶爾失禁</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.continence_assessment === '頻繁大小便失禁')} frequent faecal or urinary incontinence<br/>大/小便經常失禁</td>
+      <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.continence_assessment === '大小便完全失禁')} double incontinence<br/>大小便完全失禁</td>
     </tr>
     <tr>
-      <td style="font-weight:bold; vertical-align:top;">A.D.L.<br/>自我照顧能力</td>
-      <td colspan="4" style="vertical-align:top;">
+      <td style="font-weight:bold; vertical-align:top; border:none; padding:5px;">A.D.L.<br/>自我照顧能力</td>
+      <td colspan="4" style="vertical-align:top; border:none; padding:5px;">
         ${checkbox(checkup.adl_assessment === '完全獨立')} <b>Independent 完全獨立/不需協助</b><br/>
         <span style="font-size:8pt;padding-left:18px;display:block;">(No supervision or assistance needed in all daily living activities, including bathing, dressing, toileting, transfer, urinary and faecal continence and feeding)<br/>(於洗澡、穿衣、如廁、位置轉移、大小便禁制及進食方面均無需指導或協助)</span>
       </td>
     </tr>
     <tr>
-      <td></td>
-      <td colspan="4" style="vertical-align:top;">
+      <td style="border:none; padding:5px;"></td>
+      <td colspan="4" style="vertical-align:top; border:none; padding:5px;">
         ${checkbox(checkup.adl_assessment === '偶爾需要協助')} <b>Occasional assistance 偶爾需要協助</b><br/>
         <span style="font-size:8pt;padding-left:18px;display:block;">(Need assistance in bathing and supervision or assistance in other daily living activities)<br/>(於洗澡時需要協助及於其他日常生活活動方面需要指導或協助)</span>
       </td>
     </tr>
     <tr>
-      <td></td>
-      <td colspan="4" style="vertical-align:top;">
+      <td style="border:none; padding:5px;"></td>
+      <td colspan="4" style="vertical-align:top; border:none; padding:5px;">
         ${checkbox(checkup.adl_assessment === '經常需要協助')} <b>Frequent assistance 經常需要協助</b><br/>
         <span style="font-size:8pt;padding-left:18px;display:block;">(Need supervision or assistance in bathing and no more than 4 other daily living activities)<br/>(於洗澡及其他不超過四項日常生活活動方面需要指導或協助)</span>
       </td>
     </tr>
     <tr>
-      <td></td>
-      <td colspan="4" style="vertical-align:top;">
+      <td style="border:none; padding:5px;"></td>
+      <td colspan="4" style="vertical-align:top; border:none; padding:5px;">
         ${checkbox(checkup.adl_assessment === '完全需要協助')} <b>Totally dependent 完全需要協助</b><br/>
         <span style="font-size:8pt;padding-left:18px;display:block;">(Need assistance in all daily living activities)<br/>(於日常生活活動方面均需要完全的協助)</span>
       </td>
