@@ -28,11 +28,30 @@ interface AnnualHealthCheckupModalProps {
 }
 
 export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, prefilledPatientId }: AnnualHealthCheckupModalProps) {
-  const { patients, annualHealthCheckups } = usePatients();
+  const { 
+    patients, 
+    annualHealthCheckups, 
+    diagnosisRecords, 
+    updateAnnualHealthCheckup: contextUpdateAnnualHealthCheckup,
+    addAnnualHealthCheckup: contextAddAnnualHealthCheckup
+  } = usePatients();
   const [loading, setLoading] = useState(false);
   const [fetchingReadings, setFetchingReadings] = useState(false);
 
   const parsedMentalState = parseMentalStateAssessment(checkup?.mental_state_assessment || null);
+
+  // 获取预填充患者的数据
+  const prefilledPatient = prefilledPatientId && !checkup 
+    ? patients.find(p => p.院友id === prefilledPatientId) 
+    : null;
+
+  // 获取预填充患者的诊断记录
+  const prefilledPatientDiagnosis = prefilledPatient 
+    ? diagnosisRecords
+        .filter(d => d.patient_id === prefilledPatient.院友id)
+        .map(d => d.diagnosis_item)
+        .join(', ')
+    : '';
 
   const [formData, setFormData] = useState({
     patient_id: checkup?.patient_id || prefilledPatientId || null,
@@ -40,11 +59,11 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
     next_due_date: checkup?.next_due_date || '',
 
     has_serious_illness: checkup?.has_serious_illness || false,
-    serious_illness_details: checkup?.serious_illness_details || '',
+    serious_illness_details: checkup?.serious_illness_details || prefilledPatientDiagnosis || '',
     has_allergy: checkup?.has_allergy || false,
-    allergy_details: checkup?.allergy_details || '',
+    allergy_details: checkup?.allergy_details || (prefilledPatient?.藥物敏感?.join(', ')) || '',
     has_infectious_disease: checkup?.has_infectious_disease || false,
-    infectious_disease_details: checkup?.infectious_disease_details || '',
+    infectious_disease_details: checkup?.infectious_disease_details || (prefilledPatient?.感染控制?.join(', ')) || '',
     needs_followup_treatment: checkup?.needs_followup_treatment || false,
     followup_treatment_details: checkup?.followup_treatment_details || '',
     has_swallowing_difficulty: checkup?.has_swallowing_difficulty || false,
@@ -85,6 +104,66 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
     recommendation: checkup?.recommendation || '',
   });
 
+  // 当 checkup 改变时更新 formData（用于重新打开模态框时加载最新数据）
+  useEffect(() => {
+    if (checkup) {
+      const parsedState = parseMentalStateAssessment(checkup.mental_state_assessment || null);
+      
+      // 获取患者信息用于引用最新的诊断、药物敏感、感染控制数据
+      const patient = patients.find(p => p.院友id === checkup.patient_id);
+      const patientDiagnosis = diagnosisRecords
+        .filter(d => d.patient_id === checkup.patient_id)
+        .map(d => d.diagnosis_item)
+        .join(', ');
+      
+      setFormData({
+        patient_id: checkup.patient_id,
+        last_doctor_signature_date: checkup.last_doctor_signature_date || '',
+        next_due_date: checkup.next_due_date || '',
+        has_serious_illness: checkup.has_serious_illness || false,
+        serious_illness_details: patientDiagnosis || '', // 每次都从患者记录引用
+        has_allergy: checkup.has_allergy || false,
+        allergy_details: patient?.藥物敏感?.join(', ') || '', // 每次都从患者记录引用
+        has_infectious_disease: checkup.has_infectious_disease || false,
+        infectious_disease_details: patient?.感染控制?.join(', ') || '', // 每次都从患者记录引用
+        needs_followup_treatment: checkup.needs_followup_treatment || false,
+        followup_treatment_details: checkup.followup_treatment_details || '',
+        has_swallowing_difficulty: checkup.has_swallowing_difficulty || false,
+        swallowing_difficulty_details: checkup.swallowing_difficulty_details || '',
+        has_special_diet: checkup.has_special_diet || false,
+        special_diet_details: checkup.special_diet_details || '',
+        mental_illness_record: checkup.mental_illness_record || '',
+        blood_pressure_systolic: checkup.blood_pressure_systolic || null,
+        blood_pressure_diastolic: checkup.blood_pressure_diastolic || null,
+        pulse: checkup.pulse || null,
+        body_weight: checkup.body_weight || null,
+        cardiovascular_notes: checkup.cardiovascular_notes || '',
+        respiratory_notes: checkup.respiratory_notes || '',
+        central_nervous_notes: checkup.central_nervous_notes || '',
+        musculo_skeletal_notes: checkup.musculo_skeletal_notes || '',
+        abdomen_urogenital_notes: checkup.abdomen_urogenital_notes || '',
+        lymphatic_notes: checkup.lymphatic_notes || '',
+        thyroid_notes: checkup.thyroid_notes || '',
+        skin_condition_notes: checkup.skin_condition_notes || '',
+        foot_notes: checkup.foot_notes || '',
+        eye_ear_nose_throat_notes: checkup.eye_ear_nose_throat_notes || '',
+        oral_dental_notes: checkup.oral_dental_notes || '',
+        physical_exam_others: checkup.physical_exam_others || '',
+        vision_assessment: checkup.vision_assessment || '',
+        with_visual_corrective_devices: checkup.with_visual_corrective_devices ?? null,
+        hearing_assessment: checkup.hearing_assessment || '',
+        with_hearing_aids: checkup.with_hearing_aids ?? null,
+        speech_assessment: checkup.speech_assessment || '',
+        mental_state: parsedState.mental_state,
+        dementia_stage: parsedState.dementia_stage,
+        mobility_assessment: checkup.mobility_assessment || '',
+        continence_assessment: checkup.continence_assessment || '',
+        adl_assessment: checkup.adl_assessment || '',
+        recommendation: checkup.recommendation || '',
+      });
+    }
+  }, [checkup?.id, patients, diagnosisRecords]); // 监听患者和诊断记录的变化
+
   useEffect(() => {
     if (formData.last_doctor_signature_date) {
       const calculatedDate = calculateNextDueDate(formData.last_doctor_signature_date);
@@ -93,7 +172,25 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
   }, [formData.last_doctor_signature_date]);
 
   const handlePatientSelect = (patientId: string) => {
-    setFormData(prev => ({ ...prev, patient_id: parseInt(patientId, 10) || null }));
+    const selectedPatientId = parseInt(patientId, 10) || null;
+    const patient = patients.find(p => p.院友id === selectedPatientId);
+    
+    // 获取选中患者的诊断记录
+    const patientDiagnosis = selectedPatientId 
+      ? diagnosisRecords
+          .filter(d => d.patient_id === selectedPatientId)
+          .map(d => d.diagnosis_item)
+          .join(', ')
+      : '';
+    
+    setFormData(prev => ({
+      ...prev,
+      patient_id: selectedPatientId,
+      // 预填充患者资料到相应字段
+      serious_illness_details: patientDiagnosis || prev.serious_illness_details,
+      allergy_details: patient?.藥物敏感?.join(', ') || prev.allergy_details,
+      infectious_disease_details: patient?.感染控制?.join(', ') || prev.infectious_disease_details,
+    }));
   };
 
   const handleFetchLatestReadings = async () => {
@@ -152,10 +249,16 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
         body_weight: formData.body_weight ? Number(formData.body_weight) : null,
       };
 
+      console.log('保存年度體檢數據:', { checkup, checkupData });
+
       if (checkup) {
-        await db.updateAnnualHealthCheckup({ id: checkup.id, ...checkupData });
+        // 使用 context 的 updateAnnualHealthCheckup 以确保调用 refreshData()
+        await contextUpdateAnnualHealthCheckup({ id: checkup.id, ...checkupData });
+        console.log('更新成功');
       } else {
-        await db.createAnnualHealthCheckup(checkupData);
+        // 使用 context 的 addAnnualHealthCheckup 以确保调用 refreshData()
+        await contextAddAnnualHealthCheckup(checkupData);
+        console.log('創建成功');
       }
 
       onSave();

@@ -258,7 +258,7 @@ export const generateMedicalExaminationFormHTML = (
     </tr>
     <tr>
       <td style="border:none; padding:5px;"></td>
-      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.allergy_details || (patient.藥物敏感?.join('、') || '')}</div></td>
+      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.allergy_details || ''}</div></td>
     </tr>
     <tr>
       <td style="border:none; padding:5px;">(3)<br/>(a)</td>
@@ -267,7 +267,7 @@ export const generateMedicalExaminationFormHTML = (
     </tr>
     <tr>
       <td style="border:none; padding:5px;"></td>
-      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.infectious_disease_details || (patient.感染控制?.join('、') || '')}</div></td>
+      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.infectious_disease_details || ''}</div></td>
     </tr>
     <tr>
       <td style="border:none; padding:5px;">(3)<br/>(b)</td>
@@ -469,14 +469,26 @@ export const generateMedicalExaminationFormHTML = (
   
   <table style="border-collapse:collapse; border:1px solid #000;">
     <tr>
-      <td style="width:18%; font-weight:bold; vertical-align:top; border:none; padding:5px;">Vision 視力<br/><span style="font-weight:normal;font-size:8pt;">(with/without* visual corrective devices<br/>有/沒有*配戴視力矯正器)</span></td>
+      <td style="width:18%; font-weight:bold; vertical-align:top; border:none; padding:5px;">
+        Vision 視力<br/>
+        <span style="font-weight:normal;font-size:8pt;">
+          (${checkup.with_visual_corrective_devices === true ? 'with' : checkup.with_visual_corrective_devices === false ? '<s>with</s>' : 'with'}/${checkup.with_visual_corrective_devices === false ? 'without' : checkup.with_visual_corrective_devices === true ? '<s>without</s>' : 'without'}* visual corrective devices<br/>
+          ${checkup.with_visual_corrective_devices === true ? '有' : checkup.with_visual_corrective_devices === false ? '<s>有</s>' : '有'}/${checkup.with_visual_corrective_devices === false ? '沒有' : checkup.with_visual_corrective_devices === true ? '<s>沒有</s>' : '沒有'}*配戴視力矯正器)
+        </span>
+      </td>
       <td style="width:20.5%; vertical-align:top; border:none; padding:5px;">${checkbox(checkup.vision_assessment === '正常')} normal<br/>正常</td>
       <td style="width:20.5%; vertical-align:top; border:none; padding:5px;">${checkbox(checkup.vision_assessment === '不能閱讀報紙字體')} unable to read newspaper print<br/>不能閱讀報紙字體</td>
       <td style="width:20.5%; vertical-align:top; border:none; padding:5px;">${checkbox(checkup.vision_assessment === '只能見光影')} see lights only<br/>只能見光影</td>
       <td style="width:20.5%; vertical-align:top; border:none; padding:5px;">${checkbox(checkup.vision_assessment === '不能觀看電視')} unable to watch TV<br/>不能觀看到電視</td>
     </tr>
     <tr>
-      <td style="font-weight:bold; vertical-align:top; border:none; padding:5px;">Hearing 聽覺<br/><span style="font-weight:normal;font-size:8pt;">(with/without* hearing aids<br/>有/沒有*配戴助聽器)</span></td>
+      <td style="font-weight:bold; vertical-align:top; border:none; padding:5px;">
+        Hearing 聽覺<br/>
+        <span style="font-weight:normal;font-size:8pt;">
+          (${checkup.with_hearing_aids === true ? 'with' : checkup.with_hearing_aids === false ? '<s>with</s>' : 'with'}/${checkup.with_hearing_aids === false ? 'without' : checkup.with_hearing_aids === true ? '<s>without</s>' : 'without'}* hearing aids<br/>
+          ${checkup.with_hearing_aids === true ? '有' : checkup.with_hearing_aids === false ? '<s>有</s>' : '有'}/${checkup.with_hearing_aids === false ? '沒有' : checkup.with_hearing_aids === true ? '<s>沒有</s>' : '沒有'}*配戴助聽器)
+        </span>
+      </td>
       <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.hearing_assessment === '正常')} normal<br/>正常</td>
       <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.hearing_assessment === '難以正常聲浪溝通')} difficult to communicate with normal voice<br/>普通聲量下難以溝通</td>
       <td style="vertical-align:top; border:none; padding:5px;">${checkbox(checkup.hearing_assessment === '難以話語的情況下也難以溝通')} difficult to communicate with loud voice<br/>大聲說話的情況下也難以溝通</td>
