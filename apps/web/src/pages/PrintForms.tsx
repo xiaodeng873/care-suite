@@ -378,12 +378,33 @@ const PrintForms: React.FC = () => {
   };
 
   const handleRestraintObservationExport = async () => {
-    const selectedPatients = sortedPatients.filter(p => selectedRows.has(p.院友id));
+    const selectedPatientIds = Array.from(selectedRows);
+    
+    // 獲取選中院友的約束評估記錄
+    const selectedAssessments = patientRestraintAssessments.filter(assessment => 
+      selectedPatientIds.includes(assessment.patient_id)
+    );
+    
+    if (selectedAssessments.length === 0) {
+      alert('選中的院友沒有約束評估記錄');
+      return;
+    }
 
     try {
       setIsExporting(true);
-      const { exportRestraintObservationToExcel } = await import('../utils/restraintObservationChartExcelGenerator');
-      await exportRestraintObservationToExcel(selectedPatients, selectedTemplate);
+      
+      // 使用當月作為預設日期範圍
+      const today = new Date();
+      const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+      
+      const { exportRestraintObservationsToExcel } = await import('../utils/restraintObservationChartExcelGenerator');
+      await exportRestraintObservationsToExcel(
+        selectedAssessments, 
+        patients, 
+        startDate,
+        endDate
+      );
     } catch (error) {
       console.error('匯出約束觀察表失敗:', error);
       alert('匯出約束觀察表失敗，請重試');

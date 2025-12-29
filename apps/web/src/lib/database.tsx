@@ -1914,14 +1914,55 @@ export const getHospitalEpisodes = async (): Promise<any[]> => {
 };
 
 export const createHospitalEpisode = async (episode: any): Promise<any> => {
-  const { data, error } = await supabase.from('hospital_episodes').insert([episode]).select().single();
+  // 將 events 從 episode 物件中分離出來
+  const { events, ...episodeData } = episode;
+  
+  // 先創建住院事件記錄
+  const { data, error } = await supabase.from('hospital_episodes').insert([episodeData]).select().single();
   if (error) throw error;
+  
+  // 如果有事件資料，則創建事件記錄
+  if (events && events.length > 0) {
+    const eventsToInsert = events.map((event: any) => ({
+      ...event,
+      episode_id: data.id
+    }));
+    
+    const { error: eventsError } = await supabase.from('episode_events').insert(eventsToInsert);
+    if (eventsError) throw eventsError;
+  }
+  
   return data;
 };
 
 export const updateHospitalEpisode = async (episode: any): Promise<any> => {
-  const { data, error } = await supabase.from('hospital_episodes').update(episode).eq('id', episode.id).select().single();
+  // 將 events 從 episode 物件中分離出來
+  const { events, ...episodeData } = episode;
+  
+  // 更新住院事件記錄
+  const { data, error } = await supabase.from('hospital_episodes').update(episodeData).eq('id', episode.id).select().single();
   if (error) throw error;
+  
+  // 處理事件更新：先刪除舊事件，再插入新事件
+  if (events !== undefined) {
+    // 刪除現有事件
+    await deleteEpisodeEventsByEpisodeId(episode.id);
+    
+    // 如果有新事件資料，則創建事件記錄
+    if (events.length > 0) {
+      const eventsToInsert = events.map((event: any) => {
+        const { id, ...eventData } = event;
+        return {
+          ...eventData,
+          episode_id: episode.id
+        };
+      });
+      
+      const { error: eventsError } = await supabase.from('episode_events').insert(eventsToInsert);
+      if (eventsError) throw eventsError;
+    }
+  }
+  
   return data;
 };
 
