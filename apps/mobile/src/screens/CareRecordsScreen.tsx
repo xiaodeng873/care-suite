@@ -211,6 +211,14 @@ const CareRecordsScreen: React.FC = () => {
       // 只显示 is_hidden=false 的选项卡（数据库查询已经过滤）
       const tabs: TabType[] = careTabsData.map(tab => tab.tab_type);
       
+      // 預設所有院友都有「巡房記錄」和「衛生記錄」選項卡
+      if (!tabs.includes('patrol')) {
+        tabs.push('patrol');
+      }
+      if (!tabs.includes('hygiene')) {
+        tabs.push('hygiene');
+      }
+      
       console.log('根据 patient_care_tabs 计算出的选项卡:', tabs);
       console.log('===================');
       
@@ -1231,6 +1239,9 @@ const CareRecordsScreen: React.FC = () => {
     const record = hygieneRecords.find(r => r.record_date === dateString);
     const statusNotes = record?.status_notes;
     const hasStatusNotes = statusNotes && ['入院','渡假','外出'].includes(statusNotes);
+    
+    // 檢查該院友是否有換片記錄選項卡（而不是檢查是否有實際的換片記錄數據）
+    const hasDiaperTab = availableTabs.includes('diaper');
 
     return (
       <View>
@@ -1241,13 +1252,24 @@ const CareRecordsScreen: React.FC = () => {
           let cellStyle = [styles.singleDataCell];
           let isDisabled = false;
 
+          // 如果該院友有換片記錄選項卡，則4個大便相關項目變成不可選
+          const isBowelItem = ('isBowelCount' in item && item.isBowelCount) || 
+                              ('isBowelAmount' in item && item.isBowelAmount) || 
+                              ('isBowelConsistency' in item && item.isBowelConsistency) || 
+                              ('isBowelMedication' in item && item.isBowelMedication);
+          const bowelItemDisabledByDiaper = hasDiaperTab && isBowelItem;
+
           // 當有狀態備註時，除了備註行外，其他所有行都變灰
-          if (hasStatusNotes && !item.isStatus) {
+          const isStatus = 'isStatus' in item && item.isStatus;
+          if ((hasStatusNotes && !isStatus) || bowelItemDisabledByDiaper) {
             isDisabled = true;
             cellStyle.push(styles.disabledCell);
           }
 
-          if (item.isStatus) {
+          if (bowelItemDisabledByDiaper) {
+            // 有換片記錄選項卡時，大便項目顯示"參閱換片記錄"
+            cellContent = <Text style={[styles.disabledText, { fontSize: 10 }]}>參閱換片記錄</Text>;
+          } else if (isStatus) {
             // 備註行：顯示狀態（入院/渡假/外出）
             if (hasStatusNotes) {
               cellStyle.push(styles.statusCell);
@@ -1262,7 +1284,7 @@ const CareRecordsScreen: React.FC = () => {
             } else {
               cellContent = <Text style={styles.pendingText}>-</Text>;
             }
-          } else if (item.isBowelCount) {
+          } else if ('isBowelCount' in item && item.isBowelCount) {
             // 大便次數行
             if (isDisabled) {
               cellContent = <Text style={styles.disabledText}>-</Text>;
@@ -1276,7 +1298,7 @@ const CareRecordsScreen: React.FC = () => {
             } else {
               cellContent = <Text style={styles.pendingText}>-</Text>;
             }
-          } else if (item.isBowelAmount) {
+          } else if ('isBowelAmount' in item && item.isBowelAmount) {
             // 大便量行
             if (isDisabled) {
               cellContent = <Text style={styles.disabledText}>-</Text>;
@@ -1290,7 +1312,7 @@ const CareRecordsScreen: React.FC = () => {
             } else {
               cellContent = <Text style={styles.pendingText}>-</Text>;
             }
-          } else if (item.isBowelConsistency) {
+          } else if ('isBowelConsistency' in item && item.isBowelConsistency) {
             // 大便性質行
             if (isDisabled) {
               cellContent = <Text style={styles.disabledText}>-</Text>;
@@ -1304,7 +1326,7 @@ const CareRecordsScreen: React.FC = () => {
             } else {
               cellContent = <Text style={styles.pendingText}>-</Text>;
             }
-          } else if (item.isBowelMedication) {
+          } else if ('isBowelMedication' in item && item.isBowelMedication) {
             // 大便藥行
             if (isDisabled) {
               cellContent = <Text style={styles.disabledText}>-</Text>;
@@ -1341,7 +1363,11 @@ const CareRecordsScreen: React.FC = () => {
           }
 
           // 判斷是否為護理項目（需要inline toggle）
-          const isCareItem = !item.isStatus && !item.isBowelCount && !item.isBowelAmount && !item.isBowelConsistency && !item.isBowelMedication;
+          const isCareItem = !isStatus && 
+                            !('isBowelCount' in item && item.isBowelCount) && 
+                            !('isBowelAmount' in item && item.isBowelAmount) && 
+                            !('isBowelConsistency' in item && item.isBowelConsistency) && 
+                            !('isBowelMedication' in item && item.isBowelMedication);
           const handlePress = () => {
             if (isDisabled) return;
             if (isCareItem) {
@@ -1350,27 +1376,27 @@ const CareRecordsScreen: React.FC = () => {
               const rawValue = record ? (record as any)[item.key] : false;
               const currentValue = rawValue === true || rawValue === 'true';
               toggleHygieneCareItem(dateString, item.key, currentValue);
-            } else if (item.isStatus) {
+            } else if (isStatus) {
               // 備註：顯示選單
               setPickerDate(dateString);
               setPickerType('status');
               setShowPickerModal(true);
-            } else if (item.isBowelCount) {
+            } else if ('isBowelCount' in item && item.isBowelCount) {
               // 大便次數：顯示選單
               setPickerDate(dateString);
               setPickerType('count');
               setShowPickerModal(true);
-            } else if (item.isBowelAmount) {
+            } else if ('isBowelAmount' in item && item.isBowelAmount) {
               // 大便量：顯示選單
               setPickerDate(dateString);
               setPickerType('amount');
               setShowPickerModal(true);
-            } else if (item.isBowelConsistency) {
+            } else if ('isBowelConsistency' in item && item.isBowelConsistency) {
               // 大便性質：顯示選單
               setPickerDate(dateString);
               setPickerType('consistency');
               setShowPickerModal(true);
-            } else if (item.isBowelMedication) {
+            } else if ('isBowelMedication' in item && item.isBowelMedication) {
               // 大便藥：顯示選單
               setPickerDate(dateString);
               setPickerType('medication');

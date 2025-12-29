@@ -1077,6 +1077,18 @@ const CareRecords: React.FC = () => {
   };
 
   const renderHygieneTable = () => {
+    // 檢查該院友是否有換片記錄選項卡（而不是檢查是否有實際的換片記錄數據）
+    const hasDiaperTab = visibleTabTypes.includes('diaper');
+    
+    // 調試：輸出換片記錄信息
+    if (selectedPatient) {
+      console.log('=== 衛生記錄大便項目邏輯 ===');
+      console.log('院友:', selectedPatient.中文姓名);
+      console.log('可見選項卡:', visibleTabTypes);
+      console.log('hasDiaperTab:', hasDiaperTab);
+      console.log('換片記錄數量:', patientDiaperChanges.length);
+    }
+
     return (
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
@@ -1100,147 +1112,166 @@ const CareRecords: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white">
-            {HYGIENE_ITEMS.map((item) => (
-              <tr key={item.key} className="hover:bg-gray-50">
-                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border">
-                  {item.label}
-                </td>
-                {weekDates.map((date, dateIndex) => {
-                  const dateString = weekDateStrings[dateIndex];
-                  const record = patientHygieneRecords.find(
-                    r => r.record_date === dateString
-                  );
-                  const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, 'daily', admissionRecords, hospitalEpisodes);
-                  const hasStatusNotes = record?.status_notes && ['入院', '渡假', '外出'].includes(record.status_notes);
-                  const isDisabled = Boolean(hasStatusNotes && !item.isStatus);
+            {HYGIENE_ITEMS.map((item) => {
+              // 如果該院友有換片記錄選項卡，則4個大便相關項目變成不可選
+              const isBowelItem = item.isBowelCount || item.isBowelAmount || item.isBowelConsistency || item.isBowelMedication;
+              const bowelItemDisabledByDiaper = hasDiaperTab && isBowelItem;
+              
+              // 調試：輸出大便項目信息
+              if (isBowelItem && selectedPatient) {
+                console.log(`項目 ${item.label}:`, {
+                  isBowelItem,
+                  hasDiaperTab,
+                  bowelItemDisabledByDiaper
+                });
+              }
 
-                  let cellContent: React.ReactNode = null;
-                  let cellClassName = 'px-2 py-3 text-center text-sm border ';
+              return (
+                <tr key={item.key} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border">
+                    {item.label}
+                  </td>
+                  {weekDates.map((date, dateIndex) => {
+                    const dateString = weekDateStrings[dateIndex];
+                    const record = patientHygieneRecords.find(
+                      r => r.record_date === dateString
+                    );
+                    const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, 'daily', admissionRecords, hospitalEpisodes);
+                    const hasStatusNotes = record?.status_notes && ['入院', '渡假', '外出'].includes(record.status_notes);
+                    const isDisabled = Boolean(hasStatusNotes && !item.isStatus) || bowelItemDisabledByDiaper;
 
-                  if (inHospital) {
-                    cellClassName += 'bg-gray-100 text-gray-500';
-                    cellContent = <span>入院</span>;
-                  } else if (isDisabled) {
-                    // 當有狀態備註時，其他項目變灰
-                    cellClassName += 'bg-gray-200 text-gray-400 cursor-not-allowed';
-                    cellContent = <span>-</span>;
-                  } else if (item.isStatus) {
-                    // 備註行 - 下拉選單
-                    cellClassName += 'p-1';
-                    cellContent = (
-                      <select
-                        value={record?.status_notes || ''}
-                        onChange={(e) => updateHygieneStatus(dateString, e.target.value, e as any)}
-                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">-- 選擇 --</option>
-                        <option value="入院">入院</option>
-                        <option value="渡假">渡假</option>
-                        <option value="外出">外出</option>
-                      </select>
-                    );
-                  } else if (item.isBowelCount) {
-                    // 大便次數行 - inline數字輸入
-                    cellClassName += 'p-1';
-                    cellContent = (
-                      <input
-                        type="number"
-                        min="0"
-                        max="10"
-                        value={record?.bowel_count ?? ''}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? null : parseInt(e.target.value);
-                          if (value === null || (value >= 0 && value <= 10)) {
-                            updateHygieneBowel(dateString, 'bowel_count', value, e as any);
-                          }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        disabled={isDisabled}
-                        className="w-16 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="0"
-                      />
-                    );
-                  } else if (item.isBowelAmount) {
-                    // 大便量行 - 下拉選單
-                    cellClassName += 'p-1';
-                    cellContent = (
-                      <select
-                        value={record?.bowel_amount || ''}
-                        onChange={(e) => updateHygieneBowel(dateString, 'bowel_amount', e.target.value || null, e as any)}
-                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={isDisabled}
-                      >
-                        <option value="">-- 選擇 --</option>
-                        <option value="少">少</option>
-                        <option value="中">中</option>
-                        <option value="多">多</option>
-                      </select>
-                    );
-                  } else if (item.isBowelConsistency) {
-                    // 大便性質行 - 下拉選單
-                    cellClassName += 'p-1';
-                    cellContent = (
-                      <select
-                        value={record?.bowel_consistency || ''}
-                        onChange={(e) => updateHygieneBowel(dateString, 'bowel_consistency', e.target.value || null, e as any)}
-                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={isDisabled}
-                      >
-                        <option value="">-- 選擇 --</option>
-                        <option value="硬">硬</option>
-                        <option value="軟">軟</option>
-                        <option value="稀">稀</option>
-                        <option value="水狀">水狀</option>
-                      </select>
-                    );
-                  } else if (item.isBowelMedication) {
-                    // 大便藥行 - 下拉選單
-                    cellClassName += 'p-1';
-                    cellContent = (
-                      <select
-                        value={record?.bowel_medication || ''}
-                        onChange={(e) => updateHygieneBowel(dateString, 'bowel_medication', e.target.value || null, e as any)}
-                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={isDisabled}
-                      >
-                        <option value="">-- 選擇 --</option>
-                        <option value="樂可舒">樂可舒</option>
-                        <option value="氧化鎂">氧化鎂</option>
-                        <option value="軟便劑">軟便劑</option>
-                        <option value="其他">其他</option>
-                      </select>
-                    );
-                  } else {
-                    // 護理項目行 - 點擊toggle
-                    if (record && (record as any)[item.key]) {
-                      cellClassName += 'bg-green-50 hover:bg-green-100 cursor-pointer';
-                      cellContent = <div className="font-medium text-green-600">✓</div>;
+                    let cellContent: React.ReactNode = null;
+                    let cellClassName = 'px-2 py-3 text-center text-sm border ';
+
+                    if (inHospital) {
+                      cellClassName += 'bg-gray-100 text-gray-500';
+                      cellContent = <span>入院</span>;
+                    } else if (bowelItemDisabledByDiaper) {
+                      // 有換片記錄時，大便項目顯示"參閱換片記錄"（優先於其他所有條件）
+                      cellClassName += 'bg-gray-100 text-gray-500 cursor-not-allowed';
+                      cellContent = <span className="text-xs">參閱換片記錄</span>;
+                    } else if (hasStatusNotes && !item.isStatus) {
+                      // 當有狀態備註時，其他項目變灰
+                      cellClassName += 'bg-gray-200 text-gray-400 cursor-not-allowed';
+                      cellContent = <span>-</span>;
+                    } else if (item.isStatus) {
+                      // 備註行 - 下拉選單
+                      cellClassName += 'p-1';
+                      cellContent = (
+                        <select
+                          value={record?.status_notes || ''}
+                          onChange={(e) => updateHygieneStatus(dateString, e.target.value, e as any)}
+                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">-- 選擇 --</option>
+                          <option value="入院">入院</option>
+                          <option value="渡假">渡假</option>
+                          <option value="外出">外出</option>
+                        </select>
+                      );
+                    } else if (item.isBowelCount) {
+                      // 大便次數行 - inline數字輸入
+                      cellClassName += 'p-1';
+                      cellContent = (
+                        <input
+                          type="number"
+                          min="0"
+                          max="10"
+                          value={record?.bowel_count ?? ''}
+                          onChange={(e) => {
+                            const value = e.target.value === '' ? null : parseInt(e.target.value);
+                            if (value === null || (value >= 0 && value <= 10)) {
+                              updateHygieneBowel(dateString, 'bowel_count', value, e as any);
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          disabled={isDisabled}
+                          className="w-16 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0"
+                        />
+                      );
+                    } else if (item.isBowelAmount) {
+                      // 大便量行 - 下拉選單
+                      cellClassName += 'p-1';
+                      cellContent = (
+                        <select
+                          value={record?.bowel_amount || ''}
+                          onChange={(e) => updateHygieneBowel(dateString, 'bowel_amount', e.target.value || null, e as any)}
+                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={isDisabled}
+                        >
+                          <option value="">-- 選擇 --</option>
+                          <option value="少">少</option>
+                          <option value="中">中</option>
+                          <option value="多">多</option>
+                        </select>
+                      );
+                    } else if (item.isBowelConsistency) {
+                      // 大便性質行 - 下拉選單
+                      cellClassName += 'p-1';
+                      cellContent = (
+                        <select
+                          value={record?.bowel_consistency || ''}
+                          onChange={(e) => updateHygieneBowel(dateString, 'bowel_consistency', e.target.value || null, e as any)}
+                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={isDisabled}
+                        >
+                          <option value="">-- 選擇 --</option>
+                          <option value="硬">硬</option>
+                          <option value="軟">軟</option>
+                          <option value="稀">稀</option>
+                          <option value="水狀">水狀</option>
+                        </select>
+                      );
+                    } else if (item.isBowelMedication) {
+                      // 大便藥行 - 下拉選單
+                      cellClassName += 'p-1';
+                      cellContent = (
+                        <select
+                          value={record?.bowel_medication || ''}
+                          onChange={(e) => updateHygieneBowel(dateString, 'bowel_medication', e.target.value || null, e as any)}
+                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={isDisabled}
+                        >
+                          <option value="">-- 選擇 --</option>
+                          <option value="樂可舒">樂可舒</option>
+                          <option value="氧化鎂">氧化鎂</option>
+                          <option value="軟便劑">軟便劑</option>
+                          <option value="其他">其他</option>
+                        </select>
+                      );
                     } else {
-                      cellClassName += 'hover:bg-blue-50 cursor-pointer';
-                      cellContent = <span className="text-gray-400 text-xs">-</span>;
+                      // 護理項目行 - 點擊toggle
+                      if (record && (record as any)[item.key]) {
+                        cellClassName += 'bg-green-50 hover:bg-green-100 cursor-pointer';
+                        cellContent = <div className="font-medium text-green-600">✓</div>;
+                      } else {
+                        cellClassName += 'hover:bg-blue-50 cursor-pointer';
+                        cellContent = <span className="text-gray-400 text-xs">-</span>;
+                      }
                     }
-                  }
 
-                  // 護理項目用click toggle
-                  const isCareItem = !item.isStatus && !item.isBowelCount && !item.isBowelAmount && !item.isBowelConsistency && !item.isBowelMedication;
-                  
-                  const handleClick = () => {
-                    if (inHospital || isDisabled || !isCareItem) return;
-                    toggleHygieneCareItem(dateString, item.key, record ? (record as any)[item.key] : false);
-                  };
+                    // 護理項目用click toggle
+                    const isCareItem = !item.isStatus && !item.isBowelCount && !item.isBowelAmount && !item.isBowelConsistency && !item.isBowelMedication;
+                    
+                    const handleClick = () => {
+                      if (inHospital || isDisabled || !isCareItem) return;
+                      toggleHygieneCareItem(dateString, item.key, record ? (record as any)[item.key] : false);
+                    };
 
-                  return (
-                    <td
-                      key={`${item.key}-${dateString}`}
-                      className={cellClassName}
-                      onClick={handleClick}
-                    >
-                      {cellContent}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+                    return (
+                      <td
+                        key={`${item.key}-${dateString}`}
+                        className={cellClassName}
+                        onClick={handleClick}
+                      >
+                        {cellContent}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

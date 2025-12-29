@@ -800,6 +800,15 @@ const AnnualHealthCheckup: React.FC = () => {
                           <button
                             onClick={() => {
                               if (patient) {
+                                console.log('打印按鈕點擊，使用的checkup數據:', {
+                                  id: checkup.id,
+                                  has_serious_illness: checkup.has_serious_illness,
+                                  has_allergy: checkup.has_allergy,
+                                  has_infectious_disease: checkup.has_infectious_disease,
+                                  needs_followup_treatment: checkup.needs_followup_treatment,
+                                  has_swallowing_difficulty: checkup.has_swallowing_difficulty,
+                                  has_special_diet: checkup.has_special_diet
+                                });
                                 printMedicalExaminationForm(checkup, patient);
                               }
                             }}

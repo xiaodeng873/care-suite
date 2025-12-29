@@ -461,9 +461,13 @@ export const generateMedicalExaminationFormHTML = (
   </div>
 
   <table>
+ 
     <tr class="section-header">
       <td style="width:18%;">Part IV<br/>第四部分</td>
       <td>Functional Assessment<br/>身體機能評估</td>
+    </tr>
+    <tr>
+      <td colspan="2" style="height:3mm; border:none;"></td>
     </tr>
   </table>
   
@@ -576,74 +580,68 @@ export const generateMedicalExaminationFormHTML = (
   </table>
   
   <div style="border:1px solid #000; padding:12px 15px;">
-    <p style="margin-bottom:15px;">The applicant is fit for admission to the following type of residential care homes for the elderly -<br/>申請人適合入住以下類別的安老院:</p>
+    <p style="margin-bottom:12px;">The applicant is fit for admission to the following type of residential care homes for the elderly -<br/>申請人適合入住以下類別的安老院:</p>
     
-    <div style="margin-bottom:18px;">
+    <div style="margin-bottom:10px;">
       ${checkbox(checkup.recommendation === '低度照顧安老院')} <b>1. Self-care Hostel 低度照顧安老院</b><br/>
-      <p style="font-size:8pt; margin-left:22px; line-height:1.3;">(an establishment providing residential care, supervision and guidance for persons who have attained the age of 60 years and who are capable of observing personal hygiene and performing household duties related to cleaning, cooking, laundering, shopping and other domestic tasks)<br/>(即提供住宿照顧、監管及指導予年滿 60 歲人士的機構,而該等人士有能力保持個人衞生,亦有能力處理關於清潔、烹飪、洗衣、購物的家居工作及其他家務)</p>
+      <p style="font-size:7.5pt; margin-left:22px; line-height:1.2;">(an establishment providing residential care, supervision and guidance for persons who have attained the age of 60 years and who are capable of observing personal hygiene and performing household duties related to cleaning, cooking, laundering, shopping and other domestic tasks)<br/>(即提供住宿照顧、監管及指導予年滿 60 歲人士的機構,而該等人士有能力保持個人衞生,亦有能力處理關於清潔、烹飪、洗衣、購物的家居工作及其他家務)</p>
     </div>
     
-    <div style="margin-bottom:18px;">
+    <div style="margin-bottom:10px;">
       ${checkbox(checkup.recommendation === '中度照顧安老院')} <b>2. Aged Home 中度照顧安老院</b><br/>
-      <p style="font-size:8pt; margin-left:22px; line-height:1.3;">(an establishment providing residential care, supervision and guidance for persons who have attained the age of 60 years and who are capable of observing personal hygiene but have a degree of difficulty in performing household duties related to cleaning, cooking, laundering, shopping and other domestic tasks)<br/>(即提供住宿照顧、監管及指導予年滿 60 歲人士的機構,而該等人士有能力保持個人衞生,但在處理關於清潔、烹飪、洗衣、購物的家居工作及其他家務方面,有一定程度的困難)</p>
+      <p style="font-size:7.5pt; margin-left:22px; line-height:1.2;">(an establishment providing residential care, supervision and guidance for persons who have attained the age of 60 years and who are capable of observing personal hygiene but have a degree of difficulty in performing household duties related to cleaning, cooking, laundering, shopping and other domestic tasks)<br/>(即提供住宿照顧、監管及指導予年滿 60 歲人士的機構,而該等人士有能力保持個人衞生,但在處理關於清潔、烹飪、洗衣、購物的家居工作及其他家務方面,有一定程度的困難)</p>
     </div>
     
-    <div style="margin-bottom:18px;">
+    <div style="margin-bottom:10px;">
       ${checkbox(checkup.recommendation === '高度照顧安老院')} <b>3. Care-and-Attention Home 高度照顧安老院</b><br/>
-      <p style="font-size:8pt; margin-left:22px; line-height:1.3;">(an establishment providing residential care, supervision and guidance for persons who have attained the age of 60 years and who are generally weak in health and are suffering from a functional disability to the extent that they require personal care and attention in the course of daily living activities but do not require a high degree of professional medical or nursing care)<br/>(即提供住宿照顧、監管及指導予年滿 60 歲人士的機構,而該等人士一般健康欠佳,而且身體機能喪失或衰退,以致在日常起居方面需要專人照顧料理,但不需要高度的專業醫療或護理)</p>
+      <p style="font-size:7.5pt; margin-left:22px; line-height:1.2;">(an establishment providing residential care, supervision and guidance for persons who have attained the age of 60 years and who are generally weak in health and are suffering from a functional disability to the extent that they require personal care and attention in the course of daily living activities but do not require a high degree of professional medical or nursing care)<br/>(即提供住宿照顧、監管及指導予年滿 60 歲人士的機構,而該等人士一般健康欠佳,而且身體機能喪失或衰退,以致在日常起居方面需要專人照顧料理,但不需要高度的專業醫療或護理)</p>
     </div>
     
-    <div>
+    <div style="margin-bottom:10px;">
       ${checkbox(checkup.recommendation === '護養院')} <b>4. Nursing Home 護養院</b><br/>
-      <p style="font-size:8pt; margin-left:22px; line-height:1.3;">(an establishment providing residential care, supervision and guidance for persons who have attained the age of 60 years, and who are suffering from a functional disability to the extent that they require personal care and attention in the course of daily living activities, and a high degree of professional nursing care, but do not require continuous medical supervision)<br/>(即提供住宿照顧、監管及指導予年滿 60 歲人士的機構,而該等人士身體機能喪失,程度達到在日常起居方面,需要專人照顧料理及高度的專業護理,但不需要持續醫療監管)</p>
+      <p style="font-size:7.5pt; margin-left:22px; line-height:1.2;">(an establishment providing residential care, supervision and guidance for persons who have attained the age of 60 years, and who are suffering from a functional disability to the extent that they require personal care and attention in the course of daily living activities, and a high degree of professional nursing care, but do not require continuous medical supervision)<br/>(即提供住宿照顧、監管及指導予年滿 60 歲人士的機構,而該等人士身體機能喪失,程度達到在日常起居方面,需要專人照顧料理及高度的專業護理,但不需要持續醫療監管)</p>
     </div>
   </div>
   
-  <p style="text-align:center; margin-top:5mm; font-size:9pt;">附件 12.1 - 4</p>
-</div>
-
-<!-- ===== 第5頁: Part VI + 簽名 ===== -->
-<div class="page">
-  <div class="header">
-    <span>《安老院實務守則》2024年6月（修訂版）</span>
-    <span>附件 12.1</span>
-  </div>
-
-  <table style="margin-bottom:10mm;">
+  <!-- Part VI 整合到第4頁 -->
+  <table style="margin-top:8mm; margin-bottom:4mm;">
     <tr class="section-header">
       <td style="width:18%;">Part VI<br/>第六部分</td>
       <td>Other Comment<br/>其他批註</td>
     </tr>
     <tr>
-      <td colspan="2" style="height:auto; padding:10px 8px;">
-        <div style="border-bottom:1px solid #000; height:20px; margin-bottom:8px;"></div>
-        <div style="border-bottom:1px solid #000; height:20px; margin-bottom:8px;"></div>
+      <td colspan="2" style="height:auto; padding:6px 8px;">
+        <div style="border-bottom:1px solid #000; height:20px; margin-bottom:5px;"></div>
+        <div style="border-bottom:1px solid #000; height:20px; margin-bottom:5px;"></div>
+        <div style="border-bottom:1px solid #000; height:20px; margin-bottom:5px;"></div>
+        <div style="border-bottom:1px solid #000; height:20px; margin-bottom:5px;"></div>
+        <div style="border-bottom:1px solid #000; height:20px; margin-bottom:5px;"></div>
         <div style="border-bottom:1px solid #000; height:20px;"></div>
       </td>
     </tr>
   </table>
   
-  <div style="display:flex; gap:20px;">
+  <div style="display:flex; gap:15px; font-size:9pt;">
     <div style="width:50%;">
-      <p style="margin-bottom:3px;">Registered Medical Practitioner's Signature<br/>註冊醫生簽署</p>
-      <div style="border-bottom:1px solid #000; height:20px; margin-bottom:15px;"></div>
+      <p style="margin-bottom:2px; font-size:8.5pt;">Registered Medical Practitioner's Signature<br/>註冊醫生簽署</p>
+      <div style="border-bottom:1px solid #000; height:30px; margin-bottom:8px;"></div>
       
-      <p style="margin-bottom:3px;">Registered Medical Practitioner's Name<br/>註冊醫生姓名</p>
-      <div style="border-bottom:1px solid #000; height:20px; margin-bottom:15px;"></div>
+      <p style="margin-bottom:2px; font-size:8.5pt;">Registered Medical Practitioner's Name<br/>註冊醫生姓名</p>
+      <div style="border-bottom:1px solid #000; height:30px; margin-bottom:8px;"></div>
       
-      <p style="margin-bottom:3px;">Date 日期</p>
-      <div style="border-bottom:1px solid #000; height:20px;">${checkup.last_doctor_signature_date ? new Date(checkup.last_doctor_signature_date).toLocaleDateString('zh-TW') : ''}</div>
+      <p style="margin-bottom:2px; font-size:8.5pt;">Date 日期</p>
+      <div style="border-bottom:1px solid #000; height:15px;">${checkup.last_doctor_signature_date ? new Date(checkup.last_doctor_signature_date).toLocaleDateString('zh-TW') : ''}</div>
     </div>
     <div style="width:50%;">
-      <p style="margin-bottom:3px;">Name of Hospital/Clinic<br/>醫院／診所名稱</p>
-      <div style="border-bottom:1px solid #000; height:20px; margin-bottom:15px;"></div>
+      <p style="margin-bottom:2px; font-size:8.5pt;">Name of Hospital/Clinic<br/>醫院／診所名稱</p>
+      <div style="border-bottom:1px solid #000; height:30px; margin-bottom:8px;"></div>
       
-      <p style="margin-bottom:3px;">Stamp of Hospital/Clinic/Registered Medical<br/>Practitioner<br/>醫院／診所／註冊醫生印鑑</p>
-      <div style="border:1px solid #000; height:80px; margin-top:5px;"></div>
+      <p style="margin-bottom:2px; font-size:8.5pt;">Stamp of Hospital/Clinic/Registered Medical<br/>Practitioner<br/>醫院／診所／註冊醫生印鑑</p>
+      <div style="border:1px solid #000; height:45px; margin-top:3px;"></div>
     </div>
   </div>
   
-  <p style="text-align:center; margin-top:5mm; font-size:9pt;">附件 12.1 - 5</p>
+  <p style="text-align:center; margin-top:5mm; font-size:9pt;">附件 12.1 - 4</p>
 </div>
 
 </body>
@@ -692,6 +690,18 @@ export const printMedicalExaminationForm = async (
   patient: Patient
 ): Promise<void> => {
   try {
+    console.log('PDF生成器接收到的checkup數據:', {
+      has_serious_illness: checkup.has_serious_illness,
+      has_allergy: checkup.has_allergy,
+      has_infectious_disease: checkup.has_infectious_disease,
+      needs_followup_treatment: checkup.needs_followup_treatment,
+      has_swallowing_difficulty: checkup.has_swallowing_difficulty,
+      has_special_diet: checkup.has_special_diet,
+      serious_illness_details: checkup.serious_illness_details,
+      allergy_details: checkup.allergy_details,
+      infectious_disease_details: checkup.infectious_disease_details
+    });
+    
     // 獲取活躍處方
     const prescriptions = await getActivePrescriptions(patient.院友id);
     

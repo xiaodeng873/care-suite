@@ -58,11 +58,11 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
     last_doctor_signature_date: checkup?.last_doctor_signature_date || '',
     next_due_date: checkup?.next_due_date || '',
 
-    has_serious_illness: checkup?.has_serious_illness || false,
+    has_serious_illness: checkup?.has_serious_illness || !!(prefilledPatientDiagnosis && prefilledPatientDiagnosis.trim()),
     serious_illness_details: checkup?.serious_illness_details || prefilledPatientDiagnosis || '',
-    has_allergy: checkup?.has_allergy || false,
+    has_allergy: checkup?.has_allergy || !!(prefilledPatient?.藥物敏感?.length),
     allergy_details: checkup?.allergy_details || (prefilledPatient?.藥物敏感?.join(', ')) || '',
-    has_infectious_disease: checkup?.has_infectious_disease || false,
+    has_infectious_disease: checkup?.has_infectious_disease || !!(prefilledPatient?.感染控制?.length),
     infectious_disease_details: checkup?.infectious_disease_details || (prefilledPatient?.感染控制?.join(', ')) || '',
     needs_followup_treatment: checkup?.needs_followup_treatment || false,
     followup_treatment_details: checkup?.followup_treatment_details || '',
@@ -120,17 +120,17 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
         patient_id: checkup.patient_id,
         last_doctor_signature_date: checkup.last_doctor_signature_date || '',
         next_due_date: checkup.next_due_date || '',
-        has_serious_illness: checkup.has_serious_illness || false,
+        has_serious_illness: !!(patientDiagnosis && patientDiagnosis.trim()),
         serious_illness_details: patientDiagnosis || '', // 每次都从患者记录引用
-        has_allergy: checkup.has_allergy || false,
+        has_allergy: !!(patient?.藥物敏感?.length),
         allergy_details: patient?.藥物敏感?.join(', ') || '', // 每次都从患者记录引用
-        has_infectious_disease: checkup.has_infectious_disease || false,
+        has_infectious_disease: !!(patient?.感染控制?.length),
         infectious_disease_details: patient?.感染控制?.join(', ') || '', // 每次都从患者记录引用
-        needs_followup_treatment: checkup.needs_followup_treatment || false,
+        needs_followup_treatment: !!(checkup.followup_treatment_details && checkup.followup_treatment_details.trim()),
         followup_treatment_details: checkup.followup_treatment_details || '',
-        has_swallowing_difficulty: checkup.has_swallowing_difficulty || false,
+        has_swallowing_difficulty: !!(checkup.swallowing_difficulty_details && checkup.swallowing_difficulty_details.trim()),
         swallowing_difficulty_details: checkup.swallowing_difficulty_details || '',
-        has_special_diet: checkup.has_special_diet || false,
+        has_special_diet: !!(checkup.special_diet_details && checkup.special_diet_details.trim()),
         special_diet_details: checkup.special_diet_details || '',
         mental_illness_record: checkup.mental_illness_record || '',
         blood_pressure_systolic: checkup.blood_pressure_systolic || null,
@@ -186,9 +186,12 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
     setFormData(prev => ({
       ...prev,
       patient_id: selectedPatientId,
-      // 预填充患者资料到相应字段
+      // 预填充患者资料到相应字段，并根据内容自动设置checkbox
+      has_serious_illness: !!(patientDiagnosis && patientDiagnosis.trim()),
       serious_illness_details: patientDiagnosis || prev.serious_illness_details,
+      has_allergy: !!(patient?.藥物敏感?.length),
       allergy_details: patient?.藥物敏感?.join(', ') || prev.allergy_details,
+      has_infectious_disease: !!(patient?.感染控制?.length),
       infectious_disease_details: patient?.感染控制?.join(', ') || prev.infectious_disease_details,
     }));
   };
@@ -353,7 +356,11 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       <input
                         type="text"
                         value={formData.serious_illness_details}
-                        onChange={(e) => setFormData(prev => ({ ...prev, serious_illness_details: e.target.value }))}
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          serious_illness_details: e.target.value,
+                          has_serious_illness: !!(e.target.value && e.target.value.trim())
+                        }))}
                         placeholder="請輸入診斷結果"
                         className="form-input w-full"
                       />
@@ -390,7 +397,11 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       <input
                         type="text"
                         value={formData.allergy_details}
-                        onChange={(e) => setFormData(prev => ({ ...prev, allergy_details: e.target.value }))}
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          allergy_details: e.target.value,
+                          has_allergy: !!(e.target.value && e.target.value.trim())
+                        }))}
                         placeholder="請輸入過敏詳情"
                         className="form-input w-full"
                       />
@@ -427,7 +438,11 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       <input
                         type="text"
                         value={formData.infectious_disease_details}
-                        onChange={(e) => setFormData(prev => ({ ...prev, infectious_disease_details: e.target.value }))}
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          infectious_disease_details: e.target.value,
+                          has_infectious_disease: !!(e.target.value && e.target.value.trim())
+                        }))}
                         placeholder="請輸入傳染病詳情"
                         className="form-input w-full"
                       />
@@ -464,7 +479,11 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       <input
                         type="text"
                         value={formData.followup_treatment_details}
-                        onChange={(e) => setFormData(prev => ({ ...prev, followup_treatment_details: e.target.value }))}
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          followup_treatment_details: e.target.value,
+                          needs_followup_treatment: !!(e.target.value && e.target.value.trim())
+                        }))}
                         placeholder="請輸入詳情"
                         className="form-input w-full"
                       />
@@ -501,7 +520,11 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       <input
                         type="text"
                         value={formData.swallowing_difficulty_details}
-                        onChange={(e) => setFormData(prev => ({ ...prev, swallowing_difficulty_details: e.target.value }))}
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          swallowing_difficulty_details: e.target.value,
+                          has_swallowing_difficulty: !!(e.target.value && e.target.value.trim())
+                        }))}
                         placeholder="請輸入詳情"
                         className="form-input w-full"
                       />
@@ -538,7 +561,11 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       <input
                         type="text"
                         value={formData.special_diet_details}
-                        onChange={(e) => setFormData(prev => ({ ...prev, special_diet_details: e.target.value }))}
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          special_diet_details: e.target.value,
+                          has_special_diet: !!(e.target.value && e.target.value.trim())
+                        }))}
                         placeholder="請輸入詳情"
                         className="form-input w-full"
                       />

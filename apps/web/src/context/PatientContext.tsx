@@ -673,6 +673,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       setDrugDatabase(drugDatabaseData);
       setPrescriptionWorkflowRecords(workflowRecordsData || []);
       setPrescriptionTimeSlotDefinitions(timeSlotDefinitionsData || []);
+      console.log('refreshData設置annualHealthCheckups，總數:', annualHealthCheckupsData?.length);
       setAnnualHealthCheckups(annualHealthCheckupsData || []);
       setIncidentReports(incidentReportsData || []);
       setDiagnosisRecords(diagnosisRecordsData || []);
@@ -1463,8 +1464,17 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
 
   const updateAnnualHealthCheckup = async (checkup: any) => {
     try {
+      console.log('Context更新checkup數據:', {
+        has_serious_illness: checkup.has_serious_illness,
+        has_allergy: checkup.has_allergy,
+        has_infectious_disease: checkup.has_infectious_disease,
+        needs_followup_treatment: checkup.needs_followup_treatment,
+        has_swallowing_difficulty: checkup.has_swallowing_difficulty,
+        has_special_diet: checkup.has_special_diet
+      });
       await db.updateAnnualHealthCheckup(checkup);
       await refreshData();
+      console.log('Context refreshData完成');
     } catch (error) {
       console.error('Error updating annual health checkup:', error);
       throw error;

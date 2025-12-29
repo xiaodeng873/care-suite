@@ -193,8 +193,12 @@ export function getVisibleTabTypes(
     visibleTabs.add('hygiene');
   }
 
+  // 預設所有院友都有「巡房記錄」和「衛生記錄」選項卡
   if (!visibleTabs.has('patrol')) {
     visibleTabs.add('patrol');
+  }
+  if (!visibleTabs.has('hygiene')) {
+    visibleTabs.add('hygiene');
   }
 
   return Array.from(visibleTabs);
