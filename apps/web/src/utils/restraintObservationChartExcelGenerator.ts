@@ -809,6 +809,9 @@ export const exportRestraintObservationsToExcel = async (
           身份證號碼: patient?.身份證號碼 || ''
         }
       };
+    }).sort((a, b) => {
+      // 按床號排序（數字排序）
+      return a.院友.床號.localeCompare(b.院友.床號, 'zh-Hant', { numeric: true });
     });
     
     // 構建工作表配置
@@ -852,8 +855,17 @@ const exportRestraintObservationsToExcelSimple = async (
 ): Promise<void> => {
   const workbook = new ExcelJS.Workbook();
 
+  // 按床號排序評估記錄
+  const sortedAssessments = [...assessments].sort((a, b) => {
+    const patientA = patients.find(p => p.院友id === a.patient_id);
+    const patientB = patients.find(p => p.院友id === b.patient_id);
+    const bedNumberA = patientA?.床號 || '';
+    const bedNumberB = patientB?.床號 || '';
+    return bedNumberA.localeCompare(bedNumberB, 'zh-Hant', { numeric: true });
+  });
+
   // 為每個評估創建觀察表
-  assessments.forEach((assessment, index) => {
+  sortedAssessments.forEach((assessment, index) => {
     const patient = patients.find(p => p.院友id === assessment.patient_id);
     if (!patient) return;
 
