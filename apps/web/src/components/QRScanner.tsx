@@ -12,7 +12,7 @@ interface QRScannerProps {
 const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className = '', autoStart = false }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [shouldStartScanning, setShouldStartScanning] = useState(autoStart);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [error, setError] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [debugMessage, setDebugMessage] = useState<string>('');
@@ -75,8 +75,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       document.head.appendChild(style);
 
       const config = {
-        fps: 60,
-        aspectRatio: 1.0,
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
         disableFlip: false,
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true
@@ -85,36 +85,46 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
 
       setDebugMessage('🔄 正在啟動掃描器...');
 
+      // 使用增強的相機約束以改善對焦和解析度
+      const cameraConstraints = {
+        facingMode: facingMode,
+        advanced: [
+          { focusMode: 'continuous' },
+          { zoom: 1.0 }
+        ]
+      };
+
       await html5QrCode.start(
-        { facingMode: facingMode },
+        cameraConstraints as any,
         config,
         async (decodedText) => {
           console.log('📷 掃描到原始內容:', decodedText);
           setDebugMessage(`掃描到: ${decodedText.substring(0, 50)}...`);
+          
+          // 靈活解析：支援 JSON 或純文本格式（與移動端一致）
+          let qrData: any;
           try {
-            const qrData = JSON.parse(decodedText);
-            console.log('📋 解析後的數據:', qrData);
+            qrData = JSON.parse(decodedText);
+            console.log('📋 解析後的數據 (JSON):', qrData);
             setDebugMessage(`解析成功: type=${qrData.type}, qr_code_id=${qrData.qr_code_id}`);
-            
-            if (qrData.type === 'bed' && qrData.qr_code_id) {
-              console.log('✅ 有效的床位二維碼，qr_code_id:', qrData.qr_code_id);
-              setDebugMessage(`✅ 有效床位碼: ${qrData.qr_code_id}`);
-              await stopScanner();
-              onScanSuccess(qrData.qr_code_id);
-            } else {
-              console.log('❌ 無效的床位二維碼，缺少必要字段');
-              setDebugMessage('❌ 無效的床位二維碼');
-              setError('這不是有效的床位二維碼');
-              if (onError) {
-                onError('這不是有效的床位二維碼');
-              }
-            }
           } catch (parseError) {
-            console.error('❌ JSON 解析失敗:', parseError);
-            setDebugMessage(`❌ JSON解析失敗: ${parseError}`);
-            setError('無法解析二維碼資料');
+            // 如果不是 JSON，假設為直接的 QR Code ID（純文本）
+            console.log('📋 使用純文本模式:', decodedText);
+            qrData = { type: 'bed', qr_code_id: decodedText };
+            setDebugMessage(`使用純文本模式: ${decodedText}`);
+          }
+          
+          if (qrData.type === 'bed' && qrData.qr_code_id) {
+            console.log('✅ 有效的床位二維碼，qr_code_id:', qrData.qr_code_id);
+            setDebugMessage(`✅ 有效床位碼: ${qrData.qr_code_id}`);
+            await stopScanner();
+            onScanSuccess(qrData.qr_code_id);
+          } else {
+            console.log('❌ 無效的床位二維碼，缺少必要字段');
+            setDebugMessage('❌ 無效的床位二維碼');
+            setError('這不是有效的床位二維碼');
             if (onError) {
-              onError('無法解析二維碼資料');
+              onError('這不是有效的床位二維碼');
             }
           }
         },
@@ -241,14 +251,14 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
           <div className="flex gap-3">
             {/* 左側：掃描器實時畫面 */}
             <div className="flex-shrink-0 relative">
-              <div id={scannerIdRef.current} className="rounded-lg overflow-hidden" style={{ width: '100px', height: '100px' }} />
+              <div id={scannerIdRef.current} className="rounded-lg overflow-hidden" style={{ width: '300px', height: '300px' }} />
               {/* 二維碼指引框 */}
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-16 h-16 border-2 border-green-400 rounded-lg">
-                  <div className="absolute top-0 left-0 w-3 h-3 border-t-4 border-l-4 border-green-500"></div>
-                  <div className="absolute top-0 right-0 w-3 h-3 border-t-4 border-r-4 border-green-500"></div>
-                  <div className="absolute bottom-0 left-0 w-3 h-3 border-b-4 border-l-4 border-green-500"></div>
-                  <div className="absolute bottom-0 right-0 w-3 h-3 border-b-4 border-r-4 border-green-500"></div>
+                <div className="w-48 h-48 border-2 border-green-400 rounded-lg">
+                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-green-500"></div>
+                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-green-500"></div>
+                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-green-500"></div>
+                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-green-500"></div>
                 </div>
               </div>
             </div>
