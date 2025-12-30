@@ -99,7 +99,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       items: [
         { name: '列印表格', href: '/print-forms', icon: Printer },
         { name: '範本管理', href: '/templates', icon: FileText },
-        { name: 'OCR文件識別', href: '/ocr', icon: ScanLine },
       ]
     },
     {

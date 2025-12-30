@@ -34,7 +34,6 @@ const AnnualHealthCheckup = lazy(() => import('./pages/AnnualHealthCheckup'));
 const IncidentReports = lazy(() => import('./pages/IncidentReports'));
 const DiagnosisRecords = lazy(() => import('./pages/DiagnosisRecords'));
 const VaccinationRecords = lazy(() => import('./pages/VaccinationRecords'));
-const OCRDocumentRecognition = lazy(() => import('./pages/OCRDocumentRecognition'));
 const CareRecords = lazy(() => import('./pages/CareRecords'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Rehabilitation = lazy(() => import('./pages/Rehabilitation'));
@@ -112,7 +111,6 @@ function AppContent() {
             <Route path="/incident-reports" element={<IncidentReports />} />
             <Route path="/diagnosis-records" element={<DiagnosisRecords />} />
             <Route path="/vaccination-records" element={<VaccinationRecords />} />
-            <Route path="/ocr" element={<OCRDocumentRecognition />} />
             <Route path="/care-records" element={<CareRecords />} />
             <Route path="/patients" element={<PatientRecords />} />
             <Route path="/patient-contacts" element={<PatientContacts />} />
