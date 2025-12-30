@@ -85,17 +85,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
 
       setDebugMessage('🔄 正在啟動掃描器...');
 
-      // 使用增強的相機約束以改善對焦和解析度
-      const cameraConstraints = {
-        facingMode: facingMode,
-        advanced: [
-          { focusMode: 'continuous' },
-          { zoom: 1.0 }
-        ]
-      };
-
       await html5QrCode.start(
-        cameraConstraints as any,
+        { facingMode: facingMode },
         config,
         async (decodedText) => {
           console.log('📷 掃描到原始內容:', decodedText);
