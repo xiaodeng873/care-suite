@@ -216,8 +216,8 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-xl p-8">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+        <div className="bg-white rounded-lg shadow-xl p-8" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center space-x-3">
             <RefreshCw className="h-6 w-6 text-blue-600 animate-spin" />
             <span className="text-lg">正在檢測重複記錄...</span>
@@ -228,8 +228,8 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">

@@ -355,8 +355,8 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
             <h2 className="text-xl font-semibold text-gray-900">
               {existingRecord ? '查看/編輯出入量記錄' : '新增出入量記錄'}
@@ -687,8 +687,8 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
 
       {/* 新增攝入項目對話框 */}
       {showAddIntakeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" onClick={() => setShowAddIntakeModal(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">
               新增{INTAKE_CATEGORIES[addCategory as IntakeCategory]?.label}
             </h3>
@@ -778,8 +778,8 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
 
       {/* 新增排出項目對話框 */}
       {showAddOutputModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" onClick={() => setShowAddOutputModal(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">
               新增{OUTPUT_CATEGORIES[addCategory as OutputCategory]?.label}
             </h3>
