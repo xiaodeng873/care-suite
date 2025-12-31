@@ -71,14 +71,24 @@ export function ScheduleProvider({ children }: ScheduleProviderProps) {
     try {
       // 獲取 VMO 排程
       const schedulesData = await db.getSchedules();
-      // 獲取每個排程的詳細資料
+      
+      // 獲取每個排程的詳細資料（添加錯誤處理）
       const schedulesWithDetails: ScheduleWithDetails[] = await Promise.all(
         schedulesData.map(async (schedule) => {
-          const details = await db.getScheduleDetails(schedule.排程id);
-          return {
-            ...schedule,
-            院友列表: details
-          };
+          try {
+            const details = await db.getScheduleDetails(schedule.排程id);
+            return {
+              ...schedule,
+              院友列表: details
+            };
+          } catch (error) {
+            console.error(`Error loading details for schedule ${schedule.排程id}:`, error);
+            // 如果獲取詳情失敗，返回空列表
+            return {
+              ...schedule,
+              院友列表: []
+            };
+          }
         })
       );
       setSchedules(schedulesWithDetails);

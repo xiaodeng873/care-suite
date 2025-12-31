@@ -944,9 +944,49 @@ export const deleteSchedule = async (scheduleId: number): Promise<void> => {
   if (error) throw error;
 };
 export const getScheduleDetails = async (scheduleId: number): Promise<ScheduleDetail[]> => {
-  const { data, error } = await supabase.from('看診院友細項').select(`*, 到診院友_看診原因(看診原因選項(原因id, 原因名稱))`).eq('排程id', scheduleId);
-  if (error) throw error;
-  return (data || []).map(item => ({ ...item, reasons: item.到診院友_看診原因?.map((r: any) => r.看診原因選項) || [] }));
+  // 第一步：获取看診院友細項
+  const { data: detailsData, error: detailsError } = await supabase
+    .from('看診院友細項')
+    .select('*')
+    .eq('排程id', scheduleId);
+  
+  if (detailsError) throw detailsError;
+  if (!detailsData || detailsData.length === 0) return [];
+  
+  // 第二步：获取所有细项的看診原因
+  const detailIds = detailsData.map(d => d.細項id);
+  const { data: reasonRelations, error: reasonRelError } = await supabase
+    .from('到診院友_看診原因')
+    .select('細項id, 原因id')
+    .in('細項id', detailIds);
+  
+  if (reasonRelError) throw reasonRelError;
+  
+  // 第三步：如果有原因，获取原因详情
+  let reasonOptions: any[] = [];
+  if (reasonRelations && reasonRelations.length > 0) {
+    const reasonIds = [...new Set(reasonRelations.map(r => r.原因id))];
+    const { data: reasonData, error: reasonError } = await supabase
+      .from('看診原因選項')
+      .select('原因id, 原因名稱')
+      .in('原因id', reasonIds);
+    
+    if (reasonError) throw reasonError;
+    reasonOptions = reasonData || [];
+  }
+  
+  // 组合数据
+  return detailsData.map(detail => {
+    const detailReasons = reasonRelations
+      ?.filter(r => r.細項id === detail.細項id)
+      .map(r => reasonOptions.find(opt => opt.原因id === r.原因id))
+      .filter(Boolean) || [];
+    
+    return {
+      ...detail,
+      reasons: detailReasons
+    };
+  });
 };
 export const addPatientToSchedule = async (scheduleId: number, patientId: number, symptoms: string, notes: string, reasons: string[]): Promise<void> => {
   const { data: detail, error: detailError } = await supabase.from('看診院友細項').insert([{ 排程id: scheduleId, 院友id: patientId, 症狀說明: symptoms, 備註: notes }]).select().single();
@@ -2452,14 +2492,12 @@ export const syncTaskStatus = async (taskId: string) => {
     const nextDueAt = await findFirstMissingDate(task, startDate, supabase);
     updates = {
       last_completed_at: lastCompletedAt.toISOString(),
-      next_due_at: nextDueAt.toISOString(),
-      status: (nextDueAt <= new Date()) ? 'overdue' : 'pending'
+      next_due_at: nextDueAt.toISOString()
     };
   } else {
     updates = {
       last_completed_at: null,
-      next_due_at: task.next_due_at,
-      status: (new Date(task.next_due_at) <= new Date()) ? 'overdue' : 'pending'
+      next_due_at: task.next_due_at
     };
   }
   const { error: updateError } = await supabase.from('patient_health_tasks').update(updates).eq('id', taskId);

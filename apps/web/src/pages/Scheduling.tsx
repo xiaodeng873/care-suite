@@ -51,8 +51,8 @@ const Scheduling: React.FC = () => {
       // 獲取所有年度體檢記錄
       const { data: checkups } = await supabase
         .from('annual_health_checkups')
-        .select('patient_id, checkup_date')
-        .order('checkup_date', { ascending: false });
+        .select('patient_id, last_doctor_signature_date, next_due_date')
+        .order('last_doctor_signature_date', { ascending: false });
       // 獲取所有約束評估記錄
       const { data: assessments } = await supabase
         .from('patient_restraint_assessments')
@@ -67,7 +67,7 @@ const Scheduling: React.FC = () => {
         const lastCheckup = checkups?.find(c => c.patient_id === patient.院友id);
         const healthCheckupDue = checkAnnualHealthCheckupDue(
           patient,
-          lastCheckup?.checkup_date || null,
+          lastCheckup?.last_doctor_signature_date || null,
           schedules,
           reminderDays
         );
@@ -456,7 +456,7 @@ const Scheduling: React.FC = () => {
                       </div>
                       <div className="flex items-center space-x-4">
                         <div className="text-right">
-                          <p className="text-sm text-gray-900 mb-1">
+                          <div className="text-sm text-gray-900 mb-1">
                             {item.reasons && Array.isArray(item.reasons) && item.reasons.length > 0 ? (
                               <div className="flex flex-wrap gap-1 justify-end">
                                 {item.reasons.map((reason: any, index: number) => (
@@ -469,7 +469,7 @@ const Scheduling: React.FC = () => {
                             ) : (
                               <span className="text-gray-400">未指定原因</span>
                             )}
-                          </p>
+                          </div>
                           {item.症狀說明 && (
                             <p className="text-xs text-gray-600 mb-1">症狀: {item.症狀說明}</p>
                           )}
