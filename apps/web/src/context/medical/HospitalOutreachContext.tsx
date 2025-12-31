@@ -5,7 +5,7 @@
  * - 外展記錄 CRUD (hospitalOutreachRecords)
  * - 外展記錄歷史 (hospitalOutreachRecordHistory)
  */
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { supabase } from '../../lib/supabase';
 
 // ========== 類型定義 ==========
@@ -176,6 +176,11 @@ export function HospitalOutreachProvider({ children }: HospitalOutreachProviderP
       console.error('刪除醫院外展記錄失敗:', error);
       throw error;
     }
+  }, [fetchHospitalOutreachRecords]);
+  
+  // 自動刷新資料
+  useEffect(() => {
+    fetchHospitalOutreachRecords();
   }, [fetchHospitalOutreachRecords]);
   
   // Context 值

@@ -6,7 +6,7 @@
  * - 回收筒管理 (deletedHealthRecords)
  * - 重複記錄處理
  */
-import React, { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import * as db from '../../lib/database';
 
 interface HealthRecordContextType {
@@ -174,6 +174,11 @@ export function HealthRecordProvider({ children }: HealthRecordProviderProps) {
       console.error('Error batch deleting duplicate records:', error);
       throw error;
     }
+  }, [refreshHealthRecordData]);
+  
+  // 自動刷新資料
+  useEffect(() => {
+    refreshHealthRecordData();
   }, [refreshHealthRecordData]);
   
   // Context 值

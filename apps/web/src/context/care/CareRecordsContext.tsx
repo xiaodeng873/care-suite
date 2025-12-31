@@ -8,7 +8,7 @@
  * - 約束觀察記錄 (RestraintObservationRecord)
  * - 體位轉換記錄 (PositionChangeRecord)
  */
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import * as db from '../../lib/database';
 import { useAuth } from '../AuthContext';
 
@@ -254,6 +254,11 @@ export function CareRecordsProvider({ children }: CareRecordsProviderProps) {
       console.error('Error deleting position change record:', error);
       throw error;
     }
+  }, [refreshCareRecordsData]);
+  
+  // 自動刷新資料
+  useEffect(() => {
+    refreshCareRecordsData();
   }, [refreshCareRecordsData]);
   
   // Context 值

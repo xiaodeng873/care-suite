@@ -5,7 +5,7 @@
  * - VMO 排程 (schedules)
  * - 醫生就診排程 (doctorVisitSchedule)
  */
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import * as db from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
@@ -222,6 +222,11 @@ export function ScheduleProvider({ children }: ScheduleProviderProps) {
     } catch (error) {
       console.error('Error deleting schedule detail:', error);
     }
+  }, [refreshScheduleData]);
+  
+  // 自動刷新資料
+  useEffect(() => {
+    refreshScheduleData();
   }, [refreshScheduleData]);
   
   // Context 值
