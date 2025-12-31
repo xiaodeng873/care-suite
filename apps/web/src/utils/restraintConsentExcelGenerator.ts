@@ -2,7 +2,6 @@ import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
 import { getTemplatesMetadata } from '../lib/database';
 import type { PatientRestraintAssessment } from '../context/PatientContext';
-
 interface RestraintConsentExportData {
   id: string;
   patient_id: number;
@@ -23,7 +22,6 @@ interface RestraintConsentExportData {
     身份證號碼: string;
   };
 }
-
 // 範本格式提取介面
 interface ExtractedTemplate {
   columnWidths: number[];
@@ -51,7 +49,6 @@ interface ExtractedTemplate {
     colBreaks?: number[];
   };
 }
-
 // 工作表配置介面
 interface SheetConfig {
   name: string;
@@ -66,7 +63,6 @@ interface SheetConfig {
   };
   assessment: RestraintConsentExportData;
 }
-
 // 輔助函數：解析儲存格地址
 function parseCellAddress(address: string): { row: number; col: number } {
   const match = address.match(/([A-Z]+)(\d+)/i);
@@ -79,18 +75,15 @@ function parseCellAddress(address: string): { row: number; col: number } {
   }
   return { row, col };
 }
-
 // 從範本文件提取約束物品同意書格式
 export const extractRestraintConsentTemplateFormat = async (templateFile: File): Promise<ExtractedTemplate> => {
   const workbook = new ExcelJS.Workbook();
   const arrayBuffer = await templateFile.arrayBuffer();
   await workbook.xlsx.load(arrayBuffer);
-
   const worksheet = workbook.worksheets[0];
   if (!worksheet) {
     throw new Error('找不到工作表');
   }
-
   const extractedTemplate: ExtractedTemplate = {
     columnWidths: [],
     rowHeights: [],
@@ -102,23 +95,18 @@ export const extractRestraintConsentTemplateFormat = async (templateFile: File):
       colBreaks: []
     }
   };
-
   // Extract column widths (A to X = 1 to 24)
   for (let col = 1; col <= 24; col++) {
     let width = worksheet.getColumn(col).width;
     if (width === null || width === undefined) width = 8.43;
     extractedTemplate.columnWidths.push(Math.round(width * 100) / 100);
   }
-  console.log(`提取欄寬: ${extractedTemplate.columnWidths.length} 個`);
-
   // Extract row heights (1 to 110)
   for (let row = 1; row <= 110; row++) {
     let height = worksheet.getRow(row).height;
     if (height === null || height === undefined) height = 15;
     extractedTemplate.rowHeights.push(Math.round(height * 100) / 100);
   }
-  console.log(`提取列高: ${extractedTemplate.rowHeights.length} 個`);
-
   // Extract merged cells
   if (worksheet.model && worksheet.model.merges) {
     worksheet.model.merges.forEach(merge => {
@@ -133,32 +121,22 @@ export const extractRestraintConsentTemplateFormat = async (templateFile: File):
         extractedTemplate.mergedCells.push(merge);
       }
     });
-    console.log(`提取合併儲存格: ${extractedTemplate.mergedCells.length} 個`);
   }
-  
   // Extract print settings
   if (worksheet.pageSetup) {
     extractedTemplate.printSettings = { ...worksheet.pageSetup };
     console.log(`提取列印設定:`, JSON.stringify(extractedTemplate.printSettings));
   }
-
   // Extract page breaks
-  console.log('提取分頁符...');
   try {
     // 完全忽略範本中的分頁符，只設定我們需要的分頁符
-    console.log('完全忽略範本分頁符，只設定第49行分頁符...');
-    
     // 只設定我們需要的分頁符：第49行後
     extractedTemplate.pageBreaks!.rowBreaks = [49];
     extractedTemplate.pageBreaks!.colBreaks = [];
-    
-    console.log('分頁符設定完成: 只在第49行後分頁');
-    
   } catch (error) {
     console.error('提取分頁符失敗:', error);
     extractedTemplate.pageBreaks = { rowBreaks: [49], colBreaks: [] };
   }
-
   // Extract cell data (A1:X110)
   console.log('開始提取儲存格資料 (A1:X110)...');
   let extractedCellCount = 0;
@@ -167,28 +145,22 @@ export const extractRestraintConsentTemplateFormat = async (templateFile: File):
     for (let col = 1; col <= 24; col++) {
       const cell = worksheet.getCell(row, col);
       const address = cell.address;
-      
       // 檢查是否為問題區域 (P欄及以後，且50行及以後)
       const colLetter = String.fromCharCode(64 + col); // A=65, P=80
       const isProblemArea = col >= 16 && row >= 50; // P=16, 50行開始
-      
       const cellData: any = {};
-      
       // Extract value
       if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
         cellData.value = cell.value;
       }
-      
       // Extract font
       if (cell.font) {
         cellData.font = { ...cell.font };
       }
-      
       // Extract alignment
       if (cell.alignment) {
         cellData.alignment = { ...cell.alignment };
       }
-      
       // Extract border
       if (cell.border) {
         cellData.border = {
@@ -201,22 +173,18 @@ export const extractRestraintConsentTemplateFormat = async (templateFile: File):
           diagonalDown: cell.border.diagonalDown
         };
       }
-      
       // Extract fill
       if (cell.fill) {
         cellData.fill = { ...cell.fill };
       }
-      
       // Extract number format
       if (cell.numFmt) {
         cellData.numFmt = cell.numFmt;
       }
-      
       // Only store cell data if it has any properties
       if (Object.keys(cellData).length > 0) {
         extractedTemplate.cellData[address] = cellData;
         extractedCellCount++;
-        
         if (isProblemArea) {
           problemAreaCellCount++;
           if (problemAreaCellCount <= 10) {
@@ -226,22 +194,16 @@ export const extractRestraintConsentTemplateFormat = async (templateFile: File):
       }
     }
   }
-
   // 診斷：檢查提取的儲存格資料
-  console.log('=== 範本提取診斷 ===');
-  console.log(`總提取儲存格數: ${extractedCellCount}`);
   console.log(`問題區域 (P欄50行後) 儲存格數量: ${problemAreaCellCount}`);
-  
   // 檢查問題區域的儲存格
   const testCells = ['P51', 'Q50', 'R55', 'S60', 'X110'];
   testCells.forEach(address => {
     if (extractedTemplate.cellData[address]) {
       console.log(`✅ ${address} 存在於範本資料中:`, Object.keys(extractedTemplate.cellData[address]));
     } else {
-      console.log(`❌ ${address} 不存在於範本資料中`);
     }
   });
-  
   // 統計各欄的儲存格數量
   const columnStats: { [col: string]: number } = {};
   Object.keys(extractedTemplate.cellData).forEach(address => {
@@ -251,15 +213,11 @@ export const extractRestraintConsentTemplateFormat = async (templateFile: File):
       columnStats[col] = (columnStats[col] || 0) + 1;
     }
   });
-  
-  console.log('各欄儲存格統計:', columnStats);
-  
   // 檢查第 50 行後的儲存格數量
   const rowStats: { [range: string]: number } = {
     '1-49': 0,
     '50-110': 0
   };
-  
   Object.keys(extractedTemplate.cellData).forEach(address => {
     const rowMatch = address.match(/(\d+)$/);
     if (rowMatch) {
@@ -271,12 +229,7 @@ export const extractRestraintConsentTemplateFormat = async (templateFile: File):
       }
     }
   });
-  
-  console.log('行範圍儲存格統計:', rowStats);
-  console.log('=== 範本提取診斷完成 ===');
-  
   // 提取圖片
-  console.log('提取圖片...');
   try {
     const images = (worksheet as any).getImages ? (worksheet as any).getImages() : [];
     if (!Array.isArray(images)) {
@@ -294,7 +247,6 @@ export const extractRestraintConsentTemplateFormat = async (templateFile: File):
               extension: media.extension,
               range: img.range
             });
-            console.log(`提取圖片: ID=${img.imageId}, 範圍=${img.range}, 格式=${media.extension}`);
           } else {
             console.warn(`圖片 ID=${img.imageId} 無有效 media 或 buffer`);
           }
@@ -310,30 +262,23 @@ export const extractRestraintConsentTemplateFormat = async (templateFile: File):
     console.error('提取圖片失敗:', error);
     extractedTemplate.images = [];
   }
-
-  console.log(`提取完成: ${extractedCellCount} 個儲存格有格式資料`);
   return extractedTemplate;
 };
-
 // 計算年齡
 const calculateAge = (birthDate: string): number => {
   const today = new Date();
   const birth = new Date(birthDate);
   let age = today.getFullYear() - birth.getFullYear();
   const monthDiff = today.getMonth() - birth.getMonth();
-
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
     age--;
   }
-
   return age;
 };
-
 // 輔助函數：根據布林值返回勾選符號
 const getCheckboxSymbol = (checked: boolean): string => {
   return checked ? '☑' : '☐';
 };
-
 // 應用約束物品同意書範本格式並填入資料
 const applyRestraintConsentTemplateFormat = (
   worksheet: ExcelJS.Worksheet,
@@ -348,22 +293,16 @@ const applyRestraintConsentTemplateFormat = (
   },
   assessment: RestraintConsentExportData
 ): void => {
-  console.log('=== 開始應用約束物品同意書範本格式 ===');
-  
   // 診斷：檢查範本資料完整性
-  console.log('=== 應用階段診斷 ===');
   console.log(`範本 cellData 總數: ${Object.keys(template.cellData).length}`);
-  
   // 檢查問題區域的儲存格
   const testCells = ['P51', 'Q50', 'R55', 'S60', 'X110'];
   testCells.forEach(address => {
     if (template.cellData[address]) {
       console.log(`✅ 應用階段 ${address} 存在:`, Object.keys(template.cellData[address]));
     } else {
-      console.log(`❌ 應用階段 ${address} 不存在`);
     }
   });
-  
   // 統計問題區域的儲存格數量
   let problemAreaCells = 0;
   Object.keys(template.cellData).forEach(address => {
@@ -379,8 +318,6 @@ const applyRestraintConsentTemplateFormat = (
     }
   });
   console.log(`問題區域 (P欄50行後) 儲存格數量: ${problemAreaCells}`);
-  console.log('=== 應用階段診斷完成 ===');
-  
   // Step 1: Set column widths (A to X = 1 to 24)
   console.log('第1步: 設置欄寬 (1-24)...');
   template.columnWidths.forEach((width, idx) => {
@@ -389,7 +326,6 @@ const applyRestraintConsentTemplateFormat = (
     }
   });
   console.log(`完成設置 ${Math.min(template.columnWidths.length, 24)} 個欄寬`);
-
   // Step 2: Set row heights (1 to 110)
   console.log('第2步: 設置列高 (1-110)...');
   template.rowHeights.forEach((height, idx) => {
@@ -398,9 +334,6 @@ const applyRestraintConsentTemplateFormat = (
     }
   });
   console.log(`完成設置 ${Math.min(template.rowHeights.length, 110)} 個列高`);
-
-
-
   // Step 3: Apply cell data (value, font, alignment, border, fill) for A1:X110
   console.log('第3步: 開始應用儲存格格式 (A1:X110)...');
   let appliedCellCount = 0;
@@ -415,9 +348,7 @@ const applyRestraintConsentTemplateFormat = (
       const rowNum = parseInt(rowMatch[1]);
       isProblemArea = (col >= 'P' && rowNum >= 50) || (col > 'P');
     }
-    
     const cell = worksheet.getCell(address);
-    
     try {
       // Apply value
       if (isProblemArea && problemAreaAppliedCount < 10) {
@@ -428,36 +359,29 @@ const applyRestraintConsentTemplateFormat = (
           hasFill: !!cellData.fill
         });
       }
-      
       if (cellData.value !== undefined) {
         cell.value = cellData.value;
       }
-      
       // Apply font
       if (cellData.font) {
         cell.font = { ...cellData.font };
       }
-      
       // Apply alignment
       if (cellData.alignment) {
         cell.alignment = { ...cellData.alignment };
       }
-      
       // Apply border
       if (cellData.border) {
         cell.border = { ...cellData.border };
       }
-      
       // Apply fill
       if (cellData.fill) {
         cell.fill = { ...cellData.fill };
       }
-      
       // Apply number format
       if (cellData.numFmt) {
         cell.numFmt = cellData.numFmt;
       }
-      
       appliedCellCount++;
       if (isProblemArea) {
         problemAreaAppliedCount++;
@@ -466,7 +390,6 @@ const applyRestraintConsentTemplateFormat = (
         }
       }
       if (appliedCellCount % 500 === 0) {
-        console.log(`應用儲存格格式進度: ${appliedCellCount}`);
       }
     } catch (error) {
       console.error(`❌ 應用儲存格 ${address} 失敗:`, error);
@@ -475,11 +398,7 @@ const applyRestraintConsentTemplateFormat = (
       }
     }
   });
-  console.log(`完成應用 ${appliedCellCount} 個儲存格的格式`);
-  console.log(`問題區域成功應用: ${problemAreaAppliedCount} 個儲存格`);
-
   // Step 4: Merge cells
-  console.log('開始合併儲存格...');
   let mergedCount = 0;
   template.mergedCells.forEach((merge, index) => {
     try {
@@ -489,48 +408,35 @@ const applyRestraintConsentTemplateFormat = (
       console.warn(`合併儲存格失敗: ${merge}`, e);
     }
   });
-  
   // 檢查是否有涉及問題區域的合併儲存格
   const problemAreaMerges = template.mergedCells.filter(merge => {
     return merge.includes('P') || merge.includes('Q') || merge.includes('R') || merge.includes('S') || merge.includes('T') || merge.includes('U') || merge.includes('V') || merge.includes('W') || merge.includes('X');
   });
   console.log(`涉及問題區域 (P-X欄) 的合併儲存格: ${problemAreaMerges.length} 個`, problemAreaMerges);
-  console.log(`完成合併 ${mergedCount} 個儲存格範圍`);
-
   // Step 5: Fill patient and assessment data
-  console.log('第5步: 填充院友和評估資料...');
-  
   // 院友基本資料
   worksheet.getCell('F4').value = `${patient.中文姓氏}${patient.中文名字}`;
   worksheet.getCell('F80').value = `${patient.中文姓氏}${patient.中文名字}`;
   worksheet.getCell('O82').value = `${patient.中文姓氏}${patient.中文名字}`;
   worksheet.getCell('I91').value = `${patient.中文姓氏}${patient.中文名字}`;
-  
   worksheet.getCell('F5').value = patient.床號;
-  
   // 性別/年齡組合
   if (patient.性別 && patient.出生日期) {
     const age = calculateAge(patient.出生日期);
     worksheet.getCell('N4').value = `${patient.性別}/`;
     worksheet.getCell('O4').value = `${age}歲`;
   }
-  
   worksheet.getCell('U4').value = patient.身份證號碼;
-  
   // 上次評估日期
   if (assessment.doctor_signature_date) {
     worksheet.getCell('P5').value = new Date(assessment.doctor_signature_date).toLocaleDateString('zh-TW');
   } else {
     worksheet.getCell('P5').value = '首次';
   }
-
   // Step 6: Fill risk factors data
-  console.log('第6步: 填充風險因素資料...');
-  
   if (assessment.risk_factors && typeof assessment.risk_factors === 'object') {
     // 精神及/或行為異常的情況
     worksheet.getCell('C11').value = getCheckboxSymbol(assessment.risk_factors['精神及/或行為異常的情況'] || false);
-    
     // 子項目
     worksheet.getCell('D12').value = getCheckboxSymbol(assessment.risk_factors['情緒問題/神志昏亂'] || false);
     worksheet.getCell('I12').value = getCheckboxSymbol(assessment.risk_factors['遊走'] || false);
@@ -542,7 +448,6 @@ const applyRestraintConsentTemplateFormat = (
     if (assessment.risk_factors['傷害/騷擾他人的行為說明']) {
       worksheet.getCell('L13').value = assessment.risk_factors['傷害/騷擾他人的行為說明'];
     }
-
     // 未能保持正確坐姿
     worksheet.getCell('C14').value = getCheckboxSymbol(assessment.risk_factors['未能保持正確坐姿'] || false);
     worksheet.getCell('D15').value = getCheckboxSymbol(assessment.risk_factors['背部及腰肢肌肉無力'] || false);
@@ -552,7 +457,6 @@ const applyRestraintConsentTemplateFormat = (
     if (assessment.risk_factors['其他未能保持正確坐姿說明']) {
       worksheet.getCell('S15').value = assessment.risk_factors['其他未能保持正確坐姿說明'];
     }
-
     // 有跌倒風險
     worksheet.getCell('C16').value = getCheckboxSymbol(assessment.risk_factors['有跌倒風險'] || false);
     worksheet.getCell('D17').value = getCheckboxSymbol(assessment.risk_factors['步履失平衡'] || false);
@@ -563,7 +467,6 @@ const applyRestraintConsentTemplateFormat = (
     if (assessment.risk_factors['其他跌倒的風險說明']) {
       worksheet.getCell('O18').value = assessment.risk_factors['其他跌倒的風險說明'];
     }
-
     // 曾除去治療用之醫療器材及／或維護身體的用品
     worksheet.getCell('C19').value = getCheckboxSymbol(assessment.risk_factors['曾除去治療用之醫療器材及／或維護身體的用品'] || false);
     worksheet.getCell('D20').value = getCheckboxSymbol(assessment.risk_factors['餵食管'] || false);
@@ -576,10 +479,7 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('K21').value = assessment.risk_factors['其他醫療器材說明'];
     }
   }
-
   // Step 7: Fill alternatives data
-  console.log('第7步: 填充折衷辦法資料...');
-  
   if (assessment.alternatives && typeof assessment.alternatives === 'object') {
     // 折衷辦法選項 (C27-C37, T27-T37)
     const alternativeOptions = [
@@ -595,27 +495,21 @@ const applyRestraintConsentTemplateFormat = (
       '請家人/親友探望協助',
       '其他，請註明：'
     ];
-
     alternativeOptions.forEach((option, index) => {
       const row = 27 + index;
       const isChecked = assessment.alternatives[option] || false;
-      
       // 左側勾選框 (C欄)
       worksheet.getCell(`C${row}`).value = getCheckboxSymbol(isChecked);
       // 右側勾選框 (T欄)
       worksheet.getCell(`T${row}`).value = getCheckboxSymbol(isChecked);
     });
-
     // 其他說明
     if (assessment.alternatives['其他說明']) {
       worksheet.getCell('C37').value = assessment.alternatives['其他說明'];
       worksheet.getCell('T37').value = assessment.alternatives['其他說明'];
     }
   }
-
   // Step 8: Fill suggested restraints data
-  console.log('第8步: 填充約束物品建議資料...');
-  
   if (assessment.suggested_restraints && typeof assessment.suggested_restraints === 'object') {
     // 約束衣 (rows 42-43)
     const restraintVest = assessment.suggested_restraints['約束衣'] || {};
@@ -625,7 +519,6 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('F42').value = getCheckboxSymbol(restraintVest.usageConditions === '坐在椅上');
       worksheet.getCell('I42').value = getCheckboxSymbol(restraintVest.usageConditions === '躺在床上');
       worksheet.getCell('F43').value = getCheckboxSymbol(restraintVest.usageConditions === '坐在椅上及躺在床上');
-      
       // 時段
       worksheet.getCell('L42').value = getCheckboxSymbol(restraintVest.dayTime || false);
       worksheet.getCell('O42').value = restraintVest.dayStartTime || '';
@@ -637,7 +530,6 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('S43').value = getCheckboxSymbol(!!restraintVest.otherTime);
       worksheet.getCell('U43').value = restraintVest.otherTime || '';
     }
-
     // 約束腰帶 (rows 45-46)
     const restraintBelt = assessment.suggested_restraints['約束腰帶'] || {};
     worksheet.getCell('C45').value = getCheckboxSymbol(restraintBelt.checked || false);
@@ -646,7 +538,6 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('F45').value = getCheckboxSymbol(restraintBelt.usageConditions === '坐在椅上');
       worksheet.getCell('I45').value = getCheckboxSymbol(restraintBelt.usageConditions === '躺在床上');
       worksheet.getCell('F46').value = getCheckboxSymbol(restraintBelt.usageConditions === '坐在椅上及躺在床上');
-      
       // 時段
       worksheet.getCell('L45').value = getCheckboxSymbol(restraintBelt.dayTime || false);
       worksheet.getCell('O45').value = restraintBelt.dayStartTime || '';
@@ -658,7 +549,6 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('S46').value = getCheckboxSymbol(!!restraintBelt.otherTime);
       worksheet.getCell('U46').value = restraintBelt.otherTime || '';
     }
-
     // 手腕帶 (rows 53-54)
     const wristBand = assessment.suggested_restraints['手腕帶'] || {};
     worksheet.getCell('C53').value = getCheckboxSymbol(wristBand.checked || false);
@@ -667,7 +557,6 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('F53').value = getCheckboxSymbol(wristBand.usageConditions === '坐在椅上');
       worksheet.getCell('I53').value = getCheckboxSymbol(wristBand.usageConditions === '躺在床上');
       worksheet.getCell('F54').value = getCheckboxSymbol(wristBand.usageConditions === '坐在椅上及躺在床上');
-      
       // 時段
       worksheet.getCell('L53').value = getCheckboxSymbol(wristBand.dayTime || false);
       worksheet.getCell('O53').value = wristBand.dayStartTime || '';
@@ -679,7 +568,6 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('S54').value = getCheckboxSymbol(!!wristBand.otherTime);
       worksheet.getCell('U54').value = wristBand.otherTime || '';
     }
-
     // 約束手套/連指手套 (rows 56-57)
     const restraintGloves = assessment.suggested_restraints['約束手套/連指手套'] || {};
     worksheet.getCell('C56').value = getCheckboxSymbol(restraintGloves.checked || false);
@@ -688,7 +576,6 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('F56').value = getCheckboxSymbol(restraintGloves.usageConditions === '坐在椅上');
       worksheet.getCell('I56').value = getCheckboxSymbol(restraintGloves.usageConditions === '躺在床上');
       worksheet.getCell('F57').value = getCheckboxSymbol(restraintGloves.usageConditions === '坐在椅上及躺在床上');
-      
       // 時段
       worksheet.getCell('L56').value = getCheckboxSymbol(restraintGloves.dayTime || false);
       worksheet.getCell('O56').value = restraintGloves.dayStartTime || '';
@@ -700,7 +587,6 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('S57').value = getCheckboxSymbol(!!restraintGloves.otherTime);
       worksheet.getCell('U57').value = restraintGloves.otherTime || '';
     }
-
     // 防滑褲/防滑褲帶 (rows 59-60)
     const antiSlipPants = assessment.suggested_restraints['防滑褲/防滑褲帶'] || {};
     worksheet.getCell('C59').value = getCheckboxSymbol(antiSlipPants.checked || false);
@@ -709,7 +595,6 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('F59').value = getCheckboxSymbol(antiSlipPants.usageConditions === '坐在椅上');
       worksheet.getCell('I59').value = getCheckboxSymbol(antiSlipPants.usageConditions === '躺在床上');
       worksheet.getCell('F60').value = getCheckboxSymbol(antiSlipPants.usageConditions === '坐在椅上及躺在床上');
-      
       // 時段
       worksheet.getCell('L59').value = getCheckboxSymbol(antiSlipPants.dayTime || false);
       worksheet.getCell('O59').value = antiSlipPants.dayStartTime || '';
@@ -721,14 +606,12 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('S60').value = getCheckboxSymbol(!!antiSlipPants.otherTime);
       worksheet.getCell('U60').value = antiSlipPants.otherTime || '';
     }
-
     // 枱板 (rows 62-63)
     const tableBoard = assessment.suggested_restraints['枱板'] || {};
     worksheet.getCell('C62').value = getCheckboxSymbol(tableBoard.checked || false);
     if (tableBoard.checked) {
       // 使用情況 (枱板只有一個選項：坐在椅上/輪椅上)
       worksheet.getCell('F62').value = getCheckboxSymbol(tableBoard.usageConditions === '坐在椅上/輪椅上');
-      
       // 時段
       worksheet.getCell('L62').value = getCheckboxSymbol(tableBoard.dayTime || false);
       worksheet.getCell('O62').value = tableBoard.dayStartTime || '';
@@ -740,7 +623,6 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('S63').value = getCheckboxSymbol(!!tableBoard.otherTime);
       worksheet.getCell('U63').value = tableBoard.otherTime || '';
     }
-
     // 其他 (rows 65-66)
     const otherRestraint = assessment.suggested_restraints['其他：'] || {};
     worksheet.getCell('C65').value = getCheckboxSymbol(otherRestraint.checked || false);
@@ -749,7 +631,6 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('F65').value = getCheckboxSymbol(otherRestraint.usageConditions === '坐在椅上');
       worksheet.getCell('I65').value = getCheckboxSymbol(otherRestraint.usageConditions === '躺在床上');
       worksheet.getCell('F66').value = getCheckboxSymbol(otherRestraint.usageConditions === '坐在椅上及躺在床上');
-      
       // 時段
       worksheet.getCell('L65').value = getCheckboxSymbol(otherRestraint.dayTime || false);
       worksheet.getCell('O65').value = otherRestraint.dayStartTime || '';
@@ -762,9 +643,7 @@ const applyRestraintConsentTemplateFormat = (
       worksheet.getCell('U66').value = otherRestraint.otherTime || '';
     }
   }
-
   // Step 9: Apply images
-  console.log('第9步: 應用圖片...');
   if (!Array.isArray(template.images)) {
     console.warn('template.images 不是陣列，初始化為空陣列');
     template.images = [];
@@ -776,30 +655,22 @@ const applyRestraintConsentTemplateFormat = (
         extension: img.extension as 'png' | 'jpeg' | 'gif'
       });
       worksheet.addImage(imageId, img.range);
-      console.log(`應用圖片: ID=${img.imageId}, 範圍=${img.range}, 格式=${img.extension}`);
     } catch (error) {
       console.error(`應用圖片失敗 (範圍=${img.range}):`, error);
     }
   });
-
   // Step 9: Apply print settings
-  console.log('第9步: 複製列印設定...');
   if (template.printSettings) {
     try {
       console.log('將要應用的列印設定:', JSON.stringify(template.printSettings, null, 2));
       worksheet.pageSetup = { ...template.printSettings };
-      console.log('列印設定複製成功');
     } catch (error) {
       console.warn('複製列印設定失敗:', error);
     }
   }
-  
   // Step 10: Apply page breaks
-  console.log('第10步: 應用分頁符...');
   try {
     // 完全忽略範本中的所有分頁符，只設定我們需要的分頁符
-    console.log('完全忽略範本分頁符，只設定第49行分頁符...');
-    
     // 完全清除任何現有的分頁符設定
     delete (worksheet as any).rowBreaks;
     delete (worksheet as any).colBreaks;
@@ -807,7 +678,6 @@ const applyRestraintConsentTemplateFormat = (
       delete (worksheet as any).model.rowBreaks;
       delete (worksheet as any).model.colBreaks;
     }
-    
     // 設定頁面配置，避免自動分頁
     worksheet.pageSetup = {
       orientation: 'portrait',
@@ -826,42 +696,31 @@ const applyRestraintConsentTemplateFormat = (
       },
       scale: 100
     };
-    
     // 只設定我們需要的分頁符：第49行後
     (worksheet as any).rowBreaks = [{ id: 49, max: 16383, man: true }];
     (worksheet as any).colBreaks = []; // 不設定欄分頁符
-    
     // 確保 model 也只有我們指定的分頁符
     if (!(worksheet as any).model) {
       (worksheet as any).model = {};
     }
     (worksheet as any).model.rowBreaks = [49];
     (worksheet as any).model.colBreaks = [];
-    
     // 最終驗證
-    console.log('=== 最終分頁符驗證 ===');
     console.log('worksheet.rowBreaks:', (worksheet as any).rowBreaks);
     console.log('worksheet.colBreaks:', (worksheet as any).colBreaks);
-    console.log('=== 分頁符驗證完成 ===');
-    
-    console.log('✅ 約束物品同意書分頁符設定完成：只在第49行後分頁');
   } catch (error) {
     console.error('❌ 應用分頁符失敗:', error);
   }
 };
-
 // 創建約束物品同意書工作簿
 const createRestraintConsentWorkbook = async (sheetsConfig: SheetConfig[]): Promise<ExcelJS.Workbook> => {
   const workbook = new ExcelJS.Workbook();
-  
   for (const config of sheetsConfig) {
     const worksheet = workbook.addWorksheet(config.name);
     applyRestraintConsentTemplateFormat(worksheet, config.template, config.patient, config.assessment);
   }
-
   return workbook;
 };
-
 // 儲存 Excel 檔案
 const saveExcelFile = async (
   workbook: ExcelJS.Workbook,
@@ -870,9 +729,7 @@ const saveExcelFile = async (
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   saveAs(blob, filename);
-  console.log(`約束物品同意書 Excel 檔案 ${filename} 保存成功`);
 };
-
 // 匯出約束物品同意書到 Excel
 export const exportRestraintConsentsToExcel = async (
   assessments: PatientRestraintAssessment[],
@@ -883,15 +740,12 @@ export const exportRestraintConsentsToExcel = async (
     // 從 Supabase 獲取約束物品同意書範本
     const templatesData = await getTemplatesMetadata();
     const consentTemplate = templatesData.find(t => t.type === 'consent-form');
-    
     if (!consentTemplate || !consentTemplate.extracted_format) {
       // 如果沒有範本，使用簡單匯出方式
       await exportRestraintConsentsToExcelSimple(assessments, patients, filename);
       return;
     }
-
     const extractedFormat = consentTemplate.extracted_format;
-    
     // 準備匯出資料
     const exportData: RestraintConsentExportData[] = assessments.map(assessment => {
       const patient = patients.find(p => p.院友id === assessment.patient_id);
@@ -907,7 +761,6 @@ export const exportRestraintConsentsToExcel = async (
         }
       };
     });
-    
     // 構建工作表配置
     const sheetsConfig: SheetConfig[] = exportData.map(data => ({
       name: `${data.院友.床號}_${data.院友.中文姓氏}${data.院友.中文名字}_約束物品同意書`,
@@ -915,28 +768,23 @@ export const exportRestraintConsentsToExcel = async (
       patient: data.院友,
       assessment: data
     }));
-    
     if (sheetsConfig.length === 0) {
       alert('沒有可匯出的約束物品同意書資料');
       return;
     }
-    
     // 決定檔案名稱
     const finalFilename = filename || 
       (sheetsConfig.length === 1 
         ? `${sheetsConfig[0].patient.床號}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_約束物品同意書.xlsx`
         : `約束物品同意書(${sheetsConfig.length}名院友).xlsx`);
-    
     // 創建工作簿並匯出
     const workbook = await createRestraintConsentWorkbook(sheetsConfig);
     await saveExcelFile(workbook, finalFilename);
-    
   } catch (error) {
     console.error('匯出約束物品同意書失敗:', error);
     throw error;
   }
 };
-
 // 簡單的約束物品同意書匯出（當沒有範本時使用）
 const exportRestraintConsentsToExcelSimple = async (
   assessments: PatientRestraintAssessment[],
@@ -944,15 +792,12 @@ const exportRestraintConsentsToExcelSimple = async (
   filename?: string
 ): Promise<void> => {
   const workbook = new ExcelJS.Workbook();
-
   // 為每個評估創建同意書
   assessments.forEach((assessment, index) => {
     const patient = patients.find(p => p.院友id === assessment.patient_id);
     if (!patient) return;
-
     const sheetName = `${patient.床號}_${patient.中文姓氏}${patient.中文名字}_約束物品同意書`;
     const worksheet = workbook.addWorksheet(sheetName);
-
     // 設定欄寬
     worksheet.columns = [
       { width: 8 },  // 床號
@@ -968,7 +813,6 @@ const exportRestraintConsentsToExcelSimple = async (
       { width: 25 }, // 其他備註
       { width: 12 }  // 建立日期
     ];
-
     // 標題
     worksheet.mergeCells('A1:L1');
     const titleCell = worksheet.getCell('A1');
@@ -980,7 +824,6 @@ const exportRestraintConsentsToExcelSimple = async (
       pattern: 'solid',
       fgColor: { argb: 'FFFFD700' }
     };
-
     // 院友資訊
     worksheet.getCell('A3').value = `院友姓名: ${patient.中文姓氏}${patient.中文名字}`;
     worksheet.getCell('C3').value = `床號: ${patient.床號}`;
@@ -989,7 +832,6 @@ const exportRestraintConsentsToExcelSimple = async (
       const age = calculateAge(patient.出生日期);
       worksheet.getCell('G3').value = `年齡: ${age}歲`;
     }
-
     // 表頭
     const headers = ['項目', '內容', '勾選狀態', '備註'];
     const headerRow = worksheet.getRow(5);
@@ -1010,17 +852,14 @@ const exportRestraintConsentsToExcelSimple = async (
         right: { style: 'thin' }
       };
     });
-
     // 根據評估資料創建內容行
     let rowIndex = 6;
-    
     // 風險因素
     if (assessment.risk_factors && typeof assessment.risk_factors === 'object') {
       Object.entries(assessment.risk_factors).forEach(([factor, value]) => {
         if (!factor.includes('說明') && value) {
           const row = worksheet.getRow(rowIndex);
           const values = ['風險因素', factor, '✓', ''];
-
           values.forEach((value, colIndex) => {
             const cell = row.getCell(colIndex + 1);
             cell.value = value;
@@ -1031,12 +870,10 @@ const exportRestraintConsentsToExcelSimple = async (
               right: { style: 'thin' }
             };
           });
-          
           rowIndex++;
         }
       });
     }
-
     // 約束物品建議
     if (assessment.suggested_restraints && typeof assessment.suggested_restraints === 'object') {
       Object.entries(assessment.suggested_restraints).forEach(([restraint, config]: [string, any]) => {
@@ -1048,7 +885,6 @@ const exportRestraintConsentsToExcelSimple = async (
             '✓', 
             `${config.usageConditions || ''} ${config.dayTime ? '日間' : ''} ${config.nightTime ? '晚上' : ''} ${config.allDay ? '全日' : ''}`
           ];
-
           values.forEach((value, colIndex) => {
             const cell = row.getCell(colIndex + 1);
             cell.value = value;
@@ -1059,20 +895,15 @@ const exportRestraintConsentsToExcelSimple = async (
               right: { style: 'thin' }
             };
           });
-          
           rowIndex++;
         }
       });
     }
   });
-
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { 
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
   });
-  
   const finalFilename = filename || `約束物品同意書_${new Date().toISOString().split('T')[0]}.xlsx`;
   saveAs(blob, finalFilename);
-  
-  console.log(`約束物品同意書 Excel 檔案 ${finalFilename} 匯出成功`);
 };

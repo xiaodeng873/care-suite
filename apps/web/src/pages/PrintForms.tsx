@@ -25,10 +25,8 @@ import {
 import { supabase } from '../lib/supabase';
 import { exportPrintFormsToExcel } from '../utils/printFormExcelGenerator';
 import { exportDiaperChangeToExcel } from '../utils/diaperChangeExcelGenerator';
-
 type SortField = '床號' | '中文姓名' | '護理等級' | '入住類型' | '在住狀態';
 type SortDirection = 'asc' | 'desc';
-
 interface AdvancedFilters {
   床號: string;
   中文姓名: string;
@@ -38,7 +36,6 @@ interface AdvancedFilters {
   性別: string;
   社會福利: string;
 }
-
 const PrintForms: React.FC = () => {
   const { patients, loading, patientRestraintAssessments, stations, beds } = usePatients();
   const [templates, setTemplates] = useState<any[]>([]);
@@ -69,7 +66,6 @@ const PrintForms: React.FC = () => {
     const currentMonth = now.getMonth() + 1;
     const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
     const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
-    
     return {
       firstMonth: `${currentYear}年${currentMonth.toString().padStart(2, '0')}月`,
       secondMonth: `${nextYear}年${nextMonth.toString().padStart(2, '0')}月`
@@ -81,53 +77,43 @@ const PrintForms: React.FC = () => {
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     return `${year}年${month}月`;
   });
-
   // Reset to first page when filters change
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
-
   React.useEffect(() => {
     loadTemplates();
   }, []);
-
   // 當約束評估資料變化時，更新使用約束物品的院友列表
   React.useEffect(() => {
     if (patientRestraintAssessments.length > 0) {
       loadRestraintUsers();
     }
   }, [patientRestraintAssessments]);
-
   const loadRestraintUsers = () => {
     try {
       // 從 Context 獲取所有約束評估記錄
       // 約束物品管理頁面中有記錄的院友，就是有約束評估記錄的院友
       const userIds = new Set<number>();
-
       // 為每個院友只保留最新的評估記錄
       const latestAssessments = new Map<number, any>();
       const sortedAssessments = [...patientRestraintAssessments].sort((a, b) => {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
-
       sortedAssessments.forEach(assessment => {
         if (!latestAssessments.has(assessment.patient_id)) {
           latestAssessments.set(assessment.patient_id, assessment);
         }
       });
-
       // 所有有約束評估記錄的院友都加入列表
       latestAssessments.forEach((assessment) => {
         userIds.add(assessment.patient_id);
       });
-
       setRestraintUserIds(userIds);
-      console.log('約束物品管理中的院友數量:', userIds.size, '總評估記錄數:', patientRestraintAssessments.length);
     } catch (error) {
       console.error('載入約束物品使用者失敗:', error);
     }
   };
-
   const loadTemplates = async () => {
     try {
       const data = await getTemplatesMetadata();
@@ -145,11 +131,9 @@ const PrintForms: React.FC = () => {
       alert('載入範本失敗，請重試');
     }
   };
-
   const handleDeleteTemplate = async (template: any) => {
     // Implementation for deleting template
   };
-
   // Patient filtering logic
   const filteredPatients = patients.filter(patient => {
     // 如果選擇約束物品觀察表，只顯示使用約束物品的院友
@@ -158,7 +142,6 @@ const PrintForms: React.FC = () => {
         return false;
       }
     }
-
     // Advanced filters
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient.在住狀態 !== advancedFilters.在住狀態) {
       return false;
@@ -181,7 +164,6 @@ const PrintForms: React.FC = () => {
     if (advancedFilters.社會福利 && patient.社會福利?.type !== advancedFilters.社會福利) {
       return false;
     }
-    
     // Search term
     let matchesSearch = true;
     if (searchTerm) {
@@ -193,21 +175,17 @@ const PrintForms: React.FC = () => {
                          (patient.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
                          patient.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase());
     }
-    
     return matchesSearch;
   });
-
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');
   };
-
   const updateAdvancedFilter = (field: keyof AdvancedFilters, value: string) => {
     setAdvancedFilters(prev => ({
       ...prev,
       [field]: value
     }));
   };
-
   const clearFilters = () => {
     setSearchTerm('');
     setAdvancedFilters({
@@ -220,11 +198,9 @@ const PrintForms: React.FC = () => {
       社會福利: ''
     });
   };
-
   const sortedPatients = [...filteredPatients].sort((a, b) => {
     let valueA: string | number = '';
     let valueB: string | number = '';
-    
     switch (sortField) {
       case '床號':
         valueA = a.床號;
@@ -247,39 +223,32 @@ const PrintForms: React.FC = () => {
         valueB = b.在住狀態 || '';
         break;
     }
-    
     if (typeof valueA === 'string' && typeof valueB === 'string') {
       valueA = valueA.toLowerCase();
       valueB = valueB.toLowerCase();
     }
-    
     if (sortDirection === 'asc') {
       return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
     } else {
       return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
     }
   });
-
   // Pagination logic
   const totalItems = sortedPatients.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const paginatedPatients = sortedPatients.slice(startIndex, endIndex);
-
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
     setCurrentPage(1);
   };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
-
   const generatePageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
-    
     if (totalPages <= maxVisiblePages) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
@@ -287,15 +256,12 @@ const PrintForms: React.FC = () => {
     } else {
       const start = Math.max(1, currentPage - 2);
       const end = Math.min(totalPages, start + maxVisiblePages - 1);
-      
       for (let i = start; i <= end; i++) {
         pages.push(i);
       }
     }
-    
     return pages;
   };
-
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -304,7 +270,6 @@ const PrintForms: React.FC = () => {
       setSortDirection('asc');
     }
   };
-
   const handleSelectRow = (patientId: number) => {
     const newSelected = new Set(selectedRows);
     if (newSelected.has(patientId)) {
@@ -314,7 +279,6 @@ const PrintForms: React.FC = () => {
     }
     setSelectedRows(newSelected);
   };
-
   const handleSelectAll = () => {
     if (selectedRows.size === paginatedPatients.length) {
       setSelectedRows(new Set());
@@ -322,7 +286,6 @@ const PrintForms: React.FC = () => {
       setSelectedRows(new Set(paginatedPatients.map(p => p.院友id)));
     }
   };
-
   const handleInvertSelection = () => {
     const newSelected = new Set<number>();
     paginatedPatients.forEach(patient => {
@@ -332,25 +295,21 @@ const PrintForms: React.FC = () => {
     });
     setSelectedRows(newSelected);
   };
-
   const handleExportSelected = async () => {
     if (!selectedTemplate) {
       alert('請先選擇一個範本');
       return;
     }
-
     // 床位表不需要選擇院友
     if (selectedTemplate.type === 'bed-layout') {
       await handleBedLayoutExport();
       return;
     }
-
     // 約束觀察表需要檢查是否有選擇院友
     if (selectedRows.size === 0) {
       alert('請先選擇要匯出的院友');
       return;
     }
-
     // 如果是換片記錄，需要先詢問年月
     if (selectedTemplate.type === 'diaper-change-record') {
       setShowYearMonthModal(true);
@@ -362,7 +321,6 @@ const PrintForms: React.FC = () => {
       await handleDirectExport();
     }
   };
-
   const handleBedLayoutExport = async () => {
     try {
       setIsExporting(true);
@@ -376,28 +334,22 @@ const PrintForms: React.FC = () => {
       setIsExporting(false);
     }
   };
-
   const handleRestraintObservationExport = async () => {
     const selectedPatientIds = Array.from(selectedRows);
-    
     // 獲取選中院友的約束評估記錄
     const selectedAssessments = patientRestraintAssessments.filter(assessment => 
       selectedPatientIds.includes(assessment.patient_id)
     );
-    
     if (selectedAssessments.length === 0) {
       alert('選中的院友沒有約束評估記錄');
       return;
     }
-
     try {
       setIsExporting(true);
-      
       // 使用當月作為預設日期範圍
       const today = new Date();
       const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
       const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
-      
       const { exportRestraintObservationsToExcel } = await import('../utils/restraintObservationChartExcelGenerator');
       await exportRestraintObservationsToExcel(
         selectedAssessments, 
@@ -412,10 +364,8 @@ const PrintForms: React.FC = () => {
       setIsExporting(false);
     }
   };
-
   const handleDirectExport = async () => {
     const selectedPatients = sortedPatients.filter(p => selectedRows.has(p.院友id));
-
     try {
       setIsExporting(true);
       await exportPrintFormsToExcel(selectedPatients, selectedTemplate);
@@ -426,10 +376,8 @@ const PrintForms: React.FC = () => {
       setIsExporting(false);
     }
   };
-
   const handleYearMonthConfirm = async () => {
     const selectedPatients = sortedPatients.filter(p => selectedRows.has(p.院友id));
-    
     try {
       setIsExporting(true);
       setShowYearMonthModal(false);
@@ -441,10 +389,8 @@ const PrintForms: React.FC = () => {
       setIsExporting(false);
     }
   };
-
   const handlePersonalHygieneMonthConfirm = async () => {
     const selectedPatients = sortedPatients.filter(p => selectedRows.has(p.院友id));
-    
     try {
       setIsExporting(true);
       setShowPersonalHygieneMonthModal(false);
@@ -457,20 +403,16 @@ const PrintForms: React.FC = () => {
       setIsExporting(false);
     }
   };
-
   const calculateAge = (birthDate: string): number => {
     const today = new Date();
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
-
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
       age--;
     }
-
     return age;
   };
-
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case '在住': return 'bg-green-100 text-green-800';
@@ -478,7 +420,6 @@ const PrintForms: React.FC = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-
   const getNursingLevelBadgeClass = (level: string) => {
     switch (level) {
       case '全護理': return 'bg-red-100 text-red-800';
@@ -487,7 +428,6 @@ const PrintForms: React.FC = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-
   const getAdmissionTypeBadgeClass = (type: string) => {
     switch (type) {
       case '私位': return 'bg-purple-100 text-purple-800';
@@ -497,7 +437,6 @@ const PrintForms: React.FC = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode }> = ({ field, children }) => (
     <th 
       className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
@@ -513,7 +452,6 @@ const PrintForms: React.FC = () => {
       </div>
     </th>
   );
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -524,7 +462,6 @@ const PrintForms: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
@@ -558,7 +495,6 @@ const PrintForms: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Template Selection */}
       <div className="card p-6">
         <div className="flex items-center justify-between mb-4">
@@ -571,7 +507,6 @@ const PrintForms: React.FC = () => {
             <span>管理範本</span>
           </Link>
         </div>
-        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="form-label">選擇列印表格類型</label>
@@ -597,7 +532,6 @@ const PrintForms: React.FC = () => {
               ))}
             </select>
           </div>
-          
           {selectedTemplate && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
@@ -639,7 +573,6 @@ const PrintForms: React.FC = () => {
             </div>
           )}
         </div>
-        
         {templates.length === 0 && (
           <div className="text-center py-8">
             <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
@@ -655,7 +588,6 @@ const PrintForms: React.FC = () => {
           </div>
         )}
       </div>
-
       {/* Patient Selection */}
       {selectedTemplate?.type !== 'station-bed-layout' && (
       <div className="sticky top-16 bg-white z-20 shadow-sm">
@@ -670,7 +602,6 @@ const PrintForms: React.FC = () => {
                 </div>
               )}
             </div>
-            
             <div className="flex flex-col lg:flex-row space-y-2 lg:space-y-0 lg:space-x-4 lg:items-center">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -682,7 +613,6 @@ const PrintForms: React.FC = () => {
                   className="form-input pl-10"
                 />
               </div>
-            
               <div className="flex space-x-2">
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -698,7 +628,6 @@ const PrintForms: React.FC = () => {
                     </span>
                   )}
                 </button>
-                
                 {(searchTerm || hasAdvancedFilters()) && (
                   <button
                     onClick={clearFilters}
@@ -710,11 +639,9 @@ const PrintForms: React.FC = () => {
                 )}
               </div>
             </div>
-          
             {showAdvancedFilters && (
               <div className="border-t border-gray-200 pt-4">
                 <h3 className="text-sm font-medium text-gray-900 mb-3">進階篩選</h3>
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <label className="form-label">床號</label>
@@ -726,7 +653,6 @@ const PrintForms: React.FC = () => {
                       placeholder="搜索床號..."
                     />
                   </div>
-                  
                   <div>
                     <label className="form-label">中文姓名</label>
                     <input
@@ -737,7 +663,6 @@ const PrintForms: React.FC = () => {
                       placeholder="搜索姓名..."
                     />
                   </div>
-                  
                   <div>
                     <label className="form-label">護理等級</label>
                     <select
@@ -751,7 +676,6 @@ const PrintForms: React.FC = () => {
                       <option value="自理">自理</option>
                     </select>
                   </div>
-                  
                   <div>
                     <label className="form-label">入住類型</label>
                     <select
@@ -766,7 +690,6 @@ const PrintForms: React.FC = () => {
                       <option value="暫住">暫住</option>
                     </select>
                   </div>
-                  
                   <div>
                     <label className="form-label">在住狀態</label>
                     <select
@@ -781,7 +704,6 @@ const PrintForms: React.FC = () => {
                       <option value="">全部</option>
                     </select>
                   </div>
-                  
                   <div>
                     <label className="form-label">性別</label>
                     <select
@@ -794,7 +716,6 @@ const PrintForms: React.FC = () => {
                       <option value="女">女</option>
                     </select>
                   </div>
-                  
                   <div>
                     <label className="form-label">社會福利</label>
                     <select
@@ -810,7 +731,6 @@ const PrintForms: React.FC = () => {
                 </div>
               </div>
             )}
-            
             <div className="flex items-center justify-between text-sm text-gray-600">
               <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 位院友 (共 {patients.length} 位)</span>
               {(searchTerm || hasAdvancedFilters()) && (
@@ -821,7 +741,6 @@ const PrintForms: React.FC = () => {
         </div>
       </div>
       )}
-
       {/* Selection Controls */}
       {selectedTemplate?.type !== 'station-bed-layout' && totalItems > 0 && (
         <div className="sticky top-40 bg-white z-10 shadow-sm">
@@ -848,7 +767,6 @@ const PrintForms: React.FC = () => {
           </div>
         </div>
       )}
-
       {/* Patient List */}
       {selectedTemplate?.type !== 'station-bed-layout' && (
       <div className="card overflow-hidden">
@@ -974,7 +892,6 @@ const PrintForms: React.FC = () => {
         )}
       </div>
       )}
-
       {/* Pagination Controls */}
       {selectedTemplate?.type !== 'station-bed-layout' && totalItems > 0 && (
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
@@ -995,7 +912,6 @@ const PrintForms: React.FC = () => {
               </select>
               <span className="text-sm text-gray-700">筆記錄</span>
             </div>
-            
             {totalPages > 1 && (
               <div className="flex items-center space-x-2">
                 <button
@@ -1005,7 +921,6 @@ const PrintForms: React.FC = () => {
                 >
                   上一頁
                 </button>
-                
                 {generatePageNumbers().map(page => (
                   <button
                     key={page}
@@ -1019,7 +934,6 @@ const PrintForms: React.FC = () => {
                     {page}
                   </button>
                 ))}
-                
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
@@ -1029,14 +943,12 @@ const PrintForms: React.FC = () => {
                 </button>
               </div>
             )}
-            
             <div className="text-sm text-gray-700">
               第 {currentPage} 頁，共 {totalPages} 頁
             </div>
           </div>
         </div>
       )}
-
       {/* 年月選擇模態框 */}
       {showYearMonthModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -1050,12 +962,10 @@ const PrintForms: React.FC = () => {
                 <X className="h-6 w-6" />
               </button>
             </div>
-            
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
                 請選擇要在換片記錄表中顯示的年月：
               </p>
-              
               <div>
                 <label className="form-label">年月 (格式: XXXX年XX月)</label>
                 <input
@@ -1070,14 +980,12 @@ const PrintForms: React.FC = () => {
                   請使用格式：XXXX年XX月（例如：2024年01月）
                 </p>
               </div>
-              
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-sm text-blue-800">
                   此年月將顯示在換片記錄表的 AB3 位置
                 </p>
               </div>
             </div>
-
             <div className="flex space-x-3 pt-4">
               <button
                 onClick={handleYearMonthConfirm}
@@ -1096,7 +1004,6 @@ const PrintForms: React.FC = () => {
           </div>
         </div>
       )}
-
       {/* 個人衛生記錄月份選擇模態框 */}
       {showPersonalHygieneMonthModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -1110,12 +1017,10 @@ const PrintForms: React.FC = () => {
                 <X className="h-6 w-6" />
               </button>
             </div>
-            
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
                 請選擇要在個人衛生記錄表中顯示的兩個月份（通常為相連月份）：
               </p>
-              
               <div>
                 <label className="form-label">第一個月份 (格式: XXXX年XX月)</label>
                 <input
@@ -1127,7 +1032,6 @@ const PrintForms: React.FC = () => {
                   pattern="\d{4}年\d{2}月"
                 />
               </div>
-              
               <div>
                 <label className="form-label">第二個月份 (格式: XXXX年XX月)</label>
                 <input
@@ -1139,14 +1043,12 @@ const PrintForms: React.FC = () => {
                   pattern="\d{4}年\d{2}月"
                 />
               </div>
-              
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-sm text-blue-800">
                   第一個月份將顯示在 A2-A3 位置，第二個月份將顯示在 T2-T3 位置
                 </p>
               </div>
             </div>
-
             <div className="flex space-x-3 pt-4">
               <button
                 onClick={handlePersonalHygieneMonthConfirm}
@@ -1165,7 +1067,6 @@ const PrintForms: React.FC = () => {
           </div>
         </div>
       )}
-
       {/* Usage Instructions */}
       <div className="card p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">使用說明</h2>
@@ -1195,5 +1096,4 @@ const PrintForms: React.FC = () => {
     </div>
   );
 };
-
 export default PrintForms;

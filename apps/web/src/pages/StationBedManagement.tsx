@@ -27,7 +27,6 @@ import BedSwapModal from '../components/BedSwapModal';
 import PatientTooltip from '../components/PatientTooltip';
 import StationManagementModal from '../components/StationManagementModal';
 import { exportBedLayoutToExcel } from '../utils/bedLayoutExcelGenerator';
-
 const StationBedManagement: React.FC = () => {
   const { 
     stations, 
@@ -38,7 +37,6 @@ const StationBedManagement: React.FC = () => {
     deleteBed,
     moveBedToStation 
   } = usePatients();
-  
   const [showStationModal, setShowStationModal] = useState(false);
   const [showBedModal, setShowBedModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
@@ -53,19 +51,16 @@ const StationBedManagement: React.FC = () => {
   const [selectedStationsForExport, setSelectedStationsForExport] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
   const [qrCodeDataUrls, setQrCodeDataUrls] = useState<Map<string, string>>(new Map());
-
   // 生成床位 QR Code（縮圖）
   useEffect(() => {
     const generateQRCodes = async () => {
       const newQrCodes = new Map<string, string>();
-
       for (const bed of beds) {
         const qrData = {
           type: 'bed',
           qr_code_id: bed.qr_code_id,
           bed_number: bed.bed_number
         };
-
         try {
           const dataUrl = await QRCode.toDataURL(JSON.stringify(qrData), {
             width: 80,
@@ -76,15 +71,12 @@ const StationBedManagement: React.FC = () => {
           console.error(`生成床位 ${bed.bed_number} QR Code 失敗:`, error);
         }
       }
-
       setQrCodeDataUrls(newQrCodes);
     };
-
     if (beds.length > 0) {
       generateQRCodes();
     }
   }, [beds]);
-
   // 下載床位 QR Code
   const downloadBedQRCode = async (bed: any) => {
     const qrData = {
@@ -92,37 +84,30 @@ const StationBedManagement: React.FC = () => {
       qr_code_id: bed.qr_code_id,
       bed_number: bed.bed_number
     };
-
     try {
       // 生成大尺寸 QR Code（3cm x 3cm @ 300 DPI = 354px）
       const qrDataUrl = await QRCode.toDataURL(JSON.stringify(qrData), {
         width: 354,
         margin: 2
       });
-
       // 創建 canvas 繪製床位編號和 QR Code
       const canvas = document.createElement('canvas');
       canvas.width = 400;
       canvas.height = 450;
       const ctx = canvas.getContext('2d');
-
       if (!ctx) return;
-
       // 繪製白色背景
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-
       // 繪製床位編號文字
       ctx.fillStyle = 'black';
       ctx.font = 'bold 24px Arial';
       ctx.textAlign = 'center';
       ctx.fillText(`床位: ${bed.bed_number}`, canvas.width / 2, 40);
-
       // 載入並繪製 QR Code
       const qrImage = new Image();
       qrImage.onload = () => {
         ctx.drawImage(qrImage, (canvas.width - 354) / 2, 60, 354, 354);
-
         // 轉換為 Blob 並下載
         canvas.toBlob((blob) => {
           if (blob) {
@@ -141,7 +126,6 @@ const StationBedManagement: React.FC = () => {
       alert('下載失敗，請重試');
     }
   };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -152,28 +136,23 @@ const StationBedManagement: React.FC = () => {
       </div>
     );
   }
-
   // 獲取每個站的統計資訊
   const getStationStats = (stationId: string) => {
     const stationBeds = beds.filter(bed => bed.station_id === stationId);
-    
     // 計算實際佔用的床位數量 - 只計算有在住院友的床位
     let occupiedCount = 0;
     let availableCount = 0;
-    
     stationBeds.forEach(bed => {
       // 檢查此床位是否有在住院友
       const hasResidentPatient = patients.some(patient => 
         patient.bed_id === bed.id && patient.在住狀態 === '在住'
       );
-      
       if (hasResidentPatient) {
         occupiedCount++;
       } else {
         availableCount++;
       }
     });
-    
     // 驗證計算正確性
     console.log(`站點 ${stationId} 床位統計:`, {
       totalBeds: stationBeds.length,
@@ -181,7 +160,6 @@ const StationBedManagement: React.FC = () => {
       availableCount,
       sum: occupiedCount + availableCount
     });
-    
     return {
       totalBeds: stationBeds.length,
       occupiedBeds: occupiedCount,
@@ -189,21 +167,18 @@ const StationBedManagement: React.FC = () => {
       occupancyRate: stationBeds.length > 0 ? (occupiedCount / stationBeds.length * 100).toFixed(1) : '0'
     };
   };
-
   // 獲取床位上的院友
   const getPatientInBed = (bedId: string) => {
     return patients.find(patient => 
       patient.bed_id === bedId && patient.在住狀態 === '在住'
     );
   };
-
   // 篩選床位
   const filteredBeds = beds.filter(bed => {
     // 站點篩選
     if (selectedStationFilter && bed.station_id !== selectedStationFilter) {
       return false;
     }
-    
     // 佔用狀態篩選
     const patient = getPatientInBed(bed.id);
     if (occupancyFilter === 'occupied' && !patient) {
@@ -212,11 +187,9 @@ const StationBedManagement: React.FC = () => {
     if (occupancyFilter === 'available' && patient) {
       return false;
     }
-    
     // 搜索條件
     if (searchTerm) {
       const station = stations.find(s => s.id === bed.station_id);
-      
       const searchLower = searchTerm.toLowerCase();
       return (
         bed.bed_number.toLowerCase().includes(searchLower) ||
@@ -227,20 +200,16 @@ const StationBedManagement: React.FC = () => {
         patient?.床號.toLowerCase().includes(searchLower)
       );
     }
-    
     return true;
   });
-
   const handleEditStation = (station: any) => {
     setSelectedStation(station);
     setShowStationModal(true);
   };
-
   const handleDeleteStation = async (stationId: string) => {
     const station = stations.find(s => s.id === stationId);
     const stationBeds = beds.filter(bed => bed.station_id === stationId);
     const occupiedBeds = stationBeds.filter(bed => bed.is_occupied);
-    
     if (occupiedBeds.length > 0) {
       const occupiedBedsList = occupiedBeds.map(bed => {
         const patient = getPatientInBed(bed.id);
@@ -249,13 +218,11 @@ const StationBedManagement: React.FC = () => {
       alert(`無法刪除站點「${station?.name}」，因為以下床位仍有院友：\n\n${occupiedBedsList}\n\n請先將所有院友遷移到其他床位，然後刪除或遷移所有床位。`);
       return;
     }
-    
     if (stationBeds.length > 0) {
       const emptyBedsList = stationBeds.map(bed => bed.bed_number).join('、');
       alert(`無法刪除站點「${station?.name}」，因為該站點下還有以下空置床位：\n\n${emptyBedsList}\n\n請先刪除或遷移所有床位到其他站點。`);
       return;
     }
-    
     if (confirm(`確定要刪除站點「${station?.name}」嗎？`)) {
       try {
         await deleteStation(stationId);
@@ -264,21 +231,17 @@ const StationBedManagement: React.FC = () => {
       }
     }
   };
-
   const handleEditBed = (bed: any) => {
     setSelectedBed(bed);
     setShowBedModal(true);
   };
-
   const handleDeleteBed = async (bedId: string) => {
     const bed = beds.find(b => b.id === bedId);
     const patient = getPatientInBed(bedId);
-    
     if (patient) {
       alert(`無法刪除床位「${bed?.bed_number}」，因為該床位上有院友「${patient.中文姓名}」。請先將院友遷移到其他床位。`);
       return;
     }
-    
     if (confirm(`確定要刪除床位「${bed?.bed_number}」嗎？`)) {
       try {
         await deleteBed(bedId);
@@ -287,7 +250,6 @@ const StationBedManagement: React.FC = () => {
       }
     }
   };
-
   const handleAssignBed = (bed: any) => {
     const patient = getPatientInBed(bed.id);
     if (patient) {
@@ -297,11 +259,9 @@ const StationBedManagement: React.FC = () => {
     setSelectedBed(bed);
     setShowAssignmentModal(true);
   };
-
   const handleMoveBed = async (bedId: string, newStationId: string) => {
     const bed = beds.find(b => b.id === bedId);
     const newStation = stations.find(s => s.id === newStationId);
-    
     if (confirm(`確定要將床位「${bed?.bed_number}」遷移到「${newStation?.name}」嗎？`)) {
       try {
         await moveBedToStation(bedId, newStationId);
@@ -310,21 +270,17 @@ const StationBedManagement: React.FC = () => {
       }
     }
   };
-
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedStationFilter('');
     setOccupancyFilter('all');
   };
-
   const hasActiveFilters = () => {
     return searchTerm || selectedStationFilter || occupancyFilter !== 'all';
   };
-
   const handleExportBedLayout = () => {
     setShowExportModal(true);
   };
-
   const handleStationSelectionForExport = (stationId: string, checked: boolean) => {
     const newSelection = new Set(selectedStationsForExport);
     if (checked) {
@@ -334,19 +290,16 @@ const StationBedManagement: React.FC = () => {
     }
     setSelectedStationsForExport(newSelection);
   };
-
   const handleConfirmExport = async () => {
     if (selectedStationsForExport.size === 0) {
       alert('請至少選擇一個站點');
       return;
     }
-
     try {
       setIsExporting(true);
       const selectedStationsList = Array.from(selectedStationsForExport).map(stationId =>
         stations.find(s => s.id === stationId)
       ).filter(Boolean);
-      
       await exportBedLayoutToExcel(selectedStationsList, beds, patients);
       setShowExportModal(false);
       setSelectedStationsForExport(new Set());
@@ -357,7 +310,6 @@ const StationBedManagement: React.FC = () => {
       setIsExporting(false);
     }
   };
-  
   return (
     <div className="space-y-0">
       <div className="flex items-center justify-between">
@@ -386,7 +338,6 @@ const StationBedManagement: React.FC = () => {
           </button>
         </div>
       </div>
-
       {/* 站點概覽 */}
       <div className="space-y-4">
         {stations.length === 0 ? (
@@ -405,24 +356,19 @@ const StationBedManagement: React.FC = () => {
           stations.map(station => {
             const stats = getStationStats(station.id);
             const stationPatients = patients.filter(p => p.station_id === station.id && p.在住狀態 === '在住');
-            
             // 性別統計
             const maleCount = stationPatients.filter(p => p.性別 === '男').length;
             const femaleCount = stationPatients.filter(p => p.性別 === '女').length;
-            
             // 護理等級統計
             const maleFullCare = stationPatients.filter(p => p.性別 === '男' && p.護理等級 === '全護理').length;
             const femaleFullCare = stationPatients.filter(p => p.性別 === '女' && p.護理等級 === '全護理').length;
             const totalFullCare = maleFullCare + femaleFullCare;
-            
             const maleHalfCare = stationPatients.filter(p => p.性別 === '男' && p.護理等級 === '半護理').length;
             const femaleHalfCare = stationPatients.filter(p => p.性別 === '女' && p.護理等級 === '半護理').length;
             const totalHalfCare = maleHalfCare + femaleHalfCare;
-            
             const maleSelfCare = stationPatients.filter(p => p.性別 === '男' && p.護理等級 === '自理').length;
             const femaleSelfCare = stationPatients.filter(p => p.性別 === '女' && p.護理等級 === '自理').length;
             const totalSelfCare = maleSelfCare + femaleSelfCare;
-            
             return (
               <div key={station.id} className="p-4"> 
               </div>
@@ -430,7 +376,6 @@ const StationBedManagement: React.FC = () => {
           })
         )}
       </div>
-
       {/* 搜索和篩選 */}
       <div className="card p-4 mt-4">
         <div className="flex flex-col lg:flex-row space-y-2 lg:space-y-0 lg:space-x-4 lg:items-center">
@@ -444,7 +389,6 @@ const StationBedManagement: React.FC = () => {
               className="form-input pl-10"
             />
           </div>
-          
           <div className="flex space-x-2">
             <select
               value={selectedStationFilter}
@@ -456,7 +400,6 @@ const StationBedManagement: React.FC = () => {
                 <option key={station.id} value={station.id}>{station.name}</option>
               ))}
             </select>
-            
             <select
               value={occupancyFilter}
               onChange={(e) => setOccupancyFilter(e.target.value)}
@@ -466,7 +409,6 @@ const StationBedManagement: React.FC = () => {
               <option value="occupied">已佔用</option>
               <option value="available">可用床位</option>
             </select>
-            
             {hasActiveFilters() && (
               <button
                 onClick={clearFilters}
@@ -478,7 +420,6 @@ const StationBedManagement: React.FC = () => {
             )}
           </div>
         </div>
-        
         <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
           <span>顯示 {filteredBeds.length} / {beds.length} 個床位</span>
           {hasActiveFilters() && (
@@ -486,12 +427,10 @@ const StationBedManagement: React.FC = () => {
           )}
         </div>
       </div>
-
       {/* 床位列表 */}
       <div className="space-y-6 mt-6">
         {stations.map(station => {
           const stationBeds = filteredBeds.filter(bed => bed.station_id === station.id);
-          
           return (stationBeds.length === 0 && hasActiveFilters()) ? null : (
             <div key={station.id} className="card">
               <div className="p-6">
@@ -501,12 +440,10 @@ const StationBedManagement: React.FC = () => {
                     <p className="text-sm text-gray-600">{station.description}</p>
                   )}
                 </div>
-                
                 {stationBeds.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {stationBeds.map(bed => {
                       const patient = getPatientInBed(bed.id);
-                      
                       return (
                         <div
                           key={bed.id}
@@ -526,14 +463,12 @@ const StationBedManagement: React.FC = () => {
                                 )}
                               </div>
                             </div>
-                            
                             <div className="flex items-center space-x-1">
                               {bed.is_occupied ? (
                                 <CheckCircle className="h-4 w-4 text-green-500" title="已佔用" />
                               ) : (
                                 <div className="h-4 w-4 rounded-full border-2 border-gray-300" title="可用" />
                               )}
-                              
                               <div className="relative group">
                                 <button className="p-1 text-gray-400 hover:text-gray-600">
                                   <Settings className="h-4 w-4" />
@@ -579,7 +514,6 @@ const StationBedManagement: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                          
                           <div className="grid grid-cols-[1fr_auto] gap-3">
                             {/* 左欄：院友資訊 */}
                             {patient ? (
@@ -629,7 +563,6 @@ const StationBedManagement: React.FC = () => {
                                 </div>
                               </div>
                             )}
-
                             {/* 右欄：QR Code */}
                             <div className="flex items-center justify-center">
                               {qrCodeDataUrls.get(bed.id) ? (
@@ -680,7 +613,6 @@ const StationBedManagement: React.FC = () => {
           );
         })}
       </div>
-
       {/* 模態框 */}
       {showStationModal && (
         <StationModal
@@ -691,7 +623,6 @@ const StationBedManagement: React.FC = () => {
           }}
         />
       )}
-
       {showBedModal && (
         <BedModal
           bed={selectedBed}
@@ -703,7 +634,6 @@ const StationBedManagement: React.FC = () => {
           }}
         />
       )}
-
       {showAssignmentModal && selectedBed && (
         <BedAssignmentModal
           bed={selectedBed}
@@ -713,19 +643,16 @@ const StationBedManagement: React.FC = () => {
           }}
         />
       )}
-
       {showSwapModal && (
         <BedSwapModal
           onClose={() => setShowSwapModal(false)}
         />
       )}
-
       {showStationManagementModal && (
         <StationManagementModal
           onClose={() => setShowStationManagementModal(false)}
         />
       )}
-
       {/* 匯出床位表模態框 */}
       {showExportModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -747,12 +674,10 @@ const StationBedManagement: React.FC = () => {
                 <X className="h-6 w-6" />
               </button>
             </div>
-
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
                 請選擇要匯出床位表的站點，每個站點將生成獨立的工作表：
               </p>
-              
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {stations.map(station => {
                   const stats = getStationStats(station.id);
@@ -780,14 +705,12 @@ const StationBedManagement: React.FC = () => {
                   );
                 })}
               </div>
-              
               {stations.length === 0 && (
                 <div className="text-center py-8">
                   <Building2 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                   <p className="text-gray-500">暫無站點可匯出</p>
                 </div>
               )}
-              
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-sm text-blue-800">
                   <strong>注意：</strong>系統將使用範本管理中的「床位表」範本來生成床位表。
@@ -795,7 +718,6 @@ const StationBedManagement: React.FC = () => {
                 </p>
               </div>
             </div>
-
             <div className="flex space-x-3 pt-4">
               <button
                 onClick={handleConfirmExport}
@@ -831,5 +753,4 @@ const StationBedManagement: React.FC = () => {
     </div>
   );
 };
-
 export default StationBedManagement;

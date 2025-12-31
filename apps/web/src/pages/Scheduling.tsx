@@ -9,7 +9,6 @@ import { getReasonBadgeClass, getReasonIcon } from '../utils/reasonColors';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { checkAnnualHealthCheckupDue, checkRestraintAssessmentDue, DueItem } from '../utils/scheduleDueChecker';
 import { supabase } from '../lib/supabase';
-
 const Scheduling: React.FC = () => {
   const { schedules, deleteSchedule, patients, loading, refreshData } = usePatients();
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -22,7 +21,6 @@ const Scheduling: React.FC = () => {
   const [reasonFilter, setReasonFilter] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [dueItems, setDueItems] = useState<DueItem[]>([]);
-
   // 創建院友ID到院友資料的映射
   const patientMap = useMemo(() => {
     const map = new Map<number, db.Patient>();
@@ -39,7 +37,6 @@ const Scheduling: React.FC = () => {
     });
     return map;
   }, [patients]);
-
   // 載入並計算到期項目
   useEffect(() => {
     if (loading || !patients || patients.length === 0) {
@@ -47,30 +44,25 @@ const Scheduling: React.FC = () => {
     }
     loadDueItems();
   }, [patients, schedules, loading]);
-
   const loadDueItems = async () => {
     try {
       const allDueItems: DueItem[] = [];
       const reminderDays = 14; // 14 天前開始提醒
-
       // 獲取所有年度體檢記錄
       const { data: checkups } = await supabase
         .from('annual_health_checkups')
         .select('patient_id, checkup_date')
         .order('checkup_date', { ascending: false });
-
       // 獲取所有約束評估記錄
       const { data: assessments } = await supabase
         .from('patient_restraint_assessments')
         .select('*')
         .order('created_at', { ascending: false });
-
       // 為每位院友檢查到期項目
       for (const patient of patients) {
         if (patient.在住狀態 !== '在住') {
           continue; // 只檢查在住院友
         }
-
         // 檢查年度體檢
         const lastCheckup = checkups?.find(c => c.patient_id === patient.院友id);
         const healthCheckupDue = checkAnnualHealthCheckupDue(
@@ -82,7 +74,6 @@ const Scheduling: React.FC = () => {
         if (healthCheckupDue && !healthCheckupDue.isScheduled) {
           allDueItems.push(healthCheckupDue);
         }
-
         // 檢查約束評估
         const lastAssessment = assessments?.find(a => a.patient_id === patient.院友id);
         const restraintDue = checkRestraintAssessmentDue(
@@ -95,7 +86,6 @@ const Scheduling: React.FC = () => {
           allDueItems.push(restraintDue);
         }
       }
-
       // 按到期日排序（最緊急的在前）
       allDueItems.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
       setDueItems(allDueItems);
@@ -103,7 +93,6 @@ const Scheduling: React.FC = () => {
       console.error('載入到期項目失敗:', error);
     }
   };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -114,32 +103,26 @@ const Scheduling: React.FC = () => {
       </div>
     );
   }
-
   const handleEdit = (schedule: db.ScheduleWithDetails) => {
     setSelectedSchedule(schedule);
     setShowScheduleModal(true);
   };
-
   const handleDelete = (id: number) => {
     if (confirm('確定要刪除此排程嗎？')) {
       deleteSchedule(id);
     }
   };
-
   const handleAddPatients = (scheduleId: number) => {
     setSelectedScheduleId(scheduleId);
     setShowPatientModal(true);
   };
-
   const handleViewDetails = (schedule: db.ScheduleWithDetails) => {
     setSelectedSchedule(schedule);
     setShowDetailModal(true);
   };
-
   const handleDownloadForm = (schedule: db.ScheduleWithDetails) => {
     handleExportScheduleToExcel(schedule);
   };
-
   const handleExportScheduleToExcel = async (schedule: db.ScheduleWithDetails) => {
     try {
       // 驗證排程資料是否有效
@@ -147,7 +130,6 @@ const Scheduling: React.FC = () => {
         alert('此排程沒有可匯出的院友資料');
         return;
       }
-
       // 過濾有效的院友資料
       const validPatientItems = schedule.院友列表
         .map(item => {
@@ -163,19 +145,16 @@ const Scheduling: React.FC = () => {
           };
         })
         .filter((item): item is NonNullable<typeof item> => item !== null);
-
       // 檢查是否有有效資料
       if (validPatientItems.length === 0) {
         alert('此排程沒有有效的院友資料可以匯出');
         return;
       }
-
       // 建構有效的排程物件
       const validSchedule = {
         ...schedule,
         院友列表: validPatientItems
       };
-
       // 調用匯出函數
       await exportCombinedScheduleToExcel(validSchedule);
     } catch (error) {
@@ -183,7 +162,6 @@ const Scheduling: React.FC = () => {
       alert('匯出失敗，請檢查資料是否完整後重試');
     }
   };
-
   // 進階搜索邏輯
   const filteredSchedules = schedules.filter(schedule => {
     if (dateFilter && schedule.到診日期 !== dateFilter) {
@@ -194,7 +172,6 @@ const Scheduling: React.FC = () => {
     )) {
       return false;
     }
-    
     let matchesSearch = true;
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -219,7 +196,6 @@ const Scheduling: React.FC = () => {
     }
     return matchesSearch;
   });
-
   // 獲取所有看診原因選項
   const getAllReasons = () => {
     const reasons = new Set<string>();
@@ -232,17 +208,14 @@ const Scheduling: React.FC = () => {
     });
     return Array.from(reasons).sort();
   };
-
   const clearFilters = () => {
     setSearchTerm('');
     setDateFilter('');
     setReasonFilter('');
   };
-
   const hasActiveFilters = () => {
     return searchTerm || dateFilter || reasonFilter;
   };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -258,7 +231,6 @@ const Scheduling: React.FC = () => {
           <span>新增排程</span>
         </button>
       </div>
-
       {/* 搜索和篩選區域 */}
       <div className="card p-4 space-y-4">
         <div className="flex flex-col lg:flex-row space-y-2 lg:space-y-0 lg:space-x-4 lg:items-center">
@@ -272,7 +244,6 @@ const Scheduling: React.FC = () => {
               className="form-input pl-10"
             />
           </div>
-          
           <div className="flex space-x-2">
             <input
               type="date"
@@ -281,7 +252,6 @@ const Scheduling: React.FC = () => {
               className="form-input lg:w-40"
               title="按日期篩選"
             />
-            
             <button
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
               className={`btn-secondary flex items-center space-x-2 ${
@@ -296,7 +266,6 @@ const Scheduling: React.FC = () => {
                 </span>
               )}
             </button>
-            
             {hasActiveFilters() && (
               <button
                 onClick={clearFilters}
@@ -308,7 +277,6 @@ const Scheduling: React.FC = () => {
             )}
           </div>
         </div>
-        
         {showAdvancedFilters && (
           <div className="border-t border-gray-200 pt-4">
             <h3 className="text-sm font-medium text-gray-900 mb-3">進階篩選</h3>
@@ -329,7 +297,6 @@ const Scheduling: React.FC = () => {
             </div>
           </div>
         )}
-        
         <div className="flex items-center justify-between text-sm text-gray-600">
           <span>
             顯示 {filteredSchedules.length} / {schedules.length} 個排程
@@ -342,7 +309,6 @@ const Scheduling: React.FC = () => {
           )}
         </div>
       </div>
-
       {/* 到期提醒區域 */}
       {dueItems.length > 0 && (
         <div className="card p-0 overflow-hidden border border-red-200">
@@ -358,7 +324,6 @@ const Scheduling: React.FC = () => {
                         className="px-4 py-3 hover:bg-red-200/60 cursor-pointer transition-colors text-sm text-red-800"
                         onClick={() => {
                           // TODO: 點擊可快速創建該院友的排程
-                          console.log('創建排程:', item);
                         }}
                       >
                         {item.displayText}
@@ -368,7 +333,6 @@ const Scheduling: React.FC = () => {
                           className="px-4 py-3 hover:bg-red-200/60 cursor-pointer transition-colors text-sm text-red-800"
                           onClick={() => {
                             // TODO: 點擊可快速創建該院友的排程
-                            console.log('創建排程:', nextItem);
                           }}
                         >
                           {nextItem.displayText}
@@ -384,7 +348,6 @@ const Scheduling: React.FC = () => {
           </div>
         </div>
       )}
-
       <div className="grid grid-cols-1 gap-6">
         {filteredSchedules.length > 0 ? (
           filteredSchedules.map(schedule => (
@@ -442,7 +405,6 @@ const Scheduling: React.FC = () => {
                   </div>
                 </div>
               </div>
-
               <div className="space-y-3">
                 {schedule.院友列表.map(item => {
                   const patient = patientMap.get(item.院友id);
@@ -548,7 +510,6 @@ const Scheduling: React.FC = () => {
           </div>
         )}
       </div>
-
       {showScheduleModal && (
         <ScheduleModal
           schedule={selectedSchedule}
@@ -560,7 +521,6 @@ const Scheduling: React.FC = () => {
           onDelete={deleteSchedule}
         />
       )}
-
       {showDetailModal && selectedSchedule && (
         <ScheduleDetailModal
           schedule={selectedSchedule}
@@ -578,7 +538,6 @@ const Scheduling: React.FC = () => {
           }}
         />
       )}
-
       {showPatientModal && selectedScheduleId && (
         <PatientSelectModal
           scheduleId={selectedScheduleId}
@@ -592,5 +551,4 @@ const Scheduling: React.FC = () => {
     </div>
   );
 };
-
 export default Scheduling;

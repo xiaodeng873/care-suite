@@ -3,10 +3,8 @@
  * 附件12.1 - Medical Examination Form for Residents in Residential Care Homes for the Elderly
  * 安老院住客體格檢驗報告書
  */
-
 import { AnnualHealthCheckup, parseMentalStateAssessment } from './annualHealthCheckupHelper';
 import { supabase } from '../lib/supabase';
-
 interface Patient {
   院友id: number;
   床號: string;
@@ -22,7 +20,6 @@ interface Patient {
   藥物敏感?: string[];
   感染控制?: string[];
 }
-
 interface MedicationPrescription {
   id: string;
   medication_name: string;
@@ -38,7 +35,6 @@ interface MedicationPrescription {
   meal_timing?: string;
   status: string;
 }
-
 // 計算年齡
 const calculateAge = (birthDate?: string): string => {
   if (!birthDate) return '';
@@ -51,7 +47,6 @@ const calculateAge = (birthDate?: string): string => {
   }
   return age.toString();
 };
-
 // 獲取活躍處方
 export const getActivePrescriptions = async (patientId: number): Promise<MedicationPrescription[]> => {
   try {
@@ -61,7 +56,6 @@ export const getActivePrescriptions = async (patientId: number): Promise<Medicat
       .eq('patient_id', patientId)
       .eq('status', 'active')
       .order('created_at', { ascending: false });
-
     if (error) throw error;
     return data || [];
   } catch (error) {
@@ -69,11 +63,9 @@ export const getActivePrescriptions = async (patientId: number): Promise<Medicat
     return [];
   }
 };
-
 // 格式化頻次 - 返回 QD/BD/TDS/QID 或其他頻率（只顯示字母縮寫）
 const formatFrequencyDisplay = (prescription: MedicationPrescription): string => {
   const dailyFreq = prescription.daily_frequency || 1;
-  
   // 頻率代碼映射 - 只顯示字母縮寫
   const freqCodeMap: { [key: number]: string } = {
     1: 'QD',
@@ -81,9 +73,7 @@ const formatFrequencyDisplay = (prescription: MedicationPrescription): string =>
     3: 'TDS',
     4: 'QID'
   };
-  
   let freqText = '';
-  
   // 根據 frequency_type 決定顯示
   switch (prescription.frequency_type) {
     case 'daily':
@@ -107,14 +97,11 @@ const formatFrequencyDisplay = (prescription: MedicationPrescription): string =>
     default:
       freqText = freqCodeMap[dailyFreq] || `${dailyFreq}次/日`;
   }
-  
   return freqText;
 };
-
 // 格式化處方列表 - 新格式: 藥名 劑型 給藥途徑 頻次 PRN (每次)N(單位)
 const formatPrescriptionList = (prescriptions: MedicationPrescription[]): string => {
   if (!prescriptions || prescriptions.length === 0) return '';
-  
   return prescriptions.map(p => {
     const parts = [p.medication_name];
     if (p.dosage_form) parts.push(p.dosage_form);
@@ -126,14 +113,12 @@ const formatPrescriptionList = (prescriptions: MedicationPrescription[]): string
     return parts.join(' ');
   }).join('\n');
 };
-
 // 勾選框 HTML
 const checkbox = (checked: boolean): string => {
   return checked
     ? `<span style="display:inline-block;width:11px;height:11px;border:1px solid #000;text-align:center;line-height:10px;font-size:9px;vertical-align:middle;margin:0 3px;">✓</span>`
     : `<span style="display:inline-block;width:11px;height:11px;border:1px solid #000;vertical-align:middle;margin:0 3px;"></span>`;
 };
-
 // 生成 HTML
 export const generateMedicalExaminationFormHTML = (
   checkup: AnnualHealthCheckup,
@@ -141,7 +126,6 @@ export const generateMedicalExaminationFormHTML = (
   prescriptions: MedicationPrescription[]
 ): string => {
   const mentalState = parseMentalStateAssessment(checkup.mental_state_assessment);
-
   return `
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -152,7 +136,6 @@ export const generateMedicalExaminationFormHTML = (
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: "Times New Roman", "PMingLiU", "新細明體", serif; font-size: 10pt; line-height: 1.4; background: #fff; }
-    
     .page {
       width: 210mm; height: 297mm;
       padding: 8mm 15mm 8mm 15mm;
@@ -161,16 +144,12 @@ export const generateMedicalExaminationFormHTML = (
       overflow: hidden;
     }
     .page:last-child { page-break-after: auto; }
-    
     .header { display: flex; justify-content: space-between; font-size: 9pt; margin-bottom: 3mm; }
-    
     .title { text-align: center; margin-bottom: 4mm; }
     .title h1 { font-size: 13pt; font-weight: bold; margin: 2px 0; }
     .title h2 { font-size: 11pt; font-weight: bold; margin: 2px 0; }
-    
     table { width: 100%; border-collapse: collapse; }
     td, th { border: 1px solid #000; padding: 4px 8px; vertical-align: bottom; font-size: 10pt; line-height: 1.4; }
-    
     .section-header { background: #d9d9d9; font-weight: bold; }
     .section-header td { padding: 5px 10px; vertical-align: middle; }
     .no-border { border: none !important; }
@@ -178,30 +157,25 @@ export const generateMedicalExaminationFormHTML = (
     .no-bottom { border-bottom: none !important; }
     .no-left { border-left: none !important; }
     .no-right { border-right: none !important; }
-    
     .field-line { border-bottom: 1px solid #000; min-height: 1.2em; display: block; margin-top: auto; }
     .indent { padding-left: 15px; }
-    
     @media print {
       .page { margin: 0; }
     }
   </style>
 </head>
 <body>
-
 <!-- ===== 第1頁: Part I + Part II ===== -->
 <div class="page">
   <div class="header">
     <span>《安老院實務守則》2024年6月（修訂版）</span>
     <span>附件 12.1</span>
   </div>
-  
   <div class="title">
     <h1>Medical Examination Form</h1>
     <h1>for Residents in Residential Care Homes for the Elderly</h1>
     <h2>安老院住客體格檢驗報告書</h2>
   </div>
-
   <!-- Part I -->
   <table style="margin-bottom:3mm; border-collapse:collapse; border:1px solid #000;">
     <tr class="section-header">
@@ -235,7 +209,6 @@ export const generateMedicalExaminationFormHTML = (
       </td>
     </tr>
   </table>
-
   <!-- Part II -->
   <table style="border-collapse:collapse; border:1px solid #000;">
     <tr class="section-header">
@@ -309,22 +282,18 @@ export const generateMedicalExaminationFormHTML = (
       <td colspan="2" style="border:none; padding:5px;">Details of present medication, if any, including the name and dosage.<br/>如目前須服用藥物，請詳述藥名及服用量。<span style="font-size:8pt;color:#666;">（見附頁：個人藥物記錄）</span></td>
     </tr>
   </table>
-  
   <p style="text-align:center; margin-top:3mm; font-size:9pt;">附件 12.1 - 1</p>
 </div>
-
 <!-- ===== 個人藥物記錄頁 ===== -->
 <div class="page">
   <div class="header">
     <span>《安老院實務守則》2024年6月（修訂版）</span>
     <span>附件 12.1</span>
   </div>
-
   <div class="title">
     <h1>Personal Medication Record</h1>
     <h2>個人藥物記錄</h2>
   </div>
-
   <table style="margin-bottom:5mm;">
     <tr>
       <td style="width:25%; background:#f0f0f0; font-weight:bold; vertical-align:top;">Name 姓名</td>
@@ -339,7 +308,6 @@ export const generateMedicalExaminationFormHTML = (
       <td style="vertical-align:top;">${new Date().toLocaleDateString('zh-TW')}</td>
     </tr>
   </table>
-
   <table>
     <tr style="background:#d9d9d9; font-weight:bold;">
       <td style="width:5%; text-align:center; vertical-align:top;">#</td>
@@ -366,24 +334,20 @@ export const generateMedicalExaminationFormHTML = (
     </tr>
     `}
   </table>
-  
   <p style="text-align:center; margin-top:5mm; font-size:9pt;">附件 12.1 - 1a</p>
 </div>
-
 <!-- ===== 第2頁: Part III ===== -->
 <div class="page">
   <div class="header">
     <span>《安老院實務守則》2024年6月（修訂版）</span>
     <span>附件 12.1</span>
   </div>
-
   <table style="margin-bottom:3mm;">
     <tr class="section-header">
       <td style="width:18%;">Part III<br/>第三部分</td>
       <td>Physical Examination<br/>身體檢查</td>
     </tr>
   </table>
-  
   <table style="margin-bottom:3mm;">
     <tr>
       <td style="width:33%; text-align:center; font-weight:bold;">Blood Pressure 血壓</td>
@@ -396,9 +360,7 @@ export const generateMedicalExaminationFormHTML = (
       <td style="text-align:center; height:30px; vertical-align:middle;">${checkup.body_weight || ''} kg</td>
     </tr>
   </table>
-  
   <p style="margin-bottom:3mm; font-size:10pt;">Please specify: 請註明:</p>
-  
   <table style="border-collapse:collapse;">
     <tr>
       <td style="width:35%; border:none; border-left:1px solid #000; border-top:1px solid #000; padding:3px 5px;">Cardiovascular System<br/>循環系統</td>
@@ -449,19 +411,15 @@ export const generateMedicalExaminationFormHTML = (
       <td style="border:none; border-right:1px solid #000; border-bottom:1px solid #000; padding:3px 5px;"><span class="field-line">${checkup.physical_exam_others || ''}</span></td>
     </tr>
   </table>
-  
   <p style="text-align:center; margin-top:5mm; font-size:9pt;">附件 12.1 - 2</p>
 </div>
-
 <!-- ===== 第3頁: Part IV ===== -->
 <div class="page">
   <div class="header">
     <span>《安老院實務守則》2024年6月（修訂版）</span>
     <span>附件 12.1</span>
   </div>
-
   <table>
- 
     <tr class="section-header">
       <td style="width:18%;">Part IV<br/>第四部分</td>
       <td>Functional Assessment<br/>身體機能評估</td>
@@ -470,7 +428,6 @@ export const generateMedicalExaminationFormHTML = (
       <td colspan="2" style="height:3mm; border:none;"></td>
     </tr>
   </table>
-  
   <table style="border-collapse:collapse; border:1px solid #000;">
     <tr>
       <td style="width:18%; font-weight:bold; vertical-align:top; border:none; padding:5px;">
@@ -561,48 +518,39 @@ export const generateMedicalExaminationFormHTML = (
       </td>
     </tr>
   </table>
-  
   <p style="text-align:center; margin-top:5mm; font-size:9pt;">附件 12.1 - 3</p>
 </div>
-
 <!-- ===== 第4頁: Part V ===== -->
 <div class="page">
   <div class="header">
     <span>《安老院實務守則》2024年6月（修訂版）</span>
     <span>附件 12.1</span>
   </div>
-
   <table style="margin-bottom:6mm;">
     <tr class="section-header">
       <td style="width:18%;">Part V<br/>第五部分</td>
       <td>Recommendation<br/>建議</td>
     </tr>
   </table>
-  
   <div style="border:1px solid #000; padding:12px 15px;">
     <p style="margin-bottom:12px;">The applicant is fit for admission to the following type of residential care homes for the elderly -<br/>申請人適合入住以下類別的安老院:</p>
-    
     <div style="margin-bottom:10px;">
       ${checkbox(checkup.recommendation === '低度照顧安老院')} <b>1. Self-care Hostel 低度照顧安老院</b><br/>
       <p style="font-size:7.5pt; margin-left:22px; line-height:1.2;">(an establishment providing residential care, supervision and guidance for persons who have attained the age of 60 years and who are capable of observing personal hygiene and performing household duties related to cleaning, cooking, laundering, shopping and other domestic tasks)<br/>(即提供住宿照顧、監管及指導予年滿 60 歲人士的機構,而該等人士有能力保持個人衞生,亦有能力處理關於清潔、烹飪、洗衣、購物的家居工作及其他家務)</p>
     </div>
-    
     <div style="margin-bottom:10px;">
       ${checkbox(checkup.recommendation === '中度照顧安老院')} <b>2. Aged Home 中度照顧安老院</b><br/>
       <p style="font-size:7.5pt; margin-left:22px; line-height:1.2;">(an establishment providing residential care, supervision and guidance for persons who have attained the age of 60 years and who are capable of observing personal hygiene but have a degree of difficulty in performing household duties related to cleaning, cooking, laundering, shopping and other domestic tasks)<br/>(即提供住宿照顧、監管及指導予年滿 60 歲人士的機構,而該等人士有能力保持個人衞生,但在處理關於清潔、烹飪、洗衣、購物的家居工作及其他家務方面,有一定程度的困難)</p>
     </div>
-    
     <div style="margin-bottom:10px;">
       ${checkbox(checkup.recommendation === '高度照顧安老院')} <b>3. Care-and-Attention Home 高度照顧安老院</b><br/>
       <p style="font-size:7.5pt; margin-left:22px; line-height:1.2;">(an establishment providing residential care, supervision and guidance for persons who have attained the age of 60 years and who are generally weak in health and are suffering from a functional disability to the extent that they require personal care and attention in the course of daily living activities but do not require a high degree of professional medical or nursing care)<br/>(即提供住宿照顧、監管及指導予年滿 60 歲人士的機構,而該等人士一般健康欠佳,而且身體機能喪失或衰退,以致在日常起居方面需要專人照顧料理,但不需要高度的專業醫療或護理)</p>
     </div>
-    
     <div style="margin-bottom:10px;">
       ${checkbox(checkup.recommendation === '護養院')} <b>4. Nursing Home 護養院</b><br/>
       <p style="font-size:7.5pt; margin-left:22px; line-height:1.2;">(an establishment providing residential care, supervision and guidance for persons who have attained the age of 60 years, and who are suffering from a functional disability to the extent that they require personal care and attention in the course of daily living activities, and a high degree of professional nursing care, but do not require continuous medical supervision)<br/>(即提供住宿照顧、監管及指導予年滿 60 歲人士的機構,而該等人士身體機能喪失,程度達到在日常起居方面,需要專人照顧料理及高度的專業護理,但不需要持續醫療監管)</p>
     </div>
   </div>
-  
   <!-- Part VI 整合到第4頁 -->
   <table style="margin-top:8mm; margin-bottom:4mm;">
     <tr class="section-header">
@@ -620,35 +568,28 @@ export const generateMedicalExaminationFormHTML = (
       </td>
     </tr>
   </table>
-  
   <div style="display:flex; gap:15px; font-size:9pt;">
     <div style="width:50%;">
       <p style="margin-bottom:2px; font-size:8.5pt;">Registered Medical Practitioner's Signature<br/>註冊醫生簽署</p>
       <div style="border-bottom:1px solid #000; height:30px; margin-bottom:8px;"></div>
-      
       <p style="margin-bottom:2px; font-size:8.5pt;">Registered Medical Practitioner's Name<br/>註冊醫生姓名</p>
       <div style="border-bottom:1px solid #000; height:30px; margin-bottom:8px;"></div>
-      
       <p style="margin-bottom:2px; font-size:8.5pt;">Date 日期</p>
       <div style="border-bottom:1px solid #000; height:15px;">${checkup.last_doctor_signature_date ? new Date(checkup.last_doctor_signature_date).toLocaleDateString('zh-TW') : ''}</div>
     </div>
     <div style="width:50%;">
       <p style="margin-bottom:2px; font-size:8.5pt;">Name of Hospital/Clinic<br/>醫院／診所名稱</p>
       <div style="border-bottom:1px solid #000; height:30px; margin-bottom:8px;"></div>
-      
       <p style="margin-bottom:2px; font-size:8.5pt;">Stamp of Hospital/Clinic/Registered Medical<br/>Practitioner<br/>醫院／診所／註冊醫生印鑑</p>
       <div style="border:1px solid #000; height:45px; margin-top:3px;"></div>
     </div>
   </div>
-  
   <p style="text-align:center; margin-top:5mm; font-size:9pt;">附件 12.1 - 4</p>
 </div>
-
 </body>
 </html>
 `;
 };
-
 // 打開打印視窗
 const openPrintWindow = (html: string) => {
   const iframe = document.createElement('iframe');
@@ -658,32 +599,26 @@ const openPrintWindow = (html: string) => {
   iframe.style.width = '0';
   iframe.style.height = '0';
   iframe.style.border = 'none';
-  
   document.body.appendChild(iframe);
-  
   const iframeDoc = iframe.contentWindow?.document;
   if (!iframeDoc) {
     alert('無法創建列印預覽，請重試');
     document.body.removeChild(iframe);
     return;
   }
-
   iframeDoc.open();
   iframeDoc.write(html);
   iframeDoc.close();
-
   iframe.onload = () => {
     setTimeout(() => {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
-      
       setTimeout(() => {
         document.body.removeChild(iframe);
       }, 1000);
     }, 250);
   };
 };
-
 // 主函數：生成並打印報告
 export const printMedicalExaminationForm = async (
   checkup: AnnualHealthCheckup,
@@ -701,13 +636,10 @@ export const printMedicalExaminationForm = async (
       allergy_details: checkup.allergy_details,
       infectious_disease_details: checkup.infectious_disease_details
     });
-    
     // 獲取活躍處方
     const prescriptions = await getActivePrescriptions(patient.院友id);
-    
     // 生成 HTML
     const html = generateMedicalExaminationFormHTML(checkup, patient, prescriptions);
-    
     // 打開打印視窗
     openPrintWindow(html);
   } catch (error) {

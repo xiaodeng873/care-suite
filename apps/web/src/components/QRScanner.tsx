@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, SwitchCamera, X, AlertCircle } from 'lucide-react';
-
 interface QRScannerProps {
   onScanSuccess: (qrCodeId: string) => void;
   onError?: (error: string) => void;
   className?: string;
   autoStart?: boolean;
 }
-
 const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className = '', autoStart = false }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [shouldStartScanning, setShouldStartScanning] = useState(autoStart);
@@ -18,7 +16,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
   const [debugMessage, setDebugMessage] = useState<string>('');
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerIdRef = useRef('qr-scanner-' + Math.random().toString(36).substr(2, 9));
-
   const cleanupScanner = async () => {
     if (html5QrCodeRef.current) {
       try {
@@ -32,19 +29,15 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       html5QrCodeRef.current = null;
     }
   };
-
   const initializeScanner = async () => {
     setError(null);
     setPermissionDenied(false);
-
     try {
       await cleanupScanner();
-
       // 等待 DOM 元素渲染，最多嘗試 10 次
       let element = null;
       let attempts = 0;
       const maxAttempts = 10;
-      
       while (!element && attempts < maxAttempts) {
         element = document.getElementById(scannerIdRef.current);
         if (!element) {
@@ -52,14 +45,11 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
           attempts++;
         }
       }
-
       if (!element) {
         throw new Error(`找不到掃描器容器元素: ${scannerIdRef.current}`);
       }
-
       const html5QrCode = new Html5Qrcode(scannerIdRef.current);
       html5QrCodeRef.current = html5QrCode;
-
       // 添加樣式確保視頻填充容器
       const style = document.createElement('style');
       style.textContent = `
@@ -73,7 +63,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
         }
       `;
       document.head.appendChild(style);
-
       const config = {
         fps: 10,
         qrbox: { width: 250, height: 250 },
@@ -82,16 +71,12 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
           useBarCodeDetectorIfSupported: true
         }
       };
-
       setDebugMessage('🔄 正在啟動掃描器...');
-
       await html5QrCode.start(
         { facingMode: facingMode },
         config,
         async (decodedText) => {
-          console.log('📷 掃描到原始內容:', decodedText);
           setDebugMessage(`掃描到: ${decodedText.substring(0, 50)}...`);
-          
           // 靈活解析：支援 JSON 或純文本格式（與移動端一致）
           let qrData: any;
           try {
@@ -100,18 +85,14 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
             setDebugMessage(`解析成功: type=${qrData.type}, qr_code_id=${qrData.qr_code_id}`);
           } catch (parseError) {
             // 如果不是 JSON，假設為直接的 QR Code ID（純文本）
-            console.log('📋 使用純文本模式:', decodedText);
             qrData = { type: 'bed', qr_code_id: decodedText };
             setDebugMessage(`使用純文本模式: ${decodedText}`);
           }
-          
           if (qrData.type === 'bed' && qrData.qr_code_id) {
-            console.log('✅ 有效的床位二維碼，qr_code_id:', qrData.qr_code_id);
             setDebugMessage(`✅ 有效床位碼: ${qrData.qr_code_id}`);
             await stopScanner();
             onScanSuccess(qrData.qr_code_id);
           } else {
-            console.log('❌ 無效的床位二維碼，缺少必要字段');
             setDebugMessage('❌ 無效的床位二維碼');
             setError('這不是有效的床位二維碼');
             if (onError) {
@@ -121,17 +102,14 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
         },
         (errorMessage) => {
           // 掃描錯誤回調（非致命錯誤）
-          console.log('⚠️ 掃描錯誤:', errorMessage);
           // 不顯示這些錯誤，因為它們是正常的「未檢測到二維碼」消息
         }
       );
-
       setIsScanning(true);
       setShouldStartScanning(false);
       setDebugMessage('✅ 掃描器已啟動，請對準二維碼');
     } catch (err: any) {
       console.error('啟動掃描器失敗:', err);
-      
       if (err.name === 'NotAllowedError' || err.message?.includes('Permission')) {
         setPermissionDenied(true);
         setError('鏡頭權限被拒絕。請在瀏覽器設定中允許使用鏡頭。');
@@ -140,30 +118,24 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       } else {
         setError('無法啟動鏡頭：' + (err.message || '未知錯誤'));
       }
-
       if (onError) {
         onError(err.message || '無法啟動鏡頭');
       }
-      
       setShouldStartScanning(false);
       setIsScanning(false);
     }
   };
-
   const startScanner = () => {
     setShouldStartScanning(true);
   };
-
   const stopScanner = async () => {
     await cleanupScanner();
     setIsScanning(false);
     setShouldStartScanning(false);
   };
-
   const toggleCamera = async () => {
     const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
     setFacingMode(newFacingMode);
-    
     if (isScanning) {
       await stopScanner();
       setTimeout(() => {
@@ -171,21 +143,18 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       }, 200);
     }
   };
-
   // 當 shouldStartScanning 變為 true 時，啟動掃描器
   useEffect(() => {
     if (shouldStartScanning && !isScanning) {
       initializeScanner();
     }
   }, [shouldStartScanning, facingMode]);
-
   // 清理掃描器
   useEffect(() => {
     return () => {
       cleanupScanner();
     };
   }, []);
-
   return (
     <div className={`bg-white rounded-lg border border-gray-200 ${className}`}>
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
@@ -203,7 +172,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
           </button>
         )}
       </div>
-
       <div className="p-3">
         {!shouldStartScanning && !isScanning ? (
           <div className="flex flex-col items-center space-y-3">
@@ -214,7 +182,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
               <Camera className="h-4 w-4" />
               <span>啟動掃描器</span>
             </button>
-
             {error && (
               <div className="w-full bg-red-50 border border-red-200 rounded-lg p-3">
                 <div className="flex items-start space-x-2">
@@ -253,7 +220,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
                 </div>
               </div>
             </div>
-
             {/* 右側：控制按鈕 */}
             <div className="flex flex-col justify-center space-y-2 flex-1">
               {debugMessage && (
@@ -261,7 +227,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
                   <p className="text-xs text-blue-800 break-all">{debugMessage}</p>
                 </div>
               )}
-              
               <button
                 onClick={toggleCamera}
                 className="flex items-center justify-center space-x-2 px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors w-full"
@@ -269,7 +234,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
                 <SwitchCamera className="h-4 w-4" />
                 <span>{facingMode === 'user' ? '切換到後置' : '切換到前置'}</span>
               </button>
-
               {error && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2">
                   <div className="flex items-start space-x-2">
@@ -285,5 +249,4 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
     </div>
   );
 };
-
 export default QRScanner;

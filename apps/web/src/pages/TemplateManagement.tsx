@@ -14,9 +14,7 @@ import { extractDiaperChangeTemplateFormat } from '../utils/diaperChangeExcelGen
 import { extractMedicationRecordTemplateFormat } from '../utils/medicationRecordExcelGenerator';
 import { extractPersonalMedicationListTemplateFormat } from '../utils/personalMedicationListExcelGenerator';
 import { extractAnnualHealthCheckupTemplateFormat } from '../utils/annualHealthCheckupExcelGenerator';
-
 type TemplateType = 'waiting-list' | 'prescription' | 'medication-record' | 'personal-medication-list' | 'consent-form' | 'vital-signs' | 'blood-sugar' | 'weight-control' | 'follow-up-list' | 'restraint-observation' | 'diaper-change-record' | 'personal-hygiene-record' | 'admission-layout' | 'annual-health-checkup' | 'incident-report';
-
 interface TemplateMetadata {
   id: number;
   name: string;
@@ -28,7 +26,6 @@ interface TemplateMetadata {
   description: string;
   extracted_format: any;
 }
-
 const TemplateManagement: React.FC = () => {
   const [templates, setTemplates] = useState<TemplateMetadata[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,7 +34,6 @@ const TemplateManagement: React.FC = () => {
   const [selectedType, setSelectedType] = useState<TemplateType>('waiting-list');
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const templateTypes = [
     { value: 'waiting-list', label: '院友候診記錄表', description: '醫生到診時的院友候診記錄' },
     { value: 'prescription', label: 'VMO處方箋', description: '醫生開立的處方箋' },
@@ -56,11 +52,9 @@ const TemplateManagement: React.FC = () => {
     { value: 'annual-health-checkup', label: '安老院住客體格檢驗報告書', description: '年度體格檢驗報告書範本' },
     { value: 'incident-report', label: '意外事件報告', description: '院友意外事件記錄報告' }
   ];
-
   React.useEffect(() => {
     loadTemplates();
   }, []);
-
   const loadTemplates = async () => {
     try {
       setLoading(true);
@@ -73,7 +67,6 @@ const TemplateManagement: React.FC = () => {
       setLoading(false);
     }
   };
-
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -83,27 +76,21 @@ const TemplateManagement: React.FC = () => {
       setDragActive(false);
     }
   };
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
     const files = e.dataTransfer.files;
     if (files && files[0]) {
       handleFileUpload(files[0]);
     }
   };
-
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       handleFileUpload(e.target.files[0]);
     }
   };
-
   const extractTemplateFormatByType = async (file: File, type: TemplateType): Promise<any> => {
-    console.log(`開始提取 ${type} 範本格式...`);
-    
     try {
       switch (type) {
         case 'consent-form':
@@ -142,7 +129,6 @@ const TemplateManagement: React.FC = () => {
       throw error;
     }
   };
-
   const handleFileUpload = async (file: File) => {
     // 意外事件報告範本允許 Word 檔案
     if (selectedType === 'incident-report') {
@@ -156,17 +142,14 @@ const TemplateManagement: React.FC = () => {
         return;
       }
     }
-
     if (file.size > 50 * 1024 * 1024) { // 50MB limit
       alert('檔案大小不能超過 50MB');
       return;
     }
-
     // Sanitize filename for storage path
     const sanitizeFilename = (filename: string): string => {
       const extension = filename.substring(filename.lastIndexOf('.'));
       const nameWithoutExt = filename.substring(0, filename.lastIndexOf('.'));
-      
       // Replace non-ASCII characters, spaces, and special characters with underscores
       const sanitized = nameWithoutExt
         .replace(/[^\x00-\x7F]/g, '_') // Replace non-ASCII characters
@@ -174,50 +157,33 @@ const TemplateManagement: React.FC = () => {
         .replace(/[^a-zA-Z0-9_-]/g, '_') // Replace other special characters
         .replace(/_+/g, '_') // Replace multiple underscores with single
         .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
-      
       return sanitized + extension;
     };
-
     const uploadId = Date.now().toString();
-    
     try {
       setUploading(true);
       setUploadProgress({ [uploadId]: 0 });
-
       // Step 1: Extract template format (skip for Word templates)
-      console.log('第1步: 提取範本格式...');
       setUploadProgress({ [uploadId]: 20 });
-
       let extractedFormat: any = {};
       if (selectedType === 'incident-report') {
         // Word 範本不需要提取格式，使用空物件
-        console.log('Word 範本，跳過格式提取');
         extractedFormat = {};
       } else {
         extractedFormat = await extractTemplateFormatByType(file, selectedType);
-        console.log('範本格式提取完成:', extractedFormat);
       }
-
       // Step 2: Upload file to storage
-      console.log('第2步: 上傳檔案到儲存空間...');
       setUploadProgress({ [uploadId]: 40 });
-      
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const sanitizedFilename = sanitizeFilename(file.name);
       const storagePath = `${selectedType}/${timestamp}_${sanitizedFilename}`;
-      
       const uploadedPath = await uploadTemplateFile(file, storagePath);
       if (!uploadedPath) {
         throw new Error('檔案上傳失敗');
       }
-      console.log('檔案上傳成功:', uploadedPath);
-
       // Step 3: Save metadata to database
-      console.log('第3步: 儲存範本元數據...');
       setUploadProgress({ [uploadId]: 80 });
-      
       const templateName = `${templateTypes.find(t => t.value === selectedType)?.label || selectedType}_${timestamp}`;
-      
       const metadata = {
         name: templateName,
         type: selectedType,
@@ -227,23 +193,16 @@ const TemplateManagement: React.FC = () => {
         description: templateTypes.find(t => t.value === selectedType)?.description || '',
         extracted_format: extractedFormat
       };
-
       const savedMetadata = await createTemplateMetadata(metadata);
       if (!savedMetadata) {
         throw new Error('儲存範本元數據失敗');
       }
-      console.log('範本元數據儲存成功:', savedMetadata);
-
       setUploadProgress({ [uploadId]: 100 });
-      
       // Refresh templates list
       await loadTemplates();
-      
       alert(`範本「${templateName}」上傳成功！`);
-      
     } catch (error) {
       console.error('上傳範本失敗:', error);
-
       let errorMessage = '上傳範本失敗：';
       if (error instanceof Error) {
         if (error.message.includes('Bucket not found')) {
@@ -261,41 +220,33 @@ const TemplateManagement: React.FC = () => {
       } else {
         errorMessage += '未知錯誤';
       }
-
       alert(errorMessage);
     } finally {
       setUploading(false);
       setUploadProgress({});
-      
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
   };
-
   const handleDeleteTemplate = async (template: TemplateMetadata) => {
     if (!confirm(`確定要刪除範本「${template.name}」嗎？此操作無法復原。`)) {
       return;
     }
-
     try {
       // Delete from storage
       await deleteFileFromStorage(template.storage_path);
-
       // Delete metadata from database
       await deleteTemplateMetadata(template.id);
-
       // Refresh templates list
       await loadTemplates();
       alert(`範本「${template.name}」刪除成功`);
-      
     } catch (error) {
       console.error('刪除範本失敗:', error);
       alert('刪除範本失敗，請重試');
     }
   };
-
   const handleDownloadTemplate = async (template: TemplateMetadata) => {
     try {
       await downloadTemplateFile(template.storage_path, template.original_name);
@@ -304,7 +255,6 @@ const TemplateManagement: React.FC = () => {
       alert('下載範本失敗，請重試');
     }
   };
-
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -312,11 +262,9 @@ const TemplateManagement: React.FC = () => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
-
   const getTemplateTypeLabel = (type: TemplateType): string => {
     return templateTypes.find(t => t.value === type)?.label || type;
   };
-
   const getTemplateTypeColor = (type: TemplateType): string => {
     const colorMap: { [key in TemplateType]: string } = {
       'waiting-list': 'bg-blue-100 text-blue-800',
@@ -337,17 +285,14 @@ const TemplateManagement: React.FC = () => {
     };
     return colorMap[type] || 'bg-gray-100 text-gray-800';
   };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">範本管理</h1>
       </div>
-
       {/* Upload Section */}
       <div className="card p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">上傳新範本</h2>
-        
         <div className="mb-4">
           <label className="form-label">範本類型</label>
           <select
@@ -366,7 +311,6 @@ const TemplateManagement: React.FC = () => {
             {templateTypes.find(t => t.value === selectedType)?.description}
           </p>
         </div>
-
         <div
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
             dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
@@ -383,7 +327,6 @@ const TemplateManagement: React.FC = () => {
           <p className="text-sm text-gray-600 mb-4">
             {uploading ? '請稍候，正在處理範本...' : '或點擊下方按鈕選擇檔案'}
           </p>
-          
           {!uploading && (
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -392,7 +335,6 @@ const TemplateManagement: React.FC = () => {
               選擇檔案
             </button>
           )}
-          
           {uploading && Object.values(uploadProgress).length > 0 && (
             <div className="mt-4">
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -406,7 +348,6 @@ const TemplateManagement: React.FC = () => {
               </p>
             </div>
           )}
-          
           <input
             ref={fileInputRef}
             type="file"
@@ -416,20 +357,17 @@ const TemplateManagement: React.FC = () => {
             disabled={uploading}
           />
         </div>
-
         <div className="mt-4 text-sm text-gray-600">
           <p><strong>支援格式：</strong>{selectedType === 'incident-report' ? 'Word 檔案 (.docx)' : 'Excel 檔案 (.xlsx, .xls)'}</p>
           <p><strong>檔案大小限制：</strong>最大 50MB</p>
           <p><strong>注意事項：</strong>上傳的範本將用於自動生成對應的文件格式</p>
         </div>
       </div>
-
       {/* Templates List */}
       <div className="card">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">已上傳的範本</h2>
         </div>
-        
         {loading ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -448,7 +386,6 @@ const TemplateManagement: React.FC = () => {
                         {getTemplateTypeLabel(template.type)}
                       </span>
                     </div>
-                    
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
                       <div>
                         <span className="font-medium">原始檔名：</span>
@@ -463,11 +400,9 @@ const TemplateManagement: React.FC = () => {
                         {new Date(template.upload_date).toLocaleString('zh-TW')}
                       </div>
                     </div>
-                    
                     {template.description && (
                       <p className="text-sm text-gray-600 mt-2">{template.description}</p>
                     )}
-                    
                     {/* Template format status */}
                     <div className="mt-3">
                       {template.extracted_format && Object.keys(template.extracted_format).length > 0 ? (
@@ -486,7 +421,6 @@ const TemplateManagement: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => handleDownloadTemplate(template)}
@@ -515,7 +449,6 @@ const TemplateManagement: React.FC = () => {
           </div>
         )}
       </div>
-
       {/* Usage Instructions */}
       <div className="card p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">使用說明</h2>
@@ -541,5 +474,4 @@ const TemplateManagement: React.FC = () => {
     </div>
   );
 };
-
 export default TemplateManagement;

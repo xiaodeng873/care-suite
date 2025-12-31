@@ -1,11 +1,9 @@
 import { supabase } from '../lib/supabase';
-
 export interface DocumentClassification {
   type: 'vaccination' | 'followup' | 'allergy' | 'diagnosis' | 'prescription' | 'unknown';
   confidence: number;
   reasoning?: string;
 }
-
 export interface OCRResult {
   success: boolean;
   text?: string;
@@ -15,21 +13,17 @@ export interface OCRResult {
   error?: string;
   processingTimeMs?: number;
 }
-
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const TARGET_IMAGE_SIZE = 2 * 1024 * 1024;
-
 export async function compressImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-
         const maxDimension = 2000;
         if (width > maxDimension || height > maxDimension) {
           if (width > height) {
@@ -40,42 +34,32 @@ export async function compressImage(file: File): Promise<string> {
             height = maxDimension;
           }
         }
-
         canvas.width = width;
         canvas.height = height;
-
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           reject(new Error('無法建立canvas context'));
           return;
         }
-
         ctx.drawImage(img, 0, 0, width, height);
-
         let quality = 0.9;
         if (file.size > TARGET_IMAGE_SIZE) {
           quality = Math.max(0.6, TARGET_IMAGE_SIZE / file.size);
         }
-
         const base64 = canvas.toDataURL('image/jpeg', quality).split(',')[1];
         resolve(base64);
       };
-
       img.onerror = () => {
         reject(new Error('無法載入圖片'));
       };
-
       img.src = e.target?.result as string;
     };
-
     reader.onerror = () => {
       reject(new Error('無法讀取檔案'));
     };
-
     reader.readAsDataURL(file);
   });
 }
-
 export async function calculateImageHash(base64: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(base64.substring(0, 10000));
@@ -84,7 +68,6 @@ export async function calculateImageHash(base64: string): Promise<string> {
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   return hashHex;
 }
-
 async function logOCRResult(
   imageHash: string,
   result: OCRResult,
@@ -94,7 +77,6 @@ async function logOCRResult(
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
     await supabase.from('ocr_recognition_logs').insert({
       user_id: user.id,
       image_hash: imageHash,
@@ -110,7 +92,6 @@ async function logOCRResult(
     console.error('Failed to log OCR result:', error);
   }
 }
-
 export async function processImageWithGeminiVision(
   file: File,
   prompt: string,
@@ -124,10 +105,8 @@ export async function processImageWithGeminiVision(
         error: `圖片檔案過大，請選擇小於 ${MAX_IMAGE_SIZE / 1024 / 1024}MB 的圖片`
       };
     }
-
     const imageBase64 = await compressImage(file);
     const imageHash = await calculateImageHash(imageBase64);
-
     if (!forceRefresh) {
       const { data: cachedResult } = await supabase
         .from('ocr_recognition_logs')
@@ -137,9 +116,7 @@ export async function processImageWithGeminiVision(
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-
       if (cachedResult && cachedResult.extracted_data) {
-        console.log('使用快取的識別結果');
         return {
           success: true,
           text: undefined,
@@ -150,13 +127,9 @@ export async function processImageWithGeminiVision(
         };
       }
     } else {
-      console.log('強制重新識別，跳過快取');
     }
-
     const startTime = Date.now();
-
     const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-
     const { data, error } = await supabase.functions.invoke('gemini-vision-extract', {
       body: {
         imageBase64,
@@ -165,7 +138,6 @@ export async function processImageWithGeminiVision(
         classificationPrompt
       }
     });
-
     if (error) {
       console.error('Gemini Vision extract error:', error);
       const failResult: OCRResult = {
@@ -176,7 +148,6 @@ export async function processImageWithGeminiVision(
       await logOCRResult(imageHash, failResult, '', prompt);
       return failResult;
     }
-
     if (!data.success) {
       const failResult: OCRResult = {
         success: false,
@@ -186,7 +157,6 @@ export async function processImageWithGeminiVision(
       await logOCRResult(imageHash, failResult, '', prompt);
       return failResult;
     }
-
     const finalResult: OCRResult = {
       success: true,
       text: undefined,
@@ -195,9 +165,7 @@ export async function processImageWithGeminiVision(
       classification: data.classification,
       processingTimeMs: Date.now() - startTime
     };
-
     await logOCRResult(imageHash, finalResult, '', prompt);
-
     return finalResult;
   } catch (error: any) {
     console.error('Gemini Vision process error:', error);
@@ -207,23 +175,19 @@ export async function processImageWithGeminiVision(
     };
   }
 }
-
 export function validateImageFile(file: File): { valid: boolean; error?: string } {
   const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-
   if (!validTypes.includes(file.type)) {
     return {
       valid: false,
       error: '不支援的圖片格式，請使用 JPG、PNG 或 WEBP 格式'
     };
   }
-
   if (file.size > MAX_IMAGE_SIZE) {
     return {
       valid: false,
       error: `圖片檔案過大，請選擇小於 ${MAX_IMAGE_SIZE / 1024 / 1024}MB 的圖片`
     };
   }
-
   return { valid: true };
 }

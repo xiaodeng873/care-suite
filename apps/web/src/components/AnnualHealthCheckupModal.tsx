@@ -19,14 +19,12 @@ import {
   combineMentalStateAssessment,
 } from '../utils/annualHealthCheckupHelper';
 import * as db from '../lib/database';
-
 interface AnnualHealthCheckupModalProps {
   checkup: AnnualHealthCheckup | null;
   onClose: () => void;
   onSave: () => void;
   prefilledPatientId?: number | null;
 }
-
 export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, prefilledPatientId }: AnnualHealthCheckupModalProps) {
   const { 
     patients, 
@@ -37,14 +35,11 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
   } = usePatients();
   const [loading, setLoading] = useState(false);
   const [fetchingReadings, setFetchingReadings] = useState(false);
-
   const parsedMentalState = parseMentalStateAssessment(checkup?.mental_state_assessment || null);
-
   // 获取预填充患者的数据
   const prefilledPatient = prefilledPatientId && !checkup 
     ? patients.find(p => p.院友id === prefilledPatientId) 
     : null;
-
   // 获取预填充患者的诊断记录
   const prefilledPatientDiagnosis = prefilledPatient 
     ? diagnosisRecords
@@ -52,12 +47,10 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
         .map(d => d.diagnosis_item)
         .join(', ')
     : '';
-
   const [formData, setFormData] = useState({
     patient_id: checkup?.patient_id || prefilledPatientId || null,
     last_doctor_signature_date: checkup?.last_doctor_signature_date || '',
     next_due_date: checkup?.next_due_date || '',
-
     has_serious_illness: checkup?.has_serious_illness || !!(prefilledPatientDiagnosis && prefilledPatientDiagnosis.trim()),
     serious_illness_details: checkup?.serious_illness_details || prefilledPatientDiagnosis || '',
     has_allergy: checkup?.has_allergy || !!(prefilledPatient?.藥物敏感?.length),
@@ -71,12 +64,10 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
     has_special_diet: checkup?.has_special_diet || false,
     special_diet_details: checkup?.special_diet_details || '',
     mental_illness_record: checkup?.mental_illness_record || '',
-
     blood_pressure_systolic: checkup?.blood_pressure_systolic || null,
     blood_pressure_diastolic: checkup?.blood_pressure_diastolic || null,
     pulse: checkup?.pulse || null,
     body_weight: checkup?.body_weight || null,
-
     cardiovascular_notes: checkup?.cardiovascular_notes || '',
     respiratory_notes: checkup?.respiratory_notes || '',
     central_nervous_notes: checkup?.central_nervous_notes || '',
@@ -89,7 +80,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
     eye_ear_nose_throat_notes: checkup?.eye_ear_nose_throat_notes || '',
     oral_dental_notes: checkup?.oral_dental_notes || '',
     physical_exam_others: checkup?.physical_exam_others || '',
-
     vision_assessment: checkup?.vision_assessment || '',
     with_visual_corrective_devices: checkup?.with_visual_corrective_devices ?? null,
     hearing_assessment: checkup?.hearing_assessment || '',
@@ -100,22 +90,18 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
     mobility_assessment: checkup?.mobility_assessment || '',
     continence_assessment: checkup?.continence_assessment || '',
     adl_assessment: checkup?.adl_assessment || '',
-
     recommendation: checkup?.recommendation || '',
   });
-
   // 当 checkup 改变时更新 formData（用于重新打开模态框时加载最新数据）
   useEffect(() => {
     if (checkup) {
       const parsedState = parseMentalStateAssessment(checkup.mental_state_assessment || null);
-      
       // 获取患者信息用于引用最新的诊断、药物敏感、感染控制数据
       const patient = patients.find(p => p.院友id === checkup.patient_id);
       const patientDiagnosis = diagnosisRecords
         .filter(d => d.patient_id === checkup.patient_id)
         .map(d => d.diagnosis_item)
         .join(', ');
-      
       setFormData({
         patient_id: checkup.patient_id,
         last_doctor_signature_date: checkup.last_doctor_signature_date || '',
@@ -163,18 +149,15 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
       });
     }
   }, [checkup?.id, patients, diagnosisRecords]); // 监听患者和诊断记录的变化
-
   useEffect(() => {
     if (formData.last_doctor_signature_date) {
       const calculatedDate = calculateNextDueDate(formData.last_doctor_signature_date);
       setFormData(prev => ({ ...prev, next_due_date: calculatedDate }));
     }
   }, [formData.last_doctor_signature_date]);
-
   const handlePatientSelect = (patientId: string) => {
     const selectedPatientId = parseInt(patientId, 10) || null;
     const patient = patients.find(p => p.院友id === selectedPatientId);
-    
     // 获取选中患者的诊断记录
     const patientDiagnosis = selectedPatientId 
       ? diagnosisRecords
@@ -182,7 +165,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
           .map(d => d.diagnosis_item)
           .join(', ')
       : '';
-    
     setFormData(prev => ({
       ...prev,
       patient_id: selectedPatientId,
@@ -195,17 +177,14 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
       infectious_disease_details: patient?.感染控制?.join(', ') || prev.infectious_disease_details,
     }));
   };
-
   const handleFetchLatestReadings = async () => {
     if (!formData.patient_id) {
       alert('請先選擇院友');
       return;
     }
-
     setFetchingReadings(true);
     try {
       const readings = await getLatestHealthReadings(formData.patient_id);
-
       if (readings.blood_pressure_systolic !== null) {
         setFormData(prev => ({
           ...prev,
@@ -221,28 +200,21 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
       setFetchingReadings(false);
     }
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData.patient_id) {
       alert('請選擇院友');
       return;
     }
-
     setLoading(true);
-
     try {
       const existingCheckup = await db.getAnnualHealthCheckupByPatientId(formData.patient_id);
-
       if (existingCheckup && (!checkup || existingCheckup.id !== checkup.id)) {
         alert('該院友已有年度體檢記錄，請編輯現有記錄');
         setLoading(false);
         return;
       }
-
       const { mental_state, dementia_stage, ...restFormData } = formData;
-
       const checkupData = {
         ...restFormData,
         mental_state_assessment: combineMentalStateAssessment(mental_state, dementia_stage),
@@ -251,19 +223,13 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
         pulse: formData.pulse ? Number(formData.pulse) : null,
         body_weight: formData.body_weight ? Number(formData.body_weight) : null,
       };
-
-      console.log('保存年度體檢數據:', { checkup, checkupData });
-
       if (checkup) {
         // 使用 context 的 updateAnnualHealthCheckup 以确保调用 refreshData()
         await contextUpdateAnnualHealthCheckup({ id: checkup.id, ...checkupData });
-        console.log('更新成功');
       } else {
         // 使用 context 的 addAnnualHealthCheckup 以确保调用 refreshData()
         await contextAddAnnualHealthCheckup(checkupData);
-        console.log('創建成功');
       }
-
       onSave();
       onClose();
     } catch (error) {
@@ -273,9 +239,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
       setLoading(false);
     }
   };
-
   const selectedPatient = patients.find(p => p.院友id === formData.patient_id);
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -294,7 +258,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
             </button>
           </div>
         </div>
-
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -319,7 +282,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                   </p>
                 )}
               </div>
-
               <div>
                 <label className="form-label">上次醫生簽署日期</label>
                 <input
@@ -329,7 +291,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                   className="form-input"
                 />
               </div>
-
               <div>
                 <label className="form-label">下次到期日</label>
                 <input
@@ -341,10 +302,8 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
               </div>
             </div>
           </div>
-
           <div className="border-t pt-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">病歷</h3>
-
             <div className="border border-gray-300 rounded-lg overflow-hidden">
               <table className="w-full">
                 <tbody>
@@ -388,7 +347,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   <tr className="border-b border-gray-300">
                     <td className="p-3 align-top text-center">(2)</td>
                     <td className="p-3 border-l border-gray-300">
@@ -429,7 +387,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   <tr className="border-b border-gray-300">
                     <td className="p-3 align-top text-center">(3)(a)</td>
                     <td className="p-3 border-l border-gray-300">
@@ -470,7 +427,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   <tr className="border-b border-gray-300">
                     <td className="p-3 align-top text-center">(3)(b)</td>
                     <td className="p-3 border-l border-gray-300">
@@ -511,7 +467,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   <tr className="border-b border-gray-300">
                     <td className="p-3 align-top text-center">(4)</td>
                     <td className="p-3 border-l border-gray-300">
@@ -552,7 +507,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   <tr className="border-b border-gray-300">
                     <td className="p-3 align-top text-center">(5)</td>
                     <td className="p-3 border-l border-gray-300">
@@ -593,7 +547,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   <tr>
                     <td className="p-3 align-top text-center">(6)</td>
                     <td colSpan={2} className="p-3 border-l border-gray-300">
@@ -611,7 +564,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
               </table>
             </div>
           </div>
-
           <div className="border-t pt-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">身體檢查</h3>
@@ -625,7 +577,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                 <span>{fetchingReadings ? '載入中...' : '取得最近讀數'}</span>
               </button>
             </div>
-
             <div className="border border-gray-300 rounded-lg overflow-hidden">
               <table className="w-full">
                 <tbody>
@@ -679,7 +630,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   {[
                     { label: '循環系統', key: 'cardiovascular_notes' },
                     { label: '呼吸系統', key: 'respiratory_notes' },
@@ -711,10 +661,8 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
               </table>
             </div>
           </div>
-
           <div className="border-t pt-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">身體機能評估</h3>
-
             <div className="border border-gray-300 rounded-lg overflow-hidden">
               <table className="w-full">
                 <tbody>
@@ -765,7 +713,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   <tr className="border-b border-gray-300">
                     <td className="bg-gray-50 p-3 border-r border-gray-300">
                       <div className="font-semibold mb-2">聽力</div>
@@ -813,7 +760,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   <tr className="border-b border-gray-300">
                     <td className="bg-gray-50 p-3 font-semibold border-r border-gray-300">語言能力</td>
                     <td className="p-3">
@@ -832,7 +778,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   <tr className="border-b border-gray-300">
                     <td className="bg-gray-50 p-3 font-semibold border-r border-gray-300">精神狀況</td>
                     <td className="p-3">
@@ -880,7 +825,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   <tr className="border-b border-gray-300">
                     <td className="bg-gray-50 p-3 font-semibold border-r border-gray-300">活動能力</td>
                     <td className="p-3">
@@ -899,7 +843,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   <tr className="border-b border-gray-300">
                     <td className="bg-gray-50 p-3 font-semibold border-r border-gray-300">禁制能力</td>
                     <td className="p-3">
@@ -918,7 +861,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                   </tr>
-
                   <tr>
                     <td className="bg-gray-50 p-3 font-semibold border-r border-gray-300">自我照顧能力</td>
                     <td className="p-3">
@@ -944,15 +886,12 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
               </table>
             </div>
           </div>
-
           <div className="border-t pt-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">建議</h3>
-
             <div className="border border-gray-300 rounded-lg overflow-hidden">
               <div className="bg-gray-100 p-3 border-b border-gray-300">
                 <p className="text-sm font-medium">申請人適合入住以下類別的安老院：</p>
               </div>
-
               <div className="p-4 space-y-4">
                 {RECOMMENDATION_OPTIONS.map((option, index) => (
                   <label key={option.value} className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
@@ -974,7 +913,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
               </div>
             </div>
           </div>
-
           <div className="flex space-x-3 pt-4 border-t border-gray-200">
             <button
               type="submit"

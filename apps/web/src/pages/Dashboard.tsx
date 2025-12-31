@@ -22,7 +22,6 @@ import TaskHistoryModal from '../components/TaskHistoryModal';
 import BatchHealthRecordOCRModal from '../components/BatchHealthRecordOCRModal';
 import MonitoringTaskWorksheetModal from '../components/MonitoringTaskWorksheetModal';
 import { syncTaskStatus, SYNC_CUTOFF_DATE_STR, supabase } from '../lib/database';
-
 interface Patient {
   院友id: string;
   中文姓名: string;
@@ -33,7 +32,6 @@ interface Patient {
   中文名字?: string;
   入住日期?: string;
 }
-
 interface HealthTask {
   id: string;
   patient_id: string;
@@ -51,7 +49,6 @@ interface HealthTask {
   specific_times?: string[];
   created_at: string;
 }
-
 interface FollowUpAppointment {
   覆診id: string;
   院友id: string;
@@ -60,7 +57,6 @@ interface FollowUpAppointment {
   覆診專科: string;
   狀態: string;
 }
-
 interface HealthRecord {
   記錄id: string;
   院友id: string;
@@ -76,7 +72,6 @@ interface HealthRecord {
   血糖值?: number;
   體重?: number;
 }
-
 const Dashboard: React.FC = () => {
   const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, loading, updatePatientHealthTask, refreshData } = usePatients();
   const [showHealthRecordModal, setShowHealthRecordModal] = useState(false);
@@ -108,11 +103,9 @@ const Dashboard: React.FC = () => {
   const [selectedPatientForVaccination, setSelectedPatientForVaccination] = useState<any>(null);
   const [showBatchOCRModal, setShowBatchOCRModal] = useState(false);
   const [showWorksheetModal, setShowWorksheetModal] = useState(false);
-
   // 歷史日曆 Modal 狀態
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedHistoryTask, setSelectedHistoryTask] = useState<{ task: HealthTask; patient: Patient; initialDate?: Date | null } | null>(null);
-
   const uniquePatientHealthTasks = useMemo(() => {
     const seen = new Map<string, boolean>();
     const uniqueTasks: typeof patientHealthTasks = [];
@@ -124,62 +117,45 @@ const Dashboard: React.FC = () => {
     });
     return uniqueTasks;
   }, [patientHealthTasks]);
-
   const handleTaskClick = (task: HealthTask, date?: string) => {
     const patient = patients.find(p => p.院友id === task.patient_id);
-
     // 调试：呂葉少芳
     const isLyuPatient = patient?.中文姓名 === '呂葉少芳';
-    
     if (isLyuPatient) {
-      console.log('[handleTaskClick] 呂葉少芳, date参数:', date);
     }
-
     let targetDate = date;
     if (!targetDate) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
       // 获取院友入住日期
       const admissionDate = patient?.入住日期 ? new Date(patient.入住日期) : null;
       if (admissionDate) {
         admissionDate.setHours(0, 0, 0, 0);
       }
-      
       const normalizedTaskTimes = task.specific_times?.map(normalizeTime) || [];
-
       if (isLyuPatient) {
-        console.log('[handleTaskClick] 开始查找未完成日期, 入住日期:', patient?.入住日期);
       }
-
       for (let i = 0; i <= 28; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(checkDate.getDate() - i);
         const dateStr = formatLocalDate(checkDate);
-
         // 如果检查日期早于 CUT OFF DATE，跳过
         if (dateStr <= SYNC_CUTOFF_DATE_STR) {
           if (isLyuPatient) {
-            console.log(`[handleTaskClick] ${dateStr} <= CUT OFF, 跳过`);
           }
           continue;
         }
-
         // 如果检查日期早于入住日期，跳过
         if (admissionDate && checkDate < admissionDate) {
           if (isLyuPatient) {
-            console.log(`[handleTaskClick] ${dateStr} < 入住日期, 跳过`);
           }
           continue;
         }
-
         if (!isTaskScheduledForDate(task, checkDate)) {
           if (isLyuPatient) {
-            console.log(`[handleTaskClick] ${dateStr} 不在排程`);
           }
           continue;
         }
-
         let isDateCompleted = false;
         if (normalizedTaskTimes.length > 0) {
           isDateCompleted = normalizedTaskTimes.every(time => {
@@ -192,26 +168,19 @@ const Dashboard: React.FC = () => {
           const keyWithPatientId = `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}`;
           isDateCompleted = recordLookup.has(keyWithTaskId) || recordLookup.has(keyWithPatientId);
         }
-
         if (!isDateCompleted) {
           targetDate = dateStr;
           if (isLyuPatient) {
-            console.log(`[handleTaskClick] ${dateStr} 未完成，设为目标日期`);
           }
         } else if (isLyuPatient) {
-          console.log(`[handleTaskClick] ${dateStr} 已完成`);
         }
       }
-
       if (isLyuPatient) {
-        console.log('[handleTaskClick] targetDate:', targetDate);
       }
-
       if (!targetDate) {
         targetDate = formatLocalDate(today);
       }
     }
-
     let selectedTime: string | undefined;
     if (task.specific_times && task.specific_times.length > 0) {
       const dateRecords = healthRecords.filter(r => {
@@ -222,11 +191,9 @@ const Dashboard: React.FC = () => {
                r.記錄類型 === task.health_record_type &&
                r.記錄日期 === targetDate;
       });
-
       const completedTimes = new Set(dateRecords.map(r => normalizeTime(r.記錄時間)));
       selectedTime = task.specific_times.find(time => !completedTimes.has(normalizeTime(time)));
     }
-
     const initialDataForModal = {
       patient: patient ? {
         院友id: patient.院友id,
@@ -242,11 +209,9 @@ const Dashboard: React.FC = () => {
       預設日期: targetDate,
       預設時間: selectedTime
     };
-
     setSelectedHealthRecordInitialData(initialDataForModal);
     setShowHealthRecordModal(true);
   };
-
   const handleDocumentTaskClick = (task: HealthTask) => {
     const patient = patients.find(p => p.院友id === task.patient_id);
     if (patient) {
@@ -254,34 +219,28 @@ const Dashboard: React.FC = () => {
       setShowDocumentTaskModal(true);
     }
   };
-
   const handleFollowUpClick = (appointment: FollowUpAppointment) => {
     setSelectedFollowUp(appointment);
     setShowFollowUpModal(true);
   };
-
   const handleRestraintAssessmentClick = (assessment: any) => {
     setSelectedRestraintAssessment(assessment);
     setShowRestraintAssessmentModal(true);
   };
-
   const handleHealthAssessmentClick = (assessment: any) => {
     setSelectedHealthAssessment(assessment);
     setShowHealthAssessmentModal(true);
   };
-
   const handleAnnualCheckupClick = (checkup: any) => {
     setSelectedAnnualCheckup(checkup);
     setShowAnnualCheckupModal(true);
   };
-
   // [核心修復] 標準化時間格式的輔助函數
   const normalizeTime = (time: string | undefined): string => {
     if (!time) return '';
     // 統一轉換為 HH:MM 格式（去除秒數）
     return time.split(':').slice(0, 2).join(':');
   };
-
   // [時區修復] 正確格式化本地日期為 YYYY-MM-DD（避免 UTC 時區偏移）
   const formatLocalDate = (date: Date): string => {
     const year = date.getFullYear();
@@ -289,7 +248,6 @@ const Dashboard: React.FC = () => {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
-
   // [效能優化+修復可能性3] 建立健康記錄的快速查找表 (Set)
   // 解決 "速度沒有變快" 的核心：將 O(N) 查找轉為 O(1)
   // [修正] 支持時間點區分：記錄格式改為包含時間
@@ -312,12 +270,10 @@ const Dashboard: React.FC = () => {
     });
     return lookup;
   }, [healthRecords]);
-
   // [輔助函數] 檢查特定日期和時間是否有記錄
   const hasRecordForDateTime = (task: HealthTask, dateStr: string, timeStr?: string) => {
     // [關鍵修復] 確保 patient_id 類型一致
     const patientIdStr = task.patient_id?.toString() || '';
-    
     // [修復] 如果任務有多個時間點，需要檢查所有時間點
     if (task.specific_times && task.specific_times.length > 0) {
       if (timeStr) {
@@ -346,25 +302,20 @@ const Dashboard: React.FC = () => {
       }
     }
   };
-
   // [修復可能性5] 改進錯過日期檢查邏輯
   const findMostRecentMissedDate = (task: HealthTask) => {
     if (!isMonitoringTask(task.health_record_type)) return null;
-
     const today = new Date();
     today.setHours(0,0,0,0);
-
     // [優化問題4] 檢查範圍縮短為過去 14 天（避免過度追溯）
     for (let i = 1; i <= 14; i++) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       const dateStr = formatLocalDate(d);
-
       // 遇到 Cutoff Date 停止
       if (dateStr <= SYNC_CUTOFF_DATE_STR) {
         return null;
       }
-
       // 如果這天該做但沒有記錄，就是錯過了
       if (isTaskScheduledForDate(task, d)) {
         const hasRecord = hasRecordForDateTime(task, dateStr);
@@ -375,14 +326,12 @@ const Dashboard: React.FC = () => {
     }
     return null;
   };
-
   const isAnnualCheckupOverdue = (checkup: any): boolean => {
     if (!checkup.next_due_date) return false;
     const today = new Date();
     const dueDate = new Date(checkup.next_due_date);
     return dueDate < today;
   };
-
   const isAnnualCheckupDueSoon = (checkup: any): boolean => {
     if (!checkup.next_due_date) return false;
     const today = new Date();
@@ -390,7 +339,6 @@ const Dashboard: React.FC = () => {
     const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return daysDiff <= 14 && daysDiff > 0;
   };
-
   const missingTasks = useMemo(() => {
     const activePatients = patients.filter(p => p.在住狀態 === '在住');
     const result: { patient: any; missingTaskTypes: string[] }[] = [];
@@ -405,32 +353,26 @@ const Dashboard: React.FC = () => {
     });
     return result;
   }, [patients, patientHealthTasks, annualHealthCheckups]);
-
   const missingMealGuidance = useMemo(() => {
     const activePatients = patients.filter(p => p.在住狀態 === '在住');
     return activePatients.filter(patient => !mealGuidances.some(guidance => guidance.patient_id === patient.院友id));
   }, [patients, mealGuidances]);
-
   const missingDeathDate = useMemo(() => {
     return patients.filter(p => p.在住狀態 === '已退住' && p.discharge_reason === '死亡' && (!p.death_date || p.death_date === '')).map(patient => ({ patient, missingInfo: '死亡日期' }));
   }, [patients]);
-
   const missingVaccination = useMemo(() => {
     return patients.filter(patient => !vaccinationRecords.some(record => record.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '疫苗記錄' }));
   }, [patients, vaccinationRecords]);
-
   // 欠缺健康評估的在住院友
   const missingHealthAssessment = useMemo(() => {
     const activePatients = patients.filter(p => p.在住狀態 === '在住');
     return activePatients.filter(patient => !healthAssessments.some(assessment => assessment.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '健康評估' }));
   }, [patients, healthAssessments]);
-
   // 欠缺個人護理計劃的在住院友
   const missingCarePlan = useMemo(() => {
     const activePatients = patients.filter(p => p.在住狀態 === '在住');
     return activePatients.filter(patient => !carePlans.some(plan => plan.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '個人護理計劃' }));
   }, [patients, carePlans]);
-
   const overdueWorkflows = useMemo(() => {
     const result = getPatientsWithOverdueWorkflow(prescriptionWorkflowRecords, patients);
     return result.map(({ patient, overdueCount, overdueDates }) => {
@@ -442,22 +384,17 @@ const Dashboard: React.FC = () => {
       return { patient, overdueCount, dates };
     });
   }, [prescriptionWorkflowRecords, patients]);
-
   const pendingPrescriptions = useMemo(() => {
     return patients.filter(p => p.在住狀態 === '在住').map(patient => {
         const count = prescriptions.filter(pr => pr.patient_id === patient.院友id && pr.status === 'pending_change').length;
         return { patient, count };
       }).filter(item => item.count > 0);
   }, [patients, prescriptions]);
-
   const patientsMap = useMemo(() => new Map(patients.map(p => [p.院友id, p])), [patients]);
-
   const recentSchedules = useMemo(() => schedules.filter(s => new Date(s.到診日期) >= new Date(new Date().toDateString())).sort((a, b) => new Date(a.到診日期).getTime() - new Date(b.到診日期).getTime()).slice(0, 5), [schedules]);
   const upcomingFollowUps = useMemo(() => followUpAppointments.filter(a => { if (new Date(a.覆診日期) < new Date()) return false; const patient = patientsMap.get(a.院友id); return patient && patient.在住狀態 === '在住'; }).sort((a, b) => new Date(a.覆診日期).getTime() - new Date(b.覆診日期).getTime()).slice(0, 10), [followUpAppointments, patientsMap]);
-
   const monitoringTasks = useMemo(() => patientHealthTasks.filter(task => isMonitoringTask(task.health_record_type)), [patientHealthTasks]);
   const documentTasks = useMemo(() => patientHealthTasks.filter(task => isDocumentTask(task.health_record_type)), [patientHealthTasks]);
-
   const urgentMonitoringTasks = useMemo(() => {
     const urgent: Array<typeof monitoringTasks[0] & { 
       firstIncompleteDate?: Date;
@@ -465,40 +402,32 @@ const Dashboard: React.FC = () => {
     }> = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     monitoringTasks.forEach(task => {
       const patient = patientsMap.get(task.patient_id);
       if (!patient || patient.在住狀態 !== '在住') return;
-
       // 获取院友入住日期
       const admissionDate = patient.入住日期 ? new Date(patient.入住日期) : null;
       if (admissionDate) {
         admissionDate.setHours(0, 0, 0, 0);
       }
-
       const normalizedTaskTimes = task.specific_times?.map(normalizeTime) || [];
       let firstIncompleteDate: Date | null = null;
       const incompleteDates: Date[] = [];
-
       for (let i = 0; i <= 28; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(checkDate.getDate() - i);
         const dateStr = formatLocalDate(checkDate);
-
         // 如果检查日期早于 CUT OFF DATE，跳过
         if (dateStr <= SYNC_CUTOFF_DATE_STR) {
           continue;
         }
-
         // 如果检查日期早于入住日期，跳过
         if (admissionDate && checkDate < admissionDate) {
           continue;
         }
-
         if (!isTaskScheduledForDate(task, checkDate)) {
           continue;
         }
-
         let isDateCompleted = false;
         if (normalizedTaskTimes.length > 0) {
           isDateCompleted = normalizedTaskTimes.every(time => {
@@ -511,7 +440,6 @@ const Dashboard: React.FC = () => {
           const keyWithPatientId = `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}`;
           isDateCompleted = recordLookup.has(keyWithTaskId) || recordLookup.has(keyWithPatientId);
         }
-
         if (!isDateCompleted) {
           const incompleteDate = new Date(checkDate);
           incompleteDates.push(incompleteDate);
@@ -520,23 +448,19 @@ const Dashboard: React.FC = () => {
           }
         }
       }
-
       if (firstIncompleteDate) {
         urgent.push({ ...task, firstIncompleteDate, incompleteDates });
       }
     });
-
     return urgent.sort((a, b) => 
       (a.firstIncompleteDate?.getTime() || 0) - (b.firstIncompleteDate?.getTime() || 0)
     ).slice(0, 100);
   }, [monitoringTasks, patientsMap, recordLookup]);
-
   const taskGroups = useMemo(() => {
     const breakfast: typeof urgentMonitoringTasks = [];
     const lunch: typeof urgentMonitoringTasks = [];
     const dinner: typeof urgentMonitoringTasks = [];
     const snack: typeof urgentMonitoringTasks = [];
-    
     urgentMonitoringTasks.forEach(task => {
       const hour = new Date(task.next_due_at).getHours();
       if (hour >= 7 && hour < 10) breakfast.push(task);
@@ -544,12 +468,9 @@ const Dashboard: React.FC = () => {
       else if (hour >= 13 && hour < 18) dinner.push(task);
       else if (hour >= 18 && hour <= 20) snack.push(task);
     });
-    
     return { breakfast, lunch, dinner, snack };
   }, [urgentMonitoringTasks]);
-
   const { breakfast: breakfastTasks, lunch: lunchTasks, dinner: dinnerTasks, snack: snackTasks } = taskGroups;
-
   const { overdueDocumentTasks, pendingDocumentTasks, dueSoonDocumentTasks } = useMemo(() => {
     const overdue: typeof documentTasks = [];
     const pending: typeof documentTasks = [];
@@ -566,7 +487,6 @@ const Dashboard: React.FC = () => {
     return { overdueDocumentTasks: overdue, pendingDocumentTasks: pending, dueSoonDocumentTasks: dueSoon };
   }, [documentTasks, patientsMap, recordLookup]);
   const urgentDocumentTasks = [...overdueDocumentTasks, ...pendingDocumentTasks, ...dueSoonDocumentTasks].slice(0, 10);
-
   const nursingTasks = useMemo(() => patientHealthTasks.filter(task => { const patient = patientsMap.get(task.patient_id); return patient && patient.在住狀態 === '在住' && isNursingTask(task.health_record_type); }), [patientHealthTasks, patientsMap]);
   const overdueNursingTasks = useMemo(() => {
     const todayStr = formatLocalDate(new Date());
@@ -581,28 +501,24 @@ const Dashboard: React.FC = () => {
     return nursingTasks.filter(task => isTaskDueSoon(task, recordLookup, todayStr));
   }, [nursingTasks, recordLookup]);
   const urgentNursingTasks = [...overdueNursingTasks, ...pendingNursingTasks, ...dueSoonNursingTasks].slice(0, 10);
-
   const { overdueRestraintAssessments, dueSoonRestraintAssessments } = useMemo(() => {
     const overdue = patientRestraintAssessments.filter(assessment => { const patient = patientsMap.get(assessment.patient_id); return patient && patient.在住狀態 === '在住' && isRestraintAssessmentOverdue(assessment); });
     const dueSoon = patientRestraintAssessments.filter(assessment => { const patient = patientsMap.get(assessment.patient_id); return patient && patient.在住狀態 === '在住' && isRestraintAssessmentDueSoon(assessment); });
     return { overdueRestraintAssessments: overdue, dueSoonRestraintAssessments: dueSoon };
   }, [patientRestraintAssessments, patientsMap]);
   const urgentRestraintAssessments = [...overdueRestraintAssessments, ...dueSoonRestraintAssessments];
-
   const { overdueHealthAssessments, dueSoonHealthAssessments } = useMemo(() => {
     const overdue = healthAssessments.filter(assessment => { const patient = patientsMap.get(assessment.patient_id); return patient && patient.在住狀態 === '在住' && isHealthAssessmentOverdue(assessment); });
     const dueSoon = healthAssessments.filter(assessment => { const patient = patientsMap.get(assessment.patient_id); return patient && patient.在住狀態 === '在住' && isHealthAssessmentDueSoon(assessment); });
     return { overdueHealthAssessments: overdue, dueSoonHealthAssessments: dueSoon };
   }, [healthAssessments, patientsMap]);
   const urgentHealthAssessments = [...overdueHealthAssessments, ...dueSoonHealthAssessments];
-
   const { overdueAnnualCheckups, dueSoonAnnualCheckups } = useMemo(() => {
     const overdue = annualHealthCheckups.filter(checkup => { const patient = patientsMap.get(checkup.patient_id); return patient && patient.在住狀態 === '在住' && isAnnualCheckupOverdue(checkup); });
     const dueSoon = annualHealthCheckups.filter(checkup => { const patient = patientsMap.get(checkup.patient_id); return patient && patient.在住狀態 === '在住' && isAnnualCheckupDueSoon(checkup); });
     return { overdueAnnualCheckups: overdue, dueSoonAnnualCheckups: dueSoon };
   }, [annualHealthCheckups, patientsMap]);
   const urgentAnnualCheckups = [...overdueAnnualCheckups, ...dueSoonAnnualCheckups];
-
   const filteredUrgentDocumentTasks = urgentDocumentTasks.filter(task => task.health_record_type !== '年度體檢');
   const combinedUrgentTasks = [
     ...filteredUrgentDocumentTasks.map(task => ({ type: 'document', data: task })),
@@ -615,7 +531,6 @@ const Dashboard: React.FC = () => {
     const dateB = (b.type === 'document' || b.type === 'nursing') ? new Date(b.data.next_due_at) : new Date(b.data.next_due_date || '');
     return dateA.getTime() - dateB.getTime();
   });
-
   const handleCreateMissingTask = (patient: any, taskType: '年度體檢' | '生命表徵') => {
     if (taskType === '年度體檢') {
       setPrefilledAnnualCheckupPatientId(patient.院友id);
@@ -636,24 +551,20 @@ const Dashboard: React.FC = () => {
       setShowTaskModal(true);
     }
   };
-
   const handleAddMealGuidance = (patient: any) => {
     const prefilledData = { patient_id: patient.院友id, meal_combination: '正飯+正餸' };
     setPrefilledMealData(prefilledData);
     setShowMealGuidanceModal(true);
   };
-
   const handleEditPatientForDeathDate = (patient: any) => {
     const fullPatient = patients.find(p => p.院友id === patient.院友id);
     setSelectedPatientForEdit(fullPatient);
     setShowPatientModal(true);
   };
-
   const handleAddVaccinationRecord = (patient: any) => {
     setSelectedPatientForVaccination(patient);
     setShowVaccinationModal(true);
   };
-
   const handleAddHealthAssessment = (patient: any) => {
     setSelectedHealthAssessment({
       patient_id: patient.院友id,
@@ -662,16 +573,13 @@ const Dashboard: React.FC = () => {
     });
     setShowHealthAssessmentModal(true);
   };
-
   const handleAddCarePlan = (patient: any) => {
     // Navigate to individual care plan page with the patient selected
     window.location.href = `/individual-care-plan?patient_id=${patient.院友id}`;
   };
-
   const handleTaskCompleted = async (taskId: string, recordDateTime: Date) => {
     // 1. 立即關閉模態框
     setShowHealthRecordModal(false);
-
     // 2. 立即執行完整的數據同步和刷新
     try {
       await syncTaskStatus(taskId);
@@ -682,52 +590,40 @@ const Dashboard: React.FC = () => {
       await refreshData();
     }
   };
-
   // [自動修復機制] 在頁面載入時，檢查並修復 next_due_at 過期但有最新記錄的任務
   useEffect(() => {
     const autoFixOutdatedTasks = async () => {
       if (loading || !patientHealthTasks.length || !healthRecords.length) return;
-
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayStr = formatLocalDate(today);
-
       // 找出所有 next_due_at 過期超過3天的任務
       const outdatedTasks = patientHealthTasks.filter(task => {
         if (!task.next_due_at) return false;
         const nextDueDate = new Date(task.next_due_at);
         nextDueDate.setHours(0, 0, 0, 0);
         const daysDiff = Math.floor((today.getTime() - nextDueDate.getTime()) / (1000 * 60 * 60 * 24));
-        
         // 只修復過期超過3天的任務（避免誤修復今天或昨天的正常逾期任務）
         return daysDiff > 3;
       });
-
       if (outdatedTasks.length === 0) return;
-
       const tasksToSync: string[] = [];
-      
       for (const task of outdatedTasks) {
         const nextDueDate = new Date(task.next_due_at!);
-        
         const taskRecords = healthRecords.filter(r => {
           if (r.task_id === task.id) return true;
           return r.院友id?.toString() === task.patient_id?.toString() &&
                  r.記錄類型 === task.health_record_type;
         });
-
         if (taskRecords.length === 0) continue;
-
         const latestRecordDate = taskRecords.reduce((latest, r) => {
           const recordDate = new Date(r.記錄日期);
           return recordDate > latest ? recordDate : latest;
         }, new Date('2000-01-01'));
-
         if (latestRecordDate > nextDueDate) {
           tasksToSync.push(task.id);
         }
       }
-
       if (tasksToSync.length > 0) {
         for (const taskId of tasksToSync) {
           try {
@@ -739,12 +635,10 @@ const Dashboard: React.FC = () => {
         await refreshData();
       }
     };
-
     // 延遲1秒執行，確保所有數據都已載入
     const timer = setTimeout(autoFixOutdatedTasks, 1000);
     return () => clearTimeout(timer);
   }, [loading, patientHealthTasks, healthRecords, patients]);
-
   const handleDocumentTaskCompleted = async (taskId: string, completionDate: string, nextDueDate: string, tubeType?: string, tubeSize?: string) => {
     try {
       const task = patientHealthTasks.find(t => t.id === taskId);
@@ -775,7 +669,6 @@ const Dashboard: React.FC = () => {
       await refreshData();
     }
   };
-
   const getNotesBadgeClass = (notes: string) => {
     switch (notes) {
       case '服藥前': return 'bg-blue-500 text-white';
@@ -786,7 +679,6 @@ const Dashboard: React.FC = () => {
       default: return 'bg-gray-500 text-white';
     }
   };
-
   const getTaskTypeIcon = (type: string) => {
     switch (type) {
       case '生命表徵': return <Activity className="h-4 w-4" />;
@@ -801,7 +693,6 @@ const Dashboard: React.FC = () => {
       default: return <CheckSquare className="h-4 w-4" />;
     }
   };
-
   const getTaskTimeBackgroundClass = (nextDueAt: string) => {
     const hour = new Date(nextDueAt).getHours();
     if (hour >= 7 && hour < 10) return 'bg-red-50 hover:bg-red-100';
@@ -810,7 +701,6 @@ const Dashboard: React.FC = () => {
     if (hour >= 18 && hour <= 20) return 'bg-purple-50 hover:bg-purple-100';
     return 'bg-gray-50 hover:bg-gray-100';
   };
-
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case '尚未安排': return 'bg-red-100 text-red-800';
@@ -821,7 +711,6 @@ const Dashboard: React.FC = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-
   return (
     <div className="space-y-6 lg:space-y-4">
       <div className="flex items-center justify-between">
@@ -829,7 +718,6 @@ const Dashboard: React.FC = () => {
           最後更新: {new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Hong_Kong' })}
         </div>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <div className="col-span-1"><NotesCard /></div>
         <div className="col-span-1">
@@ -851,7 +739,6 @@ const Dashboard: React.FC = () => {
         <div className="col-span-1"><OverdueWorkflowCard overdueWorkflows={overdueWorkflows} /></div>
         <div className="col-span-1"><PendingPrescriptionCard pendingPrescriptions={pendingPrescriptions} /></div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
         <div className="card p-6 lg:p-4 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
@@ -887,7 +774,6 @@ const Dashboard: React.FC = () => {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2">
                     {slot.tasks.map((task) => {
                       const patient = patients.find(p => p.院友id === task.patient_id);
-
                       return (
                         <div
                           key={task.id}
@@ -929,7 +815,6 @@ const Dashboard: React.FC = () => {
                                 {getTaskTypeIcon(task.health_record_type)}
                                 <p className="text-sm text-gray-600">{task.health_record_type}</p>
                               </div>
-                              
                               <div className="flex items-center mt-1 space-x-3 text-xs text-gray-600 font-medium">
                                 <div className="flex items-center space-x-1">
                                   <Repeat className="h-3 w-3" />
@@ -941,7 +826,6 @@ const Dashboard: React.FC = () => {
                               const todayStr = formatLocalDate(new Date());
                               const incompleteDateStr = formatLocalDate(task.firstIncompleteDate);
                               const isToday = incompleteDateStr === todayStr;
-                              
                               return (
                                 <span className={`status-badge flex-shrink-0 ${
                                   isToday ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -967,7 +851,6 @@ const Dashboard: React.FC = () => {
             )}
           </div>
         </div>
-
         <div className="card p-6 lg:p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 section-title">待辦事項</h2>
@@ -1094,7 +977,6 @@ const Dashboard: React.FC = () => {
              })}
           </div>
         </div>
-
         <div className="card p-6 lg:p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 section-title">近期覆診</h2>
@@ -1126,7 +1008,6 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
       {showTaskModal && (
         <TaskModal
           task={prefilledTaskData}
@@ -1151,7 +1032,6 @@ const Dashboard: React.FC = () => {
           onTaskCompleted={handleTaskCompleted}
         />
       )}
-      
       {/* 歷史日曆 Modal */}
       {showHistoryModal && selectedHistoryTask && (
         <TaskHistoryModal
@@ -1168,7 +1048,6 @@ const Dashboard: React.FC = () => {
           }}
         />
       )}
-
       {showDocumentTaskModal && selectedDocumentTask && <DocumentTaskModal isOpen={showDocumentTaskModal} onClose={() => { setShowDocumentTaskModal(false); setSelectedDocumentTask(null); }} task={selectedDocumentTask.task} patient={selectedDocumentTask.patient} onTaskCompleted={handleDocumentTaskCompleted} />}
       {showFollowUpModal && selectedFollowUp && <FollowUpModal isOpen={showFollowUpModal} onClose={() => { setShowFollowUpModal(false); setSelectedFollowUp(null); }} appointment={selectedFollowUp} onUpdate={refreshData} />}
       {showRestraintAssessmentModal && selectedRestraintAssessment && <RestraintAssessmentModal isOpen={showRestraintAssessmentModal} onClose={() => { setShowRestraintAssessmentModal(false); setSelectedRestraintAssessment(null); }} assessment={selectedRestraintAssessment} onUpdate={refreshData} />}
@@ -1192,5 +1071,4 @@ const Dashboard: React.FC = () => {
     </div>
   );
 };
-
 export default Dashboard;

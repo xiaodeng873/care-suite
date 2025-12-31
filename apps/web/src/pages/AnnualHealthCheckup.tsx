@@ -31,10 +31,8 @@ import {
 import { exportAnnualHealthCheckupsToExcel } from '../utils/annualHealthCheckupExcelGenerator';
 import { printMedicalExaminationForm } from '../utils/annualHealthCheckupFormGenerator';
 import { getTemplatesMetadata } from '../lib/database';
-
 type SortField = '院友姓名' | 'last_doctor_signature_date' | 'next_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
-
 interface AdvancedFilters {
   床號: string;
   中文姓名: string;
@@ -44,7 +42,6 @@ interface AdvancedFilters {
   endDate: string;
   在住狀態: string;
 }
-
 const AnnualHealthCheckup: React.FC = () => {
   const { annualHealthCheckups, patients, prescriptions, deleteAnnualHealthCheckup, loading } = usePatients();
   const [showModal, setShowModal] = useState(false);
@@ -66,11 +63,9 @@ const AnnualHealthCheckup: React.FC = () => {
     在住狀態: '在住'
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
-
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -81,7 +76,6 @@ const AnnualHealthCheckup: React.FC = () => {
       </div>
     );
   }
-
   const checkIsOverdue = (checkup: AnnualHealthCheckup): boolean => {
     if (!checkup.next_due_date) return false;
     const today = new Date();
@@ -90,7 +84,6 @@ const AnnualHealthCheckup: React.FC = () => {
     dueDate.setHours(0, 0, 0, 0);
     return dueDate < today;
   };
-
   const checkIsDueSoon = (checkup: AnnualHealthCheckup): boolean => {
     if (!checkup.next_due_date) return false;
     const today = new Date();
@@ -100,10 +93,8 @@ const AnnualHealthCheckup: React.FC = () => {
     const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return daysDiff <= 14 && daysDiff > 0;
   };
-
   const filteredCheckups = annualHealthCheckups.filter(checkup => {
     const patient = patients.find(p => p.院友id === checkup.patient_id);
-
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
@@ -123,7 +114,6 @@ const AnnualHealthCheckup: React.FC = () => {
       if (advancedFilters.is_overdue === '是' && !overdue) return false;
       if (advancedFilters.is_overdue === '否' && overdue) return false;
     }
-
     if (advancedFilters.startDate || advancedFilters.endDate) {
       const signatureDate = checkup.last_doctor_signature_date ? new Date(checkup.last_doctor_signature_date) : null;
       if (signatureDate) {
@@ -135,7 +125,6 @@ const AnnualHealthCheckup: React.FC = () => {
         }
       }
     }
-
     let matchesSearch = true;
     if (searchTerm) {
       matchesSearch = patient?.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -148,21 +137,17 @@ const AnnualHealthCheckup: React.FC = () => {
                          patient?.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          false;
     }
-
     return matchesSearch;
   });
-
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');
   };
-
   const updateAdvancedFilter = (field: keyof AdvancedFilters, value: string) => {
     setAdvancedFilters(prev => ({
       ...prev,
       [field]: value
     }));
   };
-
   const clearFilters = () => {
     setSearchTerm('');
     setAdvancedFilters({
@@ -175,14 +160,11 @@ const AnnualHealthCheckup: React.FC = () => {
       在住狀態: '在住'
     });
   };
-
   const sortedCheckups = [...filteredCheckups].sort((a, b) => {
     const patientA = patients.find(p => p.院友id === a.patient_id);
     const patientB = patients.find(p => p.院友id === b.patient_id);
-
     let valueA: string | number = '';
     let valueB: string | number = '';
-
     switch (sortField) {
       case '院友姓名':
         valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
@@ -201,38 +183,31 @@ const AnnualHealthCheckup: React.FC = () => {
         valueB = new Date(b.created_at).getTime();
         break;
     }
-
     if (typeof valueA === 'string' && typeof valueB === 'string') {
       valueA = valueA.toLowerCase();
       valueB = valueB.toLowerCase();
     }
-
     if (sortDirection === 'asc') {
       return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
     } else {
       return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
     }
   });
-
   const totalItems = sortedCheckups.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const paginatedCheckups = sortedCheckups.slice(startIndex, endIndex);
-
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
     setCurrentPage(1);
   };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
-
   const generatePageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
-
     if (totalPages <= maxVisiblePages) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
@@ -240,15 +215,12 @@ const AnnualHealthCheckup: React.FC = () => {
     } else {
       const start = Math.max(1, currentPage - 2);
       const end = Math.min(totalPages, start + maxVisiblePages - 1);
-
       for (let i = start; i <= end; i++) {
         pages.push(i);
       }
     }
-
     return pages;
   };
-
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -257,16 +229,13 @@ const AnnualHealthCheckup: React.FC = () => {
       setSortDirection('asc');
     }
   };
-
   const handleEdit = (checkup: AnnualHealthCheckup) => {
     setSelectedCheckup(checkup);
     setShowModal(true);
   };
-
   const handleDelete = async (id: string) => {
     const checkup = annualHealthCheckups.find(c => c.id === id);
     const patient = patients.find(p => p.院友id === checkup?.patient_id);
-
     if (confirm(`確定要刪除 ${patient?.中文姓名} 的年度體檢記錄嗎？`)) {
       try {
         setDeletingIds(prev => new Set(prev).add(id));
@@ -287,22 +256,17 @@ const AnnualHealthCheckup: React.FC = () => {
       }
     }
   };
-
   const handleBatchDelete = async () => {
     if (selectedRows.size === 0) {
       alert('請先選擇要刪除的記錄');
       return;
     }
-
     const confirmMessage = `確定要刪除 ${selectedRows.size} 筆年度體檢記錄嗎？\n\n此操作無法復原。`;
-
     if (!confirm(confirmMessage)) {
       return;
     }
-
     const deletingArray = Array.from(selectedRows);
     setDeletingIds(new Set(deletingArray));
-
     try {
       for (const checkupId of deletingArray) {
         await deleteAnnualHealthCheckup(checkupId);
@@ -316,7 +280,6 @@ const AnnualHealthCheckup: React.FC = () => {
       setDeletingIds(new Set());
     }
   };
-
   const handleSelectRow = (checkupId: string) => {
     const newSelected = new Set(selectedRows);
     if (newSelected.has(checkupId)) {
@@ -326,7 +289,6 @@ const AnnualHealthCheckup: React.FC = () => {
     }
     setSelectedRows(newSelected);
   };
-
   const handleSelectAll = () => {
     if (selectedRows.size === paginatedCheckups.length) {
       setSelectedRows(new Set());
@@ -334,7 +296,6 @@ const AnnualHealthCheckup: React.FC = () => {
       setSelectedRows(new Set(paginatedCheckups.map(c => c.id)));
     }
   };
-
   const handleInvertSelection = () => {
     const newSelected = new Set<string>();
     paginatedCheckups.forEach(checkup => {
@@ -344,37 +305,25 @@ const AnnualHealthCheckup: React.FC = () => {
     });
     setSelectedRows(newSelected);
   };
-
   const handleExportSelected = async () => {
     const selectedCheckups = paginatedCheckups.filter(c => selectedRows.has(c.id));
-
     if (selectedCheckups.length === 0) {
       alert('請先選擇要匯出的記錄');
       return;
     }
-
     try {
-      console.log('開始載入範本資料...');
       const templates = await getTemplatesMetadata();
-      console.log('載入的範本數量:', templates.length);
-
       const annualHealthCheckupTemplate = templates.find((t: any) => t.type === 'annual-health-checkup');
       if (!annualHealthCheckupTemplate) {
         alert('請先在範本管理中上傳「安老院住客體格檢驗報告書」範本');
         return;
       }
-
-      console.log('找到年度體檢範本:', annualHealthCheckupTemplate.name);
-
       const personalMedicationListTemplate = templates.find((t: any) => t.type === 'personal-medication-list');
       const includePersonalMedicationList = !!personalMedicationListTemplate;
-
       if (!personalMedicationListTemplate) {
         console.warn('未找到個人藥物記錄範本，將不包含個人藥物記錄工作表');
       } else {
-        console.log('找到個人藥物記錄範本:', personalMedicationListTemplate.name);
       }
-
       const exportData = selectedCheckups.map(checkup => {
         const patient = patients.find(p => p.院友id === checkup.patient_id);
         const patientPrescriptions = patient
@@ -383,7 +332,6 @@ const AnnualHealthCheckup: React.FC = () => {
               (p.status === 'active' || p.status === 'inactive')
             )
           : [];
-
         return {
           checkup,
           patient: {
@@ -401,26 +349,20 @@ const AnnualHealthCheckup: React.FC = () => {
           prescriptions: patientPrescriptions
         };
       });
-
-      console.log('準備匯出資料:', exportData.length, '筆記錄');
       exportData.forEach((data, index) => {
-        console.log(`院友 ${index + 1}: ${data.patient.中文姓氏}${data.patient.中文名字}, 處方數量: ${data.prescriptions.length}`, data.prescriptions);
       });
-
       await exportAnnualHealthCheckupsToExcel(
         exportData,
         annualHealthCheckupTemplate,
         personalMedicationListTemplate,
         includePersonalMedicationList
       );
-
       alert(`成功匯出 ${selectedCheckups.length} 筆年度體檢報告書`);
     } catch (error: any) {
       console.error('匯出年度體檢記錄失敗:', error);
       alert('匯出失敗：' + (error.message || '請重試'));
     }
   };
-
   const getStatusBadge = (checkup: AnnualHealthCheckup) => {
     if (!checkup.last_doctor_signature_date) {
       return (
@@ -430,7 +372,6 @@ const AnnualHealthCheckup: React.FC = () => {
         </span>
       );
     }
-
     if (checkIsOverdue(checkup)) {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -439,7 +380,6 @@ const AnnualHealthCheckup: React.FC = () => {
         </span>
       );
     }
-
     if (checkIsDueSoon(checkup)) {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
@@ -448,7 +388,6 @@ const AnnualHealthCheckup: React.FC = () => {
         </span>
       );
     }
-
     return (
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
         <CheckCircle className="h-3 w-3 mr-1" />
@@ -456,7 +395,6 @@ const AnnualHealthCheckup: React.FC = () => {
       </span>
     );
   };
-
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode }> = ({ field, children }) => (
     <th
       className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
@@ -472,14 +410,12 @@ const AnnualHealthCheckup: React.FC = () => {
       </div>
     </th>
   );
-
   const stats = {
     total: annualHealthCheckups.length,
     signed: annualHealthCheckups.filter(c => c.last_doctor_signature_date).length,
     overdue: annualHealthCheckups.filter(c => checkIsOverdue(c)).length,
     dueSoon: annualHealthCheckups.filter(c => checkIsDueSoon(c)).length
   };
-
   return (
     <div className="space-y-6">
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
@@ -508,7 +444,6 @@ const AnnualHealthCheckup: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* 搜索和篩選 */}
       <div className="sticky top-16 bg-white z-20 shadow-sm">
         <div className="card p-4">
@@ -524,7 +459,6 @@ const AnnualHealthCheckup: React.FC = () => {
                   className="form-input pl-10"
                 />
               </div>
-
               <div className="flex space-x-2">
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -540,7 +474,6 @@ const AnnualHealthCheckup: React.FC = () => {
                     </span>
                   )}
                 </button>
-
                 {(searchTerm || hasAdvancedFilters()) && (
                   <button
                     onClick={clearFilters}
@@ -552,11 +485,9 @@ const AnnualHealthCheckup: React.FC = () => {
                 )}
               </div>
             </div>
-
             {showAdvancedFilters && (
               <div className="border-t border-gray-200 pt-4">
                 <h3 className="text-sm font-medium text-gray-900 mb-3">進階篩選</h3>
-
                 <div className="mb-4">
                   <label className="form-label">簽署日期區間</label>
                   <div className="flex items-center space-x-2">
@@ -577,7 +508,6 @@ const AnnualHealthCheckup: React.FC = () => {
                     />
                   </div>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <label className="form-label">床號</label>
@@ -589,7 +519,6 @@ const AnnualHealthCheckup: React.FC = () => {
                       placeholder="搜索床號..."
                     />
                   </div>
-
                   <div>
                     <label className="form-label">中文姓名</label>
                     <input
@@ -600,7 +529,6 @@ const AnnualHealthCheckup: React.FC = () => {
                       placeholder="搜索姓名..."
                     />
                   </div>
-
                   <div>
                     <label className="form-label">簽署狀態</label>
                     <select
@@ -613,7 +541,6 @@ const AnnualHealthCheckup: React.FC = () => {
                       <option value="否">未簽署</option>
                     </select>
                   </div>
-
                   <div>
                     <label className="form-label">逾期狀態</label>
                     <select
@@ -626,7 +553,6 @@ const AnnualHealthCheckup: React.FC = () => {
                       <option value="否">未逾期</option>
                     </select>
                   </div>
-
                   <div>
                     <label className="form-label">在住狀態</label>
                     <select
@@ -643,7 +569,6 @@ const AnnualHealthCheckup: React.FC = () => {
                 </div>
               </div>
             )}
-
             <div className="flex items-center justify-between text-sm text-gray-600">
               <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 筆年度體檢記錄 (共 {annualHealthCheckups.length} 筆)</span>
               {(searchTerm || hasAdvancedFilters()) && (
@@ -653,7 +578,6 @@ const AnnualHealthCheckup: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* 選取控制 */}
       {totalItems > 0 && (
         <div className="sticky top-40 bg-white z-10 shadow-sm">
@@ -689,7 +613,6 @@ const AnnualHealthCheckup: React.FC = () => {
           </div>
         </div>
       )}
-
       {/* 年度體檢列表 */}
       <div className="card overflow-hidden">
         {paginatedCheckups.length > 0 ? (
@@ -720,7 +643,6 @@ const AnnualHealthCheckup: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedCheckups.map(checkup => {
                   const patient = patients.find(p => p.院友id === checkup.patient_id);
-
                   return (
                     <tr
                       key={checkup.id}
@@ -873,7 +795,6 @@ const AnnualHealthCheckup: React.FC = () => {
           </div>
         )}
       </div>
-
       {/* Pagination Controls */}
       {totalItems > 0 && (
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
@@ -894,7 +815,6 @@ const AnnualHealthCheckup: React.FC = () => {
               </select>
               <span className="text-sm text-gray-700">筆記錄</span>
             </div>
-
             {totalPages > 1 && (
               <div className="flex items-center space-x-2">
                 <button
@@ -904,7 +824,6 @@ const AnnualHealthCheckup: React.FC = () => {
                 >
                   上一頁
                 </button>
-
                 {generatePageNumbers().map(page => (
                   <button
                     key={page}
@@ -918,7 +837,6 @@ const AnnualHealthCheckup: React.FC = () => {
                     {page}
                   </button>
                 ))}
-
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
@@ -928,14 +846,12 @@ const AnnualHealthCheckup: React.FC = () => {
                 </button>
               </div>
             )}
-
             <div className="text-sm text-gray-700">
               第 {currentPage} 頁，共 {totalPages} 頁
             </div>
           </div>
         </div>
       )}
-
       {showModal && (
         <AnnualHealthCheckupModal
           checkup={selectedCheckup}
@@ -952,5 +868,4 @@ const AnnualHealthCheckup: React.FC = () => {
     </div>
   );
 };
-
 export default AnnualHealthCheckup;

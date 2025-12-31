@@ -1,6 +1,5 @@
 import { supabase } from "../lib/supabase";
 import type { PatrolRound } from "@shared";
-
 export async function createPatrolRound() {
   const payload: PatrolRound = {
     patient_id: 123,
@@ -9,12 +8,10 @@ export async function createPatrolRound() {
     scheduled_time: "07:00",
     recorder: "WebUser"
   };
-
   const { data, error } = await supabase
     .from("patrol_rounds")
     .insert(payload)
     .select();
-
   if (error) console.error("新增失敗：", error);
   else console.log("新增成功：", data);
 }

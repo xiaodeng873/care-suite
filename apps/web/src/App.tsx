@@ -5,6 +5,17 @@ import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
 import { PatientProvider } from './context/PatientContext';
+import { StationProvider } from './context/facility';
+import { FollowUpProvider, DiagnosisProvider, HospitalOutreachProvider } from './context/medical';
+import { CareRecordsProvider, CarePlanProvider } from './context/care';
+import { ScheduleProvider, PrescriptionProvider } from './context/workflow';
+import { WoundProvider, HealthRecordProvider } from './context/health';
+import { AssessmentProvider } from './context/assessment';
+import { IncidentProvider, MealProvider, PatientLogProvider } from './context/records';
+import { HealthTaskProvider } from './context/tasks';
+import { AdmissionProvider } from './context/admission';
+import { ServiceReasonProvider } from './context/service';
+import { DailySystemTaskProvider } from './context/system';
 import './App.css';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -131,9 +142,45 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <PatientProvider>
-        <AppContent />
-      </PatientProvider>
+      <StationProvider>
+        <FollowUpProvider>
+          <DiagnosisProvider>
+            <HospitalOutreachProvider>
+              <CareRecordsProvider>
+                <CarePlanProvider>
+                  <ScheduleProvider>
+                    <PrescriptionProvider>
+                      <WoundProvider>
+                        <HealthRecordProvider>
+                          <AssessmentProvider>
+                            <IncidentProvider>
+                              <MealProvider>
+                                <PatientLogProvider>
+                                  <HealthTaskProvider>
+                                    <AdmissionProvider>
+                                      <ServiceReasonProvider>
+                                        <DailySystemTaskProvider>
+                                          <PatientProvider>
+                                            <AppContent />
+                                          </PatientProvider>
+                                        </DailySystemTaskProvider>
+                                      </ServiceReasonProvider>
+                                    </AdmissionProvider>
+                                  </HealthTaskProvider>
+                                </PatientLogProvider>
+                              </MealProvider>
+                            </IncidentProvider>
+                          </AssessmentProvider>
+                        </HealthRecordProvider>
+                      </WoundProvider>
+                    </PrescriptionProvider>
+                  </ScheduleProvider>
+                </CarePlanProvider>
+              </CareRecordsProvider>
+            </HospitalOutreachProvider>
+          </DiagnosisProvider>
+        </FollowUpProvider>
+      </StationProvider>
     </AuthProvider>
   );
 }

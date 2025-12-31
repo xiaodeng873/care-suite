@@ -16,7 +16,6 @@ export interface FollowUpRecordData {
     英文名字?: string;
   };
 }
-
 interface FollowUpRecord {
   日期: string;
   床號: string;
@@ -29,20 +28,16 @@ interface FollowUpRecord {
   交通: string;
   備註: string;
 }
-
 const formatTimeToHHMM = (timeStr: string): string => {
   if (!timeStr) return '';
-  
   // 如果已經是 HH:MM 格式，直接返回
   if (timeStr.match(/^\d{2}:\d{2}$/)) {
     return timeStr;
   }
-  
   // 如果是 HH:MM:SS 格式，截取前5位
   if (timeStr.match(/^\d{2}:\d{2}:\d{2}$/)) {
     return timeStr.slice(0, 5);
   }
-  
   // 其他格式嘗試解析
   try {
     const date = new Date(`2000-01-01T${timeStr}`);
@@ -52,22 +47,18 @@ const formatTimeToHHMM = (timeStr: string): string => {
   } catch (error) {
     console.warn('無法解析時間格式:', timeStr);
   }
-  
   return timeStr;
 };
-
 const formatDate = (dateStr: string): string => {
   const date = new Date(dateStr);
   return date.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
 };
-
 const formatChineseNameWithEnglishInitial = (
   中文姓氏: string,
   中文名字: string,
   英文名字?: string
 ): string => {
   if (!中文名字) return 中文姓氏;
-  
   // 如果有英文名字且中文名字長度至少為1
   if (英文名字 && 中文名字.length >= 1) {
     // 取英文名字的第一個字母（大寫）
@@ -80,11 +71,9 @@ const formatChineseNameWithEnglishInitial = (
     const remainingName = 中文名字.substring(1);
     return `${中文姓氏}${englishInitial}${remainingName}`;
   }
-  
   // 沒有英文名字時，返回完整中文姓名
   return `${中文姓氏}${中文名字}`;
 };
-
 const prepareRecords = (appointments: FollowUpRecordData[]): FollowUpRecord[] => {
   const records: FollowUpRecord[] = appointments.map(appointment => ({
     日期: formatDate(appointment.覆診日期),
@@ -102,36 +91,25 @@ const prepareRecords = (appointments: FollowUpRecordData[]): FollowUpRecord[] =>
     交通: appointment.交通安排 || '',
     備註: appointment.備註 || ''
   }));
-
   // 按日期排序，由近到遠
   records.sort((a, b) => {
     return new Date(a.日期).getTime() - new Date(b.日期).getTime();
   });
-
   return records;
 };
-
 export const generateFollowUpRecordWorksheet = (appointments: FollowUpRecordData[]) => {
-  console.log('開始生成覆診記錄工作紙，記錄數量:', appointments.length);
-  
   if (appointments.length === 0) {
     alert('沒有選擇任何覆診記錄');
     return;
   }
-
   const records = prepareRecords(appointments);
-  console.log('生成 HTML...');
   const html = generateHTML(records);
-  console.log('HTML 長度:', html.length);
-  console.log('開啟打印窗口...');
   openPrintWindow(html);
 };
-
 const generateHTML = (records: FollowUpRecord[]): string => {
   // 計算每頁顯示的記錄數（假設每行約20px高度，A4橫向約600px可用高度）
   const recordsPerPage = 25; // 每頁約25條記錄
   const totalPages = Math.ceil(records.length / recordsPerPage);
-
   const generateRecordTable = (pageRecords: FollowUpRecord[]) => {
     return `
       <table class="record-table">
@@ -168,17 +146,13 @@ const generateHTML = (records: FollowUpRecord[]): string => {
       </table>
     `;
   };
-
   const generatePages = () => {
     const pages: string[] = [];
-    
     for (let i = 0; i < totalPages; i++) {
       const startIndex = i * recordsPerPage;
       const endIndex = Math.min(startIndex + recordsPerPage, records.length);
       const pageRecords = records.slice(startIndex, endIndex);
-      
       const isLastPage = i === totalPages - 1;
-      
       pages.push(`
         <div class="page${!isLastPage ? ' page-break' : ''}">
           <div class="page-header">
@@ -197,10 +171,8 @@ const generateHTML = (records: FollowUpRecord[]): string => {
         </div>
       `);
     }
-    
     return pages.join('');
   };
-
   return `
     <!DOCTYPE html>
     <html lang="zh-TW">
@@ -213,19 +185,16 @@ const generateHTML = (records: FollowUpRecord[]): string => {
           size: A4 landscape;
           margin: 15mm 10mm;
         }
-
         * {
           margin: 0;
           padding: 0;
           box-sizing: border-box;
         }
-
         body {
           font-family: 'Microsoft JhengHei', 'Arial', sans-serif;
           font-size: 9pt;
           line-height: 1.3;
         }
-
         .page {
           width: 100%;
           min-height: 100vh;
@@ -233,35 +202,29 @@ const generateHTML = (records: FollowUpRecord[]): string => {
           flex-direction: column;
           position: relative;
         }
-
         .page-break {
           page-break-after: always;
         }
-
         .page-header {
           margin-bottom: 10px;
           border-bottom: 2px solid #333;
           padding-bottom: 8px;
         }
-
         .page-header h1 {
           font-size: 12pt;
           font-weight: bold;
           text-align: center;
           margin-bottom: 5px;
         }
-
         .page-info {
           display: flex;
           justify-content: space-between;
           font-size: 8pt;
           color: #666;
         }
-
         .page-content {
           flex: 1;
         }
-
         .page-footer {
           margin-top: 10px;
           padding-top: 5px;
@@ -270,12 +233,10 @@ const generateHTML = (records: FollowUpRecord[]): string => {
           text-align: right;
           color: #666;
         }
-
         .record-table {
           width: 100%;
           border-collapse: collapse;
         }
-
         .record-table th,
         .record-table td {
           border: 1px solid #666;
@@ -283,32 +244,26 @@ const generateHTML = (records: FollowUpRecord[]): string => {
           text-align: center;
           font-size: 9pt;
         }
-
         .record-table th {
           background-color: #d0d0d0;
           font-weight: bold;
           font-size: 9pt;
         }
-
         .record-table td {
           background-color: #f9f9f9;
           min-height: 20px;
         }
-
         .record-table tbody tr:nth-child(even) td {
           background-color: #f0f0f0;
         }
-
         .record-table tbody tr:hover td {
           background-color: #e8e8e8;
         }
-
         @media print {
           body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
-
           .page {
             min-height: auto;
           }
@@ -321,7 +276,6 @@ const generateHTML = (records: FollowUpRecord[]): string => {
     </html>
   `;
 };
-
 const openPrintWindow = (html: string) => {
   // 創建隱藏的 iframe
   const iframe = document.createElement('iframe');
@@ -331,27 +285,22 @@ const openPrintWindow = (html: string) => {
   iframe.style.width = '0';
   iframe.style.height = '0';
   iframe.style.border = 'none';
-  
   document.body.appendChild(iframe);
-  
   const iframeDoc = iframe.contentWindow?.document;
   if (!iframeDoc) {
     alert('無法創建列印預覽，請重試');
     document.body.removeChild(iframe);
     return;
   }
-
   // 寫入 HTML 內容
   iframeDoc.open();
   iframeDoc.write(html);
   iframeDoc.close();
-
   // 等待內容加載完成後觸發列印
   iframe.onload = () => {
     setTimeout(() => {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
-      
       // 列印完成後移除 iframe
       setTimeout(() => {
         document.body.removeChild(iframe);

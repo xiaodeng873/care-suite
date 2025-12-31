@@ -43,9 +43,7 @@ import {
   hidePatientCareTab,
   getVisibleTabTypes
 } from '../utils/careTabsHelper';
-
 type TabType = 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene';
-
 // 衛生記錄項目配置（16項：備註 + 11護理項目 + 4大便項目）
 type HygieneItemConfig = {
   key: string;
@@ -56,7 +54,6 @@ type HygieneItemConfig = {
   isBowelConsistency?: boolean;
   isBowelMedication?: boolean;
 };
-
 const HYGIENE_ITEMS: HygieneItemConfig[] = [
   { key: 'status_notes', label: '備註', isStatus: true },
   { key: 'has_bath', label: '沐浴' },
@@ -75,7 +72,6 @@ const HYGIENE_ITEMS: HygieneItemConfig[] = [
   { key: 'bowel_consistency', label: '大便性質', isBowelConsistency: true },
   { key: 'bowel_medication', label: '大便藥', isBowelMedication: true },
 ];
-
 const CareRecords: React.FC = () => {
   const {
     patients,
@@ -84,7 +80,6 @@ const CareRecords: React.FC = () => {
     admissionRecords,
     hospitalEpisodes
   } = usePatients();
-
   // 本地狀態管理護理記錄數據
   const [loading, setLoading] = useState(false);
   const [patrolRounds, setPatrolRounds] = useState<PatrolRound[]>([]);
@@ -93,59 +88,46 @@ const CareRecords: React.FC = () => {
   const [positionChangeRecords, setPositionChangeRecords] = useState<PositionChangeRecord[]>([]);
   const [hygieneRecords, setHygieneRecords] = useState<HygieneRecord[]>([]);
   const [intakeOutputRecords, setIntakeOutputRecords] = useState<IntakeOutputRecord[]>([]);
-
   const { user } = useAuth();
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || '未知';
-
   const [activeTab, setActiveTab] = useState<TabType>('patrol');
   const [weekStartDate, setWeekStartDate] = useState(getWeekStartDate());
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
-
   const [showPatrolModal, setShowPatrolModal] = useState(false);
   const [showDiaperModal, setShowDiaperModal] = useState(false);
   const [showRestraintModal, setShowRestraintModal] = useState(false);
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [showHygieneModal, setShowHygieneModal] = useState(false);
   const [showIntakeOutputModal, setShowIntakeOutputModal] = useState(false);
-
   const [modalDate, setModalDate] = useState('');
   const [modalTimeSlot, setModalTimeSlot] = useState('');
   const [modalExistingRecord, setModalExistingRecord] = useState<any>(null);
-
   const [patientCareTabs, setPatientCareTabs] = useState<PatientCareTab[]>([]);
   const [showAddTabMenu, setShowAddTabMenu] = useState(false);
-
   const weekDates = useMemo(() => generateWeekDates(weekStartDate), [weekStartDate]);
-
   // 將 Date 物件轉換為 YYYY-MM-DD 字串格式，用於與資料庫日期比對
   const weekDateStrings = useMemo(() =>
     weekDates.map(date => formatDate(date)),
     [weekDates]
   );
-
   const sortedActivePatients = useMemo(() => {
     return patients
       .filter(p => p.在住狀態 === '在住')
       .sort((a, b) => a.床號.localeCompare(b.床號, 'zh-Hant', { numeric: true }));
   }, [patients]);
-
   useEffect(() => {
     if (!selectedPatientId && sortedActivePatients.length > 0) {
       setSelectedPatientId(sortedActivePatients[0].院友id.toString());
     }
   }, [selectedPatientId, sortedActivePatients]);
-
   const selectedPatient = useMemo(() => {
     const patientIdNum = parseInt(selectedPatientId);
     return patients.find(p => p.院友id === patientIdNum);
   }, [selectedPatientId, patients]);
-
   useEffect(() => {
     const loadAndInitializeTabs = async () => {
       if (!selectedPatient) return;
-
       const existingTabs = await loadPatientCareTabs(selectedPatient.院友id);
-
       if (existingTabs.length === 0) {
         const healthTasks: any[] = [];
         const initializedTabs = await initializePatientCareTabs(
@@ -159,13 +141,10 @@ const CareRecords: React.FC = () => {
         setPatientCareTabs(existingTabs);
       }
     };
-
     loadAndInitializeTabs();
   }, [selectedPatient, healthAssessments, patientRestraintAssessments]);
-
   const visibleTabTypes = useMemo(() => {
     if (!selectedPatient) return ['patrol'] as TabType[];
-
     return getVisibleTabTypes(
       selectedPatient.院友id,
       patientCareTabs,
@@ -176,48 +155,41 @@ const CareRecords: React.FC = () => {
       hygieneRecords
     ) as TabType[];
   }, [selectedPatient, patientCareTabs, patrolRounds, diaperChangeRecords, restraintObservationRecords, positionChangeRecords, hygieneRecords]);
-
   const patientPatrolRounds = useMemo(() => {
     if (!selectedPatientId) return [];
     const patientIdNum = parseInt(selectedPatientId);
     const filtered = patrolRounds.filter(r => r.patient_id === patientIdNum);
     return filtered;
   }, [selectedPatientId, patrolRounds]);
-
   const patientDiaperChanges = useMemo(() => {
     if (!selectedPatientId) return [];
     const patientIdNum = parseInt(selectedPatientId);
     const filtered = diaperChangeRecords.filter(r => r.patient_id === patientIdNum);
     return filtered;
   }, [selectedPatientId, diaperChangeRecords]);
-
   const patientRestraintObservations = useMemo(() => {
     if (!selectedPatientId) return [];
     const patientIdNum = parseInt(selectedPatientId);
     const filtered = restraintObservationRecords.filter(r => r.patient_id === patientIdNum);
     return filtered;
   }, [selectedPatientId, restraintObservationRecords]);
-
   const patientPositionChanges = useMemo(() => {
     if (!selectedPatientId) return [];
     const patientIdNum = parseInt(selectedPatientId);
     const filtered = positionChangeRecords.filter(r => r.patient_id === patientIdNum);
     return filtered;
   }, [selectedPatientId, positionChangeRecords]);
-
   const patientHygieneRecords = useMemo(() => {
     if (!selectedPatientId) return [];
     const patientIdNum = parseInt(selectedPatientId);
     const filtered = hygieneRecords.filter(r => r.patient_id === patientIdNum);
     return filtered;
   }, [selectedPatientId, hygieneRecords]);
-
   const handlePreviousWeek = () => {
     const prevWeek = new Date(weekStartDate);
     prevWeek.setDate(prevWeek.getDate() - 7);
     setWeekStartDate(prevWeek);
   };
-
   // 加載當前週的護理記錄數據
   const loadCareRecordsForWeek = async (startDate: string, endDate: string, silent = false) => {
     // silent 模式下不顯示全螢幕 loading，避免畫面閃爍
@@ -233,7 +205,6 @@ const CareRecords: React.FC = () => {
         db.getHygieneRecordsInDateRange(startDate, endDate).catch(() => []), // 如果衛生記錄表不存在，返回空數組
         db.getIntakeOutputRecords().catch(() => []) // 出入量記錄
       ]);
-
       setPatrolRounds(patrolData);
       setDiaperChangeRecords(diaperData);
       setRestraintObservationRecords(restraintData);
@@ -250,7 +221,6 @@ const CareRecords: React.FC = () => {
       }
     }
   };
-
   // 當週期改變時重新加載數據
   useEffect(() => {
     if (weekDateStrings.length > 0) {
@@ -259,17 +229,14 @@ const CareRecords: React.FC = () => {
       loadCareRecordsForWeek(startDate, endDate);
     }
   }, [weekDateStrings]);
-
   const handleNextWeek = () => {
     const nextWeek = new Date(weekStartDate);
     nextWeek.setDate(nextWeek.getDate() + 7);
     setWeekStartDate(nextWeek);
   };
-
   const handleCurrentWeek = () => {
     setWeekStartDate(getWeekStartDate());
   };
-
   const goToPreviousPatient = () => {
     const currentIndex = sortedActivePatients.findIndex(p => p.院友id.toString() === selectedPatientId);
     if (currentIndex > 0) {
@@ -278,7 +245,6 @@ const CareRecords: React.FC = () => {
       setSelectedPatientId(sortedActivePatients[sortedActivePatients.length - 1].院友id.toString());
     }
   };
-
   const goToNextPatient = () => {
     const currentIndex = sortedActivePatients.findIndex(p => p.院友id.toString() === selectedPatientId);
     if (currentIndex < sortedActivePatients.length - 1 && currentIndex !== -1) {
@@ -287,23 +253,18 @@ const CareRecords: React.FC = () => {
       setSelectedPatientId(sortedActivePatients[0].院友id.toString());
     }
   };
-
   const calculateAge = (birthDate: string) => {
     const today = new Date();
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
-
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
       age--;
     }
-
     return age;
   };
-
   const handleAddTab = async (tabType: TabType) => {
     if (!selectedPatient) return;
-
     const newTab = await addPatientCareTab(selectedPatient.院友id, tabType);
     if (newTab) {
       setPatientCareTabs(prev => [...prev.filter(t => t.id !== newTab.id), newTab]);
@@ -311,28 +272,21 @@ const CareRecords: React.FC = () => {
     }
     setShowAddTabMenu(false);
   };
-
   const handleRemoveTab = async (tabType: TabType) => {
     if (!selectedPatient || tabType === 'patrol') return;
-
     const tabToRemove = patientCareTabs.find(
       t => t.patient_id === selectedPatient.院友id && t.tab_type === tabType
     );
-
     if (!tabToRemove) return;
-
     const hasRecords =
       (tabType === 'diaper' && diaperChangeRecords.some(r => r.patient_id === selectedPatient.院友id)) ||
       (tabType === 'restraint' && restraintObservationRecords.some(r => r.patient_id === selectedPatient.院友id)) ||
       (tabType === 'position' && positionChangeRecords.some(r => r.patient_id === selectedPatient.院友id)) ||
       (tabType === 'hygiene' && hygieneRecords.some(r => r.patient_id === selectedPatient.院友id));
-
     const confirmMessage = hasRecords
       ? `該選項卡有記錄，刪除後選項卡將隱藏但記錄仍保留，確定要刪除嗎？`
       : `確定要刪除此選項卡嗎？`;
-
     if (!window.confirm(confirmMessage)) return;
-
     const success = await hidePatientCareTab(tabToRemove.id);
     if (success) {
       setPatientCareTabs(prev => prev.filter(t => t.id !== tabToRemove.id));
@@ -341,14 +295,11 @@ const CareRecords: React.FC = () => {
       }
     }
   };
-
   const handleCellClick = (date: string, timeSlot: string, existingRecord?: any) => {
     if (!selectedPatient) return;
-
     setModalDate(date);
     setModalTimeSlot(timeSlot);
     setModalExistingRecord(existingRecord || null);
-
     switch (activeTab) {
       case 'patrol':
         setShowPatrolModal(true);
@@ -370,14 +321,11 @@ const CareRecords: React.FC = () => {
         break;
     }
   };
-
   // 衛生記錄：inline toggle護理項目
   const toggleHygieneCareItem = async (date: string, itemKey: string, currentValue: boolean) => {
     if (!selectedPatient) return;
-    
     try {
       const existingRecord = hygieneRecords.find(r => r.record_date === date && r.patient_id === selectedPatient.院友id);
-      
       if (existingRecord) {
         const updated = await db.updateHygieneRecord(existingRecord.id, {
           [itemKey]: !currentValue,
@@ -415,18 +363,14 @@ const CareRecords: React.FC = () => {
       console.error('Toggle hygiene care item failed:', error);
     }
   };
-
   // 衛生記錄：更新備註狀態（入院/渡假/外出） - 下拉選單版本
   const updateHygieneStatus = async (date: string, status: string, e: any) => {
     e.stopPropagation();
     if (!selectedPatient) return;
-    
     try {
       const existingRecord = hygieneRecords.find(r => r.record_date === date && r.patient_id === selectedPatient.院友id);
-      
       // 準備更新數據：當選擇入院/渡假/外出時，清空所有其他欄位
       const updates: any = { status_notes: status || null };
-      
       if (status) {
         // 選擇了入院/渡假/外出，清空所有護理項目和大便欄位
         updates.has_bath = false;
@@ -445,7 +389,6 @@ const CareRecords: React.FC = () => {
         updates.bowel_consistency = null;
         updates.bowel_medication = null;
       }
-      
       if (existingRecord) {
         const updated = await db.updateHygieneRecord(existingRecord.id, updates);
         if (updated) {
@@ -483,15 +426,12 @@ const CareRecords: React.FC = () => {
       console.error('Update hygiene status failed:', error);
     }
   };
-
   // 衛生記錄：更新大便欄位（次數/量/性質/藥）
   const updateHygieneBowel = async (date: string, field: string, value: any, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!selectedPatient) return;
-    
     try {
       const existingRecord = hygieneRecords.find(r => r.record_date === date && r.patient_id === selectedPatient.院友id);
-      
       if (existingRecord) {
         const updated = await db.updateHygieneRecord(existingRecord.id, {
           [field]: value,
@@ -529,7 +469,6 @@ const CareRecords: React.FC = () => {
       console.error('Update hygiene bowel failed:', error);
     }
   };
-
   const handlePatrolSubmit = async (data: Omit<PatrolRound, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       if (modalExistingRecord) {
@@ -545,7 +484,6 @@ const CareRecords: React.FC = () => {
       console.error('❌ 巡房記錄操作失敗:', error);
     }
   };
-
   const handleDiaperSubmit = async (data: Omit<DiaperChangeRecord, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       if (modalExistingRecord) {
@@ -561,7 +499,6 @@ const CareRecords: React.FC = () => {
       console.error('❌ 保存換片記錄失敗:', error);
     }
   };
-
   const handleRestraintSubmit = async (data: Omit<RestraintObservationRecord, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       if (modalExistingRecord) {
@@ -577,7 +514,6 @@ const CareRecords: React.FC = () => {
       console.error('❌ 保存約束觀察記錄失敗:', error);
     }
   };
-
   const handlePositionSubmit = async (data: Omit<PositionChangeRecord, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       await db.createPositionChangeRecord(data);
@@ -589,7 +525,6 @@ const CareRecords: React.FC = () => {
       console.error('❌ 創建轉身記錄失敗:', error);
     }
   };
-
   const handleHygieneSubmit = async (data: Omit<HygieneRecord, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       if (modalExistingRecord) {
@@ -605,7 +540,6 @@ const CareRecords: React.FC = () => {
       console.error('❌ 保存衛生記錄失敗:', error);
     }
   };
-
   const handleIntakeOutputDelete = async (recordId: string) => {
     try {
       await db.deleteIntakeOutputRecord(recordId);
@@ -621,7 +555,6 @@ const CareRecords: React.FC = () => {
       alert('刪除出入量記錄失敗，請重試');
     }
   };
-
   const renderPatrolTable = () => {
     return (
       <div className="overflow-x-auto">
@@ -660,7 +593,6 @@ const CareRecords: React.FC = () => {
                     }
                   );
                   const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, timeSlot, admissionRecords, hospitalEpisodes);
-
                   return (
                     <td
                       key={dateString}
@@ -691,7 +623,6 @@ const CareRecords: React.FC = () => {
       </div>
     );
   };
-
   const renderDiaperTable = () => {
     return (
       <div className="overflow-x-auto">
@@ -729,7 +660,6 @@ const CareRecords: React.FC = () => {
                   );
                   const timeStr = slot.time.split('-')[0];
                   const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, timeStr, admissionRecords, hospitalEpisodes);
-
                   return (
                     <td
                       key={dateString}
@@ -784,7 +714,6 @@ const CareRecords: React.FC = () => {
       </div>
     );
   };
-
   const renderRestraintTable = () => {
     return (
       <div className="overflow-x-auto">
@@ -820,7 +749,6 @@ const CareRecords: React.FC = () => {
                     r => r.observation_date === dateString && r.scheduled_time === timeSlot
                   );
                   const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, timeSlot, admissionRecords, hospitalEpisodes);
-
                   return (
                     <td
                       key={dateString}
@@ -871,7 +799,6 @@ const CareRecords: React.FC = () => {
       </div>
     );
   };
-
   const renderPositionTable = () => {
     return (
       <div className="overflow-x-auto">
@@ -908,7 +835,6 @@ const CareRecords: React.FC = () => {
                   );
                   const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, timeSlot, admissionRecords, hospitalEpisodes);
                   const expectedPosition = getPositionSequence(timeSlot);
-
                   return (
                     <td
                       key={dateString}
@@ -950,7 +876,6 @@ const CareRecords: React.FC = () => {
       </div>
     );
   };
-
   // 出入量記錄渲染函數
   const renderIntakeOutputTable = () => {
     return (
@@ -989,11 +914,9 @@ const CareRecords: React.FC = () => {
                   );
                   const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, slot.time, admissionRecords, hospitalEpisodes);
                   const statusLabel = record && record.notes && ['入院', '渡假', '外出'].includes(String(record.notes)) ? String(record.notes) : undefined;
-
                   // 從 intake_items 構建詳細項目列表
                   const intakeDetails: string[] = [];
                   const outputDetails: string[] = [];
-                  
                   if (record?.intake_items && record.intake_items.length > 0) {
                     record.intake_items.forEach(item => {
                       if (item.category === 'meal') {
@@ -1007,7 +930,6 @@ const CareRecords: React.FC = () => {
                       }
                     });
                   }
-                  
                   if (record?.output_items && record.output_items.length > 0) {
                     record.output_items.forEach(item => {
                       if (item.category === 'urine') {
@@ -1026,7 +948,6 @@ const CareRecords: React.FC = () => {
                       }
                     });
                   }
-
                   return (
                     <td
                       key={dateString}
@@ -1075,20 +996,12 @@ const CareRecords: React.FC = () => {
       </div>
     );
   };
-
   const renderHygieneTable = () => {
     // 檢查該院友是否有換片記錄選項卡（而不是檢查是否有實際的換片記錄數據）
     const hasDiaperTab = visibleTabTypes.includes('diaper');
-    
     // 調試：輸出換片記錄信息
     if (selectedPatient) {
-      console.log('=== 衛生記錄大便項目邏輯 ===');
-      console.log('院友:', selectedPatient.中文姓名);
-      console.log('可見選項卡:', visibleTabTypes);
-      console.log('hasDiaperTab:', hasDiaperTab);
-      console.log('換片記錄數量:', patientDiaperChanges.length);
     }
-
     return (
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
@@ -1116,7 +1029,6 @@ const CareRecords: React.FC = () => {
               // 如果該院友有換片記錄選項卡，則4個大便相關項目變成不可選
               const isBowelItem = item.isBowelCount || item.isBowelAmount || item.isBowelConsistency || item.isBowelMedication;
               const bowelItemDisabledByDiaper = hasDiaperTab && isBowelItem;
-              
               // 調試：輸出大便項目信息
               if (isBowelItem && selectedPatient) {
                 console.log(`項目 ${item.label}:`, {
@@ -1125,7 +1037,6 @@ const CareRecords: React.FC = () => {
                   bowelItemDisabledByDiaper
                 });
               }
-
               return (
                 <tr key={item.key} className="hover:bg-gray-50">
                   <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border">
@@ -1139,10 +1050,8 @@ const CareRecords: React.FC = () => {
                     const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, 'daily', admissionRecords, hospitalEpisodes);
                     const hasStatusNotes = record?.status_notes && ['入院', '渡假', '外出'].includes(record.status_notes);
                     const isDisabled = Boolean(hasStatusNotes && !item.isStatus) || bowelItemDisabledByDiaper;
-
                     let cellContent: React.ReactNode = null;
                     let cellClassName = 'px-2 py-3 text-center text-sm border ';
-
                     if (inHospital) {
                       cellClassName += 'bg-gray-100 text-gray-500';
                       cellContent = <span>入院</span>;
@@ -1250,15 +1159,12 @@ const CareRecords: React.FC = () => {
                         cellContent = <span className="text-gray-400 text-xs">-</span>;
                       }
                     }
-
                     // 護理項目用click toggle
                     const isCareItem = !item.isStatus && !item.isBowelCount && !item.isBowelAmount && !item.isBowelConsistency && !item.isBowelMedication;
-                    
                     const handleClick = () => {
                       if (inHospital || isDisabled || !isCareItem) return;
                       toggleHygieneCareItem(dateString, item.key, record ? (record as any)[item.key] : false);
                     };
-
                     return (
                       <td
                         key={`${item.key}-${dateString}`}
@@ -1277,7 +1183,6 @@ const CareRecords: React.FC = () => {
       </div>
     );
   };
-
   const renderPlaceholder = (tabName: string) => {
     return (
       <div className="flex items-center justify-center h-96">
@@ -1288,7 +1193,6 @@ const CareRecords: React.FC = () => {
       </div>
     );
   };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -1296,7 +1200,6 @@ const CareRecords: React.FC = () => {
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       {/* Sticky Heading 區域 */}
@@ -1352,7 +1255,6 @@ const CareRecords: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Sticky 搜索和選擇區域 */}
       <div className="sticky top-16 bg-white z-20 shadow-sm">
         <div className="card p-4">
@@ -1381,7 +1283,6 @@ const CareRecords: React.FC = () => {
                 </div>
               )}
             </div>
-
             {selectedPatient && (
               <div className="lg:w-80 border-t lg:border-t-0 lg:border-l pt-4 lg:pt-0 lg:pl-4">
                 <label className="text-sm font-medium text-gray-700 block mb-2">院友資訊</label>
@@ -1417,7 +1318,6 @@ const CareRecords: React.FC = () => {
           </div>
         </div>
       </div>
-
       {selectedPatientId && (
         <>
           <div className="card">
@@ -1433,9 +1333,7 @@ const CareRecords: React.FC = () => {
                     toilet_training: { icon: GraduationCap, label: '如廁訓練' },
                     hygiene: { icon: Droplets, label: '衛生記錄' }
                   }[tabType];
-
                   const Icon = tabConfig.icon;
-
                   return (
                     <div key={tabType} className="relative group">
                       <button
@@ -1461,7 +1359,6 @@ const CareRecords: React.FC = () => {
                     </div>
                   );
                 })}
-
                 <div className="relative">
                   <button
                     onClick={() => setShowAddTabMenu(!showAddTabMenu)}
@@ -1471,7 +1368,6 @@ const CareRecords: React.FC = () => {
                     <Plus className="h-4 w-4" />
                     <span>添加</span>
                   </button>
-
                   {showAddTabMenu && (
                     <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 min-w-[150px]">
                       {(['diaper', 'intake_output', 'restraint', 'position', 'toilet_training', 'hygiene'] as TabType[])
@@ -1486,7 +1382,6 @@ const CareRecords: React.FC = () => {
                             toilet_training: '如廁訓練',
                             hygiene: '衛生記錄'
                           };
-
                           return (
                             <button
                               key={tabType}
@@ -1507,7 +1402,6 @@ const CareRecords: React.FC = () => {
                   )}
                 </div>
               </div>
-
               <div className="flex flex-col items-end gap-2 flex-shrink-0">
                 <div className="flex items-center space-x-2">
                   <button
@@ -1536,7 +1430,6 @@ const CareRecords: React.FC = () => {
                 </div>
               </div>
             </div>
-
             <div className="p-4">
               {activeTab === 'patrol' && renderPatrolTable()}
               {activeTab === 'diaper' && renderDiaperTable()}
@@ -1549,7 +1442,6 @@ const CareRecords: React.FC = () => {
           </div>
         </>
       )}
-
       {showPatrolModal && selectedPatient && (
         <PatrolRoundModal
           key={modalExistingRecord?.id || `new-patrol-${modalDate}-${modalTimeSlot}`}
@@ -1576,7 +1468,6 @@ const CareRecords: React.FC = () => {
           }}
         />
       )}
-
       {showDiaperModal && selectedPatient && (
         <DiaperChangeModal
           key={modalExistingRecord?.id || `new-diaper-${modalDate}-${modalTimeSlot}`}
@@ -1603,7 +1494,6 @@ const CareRecords: React.FC = () => {
           }}
         />
       )}
-
       {showRestraintModal && selectedPatient && (
         <RestraintObservationModal
           key={modalExistingRecord?.id || `new-restraint-${modalDate}-${modalTimeSlot}`}
@@ -1631,7 +1521,6 @@ const CareRecords: React.FC = () => {
           }}
         />
       )}
-
       {showPositionModal && selectedPatient && (
         <PositionChangeModal
           key={modalExistingRecord?.id || `new-position-${modalDate}-${modalTimeSlot}`}
@@ -1658,7 +1547,6 @@ const CareRecords: React.FC = () => {
           }}
         />
       )}
-
       {showHygieneModal && selectedPatient && (
         <HygieneModal
           key={modalExistingRecord?.id || `new-hygiene-${modalDate}`}
@@ -1684,7 +1572,6 @@ const CareRecords: React.FC = () => {
           }}
         />
       )}
-
       {showIntakeOutputModal && selectedPatient && modalTimeSlot && (
         <IntakeOutputModal
           key={modalExistingRecord?.id || `new-intake-output-${modalDate}-${modalTimeSlot}`}
@@ -1718,5 +1605,4 @@ const CareRecords: React.FC = () => {
     </div>
   );
 };
-
 export default CareRecords;

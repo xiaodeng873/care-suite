@@ -34,11 +34,9 @@ import { exportVitalSignsToExcel, type VitalSignExportData } from '../utils/vita
 import { exportBloodSugarToExcel, type BloodSugarExportData } from '../utils/bloodSugarExcelGenerator';
 import PatientTooltip from '../components/PatientTooltip';
 import { syncTaskStatus } from '../lib/database';
-
 type RecordType = '生命表徵' | '血糖控制' | '體重控制' | 'all';
 type SortField = '記錄日期' | '記錄時間' | '院友姓名' | '記錄類型' | '體重' | '血糖值' | '血壓';
 type SortDirection = 'asc' | 'desc';
-
 interface AdvancedFilters {
   床號: string;
   中文姓名: string;
@@ -49,7 +47,6 @@ interface AdvancedFilters {
   endDate: string;
   在住狀態: string;
 }
-
 const HealthAssessment: React.FC = () => {
   const {
     healthRecords,
@@ -64,12 +61,10 @@ const HealthAssessment: React.FC = () => {
     refreshData,
     loadFullHealthRecords // [新增]
   } = usePatients();
-  
   // [新增] 進入頁面時，觸發載入完整歷史記錄
   useEffect(() => {
     loadFullHealthRecords();
   }, [loadFullHealthRecords]);
-  
   const [showModal, setShowModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -100,19 +95,16 @@ const HealthAssessment: React.FC = () => {
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
   const [isGeneratingTemperature, setIsGeneratingTemperature] = useState(false);
-
   // Helper functions
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');
   };
-
   const updateAdvancedFilter = (field: keyof AdvancedFilters, value: string) => {
     setAdvancedFilters(prev => ({
       ...prev,
       [field]: value
     }));
   };
-
   const clearFilters = () => {
     setSearchTerm('');
     setAdvancedFilters({
@@ -126,7 +118,6 @@ const HealthAssessment: React.FC = () => {
       在住狀態: '在住'
     });
   };
-
   const getUniqueOptions = (field: string) => {
     const values = new Set<string>();
     healthRecords.forEach(record => {
@@ -142,22 +133,18 @@ const HealthAssessment: React.FC = () => {
     });
     return Array.from(values).sort();
   };
-
   // Reset to first page when filters change
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
-
   // 強制重新載入數據的函數
   const debugDataLoading = async () => {
     try {
-      console.log('開始調試數據載入...');
       // 這裡可以加入更多調試邏輯
     } catch (error) {
       console.error('調試數據載入失敗:', error);
     }
   };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -168,13 +155,10 @@ const HealthAssessment: React.FC = () => {
       </div>
     );
   }
-
   const filteredRecords = healthRecords.filter(record => {
     const patient = patients.find(p => p.院友id === record.院友id);
-    
     // 確保院友存在
     if (!patient) return false;
-    
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
@@ -193,7 +177,6 @@ const HealthAssessment: React.FC = () => {
     if (advancedFilters.備註 && !record.備註?.toLowerCase().includes(advancedFilters.備註.toLowerCase())) {
       return false;
     }
-    
     if (advancedFilters.startDate || advancedFilters.endDate) {
       const recordDate = new Date(record.記錄日期);
       if (advancedFilters.startDate && recordDate < new Date(advancedFilters.startDate)) {
@@ -203,7 +186,6 @@ const HealthAssessment: React.FC = () => {
         return false;
       }
     }
-    
     let matchesSearch = true;
     if (searchTerm) {
       matchesSearch = patient?.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -218,17 +200,13 @@ const HealthAssessment: React.FC = () => {
                          new Date(record.記錄日期).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase()) ||
                          false;
     }
-    
     return matchesSearch;
   });
-
   const sortedRecords = [...filteredRecords].sort((a, b) => {
     const patientA = patients.find(p => p.院友id === a.院友id);
     const patientB = patients.find(p => p.院友id === b.院友id);
-    
     let valueA: string | number = '';
     let valueB: string | number = '';
-    
     switch (sortField) {
       case '記錄日期':
         valueA = new Date(`${a.記錄日期} ${a.記錄時間}`).getTime();
@@ -259,38 +237,31 @@ const HealthAssessment: React.FC = () => {
         valueB = (b.血壓收縮壓 || 0) + (b.血壓舒張壓 || 0);
         break;
     }
-    
     if (typeof valueA === 'string' && typeof valueB === 'string') {
       valueA = valueA.toLowerCase();
       valueB = valueB.toLowerCase();
     }
-    
     if (sortDirection === 'asc') {
       return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
     } else {
       return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
     }
   });
-
   const totalItems = sortedRecords.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const paginatedRecords = sortedRecords.slice(startIndex, endIndex);
-
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
     setCurrentPage(1);
   };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
-
   const generatePageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
-    
     if (totalPages <= maxVisiblePages) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
@@ -298,15 +269,12 @@ const HealthAssessment: React.FC = () => {
     } else {
       const start = Math.max(1, currentPage - 2);
       const end = Math.min(totalPages, start + maxVisiblePages - 1);
-      
       for (let i = start; i <= end; i++) {
         pages.push(i);
       }
     }
-    
     return pages;
   };
-
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -315,29 +283,22 @@ const HealthAssessment: React.FC = () => {
       setSortDirection('asc');
     }
   };
-
   const handleEdit = (record: any) => {
-    console.log('編輯監測記錄:', record);
     setSelectedRecord(record);
     setShowModal(true);
   };
-
   const handleDelete = async (id: number) => {
     const record = healthRecords.find(r => r.記錄id === id);
     const patient = patients.find(p => p.院友id === record?.院友id);
-    
     if (confirm(`確定要刪除 ${patient?.中文姓名} 在 ${record?.記錄日期} ${record?.記錄時間} 的${record?.記錄類型}記錄嗎？`)) {
       try {
         setDeletingIds(prev => new Set(prev).add(id));
         await deleteHealthRecord(id);
-
         // [新增] 同步任務狀態
         if (record?.task_id) {
-          console.log('刪除記錄觸發任務同步:', record.task_id);
           await syncTaskStatus(record.task_id);
           if (refreshData) await refreshData();
         }
-
         setSelectedRows(prev => {
           const newSet = new Set(prev);
           newSet.delete(id);
@@ -354,26 +315,20 @@ const HealthAssessment: React.FC = () => {
       }
     }
   };
-
   const handleBatchDelete = async () => {
     if (selectedRows.size === 0) {
       alert('請先選擇要刪除的記錄');
       return;
     }
-
     const confirmMessage = `確定要刪除 ${selectedRows.size} 筆監測記錄嗎？\n\n此操作無法復原。`;
-
     if (!confirm(confirmMessage)) {
       return;
     }
-
     const deletingArray = Array.from(selectedRows);
     setDeletingIds(new Set(deletingArray));
-
     let successCount = 0;
     let failCount = 0;
     const failedIds: number[] = [];
-
     try {
       for (const recordId of deletingArray) {
         try {
@@ -386,20 +341,16 @@ const HealthAssessment: React.FC = () => {
           failedIds.push(recordId);
         }
       }
-
       const newSelectedRows = new Set<number>();
       failedIds.forEach(id => newSelectedRows.add(id));
       setSelectedRows(newSelectedRows);
-
       if (failCount === 0) {
         alert(`成功刪除 ${successCount} 筆監測記錄`);
       } else {
         alert(`刪除完成：\n成功 ${successCount} 筆\n失敗 ${failCount} 筆\n\n失敗的記錄已保持選中狀態，您可以稍後重試。`);
       }
-      
       // 批量刪除後刷新一次數據
       if (refreshData) await refreshData();
-
     } catch (error) {
       console.error('[批量刪除] 發生未預期的錯誤:', error);
       alert(`批量刪除過程中發生錯誤`);
@@ -407,7 +358,6 @@ const HealthAssessment: React.FC = () => {
       setDeletingIds(new Set());
     }
   };
-
   const handleSelectRow = (recordId: number) => {
     const newSelected = new Set(selectedRows);
     if (newSelected.has(recordId)) {
@@ -417,7 +367,6 @@ const HealthAssessment: React.FC = () => {
     }
     setSelectedRows(newSelected);
   };
-
   const handleSelectAll = () => {
     if (selectedRows.size === paginatedRecords.length) {
       setSelectedRows(new Set());
@@ -425,7 +374,6 @@ const HealthAssessment: React.FC = () => {
       setSelectedRows(new Set(paginatedRecords.map(r => r.記錄id)));
     }
   };
-
   const handleInvertSelection = () => {
     const newSelected = new Set<number>();
     paginatedRecords.forEach(record => {
@@ -435,30 +383,24 @@ const HealthAssessment: React.FC = () => {
     });
     setSelectedRows(newSelected);
   };
-
   const handleExportSelected = async (recordType: '生命表徵' | '血糖控制' | '體重控制') => {
     const filteredByType = healthRecords.filter(record => record.記錄類型 === recordType);
     const selectedRecords = selectedRows.size > 0 
       ? filteredByType.filter(r => selectedRows.has(r.記錄id))
       : filteredByType;
-    
     if (selectedRecords.length === 0) {
       alert(`沒有${recordType}記錄可匯出`);
       return;
     }
-
     const uniquePatients = [...new Set(selectedRecords.map(r => r.院友id))].length;
     const isLargeExport = selectedRecords.length > 1000 || uniquePatients > 50;
-    
     if (isLargeExport) {
       if (!confirm(`您即將匯出大量資料 (${selectedRecords.length} 筆)，是否繼續？`)) {
         return;
       }
     }
-
     try {
       setIsExporting(true);
-      
       if (recordType === '生命表徵') {
         const vitalSignData: VitalSignExportData[] = selectedRecords.map(record => {
           const patient = patients.find(p => p.院友id === record.院友id);
@@ -529,12 +471,10 @@ const HealthAssessment: React.FC = () => {
       setIsExporting(false);
     }
   };
-
   const handleBatchUpload = (recordType: '生命表徵' | '血糖控制' | '體重控制') => {
     setBatchRecordType(recordType);
     setShowBatchModal(true);
   };
-
   const handleDeduplicateRecords = async () => {
     setIsAnalyzingDuplicates(true);
     try {
@@ -551,7 +491,6 @@ const HealthAssessment: React.FC = () => {
       setIsAnalyzingDuplicates(false);
     }
   };
-
   const handleConfirmDeduplicate = async (recordIds: number[]) => {
     try {
       await batchDeleteDuplicateRecords(recordIds);
@@ -562,59 +501,45 @@ const HealthAssessment: React.FC = () => {
       throw error;
     }
   };
-
   const handleGenerateRandomTemperatures = async () => {
     try {
       setIsGeneratingTemperature(true);
       const { eligiblePatients, excludedPatients } = checkEligiblePatientsForTemperature();
-      
       let confirmMessage = `一鍵生成體溫記錄\n\n`;
       confirmMessage += `將為 ${eligiblePatients.length} 位符合條件的院友生成體溫記錄\n`;
-      
       if (eligiblePatients.length === 0) {
         alert(confirmMessage + '\n\n沒有符合條件的院友需要生成體溫記錄。');
         return;
       }
-      
       if (!confirm(confirmMessage + '\n\n確定要生成體溫記錄嗎？')) return;
-      
       const count = await generateRandomTemperaturesForActivePatients();
       await recordDailyTemperatureGenerationCompletion();
       alert(`成功為 ${count} 位院友生成體溫記錄！`);
       if (refreshData) await refreshData();
-
     } catch (error) {
       alert('生成體溫記錄失敗');
     } finally {
       setIsGeneratingTemperature(false);
     }
   };
-
   const calculateWeightChange = (currentWeight: number, patientId: number, currentDate: string): string => {
     const allWeightRecords = healthRecords
       .filter(r => r.院友id === patientId && typeof r.體重 === 'number')
       .map(r => ({ 體重: r.體重, 記錄日期: r.記錄日期, 記錄時間: r.記錄時間 }))
       .sort((a, b) => new Date(`${a.記錄日期} ${a.記錄時間}`).getTime() - new Date(`${b.記錄日期} ${b.記錄時間}`).getTime());
-
     if (allWeightRecords.length === 0) return '最遠記錄';
-
     const currentDateTime = new Date(`${currentDate} 00:00`).getTime();
     const previousRecords = allWeightRecords.filter(r => 
       new Date(`${r.記錄日期} ${r.記錄時間}`).getTime() < currentDateTime
     );
-    
     if (previousRecords.length === 0) return '最遠記錄';
-    
     const previousRecord = previousRecords[previousRecords.length - 1];
     const difference = currentWeight - previousRecord.體重!;
-
     if (difference === 0) return '無變化';
-
     const percentage = (difference / previousRecord.體重!) * 100;
     const sign = difference > 0 ? '+' : '';
     return `${sign}${difference.toFixed(1)}kg (${sign}${percentage.toFixed(1)}%)`;
   };
-
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode }> = ({ field, children }) => (
     <th 
       className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
@@ -628,13 +553,11 @@ const HealthAssessment: React.FC = () => {
       </div>
     </th>
   );
-
   return (
     <div className="space-y-6">
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">監測記錄</h1>
-
           <div className="flex flex-wrap items-center gap-2 justify-end">
             {/* 匯出Excel按鈕 - 只在有選定時顯示 */}
             {selectedRows.size > 0 && (
@@ -680,7 +603,6 @@ const HealthAssessment: React.FC = () => {
                 </div>
               </div>
             )}
-
             {/* 其他功能下拉選單 */}
             <div className="relative">
               <button
@@ -691,7 +613,6 @@ const HealthAssessment: React.FC = () => {
                 <MoreVertical className="h-4 w-4" />
                 <span>其他功能</span>
               </button>
-
               {showMoreMenu && (
                 <>
                   <div
@@ -735,7 +656,6 @@ const HealthAssessment: React.FC = () => {
                         <span>批量新增體重記錄</span>
                       </button>
                     </div>
-
                     {/* 其他功能 */}
                     <div className="py-1">
                       <button
@@ -793,7 +713,6 @@ const HealthAssessment: React.FC = () => {
                 </>
               )}
             </div>
-
             <button
               onClick={() => {
                 setSelectedRecord(null);
@@ -807,7 +726,6 @@ const HealthAssessment: React.FC = () => {
           </div>
         </div>
       </div>
-
       <div className="sticky top-16 bg-white z-20 shadow-sm">
         <div className="card p-4">
           <div className="space-y-4">
@@ -822,7 +740,6 @@ const HealthAssessment: React.FC = () => {
                   className="form-input pl-10"
                 />
               </div>
-            
             <div className="flex space-x-2">
               <button
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -838,7 +755,6 @@ const HealthAssessment: React.FC = () => {
                   </span>
                 )}
               </button>
-             
               {(searchTerm || hasAdvancedFilters()) && (
                 <button
                   onClick={clearFilters}
@@ -850,7 +766,6 @@ const HealthAssessment: React.FC = () => {
               )}
             </div>
           </div>
-          
           {showAdvancedFilters && (
             <div className="border-t border-gray-200 pt-4">
               <h3 className="text-sm font-medium text-gray-900 mb-3">進階篩選</h3>
@@ -958,7 +873,6 @@ const HealthAssessment: React.FC = () => {
           </div>
         </div>
       </div>
-
       {totalItems > 0 && (
         <div className="sticky top-40 bg-white z-10 shadow-sm">
           <div className="card p-4">
@@ -993,7 +907,6 @@ const HealthAssessment: React.FC = () => {
           </div>
         </div>
       )}
-
       <div className="card overflow-hidden">
         {paginatedRecords.length > 0 ? (
           <div className="overflow-x-auto">
@@ -1027,7 +940,6 @@ const HealthAssessment: React.FC = () => {
                 {paginatedRecords.map(record => {
                   const patient = patients.find(p => p.院友id === record.院友id);
                   const weightChange = record.體重 ? calculateWeightChange(record.體重, record.院友id, record.記錄日期) : null;
-                  
                   return (
                     <tr 
                       key={record.記錄id} 
@@ -1209,7 +1121,6 @@ const HealthAssessment: React.FC = () => {
           </div>
         )}
       </div>
-
       {/* Pagination Controls */}
       {totalItems > 0 && (
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
@@ -1230,7 +1141,6 @@ const HealthAssessment: React.FC = () => {
               </select>
               <span className="text-sm text-gray-700">筆記錄</span>
             </div>
-            
             {totalPages > 1 && (
               <div className="flex items-center space-x-2">
                 <button
@@ -1240,7 +1150,6 @@ const HealthAssessment: React.FC = () => {
                 >
                   上一頁
                 </button>
-                
                 {generatePageNumbers().map(page => (
                   <button
                     key={page}
@@ -1254,7 +1163,6 @@ const HealthAssessment: React.FC = () => {
                     {page}
                   </button>
                 ))}
-                
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
@@ -1264,14 +1172,12 @@ const HealthAssessment: React.FC = () => {
                 </button>
               </div>
             )}
-            
             <div className="text-sm text-gray-700">
               第 {currentPage} 頁，共 {totalPages} 頁
             </div>
           </div>
         </div>
       )}
-
       {showModal && (
         <HealthRecordModal
           record={selectedRecord}
@@ -1280,7 +1186,6 @@ const HealthAssessment: React.FC = () => {
             setSelectedRecord(null);
           }}
           onTaskCompleted={async (taskId, recordDateTime) => {
-            console.log('[HealthAssessment] 任務完成回調:', taskId);
             try {
               await syncTaskStatus(taskId);
               if (refreshData) await refreshData();
@@ -1290,14 +1195,12 @@ const HealthAssessment: React.FC = () => {
           }}
         />
       )}
-
       {showBatchModal && (
         <BatchHealthRecordModal
           recordType={batchRecordType}
           onClose={() => setShowBatchModal(false)}
         />
       )}
-
       {showDeduplicateModal && (
         <DeduplicateRecordsModal
           duplicateGroups={duplicateGroups}
@@ -1309,13 +1212,11 @@ const HealthAssessment: React.FC = () => {
           patients={patients}
         />
       )}
-
       {showRecycleBin && (
         <RecycleBinModal
           onClose={() => setShowRecycleBin(false)}
         />
       )}
-
       <button
         onClick={debugDataLoading}
         className="btn-secondary flex items-center space-x-2"
@@ -1323,7 +1224,6 @@ const HealthAssessment: React.FC = () => {
         <Activity className="h-4 w-4" />
         <span>調試數據載入</span>
       </button>
-
       {debugInfo && (
         <div className="card p-4 bg-yellow-50 border border-yellow-200">
           <h3 className="text-lg font-medium text-yellow-900 mb-3">調試信息</h3>
@@ -1350,7 +1250,5 @@ const HealthAssessment: React.FC = () => {
       )}
     </div>
   );
-
 };
-
 export default HealthAssessment;
