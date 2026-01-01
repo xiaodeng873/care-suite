@@ -1019,7 +1019,12 @@ const RestraintManagement: React.FC = () => {
 
       {/* 約束物品觀察表日期範圍選擇模態框 */}
       {showObservationDateRangeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowObservationDateRangeModal(false);
+          }}
+        >
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">

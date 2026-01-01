@@ -263,7 +263,12 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">
@@ -569,7 +574,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
     
     for (const feature of features) {
       for (const action of actions) {
-        const key = `${category}:${feature}:${action}`;
+        const key = `${category}:${feature.key}:${action}`;
         if (!selectedPermissions.has(key)) return false;
       }
     }
@@ -584,7 +589,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
     
     for (const feature of features) {
       for (const action of actions) {
-        const key = `${category}:${feature}:${action}`;
+        const key = `${category}:${feature.key}:${action}`;
         if (selectedPermissions.has(key)) {
           hasSelected = true;
         } else {
@@ -611,7 +616,12 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
   if (!isOpen || !user) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
           <div>
@@ -639,18 +649,58 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
                     onClick={() => toggleCategory(category)}
                   >
                     <div className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={isFullySelected}
-                        ref={el => {
-                          if (el) el.indeterminate = isPartiallySelected && !isFullySelected;
-                        }}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          toggleCategoryAll(category, e.target.checked);
-                        }}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
+                      <div 
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isFullySelected}
+                          ref={el => {
+                            if (el) {
+                              el.indeterminate = isPartiallySelected && !isFullySelected;
+                            }
+                          }}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            const categoryFeatures = PERMISSION_STRUCTURE[category];
+                            const actions: PermissionAction[] = ['view', 'create', 'edit', 'delete'];
+                            
+                            setSelectedPermissions(prev => {
+                              const next = new Set(prev);
+                              
+                              // 在這裡重新計算當前是否全選
+                              let currentlyFullySelected = true;
+                              for (const feature of categoryFeatures) {
+                                for (const action of actions) {
+                                  const key = `${category}:${feature.key}:${action}`;
+                                  if (!prev.has(key)) {
+                                    currentlyFullySelected = false;
+                                    break;
+                                  }
+                                }
+                                if (!currentlyFullySelected) break;
+                              }
+                              
+                              // 如果已經全選，則取消全部；否則全選
+                              const shouldSelect = !currentlyFullySelected;
+                              
+                              for (const feature of categoryFeatures) {
+                                for (const action of actions) {
+                                  const key = `${category}:${feature.key}:${action}`;
+                                  if (shouldSelect) {
+                                    next.add(key);
+                                  } else {
+                                    next.delete(key);
+                                  }
+                                }
+                              }
+                              return next;
+                            });
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                        />
+                      </div>
                       <span className="font-medium text-gray-900">
                         {PERMISSION_CATEGORY_LABELS[category]}
                       </span>
@@ -684,13 +734,25 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
                               <td className="py-2 text-gray-700">{feature.name_zh}</td>
                               {(['view', 'create', 'edit', 'delete'] as PermissionAction[]).map(action => {
                                 const key = `${category}:${feature.key}:${action}`;
+                                const isChecked = selectedPermissions.has(key);
                                 return (
                                   <td key={action} className="text-center py-2">
                                     <input
                                       type="checkbox"
-                                      checked={selectedPermissions.has(key)}
-                                      onChange={() => togglePermission(category, feature.key, action)}
-                                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                      checked={isChecked}
+                                      onChange={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedPermissions(prev => {
+                                          const next = new Set(prev);
+                                          if (next.has(key)) {
+                                            next.delete(key);
+                                          } else {
+                                            next.add(key);
+                                          }
+                                          return next;
+                                        });
+                                      }}
+                                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
                                     />
                                   </td>
                                 );
@@ -1110,7 +1172,14 @@ const Settings: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredUsers.map(user => (
-                  <tr key={user.id} className="hover:bg-gray-50">
+                  <tr 
+                    key={user.id} 
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onDoubleClick={() => {
+                      setSelectedUser(user);
+                      setIsUserModalOpen(true);
+                    }}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">{user.name_zh}</div>

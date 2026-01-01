@@ -180,7 +180,12 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
 
       {/* Camera view */}
       {showCamera && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) stopCamera();
+          }}
+        >
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">拍攝傷口相片</h3>
@@ -290,7 +295,12 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
 
       {/* Photo preview modal */}
       {previewPhoto && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPreviewPhoto(null);
+          }}
+        >
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">傷口相片預覽</h3>

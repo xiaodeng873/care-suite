@@ -951,7 +951,12 @@ const PrintForms: React.FC = () => {
       )}
       {/* 年月選擇模態框 */}
       {showYearMonthModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowYearMonthModal(false);
+          }}
+        >
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">選擇年月</h3>
@@ -1006,7 +1011,12 @@ const PrintForms: React.FC = () => {
       )}
       {/* 個人衛生記錄月份選擇模態框 */}
       {showPersonalHygieneMonthModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowPersonalHygieneMonthModal(false);
+          }}
+        >
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">選擇列印月份</h3>
