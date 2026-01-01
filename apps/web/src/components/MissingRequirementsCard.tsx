@@ -155,10 +155,14 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
       });
     });
 
-    // 轉換為陣列並按床號排序
-    return Array.from(patientMap.values()).sort((a, b) => 
-      a.patient.床號.localeCompare(b.patient.床號, 'zh-Hant', { numeric: true })
-    );
+    // 轉換為陣列並按欠缺項目數量排序（從多到少），相同數量則按床號排序
+    return Array.from(patientMap.values()).sort((a, b) => {
+      // 先按欠缺項目數量排序（降序）
+      const itemsDiff = b.items.length - a.items.length;
+      if (itemsDiff !== 0) return itemsDiff;
+      // 數量相同則按床號排序
+      return a.patient.床號.localeCompare(b.patient.床號, 'zh-Hant', { numeric: true });
+    });
   }, [missingTasks, missingMealGuidance, missingDeathDate, missingVaccination, missingHealthAssessment, missingCarePlan]);
 
   const totalMissing = groupedByPatient.length;

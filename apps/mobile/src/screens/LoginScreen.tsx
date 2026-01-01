@@ -16,29 +16,39 @@ import { useTranslation } from '../lib/i18n';
 
 const LoginScreen: React.FC = () => {
   const { t } = useTranslation();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState(''); // 用戶名或 Email
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, customLogin } = useAuth();
+
+  // 自動判斷是 Email（開發者）還是用戶名（員工）
+  const isEmail = (value: string) => value.includes('@');
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert(t('loginError'), t('loginErrorEmpty'));
+    const trimmedIdentifier = identifier.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedIdentifier || !trimmedPassword) {
+      Alert.alert(t('loginError'), '請輸入帳號和密碼');
       return;
     }
 
-    console.log('開始登入流程...');
     setLoading(true);
     try {
-      console.log('調用 signIn...');
-      const { error } = await signIn(email.trim(), password);
-      console.log('signIn 返回:', { error });
-      if (error) {
-        console.error('登入錯誤:', error);
-        Alert.alert(t('loginFailed'), error.message || t('loginFailedMessage'));
+      // 自動判斷：包含 @ 為開發者（Email），否則為員工（用戶名）
+      if (isEmail(trimmedIdentifier)) {
+        // 開發者登入 - Supabase Auth
+        const { error } = await signIn(trimmedIdentifier, trimmedPassword);
+        if (error) {
+          Alert.alert(t('loginFailed'), error.message || t('loginFailedMessage'));
+        }
       } else {
-        console.log('登入成功!');
+        // 員工登入 - 自訂認證
+        const { error } = await customLogin(trimmedIdentifier, trimmedPassword);
+        if (error) {
+          Alert.alert('登入失敗', error);
+        }
       }
     } catch (err) {
       console.error('登入異常:', err);
@@ -63,13 +73,14 @@ const LoginScreen: React.FC = () => {
         </View>
 
         <View style={styles.form}>
+          {/* 帳號輸入（自動判斷員工用戶名或開發者 Email）*/}
           <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#6b7280" style={styles.inputIcon} />
+            <Ionicons name="person-outline" size={20} color="#6b7280" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder={t('emailPlaceholder')}
-              value={email}
-              onChangeText={setEmail}
+              placeholder="用戶名 或 Email"
+              value={identifier}
+              onChangeText={setIdentifier}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}

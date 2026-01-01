@@ -132,6 +132,11 @@ const Dashboard: React.FC = () => {
       if (admissionDate) {
         admissionDate.setHours(0, 0, 0, 0);
       }
+      // [修復] 獲取任務開始執行日期（與 TaskHistoryModal 保持一致）
+      const taskStartDate = task.start_date ? new Date(task.start_date) : null;
+      if (taskStartDate) {
+        taskStartDate.setHours(0, 0, 0, 0);
+      }
       const normalizedTaskTimes = task.specific_times?.map(normalizeTime) || [];
       if (isLyuPatient) {
       }
@@ -147,6 +152,12 @@ const Dashboard: React.FC = () => {
         }
         // 如果检查日期早于入住日期，跳过
         if (admissionDate && checkDate < admissionDate) {
+          if (isLyuPatient) {
+          }
+          continue;
+        }
+        // [修復] 如果检查日期早于任務開始執行日期，跳过（與 TaskHistoryModal 保持一致）
+        if (taskStartDate && checkDate < taskStartDate) {
           if (isLyuPatient) {
           }
           continue;
@@ -410,6 +421,11 @@ const Dashboard: React.FC = () => {
       if (admissionDate) {
         admissionDate.setHours(0, 0, 0, 0);
       }
+      // [修復] 獲取任務開始執行日期（與 TaskHistoryModal 保持一致）
+      const taskStartDate = task.start_date ? new Date(task.start_date) : null;
+      if (taskStartDate) {
+        taskStartDate.setHours(0, 0, 0, 0);
+      }
       const normalizedTaskTimes = task.specific_times?.map(normalizeTime) || [];
       let firstIncompleteDate: Date | null = null;
       const incompleteDates: Date[] = [];
@@ -423,6 +439,10 @@ const Dashboard: React.FC = () => {
         }
         // 如果检查日期早于入住日期，跳过
         if (admissionDate && checkDate < admissionDate) {
+          continue;
+        }
+        // [修復] 如果检查日期早于任務開始執行日期，跳过（與 TaskHistoryModal 保持一致）
+        if (taskStartDate && checkDate < taskStartDate) {
           continue;
         }
         if (!isTaskScheduledForDate(task, checkDate)) {

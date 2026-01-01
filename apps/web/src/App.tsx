@@ -60,7 +60,7 @@ const LoadingFallback = () => (
 );
 
 function AppContent() {
-  const { user, loading, authReady, signOut } = useAuth();
+  const { user, userProfile, loading, authReady, signOut, customLogout, isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   if (loading || !authReady) {
@@ -74,7 +74,8 @@ function AppContent() {
     );
   }
 
-  if (!user) {
+  // 檢查是否已認證（支援 Supabase Auth 或自訂認證）
+  if (!isAuthenticated()) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="bg-white rounded-xl shadow-xl p-8 max-w-md w-full mx-4">
@@ -97,9 +98,28 @@ function AppContent() {
     );
   }
 
+  // 處理登出（支援兩種認證方式）
+  const handleSignOut = async () => {
+    if (userProfile) {
+      await customLogout();
+    }
+    if (user) {
+      await signOut();
+    }
+  };
+
+  // 為自訂認證用戶創建一個虛擬的 user 對象供 Layout 使用
+  const effectiveUser = user || (userProfile ? {
+    id: userProfile.id,
+    email: userProfile.username,
+    user_metadata: {
+      display_name: userProfile.name_zh,
+    },
+  } as any : null);
+
   return (
     <BrowserRouter>
-      <Layout user={user} onSignOut={signOut}>
+      <Layout user={effectiveUser} onSignOut={handleSignOut}>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<Dashboard />} />

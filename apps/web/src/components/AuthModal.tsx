@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { X, User, Lock, Mail } from 'lucide-react';
+import { X, User, Lock, Mail, UserCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+
+type LoginMode = 'developer' | 'staff';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -9,12 +11,14 @@ interface AuthModalProps {
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [loginMode, setLoginMode] = useState<LoginMode>('staff');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, customLogin } = useAuth();
 
   if (!isOpen) return null;
 
@@ -24,22 +28,43 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setError('');
 
     try {
-      const { error } = isSignUp 
-        ? await signUp(email, password)
-        : await signIn(email, password);
+      if (loginMode === 'developer') {
+        // 開發者使用 Supabase Auth (Email)
+        const { error } = isSignUp 
+          ? await signUp(email, password)
+          : await signIn(email, password);
 
-      if (error) {
-        setError(error.message);
+        if (error) {
+          setError(error.message);
+        } else {
+          onClose();
+          setEmail('');
+          setPassword('');
+        }
       } else {
-        onClose();
-        setEmail('');
-        setPassword('');
+        // 員工/管理者使用自訂認證
+        const { error } = await customLogin(username, password);
+
+        if (error) {
+          setError(typeof error === 'string' ? error : '登入失敗');
+        } else {
+          onClose();
+          setUsername('');
+          setPassword('');
+        }
       }
     } catch (err) {
       setError('發生未知錯誤');
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setEmail('');
+    setUsername('');
+    setPassword('');
+    setError('');
   };
 
   return (
@@ -58,6 +83,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
 
+        {/* 登入模式切換 */}
+        {!isSignUp && (
+          <div className="px-6 pt-4">
+            <div className="flex rounded-lg bg-gray-100 p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMode('staff');
+                  resetForm();
+                }}
+                className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                  loginMode === 'staff'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <UserCircle className="w-4 h-4 inline mr-1" />
+                員工登入
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMode('developer');
+                  resetForm();
+                }}
+                className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                  loginMode === 'developer'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Mail className="w-4 h-4 inline mr-1" />
+                開發者登入
+              </button>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
@@ -65,20 +128,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Mail className="w-4 h-4 inline mr-1" />
-              電子郵件
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="請輸入電子郵件"
-              required
-            />
-          </div>
+          {loginMode === 'developer' || isSignUp ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Mail className="w-4 h-4 inline mr-1" />
+                電子郵件
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="請輸入電子郵件"
+                required
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <UserCircle className="w-4 h-4 inline mr-1" />
+                帳號
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="請輸入帳號"
+                required
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -104,15 +184,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             {loading ? '處理中...' : (isSignUp ? '註冊' : '登入')}
           </button>
 
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-blue-600 hover:text-blue-700 text-sm"
-            >
-              {isSignUp ? '已有帳號？點此登入' : '沒有帳號？點此註冊'}
-            </button>
-          </div>
+          {loginMode === 'developer' && (
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-blue-600 hover:text-blue-700 text-sm"
+              >
+                {isSignUp ? '已有帳號？點此登入' : '沒有帳號？點此註冊'}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>
