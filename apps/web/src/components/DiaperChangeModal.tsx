@@ -74,7 +74,7 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
       stool_texture: stoolTexture || undefined,
       stool_amount: stoolAmount || undefined,
       recorder,
-      notes: notes.trim() || undefined
+      notes: notes.trim() || null
     };
 
     onSubmit(data);
@@ -124,10 +124,13 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
 
   const handleNoteButtonClick = (value: string) => {
     if (notes === value) {
+      // 反選時清空 notes
       setNotes('');
+      // 注意：反選時不恢復之前的值，保持空白狀態，讓用戶重新輸入
     } else {
       setNotes(value);
       if (['入院', '渡假', '外出'].includes(value)) {
+        // 選擇特殊狀態時清空所有輸入
         setHasUrine(false);
         setHasStool(false);
         setHasNone(false);

@@ -531,7 +531,7 @@ export interface DiaperChangeRecord {
   stool_texture?: string;
   stool_amount?: string;
   recorder: string;
-  notes?: string;
+  notes?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -544,8 +544,8 @@ export interface RestraintObservationRecord {
   observation_status: 'N' | 'P' | 'S';
   recorder: string;
   co_signer?: string | null;
-  notes?: string;
-  used_restraints?: any;
+  notes?: string | null;
+  used_restraints?: any | null;
   created_at: string;
   updated_at: string;
 }
@@ -571,6 +571,7 @@ export interface HygieneRecord {
   has_shave: boolean;
   has_oral_care: boolean;
   has_denture_care: boolean;
+  has_haircut: boolean;
   has_nail_trim: boolean;
   has_bedding_change: boolean;
   has_sheet_pillow_change: boolean;
@@ -600,8 +601,7 @@ export interface IntakeItem {
   category: IntakeCategory;
   item_type: string; // 早餐/午餐/水/湯/餅乾/Isocal 等
   amount: string; // 顯示用: '1/2', '200ml', '3塊'
-  amount_numeric?: number; // 計算用數值
-  volume?: number; // 飲品容量(ml)
+  amount_numeric: number; // 計算用數值（必填，數據庫 NOT NULL）
   unit: IntakeUnit;
   created_at: string;
 }
@@ -2211,6 +2211,9 @@ export const getIntakeOutputRecords = async (): Promise<IntakeOutputRecord[]> =>
       .select('*')
       .eq('record_id', record.id)
       .order('created_at', { ascending: true });
+    if (intakeItems && intakeItems.length > 0) {
+      console.log('🔍 從數據庫讀取的 intake_items:', intakeItems);
+    }
     const { data: outputItems, error: outputError } = await supabase
       .from('output_items')
       .select('*')

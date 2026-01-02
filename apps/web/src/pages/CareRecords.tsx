@@ -12,7 +12,8 @@ import {
   Droplets,
   GraduationCap,
   Plus,
-  X
+  X,
+  FileText
 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
@@ -43,6 +44,9 @@ import {
   hidePatientCareTab,
   getVisibleTabTypes
 } from '../utils/careTabsHelper';
+import { exportRestraintObservationHtml } from '../utils/restraintObservationHtmlExporter';
+import { exportDiaperRecordHtml } from '../utils/diaperRecordHtmlExporter';
+import { exportHygieneRecordHtml } from '../utils/hygieneRecordHtmlExporter';
 type TabType = 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene';
 // 衛生記錄項目配置（16項：備註 + 11護理項目 + 4大便項目）
 type HygieneItemConfig = {
@@ -104,6 +108,12 @@ const CareRecords: React.FC = () => {
   const [modalExistingRecord, setModalExistingRecord] = useState<any>(null);
   const [patientCareTabs, setPatientCareTabs] = useState<PatientCareTab[]>([]);
   const [showAddTabMenu, setShowAddTabMenu] = useState(false);
+  const [restraintExportStartDate, setRestraintExportStartDate] = useState<string>('');
+  const [diaperExportStartDate, setDiaperExportStartDate] = useState<string>('');
+  const [hygieneExportMonth, setHygieneExportMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
   const weekDates = useMemo(() => generateWeekDates(weekStartDate), [weekStartDate]);
   // 將 Date 物件轉換為 YYYY-MM-DD 字串格式，用於與資料庫日期比對
   const weekDateStrings = useMemo(() =>
@@ -624,7 +634,7 @@ const CareRecords: React.FC = () => {
     );
   };
   const renderDiaperTable = () => {
-    return (
+    return <>
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead className="bg-gray-50 sticky top-0 z-10">
@@ -712,10 +722,43 @@ const CareRecords: React.FC = () => {
           </tbody>
         </table>
       </div>
-    );
+      {/* 匯出換片記錄表按鈕 */}
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">匯出開始日期：</label>
+            <input
+              type="date"
+              value={diaperExportStartDate || weekDateStrings[0]}
+              onChange={(e) => setDiaperExportStartDate(e.target.value)}
+              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg"
+            />
+            <span className="text-sm text-gray-500">(4天記錄)</span>
+          </div>
+          <button
+            onClick={() => {
+              if (!selectedPatient) {
+                alert('請先選擇院友');
+                return;
+              }
+              const startDate = diaperExportStartDate || weekDateStrings[0];
+              exportDiaperRecordHtml(
+                selectedPatient,
+                diaperChangeRecords.filter(r => r.patient_id === selectedPatient.院友id),
+                startDate
+              );
+            }}
+            className="btn-primary flex items-center gap-2 px-4 py-2"
+          >
+            <FileText className="h-4 w-4" />
+            匯出換片記錄表
+          </button>
+        </div>
+      </div>
+    </>;
   };
   const renderRestraintTable = () => {
-    return (
+    return <>
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead className="bg-gray-50 sticky top-0 z-10">
@@ -797,7 +840,42 @@ const CareRecords: React.FC = () => {
           </tbody>
         </table>
       </div>
-    );
+      {/* 匯出約束觀察記錄表按鈕 */}
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">匯出開始日期：</label>
+            <input
+              type="date"
+              value={restraintExportStartDate || weekDateStrings[0]}
+              onChange={(e) => setRestraintExportStartDate(e.target.value)}
+              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg"
+            />
+            <span className="text-sm text-gray-500">(4天觀察記錄)</span>
+          </div>
+          <button
+            onClick={() => {
+              if (!selectedPatient) {
+                alert('請先選擇院友');
+                return;
+              }
+              const startDate = restraintExportStartDate || weekDateStrings[0];
+              const assessment = patientRestraintAssessments.find(a => a.patient_id === selectedPatient.院友id);
+              exportRestraintObservationHtml(
+                selectedPatient,
+                restraintObservationRecords.filter(r => r.patient_id === selectedPatient.院友id),
+                assessment || null,
+                startDate
+              );
+            }}
+            className="btn-primary flex items-center gap-2 px-4 py-2"
+          >
+            <FileText className="h-4 w-4" />
+            匯出觀察記錄表
+          </button>
+        </div>
+      </div>
+    </>;
   };
   const renderPositionTable = () => {
     return (
@@ -922,9 +1000,9 @@ const CareRecords: React.FC = () => {
                       if (item.category === 'meal') {
                         intakeDetails.push(`${item.item_type}${item.amount || ''}`);
                       } else if (item.category === 'beverage') {
-                        intakeDetails.push(`${item.item_type}${item.volume || 0}ml`);
+                        intakeDetails.push(`${item.item_type}${item.amount_numeric || 0}ml`);
                       } else if (item.category === 'tube_feeding') {
-                        intakeDetails.push(`${item.item_type}${item.volume || 0}ml`);
+                        intakeDetails.push(`${item.item_type}${item.amount_numeric || 0}ml`);
                       } else if (item.category === 'other') {
                         intakeDetails.push(`${item.item_type}${item.amount || ''}`);
                       }
@@ -1003,6 +1081,7 @@ const CareRecords: React.FC = () => {
     if (selectedPatient) {
     }
     return (
+      <>
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead className="bg-gray-50 sticky top-0 z-10">
@@ -1181,6 +1260,58 @@ const CareRecords: React.FC = () => {
           </tbody>
         </table>
       </div>
+      {/* 匯出衛生記錄表按鈕 */}
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">匯出月份：</label>
+            <input
+              type="month"
+              value={hygieneExportMonth}
+              onChange={(e) => setHygieneExportMonth(e.target.value)}
+              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg"
+            />
+            <span className="text-sm text-gray-500">(整月記錄)</span>
+          </div>
+          <button
+            onClick={async () => {
+              if (!selectedPatient) {
+                alert('請先選擇院友');
+                return;
+              }
+              const [yearStr, monthStr] = hygieneExportMonth.split('-');
+              const year = parseInt(yearStr);
+              const month = parseInt(monthStr);
+              
+              // 計算該月的日期範圍
+              const startDate = `${year}-${monthStr}-01`;
+              const lastDay = new Date(year, month, 0).getDate();
+              const endDate = `${year}-${monthStr}-${lastDay.toString().padStart(2, '0')}`;
+              
+              try {
+                // 從資料庫抓取該月的完整資料
+                const monthRecords = await db.getHygieneRecordsInDateRange(startDate, endDate);
+                const patientMonthRecords = monthRecords.filter(r => r.patient_id === selectedPatient.院友id);
+                
+                exportHygieneRecordHtml(
+                  selectedPatient,
+                  patientMonthRecords,
+                  year,
+                  month
+                );
+              } catch (error) {
+                console.error('匯出衛生記錄失敗:', error);
+                alert('匯出失敗，請稍後再試');
+              }
+            }}
+            className="btn-primary flex items-center gap-2 px-4 py-2"
+          >
+            <FileText className="h-4 w-4" />
+            匯出衛生記錄表
+          </button>
+        </div>
+      </div>
+      </>
     );
   };
   const renderPlaceholder = (tabName: string) => {

@@ -218,16 +218,19 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
       usedRestraintsObj[item] = true;
     });
 
+    const trimmedNotes = notes.trim();
+    const trimmedCoSigner = coSigner.trim();
+
     const data: Omit<RestraintObservationRecord, 'id' | 'created_at' | 'updated_at'> = {
       patient_id: patient.院友id,
       observation_date: date,
       observation_time: observationTime,
       scheduled_time: timeSlot,
-      co_signer: coSigner.trim() || null,
+      co_signer: trimmedCoSigner || null,
       observation_status: observationStatus,
       recorder: recorder,
-      notes: notes.trim() || undefined,
-      used_restraints: selectedRestraints.length > 0 ? usedRestraintsObj : undefined
+      notes: trimmedNotes || null,
+      used_restraints: selectedRestraints.length > 0 ? usedRestraintsObj : null
     };
 
     onSubmit(data);
@@ -245,10 +248,13 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
 
   const handleNoteButtonClick = (value: string) => {
     if (notes === value) {
+      // 反選時清空 notes
       setNotes('');
+      // 注意：反選時不恢復之前的值，保持空白狀態，讓用戶重新輸入
     } else {
       setNotes(value);
       if (['入院', '渡假', '外出'].includes(value)) {
+        // 選擇特殊狀態時清空觀察狀態和約束物品
         setObservationStatus('N');
         setSelectedRestraints([]);
       }

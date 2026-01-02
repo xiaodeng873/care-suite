@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Calendar, Clock } from 'lucide-react';
 import type { Patient, IntakeOutputRecord, IntakeItem, OutputItem, IntakeCategory, OutputCategory } from '../lib/database';
 import {
   createIntakeOutputRecord,
@@ -107,6 +107,21 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
   // 載入已有記錄
   useEffect(() => {
     if (existingRecord) {
+      console.log('📖 載入已有記錄:', existingRecord);
+      console.log('📖 攝入項目:', existingRecord.intake_items);
+      
+      // 🔍 檢查每個項目的 amount_numeric
+      if (existingRecord.intake_items) {
+        existingRecord.intake_items.forEach((item: any, index: number) => {
+          console.log(`🔍 項目 ${index}:`, {
+            item_type: item.item_type,
+            amount: item.amount,
+            amount_numeric: item.amount_numeric,
+            完整對象: item
+          });
+        });
+      }
+      
       setRecorder(existingRecord.recorder || '');
       setNotes(existingRecord.notes || '');
       setIntakeItems(existingRecord.intake_items || []);
@@ -197,7 +212,9 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
           };
         }) as Omit<IntakeItem, 'id' | 'created_at'>[];
         
+        console.log('💾 準備保存到數據庫的攝入項目:', itemsWithRecordId);
         const createdIntakeItems = await createIntakeItems(itemsWithRecordId);
+        console.log('✅ 從數據庫返回的攝入項目:', createdIntakeItems);
         record.intake_items = createdIntakeItems;
       }
 
@@ -219,26 +236,36 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
       onClose();
     } catch (error) {
       console.error('保存出入量記錄失敗:', error);
-      alert('保存失敗，請重試');
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      alert(`保存失敗：${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteClick = () => {
+    console.log('🗑️ 刪除按鈕被點擊');
+    console.log('existingRecord:', existingRecord);
+    console.log('onDelete:', onDelete);
     setShowDeleteConfirm(true);
   };
 
   const handleDeleteConfirm = async () => {
+    console.log('✅ 確認刪除');
     if (existingRecord && onDelete) {
       try {
+        console.log('🚀 開始刪除記錄 ID:', existingRecord.id);
         await deleteIntakeOutputRecord(existingRecord.id);
+        console.log('✅ 數據庫刪除成功');
         onDelete(existingRecord.id);
+        console.log('✅ 調用 onDelete 回調');
         onClose();
       } catch (error) {
-        console.error('刪除記錄失敗:', error);
-        alert('刪除失敗，請重試');
+        console.error('❌ 刪除記錄失敗:', error);
+        alert(`刪除失敗：${error.message || '請重試'}`);
       }
+    } else {
+      console.warn('⚠️ 缺少 existingRecord 或 onDelete');
     }
     setShowDeleteConfirm(false);
   };
@@ -250,7 +277,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
     if (category === 'meal') {
       setNewIntakeAmount(INTAKE_CATEGORIES.meal.amounts[0]);
     } else {
-      setNewIntakeVolume(0);
+      setNewIntakeVolume(100); // 默認 100ml
     }
     setShowAddIntakeModal(true);
   };
@@ -270,6 +297,8 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
     const category = addCategory as IntakeCategory;
     const config = INTAKE_CATEGORIES[category];
     
+    console.log('🍽️ 新增攝入項目:', { category, newIntakeVolume, newIntakeAmount, newIntakeItemType });
+    
     let newItem: Partial<IntakeItem> = {
       category,
       item_type: newIntakeItemType,
@@ -278,13 +307,26 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
 
     if (category === 'meal') {
       newItem.amount = newIntakeAmount;
+      // 計算 amount_numeric：將分數轉換為數值
+      const fractionMap: Record<string, number> = {
+        '1': 1,
+        '3/4': 0.75,
+        '1/2': 0.5,
+        '1/4': 0.25
+      };
+      newItem.amount_numeric = fractionMap[newIntakeAmount] || 0;
     } else if (category === 'beverage' || category === 'tube_feeding') {
-      newItem.volume = newIntakeVolume;
       newItem.amount = `${newIntakeVolume}ml`;
+      newItem.amount_numeric = newIntakeVolume; // 飲料和鼻胃飼的數值就是容量
+      console.log('💧 飲料/鼻胃飼:', { amount: newItem.amount, amount_numeric: newItem.amount_numeric, newIntakeVolume });
     } else if (category === 'other') {
       newItem.amount = newIntakeAmount;
+      // 其他類別：從字符串中提取數字（如 "3塊" -> 3）
+      const numMatch = newIntakeAmount.match(/\d+/);
+      newItem.amount_numeric = numMatch ? parseInt(numMatch[0]) : 0;
     }
 
+    console.log('📦 創建的項目:', newItem);
     setIntakeItems([...intakeItems, newItem]);
     setShowAddIntakeModal(false);
   };
@@ -324,10 +366,21 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
 
   // 格式化項目顯示
   const formatIntakeItem = (item: Partial<IntakeItem>) => {
+    console.log('🎨 formatIntakeItem 收到的項目:', {
+      item_type: item.item_type,
+      category: item.category,
+      amount: item.amount,
+      amount_numeric: item.amount_numeric,
+      完整: item
+    });
+    
     if (item.category === 'meal') {
       return `${item.item_type} ${item.amount}`;
     } else if (item.category === 'beverage' || item.category === 'tube_feeding') {
-      return `${item.item_type} ${item.volume || 0}ml`;
+      // 使用 amount_numeric 而不是已移除的 volume 欄位
+      const displayValue = `${item.item_type} ${item.amount_numeric || 0}ml`;
+      console.log('🎨 飲料/鼻胃飼顯示值:', displayValue, '來源 amount_numeric:', item.amount_numeric);
+      return displayValue;
     } else {
       return `${item.item_type} ${item.amount}`;
     }
@@ -655,7 +708,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
 
             {/* 按鈕 */}
             <div className="flex gap-3 pt-4 border-t border-gray-200">
-              {existingRecord && onDelete && (
+              {existingRecord && onDelete ? (
                 <button
                   type="button"
                   onClick={handleDeleteClick}
@@ -664,6 +717,12 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
                   <Trash2 className="w-4 h-4" />
                   刪除
                 </button>
+              ) : (
+                existingRecord && !onDelete && (
+                  <div className="px-6 py-2 text-gray-400 text-sm">
+                    刪除功能不可用（缺少 onDelete 回調）
+                  </div>
+                )
               )}
               <button
                 type="button"
@@ -735,7 +794,11 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
                   <input
                     type="number"
                     value={newIntakeVolume}
-                    onChange={(e) => setNewIntakeVolume(parseInt(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
+                      console.log('📊 容量輸入變化:', { input: e.target.value, parsed: value });
+                      setNewIntakeVolume(value);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     min="0"
                   />
@@ -873,10 +936,33 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
 
       {showDeleteConfirm && (
         <DeleteConfirmModal
-          title="確認刪除"
-          message="確定要刪除此出入量記錄嗎？此操作無法復原。"
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
           onConfirm={handleDeleteConfirm}
-          onCancel={() => setShowDeleteConfirm(false)}
+          title="確認刪除出入量記錄"
+          recordType="出入量記錄"
+          patientInfo={{
+            name: patient.姓名,
+            bedNumber: patient.床號,
+            patientId: patient.院友id
+          }}
+          recordDetails={[
+            { 
+              label: '日期', 
+              value: date,
+              icon: <Calendar className="w-4 h-4 text-gray-500" />
+            },
+            { 
+              label: '時段', 
+              value: timeSlot,
+              icon: <Clock className="w-4 h-4 text-gray-500" />
+            },
+            { 
+              label: '記錄者', 
+              value: existingRecord?.recorder
+            }
+          ]}
+          warningMessage="刪除後將無法恢復此出入量記錄及其所有攝入和排出項目。"
         />
       )}
     </>
