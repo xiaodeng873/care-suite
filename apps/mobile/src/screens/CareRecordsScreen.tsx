@@ -478,6 +478,7 @@ const CareRecordsScreen: React.FC = () => {
       existingRecord,
       staffName: displayName || '未知',
       restraintAssessments: activeTab === 'restraint' ? restraintAssessments : undefined,
+      allRestraintRecords: activeTab === 'restraint' ? restraintObservationRecords : undefined,
       // note: refresh will be handled by 'recordSaved' navigation event
     });
   };

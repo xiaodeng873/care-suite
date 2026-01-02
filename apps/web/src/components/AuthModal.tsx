@@ -10,7 +10,6 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loginMode, setLoginMode] = useState<LoginMode>('staff');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -18,7 +17,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { signIn, signUp, customLogin } = useAuth();
+  const { signIn, customLogin } = useAuth();
 
   if (!isOpen) return null;
 
@@ -30,9 +29,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     try {
       if (loginMode === 'developer') {
         // 開發者使用 Supabase Auth (Email)
-        const { error } = isSignUp 
-          ? await signUp(email, password)
-          : await signIn(email, password);
+        const { error } = await signIn(email, password);
 
         if (error) {
           setError(error.message);
@@ -73,7 +70,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-800 flex items-center">
             <User className="w-5 h-5 mr-2 text-blue-600" />
-            {isSignUp ? '註冊帳號' : '登入系統'}
+            登入系統
           </h2>
           <button
             onClick={onClose}
@@ -84,8 +81,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* 登入模式切換 */}
-        {!isSignUp && (
-          <div className="px-6 pt-4">
+        <div className="px-6 pt-4">
             <div className="flex rounded-lg bg-gray-100 p-1">
               <button
                 type="button"
@@ -119,7 +115,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               </button>
             </div>
           </div>
-        )}
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
@@ -128,7 +123,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {loginMode === 'developer' || isSignUp ? (
+          {loginMode === 'developer' ? (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Mail className="w-4 h-4 inline mr-1" />
@@ -181,20 +176,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? '處理中...' : (isSignUp ? '註冊' : '登入')}
+            {loading ? '處理中...' : '登入'}
           </button>
 
-          {loginMode === 'developer' && (
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-blue-600 hover:text-blue-700 text-sm"
-              >
-                {isSignUp ? '已有帳號？點此登入' : '沒有帳號？點此註冊'}
-              </button>
-            </div>
-          )}
+          <div className="text-center text-sm text-gray-600">
+            <p>忘記密碼或需要新帳號？</p>
+            <p className="mt-1">請聯絡主管申請密碼重置</p>
+          </div>
         </form>
       </div>
     </div>

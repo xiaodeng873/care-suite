@@ -1503,6 +1503,7 @@ const CareRecords: React.FC = () => {
           staffName={displayName}
           existingRecord={modalExistingRecord}
           restraintAssessments={patientRestraintAssessments}
+          allRestraintRecords={restraintObservationRecords}
           onClose={() => { setShowRestraintModal(false); setModalExistingRecord(null); }}
           onSubmit={handleRestraintSubmit}
           onDelete={async (id) => {

@@ -27,16 +27,19 @@ const PatrolRoundModal: React.FC<PatrolRoundModalProps> = ({
 }) => {
   const [patrolTime, setPatrolTime] = useState('');
   const [recorder, setRecorder] = useState('');
+  const [coSigner, setCoSigner] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (existingRecord) {
       setPatrolTime(existingRecord.patrol_time || '');
       setRecorder(existingRecord.recorder || '');
+      setCoSigner(existingRecord.co_signer || '');
     } else {
       const randomTime = addRandomOffset(timeSlot);
       setPatrolTime(randomTime);
       setRecorder(staffName);
+      setCoSigner('');
     }
   }, [existingRecord, timeSlot, staffName]);
 
@@ -48,7 +51,8 @@ const PatrolRoundModal: React.FC<PatrolRoundModalProps> = ({
       patrol_date: date,
       scheduled_time: timeSlot,
       patrol_time: patrolTime,
-      recorder: recorder
+      recorder: recorder,
+      co_signer: coSigner.trim() || null
     };
 
     onSubmit(data);
@@ -140,6 +144,20 @@ const PatrolRoundModal: React.FC<PatrolRoundModalProps> = ({
               value={recorder}
               onChange={(e) => setRecorder(e.target.value)}
               required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <User className="w-4 h-4 inline mr-1" />
+              加簽者
+            </label>
+            <input
+              type="text"
+              value={coSigner}
+              onChange={(e) => setCoSigner(e.target.value)}
+              placeholder="選填"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>

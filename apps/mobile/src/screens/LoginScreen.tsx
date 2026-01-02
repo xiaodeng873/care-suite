@@ -131,7 +131,8 @@ const LoginScreen: React.FC = () => {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>{t('footer')}</Text>
+          <Text style={styles.footerText}>忘記密碼或需要新帳號？</Text>
+          <Text style={styles.footerText}>請聯絡主管申請密碼重置</Text>
         </View>
       </View>
     </KeyboardAvoidingView>

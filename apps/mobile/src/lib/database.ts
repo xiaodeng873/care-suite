@@ -50,6 +50,7 @@ export interface PatrolRound {
   patrol_time: string;
   scheduled_time: string;
   recorder: string;
+  co_signer?: string | null;
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -81,6 +82,7 @@ export interface RestraintObservationRecord {
   scheduled_time: string;
   observation_status: 'N' | 'P' | 'S';
   recorder: string;
+  co_signer?: string | null;
   notes?: string;
   used_restraints?: any;
   created_at: string;

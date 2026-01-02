@@ -11,6 +11,7 @@ interface RestraintObservationModalProps {
   staffName: string;
   existingRecord?: RestraintObservationRecord | null;
   restraintAssessments: PatientRestraintAssessment[];
+  allRestraintRecords?: RestraintObservationRecord[];
   onClose: () => void;
   onSubmit: (data: Omit<RestraintObservationRecord, 'id' | 'created_at' | 'updated_at'>) => void;
   onDelete?: (recordId: string) => void;
@@ -23,6 +24,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
   staffName,
   existingRecord,
   restraintAssessments,
+  allRestraintRecords = [],
   onClose,
   onSubmit,
   onDelete
@@ -30,6 +32,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
   const [observationTime, setObservationTime] = useState('');
   const [observationStatus, setObservationStatus] = useState<'N' | 'P' | 'S'>('N');
   const [recorder, setRecorder] = useState('');
+  const [coSigner, setCoSigner] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedRestraints, setSelectedRestraints] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -91,6 +94,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
       setObservationTime(existingRecord.observation_time);
       setObservationStatus(existingRecord.observation_status);
       setRecorder(existingRecord.recorder);
+      setCoSigner(existingRecord.co_signer || '');
       setNotes(existingRecord.notes || '');
       // 從 used_restraints 轉換為字串陣列
       const restraintList = existingRecord.used_restraints
@@ -102,11 +106,108 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
       setObservationTime(randomTime);
       setObservationStatus('N');
       setRecorder(staffName);
+      setCoSigner('');
       setNotes('');
-      // 預設選中所有建議的約束物品
-      setSelectedRestraints(suggestedRestraints);
+      
+      // 根據上一個時間段的記錄預填約束物品
+      const getPreviousRestraints = () => {
+        // 將 HH:00 格式轉換為 XA/XP/12N/12M 格式
+        const convertTimeToSlot = (time: string): string => {
+          const hour = parseInt(time.split(':')[0]);
+          if (hour === 7) return '7A';
+          if (hour === 8) return '8A';
+          if (hour === 9) return '9A';
+          if (hour === 10) return '10A';
+          if (hour === 11) return '11A';
+          if (hour === 12) return '12N';
+          if (hour === 13) return '1P';
+          if (hour === 14) return '2P';
+          if (hour === 15) return '3P';
+          if (hour === 16) return '4P';
+          if (hour === 17) return '5P';
+          if (hour === 18) return '6P';
+          if (hour === 19) return '7P';
+          if (hour === 20) return '8P';
+          if (hour === 21) return '9P';
+          if (hour === 22) return '10P';
+          if (hour === 23) return '11P';
+          if (hour === 0) return '12M';
+          if (hour === 1) return '1A';
+          if (hour === 2) return '2A';
+          if (hour === 3) return '3A';
+          if (hour === 4) return '4A';
+          if (hour === 5) return '5A';
+          if (hour === 6) return '6A';
+          return time; // 如果已經是 XA/XP 格式，直接返回
+        };
+        
+        // 定義時段順序
+        const timeSlots = ['7A', '8A', '9A', '10A', '11A', '12N', '1P', '2P', '3P', '4P', '5P', '6P', '7P', '8P', '9P', '10P', '11P', '12M', '1A', '2A', '3A', '4A', '5A', '6A'];
+        
+        // 轉換當前時段
+        const currentSlot = convertTimeToSlot(timeSlot);
+        
+        // 找出當前時段的索引
+        const currentIndex = timeSlots.indexOf(currentSlot);
+        console.log('🔍 當前時段:', timeSlot, '-> 轉換後:', currentSlot, '索引:', currentIndex);
+        if (currentIndex === -1) return [];
+        
+        // 如果是第一個時段(7A)，不預填
+        if (currentIndex === 0) {
+          console.log('⏰ 7A時段，不預填');
+          return [];
+        }
+        
+        // 過濾同一院友的記錄
+        const patientRecords = allRestraintRecords.filter(r => r.patient_id === patient.院友id);
+        console.log('📋 同一院友的所有記錄數:', patientRecords.length);
+        
+        // 查找當天之前時段的記錄
+        const todayRecords = patientRecords
+          .filter(r => r.observation_date === date)
+          .filter(r => {
+            const recordSlot = convertTimeToSlot(r.scheduled_time);
+            const recordIndex = timeSlots.indexOf(recordSlot);
+            return recordIndex !== -1 && recordIndex < currentIndex;
+          })
+          .sort((a, b) => {
+            const aSlot = convertTimeToSlot(a.scheduled_time);
+            const bSlot = convertTimeToSlot(b.scheduled_time);
+            const aIndex = timeSlots.indexOf(aSlot);
+            const bIndex = timeSlots.indexOf(bSlot);
+            return bIndex - aIndex; // 降序排列，最近的在前
+          });
+        
+        console.log('📅 當天之前時段的記錄數:', todayRecords.length);
+        
+        if (todayRecords.length > 0) {
+          const latestRecord = todayRecords[0]; // 最近的一條記錄
+          console.log('📝 上一個時段記錄:', {
+            time: latestRecord.scheduled_time,
+            used_restraints: latestRecord.used_restraints
+          });
+          
+          // 只檢查上一個時段，如果沒有數據就不預填
+          if (latestRecord.used_restraints) {
+            const restraints = Object.keys(latestRecord.used_restraints).filter(key => latestRecord.used_restraints[key]);
+            if (restraints.length > 0) {
+              console.log('✅ 從上一個時段', latestRecord.scheduled_time, '預填約束物品:', restraints);
+              return restraints;
+            } else {
+              console.log('⚠️ 上一個時段的記錄沒有勾選任何約束物品');
+            }
+          } else {
+            console.log('⚠️ 上一個時段的記錄沒有 used_restraints 數據');
+          }
+        }
+        
+        console.log('❌ 沒有找到上一個記錄');
+        return []; // 沒有找到上一個記錄，不預填
+      };
+      
+      setSelectedRestraints(getPreviousRestraints());
     }
-  }, [existingRecord, timeSlot, staffName, suggestedRestraints]);
+  }, [existingRecord, timeSlot, staffName, date, patient.院友id, allRestraintRecords]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,6 +223,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
       observation_date: date,
       observation_time: observationTime,
       scheduled_time: timeSlot,
+      co_signer: coSigner.trim() || null,
       observation_status: observationStatus,
       recorder: recorder,
       notes: notes.trim() || undefined,
@@ -369,6 +471,20 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <User className="w-4 h-4 inline mr-1" />
+              加簽者
+            </label>
+            <input
+              type="text"
+              value={coSigner}
+              onChange={(e) => setCoSigner(e.target.value)}
+              placeholder="選填"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
           </div>
 
           <div>

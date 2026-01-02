@@ -78,7 +78,7 @@ const RecordDetailScreen: React.FC = () => {
   const { t } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
-  const { patient, recordType, date, timeSlot, existingRecord, staffName, restraintAssessments } = route.params;
+  const { patient, recordType, date, timeSlot, existingRecord, staffName, restraintAssessments, allRestraintRecords } = route.params;
   const getPatientName = usePatientName();
   const patientName = getPatientName(patient);
 
@@ -88,6 +88,7 @@ const RecordDetailScreen: React.FC = () => {
   // Patrol Round state
   const [patrolTime, setPatrolTime] = useState('');
   const [recorder, setRecorder] = useState('');
+  const [coSigner, setCoSigner] = useState('');
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<'' | '入院' | '渡假' | '外出'>('');
 
@@ -221,6 +222,7 @@ const RecordDetailScreen: React.FC = () => {
   useEffect(() => {
     if (existingRecord) {
       setRecorder(existingRecord.recorder || staffName);
+      setCoSigner(existingRecord.co_signer || '');
       
       switch (recordType) {
         case 'patrol':
@@ -259,17 +261,118 @@ const RecordDetailScreen: React.FC = () => {
       }
     } else {
       setRecorder(staffName);
+      setCoSigner('');
       if (recordType === 'patrol') {
         setPatrolTime(addRandomOffset(timeSlot));
       } else if (recordType === 'restraint') {
         setObservationTime(addRandomOffset(timeSlot));
-        // do not auto-select suggested restraints by default
-        setSelectedRestraints([]);
+        // 根據上一個時間段的記錄預填約束物品
+        const getPreviousRestraints = () => {
+          if (!allRestraintRecords || allRestraintRecords.length === 0) {
+            console.log('⚠️ 沒有約束記錄數據');
+            return [];
+          }
+          
+          // 將 HH:00 格式轉換為 XA/XP/12N/12M 格式
+          const convertTimeToSlot = (time: string): string => {
+            const hour = parseInt(time.split(':')[0]);
+            if (hour === 7) return '7A';
+            if (hour === 8) return '8A';
+            if (hour === 9) return '9A';
+            if (hour === 10) return '10A';
+            if (hour === 11) return '11A';
+            if (hour === 12) return '12N';
+            if (hour === 13) return '1P';
+            if (hour === 14) return '2P';
+            if (hour === 15) return '3P';
+            if (hour === 16) return '4P';
+            if (hour === 17) return '5P';
+            if (hour === 18) return '6P';
+            if (hour === 19) return '7P';
+            if (hour === 20) return '8P';
+            if (hour === 21) return '9P';
+            if (hour === 22) return '10P';
+            if (hour === 23) return '11P';
+            if (hour === 0) return '12M';
+            if (hour === 1) return '1A';
+            if (hour === 2) return '2A';
+            if (hour === 3) return '3A';
+            if (hour === 4) return '4A';
+            if (hour === 5) return '5A';
+            if (hour === 6) return '6A';
+            return time; // 如果已經是 XA/XP 格式，直接返回
+          };
+          
+          // 定義時段順序
+          const timeSlots = ['7A', '8A', '9A', '10A', '11A', '12N', '1P', '2P', '3P', '4P', '5P', '6P', '7P', '8P', '9P', '10P', '11P', '12M', '1A', '2A', '3A', '4A', '5A', '6A'];
+          
+          // 轉換當前時段
+          const currentSlot = convertTimeToSlot(timeSlot);
+          
+          // 找出當前時段的索引
+          const currentIndex = timeSlots.indexOf(currentSlot);
+          console.log('🔍 當前時段:', timeSlot, '-> 轉換後:', currentSlot, '索引:', currentIndex);
+          if (currentIndex === -1) return [];
+          
+          // 如果是第一個時段(7A)，不預填
+          if (currentIndex === 0) {
+            console.log('⏰ 7A時段，不預填');
+            return [];
+          }
+          
+          // 過濾同一院友的記錄
+          const patientRecords = allRestraintRecords.filter((r: RestraintObservationRecord) => r.patient_id === patient.院友id);
+          console.log('📋 同一院友的所有記錄數:', patientRecords.length);
+          
+          // 查找當天之前時段的記錄
+          const todayRecords = patientRecords
+            .filter((r: RestraintObservationRecord) => r.observation_date === date)
+            .filter((r: RestraintObservationRecord) => {
+              const recordSlot = convertTimeToSlot(r.scheduled_time);
+              const recordIndex = timeSlots.indexOf(recordSlot);
+              return recordIndex !== -1 && recordIndex < currentIndex;
+            })
+            .sort((a: RestraintObservationRecord, b: RestraintObservationRecord) => {
+              const aSlot = convertTimeToSlot(a.scheduled_time);
+              const bSlot = convertTimeToSlot(b.scheduled_time);
+              const aIndex = timeSlots.indexOf(aSlot);
+              const bIndex = timeSlots.indexOf(bSlot);
+              return bIndex - aIndex; // 降序排列，最近的在前
+            });
+          
+          console.log('📅 當天之前時段的記錄數:', todayRecords.length);
+          
+          if (todayRecords.length > 0) {
+            const latestRecord = todayRecords[0]; // 最近的一條記錄
+            console.log('📝 上一個時段記錄:', {
+              time: latestRecord.scheduled_time,
+              used_restraints: latestRecord.used_restraints
+            });
+            
+            // 只檢查上一個時段，如果沒有數據就不預填
+            if (latestRecord.used_restraints) {
+              const restraints = Object.keys(latestRecord.used_restraints).filter(key => latestRecord.used_restraints[key]);
+              if (restraints.length > 0) {
+                console.log('✅ 從上一個時段', latestRecord.scheduled_time, '預填約束物品:', restraints);
+                return restraints;
+              } else {
+                console.log('⚠️ 上一個時段的記錄沒有勾選任何約束物品');
+              }
+            } else {
+              console.log('⚠️ 上一個時段的記錄沒有 used_restraints 數據');
+            }
+          }
+          
+          console.log('❌ 沒有找到上一個記錄');
+          return []; // 沒有找到上一個記錄，不預填
+        };
+        
+        setSelectedRestraints(getPreviousRestraints());
       } else if (recordType === 'position') {
         setPosition(getPositionSequence(timeSlot));
       }
     }
-  }, [existingRecord, recordType, timeSlot, staffName]);
+  }, [existingRecord, recordType, timeSlot, staffName, date, patient.院友id, allRestraintRecords]);
 
   const handleSave = async () => {
     if (!recorder.trim()) {
@@ -302,6 +405,7 @@ const RecordDetailScreen: React.FC = () => {
             scheduled_time: timeSlot,
             patrol_time: String(patrolTime).slice(0,5),
             recorder: recorder.trim(),
+            co_signer: coSigner.trim() || null,
           };
           console.log('Saving patrolData:', patrolData);
           console.log('Current user session:', (await supabase.auth.getSession()).data.session?.user?.email);
@@ -388,6 +492,7 @@ const RecordDetailScreen: React.FC = () => {
             scheduled_time: timeSlot,
             observation_status: observationStatus,
             recorder: recorder.trim(),
+            co_signer: coSigner.trim() || null,
             notes: status ? status : (notes.trim() || undefined),
             used_restraints: selectedRestraints.length > 0 ? usedRestraintsObj : undefined,
           };
@@ -889,6 +994,16 @@ const RecordDetailScreen: React.FC = () => {
             value={recorder}
             onChangeText={setRecorder}
             placeholder={t('pleaseEnterRecorder')}
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>加簽者</Text>
+          <TextInput
+            style={styles.input}
+            value={coSigner}
+            onChangeText={setCoSigner}
+            placeholder="選填"
           />
         </View>
       </ScrollView>
