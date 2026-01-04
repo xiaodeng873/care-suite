@@ -192,6 +192,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (mounted) {
           if (error) {
             console.warn('Auth session error:', error);
+            // 如果是 refresh token 錯誤，清除本地存儲的 session
+            if (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token')) {
+              console.warn('Clearing invalid Supabase session');
+              await supabase.auth.signOut();
+              setSession(null);
+              setUser(null);
+            }
           }
           setSession(session);
           setUser(session?.user ?? null);
@@ -226,9 +233,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          setDisplayName(getUserDisplayName(session?.user ?? null, userProfile));
+          // 處理 token 刷新失敗的情況
+          if (event === 'TOKEN_REFRESHED' && !session) {
+            console.warn('Token refresh failed, clearing session');
+            setSession(null);
+            setUser(null);
+            setDisplayName(null);
+            setPermissions([]);
+          } else if (event === 'SIGNED_OUT') {
+            setSession(null);
+            setUser(null);
+            setDisplayName(null);
+            setPermissions([]);
+          } else {
+            setSession(session);
+            setUser(session?.user ?? null);
+            setDisplayName(getUserDisplayName(session?.user ?? null, userProfile));
+          }
           setLoading(false);
           setAuthReady(true);
         }

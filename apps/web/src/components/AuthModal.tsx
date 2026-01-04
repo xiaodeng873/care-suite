@@ -117,10 +117,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     try {
       await cleanupScanner();
 
+      // 先設置 isScanning 為 true，讓容器元素渲染出來
+      setIsScanning(true);
+
       // 等待 DOM 元素渲染
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       let element = null;
       let attempts = 0;
-      const maxAttempts = 10;
+      const maxAttempts = 20;
       while (!element && attempts < maxAttempts) {
         element = document.getElementById(scannerIdRef.current);
         if (!element) {
@@ -130,6 +135,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }
 
       if (!element) {
+        setIsScanning(false);
         throw new Error('找不到掃描器容器元素');
       }
 
@@ -170,7 +176,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         }
       );
 
-      setIsScanning(true);
       setDebugMessage('✅ 請將二維碼對準鏡頭');
     } catch (err: any) {
       console.error('啟動掃描器失敗:', err);
