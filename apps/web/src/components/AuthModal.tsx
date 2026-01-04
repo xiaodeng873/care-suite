@@ -114,10 +114,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setDebugMessage('正在驗證登入...');
 
     try {
+      console.log('Scanning QR code, calling qrLogin...');
       const { error } = await qrLogin(qrCodeId);
+      console.log('qrLogin result, error:', error);
 
       if (error) {
-        setError(typeof error === 'string' ? error : '二維碼登入失敗');
+        const errorMsg = typeof error === 'string' ? error : JSON.stringify(error);
+        setError(errorMsg);
         setDebugMessage('');
         // 登入失敗後重新啟動掃描器
         setTimeout(() => {
@@ -126,8 +129,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       } else {
         onClose();
       }
-    } catch (err) {
-      setError('發生未知錯誤');
+    } catch (err: any) {
+      console.error('handleQRCodeScanned error:', err);
+      const errMsg = err?.message || String(err);
+      setError(`發生錯誤: ${errMsg}`);
       setDebugMessage('');
       // 錯誤後重新啟動掃描器
       setTimeout(() => {
@@ -398,19 +403,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     </div>
                   )}
 
-                  <div className="flex space-x-2 w-full">
+                  <div className="flex justify-center w-full">
                     <button
                       onClick={toggleCamera}
-                      className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                      className="flex items-center justify-center space-x-2 px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
                     >
                       <SwitchCamera className="h-4 w-4" />
                       <span>{facingMode === 'user' ? '後置' : '前置'}</span>
-                    </button>
-                    <button
-                      onClick={cleanupScanner}
-                      className="flex-1 px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                    >
-                      取消掃描
                     </button>
                   </div>
                 </div>

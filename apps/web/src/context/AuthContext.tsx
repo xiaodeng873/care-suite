@@ -122,11 +122,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     
     // 對於需要認證的操作，使用提供的 token
-    // 對於公開操作（如 login），使用 anon key 作為 Bearer token
+    // 對於公開操作（如 login, qr-login），使用 anon key 作為 Bearer token
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-    } else if (action === 'login') {
-      // login 端點使用 anon key 繞過認證
+    } else if (action === 'login' || action === 'qr-login') {
+      // 公開端點使用 anon key 繞過認證
       headers['Authorization'] = `Bearer ${supabaseAnonKey}`;
     }
     
@@ -337,7 +337,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 二維碼登入
   const qrLogin = async (qrCodeId: string) => {
     try {
+      console.log('QR Login attempting with code:', qrCodeId?.substring(0, 8) + '...');
       const result = await callAuthApi('qr-login', { qr_code_id: qrCodeId });
+      console.log('QR Login result:', result);
       
       if (result.success) {
         setUserProfile(result.user);
@@ -352,10 +354,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: null };
       }
       
-      return { error: result.error || '二維碼登入失敗' };
-    } catch (error) {
+      const errorMsg = result.error || result.message || JSON.stringify(result);
+      console.error('QR Login failed:', errorMsg);
+      return { error: errorMsg };
+    } catch (error: any) {
       console.error('QR login error:', error);
-      return { error: '二維碼登入失敗，請稍後再試' };
+      const errMsg = error?.message || String(error);
+      return { error: `二維碼登入失敗: ${errMsg}` };
     }
   };
 
