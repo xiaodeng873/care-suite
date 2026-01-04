@@ -119,12 +119,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       if (error) {
         setError(typeof error === 'string' ? error : '二維碼登入失敗');
         setDebugMessage('');
+        // 登入失敗後重新啟動掃描器
+        setTimeout(() => {
+          startScanner();
+        }, 1000);
       } else {
         onClose();
       }
     } catch (err) {
       setError('發生未知錯誤');
       setDebugMessage('');
+      // 錯誤後重新啟動掃描器
+      setTimeout(() => {
+        startScanner();
+      }, 1000);
     } finally {
       setLoading(false);
     }
@@ -367,11 +375,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               ) : (
                 <div className="flex flex-col items-center space-y-3">
                   {/* 掃描器視窗 */}
-                  <div className="relative" style={{ width: '280px', height: '280px' }}>
+                  <div className="relative bg-black rounded-lg overflow-hidden" style={{ width: '280px', height: '280px' }}>
                     <div 
                       id={scannerIdRef.current} 
-                      className="rounded-lg overflow-hidden w-full h-full"
-                      style={{ lineHeight: 0 }}
+                      className="w-full h-full [&>video]:!w-full [&>video]:!h-full [&>video]:!object-cover [&_*]:!leading-[0]"
+                      style={{ lineHeight: 0, fontSize: 0 }}
                     />
                     {/* 二維碼指引框 */}
                     <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
