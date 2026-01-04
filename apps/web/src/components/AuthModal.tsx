@@ -25,7 +25,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerIdRef = useRef('auth-qr-scanner-' + Math.random().toString(36).substr(2, 9));
   
-  const { customLogin, qrLogin } = useAuth();
+  const { customLogin, qrLogin, signIn } = useAuth();
 
   // 清理掃描器
   const cleanupScanner = async () => {
@@ -70,15 +70,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setError('');
 
     try {
-      // 使用自訂認證
-      const { error } = await customLogin(username, password);
-
-      if (error) {
-        setError(typeof error === 'string' ? error : '登入失敗');
+      // 檢查是否為 email 格式（開發者登入）
+      const isEmail = username.includes('@');
+      
+      if (isEmail) {
+        // 開發者使用 Supabase Auth (Email)
+        const { error } = await signIn(username, password);
+        if (error) {
+          setError(error.message || '登入失敗');
+        } else {
+          onClose();
+          setUsername('');
+          setPassword('');
+        }
       } else {
-        onClose();
-        setUsername('');
-        setPassword('');
+        // 員工/管理者使用自訂認證
+        const { error } = await customLogin(username, password);
+        if (error) {
+          setError(typeof error === 'string' ? error : '登入失敗');
+        } else {
+          onClose();
+          setUsername('');
+          setPassword('');
+        }
       }
     } catch (err) {
       setError('發生未知錯誤');
@@ -274,14 +288,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <UserCircle className="w-4 h-4 inline mr-1" />
-                  帳號
+                  帳號 / Email
                 </label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="請輸入帳號"
+                  placeholder="請輸入帳號或 Email"
                   required
                 />
               </div>
@@ -354,8 +368,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   <div className="relative">
                     <div 
                       id={scannerIdRef.current} 
-                      className="rounded-lg overflow-hidden" 
-                      style={{ width: '280px', height: '280px' }} 
+                      className="rounded-lg overflow-hidden bg-black" 
+                      style={{ width: '280px', height: '280px', lineHeight: 0 }} 
                     />
                     {/* 二維碼指引框 */}
                     <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
