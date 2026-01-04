@@ -55,6 +55,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
+  // 切換到二維碼模式時自動啟動掃描器
+  useEffect(() => {
+    if (isOpen && loginMode === 'qrcode' && !isScanning) {
+      startScanner();
+    }
+  }, [loginMode, isOpen]);
+
   // 組件卸載時清理
   useEffect(() => {
     return () => {
@@ -334,16 +341,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               {!isScanning ? (
                 <div className="flex flex-col items-center space-y-4">
                   <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <QrCode className="w-24 h-24 text-gray-300" />
+                    <div className="text-center">
+                      <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent mb-2"></div>
+                      <p className="text-sm text-gray-500">正在啟動鏡頭...</p>
+                    </div>
                   </div>
-                  <button
-                    onClick={startScanner}
-                    disabled={loading}
-                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    <Camera className="h-5 w-5" />
-                    <span>啟動掃描器</span>
-                  </button>
                   
                   {permissionDenied && (
                     <div className="w-full bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -365,11 +367,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               ) : (
                 <div className="flex flex-col items-center space-y-3">
                   {/* 掃描器視窗 */}
-                  <div className="relative">
+                  <div className="relative inline-block">
                     <div 
                       id={scannerIdRef.current} 
-                      className="rounded-lg overflow-hidden bg-black" 
-                      style={{ width: '280px', height: '280px', lineHeight: 0 }} 
+                      className="rounded-lg overflow-hidden"
                     />
                     {/* 二維碼指引框 */}
                     <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
