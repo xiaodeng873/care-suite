@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode } from 'lucide-react';
+import { UserQRCodeModal, generateQRCodeThumbnail } from '../components/UserQRCodeModal';
+import QRCodeLib from 'qrcode';
 import { useAuth, supabase } from '../context/AuthContext';
 import { getSupabaseUrl, getSupabaseAnonKey } from '../config/supabase.config';
 import {
@@ -808,8 +810,10 @@ const Settings: React.FC = () => {
   // Modal 狀態
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
+  const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedUserPermissions, setSelectedUserPermissions] = useState<string[]>([]);
+  const [qrCodeThumbnails, setQRCodeThumbnails] = useState<Record<string, string>>({});
 
   // 獲取用戶列表
   const fetchUsers = useCallback(async () => {
@@ -822,6 +826,28 @@ const Settings: React.FC = () => {
 
       if (error) throw error;
       setUsers(data || []);
+      
+      // 為每個用戶生成 QR Code 縮圖
+      if (data) {
+        const thumbnails: Record<string, string> = {};
+        for (const user of data) {
+          if (user.login_qr_code_id) {
+            try {
+              const qrData = JSON.stringify({
+                type: 'user_login',
+                qr_code_id: user.login_qr_code_id,
+              });
+              thumbnails[user.id] = await QRCodeLib.toDataURL(qrData, {
+                width: 40,
+                margin: 1,
+              });
+            } catch (e) {
+              console.error('生成縮圖失敗:', e);
+            }
+          }
+        }
+        setQRCodeThumbnails(thumbnails);
+      }
     } catch (err) {
       console.error('Fetch users error:', err);
     } finally {
@@ -1020,6 +1046,44 @@ const Settings: React.FC = () => {
     setIsPermissionModalOpen(true);
   };
 
+  // 開啟 QR Code Modal
+  const openQRCodeModal = (user: UserProfile) => {
+    setSelectedUser(user);
+    setIsQRCodeModalOpen(true);
+  };
+
+  // 重新生成 QR Code
+  const handleRegenerateQRCode = async (userId: string) => {
+    const supabaseUrl = getSupabaseUrl();
+    const supabaseAnonKey = getSupabaseAnonKey();
+    const authToken = customToken || session?.access_token;
+
+    if (!authToken) {
+      throw new Error('未授權：請重新登入');
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/auth-custom/regenerate-qr-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error);
+
+    // 重新獲取用戶列表以更新 QR Code
+    await fetchUsers();
+    
+    // 如果選中的用戶是更新的用戶，更新選中狀態
+    if (selectedUser?.id === userId) {
+      setSelectedUser(result.user);
+    }
+  };
+
   // 獲取職位顯示文字
   const getPositionDisplay = (user: UserProfile): string => {
     if (user.nursing_position) return user.nursing_position;
@@ -1162,6 +1226,9 @@ const Settings: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     僱傭類型
                   </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    二維碼
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     狀態
                   </th>
@@ -1204,6 +1271,25 @@ const Settings: React.FC = () => {
                       {user.employment_type === '兼職' && user.monthly_hour_limit && (
                         <span className="text-xs text-gray-400 ml-1">
                           ({user.monthly_hour_limit}h/月)
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      {qrCodeThumbnails[user.id] ? (
+                        <button
+                          onClick={() => openQRCodeModal(user)}
+                          className="inline-block p-1 hover:bg-gray-100 rounded transition-colors"
+                          title="點擊查看/下載二維碼"
+                        >
+                          <img 
+                            src={qrCodeThumbnails[user.id]} 
+                            alt="QR Code" 
+                            className="w-10 h-10 rounded border border-gray-200"
+                          />
+                        </button>
+                      ) : (
+                        <span className="text-gray-300">
+                          <QrCode className="h-6 w-6 mx-auto" />
                         </span>
                       )}
                     </td>
@@ -1271,6 +1357,15 @@ const Settings: React.FC = () => {
         onSave={handleSavePermissions}
         user={selectedUser}
         currentPermissions={selectedUserPermissions}
+      />
+
+      {/* 二維碼 Modal */}
+      <UserQRCodeModal
+        isOpen={isQRCodeModalOpen}
+        onClose={() => setIsQRCodeModalOpen(false)}
+        user={selectedUser}
+        canRegenerate={isAdmin() || isDeveloper()}
+        onRegenerate={handleRegenerateQRCode}
       />
     </div>
   );

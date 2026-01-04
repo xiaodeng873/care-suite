@@ -57,6 +57,7 @@ interface AuthContextType {
   
   // 自訂認證方法（管理者/員工用）
   customLogin: (username: string, password: string) => Promise<{ error: any }>;
+  qrLogin: (qrCodeId: string) => Promise<{ error: any }>;
   customLogout: () => Promise<void>;
   
   // 權限檢查方法
@@ -312,6 +313,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // 二維碼登入
+  const qrLogin = async (qrCodeId: string) => {
+    try {
+      const result = await callAuthApi('qr-login', { qr_code_id: qrCodeId });
+      
+      if (result.success) {
+        setUserProfile(result.user);
+        setCustomToken(result.token);
+        setPermissions(result.permissions || []);
+        setDisplayName(getUserDisplayName(null, result.user));
+        
+        // 保存到本地存儲
+        localStorage.setItem(CUSTOM_TOKEN_KEY, result.token);
+        localStorage.setItem(CUSTOM_USER_KEY, JSON.stringify(result.user));
+        
+        return { error: null };
+      }
+      
+      return { error: result.error || '二維碼登入失敗' };
+    } catch (error) {
+      console.error('QR login error:', error);
+      return { error: '二維碼登入失敗，請稍後再試' };
+    }
+  };
+
   // 自訂認證登出
   const customLogout = async () => {
     try {
@@ -430,6 +456,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signUp,
       signOut,
       customLogin,
+      qrLogin,
       customLogout,
       hasPermission,
       hasAnyPermission,

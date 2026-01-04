@@ -69,6 +69,7 @@ export interface UserProfile {
   role: UserRole;
   is_active: boolean;
   auth_user_id: string | null;
+  login_qr_code_id: string; // 用戶登入二維碼識別碼
   created_by: string | null;
   created_at: string;
   updated_at: string;

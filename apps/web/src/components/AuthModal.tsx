@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { X, User, Lock, Mail, UserCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, User, Lock, UserCircle, QrCode, Camera, SwitchCamera, AlertCircle } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useAuth } from '../context/AuthContext';
 
-type LoginMode = 'developer' | 'staff';
+type LoginMode = 'password' | 'qrcode';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -10,14 +11,56 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const [loginMode, setLoginMode] = useState<LoginMode>('staff');
-  const [email, setEmail] = useState('');
+  const [loginMode, setLoginMode] = useState<LoginMode>('password');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { signIn, customLogin } = useAuth();
+  // QR 掃描狀態
+  const [isScanning, setIsScanning] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [debugMessage, setDebugMessage] = useState('');
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const scannerIdRef = useRef('auth-qr-scanner-' + Math.random().toString(36).substr(2, 9));
+  
+  const { customLogin, qrLogin } = useAuth();
+
+  // 清理掃描器
+  const cleanupScanner = async () => {
+    if (html5QrCodeRef.current) {
+      try {
+        if (html5QrCodeRef.current.isScanning) {
+          await html5QrCodeRef.current.stop();
+        }
+        html5QrCodeRef.current.clear();
+      } catch (err) {
+        console.error('清理掃描器失敗:', err);
+      }
+      html5QrCodeRef.current = null;
+    }
+    setIsScanning(false);
+  };
+
+  // Modal 關閉時清理
+  useEffect(() => {
+    if (!isOpen) {
+      cleanupScanner();
+      setLoginMode('password');
+      setUsername('');
+      setPassword('');
+      setError('');
+      setDebugMessage('');
+    }
+  }, [isOpen]);
+
+  // 組件卸載時清理
+  useEffect(() => {
+    return () => {
+      cleanupScanner();
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -27,28 +70,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setError('');
 
     try {
-      if (loginMode === 'developer') {
-        // 開發者使用 Supabase Auth (Email)
-        const { error } = await signIn(email, password);
+      // 使用自訂認證
+      const { error } = await customLogin(username, password);
 
-        if (error) {
-          setError(error.message);
-        } else {
-          onClose();
-          setEmail('');
-          setPassword('');
-        }
+      if (error) {
+        setError(typeof error === 'string' ? error : '登入失敗');
       } else {
-        // 員工/管理者使用自訂認證
-        const { error } = await customLogin(username, password);
-
-        if (error) {
-          setError(typeof error === 'string' ? error : '登入失敗');
-        } else {
-          onClose();
-          setUsername('');
-          setPassword('');
-        }
+        onClose();
+        setUsername('');
+        setPassword('');
       }
     } catch (err) {
       setError('發生未知錯誤');
@@ -57,11 +87,122 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleQRCodeScanned = async (qrCodeId: string) => {
+    setLoading(true);
+    setError('');
+    setDebugMessage('正在驗證登入...');
+
+    try {
+      const { error } = await qrLogin(qrCodeId);
+
+      if (error) {
+        setError(typeof error === 'string' ? error : '二維碼登入失敗');
+        setDebugMessage('');
+      } else {
+        onClose();
+      }
+    } catch (err) {
+      setError('發生未知錯誤');
+      setDebugMessage('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startScanner = async () => {
+    setError('');
+    setPermissionDenied(false);
+    setDebugMessage('');
+
+    try {
+      await cleanupScanner();
+
+      // 等待 DOM 元素渲染
+      let element = null;
+      let attempts = 0;
+      const maxAttempts = 10;
+      while (!element && attempts < maxAttempts) {
+        element = document.getElementById(scannerIdRef.current);
+        if (!element) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+          attempts++;
+        }
+      }
+
+      if (!element) {
+        throw new Error('找不到掃描器容器元素');
+      }
+
+      const html5QrCode = new Html5Qrcode(scannerIdRef.current);
+      html5QrCodeRef.current = html5QrCode;
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 200, height: 200 },
+        disableFlip: false,
+      };
+
+      setDebugMessage('🔄 正在啟動掃描器...');
+
+      await html5QrCode.start(
+        { facingMode: facingMode },
+        config,
+        async (decodedText) => {
+          setDebugMessage(`掃描到數據...`);
+
+          let qrData: any;
+          try {
+            qrData = JSON.parse(decodedText);
+          } catch {
+            // 純文本格式
+            qrData = { type: 'user_login', qr_code_id: decodedText };
+          }
+
+          if (qrData.type === 'user_login' && qrData.qr_code_id) {
+            await cleanupScanner();
+            handleQRCodeScanned(qrData.qr_code_id);
+          } else {
+            setError('這不是有效的用戶登入二維碼');
+          }
+        },
+        () => {
+          // 掃描錯誤回調（非致命錯誤）
+        }
+      );
+
+      setIsScanning(true);
+      setDebugMessage('✅ 請將二維碼對準鏡頭');
+    } catch (err: any) {
+      console.error('啟動掃描器失敗:', err);
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission')) {
+        setPermissionDenied(true);
+        setError('鏡頭權限被拒絕。請在瀏覽器設定中允許使用鏡頭。');
+      } else if (err.name === 'NotFoundError') {
+        setError('找不到可用的鏡頭');
+      } else {
+        setError('無法啟動鏡頭：' + (err.message || '未知錯誤'));
+      }
+      setIsScanning(false);
+    }
+  };
+
+  const toggleCamera = async () => {
+    const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newFacingMode);
+    if (isScanning) {
+      await cleanupScanner();
+      setTimeout(() => {
+        startScanner();
+      }, 200);
+    }
+  };
+
   const resetForm = () => {
-    setEmail('');
     setUsername('');
     setPassword('');
     setError('');
+    setDebugMessage('');
+    cleanupScanner();
   };
 
   return (
@@ -82,108 +223,177 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         {/* 登入模式切換 */}
         <div className="px-6 pt-4">
-            <div className="flex rounded-lg bg-gray-100 p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginMode('staff');
-                  resetForm();
-                }}
-                className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
-                  loginMode === 'staff'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <UserCircle className="w-4 h-4 inline mr-1" />
-                員工登入
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginMode('developer');
-                  resetForm();
-                }}
-                className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
-                  loginMode === 'developer'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <Mail className="w-4 h-4 inline mr-1" />
-                開發者登入
-              </button>
-            </div>
+          <div className="flex rounded-lg bg-gray-100 p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode('password');
+                resetForm();
+              }}
+              className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                loginMode === 'password'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <UserCircle className="w-4 h-4 inline mr-1" />
+              帳號密碼
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode('qrcode');
+                resetForm();
+              }}
+              className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                loginMode === 'qrcode'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <QrCode className="w-4 h-4 inline mr-1" />
+              掃描二維碼
+            </button>
           </div>
+        </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <div className="p-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               {error}
             </div>
           )}
 
-          {loginMode === 'developer' ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Mail className="w-4 h-4 inline mr-1" />
-                電子郵件
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="請輸入電子郵件"
-                required
-              />
-            </div>
+          {loginMode === 'password' ? (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <UserCircle className="w-4 h-4 inline mr-1" />
+                  帳號
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="請輸入帳號"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Lock className="w-4 h-4 inline mr-1" />
+                  密碼
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="請輸入密碼"
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? '處理中...' : '登入'}
+              </button>
+
+              <div className="text-center text-sm text-gray-600">
+                <p>忘記密碼或需要新帳號？</p>
+                <p className="mt-1">請聯絡主管申請密碼重置</p>
+              </div>
+            </form>
           ) : (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <UserCircle className="w-4 h-4 inline mr-1" />
-                帳號
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="請輸入帳號"
-                required
-              />
+            <div className="space-y-4">
+              {!isScanning ? (
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <QrCode className="w-24 h-24 text-gray-300" />
+                  </div>
+                  <button
+                    onClick={startScanner}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    <Camera className="h-5 w-5" />
+                    <span>啟動掃描器</span>
+                  </button>
+                  
+                  {permissionDenied && (
+                    <div className="w-full bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                      <div className="flex items-start space-x-2">
+                        <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-xs text-yellow-800">
+                          <p className="font-medium">啟用鏡頭權限步驟：</p>
+                          <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                            <li>點擊網址列左側的鎖頭圖示</li>
+                            <li>找到「鏡頭」選項</li>
+                            <li>選擇「允許」</li>
+                            <li>重新整理頁面</li>
+                          </ol>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center space-y-3">
+                  {/* 掃描器視窗 */}
+                  <div className="relative">
+                    <div 
+                      id={scannerIdRef.current} 
+                      className="rounded-lg overflow-hidden" 
+                      style={{ width: '280px', height: '280px' }} 
+                    />
+                    {/* 二維碼指引框 */}
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                      <div className="w-40 h-40 border-2 border-green-400 rounded-lg relative">
+                        <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-green-500"></div>
+                        <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-green-500"></div>
+                        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-green-500"></div>
+                        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-green-500"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {debugMessage && (
+                    <div className="w-full bg-blue-50 border border-blue-200 rounded-lg p-2">
+                      <p className="text-xs text-blue-800 text-center">{debugMessage}</p>
+                    </div>
+                  )}
+
+                  <div className="flex space-x-2 w-full">
+                    <button
+                      onClick={toggleCamera}
+                      className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                    >
+                      <SwitchCamera className="h-4 w-4" />
+                      <span>{facingMode === 'user' ? '後置' : '前置'}</span>
+                    </button>
+                    <button
+                      onClick={cleanupScanner}
+                      className="flex-1 px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                    >
+                      取消掃描
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="text-center text-sm text-gray-600 border-t pt-4">
+                <p>請掃描您的用戶登入二維碼</p>
+                <p className="mt-1 text-xs text-gray-500">二維碼可在用戶管理頁面查看及下載</p>
+              </div>
             </div>
           )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Lock className="w-4 h-4 inline mr-1" />
-              密碼
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="請輸入密碼"
-              required
-              minLength={6}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? '處理中...' : '登入'}
-          </button>
-
-          <div className="text-center text-sm text-gray-600">
-            <p>忘記密碼或需要新帳號？</p>
-            <p className="mt-1">請聯絡主管申請密碼重置</p>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   );

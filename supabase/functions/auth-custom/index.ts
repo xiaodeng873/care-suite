@@ -56,6 +56,14 @@ interface CreateUserRequest {
   created_by?: string;
 }
 
+interface QRLoginRequest {
+  qr_code_id: string;
+}
+
+interface RegenerateQRCodeRequest {
+  userId: string;
+}
+
 // 生成隨機 token
 function generateToken(): string {
   const array = new Uint8Array(32);
@@ -152,6 +160,160 @@ async function handleLogin(req: LoginRequest) {
     token,
     expiresAt: expiresAt.toISOString(),
     permissions: permissions || [],
+  };
+}
+
+// 處理二維碼登入請求
+async function handleQRLogin(req: QRLoginRequest) {
+  const supabase = getSupabaseClient();
+  const { qr_code_id } = req;
+
+  console.log("QR Login attempt with code:", qr_code_id?.substring(0, 8) + "...");
+
+  if (!qr_code_id) {
+    console.log("Missing QR code ID");
+    return {
+      success: false,
+      error: "二維碼無效",
+    };
+  }
+
+  // 根據二維碼 ID 查找用戶
+  const { data: user, error: userError } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq("login_qr_code_id", qr_code_id)
+    .eq("is_active", true)
+    .single();
+
+  if (userError || !user) {
+    console.log("User not found or error:", userError);
+    return {
+      success: false,
+      error: "二維碼無效或帳號已停用",
+    };
+  }
+
+  console.log("User found via QR code, creating session...");
+
+  // 生成 session token
+  const token = generateToken();
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + SESSION_EXPIRY_HOURS);
+
+  // 儲存 session
+  const { error: sessionError } = await supabase.from("user_sessions").insert({
+    user_id: user.id,
+    token,
+    expires_at: expiresAt.toISOString(),
+  });
+
+  if (sessionError) {
+    console.error("Session creation error:", sessionError);
+    return {
+      success: false,
+      error: "無法建立登入會話",
+    };
+  }
+
+  // 獲取用戶權限
+  const { data: permissions } = await supabase.rpc("get_user_permissions", {
+    p_user_id: user.id,
+  });
+
+  // 返回用戶資料（不含密碼）
+  const { password_hash, ...userWithoutPassword } = user;
+
+  return {
+    success: true,
+    user: userWithoutPassword,
+    token,
+    expiresAt: expiresAt.toISOString(),
+    permissions: permissions || [],
+  };
+}
+
+// 處理重新生成二維碼請求
+async function handleRegenerateQRCode(req: RegenerateQRCodeRequest, authHeader: string) {
+  const supabase = getSupabaseClient();
+  const { userId } = req;
+
+  if (!userId) {
+    return {
+      success: false,
+      error: "用戶 ID 為必填",
+    };
+  }
+
+  // 驗證操作者權限
+  const token = authHeader?.replace("Bearer ", "");
+  if (!token) {
+    return {
+      success: false,
+      error: "未授權",
+    };
+  }
+
+  // 嘗試從 custom session 驗證
+  let operatorRole: string | null = null;
+
+  const { data: session } = await supabase
+    .from("user_sessions")
+    .select("*, user_profiles(*)")
+    .eq("token", token)
+    .gt("expires_at", new Date().toISOString())
+    .single();
+
+  if (session) {
+    operatorRole = session.user_profiles.role;
+  } else {
+    // 可能是 Supabase Auth 用戶（開發者）
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (user) {
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("role")
+        .eq("auth_user_id", user.id)
+        .single();
+      
+      operatorRole = profile?.role || "developer";
+    }
+  }
+
+  // 只有管理者和開發者可以重新生成二維碼
+  if (!operatorRole || !["developer", "admin"].includes(operatorRole)) {
+    return {
+      success: false,
+      error: "無權限執行此操作",
+    };
+  }
+
+  // 生成新的二維碼 ID
+  const newQRCodeId = crypto.randomUUID();
+
+  // 更新用戶的二維碼 ID
+  const { data: updatedUser, error: updateError } = await supabase
+    .from("user_profiles")
+    .update({ login_qr_code_id: newQRCodeId })
+    .eq("id", userId)
+    .select()
+    .single();
+
+  if (updateError) {
+    console.error("Update QR code error:", updateError);
+    return {
+      success: false,
+      error: "重新生成二維碼失敗",
+    };
+  }
+
+  const { password_hash, ...userWithoutPassword } = updatedUser;
+
+  return {
+    success: true,
+    user: userWithoutPassword,
+    message: "二維碼已重新生成",
   };
 }
 
@@ -545,6 +707,16 @@ Deno.serve(async (req: Request) => {
       case "create-user": {
         const body = await req.json();
         result = await handleCreateUser(body, authHeader);
+        break;
+      }
+      case "qr-login": {
+        const body = await req.json();
+        result = await handleQRLogin(body);
+        break;
+      }
+      case "regenerate-qr-code": {
+        const body = await req.json();
+        result = await handleRegenerateQRCode(body, authHeader);
         break;
       }
       default:
