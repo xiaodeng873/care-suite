@@ -23,21 +23,21 @@ interface MealProviderProps {
 const MealContext = createContext<MealContextType | undefined>(undefined);
 
 export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   // State
   const [mealGuidances, setMealGuidances] = useState<db.MealGuidance[]>([]);
 
   // Refresh meal data
   const refreshMealData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated()) return;
     try {
       const data = await db.getMealGuidances();
       setMealGuidances(data);
     } catch (error) {
       console.error('刷新餐飲指導數據失敗:', error);
     }
-  }, [user]);
+  }, [isAuthenticated]);
 
   // CRUD operations
   const addMealGuidance = async (guidance: Omit<db.MealGuidance, 'id' | 'created_at' | 'updated_at'>) => {

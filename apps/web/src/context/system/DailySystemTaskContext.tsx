@@ -28,11 +28,11 @@ interface DailySystemTaskProviderProps {
 }
 
 export const DailySystemTaskProvider = ({ children }: DailySystemTaskProviderProps) => {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [dailySystemTasks, setDailySystemTasks] = useState<db.DailySystemTask[]>([]);
 
   const refreshDailySystemTaskData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated()) return;
     try {
       const tasks = await db.getOverdueDailySystemTasks();
       setDailySystemTasks(tasks);
@@ -40,7 +40,7 @@ export const DailySystemTaskProvider = ({ children }: DailySystemTaskProviderPro
       console.error('Error refreshing daily system tasks:', error);
       setDailySystemTasks([]);
     }
-  }, [user]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     refreshDailySystemTaskData();

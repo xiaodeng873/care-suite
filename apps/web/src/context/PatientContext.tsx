@@ -243,7 +243,7 @@ interface PatientProviderProps {
 }
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
 export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) => {
-  const { user, authReady, displayName } = useAuth();
+  const { user, userProfile, authReady, displayName, isAuthenticated } = useAuth();
   
   // 從 StationContext 獲取站點和床位數據（委託模式，向後兼容）
   const {
@@ -703,7 +703,11 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   }, [refreshData, DEBOUNCE_DELAY]);
   useEffect(() => {
     if (!authReady) return;
-    if (!user) {
+    
+    // 檢查是否已認證（支持 Supabase Auth 和自訂認證）
+    const authenticated = isAuthenticated();
+    
+    if (!authenticated) {
       setPatients([]);
       // stations 和 beds 現在由 StationContext 管理，無需在此清空
       // schedules 現在由 ScheduleContext 管理，無需在此清空
@@ -743,7 +747,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       }
     };
     initializeAndLoadData();
-  }, [authReady, user, dataLoaded]);
+  }, [authReady, user, userProfile, dataLoaded, isAuthenticated]);
   // 使用 useRef 來保存 refreshData 的最新版本，避免循環依賴
   const refreshDataRef = useRef(refreshData);
   refreshDataRef.current = refreshData;

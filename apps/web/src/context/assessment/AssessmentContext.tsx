@@ -35,7 +35,7 @@ interface AssessmentProviderProps {
 const AssessmentContext = createContext<AssessmentContextType | undefined>(undefined);
 
 export const AssessmentProvider: React.FC<AssessmentProviderProps> = ({ children }) => {
-  const { user, authReady } = useAuth();
+  const { authReady, isAuthenticated } = useAuth();
   
   // State
   const [healthAssessments, setHealthAssessments] = useState<db.HealthAssessment[]>([]);
@@ -44,7 +44,7 @@ export const AssessmentProvider: React.FC<AssessmentProviderProps> = ({ children
 
   // Refresh assessment data
   const refreshAssessmentData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated()) return;
     try {
       const [
         healthAssessmentsData,
@@ -62,7 +62,7 @@ export const AssessmentProvider: React.FC<AssessmentProviderProps> = ({ children
     } catch (error) {
       console.error('刷新評估數據失敗:', error);
     }
-  }, [user]);
+  }, [isAuthenticated]);
 
   // Health Assessment CRUD
   const addHealthAssessment = async (assessment: Omit<db.HealthAssessment, 'id' | 'created_at' | 'updated_at' | 'status' | 'archived_at'>) => {

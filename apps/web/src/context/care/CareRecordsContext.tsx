@@ -69,7 +69,7 @@ interface CareRecordsProviderProps {
 }
 
 export function CareRecordsProvider({ children }: CareRecordsProviderProps) {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   // 狀態定義
   const [patientNotes, setPatientNotes] = useState<db.PatientNote[]>([]);
@@ -81,7 +81,7 @@ export function CareRecordsProvider({ children }: CareRecordsProviderProps) {
   
   // ========== 刷新數據 ==========
   const refreshCareRecordsData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated()) return;
     
     setLoading(true);
     try {
@@ -109,7 +109,7 @@ export function CareRecordsProvider({ children }: CareRecordsProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [isAuthenticated]);
   
   // ========== 院友備忘 CRUD ==========
   const addPatientNote = useCallback(async (note: Omit<db.PatientNote, 'id' | 'created_at' | 'updated_at'>) => {

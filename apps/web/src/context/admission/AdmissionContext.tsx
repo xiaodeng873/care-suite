@@ -36,7 +36,7 @@ interface AdmissionProviderProps {
 const AdmissionContext = createContext<AdmissionContextType | undefined>(undefined);
 
 export const AdmissionProvider: React.FC<AdmissionProviderProps> = ({ children }) => {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   // State
   const [patientAdmissionRecords, setPatientAdmissionRecords] = useState<db.PatientAdmissionRecord[]>([]);
@@ -44,7 +44,7 @@ export const AdmissionProvider: React.FC<AdmissionProviderProps> = ({ children }
 
   // Refresh admission data
   const refreshAdmissionData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated()) return;
     try {
       const [admissionRecordsData, hospitalEpisodesData] = await Promise.all([
         db.getPatientAdmissionRecords(),
@@ -55,7 +55,7 @@ export const AdmissionProvider: React.FC<AdmissionProviderProps> = ({ children }
     } catch (error) {
       console.error('刷新入院數據失敗:', error);
     }
-  }, [user]);
+  }, [isAuthenticated]);
 
   // CRUD operations
   const addPatientAdmissionRecord = async (record: Omit<db.PatientAdmissionRecord, 'id' | 'created_at' | 'updated_at'>) => {

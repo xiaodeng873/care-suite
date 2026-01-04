@@ -23,21 +23,21 @@ interface PatientLogProviderProps {
 const PatientLogContext = createContext<PatientLogContextType | undefined>(undefined);
 
 export const PatientLogProvider: React.FC<PatientLogProviderProps> = ({ children }) => {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   // State
   const [patientLogs, setPatientLogs] = useState<db.PatientLog[]>([]);
 
   // Refresh patient log data
   const refreshPatientLogData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated()) return;
     try {
       const data = await db.getPatientLogs();
       setPatientLogs(data);
     } catch (error) {
       console.error('刷新院友日誌數據失敗:', error);
     }
-  }, [user]);
+  }, [isAuthenticated]);
 
   // CRUD operations
   const addPatientLog = async (log: Omit<db.PatientLog, 'id' | 'created_at' | 'updated_at'>) => {

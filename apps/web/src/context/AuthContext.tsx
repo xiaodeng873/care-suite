@@ -14,8 +14,9 @@ const supabaseAnonKey = getSupabaseAnonKey();
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: false,
-    persistSession: true,
-    detectSessionInUrl: false
+    persistSession: false,
+    detectSessionInUrl: false,
+    storageKey: 'care_suite_supabase_auth',
   }
 });
 

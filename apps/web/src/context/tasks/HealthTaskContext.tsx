@@ -24,14 +24,14 @@ interface HealthTaskProviderProps {
 const HealthTaskContext = createContext<HealthTaskContextType | undefined>(undefined);
 
 export const HealthTaskProvider: React.FC<HealthTaskProviderProps> = ({ children }) => {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   // State
   const [patientHealthTasks, setPatientHealthTasks] = useState<db.PatientHealthTask[]>([]);
 
   // Refresh health task data
   const refreshHealthTaskData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated()) return;
     try {
       const data = await db.getHealthTasks();
       // Deduplicate tasks
@@ -45,7 +45,7 @@ export const HealthTaskProvider: React.FC<HealthTaskProviderProps> = ({ children
     } catch (error) {
       console.error('刷新健康任務數據失敗:', error);
     }
-  }, [user]);
+  }, [isAuthenticated]);
 
   // CRUD operations with optimistic updates
   const addPatientHealthTask = async (task: Omit<db.PatientHealthTask, 'id' | 'created_at' | 'updated_at'>) => {

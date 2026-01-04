@@ -75,7 +75,7 @@ interface CarePlanProviderProps {
 }
 
 export function CarePlanProvider({ children }: CarePlanProviderProps) {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   // 狀態定義
   const [carePlans, setCarePlans] = useState<db.CarePlan[]>([]);
@@ -85,7 +85,7 @@ export function CarePlanProvider({ children }: CarePlanProviderProps) {
   
   // ========== 刷新數據 ==========
   const refreshCarePlanData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated()) return;
     
     setLoading(true);
     try {
@@ -102,7 +102,7 @@ export function CarePlanProvider({ children }: CarePlanProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [isAuthenticated]);
   
   // ========== 照顧計劃 CRUD ==========
   const addCarePlan = useCallback(async (

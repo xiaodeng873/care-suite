@@ -56,7 +56,7 @@ interface ScheduleProviderProps {
 }
 
 export function ScheduleProvider({ children }: ScheduleProviderProps) {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   // 狀態定義
   const [schedules, setSchedules] = useState<ScheduleWithDetails[]>([]);
@@ -65,7 +65,7 @@ export function ScheduleProvider({ children }: ScheduleProviderProps) {
   
   // ========== 刷新數據 ==========
   const refreshScheduleData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated()) return;
     
     setLoading(true);
     try {
@@ -106,7 +106,7 @@ export function ScheduleProvider({ children }: ScheduleProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [isAuthenticated]);
   
   // ========== 醫生就診排程 ==========
   const fetchDoctorVisitSchedule = useCallback(async () => {

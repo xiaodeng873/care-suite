@@ -131,7 +131,7 @@ interface PrescriptionProviderProps {
 }
 
 export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
-  const { user, displayName } = useAuth();
+  const { displayName, isAuthenticated } = useAuth();
   
   // 狀態定義
   const [prescriptions, setPrescriptions] = useState<db.MedicationPrescription[]>([]);
@@ -142,7 +142,7 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
   
   // ========== 刷新數據 ==========
   const refreshPrescriptionData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated()) return;
     
     setLoading(true);
     try {
@@ -162,7 +162,7 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [isAuthenticated]);
   
   // ========== 內部工作流程記錄獲取函數 ==========
   const fetchPrescriptionWorkflowRecordsInternal = async (patientId?: number, scheduledDate?: string, skipStateUpdate = false): Promise<PrescriptionWorkflowRecord[]> => {

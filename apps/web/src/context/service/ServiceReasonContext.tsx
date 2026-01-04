@@ -27,11 +27,11 @@ interface ServiceReasonProviderProps {
 }
 
 export const ServiceReasonProvider = ({ children }: ServiceReasonProviderProps) => {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [serviceReasons, setServiceReasons] = useState<db.ServiceReason[]>([]);
 
   const refreshServiceReasonData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated()) return;
     try {
       const data = await db.getReasons();
       setServiceReasons(data);
@@ -39,7 +39,7 @@ export const ServiceReasonProvider = ({ children }: ServiceReasonProviderProps) 
       console.error('Error refreshing service reasons:', error);
       setServiceReasons([]);
     }
-  }, [user]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     refreshServiceReasonData();

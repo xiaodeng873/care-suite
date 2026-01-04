@@ -23,21 +23,21 @@ interface IncidentProviderProps {
 const IncidentContext = createContext<IncidentContextType | undefined>(undefined);
 
 export const IncidentProvider: React.FC<IncidentProviderProps> = ({ children }) => {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   // State
   const [incidentReports, setIncidentReports] = useState<db.IncidentReport[]>([]);
 
   // Refresh incident data
   const refreshIncidentData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated()) return;
     try {
       const data = await db.getIncidentReports();
       setIncidentReports(data || []);
     } catch (error) {
       console.error('刷新事故報告數據失敗:', error);
     }
-  }, [user]);
+  }, [isAuthenticated]);
 
   // CRUD operations
   const addIncidentReport = async (report: Omit<db.IncidentReport, 'id' | 'created_at' | 'updated_at'>) => {
