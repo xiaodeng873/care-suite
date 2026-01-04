@@ -78,21 +78,9 @@ function AppContent() {
   if (!isAuthenticated()) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-xl p-8 max-w-md w-full mx-4">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">Station C</h1>
-            <p className="text-gray-600">請登入以繼續使用系統</p>
-          </div>
-          <button
-            onClick={() => setShowAuthModal(true)}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            登入 / 註冊
-          </button>
-        </div>
         <AuthModal
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
+          isOpen={true}
+          onClose={() => {}}
         />
       </div>
     );

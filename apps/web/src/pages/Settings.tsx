@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode } from 'lucide-react';
-import { UserQRCodeModal, generateQRCodeThumbnail } from '../components/UserQRCodeModal';
-import QRCodeLib from 'qrcode';
+import { UserQRCodeModal } from '../components/UserQRCodeModal';
 import { useAuth, supabase } from '../context/AuthContext';
 import { getSupabaseUrl, getSupabaseAnonKey } from '../config/supabase.config';
 import {
@@ -813,7 +812,6 @@ const Settings: React.FC = () => {
   const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedUserPermissions, setSelectedUserPermissions] = useState<string[]>([]);
-  const [qrCodeThumbnails, setQRCodeThumbnails] = useState<Record<string, string>>({});
 
   // 獲取用戶列表
   const fetchUsers = useCallback(async () => {
@@ -826,28 +824,6 @@ const Settings: React.FC = () => {
 
       if (error) throw error;
       setUsers(data || []);
-      
-      // 為每個用戶生成 QR Code 縮圖
-      if (data) {
-        const thumbnails: Record<string, string> = {};
-        for (const user of data) {
-          if (user.login_qr_code_id) {
-            try {
-              const qrData = JSON.stringify({
-                type: 'user_login',
-                qr_code_id: user.login_qr_code_id,
-              });
-              thumbnails[user.id] = await QRCodeLib.toDataURL(qrData, {
-                width: 40,
-                margin: 1,
-              });
-            } catch (e) {
-              console.error('生成縮圖失敗:', e);
-            }
-          }
-        }
-        setQRCodeThumbnails(thumbnails);
-      }
     } catch (err) {
       console.error('Fetch users error:', err);
     } finally {
@@ -1275,17 +1251,13 @@ const Settings: React.FC = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      {qrCodeThumbnails[user.id] ? (
+                      {user.login_qr_code_id ? (
                         <button
                           onClick={() => openQRCodeModal(user)}
-                          className="inline-block p-1 hover:bg-gray-100 rounded transition-colors"
+                          className="p-1 hover:bg-blue-50 rounded transition-colors"
                           title="點擊查看/下載二維碼"
                         >
-                          <img 
-                            src={qrCodeThumbnails[user.id]} 
-                            alt="QR Code" 
-                            className="w-10 h-10 rounded border border-gray-200"
-                          />
+                          <QrCode className="h-6 w-6 text-blue-600" />
                         </button>
                       ) : (
                         <span className="text-gray-300">

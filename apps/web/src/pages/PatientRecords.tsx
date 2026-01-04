@@ -758,9 +758,6 @@ const PatientRecords: React.FC = () => {
                     />
                   </th>
                   <SortableHeader field="床號">床號</SortableHeader>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    二維碼
-                  </th>
                   <SortableHeader field="中文姓名">院友姓名</SortableHeader>
                   <SortableHeader field="性別">性別</SortableHeader>
                   <SortableHeader field="年齡">年齡</SortableHeader>
@@ -771,6 +768,9 @@ const PatientRecords: React.FC = () => {
                   <SortableHeader field="護理等級">護理等級</SortableHeader>
                   <SortableHeader field="入住類型">入住類型</SortableHeader>
                   <SortableHeader field="在住狀態">在住狀態</SortableHeader>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    二維碼
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     操作
                   </th>
@@ -793,22 +793,6 @@ const PatientRecords: React.FC = () => {
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {patient.床號}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      {patient.qr_code_id ? (
-                        <button
-                          onClick={() => {
-                            setQRCodePatient(patient);
-                            setShowQRCodeModal(true);
-                          }}
-                          className="p-1 hover:bg-blue-50 rounded transition-colors"
-                          title="查看二維碼"
-                        >
-                          <QrCode className="h-6 w-6 text-blue-600" />
-                        </button>
-                      ) : (
-                        <span className="text-gray-400 text-xs">無</span>
-                      )}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-3">
@@ -873,6 +857,22 @@ const PatientRecords: React.FC = () => {
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(patient.在住狀態 || '在住')}`}>
                         {patient.在住狀態 || '在住'}
                       </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      {patient.qr_code_id ? (
+                        <button
+                          onClick={() => {
+                            setQRCodePatient(patient);
+                            setShowQRCodeModal(true);
+                          }}
+                          className="p-1 hover:bg-blue-50 rounded transition-colors"
+                          title="查看二維碼"
+                        >
+                          <QrCode className="h-6 w-6 text-blue-600" />
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 text-xs">無</span>
+                      )}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">

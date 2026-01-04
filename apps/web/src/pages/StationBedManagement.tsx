@@ -50,33 +50,7 @@ const StationBedManagement: React.FC = () => {
   const [occupancyFilter, setOccupancyFilter] = useState('all');
   const [selectedStationsForExport, setSelectedStationsForExport] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
-  const [qrCodeDataUrls, setQrCodeDataUrls] = useState<Map<string, string>>(new Map());
-  // 生成床位 QR Code（縮圖）
-  useEffect(() => {
-    const generateQRCodes = async () => {
-      const newQrCodes = new Map<string, string>();
-      for (const bed of beds) {
-        const qrData = {
-          type: 'bed',
-          qr_code_id: bed.qr_code_id,
-          bed_number: bed.bed_number
-        };
-        try {
-          const dataUrl = await QRCode.toDataURL(JSON.stringify(qrData), {
-            width: 80,
-            margin: 1
-          });
-          newQrCodes.set(bed.id, dataUrl);
-        } catch (error) {
-          console.error(`生成床位 ${bed.bed_number} QR Code 失敗:`, error);
-        }
-      }
-      setQrCodeDataUrls(newQrCodes);
-    };
-    if (beds.length > 0) {
-      generateQRCodes();
-    }
-  }, [beds]);
+  
   // 下載床位 QR Code
   const downloadBedQRCode = async (bed: any) => {
     const qrData = {
@@ -565,26 +539,13 @@ const StationBedManagement: React.FC = () => {
                             )}
                             {/* 右欄：QR Code */}
                             <div className="flex items-center justify-center">
-                              {qrCodeDataUrls.get(bed.id) ? (
-                                <div
-                                  onClick={() => downloadBedQRCode(bed)}
-                                  className="cursor-pointer hover:opacity-75 transition-opacity group relative"
-                                  title="點擊下載列印用 QR Code"
-                                >
-                                  <img
-                                    src={qrCodeDataUrls.get(bed.id)}
-                                    alt={`${bed.bed_number} QR Code`}
-                                    className="w-20 h-20 rounded-lg border-2 border-gray-300"
-                                  />
-                                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-50 rounded-lg">
-                                    <Download className="h-6 w-6 text-white" />
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="w-20 h-20 bg-gray-100 rounded-lg border-2 border-gray-300 flex items-center justify-center">
-                                  <QrCode className="h-8 w-8 text-gray-400" />
-                                </div>
-                              )}
+                              <button
+                                onClick={() => downloadBedQRCode(bed)}
+                                className="p-2 hover:bg-blue-50 rounded-lg transition-colors group"
+                                title="點擊下載列印用 QR Code"
+                              >
+                                <QrCode className="h-8 w-8 text-blue-600 group-hover:text-blue-700" />
+                              </button>
                             </div>
                           </div>
                         </div>
