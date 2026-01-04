@@ -41,7 +41,7 @@ import { Portal } from '../components/Portal';
 import { generateDailyWorkflowRecords, generateBatchWorkflowRecords } from '../utils/workflowGenerator';
 import { diagnoseWorkflowDisplayIssue } from '../utils/diagnoseTool';
 import { supabase } from '../lib/supabase';
-import { getBedByQrCodeId } from '../lib/database';
+import { getPatientByQrCodeId } from '../lib/database';
 import {
   hasOverdueWorkflowOnDate,
   calculateOverdueCountByDate,
@@ -414,21 +414,20 @@ const MedicationWorkflow: React.FC = () => {
   const [startTime, setStartTime] = useState(0);
   const [dragVelocity, setDragVelocity] = useState(0);
   const [dragDistance, setDragDistance] = useState(0);
-  // QR 掃描處理函數
+  // QR 掃描處理函數 - 只接受院友二維碼
   const handleQRScanSuccess = async (qrCodeId: string) => {
     try {
-      // 查找床位
-      const bed = await getBedByQrCodeId(qrCodeId);
-      if (!bed) {
-        alert('找不到對應的床位，請確認二維碼是否正確');
-        return;
-      }
-      // 查找該床位的院友
-      const patient = patients.find(p => p.bed_id === bed.id && p.在住狀態 === '在住');
+      // 直接用院友二維碼查找院友
+      const patient = await getPatientByQrCodeId(qrCodeId);
       if (!patient) {
-        // 空床位，不顯示彈框，只記錄日誌
+        alert('找不到對應的院友，請確認二維碼是否正確');
         return;
       }
+      if (patient.在住狀態 !== '在住') {
+        alert('此院友非在住狀態');
+        return;
+      }
+      
       // 設定選中的院友（直接跳轉，無彈框）
       setSelectedPatientId(patient.院友id.toString());
     } catch (error) {
@@ -2462,6 +2461,7 @@ const MedicationWorkflow: React.FC = () => {
                 onScanSuccess={handleQRScanSuccess}
                 onError={handleQRScanError}
                 autoStart={true}
+                acceptType="patient"
               />
             }
             onOptimisticUpdate={(patientId, needsCrushing) => {

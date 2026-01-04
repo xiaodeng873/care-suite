@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit3, Trash2, Search, Filter, Download, User, Calendar, CreditCard, Heart, AlertTriangle, CheckCircle, ChevronUp, ChevronDown, X, LogOut } from 'lucide-react';
+import { Users, Plus, Edit3, Trash2, Search, Filter, Download, User, Calendar, CreditCard, Heart, AlertTriangle, CheckCircle, ChevronUp, ChevronDown, X, LogOut, QrCode } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientModal from '../components/PatientModal';
 import DischargeModal from '../components/DischargeModal';
 import PatientTooltip from '../components/PatientTooltip';
+import { PatientQRCodeModal } from '../components/PatientQRCodeModal';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import type { Patient } from '../lib/database';
 
 type SortField = '床號' | '中文姓名' | '性別' | '年齡' | '入住日期' | '護理等級' | '入住類型' | '在住狀態';
 type SortDirection = 'asc' | 'desc';
@@ -37,6 +39,9 @@ const PatientRecords: React.FC = () => {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+  // QR Code Modal 狀態
+  const [showQRCodeModal, setShowQRCodeModal] = useState(false);
+  const [qrCodePatient, setQRCodePatient] = useState<Patient | null>(null);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
     床號: '',
     中文姓名: '',
@@ -753,6 +758,9 @@ const PatientRecords: React.FC = () => {
                     />
                   </th>
                   <SortableHeader field="床號">床號</SortableHeader>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    二維碼
+                  </th>
                   <SortableHeader field="中文姓名">院友姓名</SortableHeader>
                   <SortableHeader field="性別">性別</SortableHeader>
                   <SortableHeader field="年齡">年齡</SortableHeader>
@@ -785,6 +793,22 @@ const PatientRecords: React.FC = () => {
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {patient.床號}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      {patient.qr_code_id ? (
+                        <button
+                          onClick={() => {
+                            setQRCodePatient(patient);
+                            setShowQRCodeModal(true);
+                          }}
+                          className="p-1 hover:bg-blue-50 rounded transition-colors"
+                          title="查看二維碼"
+                        >
+                          <QrCode className="h-6 w-6 text-blue-600" />
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 text-xs">無</span>
+                      )}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-3">
@@ -998,6 +1022,16 @@ const PatientRecords: React.FC = () => {
           onConfirm={handleConfirmDischarge}
         />
       )}
+
+      {/* 院友二維碼 Modal */}
+      <PatientQRCodeModal
+        isOpen={showQRCodeModal}
+        onClose={() => {
+          setShowQRCodeModal(false);
+          setQRCodePatient(null);
+        }}
+        patient={qrCodePatient}
+      />
     </div>
   );
 };

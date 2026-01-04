@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, SwitchCamera, X, AlertCircle } from 'lucide-react';
+
+type QRType = 'bed' | 'patient' | 'any';
+
 interface QRScannerProps {
-  onScanSuccess: (qrCodeId: string) => void;
+  onScanSuccess: (qrCodeId: string, qrType?: 'bed' | 'patient') => void;
   onError?: (error: string) => void;
   className?: string;
   autoStart?: boolean;
+  acceptType?: QRType; // 接受的二維碼類型，默認為 'any' 表示接受 bed 或 patient
 }
-const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className = '', autoStart = false }) => {
+const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className = '', autoStart = false, acceptType = 'any' }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [shouldStartScanning, setShouldStartScanning] = useState(autoStart);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
@@ -84,19 +88,31 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
             console.log('📋 解析後的數據 (JSON):', qrData);
             setDebugMessage(`解析成功: type=${qrData.type}, qr_code_id=${qrData.qr_code_id}`);
           } catch (parseError) {
-            // 如果不是 JSON，假設為直接的 QR Code ID（純文本）
+            // 如果不是 JSON，假設為直接的 QR Code ID（純文本，向後兼容床位碼）
             qrData = { type: 'bed', qr_code_id: decodedText };
             setDebugMessage(`使用純文本模式: ${decodedText}`);
           }
-          if (qrData.type === 'bed' && qrData.qr_code_id) {
-            setDebugMessage(`✅ 有效床位碼: ${qrData.qr_code_id}`);
+          
+          // 檢查是否為有效的 bed 或 patient 類型二維碼
+          const isValidBed = qrData.type === 'bed' && qrData.qr_code_id;
+          const isValidPatient = qrData.type === 'patient' && qrData.qr_code_id;
+          
+          // 根據 acceptType 決定是否接受
+          const shouldAccept = 
+            (acceptType === 'any' && (isValidBed || isValidPatient)) ||
+            (acceptType === 'bed' && isValidBed) ||
+            (acceptType === 'patient' && isValidPatient);
+          
+          if (shouldAccept) {
+            setDebugMessage(`✅ 有效${qrData.type === 'patient' ? '院友' : '床位'}碼: ${qrData.qr_code_id}`);
             await stopScanner();
-            onScanSuccess(qrData.qr_code_id);
+            onScanSuccess(qrData.qr_code_id, qrData.type);
           } else {
-            setDebugMessage('❌ 無效的床位二維碼');
-            setError('這不是有效的床位二維碼');
+            const expectedType = acceptType === 'any' ? '床位或院友' : (acceptType === 'patient' ? '院友' : '床位');
+            setDebugMessage(`❌ 無效的${expectedType}二維碼`);
+            setError(`這不是有效的${expectedType}二維碼`);
             if (onError) {
-              onError('這不是有效的床位二維碼');
+              onError(`這不是有效的${expectedType}二維碼`);
             }
           }
         },
@@ -160,7 +176,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
         <div className="flex items-center space-x-2">
           <Camera className="h-4 w-4 text-blue-600" />
-          <span className="text-sm font-medium text-gray-900">床位二維碼掃描</span>
+          <span className="text-sm font-medium text-gray-900">院友二維碼掃描</span>
         </div>
         {isScanning && (
           <button

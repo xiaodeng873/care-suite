@@ -32,6 +32,7 @@ export interface Patient {
   death_date?: string;
   transfer_facility_name?: string;
   needs_medication_crushing?: boolean;
+  qr_code_id?: string; // 院友專屬二維碼 ID
 }
 export interface Station {
   id: string;
@@ -907,6 +908,18 @@ export const getBedByQrCodeId = async (qrCodeId: string): Promise<Bed | null> =>
   if (error) throw error;
   return data;
 };
+
+// 根據二維碼ID獲取院友資料
+export const getPatientByQrCodeId = async (qrCodeId: string): Promise<Patient | null> => {
+  const { data, error } = await supabase
+    .from('院友主表')
+    .select('*')
+    .eq('qr_code_id', qrCodeId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
 export const assignPatientToBed = async (patientId: number, bedId: string): Promise<void> => {
   const { error } = await supabase.from('院友主表').update({ bed_id: bedId }).eq('院友id', patientId);
   if (error) throw error;
