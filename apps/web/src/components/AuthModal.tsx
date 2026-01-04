@@ -367,10 +367,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               ) : (
                 <div className="flex flex-col items-center space-y-3">
                   {/* 掃描器視窗 */}
-                  <div className="relative inline-block">
+                  <div className="relative" style={{ width: '280px', height: '280px' }}>
                     <div 
                       id={scannerIdRef.current} 
-                      className="rounded-lg overflow-hidden"
+                      className="rounded-lg overflow-hidden w-full h-full"
+                      style={{ lineHeight: 0 }}
                     />
                     {/* 二維碼指引框 */}
                     <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
