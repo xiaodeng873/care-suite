@@ -34,11 +34,15 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
   const [hasCupWash, setHasCupWash] = useState(false);
   const [hasBedsideCabinet, setHasBedsideCabinet] = useState(false);
   const [hasWardrobe, setHasWardrobe] = useState(false);
+  const [hasHaircut, setHasHaircut] = useState(false);
   
   // 大便相關 state
   const [bowelCount, setBowelCount] = useState('');
   const [bowelAmount, setBowelAmount] = useState('');
   const [bowelConsistency, setBowelConsistency] = useState('');
+  
+  // 大便藥物
+  const [bowelMedication, setBowelMedication] = useState('');
   
   // 標準欄位
   const [recorder, setRecorder] = useState('');
@@ -58,9 +62,11 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
       setHasCupWash(existingRecord.has_cup_wash);
       setHasBedsideCabinet(existingRecord.has_bedside_cabinet);
       setHasWardrobe(existingRecord.has_wardrobe);
+      setHasHaircut(existingRecord.has_haircut);
       setBowelCount(existingRecord.bowel_count !== null ? String(existingRecord.bowel_count) : '');
       setBowelAmount(existingRecord.bowel_amount || '');
       setBowelConsistency(existingRecord.bowel_consistency || '');
+      setBowelMedication(existingRecord.bowel_medication || '');
       setRecorder(existingRecord.recorder);
       setNotes(existingRecord.notes || '');
     } else {
@@ -76,9 +82,11 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
       setHasCupWash(false);
       setHasBedsideCabinet(false);
       setHasWardrobe(false);
+      setHasHaircut(false);
       setBowelCount('');
       setBowelAmount('');
       setBowelConsistency('');
+      setBowelMedication('');
       setRecorder(staffName);
       setNotes('');
     }
@@ -117,9 +125,11 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
       has_cup_wash: hasCupWash,
       has_bedside_cabinet: hasBedsideCabinet,
       has_wardrobe: hasWardrobe,
+      has_haircut: hasHaircut,
       bowel_count: parsedBowelCount,
       bowel_amount: parsedBowelCount === 0 ? null : (bowelAmount.trim() || null),
       bowel_consistency: parsedBowelCount === 0 ? null : (bowelConsistency.trim() || null),
+      bowel_medication: bowelMedication.trim() || null,
       recorder: recorder.trim(),
       notes: notes.trim() || undefined
     };
@@ -155,9 +165,11 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
         setHasCupWash(false);
         setHasBedsideCabinet(false);
         setHasWardrobe(false);
+        setHasHaircut(false);
         setBowelCount('');
         setBowelAmount('');
         setBowelConsistency('');
+        setBowelMedication('');
       }
     }
   };
@@ -184,8 +196,9 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
     { label: '換被套', value: hasBeddingChange, setter: setHasBeddingChange },
     { label: '換床單枕袋', value: hasSheetPillowChange, setter: setHasSheetPillowChange },
     { label: '洗杯', value: hasCupWash, setter: setHasCupWash },
-    { label: '終理床頭櫃', value: hasBedsideCabinet, setter: setHasBedsideCabinet },
-    { label: '終理衣箱', value: hasWardrobe, setter: setHasWardrobe },
+    { label: '整理床頭櫃', value: hasBedsideCabinet, setter: setHasBedsideCabinet },
+    { label: '整理衣箱', value: hasWardrobe, setter: setHasWardrobe },
+    { label: '剪髮', value: hasHaircut, setter: setHasHaircut },
   ];
 
   return (
@@ -406,10 +419,19 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
 
       {showDeleteConfirm && (
         <DeleteConfirmModal
-          title="刪除衛生記錄"
-          message={`確定要刪除 ${patient.中文姓名} 在 ${date} 的衛生記錄嗎？`}
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
           onConfirm={handleDeleteConfirm}
-          onCancel={() => setShowDeleteConfirm(false)}
+          title="刪除衛生記錄"
+          recordType="衛生記錄"
+          patientInfo={{
+            name: patient.中文姓名,
+            bedNumber: patient.床號
+          }}
+          recordDetails={[
+            { label: '日期', value: date }
+          ]}
+          warningMessage={`確定要刪除 ${patient.中文姓名} 在 ${date} 的衛生記錄嗎？`}
         />
       )}
     </>

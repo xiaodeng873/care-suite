@@ -18,8 +18,8 @@
       - `has_bedding_change` (boolean) - 換被套
       - `has_sheet_pillow_change` (boolean) - 換床單枕袋
       - `has_cup_wash` (boolean) - 洗杯
-      - `has_bedside_cabinet` (boolean) - 終理床頭櫃
-      - `has_wardrobe` (boolean) - 終理衣箱
+      - `has_bedside_cabinet` (boolean) - 整理床頭櫃
+      - `has_wardrobe` (boolean) - 整理衣箱
       
       -- 大便相關欄位
       - `bowel_count` (integer, nullable) - 大便次數（0 表示無大便，null 表示未記錄）

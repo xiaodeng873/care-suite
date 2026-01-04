@@ -1400,3 +1400,194 @@ export const exportSelectedMedicationRecordToExcel = async (
     throw error;
   }
 };
+
+// 應用空白範本格式（只填入院友資訊，不填處方）
+const applyBlankMedicationRecordTemplate = async (
+  worksheet: ExcelJS.Worksheet,
+  template: ExtractedTemplate,
+  patient: any,
+  selectedMonth: string,
+  routeType: 'oral' | 'topical' | 'injection'
+): Promise<void> => {
+  // 設定欄寬
+  template.columnWidths.forEach((width, idx) => {
+    worksheet.getColumn(idx + 1).width = width;
+  });
+  // 設定列高
+  template.rowHeights.forEach((height, idx) => {
+    worksheet.getRow(idx + 1).height = height;
+  });
+  // 應用所有儲存格格式
+  Object.entries(template.cellData).forEach(([address, cellData]) => {
+    const cell = worksheet.getCell(address);
+    if (cellData.value !== undefined) {
+      cell.value = cellData.value;
+    }
+    if (cellData.font) {
+      cell.font = cellData.font;
+    }
+    if (cellData.alignment) {
+      cell.alignment = cellData.alignment;
+    }
+    if (cellData.border) {
+      cell.border = cellData.border;
+    }
+    if (cellData.fill) {
+      cell.fill = cellData.fill;
+    }
+    if (cellData.numFmt) {
+      cell.numFmt = cellData.numFmt;
+    }
+  });
+  // 合併儲存格
+  template.mergedCells.forEach(merge => {
+    try {
+      worksheet.mergeCells(merge);
+    } catch (e) {
+      console.warn('合併儲存格失敗:', merge);
+    }
+  });
+  // 填入院友基本資訊（第1-6列）
+  worksheet.getCell('B1').value = patient.藥物敏感 && patient.藥物敏感.length > 0
+    ? patient.藥物敏感.join('、')
+    : 'NKDA';
+  worksheet.getCell('B3').value = patient.不良藥物反應 && patient.不良藥物反應.length > 0
+    ? patient.不良藥物反應.join('、')
+    : 'NKADR';
+  // K3：填入匯出月份（格式：XXXX年XX月）
+  const [year, month] = selectedMonth.split('-');
+  worksheet.getCell('K3').value = year + '年' + month + '月';
+  worksheet.getCell('AF1').value = patient.中文姓氏 + patient.中文名字;
+  const age = calculateAge(patient.出生日期);
+  worksheet.getCell('AF2').value = patient.性別 + '/' + age;
+  worksheet.getCell('AO1').value = patient.床號;
+  worksheet.getCell('AO2').value = patient.出生日期
+    ? new Date(patient.出生日期).toLocaleDateString('zh-TW')
+    : '';
+  // 插入患者相片到H32單元格
+  if (patient.院友相片) {
+    try {
+      const response = await fetch(patient.院友相片);
+      const blob = await response.blob();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64String = (reader.result as string).split(',')[1];
+          resolve(base64String);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      let extension: 'png' | 'jpeg' | 'jpg' | 'gif' = 'jpeg';
+      if (patient.院友相片.toLowerCase().includes('.png')) {
+        extension = 'png';
+      } else if (patient.院友相片.toLowerCase().includes('.gif')) {
+        extension = 'gif';
+      }
+      const imageId = worksheet.workbook.addImage({
+        base64: base64,
+        extension: extension
+      });
+      worksheet.addImage(imageId, {
+        tl: { col: 7, row: 31 },
+        br: { col: 10, row: 36 }
+      });
+    } catch (error) {
+      console.warn('無法載入院友相片:', error);
+    }
+  }
+};
+
+// 匯出單一院友空白藥紙（只包含院友資訊，不包含處方）
+export const exportBlankMedicationRecordToExcel = async (
+  patient: any,
+  template: any,
+  selectedMonth: string,
+  routeTypes: ('oral' | 'topical' | 'injection')[] = ['oral', 'injection', 'topical'],
+  filename?: string
+): Promise<void> => {
+  try {
+    if (!template.extracted_format) {
+      throw new Error('範本格式無效');
+    }
+    const templateFormat = template.extracted_format as MedicationRecordTemplateFormat;
+    if (!templateFormat.oral || !templateFormat.topical || !templateFormat.injection) {
+      const missingSheets = [];
+      if (!templateFormat.oral) missingSheets.push('口服');
+      if (!templateFormat.topical) missingSheets.push('外用');
+      if (!templateFormat.injection) missingSheets.push('注射');
+      throw new Error('範本格式不完整：缺少 ' + missingSheets.join('、') + ' 工作表格式');
+    }
+    const workbook = new ExcelJS.Workbook();
+    
+    // 為每種途徑創建空白工作表
+    for (const routeType of routeTypes) {
+      const routeName = routeType === 'oral' ? '口服' : routeType === 'injection' ? '注射' : '外用';
+      const sheetName = patient.床號 + patient.中文姓氏 + patient.中文名字 + '(' + routeName + ')';
+      const worksheet = workbook.addWorksheet(sheetName.substring(0, 31));
+      const format = routeType === 'oral' ? templateFormat.oral : 
+                     routeType === 'injection' ? templateFormat.injection : templateFormat.topical;
+      await applyBlankMedicationRecordTemplate(worksheet, format, patient, selectedMonth, routeType);
+    }
+    
+    // 生成檔案名稱
+    const templateBaseName = template.original_name.replace(/\.(xlsx|xls)$/i, '');
+    const finalFilename = filename || patient.床號 + '_' + patient.中文姓氏 + patient.中文名字 + '_空白藥紙_' + templateBaseName + '.xlsx';
+    
+    // 儲存檔案
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, finalFilename);
+  } catch (error: any) {
+    console.error('匯出空白藥紙失敗:', error);
+    throw error;
+  }
+};
+
+// 批量匯出多位院友空白藥紙
+export const exportBatchBlankMedicationRecordToExcel = async (
+  patients: any[],
+  template: any,
+  selectedMonth: string,
+  routeTypes: ('oral' | 'topical' | 'injection')[] = ['oral', 'injection', 'topical'],
+  filename?: string
+): Promise<void> => {
+  try {
+    if (!template.extracted_format) {
+      throw new Error('範本格式無效');
+    }
+    const templateFormat = template.extracted_format as MedicationRecordTemplateFormat;
+    if (!templateFormat.oral || !templateFormat.topical || !templateFormat.injection) {
+      const missingSheets = [];
+      if (!templateFormat.oral) missingSheets.push('口服');
+      if (!templateFormat.topical) missingSheets.push('外用');
+      if (!templateFormat.injection) missingSheets.push('注射');
+      throw new Error('範本格式不完整：缺少 ' + missingSheets.join('、') + ' 工作表格式');
+    }
+    const workbook = new ExcelJS.Workbook();
+    
+    // 為每位院友的每種途徑創建空白工作表
+    for (const patient of patients) {
+      for (const routeType of routeTypes) {
+        const routeName = routeType === 'oral' ? '口服' : routeType === 'injection' ? '注射' : '外用';
+        const sheetName = patient.床號 + patient.中文姓氏 + patient.中文名字 + '(' + routeName + ')';
+        const worksheet = workbook.addWorksheet(sheetName.substring(0, 31));
+        const format = routeType === 'oral' ? templateFormat.oral : 
+                       routeType === 'injection' ? templateFormat.injection : templateFormat.topical;
+        await applyBlankMedicationRecordTemplate(worksheet, format, patient, selectedMonth, routeType);
+      }
+    }
+    
+    // 生成檔案名稱
+    const templateBaseName = template.original_name.replace(/\.(xlsx|xls)$/i, '');
+    const finalFilename = filename || '空白藥紙_' + patients.length + '名院友_' + templateBaseName + '.xlsx';
+    
+    // 儲存檔案
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, finalFilename);
+  } catch (error: any) {
+    console.error('批量匯出空白藥紙失敗:', error);
+    throw error;
+  }
+};
