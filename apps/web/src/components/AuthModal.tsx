@@ -245,8 +245,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+    <div 
+      className="fixed inset-0 flex items-center justify-center z-50"
+      style={{
+        backgroundImage: 'url(/login-bg.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      {/* 半透明遮罩層 */}
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+      
+      <div className="bg-white/95 backdrop-blur rounded-xl shadow-2xl w-full max-w-md mx-4 relative z-10">
         {/* 歡迎標題區塊 */}
         <div className="p-6 pb-4 text-center border-b border-gray-100">
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Station C</h1>
@@ -301,14 +312,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <UserCircle className="w-4 h-4 inline mr-1" />
-                  帳號 / Email
+                  帳號
                 </label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="請輸入帳號或 Email"
+                  placeholder="請輸入帳號"
                   required
                 />
               </div>

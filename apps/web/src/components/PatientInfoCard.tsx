@@ -1,5 +1,5 @@
-import React from 'react';
-import { User, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Patient } from '../lib/database';
 import { supabase } from '../lib/supabase';
 
@@ -7,27 +7,22 @@ interface PatientInfoCardProps {
   patient: Patient | null;
   onToggleCrushMedication?: (patientId: number, needsCrushing: boolean) => void;
   onOptimisticUpdate?: (patientId: number, needsCrushing: boolean) => void;
-  showScanner?: boolean; // 是否顯示掃描器（右側）
-  scannerSlot?: React.ReactNode; // 掃描器插槽
+  defaultExpanded?: boolean; // 預設是否展開
 }
 
 const PatientInfoCard: React.FC<PatientInfoCardProps> = ({ 
   patient, 
   onToggleCrushMedication, 
   onOptimisticUpdate,
-  showScanner = false,
-  scannerSlot 
+  defaultExpanded = true
 }) => {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
   if (!patient) {
     return (
-      <div className={`grid ${showScanner ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'} gap-3`}>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-center text-gray-500">
-          <User className="w-5 h-5 mr-2" />
-          <span>請選擇院友</span>
-        </div>
-        {showScanner && scannerSlot && (
-          <div>{scannerSlot}</div>
-        )}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-center text-gray-500">
+        <User className="w-5 h-5 mr-2" />
+        <span>請選擇院友</span>
       </div>
     );
   }
@@ -102,50 +97,40 @@ const PatientInfoCard: React.FC<PatientInfoCardProps> = ({
                        (patient.不良藥物反應 && patient.不良藥物反應.length > 0);
 
   return (
-    <div className={`grid ${showScanner ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'} gap-3`}>
-      {/* 左側：院友資訊（左右兩欄佈局） */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <div className="grid grid-cols-2 gap-4 h-full">
-          {/* 左小欄：個人資訊 + 碎藥需求 */}
-          <div className="flex flex-col justify-between">
-            {/* 基本資訊 */}
-            <div className="flex items-start space-x-3">
-              {/* 相片 */}
-              <div className="flex-shrink-0">
-                {patient.院友相片 ? (
-                  <img
-                    src={patient.院友相片}
-                    alt={patient.中文姓名}
-                    className="w-16 h-16 rounded-lg object-cover border-2 border-gray-200"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-lg bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
-                    <User className="w-8 h-8 text-gray-400" />
-                  </div>
-                )}
+    <div className="bg-white border border-gray-200 rounded-lg">
+      {/* 摺疊標題列 */}
+      <div 
+        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center space-x-3 min-w-0 flex-1">
+          {/* 相片 */}
+          <div className="flex-shrink-0">
+            {patient.院友相片 ? (
+              <img
+                src={patient.院友相片}
+                alt={patient.中文姓名}
+                className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+                <User className="w-5 h-5 text-gray-400" />
               </div>
-
-              {/* 基本資訊 */}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm mb-2">
-                  <span className="font-medium text-blue-600">床號: {patient.床號}</span>
-                  <span className="font-bold text-gray-900 text-base">{patient.中文姓名}</span>
-                  {patient.英文姓名 && (
-                    <span className="text-gray-600 text-sm">{patient.英文姓名}</span>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
-                  <span>{patient.性別} | {calculateAge(patient.出生日期)}</span>
-                  {patient.出生日期 && (
-                    <span>生日: {patient.出生日期}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* 碎藥需求 */}
-            <div className="flex items-center space-x-2 pt-3 border-t border-gray-200 mt-3">
-              <span className="text-sm font-medium text-gray-700">特殊需求: 碎藥</span>
+            )}
+          </div>
+          
+          {/* 基本資訊 - 單行顯示 */}
+          <div className="flex items-center gap-3 flex-wrap min-w-0">
+            <span className="font-medium text-blue-600 whitespace-nowrap">床號: {patient.床號}</span>
+            <span className="font-bold text-gray-900">{patient.中文姓名}</span>
+            {patient.英文姓名 && (
+              <span className="text-gray-500 text-sm">{patient.英文姓名}</span>
+            )}
+            <span className="text-gray-600 text-sm">{patient.性別} | {calculateAge(patient.出生日期)}</span>
+            
+            {/* 碎藥需求開關 */}
+            <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+              <span className="text-sm text-gray-600">碎藥:</span>
               <button
                 onClick={handleCrushToggle}
                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
@@ -159,66 +144,70 @@ const PatientInfoCard: React.FC<PatientInfoCardProps> = ({
                   }`}
                 />
               </button>
-              {patient.needs_medication_crushing && (
-                <span className="text-sm font-medium text-green-700">✓ 已啟用</span>
-              )}
-            </div>
-          </div>
-
-          {/* 右小欄：藥物安全資訊 */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <div className="flex items-center space-x-2 mb-3">
-              <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0" />
-              <span className="text-sm font-semibold text-yellow-900">藥物安全資訊</span>
             </div>
             
-            <div className="space-y-3">
-              {/* 藥物敏感 */}
-              <div>
-                <span className="text-sm font-medium text-yellow-800">藥物敏感:</span>
-                {(!patient.藥物敏感 || patient.藥物敏感.length === 0) ? (
-                  <span className="text-sm text-gray-500 ml-2">無記錄</span>
-                ) : (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {patient.藥物敏感.map((allergy: string, index: number) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-800 border border-orange-200"
-                      >
-                        <AlertTriangle className="h-3 w-3 mr-1" />
-                        {allergy}
-                      </span>
-                    ))}
-                  </div>
-                )}
+            {/* 警示標誌 */}
+            {hasAlertInfo && (
+              <div className="flex items-center text-yellow-600">
+                <AlertTriangle className="w-4 h-4" />
               </div>
-
-              {/* 不良藥物反應 */}
-              <div>
-                <span className="text-sm font-medium text-yellow-800">不良反應:</span>
-                {(!patient.不良藥物反應 || patient.不良藥物反應.length === 0) ? (
-                  <span className="text-sm text-gray-500 ml-2">無記錄</span>
-                ) : (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {patient.不良藥物反應.map((reaction: string, index: number) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-800 border border-red-200"
-                      >
-                        {reaction}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         </div>
+        
+        {/* 摺疊按鈕 */}
+        <button className="p-1 text-gray-500 hover:text-gray-700 flex-shrink-0">
+          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+        </button>
       </div>
 
-      {/* 右側：掃描器插槽 */}
-      {showScanner && scannerSlot && (
-        <div>{scannerSlot}</div>
+      {/* 展開內容 - 藥物安全資訊 */}
+      {isExpanded && hasAlertInfo && (
+        <div className="px-3 pb-3 pt-1 border-t border-gray-100">
+          <div className="flex flex-wrap gap-4">
+            {/* 藥物敏感 */}
+            {patient.藥物敏感 && patient.藥物敏感.length > 0 && (
+              <div className="flex items-start gap-2">
+                <span className="text-sm font-medium text-yellow-800 whitespace-nowrap">藥物敏感:</span>
+                <div className="flex flex-wrap gap-1">
+                  {patient.藥物敏感.map((allergy: string, index: number) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-800 border border-orange-200"
+                    >
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      {allergy}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 不良藥物反應 */}
+            {patient.不良藥物反應 && patient.不良藥物反應.length > 0 && (
+              <div className="flex items-start gap-2">
+                <span className="text-sm font-medium text-yellow-800 whitespace-nowrap">不良反應:</span>
+                <div className="flex flex-wrap gap-1">
+                  {patient.不良藥物反應.map((reaction: string, index: number) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800 border border-red-200"
+                    >
+                      {reaction}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 展開內容 - 無警示資訊時顯示提示 */}
+      {isExpanded && !hasAlertInfo && (
+        <div className="px-3 pb-2 pt-1 border-t border-gray-100">
+          <p className="text-sm text-gray-500">暫無藥物敏感或不良反應記錄</p>
+        </div>
       )}
     </div>
   );

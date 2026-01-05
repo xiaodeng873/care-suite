@@ -22,14 +22,15 @@ import {
   Trash2,
   Shield,
   Heart,
-  MoreVertical
+  MoreVertical,
+  Camera
 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import PatientAutocomplete from '../components/PatientAutocomplete';
 import PatientInfoCard from '../components/PatientInfoCard';
-import QRScanner from '../components/QRScanner';
+import QRScannerModal from '../components/QRScannerModal';
 import PrescriptionModal from '../components/PrescriptionModal';
 import DispenseConfirmModal from '../components/DispenseConfirmModal';
 import BatchDispenseConfirmModal from '../components/BatchDispenseConfirmModal';
@@ -373,6 +374,7 @@ const MedicationWorkflow: React.FC = () => {
   const [showBatchDispenseModal, setShowBatchDispenseModal] = useState(false);
   const [showInspectionCheckModal, setShowInspectionCheckModal] = useState(false);
   const [showInjectionSiteModal, setShowInjectionSiteModal] = useState(false);
+  const [showQRScannerModal, setShowQRScannerModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
   const [selectedWorkflowRecord, setSelectedWorkflowRecord] = useState<any>(null);
@@ -2376,7 +2378,7 @@ const MedicationWorkflow: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">藥物工作流程</h1>
             <p className="text-sm text-gray-600 mt-1">管理院友的執藥、核藥、派藥流程</p>
           </div>
-          {/* 右側：院友選擇、日期選擇、遷移按鈕 */}
+          {/* 右側：院友選擇、掃描按鈕、日期選擇 */}
           <div className="flex items-end gap-3 flex-1 max-w-4xl">
             {/* 院友選擇 */}
             <div className="flex-1 min-w-[200px] max-w-md">
@@ -2412,6 +2414,19 @@ const MedicationWorkflow: React.FC = () => {
                 </button>
               </div>
             </div>
+            
+            {/* 掃描二維碼按鈕 */}
+            <div className="flex-shrink-0">
+              <label className="form-label text-xs mb-1 block invisible">掃描</label>
+              <button
+                onClick={() => setShowQRScannerModal(true)}
+                className="btn-secondary p-2 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors"
+                title="掃描院友二維碼"
+              >
+                <Camera className="h-5 w-5" />
+              </button>
+            </div>
+
             {/* 日期選擇 */}
             <div className="flex-1 min-w-[250px] max-w-sm">
               <label className="form-label text-xs mb-1 block">
@@ -2450,20 +2465,12 @@ const MedicationWorkflow: React.FC = () => {
           </div>
         </div>
       </div>
-      {/* 院友資訊卡 - 總是顯示（包含掃描器） */}
+      {/* 院友資訊卡 - 可摺疊 */}
       <div className="sticky top-24 bg-white z-[5] shadow-sm">
-        <div className="card p-3">
+        <div className="card p-2">
           <PatientInfoCard
             patient={selectedPatient}
-            showScanner={true}
-            scannerSlot={
-              <QRScanner
-                onScanSuccess={handleQRScanSuccess}
-                onError={handleQRScanError}
-                autoStart={true}
-                acceptType="patient"
-              />
-            }
+            defaultExpanded={false}
             onOptimisticUpdate={(patientId, needsCrushing) => {
               // 立即更新 UI（樂觀更新）
               setOptimisticCrushState(prev => {
@@ -3134,6 +3141,15 @@ const MedicationWorkflow: React.FC = () => {
           onClose={() => setShowBatchDispenseModal(false)}
         />
       )}
+
+      {/* 二維碼掃描模態框 */}
+      <QRScannerModal
+        isOpen={showQRScannerModal}
+        onClose={() => setShowQRScannerModal(false)}
+        onScanSuccess={handleQRScanSuccess}
+        onError={handleQRScanError}
+        acceptType="patient"
+      />
     </div>
   );
 };
