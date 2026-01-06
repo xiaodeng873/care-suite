@@ -314,7 +314,7 @@ const WorkflowCell: React.FC<WorkflowCellProps> = ({ record, step, onStepClick, 
       <div className="flex items-center justify-center space-x-1">
         {getStatusIcon()}
         {/* 在 iPad 橫向模式顯示簡化標籤 */}
-        <span className="font-medium">{isIpadLandscape ? getShortStepLabel() : getStepLabel()}</span>
+        <span className="font-medium text-center">{isIpadLandscape ? getShortStepLabel() : getStepLabel()}</span>
       </div>
       {status === 'completed' && staff && (
         <div className="text-xs text-gray-500 mt-1 truncate landscape:md:hidden">
