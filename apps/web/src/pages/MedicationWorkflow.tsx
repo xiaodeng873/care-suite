@@ -58,14 +58,15 @@ interface WorkflowCellProps {
 const WorkflowCell: React.FC<WorkflowCellProps> = ({ record, step, onStepClick, disabled, selectedDate }) => {
   const { prescriptions } = usePatients();
   
-  // 檢測 iPad 橫向模式（寬度 <= 1024px 且為橫向）
+  // 檢測 iPad 橫向模式（寬度 <= 1366px 且為橫向，涵蓋所有 iPad 型號）
+  // iPad 標準橫向: 1024px, iPad Pro 11": 1194px, iPad Pro 12.9": 1366px
   const [isIpadLandscape, setIsIpadLandscape] = useState(false);
   
   useEffect(() => {
     const checkIpadLandscape = () => {
       const isLandscape = window.matchMedia('(orientation: landscape)').matches;
-      const isTabletOrSmaller = window.innerWidth <= 1024;
-      setIsIpadLandscape(isLandscape && isTabletOrSmaller);
+      const isTabletWidth = window.innerWidth >= 768 && window.innerWidth <= 1366;
+      setIsIpadLandscape(isLandscape && isTabletWidth);
     };
     
     checkIpadLandscape();
