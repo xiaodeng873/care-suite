@@ -57,6 +57,27 @@ interface WorkflowCellProps {
 }
 const WorkflowCell: React.FC<WorkflowCellProps> = ({ record, step, onStepClick, disabled, selectedDate }) => {
   const { prescriptions } = usePatients();
+  
+  // 檢測 iPad 橫向模式（寬度 <= 1024px 且為橫向）
+  const [isIpadLandscape, setIsIpadLandscape] = useState(false);
+  
+  useEffect(() => {
+    const checkIpadLandscape = () => {
+      const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+      const isTabletOrSmaller = window.innerWidth <= 1024;
+      setIsIpadLandscape(isLandscape && isTabletOrSmaller);
+    };
+    
+    checkIpadLandscape();
+    window.addEventListener('resize', checkIpadLandscape);
+    window.addEventListener('orientationchange', checkIpadLandscape);
+    
+    return () => {
+      window.removeEventListener('resize', checkIpadLandscape);
+      window.removeEventListener('orientationchange', checkIpadLandscape);
+    };
+  }, []);
+  
   // 檢查是否為即時備藥處方
   const prescription = prescriptions.find(p => p.id === record.prescription_id);
   const isImmediatePreparation = prescription?.preparation_method === 'immediate';
@@ -291,9 +312,8 @@ const WorkflowCell: React.FC<WorkflowCellProps> = ({ record, step, onStepClick, 
     >
       <div className="flex items-center justify-center space-x-1">
         {getStatusIcon()}
-        {/* 在 iPad 橫向模式（max-width: 1024px 且 landscape）顯示簡化標籤 */}
-        <span className="font-medium hidden max-[1024px]:landscape:inline">{getShortStepLabel()}</span>
-        <span className="font-medium max-[1024px]:landscape:hidden">{getStepLabel()}</span>
+        {/* 在 iPad 橫向模式顯示簡化標籤 */}
+        <span className="font-medium">{isIpadLandscape ? getShortStepLabel() : getStepLabel()}</span>
       </div>
       {status === 'completed' && staff && (
         <div className="text-xs text-gray-500 mt-1 truncate landscape:md:hidden">
