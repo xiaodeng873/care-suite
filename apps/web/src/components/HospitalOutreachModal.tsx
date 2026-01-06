@@ -1,14 +1,7 @@
 import React, { useState } from 'react';
-import { X, Guitar as Hospital, Calendar, Clock, Pill, User, AlertTriangle, MessageCircle, Copy, Plus, Trash2, Stethoscope } from 'lucide-react';
+import { X, Guitar as Hospital, Calendar, Clock, Pill, User, AlertTriangle, MessageCircle, Copy, Stethoscope } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
-
-interface MedicationSource {
-  id: string;
-  medication_bag_date: string;
-  prescription_weeks: number;
-  outreach_medication_source: string;
-}
 
 interface HospitalOutreachModalProps {
   record?: any;
@@ -25,34 +18,16 @@ const HospitalOutreachModal: React.FC<HospitalOutreachModalProps> = ({ record, o
     return hongKongTime.toISOString().split('T')[0];
   };
 
-  // 初始化 medicationSources 狀態
-  const initialMedicationSources = () => {
-    if (record?.medication_sources && Array.isArray(record.medication_sources) && record.medication_sources.length > 0) {
-      return record.medication_sources.map((source: any) => ({
-        id: source.id || `temp-${Date.now()}-${Math.random()}`,
-        medication_bag_date: source.medication_bag_date || getHongKongDate(),
-        prescription_weeks: source.prescription_weeks || 4,
-        outreach_medication_source: source.outreach_medication_source || ''
-      }));
-    } else if (record?.medication_bag_date) {
-      return [{
-        id: `temp-${Date.now()}`,
-        medication_bag_date: record.medication_bag_date,
-        prescription_weeks: record.prescription_weeks || 4,
-        outreach_medication_source: record.outreach_medication_source || ''
-      }];
-    }
-    return [{ id: `temp-${Date.now()}`, medication_bag_date: getHongKongDate(), prescription_weeks: 4, outreach_medication_source: '' }];
-  };
-
   const [formData, setFormData] = useState({
     patient_id: record?.patient_id || '',
+    medication_bag_date: record?.medication_bag_date || getHongKongDate(),
+    prescription_weeks: record?.prescription_weeks || 4,
+    outreach_medication_source: record?.outreach_medication_source || '',
     outreach_appointment_date: record?.outreach_appointment_date || '',
     medication_pickup_arrangement: record?.medication_pickup_arrangement || '每次詢問',
     remarks: record?.remarks || ''
   });
 
-  const [medicationSources, setMedicationSources] = useState<MedicationSource[]>(initialMedicationSources);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // 計算藥完日期
@@ -67,53 +42,23 @@ const HospitalOutreachModal: React.FC<HospitalOutreachModalProps> = ({ record, o
     return endDate.toISOString().split('T')[0];
   };
 
-  // 獲取最新的藥完日期
-  const getLatestMedicationEndDate = (): string | null => {
-    if (medicationSources.length === 0) return null;
-    
-    const endDates = medicationSources.map(source => 
-      calculateMedicationEndDate(source.medication_bag_date, source.prescription_weeks)
-    ).filter(dateString => {
-      const date = new Date(dateString);
-      return !isNaN(date.getTime());
-    });
-    
-    if (endDates.length === 0) return null;
-    
-    return endDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
-  };
-
-  // 新增藥物來源
-  const addMedicationSource = () => {
-    const newSource: MedicationSource = {
-      id: `temp-${Date.now()}-${Math.random()}`,
-      medication_bag_date: getHongKongDate(),
-      prescription_weeks: 4,
-      outreach_medication_source: ''
-    };
-    setMedicationSources([...medicationSources, newSource]);
-  };
-
-  // 移除藥物來源
-  const removeMedicationSource = (id: string) => {
-    if (medicationSources.length > 1) {
-      setMedicationSources(medicationSources.filter(source => source.id !== id));
-    }
-  };
-
-  // 更新藥物來源
-  const updateMedicationSource = (id: string, field: keyof MedicationSource, value: string | number) => {
-    setMedicationSources(medicationSources.map(source => 
-      source.id === id ? { ...source, [field]: value } : source
-    ));
-  };
+  const medicationEndDate = calculateMedicationEndDate(formData.medication_bag_date, formData.prescription_weeks);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: name === 'prescription_weeks' ? (parseInt(value) || 1) : value
     }));
+    
+    // 清除相關錯誤
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   // 驗證表單
@@ -124,29 +69,16 @@ const HospitalOutreachModal: React.FC<HospitalOutreachModalProps> = ({ record, o
       newErrors.patient_id = '請選擇院友';
     }
 
-    if (medicationSources.length === 0) {
-      newErrors.medication_sources = '至少需要一個藥物來源';
-    } else {
-      medicationSources.forEach((source, index) => {
-        if (!source.medication_bag_date) {
-          newErrors[`medication_bag_date_${index}`] = '請選擇藥袋日期';
-        }
-        if (!source.prescription_weeks || source.prescription_weeks < 1) {
-          newErrors[`prescription_weeks_${index}`] = '處方週數必須大於0';
-        }
-      });
+    if (!formData.medication_bag_date) {
+      newErrors.medication_bag_date = '請選擇藥袋日期';
+    }
+
+    if (!formData.prescription_weeks || formData.prescription_weeks < 1) {
+      newErrors.prescription_weeks = '處方週數必須大於0';
     }
 
     if (!formData.medication_pickup_arrangement) {
       newErrors.medication_pickup_arrangement = '請選擇取藥安排';
-    }
-
-    // 驗證覆診日期
-    if (formData.outreach_appointment_date) {
-      const latestEndDate = getLatestMedicationEndDate();
-      if (latestEndDate && new Date(formData.outreach_appointment_date) > new Date(latestEndDate)) {
-        newErrors.outreach_appointment_date = '覆診日期不能晚於藥完日期';
-      }
     }
 
     setErrors(newErrors);
@@ -163,25 +95,27 @@ const HospitalOutreachModal: React.FC<HospitalOutreachModalProps> = ({ record, o
     try {
       // 準備提交資料
       const submitData = {
-        ...formData,
         patient_id: parseInt(formData.patient_id),
-        medication_sources: medicationSources.map(source => ({
-          medication_bag_date: source.medication_bag_date,
-          prescription_weeks: source.prescription_weeks,
-          medication_end_date: calculateMedicationEndDate(source.medication_bag_date, source.prescription_weeks),
-          outreach_medication_source: source.outreach_medication_source
-        })),
-        // 為了向後兼容，使用第一個藥物來源作為主要資訊
-        medication_bag_date: medicationSources[0].medication_bag_date,
-        prescription_weeks: medicationSources[0].prescription_weeks,
-        medication_end_date: calculateMedicationEndDate(medicationSources[0].medication_bag_date, medicationSources[0].prescription_weeks),
-        outreach_medication_source: medicationSources[0].outreach_medication_source
+        medication_bag_date: formData.medication_bag_date,
+        prescription_weeks: formData.prescription_weeks,
+        medication_end_date: medicationEndDate,
+        outreach_medication_source: formData.outreach_medication_source || null,
+        outreach_appointment_date: formData.outreach_appointment_date || null,
+        medication_pickup_arrangement: formData.medication_pickup_arrangement,
+        remarks: formData.remarks || null,
+        // 保持單一來源的 medication_sources 陣列格式以相容
+        medication_sources: [{
+          medication_bag_date: formData.medication_bag_date,
+          prescription_weeks: formData.prescription_weeks,
+          medication_end_date: medicationEndDate,
+          outreach_medication_source: formData.outreach_medication_source || null
+        }]
       };
 
       if (record) {
-        await updateHospitalOutreachRecord({ ...submitData, id: record.id });
+        await updateHospitalOutreachRecord({ ...submitData, id: record.id, appointment_completed: record.appointment_completed });
       } else {
-        await addHospitalOutreachRecord(submitData);
+        await addHospitalOutreachRecord({ ...submitData, appointment_completed: false });
       }
       
       onClose();
@@ -193,7 +127,7 @@ const HospitalOutreachModal: React.FC<HospitalOutreachModalProps> = ({ record, o
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -241,118 +175,76 @@ const HospitalOutreachModal: React.FC<HospitalOutreachModalProps> = ({ record, o
 
           {/* 藥物來源 */}
           <div className="bg-blue-50 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                <Pill className="h-5 w-5 mr-2 text-blue-600" />
-                藥物來源
-              </h3>
-              {medicationSources.length < 5 && (
-                <button
-                  type="button"
-                  onClick={addMedicationSource}
-                  className="btn-secondary flex items-center space-x-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>新增藥物來源</span>
-                </button>
-              )}
-            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+              <Pill className="h-5 w-5 mr-2 text-blue-600" />
+              藥物來源
+            </h3>
 
-            {errors.medication_sources && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-md">
-                <p className="text-red-500 text-sm">{errors.medication_sources}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="form-label">
+                  藥袋日期 *
+                </label>
+                <input
+                  type="date"
+                  name="medication_bag_date"
+                  value={formData.medication_bag_date}
+                  onChange={handleChange}
+                  className={`form-input ${errors.medication_bag_date ? 'border-red-300' : ''}`}
+                  required
+                />
+                {errors.medication_bag_date && (
+                  <p className="text-red-500 text-sm mt-1">{errors.medication_bag_date}</p>
+                )}
               </div>
-            )}
 
-            <div className="space-y-4">
-              {medicationSources.map((source, index) => (
-                <div key={source.id} className="bg-white rounded-lg p-4 border border-blue-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-gray-900">藥物來源 {index + 1}</h4>
-                    {medicationSources.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeMedicationSource(source.id)}
-                        className="text-red-600 hover:text-red-700 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="form-label">
-                        藥袋日期 *
-                      </label>
-                      <input
-                        type="date"
-                        value={source.medication_bag_date}
-                        onChange={(e) => updateMedicationSource(source.id, 'medication_bag_date', e.target.value)}
-                        className={`form-input ${errors[`medication_bag_date_${index}`] ? 'border-red-300' : ''}`}
-                        required
-                      />
-                      {errors[`medication_bag_date_${index}`] && (
-                        <p className="text-red-500 text-sm mt-1">{errors[`medication_bag_date_${index}`]}</p>
-                      )}
-                    </div>
+              <div>
+                <label className="form-label">
+                  處方週數 *
+                </label>
+                <input
+                  type="number"
+                  name="prescription_weeks"
+                  value={formData.prescription_weeks}
+                  onChange={handleChange}
+                  className={`form-input ${errors.prescription_weeks ? 'border-red-300' : ''}`}
+                  min="1"
+                  max="52"
+                  required
+                />
+                {errors.prescription_weeks && (
+                  <p className="text-red-500 text-sm mt-1">{errors.prescription_weeks}</p>
+                )}
+              </div>
 
-                    <div>
-                      <label className="form-label">
-                        處方週數 *
-                      </label>
-                      <input
-                        type="number"
-                        value={source.prescription_weeks}
-                        onChange={(e) => updateMedicationSource(source.id, 'prescription_weeks', parseInt(e.target.value) || 1)}
-                        className={`form-input ${errors[`prescription_weeks_${index}`] ? 'border-red-300' : ''}`}
-                        min="1"
-                        max="52"
-                        required
-                      />
-                      {errors[`prescription_weeks_${index}`] && (
-                        <p className="text-red-500 text-sm mt-1">{errors[`prescription_weeks_${index}`]}</p>
-                      )}
-                    </div>
+              <div>
+                <label className="form-label">
+                  藥完日期（自動計算）
+                </label>
+                <input
+                  type="date"
+                  value={medicationEndDate}
+                  className="form-input bg-gray-100"
+                  readOnly
+                />
+              </div>
 
-                    <div>
-                      <label className="form-label">
-                        藥完日期（自動計算）
-                      </label>
-                      <input
-                        type="date"
-                        value={calculateMedicationEndDate(source.medication_bag_date, source.prescription_weeks)}
-                        className="form-input bg-gray-100"
-                        readOnly
-                      />
-                    </div>
-
-                    <div>
-                      <label className="form-label">
-                        藥物出處
-                      </label>
-                      <select
-                        value={source.outreach_medication_source}
-                        onChange={(e) => updateMedicationSource(source.id, 'outreach_medication_source', e.target.value)}
-                        className="form-input"
-                      >
-                        <option value="">請選擇藥物出處</option>
-                        <option value="KWH/CGAS">KWH/CGAS</option>
-                        <option value="KCH/PGT">KCH/PGT</option>
-                        <option value="出院病房配發">出院病房配發</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {medicationSources.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <Pill className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                  <p>尚未新增藥物來源</p>
-                  <p className="text-sm">點擊上方「新增藥物來源」按鈕開始記錄</p>
-                </div>
-              )}
+              <div>
+                <label className="form-label">
+                  藥物出處
+                </label>
+                <select
+                  name="outreach_medication_source"
+                  value={formData.outreach_medication_source}
+                  onChange={handleChange}
+                  className="form-input"
+                >
+                  <option value="">請選擇藥物出處</option>
+                  <option value="KWH/CGAS">KWH/CGAS</option>
+                  <option value="KCH/PGT">KCH/PGT</option>
+                  <option value="出院病房配發">出院病房配發</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -370,17 +262,13 @@ const HospitalOutreachModal: React.FC<HospitalOutreachModalProps> = ({ record, o
                   覆診日期
                 </label>
                 <select
+                  name="outreach_appointment_date"
                   value={formData.outreach_appointment_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, outreach_appointment_date: e.target.value }))}
+                  onChange={handleChange}
                   className={`form-input ${errors.outreach_appointment_date ? 'border-red-300' : ''}`}
                 >
                   <option value="">未安排</option>
                   {(doctorVisitSchedule ?? [])
-                    .filter(schedule => {
-                      const latestEndDate = getLatestMedicationEndDate();
-                      if (!latestEndDate) return true;
-                      return new Date(schedule.visit_date) <= new Date(latestEndDate);
-                    })
                     .sort((a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime())
                     .map(schedule => (
                       <option key={schedule.id} value={schedule.visit_date}>
@@ -393,9 +281,9 @@ const HospitalOutreachModal: React.FC<HospitalOutreachModalProps> = ({ record, o
                 {errors.outreach_appointment_date && (
                   <p className="text-red-500 text-sm mt-1">{errors.outreach_appointment_date}</p>
                 )}
-                {getLatestMedicationEndDate() && (
+                {medicationEndDate && (
                   <p className="text-xs text-gray-600 mt-1">
-                    覆診日期不能晚於藥完日期：{new Date(getLatestMedicationEndDate()!).toLocaleDateString('zh-TW')}
+                    覆診日期不能晚於藥完日期：{new Date(medicationEndDate).toLocaleDateString('zh-TW')}
                   </p>
                 )}
               </div>

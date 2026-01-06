@@ -21,7 +21,7 @@ const DoctorVisitScheduleModal: React.FC<DoctorVisitScheduleModalProps> = ({ sch
     visit_date: schedule?.visit_date || getHongKongDate(),
     doctor_name: schedule?.doctor_name || '',
     specialty: schedule?.specialty || '',
-    available_slots: schedule?.available_slots || 10,
+    available_slots: schedule?.available_slots || 20,
     notes: schedule?.notes || ''
   });
 

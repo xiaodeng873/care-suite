@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Building2, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, Clock, Pill, ChevronUp, ChevronDown, X, AlertTriangle, CheckCircle, Copy, MessageCircle, Stethoscope, Settings } from 'lucide-react';
+import { Building2, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, Clock, Pill, ChevronUp, ChevronDown, X, AlertTriangle, CheckCircle, Copy, MessageCircle, Stethoscope, Settings, ToggleLeft, ToggleRight } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import HospitalOutreachModal from '../components/HospitalOutreachModal';
 import DoctorVisitScheduleModal from '../components/DoctorVisitScheduleModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import { isInHospital } from '../utils/careRecordHelper';
 
 type SortField = '藥袋日期' | '院友姓名' | '藥完日期' | '覆診日期' | '取藥安排' | '創建時間';
 type SortDirection = 'asc' | 'desc';
@@ -18,17 +19,22 @@ interface AdvancedFilters {
   startDate: string;
   endDate: string;
   在住狀態: string;
+  覆診狀態: string;
 }
 
 const HospitalOutreach: React.FC = () => {
   const { 
     hospitalOutreachRecords, 
     patients, 
-    deleteHospitalOutreachRecord, 
+    deleteHospitalOutreachRecord,
+    updateHospitalOutreachRecord,
+    addHospitalOutreachRecord,
     doctorVisitSchedule,
     deleteDoctorVisitSchedule,
     fetchHospitalOutreachRecords,
     fetchDoctorVisitSchedule,
+    admissionRecords,
+    hospitalEpisodes,
     loading 
   } = usePatients();
   const [showModal, setShowModal] = useState(false);
@@ -50,8 +56,11 @@ const HospitalOutreach: React.FC = () => {
     備註: '',
     startDate: '',
     endDate: '',
-    在住狀態: '全部'
+    在住狀態: '在住',
+    覆診狀態: '待完成'
   });
+  const [showDoctorVisitSchedule, setShowDoctorVisitSchedule] = useState(false);
+  const [togglingAppointmentIds, setTogglingAppointmentIds] = useState<Set<string>>(new Set());
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [deletingDoctorVisitIds, setDeletingDoctorVisitIds] = useState<Set<string>>(new Set());
 
@@ -121,43 +130,32 @@ const HospitalOutreach: React.FC = () => {
       .sort((a, b) => new Date(a.medication_end_date).getTime() - new Date(b.medication_end_date).getTime());
   };
 
-  // 計算院友狀態（根據外展記錄的事件）
+  // 獲取院友在住狀態（用於篩選：在住/待入住/已退住）
+  const getPatientResidenceStatus = (record: any): string => {
+    const patient = patients.find(p => p.院友id === record.patient_id);
+    return patient?.在住狀態 || '在住';
+  };
+
+  // 計算院友狀態（顯示住院中/院舍）
   const calculatePatientStatus = (record: any): string => {
-    if (!record.events || !Array.isArray(record.events) || record.events.length === 0) {
-      return '在住';
+    const patient = patients.find(p => p.院友id === record.patient_id);
+    if (!patient) return '院舍';
+    
+    // 方法1：檢查院友的 is_hospitalized 欄位
+    if (patient.is_hospitalized === true) {
+      return '住院中';
     }
-
-    // 按事件日期和時間排序，獲取最新事件
-    const sortedEvents = [...record.events].sort((a, b) => {
-      const dateA = new Date(`${a.event_date} ${a.event_time || '00:00'}`).getTime();
-      const dateB = new Date(`${b.event_date} ${b.event_time || '00:00'}`).getTime();
-      return dateB - dateA;
-    });
-
-    const latestEvent = sortedEvents[0];
-
-    // 檢查是否有未結束的渡假
-    const hasVacationStart = record.events.some((e: any) => e.event_type === 'vacation_start');
-    const hasVacationEnd = record.events.some((e: any) => e.event_type === 'vacation_end');
-    if (hasVacationStart && !hasVacationEnd) {
-      return '渡假中';
-    }
-
-    // 檢查是否有未結束的住院（入院或轉院，但沒有出院）
-    const hasAdmissionOrTransfer = record.events.some((e: any) =>
-      e.event_type === 'admission' || e.event_type === 'transfer'
-    );
-    const hasDischarge = record.events.some((e: any) => e.event_type === 'discharge');
-    if (hasAdmissionOrTransfer && !hasDischarge) {
+    
+    // 方法2：使用 isInHospital 函數檢查當前時間是否在住院期間
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const currentTime = today.toTimeString().slice(0, 5);
+    
+    if (isInHospital(patient, todayStr, currentTime, admissionRecords || [], hospitalEpisodes || [])) {
       return '住院中';
     }
 
-    // 如果有出院事件，檢查出院類型
-    if (latestEvent.event_type === 'discharge') {
-      return '在住';
-    }
-
-    return '在住';
+    return '院舍';
   };
 
   // 獲取狀態顯示樣式
@@ -165,9 +163,7 @@ const HospitalOutreach: React.FC = () => {
     switch (status) {
       case '住院中':
         return 'bg-red-100 text-red-800 border-red-200';
-      case '渡假中':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case '在住':
+      case '院舍':
         return 'bg-green-100 text-green-800 border-green-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -225,9 +221,9 @@ const HospitalOutreach: React.FC = () => {
         return false;
       }
 
-      // 先應用進階篩選 - 使用動態計算的狀態
-      const recordStatus = calculatePatientStatus(record);
-      if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && recordStatus !== advancedFilters.在住狀態) {
+      // 先應用進階篩選 - 使用院友在住狀態（在住/待入住/已退住）
+      const residenceStatus = patient?.在住狀態 || '在住';
+      if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && residenceStatus !== advancedFilters.在住狀態) {
         return false;
       }
       if (advancedFilters.床號 && !patient?.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
@@ -244,6 +240,17 @@ const HospitalOutreach: React.FC = () => {
       }
       if (advancedFilters.備註 && !record.remarks?.toLowerCase().includes(advancedFilters.備註.toLowerCase())) {
         return false;
+      }
+
+      // 覆診狀態篩選
+      if (advancedFilters.覆診狀態 && advancedFilters.覆診狀態 !== '全部') {
+        const isCompleted = record.appointment_completed === true;
+        if (advancedFilters.覆診狀態 === '已完成' && !isCompleted) {
+          return false;
+        }
+        if (advancedFilters.覆診狀態 === '待完成' && isCompleted) {
+          return false;
+        }
       }
 
       // 日期區間篩選 - 只在日期格式有效時才進行比較
@@ -308,7 +315,8 @@ const HospitalOutreach: React.FC = () => {
       備註: '',
       startDate: '',
       endDate: '',
-      在住狀態: '全部'
+      在住狀態: '在住',
+      覆診狀態: '待完成'
     });
   };
 
@@ -432,6 +440,39 @@ const HospitalOutreach: React.FC = () => {
 
   const handleEdit = (record: any) => {
     setSelectedRecord(record);
+    setShowModal(true);
+  };
+
+  // 切換覆診狀態
+  const handleToggleAppointmentStatus = async (record: any) => {
+    try {
+      setTogglingAppointmentIds(prev => new Set(prev).add(record.id));
+      const newStatus = !record.appointment_completed;
+      await updateHospitalOutreachRecord({
+        ...record,
+        appointment_completed: newStatus
+      });
+    } catch (error) {
+      console.error('切換覆診狀態失敗:', error);
+      alert('切換覆診狀態失敗，請重試');
+    } finally {
+      setTogglingAppointmentIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(record.id);
+        return newSet;
+      });
+    }
+  };
+
+  // 另存為新記錄 - 打開模態框預填資料
+  const handleSaveAsNew = (record: any) => {
+    // 創建不含 id 的複製記錄，這樣模態框會視為新增而非編輯
+    const { id, created_at, updated_at, ...copyData } = record;
+    setSelectedRecord({
+      ...copyData,
+      appointment_completed: false, // 新記錄預設為待完成
+      _isCopy: true // 標記為複製，讓模態框顯示「新增」而非「編輯」
+    });
     setShowModal(true);
   };
 
@@ -711,13 +752,25 @@ const HospitalOutreach: React.FC = () => {
 
       {/* 醫生到診排程概覽 */}
       <div className="card p-4">
-        <div className="flex items-center justify-between mb-4">
+        <div 
+          className="flex items-center justify-between cursor-pointer"
+          onClick={() => setShowDoctorVisitSchedule(!showDoctorVisitSchedule)}
+        >
           <h2 className="text-lg font-semibold text-gray-900 flex items-center">
             <Stethoscope className="h-5 w-5 mr-2 text-blue-600" />
             醫生到診排程
+            <span className="ml-2 text-sm font-normal text-gray-500">
+              ({doctorVisitSchedule?.length || 0} 個排程)
+            </span>
+            {showDoctorVisitSchedule ? (
+              <ChevronUp className="h-4 w-4 ml-2 text-gray-400" />
+            ) : (
+              <ChevronDown className="h-4 w-4 ml-2 text-gray-400" />
+            )}
           </h2>
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setSelectedDoctorVisit(null);
               setShowDoctorVisitModal(true);
             }}
@@ -728,64 +781,82 @@ const HospitalOutreach: React.FC = () => {
           </button>
         </div>
 
-        {doctorVisitSchedule && doctorVisitSchedule.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-10 gap-3">
-            {doctorVisitSchedule
-              .sort((a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime())
-              .map(schedule => (
-                <div key={schedule.id} className="bg-blue-50 border border-blue-200 rounded-lg p-3 min-h-[90px]">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4 text-blue-600" />
-                      <span className="font-medium text-gray-900">
-                        {new Date(schedule.visit_date).toLocaleDateString('zh-TW')}
-                      </span>
-                    </div>
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={() => {
-                          setSelectedDoctorVisit(schedule);
-                          setShowDoctorVisitModal(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-100"
-                        title="編輯"
-                      >
-                        <Edit3 className="h-3 w-3" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteDoctorVisit(schedule.id)}
-                        className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-100"
-                        title="刪除"
-                        disabled={deletingDoctorVisitIds.has(schedule.id)}
-                      >
-                        {deletingDoctorVisitIds.has(schedule.id) ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
-                        ) : (
-                          <Trash2 className="h-3 w-3" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    <div className="space-y-1">
-                      {schedule.doctor_name && (
-                        <div className="text-xs">醫生：{schedule.doctor_name}</div>
-                      )}
-                      {schedule.specialty && (
-                        <div className="text-xs">專科：{schedule.specialty}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+        {showDoctorVisitSchedule && doctorVisitSchedule && doctorVisitSchedule.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">到診日期</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">醫生姓名</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">專科</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">可用名額</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">備註</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {doctorVisitSchedule
+                  .sort((a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime())
+                  .map(schedule => (
+                    <tr key={schedule.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-gray-900">
+                            {new Date(schedule.visit_date).toLocaleDateString('zh-TW')}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                        {schedule.doctor_name || '-'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                        {schedule.specialty || '-'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                        {schedule.available_slots || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
+                        {schedule.notes || '-'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setSelectedDoctorVisit(schedule);
+                              setShowDoctorVisitModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-100"
+                            title="編輯"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDoctorVisit(schedule.id)}
+                            className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-100"
+                            title="刪除"
+                            disabled={deletingDoctorVisitIds.has(schedule.id)}
+                          >
+                            {deletingDoctorVisitIds.has(schedule.id) ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
           </div>
-        ) : (
+        ) : showDoctorVisitSchedule ? (
           <div className="text-center py-8 text-gray-500">
             <Stethoscope className="h-12 w-12 mx-auto mb-2 text-gray-300" />
             <p className="text-sm">暫無醫生到診排程</p>
             <p className="text-xs">請新增醫生未來到診的日期</p>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* 搜索和篩選 */}
@@ -928,8 +999,21 @@ const HospitalOutreach: React.FC = () => {
                     >
                       <option value="全部">全部</option>
                       <option value="在住">在住</option>
-                      <option value="住院中">住院中</option>
-                      <option value="渡假中">渡假中</option>
+                      <option value="待入住">待入住</option>
+                      <option value="已退住">已退住</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="form-label">覆診狀態</label>
+                    <select
+                      value={advancedFilters.覆診狀態}
+                      onChange={(e) => updateAdvancedFilter('覆診狀態', e.target.value)}
+                      className="form-input"
+                    >
+                      <option value="全部">全部</option>
+                      <option value="已完成">已完成</option>
+                      <option value="待完成">待完成</option>
                     </select>
                   </div>
                 </div>
@@ -1013,6 +1097,9 @@ const HospitalOutreach: React.FC = () => {
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     備註
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    覆診狀態
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     操作
@@ -1166,11 +1253,45 @@ const HospitalOutreach: React.FC = () => {
                           {record.remarks || '-'}
                         </div>
                       </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                          record.appointment_completed 
+                            ? 'bg-green-100 text-green-800 border-green-200' 
+                            : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                        }`}>
+                          {record.appointment_completed ? '已完成' : '待完成'}
+                        </span>
+                      </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
                           <button
+                            onClick={() => handleToggleAppointmentStatus(record)}
+                            className={`p-1 rounded transition-colors ${
+                              record.appointment_completed 
+                                ? 'text-green-600 hover:text-green-800 hover:bg-green-50' 
+                                : 'text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50'
+                            }`}
+                            title={record.appointment_completed ? '點擊標記為待完成' : '點擊標記為已完成'}
+                            disabled={togglingAppointmentIds.has(record.id)}
+                          >
+                            {togglingAppointmentIds.has(record.id) ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                            ) : record.appointment_completed ? (
+                              <ToggleRight className="h-4 w-4" />
+                            ) : (
+                              <ToggleLeft className="h-4 w-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleSaveAsNew(record)}
+                            className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50"
+                            title="另存為新記錄"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                          <button
                             onClick={() => handleEdit(record)}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
                             title="編輯"
                             disabled={deletingIds.has(record.id)}
                           >
@@ -1178,7 +1299,7 @@ const HospitalOutreach: React.FC = () => {
                           </button>
                           <button
                             onClick={() => handleDelete(record.id)}
-                            className="text-red-600 hover:text-red-900"
+                            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
                             title="刪除"
                             disabled={deletingIds.has(record.id)}
                           >

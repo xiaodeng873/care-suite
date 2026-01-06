@@ -248,9 +248,11 @@ export interface ProblemLibrary {
   code: string;
   name: string;
   category: ProblemCategory;
+  subcategory?: string;
   description?: string;
   expected_goals: string[];
   interventions: string[];
+  keywords?: string[];
   is_active: boolean;
   created_by?: string;
   created_at: string;
@@ -290,6 +292,9 @@ export interface CarePlan {
   case_conference_professionals?: CaseConferenceProfessional[];
   family_contact_date?: string;
   family_member_name?: string;
+  family_participated?: boolean;     // 邀請家人及院友參與個人護理計劃過程，徵詢意見
+  responsible_staff?: string;        // 負責職員
+  special_care_needs?: string;       // 特別護理需求/其他專業意見(如有)
   created_at: string;
   updated_at: string;
 }
@@ -311,6 +316,7 @@ export interface CarePlanProblem {
   expected_goals: string[];
   interventions: string[];
   outcome_review?: OutcomeReview;
+  outcome_review_details?: string;  // 成效檢討詳情（當選擇部分滿意或需要持續改善時填寫）
   problem_assessor?: string;
   outcome_assessor?: string;
   display_order: number;

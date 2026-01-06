@@ -5,6 +5,38 @@ import { useAuth } from '../context/AuthContext';
 
 const PROBLEM_CATEGORIES: ProblemCategory[] = ['護理', '社工', '物理治療', '職業治療', '言語治療', '營養師', '醫生'];
 
+// 各專業類別的子分類定義
+const SUBCATEGORIES: Record<ProblemCategory, string[]> = {
+  '護理': [
+    '皮膚護理', '活動護理', '排泄護理', '睡眠護理', '疼痛護理', 
+    '感染控制', '水份管理', '呼吸護理', '安全護理', '藥物護理',
+    '糖尿病護理', '尿導管護理', '造口護理', '鼻胃飼護理', '透析護理', '臨終護理'
+  ],
+  '社工': [
+    '家庭支援', '經濟支援', '社交支援', '適應支援', '心理支援',
+    '生命關懷', '保護支援', '法律支援', '過渡支援'
+  ],
+  '物理治療': [
+    '步態訓練', '關節活動', '肌力訓練', '平衡訓練', '心肺復健',
+    '姿勢矯正', '水腫處理', '轉移訓練', '疼痛管理', '神經康復', '骨科康復'
+  ],
+  '職業治療': [
+    '上肢功能', '日常生活', '認知功能', '輔具評估', '環境改造',
+    '康樂治療', '感知訓練', '角色功能', '照顧者支援'
+  ],
+  '言語治療': [
+    '吞嚥功能', '溝通功能', '聲音功能', '言語功能', '語言功能',
+    '口腔功能', '認知溝通', '特殊需要', '聽覺溝通'
+  ],
+  '營養師': [
+    '營養評估', '質地調整', '治療飲食', '特殊營養', '腸道營養',
+    '食慾問題', '特殊飲食', '食物安全'
+  ],
+  '醫生': [
+    '疾病診斷', '藥物治療', '專科轉介', '預防醫學', '臨終照護'
+  ]
+};
+
 interface ProblemLibraryModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,6 +56,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
     code: '',
     name: '',
     category: '護理' as ProblemCategory,
+    subcategory: '',
     description: '',
     expected_goals: [''],
     interventions: ['']
@@ -36,7 +69,8 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
         !searchTerm || 
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        p.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.subcategory?.toLowerCase().includes(searchTerm.toLowerCase())
       )
       .sort((a, b) => a.code.localeCompare(b.code));
   }, [problemLibrary, selectedCategory, searchTerm]);
@@ -46,6 +80,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
       code: '',
       name: '',
       category: selectedCategory,
+      subcategory: '',
       description: '',
       expected_goals: [''],
       interventions: ['']
@@ -59,6 +94,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
       code: problem.code,
       name: problem.name,
       category: problem.category,
+      subcategory: problem.subcategory || '',
       description: problem.description || '',
       expected_goals: problem.expected_goals?.length ? problem.expected_goals : [''],
       interventions: problem.interventions?.length ? problem.interventions : ['']
@@ -93,6 +129,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
           code: formData.code, // 保留現有代碼
           name: formData.name,
           category: formData.category,
+          subcategory: formData.subcategory || undefined,
           description: formData.description,
           expected_goals: formData.expected_goals.filter(g => g.trim()),
           interventions: formData.interventions.filter(i => i.trim())
@@ -119,6 +156,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
           code: autoCode,
           name: formData.name,
           category: formData.category,
+          subcategory: formData.subcategory || undefined,
           description: formData.description,
           expected_goals: formData.expected_goals.filter(g => g.trim()),
           interventions: formData.interventions.filter(i => i.trim()),
@@ -217,7 +255,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
                   <label className="block text-sm font-medium text-gray-700 mb-1">專業類別 *</label>
                   <select
                     value={formData.category}
-                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as ProblemCategory }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as ProblemCategory, subcategory: '' }))}
                     className="form-input"
                   >
                     {PROBLEM_CATEGORIES.map(cat => (
@@ -226,6 +264,23 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
                   </select>
                 </div>
               </div>
+
+              {/* 子分類選擇 */}
+              {SUBCATEGORIES[formData.category]?.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">子分類</label>
+                  <select
+                    value={formData.subcategory}
+                    onChange={(e) => setFormData(prev => ({ ...prev, subcategory: e.target.value }))}
+                    className="form-input"
+                  >
+                    <option value="">-- 請選擇子分類 --</option>
+                    {SUBCATEGORIES[formData.category].map(sub => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">問題名稱 *</label>
@@ -353,6 +408,11 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
                           <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
                             {problem.code}
                           </span>
+                          {problem.subcategory && (
+                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                              {problem.subcategory}
+                            </span>
+                          )}
                           <span className="font-medium text-gray-900">{problem.name}</span>
                         </div>
                         {problem.description && (

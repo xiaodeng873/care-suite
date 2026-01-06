@@ -14,7 +14,8 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
-  Users
+  Users,
+  Search
 } from 'lucide-react';
 import { 
   usePatients, 
@@ -99,6 +100,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     expected_goals: string[];
     interventions: string[];
     outcome_review?: OutcomeReview;
+    outcome_review_details?: string;
     problem_assessor: string;
     outcome_assessor: string;
   }>>([]);
@@ -106,6 +108,11 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
   // 問題庫選擇
   const [selectedCategory, setSelectedCategory] = useState<ProblemCategory>('護理');
   const [showProblemLibrary, setShowProblemLibrary] = useState(false);
+  const [problemSearchTerm, setProblemSearchTerm] = useState('');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('全部');
+  
+  // 問題列表過濾
+  const [problemFilterCategory, setProblemFilterCategory] = useState<ProblemCategory | '全部'>('全部');
   
   // 新增問題庫項目
   const [showAddProblem, setShowAddProblem] = useState(false);
@@ -124,11 +131,17 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     professionals: { category: ProblemCategory; assessor: string; assessment_date: string }[];
     family_contact_date: string;
     family_member_name: string;
+    family_participated: boolean;
+    responsible_staff: string;
+    special_care_needs: string;
   }>({
     conference_date: plan?.case_conference_date || '',
     professionals: plan?.case_conference_professionals || [],
     family_contact_date: plan?.family_contact_date || '',
-    family_member_name: plan?.family_member_name || ''
+    family_member_name: plan?.family_member_name || '',
+    family_participated: plan?.family_participated || false,
+    responsible_staff: plan?.responsible_staff || '',
+    special_care_needs: plan?.special_care_needs || ''
   });
   const [patientContacts, setPatientContacts] = useState<PatientContact[]>([]);
 
@@ -184,6 +197,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
               expected_goals: p.expected_goals || [],
               interventions: p.interventions || [],
               outcome_review: p.outcome_review,
+              outcome_review_details: p.outcome_review_details || '',
               problem_assessor: p.problem_assessor || '',
               outcome_assessor: p.outcome_assessor || ''
             })));
@@ -223,10 +237,44 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     return hasAnyNeed;
   }, [nursingNeeds, nursingNeedItems]);
   
-  // 獲取選定專業的問題庫
+  // 獲取選定專業的問題庫（支援子分類和關鍵字搜索）
   const filteredProblemLibrary = useMemo(() => {
-    return problemLibrary.filter(p => p.category === selectedCategory && p.is_active);
+    let filtered = problemLibrary.filter(p => p.category === selectedCategory && p.is_active);
+    
+    // 子分類篩選
+    if (selectedSubcategory !== '全部') {
+      filtered = filtered.filter(p => p.subcategory === selectedSubcategory);
+    }
+    
+    // 關鍵字搜索
+    if (problemSearchTerm.trim()) {
+      const searchLower = problemSearchTerm.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.name.toLowerCase().includes(searchLower) ||
+        p.code.toLowerCase().includes(searchLower) ||
+        (p.description && p.description.toLowerCase().includes(searchLower)) ||
+        (p.keywords && p.keywords.some(k => k.toLowerCase().includes(searchLower)))
+      );
+    }
+    
+    return filtered;
+  }, [problemLibrary, selectedCategory, selectedSubcategory, problemSearchTerm]);
+  
+  // 獲取當前專業的子分類列表
+  const subcategories = useMemo(() => {
+    const categoryProblems = problemLibrary.filter(p => p.category === selectedCategory && p.is_active);
+    const subs = new Set<string>();
+    categoryProblems.forEach(p => {
+      if (p.subcategory) subs.add(p.subcategory);
+    });
+    return ['全部', ...Array.from(subs).sort()];
   }, [problemLibrary, selectedCategory]);
+  
+  // 當專業類別變化時，重置子分類和搜索
+  useEffect(() => {
+    setSelectedSubcategory('全部');
+    setProblemSearchTerm('');
+  }, [selectedCategory]);
   
   // 判斷是否為首月計劃（入住30天內）
   const shouldBeFirstMonthPlan = useMemo(() => {
@@ -427,6 +475,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
         expected_goals: p.expected_goals.filter(g => g.trim()),
         interventions: p.interventions.filter(i => i.trim()),
         outcome_review: p.outcome_review,
+        outcome_review_details: p.outcome_review_details,
         problem_assessor: p.problem_assessor,
         outcome_assessor: p.outcome_assessor,
         display_order: 0
@@ -443,7 +492,10 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
             case_conference_date: caseConference.conference_date || undefined,
             case_conference_professionals: caseConference.professionals.length > 0 ? caseConference.professionals : undefined,
             family_contact_date: caseConference.family_contact_date || undefined,
-            family_member_name: caseConference.family_member_name || undefined
+            family_member_name: caseConference.family_member_name || undefined,
+            family_participated: caseConference.family_participated,
+            responsible_staff: caseConference.responsible_staff || undefined,
+            special_care_needs: caseConference.special_care_needs || undefined
           },
           nursingNeedsData,
           problemsData
@@ -466,7 +518,10 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
             case_conference_date: caseConference.conference_date || undefined,
             case_conference_professionals: caseConference.professionals.length > 0 ? caseConference.professionals : undefined,
             family_contact_date: caseConference.family_contact_date || undefined,
-            family_member_name: caseConference.family_member_name || undefined
+            family_member_name: caseConference.family_member_name || undefined,
+            family_participated: caseConference.family_participated,
+            responsible_staff: caseConference.responsible_staff || undefined,
+            special_care_needs: caseConference.special_care_needs || undefined
           },
           nursingNeedsData,
           problemsData
@@ -822,25 +877,50 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
               {/* 計劃內容 Tab */}
               {activeTab === 'problems' && (
                 <div className="space-y-6">
-                  {/* 專業類別選擇和問題庫 */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <label className="text-sm font-medium text-gray-700">專業類別：</label>
-                      <select
-                        value={selectedCategory}
-                        onChange={(e) => setSelectedCategory(e.target.value as ProblemCategory)}
-                        className="form-input"
-                      >
-                        {PROBLEM_CATEGORIES.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                    </div>
+                  {/* 院友資訊與操作按鈕 */}
+                  <div className="flex items-center justify-between gap-4">
+                    {/* 院友基本資訊 */}
+                    {selectedPatientId && (() => {
+                      const patient = patients.find(p => p.院友id === selectedPatientId);
+                      if (!patient) return null;
+                      
+                      const age = patient.出生日期 ? Math.floor((new Date().getTime() - new Date(patient.出生日期).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+                      
+                      return (
+                        <div className="flex-1 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+                          <div className="flex items-center gap-6 text-sm">
+                            <div>
+                              <span className="text-gray-600">床號：</span>
+                              <span className="font-medium text-gray-900 ml-1">{patient.床號 || '-'}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">姓名：</span>
+                              <span className="font-medium text-gray-900 ml-1">{patient.中文姓名}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">年齡：</span>
+                              <span className="font-medium text-gray-900 ml-1">{age !== null ? `${age} 歲` : '-'}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">入住日期：</span>
+                              <span className="font-medium text-gray-900 ml-1">
+                                {patient.入住日期 ? new Date(patient.入住日期).toLocaleDateString('zh-TW') : '-'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">入住類型：</span>
+                              <span className="font-medium text-gray-900 ml-1">{patient.入住類型 || '-'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     
+                    {/* 操作按鈕 */}
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => setShowProblemLibrary(!showProblemLibrary)}
-                        className="btn-secondary flex items-center space-x-1"
+                        className={`btn-secondary flex items-center space-x-1 ${showProblemLibrary ? 'bg-blue-50 border-blue-300' : ''}`}
                       >
                         <FileText className="h-4 w-4" />
                         <span>從問題庫選取</span>
@@ -858,20 +938,107 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                   {/* 問題庫選擇面板 */}
                   {showProblemLibrary && (
                     <div className="border rounded-lg p-4 bg-gray-50">
-                      <h4 className="font-medium text-gray-700 mb-3">問題庫 - {selectedCategory}</h4>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <label className="text-sm font-medium text-gray-700">專業類別：</label>
+                          <select
+                            value={selectedCategory}
+                            onChange={(e) => setSelectedCategory(e.target.value as ProblemCategory)}
+                            className="form-input py-1.5"
+                          >
+                            {PROBLEM_CATEGORIES.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <span className="text-sm text-gray-500">共 {filteredProblemLibrary.length} 個問題</span>
+                      </div>
+                      
+                      {/* 搜索和分類篩選 */}
+                      <div className="flex flex-wrap items-center gap-3 mb-4">
+                        {/* 關鍵字搜索 */}
+                        <div className="relative flex-1 min-w-[200px]">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={problemSearchTerm}
+                            onChange={(e) => setProblemSearchTerm(e.target.value)}
+                            placeholder="搜索問題名稱或關鍵字..."
+                            className="form-input pl-9 w-full"
+                          />
+                          {problemSearchTerm && (
+                            <button
+                              onClick={() => setProblemSearchTerm('')}
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* 子分類選擇 */}
+                        {subcategories.length > 1 && (
+                          <div className="flex items-center space-x-2">
+                            <label className="text-sm text-gray-600">分類：</label>
+                            <select
+                              value={selectedSubcategory}
+                              onChange={(e) => setSelectedSubcategory(e.target.value)}
+                              className="form-input py-1.5 text-sm"
+                            >
+                              {subcategories.map(sub => (
+                                <option key={sub} value={sub}>{sub}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                      
                       {filteredProblemLibrary.length === 0 ? (
-                        <p className="text-gray-500 text-sm">此類別暫無問題庫項目</p>
+                        <div className="text-center py-6">
+                          <Search className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                          <p className="text-gray-500 text-sm">
+                            {problemSearchTerm ? '沒有找到符合的問題' : '此類別暫無問題庫項目'}
+                          </p>
+                          {problemSearchTerm && (
+                            <button
+                              onClick={() => setProblemSearchTerm('')}
+                              className="text-blue-600 text-sm mt-2 hover:underline"
+                            >
+                              清除搜索
+                            </button>
+                          )}
+                        </div>
                       ) : (
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-80 overflow-y-auto">
                           {filteredProblemLibrary.map(lib => (
                             <button
                               key={lib.id}
                               onClick={() => handleSelectFromLibrary(lib)}
                               className="text-left p-3 bg-white rounded border hover:border-blue-300 hover:bg-blue-50 transition-colors"
                             >
-                              <div className="font-medium text-sm">{lib.code} - {lib.name}</div>
+                              <div className="flex items-start justify-between">
+                                <div className="font-medium text-sm text-gray-900">{lib.name}</div>
+                                <span className="text-xs text-gray-400 ml-2">{lib.code}</span>
+                              </div>
+                              {lib.subcategory && (
+                                <span className="inline-block text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded mt-1">
+                                  {lib.subcategory}
+                                </span>
+                              )}
                               {lib.description && (
-                                <div className="text-xs text-gray-500 mt-1">{lib.description}</div>
+                                <div className="text-xs text-gray-500 mt-1 line-clamp-2">{lib.description}</div>
+                              )}
+                              {lib.keywords && lib.keywords.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {lib.keywords.slice(0, 3).map((kw, i) => (
+                                    <span key={i} className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">
+                                      {kw}
+                                    </span>
+                                  ))}
+                                  {lib.keywords.length > 3 && (
+                                    <span className="text-xs text-gray-400">+{lib.keywords.length - 3}</span>
+                                  )}
+                                </div>
                               )}
                             </button>
                           ))}
@@ -888,8 +1055,32 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                       <p className="text-sm text-gray-400 mt-1">點擊「從問題庫選取」或「新增問題」開始</p>
                     </div>
                   ) : (
-                    <div className="space-y-6">
-                      {problems.map((problem, index) => (
+                    <div>
+                      {/* 問題過濾選單 */}
+                      <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">過濾專業：</label>
+                          <select
+                            value={problemFilterCategory}
+                            onChange={(e) => setProblemFilterCategory(e.target.value as ProblemCategory | '全部')}
+                            className="form-input py-1.5"
+                          >
+                            <option value="全部">全部</option>
+                            {PROBLEM_CATEGORIES.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <span className="text-sm text-gray-500 whitespace-nowrap">
+                          顯示 {problemFilterCategory === '全部' ? problems.length : problems.filter(p => p.problem_category === problemFilterCategory).length} / {problems.length} 個問題
+                        </span>
+                      </div>
+                      {/* 過濾後的問題列表 */}
+                      <div className="space-y-6">
+                        {problems
+                          .map((problem, index) => ({ problem, originalIndex: index }))
+                          .filter(({ problem }) => problemFilterCategory === '全部' || problem.problem_category === problemFilterCategory)
+                          .map(({ problem, originalIndex: index }) => (
                         <div key={index} className="border rounded-lg p-4 bg-white">
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center space-x-2">
@@ -1000,6 +1191,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                           </div>
                         </div>
                       ))}
+                    </div>
                     </div>
                   )}
                 </div>
@@ -1141,6 +1333,27 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                                 <div className="mt-2 flex items-center text-xs text-amber-600">
                                   <AlertCircle className="h-4 w-4 mr-1" />
                                   待檢討
+                                </div>
+                              )}
+                              
+                              {/* 如選擇部分滿意或需要持續改善，顯示詳情輸入框 */}
+                              {(problem.outcome_review === '部分滿意' || problem.outcome_review === '需要持續改善') && (
+                                <div className="mt-3">
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    請註明詳情 <span className="text-red-500">*</span>
+                                  </label>
+                                  <textarea
+                                    value={problem.outcome_review_details || ''}
+                                    onChange={(e) => handleProblemChange(index, 'outcome_review_details', e.target.value)}
+                                    rows={2}
+                                    className="form-input w-full text-sm"
+                                    placeholder="請說明原因及後續跟進計劃..."
+                                  />
+                                  {!problem.outcome_review_details && (
+                                    <p className="text-xs text-red-500 mt-1">
+                                      選擇「{problem.outcome_review}」時必須填寫詳情
+                                    </p>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1291,6 +1504,39 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                           </datalist>
                         </div>
                       </div>
+                    </div>
+                    
+                    {/* 邀請家人及院友參與說明 + 負責職員 */}
+                    <div className="mt-4 flex items-center gap-4">
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex-shrink-0">
+                        <p className="text-sm text-blue-800 font-medium">
+                          ✓ 邀請家人及院友參與個人護理計劃過程，徵詢意見
+                        </p>
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-500 mb-1">負責職員 (選填)</label>
+                        <input
+                          type="text"
+                          value={caseConference.responsible_staff}
+                          onChange={(e) => setCaseConference(prev => ({ ...prev, responsible_staff: e.target.value }))}
+                          className="form-input w-full"
+                          placeholder="輸入負責職員姓名"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 特別護理需求 */}
+                  <div className="border-t pt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">特別護理需求/其他專業意見 (如有)</label>
+                      <textarea
+                        value={caseConference.special_care_needs}
+                        onChange={(e) => setCaseConference(prev => ({ ...prev, special_care_needs: e.target.value }))}
+                        rows={3}
+                        className="form-input w-full"
+                        placeholder="如有特別護理需求或其他專業意見，請在此填寫..."
+                      />
                     </div>
                   </div>
                 </div>
