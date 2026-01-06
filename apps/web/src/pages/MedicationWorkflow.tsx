@@ -666,16 +666,68 @@ const MedicationWorkflow: React.FC = () => {
       .filter(p => p.在住狀態 === '在住')
       .sort((a, b) => a.床號.localeCompare(b.床號, 'zh-Hant', { numeric: true }));
   }, [patients]);
-  // 應用樂觀更新到工作流程記錄
-  const applyOptimisticUpdates = useCallback((records: any[]) => {
-    return records.map(record => {
+  
+  // 去重後的工作流程記錄（確保每個 prescription_id + date + time 組合只有一筆）
+  const deduplicatedWorkflowRecords = useMemo(() => {
+    const seen = new Map<string, any>();
+    const duplicates: any[] = [];
+    // 遍歷所有記錄，保留最新的（後面的會覆蓋前面的）
+    allWorkflowRecords.forEach(record => {
+      const key = `${record.prescription_id}_${record.scheduled_date}_${record.scheduled_time?.trim().substring(0, 5)}`;
+      // 如果已經有相同 key 的記錄，比較哪個更"完整"（有更多已完成的步驟）
+      const existing = seen.get(key);
+      if (!existing) {
+        seen.set(key, record);
+      } else {
+        // 計算完成度分數
+        const getCompletionScore = (r: any) => {
+          let score = 0;
+          if (r.preparation_status === 'completed') score += 1;
+          if (r.verification_status === 'completed') score += 1;
+          if (r.dispensing_status === 'completed' || r.dispensing_status === 'failed') score += 1;
+          return score;
+        };
+        // 記錄重複信息
+        duplicates.push({
+          key,
+          existing: { id: existing.id, prep: existing.preparation_status, ver: existing.verification_status },
+          new: { id: record.id, prep: record.preparation_status, ver: record.verification_status }
+        });
+        // 保留完成度更高的記錄，或者如果完成度相同則保留 ID 較新的
+        if (getCompletionScore(record) > getCompletionScore(existing) ||
+            (getCompletionScore(record) === getCompletionScore(existing) && record.id > existing.id)) {
+          seen.set(key, record);
+        }
+      }
+    });
+    const deduplicated = Array.from(seen.values());
+    if (duplicates.length > 0) {
+      console.warn(`⚠️ 發現 ${duplicates.length} 組重複記錄！`, duplicates);
+      console.warn(`原始: ${allWorkflowRecords.length}, 去重後: ${deduplicated.length}`);
+    }
+    return deduplicated;
+  }, [allWorkflowRecords]);
+  
+  // 應用樂觀更新到工作流程記錄 - 創建帶有樂觀更新的記錄副本
+  const recordsWithOptimisticUpdates = useMemo(() => {
+    if (optimisticWorkflowUpdates.size === 0) {
+      return deduplicatedWorkflowRecords;
+    }
+    console.log(`🔄 recordsWithOptimisticUpdates 重新計算, 樂觀更新數量: ${optimisticWorkflowUpdates.size}`);
+    optimisticWorkflowUpdates.forEach((update, id) => {
+      const record = deduplicatedWorkflowRecords.find(r => r.id === id);
+      console.log(`  - ID ${id.substring(0, 8)}: 記錄存在=${!!record}, 更新=${JSON.stringify(update)}`);
+    });
+    return deduplicatedWorkflowRecords.map(record => {
       const optimisticUpdate = optimisticWorkflowUpdates.get(record.id);
       if (optimisticUpdate) {
+        console.log(`  ✅ 應用樂觀更新到 ${record.id.substring(0, 8)}`);
         return { ...record, ...optimisticUpdate };
       }
       return record;
     });
-  }, [optimisticWorkflowUpdates]);
+  }, [deduplicatedWorkflowRecords, optimisticWorkflowUpdates]);
+  
   // 預設選擇第一個在住院友
   useEffect(() => {
     if (!selectedPatientId && sortedActivePatients.length > 0) {
@@ -765,7 +817,7 @@ const MedicationWorkflow: React.FC = () => {
       }
     }
   }, [selectedPatientId, JSON.stringify(weekDates)]);
-  // 監聽 context 的 prescriptionWorkflowRecords 改變，只更新已存在的記錄，不引入週外記錄
+  // 監聯 context 的 prescriptionWorkflowRecords 改變，只更新已存在的記錄，不引入週外記錄
   useEffect(() => {
     if (selectedPatientId) {
       setAllWorkflowRecords(prev => {
@@ -783,8 +835,10 @@ const MedicationWorkflow: React.FC = () => {
         const updateMap = new Map(recordsToUpdate.map(r => [r.id, r]));
         // 更新現有記錄
         const updated = prev.map(r => updateMap.has(r.id) ? updateMap.get(r.id)! : r);
-        console.log(`✅ 更新後記錄數: ${updated.length} (保持不變)`);
-        console.log(`  記錄的日期範圍:`, [...new Set(updated.map(r => r.scheduled_date))]);
+        // 調試：記錄更新的記錄狀態
+        recordsToUpdate.forEach(r => {
+          console.log(`📝 Context 更新記錄 ${r.id.substring(0, 8)}: prep=${r.preparation_status}, ver=${r.verification_status}`);
+        });
         return updated;
       });
     }
@@ -823,55 +877,28 @@ const MedicationWorkflow: React.FC = () => {
   // 獲取當前日期的工作流程記錄（用於一鍵操作等）
   // 重要：包含在服處方(status='active')和有效期內的停用處方(status='inactive')的記錄
   const currentDayWorkflowRecords = useMemo(() => {
-    console.log(`\n📋 開始篩選當天工作流程記錄 (日期: ${selectedDate}, 院友ID: ${selectedPatientId})`);
-    const filtered = allWorkflowRecords.filter(r => {
+    // 使用已經應用了樂觀更新的記錄
+    return recordsWithOptimisticUpdates.filter(r => {
       // 1. 必須是當天的記錄
       if (r.scheduled_date !== selectedDate) return false;
       // 2. 必須是選中院友的記錄
       if (r.patient_id.toString() !== selectedPatientId) return false;
       // 3. 檢查處方狀態
       const prescription = prescriptions.find(p => p.id === r.prescription_id);
-      if (!prescription) {
-        console.log(`  ❌ 記錄 ${r.id} (時間: ${r.scheduled_time}): 找不到對應處方`);
-        return false;
-      }
+      if (!prescription) return false;
       // 在服處方：正常包含
-      if (prescription.status === 'active') {
-        console.log(`  ✅ ${prescription.medication_name} (時間: ${r.scheduled_time}): 通過檢查 - 在服處方 + 備藥方式: ${prescription.preparation_method}`);
-        return true;
-      }
+      if (prescription.status === 'active') return true;
       // 停用處方：檢查記錄日期是否在處方有效期內
       if (prescription.status === 'inactive') {
         const recordDate = new Date(r.scheduled_date);
         const startDate = new Date(prescription.start_date);
         const endDate = prescription.end_date ? new Date(prescription.end_date) : null;
-        if (recordDate >= startDate && (!endDate || recordDate <= endDate)) {
-          console.log(`  ✅ ${prescription.medication_name} (時間: ${r.scheduled_time}): 通過檢查 - 停用處方但在有效期內 (${prescription.start_date} ~ ${prescription.end_date || '無結束日期'})`);
-          return true;
-        } else {
-          console.log(`  ❌ ${prescription.medication_name} (時間: ${r.scheduled_time}): 停用處方且不在有效期內`);
-          return false;
-        }
+        return recordDate >= startDate && (!endDate || recordDate <= endDate);
       }
       // 其他狀態（如 pending_change）：排除
-      console.log(`  ❌ ${prescription.medication_name} (時間: ${r.scheduled_time}): 處方狀態為 ${prescription.status}，非 active 或 inactive`);
       return false;
     });
-    console.log(`📋 當天工作流程記錄: ${filtered.length} 筆 (包含在服處方和有效期內的停用處方)`);
-    // 特別標記提前備藥的記錄
-    const advancedRecords = filtered.filter(r => {
-      const prescription = prescriptions.find(p => p.id === r.prescription_id);
-      return prescription?.preparation_method === 'advanced';
-    });
-    // 應用樂觀更新
-    return filtered.map(record => {
-      const optimisticUpdate = optimisticWorkflowUpdates.get(record.id);
-      if (optimisticUpdate) {
-        return { ...record, ...optimisticUpdate };
-      }
-      return record;
-    });
-  }, [allWorkflowRecords, selectedDate, selectedPatientId, prescriptions, optimisticWorkflowUpdates]);
+  }, [recordsWithOptimisticUpdates, selectedDate, selectedPatientId, prescriptions]);
   // 獲取選中院友的在服處方（基於選取日期）
   const selectedPatient = useMemo(() => {
     const patient = sortedActivePatients.find(p => p.院友id.toString() === selectedPatientId);
@@ -904,15 +931,11 @@ const MedicationWorkflow: React.FC = () => {
     allWorkflowRecords.forEach(record => {
       ids.add(record.prescription_id);
     });
-    if (ids.size > 0) {
-      console.log(`📋 處方ID列表:`, Array.from(ids));
-    }
     return ids;
   }, [allWorkflowRecords]);
   // 過濾處方：顯示在服處方 + 停用但在當周有工作流程記錄的處方
   const activePrescriptions = useMemo(() => {
-    console.log(`\n🔍 開始過濾處方 (院友ID: ${selectedPatientId}, 週期: ${weekDates[0]} ~ ${weekDates[6]})`);
-    const filtered = prescriptions.filter(p => {
+    return prescriptions.filter(p => {
       // 1. 必須是當前選中的院友
       if (p.patient_id.toString() !== selectedPatientId) {
         return false;
@@ -923,42 +946,22 @@ const MedicationWorkflow: React.FC = () => {
         const weekEnd = new Date(weekDates[6]);
         const startDate = new Date(p.start_date);
         // 處方必須在週結束日期之前或當天開始
-        if (startDate > weekEnd) {
-          console.log(`  ❌ ${p.medication_name}: start_date(${p.start_date}) > weekEnd(${weekDates[6]})`);
-          return false;
-        }
+        if (startDate > weekEnd) return false;
         // 如果有結束日期，處方必須在週開始日期之後或當天結束
         if (p.end_date) {
           const endDate = new Date(p.end_date);
-          if (endDate < weekStart) {
-            console.log(`  ❌ ${p.medication_name}: end_date(${p.end_date}) < weekStart(${weekDates[0]})`);
-            return false;
-          }
+          if (endDate < weekStart) return false;
         }
         // 必須在當周有工作流程記錄
-        const hasRecords = weekPrescriptionIds.has(p.id);
-        if (!hasRecords) {
-          return false;
-        }
-        console.log(`  ✅ ${p.medication_name} (active): 通過所有檢查 - 日期有效 + 有工作流程記錄`);
-        return true;
+        return weekPrescriptionIds.has(p.id);
       }
       // 3. 如果是停用處方，檢查當周是否有相關工作流程記錄
       if (p.status === 'inactive') {
-        const hasRecords = weekPrescriptionIds.has(p.id);
-        if (hasRecords) {
-          console.log(`  ✅ ${p.medication_name} (inactive): 停用處方但當周有工作流程記錄，顯示歷史記錄`);
-          return true;
-        } else {
-          console.log(`  ❌ ${p.medication_name} (inactive): 停用處方且當周無記錄，跳過`);
-          return false;
-        }
+        return weekPrescriptionIds.has(p.id);
       }
       // 4. 其他狀態（pending_change等）暫不顯示
-      console.log(`  ❌ ${p.medication_name} (${p.status}): 狀態為 ${p.status}，跳過`);
       return false;
     });
-    return filtered;
   }, [prescriptions, selectedPatientId, weekDates, weekPrescriptionIds]);
   // 根據備藥方式過濾處方
   const filteredPrescriptions = activePrescriptions.filter(p => {
@@ -971,14 +974,14 @@ const MedicationWorkflow: React.FC = () => {
     }
     return true;
   });
-  // 計算每個日期的逾期未完成流程狀態（用於紅點提示）
+  // 計算每個日期的逾期未完成流程狀態（用於紅點提示，使用樂觀更新記錄）
   const dateOverdueStatus = useMemo(() => {
-    return calculateOverdueCountByDate(allWorkflowRecords, weekDates);
-  }, [allWorkflowRecords, weekDates]);
-  // 計算每個備藥方式的逾期未完成流程數量（用於分頁標籤紅點提示）
+    return calculateOverdueCountByDate(recordsWithOptimisticUpdates, weekDates);
+  }, [recordsWithOptimisticUpdates, weekDates]);
+  // 計算每個備藥方式的逾期未完成流程數量（用於分頁標籤紅點提示，使用樂觀更新記錄）
   const preparationMethodOverdueCounts = useMemo(() => {
-    return calculateOverdueCountByPreparationMethod(allWorkflowRecords, prescriptions);
-  }, [allWorkflowRecords, prescriptions]);
+    return calculateOverdueCountByPreparationMethod(recordsWithOptimisticUpdates, prescriptions);
+  }, [recordsWithOptimisticUpdates, prescriptions]);
   // 計算藥物數量統計
   const medicationStats = useMemo(() => {
     const timeSlotStats: { [timeSlot: string]: { [dosageForm: string]: { count: number; totalAmount: number; unit: string } } } = {};
@@ -1020,13 +1023,16 @@ const MedicationWorkflow: React.FC = () => {
       console.error('無效的院友ID:', selectedPatientId);
       return;
     }
+    // 使用帶樂觀更新的記錄來判斷當前狀態
+    const recordWithOptimistic = recordsWithOptimisticUpdates.find(r => r.id === recordId);
+    // 使用原始記錄來執行操作（確保 ID 正確）
     const record = allWorkflowRecords.find(r => r.id === recordId);
-    if (!record) {
+    if (!record || !recordWithOptimistic) {
       console.error('找不到對應的工作流程記錄:', recordId);
       return;
     }
-    // 檢查步驟狀態，決定是執行操作還是撤銷
-    const stepStatus = getStepStatus(record, step);
+    // 使用帶樂觀更新的記錄狀態來決定操作
+    const stepStatus = getStepStatus(recordWithOptimistic, step);
     if (stepStatus === 'pending') {
       // 待處理狀態：直接執行操作
       if (step === 'preparation' || step === 'verification') {
@@ -1054,6 +1060,20 @@ const MedicationWorkflow: React.FC = () => {
     if (!record) return;
     try {
       await revertPrescriptionWorkflowStep(recordId, step as any, patientIdNum, record.scheduled_date);
+      // 直接更新 allWorkflowRecords（因為 Context 可能不包含這個記錄）
+      setAllWorkflowRecords(prev =>
+        prev.map(r => {
+          if (r.id !== recordId) return r;
+          if (step === 'preparation') {
+            return { ...r, preparation_status: 'pending', preparation_staff: null, preparation_time: null };
+          } else if (step === 'verification') {
+            return { ...r, verification_status: 'pending', verification_staff: null, verification_time: null };
+          } else if (step === 'dispensing') {
+            return { ...r, dispensing_status: 'pending', dispensing_staff: null, dispensing_time: null, failure_reason: null };
+          }
+          return r;
+        })
+      );
     } catch (error) {
       console.error(`撤銷${step}失敗:`, error);
     }
@@ -1196,6 +1216,7 @@ const MedicationWorkflow: React.FC = () => {
   };
   // 處理完成工作流程步驟
   const handleCompleteWorkflowStep = async (recordId: string, step: string) => {
+    console.log(`\n🚀 handleCompleteWorkflowStep: recordId=${recordId.substring(0, 8)}, step=${step}`);
     const patientIdNum = parseInt(selectedPatientId);
     if (isNaN(patientIdNum)) {
       console.error('無效的院友ID:', selectedPatientId);
@@ -1206,25 +1227,36 @@ const MedicationWorkflow: React.FC = () => {
       console.error('找不到對應的工作流程記錄:', recordId);
       return;
     }
+    console.log(`  記錄: date=${record.scheduled_date}, time=${record.scheduled_time}, prep=${record.preparation_status}, ver=${record.verification_status}`);
     const scheduledDate = record.scheduled_date;
     // 樂觀更新：立即更新 UI
+    console.log(`  設置樂觀更新...`);
     if (step === 'preparation') {
       setOptimisticWorkflowUpdates(prev => {
         const next = new Map(prev);
         next.set(recordId, { ...prev.get(recordId), preparation_status: 'completed' });
+        console.log(`  樂觀更新 Map 大小: ${next.size}, 包含 ${recordId.substring(0, 8)}: ${next.has(recordId)}`);
         return next;
       });
     } else if (step === 'verification') {
       setOptimisticWorkflowUpdates(prev => {
         const next = new Map(prev);
         next.set(recordId, { ...prev.get(recordId), verification_status: 'completed' });
+        console.log(`  樂觀更新 Map 大小: ${next.size}, 包含 ${recordId.substring(0, 8)}: ${next.has(recordId)}`);
         return next;
       });
     }
     try {
       if (step === 'preparation') {
         await prepareMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, scheduledDate);
-        // 清除樂觀更新狀態
+        // 直接更新 allWorkflowRecords（因為 Context 可能不包含這個記錄）
+        setAllWorkflowRecords(prev =>
+          prev.map(r => r.id === recordId
+            ? { ...r, preparation_status: 'completed', preparation_staff: displayName, preparation_time: new Date().toISOString() }
+            : r
+          )
+        );
+        // 立即清除樂觀更新（因為真實數據已經更新）
         setOptimisticWorkflowUpdates(prev => {
           const next = new Map(prev);
           next.delete(recordId);
@@ -1232,7 +1264,14 @@ const MedicationWorkflow: React.FC = () => {
         });
       } else if (step === 'verification') {
         await verifyMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, scheduledDate);
-        // 清除樂觀更新狀態
+        // 直接更新 allWorkflowRecords（因為 Context 可能不包含這個記錄）
+        setAllWorkflowRecords(prev =>
+          prev.map(r => r.id === recordId
+            ? { ...r, verification_status: 'completed', verification_staff: displayName, verification_time: new Date().toISOString() }
+            : r
+          )
+        );
+        // 立即清除樂觀更新（因為真實數據已經更新）
         setOptimisticWorkflowUpdates(prev => {
           const next = new Map(prev);
           next.delete(recordId);
@@ -1598,17 +1637,14 @@ const MedicationWorkflow: React.FC = () => {
     if (targetDate && targetDate !== selectedDate) {
       setSelectedDate(targetDate);
     }
-    // 獲取指定日期的工作流程記錄
+    // 獲取指定日期的工作流程記錄（使用已應用樂觀更新的記錄）
     const dayRecords = targetDate
-      ? allWorkflowRecords.filter(r => r.scheduled_date === targetDate)
+      ? recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate)
       : currentDayWorkflowRecords;
     // 找到所有可派藥的記錄（包含有檢測項要求的處方）
     const eligibleRecords = dayRecords.filter(r => {
       const prescription = prescriptions.find(p => p.id === r.prescription_id);
-      if (!prescription) {
-        return false;
-      }
-      console.log(`\n🔍 檢查記錄: ${prescription.medication_name} (${r.scheduled_time})`);
+      if (!prescription) return false;
       // 檢查處方狀態：在服處方或有效期內的停用處方
       if (prescription.status === 'active') {
         // 在服處方：正常包含
@@ -1630,18 +1666,8 @@ const MedicationWorkflow: React.FC = () => {
         return false;
       }
       // 包含所有待派藥的記錄（包括有檢測項要求的）
-      const isEligible = r.dispensing_status === 'pending' && r.verification_status === 'completed';
-      if (isEligible) {
-      } else {
-      }
-      return isEligible;
+      return r.dispensing_status === 'pending' && r.verification_status === 'completed';
     });
-    if (eligibleRecords.length > 0) {
-      eligibleRecords.forEach(r => {
-        const prescription = prescriptions.find(p => p.id === r.prescription_id);
-        console.log(`  - ${prescription?.medication_name} (${r.scheduled_time})`);
-      });
-    }
     if (eligibleRecords.length === 0) {
       return;
     }
@@ -1660,8 +1686,8 @@ const MedicationWorkflow: React.FC = () => {
     setOneClickProcessing(prev => ({ ...prev, preparation: true }));
     try {
       console.log(`=== 一鍵執藥開始 (日期: ${targetDate}) ===`);
-      // 找到指定日期所有待執藥的記錄（排除即時備藥）
-      const dayWorkflowRecords = allWorkflowRecords.filter(r => r.scheduled_date === targetDate);
+      // 找到指定日期所有待執藥的記錄（排除即時備藥，使用已應用樂觀更新的記錄）
+      const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate);
       const pendingPreparationRecords = dayWorkflowRecords.filter(r => {
         const prescription = prescriptions.find(p => p.id === r.prescription_id);
         return r.preparation_status === 'pending' && prescription?.preparation_method !== 'immediate';
@@ -1701,8 +1727,8 @@ const MedicationWorkflow: React.FC = () => {
     setOneClickProcessing(prev => ({ ...prev, verification: true }));
     try {
       console.log(`=== 一鍵核藥開始 (日期: ${targetDate}) ===`);
-      // 找到指定日期所有待核藥的記錄（排除即時備藥）
-      const dayWorkflowRecords = allWorkflowRecords.filter(r => r.scheduled_date === targetDate);
+      // 找到指定日期所有待核藥的記錄（排除即時備藥，使用已應用樂觀更新的記錄）
+      const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate);
       const pendingVerificationRecords = dayWorkflowRecords.filter(r => {
         const prescription = prescriptions.find(p => p.id === r.prescription_id);
         return r.verification_status === 'pending' &&
@@ -1744,8 +1770,8 @@ const MedicationWorkflow: React.FC = () => {
     setOneClickProcessing(prev => ({ ...prev, dispensing: true }));
     try {
       console.log(`=== 一鍵派藥開始 (日期: ${targetDate}) ===`);
-      // 找到指定日期所有可派藥的記錄
-      const dayWorkflowRecords = allWorkflowRecords.filter(r => r.scheduled_date === targetDate);
+      // 找到指定日期所有可派藥的記錄（使用已應用樂觀更新的記錄）
+      const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate);
       const eligibleRecords = dayWorkflowRecords.filter(r => {
         const prescription = prescriptions.find(p => p.id === r.prescription_id);
         return r.dispensing_status === 'pending' &&
@@ -1806,8 +1832,8 @@ const MedicationWorkflow: React.FC = () => {
     setOneClickProcessing(prev => ({ ...prev, dispensing: true }));
     try {
       console.log(`=== 一鍵全程開始 (日期: ${targetDate}) ===`);
-      // 找到指定日期所有符合一鍵全程條件的記錄
-      const dayWorkflowRecords = allWorkflowRecords.filter(r => r.scheduled_date === targetDate);
+      // 找到指定日期所有符合一鍵全程條件的記錄（使用已應用樂觀更新的記錄）
+      const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate);
       const eligibleRecords = dayWorkflowRecords.filter(r => {
         const prescription = prescriptions.find(p => p.id === r.prescription_id);
         return canOneClickDispense(prescription);
@@ -2619,8 +2645,8 @@ const MedicationWorkflow: React.FC = () => {
                       const isSelectedDate = date === selectedDate;
                       const hasOverdue = (dateOverdueStatus.get(date) || 0) > 0;
                       const isMenuOpen = isDateMenuOpen && selectedDateForMenu === date;
-                      // 獲取當日工作流程記錄
-                      const dayWorkflowRecords = allWorkflowRecords.filter(r => r.scheduled_date === date);
+                      // 獲取當日工作流程記錄（使用已應用樂觀更新的記錄）
+                      const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === date);
                       // 計算當日可操作的記錄數量
                       const canPrepare = dayWorkflowRecords.some(r => {
                         const prescription = prescriptions.find(p => p.id === r.prescription_id);
@@ -2890,12 +2916,13 @@ const MedicationWorkflow: React.FC = () => {
                                   // 移除所有空格和秒數，只保留 HH:MM
                                   return time.trim().substring(0, 5);
                                 };
-                                // 查找對應的工作流程記錄
-                                const workflowRecord = allWorkflowRecords.find(r =>
+                                // 查找對應的工作流程記錄（使用已應用樂觀更新的記錄）
+                                const workflowRecord = recordsWithOptimisticUpdates.find(r =>
                                   r.prescription_id === prescription.id &&
                                   r.scheduled_date === date &&
                                   normalizeTime(r.scheduled_time) === normalizeTime(timeSlot)
                                 );
+
                                 return (
                                   <div key={timeSlot} className="border border-gray-200 rounded-lg p-1 bg-white">
                                     <div className="flex items-center justify-between mb-1">
@@ -3144,7 +3171,7 @@ const MedicationWorkflow: React.FC = () => {
       {/* 批量派藥確認對話框 */}
       {showBatchDispenseModal && selectedPatientId && (
         <BatchDispenseConfirmModal
-          workflowRecords={allWorkflowRecords.filter(r => {
+          workflowRecords={recordsWithOptimisticUpdates.filter(r => {
             // 只包含該院友的記錄
             if (r.patient_id.toString() !== selectedPatientId) {
               return false;
