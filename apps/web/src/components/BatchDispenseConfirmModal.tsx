@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Clock, CheckCircle, Pill, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Clock, CheckCircle, Pill, AlertTriangle, ChevronDown, ChevronUp, Activity } from 'lucide-react';
 import InspectionCheckModal from './InspectionCheckModal';
 import PatientInfoCard from './PatientInfoCard';
 
