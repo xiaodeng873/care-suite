@@ -760,7 +760,13 @@ const HospitalOutreach: React.FC = () => {
             <Stethoscope className="h-5 w-5 mr-2 text-blue-600" />
             醫生到診排程
             <span className="ml-2 text-sm font-normal text-gray-500">
-              ({doctorVisitSchedule?.length || 0} 個排程)
+              ({(doctorVisitSchedule ?? []).filter(s => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const visitDate = new Date(s.visit_date);
+                visitDate.setHours(0, 0, 0, 0);
+                return visitDate >= today;
+              }).length} 個排程)
             </span>
             {showDoctorVisitSchedule ? (
               <ChevronUp className="h-4 w-4 ml-2 text-gray-400" />
@@ -781,7 +787,13 @@ const HospitalOutreach: React.FC = () => {
           </button>
         </div>
 
-        {showDoctorVisitSchedule && doctorVisitSchedule && doctorVisitSchedule.length > 0 ? (
+        {showDoctorVisitSchedule && doctorVisitSchedule && doctorVisitSchedule.filter(s => {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const visitDate = new Date(s.visit_date);
+          visitDate.setHours(0, 0, 0, 0);
+          return visitDate >= today;
+        }).length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -796,6 +808,13 @@ const HospitalOutreach: React.FC = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {doctorVisitSchedule
+                  .filter(s => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const visitDate = new Date(s.visit_date);
+                    visitDate.setHours(0, 0, 0, 0);
+                    return visitDate >= today;
+                  })
                   .sort((a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime())
                   .map(schedule => (
                     <tr key={schedule.id} className="hover:bg-gray-50">

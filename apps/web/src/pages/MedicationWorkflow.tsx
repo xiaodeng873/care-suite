@@ -200,6 +200,20 @@ const WorkflowCell: React.FC<WorkflowCellProps> = ({ record, step, onStepClick, 
         return step;
     }
   };
+  
+  // 簡化標籤（用於 iPad 橫向模式）
+  const getShortStepLabel = () => {
+    switch (step) {
+      case 'preparation':
+        return '執';
+      case 'verification':
+        return '核';
+      case 'dispensing':
+        return '派';
+      default:
+        return step;
+    }
+  };
   const isClickable = () => {
     if (disabled) return false;
     if (isSelfCare) return false;
@@ -277,7 +291,9 @@ const WorkflowCell: React.FC<WorkflowCellProps> = ({ record, step, onStepClick, 
     >
       <div className="flex items-center justify-center space-x-1">
         {getStatusIcon()}
-        <span className="font-medium">{getStepLabel()}</span>
+        {/* 在 iPad 橫向模式（max-width: 1024px 且 landscape）顯示簡化標籤 */}
+        <span className="font-medium hidden max-[1024px]:landscape:inline">{getShortStepLabel()}</span>
+        <span className="font-medium max-[1024px]:landscape:hidden">{getStepLabel()}</span>
       </div>
       {status === 'completed' && staff && (
         <div className="text-xs text-gray-500 mt-1 truncate landscape:md:hidden">
@@ -416,7 +432,7 @@ const MedicationWorkflow: React.FC = () => {
   const [startTime, setStartTime] = useState(0);
   const [dragVelocity, setDragVelocity] = useState(0);
   const [dragDistance, setDragDistance] = useState(0);
-  // QR 掃描處理函數 - 只接受院友二維碼
+  // QR 掃描處理函數 - 只接受院友二維碼，直接打開一鍵派藥確認框
   const handleQRScanSuccess = async (qrCodeId: string) => {
     try {
       // 直接用院友二維碼查找院友
@@ -430,8 +446,18 @@ const MedicationWorkflow: React.FC = () => {
         return;
       }
       
-      // 設定選中的院友（直接跳轉，無彈框）
-      setSelectedPatientId(patient.院友id.toString());
+      // 設定選中的院友
+      const patientIdStr = patient.院友id.toString();
+      setSelectedPatientId(patientIdStr);
+      
+      // 設定日期為今天
+      const today = new Date().toISOString().split('T')[0];
+      setSelectedDate(today);
+      
+      // 延遲打開一鍵派藥確認框，等待狀態更新和數據載入
+      setTimeout(() => {
+        setShowBatchDispenseModal(true);
+      }, 500);
     } catch (error) {
       console.error('❌ 處理二維碼掃描失敗:', error);
       alert('處理二維碼失敗，請重試');
