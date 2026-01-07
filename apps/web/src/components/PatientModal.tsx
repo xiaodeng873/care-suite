@@ -12,7 +12,7 @@ interface PatientModalProps {
 }
 
 const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
-  const { addPatient, updatePatient, stations, beds } = usePatients();
+  const { addPatient, updatePatient, stations, beds, patients } = usePatients();
   const [activeTab, setActiveTab] = useState<'basic' | 'contacts'>('basic');
 
   // 獲取當天日期作為預設入住日期
@@ -375,8 +375,21 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     // Create a copy of formData to ensure we work with the latest state
     let finalFormData = { ...formData };
 
-    // 如果選擇了床位，確保床號與床位同步
+    // 如果選擇了床位，檢查床位是否已被其他在住院友佔用
     if (finalFormData.bed_id) {
+      const occupyingPatient = patients.find(p => 
+        p.bed_id === finalFormData.bed_id && 
+        p.在住狀態 === '在住' &&
+        // 編輯時排除自己
+        (!patient || p.院友id !== patient.院友id)
+      );
+      
+      if (occupyingPatient) {
+        const selectedBed = beds.find(b => b.id === finalFormData.bed_id);
+        alert(`床位「${selectedBed?.bed_number || ''}」已被院友「${occupyingPatient.中文姓名 || occupyingPatient.中文姓氏 + occupyingPatient.中文名字}」佔用，請選擇其他床位。`);
+        return;
+      }
+      
       const selectedBed = beds.find(b => b.id === finalFormData.bed_id);
       if (selectedBed) {
         finalFormData.床號 = selectedBed.bed_number;
@@ -510,6 +523,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
               <SimpleStationBedSelector
                 selectedStationId={formData.station_id}
                 selectedBedId={formData.bed_id}
+                currentPatientId={patient?.院友id}
                 onSelectionChange={(stationId, bedId, bedNumber) => {
                   setFormData(prev => ({
                     ...prev,

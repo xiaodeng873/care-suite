@@ -6,16 +6,10 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
 import { PatientProvider } from './context/PatientContext';
 import { StationProvider } from './context/facility';
-import { FollowUpProvider, DiagnosisProvider, HospitalOutreachProvider } from './context/medical';
-import { CareRecordsProvider, CarePlanProvider } from './context/care';
-import { ScheduleProvider, PrescriptionProvider } from './context/workflow';
-import { WoundProvider, HealthRecordProvider } from './context/health';
-import { AssessmentProvider } from './context/assessment';
-import { IncidentProvider, MealProvider, PatientLogProvider } from './context/records';
-import { HealthTaskProvider } from './context/tasks';
-import { AdmissionProvider } from './context/admission';
-import { ServiceReasonProvider } from './context/service';
-import { DailySystemTaskProvider } from './context/system';
+// 使用合併的 Context（減少 Provider 嵌套層級，提升性能）
+import { MedicalProvider } from './context/merged/MedicalContext';
+import { WorkflowProvider } from './context/merged/WorkflowContext';
+import { RecordsProvider } from './context/merged/RecordsContext';
 import './App.css';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -151,43 +145,15 @@ function App() {
   return (
     <AuthProvider>
       <StationProvider>
-        <FollowUpProvider>
-          <DiagnosisProvider>
-            <HospitalOutreachProvider>
-              <CareRecordsProvider>
-                <CarePlanProvider>
-                  <ScheduleProvider>
-                    <PrescriptionProvider>
-                      <WoundProvider>
-                        <HealthRecordProvider>
-                          <AssessmentProvider>
-                            <IncidentProvider>
-                              <MealProvider>
-                                <PatientLogProvider>
-                                  <HealthTaskProvider>
-                                    <AdmissionProvider>
-                                      <ServiceReasonProvider>
-                                        <DailySystemTaskProvider>
-                                          <PatientProvider>
-                                            <AppContent />
-                                          </PatientProvider>
-                                        </DailySystemTaskProvider>
-                                      </ServiceReasonProvider>
-                                    </AdmissionProvider>
-                                  </HealthTaskProvider>
-                                </PatientLogProvider>
-                              </MealProvider>
-                            </IncidentProvider>
-                          </AssessmentProvider>
-                        </HealthRecordProvider>
-                      </WoundProvider>
-                    </PrescriptionProvider>
-                  </ScheduleProvider>
-                </CarePlanProvider>
-              </CareRecordsProvider>
-            </HospitalOutreachProvider>
-          </DiagnosisProvider>
-        </FollowUpProvider>
+        <MedicalProvider>
+          <WorkflowProvider>
+            <RecordsProvider>
+              <PatientProvider>
+                <AppContent />
+              </PatientProvider>
+            </RecordsProvider>
+          </WorkflowProvider>
+        </MedicalProvider>
       </StationProvider>
     </AuthProvider>
   );

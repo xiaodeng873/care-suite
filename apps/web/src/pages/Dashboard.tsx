@@ -610,10 +610,16 @@ const Dashboard: React.FC = () => {
       await refreshData();
     }
   };
-  // [自動修復機制] 在頁面載入時，檢查並修復 next_due_at 過期但有最新記錄的任務
+  // [自動修復機制] 在頁面首次載入時，檢查並修復 next_due_at 過期但有最新記錄的任務
+  // 使用 useRef 來追蹤是否已執行過，避免重複執行
+  const autoFixExecutedRef = React.useRef(false);
   useEffect(() => {
     const autoFixOutdatedTasks = async () => {
+      // 只在首次載入時執行一次
+      if (autoFixExecutedRef.current) return;
       if (loading || !patientHealthTasks.length || !healthRecords.length) return;
+      autoFixExecutedRef.current = true;
+      
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayStr = formatLocalDate(today);
@@ -652,13 +658,13 @@ const Dashboard: React.FC = () => {
             // Silent error
           }
         }
-        await refreshData();
+        // 不再調用 refreshData()，避免不必要的刷新
       }
     };
     // 延遲1秒執行，確保所有數據都已載入
     const timer = setTimeout(autoFixOutdatedTasks, 1000);
     return () => clearTimeout(timer);
-  }, [loading, patientHealthTasks, healthRecords, patients]);
+  }, [loading, patientHealthTasks, healthRecords]);
   const handleDocumentTaskCompleted = async (taskId: string, completionDate: string, nextDueDate: string, tubeType?: string, tubeSize?: string) => {
     try {
       const task = patientHealthTasks.find(t => t.id === taskId);

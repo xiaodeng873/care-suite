@@ -7,6 +7,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import * as db from '../../lib/database';
+import { useAuth } from '../AuthContext';
 
 // Re-export types for convenience
 export type { Station, Bed } from '../../lib/database';
@@ -43,12 +44,14 @@ interface StationProviderProps {
 }
 
 export const StationProvider: React.FC<StationProviderProps> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
   const [stations, setStations] = useState<db.Station[]>([]);
   const [beds, setBeds] = useState<db.Bed[]>([]);
   const [loading, setLoading] = useState(true);
 
   // 載入站點和床位數據
   const refreshStationData = useCallback(async () => {
+    if (!isAuthenticated()) return;
     setLoading(true);
     try {
       const [stationsData, bedsData] = await Promise.all([
@@ -62,7 +65,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // 初始載入
   useEffect(() => {

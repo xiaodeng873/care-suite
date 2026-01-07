@@ -6,21 +6,26 @@ interface SimpleStationBedSelectorProps {
   selectedStationId: string;
   selectedBedId: string;
   onSelectionChange: (stationId: string, bedId: string, bedNumber: string) => void;
+  /** 當前編輯的院友 ID，用於在計算可用床位時排除自己 */
+  currentPatientId?: number;
 }
 
 const SimpleStationBedSelector: React.FC<SimpleStationBedSelectorProps> = ({
   selectedStationId,
   selectedBedId,
-  onSelectionChange
+  onSelectionChange,
+  currentPatientId
 }) => {
   const { stations, beds, patients } = usePatients();
 
-  // 獲取選中站點的可用床位
+  // 獲取選中站點的可用床位（排除當前院友自己佔用的床位）
   const availableBeds = beds.filter(bed => 
     bed.station_id === selectedStationId && 
     !patients.some(patient => 
       patient.bed_id === bed.id && 
-      patient.在住狀態 === '在住'
+      patient.在住狀態 === '在住' &&
+      // 編輯時排除自己，自己佔用的床位應該顯示為可用
+      patient.院友id !== currentPatientId
     )
   );
 

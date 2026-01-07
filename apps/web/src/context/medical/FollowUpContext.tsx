@@ -7,6 +7,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import * as db from '../../lib/database';
+import { useAuth } from '../AuthContext';
 
 // Re-export types for convenience
 export type { FollowUpAppointment } from '../../lib/database';
@@ -35,11 +36,13 @@ interface FollowUpProviderProps {
 }
 
 export const FollowUpProvider: React.FC<FollowUpProviderProps> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
   const [followUpAppointments, setFollowUpAppointments] = useState<db.FollowUpAppointment[]>([]);
   const [loading, setLoading] = useState(true);
 
   // 載入覆診數據
   const refreshFollowUpData = useCallback(async () => {
+    if (!isAuthenticated()) return;
     setLoading(true);
     try {
       const data = await db.getFollowUps();
@@ -49,11 +52,14 @@ export const FollowUpProvider: React.FC<FollowUpProviderProps> = ({ children }) 
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
-  // 初始載入
+  // 初始載入（延遲 300ms，讓關鍵數據優先載入）
   useEffect(() => {
-    refreshFollowUpData();
+    const timer = setTimeout(() => {
+      refreshFollowUpData();
+    }, 300);
+    return () => clearTimeout(timer);
   }, [refreshFollowUpData]);
 
   // 新增覆診預約

@@ -6,6 +6,7 @@ import DischargeModal from '../components/DischargeModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { PatientQRCodeModal } from '../components/PatientQRCodeModal';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import { deletePatientSchedulesAfterDate } from '../lib/database';
 import type { Patient } from '../lib/database';
 
 type SortField = '床號' | '中文姓名' | '性別' | '年齡' | '入住日期' | '護理等級' | '入住類型' | '在住狀態';
@@ -281,6 +282,18 @@ const PatientRecords: React.FC = () => {
     try {
       // DischargeModal 已經包含了完整的退住資料(退住原因、死亡日期、轉往機構等)
       await updatePatient(updatedPatient);
+      
+      // 取消該院友在退住日期之後的所有 VMO 排程
+      try {
+        const result = await deletePatientSchedulesAfterDate(updatedPatient.院友id, dischargeDate);
+        if (result.deletedCount > 0) {
+          console.log(`已取消 ${result.deletedCount} 筆 VMO 排程（退住日期後）`);
+        }
+      } catch (scheduleError) {
+        console.error('取消 VMO 排程時發生錯誤:', scheduleError);
+        // 不影響退住操作，只記錄錯誤
+      }
+      
       setShowDischargeModal(false);
       setSelectedPatient(null);
     } catch (error) {

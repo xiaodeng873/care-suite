@@ -5,27 +5,29 @@ import { supabase } from '../lib/supabase';
 import { generateDailyWorkflowRecords } from '../utils/workflowGenerator';
 import { useAuth } from './AuthContext';
 import { useStation } from './facility';
-import { useFollowUp, useDiagnosis, useHospitalOutreach } from './medical';
-import { useCareRecords, useCarePlan } from './care';
-import { useSchedule, type ScheduleWithDetails, usePrescription, type PrescriptionWorkflowRecord, type InspectionCheckResult, type PrescriptionTimeSlotDefinition } from './workflow';
-import { useWound, type WoundPhoto } from './health';
-import { useHealthRecord } from './health';
-import { useAssessment } from './assessment';
-import { useIncident, useMeal, usePatientLog } from './records';
-import { useHealthTask } from './tasks';
-import { useAdmission } from './admission';
-import { useServiceReason } from './service';
-import { useDailySystemTask } from './system';
+// 使用合併的 Context（減少 Provider 嵌套層級，提升性能）
+import { 
+  useMedical, useFollowUp, useDiagnosis, useHospitalOutreach, useWound, useHealthRecord,
+  type WoundPhoto, type HospitalOutreachRecord
+} from './merged/MedicalContext';
+import { 
+  useWorkflow, useSchedule, usePrescription,
+  type ScheduleWithDetails, type PrescriptionWorkflowRecord, type InspectionCheckResult, type PrescriptionTimeSlotDefinition
+} from './merged/WorkflowContext';
+import {
+  useRecords, useCarePlan, useCareRecords, useAssessment, useIncident, useMeal, usePatientLog,
+  useHealthTask, useAdmission, useServiceReason, useDailySystemTask
+} from './merged/RecordsContext';
 // Re-export types from database module
 export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, ResponsibleUnit, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote, CarePlan, CarePlanProblem, CarePlanNursingNeed, CarePlanWithDetails, ProblemLibrary, NursingNeedItem, PlanType, ProblemCategory, OutcomeReview, CaseConferenceProfessional, MedicationPrescription } from '../lib/database';
 // Re-export Station types for backward compatibility
 export type { Station, Bed } from './facility';
-// Re-export Schedule types for backward compatibility
-export type { ScheduleWithDetails } from './workflow';
-// Re-export Prescription types for backward compatibility
-export type { PrescriptionWorkflowRecord, InspectionCheckResult, PrescriptionTimeSlotDefinition } from './workflow';
-// Re-export Wound types for backward compatibility
-export type { WoundPhoto } from './health';
+// Re-export Schedule types for backward compatibility (from merged context)
+export type { ScheduleWithDetails } from './merged/WorkflowContext';
+// Re-export Prescription types for backward compatibility (from merged context)
+export type { PrescriptionWorkflowRecord, InspectionCheckResult, PrescriptionTimeSlotDefinition } from './merged/WorkflowContext';
+// Re-export Wound types for backward compatibility (from merged context)
+export type { WoundPhoto, HospitalOutreachRecord } from './merged/MedicalContext';
 
 interface PatientContextType {
   patients: db.Patient[];
@@ -597,79 +599,10 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   // 3. 數據刷新邏輯
   const refreshData = useCallback(async () => {
     try {
-      const [
-        patientsData,
-        stationsData,
-        bedsData,
-        schedulesData,
-        // serviceReasonsData 由 ServiceReasonContext 管理
-        // healthRecordsData 由 HealthRecordContext 管理
-        followUpAppointmentsData,
-        // patientHealthTasksData 由 HealthTaskContext 管理
-        // mealGuidancesData 由 MealContext 管理
-        // patientLogsData 由 PatientLogContext 管理
-        // patientRestraintAssessmentsData, healthAssessmentsData, annualHealthCheckupsData 由 AssessmentContext 管理
-        // woundAssessmentsData, woundsData, patientsWithWoundsData 由 WoundContext 管理
-        // patientAdmissionRecordsData, hospitalEpisodesData 由 AdmissionContext 管理
-        // prescriptionsData, drugDatabaseData, workflowRecordsData, timeSlotDefinitionsData 由 PrescriptionContext 管理
-        // dailySystemTasksData 由 DailySystemTaskContext 管理
-        // incidentReportsData 由 IncidentContext 管理
-        diagnosisRecordsData,
-        vaccinationRecordsData,
-        patientNotesData,
-        patrolRoundsData,
-        diaperChangeRecordsData,
-        restraintObservationRecordsData,
-        positionChangeRecordsData,
-        carePlansData,
-        problemLibraryData,
-        nursingNeedItemsData
-      ] = await Promise.all([
-        db.getPatients(),
-        db.getStations(),
-        db.getBeds(),
-        db.getSchedules(),
-        // db.getReasons() 由 ServiceReasonContext 管理
-        // db.getHealthRecords() 由 HealthRecordContext 管理
-        db.getFollowUps(),
-        // db.getHealthTasks() 由 HealthTaskContext 管理
-        // db.getMealGuidances() 由 MealContext 管理
-        // db.getPatientLogs() 由 PatientLogContext 管理
-        // db.getRestraintAssessments(), db.getHealthAssessments(), db.getAnnualHealthCheckups() 由 AssessmentContext 管理
-        // db.getWoundAssessments(), db.getWounds(), db.getPatientsWithWounds() 由 WoundContext 管理
-        // db.getPatientAdmissionRecords(), db.getHospitalEpisodes() 由 AdmissionContext 管理
-        // db.getPrescriptions(), db.getDrugDatabase(), fetchPrescriptionWorkflowRecords(), db.getPrescriptionTimeSlotDefinitions() 由 PrescriptionContext 管理
-        // db.getOverdueDailySystemTasks() 由 DailySystemTaskContext 管理
-        // db.getIncidentReports() 由 IncidentContext 管理
-        db.getDiagnosisRecords(),
-        db.getVaccinationRecords(),
-        db.getPatientNotes(),
-        db.getPatrolRounds(),
-        db.getDiaperChangeRecords(),
-        db.getRestraintObservationRecords(),
-        db.getPositionChangeRecords(),
-        db.getAllCarePlans(),
-        db.getAllProblemLibrary(),
-        db.getAllNursingNeedItems()
-      ]);
+      // PatientContext 現在只負責獲取 patients 數據
+      // 其他數據由各自的子 Context 管理，避免重複獲取
+      const patientsData = await db.getPatients();
       setPatients(patientsData);
-      // stations 和 beds 現在由 StationContext 管理，無需在此設置
-      // serviceReasons 現在由 ServiceReasonContext 管理，無需在此設置
-      // healthRecords 現在由 HealthRecordContext 管理，無需在此設置
-      // followUpAppointments 現在由 FollowUpContext 管理，無需在此設置
-      // mealGuidances 現在由 MealContext 管理，無需在此設置
-      // patientHealthTasks 現在由 HealthTaskContext 管理，無需在此設置
-      // patientLogs 現在由 PatientLogContext 管理，無需在此設置
-      // healthAssessments, patientRestraintAssessments, annualHealthCheckups 由 AssessmentContext 管理
-      // wounds, woundAssessments, patientsWithWounds 由 WoundContext 管理
-      // hospitalEpisodes, patientAdmissionRecords 由 AdmissionContext 管理
-      // prescriptions, drugDatabase, prescriptionWorkflowRecords, prescriptionTimeSlotDefinitions 由 PrescriptionContext 管理
-      // dailySystemTasks 由 DailySystemTaskContext 管理
-      // incidentReports 由 IncidentContext 管理
-      // diagnosisRecords 和 vaccinationRecords 由 DiagnosisContext 管理
-      // patientNotes, patrolRounds, diaperChangeRecords, restraintObservationRecords, positionChangeRecords 由 CareRecordsContext 管理
-      // carePlans, problemLibrary, nursingNeedItems 由 CarePlanContext 管理
-      // schedules 數據由 ScheduleContext 管理
       setLoading(false);
     } catch (error) {
       console.error('刷新數據失敗:', error);

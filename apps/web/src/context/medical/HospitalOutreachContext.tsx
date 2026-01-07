@@ -7,6 +7,7 @@
  */
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../AuthContext';
 
 // ========== 類型定義 ==========
 export interface HospitalOutreachRecord {
@@ -67,6 +68,7 @@ interface HospitalOutreachProviderProps {
 }
 
 export function HospitalOutreachProvider({ children }: HospitalOutreachProviderProps) {
+  const { isAuthenticated } = useAuth();
   // 狀態定義
   const [hospitalOutreachRecords, setHospitalOutreachRecords] = useState<HospitalOutreachRecord[]>([]);
   const [hospitalOutreachRecordHistory, setHospitalOutreachRecordHistory] = useState<HospitalOutreachRecordHistory[]>([]);
@@ -74,6 +76,7 @@ export function HospitalOutreachProvider({ children }: HospitalOutreachProviderP
   
   // ========== 獲取數據 ==========
   const fetchHospitalOutreachRecords = useCallback(async () => {
+    if (!isAuthenticated()) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -88,7 +91,7 @@ export function HospitalOutreachProvider({ children }: HospitalOutreachProviderP
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
   
   const fetchHospitalOutreachRecordHistory = useCallback(async (patientId: number): Promise<HospitalOutreachRecordHistory[]> => {
     try {
@@ -178,9 +181,12 @@ export function HospitalOutreachProvider({ children }: HospitalOutreachProviderP
     }
   }, [fetchHospitalOutreachRecords]);
   
-  // 自動刷新資料
+  // 自動刷新資料（延遲 300ms，讓關鍵數據優先載入）
   useEffect(() => {
-    fetchHospitalOutreachRecords();
+    const timer = setTimeout(() => {
+      fetchHospitalOutreachRecords();
+    }, 300);
+    return () => clearTimeout(timer);
   }, [fetchHospitalOutreachRecords]);
   
   // Context 值

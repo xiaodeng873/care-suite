@@ -181,9 +181,12 @@ export function CarePlanProvider({ children }: CarePlanProviderProps) {
     return newItem;
   }, [refreshCarePlanData]);
   
-  // 自動刷新資料
+  // 自動刷新資料（延遲 300ms，讓關鍵數據優先載入）
   useEffect(() => {
-    refreshCarePlanData();
+    const timer = setTimeout(() => {
+      refreshCarePlanData();
+    }, 300);
+    return () => clearTimeout(timer);
   }, [refreshCarePlanData]);
   
   // Context 值

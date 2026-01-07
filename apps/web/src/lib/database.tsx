@@ -1036,6 +1036,33 @@ export const deleteScheduleDetail = async (detailId: number): Promise<void> => {
   const { error } = await supabase.from('看診院友細項').delete().eq('細項id', detailId);
   if (error) throw error;
 };
+
+// 刪除特定院友在指定日期後的所有 VMO 排程記錄
+export const deletePatientSchedulesAfterDate = async (patientId: number, afterDate: string): Promise<{ deletedCount: number }> => {
+  // 1. 先找出所有在指定日期之後的排程
+  const { data: futureSchedules, error: scheduleError } = await supabase
+    .from('到診排程主表')
+    .select('排程id')
+    .gt('到診日期', afterDate);
+  
+  if (scheduleError) throw scheduleError;
+  if (!futureSchedules || futureSchedules.length === 0) return { deletedCount: 0 };
+  
+  const scheduleIds = futureSchedules.map(s => s.排程id);
+  
+  // 2. 刪除該院友在這些排程中的細項
+  const { data: deletedDetails, error: deleteError } = await supabase
+    .from('看診院友細項')
+    .delete()
+    .eq('院友id', patientId)
+    .in('排程id', scheduleIds)
+    .select('細項id');
+  
+  if (deleteError) throw deleteError;
+  
+  return { deletedCount: deletedDetails?.length || 0 };
+};
+
 export const getReasons = async (): Promise<ServiceReason[]> => {
   const { data, error } = await supabase.from('看診原因選項').select('*').order('原因名稱', { ascending: true });
   if (error) throw error;

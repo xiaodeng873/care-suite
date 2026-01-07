@@ -8,6 +8,7 @@
  */
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import * as db from '../../lib/database';
+import { useAuth } from '../AuthContext';
 
 // ========== 類型定義 ==========
 // 傷口照片介面
@@ -64,6 +65,7 @@ interface WoundProviderProps {
 }
 
 export function WoundProvider({ children }: WoundProviderProps) {
+  const { isAuthenticated } = useAuth();
   // 狀態定義
   const [wounds, setWounds] = useState<db.Wound[]>([]);
   const [woundAssessments, setWoundAssessments] = useState<db.WoundAssessment[]>([]);
@@ -72,6 +74,7 @@ export function WoundProvider({ children }: WoundProviderProps) {
   
   // ========== 刷新數據 ==========
   const refreshWoundData = useCallback(async () => {
+    if (!isAuthenticated()) return;
     setLoading(true);
     try {
       const [woundsData, patientsWithWoundsData, woundAssessmentsData] = await Promise.all([
@@ -88,7 +91,7 @@ export function WoundProvider({ children }: WoundProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
   
   // ========== 傷口 CRUD ==========
   const addWound = useCallback(async (wound: Omit<db.Wound, 'id' | 'created_at' | 'updated_at'>): Promise<db.Wound | null> => {
@@ -211,9 +214,12 @@ export function WoundProvider({ children }: WoundProviderProps) {
     }
   }, [refreshWoundData]);
   
-  // 自動刷新資料
+  // 自動刷新資料（延遲 300ms，讓關鍵數據優先載入）
   useEffect(() => {
-    refreshWoundData();
+    const timer = setTimeout(() => {
+      refreshWoundData();
+    }, 300);
+    return () => clearTimeout(timer);
   }, [refreshWoundData]);
   
   // Context 值

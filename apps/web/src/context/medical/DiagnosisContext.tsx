@@ -7,6 +7,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import * as db from '../../lib/database';
+import { useAuth } from '../AuthContext';
 
 // Re-export types for convenience
 export type { DiagnosisRecord, VaccinationRecord } from '../../lib/database';
@@ -38,12 +39,14 @@ interface DiagnosisProviderProps {
 }
 
 export const DiagnosisProvider: React.FC<DiagnosisProviderProps> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
   const [diagnosisRecords, setDiagnosisRecords] = useState<db.DiagnosisRecord[]>([]);
   const [vaccinationRecords, setVaccinationRecords] = useState<db.VaccinationRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   // 載入數據
   const refreshDiagnosisData = useCallback(async () => {
+    if (!isAuthenticated()) return;
     setLoading(true);
     try {
       const [diagnosisData, vaccinationData] = await Promise.all([
@@ -57,11 +60,14 @@ export const DiagnosisProvider: React.FC<DiagnosisProviderProps> = ({ children }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
-  // 初始載入
+  // 初始載入（延遲 300ms，讓關鍵數據優先載入）
   useEffect(() => {
-    refreshDiagnosisData();
+    const timer = setTimeout(() => {
+      refreshDiagnosisData();
+    }, 300);
+    return () => clearTimeout(timer);
   }, [refreshDiagnosisData]);
 
   // 診斷記錄 CRUD

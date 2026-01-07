@@ -2587,9 +2587,9 @@ const MedicationWorkflow: React.FC = () => {
     );
   }
   return (
-    <div>
+    <div className="-m-4 lg:-m-6">
       {/* 頁面標題與控制區 */}
-      <div className="sticky top-0 bg-white z-[25] py-2 border-b border-gray-200">
+      <div className="sticky top-16 bg-white z-[25] py-2 px-4 lg:px-6 border-b border-gray-200">
         <div className="flex items-center justify-between gap-4">
           {/* 左側：標題 */}
           <div className="flex-shrink-0">
@@ -2684,8 +2684,8 @@ const MedicationWorkflow: React.FC = () => {
         </div>
       </div>
       {/* 院友資訊卡 - 可摺疊 */}
-      <div className="bg-white z-[5] border-b border-gray-200">
-        <div className="p-2">
+      <div className="bg-white z-[5] border-b border-gray-200 px-4 lg:px-6">
+        <div className="py-2">
           <PatientInfoCard
             patient={selectedPatient}
             defaultExpanded={false}
@@ -2712,7 +2712,7 @@ const MedicationWorkflow: React.FC = () => {
       </div>
       {/* 工作流程表格 */}
       {selectedPatientId ? (
-        <div className="overflow-hidden border-t-0">
+        <div className="overflow-hidden px-4 lg:px-6">
           {activePrescriptions.length > 0 ? (
             <>
               {filteredPrescriptions.length > 0 ? (

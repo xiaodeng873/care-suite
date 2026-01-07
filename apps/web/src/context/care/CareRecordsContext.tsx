@@ -256,9 +256,12 @@ export function CareRecordsProvider({ children }: CareRecordsProviderProps) {
     }
   }, [refreshCareRecordsData]);
   
-  // 自動刷新資料
+  // 自動刷新資料（延遲 300ms，讓關鍵數據優先載入）
   useEffect(() => {
-    refreshCareRecordsData();
+    const timer = setTimeout(() => {
+      refreshCareRecordsData();
+    }, 300);
+    return () => clearTimeout(timer);
   }, [refreshCareRecordsData]);
   
   // Context 值

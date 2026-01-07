@@ -8,6 +8,7 @@
  */
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import * as db from '../../lib/database';
+import { useAuth } from '../AuthContext';
 
 interface HealthRecordContextType {
   // 狀態
@@ -54,6 +55,7 @@ interface HealthRecordProviderProps {
 }
 
 export function HealthRecordProvider({ children }: HealthRecordProviderProps) {
+  const { isAuthenticated } = useAuth();
   // 狀態定義
   const [healthRecords, setHealthRecords] = useState<db.HealthRecord[]>([]);
   const [deletedHealthRecords, setDeletedHealthRecords] = useState<db.DeletedHealthRecord[]>([]);
@@ -63,6 +65,7 @@ export function HealthRecordProvider({ children }: HealthRecordProviderProps) {
   
   // ========== 刷新數據 ==========
   const refreshHealthRecordData = useCallback(async () => {
+    if (!isAuthenticated()) return;
     setLoading(true);
     try {
       const healthRecordsData = await db.getHealthRecords();
@@ -73,7 +76,7 @@ export function HealthRecordProvider({ children }: HealthRecordProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
   
   // ========== 載入完整記錄 ==========
   const loadFullHealthRecords = useCallback(async () => {
@@ -176,9 +179,12 @@ export function HealthRecordProvider({ children }: HealthRecordProviderProps) {
     }
   }, [refreshHealthRecordData]);
   
-  // 自動刷新資料
+  // 自動刷新資料（延遲 300ms，讓關鍵數據優先載入）
   useEffect(() => {
-    refreshHealthRecordData();
+    const timer = setTimeout(() => {
+      refreshHealthRecordData();
+    }, 300);
+    return () => clearTimeout(timer);
   }, [refreshHealthRecordData]);
   
   // Context 值
