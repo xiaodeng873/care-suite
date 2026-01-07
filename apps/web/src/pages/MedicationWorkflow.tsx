@@ -321,13 +321,6 @@ const WorkflowCell: React.FC<WorkflowCellProps> = ({ record, step, onStepClick, 
           {staff}
         </div>
       )}
-      {status === 'failed' && record.dispensing_failure_reason && !inspectionValues && !blockedRules && (
-        <div className="text-xs text-red-600 mt-1 truncate font-medium max-[1024px]:landscape:hidden">
-          {record.dispensing_failure_reason === '其他' && record.custom_failure_reason
-            ? record.custom_failure_reason
-            : record.dispensing_failure_reason}
-        </div>
-      )}
       {isImmediatePreparation && (step === 'preparation' || step === 'verification') && (
         <div className="text-xs text-gray-500 mt-1 landscape:md:hidden">
           即時備藥
@@ -501,8 +494,6 @@ const MedicationWorkflow: React.FC = () => {
       d.setDate(d.getDate() + i);
       week.push(d.toISOString().split('T')[0]);
     }
-    // 調試日誌：顯示週期計算詳情
-    console.log(`📅 週期計算: 輸入日期 ${dateStr} (星期${['日','一','二','三','四','五','六'][day]})`);
     return week;
   };
   const weekDates = useMemo(() => computeWeekDates(selectedDate), [selectedDate]);
@@ -713,15 +704,9 @@ const MedicationWorkflow: React.FC = () => {
     if (optimisticWorkflowUpdates.size === 0) {
       return deduplicatedWorkflowRecords;
     }
-    console.log(`🔄 recordsWithOptimisticUpdates 重新計算, 樂觀更新數量: ${optimisticWorkflowUpdates.size}`);
-    optimisticWorkflowUpdates.forEach((update, id) => {
-      const record = deduplicatedWorkflowRecords.find(r => r.id === id);
-      console.log(`  - ID ${id.substring(0, 8)}: 記錄存在=${!!record}, 更新=${JSON.stringify(update)}`);
-    });
     return deduplicatedWorkflowRecords.map(record => {
       const optimisticUpdate = optimisticWorkflowUpdates.get(record.id);
       if (optimisticUpdate) {
-        console.log(`  ✅ 應用樂觀更新到 ${record.id.substring(0, 8)}`);
         return { ...record, ...optimisticUpdate };
       }
       return record;
@@ -804,12 +789,6 @@ const MedicationWorkflow: React.FC = () => {
               byDate[record.scheduled_date] = (byDate[record.scheduled_date] || 0) + 1;
               byPrescription[record.prescription_id] = (byPrescription[record.prescription_id] || 0) + 1;
             });
-            weekDates.forEach(date => {
-              const count = byDate[date] || 0;
-            });
-            Object.entries(byPrescription).forEach(([prescId, count]) => {
-              console.log(`  ${prescId.substring(0, 8)}...: ${count} 筆`);
-            });
             // 直接設置到 allWorkflowRecords，跳過 context
             setAllWorkflowRecords(data || []);
           }
@@ -834,12 +813,7 @@ const MedicationWorkflow: React.FC = () => {
         // 創建更新映射
         const updateMap = new Map(recordsToUpdate.map(r => [r.id, r]));
         // 更新現有記錄
-        const updated = prev.map(r => updateMap.has(r.id) ? updateMap.get(r.id)! : r);
-        // 調試：記錄更新的記錄狀態
-        recordsToUpdate.forEach(r => {
-          console.log(`📝 Context 更新記錄 ${r.id.substring(0, 8)}: prep=${r.preparation_status}, ver=${r.verification_status}`);
-        });
-        return updated;
+        return prev.map(r => updateMap.has(r.id) ? updateMap.get(r.id)! : r);
       });
     }
   }, [prescriptionWorkflowRecords, selectedPatientId]);
@@ -1216,33 +1190,22 @@ const MedicationWorkflow: React.FC = () => {
   };
   // 處理完成工作流程步驟
   const handleCompleteWorkflowStep = async (recordId: string, step: string) => {
-    console.log(`\n🚀 handleCompleteWorkflowStep: recordId=${recordId.substring(0, 8)}, step=${step}`);
     const patientIdNum = parseInt(selectedPatientId);
-    if (isNaN(patientIdNum)) {
-      console.error('無效的院友ID:', selectedPatientId);
-      return;
-    }
+    if (isNaN(patientIdNum)) return;
     const record = allWorkflowRecords.find(r => r.id === recordId);
-    if (!record) {
-      console.error('找不到對應的工作流程記錄:', recordId);
-      return;
-    }
-    console.log(`  記錄: date=${record.scheduled_date}, time=${record.scheduled_time}, prep=${record.preparation_status}, ver=${record.verification_status}`);
+    if (!record) return;
     const scheduledDate = record.scheduled_date;
     // 樂觀更新：立即更新 UI
-    console.log(`  設置樂觀更新...`);
     if (step === 'preparation') {
       setOptimisticWorkflowUpdates(prev => {
         const next = new Map(prev);
         next.set(recordId, { ...prev.get(recordId), preparation_status: 'completed' });
-        console.log(`  樂觀更新 Map 大小: ${next.size}, 包含 ${recordId.substring(0, 8)}: ${next.has(recordId)}`);
         return next;
       });
     } else if (step === 'verification') {
       setOptimisticWorkflowUpdates(prev => {
         const next = new Map(prev);
         next.set(recordId, { ...prev.get(recordId), verification_status: 'completed' });
-        console.log(`  樂觀更新 Map 大小: ${next.size}, 包含 ${recordId.substring(0, 8)}: ${next.has(recordId)}`);
         return next;
       });
     }
@@ -1317,6 +1280,8 @@ const MedicationWorkflow: React.FC = () => {
               undefined,
               inspectionResult
             );
+            // 直接更新本地狀態
+            updateLocalWorkflowRecords([recordId], 'dispensing', 'failed', '入院');
             // 清除樂觀更新狀態
             setOptimisticWorkflowUpdates(prev => {
               const next = new Map(prev);
@@ -1359,6 +1324,8 @@ const MedicationWorkflow: React.FC = () => {
               undefined,
               inspectionResult
             );
+            // 直接更新本地狀態
+            updateLocalWorkflowRecords([recordId], 'dispensing', 'failed', '回家');
             // 清除樂觀更新狀態
             setOptimisticWorkflowUpdates(prev => {
               const next = new Map(prev);
@@ -1418,6 +1385,49 @@ const MedicationWorkflow: React.FC = () => {
         return 'pending';
     }
   };
+  
+  // 輔助函數：批量更新本地工作流程記錄狀態
+  // 用於在批量操作成功後直接更新 allWorkflowRecords，而非依賴 Context 同步
+  const updateLocalWorkflowRecords = (
+    recordIds: string[],
+    step: 'preparation' | 'verification' | 'dispensing',
+    status: 'completed' | 'pending' | 'failed',
+    failureReason?: string,
+    customFailureReason?: string
+  ) => {
+    const now = new Date().toISOString();
+    setAllWorkflowRecords(prev =>
+      prev.map(r => {
+        if (!recordIds.includes(r.id)) return r;
+        if (step === 'preparation') {
+          return {
+            ...r,
+            preparation_status: status,
+            preparation_staff: status === 'completed' ? displayName : null,
+            preparation_time: status === 'completed' ? now : null
+          };
+        } else if (step === 'verification') {
+          return {
+            ...r,
+            verification_status: status,
+            verification_staff: status === 'completed' ? displayName : null,
+            verification_time: status === 'completed' ? now : null
+          };
+        } else if (step === 'dispensing') {
+          return {
+            ...r,
+            dispensing_status: status,
+            dispensing_staff: status !== 'pending' ? displayName : null,
+            dispensing_time: status !== 'pending' ? now : null,
+            dispensing_failure_reason: status === 'failed' ? (failureReason || null) : null,
+            custom_failure_reason: status === 'failed' ? (customFailureReason || null) : null
+          };
+        }
+        return r;
+      })
+    );
+  };
+
   // 檢查院友是否入院中
   const checkPatientHospitalized = (patientId: number): boolean => {
     const patient = patients.find(p => p.院友id === patientId);
@@ -1448,8 +1458,13 @@ const MedicationWorkflow: React.FC = () => {
           prepareMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, selectedDate)
         )
       );
-      const successCount = results.filter(r => r.status === 'fulfilled').length;
-      const failCount = results.filter(r => r.status === 'rejected').length;
+      // 收集成功的記錄 ID 並更新本地狀態
+      const successIds = pendingPreparationRecords
+        .filter((_, index) => results[index].status === 'fulfilled')
+        .map(r => r.id);
+      if (successIds.length > 0) {
+        updateLocalWorkflowRecords(successIds, 'preparation', 'completed');
+      }
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
           console.error(`執藥失敗 (記錄ID: ${pendingPreparationRecords[index].id}):`, result.reason);
@@ -1488,8 +1503,13 @@ const MedicationWorkflow: React.FC = () => {
           verifyMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, selectedDate)
         )
       );
-      const successCount = results.filter(r => r.status === 'fulfilled').length;
-      const failCount = results.filter(r => r.status === 'rejected').length;
+      // 收集成功的記錄 ID 並更新本地狀態
+      const successIds = pendingVerificationRecords
+        .filter((_, index) => results[index].status === 'fulfilled')
+        .map(r => r.id);
+      if (successIds.length > 0) {
+        updateLocalWorkflowRecords(successIds, 'verification', 'completed');
+      }
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
           console.error(`核藥失敗 (記錄ID: ${pendingVerificationRecords[index].id}):`, result.reason);
@@ -1538,11 +1558,16 @@ const MedicationWorkflow: React.FC = () => {
         return;
       }
       // 統計各階段數量
-      let preparedCount = 0;
-      let verifiedCount = 0;
       let successCount = 0;
       let hospitalizedCount = 0;
+      let vacationCount = 0;
       let failCount = 0;
+      // 收集各階段成功的記錄 ID
+      const preparedIds: string[] = [];
+      const verifiedIds: string[] = [];
+      const dispensedSuccessIds: string[] = [];
+      const dispensedHospitalizedIds: string[] = [];
+      const dispensedVacationIds: string[] = [];
       // 並行處理所有記錄
       const results = await Promise.allSettled(
         eligibleRecords.map(async (record) => {
@@ -1563,34 +1588,55 @@ const MedicationWorkflow: React.FC = () => {
             // 1. 執藥（如果還未執藥）
             if (record.preparation_status === 'pending') {
               await prepareMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, selectedDate);
+              preparedIds.push(record.id);
             }
             // 2. 核藥（如果還未核藥）
             if (record.verification_status === 'pending') {
               await verifyMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, selectedDate);
+              verifiedIds.push(record.id);
             }
             // 3. 派藥（如果還未派藥）
             if (record.dispensing_status === 'pending') {
               if (inHospitalizationPeriod) {
                 // 如果服藥時間在入院期間，自動標記為「入院」失敗原因
                 await dispenseMedication(record.id, displayName || '未知', '入院', undefined, patientIdNum, selectedDate);
-                return { type: 'hospitalized' };
+                dispensedHospitalizedIds.push(record.id);
+                return { type: 'hospitalized', recordId: record.id };
               } else if (inVacationPeriod) {
                 // 如果服藥時間在渡假期間，自動標記為「回家」失敗原因
                 await dispenseMedication(record.id, displayName || '未知', '回家', undefined, patientIdNum, selectedDate);
-                return { type: 'vacation' };
+                dispensedVacationIds.push(record.id);
+                return { type: 'vacation', recordId: record.id };
               } else {
                 // 正常派藥
                 await dispenseMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, selectedDate);
-                return { type: 'success' };
+                dispensedSuccessIds.push(record.id);
+                return { type: 'success', recordId: record.id };
               }
             }
-            return { type: 'already_completed' };
+            return { type: 'already_completed', recordId: record.id };
           } catch (error) {
             console.error(`處理記錄 ${record.id} 失敗:`, error);
             throw error;
           }
         })
       );
+      // 批量更新本地狀態
+      if (preparedIds.length > 0) {
+        updateLocalWorkflowRecords(preparedIds, 'preparation', 'completed');
+      }
+      if (verifiedIds.length > 0) {
+        updateLocalWorkflowRecords(verifiedIds, 'verification', 'completed');
+      }
+      if (dispensedSuccessIds.length > 0) {
+        updateLocalWorkflowRecords(dispensedSuccessIds, 'dispensing', 'completed');
+      }
+      if (dispensedHospitalizedIds.length > 0) {
+        updateLocalWorkflowRecords(dispensedHospitalizedIds, 'dispensing', 'failed', '入院');
+      }
+      if (dispensedVacationIds.length > 0) {
+        updateLocalWorkflowRecords(dispensedVacationIds, 'dispensing', 'failed', '回家');
+      }
       // 統計結果
       results.forEach((result) => {
         if (result.status === 'fulfilled') {
@@ -1601,8 +1647,8 @@ const MedicationWorkflow: React.FC = () => {
             case 'hospitalized':
               hospitalizedCount++;
               break;
-            case 'already_completed':
-              // 已完成的記錄不計入統計
+            case 'vacation':
+              vacationCount++;
               break;
           }
         } else {
@@ -1701,8 +1747,13 @@ const MedicationWorkflow: React.FC = () => {
           prepareMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, targetDate)
         )
       );
-      const successCount = results.filter(r => r.status === 'fulfilled').length;
-      const failCount = results.filter(r => r.status === 'rejected').length;
+      // 收集成功的記錄 ID 並更新本地狀態
+      const successIds = pendingPreparationRecords
+        .filter((_, index) => results[index].status === 'fulfilled')
+        .map(r => r.id);
+      if (successIds.length > 0) {
+        updateLocalWorkflowRecords(successIds, 'preparation', 'completed');
+      }
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
           console.error(`執藥失敗 (記錄ID: ${pendingPreparationRecords[index].id}):`, result.reason);
@@ -1744,8 +1795,13 @@ const MedicationWorkflow: React.FC = () => {
           verifyMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, targetDate)
         )
       );
-      const successCount = results.filter(r => r.status === 'fulfilled').length;
-      const failCount = results.filter(r => r.status === 'rejected').length;
+      // 收集成功的記錄 ID 並更新本地狀態
+      const successIds = pendingVerificationRecords
+        .filter((_, index) => results[index].status === 'fulfilled')
+        .map(r => r.id);
+      if (successIds.length > 0) {
+        updateLocalWorkflowRecords(successIds, 'verification', 'completed');
+      }
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
           console.error(`核藥失敗 (記錄ID: ${pendingVerificationRecords[index].id}):`, result.reason);
@@ -1782,6 +1838,10 @@ const MedicationWorkflow: React.FC = () => {
       if (eligibleRecords.length === 0) {
         return;
       }
+      // 收集各類派藥結果
+      const dispensedSuccessIds: string[] = [];
+      const dispensedHospitalizedIds: string[] = [];
+      const dispensedVacationIds: string[] = [];
       // 並行處理所有派藥操作
       const results = await Promise.allSettled(
         eligibleRecords.map(async (record) => {
@@ -1798,16 +1858,30 @@ const MedicationWorkflow: React.FC = () => {
             record.scheduled_time
           );
           if (inHospitalizationPeriod) {
-            return dispenseMedication(record.id, displayName || '未知', '入院', undefined, patientIdNum, targetDate);
+            await dispenseMedication(record.id, displayName || '未知', '入院', undefined, patientIdNum, targetDate);
+            dispensedHospitalizedIds.push(record.id);
+            return { type: 'hospitalized', recordId: record.id };
           } else if (inVacationPeriod) {
-            return dispenseMedication(record.id, displayName || '未知', '回家', undefined, patientIdNum, targetDate);
+            await dispenseMedication(record.id, displayName || '未知', '回家', undefined, patientIdNum, targetDate);
+            dispensedVacationIds.push(record.id);
+            return { type: 'vacation', recordId: record.id };
           } else {
-            return dispenseMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, targetDate);
+            await dispenseMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, targetDate);
+            dispensedSuccessIds.push(record.id);
+            return { type: 'success', recordId: record.id };
           }
         })
       );
-      const successCount = results.filter(r => r.status === 'fulfilled').length;
-      const failCount = results.filter(r => r.status === 'rejected').length;
+      // 批量更新本地狀態
+      if (dispensedSuccessIds.length > 0) {
+        updateLocalWorkflowRecords(dispensedSuccessIds, 'dispensing', 'completed');
+      }
+      if (dispensedHospitalizedIds.length > 0) {
+        updateLocalWorkflowRecords(dispensedHospitalizedIds, 'dispensing', 'failed', '入院');
+      }
+      if (dispensedVacationIds.length > 0) {
+        updateLocalWorkflowRecords(dispensedVacationIds, 'dispensing', 'failed', '回家');
+      }
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
           console.error(`派藥失敗 (記錄ID: ${eligibleRecords[index].id}):`, result.reason);
@@ -1845,6 +1919,12 @@ const MedicationWorkflow: React.FC = () => {
       let hospitalizedCount = 0;
       let vacationCount = 0;
       let failCount = 0;
+      // 收集各階段成功的記錄 ID
+      const preparedIds: string[] = [];
+      const verifiedIds: string[] = [];
+      const dispensedSuccessIds: string[] = [];
+      const dispensedHospitalizedIds: string[] = [];
+      const dispensedVacationIds: string[] = [];
       // 並行處理所有記錄
       const results = await Promise.allSettled(
         eligibleRecords.map(async (record) => {
@@ -1865,31 +1945,52 @@ const MedicationWorkflow: React.FC = () => {
             // 1. 執藥（如果還未執藥）
             if (record.preparation_status === 'pending') {
               await prepareMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, targetDate);
+              preparedIds.push(record.id);
             }
             // 2. 核藥（如果還未核藥）
             if (record.verification_status === 'pending') {
               await verifyMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, targetDate);
+              verifiedIds.push(record.id);
             }
             // 3. 派藥（如果還未派藥）
             if (record.dispensing_status === 'pending') {
               if (inHospitalizationPeriod) {
                 await dispenseMedication(record.id, displayName || '未知', '入院', undefined, patientIdNum, targetDate);
-                return { type: 'hospitalized' };
+                dispensedHospitalizedIds.push(record.id);
+                return { type: 'hospitalized', recordId: record.id };
               } else if (inVacationPeriod) {
                 await dispenseMedication(record.id, displayName || '未知', '回家', undefined, patientIdNum, targetDate);
-                return { type: 'vacation' };
+                dispensedVacationIds.push(record.id);
+                return { type: 'vacation', recordId: record.id };
               } else {
                 await dispenseMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, targetDate);
-                return { type: 'success' };
+                dispensedSuccessIds.push(record.id);
+                return { type: 'success', recordId: record.id };
               }
             }
-            return { type: 'already_completed' };
+            return { type: 'already_completed', recordId: record.id };
           } catch (error) {
             console.error(`處理記錄 ${record.id} 失敗:`, error);
             throw error;
           }
         })
       );
+      // 批量更新本地狀態
+      if (preparedIds.length > 0) {
+        updateLocalWorkflowRecords(preparedIds, 'preparation', 'completed');
+      }
+      if (verifiedIds.length > 0) {
+        updateLocalWorkflowRecords(verifiedIds, 'verification', 'completed');
+      }
+      if (dispensedSuccessIds.length > 0) {
+        updateLocalWorkflowRecords(dispensedSuccessIds, 'dispensing', 'completed');
+      }
+      if (dispensedHospitalizedIds.length > 0) {
+        updateLocalWorkflowRecords(dispensedHospitalizedIds, 'dispensing', 'failed', '入院');
+      }
+      if (dispensedVacationIds.length > 0) {
+        updateLocalWorkflowRecords(dispensedVacationIds, 'dispensing', 'failed', '回家');
+      }
       // 統計結果
       results.forEach((result) => {
         if (result.status === 'fulfilled') {
@@ -2060,6 +2161,7 @@ const MedicationWorkflow: React.FC = () => {
       );
       const successCount = results.filter(r => r.status === 'fulfilled' && r.value.type === 'success').length;
       const hospitalizedCount = results.filter(r => r.status === 'fulfilled' && r.value.type === 'hospitalized').length;
+      const vacationCount = results.filter(r => r.status === 'fulfilled' && r.value.type === 'vacation').length;
       const pausedCount = results.filter(r => r.status === 'fulfilled' && r.value.type === 'paused').length;
       const failCount = results.filter(r => r.status === 'rejected').length;
       results.forEach((result, index) => {
@@ -2067,9 +2169,45 @@ const MedicationWorkflow: React.FC = () => {
           console.error(`派藥失敗 (記錄ID: ${recordsToProcess[index].id}):`, result.reason);
         }
       });
-      // 數據刷新已經在 dispenseMedication 內部完成
-      // 這裡只需要給一點時間讓 React 狀態更新傳播到頁面
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // 更新本地狀態：根據結果類型分類
+      const successIds: string[] = [];
+      const hospitalizedIds: string[] = [];
+      const vacationIds: string[] = [];
+      const pausedIds: string[] = [];
+      
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          const recordId = recordsToProcess[index].id;
+          switch (result.value.type) {
+            case 'success':
+              successIds.push(recordId);
+              break;
+            case 'hospitalized':
+              hospitalizedIds.push(recordId);
+              break;
+            case 'vacation':
+              vacationIds.push(recordId);
+              break;
+            case 'paused':
+              pausedIds.push(recordId);
+              break;
+          }
+        }
+      });
+      
+      // 批量更新本地狀態
+      if (successIds.length > 0) {
+        updateLocalWorkflowRecords(successIds, 'dispensing', 'completed');
+      }
+      if (hospitalizedIds.length > 0) {
+        updateLocalWorkflowRecords(hospitalizedIds, 'dispensing', 'failed', '入院');
+      }
+      if (vacationIds.length > 0) {
+        updateLocalWorkflowRecords(vacationIds, 'dispensing', 'failed', '回家');
+      }
+      if (pausedIds.length > 0) {
+        updateLocalWorkflowRecords(pausedIds, 'dispensing', 'failed', '暫停');
+      }
     } catch (error) {
       console.error('批量派藥失敗:', error);
       throw error;
@@ -2175,6 +2313,9 @@ const MedicationWorkflow: React.FC = () => {
           patientIdNum,
           scheduledDate
         );
+        // 更新本地狀態：執藥和核藥
+        updateLocalWorkflowRecords([selectedWorkflowRecord.id], 'preparation', 'completed');
+        updateLocalWorkflowRecords([selectedWorkflowRecord.id], 'verification', 'completed');
       }
       // 執行派藥
       if (action === 'success') {
@@ -2192,6 +2333,8 @@ const MedicationWorkflow: React.FC = () => {
           notes,
           inspectionCheckResult
         );
+        // 更新本地狀態：派藥成功
+        updateLocalWorkflowRecords([selectedWorkflowRecord.id], 'dispensing', 'completed');
       } else {
         // 派藥失敗，記錄原因
         await dispenseMedication(
@@ -2202,6 +2345,8 @@ const MedicationWorkflow: React.FC = () => {
           patientIdNum,
           scheduledDate
         );
+        // 更新本地狀態：派藥失敗
+        updateLocalWorkflowRecords([selectedWorkflowRecord.id], 'dispensing', 'failed', reason, customReason);
       }
       setShowDispenseConfirmModal(false);
       setSelectedWorkflowRecord(null);
@@ -2442,9 +2587,9 @@ const MedicationWorkflow: React.FC = () => {
     );
   }
   return (
-    <div className="space-y-6">
+    <div>
       {/* 頁面標題與控制區 */}
-      <div className="sticky top-0 bg-white z-[25] py-4 border-b border-gray-200 shadow-sm">
+      <div className="sticky top-0 bg-white z-[25] py-2 border-b border-gray-200">
         <div className="flex items-center justify-between gap-4">
           {/* 左側：標題 */}
           <div className="flex-shrink-0">
@@ -2539,8 +2684,8 @@ const MedicationWorkflow: React.FC = () => {
         </div>
       </div>
       {/* 院友資訊卡 - 可摺疊 */}
-      <div className="sticky top-24 bg-white z-[5] shadow-sm">
-        <div className="card p-2">
+      <div className="bg-white z-[5] border-b border-gray-200">
+        <div className="p-2">
           <PatientInfoCard
             patient={selectedPatient}
             defaultExpanded={false}
@@ -2567,7 +2712,7 @@ const MedicationWorkflow: React.FC = () => {
       </div>
       {/* 工作流程表格 */}
       {selectedPatientId ? (
-        <div className="card overflow-hidden">
+        <div className="overflow-hidden border-t-0">
           {activePrescriptions.length > 0 ? (
             <>
               {filteredPrescriptions.length > 0 ? (
