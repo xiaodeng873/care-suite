@@ -4,11 +4,42 @@
  * 將以下 Context 合併為一個，減少 Provider 嵌套層級，提升性能：
  * - ScheduleContext (VMO排程、醫生就診排程)
  * - PrescriptionContext (處方、藥物、工作流程記錄)
+ * 
+ * 內部使用 React Query 實現：
+ * - 自動緩存和去重
+ * - 背景更新
+ * - 樂觀更新
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import * as db from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
+import { queryKeys } from '../../lib/queryClient';
+import {
+  useSchedules,
+  useDoctorVisitSchedule,
+  usePrescriptions,
+  useDrugDatabase,
+  usePrescriptionTimeSlotDefinitions,
+  useAddSchedule,
+  useUpdateSchedule,
+  useDeleteSchedule,
+  useAddDoctorVisitSchedule,
+  useUpdateDoctorVisitSchedule,
+  useDeleteDoctorVisitSchedule,
+  usePrepareMedication,
+  useVerifyMedication,
+  useDispenseMedication,
+  useRevertPrescriptionWorkflowStep,
+  useBatchSetDispenseFailure,
+  useAddDrug,
+  useUpdateDrug,
+  useDeleteDrug,
+  useAddPrescriptionTimeSlotDefinition,
+  useUpdatePrescriptionTimeSlotDefinition,
+  useDeletePrescriptionTimeSlotDefinition,
+} from '../../hooks/queries/useWorkflowQueries';
 
 // ========== 類型定義 ==========
 // Extended schedule interface for UI
@@ -134,140 +165,83 @@ interface WorkflowProviderProps {
 
 export function WorkflowProvider({ children }: WorkflowProviderProps) {
   const { displayName, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
   
-  // ===== 排程狀態 =====
-  const [schedules, setSchedules] = useState<ScheduleWithDetails[]>([]);
-  const [doctorVisitSchedule, setDoctorVisitSchedule] = useState<any[]>([]);
-  const [scheduleLoading, setScheduleLoading] = useState(false);
+  // ===== React Query Hooks =====
+  const schedulesQuery = useSchedules();
+  const doctorVisitQuery = useDoctorVisitSchedule();
+  const prescriptionsQuery = usePrescriptions();
+  const drugDatabaseQuery = useDrugDatabase();
+  const timeSlotsQuery = usePrescriptionTimeSlotDefinitions();
   
-  // ===== 處方狀態 =====
-  const [prescriptions, setPrescriptions] = useState<db.MedicationPrescription[]>([]);
-  const [drugDatabase, setDrugDatabase] = useState<any[]>([]);
+  // ===== Mutations =====
+  const addScheduleMutation = useAddSchedule();
+  const updateScheduleMutation = useUpdateSchedule();
+  const deleteScheduleMutation = useDeleteSchedule();
+  const addDoctorVisitMutation = useAddDoctorVisitSchedule();
+  const updateDoctorVisitMutation = useUpdateDoctorVisitSchedule();
+  const deleteDoctorVisitMutation = useDeleteDoctorVisitSchedule();
+  const prepareMedicationMutation = usePrepareMedication();
+  const verifyMedicationMutation = useVerifyMedication();
+  const dispenseMedicationMutation = useDispenseMedication();
+  const revertStepMutation = useRevertPrescriptionWorkflowStep();
+  const batchFailureMutation = useBatchSetDispenseFailure();
+  const addDrugMutation = useAddDrug();
+  const updateDrugMutation = useUpdateDrug();
+  const deleteDrugMutation = useDeleteDrug();
+  const addTimeSlotMutation = useAddPrescriptionTimeSlotDefinition();
+  const updateTimeSlotMutation = useUpdatePrescriptionTimeSlotDefinition();
+  const deleteTimeSlotMutation = useDeletePrescriptionTimeSlotDefinition();
+  
+  // ===== 處方工作流程記錄狀態（需要動態查詢）=====
   const [prescriptionWorkflowRecords, setPrescriptionWorkflowRecords] = useState<PrescriptionWorkflowRecord[]>([]);
-  const [prescriptionTimeSlotDefinitions, setPrescriptionTimeSlotDefinitions] = useState<PrescriptionTimeSlotDefinition[]>([]);
-  const [prescriptionLoading, setPrescriptionLoading] = useState(false);
 
-  // ===== 排程函數 =====
+  // ===== 從 Query 獲取數據 =====
+  const schedules = schedulesQuery.data ?? [];
+  const doctorVisitSchedule = doctorVisitQuery.data ?? [];
+  const prescriptions = prescriptionsQuery.data ?? [];
+  const drugDatabase = drugDatabaseQuery.data ?? [];
+  const prescriptionTimeSlotDefinitions = timeSlotsQuery.data ?? [];
+  
+  // ===== Loading 狀態 =====
+  const scheduleLoading = schedulesQuery.isLoading || doctorVisitQuery.isLoading;
+  const prescriptionLoading = prescriptionsQuery.isLoading || drugDatabaseQuery.isLoading || timeSlotsQuery.isLoading;
+
+  // ===== 排程函數（使用 React Query Mutations）=====
   const refreshScheduleData = useCallback(async () => {
-    if (!isAuthenticated()) return;
-    
-    setScheduleLoading(true);
-    try {
-      const schedulesData = await db.getSchedules();
-      const schedulesWithDetails: ScheduleWithDetails[] = await Promise.all(
-        schedulesData.map(async (schedule) => {
-          try {
-            const details = await db.getScheduleDetails(schedule.排程id);
-            return { ...schedule, 院友列表: details };
-          } catch (error) {
-            console.error(`Error loading details for schedule ${schedule.排程id}:`, error);
-            return { ...schedule, 院友列表: [] };
-          }
-        })
-      );
-      setSchedules(schedulesWithDetails);
-      
-      const { data: doctorData, error: doctorError } = await supabase
-        .from('doctor_visit_schedule')
-        .select('*')
-        .order('visit_date', { ascending: true });
-      if (!doctorError) {
-        setDoctorVisitSchedule(doctorData || []);
-      }
-    } catch (error) {
-      console.error('Error refreshing schedule data:', error);
-    } finally {
-      setScheduleLoading(false);
-    }
-  }, [isAuthenticated]);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflow.schedules.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflow.doctorVisits.all }),
+    ]);
+  }, [queryClient]);
 
   const fetchDoctorVisitSchedule = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('doctor_visit_schedule')
-        .select('*')
-        .order('visit_date', { ascending: true });
-      if (error) throw error;
-      setDoctorVisitSchedule(data || []);
-    } catch (error) {
-      console.error('載入醫生到診排程失敗:', error);
-      throw error;
-    }
-  }, []);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.workflow.doctorVisits.all });
+  }, [queryClient]);
 
   const addDoctorVisitSchedule = useCallback(async (scheduleData: any) => {
-    try {
-      const { data, error } = await supabase
-        .from('doctor_visit_schedule')
-        .insert([scheduleData])
-        .select()
-        .single();
-      if (error) throw error;
-      await fetchDoctorVisitSchedule();
-      return data;
-    } catch (error) {
-      console.error('新增醫生到診排程失敗:', error);
-      throw error;
-    }
-  }, [fetchDoctorVisitSchedule]);
+    return await addDoctorVisitMutation.mutateAsync(scheduleData);
+  }, [addDoctorVisitMutation]);
 
   const updateDoctorVisitSchedule = useCallback(async (scheduleData: any) => {
-    try {
-      const { data, error } = await supabase
-        .from('doctor_visit_schedule')
-        .update(scheduleData)
-        .eq('id', scheduleData.id)
-        .select()
-        .single();
-      if (error) throw error;
-      await fetchDoctorVisitSchedule();
-      return data;
-    } catch (error) {
-      console.error('更新醫生到診排程失敗:', error);
-      throw error;
-    }
-  }, [fetchDoctorVisitSchedule]);
+    return await updateDoctorVisitMutation.mutateAsync(scheduleData);
+  }, [updateDoctorVisitMutation]);
 
   const deleteDoctorVisitSchedule = useCallback(async (scheduleId: string) => {
-    try {
-      const { error } = await supabase
-        .from('doctor_visit_schedule')
-        .delete()
-        .eq('id', scheduleId);
-      if (error) throw error;
-      await fetchDoctorVisitSchedule();
-    } catch (error) {
-      console.error('刪除醫生到診排程失敗:', error);
-      throw error;
-    }
-  }, [fetchDoctorVisitSchedule]);
+    await deleteDoctorVisitMutation.mutateAsync(scheduleId);
+  }, [deleteDoctorVisitMutation]);
 
   const addSchedule = useCallback(async (schedule: Omit<db.Schedule, '排程id'>) => {
-    try {
-      await db.createSchedule(schedule);
-      await refreshScheduleData();
-    } catch (error) {
-      console.error('Error adding schedule:', error);
-    }
-  }, [refreshScheduleData]);
+    await addScheduleMutation.mutateAsync(schedule);
+  }, [addScheduleMutation]);
 
   const updateSchedule = useCallback(async (schedule: ScheduleWithDetails) => {
-    try {
-      await db.updateSchedule(schedule);
-      await refreshScheduleData();
-    } catch (error) {
-      console.error('Error updating schedule:', error);
-    }
-  }, [refreshScheduleData]);
+    await updateScheduleMutation.mutateAsync(schedule);
+  }, [updateScheduleMutation]);
 
   const deleteSchedule = useCallback(async (id: number) => {
-    try {
-      await db.deleteSchedule(id);
-      await refreshScheduleData();
-    } catch (error) {
-      console.error('Error deleting schedule:', error);
-    }
-  }, [refreshScheduleData]);
+    await deleteScheduleMutation.mutateAsync(id);
+  }, [deleteScheduleMutation]);
 
   const addPatientToSchedule = useCallback(async (
     scheduleId: number,
@@ -335,27 +309,13 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
   };
 
   const refreshPrescriptionData = useCallback(async () => {
-    if (!isAuthenticated()) return;
-    
-    setPrescriptionLoading(true);
-    try {
-      const [prescriptionsData, drugDatabaseData, workflowRecordsData, timeSlotDefinitionsData] = await Promise.all([
-        db.getPrescriptions(),
-        db.getDrugDatabase(),
-        fetchPrescriptionWorkflowRecordsInternal(undefined, undefined, true),
-        db.getPrescriptionTimeSlotDefinitions()
-      ]);
-      
-      setPrescriptions(prescriptionsData || []);
-      setDrugDatabase(drugDatabaseData || []);
-      setPrescriptionWorkflowRecords(workflowRecordsData || []);
-      setPrescriptionTimeSlotDefinitions(timeSlotDefinitionsData || []);
-    } catch (error) {
-      console.error('Error refreshing prescription data:', error);
-    } finally {
-      setPrescriptionLoading(false);
-    }
-  }, [isAuthenticated]);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflow.prescriptions.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflow.drugDatabase.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflow.timeSlots.all }),
+      fetchPrescriptionWorkflowRecordsInternal(undefined, undefined, false),
+    ]);
+  }, [queryClient]);
 
   const addPrescription = useCallback(async (prescription: any) => {
     try {
@@ -391,34 +351,16 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
   }, [refreshPrescriptionData]);
 
   const addDrug = useCallback(async (drug: Omit<any, 'id' | 'created_at' | 'updated_at'>) => {
-    try {
-      await db.createDrug(drug);
-      await refreshPrescriptionData();
-    } catch (error) {
-      console.error('Error adding drug:', error);
-      throw error;
-    }
-  }, [refreshPrescriptionData]);
+    await addDrugMutation.mutateAsync(drug);
+  }, [addDrugMutation]);
 
   const updateDrug = useCallback(async (drug: any) => {
-    try {
-      await db.updateDrug(drug);
-      await refreshPrescriptionData();
-    } catch (error) {
-      console.error('Error updating drug:', error);
-      throw error;
-    }
-  }, [refreshPrescriptionData]);
+    await updateDrugMutation.mutateAsync(drug);
+  }, [updateDrugMutation]);
 
   const deleteDrug = useCallback(async (id: string) => {
-    try {
-      await db.deleteDrug(id);
-      await refreshPrescriptionData();
-    } catch (error) {
-      console.error('Error deleting drug:', error);
-      throw error;
-    }
-  }, [refreshPrescriptionData]);
+    await deleteDrugMutation.mutateAsync(id);
+  }, [deleteDrugMutation]);
 
   const fetchPrescriptionWorkflowRecords = useCallback(async (patientId?: number, scheduledDate?: string): Promise<PrescriptionWorkflowRecord[]> => {
     return fetchPrescriptionWorkflowRecordsInternal(patientId, scheduledDate, false);
@@ -675,53 +617,25 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
   }, [prescriptionWorkflowRecords, displayName, dispenseMedication]);
 
   const loadPrescriptionTimeSlotDefinitions = async () => {
-    try {
-      const definitions = await db.getPrescriptionTimeSlotDefinitions();
-      setPrescriptionTimeSlotDefinitions(definitions);
-    } catch (error) {
-      console.error('Error loading prescription time slot definitions:', error);
-      throw error;
-    }
+    await queryClient.invalidateQueries({ queryKey: queryKeys.workflow.timeSlots.all });
   };
 
   const fetchPrescriptionTimeSlotDefinitions = useCallback(async (): Promise<PrescriptionTimeSlotDefinition[]> => {
-    try {
-      return await db.getPrescriptionTimeSlotDefinitions();
-    } catch (error) {
-      console.error('Error fetching prescription time slot definitions:', error);
-      throw error;
-    }
-  }, []);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.workflow.timeSlots.all });
+    return prescriptionTimeSlotDefinitions;
+  }, [queryClient, prescriptionTimeSlotDefinitions]);
 
   const addPrescriptionTimeSlotDefinition = useCallback(async (definition: Omit<PrescriptionTimeSlotDefinition, 'id' | 'created_at' | 'updated_at'>) => {
-    try {
-      await db.addPrescriptionTimeSlotDefinition(definition);
-      await loadPrescriptionTimeSlotDefinitions();
-    } catch (error) {
-      console.error('Error adding prescription time slot definition:', error);
-      throw error;
-    }
-  }, []);
+    await addTimeSlotMutation.mutateAsync(definition);
+  }, [addTimeSlotMutation]);
 
   const updatePrescriptionTimeSlotDefinition = useCallback(async (definition: PrescriptionTimeSlotDefinition) => {
-    try {
-      await db.updatePrescriptionTimeSlotDefinition(definition);
-      await loadPrescriptionTimeSlotDefinitions();
-    } catch (error) {
-      console.error('Error updating prescription time slot definition:', error);
-      throw error;
-    }
-  }, []);
+    await updateTimeSlotMutation.mutateAsync(definition);
+  }, [updateTimeSlotMutation]);
 
   const deletePrescriptionTimeSlotDefinition = useCallback(async (id: string) => {
-    try {
-      await db.deletePrescriptionTimeSlotDefinition(id);
-      await loadPrescriptionTimeSlotDefinitions();
-    } catch (error) {
-      console.error('Error deleting prescription time slot definition:', error);
-      throw error;
-    }
-  }, []);
+    await deleteTimeSlotMutation.mutateAsync(id);
+  }, [deleteTimeSlotMutation]);
 
   // ===== 統一刷新所有工作流程數據 =====
   const refreshAllWorkflowData = useCallback(async () => {
@@ -732,11 +646,12 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
     ]);
   }, [isAuthenticated, refreshScheduleData, refreshPrescriptionData]);
 
-  // ===== 初始載入 =====
+  // ===== 初始載入工作流程記錄（React Query 自動處理其他數據）=====
   useEffect(() => {
     if (!isAuthenticated()) return;
-    refreshAllWorkflowData();
-  }, [isAuthenticated, refreshAllWorkflowData]);
+    // 只需載入工作流程記錄，其他數據由 React Query 自動管理
+    fetchPrescriptionWorkflowRecordsInternal(undefined, undefined, false);
+  }, [isAuthenticated]);
 
   // ===== 統一 loading 狀態 =====
   const loading = scheduleLoading || prescriptionLoading;

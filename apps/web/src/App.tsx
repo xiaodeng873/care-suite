@@ -1,6 +1,9 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { Routes, Route } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { queryClient } from './lib/queryClient';
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
@@ -143,19 +146,23 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <StationProvider>
-        <MedicalProvider>
-          <WorkflowProvider>
-            <RecordsProvider>
-              <PatientProvider>
-                <AppContent />
-              </PatientProvider>
-            </RecordsProvider>
-          </WorkflowProvider>
-        </MedicalProvider>
-      </StationProvider>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <StationProvider>
+          <MedicalProvider>
+            <WorkflowProvider>
+              <RecordsProvider>
+                <PatientProvider>
+                  <AppContent />
+                </PatientProvider>
+              </RecordsProvider>
+            </WorkflowProvider>
+          </MedicalProvider>
+        </StationProvider>
+      </AuthProvider>
+      {/* React Query DevTools - 僅開發環境顯示 */}
+      <ReactQueryDevtools initialIsOpen={false} position="bottom" />
+    </QueryClientProvider>
   );
 }
 
