@@ -118,6 +118,21 @@ export function HospitalOutreachProvider({ children }: HospitalOutreachProviderP
     patientName?: string
   ): Promise<HospitalOutreachRecord | null> => {
     try {
+      // 檢查是否已有記錄
+      const { data: existingRecord, error: checkError } = await supabase
+        .from('hospital_outreach_records')
+        .select('id')
+        .eq('patient_id', recordData.patient_id)
+        .single();
+      
+      if (checkError && checkError.code !== 'PGRST116') throw checkError;
+      
+      if (existingRecord) {
+        const name = patientName || '該院友';
+        alert(`${name} 已有醫院外展記錄，每位院友只能有一筆記錄。\n\n如需更新記錄，請使用編輯功能。`);
+        return null;
+      }
+      
       const { data, error } = await supabase
         .from('hospital_outreach_records')
         .insert([recordData])
