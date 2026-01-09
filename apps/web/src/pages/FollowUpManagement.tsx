@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { CalendarCheck, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Clock, MapPin, Car, UserCheck, ChevronUp, ChevronDown, Copy, MessageSquare, X, FileText } from 'lucide-react';
 import { usePatients, type FollowUpAppointment } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import FollowUpModal from '../components/FollowUpModal';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { exportFollowUpListToExcel, type FollowUpExportData } from '../utils/followUpListGenerator';
@@ -57,14 +59,7 @@ const FollowUpManagement: React.FC = () => {
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="覆診管理" />;
   }
 
   const filteredAppointments = followUpAppointments.filter(appointment => {
@@ -79,25 +74,25 @@ const FollowUpManagement: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient && patient.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && patient && !patient.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
+    if (advancedFilters.床號 && patient && !fuzzyMatch(patient.床號, advancedFilters.床號)) {
       return false;
     }
-    if (advancedFilters.中文姓名 && patient && !patient.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())) {
+    if (advancedFilters.中文姓名 && patient && !matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名)) {
       return false;
     }
-    if (advancedFilters.覆診地點 && !appointment.覆診地點?.toLowerCase().includes(advancedFilters.覆診地點.toLowerCase())) {
+    if (advancedFilters.覆診地點 && !fuzzyMatch(appointment.覆診地點, advancedFilters.覆診地點)) {
       return false;
     }
-    if (advancedFilters.覆診專科 && !appointment.覆診專科?.toLowerCase().includes(advancedFilters.覆診專科.toLowerCase())) {
+    if (advancedFilters.覆診專科 && !fuzzyMatch(appointment.覆診專科, advancedFilters.覆診專科)) {
       return false;
     }
-    if (advancedFilters.交通安排 && !appointment.交通安排?.toLowerCase().includes(advancedFilters.交通安排.toLowerCase())) {
+    if (advancedFilters.交通安排 && !fuzzyMatch(appointment.交通安排, advancedFilters.交通安排)) {
       return false;
     }
     if (advancedFilters.狀態.length > 0 && !advancedFilters.狀態.includes(appointment.狀態 || '尚未安排')) {
       return false;
     }
-    if (advancedFilters.備註 && !appointment.備註?.toLowerCase().includes(advancedFilters.備註.toLowerCase())) {
+    if (advancedFilters.備註 && !fuzzyMatch(appointment.備註, advancedFilters.備註)) {
       return false;
     }
     
@@ -114,19 +109,14 @@ const FollowUpManagement: React.FC = () => {
     // 應用搜索條件
     let matchesSearch = true;
     if (searchTerm) {
-      matchesSearch = patient?.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文姓名.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (patient?.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         patient?.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.覆診地點?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.覆診專科?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.備註?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         new Date(appointment.覆診日期).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase()) ||
-                         false;
+      matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
+                         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
+                         fuzzyMatch(patient?.身份證號碼, searchTerm) ||
+                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         fuzzyMatch(appointment.覆診地點, searchTerm) ||
+                         fuzzyMatch(appointment.覆診專科, searchTerm) ||
+                         fuzzyMatch(appointment.備註, searchTerm) ||
+                         new Date(appointment.覆診日期).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase());
     }
     
     return matchesSearch;

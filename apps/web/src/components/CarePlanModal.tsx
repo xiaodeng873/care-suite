@@ -33,6 +33,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { getPatientContacts, type PatientContact } from '../lib/database';
 import PatientAutocomplete from './PatientAutocomplete';
+import { fuzzyMatch } from '../utils/searchUtils';
 
 interface CarePlanModalProps {
   plan?: CarePlan | null;
@@ -248,12 +249,11 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     
     // 關鍵字搜索
     if (problemSearchTerm.trim()) {
-      const searchLower = problemSearchTerm.toLowerCase();
       filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(searchLower) ||
-        p.code.toLowerCase().includes(searchLower) ||
-        (p.description && p.description.toLowerCase().includes(searchLower)) ||
-        (p.keywords && p.keywords.some(k => k.toLowerCase().includes(searchLower)))
+        fuzzyMatch(p.name, problemSearchTerm) ||
+        fuzzyMatch(p.code, problemSearchTerm) ||
+        fuzzyMatch(p.description, problemSearchTerm) ||
+        (p.keywords && p.keywords.some(k => fuzzyMatch(k, problemSearchTerm)))
       );
     }
     

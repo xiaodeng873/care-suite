@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { Building2, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, Clock, Pill, ChevronUp, ChevronDown, X, AlertTriangle, CheckCircle, Copy, MessageCircle, Stethoscope, Settings, ToggleLeft, ToggleRight } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import HospitalOutreachModal from '../components/HospitalOutreachModal';
 import DoctorVisitScheduleModal from '../components/DoctorVisitScheduleModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { isInHospital } from '../utils/careRecordHelper';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 type SortField = '藥袋日期' | '院友姓名' | '藥完日期' | '覆診日期' | '取藥安排' | '創建時間';
 type SortDirection = 'asc' | 'desc';
@@ -202,14 +204,7 @@ const HospitalOutreach: React.FC = () => {
   }, [fetchHospitalOutreachRecords, fetchDoctorVisitSchedule]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="醫院外展" />;
   }
 
   const filteredRecords = useMemo(() => {
@@ -226,10 +221,10 @@ const HospitalOutreach: React.FC = () => {
       if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && residenceStatus !== advancedFilters.在住狀態) {
         return false;
       }
-      if (advancedFilters.床號 && !patient?.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
+      if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
         return false;
       }
-      if (advancedFilters.中文姓名 && !patient?.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())) {
+      if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
         return false;
       }
       if (advancedFilters.取藥安排 && record.medication_pickup_arrangement !== advancedFilters.取藥安排) {
@@ -238,7 +233,7 @@ const HospitalOutreach: React.FC = () => {
       if (advancedFilters.外展藥物來源 && record.outreach_medication_source !== advancedFilters.外展藥物來源) {
         return false;
       }
-      if (advancedFilters.備註 && !record.remarks?.toLowerCase().includes(advancedFilters.備註.toLowerCase())) {
+      if (advancedFilters.備註 && !fuzzyMatch(record.remarks, advancedFilters.備註)) {
         return false;
       }
 
@@ -277,15 +272,11 @@ const HospitalOutreach: React.FC = () => {
       // 然後應用搜索條件
       let matchesSearch = true;
       if (searchTerm) {
-        matchesSearch = patient?.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       patient?.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       patient?.中文姓名.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       (patient?.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                       (patient?.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                       (patient?.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                       patient?.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       patient?.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       record.remarks?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
+                       matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
+                       fuzzyMatch(patient?.身份證號碼, searchTerm) ||
+                       fuzzyMatch(patient?.床號, searchTerm) ||
+                       fuzzyMatch(record.remarks, searchTerm) ||
                        new Date(record.medication_bag_date).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase()) ||
                        false;
       }

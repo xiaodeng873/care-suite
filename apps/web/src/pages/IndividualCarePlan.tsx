@@ -20,10 +20,12 @@ import {
   BookOpen
 } from 'lucide-react';
 import { usePatients, type CarePlan, type PlanType } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import CarePlanModal from '../components/CarePlanModal';
 import ProblemLibraryModal from '../components/ProblemLibraryModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { useAuth } from '../context/AuthContext';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 type SortField = '院友姓名' | 'plan_date' | 'plan_type' | 'review_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -116,14 +118,7 @@ const IndividualCarePlan: React.FC = () => {
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="個人照顧計劃" />;
   }
 
   const filteredPlans = (carePlans || []).filter(plan => {
@@ -149,10 +144,10 @@ const IndividualCarePlan: React.FC = () => {
       return false;
     }
 
-    if (advancedFilters.床號 && !patient?.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
+    if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
       return false;
     }
-    if (advancedFilters.中文姓名 && !patient?.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())) {
+    if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
       return false;
     }
     
@@ -170,16 +165,12 @@ const IndividualCarePlan: React.FC = () => {
     // 然後應用搜索條件
     let matchesSearch = true;
     if (searchTerm) {
-      matchesSearch = patient?.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文姓名.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (patient?.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         patient?.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         plan.created_by?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         plan.remarks?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
+                         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
+                         fuzzyMatch(patient?.身份證號碼, searchTerm) ||
+                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         fuzzyMatch(plan.created_by, searchTerm) ||
+                         fuzzyMatch(plan.remarks, searchTerm) ||
                          false;
     }
     

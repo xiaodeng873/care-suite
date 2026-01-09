@@ -3,6 +3,7 @@ import { X, Building2, Bed, Plus, Edit3, Trash2, Search, User } from 'lucide-rea
 import { usePatients } from '../context/PatientContext';
 import StationModal from './StationModal';
 import BedModal from './BedModal';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 interface StationManagementModalProps {
   onClose: () => void;
@@ -53,10 +54,9 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
   // 篩選站點
   const filteredStations = stations.filter(station => {
     if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
     return (
-      station.name.toLowerCase().includes(searchLower) ||
-      station.description?.toLowerCase().includes(searchLower)
+      fuzzyMatch(station.name, searchTerm) ||
+      fuzzyMatch(station.description, searchTerm)
     );
   });
 
@@ -66,18 +66,13 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
     const station = stations.find(s => s.id === bed.station_id);
     const patient = getPatientInBed(bed.id);
     
-    const searchLower = searchTerm.toLowerCase();
     return (
-      bed.bed_number.toLowerCase().includes(searchLower) ||
-      bed.bed_name?.toLowerCase().includes(searchLower) ||
-      station?.name.toLowerCase().includes(searchLower) ||
-      patient?.中文姓氏.toLowerCase().includes(searchLower) ||
-      patient?.中文名字.toLowerCase().includes(searchLower) ||
-      patient?.中文姓名.toLowerCase().includes(searchLower) ||
-      (patient?.英文姓氏?.toLowerCase().includes(searchLower) || false) ||
-      (patient?.英文名字?.toLowerCase().includes(searchLower) || false) ||
-      (patient?.英文姓名?.toLowerCase().includes(searchLower) || false) ||
-      (patient?.身份證號碼?.toLowerCase().includes(searchLower) || false)
+      fuzzyMatch(bed.bed_number, searchTerm) ||
+      fuzzyMatch(bed.bed_name, searchTerm) ||
+      fuzzyMatch(station?.name, searchTerm) ||
+      matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
+      matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
+      fuzzyMatch(patient?.身份證號碼, searchTerm)
     );
   });
 

@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileText, Trash2, Download, Eye, AlertCircle, CheckCircle, X } from 'lucide-react';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import { getTemplatesMetadata, uploadTemplateFile, createTemplateMetadata, deleteTemplateMetadata, deleteFileFromStorage, downloadTemplateFile } from '../lib/database';
 import { extractRestraintConsentTemplateFormat } from '../utils/restraintConsentExcelGenerator';
 import { extractRestraintObservationTemplateFormat } from '../utils/restraintObservationChartExcelGenerator';
@@ -285,6 +286,11 @@ const TemplateManagement: React.FC = () => {
     };
     return colorMap[type] || 'bg-gray-100 text-gray-800';
   };
+
+  if (loading && templates.length === 0) {
+    return <LoadingScreen pageName="範本管理" />;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

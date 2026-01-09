@@ -17,9 +17,11 @@ import {
   BarChart3
 } from 'lucide-react';
 import { usePatients, type MealGuidance, type MealCombinationType, type SpecialDietType } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import MealGuidanceModal from '../components/MealGuidanceModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 type SortField = '院友姓名' | 'meal_combination' | 'guidance_date' | 'guidance_source' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -67,14 +69,7 @@ const MealGuidance: React.FC = () => {
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="飲食指導" />;
   }
 
   const filteredGuidances = mealGuidances.filter(guidance => {
@@ -89,10 +84,10 @@ const MealGuidance: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && !patient?.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
+    if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
       return false;
     }
-    if (advancedFilters.中文姓名 && !patient?.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())) {
+    if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
       return false;
     }
     if (advancedFilters.meal_combination && guidance.meal_combination !== advancedFilters.meal_combination) {
@@ -106,7 +101,7 @@ const MealGuidance: React.FC = () => {
       if (advancedFilters.needs_thickener === '是' && !needsThickener) return false;
       if (advancedFilters.needs_thickener === '否' && needsThickener) return false;
     }
-    if (advancedFilters.guidance_source && !guidance.guidance_source?.toLowerCase().includes(advancedFilters.guidance_source.toLowerCase())) {
+    if (advancedFilters.guidance_source && !fuzzyMatch(guidance.guidance_source, advancedFilters.guidance_source)) {
       return false;
     }
     
@@ -126,19 +121,14 @@ const MealGuidance: React.FC = () => {
     // 然後應用搜索條件
     let matchesSearch = true;
     if (searchTerm) {
-      matchesSearch = patient?.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文姓名.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (patient?.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         patient?.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         guidance.meal_combination.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         guidance.special_diets.some(diet => diet.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         guidance.guidance_source?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         guidance.thickener_amount?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         false;
+      matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
+                         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
+                         fuzzyMatch(patient?.身份證號碼, searchTerm) ||
+                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         fuzzyMatch(guidance.meal_combination, searchTerm) ||
+                         guidance.special_diets.some(diet => fuzzyMatch(diet, searchTerm)) ||
+                         fuzzyMatch(guidance.guidance_source, searchTerm) ||
+                         fuzzyMatch(guidance.thickener_amount, searchTerm);
     }
     
     return matchesSearch;

@@ -15,9 +15,11 @@ import {
   X
 } from 'lucide-react';
 import { usePatients, type PatientLog } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientLogModal from '../components/PatientLogModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 type SortField = '記錄日期' | '院友姓名' | '日誌類型' | '記錄人員' | '創建時間';
 type SortDirection = 'asc' | 'desc';
@@ -62,14 +64,7 @@ const PatientLogs: React.FC = () => {
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="院友日誌" />;
   }
 
   const filteredLogs = patientLogs.filter(log => {
@@ -79,19 +74,19 @@ const PatientLogs: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && !patient?.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
+    if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
       return false;
     }
-    if (advancedFilters.中文姓名 && !patient?.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())) {
+    if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
       return false;
     }
     if (advancedFilters.日誌類型 && log.log_type !== advancedFilters.日誌類型) {
       return false;
     }
-    if (advancedFilters.記錄人員 && !log.recorder.toLowerCase().includes(advancedFilters.記錄人員.toLowerCase())) {
+    if (advancedFilters.記錄人員 && !fuzzyMatch(log.recorder, advancedFilters.記錄人員)) {
       return false;
     }
-    if (advancedFilters.內容 && !log.content.toLowerCase().includes(advancedFilters.內容.toLowerCase())) {
+    if (advancedFilters.內容 && !fuzzyMatch(log.content, advancedFilters.內容)) {
       return false;
     }
     
@@ -109,17 +104,13 @@ const PatientLogs: React.FC = () => {
     // 然後應用搜索條件
     let matchesSearch = true;
     if (searchTerm) {
-      matchesSearch = patient?.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文姓名.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (patient?.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         patient?.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.log_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.recorder.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
+                         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
+                         fuzzyMatch(patient?.身份證號碼, searchTerm) ||
+                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         fuzzyMatch(log.log_type, searchTerm) ||
+                         fuzzyMatch(log.content, searchTerm) ||
+                         fuzzyMatch(log.recorder, searchTerm) ||
                          new Date(log.log_date).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase());
     }
     

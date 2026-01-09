@@ -5,6 +5,7 @@ import { getTemplatesMetadata } from '../lib/database';
 import { exportMedicationRecordToExcel, exportSelectedMedicationRecordToExcel, categorizePrescriptionsByRoute, exportBlankMedicationRecordToExcel, exportBatchBlankMedicationRecordToExcel } from '../utils/medicationRecordExcelGenerator';
 import { exportPersonalMedicationListToExcel, exportSelectedPersonalMedicationListToExcel } from '../utils/personalMedicationListExcelGenerator';
 import { supabase } from '../lib/supabase';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 interface MedicationRecordExportModalProps {
   onClose: () => void;
@@ -54,20 +55,12 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   const filteredPatients = useMemo(() => {
     if (!searchTerm) return activePatients;
 
-    const term = searchTerm.toLowerCase();
     return activePatients.filter(p => {
-      const name = (p.中文姓氏 + p.中文名字).toLowerCase();
-      const bed = p.床號.toLowerCase();
       return (
-        name.includes(term) ||
-        bed.includes(term) ||
-        p.中文姓氏.toLowerCase().includes(term) ||
-        p.中文名字.toLowerCase().includes(term) ||
-        p.中文姓名.toLowerCase().includes(term) ||
-        (p.英文姓氏?.toLowerCase().includes(term) || false) ||
-        (p.英文名字?.toLowerCase().includes(term) || false) ||
-        (p.英文姓名?.toLowerCase().includes(term) || false) ||
-        p.身份證號碼.toLowerCase().includes(term)
+        matchChineseName(p.中文姓氏, p.中文名字, p.中文姓名, searchTerm) ||
+        matchEnglishName(p.英文姓氏, p.英文名字, p.英文姓名, searchTerm) ||
+        fuzzyMatch(p.床號, searchTerm) ||
+        fuzzyMatch(p.身份證號碼, searchTerm)
       );
     });
   }, [activePatients, searchTerm]);

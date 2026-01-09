@@ -22,9 +22,11 @@ import {
   FileText
 } from 'lucide-react';
 import { usePatients, type Wound, type WoundWithAssessments, type PatientWithWounds, type WoundAssessment } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientTooltip from '../components/PatientTooltip';
 import WoundModal from '../components/WoundModal';
 import SingleWoundAssessmentModal from '../components/SingleWoundAssessmentModal';
+import { fuzzyMatch } from '../utils/searchUtils';
 
 // 計算傷口存在天數
 const calculateDaysSinceDiscovery = (discoveryDate: string, healedDate?: string): number => {
@@ -124,18 +126,17 @@ const WoundManagementNew: React.FC = () => {
     return patientsWithWounds.filter(p => {
       // 搜索條件
       if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
         const matchesSearch = 
-          p.patient_name.toLowerCase().includes(searchLower) ||
-          p.bed_number.toLowerCase().includes(searchLower);
+          fuzzyMatch(p.patient_name, searchTerm) ||
+          fuzzyMatch(p.bed_number, searchTerm);
         if (!matchesSearch) return false;
       }
 
       // 進階篩選
-      if (advancedFilters.床號 && !p.bed_number.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
+      if (advancedFilters.床號 && !fuzzyMatch(p.bed_number, advancedFilters.床號)) {
         return false;
       }
-      if (advancedFilters.中文姓名 && !p.patient_name.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())) {
+      if (advancedFilters.中文姓名 && !fuzzyMatch(p.patient_name, advancedFilters.中文姓名)) {
         return false;
       }
 
@@ -288,14 +289,7 @@ const WoundManagementNew: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="傷口管理" />;
   }
 
   return (

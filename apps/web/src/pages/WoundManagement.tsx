@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { ChevronFirst as FirstAid, Plus, Edit3, Trash2, Search, Filter, Download, User, Calendar, AlertTriangle, CheckCircle, Clock, ChevronUp, ChevronDown, X, Activity, Copy } from 'lucide-react';
 import { usePatients, type WoundAssessment } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import WoundAssessmentModal from '../components/WoundAssessmentModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 type SortField = '院友姓名' | 'assessment_date' | 'next_assessment_date' | 'stage' | 'infection' | 'assessor';
 type SortDirection = 'asc' | 'desc';
@@ -54,14 +56,7 @@ const WoundManagement: React.FC = () => {
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="傷口評估" />;
   }
 
   const isOverdue = (assessment: WoundAssessment): boolean => {
@@ -98,13 +93,13 @@ const WoundManagement: React.FC = () => {
       // '全部' 不做篩選
     }
 
-    if (advancedFilters.床號 && !patient?.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
+    if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
       return false;
     }
-    if (advancedFilters.中文姓名 && !patient?.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())) {
+    if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
       return false;
     }
-    if (advancedFilters.評估者 && !assessment.assessor?.toLowerCase().includes(advancedFilters.評估者.toLowerCase())) {
+    if (advancedFilters.評估者 && !fuzzyMatch(assessment.assessor, advancedFilters.評估者)) {
       return false;
     }
     if (advancedFilters.階段 && assessment.stage !== advancedFilters.階段) {
@@ -134,17 +129,13 @@ const WoundManagement: React.FC = () => {
     // 然後應用搜索條件
     let matchesSearch = true;
     if (searchTerm) {
-      matchesSearch = patient?.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文姓名.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (patient?.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         patient?.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         assessment.assessor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         assessment.stage?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         assessment.remarks?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
+                         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
+                         fuzzyMatch(patient?.身份證號碼, searchTerm) ||
+                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         fuzzyMatch(assessment.assessor, searchTerm) ||
+                         fuzzyMatch(assessment.stage, searchTerm) ||
+                         fuzzyMatch(assessment.remarks, searchTerm) ||
                          false;
     }
     

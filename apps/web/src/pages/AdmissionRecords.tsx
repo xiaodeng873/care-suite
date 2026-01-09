@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Guitar as Hospital, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, MapPin, Bed, FileText, ChevronUp, ChevronDown, X, Activity } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import HospitalEpisodeModal from '../components/HospitalEpisodeModal';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 
@@ -52,14 +54,7 @@ const AdmissionRecords: React.FC = () => {
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="入院記錄" />;
   }
 
   const filteredEpisodes = hospitalEpisodes.filter(episode => {
@@ -74,16 +69,16 @@ const AdmissionRecords: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && !patient?.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
+    if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
       return false;
     }
-    if (advancedFilters.中文姓名 && !patient?.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())) {
+    if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
       return false;
     }
-    if (advancedFilters.主要醫院 && !episode.primary_hospital?.toLowerCase().includes(advancedFilters.主要醫院.toLowerCase())) {
+    if (advancedFilters.主要醫院 && !fuzzyMatch(episode.primary_hospital, advancedFilters.主要醫院)) {
       return false;
     }
-    if (advancedFilters.主要病房 && !episode.primary_ward?.toLowerCase().includes(advancedFilters.主要病房.toLowerCase())) {
+    if (advancedFilters.主要病房 && !fuzzyMatch(episode.primary_ward, advancedFilters.主要病房)) {
       return false;
     }
     // 使用動態計算的狀態進行篩選
@@ -98,7 +93,7 @@ const AdmissionRecords: React.FC = () => {
     if (advancedFilters.出院安排 && episode.discharge_type !== advancedFilters.出院安排) {
       return false;
     }
-    if (advancedFilters.備註 && !episode.remarks?.toLowerCase().includes(advancedFilters.備註.toLowerCase())) {
+    if (advancedFilters.備註 && !fuzzyMatch(episode.remarks, advancedFilters.備註)) {
       return false;
     }
     
@@ -116,20 +111,15 @@ const AdmissionRecords: React.FC = () => {
     // 然後應用搜索條件
     let matchesSearch = true;
     if (searchTerm) {
-      matchesSearch = patient?.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文姓名.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (patient?.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         patient?.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         episode.primary_hospital?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         episode.primary_ward?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         episode.primary_bed_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         episode.remarks?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         new Date(episode.episode_start_date).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase()) ||
-                         false;
+      matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
+                         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
+                         fuzzyMatch(patient?.身份證號碼, searchTerm) ||
+                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         fuzzyMatch(episode.primary_hospital, searchTerm) ||
+                         fuzzyMatch(episode.primary_ward, searchTerm) ||
+                         fuzzyMatch(episode.primary_bed_number, searchTerm) ||
+                         fuzzyMatch(episode.remarks, searchTerm) ||
+                         fuzzyMatch(new Date(episode.episode_start_date).toLocaleDateString('zh-TW'), searchTerm);
     }
     
     return matchesSearch;

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import {
   Heart,
   Plus,
@@ -146,14 +148,7 @@ const HealthAssessment: React.FC = () => {
     }
   };
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="監測記錄" />;
   }
   const filteredRecords = healthRecords.filter(record => {
     const patient = patients.find(p => p.院友id === record.院友id);
@@ -162,19 +157,19 @@ const HealthAssessment: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && !patient?.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
+    if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
       return false;
     }
-    if (advancedFilters.中文姓名 && !patient?.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())) {
+    if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
       return false;
     }
     if (advancedFilters.記錄類型 && advancedFilters.記錄類型 !== '' && record.記錄類型.trim() !== advancedFilters.記錄類型.trim()) {
       return false;
     }
-    if (advancedFilters.記錄人員 && !record.記錄人員?.toLowerCase().includes(advancedFilters.記錄人員.toLowerCase())) {
+    if (advancedFilters.記錄人員 && !fuzzyMatch(record.記錄人員, advancedFilters.記錄人員)) {
       return false;
     }
-    if (advancedFilters.備註 && !record.備註?.toLowerCase().includes(advancedFilters.備註.toLowerCase())) {
+    if (advancedFilters.備註 && !fuzzyMatch(record.備註, advancedFilters.備註)) {
       return false;
     }
     if (advancedFilters.startDate || advancedFilters.endDate) {
@@ -188,16 +183,12 @@ const HealthAssessment: React.FC = () => {
     }
     let matchesSearch = true;
     if (searchTerm) {
-      matchesSearch = patient?.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.中文姓名.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (patient?.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient?.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         patient?.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient?.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         record.備註?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         new Date(record.記錄日期).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase()) ||
+      matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
+                         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
+                         fuzzyMatch(patient?.身份證號碼, searchTerm) ||
+                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         fuzzyMatch(record.備註, searchTerm) ||
+                         fuzzyMatch(new Date(record.記錄日期).toLocaleDateString('zh-TW'), searchTerm) ||
                          false;
     }
     return matchesSearch;

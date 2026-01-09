@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { X, Plus, Search, Edit3, Trash2, Check, FileText } from 'lucide-react';
 import { usePatients, type ProblemLibrary, type ProblemCategory } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
+import { fuzzyMatch } from '../utils/searchUtils';
 
 const PROBLEM_CATEGORIES: ProblemCategory[] = ['護理', '社工', '物理治療', '職業治療', '言語治療', '營養師', '醫生'];
 
@@ -67,10 +68,10 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
       .filter(p => p.category === selectedCategory && p.is_active)
       .filter(p => 
         !searchTerm || 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.subcategory?.toLowerCase().includes(searchTerm.toLowerCase())
+        fuzzyMatch(p.name, searchTerm) ||
+        fuzzyMatch(p.code, searchTerm) ||
+        fuzzyMatch(p.description, searchTerm) ||
+        fuzzyMatch(p.subcategory, searchTerm)
       )
       .sort((a, b) => a.code.localeCompare(b.code));
   }, [problemLibrary, selectedCategory, searchTerm]);

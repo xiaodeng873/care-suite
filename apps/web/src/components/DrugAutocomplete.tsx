@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Pill, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { fuzzyMatch } from '../utils/searchUtils';
 
 interface DrugAutocompleteProps {
   value: string;
@@ -26,12 +27,11 @@ const DrugAutocomplete: React.FC<DrugAutocompleteProps> = ({
   // 過濾藥物列表
   const filteredDrugs = (drugDatabase || []).filter(drug => {
     if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
     return (
-      drug.drug_name.toLowerCase().includes(searchLower) ||
-      drug.drug_code?.toLowerCase().includes(searchLower) ||
-      drug.drug_type?.toLowerCase().includes(searchLower) ||
-      drug.administration_route?.toLowerCase().includes(searchLower)
+      fuzzyMatch(drug.drug_name, searchTerm) ||
+      fuzzyMatch(drug.drug_code, searchTerm) ||
+      fuzzyMatch(drug.drug_type, searchTerm) ||
+      fuzzyMatch(drug.administration_route, searchTerm)
     );
   });
 

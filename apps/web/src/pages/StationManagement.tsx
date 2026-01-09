@@ -13,7 +13,9 @@ import {
   X
 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import StationModal from '../components/StationModal';
+import { fuzzyMatch } from '../utils/searchUtils';
 
 const StationManagement: React.FC = () => {
   const { 
@@ -29,14 +31,7 @@ const StationManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="站別管理" />;
   }
 
   // 獲取每個站的統計資訊
@@ -62,10 +57,9 @@ const StationManagement: React.FC = () => {
   // 篩選站點
   const filteredStations = stations.filter(station => {
     if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
     return (
-      station.name.toLowerCase().includes(searchLower) ||
-      station.description?.toLowerCase().includes(searchLower)
+      fuzzyMatch(station.name, searchTerm) ||
+      fuzzyMatch(station.description, searchTerm)
     );
   });
 

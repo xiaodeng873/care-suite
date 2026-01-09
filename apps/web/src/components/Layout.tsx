@@ -3,7 +3,43 @@ import { Link, useLocation } from 'react-router-dom';
 import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
+import { useNavigation } from '../context/NavigationContext';
+import { LoadingScreen } from './PageLoadingScreen';
 import type { PermissionCategory } from '@care-suite/shared';
+
+// 路由名稱對照表
+const routeNames: Record<string, string> = {
+  '/': '主頁',
+  '/scheduling': 'VMO排程',
+  '/station-bed': '床位管理',
+  '/follow-up': '覆診管理',
+  '/tasks': '任務管理',
+  '/meal-guidance': '飲食指導',
+  '/patient-logs': '院友日誌',
+  '/restraint': '約束物品',
+  '/admission-records': '入院記錄',
+  '/print-forms': '列印表格',
+  '/wound': '傷口管理',
+  '/wound-old': '傷口評估',
+  '/prescriptions': '處方管理',
+  '/drug-database': '藥物資料庫',
+  '/medication-workflow': '藥物工作流程',
+  '/hospital-outreach': '醫院外展',
+  '/annual-health-checkup': '年度體檢',
+  '/incident-reports': '意外事故報告',
+  '/diagnosis-records': '診斷記錄',
+  '/vaccination-records': '疫苗記錄',
+  '/care-records': '護理記錄',
+  '/patients': '院友列表',
+  '/patient-contacts': '院友聯絡人',
+  '/templates': '範本管理',
+  '/health': '監測記錄',
+  '/health-assessments': '健康評估',
+  '/individual-care-plan': '個人照顧計劃',
+  '/reports': '報表查詢',
+  '/settings': '系統設定',
+  '/rehabilitation': '復康服務'
+};
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -38,6 +74,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { displayName, hasPermission, hasCategoryViewPermission, isDeveloper, userProfile, customLogout } = useAuth();
+  const { isNavigating, navigatingTo, startNavigation } = useNavigation();
   const location = useLocation();
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -225,6 +262,12 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  // 如果正在導航，直接顯示全屏加載頁
+  if (isNavigating && navigatingTo) {
+    const targetPageName = routeNames[navigatingTo] || '頁面';
+    return <LoadingScreen pageName={targetPageName} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 頂部導覽欄 */}
@@ -234,7 +277,17 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
             {/* Logo 和導覽 */}
             <div className="flex items-center flex-1">
               {/* Logo */}
-              <Link to="/" className="flex items-center space-x-2 mr-8">
+              <Link 
+                to="/" 
+                className="flex items-center space-x-2 mr-8"
+                onClick={(e) => {
+                  if (isActive('/')) {
+                    e.preventDefault();
+                    return;
+                  }
+                  startNavigation('/');
+                }}
+              >
                 <Home className="h-6 w-6 text-blue-600" />
                 <span className="text-xl font-bold text-gray-900 hidden sm:inline">StationC</span>
               </Link>
@@ -268,16 +321,24 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
                       <div className="absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                         {category.items.map((item) => {
                           const Icon = item.icon;
+                          const isCurrentPage = isActive(item.href);
                           return (
                             <Link
                               key={item.name}
                               to={item.href}
                               className={`flex items-center space-x-2 px-4 py-2 text-sm transition-colors ${
-                                isActive(item.href)
+                                isCurrentPage
                                   ? 'bg-blue-50 text-blue-700'
                                   : 'text-gray-700 hover:bg-gray-50'
                               }`}
-                              onClick={() => setOpenDropdown(null)}
+                              onClick={(e) => {
+                                if (isCurrentPage) {
+                                  e.preventDefault();
+                                  return;
+                                }
+                                startNavigation(item.href);
+                                setOpenDropdown(null);
+                              }}
                             >
                               <Icon className="h-4 w-4" />
                               <span>{item.name}</span>
@@ -375,16 +436,24 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
                   <div className="space-y-1">
                     {category.items.map((item) => {
                       const Icon = item.icon;
+                      const isCurrentPage = isActive(item.href);
                       return (
                         <Link
                           key={item.name}
                           to={item.href}
                           className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                            isActive(item.href)
+                            isCurrentPage
                               ? 'bg-blue-50 text-blue-700'
                               : 'text-gray-700 hover:bg-gray-50'
                           }`}
-                          onClick={() => setMobileMenuOpen(false)}
+                          onClick={(e) => {
+                            if (isCurrentPage) {
+                              e.preventDefault();
+                              return;
+                            }
+                            startNavigation(item.href);
+                            setMobileMenuOpen(false);
+                          }}
                         >
                           <Icon className="h-4 w-4" />
                           <span>{item.name}</span>

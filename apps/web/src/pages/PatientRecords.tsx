@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Edit3, Trash2, Search, Filter, Download, User, Calendar, CreditCard, Heart, AlertTriangle, CheckCircle, ChevronUp, ChevronDown, X, LogOut, QrCode } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientModal from '../components/PatientModal';
 import DischargeModal from '../components/DischargeModal';
 import PatientTooltip from '../components/PatientTooltip';
@@ -8,6 +9,7 @@ import { PatientQRCodeModal } from '../components/PatientQRCodeModal';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { deletePatientSchedulesAfterDate } from '../lib/database';
 import type { Patient } from '../lib/database';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 type SortField = '床號' | '中文姓名' | '性別' | '年齡' | '入住日期' | '護理等級' | '入住類型' | '在住狀態';
 type SortDirection = 'asc' | 'desc';
@@ -64,32 +66,17 @@ const PatientRecords: React.FC = () => {
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="院友列表" />;
   }
 
   const filteredPatients = patients.filter(patient => {
-    if (advancedFilters.床號 && !patient.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
+    if (advancedFilters.床號 && !fuzzyMatch(patient.床號, advancedFilters.床號)) {
       return false;
     }
-    if (advancedFilters.中文姓名 && !(
-      patient.中文姓氏.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase()) ||
-      patient.中文名字.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase()) ||
-      patient.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())
-    )) {
+    if (advancedFilters.中文姓名 && !matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名)) {
       return false;
     }
-    if (advancedFilters.英文姓名 && !(
-      patient.英文姓氏?.toLowerCase().includes(advancedFilters.英文姓名.toLowerCase()) ||
-      patient.英文名字?.toLowerCase().includes(advancedFilters.英文姓名.toLowerCase()) ||
-      patient.英文姓名?.toLowerCase().includes(advancedFilters.英文姓名.toLowerCase())
-    )) {
+    if (advancedFilters.英文姓名 && !matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, advancedFilters.英文姓名)) {
       return false;
     }
     if (advancedFilters.性別 && patient.性別 !== advancedFilters.性別) {
@@ -108,12 +95,12 @@ const PatientRecords: React.FC = () => {
       return false;
     }
     if (advancedFilters.藥物敏感 && !patient.藥物敏感?.some(allergy => 
-      allergy.toLowerCase().includes(advancedFilters.藥物敏感.toLowerCase())
+      fuzzyMatch(allergy, advancedFilters.藥物敏感)
     )) {
       return false;
     }
     if (advancedFilters.不良藥物反應 && !patient.不良藥物反應?.some(reaction => 
-      reaction.toLowerCase().includes(advancedFilters.不良藥物反應.toLowerCase())
+      fuzzyMatch(reaction, advancedFilters.不良藥物反應)
     )) {
       return false;
     }
@@ -132,13 +119,10 @@ const PatientRecords: React.FC = () => {
     
     let matchesSearch = true;
     if (searchTerm) {
-      matchesSearch = patient.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (patient.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         patient.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase());
+      matchesSearch = matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
+                         matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
+                         fuzzyMatch(patient.床號, searchTerm) ||
+                         fuzzyMatch(patient.身份證號碼, searchTerm);
     }
     
     return matchesSearch;

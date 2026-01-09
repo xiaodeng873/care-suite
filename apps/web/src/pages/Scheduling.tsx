@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, Plus, Edit3, Trash2, Download, Users, Settings, User, Search, Filter, X, AlertCircle } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import { exportCombinedScheduleToExcel } from '../utils/combinedScheduleExcelGenerator';
 import ScheduleModal from '../components/ScheduleModal';
 import PatientSelectModal from '../components/PatientSelectModal';
@@ -9,6 +10,7 @@ import { getReasonBadgeClass, getReasonIcon } from '../utils/reasonColors';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { checkAnnualHealthCheckupDue, checkRestraintAssessmentDue, DueItem } from '../utils/scheduleDueChecker';
 import { supabase } from '../lib/supabase';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 const Scheduling: React.FC = () => {
   const { schedules, deleteSchedule, patients, loading, refreshData } = usePatients();
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -94,14 +96,7 @@ const Scheduling: React.FC = () => {
     }
   };
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="VMO排程" />;
   }
   const handleEdit = (schedule: db.ScheduleWithDetails) => {
     setSelectedSchedule(schedule);
@@ -174,22 +169,17 @@ const Scheduling: React.FC = () => {
     }
     let matchesSearch = true;
     if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      const dateMatch = new Date(schedule.到診日期).toLocaleDateString('zh-TW').includes(searchLower);
+      const dateMatch = new Date(schedule.到診日期).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase());
       const patientMatch = schedule.院友列表.some(item => {
         const patient = patientMap.get(item.院友id);
         return (
-          patient?.中文姓氏?.toLowerCase().includes(searchLower) ||
-          patient?.中文名字?.toLowerCase().includes(searchLower) ||
-          patient?.中文姓名?.toLowerCase().includes(searchLower) ||
-          patient?.床號?.toLowerCase().includes(searchLower) ||
-          patient?.英文姓氏?.toLowerCase().includes(searchLower) ||
-          patient?.英文名字?.toLowerCase().includes(searchLower) ||
-          patient?.英文姓名?.toLowerCase().includes(searchLower) ||
-          patient?.身份證號碼?.toLowerCase().includes(searchLower) ||
-          item.症狀說明?.toLowerCase().includes(searchLower) ||
-          item.備註?.toLowerCase().includes(searchLower) ||
-          item.reasons?.some(reason => reason.原因名稱.toLowerCase().includes(searchLower))
+          matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
+          matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
+          fuzzyMatch(patient?.床號, searchTerm) ||
+          fuzzyMatch(patient?.身份證號碼, searchTerm) ||
+          fuzzyMatch(item.症狀說明, searchTerm) ||
+          fuzzyMatch(item.備註, searchTerm) ||
+          item.reasons?.some(reason => fuzzyMatch(reason.原因名稱, searchTerm))
         );
       });
       matchesSearch = dateMatch || patientMatch;

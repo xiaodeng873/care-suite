@@ -13,8 +13,10 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 interface TaskFilters {
   searchTerm: string;
@@ -137,29 +139,24 @@ const StaffWorkPanel: React.FC = () => {
       }
 
       // 院友姓名篩選
-      if (filters.patientName && !task.patient.中文姓名.toLowerCase().includes(filters.patientName.toLowerCase())) {
+      if (filters.patientName && !matchChineseName(task.patient.中文姓氏, task.patient.中文名字, task.patient.中文姓名, filters.patientName)) {
         return false;
       }
 
       // 藥物名稱篩選
-      if (filters.medicationName && !task.prescription.medication_name.toLowerCase().includes(filters.medicationName.toLowerCase())) {
+      if (filters.medicationName && !fuzzyMatch(task.prescription.medication_name, filters.medicationName)) {
         return false;
       }
 
       // 搜索條件
       if (filters.searchTerm) {
-        const searchLower = filters.searchTerm.toLowerCase();
         return (
-          task.patient.中文姓氏.toLowerCase().includes(searchLower) ||
-          task.patient.中文名字.toLowerCase().includes(searchLower) ||
-          task.patient.中文姓名.toLowerCase().includes(searchLower) ||
-          (task.patient.英文姓氏?.toLowerCase().includes(searchLower) || false) ||
-          (task.patient.英文名字?.toLowerCase().includes(searchLower) || false) ||
-          (task.patient.英文姓名?.toLowerCase().includes(searchLower) || false) ||
-          task.patient.身份證號碼.toLowerCase().includes(searchLower) ||
-          task.patient.床號.toLowerCase().includes(searchLower) ||
-          task.prescription.medication_name.toLowerCase().includes(searchLower) ||
-          task.label.toLowerCase().includes(searchLower)
+          matchChineseName(task.patient.中文姓氏, task.patient.中文名字, task.patient.中文姓名, filters.searchTerm) ||
+          matchEnglishName(task.patient.英文姓氏, task.patient.英文名字, task.patient.英文姓名, filters.searchTerm) ||
+          fuzzyMatch(task.patient.身份證號碼, filters.searchTerm) ||
+          fuzzyMatch(task.patient.床號, filters.searchTerm) ||
+          fuzzyMatch(task.prescription.medication_name, filters.searchTerm) ||
+          fuzzyMatch(task.label, filters.searchTerm)
         );
       }
 
@@ -232,14 +229,7 @@ const StaffWorkPanel: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="職員工作面板" />;
   }
 
   return (

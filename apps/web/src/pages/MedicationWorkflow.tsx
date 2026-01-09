@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import {
   Pill,
   Calendar,
@@ -2577,14 +2578,7 @@ const MedicationWorkflow: React.FC = () => {
     }
   };
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="藥物工作流程" />;
   }
   return (
     <div className="-m-4 lg:-m-6">

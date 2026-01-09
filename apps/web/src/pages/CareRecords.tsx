@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import {
   ClipboardCheck,
   ChevronLeft,
@@ -1325,11 +1326,7 @@ const CareRecords: React.FC = () => {
     );
   };
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <LoadingScreen pageName="護理記錄" />;
   }
   return (
     <div className="space-y-6">

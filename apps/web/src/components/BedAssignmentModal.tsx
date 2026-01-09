@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Bed, User, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientTooltip from './PatientTooltip';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 interface BedAssignmentModalProps {
   bed: any;
@@ -24,15 +25,11 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
     
     // 搜索條件
     if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
       const matchesSearch = (
-        patient.中文姓氏.toLowerCase().includes(searchLower) ||
-        patient.中文名字.toLowerCase().includes(searchLower) ||
-        patient.床號.toLowerCase().includes(searchLower) ||
-        patient.身份證號碼.toLowerCase().includes(searchLower) ||
-        (patient.英文姓氏?.toLowerCase().includes(searchLower) || false) ||
-        (patient.英文名字?.toLowerCase().includes(searchLower) || false) ||
-        (patient.英文姓名?.toLowerCase().includes(searchLower) || false)
+        matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
+        matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
+        fuzzyMatch(patient.床號, searchTerm) ||
+        fuzzyMatch(patient.身份證號碼, searchTerm)
       );
       
       // 只返回符合搜索條件且狀態為在住或待入住的院友

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Edit3, Trash2, User, ChevronUp, ChevronDown, Filter, X, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import { getPatientContacts, deletePatientContact, PatientContact } from '../lib/database';
 import PatientContactModal from '../components/PatientContactModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 type SortField = '床號' | '中文姓名' | '在住狀態';
 type SortDirection = 'asc' | 'desc';
@@ -77,14 +79,10 @@ const PatientContacts: React.FC = () => {
   }, {} as Record<number, PatientContact[]>);
 
   const filteredPatients = patients.filter(patient => {
-    if (advancedFilters.床號 && !patient.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
+    if (advancedFilters.床號 && !fuzzyMatch(patient.床號, advancedFilters.床號)) {
       return false;
     }
-    if (advancedFilters.中文姓名 && !(
-      patient.中文姓氏.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase()) ||
-      patient.中文名字.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase()) ||
-      patient.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())
-    )) {
+    if (advancedFilters.中文姓名 && !matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名)) {
       return false;
     }
     if (advancedFilters.在住狀態 && patient.在住狀態 !== advancedFilters.在住狀態) {
@@ -94,16 +92,14 @@ const PatientContacts: React.FC = () => {
     let matchesSearch = true;
     if (searchTerm) {
       const patientContacts = contactsByPatient[patient.院友id] || [];
-      matchesSearch = patient.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      patient.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      patient.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      (patient.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                      (patient.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      matchesSearch = matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
+                      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
+                      fuzzyMatch(patient.床號, searchTerm) ||
                       patientContacts.some(c =>
-                        c.聯絡人姓名?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        c.關係?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        c.聯絡電話?.includes(searchTerm) ||
-                        c.電郵?.toLowerCase().includes(searchTerm.toLowerCase())
+                        fuzzyMatch(c.聯絡人姓名, searchTerm) ||
+                        fuzzyMatch(c.關係, searchTerm) ||
+                        fuzzyMatch(c.聯絡電話, searchTerm) ||
+                        fuzzyMatch(c.電郵, searchTerm)
                       );
     }
 
@@ -187,14 +183,7 @@ const PatientContacts: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="院友聯絡人" />;
   }
 
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode }> = ({ field, children }) => (
@@ -321,10 +310,10 @@ const PatientContacts: React.FC = () => {
               {sortedPatients.map(patient => {
                 const patientContacts = contactsByPatient[patient.院友id] || [];
                 const filteredPatientContacts = patientContacts.filter(contact => {
-                  if (advancedFilters.聯絡人姓名 && !contact.聯絡人姓名?.toLowerCase().includes(advancedFilters.聯絡人姓名.toLowerCase())) return false;
-                  if (advancedFilters.關係 && !contact.關係?.toLowerCase().includes(advancedFilters.關係.toLowerCase())) return false;
+                  if (advancedFilters.聯絡人姓名 && !fuzzyMatch(contact.聯絡人姓名, advancedFilters.聯絡人姓名)) return false;
+                  if (advancedFilters.關係 && !fuzzyMatch(contact.關係, advancedFilters.關係)) return false;
                   if (advancedFilters.聯絡電話 && !contact.聯絡電話?.includes(advancedFilters.聯絡電話)) return false;
-                  if (advancedFilters.電郵 && !contact.電郵?.toLowerCase().includes(advancedFilters.電郵.toLowerCase())) return false;
+                  if (advancedFilters.電郵 && !fuzzyMatch(contact.電郵, advancedFilters.電郵)) return false;
                   return true;
                 });
                 

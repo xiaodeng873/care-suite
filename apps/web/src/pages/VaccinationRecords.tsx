@@ -12,8 +12,10 @@ import {
   X
 } from 'lucide-react';
 import { usePatients, type VaccinationRecord } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import VaccinationRecordModal from '../components/VaccinationRecordModal';
 import PatientTooltip from '../components/PatientTooltip';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 type SortField = '院友姓名' | 'vaccination_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -56,14 +58,7 @@ const VaccinationRecords: React.FC = () => {
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="疫苗記錄" />;
   }
 
   const hasAdvancedFilters = () => {
@@ -113,30 +108,26 @@ const VaccinationRecords: React.FC = () => {
     if (!patient) return false;
 
     const matchesSearch = !searchTerm ||
-      patient.中文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.中文名字?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.中文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (patient.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (patient.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (patient.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      patient.身份證號碼?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.床號?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
+      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
+      fuzzyMatch(patient.身份證號碼, searchTerm) ||
+      fuzzyMatch(patient.床號, searchTerm) ||
       group.records.some(r =>
-        r.vaccine_item?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.vaccination_unit?.toLowerCase().includes(searchTerm.toLowerCase())
+        fuzzyMatch(r.vaccine_item, searchTerm) ||
+        fuzzyMatch(r.vaccination_unit, searchTerm)
       );
 
     const matchesBedNumber = !advancedFilters.床號 ||
-      patient.床號?.includes(advancedFilters.床號);
+      fuzzyMatch(patient.床號, advancedFilters.床號);
 
     const matchesName = !advancedFilters.中文姓名 ||
-      patient.中文姓名?.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase());
+      matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名);
 
     const matchesVaccineItem = !advancedFilters.vaccine_item ||
-      group.records.some(r => r.vaccine_item?.toLowerCase().includes(advancedFilters.vaccine_item.toLowerCase()));
+      group.records.some(r => fuzzyMatch(r.vaccine_item, advancedFilters.vaccine_item));
 
     const matchesVaccinationUnit = !advancedFilters.vaccination_unit ||
-      group.records.some(r => r.vaccination_unit?.toLowerCase().includes(advancedFilters.vaccination_unit.toLowerCase()));
+      group.records.some(r => fuzzyMatch(r.vaccination_unit, advancedFilters.vaccination_unit));
 
     const matchesResidencyStatus = !advancedFilters.在住狀態 ||
       patient.在住狀態 === advancedFilters.在住狀態;

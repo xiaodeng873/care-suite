@@ -3,6 +3,7 @@ import { X, Users, Plus, Search, User } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { getReasonBadgeClass, getReasonIcon } from '../utils/reasonColors';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 interface PatientSelectModalProps {
   scheduleId: number;
@@ -63,15 +64,11 @@ const PatientSelectModal: React.FC<PatientSelectModalProps> = ({ scheduleId, onC
     .filter(p => p.在住狀態 !== '已退住') // 隱藏已退住的院友
     .filter(patient => {
       if (!searchTerm) return true;
-      const searchLower = searchTerm.toLowerCase();
       return (
-        patient.中文姓氏.toLowerCase().includes(searchLower) ||
-        patient.中文名字.toLowerCase().includes(searchLower) ||
-        patient.床號.toLowerCase().includes(searchLower) ||
-        (patient.英文姓氏?.toLowerCase().includes(searchLower) || false) ||
-        (patient.英文名字?.toLowerCase().includes(searchLower) || false) ||
-        (patient.英文姓名?.toLowerCase().includes(searchLower) || false) ||
-        patient.身份證號碼.toLowerCase().includes(searchLower)
+        matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
+        matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
+        fuzzyMatch(patient.床號, searchTerm) ||
+        fuzzyMatch(patient.身份證號碼, searchTerm)
       );
     });
 

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import * as QRCode from 'qrcode';
 import { usePatients } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import StationModal from '../components/StationModal';
 import BedModal from '../components/BedModal';
 import BedAssignmentModal from '../components/BedAssignmentModal';
@@ -27,6 +28,7 @@ import BedSwapModal from '../components/BedSwapModal';
 import PatientTooltip from '../components/PatientTooltip';
 import StationManagementModal from '../components/StationManagementModal';
 import { exportBedLayoutToExcel } from '../utils/bedLayoutExcelGenerator';
+import { fuzzyMatch, matchChineseName } from '../utils/searchUtils';
 const StationBedManagement: React.FC = () => {
   const { 
     stations, 
@@ -101,14 +103,7 @@ const StationBedManagement: React.FC = () => {
     }
   };
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="床位管理" />;
   }
   // 獲取每個站的統計資訊
   const getStationStats = (stationId: string) => {
@@ -164,14 +159,12 @@ const StationBedManagement: React.FC = () => {
     // 搜索條件
     if (searchTerm) {
       const station = stations.find(s => s.id === bed.station_id);
-      const searchLower = searchTerm.toLowerCase();
       return (
-        bed.bed_number.toLowerCase().includes(searchLower) ||
-        bed.bed_name?.toLowerCase().includes(searchLower) ||
-        station?.name.toLowerCase().includes(searchLower) ||
-        patient?.中文姓氏.toLowerCase().includes(searchLower) ||
-        patient?.中文名字.toLowerCase().includes(searchLower) ||
-        patient?.床號.toLowerCase().includes(searchLower)
+        fuzzyMatch(bed.bed_number, searchTerm) ||
+        fuzzyMatch(bed.bed_name, searchTerm) ||
+        fuzzyMatch(station?.name, searchTerm) ||
+        matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
+        fuzzyMatch(patient?.床號, searchTerm)
       );
     }
     return true;

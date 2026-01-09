@@ -15,7 +15,9 @@ import {
   FileText
 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import DrugModal from '../components/DrugModal';
+import { fuzzyMatch } from '../utils/searchUtils';
 
 type SortField = 'drug_name' | 'drug_code' | 'drug_type' | 'administration_route' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -56,22 +58,15 @@ const DrugDatabase: React.FC = () => {
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="藥物資料庫" />;
   }
 
   const filteredDrugs = (drugDatabase || []).filter(drug => {
     // 先應用進階篩選
-    if (advancedFilters.drug_name && !drug.drug_name.toLowerCase().includes(advancedFilters.drug_name.toLowerCase())) {
+    if (advancedFilters.drug_name && !fuzzyMatch(drug.drug_name, advancedFilters.drug_name)) {
       return false;
     }
-    if (advancedFilters.drug_code && !drug.drug_code?.toLowerCase().includes(advancedFilters.drug_code.toLowerCase())) {
+    if (advancedFilters.drug_code && !fuzzyMatch(drug.drug_code, advancedFilters.drug_code)) {
       return false;
     }
     if (advancedFilters.drug_type && drug.drug_type !== advancedFilters.drug_type) {
@@ -80,23 +75,22 @@ const DrugDatabase: React.FC = () => {
     if (advancedFilters.administration_route && drug.administration_route !== advancedFilters.administration_route) {
       return false;
     }
-    if (advancedFilters.unit && !drug.unit?.toLowerCase().includes(advancedFilters.unit.toLowerCase())) {
+    if (advancedFilters.unit && !fuzzyMatch(drug.unit, advancedFilters.unit)) {
       return false;
     }
-    if (advancedFilters.notes && !drug.notes?.toLowerCase().includes(advancedFilters.notes.toLowerCase())) {
+    if (advancedFilters.notes && !fuzzyMatch(drug.notes, advancedFilters.notes)) {
       return false;
     }
     
     // 然後應用搜索條件
     let matchesSearch = true;
     if (searchTerm) {
-      matchesSearch = drug.drug_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         drug.drug_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         drug.drug_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         drug.administration_route?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         drug.unit?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         drug.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         false;
+      matchesSearch = fuzzyMatch(drug.drug_name, searchTerm) ||
+                         fuzzyMatch(drug.drug_code, searchTerm) ||
+                         fuzzyMatch(drug.drug_type, searchTerm) ||
+                         fuzzyMatch(drug.administration_route, searchTerm) ||
+                         fuzzyMatch(drug.unit, searchTerm) ||
+                         fuzzyMatch(drug.notes, searchTerm);
     }
     
     return matchesSearch;

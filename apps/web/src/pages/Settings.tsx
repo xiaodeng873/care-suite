@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode } from 'lucide-react';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import { UserQRCodeModal } from '../components/UserQRCodeModal';
+import { fuzzyMatch } from '../utils/searchUtils';
 import { useAuth, supabase } from '../context/AuthContext';
 import { getSupabaseUrl, getSupabaseAnonKey } from '../config/supabase.config';
 import {
@@ -1072,9 +1074,9 @@ const Settings: React.FC = () => {
   // 過濾用戶
   const filteredUsers = users.filter(user => {
     const matchSearch = !searchTerm || 
-      user.name_zh.includes(searchTerm) ||
-      user.name_en?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.username.toLowerCase().includes(searchTerm.toLowerCase());
+      fuzzyMatch(user.name_zh, searchTerm) ||
+      fuzzyMatch(user.name_en, searchTerm) ||
+      fuzzyMatch(user.username, searchTerm);
     
     const matchDepartment = !filterDepartment || user.department === filterDepartment;
     const matchRole = !filterRole || user.role === filterRole;
@@ -1103,6 +1105,10 @@ const Settings: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  if (loading) {
+    return <LoadingScreen pageName="系統設定" />;
   }
 
   return (

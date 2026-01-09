@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { usePatients } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import TaskModal from '../components/TaskModal';
 import { Hop as Home, Users, Calendar, Heart, SquareCheck as CheckSquare, TriangleAlert as AlertTriangle, Clock, TrendingUp, TrendingDown, Activity, Droplets, Scale, FileText, Stethoscope, Shield, CalendarCheck, Utensils, BookOpen, Guitar as Hospital, Pill, Building2, X, User, ArrowRight, Repeat, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -737,6 +738,11 @@ const Dashboard: React.FC = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (loading) {
+    return <LoadingScreen pageName="儀表板" />;
+  }
+
   return (
     <div className="space-y-6 lg:space-y-4">
       <div className="flex items-center justify-between">

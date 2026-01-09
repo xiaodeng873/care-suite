@@ -1,6 +1,6 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { BrowserRouter } from 'react-router-dom';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from './lib/queryClient';
@@ -13,7 +13,50 @@ import { StationProvider } from './context/facility';
 import { MedicalProvider } from './context/merged/MedicalContext';
 import { WorkflowProvider } from './context/merged/WorkflowContext';
 import { RecordsProvider } from './context/merged/RecordsContext';
+import { LoadingScreen } from './components/PageLoadingScreen';
+import { NavigationProvider } from './context/NavigationContext';
 import './App.css';
+
+// 路由名稱對照表
+const routeNames: Record<string, string> = {
+  '/': '主頁',
+  '/scheduling': 'VMO排程',
+  '/station-bed': '床位管理',
+  '/follow-up': '覆診管理',
+  '/tasks': '任務管理',
+  '/meal-guidance': '飲食指導',
+  '/patient-logs': '院友日誌',
+  '/restraint': '約束物品',
+  '/admission-records': '入院記錄',
+  '/print-forms': '列印表格',
+  '/wound': '傷口管理',
+  '/wound-old': '傷口評估',
+  '/prescriptions': '處方管理',
+  '/drug-database': '藥物資料庫',
+  '/medication-workflow': '藥物工作流程',
+  '/hospital-outreach': '醫院外展',
+  '/annual-health-checkup': '年度體檢',
+  '/incident-reports': '意外事故報告',
+  '/diagnosis-records': '診斷記錄',
+  '/vaccination-records': '疫苗記錄',
+  '/care-records': '護理記錄',
+  '/patients': '院友列表',
+  '/patient-contacts': '院友聯絡人',
+  '/templates': '範本管理',
+  '/health': '監測記錄',
+  '/health-assessments': '健康評估',
+  '/individual-care-plan': '個人照顧計劃',
+  '/reports': '報表查詢',
+  '/settings': '系統設定',
+  '/rehabilitation': '復康服務'
+};
+
+// 根據當前路由顯示對應名稱的 Loading 組件
+const RouteLoadingFallback: React.FC = () => {
+  const location = useLocation();
+  const pageName = routeNames[location.pathname] || '頁面';
+  return <LoadingScreen pageName={pageName} />;
+};
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Scheduling = lazy(() => import('./pages/Scheduling'));
@@ -46,15 +89,6 @@ const CareRecords = lazy(() => import('./pages/CareRecords'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Rehabilitation = lazy(() => import('./pages/Rehabilitation'));
 const IndividualCarePlan = lazy(() => import('./pages/IndividualCarePlan'));
-
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-64">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-      <p className="text-gray-600">載入中...</p>
-    </div>
-  </div>
-);
 
 function AppContent() {
   const { user, userProfile, loading, authReady, signOut, customLogout, isAuthenticated } = useAuth();
@@ -104,8 +138,9 @@ function AppContent() {
 
   return (
     <BrowserRouter>
-      <Layout user={effectiveUser} onSignOut={handleSignOut}>
-        <Suspense fallback={<LoadingFallback />}>
+      <NavigationProvider>
+        <Layout user={effectiveUser} onSignOut={handleSignOut}>
+          <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/scheduling" element={<Scheduling />} />
@@ -138,8 +173,9 @@ function AppContent() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/rehabilitation" element={<Rehabilitation />} />
           </Routes>
-        </Suspense>
-      </Layout>
+          </Suspense>
+        </Layout>
+      </NavigationProvider>
     </BrowserRouter>
   );
 }

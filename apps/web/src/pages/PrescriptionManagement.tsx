@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useSearchParams } from 'react-router-dom';
 import { Pill, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, Clock, AlertTriangle, CheckCircle, ArrowRight, X, ChevronUp, ChevronDown, Settings, FileText, Activity, ChevronRight, ChevronLeft, Heart, Shield } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
@@ -217,32 +219,19 @@ const PrescriptionManagement: React.FC = () => {
       // 再根據搜索條件篩選
       if (!patientFilters.searchTerm) return true;
 
-      const searchLower = patientFilters.searchTerm.toLowerCase();
-      const chineseName = `${summary.patient.中文姓氏}${summary.patient.中文名字}`.toLowerCase();
-      const englishName = getFormattedEnglishName(summary.patient.英文姓氏, summary.patient.英文名字).toLowerCase();
+      const searchTerm = patientFilters.searchTerm;
 
       return (
-        summary.patient.床號.toLowerCase().includes(searchLower) ||
-        chineseName.includes(searchLower) ||
-        summary.patient.中文姓氏.toLowerCase().includes(searchLower) ||
-        summary.patient.中文名字.toLowerCase().includes(searchLower) ||
-        englishName.includes(searchLower) ||
-        (summary.patient.英文姓氏?.toLowerCase().includes(searchLower) || false) ||
-        (summary.patient.英文名字?.toLowerCase().includes(searchLower) || false) ||
-        summary.patient.身份證號碼.toLowerCase().includes(searchLower)
+        fuzzyMatch(summary.patient.床號, searchTerm) ||
+        matchChineseName(summary.patient.中文姓氏, summary.patient.中文名字, summary.patient.中文姓名, searchTerm) ||
+        matchEnglishName(summary.patient.英文姓氏, summary.patient.英文名字, summary.patient.英文姓名, searchTerm) ||
+        fuzzyMatch(summary.patient.身份證號碼, searchTerm)
       );
     });
   }, [patientPrescriptionSummaries, patientFilters.searchTerm, patientFilters.residencyStatus]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="處方管理" />;
   }
 
   // Navigation functions

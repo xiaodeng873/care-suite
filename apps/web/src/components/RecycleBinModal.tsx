@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Trash2, RotateCcw, Search, Calendar, User, Activity, AlertTriangle } from 'lucide-react';
 import { usePatients, DeletedHealthRecord, Patient } from '../context/PatientContext';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 interface RecycleBinModalProps {
   onClose: () => void;
@@ -54,16 +55,14 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
     if (!searchTerm) return true;
     const patientInfo = getPatientInfo(record.院友id);
     const patient = patients.find(p => p.院友id === record.院友id);
-    const searchLower = searchTerm.toLowerCase();
     return (
-      patientInfo.name.toLowerCase().includes(searchLower) ||
-      patientInfo.bed.toLowerCase().includes(searchLower) ||
-      (patient?.英文姓氏?.toLowerCase().includes(searchLower) || false) ||
-      (patient?.英文名字?.toLowerCase().includes(searchLower) || false) ||
-      (patient?.英文姓名?.toLowerCase().includes(searchLower) || false) ||
-      (patient?.身份證號碼?.toLowerCase().includes(searchLower) || false) ||
-      record.記錄類型.includes(searchTerm) ||
-      record.deletion_reason?.includes(searchTerm)
+      fuzzyMatch(patientInfo.name, searchTerm) ||
+      fuzzyMatch(patientInfo.bed, searchTerm) ||
+      matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
+      matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
+      fuzzyMatch(patient?.身份證號碼, searchTerm) ||
+      fuzzyMatch(record.記錄類型, searchTerm) ||
+      fuzzyMatch(record.deletion_reason, searchTerm)
     );
   });
 

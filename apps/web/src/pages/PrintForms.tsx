@@ -17,8 +17,10 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { usePatients } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 import {
   getTemplatesMetadata
 } from '../lib/database';
@@ -146,10 +148,10 @@ const PrintForms: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && !patient.床號.toLowerCase().includes(advancedFilters.床號.toLowerCase())) {
+    if (advancedFilters.床號 && !fuzzyMatch(patient.床號, advancedFilters.床號)) {
       return false;
     }
-    if (advancedFilters.中文姓名 && !patient.中文姓名.toLowerCase().includes(advancedFilters.中文姓名.toLowerCase())) {
+    if (advancedFilters.中文姓名 && !matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名)) {
       return false;
     }
     if (advancedFilters.護理等級 && patient.護理等級 !== advancedFilters.護理等級) {
@@ -167,13 +169,10 @@ const PrintForms: React.FC = () => {
     // Search term
     let matchesSearch = true;
     if (searchTerm) {
-      matchesSearch = patient.中文姓氏.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient.中文名字.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient.床號.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (patient.英文姓氏?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient.英文名字?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         (patient.英文姓名?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-                         patient.身份證號碼.toLowerCase().includes(searchTerm.toLowerCase());
+      matchesSearch = matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
+                         matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
+                         fuzzyMatch(patient.床號, searchTerm) ||
+                         fuzzyMatch(patient.身份證號碼, searchTerm);
     }
     return matchesSearch;
   });
@@ -453,14 +452,7 @@ const PrintForms: React.FC = () => {
     </th>
   );
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="列印表格" />;
   }
   return (
     <div className="space-y-6">

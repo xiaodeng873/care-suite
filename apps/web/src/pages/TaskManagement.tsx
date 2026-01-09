@@ -21,11 +21,13 @@ import {
   Stethoscope
 } from 'lucide-react';
 import { usePatients, type PatientHealthTask, type HealthTaskType, type FrequencyUnit } from '../context/PatientContext';
+import { LoadingScreen } from '../components/PageLoadingScreen';
 import TaskModal from '../components/TaskModal';
 import { formatFrequencyDescription, getTaskStatus, isTaskOverdue, isTaskDueSoon, isTaskPendingToday, isDocumentTask, isNursingTask } from '../utils/taskScheduler';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { SYNC_CUTOFF_DATE_STR } from '../lib/database';
+import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
 type SortField = 'patient_name' | 'health_record_type' | 'frequency' | 'next_due_at' | 'last_completed_at' | 'notes';
 type SortDirection = 'asc' | 'desc';
@@ -103,14 +105,10 @@ const TaskManagement: React.FC = () => {
       if (filters.在住狀態 && filters.在住狀態 !== '全部' && patient?.在住狀態 !== filters.在住狀態) {
         return false;
       }
-      if (filters.床號 && !patient?.床號.toLowerCase().includes(filters.床號.toLowerCase())) {
+      if (filters.床號 && !fuzzyMatch(patient?.床號, filters.床號)) {
         return false;
       }
-      if (filters.中文姓名 && !(
-        patient?.中文姓氏.toLowerCase().includes(filters.中文姓名.toLowerCase()) ||
-        patient?.中文名字.toLowerCase().includes(filters.中文姓名.toLowerCase()) ||
-        patient?.中文姓名.toLowerCase().includes(filters.中文姓名.toLowerCase())
-      )) {
+      if (filters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, filters.中文姓名)) {
         return false;
       }
       if (filters.health_record_type && task.health_record_type !== filters.health_record_type) {
@@ -119,7 +117,7 @@ const TaskManagement: React.FC = () => {
       if (filters.frequency_unit && task.frequency_unit !== filters.frequency_unit) {
         return false;
       }
-      if (filters.notes && !task.notes?.toLowerCase().includes(filters.notes.toLowerCase())) {
+      if (filters.notes && !fuzzyMatch(task.notes, filters.notes)) {
         return false;
       }
       if (filters.status && taskStatus !== filters.status) {
@@ -140,19 +138,14 @@ const TaskManagement: React.FC = () => {
       // 然後應用搜索條件
       let matchesSearch = true;
       if (filters.searchTerm) {
-        const searchLower = filters.searchTerm.toLowerCase();
         matchesSearch = 
-        patient?.床號.toLowerCase().includes(searchLower) ||
-        patient?.中文姓氏.toLowerCase().includes(searchLower) ||
-        patient?.中文名字.toLowerCase().includes(searchLower) ||
-        patient?.中文姓名.toLowerCase().includes(searchLower) ||
-        (patient?.英文姓氏?.toLowerCase().includes(searchLower) || false) ||
-        (patient?.英文名字?.toLowerCase().includes(searchLower) || false) ||
-        (patient?.英文姓名?.toLowerCase().includes(searchLower) || false) ||
-        patient?.身份證號碼.toLowerCase().includes(searchLower) ||
-        task.health_record_type.toLowerCase().includes(searchLower) ||
-        task.notes?.toLowerCase().includes(searchLower) ||
-        formatFrequencyDescription(task).toLowerCase().includes(searchLower);
+        fuzzyMatch(patient?.床號, filters.searchTerm) ||
+        matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, filters.searchTerm) ||
+        matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, filters.searchTerm) ||
+        fuzzyMatch(patient?.身份證號碼, filters.searchTerm) ||
+        fuzzyMatch(task.health_record_type, filters.searchTerm) ||
+        fuzzyMatch(task.notes, filters.searchTerm) ||
+        fuzzyMatch(formatFrequencyDescription(task), filters.searchTerm);
       }
       
       // 類型篩選
@@ -294,14 +287,7 @@ const TaskManagement: React.FC = () => {
   }, [patientHealthTasks, recordLookup, scheduledTasks]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen pageName="任務管理" />;
   }
 
   const handlePageSizeChange = (newPageSize: number) => {
