@@ -441,6 +441,32 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
   }, []);
 
   // ===== 統一刷新所有記錄數據 =====
+  // 優化：分為必要數據（立即加載）和非必要數據（背景加載）
+  const refreshEssentialRecordsData = useCallback(async () => {
+    if (!isAuthenticated()) return;
+    // 只加載 Dashboard 必需的數據（最小集合）
+    await Promise.all([
+      refreshAssessmentData(),      // 評估數據（Dashboard 需要）
+      refreshMealData(),            // 餐飲指導（Dashboard 需要）
+      refreshHealthTaskData(),      // 健康任務（Dashboard 需要）
+    ]);
+  }, [isAuthenticated, refreshAssessmentData, refreshMealData, refreshHealthTaskData]);
+
+  const refreshNonEssentialRecordsData = useCallback(async () => {
+    if (!isAuthenticated()) return;
+    // 背景加載非必要數據
+    await Promise.all([
+      refreshServiceReasonData(),   // 服務原因（排程頁面使用）
+      refreshCarePlanData(),        // 照顧計劃（較少使用）
+      refreshCareRecordsData(),     // 護理記錄（較少使用）
+      refreshIncidentData(),        // 事故報告（較少使用）
+      refreshPatientLogData(),      // 院友日誌（較少使用）
+      refreshAdmissionData(),       // 入院記錄（較少使用）
+      refreshDailySystemTaskData(), // 系統任務（較少使用）
+    ]);
+  }, [isAuthenticated, refreshServiceReasonData, refreshCarePlanData, refreshCareRecordsData, refreshIncidentData, 
+      refreshPatientLogData, refreshAdmissionData, refreshDailySystemTaskData]);
+
   const refreshAllRecordsData = useCallback(async () => {
     if (!isAuthenticated()) return;
     await Promise.all([
@@ -455,8 +481,17 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
   // ===== 初始載入 =====
   useEffect(() => {
     if (!isAuthenticated()) return;
-    refreshAllRecordsData();
-  }, [isAuthenticated, refreshAllRecordsData]);
+    
+    // 先加載必要數據，讓 UI 快速顯示
+    refreshEssentialRecordsData().then(() => {
+      // UI 完成後，背景加載非必要數據
+      setTimeout(() => {
+        refreshNonEssentialRecordsData().catch(err => 
+          console.warn('背景加載非必要記錄失敗:', err)
+        );
+      }, 500);
+    });
+  }, [isAuthenticated, refreshEssentialRecordsData, refreshNonEssentialRecordsData]);
 
   // ===== 統一 loading 狀態 =====
   const loading = carePlanLoading || careRecordsLoading || assessmentLoading || incidentLoading || mealLoading || patientLogLoading || healthTaskLoading || admissionLoading;

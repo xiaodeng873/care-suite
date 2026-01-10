@@ -55,6 +55,7 @@ export interface PrescriptionTimeSlotDefinition {
 
 /**
  * 獲取所有排程（含詳細資料）
+ * 優化版：使用批量查詢避免 N+1 問題，只加載最近 60 天
  */
 export function useSchedules() {
   const { isAuthenticated } = useAuth();
@@ -62,21 +63,12 @@ export function useSchedules() {
   return useQuery({
     queryKey: queryKeys.workflow.schedules.all,
     queryFn: async (): Promise<ScheduleWithDetails[]> => {
-      const schedulesData = await db.getSchedules();
-      const schedulesWithDetails = await Promise.all(
-        schedulesData.map(async (schedule) => {
-          try {
-            const details = await db.getScheduleDetails(schedule.排程id);
-            return { ...schedule, 院友列表: details };
-          } catch (error) {
-            console.error(`Error loading details for schedule ${schedule.排程id}:`, error);
-            return { ...schedule, 院友列表: [] };
-          }
-        })
-      );
+      // 使用優化後的批量查詢函數，只加載最近 60 天
+      const schedulesWithDetails = await db.getSchedulesWithDetails({ daysBack: 60 });
       return schedulesWithDetails;
     },
     enabled: isAuthenticated(),
+    staleTime: 5 * 60 * 1000, // 5 分鐘緩存
   });
 }
 
@@ -97,6 +89,7 @@ export function useDoctorVisitSchedule() {
       return data || [];
     },
     enabled: isAuthenticated(),
+    staleTime: 30 * 60 * 1000, // 30分鐘 - 排程變化不頻繁
   });
 }
 
@@ -115,6 +108,7 @@ export function usePrescriptions() {
       return data;
     },
     enabled: isAuthenticated(),
+    staleTime: 10 * 60 * 1000, // 10分鐘緩存
   });
 }
 
@@ -128,9 +122,9 @@ export function useDrugDatabase() {
     queryKey: queryKeys.workflow.drugDatabase.all,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('drug_database')
+        .from('medication_drug_database')
         .select('*')
-        .order('drug_name_tc');
+        .order('drug_name');
       if (error) throw error;
       return data || [];
     },
@@ -694,7 +688,7 @@ export function useAddDrug() {
   
   return useMutation({
     mutationFn: async (drug: Omit<any, 'id' | 'created_at' | 'updated_at'>) => {
-      const { error } = await supabase.from('drug_database').insert(drug);
+      const { error } = await supabase.from('medication_drug_database').insert(drug);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -713,7 +707,7 @@ export function useUpdateDrug() {
     mutationFn: async (drug: any) => {
       const { id, ...updateData } = drug;
       const { error } = await supabase
-        .from('drug_database')
+        .from('medication_drug_database')
         .update({ ...updateData, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
@@ -732,7 +726,7 @@ export function useDeleteDrug() {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('drug_database').delete().eq('id', id);
+      const { error } = await supabase.from('medication_drug_database').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {

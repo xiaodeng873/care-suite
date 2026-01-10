@@ -1,27 +1,30 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, lazy, Suspense } from 'react';
 import { usePatients } from '../context/PatientContext';
+import { useDashboardReady } from '../context/DashboardReadyContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import TaskModal from '../components/TaskModal';
 import { Hop as Home, Users, Calendar, Heart, SquareCheck as CheckSquare, TriangleAlert as AlertTriangle, Clock, TrendingUp, TrendingDown, Activity, Droplets, Scale, FileText, Stethoscope, Shield, CalendarCheck, Utensils, BookOpen, Guitar as Hospital, Pill, Building2, X, User, ArrowRight, Repeat, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isTaskOverdue, isTaskPendingToday, isTaskDueSoon, getTaskStatus, isDocumentTask, isMonitoringTask, isNursingTask, isRestraintAssessmentOverdue, isRestraintAssessmentDueSoon, isHealthAssessmentOverdue, isHealthAssessmentDueSoon, calculateNextDueDate, isTaskScheduledForDate, formatFrequencyDescription, findFirstMissingDate } from '../utils/taskScheduler';
 import { getPatientsWithOverdueWorkflow } from '../utils/workflowStatusHelper';
-import HealthRecordModal from '../components/HealthRecordModal';
-import MealGuidanceModal from '../components/MealGuidanceModal';
-import FollowUpModal from '../components/FollowUpModal';
-import DocumentTaskModal from '../components/DocumentTaskModal';
-import RestraintAssessmentModal from '../components/RestraintAssessmentModal';
-import HealthAssessmentModal from '../components/HealthAssessmentModal';
-import AnnualHealthCheckupModal from '../components/AnnualHealthCheckupModal';
 import MissingRequirementsCard from '../components/MissingRequirementsCard';
 import NotesCard from '../components/NotesCard';
 import OverdueWorkflowCard from '../components/OverdueWorkflowCard';
 import PendingPrescriptionCard from '../components/PendingPrescriptionCard';
-import PatientModal from '../components/PatientModal';
-import VaccinationRecordModal from '../components/VaccinationRecordModal';
-import TaskHistoryModal from '../components/TaskHistoryModal';
-import BatchHealthRecordOCRModal from '../components/BatchHealthRecordOCRModal';
-import MonitoringTaskWorksheetModal from '../components/MonitoringTaskWorksheetModal';
+
+// Lazy load modals - 只在需要時才載入，加速初始渲染
+const HealthRecordModal = lazy(() => import('../components/HealthRecordModal'));
+const MealGuidanceModal = lazy(() => import('../components/MealGuidanceModal'));
+const FollowUpModal = lazy(() => import('../components/FollowUpModal'));
+const DocumentTaskModal = lazy(() => import('../components/DocumentTaskModal'));
+const RestraintAssessmentModal = lazy(() => import('../components/RestraintAssessmentModal'));
+const HealthAssessmentModal = lazy(() => import('../components/HealthAssessmentModal'));
+const AnnualHealthCheckupModal = lazy(() => import('../components/AnnualHealthCheckupModal'));
+const PatientModal = lazy(() => import('../components/PatientModal'));
+const VaccinationRecordModal = lazy(() => import('../components/VaccinationRecordModal'));
+const TaskHistoryModal = lazy(() => import('../components/TaskHistoryModal'));
+const BatchHealthRecordOCRModal = lazy(() => import('../components/BatchHealthRecordOCRModal'));
+const MonitoringTaskWorksheetModal = lazy(() => import('../components/MonitoringTaskWorksheetModal'));
 import { syncTaskStatus, SYNC_CUTOFF_DATE_STR, supabase } from '../lib/database';
 interface Patient {
   院友id: string;
@@ -539,6 +542,10 @@ const Dashboard: React.FC = () => {
     const dueSoon = annualHealthCheckups.filter(checkup => { const patient = patientsMap.get(checkup.patient_id); return patient && patient.在住狀態 === '在住' && isAnnualCheckupDueSoon(checkup); });
     return { overdueAnnualCheckups: overdue, dueSoonAnnualCheckups: dueSoon };
   }, [annualHealthCheckups, patientsMap]);
+  
+  // 獲取 Dashboard 準備完成通知函數
+  const { setDashboardReady } = useDashboardReady();
+  
   const urgentAnnualCheckups = [...overdueAnnualCheckups, ...dueSoonAnnualCheckups];
   const filteredUrgentDocumentTasks = urgentDocumentTasks.filter(task => task.health_record_type !== '年度體檢');
   const combinedUrgentTasks = [
@@ -552,6 +559,27 @@ const Dashboard: React.FC = () => {
     const dateB = (b.type === 'document' || b.type === 'nursing') ? new Date(b.data.next_due_at) : new Date(b.data.next_due_date || '');
     return dateA.getTime() - dateB.getTime();
   });
+  
+  // 當所有 useMemo 計算完成且 DOM 渲染完成後，通知 App.tsx
+  useLayoutEffect(() => {
+    // 檢查關鍵數據是否已計算完成
+    const hasComputedData = 
+      Array.isArray(uniquePatientHealthTasks) &&
+      patientsMap.size >= 0 &&
+      Array.isArray(missingTasks) &&
+      Array.isArray(combinedUrgentTasks);
+    
+    if (hasComputedData && !loading) {
+      // 使用 requestAnimationFrame 確保 DOM 已經渲染
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          console.log('[Dashboard] Setting ready');
+          setDashboardReady(true);
+        });
+      });
+    }
+  }, [uniquePatientHealthTasks, patientsMap, missingTasks, combinedUrgentTasks, loading, setDashboardReady]);
+  
   const handleCreateMissingTask = (patient: any, taskType: '年度體檢' | '生命表徵') => {
     if (taskType === '年度體檢') {
       setPrefilledAnnualCheckupPatientId(patient.院友id);
@@ -739,9 +767,8 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return <LoadingScreen pageName="儀表板" />;
-  }
+  // App.tsx 已經在所有數據加載完成前顯示 LoadingScreen
+  // 所以這裡不需要再檢查 loading 狀態
 
   return (
     <div className="space-y-6 lg:space-y-4">
@@ -1047,59 +1074,62 @@ const Dashboard: React.FC = () => {
           onUpdate={refreshData}
         />
       )}
-      {showMealGuidanceModal && (
-        <MealGuidanceModal
-          guidance={prefilledMealData}
-          onClose={() => { setShowMealGuidanceModal(false); setPrefilledMealData(null); }}
-          onUpdate={refreshData}
-        />
-      )}
-      {showHealthRecordModal && (
-        <HealthRecordModal
-          initialData={selectedHealthRecordInitialData}
-          onClose={() => {
-            setShowHealthRecordModal(false);
-            setTimeout(() => { setSelectedHealthRecordInitialData({}); }, 150);
-          }}
-          onTaskCompleted={handleTaskCompleted}
-        />
-      )}
-      {/* 歷史日曆 Modal */}
-      {showHistoryModal && selectedHistoryTask && (
-        <TaskHistoryModal
-          task={selectedHistoryTask.task}
-          patient={selectedHistoryTask.patient}
-          healthRecords={healthRecords}
-          initialDate={selectedHistoryTask.initialDate}
-          cutoffDateStr={selectedHistoryTask.patient.入住日期 || SYNC_CUTOFF_DATE_STR}
-          onClose={() => setShowHistoryModal(false)}
-          onDateSelect={(date) => {
-            handleTaskClick(selectedHistoryTask.task, date);
-            // 選擇日期後關閉日曆
-            setShowHistoryModal(false);
-          }}
-        />
-      )}
-      {showDocumentTaskModal && selectedDocumentTask && <DocumentTaskModal isOpen={showDocumentTaskModal} onClose={() => { setShowDocumentTaskModal(false); setSelectedDocumentTask(null); }} task={selectedDocumentTask.task} patient={selectedDocumentTask.patient} onTaskCompleted={handleDocumentTaskCompleted} />}
-      {showFollowUpModal && selectedFollowUp && <FollowUpModal isOpen={showFollowUpModal} onClose={() => { setShowFollowUpModal(false); setSelectedFollowUp(null); }} appointment={selectedFollowUp} onUpdate={refreshData} />}
-      {showRestraintAssessmentModal && selectedRestraintAssessment && <RestraintAssessmentModal isOpen={showRestraintAssessmentModal} onClose={() => { setShowRestraintAssessmentModal(false); setSelectedRestraintAssessment(null); }} assessment={selectedRestraintAssessment} onUpdate={refreshData} />}
-      {showHealthAssessmentModal && selectedHealthAssessment && <HealthAssessmentModal isOpen={showHealthAssessmentModal} onClose={() => { setShowHealthAssessmentModal(false); setSelectedHealthAssessment(null); }} assessment={selectedHealthAssessment} onUpdate={refreshData} />}
-      {showAnnualCheckupModal && <AnnualHealthCheckupModal checkup={selectedAnnualCheckup} onClose={() => { setShowAnnualCheckupModal(false); setSelectedAnnualCheckup(null); setPrefilledAnnualCheckupPatientId(null); }} onSave={refreshData} prefilledPatientId={prefilledAnnualCheckupPatientId} />}
-      {showPatientModal && <PatientModal patient={selectedPatientForEdit} onClose={() => { setShowPatientModal(false); setSelectedPatientForEdit(null); refreshData(); }} />}
-      {showVaccinationModal && <VaccinationRecordModal patientId={selectedPatientForVaccination?.院友id} onClose={() => { setShowVaccinationModal(false); setSelectedPatientForVaccination(null); }} />}
-      {showBatchOCRModal && (
-        <BatchHealthRecordOCRModal
-          onClose={() => {
-            setShowBatchOCRModal(false);
-            refreshData();
-          }}
-        />
-      )}
-      {showWorksheetModal && (
-        <MonitoringTaskWorksheetModal
-          onClose={() => setShowWorksheetModal(false)}
-        />
-      )}
+      {/* Lazy loaded modals with Suspense */}
+      <Suspense fallback={null}>
+        {showMealGuidanceModal && (
+          <MealGuidanceModal
+            guidance={prefilledMealData}
+            onClose={() => { setShowMealGuidanceModal(false); setPrefilledMealData(null); }}
+            onUpdate={refreshData}
+          />
+        )}
+        {showHealthRecordModal && (
+          <HealthRecordModal
+            initialData={selectedHealthRecordInitialData}
+            onClose={() => {
+              setShowHealthRecordModal(false);
+              setTimeout(() => { setSelectedHealthRecordInitialData({}); }, 150);
+            }}
+            onTaskCompleted={handleTaskCompleted}
+          />
+        )}
+        {/* 歷史日曆 Modal */}
+        {showHistoryModal && selectedHistoryTask && (
+          <TaskHistoryModal
+            task={selectedHistoryTask.task}
+            patient={selectedHistoryTask.patient}
+            healthRecords={healthRecords}
+            initialDate={selectedHistoryTask.initialDate}
+            cutoffDateStr={selectedHistoryTask.patient.入住日期 || SYNC_CUTOFF_DATE_STR}
+            onClose={() => setShowHistoryModal(false)}
+            onDateSelect={(date) => {
+              handleTaskClick(selectedHistoryTask.task, date);
+              // 選擇日期後關閉日曆
+              setShowHistoryModal(false);
+            }}
+          />
+        )}
+        {showDocumentTaskModal && selectedDocumentTask && <DocumentTaskModal isOpen={showDocumentTaskModal} onClose={() => { setShowDocumentTaskModal(false); setSelectedDocumentTask(null); }} task={selectedDocumentTask.task} patient={selectedDocumentTask.patient} onTaskCompleted={handleDocumentTaskCompleted} />}
+        {showFollowUpModal && selectedFollowUp && <FollowUpModal isOpen={showFollowUpModal} onClose={() => { setShowFollowUpModal(false); setSelectedFollowUp(null); }} appointment={selectedFollowUp} onUpdate={refreshData} />}
+        {showRestraintAssessmentModal && selectedRestraintAssessment && <RestraintAssessmentModal isOpen={showRestraintAssessmentModal} onClose={() => { setShowRestraintAssessmentModal(false); setSelectedRestraintAssessment(null); }} assessment={selectedRestraintAssessment} onUpdate={refreshData} />}
+        {showHealthAssessmentModal && selectedHealthAssessment && <HealthAssessmentModal isOpen={showHealthAssessmentModal} onClose={() => { setShowHealthAssessmentModal(false); setSelectedHealthAssessment(null); }} assessment={selectedHealthAssessment} onUpdate={refreshData} />}
+        {showAnnualCheckupModal && <AnnualHealthCheckupModal checkup={selectedAnnualCheckup} onClose={() => { setShowAnnualCheckupModal(false); setSelectedAnnualCheckup(null); setPrefilledAnnualCheckupPatientId(null); }} onSave={refreshData} prefilledPatientId={prefilledAnnualCheckupPatientId} />}
+        {showPatientModal && <PatientModal patient={selectedPatientForEdit} onClose={() => { setShowPatientModal(false); setSelectedPatientForEdit(null); refreshData(); }} />}
+        {showVaccinationModal && <VaccinationRecordModal patientId={selectedPatientForVaccination?.院友id} onClose={() => { setShowVaccinationModal(false); setSelectedPatientForVaccination(null); }} />}
+        {showBatchOCRModal && (
+          <BatchHealthRecordOCRModal
+            onClose={() => {
+              setShowBatchOCRModal(false);
+              refreshData();
+            }}
+          />
+        )}
+        {showWorksheetModal && (
+          <MonitoringTaskWorksheetModal
+            onClose={() => setShowWorksheetModal(false)}
+          />
+        )}
+      </Suspense>
     </div>
   );
 };

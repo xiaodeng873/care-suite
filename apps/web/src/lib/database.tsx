@@ -781,8 +781,21 @@ export const deleteDrug = async (id: string): Promise<void> => {
   const { error } = await supabase.from('medication_drug_database').delete().eq('id', id);
   if (error) throw error;
 };
-export const getFollowUps = async (): Promise<FollowUpAppointment[]> => {
-  const { data, error } = await supabase.from('覆診安排主表').select('*').order('覆診日期', { ascending: true });
+export const getFollowUps = async (options?: { futureOnly?: boolean; daysBack?: number }): Promise<FollowUpAppointment[]> => {
+  let query = supabase.from('覆診安排主表').select('*').order('覆診日期', { ascending: true });
+  
+  if (options?.futureOnly) {
+    // 只載入今天及未來的覆診
+    const today = new Date().toISOString().split('T')[0];
+    query = query.gte('覆診日期', today);
+  } else if (options?.daysBack) {
+    // 載入過去 N 天
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - options.daysBack);
+    query = query.gte('覆診日期', cutoffDate.toISOString().split('T')[0]);
+  }
+  
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 };
@@ -950,6 +963,72 @@ export const getSchedules = async (): Promise<Schedule[]> => {
   if (error) throw error;
   return data || [];
 };
+
+// 優化版本：一次性獲取所有排程及其詳情，避免 N+1 查詢
+export const getSchedulesWithDetails = async (options?: { daysBack?: number }): Promise<Array<Schedule & { 院友列表: ScheduleDetail[] }>> => {
+  // 計算日期範圍
+  let dateFilter: string | null = null;
+  if (options?.daysBack) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - options.daysBack);
+    dateFilter = cutoffDate.toISOString().split('T')[0];
+  }
+  
+  // 第一步：獲取所有排程（有日期限制）
+  let schedulesQuery = supabase.from('到診排程主表').select('*').order('到診日期', { ascending: false });
+  if (dateFilter) {
+    schedulesQuery = schedulesQuery.gte('到診日期', dateFilter);
+  }
+  const { data: schedulesData, error: schedulesError } = await schedulesQuery;
+  if (schedulesError) throw schedulesError;
+  if (!schedulesData || schedulesData.length === 0) return [];
+  
+  const scheduleIds = schedulesData.map(s => s.排程id);
+  
+  // 第二步：一次性獲取所有看診院友細項
+  const { data: allDetails, error: detailsError } = await supabase
+    .from('看診院友細項')
+    .select('*')
+    .in('排程id', scheduleIds);
+  if (detailsError) throw detailsError;
+  
+  // 第三步：一次性獲取所有看診原因關聯
+  const detailIds = (allDetails || []).map(d => d.細項id);
+  let allReasonRelations: any[] = [];
+  if (detailIds.length > 0) {
+    const { data: reasonRelations, error: reasonRelError } = await supabase
+      .from('到診院友_看診原因')
+      .select('細項id, 原因id')
+      .in('細項id', detailIds);
+    if (reasonRelError) throw reasonRelError;
+    allReasonRelations = reasonRelations || [];
+  }
+  
+  // 第四步：一次性獲取所有看診原因選項（只需一次）
+  let allReasonOptions: any[] = [];
+  const allReasonIds = [...new Set(allReasonRelations.map(r => r.原因id))];
+  if (allReasonIds.length > 0) {
+    const { data: reasonData, error: reasonError } = await supabase
+      .from('看診原因選項')
+      .select('原因id, 原因名稱')
+      .in('原因id', allReasonIds);
+    if (reasonError) throw reasonError;
+    allReasonOptions = reasonData || [];
+  }
+  
+  // 組合數據
+  return schedulesData.map(schedule => {
+    const scheduleDetails = (allDetails || []).filter(d => d.排程id === schedule.排程id);
+    const detailsWithReasons = scheduleDetails.map(detail => {
+      const detailReasons = allReasonRelations
+        .filter(r => r.細項id === detail.細項id)
+        .map(r => allReasonOptions.find(opt => opt.原因id === r.原因id))
+        .filter(Boolean);
+      return { ...detail, reasons: detailReasons };
+    });
+    return { ...schedule, 院友列表: detailsWithReasons };
+  });
+};
 export const createSchedule = async (schedule: Omit<Schedule, '排程id'>): Promise<Schedule> => {
   const { data, error } = await supabase.from('到診排程主表').insert([schedule]).select().single();
   if (error) throw error;
@@ -1068,16 +1147,36 @@ export const getReasons = async (): Promise<ServiceReason[]> => {
   if (error) throw error;
   return data || [];
 };
-export const getHealthRecords = async (limit?: number): Promise<HealthRecord[]> => {
+export const getHealthRecords = async (options?: { limit?: number; daysBack?: number }): Promise<HealthRecord[]> => {
   const pageSize = 1000;
   let allRecords: HealthRecord[] = [];
   let page = 0;
   let hasMore = true;
-  if (limit !== undefined) {
-    const { data, error } = await supabase.from('健康記錄主表').select('*').order('記錄日期', { ascending: false }).order('記錄時間', { ascending: false }).limit(limit);
+  
+  // 如果指定 limit，直接限制數量
+  if (options?.limit !== undefined) {
+    const { data, error } = await supabase.from('健康記錄主表').select('*').order('記錄日期', { ascending: false }).order('記錄時間', { ascending: false }).limit(options.limit);
     if (error) throw error;
     return data || [];
   }
+  
+  // 如果指定 daysBack，只加載最近 N 天的記錄（快速初始加載）
+  if (options?.daysBack !== undefined) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - options.daysBack);
+    const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+    
+    const { data, error } = await supabase
+      .from('健康記錄主表')
+      .select('*')
+      .gte('記錄日期', cutoffDateStr)
+      .order('記錄日期', { ascending: false })
+      .order('記錄時間', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+  
+  // 否則加載所有記錄（分頁）
   while (hasMore) {
     const { data, error } = await supabase.from('健康記錄主表').select('*').order('記錄日期', { ascending: false }).order('記錄時間', { ascending: false }).range(page * pageSize, (page + 1) * pageSize - 1);
     if (error) throw error;
@@ -1213,8 +1312,16 @@ export const deleteMealGuidance = async (guidanceId: string): Promise<void> => {
   const { error } = await supabase.from('meal_guidance').delete().eq('id', guidanceId);
   if (error) throw error;
 };
-export const getPatientLogs = async (): Promise<PatientLog[]> => {
-  const { data, error } = await supabase.from('patient_logs').select('*').order('log_date', { ascending: false }).order('created_at', { ascending: false });
+export const getPatientLogs = async (options?: { daysBack?: number }): Promise<PatientLog[]> => {
+  let query = supabase.from('patient_logs').select('*').order('log_date', { ascending: false }).order('created_at', { ascending: false });
+  
+  if (options?.daysBack) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - options.daysBack);
+    query = query.gte('log_date', cutoffDate.toISOString().split('T')[0]);
+  }
+  
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 };
@@ -2100,8 +2207,20 @@ export const deleteVaccinationRecord = async (recordId: string): Promise<void> =
   const { error } = await supabase.from('vaccination_records').delete().eq('id', recordId);
   if (error) throw error;
 };
-export const getPatientNotes = async (): Promise<PatientNote[]> => {
-  const { data, error } = await supabase.from('patient_notes').select('*').order('is_completed', { ascending: true }).order('note_date', { ascending: false });
+export const getPatientNotes = async (options?: { incompleteOnly?: boolean; daysBack?: number }): Promise<PatientNote[]> => {
+  let query = supabase.from('patient_notes').select('*').order('is_completed', { ascending: true }).order('note_date', { ascending: false });
+  
+  if (options?.incompleteOnly) {
+    // 只載入未完成的筆記
+    query = query.eq('is_completed', false);
+  } else if (options?.daysBack) {
+    // 載入過去 N 天
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - options.daysBack);
+    query = query.gte('note_date', cutoffDate.toISOString().split('T')[0]);
+  }
+  
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 };
@@ -2126,8 +2245,16 @@ export const completePatientNote = async (noteId: string): Promise<PatientNote> 
   return data;
 };
 // Care Records
-export const getPatrolRounds = async (): Promise<PatrolRound[]> => {
-  const { data, error } = await supabase.from('patrol_rounds').select('*').order('patrol_date', { ascending: false }).order('scheduled_time', { ascending: false });
+export const getPatrolRounds = async (options?: { daysBack?: number }): Promise<PatrolRound[]> => {
+  let query = supabase.from('patrol_rounds').select('*').order('patrol_date', { ascending: false }).order('scheduled_time', { ascending: false });
+  
+  if (options?.daysBack) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - options.daysBack);
+    query = query.gte('patrol_date', cutoffDate.toISOString().split('T')[0]);
+  }
+  
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 };

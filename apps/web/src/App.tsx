@@ -1,4 +1,4 @@
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -7,12 +7,13 @@ import { queryClient } from './lib/queryClient';
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
-import { PatientProvider } from './context/PatientContext';
+import { PatientProvider, usePatients } from './context/PatientContext';
 import { StationProvider } from './context/facility';
 // 使用合併的 Context（減少 Provider 嵌套層級，提升性能）
-import { MedicalProvider } from './context/merged/MedicalContext';
-import { WorkflowProvider } from './context/merged/WorkflowContext';
-import { RecordsProvider } from './context/merged/RecordsContext';
+import { MedicalProvider, useMedical } from './context/merged/MedicalContext';
+import { WorkflowProvider, useWorkflow } from './context/merged/WorkflowContext';
+import { RecordsProvider, useRecords } from './context/merged/RecordsContext';
+import { DashboardReadyProvider, useDashboardReady } from './context/DashboardReadyContext';
 import { LoadingScreen } from './components/PageLoadingScreen';
 import { NavigationProvider } from './context/NavigationContext';
 import './App.css';
@@ -91,15 +92,44 @@ const Rehabilitation = lazy(() => import('./pages/Rehabilitation'));
 const IndividualCarePlan = lazy(() => import('./pages/IndividualCarePlan'));
 
 function AppContent() {
-  const { user, userProfile, loading, authReady, signOut, customLogout, isAuthenticated } = useAuth();
+  const { user, userProfile, loading: authLoading, authReady, signOut, customLogout, isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showInitialLoadingScreen, setShowInitialLoadingScreen] = useState(false);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
+  const wasAuthenticatedRef = useRef(false);
+  const loadingStartTimeRef = useRef<number | null>(null);
 
-  if (loading || !authReady) {
+  // 監測登入狀態變化，登入成功後開始顯示加載頁面
+  useEffect(() => {
+    const isNowAuthenticated = isAuthenticated();
+    
+    // 從未認證狀態變為認證狀態（即剛登入）
+    if (!wasAuthenticatedRef.current && isNowAuthenticated && authReady) {
+      setShowInitialLoadingScreen(true);
+      setMinTimeElapsed(false);
+      loadingStartTimeRef.current = Date.now();
+      
+      // 設置最短顯示時間（1.5秒），確保加載頁面不會閃現
+      const minTimer = setTimeout(() => {
+        setMinTimeElapsed(true);
+      }, 1500);
+      
+      wasAuthenticatedRef.current = true;
+      return () => {
+        clearTimeout(minTimer);
+      };
+    }
+    
+    // 更新認證狀態引用
+    wasAuthenticatedRef.current = isNowAuthenticated;
+  }, [isAuthenticated, authReady]);
+
+  if (authLoading || !authReady) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">{loading ? '載入中...' : '準備中...'}</p>
+          <p className="text-gray-600">{authLoading ? '載入中...' : '準備中...'}</p>
         </div>
       </div>
     );
@@ -116,6 +146,9 @@ function AppContent() {
       </div>
     );
   }
+
+  // 登入成功後的初始加載頁面 - 將由 AuthenticatedContent 組件處理
+  // 這裡傳遞狀態給 AuthenticatedContent
 
   // 處理登出（支援兩種認證方式）
   const handleSignOut = async () => {
@@ -137,9 +170,96 @@ function AppContent() {
   } as any : null);
 
   return (
+    <AuthenticatedContent 
+      effectiveUser={effectiveUser} 
+      onSignOut={handleSignOut}
+      showInitialLoadingScreen={showInitialLoadingScreen}
+      setShowInitialLoadingScreen={setShowInitialLoadingScreen}
+      minTimeElapsed={minTimeElapsed}
+    />
+  );
+}
+
+// 獨立的已認證內容組件 - 可以使用所有 Context 獲取真實的加載狀態
+function AuthenticatedContent({ 
+  effectiveUser, 
+  onSignOut, 
+  showInitialLoadingScreen,
+  setShowInitialLoadingScreen,
+  minTimeElapsed
+}: {
+  effectiveUser: any;
+  onSignOut: () => Promise<void>;
+  showInitialLoadingScreen: boolean;
+  setShowInitialLoadingScreen: (value: boolean) => void;
+  minTimeElapsed: boolean;
+}) {
+  // 獲取所有 Context 的加載狀態
+  const { loading: patientLoading, patients } = usePatients();
+  const { loading: medicalLoading, healthRecords, followUpAppointments } = useMedical();
+  const { scheduleLoading, prescriptionLoading, prescriptions } = useWorkflow();
+  const { loading: recordsLoading, patientHealthTasks, mealGuidances, healthAssessments, patientRestraintAssessments, annualHealthCheckups } = useRecords();
+  
+  // 獲取 Dashboard 準備完成狀態
+  const { isDashboardReady, resetDashboardReady } = useDashboardReady();
+  
+  // 備用超時狀態
+  const [fallbackTimeout, setFallbackTimeout] = useState(false);
+  
+  // 所有數據是否都已加載完成
+  const allDataLoaded = !patientLoading && 
+                        !medicalLoading && 
+                        !scheduleLoading && 
+                        !prescriptionLoading && 
+                        !recordsLoading;
+  
+  // 關鍵數據是否已經存在（不只是 loading 完成，而是真的有數據陣列存在）
+  const hasEssentialData = Array.isArray(patients) && 
+                           Array.isArray(healthRecords) && 
+                           Array.isArray(patientHealthTasks) &&
+                           Array.isArray(prescriptions) &&
+                           Array.isArray(mealGuidances) &&
+                           Array.isArray(healthAssessments);
+  
+  // 當顯示加載頁面時，重置狀態並設置備用超時
+  useEffect(() => {
+    if (showInitialLoadingScreen) {
+      resetDashboardReady();
+      setFallbackTimeout(false);
+      
+      // 備用超時：如果 8 秒後 Dashboard 仍未報告 ready，強制進入
+      const fallbackTimer = setTimeout(() => {
+        console.log('[Loading] Fallback timeout triggered');
+        setFallbackTimeout(true);
+      }, 8000);
+      
+      return () => clearTimeout(fallbackTimer);
+    }
+  }, [showInitialLoadingScreen, resetDashboardReady]);
+  
+  // 當數據加載完成、(Dashboard 準備完成 或 備用超時) 且最短時間已過，隱藏加載頁面
+  useEffect(() => {
+    const canHide = showInitialLoadingScreen && 
+                    allDataLoaded && 
+                    hasEssentialData && 
+                    minTimeElapsed && 
+                    (isDashboardReady || fallbackTimeout);
+    
+    if (canHide) {
+      console.log('[Loading] Hiding loading screen', { isDashboardReady, fallbackTimeout });
+      setShowInitialLoadingScreen(false);
+    }
+  }, [showInitialLoadingScreen, allDataLoaded, hasEssentialData, isDashboardReady, fallbackTimeout, minTimeElapsed, setShowInitialLoadingScreen]);
+
+  // 顯示初始加載頁面
+  if (showInitialLoadingScreen) {
+    return <LoadingScreen pageName="主控台" />;
+  }
+
+  return (
     <BrowserRouter>
       <NavigationProvider>
-        <Layout user={effectiveUser} onSignOut={handleSignOut}>
+        <Layout user={effectiveUser} onSignOut={onSignOut}>
           <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
@@ -183,19 +303,21 @@ function AppContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <StationProvider>
-          <MedicalProvider>
-            <WorkflowProvider>
-              <RecordsProvider>
-                <PatientProvider>
-                  <AppContent />
-                </PatientProvider>
-              </RecordsProvider>
-            </WorkflowProvider>
-          </MedicalProvider>
-        </StationProvider>
-      </AuthProvider>
+      <DashboardReadyProvider>
+        <AuthProvider>
+          <StationProvider>
+            <MedicalProvider>
+              <WorkflowProvider>
+                <RecordsProvider>
+                  <PatientProvider>
+                    <AppContent />
+                  </PatientProvider>
+                </RecordsProvider>
+              </WorkflowProvider>
+            </MedicalProvider>
+          </StationProvider>
+        </AuthProvider>
+      </DashboardReadyProvider>
       {/* React Query DevTools - 僅開發環境顯示 */}
       <ReactQueryDevtools initialIsOpen={false} position="bottom" />
     </QueryClientProvider>

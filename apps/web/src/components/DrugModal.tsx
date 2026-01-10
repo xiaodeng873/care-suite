@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Pill, Upload, Camera, Trash2 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 
 interface DrugModalProps {
   drug?: any;
   onClose: () => void;
+  onSave?: (savedDrug: any) => void;  // 可選的保存回調，返回保存後的藥物數據
 }
 
-const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose }) => {
+const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
   const { addDrug, updateDrug } = usePatients();
 
   const [formData, setFormData] = useState({
@@ -98,13 +100,15 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose }) => {
         notes: formData.notes.trim() || null
       };
 
-      if (drug) {
+      if (drug?.id) {
         await updateDrug({
           ...drug,
           ...drugData
         });
+        onSave?.({ ...drug, ...drugData });
       } else {
         await addDrug(drugData);
+        onSave?.(drugData);
       }
       
       onClose();
@@ -114,7 +118,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose }) => {
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
@@ -287,7 +291,8 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose }) => {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

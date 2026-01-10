@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Pill, Search } from 'lucide-react';
+import { ChevronDown, Pill, Search, Plus } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { fuzzyMatch } from '../utils/searchUtils';
+import DrugModal from './DrugModal';
 
 interface DrugAutocompleteProps {
   value: string;
@@ -20,6 +21,8 @@ const DrugAutocomplete: React.FC<DrugAutocompleteProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [showDrugModal, setShowDrugModal] = useState(false);
+  const [pendingDrugName, setPendingDrugName] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -225,22 +228,55 @@ const DrugAutocomplete: React.FC<DrugAutocompleteProps> = ({
                 <Search className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                 <p className="text-sm">找不到符合條件的藥物</p>
                 {searchTerm && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-400 mb-2">
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs text-gray-400">
                       搜索條件: "{searchTerm}"
                     </p>
                     <button
                       onClick={() => handleSelectDrug({ drug_name: searchTerm.trim() })}
-                      className="text-xs text-blue-600 hover:text-blue-700 underline"
+                      className="text-xs text-blue-600 hover:text-blue-700 underline block mx-auto"
                     >
                       使用 "{searchTerm.trim()}" 作為新藥物名稱
                     </button>
+                    <div className="border-t border-gray-100 pt-2 mt-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPendingDrugName(searchTerm.trim());
+                          setShowDrugModal(true);
+                          setIsOpen(false);
+                        }}
+                        className="inline-flex items-center space-x-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>新增 "{searchTerm.trim()}" 到藥物資料庫</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
             )}
           </div>
         </div>
+      )}
+      
+      {/* 新增藥物模態框 */}
+      {showDrugModal && (
+        <DrugModal
+          drug={{ drug_name: pendingDrugName }}
+          onClose={() => {
+            setShowDrugModal(false);
+            setPendingDrugName('');
+          }}
+          onSave={(savedDrug) => {
+            // 藥物保存成功後，自動選擇新藥物
+            setShowDrugModal(false);
+            setPendingDrugName('');
+            if (savedDrug) {
+              handleSelectDrug(savedDrug);
+            }
+          }}
+        />
       )}
     </div>
   );

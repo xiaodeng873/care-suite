@@ -440,18 +440,28 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
   }, [fetchHospitalOutreachRecords]);
 
   // ===== 傷口函數 =====
+  // 優化：getPatientsWithWounds 內部已經獲取 wounds 和 assessments，不需要重複獲取
   const refreshWoundData = useCallback(async () => {
     if (!isAuthenticated()) return;
     setWoundLoading(true);
     try {
-      const [woundsData, patientsWithWoundsData, woundAssessmentsData] = await Promise.all([
-        db.getWounds(),
-        db.getPatientsWithWounds(),
-        db.getWoundAssessments()
-      ]);
-      setWounds(woundsData || []);
+      // 只獲取 patientsWithWounds，它內部已經包含了 wounds 和 assessments
+      const patientsWithWoundsData = await db.getPatientsWithWounds();
       setPatientsWithWounds(patientsWithWoundsData || []);
-      setWoundAssessments(woundAssessmentsData || []);
+      
+      // 從 patientsWithWounds 提取 wounds 和 assessments，避免重複查詢
+      const allWounds: db.Wound[] = [];
+      const allAssessments: db.WoundAssessment[] = [];
+      (patientsWithWoundsData || []).forEach(patient => {
+        patient.wounds.forEach(wound => {
+          allWounds.push(wound as any);
+          if (wound.assessments) {
+            allAssessments.push(...wound.assessments);
+          }
+        });
+      });
+      setWounds(allWounds);
+      setWoundAssessments(allAssessments);
     } catch (error) {
       console.error('Error refreshing wound data:', error);
       throw error;
@@ -579,12 +589,16 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
   }, [refreshWoundData]);
 
   // ===== 健康記錄函數 =====
+  // 載入完整健康記錄（Dashboard 需要過去 28 天的記錄來計算任務狀態）
   const refreshHealthRecordData = useCallback(async () => {
     if (!isAuthenticated()) return;
     setHealthRecordLoading(true);
     try {
+      // 載入完整健康記錄，確保監測任務計算正確
       const healthRecordsData = await db.getHealthRecords();
       setHealthRecords(healthRecordsData || []);
+      setIsAllHealthRecordsLoaded(true);
+      isAllHealthRecordsLoadedRef.current = true;
     } catch (error) {
       console.error('Error refreshing health record data:', error);
       throw error;
@@ -594,18 +608,17 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
   }, [isAuthenticated]);
 
   const loadFullHealthRecords = useCallback(async () => {
+    // 已經在 refreshHealthRecordData 中載入完整記錄，此函數保留作為後備
     if (isAllHealthRecordsLoadedRef.current) return;
-    setHealthRecordLoading(true);
     try {
       const allRecords = await db.getHealthRecords();
       setHealthRecords(allRecords);
       setIsAllHealthRecordsLoaded(true);
       isAllHealthRecordsLoadedRef.current = true;
+      console.log('[MedicalContext] 載入完整健康記錄完成，共', allRecords.length, '條');
     } catch (error) {
       console.error('載入完整記錄失敗:', error);
       throw error;
-    } finally {
-      setHealthRecordLoading(false);
     }
   }, []);
 
@@ -704,13 +717,50 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
     ]);
   }, [isAuthenticated, refreshFollowUpData, refreshDiagnosisData, fetchHospitalOutreachRecords, refreshWoundData, refreshHealthRecordData]);
 
+  // ===== 必要數據（Dashboard 需要）=====
+  const refreshEssentialMedicalData = useCallback(async () => {
+    if (!isAuthenticated()) return;
+    // Dashboard 主要需要：覆診（待處理）、傷口（需處理）、健康記錄
+    await Promise.all([
+      refreshFollowUpData(),      // 覆診排程（Dashboard 顯示）
+      refreshWoundData(),         // 傷口管理（Dashboard 顯示）
+      refreshHealthRecordData(),  // 健康記錄（Dashboard 顯示）
+    ]);
+  }, [isAuthenticated, refreshFollowUpData, refreshWoundData, refreshHealthRecordData]);
+
+  // ===== 非必要數據（背景載入）=====
+  const refreshNonEssentialMedicalData = useCallback(async () => {
+    if (!isAuthenticated()) return;
+    // 這些不在 Dashboard 顯示，可以延後載入
+    await Promise.all([
+      refreshDiagnosisData(),         // 診斷記錄（獨立頁面使用）
+      fetchHospitalOutreachRecords(), // 醫院外展（獨立頁面使用）
+    ]);
+  }, [isAuthenticated, refreshDiagnosisData, fetchHospitalOutreachRecords]);
+
   // ===== 初始載入 =====
   useEffect(() => {
     if (!isAuthenticated()) return;
     
-    // 使用 Promise.all 同時載入所有數據
-    refreshAllMedicalData();
-  }, [isAuthenticated, refreshAllMedicalData]);
+    // 1. 先快速加載必要數據，讓 Dashboard 可以顯示
+    refreshEssentialMedicalData().then(() => {
+      // 2. UI 完成後，在背景加載非必要數據
+      setTimeout(() => {
+        refreshNonEssentialMedicalData().catch(err => 
+          console.warn('背景加載非必要醫療數據失敗:', err)
+        );
+      }, 500);
+      
+      // 3. 延遲 1 秒後背景加載完整健康記錄
+      if (!isAllHealthRecordsLoadedRef.current) {
+        setTimeout(() => {
+          loadFullHealthRecords().catch(err => 
+            console.warn('背景加載完整健康記錄失敗:', err)
+          );
+        }, 1000);
+      }
+    });
+  }, [isAuthenticated, refreshEssentialMedicalData, refreshNonEssentialMedicalData, loadFullHealthRecords]);
 
   // ===== 統一 loading 狀態 =====
   const loading = followUpLoading || diagnosisLoading || hospitalOutreachLoading || woundLoading || healthRecordLoading;

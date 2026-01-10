@@ -4,6 +4,7 @@ import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, Ca
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
+import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from './PageLoadingScreen';
 import type { PermissionCategory } from '@care-suite/shared';
 
@@ -74,10 +75,18 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { displayName, hasPermission, hasCategoryViewPermission, isDeveloper, userProfile, customLogout } = useAuth();
-  const { isNavigating, navigatingTo, startNavigation } = useNavigation();
+  const { isNavigating, navigatingTo, isInitialLoad, startNavigation, finishNavigation } = useNavigation();
+  const { loading: patientLoading } = usePatients();
   const location = useLocation();
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 當 PatientContext 載入完成時，結束初始導航狀態
+  useEffect(() => {
+    if (isInitialLoad && !patientLoading) {
+      finishNavigation();
+    }
+  }, [isInitialLoad, patientLoading, finishNavigation]);
 
   // 香港時區輔助函數
   const getHongKongDate = () => {
@@ -262,10 +271,16 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // 如果正在導航，直接顯示全屏加載頁
+  // 如果正在導航或初始加載，直接顯示全屏加載頁
   if (isNavigating && navigatingTo) {
     const targetPageName = routeNames[navigatingTo] || '頁面';
     return <LoadingScreen pageName={targetPageName} />;
+  }
+  
+  // 初始加載時也顯示加載頁
+  if (isInitialLoad) {
+    const currentPageName = routeNames[location.pathname] || '頁面';
+    return <LoadingScreen pageName={currentPageName} />;
   }
 
   return (

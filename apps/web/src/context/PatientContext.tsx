@@ -664,9 +664,13 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     if (dataLoaded) return;
     const initializeAndLoadData = async () => {
       try {
-        await generateDailyWorkflowRecords(new Date().toISOString().split('T')[0]);
+        // 先加載數據，不等待 generateDailyWorkflowRecords
         await refreshDataRef.current();
         setDataLoaded(true);
+        
+        // 在背景執行工作流程生成（不阻塞 UI）
+        generateDailyWorkflowRecords(new Date().toISOString().split('T')[0])
+          .catch(err => console.warn('Background workflow generation failed:', err));
       } catch (error) {
         console.error('Error initializing data:', error);
         try {
