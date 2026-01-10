@@ -560,25 +560,32 @@ const Dashboard: React.FC = () => {
     return dateA.getTime() - dateB.getTime();
   });
   
-  // 當所有 useMemo 計算完成且 DOM 渲染完成後，通知 App.tsx
+  // 當所有必要數據都已加載且 DOM 渲染完成後，通知 App.tsx
   useLayoutEffect(() => {
-    // 檢查關鍵數據是否已計算完成
-    const hasComputedData = 
+    // 必須滿足所有條件才設為 ready：
+    // 1. loading 完成
+    // 2. 有院友數據
+    // 3. 有健康記錄數據
+    // 4. useMemo 計算完成
+    const hasAllRequiredData = 
+      !loading &&
+      Array.isArray(patients) && patients.length > 0 &&
+      Array.isArray(healthRecords) && healthRecords.length > 0 &&
       Array.isArray(uniquePatientHealthTasks) &&
-      patientsMap.size >= 0 &&
+      patientsMap.size > 0 &&
       Array.isArray(missingTasks) &&
       Array.isArray(combinedUrgentTasks);
     
-    if (hasComputedData && !loading) {
+    if (hasAllRequiredData) {
       // 使用 requestAnimationFrame 確保 DOM 已經渲染
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          console.log('[Dashboard] Setting ready');
+          console.log('[Dashboard] All data loaded, setting ready');
           setDashboardReady(true);
         });
       });
     }
-  }, [uniquePatientHealthTasks, patientsMap, missingTasks, combinedUrgentTasks, loading, setDashboardReady]);
+  }, [loading, patients, healthRecords, uniquePatientHealthTasks, patientsMap, missingTasks, combinedUrgentTasks, setDashboardReady]);
   
   const handleCreateMissingTask = (patient: any, taskType: '年度體檢' | '生命表徵') => {
     if (taskType === '年度體檢') {
