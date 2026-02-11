@@ -170,7 +170,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
       setProcessingStage('正在壓縮圖片...');
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      setProcessingStage('正在使用 Gemini Vision 視覺識別...');
+      setProcessingStage('正在使用AI...');
       const result = await processImageWithGeminiVision(selectedFile, prompt, false, undefined);
 
       setIsProcessing(false);

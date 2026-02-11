@@ -187,7 +187,7 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
       }
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      setProcessingStage('正在使用 Gemini Vision 視覺識別...');
+      setProcessingStage('正在使用AI視覺識別...');
       const prompt = await getDefaultPrompt();
       const result = await processImageWithGeminiVision(selectedFile, prompt, skipCache, undefined);
 
