@@ -103,7 +103,8 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
   const findMatchingPatient = (extractedData: any): number | undefined => {
     if (!patients || patients.length === 0) return undefined;
 
-    let bestMatch: { patient: any; score: number } | null = null;
+    let bestMatchPatientId: number | undefined;
+    let bestScore = 0;
 
     patients.forEach(patient => {
       let score = 0;
@@ -159,12 +160,12 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
         }
       }
 
-      if (score > 0 && (!bestMatch || score > bestMatch.score)) {
-        bestMatch = { patient, score };
+      if (score > 0 && score > bestScore) {
+        bestScore = score;
+        bestMatchPatientId = patient.院友id;
       }
     });
-
-    return bestMatch ? bestMatch.patient.院友id : undefined;
+    return bestMatchPatientId;
   };
 
   const handleStartOCR = async (skipCache: boolean = false) => {

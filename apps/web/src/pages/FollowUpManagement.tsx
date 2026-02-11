@@ -24,12 +24,13 @@ interface AdvancedFilters {
   備註: string;
   startDate: string;
   endDate: string;
+  在住狀態: string;
 }
 
 const FollowUpManagement: React.FC = () => {
   const { followUpAppointments, patients, deleteFollowUpAppointment, batchUpdateFollowUpStatus, loading } = usePatients();
   const [showModal, setShowModal] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState<FollowUpAppointment | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<FollowUpAppointment | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('覆診日期');
@@ -664,7 +665,7 @@ const FollowUpManagement: React.FC = () => {
             )}
             <button
               onClick={() => {
-                setSelectedAppointment(null);
+                setSelectedAppointment(undefined);
                 setShowModal(true);
               }}
               className="btn-primary flex items-center space-x-2"
@@ -1196,7 +1197,7 @@ const FollowUpManagement: React.FC = () => {
           appointment={selectedAppointment}
           onClose={() => {
             setShowModal(false);
-            setSelectedAppointment(null);
+            setSelectedAppointment(undefined);
           }}
         />
       )}
