@@ -139,14 +139,6 @@ export const AssessmentProvider: React.FC<AssessmentProviderProps> = ({ children
 
   const updateAnnualHealthCheckup = async (checkup: any) => {
     try {
-      console.log('Context更新checkup數據:', {
-        has_serious_illness: checkup.has_serious_illness,
-        has_allergy: checkup.has_allergy,
-        has_infectious_disease: checkup.has_infectious_disease,
-        needs_followup_treatment: checkup.needs_followup_treatment,
-        has_swallowing_difficulty: checkup.has_swallowing_difficulty,
-        has_special_diet: checkup.has_special_diet
-      });
       await db.updateAnnualHealthCheckup(checkup);
       await refreshAssessmentData();
     } catch (error) {

@@ -149,18 +149,15 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
         
         // 找出當前時段的索引
         const currentIndex = timeSlots.indexOf(currentSlot);
-        console.log('🔍 當前時段:', timeSlot, '-> 轉換後:', currentSlot, '索引:', currentIndex);
         if (currentIndex === -1) return [];
         
         // 如果是第一個時段(7A)，不預填
         if (currentIndex === 0) {
-          console.log('⏰ 7A時段，不預填');
           return [];
         }
         
         // 過濾同一院友的記錄
         const patientRecords = allRestraintRecords.filter(r => r.patient_id === patient.院友id);
-        console.log('📋 同一院友的所有記錄數:', patientRecords.length);
         
         // 查找當天之前時段的記錄
         const todayRecords = patientRecords
@@ -178,30 +175,18 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
             return bIndex - aIndex; // 降序排列，最近的在前
           });
         
-        console.log('📅 當天之前時段的記錄數:', todayRecords.length);
-        
         if (todayRecords.length > 0) {
           const latestRecord = todayRecords[0]; // 最近的一條記錄
-          console.log('📝 上一個時段記錄:', {
-            time: latestRecord.scheduled_time,
-            used_restraints: latestRecord.used_restraints
-          });
           
           // 只檢查上一個時段，如果沒有數據就不預填
           if (latestRecord.used_restraints) {
             const restraints = Object.keys(latestRecord.used_restraints).filter(key => latestRecord.used_restraints[key]);
             if (restraints.length > 0) {
-              console.log('✅ 從上一個時段', latestRecord.scheduled_time, '預填約束物品:', restraints);
               return restraints;
-            } else {
-              console.log('⚠️ 上一個時段的記錄沒有勾選任何約束物品');
             }
-          } else {
-            console.log('⚠️ 上一個時段的記錄沒有 used_restraints 數據');
           }
         }
         
-        console.log('❌ 沒有找到上一個記錄');
         return []; // 沒有找到上一個記錄，不預填
       };
       

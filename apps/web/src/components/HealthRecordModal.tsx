@@ -118,14 +118,6 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
     };
   };
   const { date: defaultRecordDate, time: defaultRecordTime } = getDefaultDateTime();
-  console.log('[HealthRecordModal] 準備計算 initialIsPatientAbsent:', {
-    initialPatientId,
-    defaultRecordDate,
-    defaultRecordTime,
-    預設日期: initialData?.預設日期,
-    預設時間: initialData?.預設時間,
-    hasRecord: !!record
-  });
   const initialIsPatientAbsent = checkPatientAbsent(
     initialPatientId,
     initialData?.預設日期 || initialData?.task?.next_due_at?.split('T')[0] || defaultRecordDate,
@@ -159,15 +151,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
   });
   // 組件掛載時記錄初始狀態和自動聚焦
   React.useEffect(() => {
-    console.log('[HealthRecordModal] 組件掛載，初始表單數據:', {
-      院友id: formData.院友id,
-      記錄日期: formData.記錄日期,
-      記錄時間: formData.記錄時間,
-      isAbsent: formData.isAbsent,
-      absenceReason: formData.absenceReason,
-      備註: formData.備註,
-      initialIsPatientAbsent
-    });
+
     // 自動聚焦到對應的輸入框
     setTimeout(() => {
       if (!formData.isAbsent) {
@@ -183,42 +167,17 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
   }, []);
   // 計算當前院友是否在指定日期時間處於入院狀態（用於 UI 顯示）
   const currentIsPatientAbsent = React.useMemo(() => {
-    console.log('[HealthRecordModal] 計算 currentIsPatientAbsent:', {
-      院友id: formData.院友id,
-      記錄日期: formData.記錄日期,
-      記錄時間: formData.記錄時間,
-      admissionRecordsCount: admissionRecords.length,
-      hospitalEpisodesCount: hospitalEpisodes.length,
-      admissionRecords: admissionRecords.filter(r => r.patient_id === formData.院友id)
-    });
     const result = checkPatientAbsent(formData.院友id, formData.記錄日期, formData.記錄時間);
     return result;
   }, [formData.院友id, formData.記錄日期, formData.記錄時間, admissionRecords, hospitalEpisodes]);
   // 當院友ID、日期或時間改變時，檢查是否在入院期間並自動設定
   React.useEffect(() => {
-    console.log('[HealthRecordModal] useEffect 觸發 - 檢查入院狀態:', {
-      院友id: formData.院友id,
-      記錄日期: formData.記錄日期,
-      記錄時間: formData.記錄時間,
-      hasRecord: !!record,
-      currentIsPatientAbsent,
-      currentFormIsAbsent: formData.isAbsent,
-      currentAbsenceReason: formData.absenceReason,
-      hospitalEpisodesCount: hospitalEpisodes.length,
-      admissionRecordsCount: admissionRecords.length
-    });
     // [診斷] 打印該院友的所有住院事件
     if (formData.院友id) {
       const patientEpisodes = hospitalEpisodes.filter(ep => ep.patient_id === formData.院友id);
     }
     if (formData.院友id && formData.記錄日期 && formData.記錄時間 && !record) {
       const isAbsent = currentIsPatientAbsent;
-      console.log('[HealthRecordModal] 條件檢查通過，準備自動設定:', {
-        isAbsent,
-        currentFormIsAbsent: formData.isAbsent,
-        shouldAutoSet: isAbsent && !formData.isAbsent,
-        shouldClear: !isAbsent && formData.isAbsent && formData.absenceReason === '入院'
-      });
       if (isAbsent && !formData.isAbsent) {
         // 在入院期間，自動設定為無法量度
         setFormData(prev => ({
@@ -317,10 +276,6 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
       alert('請先選擇院友');
       return;
     }
-    console.log('[生成器] 開始生成數據:', {
-      院友id: formData.院友id,
-      記錄類型: formData.記錄類型
-    });
     setGeneratorStatus('loading');
     setIsGeneratorCollapsed(false);
     try {
@@ -379,54 +334,37 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
     setIsSubmitting(true);
     const recordData = {
       院友id: parseInt(formData.院友id),
-      task_id: initialData?.task?.id || record?.task_id || null,
+      task_id: initialData?.task?.id || record?.task_id || undefined,
       記錄日期: formData.記錄日期,
       記錄時間: formData.記錄類型 === '體重控制' ? '00:00' : formData.記錄時間,
       記錄類型: formData.記錄類型 as any,
-      血壓收縮壓: formData.血壓收縮壓 ? parseInt(formData.血壓收縮壓) : null,
-      血壓舒張壓: formData.血壓舒張壓 ? parseInt(formData.血壓舒張壓) : null,
-      脈搏: formData.脈搏 ? parseInt(formData.脈搏) : null,
-      體溫: formData.體溫 ? parseFloat(formData.體溫) : null,
-      血含氧量: formData.血含氧量 ? parseInt(formData.血含氧量) : null,
-      呼吸頻率: formData.呼吸頻率 ? parseInt(formData.呼吸頻率) : null,
-      血糖值: formData.血糖值 ? parseFloat(formData.血糖值) : null,
-      體重: formData.體重 ? parseFloat(formData.體重) : null,
-      備註: formData.備註 || null,
-      記錄人員: formData.記錄人員 || null,
+      血壓收縮壓: formData.血壓收縮壓 ? parseInt(formData.血壓收縮壓) : undefined,
+      血壓舒張壓: formData.血壓舒張壓 ? parseInt(formData.血壓舒張壓) : undefined,
+      脈搏: formData.脈搏 ? parseInt(formData.脈搏) : undefined,
+      體溫: formData.體溫 ? parseFloat(formData.體溫) : undefined,
+      血含氧量: formData.血含氧量 ? parseInt(formData.血含氧量) : undefined,
+      呼吸頻率: formData.呼吸頻率 ? parseInt(formData.呼吸頻率) : undefined,
+      血糖值: formData.血糖值 ? parseFloat(formData.血糖值) : undefined,
+      體重: formData.體重 ? parseFloat(formData.體重) : undefined,
+      備註: formData.備註 || undefined,
+      記錄人員: formData.記錄人員 || undefined,
     };
     try {
       if (record) {
         await updateHealthRecord({ 記錄id: record.記錄id, ...recordData });
         onClose();
-        console.log('[saveRecord] 已調用 onClose()');
         // [核心修復] 更新記錄時也需要同步任務狀態
         if (onTaskCompleted && (initialData?.task?.id || record?.task_id)) {
           const taskId = initialData?.task?.id || record?.task_id;
-          console.log('[saveRecord] 更新記錄後調用 onTaskCompleted', {
-            taskId,
-            recordDate: formData.記錄日期,
-            recordTime: formData.記錄時間
-          });
           const recordDateTime = new Date(`${formData.記錄日期}T${formData.記錄時間}`);
           onTaskCompleted(taskId, recordDateTime);
         }
       } else {
         await addHealthRecord(recordData);
         onClose();
-        console.log('[saveRecord] 已調用 onClose()');
         if (onTaskCompleted && initialData?.task?.id) {
-          console.log('[saveRecord] 調用 onTaskCompleted', {
-            taskId: initialData.task.id,
-            recordDate: formData.記錄日期,
-            recordTime: formData.記錄時間
-          });
           const recordDateTime = new Date(`${formData.記錄日期}T${formData.記錄時間}`);
           onTaskCompleted(initialData.task.id, recordDateTime);
-        } else {
-          console.log('[saveRecord] 不需要調用 onTaskCompleted', {
-            hasCallback: !!onTaskCompleted,
-            hasTaskId: !!initialData?.task?.id
-          });
         }
       }
       setIsSubmitting(false);
@@ -580,7 +518,8 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                         <input
                           type="text"
                           value={formData.customAbsenceReason || ''}
-                          onCref={bloodPressureInputRef} hange={(e) => setFormData(prev => ({ ...prev, customAbsenceReason: e.target.value }))}
+                          ref={bloodPressureInputRef}
+                          onChange={(e) => setFormData(prev => ({ ...prev, customAbsenceReason: e.target.value }))}
                           className="form-input text-sm w-full"
                           placeholder="請輸入原因..."
                           required

@@ -676,7 +676,8 @@ export interface MedicationInspectionRule {
   created_at: string;
   updated_at: string;
 }
-export type MedicationFrequencyType = 'daily' | 'every_x_days' | 'every_x_months' | 'weekly_days' | 'odd_even_days';
+// 新增 hourly 以符合前端用法
+export type MedicationFrequencyType = 'daily' | 'every_x_days' | 'every_x_months' | 'weekly_days' | 'odd_even_days' | 'hourly';
 export type OddEvenDayType = 'odd' | 'even' | 'none';
 export type PreparationMethodType = 'immediate' | 'advanced' | 'custom';
 export type PrescriptionStatusType = 'active' | 'inactive' | 'pending_change';
@@ -692,16 +693,24 @@ export interface MedicationPrescription {
   dosage_form?: string;
   administration_route?: string;
   dosage_amount?: string;
+  // 前端會顯示的劑量單位
+  dosage_unit?: string;
   frequency_type: MedicationFrequencyType;
   frequency_value?: number;
   specific_weekdays?: number[];
   is_odd_even_day: OddEvenDayType;
+  // 每日次數（非必填）
+  daily_frequency?: number;
   is_prn: boolean;
   medication_time_slots?: string[];
+  // 餐次描述
+  meal_timing?: string;
   notes?: string;
   preparation_method: PreparationMethodType;
   status: PrescriptionStatusType;
   medication_source: string;
+  // 檢測規則（可能為空陣列）
+  inspection_rules?: MedicationInspectionRule[];
   created_at: string;
   updated_at: string;
 }

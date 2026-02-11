@@ -195,8 +195,9 @@ interface PatientContextType {
   fetchPrescriptionWorkflowRecords: (patientId?: number, date?: string) => Promise<PrescriptionWorkflowRecord[]>;
   createPrescriptionWorkflowRecord: (recordData: Omit<PrescriptionWorkflowRecord, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updatePrescriptionWorkflowRecord: (recordId: string, updateData: Partial<PrescriptionWorkflowRecord>) => Promise<void>;
-  prepareMedication: (recordId: string, staffId: string) => Promise<void>;
-  verifyMedication: (recordId: string, staffId: string) => Promise<void>;
+  // 保持向下兼容：允許附帶 patientId 與日期
+  prepareMedication: (recordId: string, staffId: string, unused1?: any, unused2?: any, patientId?: number, scheduledDate?: string) => Promise<void>;
+  verifyMedication: (recordId: string, staffId: string, unused1?: any, unused2?: any, patientId?: number, scheduledDate?: string) => Promise<void>;
   dispenseMedication: (recordId: string, staffId: string, failureReason?: string, customReason?: string, patientId?: number, scheduledDate?: string, notes?: string, inspectionCheckResult?: any) => Promise<void>;
   checkPrescriptionInspectionRules: (prescriptionId: string, patientId: number, scheduledDate?: string, scheduledTime?: string) => Promise<InspectionCheckResult>;
   fetchLatestVitalSigns: (patientId: number, vitalSignType: string, targetDate?: string, targetTime?: string) => Promise<{ record: db.HealthRecord | null; isExactMatch: boolean }>;

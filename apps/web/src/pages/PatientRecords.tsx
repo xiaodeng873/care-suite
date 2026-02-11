@@ -270,9 +270,6 @@ const PatientRecords: React.FC = () => {
       // 取消該院友在退住日期之後的所有 VMO 排程
       try {
         const result = await deletePatientSchedulesAfterDate(updatedPatient.院友id, dischargeDate);
-        if (result.deletedCount > 0) {
-          console.log(`已取消 ${result.deletedCount} 筆 VMO 排程（退住日期後）`);
-        }
       } catch (scheduleError) {
         console.error('取消 VMO 排程時發生錯誤:', scheduleError);
         // 不影響退住操作，只記錄錯誤

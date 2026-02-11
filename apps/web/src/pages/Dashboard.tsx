@@ -578,7 +578,6 @@ const Dashboard: React.FC = () => {
       // 使用 requestAnimationFrame 確保 DOM 已經渲染
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          console.log('[Dashboard] All data loaded, setting ready');
           setDashboardReady(true);
         });
       });

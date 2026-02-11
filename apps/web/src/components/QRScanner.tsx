@@ -85,7 +85,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
           let qrData: any;
           try {
             qrData = JSON.parse(decodedText);
-            console.log('📋 解析後的數據 (JSON):', qrData);
             setDebugMessage(`解析成功: type=${qrData.type}, qr_code_id=${qrData.qr_code_id}`);
           } catch (parseError) {
             // 如果不是 JSON，假設為直接的 QR Code ID（純文本，向後兼容床位碼）

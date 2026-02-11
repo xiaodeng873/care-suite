@@ -122,13 +122,6 @@ const StationBedManagement: React.FC = () => {
         availableCount++;
       }
     });
-    // 驗證計算正確性
-    console.log(`站點 ${stationId} 床位統計:`, {
-      totalBeds: stationBeds.length,
-      occupiedCount,
-      availableCount,
-      sum: occupiedCount + availableCount
-    });
     return {
       totalBeds: stationBeds.length,
       occupiedBeds: occupiedCount,
@@ -432,7 +425,7 @@ const StationBedManagement: React.FC = () => {
                             </div>
                             <div className="flex items-center space-x-1">
                               {bed.is_occupied ? (
-                                <CheckCircle className="h-4 w-4 text-green-500" title="已佔用" />
+                                <CheckCircle className="h-4 w-4 text-green-500" aria-label="已佔用" />
                               ) : (
                                 <div className="h-4 w-4 rounded-full border-2 border-gray-300" title="可用" />
                               )}

@@ -114,9 +114,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setDebugMessage('正在驗證登入...');
 
     try {
-      console.log('Scanning QR code, calling qrLogin...');
       const { error } = await qrLogin(qrCodeId);
-      console.log('qrLogin result, error:', error);
 
       if (error) {
         const errorMsg = typeof error === 'string' ? error : JSON.stringify(error);

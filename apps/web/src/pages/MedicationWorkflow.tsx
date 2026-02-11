@@ -354,7 +354,7 @@ const WorkflowCell: React.FC<WorkflowCellProps> = ({ record, step, onStepClick, 
         <div className="mt-1 space-y-0.5 max-[1024px]:landscape:hidden">
           {Object.entries(inspectionValues).map(([key, value]) => (
             <div key={key} className="text-xs">
-              <span className="font-medium">{key}:</span> {value}
+              <span className="font-medium">{key}:</span> {String(value ?? '')}
             </div>
           ))}
         </div>
@@ -428,7 +428,7 @@ const MedicationWorkflow: React.FC = () => {
   const [selectedDateForMenu, setSelectedDateForMenu] = useState<string | null>(null);
   const [isDateMenuOpen, setIsDateMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
-  const [hoveredPrescriptionId, setHoveredPrescriptionId] = useState<number | null>(null);
+  const [hoveredPrescriptionId, setHoveredPrescriptionId] = useState<string | null>(null);
   const [medicationInfoPosition, setMedicationInfoPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [optimisticCrushState, setOptimisticCrushState] = useState<Map<number, boolean>>(new Map());
   const [optimisticWorkflowUpdates, setOptimisticWorkflowUpdates] = useState<Map<string, {
@@ -1062,7 +1062,6 @@ const MedicationWorkflow: React.FC = () => {
     }
     // 服藥時間點
     const medicationDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
-    console.log('⏰ 服藥時間:', medicationDateTime.toISOString());
     // 檢查所有住院事件，看服藥時間是否落在任何一個入院期間
     for (const episode of patientEpisodes) {
       // 如果有 episode_start_date 和 episode_end_date，直接檢查（簡單方式）
@@ -1070,10 +1069,6 @@ const MedicationWorkflow: React.FC = () => {
         const startDate = new Date(`${episode.episode_start_date}T00:00:00`);
         const endDate = new Date(`${episode.episode_end_date}T23:59:59`);
         if (medicationDateTime >= startDate && medicationDateTime <= endDate) {
-          console.log('  ✅ 服藥時間在住院期間內（簡單方式）:', {
-            startDate: episode.episode_start_date,
-            endDate: episode.episode_end_date
-          });
           return true;
         }
         continue;
@@ -1100,7 +1095,6 @@ const MedicationWorkflow: React.FC = () => {
       // 檢查每個入院事件
       for (const admission of admissionEvents) {
         const admissionDateTime = new Date(`${admission.event_date}T${admission.event_time || '00:00:00'}`);
-        console.log('  🏥 入院時間:', admissionDateTime.toISOString(), 'isValid:', !isNaN(admissionDateTime.getTime()));
         // 如果服藥時間早於入院時間，跳過此入院事件
         if (medicationDateTime < admissionDateTime) {
           continue;
@@ -1112,7 +1106,6 @@ const MedicationWorkflow: React.FC = () => {
         });
         if (nextDischarge) {
           const dischargeDateTime = new Date(`${nextDischarge.event_date}T${nextDischarge.event_time || '00:00:00'}`);
-          console.log('  🚪 對應出院時間:', dischargeDateTime.toISOString(), 'isValid:', !isNaN(dischargeDateTime.getTime()));
           // 檢查服藥時間是否在入院和出院之間
           if (medicationDateTime >= admissionDateTime && medicationDateTime < dischargeDateTime) {
             return true;
@@ -1137,7 +1130,6 @@ const MedicationWorkflow: React.FC = () => {
     }
     // 服藥時間點
     const medicationDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
-    console.log('⏰ 服藥時間:', medicationDateTime.toISOString());
     // 檢查所有住院事件，看服藥時間是否落在任何一個渡假期間
     for (const episode of patientEpisodes) {
       if (!episode.episode_events || episode.episode_events.length === 0) {
@@ -1161,7 +1153,6 @@ const MedicationWorkflow: React.FC = () => {
       // 檢查每個渡假開始事件
       for (const vacationStart of vacationStartEvents) {
         const vacationStartDateTime = new Date(`${vacationStart.event_date}T${vacationStart.event_time || '00:00:00'}`);
-        console.log('  🏖️ 渡假開始時間:', vacationStartDateTime.toISOString());
         // 如果服藥時間早於渡假開始時間，跳過此渡假事件
         if (medicationDateTime < vacationStartDateTime) {
           continue;
@@ -1173,7 +1164,6 @@ const MedicationWorkflow: React.FC = () => {
         });
         if (nextVacationEnd) {
           const vacationEndDateTime = new Date(`${nextVacationEnd.event_date}T${nextVacationEnd.event_time || '00:00:00'}`);
-          console.log('  🏠 對應渡假結束時間:', vacationEndDateTime.toISOString());
           // 檢查服藥時間是否在渡假開始和渡假結束之間
           if (medicationDateTime >= vacationStartDateTime && medicationDateTime < vacationEndDateTime) {
             return true;
@@ -1732,7 +1722,6 @@ const MedicationWorkflow: React.FC = () => {
     }
     setOneClickProcessing(prev => ({ ...prev, preparation: true }));
     try {
-      console.log(`=== 一鍵執藥開始 (日期: ${targetDate}) ===`);
       // 找到指定日期所有待執藥的記錄（排除即時備藥，使用已應用樂觀更新的記錄）
       const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate);
       const pendingPreparationRecords = dayWorkflowRecords.filter(r => {
@@ -1778,7 +1767,6 @@ const MedicationWorkflow: React.FC = () => {
     }
     setOneClickProcessing(prev => ({ ...prev, verification: true }));
     try {
-      console.log(`=== 一鍵核藥開始 (日期: ${targetDate}) ===`);
       // 找到指定日期所有待核藥的記錄（排除即時備藥，使用已應用樂觀更新的記錄）
       const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate);
       const pendingVerificationRecords = dayWorkflowRecords.filter(r => {
@@ -1826,7 +1814,6 @@ const MedicationWorkflow: React.FC = () => {
     }
     setOneClickProcessing(prev => ({ ...prev, dispensing: true }));
     try {
-      console.log(`=== 一鍵派藥開始 (日期: ${targetDate}) ===`);
       // 找到指定日期所有可派藥的記錄（使用已應用樂觀更新的記錄）
       const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate);
       const eligibleRecords = dayWorkflowRecords.filter(r => {
@@ -1906,7 +1893,6 @@ const MedicationWorkflow: React.FC = () => {
     }
     setOneClickProcessing(prev => ({ ...prev, dispensing: true }));
     try {
-      console.log(`=== 一鍵全程開始 (日期: ${targetDate}) ===`);
       // 找到指定日期所有符合一鍵全程條件的記錄（使用已應用樂觀更新的記錄）
       const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate);
       const eligibleRecords = dayWorkflowRecords.filter(r => {
@@ -2091,7 +2077,6 @@ const MedicationWorkflow: React.FC = () => {
             // 有檢測項要求：先檢查是否有用戶提供的檢測結果
             const userInspectionResult = inspectionResults?.get(record.id);
             if (userInspectionResult) {
-              console.log(`✅ 使用用戶提供的檢測結果 (記錄 ${record.id}):`, userInspectionResult);
               if (userInspectionResult.canDispense) {
                 // 檢測合格：正常派藥
                 await dispenseMedication(
@@ -2411,7 +2396,6 @@ const MedicationWorkflow: React.FC = () => {
         let loadedSuccessfully = false;
         while (retryCount < maxRetries && !loadedSuccessfully) {
           try {
-            console.log(`🔄 嘗試重新載入數據 (第 ${retryCount + 1} 次)...`);
             const { data, error } = await supabase
               .from('medication_workflow_records')
               .select('*')
@@ -2681,7 +2665,7 @@ const MedicationWorkflow: React.FC = () => {
       <div className="bg-white z-[5] border-b border-gray-200 px-4 lg:px-6">
         <div className="py-2">
           <PatientInfoCard
-            patient={selectedPatient}
+            patient={selectedPatient ?? null}
             defaultExpanded={false}
             onOptimisticUpdate={(patientId, needsCrushing) => {
               // 立即更新 UI（樂觀更新）

@@ -615,7 +615,6 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
       setHealthRecords(allRecords);
       setIsAllHealthRecordsLoaded(true);
       isAllHealthRecordsLoadedRef.current = true;
-      console.log('[MedicalContext] 載入完整健康記錄完成，共', allRecords.length, '條');
     } catch (error) {
       console.error('載入完整記錄失敗:', error);
       throw error;

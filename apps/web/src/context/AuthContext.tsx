@@ -338,9 +338,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 二維碼登入
   const qrLogin = async (qrCodeId: string) => {
     try {
-      console.log('QR Login attempting with code:', qrCodeId?.substring(0, 8) + '...');
       const result = await callAuthApi('qr-login', { qr_code_id: qrCodeId });
-      console.log('QR Login result:', result);
       
       if (result.success) {
         setUserProfile(result.user);

@@ -107,21 +107,6 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
   // 載入已有記錄
   useEffect(() => {
     if (existingRecord) {
-      console.log('📖 載入已有記錄:', existingRecord);
-      console.log('📖 攝入項目:', existingRecord.intake_items);
-      
-      // 🔍 檢查每個項目的 amount_numeric
-      if (existingRecord.intake_items) {
-        existingRecord.intake_items.forEach((item: any, index: number) => {
-          console.log(`🔍 項目 ${index}:`, {
-            item_type: item.item_type,
-            amount: item.amount,
-            amount_numeric: item.amount_numeric,
-            完整對象: item
-          });
-        });
-      }
-      
       setRecorder(existingRecord.recorder || '');
       setNotes(existingRecord.notes || '');
       setIntakeItems(existingRecord.intake_items || []);
@@ -212,9 +197,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
           };
         }) as Omit<IntakeItem, 'id' | 'created_at'>[];
         
-        console.log('💾 準備保存到數據庫的攝入項目:', itemsWithRecordId);
         const createdIntakeItems = await createIntakeItems(itemsWithRecordId);
-        console.log('✅ 從數據庫返回的攝入項目:', createdIntakeItems);
         record.intake_items = createdIntakeItems;
       }
 
@@ -246,23 +229,17 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
   const handleDeleteClick = () => {
     console.log('🗑️ 刪除按鈕被點擊');
     console.log('existingRecord:', existingRecord);
-    console.log('onDelete:', onDelete);
     setShowDeleteConfirm(true);
   };
 
   const handleDeleteConfirm = async () => {
-    console.log('✅ 確認刪除');
     if (existingRecord && onDelete) {
       try {
-        console.log('🚀 開始刪除記錄 ID:', existingRecord.id);
         await deleteIntakeOutputRecord(existingRecord.id);
-        console.log('✅ 數據庫刪除成功');
         onDelete(existingRecord.id);
-        console.log('✅ 調用 onDelete 回調');
-        onClose();
       } catch (error) {
         console.error('❌ 刪除記錄失敗:', error);
-        alert(`刪除失敗：${error.message || '請重試'}`);
+        alert(`刪除失敗：${error instanceof Error ? error.message : '請重試'}`);
       }
     } else {
       console.warn('⚠️ 缺少 existingRecord 或 onDelete');
@@ -297,8 +274,6 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
     const category = addCategory as IntakeCategory;
     const config = INTAKE_CATEGORIES[category];
     
-    console.log('🍽️ 新增攝入項目:', { category, newIntakeVolume, newIntakeAmount, newIntakeItemType });
-    
     let newItem: Partial<IntakeItem> = {
       category,
       item_type: newIntakeItemType,
@@ -318,7 +293,6 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
     } else if (category === 'beverage' || category === 'tube_feeding') {
       newItem.amount = `${newIntakeVolume}ml`;
       newItem.amount_numeric = newIntakeVolume; // 飲料和鼻胃飼的數值就是容量
-      console.log('💧 飲料/鼻胃飼:', { amount: newItem.amount, amount_numeric: newItem.amount_numeric, newIntakeVolume });
     } else if (category === 'other') {
       newItem.amount = newIntakeAmount;
       // 其他類別：從字符串中提取數字（如 "3塊" -> 3）
@@ -326,7 +300,6 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
       newItem.amount_numeric = numMatch ? parseInt(numMatch[0]) : 0;
     }
 
-    console.log('📦 創建的項目:', newItem);
     setIntakeItems([...intakeItems, newItem]);
     setShowAddIntakeModal(false);
   };
@@ -366,20 +339,11 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
 
   // 格式化項目顯示
   const formatIntakeItem = (item: Partial<IntakeItem>) => {
-    console.log('🎨 formatIntakeItem 收到的項目:', {
-      item_type: item.item_type,
-      category: item.category,
-      amount: item.amount,
-      amount_numeric: item.amount_numeric,
-      完整: item
-    });
-    
     if (item.category === 'meal') {
       return `${item.item_type} ${item.amount}`;
     } else if (item.category === 'beverage' || item.category === 'tube_feeding') {
       // 使用 amount_numeric 而不是已移除的 volume 欄位
       const displayValue = `${item.item_type} ${item.amount_numeric || 0}ml`;
-      console.log('🎨 飲料/鼻胃飼顯示值:', displayValue, '來源 amount_numeric:', item.amount_numeric);
       return displayValue;
     } else {
       return `${item.item_type} ${item.amount}`;
@@ -796,7 +760,6 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
                     value={newIntakeVolume}
                     onChange={(e) => {
                       const value = parseInt(e.target.value) || 0;
-                      console.log('📊 容量輸入變化:', { input: e.target.value, parsed: value });
                       setNewIntakeVolume(value);
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -942,7 +905,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
           title="確認刪除出入量記錄"
           recordType="出入量記錄"
           patientInfo={{
-            name: patient.姓名,
+            name: patient.中文姓名,
             bedNumber: patient.床號,
             patientId: patient.院友id
           }}
