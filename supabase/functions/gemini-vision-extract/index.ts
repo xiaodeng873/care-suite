@@ -91,8 +91,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 使用支援視覺的 Gemini 1.5 Flash 穩定版模型
-    const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${apiKey}`;
+    // 使用支援視覺的 Gemini 模型；可透過環境變數覆寫
+      const model = Deno.env.get("GEMINI_MODEL") || "gemini-1.5-flash";
+    const apiVersion = Deno.env.get("GEMINI_API_VERSION") || "v1";
+    const geminiApiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
 
     const fullPrompt = `${prompt}\n\n請仔細查看圖片中的所有文字和內容，直接返回JSON格式，不要有任何其他文字說明。`;
 
@@ -220,7 +222,7 @@ Deno.serve(async (req: Request) => {
               },
             };
 
-            const classificationApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${apiKey}`;
+            const classificationApiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
 
             // 使用重試機制發送第二次請求（分類文件）
             const classificationResponse = await fetchWithRetry(classificationApiUrl, {
