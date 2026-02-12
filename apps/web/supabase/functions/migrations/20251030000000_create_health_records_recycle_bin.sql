@@ -62,18 +62,15 @@ CREATE INDEX IF NOT EXISTS idx_deleted_health_records_original_id ON deleted_hea
 CREATE INDEX IF NOT EXISTS idx_deleted_health_records_record_date ON deleted_health_records(記錄日期);
 
 -- 设置 RLS 策略
--- 允许已认证用户读取回收筒记录
-CREATE POLICY "允许已认证用户读取回收筒记录" ON deleted_health_records
-  FOR SELECT TO authenticated USING (true);
+-- 允许所有用户操作回收筒（因应用使用自訂認證而非 Supabase Auth）
+CREATE POLICY "允许所有用户读取回收筒记录" ON deleted_health_records
+  FOR SELECT TO anon, authenticated USING (true);
 
--- 允许已认证用户插入回收筒记录（删除操作）
-CREATE POLICY "允许已认证用户插入回收筒记录" ON deleted_health_records
-  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "允许所有用户插入回收筒记录" ON deleted_health_records
+  FOR INSERT TO anon, authenticated WITH CHECK (true);
 
--- 允许已认证用户删除回收筒记录（永久删除或恢复操作）
-CREATE POLICY "允许已认证用户删除回收筒记录" ON deleted_health_records
-  FOR DELETE TO authenticated USING (true);
+CREATE POLICY "允许所有用户删除回收筒记录" ON deleted_health_records
+  FOR DELETE TO anon, authenticated USING (true);
 
--- 允许已认证用户更新回收筒记录
-CREATE POLICY "允许已认证用户更新回收筒记录" ON deleted_health_records
-  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "允许所有用户更新回收筒记录" ON deleted_health_records
+  FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);

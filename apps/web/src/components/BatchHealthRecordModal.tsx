@@ -60,6 +60,17 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
 
     return inHospital;
   };
+  // 檢查當前是否在入院（含住院與外出就醫），用於 UI 禁用提示
+  const checkPatientHospitalized = (patientId: string): boolean => {
+    if (!patientId) return false;
+    const patient = patients.find(p => p.院友id.toString() === patientId.toString());
+    if (!patient) return false;
+    if (patient.is_hospitalized) return true;
+
+    const today = getHongKongDate();
+    const nowTime = getHongKongTime();
+    return isInHospital(patient, today, nowTime, admissionRecords, hospitalEpisodes);
+  };
   
   const [records, setRecords] = useState<BatchRecord[]>([
     {
@@ -120,43 +131,44 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
     const lastRecord = records[records.length - 1];
     let newPatientId = '';
     let newRecordDate = getHongKongDate(); // 預設為當前日期
+    let newRecordTime = recordType === '體重控制' ? '00:00' : getHongKongTime();
+    let newRecorder = '';
 
     if (autoSelectPrevious && lastRecord?.院友id) {
 
       newPatientId = lastRecord.院友id;
       newRecordDate = lastRecord.記錄日期; // 複製上一筆的記錄日期
+      newRecordTime = lastRecord.記錄時間 || newRecordTime;
+      newRecorder = lastRecord.記錄人員 || '';
     } else if (autoSelectNextBed && sortedPatients.length > 0) {
       if (lastRecord?.院友id) {
         // 查找上一筆記錄的院友在 sortedPatients 中的索引
-        const currentIndex = sortedPatients.findIndex(p => p.院友id === lastRecord.院友id);
+        const currentIndex = sortedPatients.findIndex(p => p.院友id.toString() === lastRecord.院友id);
 
         // 如果找到有效索引，選擇下一個院友（循環到第一個）
         if (currentIndex >= 0) {
           const nextIndex = (currentIndex + 1) % sortedPatients.length;
-          newPatientId = sortedPatients[nextIndex].院友id;
-
+          newPatientId = sortedPatients[nextIndex].院友id.toString();
         } else {
-          // 如果未找到（無效院友ID），選擇第一個院友並記錄錯誤
-          newPatientId = sortedPatients[0].院友id;
-
+          // 如果未找到（無效院友ID），選擇第一個院友
+          newPatientId = sortedPatients[0].院友id.toString();
         }
       } else {
         // 如果上一筆記錄沒有院友ID，選擇第一個院友
-        newPatientId = sortedPatients[0].院友id;
-
+        newPatientId = sortedPatients[0].院友id.toString();
       }
-      newRecordDate = lastRecord?.記錄日期 || newRecordDate; // 保留上一筆的記錄日期
-    } else {
-
+      newRecordDate = lastRecord?.記錄日期 || newRecordDate;
+      newRecordTime = lastRecord?.記錄時間 || newRecordTime;
+      newRecorder = lastRecord?.記錄人員 || '';
     }
 
     const newRecord: BatchRecord = {
       id: Date.now().toString(),
       院友id: newPatientId,
       記錄日期: newRecordDate,
-      記錄時間: recordType === '體重控制' ? '00:00' : getHongKongTime(),
+      記錄時間: newRecordTime,
       備註: '',
-      記錄人員: '',
+      記錄人員: newRecorder,
       isAbsent: false
     };
 

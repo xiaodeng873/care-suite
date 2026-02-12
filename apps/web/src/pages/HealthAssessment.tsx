@@ -61,7 +61,7 @@ const HealthAssessment: React.FC = () => {
     findDuplicateHealthRecords,
     batchDeleteDuplicateRecords,
     refreshData,
-    loadFullHealthRecords // [新增]
+    loadFullHealthRecords
   } = usePatients();
   // [新增] 進入頁面時，觸發載入完整歷史記錄
   useEffect(() => {
@@ -75,7 +75,7 @@ const HealthAssessment: React.FC = () => {
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [batchRecordType, setBatchRecordType] = useState<'生命表徵' | '血糖控制' | '體重控制'>('生命表徵');
-  const [debugInfo, setDebugInfo] = useState<any>(null);
+
   const [showDeduplicateModal, setShowDeduplicateModal] = useState(false);
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateRecordGroup[]>([]);
   const [showRecycleBin, setShowRecycleBin] = useState(false);
@@ -139,14 +139,7 @@ const HealthAssessment: React.FC = () => {
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
-  // 強制重新載入數據的函數
-  const debugDataLoading = async () => {
-    try {
-      // 這裡可以加入更多調試邏輯
-    } catch (error) {
-      console.error('調試數據載入失敗:', error);
-    }
-  };
+
   if (loading) {
     return <LoadingScreen pageName="監測記錄" />;
   }
@@ -281,7 +274,7 @@ const HealthAssessment: React.FC = () => {
   const handleDelete = async (id: number) => {
     const record = healthRecords.find(r => r.記錄id === id);
     const patient = patients.find(p => p.院友id === record?.院友id);
-    if (confirm(`確定要刪除 ${patient?.中文姓名} 在 ${record?.記錄日期} ${record?.記錄時間} 的${record?.記錄類型}記錄嗎？`)) {
+    if (confirm(`確定要刪除 ${patient?.中文姓名} 在 ${record?.記錄日期} ${record?.記錄時間} 的${record?.記錄類型}記錄嗎？\n\n刪除後可在回收筒中恢復。`)) {
       try {
         setDeletingIds(prev => new Set(prev).add(id));
         await deleteHealthRecord(id);
@@ -296,6 +289,7 @@ const HealthAssessment: React.FC = () => {
           return newSet;
         });
       } catch (error) {
+        console.error('刪除記錄失敗:', error);
         alert('刪除記錄失敗，請重試');
       } finally {
         setDeletingIds(prev => {
@@ -311,7 +305,7 @@ const HealthAssessment: React.FC = () => {
       alert('請先選擇要刪除的記錄');
       return;
     }
-    const confirmMessage = `確定要刪除 ${selectedRows.size} 筆監測記錄嗎？\n\n此操作無法復原。`;
+    const confirmMessage = `確定要刪除 ${selectedRows.size} 筆監測記錄嗎？\n\n刪除後可在回收筒中恢復。`;
     if (!confirm(confirmMessage)) {
       return;
     }
@@ -714,6 +708,7 @@ const HealthAssessment: React.FC = () => {
               <Plus className="h-4 w-4" />
               <span>新增記錄</span>
             </button>
+
           </div>
         </div>
       </div>
@@ -1208,37 +1203,7 @@ const HealthAssessment: React.FC = () => {
           onClose={() => setShowRecycleBin(false)}
         />
       )}
-      <button
-        onClick={debugDataLoading}
-        className="btn-secondary flex items-center space-x-2"
-      >
-        <Activity className="h-4 w-4" />
-        <span>調試數據載入</span>
-      </button>
-      {debugInfo && (
-        <div className="card p-4 bg-yellow-50 border border-yellow-200">
-          <h3 className="text-lg font-medium text-yellow-900 mb-3">調試信息</h3>
-          <div className="space-y-2 text-sm">
-            <div>體重控制記錄數量: <strong>{debugInfo.weightRecords}</strong></div>
-            <div>資料庫中的記錄類型: <strong>{debugInfo.allTypes.join(', ')}</strong></div>
-            <div>有體重數值的記錄數量: <strong>{debugInfo.weightData}</strong></div>
-            {debugInfo.weightDataSample.length > 0 && (
-              <div>
-                <div>體重數據範例:</div>
-                <pre className="bg-white p-2 rounded text-xs overflow-x-auto">
-                  {JSON.stringify(debugInfo.weightDataSample, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
-          <button
-            onClick={() => setDebugInfo(null)}
-            className="mt-3 text-yellow-600 hover:text-yellow-700 text-sm"
-          >
-            關閉調試信息
-          </button>
-        </div>
-      )}
+
     </div>
   );
 };

@@ -1209,6 +1209,11 @@ export const updateHealthRecord = async (record: HealthRecord): Promise<HealthRe
   if (error) { console.error('Error updating health record:', error); throw error; }
   return record;
 };
+export const getHealthRecordById = async (recordId: number): Promise<HealthRecord | null> => {
+  const { data, error } = await supabase.from('健康記錄主表').select('*').eq('記錄id', recordId).maybeSingle();
+  if (error) { console.error('Error fetching health record:', error); throw error; }
+  return data || null;
+};
 export const deleteHealthRecord = async (recordId: number): Promise<void> => {
   const { error } = await supabase.from('健康記錄主表').delete().eq('記錄id', recordId);
   if (error) { console.error('Error deleting health record:', error); throw error; }
@@ -1267,7 +1272,7 @@ export const getRecentHealthRecordsByPatient = async (
     console.error('[getRecentHealthRecordsByPatient] 查詢錯誤:', error);
     throw error;
   }
-  console.log('[getRecentHealthRecordsByPatient] 查詢結果 (未過濾):', data?.length, '筆');
+
   // 在客戶端過濾掉「無法量度」的記錄
   const filtered = (data as HealthRecord[])?.filter(record => {
     const hasUnmeasurable = record.備註?.includes('無法量度');
@@ -2393,9 +2398,7 @@ export const getIntakeOutputRecords = async (): Promise<IntakeOutputRecord[]> =>
       .select('*')
       .eq('record_id', record.id)
       .order('created_at', { ascending: true });
-    if (intakeItems && intakeItems.length > 0) {
-      console.log('🔍 從數據庫讀取的 intake_items:', intakeItems);
-    }
+
     const { data: outputItems, error: outputError } = await supabase
       .from('output_items')
       .select('*')
@@ -2544,13 +2547,16 @@ export const downloadTemplateFile = async (storagePath: string, originalName: st
   URL.revokeObjectURL(url);
 };
 // Recycle bin functions
-export const moveHealthRecordToRecycleBin = async (record: HealthRecord, deletedBy?: string, deletionReason: string = '记录去重'): Promise<void> => {
-  const { error: insertError } = await supabase.from('deleted_health_records').insert({
+export const moveHealthRecordToRecycleBin = async (record: HealthRecord, deletedBy?: string, deletionReason: string = '使用者刪除'): Promise<void> => {
+  const safeRecordTime = record.記錄時間 && record.記錄時間.trim() !== '' ? record.記錄時間 : '00:00';
+  const safeRecordType = record.記錄類型 || '生命表徵';
+
+  const { data, error: insertError } = await supabase.from('deleted_health_records').insert({
     original_record_id: record.記錄id,
     院友id: record.院友id,
     記錄日期: record.記錄日期,
-    記錄時間: record.記錄時間,
-    記錄類型: record.記錄類型,
+    記錄時間: safeRecordTime,
+    記錄類型: safeRecordType,
     血壓收縮壓: record.血壓收縮壓,
     血壓舒張壓: record.血壓舒張壓,
     脈搏: record.脈搏,
@@ -2564,8 +2570,18 @@ export const moveHealthRecordToRecycleBin = async (record: HealthRecord, deleted
     created_at: record.created_at,
     deleted_by: deletedBy,
     deletion_reason: deletionReason
-  });
-  if (insertError) console.warn('Recycle bin error:', insertError);
+  }).select('id');
+
+  if (insertError) {
+    console.error('回收筒插入失敗:', insertError);
+    throw new Error(`回收筒插入失敗: ${insertError.message}`);
+  }
+
+  // PostgREST 在 RLS 阻止時不報錯但不插入，必須驗證
+  if (!data || data.length === 0) {
+    throw new Error('回收筒插入被拒絕（RLS 權限問題），已中止刪除以保護數據');
+  }
+
   const { error: deleteError } = await supabase.from('健康記錄主表').delete().eq('記錄id', record.記錄id);
   if (deleteError) throw deleteError;
 };
@@ -2602,14 +2618,14 @@ export const permanentlyDeleteHealthRecord = async (deletedRecordId: string): Pr
   if (error) throw error;
 };
 export const findDuplicateHealthRecords = async (): Promise<DuplicateRecordGroup[]> => {
-  let records: any[] = [];
-  const { data, error } = await supabase.from('健康記錄主表').select('*').order('created_at', { ascending: false }).limit(1000);
-  if (error) {
-    if (error.code === '42703') {
-      const result2 = await supabase.from('健康記錄主表').select('*').order('記錄id', { ascending: false }).limit(1000);
-      records = result2.data || [];
-    } else throw error;
-  } else records = data || [];
+  // 部分環境缺少 created_at 欄位，直接改用 記錄id 排序避免 400 錯誤
+  const { data, error } = await supabase
+    .from('健康記錄主表')
+    .select('*')
+    .order('記錄id', { ascending: false })
+    .limit(1000);
+  if (error) throw error;
+  const records = data || [];
   const recordGroups = new Map<string, HealthRecord[]>();
   records.forEach((record) => {
     const key = `${record.院友id}_${record.記錄日期}_${record.記錄時間}`;
