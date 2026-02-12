@@ -465,13 +465,13 @@ const HealthAssessment: React.FC = () => {
     try {
       const groups = await findDuplicateHealthRecords();
       if (groups.length === 0) {
-        alert('未发现重复记录');
+        alert('未發現重複記錄');
         return;
       }
       setDuplicateGroups(groups);
       setShowDeduplicateModal(true);
     } catch (error) {
-      alert('分析重复记录失败，请重试');
+      alert('分析重複記錄失敗，請重試');
     } finally {
       setIsAnalyzingDuplicates(false);
     }
@@ -479,7 +479,7 @@ const HealthAssessment: React.FC = () => {
   const handleConfirmDeduplicate = async (recordIds: number[]) => {
     try {
       await batchDeleteDuplicateRecords(recordIds);
-      alert(`成功删除 ${recordIds.length} 条重复记录！`);
+      alert(`成功刪除 ${recordIds.length} 筆重複記錄！`);
       if (refreshData) await refreshData();
     } catch (error) {
       console.error('Error deleting duplicates:', error);

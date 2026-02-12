@@ -48,7 +48,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
     if (record.血含氧量) values.push(`血氧: ${record.血含氧量}%`);
     if (record.血糖值) values.push(`血糖: ${record.血糖值} mmol/L`);
     if (record.體重) values.push(`體重: ${record.體重} kg`);
-    return values.length > 0 ? values.join(', ') : '无数值';
+    return values.length > 0 ? values.join(', ') : '無數值';
   };
 
   const filteredRecords = deletedHealthRecords.filter(record => {
@@ -88,11 +88,11 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
     setIsRestoring(true);
     try {
       await restoreHealthRecord(recordId);
-      setSelectedRecords(new Set()); // 清空选择
-      alert('恢复成功！');
+      setSelectedRecords(new Set());
+      alert('恢復成功！');
     } catch (error) {
       console.error('Error restoring record:', error);
-      alert('恢复失败，请重试');
+      alert('恢復失敗，請重試');
     } finally {
       setIsRestoring(false);
     }
@@ -101,7 +101,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
   const handleBatchRestore = async () => {
     if (selectedRecords.size === 0) return;
 
-    if (!confirm(`确定要恢复选中的 ${selectedRecords.size} 条记录吗？`)) {
+    if (!confirm(`確定要恢復選中的 ${selectedRecords.size} 筆記錄嗎？`)) {
       return;
     }
 
@@ -111,28 +111,28 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
         await restoreHealthRecord(recordId);
       }
       setSelectedRecords(new Set());
-      alert(`成功恢复 ${selectedRecords.size} 条记录！`);
+      alert(`成功恢復 ${selectedRecords.size} 筆記錄！`);
     } catch (error) {
       console.error('Error batch restoring records:', error);
-      alert('批量恢复失败，请重试');
+      alert('批量恢復失敗，請重試');
     } finally {
       setIsRestoring(false);
     }
   };
 
   const handlePermanentDelete = async (recordId: string) => {
-    if (!confirm('确定要永久删除这条记录吗？此操作无法撤销！')) {
+    if (!confirm('確定要永久刪除這筆記錄嗎？此操作無法撤銷！')) {
       return;
     }
 
     setIsDeleting(true);
     try {
       await permanentlyDeleteHealthRecord(recordId);
-      setSelectedRecords(new Set()); // 清空选择
-      alert('永久删除成功！');
+      setSelectedRecords(new Set());
+      alert('永久刪除成功！');
     } catch (error) {
       console.error('Error permanently deleting record:', error);
-      alert('永久删除失败，请重试');
+      alert('永久刪除失敗，請重試');
     } finally {
       setIsDeleting(false);
     }
@@ -143,7 +143,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
 
     if (
       !confirm(
-        `确定要永久删除选中的 ${selectedRecords.size} 条记录吗？\n\n此操作无法撤销！`
+        `確定要永久刪除選中的 ${selectedRecords.size} 筆記錄嗎？\n\n此操作無法撤銷！`
       )
     ) {
       return;
@@ -155,10 +155,10 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
         await permanentlyDeleteHealthRecord(recordId);
       }
       setSelectedRecords(new Set());
-      alert(`成功永久删除 ${selectedRecords.size} 条记录！`);
+      alert(`成功永久刪除 ${selectedRecords.size} 筆記錄！`);
     } catch (error) {
       console.error('Error batch permanently deleting records:', error);
-      alert('批量永久删除失败，请重试');
+      alert('批量永久刪除失敗，請重試');
     } finally {
       setIsDeleting(false);
     }
@@ -176,7 +176,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
               <div>
                 <h2 className="text-xl font-bold text-gray-900">回收筒</h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  共 {deletedHealthRecords.length} 条已删除记录
+                  共 {deletedHealthRecords.length} 筆已刪除記錄
                 </p>
               </div>
             </div>
@@ -195,7 +195,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="搜索院友姓名、床号、记录类型或删除原因..."
+                placeholder="搜尋院友姓名、床號、記錄類型或刪除原因..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="form-input pl-10 w-full"
@@ -206,7 +206,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                 onClick={handleSelectAll}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap"
               >
-                {selectedRecords.size === filteredRecords.length ? '取消全选' : '全选'}
+                {selectedRecords.size === filteredRecords.length ? '取消全選' : '全選'}
               </button>
               {selectedRecords.size > 0 && (
                 <>
@@ -217,7 +217,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                     className="text-sm text-green-600 hover:text-green-700 font-medium whitespace-nowrap flex items-center space-x-1"
                   >
                     <RotateCcw className="h-3 w-3" />
-                    <span>批量恢复 ({selectedRecords.size})</span>
+                    <span>批量恢復 ({selectedRecords.size})</span>
                   </button>
                   <span className="text-gray-300">|</span>
                   <button
@@ -226,7 +226,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                     className="text-sm text-red-600 hover:text-red-700 font-medium whitespace-nowrap flex items-center space-x-1"
                   >
                     <Trash2 className="h-3 w-3" />
-                    <span>批量永久删除 ({selectedRecords.size})</span>
+                    <span>批量永久刪除 ({selectedRecords.size})</span>
                   </button>
                 </>
               )}
@@ -239,21 +239,21 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">加载中...</p>
+                <p className="text-gray-600">載入中...</p>
               </div>
             </div>
           ) : filteredRecords.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Trash2 className="h-16 w-16 text-gray-300 mb-4" />
               <p className="text-gray-600 text-lg">
-                {searchTerm ? '没有找到匹配的记录' : '回收筒为空'}
+                {searchTerm ? '沒有找到匹配的記錄' : '回收筒為空'}
               </p>
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm('')}
                   className="mt-4 text-blue-600 hover:text-blue-700 text-sm"
                 >
-                  清除搜索
+                  清除搜尋
                 </button>
               )}
             </div>
@@ -300,7 +300,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                               onClick={() => handleRestore(record.id)}
                               disabled={isRestoring}
                               className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50"
-                              title="恢复"
+                              title="恢復"
                             >
                               <RotateCcw className="h-4 w-4" />
                             </button>
@@ -308,7 +308,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                               onClick={() => handlePermanentDelete(record.id)}
                               disabled={isDeleting}
                               className="text-red-600 hover:text-red-700 p-1 rounded hover:bg-red-50"
-                              title="永久删除"
+                              title="永久刪除"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -318,25 +318,25 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                         <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-2">
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-3 w-3 text-gray-400" />
-                            <span>记录日期: {new Date(record.記錄日期).toLocaleDateString('zh-TW')}</span>
+                            <span>記錄日期: {new Date(record.記錄日期).toLocaleDateString('zh-TW')}</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Activity className="h-3 w-3 text-gray-400" />
-                            <span>记录时间: {record.記錄時間}</span>
+                            <span>記錄時間: {record.記錄時間}</span>
                           </div>
                         </div>
 
                         <div className="text-sm text-gray-700 mb-2">
-                          <span className="font-medium">数值: </span>
+                          <span className="font-medium">數值: </span>
                           {formatRecordValues(record)}
                         </div>
 
                         <div className="text-xs text-gray-500 space-y-1">
-                          <div>删除原因: {record.deletion_reason}</div>
+                          <div>刪除原因: {record.deletion_reason}</div>
                           <div>
-                            删除时间: {new Date(record.deleted_at).toLocaleString('zh-TW')}
+                            刪除時間: {new Date(record.deleted_at).toLocaleString('zh-TW')}
                           </div>
-                          {record.deleted_by && <div>删除人: {record.deleted_by}</div>}
+                          {record.deleted_by && <div>刪除人: {record.deleted_by}</div>}
                         </div>
                       </div>
                     </div>
@@ -351,10 +351,10 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 text-sm text-yellow-700 bg-yellow-50 px-3 py-2 rounded">
               <AlertTriangle className="h-4 w-4" />
-              <span>永久删除的记录无法恢复，请谨慎操作</span>
+              <span>永久刪除的記錄無法恢復，請謹慎操作</span>
             </div>
             <button onClick={onClose} className="btn-secondary">
-              关闭
+              關閉
             </button>
           </div>
         </div>

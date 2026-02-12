@@ -644,13 +644,25 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
 
   const deleteHealthRecord = useCallback(async (id: number): Promise<void> => {
     try {
-      await db.deleteHealthRecord(id);
+      // 從本地狀態或資料庫取得完整記錄
+      let record = healthRecords.find(r => r.記錄id === id) || null;
+      if (!record) {
+        record = await db.getHealthRecordById(id);
+      }
+
+      if (record) {
+        // 先移到回收筒，再從主表刪除
+        await db.moveHealthRecordToRecycleBin(record, undefined, '使用者刪除');
+      } else {
+        // 找不到記錄，直接刪除
+        await db.deleteHealthRecord(id);
+      }
       setHealthRecords(prev => prev.filter(r => r.記錄id !== id));
     } catch (error) {
       console.error('Error deleting health record:', error);
       throw error;
     }
-  }, []);
+  }, [healthRecords]);
 
   const fetchDeletedHealthRecords = useCallback(async (): Promise<void> => {
     try {

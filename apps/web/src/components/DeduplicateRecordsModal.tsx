@@ -65,7 +65,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
   const handleConfirm = async () => {
     setIsDeleting(true);
     try {
-      // 收集所有要删除的记录ID
+      // 收集所有要刪除的記錄ID
       const recordIds: number[] = [];
       duplicateGroups.forEach(group => {
         if (selectedGroups.has(group.key)) {
@@ -79,7 +79,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Error deleting duplicate records:', error);
-      alert('删除重复记录失败，请重试');
+      alert('刪除重複記錄失敗，請重試');
     } finally {
       setIsDeleting(false);
     }
@@ -100,9 +100,9 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                 <AlertTriangle className="h-6 w-6 text-yellow-600" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">去重确认</h2>
+                <h2 className="text-xl font-bold text-gray-900">去重確認</h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  发现 {duplicateGroups.length} 组重复记录，共 {totalDuplicates} 条重复数据
+                  發現 {duplicateGroups.length} 組重複記錄，共 {totalDuplicates} 筆重複數據
                 </p>
               </div>
             </div>
@@ -122,10 +122,10 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
               <AlertTriangle className="h-5 w-5 text-blue-600" />
               <div>
                 <p className="text-sm font-medium text-blue-900">
-                  以下记录将被移至回收筒（可恢复）
+                  以下記錄將被移至回收筒（可恢復）
                 </p>
                 <p className="text-xs text-blue-700 mt-1">
-                  每组中创建时间最早的记录将被保留，其余记录将被删除
+                  每組中建立時間最早的記錄將被保留，其餘記錄將被刪除
                 </p>
               </div>
             </div>
@@ -134,14 +134,14 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                 onClick={selectAll}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
-                全选
+                全選
               </button>
               <span className="text-gray-300">|</span>
               <button
                 onClick={deselectAll}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
-                取消全选
+                取消全選
               </button>
             </div>
           </div>
@@ -205,7 +205,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                         </div>
                         <div className="text-right">
                           <div className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded">
-                            {group.duplicateRecords.length} 条重复
+                            {group.duplicateRecords.length} 筆重複
                           </div>
                         </div>
                       </div>
@@ -218,10 +218,10 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                         <div className="flex items-center space-x-2 text-sm">
                           <div className="w-24 text-green-700 font-medium">✓ 保留:</div>
                           <div className="text-gray-600">
-                            记录 #{group.keepRecord.記錄id} (创建于{' '}
+                            記錄 #{group.keepRecord.記錄id} (建立於{' '}
                             {group.keepRecord.created_at
                               ? new Date(group.keepRecord.created_at).toLocaleString('zh-TW')
-                              : '未知时间'}
+                              : '未知時間'}
                             )
                           </div>
                         </div>
@@ -229,13 +229,13 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                           <div key={record.記錄id} className="flex items-center space-x-2 text-sm">
                             <div className="w-24 text-red-700 font-medium flex items-center">
                               <Trash2 className="h-3 w-3 mr-1" />
-                              删除:
+                              刪除:
                             </div>
                             <div className="text-gray-600">
-                              记录 #{record.記錄id} (创建于{' '}
+                              記錄 #{record.記錄id} (建立於{' '}
                               {record.created_at
                                 ? new Date(record.created_at).toLocaleString('zh-TW')
-                                : '未知时间'}
+                                : '未知時間'}
                               )
                             </div>
                           </div>
@@ -252,7 +252,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
         <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 rounded-b-lg">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              已选择 <span className="font-medium text-gray-900">{selectedDuplicates}</span> 条重复记录将被删除
+              已選擇 <span className="font-medium text-gray-900">{selectedDuplicates}</span> 筆重複記錄將被刪除
             </div>
             <div className="flex space-x-3">
               <button
@@ -270,12 +270,12 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                 {isDeleting ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>删除中...</span>
+                    <span>刪除中...</span>
                   </>
                 ) : (
                   <>
                     <Trash2 className="h-4 w-4" />
-                    <span>确认删除 ({selectedDuplicates})</span>
+                    <span>確認刪除 ({selectedDuplicates})</span>
                   </>
                 )}
               </button>
