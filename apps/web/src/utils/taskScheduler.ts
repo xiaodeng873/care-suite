@@ -472,7 +472,7 @@ export function formatFrequencyDescription(task: PatientHealthTask): string {
   const { frequency_unit, frequency_value, specific_days_of_week, specific_days_of_month } = task;
   switch (frequency_unit) {
     case 'daily':
-      return frequency_value === 1 ? '每日' : `每 ${frequency_value} 天`;
+      return frequency_value === 1 ? '每日 1 次' : `每 ${frequency_value} 日 1 次`;
     case 'weekly':
       if (specific_days_of_week && specific_days_of_week.length > 0 && !isDocumentTask(task.health_record_type)) {
         const dayNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
@@ -482,15 +482,15 @@ export function formatFrequencyDescription(task: PatientHealthTask): string {
         }).filter(Boolean).join(', ');
         return frequency_value === 1 ? `每週 ${days}` : `每 ${frequency_value} 週 ${days}`;
       }
-      return frequency_value === 1 ? '每週' : `每 ${frequency_value} 週`;
+      return frequency_value === 1 ? '每週 1 次' : `每 ${frequency_value} 週 1 次`;
     case 'monthly':
       if (specific_days_of_month && specific_days_of_month.length > 0 && !isDocumentTask(task.health_record_type)) {
         const dates = specific_days_of_month.join(', ');
         return frequency_value === 1 ? `每月 ${dates} 號` : `每 ${frequency_value} 個月 ${dates} 號`;
       }
-      return frequency_value === 1 ? '每月' : `每 ${frequency_value} 個月`;
+      return frequency_value === 1 ? '每月 1 次' : `每 ${frequency_value} 個月 1 次`;
     case 'yearly':
-      return frequency_value === 1 ? '每年' : `每 ${frequency_value} 年`;
+      return frequency_value === 1 ? '每年 1 次' : `每 ${frequency_value} 年 1 次`;
     default:
       return '未知頻率';
   }

@@ -311,7 +311,7 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
     setAssessmentLoading(true);
     try {
       const [healthAssessmentsData, patientRestraintAssessmentsData, annualHealthCheckupsData] = await Promise.all([
-        db.getHealthAssessments(), db.getRestraintAssessments(), db.getAnnualHealthCheckups()
+        db.getHealthAssessments('all'), db.getRestraintAssessments(), db.getAnnualHealthCheckups()
       ]);
       setHealthAssessments(healthAssessmentsData);
       setPatientRestraintAssessments(patientRestraintAssessmentsData);

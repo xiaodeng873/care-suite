@@ -65,7 +65,7 @@ const HealthAssessments: React.FC = () => {
     startDate: '',
     endDate: '',
     在住狀態: '在住',
-    記錄狀態: '生效中'
+    記錄狀態: ''
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
@@ -238,6 +238,17 @@ const HealthAssessments: React.FC = () => {
       groupedAssessments.push(group);
     }
     patientMap.get(assessment.patient_id)!.assessments.push(assessment);
+  });
+
+  // 對每個患者組內的評估記錄進行排序：active 置頂，archived 按評估日期降序
+  groupedAssessments.forEach(group => {
+    group.assessments.sort((a, b) => {
+      // active 記錄優先
+      if (a.status === 'active' && b.status !== 'active') return -1;
+      if (a.status !== 'active' && b.status === 'active') return 1;
+      // 都是 active 或都是 archived，按評估日期降序
+      return new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime();
+    });
   });
 
   // 切換院友的展開/收合狀態
@@ -733,10 +744,7 @@ const HealthAssessments: React.FC = () => {
                   </th>
                   <SortableHeader field="assessor">評估人員</SortableHeader>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    到期狀態
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    記錄狀態
+                    狀態
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     操作
@@ -746,7 +754,7 @@ const HealthAssessments: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedGroups.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-12 text-center text-gray-500">
+                    <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
                       <Heart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                       <p className="text-lg font-medium">暫無健康評估</p>
                       <p className="text-sm mt-1">點擊「新增健康評估」開始建立</p>
@@ -843,6 +851,23 @@ const HealthAssessments: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {(() => {
+                            // 已歸檔記錄不顯示到期狀態
+                            if (assessment.status === 'archived') {
+                              return (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                  已歸檔
+                                </span>
+                              );
+                            }
+                            // 沒有設定下次評估日期
+                            if (!assessment.next_due_date) {
+                              return (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  未設定到期日
+                                </span>
+                              );
+                            }
                             if (isHealthAssessmentOverdue(assessment)) {
                               return (
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -866,15 +891,6 @@ const HealthAssessments: React.FC = () => {
                               );
                             }
                           })()}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            assessment.status === 'active'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {assessment.status === 'active' ? '生效中' : '已歸檔'}
-                          </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center space-x-2">

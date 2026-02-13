@@ -4,6 +4,7 @@ import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import MonthlyReportTable from '../components/MonthlyReportTable';
 import PatientListModal from '../components/PatientListModal';
+import { formatFrequencyDescription } from '../utils/taskScheduler';
 
 type ReportTab = 'daily' | 'monthly' | 'infection' | 'meal' | 'tube' | 'special' | 'drugSensitivity';
 type TimeFilter = 'today' | 'yesterday' | 'thisMonth' | 'lastMonth';
@@ -1545,9 +1546,7 @@ const Reports: React.FC = () => {
                             <div key={task.id} className="bg-white p-2 rounded border border-red-200">
                               <p className="text-sm">
                                 <span className="font-medium text-red-700">監測頻率:</span>{' '}
-                                {task.frequency_unit === 'hourly' && `每 ${task.frequency_value} 小時`}
-                                {task.frequency_unit === 'daily' && `每日 ${task.frequency_value} 次`}
-                                {task.frequency_unit === 'weekly' && `每週 ${task.frequency_value} 次`}
+                                {task.frequency_unit === 'hourly' ? `每 ${task.frequency_value} 小時 1 次` : formatFrequencyDescription(task)}
                               </p>
                               {task.specific_times && Array.isArray(task.specific_times) && task.specific_times.length > 0 && (
                                 <p className="text-sm text-gray-600">

@@ -1379,9 +1379,9 @@ export const deleteRestraintAssessment = async (assessmentId: string): Promise<v
   const { error } = await supabase.from('patient_restraint_assessments').delete().eq('id', assessmentId);
   if (error) throw error;
 };
-export const getHealthAssessments = async (statusFilter?: 'active' | 'archived' | 'all'): Promise<HealthAssessment[]> => {
+export const getHealthAssessments = async (statusFilter: 'active' | 'archived' | 'all' = 'active'): Promise<HealthAssessment[]> => {
   let query = supabase.from('health_assessments').select('*');
-  if (statusFilter && statusFilter !== 'all') {
+  if (statusFilter !== 'all') {
     query = query.eq('status', statusFilter);
   }
   const { data, error } = await query.order('assessment_date', { ascending: false });
@@ -1717,9 +1717,9 @@ export const getWoundsNeedingAssessment = async (): Promise<Wound[]> => {
 // ============================================
 // 傷口評估記錄 CRUD 操作（更新版）
 // ============================================
-export const getWoundAssessments = async (statusFilter?: 'active' | 'archived' | 'all'): Promise<WoundAssessment[]> => {
+export const getWoundAssessments = async (statusFilter: 'active' | 'archived' | 'all' = 'active'): Promise<WoundAssessment[]> => {
   let query = supabase.from('wound_assessments').select('*');
-  if (statusFilter && statusFilter !== 'all') {
+  if (statusFilter !== 'all') {
     query = query.eq('status', statusFilter);
   }
   const { data, error } = await query.order('assessment_date', { ascending: false });

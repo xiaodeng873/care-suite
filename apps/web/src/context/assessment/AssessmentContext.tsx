@@ -51,7 +51,7 @@ export const AssessmentProvider: React.FC<AssessmentProviderProps> = ({ children
         patientRestraintAssessmentsData,
         annualHealthCheckupsData
       ] = await Promise.all([
-        db.getHealthAssessments(),
+        db.getHealthAssessments('all'),
         db.getRestraintAssessments(),
         db.getAnnualHealthCheckups()
       ]);
