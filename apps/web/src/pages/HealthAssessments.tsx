@@ -16,7 +16,8 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle,
-  Copy
+  Copy,
+  Printer
 } from 'lucide-react';
 import { usePatients, type HealthAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -25,6 +26,7 @@ import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { isHealthAssessmentOverdue, isHealthAssessmentDueSoon } from '../utils/taskScheduler';
 import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { printHealthAssessment } from '../utils/healthAssessmentPrintGenerator';
 
 type SortField = '院友姓名' | 'assessment_date' | 'assessor' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -900,6 +902,16 @@ const HealthAssessments: React.FC = () => {
                               title="編輯"
                             >
                               <Edit3 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                const p = patients.find(pt => pt.院友id === assessment.patient_id);
+                                if (p) printHealthAssessment(assessment, p);
+                              }}
+                              className="text-purple-600 hover:text-purple-900"
+                              title="列印"
+                            >
+                              <Printer className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleSaveAs(assessment)}

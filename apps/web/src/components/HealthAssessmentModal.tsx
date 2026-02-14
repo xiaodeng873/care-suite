@@ -4,6 +4,22 @@ import { usePatients, type HealthAssessment } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 
+/** Parse a TEXT column that may contain a JSON array, '、'-delimited string, or already be an array */
+function parseTextToArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string' && value) {
+    const trimmed = value.trim();
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map(String);
+      } catch { /* fall through */ }
+    }
+    return trimmed.split('、').filter(Boolean);
+  }
+  return [];
+}
+
 interface HealthAssessmentModalProps {
   assessment?: HealthAssessment | null;
   onClose: () => void;
@@ -191,12 +207,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
           toilet_training: false
         },
         treatment_items: Array.isArray(assessment.treatment_items) ? assessment.treatment_items : [],
-        emotional_expression: Array.isArray(assessment.emotional_expression) ? assessment.emotional_expression : [],
-        behavior_expression: Array.isArray(assessment.behavior_expression)
-          ? assessment.behavior_expression
-          : (typeof assessment.behavior_expression === 'string' && assessment.behavior_expression
-              ? assessment.behavior_expression.split('、').filter(Boolean)
-              : []),
+        emotional_expression: parseTextToArray(assessment.emotional_expression),
+        behavior_expression: parseTextToArray(assessment.behavior_expression),
         emotional_other: assessment.emotional_other || '',
         remarks: assessment.remarks || '',
         assessment_date: assessment.assessment_date || getDefaultAssessmentDate(healthAssessments, selectedPatientId),
@@ -270,6 +282,9 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
       const assessmentData = {
         patient_id: selectedPatientId,
         ...formData,
+        emotional_expression: Array.isArray(formData.emotional_expression)
+          ? (formData.emotional_expression.length > 0 ? formData.emotional_expression.join('、') : '')
+          : (formData.emotional_expression || ''),
         behavior_expression: Array.isArray(formData.behavior_expression)
           ? (formData.behavior_expression.length > 0 ? formData.behavior_expression.join('、') : '')
           : (formData.behavior_expression || ''),
@@ -519,9 +534,9 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
               
               {/* 最高活動能力已移除 */}
 
-              {/* b. 肢體活動 */}
+              {/* a. 肢體活動 */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">b. 肢體活動</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">a. 肢體活動</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs text-gray-600 mb-1">左側</label>
@@ -558,16 +573,16 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                 </div>
               </div>
 
-              {/* c-i. 各項自理能力 */}
+              {/* b-h. 各項自理能力 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { key: 'eating', label: 'c. 飲食' },
-                  { key: 'dressing', label: 'd. 穿衣' },
-                  { key: 'grooming', label: 'e. 梳洗' },
-                  { key: 'walking', label: 'f. 步行' },
-                  { key: 'bed_transfer', label: 'g. 上落床' },
-                  { key: 'bathing', label: 'h. 沐浴' },
-                  { key: 'toileting', label: 'i. 如廁' }
+                  { key: 'eating', label: 'b. 飲食' },
+                  { key: 'dressing', label: 'c. 穿衣' },
+                  { key: 'grooming', label: 'd. 梳洗' },
+                  { key: 'walking', label: 'e. 步行' },
+                  { key: 'bed_transfer', label: 'f. 上落床' },
+                  { key: 'bathing', label: 'g. 沐浴' },
+                  { key: 'toileting', label: 'h. 如廁' }
                 ].map(({ key, label }) => (
                   <div key={key} className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">{label}</label>
