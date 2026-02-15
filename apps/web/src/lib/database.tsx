@@ -2517,13 +2517,24 @@ export const getTemplatesMetadata = async () => {
   return data || [];
 };
 export const uploadTemplateFile = async (file: File, storagePath: string): Promise<string> => {
+  console.log('[Step 2] 開始上傳到 Storage, path:', storagePath, ', size:', file.size, ', type:', file.type);
   const { data, error } = await supabase.storage.from('templates').upload(storagePath, file, { cacheControl: '3600', upsert: false });
-  if (error) throw error;
+  if (error) {
+    console.error('[Step 2] Storage 上傳失敗:', JSON.stringify(error, null, 2));
+    throw new Error(`[Storage上傳] ${error.message}`);
+  }
+  console.log('[Step 2] Storage 上傳成功:', data.path);
   return data.path;
 };
 export const createTemplateMetadata = async (metadata: any) => {
+  const formatSize = JSON.stringify(metadata.extracted_format || {}).length;
+  console.log('[Step 3] 開始寫入 Metadata, type:', metadata.type, ', extracted_format size:', formatSize, 'bytes');
   const { data, error } = await supabase.from('templates_metadata').insert([metadata]).select().single();
-  if (error) throw error;
+  if (error) {
+    console.error('[Step 3] Metadata 寫入失敗:', JSON.stringify(error, null, 2));
+    throw new Error(`[Metadata寫入] ${error.message}`);
+  }
+  console.log('[Step 3] Metadata 寫入成功, id:', data.id);
   return data;
 };
 export const deleteTemplateMetadata = async (templateId: number): Promise<void> => {

@@ -495,10 +495,10 @@ const applyMedicationRecordTemplate = async (
         base64: base64,
         extension: extension
       });
-      // 將圖片插入到H32單元格，使用 tl + br 座標方式填滿單元格
+      // 將圖片插入到J32至K37區域，內縮少許避免遮掩框線
       worksheet.addImage(imageId, {
-        tl: { col: 7, row: 31 }, // H32 的左上角 (列索引從0開始，所以H=7, 32行=31)
-        br: { col: 8, row: 32 }  // H32 的右下角 (填滿整個單元格)
+        tl: { col: 9.05, row: 31.05 },  // J32 左上角略微內縮 (J=9)
+        br: { col: 11, row: 36.95 }     // K37 右下角 (K列末尾=11)
       });
     } catch (error) {
       console.error('插入患者相片失敗:', error);

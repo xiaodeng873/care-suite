@@ -175,6 +175,7 @@ const TemplateManagement: React.FC = () => {
       }
       // Step 2: Upload file to storage
       setUploadProgress({ [uploadId]: 40 });
+
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const sanitizedFilename = sanitizeFilename(file.name);
       const storagePath = `${selectedType}/${timestamp}_${sanitizedFilename}`;
@@ -206,17 +207,26 @@ const TemplateManagement: React.FC = () => {
       console.error('上傳範本失敗:', error);
       let errorMessage = '上傳範本失敗：';
       if (error instanceof Error) {
-        if (error.message.includes('Bucket not found')) {
-          errorMessage += '\n\n請先在 Supabase Dashboard 中建立 "templates" 儲存桶。\n\n詳細設定說明請參考 SUPABASE_SETUP_INSTRUCTIONS.md 檔案。';
-        } else if (error.message.includes('row-level security policy')) {
-          errorMessage += '\n\n權限設定問題。請檢查 Supabase 的 Row Level Security 設定。\n\n詳細設定說明請參考 SUPABASE_SETUP_INSTRUCTIONS.md 檔案。';
-        } else if (error.message.includes('缺少') && error.message.includes('工作表')) {
-          errorMessage += '\n\n' + error.message;
+        const msg = error.message;
+        if (msg.includes('Bucket not found')) {
+          errorMessage += '\n\nStorage Bucket "templates" 不存在。\n請到 Supabase Dashboard → Storage 建立名為 "templates" 的 bucket（設為 public）。';
+        } else if (msg.includes('row-level security policy') || msg.includes('security') || msg.includes('violates')) {
+          // 顯示是 Storage 還是 Metadata 階段的錯誤
+          const step = msg.includes('[Storage上傳]') ? 'Storage 上傳' : msg.includes('[Metadata寫入]') ? 'Metadata 寫入' : '未知步驟';
+          errorMessage += `\n\n${step}時遇到 RLS 權限問題。`;
+          errorMessage += '\n\n請到 Supabase Dashboard → SQL Editor 執行以下指令：';
+          errorMessage += '\n\n-- 檢查 storage policies';
+          errorMessage += '\nSELECT policyname, cmd, qual, with_check FROM pg_policies WHERE tablename = \x27objects\x27 AND schemaname = \x27storage\x27;';
+          errorMessage += '\n\n-- 檢查 templates_metadata policies';
+          errorMessage += '\nSELECT policyname, cmd, qual, with_check FROM pg_policies WHERE tablename = \x27templates_metadata\x27;';
+          errorMessage += '\n\n將查詢結果截圖提供以便進一步排查。';
+        } else if (msg.includes('缺少') && msg.includes('工作表')) {
+          errorMessage += '\n\n' + msg;
           if (selectedType === 'medication-record') {
             errorMessage += '\n\n個人備藥及給藥記錄範本必須包含三個工作表：\n1. 個人備藥及給藥記錄 (口服)\n2. 個人備藥及給藥記錄 (外用)\n3. 個人備藥及給藥記錄 (注射)\n\n請確認您的範本檔案包含這三個工作表後重新上傳。';
           }
         } else {
-          errorMessage += error.message;
+          errorMessage += msg;
         }
       } else {
         errorMessage += '未知錯誤';
