@@ -230,7 +230,7 @@ export const generateHygieneRecordHtml = (data: ExportData): string => {
     border-collapse: collapse;
     width: 100%;
     table-layout: fixed;
-    font-size: 10px;
+    font-size: 11px;
     flex: 1;
   }
   th, td {
@@ -243,7 +243,7 @@ export const generateHygieneRecordHtml = (data: ExportData): string => {
   th {
     background-color: #f0f0f0;
     font-weight: bold;
-    font-size: 9px;
+    font-size: 10px;
   }
   thead th {
     height: 70px;
@@ -251,7 +251,7 @@ export const generateHygieneRecordHtml = (data: ExportData): string => {
     text-orientation: mixed;
     white-space: nowrap;
     padding: 4px 2px;
-    font-size: 11px;
+    font-size: 12px;
   }
   thead th:first-child {
     writing-mode: horizontal-tb;
@@ -261,7 +261,7 @@ export const generateHygieneRecordHtml = (data: ExportData): string => {
   thead th:nth-last-child(2) {
     writing-mode: horizontal-tb;
     width: 55px;
-    font-size: 9px;
+    font-size: 10px;
     white-space: normal;
   }
   tbody tr {
@@ -269,12 +269,12 @@ export const generateHygieneRecordHtml = (data: ExportData): string => {
   }
   tbody td {
     height: 20px;
-    font-size: 11px;
+    font-size: 12px;
   }
   tbody td:first-child {
     font-weight: bold;
     background-color: #f8f8f8;
-    font-size: 12px;
+    font-size: 13px;
   }
   .footer-notes {
     margin-top: 5px;

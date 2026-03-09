@@ -113,7 +113,7 @@ const generateDataRow = (
     
     // 大便色
     const colorChecked = record?.has_stool && record?.stool_color === colorOption;
-    const colorCell = `<td class="checkbox-cell">${colorChecked ? '☑' : '☐'} ${colorOption}</td>`;
+    const colorCell = `<td class="checkbox-cell color-cell">${colorChecked ? '☑' : '☐'} ${colorOption}</td>`;
     
     // 大便質（第4行留空，不顯示「無」）
     const textureChecked = record?.has_stool && record?.stool_texture === textureOption;
@@ -254,7 +254,7 @@ body {
 .record-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 9px;
+  font-size: 10px;
   table-layout: fixed;
 }
 .record-table th,
@@ -268,27 +268,31 @@ body {
 .record-table .header-cell {
   background-color: #e9ecef;
   font-weight: bold;
-  font-size: 9px;
+  font-size: 10px;
   height: 28px;
 }
 .record-table .date-cell {
   width: 42px;
   font-weight: bold;
-  font-size: 10px;
+  font-size: 11px;
 }
 .record-table .checkbox-cell {
-  font-size: 9px;
+  font-size: 10px;
   height: 24px;
   white-space: nowrap;
   padding: 2px 3px;
 }
+.record-table .color-cell {
+  width: 58px;
+  font-size: 9px;
+}
 .record-table .signature-cell {
   width: 45px;
-  font-size: 8px;
+  font-size: 9px;
   vertical-align: middle;
 }
 .record-table .small-text {
-  font-size: 7px;
+  font-size: 8px;
 }
 .record-table .separator-row {
   height: 8px;

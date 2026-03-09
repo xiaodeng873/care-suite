@@ -213,8 +213,8 @@ export const applyPrescriptionTemplateFormat = (
     worksheet.getCell('D4').value = allergies;
     // A9: 不良藥物反應
     const reactions = Array.isArray(patient.不良藥物反應)
-      ? (patient.不良藥物反應.length ? patient.不良藥物反應.join(', ') : 'NKADR')
-      : (patient.不良藥物反應 || 'NKADR');
+      ? (patient.不良藥物反應.length ? patient.不良藥物反應.join(', ') : '')
+      : (patient.不良藥物反應 || '');
     worksheet.getCell('A9').value = reactions;
   }
   // Step 6: Copy print settings from template

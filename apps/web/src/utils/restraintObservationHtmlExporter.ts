@@ -125,8 +125,8 @@ const RESTRAINT_ITEMS: { category: string; label: string; dbKey: string }[] = [
   { category: '1', label: '約束衣', dbKey: '約束衣' },
   { category: '2', label: '約束腰帶', dbKey: '約束腰帶' },
   { category: '3', label: '手腕帶', dbKey: '手腕帶' },
-  { category: '4', label: '約束手套/連指手套', dbKey: '約束手套/連指手套' },
-  { category: '5', label: '防滑褲/防滑褲帶', dbKey: '防滑褲/防滑褲帶' },
+  { category: '4', label: '約束手套/<s>連指手套</s>', dbKey: '約束手套/連指手套' },
+  { category: '5', label: '<s>防滑褲</s>/防滑褲帶', dbKey: '防滑褲/防滑褲帶' },
   { category: '6', label: '枱板', dbKey: '枱板' },
   { category: '7', label: '其他', dbKey: '其他：' }
 ];
