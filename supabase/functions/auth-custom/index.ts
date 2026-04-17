@@ -378,6 +378,47 @@ async function handleValidateSession(token: string) {
   };
 }
 
+// 處理密碼驗證請求（僅驗證，不修改）
+async function handleVerifyPassword(req: { userId: string; password: string }) {
+  const supabase = getSupabaseClient();
+  const { userId, password } = req;
+
+  if (!userId || !password) {
+    return {
+      success: false,
+      error: "所有欄位為必填",
+    };
+  }
+
+  // 獲取用戶
+  const { data: user, error: userError } = await supabase
+    .from("user_profiles")
+    .select("id, password_hash")
+    .eq("id", userId)
+    .single();
+
+  if (userError || !user) {
+    return {
+      success: false,
+      error: "用戶不存在",
+    };
+  }
+
+  // 驗證密碼
+  const isValidPassword = bcrypt.compareSync(password, user.password_hash);
+  if (!isValidPassword) {
+    return {
+      success: false,
+      error: "密碼錯誤",
+    };
+  }
+
+  return {
+    success: true,
+    message: "密碼驗證成功",
+  };
+}
+
 // 處理修改密碼請求
 async function handleChangePassword(req: ChangePasswordRequest) {
   const supabase = getSupabaseClient();
@@ -697,6 +738,11 @@ Deno.serve(async (req: Request) => {
       case "change-password": {
         const body = await req.json();
         result = await handleChangePassword(body);
+        break;
+      }
+      case "verify-password": {
+        const body = await req.json();
+        result = await handleVerifyPassword(body);
         break;
       }
       case "reset-password": {

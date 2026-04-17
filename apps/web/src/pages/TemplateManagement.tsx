@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, Trash2, Download, Eye, AlertCircle, CheckCircle, X } from 'lucide-react';
+import { Upload, FileText, Trash2, Download, Eye, AlertCircle, CheckCircle, X, ShieldAlert, Lock } from 'lucide-react';
 import { LoadingScreen } from '../components/PageLoadingScreen';
+import { useAuth } from '../context/AuthContext';
 import { getTemplatesMetadata, uploadTemplateFile, createTemplateMetadata, deleteTemplateMetadata, deleteFileFromStorage, downloadTemplateFile } from '../lib/database';
 import { extractRestraintConsentTemplateFormat } from '../utils/restraintConsentExcelGenerator';
 import { extractRestraintObservationTemplateFormat } from '../utils/restraintObservationChartExcelGenerator';
@@ -28,6 +29,7 @@ interface TemplateMetadata {
   extracted_format: any;
 }
 const TemplateManagement: React.FC = () => {
+  const { isAdmin, isDeveloper, verifyPassword } = useAuth();
   const [templates, setTemplates] = useState<TemplateMetadata[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -35,6 +37,16 @@ const TemplateManagement: React.FC = () => {
   const [selectedType, setSelectedType] = useState<TemplateType>('waiting-list');
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 密碼驗證 Modal 狀態
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordVerifying, setPasswordVerifying] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
+
+  // 是否有管理者權限（admin 或 developer）
+  const canModifyTemplates = isAdmin() || isDeveloper();
   const templateTypes = [
     { value: 'waiting-list', label: '院友候診記錄表', description: '醫生到診時的院友候診記錄' },
     { value: 'prescription', label: 'VMO處方箋', description: '醫生開立的處方箋' },
@@ -68,6 +80,42 @@ const TemplateManagement: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // 要求密碼驗證後執行操作
+  const requirePasswordVerification = (action: () => Promise<void>) => {
+    setPendingAction(() => action);
+    setPasswordInput('');
+    setPasswordError('');
+    setShowPasswordModal(true);
+  };
+
+  // 處理密碼驗證提交
+  const handlePasswordSubmit = async () => {
+    if (!passwordInput.trim()) {
+      setPasswordError('請輸入密碼');
+      return;
+    }
+    setPasswordVerifying(true);
+    setPasswordError('');
+    try {
+      const { error } = await verifyPassword(passwordInput);
+      if (error) {
+        setPasswordError(error);
+        return;
+      }
+      setShowPasswordModal(false);
+      setPasswordInput('');
+      if (pendingAction) {
+        await pendingAction();
+        setPendingAction(null);
+      }
+    } catch {
+      setPasswordError('密碼驗證失敗，請重試');
+    } finally {
+      setPasswordVerifying(false);
+    }
+  };
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -83,12 +131,14 @@ const TemplateManagement: React.FC = () => {
     setDragActive(false);
     const files = e.dataTransfer.files;
     if (files && files[0]) {
-      handleFileUpload(files[0]);
+      const file = files[0];
+      requirePasswordVerification(() => handleFileUpload(file));
     }
   };
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      handleFileUpload(e.target.files[0]);
+      const file = e.target.files[0];
+      requirePasswordVerification(() => handleFileUpload(file));
     }
   };
   const extractTemplateFormatByType = async (file: File, type: TemplateType): Promise<any> => {
@@ -241,22 +291,24 @@ const TemplateManagement: React.FC = () => {
       }
     }
   };
-  const handleDeleteTemplate = async (template: TemplateMetadata) => {
+  const handleDeleteTemplate = (template: TemplateMetadata) => {
     if (!confirm(`確定要刪除範本「${template.name}」嗎？此操作無法復原。`)) {
       return;
     }
-    try {
-      // Delete from storage
-      await deleteFileFromStorage(template.storage_path);
-      // Delete metadata from database
-      await deleteTemplateMetadata(template.id);
-      // Refresh templates list
-      await loadTemplates();
-      alert(`範本「${template.name}」刪除成功`);
-    } catch (error) {
-      console.error('刪除範本失敗:', error);
-      alert('刪除範本失敗，請重試');
-    }
+    requirePasswordVerification(async () => {
+      try {
+        // Delete from storage
+        await deleteFileFromStorage(template.storage_path);
+        // Delete metadata from database
+        await deleteTemplateMetadata(template.id);
+        // Refresh templates list
+        await loadTemplates();
+        alert(`範本「${template.name}」刪除成功`);
+      } catch (error) {
+        console.error('刪除範本失敗:', error);
+        alert('刪除範本失敗，請重試');
+      }
+    });
   };
   const handleDownloadTemplate = async (template: TemplateMetadata) => {
     try {
@@ -301,8 +353,73 @@ const TemplateManagement: React.FC = () => {
     return <LoadingScreen pageName="範本管理" />;
   }
 
+  // 非管理者角色無權限訪問
+  if (!canModifyTemplates) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">範本管理</h1>
+        </div>
+        <div className="card p-6">
+          <div className="text-center py-12">
+            <ShieldAlert className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">無權限</h3>
+            <p className="text-gray-500">您沒有權限存取範本管理，需要管理者或以上角色。</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* 密碼驗證 Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <Lock className="h-6 w-6 text-blue-600" />
+              <h3 className="text-lg font-semibold text-gray-900">身份驗證</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              修改範本需要驗證您的身份，請輸入您的登入密碼。
+            </p>
+            <div className="mb-4">
+              <label className="form-label">密碼</label>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(''); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handlePasswordSubmit(); }}
+                className={`form-input ${passwordError ? 'border-red-500' : ''}`}
+                placeholder="請輸入您的密碼"
+                autoFocus
+                disabled={passwordVerifying}
+              />
+              {passwordError && (
+                <p className="text-sm text-red-600 mt-1">{passwordError}</p>
+              )}
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => { setShowPasswordModal(false); setPendingAction(null); setPasswordInput(''); setPasswordError(''); }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                disabled={passwordVerifying}
+              >
+                取消
+              </button>
+              <button
+                onClick={handlePasswordSubmit}
+                className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg disabled:opacity-50"
+                disabled={passwordVerifying || !passwordInput.trim()}
+              >
+                {passwordVerifying ? '驗證中...' : '確認'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">範本管理</h1>
       </div>

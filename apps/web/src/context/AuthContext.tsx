@@ -72,6 +72,7 @@ interface AuthContextType {
   
   // 密碼管理
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ error: any }>;
+  verifyPassword: (password: string) => Promise<{ error: any }>;
   
   // 刷新權限
   refreshPermissions: () => Promise<void>;
@@ -405,6 +406,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // 驗證密碼（僅驗證身份，不修改密碼）
+  const verifyPassword = async (password: string): Promise<{ error: any }> => {
+    // 開發者（Supabase Auth 用戶）
+    if (user) {
+      try {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: user.email!,
+          password,
+        });
+        if (error) return { error: '密碼錯誤' };
+        return { error: null };
+      } catch {
+        return { error: '密碼驗證失敗' };
+      }
+    }
+    // 自訂認證用戶（管理者/員工）
+    if (userProfile?.id) {
+      try {
+        const result = await callAuthApi('verify-password', {
+          userId: userProfile.id,
+          password,
+        }, customToken || undefined);
+        if (result.success) return { error: null };
+        return { error: result.error || '密碼錯誤' };
+      } catch {
+        return { error: '密碼驗證失敗' };
+      }
+    }
+    return { error: '用戶未登入' };
+  };
+
   // 刷新權限
   const refreshPermissions = useCallback(async () => {
     if (customToken) {
@@ -491,6 +523,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isAdmin,
       canManageUsers,
       changePassword,
+      verifyPassword,
       refreshPermissions,
     }}>
       {children}
