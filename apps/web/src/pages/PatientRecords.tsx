@@ -11,7 +11,7 @@ import { deletePatientSchedulesAfterDate } from '../lib/database';
 import type { Patient } from '../lib/database';
 import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 
-type SortField = '床號' | '中文姓名' | '性別' | '年齡' | '入住日期' | '護理等級' | '入住類型' | '在住狀態';
+type SortField = '床號' | '中文姓名' | '性別' | '年齡' | '入住日期' | '退住日期' | '在住天數' | '護理等級' | '入住類型' | '在住狀態';
 type SortDirection = 'asc' | 'desc';
 
 interface AdvancedFilters {
@@ -190,6 +190,17 @@ const PatientRecords: React.FC = () => {
         valueA = a.入住類型 || '';
         valueB = b.入住類型 || '';
         break;
+      case '退住日期':
+        valueA = a.退住日期 ? new Date(a.退住日期).getTime() : 0;
+        valueB = b.退住日期 ? new Date(b.退住日期).getTime() : 0;
+        break;
+      case '在住天數': {
+        const endA = a.退住日期 ? new Date(a.退住日期).getTime() : Date.now();
+        const endB = b.退住日期 ? new Date(b.退住日期).getTime() : Date.now();
+        valueA = a.入住日期 ? endA - new Date(a.入住日期).getTime() : 0;
+        valueB = b.入住日期 ? endB - new Date(b.入住日期).getTime() : 0;
+        break;
+      }
       case '在住狀態':
         valueA = a.在住狀態 || '';
         valueB = b.在住狀態 || '';
@@ -421,6 +432,37 @@ const PatientRecords: React.FC = () => {
 
     return age;
   };
+
+  // 計算在住天數（年+月+日）
+  const calculateResidenceDuration = (admissionDate?: string, dischargeDate?: string): string => {
+    if (!admissionDate) return '-';
+    const start = new Date(admissionDate);
+    const end = dischargeDate ? new Date(dischargeDate) : new Date();
+    if (isNaN(start.getTime())) return '-';
+
+    let years = end.getFullYear() - start.getFullYear();
+    let months = end.getMonth() - start.getMonth();
+    let days = end.getDate() - start.getDate();
+
+    if (days < 0) {
+      months--;
+      const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+      days += prevMonth.getDate();
+    }
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+
+    const parts: string[] = [];
+    if (years > 0) parts.push(`${years}年`);
+    if (months > 0) parts.push(`${months}月`);
+    parts.push(`${days}日`);
+    return parts.join('');
+  };
+
+  // 篩選「在住」時隱藏退住日期；其餘情況（已退住、全部、待入住）皆顯示
+  const showDischargeDate = advancedFilters.在住狀態 !== '在住';
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -759,6 +801,10 @@ const PatientRecords: React.FC = () => {
                     身份證號碼
                   </th>
                   <SortableHeader field="入住日期">入住日期</SortableHeader>
+                  {showDischargeDate && (
+                    <SortableHeader field="退住日期">退住日期</SortableHeader>
+                  )}
+                  <SortableHeader field="在住天數">在住天數</SortableHeader>
                   <SortableHeader field="護理等級">護理等級</SortableHeader>
                   <SortableHeader field="入住類型">入住類型</SortableHeader>
                   <SortableHeader field="在住狀態">在住狀態</SortableHeader>
@@ -832,6 +878,19 @@ const PatientRecords: React.FC = () => {
                           {new Date(patient.入住日期).toLocaleDateString('zh-TW')}
                         </div>
                       ) : '-'}
+                    </td>
+                    {showDischargeDate && (
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {patient.退住日期 ? (
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-1 text-gray-400" />
+                            {new Date(patient.退住日期).toLocaleDateString('zh-TW')}
+                          </div>
+                        ) : '-'}
+                      </td>
+                    )}
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {calculateResidenceDuration(patient.入住日期, patient.退住日期)}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       {patient.護理等級 ? (
