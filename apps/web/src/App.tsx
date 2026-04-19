@@ -16,6 +16,7 @@ import { RecordsProvider, useRecords } from './context/merged/RecordsContext';
 import { DashboardReadyProvider, useDashboardReady } from './context/DashboardReadyContext';
 import { LoadingScreen } from './components/PageLoadingScreen';
 import { NavigationProvider } from './context/NavigationContext';
+import { AiAssistantButton } from './components/AiAssistant';
 import './App.css';
 
 // 路由名稱對照表
@@ -262,6 +263,7 @@ function AuthenticatedContent({
         <Layout user={effectiveUser} onSignOut={onSignOut}>
           <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
+
             <Route path="/" element={<Dashboard />} />
             <Route path="/scheduling" element={<Scheduling />} />
             <Route path="/station-bed" element={<StationBedManagement />} />
@@ -296,6 +298,7 @@ function AuthenticatedContent({
           </Suspense>
         </Layout>
       </NavigationProvider>
+      <AiAssistantButton />
     </BrowserRouter>
   );
 }
