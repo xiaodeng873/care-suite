@@ -105,9 +105,13 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
       }
     }
 
-    // 處理身份證號碼
+    // 處理身份證號碼（自動格式化）
     if (extractedData.身份證號碼) {
-      updates.身份證號碼 = String(extractedData.身份證號碼).trim();
+      const rawId = String(extractedData.身份證號碼).trim().replace(/[()\s]/g, '').toUpperCase();
+      const validId = rawId.replace(/[^A-Z0-9]/g, '').slice(0, 9);
+      updates.身份證號碼 = validId.length >= 8
+        ? validId.slice(0, -1) + '(' + validId.slice(-1) + ')'
+        : validId;
     }
 
     // 處理出生日期
@@ -134,6 +138,23 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     setOcrError(error);
   };
 
+  // 格式化香港身份證號碼：自動大寫、括號包裹最後一碼
+  const formatHKID = (raw: string): string => {
+    // 若有 '(' 但無 ')'，代表用戶在尾端按了退刪鍵，移除括號及其中的校驗碼
+    if (raw.includes('(') && !raw.includes(')')) {
+      raw = raw.replace(/\(.*$/, '');
+    }
+    // 移除括號和空格，只保留有效字符
+    const stripped = raw.replace(/[()\s]/g, '').toUpperCase();
+    // 只允許字母和數字，最多 8 或 9 個字符（1-2字母 + 6數字 + 1校驗碼）
+    const valid = stripped.replace(/[^A-Z0-9]/g, '').slice(0, 9);
+    // 當長度 >= 8 時，最後一位用括號包裹
+    if (valid.length >= 8) {
+      return valid.slice(0, -1) + '(' + valid.slice(-1) + ')';
+    }
+    return valid;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     let updatedValue = value;
@@ -143,6 +164,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
       updatedValue = formatEnglishSurname(value);
     } else if (name === '英文名字') {
       updatedValue = formatEnglishGivenName(value);
+    } else if (name === '身份證號碼') {
+      updatedValue = formatHKID(value);
     }
     setFormData(prev => ({
       ...prev,
@@ -369,6 +392,12 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     // 驗證必填欄位
     if (!formData.中文姓氏 || !formData.中文名字) {
       alert('請填寫中文姓名');
+      return;
+    }
+
+    // 驗證身份證號碼格式
+    if (formData.身份證號碼 && !/^[A-Z]{1,2}\d{6}\([0-9A]\)$/.test(formData.身份證號碼)) {
+      alert('身份證號碼格式不正確，正確格式為：A123456(7) 或 AB123456(7)');
       return;
     }
 
@@ -866,8 +895,10 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                 value={formData.身份證號碼}
                 onChange={handleChange}
                 className="form-input"
+                placeholder="A123456(7)"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">最後一碼（校驗碼）會自動加上括號。</p>
             </div>
 
             <div>
