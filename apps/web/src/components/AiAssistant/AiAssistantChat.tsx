@@ -225,29 +225,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
             <div className="text-center text-gray-400 mt-8">
               <div className="mb-3 flex justify-center"><NurseIcon size={56} /></div>
               <p className="text-sm font-medium">你好，我是 AI 助護</p>
-              <p className="text-xs mt-1">可以幫你查詢資料、新增或修改記錄</p>
-              <div className="mt-4 space-y-2 text-left">
-                {[
-                  '今天有哪些院友需要覆診？',
-                  '幫我查陳先生的最新血壓記錄',
-                  '📷 上傳FU紙、處方標籤自動識別',
-                ].map((q, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      if (q.startsWith('📷')) {
-                        fileInputRef.current?.click();
-                      } else {
-                        setInput(q);
-                        inputRef.current?.focus();
-                      }
-                    }}
-                    className="block w-full text-left text-xs bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-700 rounded-lg px-3 py-2 transition-colors"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
+              <p className="text-xs mt-1">有什麼需要幫忙？</p>
             </div>
           )}
 
