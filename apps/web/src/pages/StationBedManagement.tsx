@@ -673,7 +673,7 @@ const StationBedManagement: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="flex space-x-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
               <button
                 onClick={handleConfirmExport}
                 disabled={selectedStationsForExport.size === 0 || isExporting}

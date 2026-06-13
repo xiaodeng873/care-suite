@@ -414,7 +414,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-end space-x-3 p-6 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:justify-end gap-2 p-6 border-t border-gray-200">
           <button
             type="button"
             onClick={reloadScheduleData}

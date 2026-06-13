@@ -444,7 +444,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
             </div>
           )}
 
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4 border-t border-gray-200">
             <button type="button" onClick={onClose} className="btn-secondary">取消</button>
             <button type="submit" className="btn-primary">{task ? '更新任務' : '建立任務'}</button>
           </div>

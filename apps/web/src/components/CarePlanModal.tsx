@@ -1546,7 +1546,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 px-6 py-4 border-t border-gray-200 bg-gray-50">
           <button
             onClick={onClose}
             className="btn-secondary"
@@ -1556,8 +1556,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
           <button
             onClick={handleSubmit}
             disabled={loading || !selectedPatientId}
-            className="btn-primary flex items-center space-x-2"
-          >
+            className="btn-primary flex items-center space-x-2">
             {loading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
@@ -1709,7 +1708,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
               </div>
             </div>
             
-            <div className="flex items-center justify-end space-x-3 px-6 py-4 border-t bg-gray-50">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 px-6 py-4 border-t bg-gray-50">
               <button onClick={() => setShowAddProblem(false)} className="btn-secondary">取消</button>
               <button onClick={handleSaveNewProblemToLibrary} className="btn-primary">儲存至問題庫</button>
             </div>

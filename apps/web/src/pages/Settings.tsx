@@ -474,7 +474,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
           </div>
 
           {/* 操作按鈕 */}
-          <div className="flex justify-end space-x-3 pt-4 border-t">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4 border-t">
             <button
               type="button"
               onClick={onClose}
@@ -773,7 +773,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
         </div>
 
         {/* 操作按鈕 */}
-        <div className="border-t px-6 py-4 flex justify-end space-x-3">
+        <div className="border-t px-6 py-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
           <button
             onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"

@@ -1121,7 +1121,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
             </div>
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex flex-col sm:flex-row gap-2 pt-4">
             <button
               type="submit"
               className="btn-primary flex-1"
@@ -1188,7 +1188,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                 </p>
               </div>
 
-              <div className="flex space-x-3">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={() => {
                     if (!dischargeDate) {

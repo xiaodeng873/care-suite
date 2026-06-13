@@ -381,7 +381,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
                 ))}
               </div>
               
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4">
                 <button onClick={resetForm} className="btn-secondary">取消</button>
                 <button onClick={handleSave} className="btn-primary">
                   {editingId ? '更新' : '儲存'}

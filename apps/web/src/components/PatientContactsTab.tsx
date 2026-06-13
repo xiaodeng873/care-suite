@@ -310,7 +310,7 @@ const PatientContactsTab: React.FC<PatientContactsTabProps> = ({ patientId }) =>
                 />
               </div>
 
-              <div className="flex space-x-3 pt-4">
+              <div className="flex flex-col sm:flex-row gap-2 pt-4">
                 <button type="submit" className="btn-primary flex-1">
                   {editingId ? '更新' : '新增'}
                 </button>

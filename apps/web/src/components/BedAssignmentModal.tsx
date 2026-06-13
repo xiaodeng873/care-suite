@@ -211,7 +211,7 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
           </div>
 
           {/* 確認按鈕 */}
-          <div className="flex space-x-3 pt-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-2 pt-6 border-t border-gray-200">
             <button
               onClick={handleAssign}
               disabled={!selectedPatient}

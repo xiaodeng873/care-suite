@@ -250,7 +250,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
           </div>
         </div>
 
-        <div className="flex space-x-3">
+        <div className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={handleConfirm}
             className="btn-danger flex-1 flex items-center justify-center space-x-2"

@@ -1142,7 +1142,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
           </div>
 
           {/* 提交按鈕 */}
-          <div className="flex space-x-3 pt-4 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-gray-200">
             <button
               type="submit"
               className="btn-primary flex-1"

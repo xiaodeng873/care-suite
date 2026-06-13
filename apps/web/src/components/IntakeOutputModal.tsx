@@ -671,7 +671,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
             </div>
 
             {/* 按鈕 */}
-            <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
               {existingRecord && onDelete ? (
                 <button
                   type="button"

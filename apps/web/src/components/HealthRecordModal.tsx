@@ -586,7 +586,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                 </div>
               </div>
             )}
-            <div className="flex space-x-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
               <button type="submit" className="btn-primary flex-1">
                 {record ? '更新記錄' : '儲存記錄'}
               </button>
@@ -751,7 +751,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                 您輸入的記錄日期早於當前系統日期。這可能是補錄過往的記錄，請確認是否要繼續儲存？
               </p>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button onClick={handleDateWarningConfirm} className="btn-primary flex-1">確認儲存</button>
               <button onClick={handleDateWarningCancel} className="btn-secondary flex-1">取消</button>
             </div>

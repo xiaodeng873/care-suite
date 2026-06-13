@@ -241,7 +241,7 @@ const PrescriptionEndDateModal: React.FC<PrescriptionEndDateModalProps> = ({
         </div>
 
         {/* 操作按鈕 */}
-        <div className="flex space-x-3">
+        <div className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={handleConfirm}
             disabled={targetStatus === 'inactive' && (!endDate || !!error)}

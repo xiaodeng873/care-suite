@@ -400,7 +400,7 @@ const TemplateManagement: React.FC = () => {
                 <p className="text-sm text-red-600 mt-1">{passwordError}</p>
               )}
             </div>
-            <div className="flex justify-end space-x-3">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
               <button
                 onClick={() => { setShowPasswordModal(false); setPendingAction(null); setPasswordInput(''); setPasswordError(''); }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"

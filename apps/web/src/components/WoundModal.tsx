@@ -416,7 +416,7 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}

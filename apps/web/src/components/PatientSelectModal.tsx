@@ -239,7 +239,7 @@ const PatientSelectModal: React.FC<PatientSelectModalProps> = ({ scheduleId, onC
             )}
           </div>
 
-          <div className="flex space-x-3 pt-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-2 pt-6 border-t border-gray-200">
             <button
               type="submit"
               className="btn-primary flex items-center space-x-2"

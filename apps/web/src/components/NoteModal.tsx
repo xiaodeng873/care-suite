@@ -168,7 +168,7 @@ const NoteModal: React.FC<NoteModalProps> = ({ onClose, note }) => {
             )}
           </div>
 
-          <div className="flex space-x-3 mt-6">
+          <div className="flex flex-col-reverse sm:flex-row gap-2 mt-6">
             <button
               type="button"
               onClick={onClose}

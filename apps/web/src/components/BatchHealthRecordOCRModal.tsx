@@ -705,7 +705,7 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
             )}
           </div>
           <div className="space-y-3">
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={() => handleStartOCR(false)}
                 disabled={images.length === 0 || isProcessing}

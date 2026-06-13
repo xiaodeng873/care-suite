@@ -1114,7 +1114,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
               </span>
             )}
           </div>
-          <div className="flex space-x-3">
+          <div className="flex flex-col-reverse sm:flex-row gap-2">
             <button
               onClick={onClose}
               className="btn-secondary"

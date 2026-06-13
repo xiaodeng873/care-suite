@@ -254,7 +254,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
             <div className="text-sm text-gray-600">
               已選擇 <span className="font-medium text-gray-900">{selectedDuplicates}</span> 筆重複記錄將被刪除
             </div>
-            <div className="flex space-x-3">
+            <div className="flex flex-col-reverse sm:flex-row gap-2">
               <button
                 onClick={onClose}
                 className="btn-secondary"

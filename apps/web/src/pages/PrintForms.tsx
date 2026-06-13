@@ -983,7 +983,7 @@ const PrintForms: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="flex space-x-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
               <button
                 onClick={handleYearMonthConfirm}
                 disabled={!yearMonth.match(/^\d{4}年\d{2}月$/)}
@@ -1051,7 +1051,7 @@ const PrintForms: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="flex space-x-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
               <button
                 onClick={handlePersonalHygieneMonthConfirm}
                 disabled={!personalHygieneMonths.firstMonth.match(/^\d{4}年\d{2}月$/) || !personalHygieneMonths.secondMonth.match(/^\d{4}年\d{2}月$/)}

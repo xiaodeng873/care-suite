@@ -1150,7 +1150,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 p-6 border-t border-gray-200 bg-gray-50">
             <button
               type="button"
               onClick={onClose}

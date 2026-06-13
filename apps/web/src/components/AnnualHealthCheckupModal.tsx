@@ -913,7 +913,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
               </div>
             </div>
           </div>
-          <div className="flex space-x-3 pt-4 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-gray-200">
             <button
               type="submit"
               disabled={loading}

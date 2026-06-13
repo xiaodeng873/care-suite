@@ -116,7 +116,7 @@ const PatientContactModal: React.FC<PatientContactModalProps> = ({ contact, onCl
                   <input name="備註" className="form-input w-full" value={form.備註 || ''} onChange={handleChange} />
                 </div>
               </div>
-              <div className="flex space-x-3 pt-4">
+              <div className="flex flex-col sm:flex-row gap-2 pt-4">
                 <button type="submit" className="btn-primary flex-1" disabled={saving}>{saving ? '儲存中...' : '儲存'}</button>
                 <button type="button" onClick={onClose} className="btn-secondary flex-1">取消</button>
               </div>

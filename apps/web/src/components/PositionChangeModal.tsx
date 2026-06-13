@@ -255,7 +255,7 @@ const PositionChangeModal: React.FC<PositionChangeModalProps> = ({
                 <span>刪除</span>
               </button>
             )}
-            <div className="flex justify-end space-x-3 ml-auto">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 ml-auto">
               <button
                 type="button"
                 onClick={onClose}
