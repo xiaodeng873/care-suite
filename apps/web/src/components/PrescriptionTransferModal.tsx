@@ -345,7 +345,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
                   </div>
 
                   {comparisonResult.differences.length > 0 ? (
-                    <div className="bg-white border border-blue-300 rounded-lg overflow-hidden">
+                    <div className="bg-white border border-blue-300 rounded-lg overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-blue-100">
                           <tr>

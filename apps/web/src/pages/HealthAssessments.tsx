@@ -895,7 +895,7 @@ const HealthAssessments: React.FC = () => {
                           })()}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-shrink-0 items-center gap-2">
                             <button
                               onClick={() => handleEdit(assessment)}
                               className="text-blue-600 hover:text-blue-900"

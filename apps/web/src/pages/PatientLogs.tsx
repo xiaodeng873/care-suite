@@ -732,7 +732,7 @@ const PatientLogs: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
+                        <div className="flex flex-shrink-0 gap-2">
                           <button
                             onClick={() => handleEdit(log)}
                             className="text-blue-600 hover:text-blue-900"

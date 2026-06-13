@@ -1115,7 +1115,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
             )}
           </div>
         </div>
-        <div className="flex items-center space-x-1">
+        <div className="flex flex-shrink-0 items-center gap-1">
           {/* 操作按鈕 */}
           <button
             onClick={onTransfer}

@@ -937,7 +937,7 @@ const WoundManagement: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
+                        <div className="flex flex-shrink-0 gap-2">
                           <button
                             onClick={() => handleSaveAs(assessment)}
                             className="text-green-600 hover:text-green-900"
