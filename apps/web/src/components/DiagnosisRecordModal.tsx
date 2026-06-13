@@ -159,12 +159,12 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-start justify-between gap-3">
+          <div className="flex items-start space-x-3 min-w-0">
             <div className="p-2 bg-blue-100 rounded-lg">
               <FileText className="h-6 w-6 text-blue-600" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h2 className="text-xl font-semibold text-gray-900">診斷記錄</h2>
               {selectedPatient && (
                 <p className="text-sm text-gray-500">
@@ -220,12 +220,12 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
               <h3 className="text-sm font-medium text-gray-900 mb-3">現有診斷記錄</h3>
               <div className="space-y-2">
                 {existingRecords.map((record, index) => (
-                  <div key={index} className="flex items-center space-x-4 text-sm">
-                    <span className="text-gray-600">
+                  <div key={index} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                    <span className="text-gray-600 whitespace-nowrap">
                       {new Date(record.diagnosis_date).toLocaleDateString('zh-TW')}
                     </span>
-                    <span className="text-gray-900 font-medium">{record.diagnosis_item}</span>
-                    <span className="text-gray-600">{record.diagnosis_unit}</span>
+                    <span className="text-gray-900 font-medium min-w-0 break-words">{record.diagnosis_item}</span>
+                    <span className="text-gray-600 min-w-0 break-words">{record.diagnosis_unit}</span>
                   </div>
                 ))}
               </div>
@@ -233,14 +233,14 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
           )}
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <label className="form-label mb-0">
                 <span className="text-red-500">*</span> 診斷記錄項目
               </label>
               <button
                 type="button"
                 onClick={addDiagnosisItem}
-                className="btn-secondary text-sm flex items-center space-x-1"
+                className="btn-secondary text-sm flex items-center justify-center space-x-1"
               >
                 <Plus className="h-4 w-4" />
                 <span>新增項目</span>

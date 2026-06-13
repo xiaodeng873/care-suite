@@ -338,7 +338,7 @@ const DiagnosisRecords: React.FC = () => {
               setSelectedPatientRecords([]);
               setShowModal(true);
             }}
-            className="btn-primary flex items-center space-x-2"
+            className="btn-primary flex items-center justify-center space-x-2 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             <span>新增診斷記錄</span>
@@ -361,10 +361,10 @@ const DiagnosisRecords: React.FC = () => {
                 />
               </div>
 
-              <div className="flex space-x-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className={`btn-secondary flex items-center space-x-2 ${
+                  className={`btn-secondary flex items-center justify-center space-x-2 whitespace-nowrap ${
                     showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''
                   } ${hasAdvancedFilters() ? 'border-blue-300' : ''}`}
                 >
@@ -380,7 +380,7 @@ const DiagnosisRecords: React.FC = () => {
                 {(searchTerm || hasAdvancedFilters()) && (
                   <button
                     onClick={clearFilters}
-                    className="btn-secondary flex items-center space-x-2 text-red-600 hover:text-red-700"
+                    className="btn-secondary flex items-center justify-center space-x-2 whitespace-nowrap text-red-600 hover:text-red-700"
                   >
                     <X className="h-4 w-4" />
                     <span>清除</span>
@@ -395,20 +395,20 @@ const DiagnosisRecords: React.FC = () => {
 
                 <div className="mb-4">
                   <label className="form-label">診斷日期區間</label>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <input
                       type="date"
                       value={advancedFilters.startDate}
                       onChange={(e) => updateAdvancedFilter('startDate', e.target.value)}
-                      className="form-input"
+                      className="form-input w-full sm:w-auto"
                       placeholder="開始日期"
                     />
-                    <span className="text-gray-500">至</span>
+                    <span className="text-gray-500 text-center sm:text-left">至</span>
                     <input
                       type="date"
                       value={advancedFilters.endDate}
                       onChange={(e) => updateAdvancedFilter('endDate', e.target.value)}
-                      className="form-input"
+                      className="form-input w-full sm:w-auto"
                       placeholder="結束日期"
                     />
                   </div>
@@ -476,7 +476,7 @@ const DiagnosisRecords: React.FC = () => {
               </div>
             )}
 
-            <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-sm text-gray-600">
               <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 筆診斷記錄 (共 {diagnosisRecords.length} 筆)</span>
               {(searchTerm || hasAdvancedFilters()) && (
                 <span className="text-blue-600">已套用篩選條件</span>
@@ -489,8 +489,8 @@ const DiagnosisRecords: React.FC = () => {
       {totalItems > 0 && (
         <div className="sticky top-40 bg-white z-10 shadow-sm">
           <div className="card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <button
                   onClick={handleSelectAll}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -611,7 +611,7 @@ const DiagnosisRecords: React.FC = () => {
                             return (
                               <div
                                 key={record.id}
-                                className={`flex items-center space-x-2 p-2 rounded ${
+                                className={`flex flex-wrap items-center gap-2 p-2 rounded ${
                                   selectedRows.has(record.id) ? 'bg-blue-50' : 'bg-gray-50'
                                 } ${isDeleting ? 'opacity-50' : ''}`}
                               >
@@ -688,8 +688,8 @@ const DiagnosisRecords: React.FC = () => {
 
       {totalPages > 1 && (
         <div className="card p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center justify-center sm:justify-start gap-2">
               <span className="text-sm text-gray-700">每頁顯示</span>
               <select
                 value={pageSize}
@@ -704,7 +704,7 @@ const DiagnosisRecords: React.FC = () => {
               <span className="text-sm text-gray-700">筆</span>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
@@ -736,7 +736,7 @@ const DiagnosisRecords: React.FC = () => {
               </button>
             </div>
 
-            <div className="text-sm text-gray-700">
+            <div className="text-sm text-gray-700 text-center sm:text-right">
               第 {currentPage} 頁，共 {totalPages} 頁
             </div>
           </div>
