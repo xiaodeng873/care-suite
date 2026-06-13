@@ -357,7 +357,7 @@ const TemplateManagement: React.FC = () => {
   if (!canModifyTemplates) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">範本管理</h1>
         </div>
         <div className="card p-6">
@@ -377,7 +377,7 @@ const TemplateManagement: React.FC = () => {
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
-            <div className="flex items-center space-x-3 mb-4">
+            <div className="flex flex-wrap items-center gap-3 mb-4">
               <Lock className="h-6 w-6 text-blue-600" />
               <h3 className="text-lg font-semibold text-gray-900">身份驗證</h3>
             </div>
@@ -420,7 +420,7 @@ const TemplateManagement: React.FC = () => {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">範本管理</h1>
       </div>
       {/* Upload Section */}
@@ -510,9 +510,9 @@ const TemplateManagement: React.FC = () => {
           <div className="divide-y divide-gray-200">
             {templates.map(template => (
               <div key={template.id} className="p-6 hover:bg-gray-50">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
                       <FileText className="h-5 w-5 text-gray-400" />
                       <h3 className="text-lg font-medium text-gray-900">{template.name}</h3>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTemplateTypeColor(template.type)}`}>
@@ -539,7 +539,7 @@ const TemplateManagement: React.FC = () => {
                     {/* Template format status */}
                     <div className="mt-3">
                       {template.extracted_format && Object.keys(template.extracted_format).length > 0 ? (
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-500" />
                           <span className="text-sm text-green-600">範本格式已提取</span>
                           <span className="text-xs text-gray-500">
@@ -547,14 +547,14 @@ const TemplateManagement: React.FC = () => {
                           </span>
                         </div>
                       ) : (
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <AlertCircle className="h-4 w-4 text-orange-500" />
                           <span className="text-sm text-orange-600">範本格式未提取</span>
                         </div>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => handleDownloadTemplate(template)}
                       className="text-blue-600 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50"
@@ -586,19 +586,19 @@ const TemplateManagement: React.FC = () => {
       <div className="card p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">使用說明</h2>
         <div className="space-y-3 text-sm text-gray-600">
-          <div className="flex items-start space-x-2">
+          <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">1</span>
             <p>選擇對應的範本類型，然後上傳您的 Excel 範本檔案</p>
           </div>
-          <div className="flex items-start space-x-2">
+          <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">2</span>
             <p>系統會自動提取範本的格式（欄寬、列高、合併儲存格、字型、邊框等）</p>
           </div>
-          <div className="flex items-start space-x-2">
+          <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">3</span>
             <p>在相關功能中匯出資料時，系統會使用您上傳的範本格式</p>
           </div>
-          <div className="flex items-start space-x-2">
+          <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">4</span>
             <p>如需更新範本，請刪除舊範本後重新上傳新版本</p>
           </div>

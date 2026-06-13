@@ -114,7 +114,7 @@ const StationManagement: React.FC = () => {
             setSelectedStation(null);
             setShowStationModal(true);
           }}
-          className="btn-primary flex items-center space-x-2"
+          className="btn-primary flex flex-wrap items-center gap-2"
         >
           <Plus className="h-4 w-4" />
           <span>新增站點</span>
@@ -138,7 +138,7 @@ const StationManagement: React.FC = () => {
           {hasActiveFilters() && (
             <button
               onClick={clearFilters}
-              className="btn-secondary flex items-center space-x-2"
+              className="btn-secondary flex flex-wrap items-center gap-2"
             >
               <X className="h-4 w-4" />
               <span>清除</span>
@@ -146,7 +146,7 @@ const StationManagement: React.FC = () => {
           )}
         </div>
         
-        <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600 mt-2">
           <span>顯示 {filteredStations.length} / {stations.length} 個站點</span>
           {hasActiveFilters() && (
             <span className="text-blue-600">已套用篩選條件</span>
@@ -163,8 +163,8 @@ const StationManagement: React.FC = () => {
             
             return (
               <div key={station.id} className="card p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <div className="flex flex-wrap items-center gap-3">
                     <div className="p-3 rounded-lg bg-blue-100">
                       <Building2 className="h-8 w-8 text-blue-600" />
                     </div>
@@ -173,7 +173,7 @@ const StationManagement: React.FC = () => {
                       {station.description && (
                         <p className="text-sm text-gray-600 mt-1">{station.description}</p>
                       )}
-                      <div className="flex items-center space-x-4 mt-2">
+                      <div className="flex flex-wrap items-center gap-4 mt-2">
                         <span className="text-sm text-gray-500">
                           建立時間：{new Date(station.created_at).toLocaleDateString('zh-TW')}
                         </span>
@@ -183,17 +183,17 @@ const StationManagement: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => handleEditStation(station)}
-                      className="btn-secondary flex items-center space-x-2"
+                      className="btn-secondary flex flex-wrap items-center gap-2"
                     >
                       <Edit3 className="h-4 w-4" />
                       <span>編輯</span>
                     </button>
                     <button
                       onClick={() => handleDeleteStation(station.id)}
-                      className="btn-danger flex items-center space-x-2"
+                      className="btn-danger flex flex-wrap items-center gap-2"
                     >
                       <Trash2 className="h-4 w-4" />
                       <span>刪除</span>

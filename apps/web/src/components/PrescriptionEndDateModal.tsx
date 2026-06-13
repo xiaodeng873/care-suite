@@ -125,8 +125,8 @@ const PrescriptionEndDateModal: React.FC<PrescriptionEndDateModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-3">
             <div className={`p-2 rounded-lg ${
               targetStatus === 'inactive' ? 'bg-orange-100' : 'bg-blue-100'
             }`}>
@@ -214,7 +214,7 @@ const PrescriptionEndDateModal: React.FC<PrescriptionEndDateModalProps> = ({
           {/* 天數計算 */}
           {targetStatus === 'inactive' && totalDays !== null && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center space-x-2 text-green-800">
+              <div className="flex flex-wrap items-center gap-2 text-green-800">
                 <Calculator className="h-4 w-4" />
                 <span className="text-sm font-medium">
                   處方期間：{totalDays} 天

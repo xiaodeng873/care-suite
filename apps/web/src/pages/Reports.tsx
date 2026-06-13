@@ -722,8 +722,8 @@ const Reports: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex space-x-4 mb-4 print:hidden">
-          <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-4 mb-4 print:hidden">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setTimeFilter('today')}
               className={`px-4 py-2 rounded-lg ${timeFilter === 'today' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
@@ -1174,9 +1174,9 @@ const Reports: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex space-x-4">
-            <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center mb-4">
+          <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setTimeFilter('today')}
                 className={`px-4 py-2 rounded-lg ${timeFilter === 'today' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
@@ -1223,7 +1223,7 @@ const Reports: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex space-x-4 mb-4">
+        <div className="flex flex-wrap gap-4 mb-4">
           <select
             value={stationFilter}
             onChange={(e) => setStationFilter(e.target.value)}
@@ -1329,7 +1329,7 @@ const Reports: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex space-x-4 mb-4">
+        <div className="flex flex-wrap gap-4 mb-4">
           <select
             value={stationFilter}
             onChange={(e) => setStationFilter(e.target.value)}
@@ -1349,11 +1349,11 @@ const Reports: React.FC = () => {
             <div>
               <h4 className="text-md font-medium text-gray-700 mb-3">總數統計</h4>
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">餐膳總數</span>
                   <span className="font-bold text-blue-600 text-lg">{statistics.總餐膳數} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">需要凝固粉</span>
                   <span className="font-medium text-blue-600">{statistics.需要凝固粉} 份</span>
                 </div>
@@ -1363,15 +1363,15 @@ const Reports: React.FC = () => {
             <div>
               <h4 className="text-md font-medium text-gray-700 mb-3">主食需求</h4>
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">正飯</span>
                   <span className="font-medium text-green-600">{statistics.正飯} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">軟飯</span>
                   <span className="font-medium text-yellow-600">{statistics.軟飯} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">糊飯</span>
                   <span className="font-medium text-orange-600">{statistics.糊飯} 份</span>
                 </div>
@@ -1381,15 +1381,15 @@ const Reports: React.FC = () => {
             <div>
               <h4 className="text-md font-medium text-gray-700 mb-3">配菜需求</h4>
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">正餸</span>
                   <span className="font-medium text-green-600">{statistics.正餸} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">碎餸</span>
                   <span className="font-medium text-yellow-600">{statistics.碎餸} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">糊餸</span>
                   <span className="font-medium text-orange-600">{statistics.糊餸} 份</span>
                 </div>
@@ -1399,19 +1399,19 @@ const Reports: React.FC = () => {
             <div>
               <h4 className="text-md font-medium text-gray-700 mb-3">特殊餐膳需求</h4>
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">糖尿餐</span>
                   <span className="font-medium text-blue-600">{statistics.糖尿餐} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">痛風餐</span>
                   <span className="font-medium text-purple-600">{statistics.痛風餐} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">低鹽餐</span>
                   <span className="font-medium text-green-600">{statistics.低鹽餐} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">雞蛋</span>
                   <span className="font-medium text-yellow-600">{statistics.雞蛋總數} 隻</span>
                 </div>
@@ -1434,7 +1434,7 @@ const Reports: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex space-x-4 mb-4">
+        <div className="flex flex-wrap gap-4 mb-4">
           <select
             value={stationFilter}
             onChange={(e) => setStationFilter(e.target.value)}
@@ -1514,7 +1514,7 @@ const Reports: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex space-x-4 mb-4">
+        <div className="flex flex-wrap gap-4 mb-4">
           <select
             value={stationFilter}
             onChange={(e) => setStationFilter(e.target.value)}
@@ -1582,7 +1582,7 @@ const Reports: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex space-x-4 mb-4">
+        <div className="flex flex-wrap gap-4 mb-4">
           <select
             value={stationFilter}
             onChange={(e) => setStationFilter(e.target.value)}
@@ -1647,8 +1647,8 @@ const Reports: React.FC = () => {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <BarChart3 className="h-8 w-8 text-blue-600" />
             <h1 className="text-2xl font-bold text-gray-900">統計報表</h1>
           </div>

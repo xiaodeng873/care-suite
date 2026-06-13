@@ -103,7 +103,7 @@ const PositionChangeModal: React.FC<PositionChangeModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">
             {existingRecord ? '查看/編輯轉身記錄' : '新增轉身記錄'}
           </h2>
@@ -153,7 +153,7 @@ const PositionChangeModal: React.FC<PositionChangeModalProps> = ({
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start space-x-2">
+            <div className="flex items-start gap-2">
               <RotateCcw className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-blue-900">轉身順序提示</p>
@@ -168,7 +168,7 @@ const PositionChangeModal: React.FC<PositionChangeModalProps> = ({
             <label className="block text-sm font-medium text-gray-900 mb-3">
               轉身位置 *
             </label>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setPosition('左')}
@@ -219,7 +219,7 @@ const PositionChangeModal: React.FC<PositionChangeModalProps> = ({
             <label className="block text-sm font-medium text-gray-900 mb-2">
               備註
             </label>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => handleNoteButtonClick('入院')}
@@ -244,7 +244,7 @@ const PositionChangeModal: React.FC<PositionChangeModalProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-between items-center pt-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center pt-4">
             {existingRecord && onDelete && (
               <button
                 type="button"

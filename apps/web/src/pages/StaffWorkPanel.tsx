@@ -247,7 +247,7 @@ const StaffWorkPanel: React.FC = () => {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="btn-secondary flex items-center space-x-2"
+              className="btn-secondary flex flex-wrap items-center gap-2"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               <span>刷新</span>
@@ -259,7 +259,7 @@ const StaffWorkPanel: React.FC = () => {
       {/* 統計概覽 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <p className="text-sm text-gray-600">總待辦任務</p>
               <p className="text-2xl font-bold text-gray-900">{filteredTasks.length}</p>
@@ -269,7 +269,7 @@ const StaffWorkPanel: React.FC = () => {
         </div>
         
         <div className="card p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <p className="text-sm text-gray-600">執藥任務</p>
               <p className="text-2xl font-bold text-blue-600">
@@ -281,7 +281,7 @@ const StaffWorkPanel: React.FC = () => {
         </div>
         
         <div className="card p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <p className="text-sm text-gray-600">核藥任務</p>
               <p className="text-2xl font-bold text-yellow-600">
@@ -293,7 +293,7 @@ const StaffWorkPanel: React.FC = () => {
         </div>
         
         <div className="card p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <p className="text-sm text-gray-600">派藥任務</p>
               <p className="text-2xl font-bold text-green-600">
@@ -326,7 +326,7 @@ const StaffWorkPanel: React.FC = () => {
                 />
               </div>
 
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <select
                   value={filters.taskType}
                   onChange={(e) => updateFilter('taskType', e.target.value)}
@@ -350,7 +350,7 @@ const StaffWorkPanel: React.FC = () => {
 
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className={`btn-secondary flex items-center space-x-2 ${
+                  className={`btn-secondary flex flex-wrap items-center gap-2 ${
                     showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''
                   }`}
                 >
@@ -397,7 +397,7 @@ const StaffWorkPanel: React.FC = () => {
               </div>
             )}
 
-            <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
               <span>顯示 {filteredTasks.length} 個待辦任務</span>
               {hasActiveFilters() && (
                 <span className="text-blue-600">已套用篩選條件</span>
@@ -417,8 +417,8 @@ const StaffWorkPanel: React.FC = () => {
                 task.isOverdue ? 'border-l-4 border-red-500 bg-red-50' : ''
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-4">
                   {/* 任務類型標籤 */}
                   <div className={`p-2 rounded-lg ${getTaskTypeColor(task.type)}`}>
                     {getTaskTypeIcon(task.type)}
@@ -426,7 +426,7 @@ const StaffWorkPanel: React.FC = () => {
 
                   {/* 任務詳情 */}
                   <div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTaskTypeColor(task.type)}`}>
                         {task.label}
                       </span>
@@ -455,10 +455,10 @@ const StaffWorkPanel: React.FC = () => {
                 </div>
 
                 {/* 操作按鈕 */}
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Link
                     to={`/medication-workflow?patient=${task.patient.院友id}&date=${new Date().toISOString().split('T')[0]}`}
-                    className="btn-primary flex items-center space-x-2"
+                    className="btn-primary flex flex-wrap items-center gap-2"
                   >
                     <span>前往處理</span>
                     <ChevronRight className="h-4 w-4" />

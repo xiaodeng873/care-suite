@@ -208,8 +208,8 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
 
   return (
     <div className="card p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="p-2 rounded-lg bg-red-100">
             <AlertTriangle className="h-6 w-6 text-red-600" />
           </div>
@@ -229,7 +229,7 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
             className="p-3 rounded-lg border bg-red-50 border-red-200 hover:bg-red-100 transition-colors"
           >
             {/* 院友信息行 */}
-            <div className="flex items-center space-x-3 mb-2">
+            <div className="flex flex-wrap items-center gap-3 mb-2">
               <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center overflow-hidden flex-shrink-0">
                 {group.patient.院友相片 ? (
                   <img src={group.patient.院友相片} alt="" className="w-full h-full object-cover" />
@@ -261,7 +261,7 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
         {totalMissing > 3 && (
           <button
             onClick={() => setShowAll(!showAll)}
-            className="w-full p-3 border-2 border-dashed border-red-200 rounded-lg text-sm text-red-600 hover:border-red-300 hover:bg-red-50 transition-colors flex items-center justify-center space-x-2"
+            className="w-full p-3 border-2 border-dashed border-red-200 rounded-lg text-sm text-red-600 hover:border-red-300 hover:bg-red-50 transition-colors flex flex-wrap items-center justify-center gap-2"
           >
             {showAll ? (
               <>

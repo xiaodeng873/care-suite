@@ -215,7 +215,7 @@ const Scheduling: React.FC = () => {
             setSelectedSchedule(null);
             setShowScheduleModal(true);
           }}
-          className="btn-primary flex items-center space-x-2"
+          className="btn-primary flex flex-wrap items-center gap-2"
         >
           <Plus className="h-4 w-4" />
           <span>新增排程</span>
@@ -234,7 +234,7 @@ const Scheduling: React.FC = () => {
               className="form-input pl-10"
             />
           </div>
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             <input
               type="date"
               value={dateFilter}
@@ -244,7 +244,7 @@ const Scheduling: React.FC = () => {
             />
             <button
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className={`btn-secondary flex items-center space-x-2 ${
+              className={`btn-secondary flex flex-wrap items-center gap-2 ${
                 showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''
               } ${hasActiveFilters() ? 'border-blue-300' : ''}`}
             >
@@ -259,7 +259,7 @@ const Scheduling: React.FC = () => {
             {hasActiveFilters() && (
               <button
                 onClick={clearFilters}
-                className="btn-secondary flex items-center space-x-2 text-red-600 hover:text-red-700"
+                className="btn-secondary flex flex-wrap items-center gap-2 text-red-600 hover:text-red-700"
               >
                 <X className="h-4 w-4" />
                 <span>清除</span>
@@ -287,7 +287,7 @@ const Scheduling: React.FC = () => {
             </div>
           </div>
         )}
-        <div className="flex items-center justify-between text-sm text-gray-600">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
           <span>
             顯示 {filteredSchedules.length} / {schedules.length} 個排程
             {filteredSchedules.reduce((sum, s) => sum + s.院友列表.length, 0) !== schedules.reduce((sum, s) => sum + s.院友列表.length, 0) && 
@@ -347,7 +347,7 @@ const Scheduling: React.FC = () => {
                 onDoubleClick={() => handleEdit(schedule)}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <Calendar className="h-6 w-6 text-blue-600" />
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
@@ -399,8 +399,8 @@ const Scheduling: React.FC = () => {
                 {schedule.院友列表.map(item => {
                   const patient = patientMap.get(item.院友id);
                   return (
-                    <div key={item.細項id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-4">
+                    <div key={item.細項id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gray-50 rounded-lg">
+                      <div className="flex flex-wrap items-center gap-4">
                         <div className="w-12 h-12 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                           {patient?.院友相片 ? (
                             <img 
@@ -413,7 +413,7 @@ const Scheduling: React.FC = () => {
                           )}
                         </div>
                         <div>
-                          <div className="flex items-center space-x-3">
+                          <div className="flex flex-wrap items-center gap-3">
                             <h4 className="font-medium text-gray-900">
                               {patient ? `${patient.中文姓氏}${patient.中文名字}` : '院友資料未找到'}
                             </h4>
@@ -426,7 +426,7 @@ const Scheduling: React.FC = () => {
                           </p>
                           {patient && (
                             <div className="text-xs text-gray-500 space-y-0.5">
-                              <div className="flex items-center space-x-3">
+                              <div className="flex flex-wrap items-center gap-3">
                                 <span>{patient.性別}</span>
                                 <span>
                                   {patient.出生日期 ? 
@@ -444,7 +444,7 @@ const Scheduling: React.FC = () => {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4">
+                      <div className="flex flex-wrap items-center gap-4">
                         <div className="text-right">
                           <div className="text-sm text-gray-900 mb-1">
                             {item.reasons && Array.isArray(item.reasons) && item.reasons.length > 0 ? (

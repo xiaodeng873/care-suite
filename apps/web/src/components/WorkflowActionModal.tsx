@@ -57,8 +57,8 @@ const WorkflowActionModal: React.FC<WorkflowActionModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-100">
               {getStepIcon(step)}
             </div>
@@ -103,14 +103,14 @@ const WorkflowActionModal: React.FC<WorkflowActionModalProps> = ({
         <div className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={handleComplete}
-            className="btn-primary flex-1 flex items-center justify-center space-x-2"
+            className="btn-primary flex-1 flex flex-wrap items-center justify-center gap-2"
           >
             <CheckCircle className="h-4 w-4" />
             <span>完成{getStepLabel(step)}</span>
           </button>
           <button
             onClick={handleFail}
-            className="btn-danger flex-1 flex items-center justify-center space-x-2"
+            className="btn-danger flex-1 flex flex-wrap items-center justify-center gap-2"
           >
             <XCircle className="h-4 w-4" />
             <span>未能完成</span>

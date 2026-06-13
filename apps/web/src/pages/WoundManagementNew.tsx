@@ -302,7 +302,7 @@ const WoundManagementNew: React.FC = () => {
         </div>
         <button
           onClick={() => handleAddWound()}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex flex-wrap items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus className="h-5 w-5" />
           <span>新增傷口</span>
@@ -336,7 +336,7 @@ const WoundManagementNew: React.FC = () => {
 
             <button
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className={`flex items-center space-x-2 px-3 py-2 border rounded-lg transition-colors ${
+              className={`flex flex-wrap items-center gap-2 px-3 py-2 border rounded-lg transition-colors ${
                 showAdvancedFilters ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -413,7 +413,7 @@ const WoundManagementNew: React.FC = () => {
       {/* 主表格：一院友對多傷口 */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <TrendingUp className="h-5 w-5 text-gray-600" />
             <h2 className="text-lg font-medium text-gray-900">傷口清單</h2>
             <span className="text-sm text-gray-500">（點擊展開查看傷口詳情）</span>
@@ -485,7 +485,7 @@ const WoundManagementNew: React.FC = () => {
                           {patientData.bed_number}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="flex items-center space-x-3">
+                          <div className="flex flex-wrap items-center gap-3">
                             <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0">
                               {patient?.院友相片 ? (
                                 <img
@@ -513,7 +513,7 @@ const WoundManagementNew: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
                               {displayWounds.length} 個傷口
                             </span>
@@ -605,10 +605,10 @@ const WoundManagementNew: React.FC = () => {
                                 </button>
                               </td>
                               <td colSpan={6} className="px-4 py-3">
-                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 flex-wrap gap-2">
                                   <div className="flex items-center flex-wrap gap-3">
                                     {/* 傷口編號和名稱 */}
-                                    <div className="flex items-center space-x-2">
+                                    <div className="flex flex-wrap items-center gap-2">
                                       <span className="font-bold text-gray-900 text-base">{wound.wound_code}</span>
                                       {wound.wound_name && (
                                         <span className="text-gray-600">({wound.wound_name})</span>
@@ -619,7 +619,7 @@ const WoundManagementNew: React.FC = () => {
                                     {getStatusBadge(wound.status)}
                                     
                                     {/* 傷口類型和來源 */}
-                                    <div className="flex items-center space-x-2 text-xs">
+                                    <div className="flex flex-wrap items-center gap-2 text-xs">
                                       <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded">
                                         {WOUND_TYPE_LABELS[wound.wound_type]}
                                       </span>
@@ -630,7 +630,7 @@ const WoundManagementNew: React.FC = () => {
                                     </div>
                                     
                                     {/* 日期資訊 */}
-                                    <div className="flex items-center space-x-3 text-xs">
+                                    <div className="flex flex-wrap items-center gap-3 text-xs">
                                       <span className="text-gray-500 flex items-center">
                                         <Calendar className="h-3 w-3 mr-1" />
                                         發現: {formatDate(wound.discovery_date)}
@@ -641,7 +641,7 @@ const WoundManagementNew: React.FC = () => {
                                     </div>
                                     
                                     {/* 評估資訊 */}
-                                    <div className="flex items-center space-x-2 text-xs">
+                                    <div className="flex flex-wrap items-center gap-2 text-xs">
                                       <span className="flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
                                         <FileText className="h-3 w-3 mr-1" />
                                         {wound.assessment_count} 次評估
@@ -672,7 +672,7 @@ const WoundManagementNew: React.FC = () => {
                                   </div>
                                   
                                   {/* 操作按鈕 */}
-                                  <div className="flex items-center space-x-2">
+                                  <div className="flex flex-wrap items-center gap-2">
                                     {wound.status === 'active' && (
                                       <button
                                         onClick={() => handleAddAssessment(wound)}
@@ -711,7 +711,7 @@ const WoundManagementNew: React.FC = () => {
                               <tr className="bg-white border-l-4 border-gray-200">
                                 <td></td>
                                 <td colSpan={6} className="px-8 py-4">
-                                  <div className="flex items-center justify-between mb-3">
+                                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                                     <div className="text-sm font-medium text-gray-700 flex items-center">
                                       <History className="h-4 w-4 mr-2 text-gray-500" />
                                       評估歷程 ({wound.assessment_count} 次評估)
@@ -774,7 +774,7 @@ const WoundManagementNew: React.FC = () => {
                                                 }`}
                                                 onDoubleClick={() => handleViewAssessment(wound, assessment)}
                                               >
-                                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 flex-wrap gap-2">
                                                   <div className="flex items-center flex-wrap gap-3">
                                                     {/* 日期和最新標記 */}
                                                     <span className="text-sm font-medium text-gray-900 flex items-center">

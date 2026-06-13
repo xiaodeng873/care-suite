@@ -83,8 +83,8 @@ const NoteModal: React.FC<NoteModalProps> = ({ onClose, note }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">
                 <StickyNote className="h-6 w-6 text-blue-600" />
               </div>
@@ -111,7 +111,7 @@ const NoteModal: React.FC<NoteModalProps> = ({ onClose, note }) => {
                 defaultResidencyStatus="在住"
               />
               {selectedPatient && (
-                <div className="mt-2 flex items-center justify-between">
+                <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <span className="text-sm text-gray-600">
                     已選擇: {selectedPatient.床號} - {selectedPatient.中文姓氏}{selectedPatient.中文名字}
                   </span>
@@ -151,7 +151,7 @@ const NoteModal: React.FC<NoteModalProps> = ({ onClose, note }) => {
                 className={`form-input ${errors.content ? 'border-red-500' : ''}`}
                 required
               />
-              <div className="flex items-center justify-between mt-1">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-1">
                 {errors.content && (
                   <p className="text-sm text-red-600">{errors.content}</p>
                 )}

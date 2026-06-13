@@ -97,7 +97,7 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
         }`}
         onClick={() => onSelect(patient)}
       >
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="w-12 h-12 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
             {patient.院友相片 ? (
               <img 
@@ -118,7 +118,7 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
             <p className="text-sm text-gray-600">
               {patient.性別} | {patient.護理等級 || '未設定'}
             </p>
-            <div className="flex items-center space-x-2 mt-1">
+            <div className="flex flex-wrap items-center gap-2 mt-1">
               <Bed className="h-4 w-4 text-gray-400" />
               <span className="text-sm text-gray-600">
                 {bedInfo.station?.name} - {bedInfo.bed?.bed_number}
@@ -140,8 +140,8 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-purple-100">
                 <ArrowRightLeft className="h-6 w-6 text-purple-600" />
               </div>
@@ -242,7 +242,7 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
           {selectedPatient1 && selectedPatient2 && (
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <h4 className="font-medium text-blue-900 mb-3">床位互換預覽</h4>
-              <div className="flex items-center justify-center space-x-4">
+              <div className="flex flex-wrap items-center justify-center gap-4">
                 <div className="text-center">
                   <div className="font-medium text-gray-900">{selectedPatient1.中文姓名}</div>
                   <div className="text-sm text-gray-600">
@@ -267,7 +267,7 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
             <button
               onClick={handleSwap}
               disabled={!selectedPatient1 || !selectedPatient2}
-              className="btn-primary flex-1 flex items-center justify-center space-x-2"
+              className="btn-primary flex-1 flex flex-wrap items-center justify-center gap-2"
             >
               <ArrowRightLeft className="h-4 w-4" />
               <span>確認互換床位</span>

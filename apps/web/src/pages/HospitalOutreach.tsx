@@ -713,7 +713,7 @@ const HospitalOutreach: React.FC = () => {
                 setSelectedDoctorVisit(null);
                 setShowDoctorVisitModal(true);
               }}
-              className="btn-secondary flex items-center space-x-2"
+              className="btn-secondary flex flex-wrap items-center gap-2"
             >
               <Stethoscope className="h-4 w-4" />
               <span>管理醫生到診日期</span>
@@ -721,7 +721,7 @@ const HospitalOutreach: React.FC = () => {
             {selectedRows.size > 0 && (
               <button
                 onClick={handleExportSelected}
-                className="btn-secondary flex items-center space-x-2"
+                className="btn-secondary flex flex-wrap items-center gap-2"
               >
                 <Download className="h-4 w-4" />
                 <span>匯出選定記錄</span>
@@ -732,7 +732,7 @@ const HospitalOutreach: React.FC = () => {
                 setSelectedRecord(null);
                 setShowModal(true);
               }}
-              className="btn-primary flex items-center space-x-2"
+              className="btn-primary flex flex-wrap items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               <span>新增外展記錄</span>
@@ -744,7 +744,7 @@ const HospitalOutreach: React.FC = () => {
       {/* 醫生到診排程概覽 */}
       <div className="card p-4">
         <div 
-          className="flex items-center justify-between cursor-pointer"
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 cursor-pointer"
           onClick={() => setShowDoctorVisitSchedule(!showDoctorVisitSchedule)}
         >
           <h2 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -771,7 +771,7 @@ const HospitalOutreach: React.FC = () => {
               setSelectedDoctorVisit(null);
               setShowDoctorVisitModal(true);
             }}
-            className="btn-secondary flex items-center space-x-2"
+            className="btn-secondary flex flex-wrap items-center gap-2"
           >
             <Plus className="h-4 w-4" />
             <span>新增到診日期</span>
@@ -810,7 +810,7 @@ const HospitalOutreach: React.FC = () => {
                   .map(schedule => (
                     <tr key={schedule.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Calendar className="h-4 w-4 text-blue-600" />
                           <span className="font-medium text-gray-900">
                             {new Date(schedule.visit_date).toLocaleDateString('zh-TW')}
@@ -830,7 +830,7 @@ const HospitalOutreach: React.FC = () => {
                         {schedule.notes || '-'}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-2">
                           <button
                             onClick={() => {
                               setSelectedDoctorVisit(schedule);
@@ -885,10 +885,10 @@ const HospitalOutreach: React.FC = () => {
                 />
               </div>
             
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className={`btn-secondary flex items-center space-x-2 ${
+                  className={`btn-secondary flex flex-wrap items-center gap-2 ${
                     showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''
                   } ${hasAdvancedFilters() ? 'border-blue-300' : ''}`}
                 >
@@ -904,7 +904,7 @@ const HospitalOutreach: React.FC = () => {
                 {(searchTerm || hasAdvancedFilters()) && (
                   <button
                     onClick={clearFilters}
-                    className="btn-secondary flex items-center space-x-2 text-red-600 hover:text-red-700"
+                    className="btn-secondary flex flex-wrap items-center gap-2 text-red-600 hover:text-red-700"
                   >
                     <X className="h-4 w-4" />
                     <span>清除</span>
@@ -919,7 +919,7 @@ const HospitalOutreach: React.FC = () => {
                 
                 <div className="mb-4">
                   <label className="form-label">藥袋日期區間</label>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="date"
                       value={advancedFilters.startDate}
@@ -1030,7 +1030,7 @@ const HospitalOutreach: React.FC = () => {
               </div>
             )}
             
-            <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
               <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 筆外展記錄 (共 {(hospitalOutreachRecords || []).length} 筆)</span>
               {(searchTerm || hasAdvancedFilters()) && (
                 <span className="text-blue-600">已套用篩選條件</span>
@@ -1044,8 +1044,8 @@ const HospitalOutreach: React.FC = () => {
       {totalItems > 0 && (
         <div className="sticky top-40 bg-white z-10 shadow-sm">
           <div className="card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-4">
                 <button
                   onClick={handleSelectAll}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -1139,7 +1139,7 @@ const HospitalOutreach: React.FC = () => {
                         />
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-3">
+                        <div className="flex flex-wrap items-center gap-3">
                           <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                             {patient?.院友相片 ? (
                               <img 
@@ -1234,7 +1234,7 @@ const HospitalOutreach: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPickupArrangementColor(record.medication_pickup_arrangement)}`}>
                             {getPickupArrangementLabel(record.medication_pickup_arrangement)}
                           </span>
@@ -1273,7 +1273,7 @@ const HospitalOutreach: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-2">
                           <button
                             onClick={() => handleToggleAppointmentStatus(record)}
                             className={`p-1 rounded transition-colors ${
@@ -1359,7 +1359,7 @@ const HospitalOutreach: React.FC = () => {
       {totalItems > 0 && (
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
           <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-gray-700">每頁顯示:</span>
               <select
                 value={pageSize}
@@ -1377,7 +1377,7 @@ const HospitalOutreach: React.FC = () => {
             </div>
             
             {totalPages > 1 && (
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}

@@ -159,8 +159,8 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="p-2 bg-green-100 rounded-lg">
               <Syringe className="h-6 w-6 text-green-600" />
             </div>
@@ -189,13 +189,13 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
           />
 
           {ocrError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center space-x-2">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex flex-wrap items-center gap-2">
               <span className="text-red-600 text-sm">{ocrError}</span>
             </div>
           )}
 
           <div>
-            <label className="form-label flex items-center space-x-2">
+            <label className="form-label flex flex-wrap items-center gap-2">
               <span className="text-red-500">*</span>
               <span>院友</span>
             </label>
@@ -220,7 +220,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
               <h3 className="text-sm font-medium text-gray-900 mb-3">現有疫苗記錄</h3>
               <div className="space-y-2">
                 {existingRecords.map((record, index) => (
-                  <div key={index} className="flex items-center space-x-4 text-sm">
+                  <div key={index} className="flex flex-wrap items-center gap-4 text-sm">
                     <span className="text-gray-600">
                       {new Date(record.vaccination_date).toLocaleDateString('zh-TW')}
                     </span>
@@ -233,7 +233,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
           )}
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <label className="form-label mb-0">
                 <span className="text-red-500">*</span> 疫苗記錄項目
               </label>
@@ -249,7 +249,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
 
             {vaccinationItems.map((item, index) => (
               <div key={item.id} className="border border-gray-200 rounded-lg p-4 space-y-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
                   <span className="text-sm font-medium text-gray-700">項目 {index + 1}</span>
                   {vaccinationItems.length > 1 && (
                     <button
@@ -264,7 +264,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="form-label flex items-center space-x-2">
+                    <label className="form-label flex flex-wrap items-center gap-2">
                       <Calendar className="h-4 w-4 text-gray-400" />
                       <span className="text-red-500">*</span>
                       <span>注射日期</span>
@@ -284,7 +284,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="form-label flex items-center space-x-2">
+                    <label className="form-label flex flex-wrap items-center gap-2">
                       <Syringe className="h-4 w-4 text-gray-400" />
                       <span className="text-red-500">*</span>
                       <span>疫苗項目 / 名稱</span>
@@ -305,7 +305,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="form-label flex items-center space-x-2">
+                    <label className="form-label flex flex-wrap items-center gap-2">
                       <Building2 className="h-4 w-4 text-gray-400" />
                       <span className="text-red-500">*</span>
                       <span>注射單位 / 醫院</span>

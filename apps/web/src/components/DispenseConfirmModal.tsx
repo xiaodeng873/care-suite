@@ -142,8 +142,8 @@ const DispenseConfirmModal: React.FC<DispenseConfirmModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 z-10">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">
                 <CheckCircle className="h-6 w-6 text-blue-600" />
               </div>
@@ -159,7 +159,7 @@ const DispenseConfirmModal: React.FC<DispenseConfirmModalProps> = ({
           </div>
 
           {isHospitalized && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start space-x-2">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
               <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-yellow-800">
                 <strong>注意：</strong>此院友目前標記為入院中狀態。如院友已出院，請先到「缺席管理」更新狀態。
@@ -226,7 +226,7 @@ const DispenseConfirmModal: React.FC<DispenseConfirmModalProps> = ({
             {dispenseOptions.map(option => (
               <label
                 key={option.value}
-                className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer ${getColorClasses(option.color, selectedOption === option.value)}`}
+                className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer ${getColorClasses(option.color, selectedOption === option.value)}`}
               >
                 <input
                   type="radio"
@@ -238,7 +238,7 @@ const DispenseConfirmModal: React.FC<DispenseConfirmModalProps> = ({
                   style={{ accentColor: option.color === 'green' ? '#16a34a' : undefined }}
                 />
                 <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className={getIconColorClass(option.color)}>{option.icon}</span>
                     <span className="font-medium text-gray-900 text-base">{option.label}</span>
                     {option.isSuccess && (
@@ -280,7 +280,7 @@ const DispenseConfirmModal: React.FC<DispenseConfirmModalProps> = ({
             <button
               onClick={handleConfirm}
               disabled={isSubmitting || (selectedOption === '其他' && !customReason.trim())}
-              className={`flex-1 flex items-center justify-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${
+              className={`flex-1 flex flex-wrap items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
                 selectedOptionData?.isSuccess
                   ? 'bg-green-600 hover:bg-green-700 text-white'
                   : 'bg-red-600 hover:bg-red-700 text-white'

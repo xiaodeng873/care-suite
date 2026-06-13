@@ -549,7 +549,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">
             {isDuplicate ? '另存個人照顧計劃' : (plan ? '編輯個人照顧計劃' : '新增個人照顧計劃')}
           </h2>
@@ -562,13 +562,13 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 px-6">
-          <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
+        <div className="border-b border-gray-200 px-6 overflow-x-auto">
+          <nav className="flex gap-4 min-w-max">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap flex-shrink-0 ${
+                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -812,14 +812,14 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                       const hasNeed = isOverall ? overallNursingNeed : (nursingNeeds.get(item.id) || false);
                       
                       return (
-                        <div key={item.id} className={`flex items-center space-x-4 p-3 rounded-lg ${isOverall ? 'bg-blue-50' : 'bg-gray-50'}`}>
+                        <div key={item.id} className={`flex flex-wrap items-center gap-4 p-3 rounded-lg ${isOverall ? 'bg-blue-50' : 'bg-gray-50'}`}>
                           <div className="flex-1 font-medium text-gray-700">
                             {item.name}
                             {item.is_default && <span className="text-xs text-gray-400 ml-1">(預設)</span>}
                           </div>
                           
-                          <div className="flex items-center space-x-4">
-                            <label className="flex items-center space-x-2 cursor-pointer">
+                          <div className="flex flex-wrap items-center gap-4">
+                            <label className="flex flex-wrap items-center gap-2 cursor-pointer">
                               <input
                                 type="radio"
                                 name={`nursing-${item.id}`}
@@ -830,7 +830,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                               />
                               <span className="text-sm">沒有</span>
                             </label>
-                            <label className="flex items-center space-x-2 cursor-pointer">
+                            <label className="flex flex-wrap items-center gap-2 cursor-pointer">
                               <input
                                 type="radio"
                                 name={`nursing-${item.id}`}
@@ -853,7 +853,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                   
                   {/* 新增自訂護理需要項目 */}
                   <div className="border-t pt-4">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="text"
                         value={newNursingNeedName}
@@ -938,8 +938,8 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                   {/* 問題庫選擇面板 */}
                   {showProblemLibrary && (
                     <div className="border rounded-lg p-4 bg-gray-50">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                        <div className="flex flex-wrap items-center gap-3">
                           <label className="text-sm font-medium text-gray-700">專業類別：</label>
                           <select
                             value={selectedCategory}
@@ -978,7 +978,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                         
                         {/* 子分類選擇 */}
                         {subcategories.length > 1 && (
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <label className="text-sm text-gray-600">分類：</label>
                             <select
                               value={selectedSubcategory}
@@ -1057,8 +1057,8 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                   ) : (
                     <div>
                       {/* 問題過濾選單 */}
-                      <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
+                        <div className="flex flex-wrap items-center gap-3">
                           <label className="text-sm font-medium text-gray-700 whitespace-nowrap">過濾專業：</label>
                           <select
                             value={problemFilterCategory}
@@ -1083,7 +1083,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                           .map(({ problem, originalIndex: index }) => (
                         <div key={index} className="border rounded-lg p-4 bg-white">
                           <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-sm font-medium">
                                 問題 {index + 1}
                               </span>
@@ -1132,7 +1132,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                               </label>
                               <div className="space-y-2">
                                 {problem.expected_goals.map((goal, goalIndex) => (
-                                  <div key={goalIndex} className="flex items-center space-x-2">
+                                  <div key={goalIndex} className="flex flex-wrap items-center gap-2">
                                     <span className="text-gray-400 text-sm">{goalIndex + 1}.</span>
                                     <input
                                       type="text"
@@ -1167,7 +1167,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                               </label>
                               <div className="space-y-2">
                                 {problem.interventions.map((intervention, intIndex) => (
-                                  <div key={intIndex} className="flex items-center space-x-2">
+                                  <div key={intIndex} className="flex flex-wrap items-center gap-2">
                                     <span className="text-gray-400 text-sm">{intIndex + 1}.</span>
                                     <input
                                       type="text"
@@ -1207,7 +1207,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 gap-4">
                         <div className="bg-blue-50 p-4 rounded-lg flex-1">
                           <p className="text-sm text-blue-800">
                             請對每個問題進行成效檢討，選擇最合適的評估結果。
@@ -1215,7 +1215,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                         </div>
                         
                         {/* 一鍵檢訊 */}
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm text-gray-600">一鍵檢討：</span>
                           <select
                             key={bulkReviewKey}
@@ -1252,7 +1252,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                             {/* 問題標題 */}
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
-                                <div className="flex items-center space-x-2 mb-2">
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
                                   <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-sm font-medium">
                                     問題 {index + 1}
                                   </span>
@@ -1302,7 +1302,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                                 {OUTCOME_REVIEWS.map(review => (
                                   <label 
                                     key={review} 
-                                    className="flex items-center space-x-2 cursor-pointer"
+                                    className="flex flex-wrap items-center gap-2 cursor-pointer"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       // 如果再次點擊已選中的選項，則取消選擇
@@ -1556,7 +1556,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
           <button
             onClick={handleSubmit}
             disabled={loading || !selectedPatientId}
-            className="btn-primary flex items-center space-x-2">
+            className="btn-primary flex flex-wrap items-center gap-2">
             {loading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
@@ -1576,7 +1576,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
       {showAddProblem && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60" onClick={() => setShowAddProblem(false)}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b">
               <h3 className="text-lg font-semibold">新增問題至問題庫</h3>
               <button onClick={() => setShowAddProblem(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="h-5 w-5" />
@@ -1642,7 +1642,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                   </button>
                 </label>
                 {newProblem.expected_goals.map((goal, i) => (
-                  <div key={i} className="flex items-center space-x-2 mt-2">
+                  <div key={i} className="flex flex-wrap items-center gap-2 mt-2">
                     <input
                       type="text"
                       value={goal}
@@ -1680,7 +1680,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                   </button>
                 </label>
                 {newProblem.interventions.map((int, i) => (
-                  <div key={i} className="flex items-center space-x-2 mt-2">
+                  <div key={i} className="flex flex-wrap items-center gap-2 mt-2">
                     <input
                       type="text"
                       value={int}

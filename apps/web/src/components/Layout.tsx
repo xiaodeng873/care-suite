@@ -288,13 +288,13 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       {/* 頂部導覽欄 */}
       <header className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
         <div className="px-4 lg:px-6">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 h-16">
             {/* Logo 和導覽 */}
             <div className="flex items-center flex-1">
               {/* Logo */}
               <Link 
                 to="/" 
-                className="flex items-center space-x-2 mr-8"
+                className="flex flex-wrap items-center gap-2 mr-8"
                 onClick={(e) => {
                   if (isActive('/')) {
                     e.preventDefault();
@@ -341,7 +341,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
                             <Link
                               key={item.name}
                               to={item.href}
-                              className={`flex items-center space-x-2 px-4 py-2 text-sm transition-colors ${
+                              className={`flex flex-wrap items-center gap-2 px-4 py-2 text-sm transition-colors ${
                                 isCurrentPage
                                   ? 'bg-blue-50 text-blue-700'
                                   : 'text-gray-700 hover:bg-gray-50'
@@ -376,7 +376,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
             </div>
 
             {/* 右側：日期和用戶 */}
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-4">
               <span className="text-sm text-gray-500 hidden md:inline">
                 {getHongKongDate().toLocaleDateString('zh-TW', { 
                   year: 'numeric', 
@@ -389,7 +389,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
+                  className="flex flex-wrap items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
                 >
                   <User className="w-5 h-5" />
                   <span className="text-sm hidden sm:inline">{displayName || user.email}</span>
@@ -415,7 +415,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
                         onSignOut();
                         setShowUserMenu(false);
                       }}
-                      className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                      className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
                     >
                       <LogOut className="w-4 h-4" />
                       <span>登出</span>
@@ -436,7 +436,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
             onClick={() => setMobileMenuOpen(false)}
           />
           <div className="relative h-full w-64 bg-white shadow-xl overflow-y-auto">
-            <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 h-16 px-4 border-b border-gray-200">
               <span className="text-xl font-bold text-gray-900">選單</span>
               <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="h-6 w-6" />
@@ -456,7 +456,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
                         <Link
                           key={item.name}
                           to={item.href}
-                          className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                          className={`flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                             isCurrentPage
                               ? 'bg-blue-50 text-blue-700'
                               : 'text-gray-700 hover:bg-gray-50'

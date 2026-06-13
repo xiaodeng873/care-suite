@@ -548,7 +548,7 @@ const HealthAssessment: React.FC = () => {
             {selectedRows.size > 0 && (
               <div className="relative group">
                 <button
-                  className="btn-primary flex items-center space-x-2 whitespace-nowrap"
+                  className="btn-primary flex flex-wrap items-center gap-2 whitespace-nowrap"
                   disabled={isExporting}
                 >
                   {isExporting ? (
@@ -566,21 +566,21 @@ const HealthAssessment: React.FC = () => {
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                   <button
                     onClick={() => handleExportSelected('生命表徵')}
-                    className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                    className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
                   >
                     <Activity className="h-4 w-4 text-blue-600" />
                     <span>生命表徵記錄表</span>
                   </button>
                   <button
                     onClick={() => handleExportSelected('血糖控制')}
-                    className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                    className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
                   >
                     <Droplets className="h-4 w-4 text-red-600" />
                     <span>血糖測試記錄表</span>
                   </button>
                   <button
                     onClick={() => handleExportSelected('體重控制')}
-                    className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                    className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
                   >
                     <Scale className="h-4 w-4 text-green-600" />
                     <span>體重記錄表</span>
@@ -592,7 +592,7 @@ const HealthAssessment: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setShowMoreMenu(!showMoreMenu)}
-                className="btn-secondary flex items-center space-x-2 whitespace-nowrap"
+                className="btn-secondary flex flex-wrap items-center gap-2 whitespace-nowrap"
                 title="其他功能"
               >
                 <MoreVertical className="h-4 w-4" />
@@ -615,7 +615,7 @@ const HealthAssessment: React.FC = () => {
                           handleBatchUpload('生命表徵');
                           setShowMoreMenu(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
                       >
                         <Activity className="h-4 w-4 text-blue-600" />
                         <span>批量新增生命表徵</span>
@@ -625,7 +625,7 @@ const HealthAssessment: React.FC = () => {
                           handleBatchUpload('血糖控制');
                           setShowMoreMenu(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
                       >
                         <Droplets className="h-4 w-4 text-red-600" />
                         <span>批量新增血糖記錄</span>
@@ -635,7 +635,7 @@ const HealthAssessment: React.FC = () => {
                           handleBatchUpload('體重控制');
                           setShowMoreMenu(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
                       >
                         <Scale className="h-4 w-4 text-green-600" />
                         <span>批量新增體重記錄</span>
@@ -649,7 +649,7 @@ const HealthAssessment: React.FC = () => {
                           setShowMoreMenu(false);
                         }}
                         disabled={isAnalyzingDuplicates}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 disabled:opacity-50"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2 disabled:opacity-50"
                       >
                         {isAnalyzingDuplicates ? (
                           <>
@@ -668,7 +668,7 @@ const HealthAssessment: React.FC = () => {
                           setShowRecycleBin(true);
                           setShowMoreMenu(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
                       >
                         <Recycle className="h-4 w-4" />
                         <span>回收筒</span>
@@ -679,7 +679,7 @@ const HealthAssessment: React.FC = () => {
                           setShowMoreMenu(false);
                         }}
                         disabled={isGeneratingTemperature}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 last:rounded-b-lg flex items-center space-x-2 disabled:opacity-50"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 last:rounded-b-lg flex flex-wrap items-center gap-2 disabled:opacity-50"
                       >
                         {isGeneratingTemperature ? (
                           <>
@@ -703,7 +703,7 @@ const HealthAssessment: React.FC = () => {
                 setSelectedRecord(null);
                 setShowModal(true);
               }}
-              className="btn-primary flex items-center space-x-2 whitespace-nowrap"
+              className="btn-primary flex flex-wrap items-center gap-2 whitespace-nowrap"
             >
               <Plus className="h-4 w-4" />
               <span>新增記錄</span>
@@ -726,10 +726,10 @@ const HealthAssessment: React.FC = () => {
                   className="form-input pl-10"
                 />
               </div>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className={`btn-secondary flex items-center space-x-2 ${
+                className={`btn-secondary flex flex-wrap items-center gap-2 ${
                   showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''
                 } ${hasAdvancedFilters() ? 'border-blue-300' : ''}`}
               >
@@ -744,7 +744,7 @@ const HealthAssessment: React.FC = () => {
               {(searchTerm || hasAdvancedFilters()) && (
                 <button
                   onClick={clearFilters}
-                  className="btn-secondary flex items-center space-x-2 text-red-600 hover:text-red-700"
+                  className="btn-secondary flex flex-wrap items-center gap-2 text-red-600 hover:text-red-700"
                 >
                   <X className="h-4 w-4" />
                   <span>清除</span>
@@ -757,7 +757,7 @@ const HealthAssessment: React.FC = () => {
               <h3 className="text-sm font-medium text-gray-900 mb-3">進階篩選</h3>
               <div className="mb-4">
                 <label className="form-label">記錄日期區間</label>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <input
                     type="date"
                     value={advancedFilters.startDate}
@@ -851,7 +851,7 @@ const HealthAssessment: React.FC = () => {
             </div>
           )}
         </div>
-          <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
             <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 筆監測記錄 (共 {healthRecords.length} 筆)</span>
             {(searchTerm || hasAdvancedFilters()) && (
               <span className="text-blue-600">已套用篩選條件</span>
@@ -862,8 +862,8 @@ const HealthAssessment: React.FC = () => {
       {totalItems > 0 && (
         <div className="sticky top-40 bg-white z-10 shadow-sm">
           <div className="card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-4">
                 <button
                   onClick={handleSelectAll}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -941,7 +941,7 @@ const HealthAssessment: React.FC = () => {
                         />
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <div className="w-8 h-8 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                             {patient?.院友相片 ? (
                               <img 
@@ -970,7 +970,7 @@ const HealthAssessment: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Calendar className="h-4 w-4 text-gray-400" />
                           <div>
                             <div>{new Date(record.記錄日期).toLocaleDateString('zh-TW')}</div>
@@ -1051,7 +1051,7 @@ const HealthAssessment: React.FC = () => {
                         {record.備註 || '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-2">
                           <button
                             onClick={() => handleEdit(record)}
                             className="text-blue-600 hover:text-blue-900"
@@ -1111,7 +1111,7 @@ const HealthAssessment: React.FC = () => {
       {totalItems > 0 && (
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
           <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-gray-700">每頁顯示:</span>
               <select
                 value={pageSize}
@@ -1128,7 +1128,7 @@ const HealthAssessment: React.FC = () => {
               <span className="text-sm text-gray-700">筆記錄</span>
             </div>
             {totalPages > 1 && (
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}

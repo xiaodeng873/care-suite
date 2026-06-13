@@ -248,8 +248,8 @@ const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment,
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-red-100">
                 <FirstAid className="h-6 w-6 text-red-600" />
               </div>
@@ -340,12 +340,12 @@ const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment,
 
           {/* 傷口詳細資料 */}
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <h3 className="text-lg font-medium text-gray-900">傷口詳細資料</h3>
               <button
                 type="button"
                 onClick={addWound}
-                className="btn-secondary flex items-center space-x-2"
+                className="btn-secondary flex flex-wrap items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 <span>新增傷口</span>
@@ -354,7 +354,7 @@ const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment,
 
             {wounds.map((wound, index) => (
               <div key={index} className="border border-gray-200 rounded-lg p-6 space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <h4 className="text-md font-medium text-gray-800">
                     傷口 #{index + 1}
                   </h4>
@@ -515,7 +515,7 @@ const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment,
                   <div className="ml-4 space-y-3">
                     <h6 className="text-sm font-medium text-gray-800">滲出物評估</h6>
 
-                    <div className="flex items-center space-x-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <input
                         type="checkbox"
                         id={`exudate_present_${index}`}
@@ -727,7 +727,7 @@ const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment,
                       <label className="form-label">敷料 (可複選)</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {dressingOptions.map(dressing => (
-                          <label key={dressing} className="flex items-center space-x-2">
+                          <label key={dressing} className="flex flex-wrap items-center gap-2">
                             <input
                               type="checkbox"
                               checked={wound.dressings.includes(dressing)}

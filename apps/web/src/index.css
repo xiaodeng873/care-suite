@@ -362,11 +362,6 @@
 
 /* 手機直向模式響應式樣式 */
 @media (max-width: 640px) {
-  /* 移除所有強制不換行的設定 */
-  .whitespace-nowrap {
-    white-space: normal !important;
-  }
-
   /* 模態框容器優化 */
   .fixed.inset-0 > div {
     margin: 0.5rem;

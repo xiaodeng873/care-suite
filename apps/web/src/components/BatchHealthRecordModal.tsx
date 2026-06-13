@@ -475,8 +475,8 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className={`p-2 rounded-lg ${getTypeColor(recordType)} bg-opacity-10`}>
                 {getTypeIcon(recordType)}
               </div>
@@ -485,7 +485,7 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
                 <p className="text-sm text-gray-600">一次新增多筆{recordType}記錄</p>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-600"
@@ -503,7 +503,7 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
                 ? 'bg-green-50 border-green-200'
                 : 'bg-yellow-50 border-yellow-200'
             }`}>
-              <div className="flex items-center space-x-2 mb-2">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 {uploadResults.failed === 0 ? (
                   <div className="flex items-center text-green-800">
                     <Heart className="h-5 w-5 mr-2" />
@@ -536,12 +536,12 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
           )}
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <h3 className="text-lg font-medium text-gray-900">
                 記錄列表 ({records.length} 筆)
               </h3>
-              <div className="flex items-center space-x-3">
-                <label className="flex items-center space-x-2 text-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex flex-wrap items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={autoSelectPrevious}
@@ -550,7 +550,7 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
                   />
                   <span className="text-gray-700">自動選擇上一筆院友</span>
                 </label>
-                <label className="flex items-center space-x-2 text-sm">
+                <label className="flex flex-wrap items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={autoSelectNextBed}
@@ -575,7 +575,7 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
                   }}
                   className="border rounded-lg p-4 bg-gray-50"
                 >
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                     <h4 className="font-medium text-gray-900">第 {index + 1} 筆記錄</h4>
                     {records.length > 1 && (
                       <button
@@ -658,7 +658,7 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
 
                   {/* 缺席選項 */}
                   <div className="col-span-full">
-                    <div className={`flex items-center space-x-3 p-3 rounded-lg border ${
+                    <div className={`flex flex-wrap items-center gap-3 p-3 rounded-lg border ${
                       record.院友id && checkPatientHospitalized(record.院友id)
                         ? 'bg-red-50 border-red-200' 
                         : 'bg-orange-50 border-orange-200'
@@ -685,7 +685,7 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
                         )}
                       </label>
                      {record.isAbsent && (
-                       <div className="flex items-center space-x-2">
+                       <div className="flex flex-wrap items-center gap-2">
                          <label className={`text-sm ${
                            record.院友id && checkPatientHospitalized(record.院友id)
                              ? 'text-red-700' 
@@ -733,7 +733,7 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                           <label className="form-label">血壓 (mmHg)</label>
-                          <div className="flex space-x-2">
+                          <div className="flex flex-wrap gap-2">
                             <input
                               type="text"
                               value={record.血壓收縮壓}
@@ -932,7 +932,7 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
             <button
               onClick={handleBatchUpload}
               disabled={isUploading || records.length === 0}
-              className="btn-primary flex-1 flex items-center justify-center space-x-2"
+              className="btn-primary flex-1 flex flex-wrap items-center justify-center gap-2"
             >
               {isUploading ? (
                 <>
@@ -950,7 +950,7 @@ const BatchHealthRecordModal: React.FC<BatchHealthRecordModalProps> = ({ onClose
             <button
               type="button"
               onClick={addRecord}
-              className="btn-secondary flex-1 flex items-center justify-center space-x-2"
+              className="btn-secondary flex-1 flex flex-wrap items-center justify-center gap-2"
               disabled={isUploading}
             >
               <Plus className="h-4 w-4" />

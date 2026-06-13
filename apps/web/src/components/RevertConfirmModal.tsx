@@ -113,8 +113,8 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="p-2 rounded-lg bg-orange-100">
               <AlertTriangle className="h-6 w-6 text-orange-600" />
             </div>
@@ -142,7 +142,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
 
         <div className="mb-6 space-y-4">
           <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-            <div className="flex items-start space-x-3">
+            <div className="flex items-start gap-3">
               <User className="h-5 w-5 text-gray-500 mt-0.5" />
               <div className="flex-1">
                 <div className="text-xs text-gray-500">院友資訊</div>
@@ -152,7 +152,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
               </div>
             </div>
 
-            <div className="flex items-start space-x-3">
+            <div className="flex items-start gap-3">
               <Pill className="h-5 w-5 text-gray-500 mt-0.5" />
               <div className="flex-1">
                 <div className="text-xs text-gray-500">藥物名稱</div>
@@ -162,7 +162,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
               </div>
             </div>
 
-            <div className="flex items-start space-x-3">
+            <div className="flex items-start gap-3">
               <Clock className="h-5 w-5 text-gray-500 mt-0.5" />
               <div className="flex-1">
                 <div className="text-xs text-gray-500">排程時間</div>
@@ -190,7 +190,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
                 <div className="text-xs text-gray-500 mb-1">派藥狀態</div>
                 {dispensingStatus === 'completed' && (
                   <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <CheckCircle className="h-5 w-5 text-green-600" />
                       <span className="text-sm font-medium text-green-700">派藥成功</span>
                     </div>
@@ -212,7 +212,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
                 )}
                 {dispensingStatus === 'failed' && (
                   <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <XCircle className="h-5 w-5 text-red-600" />
                       <span className="text-sm font-medium text-red-700">派藥失敗</span>
                     </div>
@@ -253,7 +253,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
         <div className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={handleConfirm}
-            className="btn-danger flex-1 flex items-center justify-center space-x-2"
+            className="btn-danger flex-1 flex flex-wrap items-center justify-center gap-2"
           >
             <AlertTriangle className="h-4 w-4" />
             <span>確認撤銷</span>

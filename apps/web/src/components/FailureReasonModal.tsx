@@ -156,8 +156,8 @@ const FailureReasonModal: React.FC<FailureReasonModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="p-2 rounded-lg bg-red-100">
               <XCircle className="h-6 w-6 text-red-600" />
             </div>
@@ -199,7 +199,7 @@ const FailureReasonModal: React.FC<FailureReasonModalProps> = ({
           {failureReasons.map(reason => (
             <label
               key={reason.value}
-              className={`flex items-start space-x-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+              className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
                 selectedReason === reason.value
                   ? 'border-red-500 bg-red-50'
                   : 'border-gray-200 hover:border-gray-300'
@@ -214,7 +214,7 @@ const FailureReasonModal: React.FC<FailureReasonModalProps> = ({
                 className="h-4 w-4 text-red-600 focus:ring-red-500 mt-0.5"
               />
               <div className="flex-1">
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {reason.icon}
                   <span className="font-medium text-gray-900">{reason.label}</span>
                 </div>
@@ -244,7 +244,7 @@ const FailureReasonModal: React.FC<FailureReasonModalProps> = ({
           <button
             onClick={handleConfirm}
             disabled={!selectedReason || isSubmitting || (selectedReason === '其他' && !customReason.trim())}
-            className="btn-danger flex-1 flex items-center justify-center space-x-2"
+            className="btn-danger flex-1 flex flex-wrap items-center justify-center gap-2"
           >
             {isSubmitting ? (
               <>

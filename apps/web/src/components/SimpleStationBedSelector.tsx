@@ -84,7 +84,7 @@ const SimpleStationBedSelector: React.FC<SimpleStationBedSelectorProps> = ({
       {/* 選擇摘要 */}
       {selectedStationId && selectedBedId && (
         <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Building2 className="h-4 w-4 text-green-600" />
             <span className="text-sm font-medium text-green-900">
               已選擇：{stations.find(s => s.id === selectedStationId)?.name} - {beds.find(b => b.id === selectedBedId)?.bed_number}
@@ -95,7 +95,7 @@ const SimpleStationBedSelector: React.FC<SimpleStationBedSelectorProps> = ({
 
       {selectedStationId && !selectedBedId && availableBeds.length === 0 && (
         <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg">
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
             <span className="text-sm text-orange-800">
               此站點暫無可用床位

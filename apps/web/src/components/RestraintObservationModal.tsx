@@ -266,7 +266,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
   };
 
   const getStatusButtonClass = (status: 'N' | 'P' | 'S') => {
-    const baseClass = "flex-1 py-4 px-4 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2";
+    const baseClass = "flex-1 py-4 px-4 rounded-lg font-medium transition-all duration-200 flex flex-wrap items-center justify-center gap-2";
     if (isSpecialStatus) {
       return `${baseClass} bg-gray-100 text-gray-400 cursor-not-allowed opacity-50`;
     }
@@ -281,7 +281,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
           <h2 className="text-xl font-semibold text-gray-900">
             {existingRecord ? '查看/編輯約束觀察記錄' : '新增約束觀察記錄'}
           </h2>
@@ -376,7 +376,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {suggestedRestraints.map((item) => (
-                    <label key={item} className={`flex items-center space-x-2 p-3 border rounded-lg ${isSpecialStatus ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed' : 'border-blue-400 bg-blue-50 hover:bg-blue-100 cursor-pointer'}`}>
+                    <label key={item} className={`flex flex-wrap items-center gap-2 p-3 border rounded-lg ${isSpecialStatus ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed' : 'border-blue-400 bg-blue-50 hover:bg-blue-100 cursor-pointer'}`}>
                       <input
                         type="checkbox"
                         checked={selectedRestraints.includes(item)}
@@ -416,7 +416,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
             <label className="block text-sm font-medium text-gray-900 mb-3">
               觀察狀態 *
             </label>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setObservationStatus('N')}
@@ -482,7 +482,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
             <label className="block text-sm font-medium text-gray-900 mb-2">
               備註
             </label>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => handleNoteButtonClick('入院')}
@@ -507,7 +507,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-between items-center pt-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center pt-4">
             {existingRecord && onDelete && (
               <button
                 type="button"

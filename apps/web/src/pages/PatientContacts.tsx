@@ -205,7 +205,7 @@ const PatientContacts: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">院友聯絡人</h1>
         </div>
       </div>
@@ -224,10 +224,10 @@ const PatientContacts: React.FC = () => {
                   className="form-input pl-10"
                 />
               </div>
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className={`btn-secondary flex items-center space-x-2 ${showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''} ${hasAdvancedFilters() ? 'border-blue-300' : ''}`}
+                  className={`btn-secondary flex flex-wrap items-center gap-2 ${showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''} ${hasAdvancedFilters() ? 'border-blue-300' : ''}`}
                 >
                   <Filter className="h-4 w-4" />
                   <span>進階篩選</span>
@@ -238,7 +238,7 @@ const PatientContacts: React.FC = () => {
                 {(searchTerm || hasAdvancedFilters()) && (
                   <button
                     onClick={clearFilters}
-                    className="btn-secondary flex items-center space-x-2 text-red-600 hover:text-red-700"
+                    className="btn-secondary flex flex-wrap items-center gap-2 text-red-600 hover:text-red-700"
                   >
                     <X className="h-4 w-4" />
                     <span>清除</span>
@@ -325,7 +325,7 @@ const PatientContacts: React.FC = () => {
                         {patient.床號}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap align-top border-r border-gray-100">
-                        <div className="flex items-center space-x-3">
+                        <div className="flex flex-wrap items-center gap-3">
                           <div className="w-8 h-8 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                             {patient.院友相片 ? (
                               <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -375,7 +375,7 @@ const PatientContacts: React.FC = () => {
                           {patient.床號}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap align-top border-r border-gray-100" rowSpan={filteredPatientContacts.length}>
-                          <div className="flex items-center space-x-3">
+                          <div className="flex flex-wrap items-center gap-3">
                             <div className="w-8 h-8 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                               {patient.院友相片 ? (
                                 <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -411,7 +411,7 @@ const PatientContacts: React.FC = () => {
                     <td className="px-4 py-3 text-sm text-gray-600">{contact.地址 || '-'}</td>
                     <td className="px-4 py-3 text-sm text-gray-500">{contact.備註 || '-'}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
+                      <div className="flex flex-wrap gap-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

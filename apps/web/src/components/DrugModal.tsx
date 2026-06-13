@@ -122,8 +122,8 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">
                 <Pill className="h-6 w-6 text-blue-600" />
               </div>
@@ -144,7 +144,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
           {/* 藥物相片 */}
           <div>
             <label className="form-label">藥物相片</label>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-4">
               <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
                 {photoPreview ? (
                   <img 
@@ -157,7 +157,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
                 )}
               </div>
               <div className="flex flex-col space-y-2">
-                <label className="btn-secondary cursor-pointer flex items-center space-x-2">
+                <label className="btn-secondary cursor-pointer flex flex-wrap items-center gap-2">
                   <Upload className="h-4 w-4" />
                   <span>上傳相片</span>
                   <input
@@ -172,7 +172,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
                   <button
                     type="button"
                     onClick={handleRemovePhoto}
-                    className="btn-danger flex items-center space-x-2"
+                    className="btn-danger flex flex-wrap items-center gap-2"
                   >
                     <Trash2 className="h-4 w-4" />
                     <span>移除相片</span>

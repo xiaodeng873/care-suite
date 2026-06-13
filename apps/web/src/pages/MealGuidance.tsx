@@ -474,7 +474,7 @@ const MealGuidance: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowStatistics(!showStatistics)}
-              className="btn-secondary flex items-center space-x-2"
+              className="btn-secondary flex flex-wrap items-center gap-2"
             >
               <BarChart3 className="h-4 w-4" />
               <span>廚房統計</span>
@@ -482,7 +482,7 @@ const MealGuidance: React.FC = () => {
             {selectedRows.size > 0 && (
               <button
                 onClick={handleExportSelected}
-                className="btn-secondary flex items-center space-x-2"
+                className="btn-secondary flex flex-wrap items-center gap-2"
               >
                 <Download className="h-4 w-4" />
                 <span>匯出選定記錄</span>
@@ -493,7 +493,7 @@ const MealGuidance: React.FC = () => {
                 setSelectedGuidance(null);
                 setShowModal(true);
               }}
-              className="btn-primary flex items-center space-x-2"
+              className="btn-primary flex flex-wrap items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               <span>新增餐膳指引</span>
@@ -513,11 +513,11 @@ const MealGuidance: React.FC = () => {
             <div>
               <h3 className="text-md font-medium text-gray-700 mb-3">總數統計</h3>
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">餐膳總數</span>
                   <span className="font-bold text-blue-600 text-lg">{statistics.總餐膳數} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">需要凝固粉</span>
                   <span className="font-medium text-blue-600">{statistics.需要凝固粉} 份</span>
                 </div>
@@ -528,15 +528,15 @@ const MealGuidance: React.FC = () => {
             <div>
               <h3 className="text-md font-medium text-gray-700 mb-3">主食需求</h3>
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">正飯</span>
                   <span className="font-medium text-green-600">{statistics.正飯} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">軟飯</span>
                   <span className="font-medium text-yellow-600">{statistics.軟飯} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">糊飯</span>
                   <span className="font-medium text-orange-600">{statistics.糊飯} 份</span>
                 </div>
@@ -547,15 +547,15 @@ const MealGuidance: React.FC = () => {
             <div>
               <h3 className="text-md font-medium text-gray-700 mb-3">配菜需求</h3>
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">正餸</span>
                   <span className="font-medium text-green-600">{statistics.正餸} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">碎餸</span>
                   <span className="font-medium text-yellow-600">{statistics.碎餸} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">糊餸</span>
                   <span className="font-medium text-orange-600">{statistics.糊餸} 份</span>
                 </div>
@@ -566,19 +566,19 @@ const MealGuidance: React.FC = () => {
             <div>
               <h3 className="text-md font-medium text-gray-700 mb-3">特殊餐膳需求</h3>
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">糖尿餐</span>
                   <span className="font-medium text-blue-600">{statistics.糖尿餐} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">痛風餐</span>
                   <span className="font-medium text-purple-600">{statistics.痛風餐} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">低鹽餐</span>
                   <span className="font-medium text-green-600">{statistics.低鹽餐} 份</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-sm text-gray-600">雞蛋</span>
                   <span className="font-medium text-yellow-600">{statistics.雞蛋總數} 隻</span>
                 </div>
@@ -640,10 +640,10 @@ const MealGuidance: React.FC = () => {
                 />
               </div>
             
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className={`btn-secondary flex items-center space-x-2 ${
+                className={`btn-secondary flex flex-wrap items-center gap-2 ${
                   showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''
                 } ${hasAdvancedFilters() ? 'border-blue-300' : ''}`}
               >
@@ -659,7 +659,7 @@ const MealGuidance: React.FC = () => {
               {(searchTerm || hasAdvancedFilters()) && (
                 <button
                   onClick={clearFilters}
-                  className="btn-secondary flex items-center space-x-2 text-red-600 hover:text-red-700"
+                  className="btn-secondary flex flex-wrap items-center gap-2 text-red-600 hover:text-red-700"
                 >
                   <X className="h-4 w-4" />
                   <span>清除</span>
@@ -674,7 +674,7 @@ const MealGuidance: React.FC = () => {
               
               <div className="mb-4">
                 <label className="form-label">指引日期區間</label>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <input
                     type="date"
                     value={advancedFilters.startDate}
@@ -796,7 +796,7 @@ const MealGuidance: React.FC = () => {
           )}
           
         </div>
-          <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
             <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 筆餐膳指引 (共 {mealGuidances.length} 筆)</span>
             {(searchTerm || hasAdvancedFilters()) && (
               <span className="text-blue-600">已套用篩選條件</span>
@@ -808,8 +808,8 @@ const MealGuidance: React.FC = () => {
       {totalItems > 0 && (
         <div className={`sticky ${showStatistics ? 'top-96' : 'top-40'} bg-white z-10 shadow-sm`}>
           <div className="card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-4">
                 <button
                   onClick={handleSelectAll}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -891,7 +891,7 @@ const MealGuidance: React.FC = () => {
                         />
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-3">
+                        <div className="flex flex-wrap items-center gap-3">
                           <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                             {patient?.院友相片 ? (
                               <img 
@@ -975,7 +975,7 @@ const MealGuidance: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-2">
                           <button
                             onClick={() => handleEdit(guidance)}
                             className="text-blue-600 hover:text-blue-900"
@@ -1036,7 +1036,7 @@ const MealGuidance: React.FC = () => {
       {totalItems > 0 && (
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
           <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-gray-700">每頁顯示:</span>
               <select
                 value={pageSize}
@@ -1054,7 +1054,7 @@ const MealGuidance: React.FC = () => {
             </div>
             
             {totalPages > 1 && (
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}

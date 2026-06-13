@@ -51,8 +51,8 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-100">
               <Building2 className="h-6 w-6 text-blue-600" />
             </div>

@@ -229,8 +229,8 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">
                 <ArrowRight className="h-6 w-6 text-blue-600" />
               </div>
@@ -282,7 +282,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
           <div>
             <label className="form-label">轉移到</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className={`flex items-center space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+              <label className={`flex flex-wrap items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 targetStatus === 'active' ? 'border-green-500 bg-green-50' : 'border-gray-200'
               }`}>
                 <input
@@ -294,7 +294,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
                   className="h-4 w-4 text-green-600 focus:ring-green-500"
                 />
                 <div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-600" />
                     <span className="font-medium text-green-900">在服處方</span>
                   </div>
@@ -302,7 +302,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
                 </div>
               </label>
 
-              <label className={`flex items-center space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+              <label className={`flex flex-wrap items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 targetStatus === 'inactive' ? 'border-gray-500 bg-gray-50' : 'border-gray-200'
               }`}>
                 <input
@@ -314,7 +314,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
                   className="h-4 w-4 text-gray-600 focus:ring-gray-500"
                 />
                 <div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <X className="h-5 w-5 text-gray-600" />
                     <span className="font-medium text-gray-900">停用處方</span>
                   </div>
@@ -333,13 +333,13 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
               </h3>
 
               {comparisonResult.isNewMedication ? (
-                <div className="flex items-center space-x-2 text-green-700">
+                <div className="flex flex-wrap items-center gap-2 text-green-700">
                   <CheckCircle className="h-5 w-5" />
                   <span>這是新增的藥物，沒有衝突的在服處方</span>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-2 text-orange-700">
+                  <div className="flex flex-wrap items-center gap-2 text-orange-700">
                     <AlertTriangle className="h-5 w-5" />
                     <span className="font-medium">發現相同藥物的在服處方，存在以下差異：</span>
                   </div>
@@ -366,7 +366,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
                       </table>
                     </div>
                   ) : (
-                    <div className="flex items-center space-x-2 text-green-700">
+                    <div className="flex flex-wrap items-center gap-2 text-green-700">
                       <CheckCircle className="h-5 w-5" />
                       <span>處方內容相同，無需變更</span>
                     </div>
@@ -376,7 +376,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
                   <div className="space-y-3">
                     <h4 className="font-medium text-blue-900">處理方式：</h4>
                     
-                    <label className={`flex items-start space-x-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                    <label className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
                       selectedAction === 'replace' ? 'border-red-500 bg-red-50' : 'border-gray-200'
                     }`}>
                       <input
@@ -395,7 +395,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
                       </div>
                     </label>
 
-                    <label className={`flex items-start space-x-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                    <label className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
                       selectedAction === 'keep_both' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                     }`}>
                       <input
@@ -422,15 +422,15 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
           {/* 確認區域 */}
           <div className="bg-gray-50 rounded-lg p-4">
             <h3 className="text-lg font-medium text-gray-900 mb-3">轉移確認</h3>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-gray-600">當前狀態：</span>
                 <span className={`font-medium ${getStatusColor(prescription.status)}`}>
                   {getStatusLabel(prescription.status)}
                 </span>
               </div>
               <ArrowRight className="h-5 w-5 text-gray-400" />
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-gray-600">目標狀態：</span>
                 <span className={`font-medium ${getStatusColor(targetStatus)}`}>
                   {getStatusLabel(targetStatus)}
@@ -440,7 +440,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
 
             {comparisonResult?.existingPrescription && targetStatus === 'active' && (
               <div className="mt-3 p-3 bg-orange-100 border border-orange-300 rounded-lg">
-                <div className="flex items-center space-x-2 text-orange-800">
+                <div className="flex flex-wrap items-center gap-2 text-orange-800">
                   <AlertTriangle className="h-4 w-4" />
                   <span className="text-sm font-medium">
                     {selectedAction === 'replace' 

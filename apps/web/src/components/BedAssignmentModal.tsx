@@ -59,8 +59,8 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-green-100">
                 <Bed className="h-6 w-6 text-green-600" />
               </div>
@@ -93,7 +93,7 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
                 className="form-input pl-10 w-full"
               />
             </div>
-            <div className="flex items-center justify-between mt-2 text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-2 text-sm text-gray-600">
               <p className="text-sm text-gray-600 mt-2">
                 {searchTerm ? 
                   `找到 ${availablePatients.length} 位符合條件的院友` : 
@@ -124,8 +124,8 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
                   }`}
                   onClick={() => setSelectedPatient(patient)}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <div className="w-12 h-12 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                         {patient.院友相片 ? (
                           <img 

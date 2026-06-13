@@ -155,7 +155,7 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
           <h2 className="text-xl font-semibold text-gray-900">
             {existingRecord ? '查看/編輯換片記錄' : '新增換片記錄'}
           </h2>
@@ -209,7 +209,7 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
               排泄情況 *
             </label>
             <div className="space-y-2">
-              <label className={`flex items-center space-x-2 ${isSpecialStatus ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+              <label className={`flex flex-wrap items-center gap-2 ${isSpecialStatus ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                 <input
                   type="checkbox"
                   checked={hasUrine}
@@ -219,7 +219,7 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
                 />
                 <span>小便</span>
               </label>
-              <label className={`flex items-center space-x-2 ${isSpecialStatus ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+              <label className={`flex flex-wrap items-center gap-2 ${isSpecialStatus ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                 <input
                   type="checkbox"
                   checked={hasStool}
@@ -229,7 +229,7 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
                 />
                 <span>大便</span>
               </label>
-              <label className={`flex items-center space-x-2 ${isSpecialStatus ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+              <label className={`flex flex-wrap items-center gap-2 ${isSpecialStatus ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                 <input
                   type="checkbox"
                   checked={hasNone}
@@ -333,7 +333,7 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
             <label className="block text-sm font-medium text-gray-900 mb-2">
               備註
             </label>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => handleNoteButtonClick('入院')}
@@ -358,7 +358,7 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-between items-center pt-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center pt-4">
             {existingRecord && onDelete && (
               <button
                 type="button"

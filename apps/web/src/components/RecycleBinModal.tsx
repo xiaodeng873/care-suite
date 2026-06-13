@@ -168,8 +168,8 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 bg-gray-100 rounded-lg">
                 <Trash2 className="h-6 w-6 text-gray-600" />
               </div>
@@ -190,7 +190,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
         </div>
 
         <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between space-x-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
@@ -201,7 +201,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                 className="form-input pl-10 w-full"
               />
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleSelectAll}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap"
@@ -270,7 +270,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                       isSelected ? 'border-blue-300 bg-blue-50' : 'border-gray-200'
                     }`}
                   >
-                    <div className="flex items-start space-x-3">
+                    <div className="flex items-start gap-3">
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -279,8 +279,8 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center space-x-3 flex-wrap">
-                            <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-3 flex-wrap">
+                            <div className="flex flex-wrap items-center gap-2">
                               <User className="h-4 w-4 text-gray-400" />
                               <span className="font-medium text-gray-900">{patientInfo.name}</span>
                               <span className="text-sm text-gray-500">({patientInfo.bed})</span>
@@ -295,7 +295,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                               {record.記錄類型}
                             </span>
                           </div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <button
                               onClick={() => handleRestore(record.id)}
                               disabled={isRestoring}
@@ -316,11 +316,11 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600 mb-2">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Calendar className="h-3 w-3 text-gray-400" />
                             <span>記錄日期: {new Date(record.記錄日期).toLocaleDateString('zh-TW')}</span>
                           </div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Activity className="h-3 w-3 text-gray-400" />
                             <span>記錄時間: {record.記錄時間}</span>
                           </div>
@@ -348,8 +348,8 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
         </div>
 
         <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 rounded-b-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-sm text-yellow-700 bg-yellow-50 px-3 py-2 rounded">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-yellow-700 bg-yellow-50 px-3 py-2 rounded">
               <AlertTriangle className="h-4 w-4" />
               <span>永久刪除的記錄無法恢復，請謹慎操作</span>
             </div>

@@ -1336,7 +1336,7 @@ const CareRecords: React.FC = () => {
       {/* Sticky Heading 區域 */}
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center space-x-2">
+          <h1 className="text-2xl font-bold text-gray-900 flex flex-wrap items-center gap-2">
             <ClipboardCheck className="h-7 w-7 text-blue-600" />
             <span>護理記錄</span>
           </h1>
@@ -1392,7 +1392,7 @@ const CareRecords: React.FC = () => {
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 space-y-2">
               <label className="text-sm font-medium text-gray-700">選擇院友</label>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="flex-1 min-w-0">
                   <PatientAutocomplete
                     value={selectedPatientId}
@@ -1417,7 +1417,7 @@ const CareRecords: React.FC = () => {
             {selectedPatient && (
               <div className="lg:w-80 border-t lg:border-t-0 lg:border-l pt-4 lg:pt-0 lg:pl-4">
                 <label className="text-sm font-medium text-gray-700 block mb-2">院友資訊</label>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start gap-3">
                   {selectedPatient.院友相片 ? (
                     <img
                       src={selectedPatient.院友相片}
@@ -1469,7 +1469,7 @@ const CareRecords: React.FC = () => {
                     <div key={tabType} className="relative group">
                       <button
                         onClick={() => setActiveTab(tabType)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex items-center space-x-2 ${
+                        className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex flex-wrap items-center gap-2 ${
                           activeTab === tabType
                             ? 'bg-blue-100 text-blue-700'
                             : 'text-gray-600 hover:bg-gray-100'
@@ -1534,7 +1534,7 @@ const CareRecords: React.FC = () => {
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={handlePreviousWeek}
                     className="btn-secondary flex items-center space-x-1 px-3 py-2"

@@ -138,8 +138,8 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">
                 <Building2 className="h-6 w-6 text-blue-600" />
               </div>
@@ -198,14 +198,14 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
           {/* 站點管理標籤 */}
           {activeTab === 'stations' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 className="text-lg font-medium text-gray-900">站點列表</h3>
                 <button
                   onClick={() => {
                     setSelectedStation(null);
                     setShowStationModal(true);
                   }}
-                  className="btn-primary flex items-center space-x-2"
+                  className="btn-primary flex flex-wrap items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
                   <span>新增站點</span>
@@ -219,8 +219,8 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
                     
                     return (
                       <div key={station.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div className="flex flex-wrap items-center gap-3">
                             <div className="p-2 rounded-lg bg-blue-100">
                               <Building2 className="h-5 w-5 text-blue-600" />
                             </div>
@@ -229,7 +229,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
                               {station.description && (
                                 <p className="text-sm text-gray-600">{station.description}</p>
                               )}
-                              <div className="flex items-center space-x-4 mt-1">
+                              <div className="flex flex-wrap items-center gap-4 mt-1">
                                 <span className="text-xs text-gray-500">
                                   床位：{stats.totalBeds} ({stats.occupiedBeds} 已佔用, {stats.availableBeds} 可用)
                                 </span>
@@ -239,7 +239,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <button
                               onClick={() => handleEditStation(station)}
                               className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50"
@@ -274,14 +274,14 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
           {/* 床位管理標籤 */}
           {activeTab === 'beds' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 className="text-lg font-medium text-gray-900">床位列表</h3>
                 <button
                   onClick={() => {
                     setSelectedBed(null);
                     setShowBedModal(true);
                   }}
-                  className="btn-primary flex items-center space-x-2"
+                  className="btn-primary flex flex-wrap items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
                   <span>新增床位</span>
@@ -296,13 +296,13 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
                     
                     return (
                       <div key={bed.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div className="flex flex-wrap items-center gap-3">
                             <div className={`p-2 rounded-lg ${bed.is_occupied ? 'bg-green-100' : 'bg-blue-100'}`}>
                               <Bed className={`h-5 w-5 ${bed.is_occupied ? 'text-green-600' : 'text-blue-600'}`} />
                             </div>
                             <div>
-                              <div className="flex items-center space-x-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 <h4 className="font-medium text-gray-900">{bed.bed_number}</h4>
                                 <span className="text-sm text-gray-500">({station?.name})</span>
                               </div>
@@ -310,7 +310,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
                                 <p className="text-sm text-gray-600">{bed.bed_name}</p>
                               )}
                               {patient ? (
-                                <div className="flex items-center space-x-2 mt-1">
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
                                   <div className="w-6 h-6 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                                     {patient.院友相片 ? (
                                       <img 
@@ -331,7 +331,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <button
                               onClick={() => handleEditBed(bed)}
                               className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50"

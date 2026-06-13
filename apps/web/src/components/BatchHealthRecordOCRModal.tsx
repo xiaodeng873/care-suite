@@ -578,8 +578,8 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-7xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
-          <div className="flex items-center space-x-3">
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 z-10">
+          <div className="flex flex-wrap items-center gap-3">
             <Camera className="h-6 w-6 text-blue-600" />
             <h2 className="text-xl font-semibold text-gray-900">批量健康記錄OCR上傳</h2>
           </div>
@@ -666,9 +666,9 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
             </div>
           )}
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
               <label className="font-medium text-gray-900">AI識別指令 (Prompt)</label>
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setPrompt(DEFAULT_PROMPT)}
                   className="text-sm text-gray-600 hover:text-gray-800 flex items-center space-x-1"
@@ -709,7 +709,7 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
               <button
                 onClick={() => handleStartOCR(false)}
                 disabled={images.length === 0 || isProcessing}
-                className="btn-primary flex-1 flex items-center justify-center space-x-2"
+                className="btn-primary flex-1 flex flex-wrap items-center justify-center gap-2"
               >
                 {isProcessing ? (
                   <>
@@ -726,7 +726,7 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
               <button
                 onClick={handleBatchSave}
                 disabled={allParsedRecords.length === 0 || isSaving}
-                className="btn-primary flex-1 flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700"
+                className="btn-primary flex-1 flex flex-wrap items-center justify-center gap-2 bg-green-600 hover:bg-green-700"
               >
                 {isSaving ? (
                   <>
@@ -746,7 +746,7 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
               <button
                 onClick={() => handleStartOCR(true)}
                 disabled={images.length === 0 || isProcessing}
-                className="w-full px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+                className="w-full px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex flex-wrap items-center justify-center gap-2"
               >
                 <RotateCcw className="h-5 w-5" />
                 <span>強制重新識別（清除快取）</span>
@@ -755,12 +755,12 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
           </div>
           {Object.keys(groupedRecords).length > 0 && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 className="font-medium text-gray-900">識別結果（按區域分組）</h3>
               </div>
               {Object.entries(groupedRecords).map(([area, records]) => (
                 <div key={area} className="border rounded-lg overflow-hidden">
-                  <div className="bg-gray-100 px-4 py-2 font-medium text-gray-700 flex items-center justify-between">
+                  <div className="bg-gray-100 px-4 py-2 font-medium text-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <span>{area}區 ({records.length} 筆)</span>
                   </div>
                   <div className="overflow-x-auto">
@@ -950,7 +950,7 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
                 <button
                   onClick={addBlankRecord}
                   disabled={isSaving}
-                  className="btn-secondary flex items-center space-x-2 text-sm"
+                  className="btn-secondary flex flex-wrap items-center gap-2 text-sm"
                   title="新增空白列"
                 >
                   <Plus className="h-4 w-4" />

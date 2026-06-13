@@ -2840,7 +2840,7 @@ const MedicationWorkflow: React.FC = () => {
                                       setSelectedDateForMenu(null);
                                     }}
                                     disabled={!canPrepare || oneClickProcessing.preparation}
-                                    className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 ${
+                                    className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
                                       canPrepare && !oneClickProcessing.preparation
                                         ? 'hover:bg-gray-100 text-gray-700'
                                         : 'text-gray-400 cursor-not-allowed'
@@ -2858,7 +2858,7 @@ const MedicationWorkflow: React.FC = () => {
                                       setSelectedDateForMenu(null);
                                     }}
                                     disabled={!canVerify || oneClickProcessing.verification}
-                                    className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 ${
+                                    className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
                                       canVerify && !oneClickProcessing.verification
                                         ? 'hover:bg-gray-100 text-gray-700'
                                         : 'text-gray-400 cursor-not-allowed'
@@ -2876,7 +2876,7 @@ const MedicationWorkflow: React.FC = () => {
                                       setSelectedDateForMenu(null);
                                     }}
                                     disabled={!canDispense || oneClickProcessing.dispensing}
-                                    className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 ${
+                                    className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
                                       canDispense && !oneClickProcessing.dispensing
                                         ? 'hover:bg-gray-100 text-gray-700'
                                         : 'text-gray-400 cursor-not-allowed'
@@ -2894,7 +2894,7 @@ const MedicationWorkflow: React.FC = () => {
                                       setSelectedDateForMenu(null);
                                     }}
                                     disabled={!canFullProcess || oneClickProcessing.dispensing}
-                                    className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 ${
+                                    className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
                                       canFullProcess && !oneClickProcessing.dispensing
                                         ? 'hover:bg-gray-100 text-gray-700 bg-purple-50'
                                         : 'text-gray-400 cursor-not-allowed'
@@ -3051,7 +3051,7 @@ const MedicationWorkflow: React.FC = () => {
 
                                 return (
                                   <div key={timeSlot} className="border border-gray-200 rounded-lg p-1 bg-white">
-                                    <div className="flex items-center justify-between mb-1">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-1">
                                       <div className="text-xs font-medium text-gray-900">{timeSlot}</div>
                                       {prescription.meal_timing && (
                                         <div className="text-xs text-gray-500">{prescription.meal_timing}</div>
@@ -3132,25 +3132,25 @@ const MedicationWorkflow: React.FC = () => {
                             {prescription.medication_name}
                           </div>
                           <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                               <span className="text-gray-600">開始日期:</span>
                               <span className="font-medium">{new Date(prescription.start_date).toLocaleDateString('zh-TW')}</span>
                             </div>
                             {prescription.end_date && (
-                              <div className="flex justify-between">
+                              <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                                 <span className="text-gray-600">結束日期:</span>
                                 <span className="font-medium">{new Date(prescription.end_date).toLocaleDateString('zh-TW')}</span>
                               </div>
                             )}
-                            <div className="flex justify-between">
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                               <span className="text-gray-600">處方日期:</span>
                               <span className="font-medium">{new Date(prescription.prescription_date).toLocaleDateString('zh-TW')}</span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                               <span className="text-gray-600">藥物來源:</span>
                               <span className="font-medium">{prescription.medication_source || '未指定'}</span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                               <span className="text-gray-600">給藥途徑:</span>
                               <span className="font-medium">{prescription.administration_route}</span>
                             </div>
@@ -3207,7 +3207,7 @@ const MedicationWorkflow: React.FC = () => {
             <h3 className="text-lg font-medium text-gray-900 mb-2">請選擇院友</h3>
             <p className="text-gray-600 mb-6">選擇院友後即可查看其藥物工作流程</p>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-              <div className="flex items-center space-x-2 mb-3">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
                 <Zap className="h-5 w-5 text-blue-600" />
                 <h4 className="font-medium text-blue-900">使用說明</h4>
               </div>

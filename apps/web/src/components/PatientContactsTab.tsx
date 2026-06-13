@@ -135,7 +135,7 @@ const PatientContactsTab: React.FC<PatientContactsTabProps> = ({ patientId }) =>
   return (
     <div className="space-y-6">
       {/* 新增聯絡人按鈕 */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
         <h3 className="text-lg font-medium text-gray-900">聯絡人列表</h3>
         <button
           onClick={handleOpenNewModal}
@@ -163,7 +163,7 @@ const PatientContactsTab: React.FC<PatientContactsTabProps> = ({ patientId }) =>
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
                       <h4 className="font-medium text-gray-900">{contact.聯絡人姓名}</h4>
                       {contact.is_primary && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
@@ -231,7 +231,7 @@ const PatientContactsTab: React.FC<PatientContactsTabProps> = ({ patientId }) =>
         >
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-4">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 className="text-xl font-semibold text-gray-900">
                   {editingId ? '編輯聯絡人' : '新增聯絡人'}
                 </h3>

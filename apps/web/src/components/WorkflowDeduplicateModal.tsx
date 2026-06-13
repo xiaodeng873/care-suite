@@ -218,7 +218,7 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
         <div className="bg-white rounded-lg shadow-xl p-8" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-3">
             <RefreshCw className="h-6 w-6 text-blue-600 animate-spin" />
             <span className="text-lg">正在檢測重複記錄...</span>
           </div>
@@ -231,8 +231,8 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 bg-yellow-100 rounded-lg">
                 <AlertTriangle className="h-6 w-6 text-yellow-600" />
               </div>
@@ -279,7 +279,7 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
               <button
                 onClick={handleDelete}
                 disabled={deleting || selectedGroups.size === 0}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                className="flex flex-wrap items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
                 <Trash2 className="h-4 w-4" />
                 <span>{deleting ? '刪除中...' : '刪除重複記錄'}</span>
@@ -311,7 +311,7 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
                   } transition-all`}
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-start space-x-3 flex-1">
+                    <div className="flex items-start gap-3 flex-1">
                       <input
                         type="checkbox"
                         checked={selectedGroups.has(group.key)}
@@ -319,19 +319,19 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
                         className="mt-1 h-4 w-4 text-blue-600 rounded"
                       />
                       <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
+                        <div className="flex flex-wrap items-center gap-3 mb-2">
                           <Pill className="h-5 w-5 text-blue-600" />
                           <span className="font-semibold text-gray-900">
                             {getMedicationName(group.prescription_id)}
                           </span>
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
                             <Calendar className="h-4 w-4" />
                             <span>{group.scheduled_date}</span>
                             <Clock className="h-4 w-4 ml-2" />
                             <span>{group.scheduled_time}</span>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
                           <User className="h-4 w-4" />
                           <span>
                             {getPatientName(group.records[0].patient_id)} (床號: {getPatientBed(group.records[0].patient_id)})
@@ -354,8 +354,8 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
                             : 'border-gray-200 bg-gray-50'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div className="flex flex-wrap items-center gap-4">
                             {index === 0 ? (
                               <span className="text-xs font-semibold text-green-700 bg-green-200 px-2 py-1 rounded">
                                 保留此筆
@@ -365,7 +365,7 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
                                 將刪除
                               </span>
                             )}
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               {getStatusBadge(record.preparation_status)}
                               {getStatusBadge(record.verification_status)}
                               {getStatusBadge(record.dispensing_status)}

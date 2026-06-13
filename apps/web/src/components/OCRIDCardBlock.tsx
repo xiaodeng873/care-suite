@@ -113,9 +113,9 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-4 hover:bg-white hover:bg-opacity-50 transition-colors rounded-lg"
+        className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 hover:bg-white hover:bg-opacity-50 transition-colors rounded-lg"
       >
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="p-2 bg-purple-100 rounded-lg">
             <CreditCard className="h-5 w-5 text-purple-600" />
           </div>
@@ -124,7 +124,7 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
             <p className="text-sm text-gray-600">上傳身份證圖片，自動識別並填入資料</p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           {ocrResult && (
             <span className="text-green-600 text-sm font-medium flex items-center">
               <CheckCircle className="h-4 w-4 mr-1" />
@@ -142,7 +142,7 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
       {isExpanded && (
         <div className="px-4 pb-4 space-y-4">
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-            <div className="flex items-start space-x-2">
+            <div className="flex items-start gap-2">
               <FileText className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
               <div className="text-sm text-gray-700">
                 <p className="font-medium mb-1">使用提示：</p>
@@ -218,7 +218,7 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
                 type="button"
                 onClick={() => handleStartOCR(false)}
                 disabled={!selectedFile || isProcessing}
-                className="btn-primary w-full flex items-center justify-center space-x-2"
+                className="btn-primary w-full flex flex-wrap items-center justify-center gap-2"
               >
                 {isProcessing ? (
                   <>
@@ -238,7 +238,7 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
                   type="button"
                   onClick={() => handleStartOCR(true)}
                   disabled={!selectedFile || isProcessing}
-                  className="w-full px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+                  className="w-full px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex flex-wrap items-center justify-center gap-2"
                 >
                   <RefreshCw className="h-4 w-4" />
                   <span>強制重新識別（清除快取）</span>
@@ -250,7 +250,7 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
           <div className="space-y-4">
             {ocrResult && (
               <div className="bg-white rounded-lg p-3 border border-gray-200">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
                   <h4 className="font-medium text-gray-900">識別結果</h4>
                   <button
                     type="button"

@@ -38,8 +38,8 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
         {/* 標題欄 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-red-50">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-6 border-b border-gray-200 bg-red-50">
+          <div className="flex flex-wrap items-center gap-3">
             <AlertTriangle className="w-6 h-6 text-red-600" />
             <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
           </div>
@@ -56,23 +56,23 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
           {/* 院友資訊 */}
           {patientInfo && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-3">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
                 <User className="w-5 h-5 text-blue-600" />
                 <h3 className="font-semibold text-gray-900">院友資訊</h3>
               </div>
               <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                   <span className="text-gray-600">姓名:</span>
                   <span className="font-medium text-gray-900">{patientInfo.name}</span>
                 </div>
                 {patientInfo.bedNumber && (
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                     <span className="text-gray-600">床號:</span>
                     <span className="font-medium text-gray-900">{patientInfo.bedNumber}</span>
                   </div>
                 )}
                 {patientInfo.patientId && (
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                     <span className="text-gray-600">院友ID:</span>
                     <span className="font-medium text-gray-900">{patientInfo.patientId}</span>
                   </div>
@@ -83,7 +83,7 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
           {/* 記錄詳情 */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center space-x-2 mb-3">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               <FileText className="w-5 h-5 text-gray-600" />
               <h3 className="font-semibold text-gray-900">{recordType}詳情</h3>
             </div>
@@ -91,8 +91,8 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
               {recordDetails.map((detail, index) => {
                 if (!detail.value) return null;
                 return (
-                  <div key={index} className="flex justify-between items-start text-sm">
-                    <div className="flex items-center space-x-2">
+                  <div key={index} className="flex flex-col sm:flex-row sm:justify-between gap-2 items-start text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
                       {detail.icon}
                       <span className="text-gray-600">{detail.label}:</span>
                     </div>
@@ -107,7 +107,7 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
           {/* 警告訊息 */}
           <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
+            <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-red-900 mb-1">警告</p>

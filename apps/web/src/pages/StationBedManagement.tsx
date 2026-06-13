@@ -277,21 +277,21 @@ const StationBedManagement: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setShowStationManagementModal(true)}
-            className="btn-secondary flex items-center space-x-2"
+            className="btn-secondary flex flex-wrap items-center gap-2"
           >
             <Settings className="h-4 w-4" />
             <span>站點管理</span>
           </button>
           <button
             onClick={() => setShowSwapModal(true)}
-            className="btn-secondary flex items-center space-x-2"
+            className="btn-secondary flex flex-wrap items-center gap-2"
           >
             <ArrowRightLeft className="h-4 w-4" />
             <span>床位互換</span>
           </button>
                     <button
             onClick={handleExportBedLayout}
-            className="btn-secondary flex items-center space-x-2"
+            className="btn-secondary flex flex-wrap items-center gap-2"
           >
             <Download className="h-4 w-4" />
             <span>匯出床位表</span>
@@ -349,7 +349,7 @@ const StationBedManagement: React.FC = () => {
               className="form-input pl-10"
             />
           </div>
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             <select
               value={selectedStationFilter}
               onChange={(e) => setSelectedStationFilter(e.target.value)}
@@ -372,7 +372,7 @@ const StationBedManagement: React.FC = () => {
             {hasActiveFilters() && (
               <button
                 onClick={clearFilters}
-                className="btn-secondary flex items-center space-x-2"
+                className="btn-secondary flex flex-wrap items-center gap-2"
               >
                 <X className="h-4 w-4" />
                 <span>清除</span>
@@ -380,7 +380,7 @@ const StationBedManagement: React.FC = () => {
             )}
           </div>
         </div>
-        <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600 mt-2">
           <span>顯示 {filteredBeds.length} / {beds.length} 個床位</span>
           {hasActiveFilters() && (
             <span className="text-blue-600">已套用篩選條件</span>
@@ -413,8 +413,8 @@ const StationBedManagement: React.FC = () => {
                               : 'border-red-200 bg-red-50 hover:bg-red-100'
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center space-x-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Bed className={`h-5 w-5 ${bed.is_occupied ? 'text-green-600' : 'text-blue-600'}`} />
                               <div>
                                 <h3 className="font-medium text-gray-900">{bed.bed_number}</h3>
@@ -436,7 +436,7 @@ const StationBedManagement: React.FC = () => {
                                 <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                                   <button
                                     onClick={() => handleEditBed(bed)}
-                                    className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                                    className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
                                   >
                                     <Edit3 className="h-4 w-4" />
                                     <span>編輯床位</span>
@@ -444,7 +444,7 @@ const StationBedManagement: React.FC = () => {
                                   {!bed.is_occupied && (
                                     <button
                                       onClick={() => handleAssignBed(bed)}
-                                      className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                                      className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
                                     >
                                       <User className="h-4 w-4" />
                                       <span>指派院友</span>
@@ -456,7 +456,7 @@ const StationBedManagement: React.FC = () => {
                                     <button
                                       key={targetStation.id}
                                       onClick={() => handleMoveBed(bed.id, targetStation.id)}
-                                      className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                                      className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
                                     >
                                       <MoveRight className="h-4 w-4" />
                                       <span>遷移到 {targetStation.name}</span>
@@ -465,7 +465,7 @@ const StationBedManagement: React.FC = () => {
                                   <div className="border-t border-gray-100 my-1"></div>
                                   <button
                                     onClick={() => handleDeleteBed(bed.id)}
-                                    className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                                    className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex flex-wrap items-center gap-2"
                                   >
                                     <Trash2 className="h-4 w-4" />
                                     <span>刪除床位</span>
@@ -477,7 +477,7 @@ const StationBedManagement: React.FC = () => {
                           <div className="grid grid-cols-[1fr_auto] gap-3">
                             {/* 左欄：院友資訊 */}
                             {patient ? (
-                              <div className="flex items-center space-x-3">
+                              <div className="flex flex-wrap items-center gap-3">
                                 <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                                   {patient.院友相片 ? (
                                     <img
@@ -508,7 +508,7 @@ const StationBedManagement: React.FC = () => {
                                 </div>
                               </div>
                             ) : (
-                              <div className="flex items-center space-x-3">
+                              <div className="flex flex-wrap items-center gap-3">
                                 <div className="w-10 h-10 mx-auto mb-2 rounded-full border-2 border-dashed border-blue-300 flex items-center justify-center">
                                   <User className="h-5 w-5 text-blue-400" />
                                 </div>
@@ -612,8 +612,8 @@ const StationBedManagement: React.FC = () => {
           }}
         >
           <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="p-2 rounded-lg bg-blue-100">
                   <Download className="h-6 w-6 text-blue-600" />
                 </div>
@@ -639,7 +639,7 @@ const StationBedManagement: React.FC = () => {
                   return (
                     <label
                       key={station.id}
-                      className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                      className="flex flex-wrap items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
                     >
                       <input
                         type="checkbox"
@@ -647,7 +647,7 @@ const StationBedManagement: React.FC = () => {
                         onChange={(e) => handleStationSelectionForExport(station.id, e.target.checked)}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Building2 className="h-5 w-5 text-blue-600" />
                         <div>
                           <span className="font-medium text-gray-900">{station.name}</span>
@@ -677,7 +677,7 @@ const StationBedManagement: React.FC = () => {
               <button
                 onClick={handleConfirmExport}
                 disabled={selectedStationsForExport.size === 0 || isExporting}
-                className="btn-primary flex-1 flex items-center justify-center space-x-2"
+                className="btn-primary flex-1 flex flex-wrap items-center justify-center gap-2"
               >
                 {isExporting ? (
                   <>

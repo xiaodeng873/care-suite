@@ -179,8 +179,8 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b">
+          <div className="flex flex-wrap items-center gap-3">
             <FileText className="h-6 w-6 text-blue-600" />
             <h2 className="text-xl font-semibold text-gray-900">問題庫管理</h2>
           </div>
@@ -209,7 +209,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
         </div>
 
         {/* Search and Add */}
-        <div className="px-6 py-3 border-b flex items-center justify-between">
+        <div className="px-6 py-3 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
@@ -222,7 +222,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
           </div>
           <button
             onClick={() => { resetForm(); setFormData(prev => ({ ...prev, category: selectedCategory })); setShowAddForm(true); }}
-            className="btn-primary flex items-center space-x-2"
+            className="btn-primary flex flex-wrap items-center gap-2"
           >
             <Plus className="h-4 w-4" />
             <span>新增問題</span>
@@ -234,7 +234,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
           {showAddForm ? (
             /* Add/Edit Form */
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 className="font-medium text-gray-900">{editingId ? '編輯問題' : '新增問題'}</h3>
                 <button onClick={resetForm} className="text-gray-400 hover:text-gray-600">
                   <X className="h-5 w-5" />
@@ -316,7 +316,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
                   </button>
                 </label>
                 {formData.expected_goals.map((goal, i) => (
-                  <div key={i} className="flex items-center space-x-2 mt-2">
+                  <div key={i} className="flex flex-wrap items-center gap-2 mt-2">
                     <input
                       type="text"
                       value={goal}
@@ -354,7 +354,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
                   </button>
                 </label>
                 {formData.interventions.map((int, i) => (
-                  <div key={i} className="flex items-center space-x-2 mt-2">
+                  <div key={i} className="flex flex-wrap items-center gap-2 mt-2">
                     <input
                       type="text"
                       value={int}
@@ -405,7 +405,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
                             {problem.code}
                           </span>
@@ -444,7 +444,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center space-x-2 ml-4">
+                      <div className="flex flex-wrap items-center gap-2 ml-4">
                         <button
                           onClick={() => handleEdit(problem)}
                           className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
@@ -470,7 +470,7 @@ const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClo
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t bg-gray-50 flex justify-between items-center">
+        <div className="px-6 py-4 border-t bg-gray-50 flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
           <span className="text-sm text-gray-500">
             共 {filteredProblems.length} 個問題項目
           </span>

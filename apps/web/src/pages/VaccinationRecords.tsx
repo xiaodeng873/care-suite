@@ -338,7 +338,7 @@ const VaccinationRecords: React.FC = () => {
               setSelectedPatientRecords([]);
               setShowModal(true);
             }}
-            className="btn-primary flex items-center space-x-2"
+            className="btn-primary flex flex-wrap items-center gap-2"
           >
             <Plus className="h-4 w-4" />
             <span>新增疫苗記錄</span>
@@ -361,10 +361,10 @@ const VaccinationRecords: React.FC = () => {
                 />
               </div>
 
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className={`btn-secondary flex items-center space-x-2 ${
+                  className={`btn-secondary flex flex-wrap items-center gap-2 ${
                     showAdvancedFilters ? 'bg-green-50 text-green-700' : ''
                   } ${hasAdvancedFilters() ? 'border-green-300' : ''}`}
                 >
@@ -380,7 +380,7 @@ const VaccinationRecords: React.FC = () => {
                 {(searchTerm || hasAdvancedFilters()) && (
                   <button
                     onClick={clearFilters}
-                    className="btn-secondary flex items-center space-x-2 text-red-600 hover:text-red-700"
+                    className="btn-secondary flex flex-wrap items-center gap-2 text-red-600 hover:text-red-700"
                   >
                     <X className="h-4 w-4" />
                     <span>清除</span>
@@ -395,7 +395,7 @@ const VaccinationRecords: React.FC = () => {
 
                 <div className="mb-4">
                   <label className="form-label">注射日期區間</label>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="date"
                       value={advancedFilters.startDate}
@@ -476,7 +476,7 @@ const VaccinationRecords: React.FC = () => {
               </div>
             )}
 
-            <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
               <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 筆疫苗記錄 (共 {vaccinationRecords.length} 筆)</span>
               {(searchTerm || hasAdvancedFilters()) && (
                 <span className="text-green-600">已套用篩選條件</span>
@@ -489,8 +489,8 @@ const VaccinationRecords: React.FC = () => {
       {totalItems > 0 && (
         <div className="sticky top-40 bg-white z-10 shadow-sm">
           <div className="card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-4">
                 <button
                   onClick={handleSelectAll}
                   className="text-sm text-green-600 hover:text-green-700 font-medium"
@@ -581,7 +581,7 @@ const VaccinationRecords: React.FC = () => {
                       <td className="px-4 py-3 align-top">
                         {patient ? (
                           <PatientTooltip patient={patient}>
-                            <div className="flex items-center space-x-3">
+                            <div className="flex flex-wrap items-center gap-3">
                               {patient.院友相片 ? (
                                 <img
                                   src={patient.院友相片}
@@ -611,7 +611,7 @@ const VaccinationRecords: React.FC = () => {
                             return (
                               <div
                                 key={record.id}
-                                className={`flex items-center space-x-2 p-2 rounded ${
+                                className={`flex flex-wrap items-center gap-2 p-2 rounded ${
                                   selectedRows.has(record.id) ? 'bg-green-50' : 'bg-gray-50'
                                 } ${isDeleting ? 'opacity-50' : ''}`}
                               >
@@ -676,7 +676,7 @@ const VaccinationRecords: React.FC = () => {
                   setSelectedPatientRecords([]);
                   setShowModal(true);
                 }}
-                className="btn-primary inline-flex items-center space-x-2"
+                className="btn-primary inline-flex flex-wrap items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 <span>新增疫苗記錄</span>
@@ -688,8 +688,8 @@ const VaccinationRecords: React.FC = () => {
 
       {totalPages > 1 && (
         <div className="card p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-gray-700">每頁顯示</span>
               <select
                 value={pageSize}
@@ -704,7 +704,7 @@ const VaccinationRecords: React.FC = () => {
               <span className="text-sm text-gray-700">筆</span>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}

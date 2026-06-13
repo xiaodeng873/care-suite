@@ -448,15 +448,15 @@ const PrescriptionManagement: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">處方管理</h1>
               <p className="text-sm text-gray-600 mt-1">以院友為單位管理處方，每名院友獨立顯示三種處方狀態</p>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setShowMedicationRecordExportModal(true)}
-                className="btn-secondary flex items-center space-x-2"
+                className="btn-secondary flex flex-wrap items-center gap-2"
               >
                 <FileText className="h-4 w-4" />
                 <span>匯出個人備藥及給藥記錄</span>
@@ -466,7 +466,7 @@ const PrescriptionManagement: React.FC = () => {
                   setSelectedPrescription(null);
                   setShowModal(true);
                 }}
-                className="btn-primary flex items-center space-x-2"
+                className="btn-primary flex flex-wrap items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 <span>新增處方</span>
@@ -511,7 +511,7 @@ const PrescriptionManagement: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowMedicationRecordExportModal(true)}
-              className="btn-secondary flex items-center space-x-2"
+              className="btn-secondary flex flex-wrap items-center gap-2"
             >
               <FileText className="h-4 w-4" />
               <span>匯出個人備藥及給藥記錄</span>
@@ -521,7 +521,7 @@ const PrescriptionManagement: React.FC = () => {
                 setSelectedPrescription(null);
                 setShowModal(true);
               }}
-              className="btn-primary flex items-center space-x-2"
+              className="btn-primary flex flex-wrap items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               <span>新增處方</span>
@@ -533,13 +533,13 @@ const PrescriptionManagement: React.FC = () => {
       {/* 院友選擇和導航 */}
       <div className="bg-white shadow-sm">
         <div className="card p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-4">
               {/* 院友下拉選擇器 */}
               <div className="relative">
                 <button
                   onClick={() => setShowPatientDropdown(!showPatientDropdown)}
-                  className="flex items-center space-x-3 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 min-w-64"
+                  className="flex flex-wrap items-center gap-3 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 min-w-64"
                 >
                   {currentPatient ? (
                     <>
@@ -607,7 +607,7 @@ const PrescriptionManagement: React.FC = () => {
                           <button
                             key={summary.patient.院友id}
                             onClick={() => handlePatientSelect(summary.patient.院友id.toString())}
-                            className={`w-full flex items-center space-x-3 p-3 hover:bg-gray-50 text-left transition-colors ${
+                            className={`w-full flex flex-wrap items-center gap-3 p-3 hover:bg-gray-50 text-left transition-colors ${
                               currentPatient?.patient.院友id === summary.patient.院友id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                             }`}
                           >
@@ -658,10 +658,10 @@ const PrescriptionManagement: React.FC = () => {
               </div>
 
               {/* 導航按鈕 */}
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={goToPreviousPatient}
-                  className="btn-secondary flex items-center space-x-2"
+                  className="btn-secondary flex flex-wrap items-center gap-2"
                   disabled={patientPrescriptionSummaries.length <= 1}
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -669,7 +669,7 @@ const PrescriptionManagement: React.FC = () => {
                 </button>
                 <button
                   onClick={goToNextPatient}
-                  className="btn-secondary flex items-center space-x-2"
+                  className="btn-secondary flex flex-wrap items-center gap-2"
                   disabled={patientPrescriptionSummaries.length <= 1}
                 >
                   <span>下一位</span>
@@ -722,7 +722,7 @@ const PrescriptionManagement: React.FC = () => {
                     </PatientTooltip>
                     
                     <div className="space-y-2 text-sm text-gray-600">
-                      <div className="flex items-center space-x-4">
+                      <div className="flex flex-wrap items-center gap-4">
                         <span>床號: <span className="font-medium text-gray-900">{currentPatient.patient.床號}</span></span>
                         <span>性別: <span className="font-medium text-gray-900">{currentPatient.patient.性別}</span></span>
                         {currentPatient.patient.出生日期 && (
@@ -746,7 +746,7 @@ const PrescriptionManagement: React.FC = () => {
                   
                   {/* 藥物安全資訊 */}
                   <div>
-                    <div className="flex items-center space-x-2 mb-2">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
                       <Shield className="h-5 w-5 text-blue-600" />
                       <h3 className="text-lg font-semibold text-gray-900">藥物安全資訊</h3>
                     </div>
@@ -754,7 +754,7 @@ const PrescriptionManagement: React.FC = () => {
                     <div className="space-y-2">
                       {/* 藥物敏感 */}
                       <div>
-                        <div className="flex items-center space-x-2 flex-wrap">
+                        <div className="flex flex-wrap items-center gap-2 flex-wrap">
                           <AlertTriangle className="h-4 w-4 text-orange-600" />
                           <h4 className="text-sm font-medium text-orange-900">藥物敏感</h4>
                           {(!currentPatient.patient.藥物敏感 || currentPatient.patient.藥物敏感.length === 0) ? (
@@ -777,7 +777,7 @@ const PrescriptionManagement: React.FC = () => {
 
                       {/* 不良藥物反應 */}
                       <div>
-                        <div className="flex items-center space-x-2 flex-wrap">
+                        <div className="flex flex-wrap items-center gap-2 flex-wrap">
                           <Heart className="h-4 w-4 text-red-600" />
                           <h4 className="text-sm font-medium text-red-900">不良藥物反應</h4>
                           {(!currentPatient.patient.不良藥物反應 || currentPatient.patient.不良藥物反應.length === 0) ? (
@@ -1002,7 +1002,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
       }`}
       onDoubleClick={onEdit}
     >
-      <div className="flex items-start space-x-3 mb-2">
+      <div className="flex items-start gap-3 mb-2">
         <div className="pt-1">
           <input
             type="checkbox"
@@ -1013,7 +1013,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
           />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-1">
             <h5 className="font-medium text-gray-900 text-lg truncate">{prescription.medication_name}</h5>
           </div>
           
@@ -1151,8 +1151,8 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
   return (
     <div className="card">
       {/* 標籤頁導航 */}
-      <div className="border-b border-gray-200">
-        <nav className="flex space-x-8 px-6" aria-label="Tabs">
+      <div className="border-b border-gray-200 overflow-x-auto">
+        <nav className="flex gap-4 px-6 min-w-max" aria-label="Tabs">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -1163,7 +1163,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
                   activeTab === tab.key
                     ? `border-${tab.color}-500 ${tab.textColor}`
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors flex-shrink-0`}
               >
                 <Icon className="h-5 w-5" />
                 <span>{tab.label}</span>
@@ -1180,7 +1180,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
 
       {/* 標籤頁內容 */}
       <div className={`${currentTab.bgColor} border-b ${currentTab.borderColor} px-6 py-4`}>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h3 className={`text-lg font-semibold ${currentTab.textColor} flex items-center`}>
             <currentTab.icon className="h-6 w-6 mr-2" />
             {currentTab.label} ({currentTab.count})
@@ -1222,8 +1222,8 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
         {/* 選取控制 */}
         {currentPrescriptions.length > 0 && (
           <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-4">
                 <button
                   onClick={onSelectAll}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -1239,7 +1239,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
                 {selectedInCurrentView.length > 0 && (
                   <button
                     onClick={onBatchUpdate}
-                    className="btn-primary flex items-center space-x-2 text-sm"
+                    className="btn-primary flex flex-wrap items-center gap-2 text-sm"
                   >
                     <Calendar className="h-4 w-4" />
                     <span>批量更新處方日期</span>

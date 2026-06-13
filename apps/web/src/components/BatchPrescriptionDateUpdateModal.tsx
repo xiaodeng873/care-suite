@@ -142,8 +142,8 @@ ${prescriptionsByPatient.map(group =>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">
                 <Calendar className="h-6 w-6 text-blue-600" />
               </div>
@@ -227,7 +227,7 @@ ${prescriptionsByPatient.map(group =>
 
           {/* 安全提示 */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
+            <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
               <div>
                 <h4 className="text-sm font-medium text-yellow-900 mb-2">重要提醒</h4>
@@ -253,7 +253,7 @@ ${prescriptionsByPatient.map(group =>
               {prescriptionsByPatient.map(({ patient, prescriptions }) => (
                 <div key={patient?.院友id} className="border border-gray-200 rounded-lg p-4">
                   {/* 院友資訊 */}
-                  <div className="flex items-center space-x-3 mb-3 pb-3 border-b border-gray-200">
+                  <div className="flex flex-wrap items-center gap-3 mb-3 pb-3 border-b border-gray-200">
                     <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                       {patient?.院友相片 ? (
                         <img 
@@ -279,8 +279,8 @@ ${prescriptionsByPatient.map(group =>
                   <div className="space-y-2">
                     {prescriptions.map(prescription => (
                       <div key={prescription.id} className="bg-gray-50 rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div className="flex flex-wrap items-center gap-3">
                             <Pill className="h-4 w-4 text-gray-500" />
                             <div>
                               <div className="font-medium text-gray-900">
@@ -334,7 +334,7 @@ ${prescriptionsByPatient.map(group =>
             <button
               type="submit"
               disabled={!newPrescriptionDate || isSubmitting}
-              className="btn-primary flex-1 flex items-center justify-center space-x-2"
+              className="btn-primary flex-1 flex flex-wrap items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>

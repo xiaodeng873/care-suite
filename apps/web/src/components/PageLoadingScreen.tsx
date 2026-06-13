@@ -196,7 +196,7 @@ const PageLoadingScreen: React.FC<PageLoadingScreenProps> = ({
 
           {/* 載入動畫 */}
           <div className="flex justify-center mt-6">
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
@@ -267,7 +267,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
 
         {/* 載入動畫 */}
         <div className="flex justify-center mt-6">
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
             <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
             <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>

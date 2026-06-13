@@ -338,7 +338,7 @@ const DiagnosisRecords: React.FC = () => {
               setSelectedPatientRecords([]);
               setShowModal(true);
             }}
-            className="btn-primary flex items-center justify-center space-x-2 w-full sm:w-auto"
+            className="btn-primary flex flex-wrap items-center justify-center gap-2 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             <span>新增診斷記錄</span>
@@ -364,7 +364,7 @@ const DiagnosisRecords: React.FC = () => {
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className={`btn-secondary flex items-center justify-center space-x-2 whitespace-nowrap ${
+                  className={`btn-secondary flex flex-wrap items-center justify-center gap-2 whitespace-nowrap ${
                     showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''
                   } ${hasAdvancedFilters() ? 'border-blue-300' : ''}`}
                 >
@@ -380,7 +380,7 @@ const DiagnosisRecords: React.FC = () => {
                 {(searchTerm || hasAdvancedFilters()) && (
                   <button
                     onClick={clearFilters}
-                    className="btn-secondary flex items-center justify-center space-x-2 whitespace-nowrap text-red-600 hover:text-red-700"
+                    className="btn-secondary flex flex-wrap items-center justify-center gap-2 whitespace-nowrap text-red-600 hover:text-red-700"
                   >
                     <X className="h-4 w-4" />
                     <span>清除</span>
@@ -581,7 +581,7 @@ const DiagnosisRecords: React.FC = () => {
                       <td className="px-4 py-3 align-top">
                         {patient ? (
                           <PatientTooltip patient={patient}>
-                            <div className="flex items-center space-x-3">
+                            <div className="flex flex-wrap items-center gap-3">
                               {patient.院友相片 ? (
                                 <img
                                   src={patient.院友相片}
@@ -676,7 +676,7 @@ const DiagnosisRecords: React.FC = () => {
                   setSelectedPatientRecords([]);
                   setShowModal(true);
                 }}
-                className="btn-primary inline-flex items-center space-x-2"
+                className="btn-primary inline-flex flex-wrap items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 <span>新增診斷記錄</span>

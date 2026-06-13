@@ -273,7 +273,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
       }}
     >
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-xl font-semibold text-gray-900">
             {user ? '編輯用戶' : '新增用戶'}
           </h2>
@@ -626,7 +626,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
       }}
     >
       <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">權限設定</h2>
             <p className="text-sm text-gray-500">用戶：{user.name_zh}</p>
@@ -648,10 +648,10 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
                 <div key={category} className="border rounded-lg overflow-hidden">
                   {/* 類別標題 */}
                   <div 
-                    className="bg-gray-50 px-4 py-3 flex items-center justify-between cursor-pointer"
+                    className="bg-gray-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 cursor-pointer"
                     onClick={() => toggleCategory(category)}
                   >
-                    <div className="flex items-center space-x-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <div 
                         onClick={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
@@ -1089,7 +1089,7 @@ const Settings: React.FC = () => {
     return (
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <div className="flex items-center space-x-3 mb-2">
+          <div className="flex flex-wrap items-center gap-3 mb-2">
             <SettingsIcon className="h-8 w-8 text-blue-600" />
             <h1 className="text-3xl font-bold text-gray-900">系統設定</h1>
           </div>
@@ -1115,7 +1115,7 @@ const Settings: React.FC = () => {
     <div className="max-w-7xl mx-auto">
       {/* 頁面標題 */}
       <div className="mb-6">
-        <div className="flex items-center space-x-3 mb-2">
+        <div className="flex flex-wrap items-center gap-3 mb-2">
           <SettingsIcon className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl font-bold text-gray-900">系統設定</h1>
         </div>
@@ -1127,7 +1127,7 @@ const Settings: React.FC = () => {
         {/* 工具列 */}
         <div className="border-b px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Users className="h-5 w-5 text-gray-500" />
               <h2 className="text-lg font-medium text-gray-900">用戶管理</h2>
               <span className="text-sm text-gray-500">({users.length} 位用戶)</span>

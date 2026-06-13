@@ -55,8 +55,8 @@ const OverdueWorkflowCard: React.FC<OverdueWorkflowCardProps> = ({
 
   return (
     <div className="card p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="p-2 rounded-lg bg-amber-100">
             <Clock className="h-6 w-6 text-amber-600" />
           </div>
@@ -84,19 +84,19 @@ const OverdueWorkflowCard: React.FC<OverdueWorkflowCardProps> = ({
                 className="p-3 hover:bg-amber-100 cursor-pointer"
                 onClick={() => handleViewDetails(item.patient.院友id)}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                       <span className="font-medium text-amber-900">
                         {item.patient.床號} {item.patient.中文姓氏}{item.patient.中文名字}
                       </span>
                     </div>
-                    <div className="flex items-center space-x-2 text-sm text-amber-700">
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-amber-700">
                       <Clock className="h-4 w-4 text-amber-600" />
                       <span>{item.overdueCount} 個逾期流程 · {dateCount} 個日期</span>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={(e) => togglePatientExpand(item.patient.院友id, e)}
                       className="p-1 hover:bg-amber-200 rounded transition-colors"
@@ -137,7 +137,7 @@ const OverdueWorkflowCard: React.FC<OverdueWorkflowCardProps> = ({
         {overdueWorkflows.length > 2 && (
           <button
             onClick={() => setShowAll(!showAll)}
-            className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+            className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-colors flex flex-wrap items-center justify-center gap-2"
           >
             {showAll ? (
               <>

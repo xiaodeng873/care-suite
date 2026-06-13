@@ -169,8 +169,8 @@ const DocumentTaskModal: React.FC<DocumentTaskModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-3">
             <div className={`p-2 rounded-lg ${getTaskTypeColor(task.health_record_type)} bg-opacity-10`}>
               <FileText className="h-6 w-6" />
             </div>
@@ -185,7 +185,7 @@ const DocumentTaskModal: React.FC<DocumentTaskModalProps> = ({
         </div>
 
         <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="w-12 h-12 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
               {patient.院友相片 ? (
                 <img 
@@ -307,7 +307,7 @@ const DocumentTaskModal: React.FC<DocumentTaskModalProps> = ({
           <div className="flex flex-col sm:flex-row gap-2 pt-4">
             <button
               type="submit"
-              className="btn-primary flex-1 flex items-center justify-center space-x-2"
+              className="btn-primary flex-1 flex flex-wrap items-center justify-center gap-2"
             >
               <CheckCircle className="h-4 w-4" />
               <span>完成任務</span>

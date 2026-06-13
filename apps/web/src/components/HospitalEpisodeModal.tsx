@@ -138,7 +138,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <div className="bg-white rounded-lg p-8 flex items-center space-x-3" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-white rounded-lg p-8 flex flex-wrap items-center gap-3" onClick={(e) => e.stopPropagation()}>
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
           <span className="text-gray-700">載入中...</span>
         </div>
@@ -438,8 +438,8 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {/* 模態框標題 */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-          <div className="flex items-center space-x-3">
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 z-10">
+          <div className="flex flex-wrap items-center gap-3">
             <Hospital className="h-6 w-6 text-blue-600" />
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
@@ -531,7 +531,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
 
           {/* 事件時間軸 */}
           <div className="bg-blue-50 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="text-lg font-medium text-gray-900 flex items-center">
                 <Activity className="h-5 w-5 mr-2 text-blue-600" />
                 事件時間軸
@@ -540,7 +540,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                 <button
                   type="button"
                   onClick={() => addEvent('admission')}
-                  className="btn-secondary flex items-center space-x-2 text-sm"
+                  className="btn-secondary flex flex-wrap items-center gap-2 text-sm"
                   disabled={events.some(e => e.event_type === 'admission')}
                 >
                   <Plus className="h-4 w-4" />
@@ -549,7 +549,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                 <button
                   type="button"
                   onClick={() => addEvent('transfer')}
-                  className="btn-secondary flex items-center space-x-2 text-sm"
+                  className="btn-secondary flex flex-wrap items-center gap-2 text-sm"
                 >
                   <Plus className="h-4 w-4" />
                   <span>新增轉院</span>
@@ -557,7 +557,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                 <button
                   type="button"
                   onClick={() => addEvent('discharge')}
-                  className="btn-secondary flex items-center space-x-2 text-sm"
+                  className="btn-secondary flex flex-wrap items-center gap-2 text-sm"
                   disabled={events.some(e => e.event_type === 'discharge')}
                 >
                   <Plus className="h-4 w-4" />
@@ -566,7 +566,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                  <button
                   type="button"
                   onClick={() => addEvent('vacation_start')}
-                  className="btn-secondary flex items-center space-x-2 text-sm"
+                  className="btn-secondary flex flex-wrap items-center gap-2 text-sm"
                   disabled={events.some(e => e.event_type === 'vacation_start')}
                 >
                   <Plus className="h-4 w-4" />
@@ -575,7 +575,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                 <button
                   type="button"
                   onClick={() => addEvent('vacation_end')}
-                  className="btn-secondary flex items-center space-x-2 text-sm"
+                  className="btn-secondary flex flex-wrap items-center gap-2 text-sm"
                   disabled={
                     events.some(e => e.event_type === 'vacation_end') ||
                     !events.some(e => e.event_type === 'vacation_start')
@@ -591,7 +591,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
             {/* 全局錯誤提示 */}
             {(errors.no_events || errors.admission_event || errors.vacation_start_event) && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <div className="flex items-start space-x-2">
+                <div className="flex items-start gap-2">
                   <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     {errors.no_events && <p className="text-red-700 text-sm">{errors.no_events}</p>}
@@ -608,8 +608,8 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                 
                 return (
                   <div key={event.id} className={`${eventInfo.bgColor} ${eventInfo.borderColor} border rounded-lg p-4`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${eventInfo.color} ${eventInfo.bgColor} border ${eventInfo.borderColor}`}>
                           {index + 1}. {eventInfo.label}
                         </span>
@@ -746,7 +746,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                                     : 'border-gray-200 hover:border-gray-300'
                                 }`}
                               >
-                                <div className="flex items-center space-x-2 mb-1">
+                                <div className="flex flex-wrap items-center gap-2 mb-1">
                                   <input
                                     type="radio"
                                     name="discharge_type"
@@ -830,7 +830,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                                     : 'border-gray-200 hover:border-gray-300'
                                 }`}
                               >
-                                <div className="flex items-center space-x-2 mb-1">
+                                <div className="flex flex-wrap items-center gap-2 mb-1">
                                   <input
                                     type="radio"
                                     name="vacation_end_type"
@@ -883,7 +883,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
               disabled={isSubmitting}
             >
               {isSubmitting ? (
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>處理中...</span>
                 </div>

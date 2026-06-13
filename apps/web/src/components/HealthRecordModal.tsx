@@ -396,8 +396,8 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
           className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="flex flex-wrap items-center gap-3">
               {formData.記錄類型 === '生命表徵' && <Activity className="h-5 w-5 text-blue-600" />}
               {formData.記錄類型 === '血糖控制' && <Droplets className="h-5 w-5 text-red-600" />}
               {formData.記錄類型 === '體重控制' && <Scale className="h-5 w-5 text-green-600" />}
@@ -480,7 +480,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                 <div className={`p-3 rounded-lg border ${
                   currentIsPatientAbsent ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'
                 }`}>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="checkbox"
                       checked={formData.isAbsent}
@@ -498,7 +498,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                   </div>
                   {formData.isAbsent && (
                     <div className="mt-3 space-y-2">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <label className={`text-sm ${currentIsPatientAbsent ? 'text-red-700' : 'text-orange-700'}`}>原因:</label>
                         <select
                           value={formData.absenceReason}
@@ -535,7 +535,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="form-label">血壓 (mmHg)</label>
-                    <div className="flex space-x-2">
+                    <div className="flex flex-wrap gap-2">
                       <input ref={bloodPressureInputRef} type="text" value={formData.血壓收縮壓} onChange={(e) => updateFormData('血壓收縮壓', e.target.value.replace(/[^0-9]/g, ''))} className="form-input" placeholder="120" disabled={formData.isAbsent} inputMode="numeric" />
                       <span className="flex items-center text-gray-500">/</span>
                       <input type="text" value={formData.血壓舒張壓} onChange={(e) => updateFormData('血壓舒張壓', e.target.value.replace(/[^0-9]/g, ''))} className="form-input" placeholder="80" disabled={formData.isAbsent} inputMode="numeric" />
@@ -600,9 +600,9 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                 <button
                   type="button"
                   onClick={() => setIsGeneratorCollapsed(!isGeneratorCollapsed)}
-                  className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-lg transition-colors"
+                  className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-lg transition-colors"
                 >
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Sparkles className="h-5 w-5 text-blue-600" />
                     <span className="font-medium text-blue-900">智能數據生成器</span>
                     {generatorStatus === 'generated' && (
@@ -622,7 +622,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                     {/* 顯示當前選中院友 */}
                     <div className="mb-4">
                       {formData.院友id ? (
-                        <div className="flex items-center space-x-2 text-sm text-gray-700">
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
                           <User className="h-4 w-4 text-blue-600" />
                           <span>
                             院友：
@@ -635,7 +635,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                           <span>記錄類型：{formData.記錄類型}</span>
                         </div>
                       ) : (
-                        <div className="text-sm text-orange-600 flex items-center space-x-2">
+                        <div className="text-sm text-orange-600 flex flex-wrap items-center gap-2">
                           <AlertTriangle className="h-4 w-4" />
                           <span>請先選擇院友</span>
                         </div>
@@ -648,7 +648,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                           type="button"
                           onClick={handleGenerateData}
                           disabled={!formData.院友id || formData.isAbsent}
-                          className="btn-primary inline-flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="btn-primary inline-flex flex-wrap items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Sparkles className="h-4 w-4" />
                           <span>啟動生成器</span>
@@ -666,7 +666,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                     )}
                     {generatorStatus === 'no-data' && (
                       <div className="text-center py-4">
-                        <div className="inline-flex items-center space-x-2 text-orange-600 mb-3">
+                        <div className="inline-flex flex-wrap items-center gap-2 text-orange-600 mb-3">
                           <AlertTriangle className="h-5 w-5" />
                           <span className="font-medium">該院友暫無歷史記錄</span>
                         </div>
@@ -675,7 +675,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                     )}
                     {generatorStatus === 'error' && (
                       <div className="text-center py-4">
-                        <div className="inline-flex items-center space-x-2 text-red-600 mb-3">
+                        <div className="inline-flex flex-wrap items-center gap-2 text-red-600 mb-3">
                           <AlertTriangle className="h-5 w-5" />
                           <span className="font-medium">生成失敗</span>
                         </div>
@@ -691,7 +691,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                     )}
                     {generatorStatus === 'generated' && generatedData && (
                       <div className="text-center py-4">
-                        <div className="flex items-center justify-center space-x-2 text-green-600 mb-4">
+                        <div className="flex flex-wrap items-center justify-center gap-2 text-green-600 mb-4">
                           <CheckCircle className="h-5 w-5" />
                           <span className="text-sm font-medium">
                             已根據最近 {generatedRecordCount} 次記錄生成並填入表單
@@ -700,7 +700,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                         <button
                           type="button"
                           onClick={handleRegenerateData}
-                          className="btn-secondary inline-flex items-center space-x-2"
+                          className="btn-secondary inline-flex flex-wrap items-center gap-2"
                         >
                           <RefreshCw className="h-4 w-4" />
                           <span>重新生成</span>
@@ -723,8 +723,8 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
             className="bg-white rounded-lg max-w-md w-full p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="p-2 rounded-lg bg-orange-100">
                   <AlertTriangle className="h-6 w-6 text-orange-600" />
                 </div>
@@ -736,7 +736,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
             </div>
             <div className="mb-6">
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
                   <div>
                     <h4 className="font-medium text-orange-900 mb-2">記錄日期早於當前日期</h4>

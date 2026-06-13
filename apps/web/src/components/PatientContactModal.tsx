@@ -71,7 +71,7 @@ const PatientContactModal: React.FC<PatientContactModalProps> = ({ contact, onCl
             className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl relative"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h2 className="text-xl font-semibold text-gray-900">
                 {contact ? '編輯聯絡人' : '新增聯絡人'}
               </h2>

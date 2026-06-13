@@ -457,15 +457,15 @@ const PrintForms: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">列印表格</h1>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             {((selectedRows.size > 0 && selectedTemplate && selectedTemplate.type !== 'station-bed-layout') ||
               (selectedTemplate?.type === 'bed-layout')) && (
               <button
                 onClick={handleExportSelected}
                 disabled={isExporting}
-                className="btn-primary flex items-center space-x-2"
+                className="btn-primary flex flex-wrap items-center gap-2"
               >
                 {isExporting ? (
                   <>
@@ -489,11 +489,11 @@ const PrintForms: React.FC = () => {
       </div>
       {/* Template Selection */}
       <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <h2 className="text-lg font-semibold text-gray-900">選擇列印表格</h2>
           <Link
             to="/templates"
-            className="btn-secondary flex items-center space-x-2"
+            className="btn-secondary flex flex-wrap items-center gap-2"
           >
             <Upload className="h-4 w-4" />
             <span>管理範本</span>
@@ -526,7 +526,7 @@ const PrintForms: React.FC = () => {
           </div>
           {selectedTemplate && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center space-x-2 mb-2">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 <FileText className="h-5 w-5 text-blue-600" />
                 <h3 className="font-medium text-blue-900">已選擇範本</h3>
               </div>
@@ -572,7 +572,7 @@ const PrintForms: React.FC = () => {
             <p className="text-gray-600 mb-4">請先在範本管理中上傳換片記錄、個人衛生記錄或入住排版範本</p>
             <Link
               to="/templates"
-              className="btn-primary flex items-center space-x-2 inline-flex"
+              className="btn-primary flex flex-wrap items-center gap-2 inline-flex"
             >
               <Upload className="h-4 w-4" />
               <span>前往範本管理</span>
@@ -585,10 +585,10 @@ const PrintForms: React.FC = () => {
       <div className="sticky top-16 bg-white z-20 shadow-sm">
         <div className="card p-4">
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <h2 className="text-lg font-semibold text-gray-900">選擇院友</h2>
               {selectedTemplate && (
-                <div className="flex items-center space-x-2 text-orange-600">
+                <div className="flex flex-wrap items-center gap-2 text-orange-600">
                   <FileText className="h-4 w-4 text-orange-500" />
                   <span className="text-sm">已選擇範本：{selectedTemplate.name}</span>
                 </div>
@@ -605,10 +605,10 @@ const PrintForms: React.FC = () => {
                   className="form-input pl-10"
                 />
               </div>
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className={`btn-secondary flex items-center space-x-2 ${
+                  className={`btn-secondary flex flex-wrap items-center gap-2 ${
                     showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''
                   } ${hasAdvancedFilters() ? 'border-blue-300' : ''}`}
                 >
@@ -623,7 +623,7 @@ const PrintForms: React.FC = () => {
                 {(searchTerm || hasAdvancedFilters()) && (
                   <button
                     onClick={clearFilters}
-                    className="btn-secondary flex items-center space-x-2 text-red-600 hover:text-red-700"
+                    className="btn-secondary flex flex-wrap items-center gap-2 text-red-600 hover:text-red-700"
                   >
                     <X className="h-4 w-4" />
                     <span>清除</span>
@@ -723,7 +723,7 @@ const PrintForms: React.FC = () => {
                 </div>
               </div>
             )}
-            <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
               <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 位院友 (共 {patients.length} 位)</span>
               {(searchTerm || hasAdvancedFilters()) && (
                 <span className="text-blue-600">已套用篩選條件</span>
@@ -737,8 +737,8 @@ const PrintForms: React.FC = () => {
       {selectedTemplate?.type !== 'station-bed-layout' && totalItems > 0 && (
         <div className="sticky top-40 bg-white z-10 shadow-sm">
           <div className="card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-4">
                 <button
                   onClick={handleSelectAll}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -807,7 +807,7 @@ const PrintForms: React.FC = () => {
                       {patient.床號}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex flex-wrap items-center gap-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                           {patient.院友相片 ? (
                             <img 
@@ -888,7 +888,7 @@ const PrintForms: React.FC = () => {
       {selectedTemplate?.type !== 'station-bed-layout' && totalItems > 0 && (
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
           <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-gray-700">每頁顯示:</span>
               <select
                 value={pageSize}
@@ -905,7 +905,7 @@ const PrintForms: React.FC = () => {
               <span className="text-sm text-gray-700">筆記錄</span>
             </div>
             {totalPages > 1 && (
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
@@ -950,7 +950,7 @@ const PrintForms: React.FC = () => {
           }}
         >
           <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="text-lg font-semibold text-gray-900">選擇年月</h3>
               <button
                 onClick={() => setShowYearMonthModal(false)}
@@ -1010,7 +1010,7 @@ const PrintForms: React.FC = () => {
           }}
         >
           <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="text-lg font-semibold text-gray-900">選擇列印月份</h3>
               <button
                 onClick={() => setShowPersonalHygieneMonthModal(false)}
@@ -1073,23 +1073,23 @@ const PrintForms: React.FC = () => {
       <div className="card p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">使用說明</h2>
         <div className="space-y-3 text-sm text-gray-600">
-          <div className="flex items-start space-x-2">
+          <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">1</span>
             <p>在「範本管理」中上傳您的列印表格範本，分別選擇「換片記錄」、「個人衛生記錄」或「入住排版」類型</p>
           </div>
-          <div className="flex items-start space-x-2">
+          <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">2</span>
             <p>系統會自動提取範本的完整格式（欄寬、列高、合併儲存格、字型、邊框、圖片等）</p>
           </div>
-          <div className="flex items-start space-x-2">
+          <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">3</span>
             <p>回到此頁面選擇一個已上傳的範本，然後篩選並選擇需要的院友</p>
           </div>
-          <div className="flex items-start space-x-2">
+          <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">4</span>
             <p>點擊「生成表格」，系統會為每位選中的院友創建一個工作表，完全克隆範本格式並填入院友資料</p>
           </div>
-          <div className="flex items-start space-x-2">
+          <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">5</span>
             <p>下載生成的 Excel 檔案，每個工作表都包含完整的範本格式和對應院友的資料</p>
           </div>

@@ -501,8 +501,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-6 border-b border-gray-200">
+          <div className="flex flex-wrap items-center gap-3">
             <FileDown className="h-6 w-6 text-blue-600" />
             <h2 className="text-xl font-semibold text-gray-900">匯出個人備藥及給藥記錄</h2>
           </div>
@@ -519,7 +519,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="font-medium text-blue-900 mb-3">選擇匯出模式</h4>
               <div className="space-y-2">
-                <label className="flex items-center space-x-3 cursor-pointer">
+                <label className="flex flex-wrap items-center gap-3 cursor-pointer">
                   <input
                     type="radio"
                     name="exportMode"
@@ -534,7 +534,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                     </p>
                   </div>
                 </label>
-                <label className="flex items-center space-x-3 cursor-pointer">
+                <label className="flex flex-wrap items-center gap-3 cursor-pointer">
                   <input
                     type="radio"
                     name="exportMode"
@@ -549,7 +549,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                     </p>
                   </div>
                 </label>
-                <label className="flex items-center space-x-3 cursor-pointer">
+                <label className="flex flex-wrap items-center gap-3 cursor-pointer">
                   <input
                     type="radio"
                     name="exportMode"
@@ -562,7 +562,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                     <p className="text-sm text-gray-600">選擇多位院友進行批量匯出</p>
                   </div>
                 </label>
-                <label className="flex items-center space-x-3 cursor-pointer">
+                <label className="flex flex-wrap items-center gap-3 cursor-pointer">
                   <input
                     type="radio"
                     name="exportMode"
@@ -581,7 +581,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="form-label flex items-center space-x-2">
+              <label className="form-label flex flex-wrap items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 <span>選擇月份</span>
               </label>
@@ -595,7 +595,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
             <div className="flex flex-col space-y-2 pt-8">
               {!isBlankMode && (exportMode === 'batch' || isExportAll) && (
-                <label className="flex items-center space-x-2 cursor-pointer">
+                <label className="flex flex-wrap items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={includeInactive}
@@ -608,7 +608,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                 </label>
               )}
               {!isBlankMode && (
-                <label className="flex items-center space-x-2 cursor-pointer">
+                <label className="flex flex-wrap items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={includeWorkflowRecords}
@@ -619,7 +619,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                 </label>
               )}
               {!isBlankMode && (
-                <label className="flex items-center space-x-2 cursor-pointer">
+                <label className="flex flex-wrap items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={includePersonalMedicationList}
@@ -638,7 +638,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
               <h4 className="font-medium text-yellow-900 mb-2">空白藥紙設定</h4>
               <p className="text-sm text-yellow-800 mb-3">選擇要匯出的藥紙類型：</p>
               <div className="flex flex-wrap gap-4 mb-3">
-                <label className="flex items-center space-x-2 cursor-pointer">
+                <label className="flex flex-wrap items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={blankRouteOral}
@@ -650,7 +650,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                     <span>口服</span>
                   </span>
                 </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
+                <label className="flex flex-wrap items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={blankRouteInjection}
@@ -662,7 +662,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                     <span>注射</span>
                   </span>
                 </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
+                <label className="flex flex-wrap items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={blankRouteTopical}
@@ -710,8 +710,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <label className="form-label flex items-center space-x-2 mb-0">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                  <label className="form-label flex flex-wrap items-center gap-2 mb-0">
                     <Package className="h-4 w-4" />
                     <span>選擇處方 ({currentPatientSelectedPrescriptions.size}/{currentPatientAvailablePrescriptions.length})</span>
                   </label>
@@ -746,7 +746,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                               isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
                             }`}
                           >
-                            <div className="flex items-start space-x-3">
+                            <div className="flex items-start gap-3">
                               <div className="pt-1">
                                 {isSelected ? (
                                   <CheckSquare className="h-5 w-5 text-blue-600 flex-shrink-0" />
@@ -904,13 +904,13 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
           {!isBlankMode && ((exportMode === 'batch' && selectedPatientIds.size > 0) || (exportMode === 'current' && currentPatient)) && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="font-medium text-green-900 mb-3 flex items-center space-x-2">
+              <h4 className="font-medium text-green-900 mb-3 flex flex-wrap items-center gap-2">
                 <Package className="h-5 w-5" />
                 <span>途徑分布預覽</span>
               </h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="bg-white rounded-lg p-3 border border-green-200">
-                  <div className="flex items-center space-x-2 mb-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
                     <Pill className="h-4 w-4 text-blue-600" />
                     <span className="text-sm font-medium text-gray-700">口服</span>
                   </div>
@@ -919,7 +919,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                 </div>
 
                 <div className="bg-white rounded-lg p-3 border border-green-200">
-                  <div className="flex items-center space-x-2 mb-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
                     <Syringe className="h-4 w-4 text-red-600" />
                     <span className="text-sm font-medium text-gray-700">注射</span>
                   </div>
@@ -928,7 +928,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                 </div>
 
                 <div className="bg-white rounded-lg p-3 border border-green-200">
-                  <div className="flex items-center space-x-2 mb-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
                     <Package className="h-4 w-4 text-green-600" />
                     <span className="text-sm font-medium text-gray-700">外用</span>
                   </div>
@@ -937,7 +937,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                 </div>
 
                 <div className="bg-white rounded-lg p-3 border border-green-200">
-                  <div className="flex items-center space-x-2 mb-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
                     <AlertCircle className="h-4 w-4 text-orange-600" />
                     <span className="text-sm font-medium text-gray-700">缺少途徑</span>
                   </div>
@@ -948,7 +948,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
               {routeStats.noRoute > 0 && (
                 <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3">
-                  <div className="flex items-start space-x-2">
+                  <div className="flex items-start gap-2">
                     <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-orange-800">
                       <span className="font-semibold">警告：</span>
@@ -960,7 +960,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
               {exportMode === 'current' && routeStats.oral === 0 && routeStats.injection === 0 && routeStats.topical === 0 && routeStats.noRoute > 0 && (
                 <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
-                  <div className="flex items-start space-x-2">
+                  <div className="flex items-start gap-2">
                     <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-red-800">
                       <span className="font-semibold">錯誤：</span>
@@ -974,8 +974,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
           {(exportMode === 'batch' || exportMode === 'batchBlank') && (
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="form-label flex items-center space-x-2 mb-0">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                <label className="form-label flex flex-wrap items-center gap-2 mb-0">
                   <Users className="h-4 w-4" />
                   <span>選擇院友 ({selectedPatientIds.size}/{filteredPatients.length})</span>
                 </label>
@@ -1032,11 +1032,11 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                         <div
                           key={patient.院友id}
                           onClick={() => handleTogglePatient(patient.院友id)}
-                          className={`p-4 flex items-center justify-between cursor-pointer transition-colors ${
+                          className={`p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 cursor-pointer transition-colors ${
                             isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
                           }`}
                         >
-                          <div className="flex items-center space-x-3 flex-1">
+                          <div className="flex flex-wrap items-center gap-3 flex-1">
                             {isSelected ? (
                               <CheckSquare className="h-5 w-5 text-blue-600" />
                             ) : (
@@ -1048,7 +1048,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                               </div>
                               <div className="text-sm text-gray-600 mt-1">
                                 {validPrescriptions.length > 0 ? (
-                                  <div className="flex items-center space-x-3">
+                                  <div className="flex flex-wrap items-center gap-3">
                                     <span className="text-green-600 font-medium">
                                       {validPrescriptions.length} 個處方
                                     </span>
@@ -1093,7 +1093,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           )}
         </div>
 
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-6 border-t border-gray-200 bg-gray-50">
           <div className="text-sm text-gray-600">
             {(exportMode === 'batch' || exportMode === 'batchBlank') ? (
               <span>
@@ -1131,7 +1131,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                 (exportMode === 'current' && routeStats.oral === 0 && routeStats.injection === 0 && routeStats.topical === 0) ||
                 (isBlankMode && !blankRouteOral && !blankRouteInjection && !blankRouteTopical)
               }
-              className="btn-primary flex items-center space-x-2"
+              className="btn-primary flex flex-wrap items-center gap-2"
             >
               <FileDown className="h-4 w-4" />
               <span>{isExporting ? '匯出中...' : (isBlankMode ? '匯出空白藥紙' : '匯出記錄')}</span>

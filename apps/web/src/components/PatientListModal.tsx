@@ -36,8 +36,8 @@ const PatientListModal: React.FC<PatientListModalProps> = ({
         className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-blue-50 px-6 py-4 border-b-2 border-blue-200 rounded-t-lg flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+        <div className="bg-blue-50 px-6 py-4 border-b-2 border-blue-200 rounded-t-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Users className="h-6 w-6 text-blue-600" />
             <div>
               <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
@@ -63,7 +63,7 @@ const PatientListModal: React.FC<PatientListModalProps> = ({
               {patientNames.map((name, idx) => (
                 <li
                   key={idx}
-                  className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-semibold">
                     {idx + 1}

@@ -419,8 +419,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">
                 <Pill className="h-6 w-6 text-blue-600" />
               </div>
@@ -440,7 +440,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* 驗證錯誤訊息 */}
           {validationError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <h4 className="text-sm font-medium text-red-800 mb-1">驗證錯誤</h4>
@@ -719,8 +719,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
 
               {/* 服用份量/單位 與 特殊用法 互斥選擇 */}
               <div className="space-y-3">
-                <div className="flex items-center space-x-4">
-                  <label className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="radio"
                       name="dosage_type"
@@ -730,7 +730,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                     />
                     <span className="text-sm font-medium">使用份量和單位</span>
                   </label>
-                  <label className="flex items-center space-x-2">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="radio"
                       name="dosage_type"
@@ -836,7 +836,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 </select>
               </div>
 
-              <div className="flex items-center space-x-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <input
                   type="checkbox"
                   id="is_prn"
@@ -969,7 +969,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                       medication_time_slots: autoTimes
                     }));
                   }}
-                  className="btn-secondary flex items-center space-x-2 text-sm h-8"
+                  className="btn-secondary flex flex-wrap items-center gap-2 text-sm h-8"
                   title="根據服用次數和服用時段智能分配時間點"
                 >
                   <Clock className="h-4 w-4" />
@@ -977,7 +977,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 </button>
               </div>
               
-              <div className="flex space-x-2 mb-3">
+              <div className="flex flex-wrap gap-2 mb-3">
                 <input
                   type="time"
                   value={newTimeSlot}
@@ -989,7 +989,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   type="button"
                   onClick={addTimeSlot}
                   disabled={!newTimeSlot || formData.medication_time_slots.includes(newTimeSlot)}
-                  className="btn-secondary flex items-center space-x-2 h-8 px-3 text-sm"
+                  className="btn-secondary flex flex-wrap items-center gap-2 h-8 px-3 text-sm"
                 >
                   <Plus className="h-4 w-4" />
                   <span>新增時間</span>
@@ -1003,7 +1003,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                     {formData.medication_time_slots.map((timeSlot, index) => (
                       <div
                         key={timeSlot}
-                        className="flex items-center justify-between p-2 bg-white border border-yellow-300 rounded-lg"
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-2 bg-white border border-yellow-300 rounded-lg"
                       >
                         <span className="text-sm font-medium text-gray-900">{timeSlot}</span>
                         <button
@@ -1030,7 +1030,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
 
           {/* 檢測項設定 */}
           <div className="bg-orange-50 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="text-lg font-medium text-gray-900 flex items-center">
                 <AlertTriangle className="h-5 w-5 mr-2 text-orange-600" />
                 檢測項設定
@@ -1038,7 +1038,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
               <button
                 type="button"
                 onClick={addInspectionRule}
-                className="btn-secondary flex items-center space-x-2"
+                className="btn-secondary flex flex-wrap items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 <span>新增檢測項</span>
@@ -1049,7 +1049,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
               <div className="space-y-3">
                 {inspectionRules.map((rule, index) => (
                   <div key={index} className="bg-white border border-orange-200 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                       <h4 className="font-medium text-gray-900">檢測項 {index + 1}</h4>
                       <button
                         type="button"

@@ -192,8 +192,8 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-orange-100">
                 <Utensils className="h-6 w-6 text-orange-600" />
               </div>
@@ -255,7 +255,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
               {specialDietOptions.map(diet => (
                 <label 
                   key={diet} 
-                  className={`flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                  className={`flex flex-wrap items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
                     formData.special_diets.includes(diet)
                       ? getSpecialDietColor(diet)
                       : 'border-gray-200 hover:border-gray-300 bg-white'
@@ -306,7 +306,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
 
           {/* 凝固粉設定 */}
           <div className="space-y-4">
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-3">
               <input
                 type="checkbox"
                 id="needs_thickener"
@@ -389,7 +389,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <h3 className="text-sm font-medium text-gray-900 mb-3">餐膳指引預覽</h3>
             <div className="space-y-2 text-sm">
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-gray-600">餐膳組合:</span>
                 <span className={`font-medium ${getMealCombinationColor(formData.meal_combination)}`}>
                   {formData.meal_combination}
@@ -397,7 +397,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
               </div>
               
               {formData.special_diets.length > 0 && (
-                <div className="flex items-start space-x-2">
+                <div className="flex items-start gap-2">
                   <span className="text-gray-600">特殊餐膳:</span>
                   <div className="flex flex-wrap gap-1">
                     {formData.special_diets.map(diet => (
@@ -410,7 +410,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
               )}
               
               {formData.needs_thickener && (
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-gray-600">凝固粉:</span>
                   <span className="font-medium text-blue-600">
                     {formData.thickener_amount || '待填寫分量'}
@@ -419,14 +419,14 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
               )}
               
               {formData.remarks && (
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-gray-600">備註:</span>
                   <span className="font-medium">{formData.remarks}</span>
                 </div>
               )}
               
               {formData.guidance_date && (
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-gray-600">指引日期:</span>
                   <span className="font-medium">
                     {new Date(formData.guidance_date).toLocaleDateString('zh-TW')}
@@ -435,7 +435,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
               )}
               
               {formData.guidance_source && (
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-gray-600">指引出處:</span>
                   <span className="font-medium">{formData.guidance_source}</span>
                 </div>

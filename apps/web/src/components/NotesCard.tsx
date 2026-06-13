@@ -74,8 +74,8 @@ const NotesCard: React.FC = () => {
   return (
     <>
       <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-100">
               <StickyNote className="h-6 w-6 text-blue-600" />
             </div>
@@ -98,7 +98,7 @@ const NotesCard: React.FC = () => {
         <div className="space-y-4">
           {uncompletedNotes.length > 0 ? (
             <div className="space-y-3">
-              <div className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-700">
                 <StickyNote className="h-4 w-4" />
                 <span>未完成 ({uncompletedNotes.length})</span>
               </div>
@@ -107,7 +107,7 @@ const NotesCard: React.FC = () => {
                 return (
                   <div key={note.id} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {patient ? (
                           <>
                             {patient.院友相片 ? (
@@ -140,7 +140,7 @@ const NotesCard: React.FC = () => {
                     <p className="text-sm text-gray-700 mb-3 whitespace-pre-wrap">
                       {note.content}
                     </p>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => setEditingNote(note)}
                         className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
@@ -178,9 +178,9 @@ const NotesCard: React.FC = () => {
             <div className="border-t border-gray-200 pt-4">
               <button
                 onClick={() => setShowCompleted(!showCompleted)}
-                className="flex items-center justify-between w-full text-sm font-medium text-gray-700 hover:text-gray-900"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full text-sm font-medium text-gray-700 hover:text-gray-900"
               >
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Check className="h-4 w-4" />
                   <span>已完成 ({completedNotes.length})</span>
                 </div>
@@ -197,7 +197,7 @@ const NotesCard: React.FC = () => {
                     const patient = getPatientInfo(note.patient_id);
                     return (
                       <div key={note.id} className="p-2 bg-gray-50 border border-gray-200 rounded text-sm">
-                        <div className="flex items-center justify-between mb-1">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-1">
                           <span className="text-gray-700">
                             {patient ? `${patient.床號} ${patient.中文姓氏}${patient.中文名字}` : '(無院友)'}
                           </span>

@@ -169,8 +169,8 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
       >
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-red-100">
                 <Plus className="h-6 w-6 text-red-600" />
               </div>
@@ -190,7 +190,7 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
         {/* Content */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-3">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex flex-wrap items-center gap-3">
               <AlertCircle className="h-5 w-5 text-red-600" />
               <span className="text-red-800">{error}</span>
             </div>
@@ -203,7 +203,7 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
                 院友 <span className="text-red-500">*</span>
               </label>
               {wound ? (
-                <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
+                <div className="flex flex-wrap items-center gap-2 p-3 bg-gray-50 rounded-lg">
                   <User className="h-5 w-5 text-gray-400" />
                   <span className="font-medium">
                     {selectedPatient?.床號} - {selectedPatient?.中文姓名}
@@ -359,7 +359,7 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
                 selectedLocation={formData.wound_location}
                 onLocationChange={handleLocationChange}
               />
-              <div className="mt-4 flex items-center justify-center space-x-4">
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
                 <button
                   type="button"
                   onClick={() => setFormData(prev => ({ 

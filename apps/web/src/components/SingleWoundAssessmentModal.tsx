@@ -189,7 +189,7 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
       >
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
                 傷口評估 - {wound.wound_code}
@@ -211,7 +211,7 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-3">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex flex-wrap items-center gap-3">
               <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
               <span className="text-red-800">{error}</span>
             </div>
@@ -436,9 +436,9 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
 
           {/* 滲出物 */}
           <div className="border rounded-lg p-4">
-            <div className="flex items-center space-x-3 mb-3">
+            <div className="flex flex-wrap items-center gap-3 mb-3">
               <Droplets className="h-4 w-4 text-gray-600" />
-              <label className="flex items-center space-x-2">
+              <label className="flex flex-wrap items-center gap-2">
                 <input
                   type="checkbox"
                   name="exudate_present"
@@ -520,7 +520,7 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">敷料</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {DRESSING_OPTIONS.map(d => (
-                  <label key={d} className="flex items-center space-x-2">
+                  <label key={d} className="flex flex-wrap items-center gap-2">
                     <input
                       type="checkbox"
                       checked={formData.dressings.includes(d)}

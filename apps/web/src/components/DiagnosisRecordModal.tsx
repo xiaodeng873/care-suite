@@ -160,7 +160,7 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-start justify-between gap-3">
-          <div className="flex items-start space-x-3 min-w-0">
+          <div className="flex items-start gap-3 min-w-0">
             <div className="p-2 bg-blue-100 rounded-lg">
               <FileText className="h-6 w-6 text-blue-600" />
             </div>
@@ -189,13 +189,13 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
           />
 
           {ocrError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center space-x-2">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex flex-wrap items-center gap-2">
               <span className="text-red-600 text-sm">{ocrError}</span>
             </div>
           )}
 
           <div>
-            <label className="form-label flex items-center space-x-2">
+            <label className="form-label flex flex-wrap items-center gap-2">
               <span className="text-red-500">*</span>
               <span>院友</span>
             </label>
@@ -249,7 +249,7 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
 
             {diagnosisItems.map((item, index) => (
               <div key={item.id} className="border border-gray-200 rounded-lg p-4 space-y-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
                   <span className="text-sm font-medium text-gray-700">項目 {index + 1}</span>
                   {diagnosisItems.length > 1 && (
                     <button
@@ -264,7 +264,7 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="form-label flex items-center space-x-2">
+                    <label className="form-label flex flex-wrap items-center gap-2">
                       <Calendar className="h-4 w-4 text-gray-400" />
                       <span className="text-red-500">*</span>
                       <span>診斷日期</span>
@@ -284,7 +284,7 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="form-label flex items-center space-x-2">
+                    <label className="form-label flex flex-wrap items-center gap-2">
                       <FileText className="h-4 w-4 text-gray-400" />
                       <span className="text-red-500">*</span>
                       <span>診斷項目 / 病名</span>
@@ -305,7 +305,7 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="form-label flex items-center space-x-2">
+                    <label className="form-label flex flex-wrap items-center gap-2">
                       <Building2 className="h-4 w-4 text-gray-400" />
                       <span className="text-red-500">*</span>
                       <span>診斷單位 / 醫院</span>

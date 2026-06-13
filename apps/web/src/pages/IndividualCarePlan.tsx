@@ -485,7 +485,7 @@ const IndividualCarePlan: React.FC = () => {
             {selectedRows.size > 0 && (
               <button
                 onClick={() => {}}
-                className="btn-secondary flex items-center space-x-2"
+                className="btn-secondary flex flex-wrap items-center gap-2"
               >
                 <Download className="h-4 w-4" />
                 <span>匯出選定記錄</span>
@@ -493,7 +493,7 @@ const IndividualCarePlan: React.FC = () => {
             )}
             <button
               onClick={() => setShowProblemLibraryModal(true)}
-              className="btn-secondary flex items-center space-x-2"
+              className="btn-secondary flex flex-wrap items-center gap-2"
             >
               <BookOpen className="h-4 w-4" />
               <span>問題庫</span>
@@ -503,7 +503,7 @@ const IndividualCarePlan: React.FC = () => {
                 setSelectedPlan(null);
                 setShowModal(true);
               }}
-              className="btn-primary flex items-center space-x-2"
+              className="btn-primary flex flex-wrap items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               <span>新增計劃</span>
@@ -534,7 +534,7 @@ const IndividualCarePlan: React.FC = () => {
           
           <button
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className={`btn-secondary flex items-center space-x-2 ${
+            className={`btn-secondary flex flex-wrap items-center gap-2 ${
               showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''
             } ${hasAdvancedFilters() ? 'border-blue-300' : ''}`}
           >
@@ -641,14 +641,14 @@ const IndividualCarePlan: React.FC = () => {
       </div>
 
       {/* 統計摘要 */}
-      <div className="flex items-center justify-between text-sm text-gray-600">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
+        <div className="flex flex-wrap items-center gap-4">
           <span>共 {groupedPlans.length} 位院友，{totalItems} 份計劃</span>
           {selectedRows.size > 0 && (
             <span className="text-blue-600">已選擇 {selectedRows.size} 筆</span>
           )}
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={expandAll} className="text-blue-600 hover:text-blue-800">全部展開</button>
           <span>|</span>
           <button onClick={collapseAll} className="text-blue-600 hover:text-blue-800">全部收合</button>
@@ -732,7 +732,7 @@ const IndividualCarePlan: React.FC = () => {
                           </td>
                           <td className="px-4 py-3" rowSpan={displayPlans.length}>
                             <PatientTooltip patient={group.patient}>
-                              <div className="flex items-center space-x-2 cursor-help hover:opacity-80 transition-opacity">
+                              <div className="flex flex-wrap items-center gap-2 cursor-help hover:opacity-80 transition-opacity">
                                 <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 overflow-hidden flex items-center justify-center">
                                   {group.patient.院友相片 ? (
                                     <img
@@ -762,7 +762,7 @@ const IndividualCarePlan: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Calendar className="h-4 w-4 text-gray-400" />
                           <span>{new Date(plan.plan_date).toLocaleDateString('zh-TW')}</span>
                         </div>
@@ -825,7 +825,7 @@ const IndividualCarePlan: React.FC = () => {
                         })()}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             onClick={() => handleEdit(plan)}
                             className="text-blue-600 hover:text-blue-900"
@@ -866,8 +866,8 @@ const IndividualCarePlan: React.FC = () => {
 
       {/* 分頁 */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg">
-          <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-white border border-gray-200 rounded-lg">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-gray-700">每頁顯示</span>
             <select
               value={pageSize}
@@ -881,7 +881,7 @@ const IndividualCarePlan: React.FC = () => {
             <span className="text-sm text-gray-700">筆</span>
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => handlePageChange(1)}
               disabled={currentPage === 1}

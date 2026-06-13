@@ -331,7 +331,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
       modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
       modal.innerHTML = `
         <div class="bg-white rounded-lg p-6 max-w-md w-full">
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h3 class="text-lg font-semibold">拍攝院友照片</h3>
             <button id="close-camera" class="text-gray-400 hover:text-gray-600">
               <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -341,7 +341,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
           </div>
           <div class="space-y-4">
             <div id="video-container" class="w-full h-64 bg-gray-100 rounded-lg overflow-hidden"></div>
-            <div class="flex space-x-3">
+            <div class="flex flex-wrap gap-3">
               <button id="capture-btn" class="btn-primary flex-1">拍照</button>
               <button id="cancel-btn" class="btn-secondary flex-1">取消</button>
             </div>
@@ -473,7 +473,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
             <h2 className="text-xl font-semibold text-gray-900">
               {patient ? '編輯院友' : '新增院友'}
             </h2>
@@ -522,7 +522,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
           />
 
           {ocrError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start space-x-2">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
               <div className="text-red-600 text-sm">{ocrError}</div>
             </div>
           )}
@@ -533,7 +533,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
               <label className="form-label">目前床位</label>
               <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
                 {formData.station_id && formData.bed_id ? (
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm text-gray-700">
                       {stations.find(s => s.id === formData.station_id)?.name} - {formData.床號}
                     </span>
@@ -572,7 +572,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
           {/* Photo Upload Section */}
           <div>
             <label className="form-label">院友照片</label>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-4">
               <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
                 {photoPreview ? (
                   <img 
@@ -585,7 +585,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                 )}
               </div>
               <div className="flex flex-col space-y-2">
-                <label className="btn-secondary cursor-pointer flex items-center space-x-2">
+                <label className="btn-secondary cursor-pointer flex flex-wrap items-center gap-2">
                   <Upload className="h-4 w-4" />
                   <span>上傳照片</span>
                   <input
@@ -599,7 +599,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                 <button
                   type="button"
                   onClick={handleCameraCapture}
-                  className="btn-secondary flex items-center space-x-2"
+                  className="btn-secondary flex flex-wrap items-center gap-2"
                 >
                   <Camera className="h-4 w-4" />
                   <span>拍攝照片</span>
@@ -608,7 +608,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                   <button
                     type="button"
                     onClick={handleRemovePhoto}
-                    className="btn-danger flex items-center space-x-2"
+                    className="btn-danger flex flex-wrap items-center gap-2"
                   >
                     <Trash2 className="h-4 w-4" />
                     <span>移除照片</span>
@@ -710,7 +710,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
           <div>
             <label className="form-label">在住狀態</label>
             <div>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <span className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
                   formData.在住狀態 === '在住' ? 'bg-green-100 text-green-800' :
                   formData.在住狀態 === '待入住' ? 'bg-yellow-100 text-yellow-800' :
@@ -904,8 +904,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
             <div>
               <label className="form-label">出生日期</label>
               <div className="space-y-2">
-                <div className="flex items-center space-x-4">
-                  <label className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="radio"
                       name="birthDateType"
@@ -928,7 +928,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                     />
                     <span className="text-sm text-gray-700">完整日期</span>
                   </label>
-                  <label className="flex items-center space-x-2">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="radio"
                       name="birthDateType"
@@ -995,7 +995,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
           <div>
             <label className="form-label">藥物敏感</label>
             <div className="space-y-2">
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <input
                   type="text"
                   value={newAllergy}
@@ -1038,7 +1038,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
           <div>
             <label className="form-label">不良藥物反應</label>
             <div className="space-y-2">
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <input
                   type="text"
                   value={newAdverseReaction}
@@ -1081,7 +1081,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
           <div>
             <label className="form-label">感染控制</label>
             <div className="space-y-2">
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <input
                   type="text"
                   value={newInfectionControl}
@@ -1147,8 +1147,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
         {showDischargeModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowDischargeModal(false)}>
             <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div className="flex flex-wrap items-center gap-3">
                   <div className="p-2 rounded-lg bg-orange-100">
                     <LogOut className="h-6 w-6 text-orange-600" />
                   </div>

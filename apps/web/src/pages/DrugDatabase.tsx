@@ -275,7 +275,7 @@ const DrugDatabase: React.FC = () => {
             {selectedRows.size > 0 && (
               <button
                 onClick={() => {/* Export functionality */}}
-                className="btn-secondary flex items-center space-x-2"
+                className="btn-secondary flex flex-wrap items-center gap-2"
               >
                 <Download className="h-4 w-4" />
                 <span>匯出選定藥物</span>
@@ -286,7 +286,7 @@ const DrugDatabase: React.FC = () => {
                 setSelectedDrug(null);
                 setShowModal(true);
               }}
-              className="btn-primary flex items-center space-x-2"
+              className="btn-primary flex flex-wrap items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               <span>新增藥物</span>
@@ -311,10 +311,10 @@ const DrugDatabase: React.FC = () => {
                 />
               </div>
             
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className={`btn-secondary flex items-center space-x-2 ${
+                  className={`btn-secondary flex flex-wrap items-center gap-2 ${
                     showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''
                   } ${hasAdvancedFilters() ? 'border-blue-300' : ''}`}
                 >
@@ -330,7 +330,7 @@ const DrugDatabase: React.FC = () => {
                 {(searchTerm || hasAdvancedFilters()) && (
                   <button
                     onClick={clearFilters}
-                    className="btn-secondary flex items-center space-x-2 text-red-600 hover:text-red-700"
+                    className="btn-secondary flex flex-wrap items-center gap-2 text-red-600 hover:text-red-700"
                   >
                     <X className="h-4 w-4" />
                     <span>清除</span>
@@ -423,7 +423,7 @@ const DrugDatabase: React.FC = () => {
               </div>
             )}
             
-            <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
               <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 種藥物 (共 {(drugDatabase || []).length} 種)</span>
               {(searchTerm || hasAdvancedFilters()) && (
                 <span className="text-blue-600">已套用篩選條件</span>
@@ -437,8 +437,8 @@ const DrugDatabase: React.FC = () => {
       {totalItems > 0 && (
         <div className="sticky top-40 bg-white z-10 shadow-sm">
           <div className="card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-4">
                 <button
                   onClick={handleSelectAll}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -536,7 +536,7 @@ const DrugDatabase: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
+                      <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() => handleEdit(drug)}
                           className="text-blue-600 hover:text-blue-900"
@@ -596,7 +596,7 @@ const DrugDatabase: React.FC = () => {
       {totalItems > 0 && (
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
           <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-gray-700">每頁顯示:</span>
               <select
                 value={pageSize}
@@ -614,7 +614,7 @@ const DrugDatabase: React.FC = () => {
             </div>
             
             {totalPages > 1 && (
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}

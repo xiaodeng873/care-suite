@@ -367,7 +367,7 @@ const IncidentReports: React.FC = () => {
       <div className="card">
         <div className="p-4 lg:p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-red-100">
                 <AlertTriangle className="h-6 w-6 text-red-600" />
               </div>
@@ -381,7 +381,7 @@ const IncidentReports: React.FC = () => {
             </div>
             <button
               onClick={handleAdd}
-              className="btn-primary flex items-center space-x-2"
+              className="btn-primary flex flex-wrap items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               <span>新增意外事件報告</span>
@@ -406,10 +406,10 @@ const IncidentReports: React.FC = () => {
                 />
               </div>
 
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className={`btn-secondary flex items-center space-x-2 ${
+                  className={`btn-secondary flex flex-wrap items-center gap-2 ${
                     showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''
                   } ${hasAdvancedFilters() ? 'border-blue-300' : ''}`}
                 >
@@ -425,7 +425,7 @@ const IncidentReports: React.FC = () => {
                 {(searchTerm || hasAdvancedFilters()) && (
                   <button
                     onClick={clearFilters}
-                    className="btn-secondary flex items-center space-x-2 text-red-600 hover:text-red-700"
+                    className="btn-secondary flex flex-wrap items-center gap-2 text-red-600 hover:text-red-700"
                   >
                     <X className="h-4 w-4" />
                     <span>清除</span>
@@ -440,7 +440,7 @@ const IncidentReports: React.FC = () => {
 
                 <div className="mb-4">
                   <label className="form-label">意外日期區間</label>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="date"
                       value={advancedFilters.startDate}
@@ -536,8 +536,8 @@ const IncidentReports: React.FC = () => {
       {totalItems > 0 && (
         <div className="sticky top-40 bg-white z-10 shadow-sm">
           <div className="card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-4">
                 <button
                   onClick={handleSelectAll}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -664,7 +664,7 @@ const IncidentReports: React.FC = () => {
                       <td className="px-4 py-3">
                         {patient ? (
                           <PatientTooltip patient={patient}>
-                            <div className="flex items-center space-x-3 cursor-pointer">
+                            <div className="flex flex-wrap items-center gap-3 cursor-pointer">
                               {patient.院友相片 ? (
                                 <img
                                   src={patient.院友相片}
@@ -687,7 +687,7 @@ const IncidentReports: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Calendar className="h-4 w-4 text-gray-400" />
                           <span className="text-sm text-gray-900">{report.incident_date || '-'}</span>
                         </div>
@@ -701,7 +701,7 @@ const IncidentReports: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <MapPin className="h-4 w-4 text-gray-400" />
                           <span className="text-sm text-gray-900">{report.location || '-'}</span>
                         </div>
@@ -711,7 +711,7 @@ const IncidentReports: React.FC = () => {
                         <div className="text-xs text-gray-500">{report.reporter_position || ''}</div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-center space-x-2">
+                        <div className="flex flex-wrap items-center justify-center gap-2">
                           <button
                             onClick={() => handleExportWord(report)}
                             className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
@@ -755,7 +755,7 @@ const IncidentReports: React.FC = () => {
       {totalItems > 0 && (
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
           <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-gray-700">每頁顯示:</span>
               <select
                 value={pageSize}
@@ -773,7 +773,7 @@ const IncidentReports: React.FC = () => {
             </div>
 
             {totalPages > 1 && (
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}

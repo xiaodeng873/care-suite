@@ -299,8 +299,8 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] overflow-y-auto my-4" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-red-100">
                 <AlertTriangle className="h-6 w-6 text-red-600" />
               </div>
@@ -370,7 +370,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
               <div>
                 <label className="form-label">事故性質</label>
                 <div className="space-y-2">
-                  <label className="flex items-center space-x-2">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="radio"
                       checked={formData.incident_type === '跌倒'}
@@ -379,7 +379,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                     />
                     <span className="text-sm text-gray-700">跌倒</span>
                   </label>
-                  <label className="flex items-center space-x-2">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="radio"
                       checked={formData.incident_type === '其他'}
@@ -404,7 +404,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                 <label className="form-label">地點</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {locationOptions.map(option => (
-                    <label key={option} className="flex items-center space-x-2">
+                    <label key={option} className="flex flex-wrap items-center gap-2">
                       <input
                         type="radio"
                         checked={formData.location === option}
@@ -440,7 +440,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                 <label className="form-label">院友活動</label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {activityOptions.map(option => (
-                    <label key={option} className="flex items-center space-x-2">
+                    <label key={option} className="flex flex-wrap items-center gap-2">
                       <input
                         type="radio"
                         checked={formData.patient_activity === option}
@@ -466,7 +466,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                 <label className="form-label">院友身體不適（複選）</label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {discomfortOptions.map(option => (
-                    <label key={option} className="flex items-center space-x-2">
+                    <label key={option} className="flex flex-wrap items-center gap-2">
                       <input
                         type="checkbox"
                         checked={formData.physical_discomfort[option] || false}
@@ -492,7 +492,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                 <label className="form-label">院友不安全的行為（複選）</label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {unsafeBehaviorOptions.map(option => (
-                    <label key={option} className="flex items-center space-x-2">
+                    <label key={option} className="flex flex-wrap items-center gap-2">
                       <input
                         type="checkbox"
                         checked={formData.unsafe_behavior[option] || false}
@@ -527,7 +527,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                 <label className="form-label">環境/個人因素（複選）</label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {environmentalOptions.map(option => (
-                    <label key={option} className="flex items-center space-x-2">
+                    <label key={option} className="flex flex-wrap items-center gap-2">
                       <input
                         type="checkbox"
                         checked={formData.environmental_factors[option] || false}
@@ -678,9 +678,9 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
 
               <div>
                 <label className="form-label">清醒程度</label>
-                <div className="flex space-x-4">
+                <div className="flex flex-wrap gap-4">
                   {consciousnessOptions.map(option => (
-                    <label key={option} className="flex items-center space-x-2">
+                    <label key={option} className="flex flex-wrap items-center gap-2">
                       <input
                         type="radio"
                         checked={formData.consciousness_level === option}
@@ -696,7 +696,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
               <div>
                 <label className="form-label">四肢活動情況</label>
                 <div className="space-y-2">
-                  <label className="flex items-center space-x-2">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="radio"
                       checked={formData.limb_movement?.status === '正常'}
@@ -706,7 +706,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                     <span className="text-sm text-gray-700">正常</span>
                   </label>
                   <div>
-                    <label className="flex items-center space-x-2">
+                    <label className="flex flex-wrap items-center gap-2">
                       <input
                         type="radio"
                         checked={formData.limb_movement?.status === '不正常'}
@@ -719,7 +719,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                       <div className="ml-6 mt-2 space-y-2">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {['左手', '右手', '左腳', '右腳'].map(limb => (
-                            <label key={limb} className="flex items-center space-x-2">
+                            <label key={limb} className="flex flex-wrap items-center gap-2">
                               <input
                                 type="checkbox"
                                 checked={formData.limb_movement?.abnormal_limbs?.includes(limb) || false}
@@ -751,7 +751,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                   {injuryOptions.map(option => (
                     <div key={option} className="space-y-1">
-                      <label className="flex items-center space-x-2">
+                      <label className="flex flex-wrap items-center gap-2">
                         <input
                           type="checkbox"
                           checked={formData.injury_situation[option] || false}
@@ -790,7 +790,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                   {treatmentOptions.map(option => (
                     <div key={option} className="space-y-1">
-                      <label className="flex items-center space-x-2">
+                      <label className="flex flex-wrap items-center gap-2">
                         <input
                           type="checkbox"
                           checked={formData.immediate_treatment[option] || false}
@@ -817,7 +817,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                 <label className="form-label">就診安排</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {medicalArrangementOptions.map(option => (
-                    <label key={option} className="flex items-center space-x-2">
+                    <label key={option} className="flex flex-wrap items-center gap-2">
                       <input
                         type="radio"
                         checked={formData.medical_arrangement === option}
@@ -923,7 +923,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                 <label className="form-label">家屬與院友關係</label>
                 <div className="space-y-2">
                   {relationshipOptions.map(option => (
-                    <label key={option} className="flex items-center space-x-2">
+                    <label key={option} className="flex flex-wrap items-center gap-2">
                       <input
                         type="radio"
                         checked={formData.family_relationship === option}
@@ -975,7 +975,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
               {hospitalTreatmentOptions.map(option => (
                 <div key={option} className="space-y-1">
-                  <label className="flex items-center space-x-2">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="checkbox"
                       checked={formData.hospital_treatment[option] || false}
@@ -996,7 +996,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                   {formData.hospital_treatment[option] && option === '醫院留醫' && (
                     <div className="ml-6 space-y-3">
                       {/* 觀察病房選項 */}
-                      <label className="flex items-center space-x-2">
+                      <label className="flex flex-wrap items-center gap-2">
                         <input
                           type="checkbox"
                           checked={formData.hospital_treatment['觀察病房'] || false}
@@ -1062,8 +1062,8 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
             <div className="space-y-4">
               <div>
                 <label className="form-label">1. 呈交「特別事故報告」予社署安老院牌照事務處</label>
-                <div className="flex space-x-4">
-                  <label className="flex items-center space-x-2">
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="radio"
                       checked={formData.submit_to_social_welfare === true}
@@ -1072,7 +1072,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                     />
                     <span className="text-sm text-gray-700">需要</span>
                   </label>
-                  <label className="flex items-center space-x-2">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="radio"
                       checked={formData.submit_to_social_welfare === false}
@@ -1086,8 +1086,8 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
 
               <div>
                 <label className="form-label">2. 呈交「特別事故報告」(1)副本或「特別事故報告」(院舍存檔用)予總部</label>
-                <div className="flex space-x-4">
-                  <label className="flex items-center space-x-2">
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="radio"
                       checked={formData.submit_to_headquarters === true}
@@ -1096,7 +1096,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                     />
                     <span className="text-sm text-gray-700">需要</span>
                   </label>
-                  <label className="flex items-center space-x-2">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="radio"
                       checked={formData.submit_to_headquarters === false}
@@ -1179,8 +1179,8 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
             </div>
             <div className="mt-4">
               <label className="form-label">院長批閱選項</label>
-              <div className="flex space-x-4">
-                <label className="flex items-center space-x-2">
+              <div className="flex flex-wrap gap-4">
+                <label className="flex flex-wrap items-center gap-2">
                   <input
                     type="checkbox"
                     checked={formData.submit_to_headquarters_flag || false}
@@ -1189,7 +1189,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                   />
                   <span className="text-sm text-gray-700">呈交總部</span>
                 </label>
-                <label className="flex items-center space-x-2">
+                <label className="flex flex-wrap items-center gap-2">
                   <input
                     type="checkbox"
                     checked={formData.submit_to_social_welfare_flag || false}
@@ -1226,7 +1226,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                 type="button"
                 onClick={handleExportWord}
                 disabled={isExporting}
-                className="btn-secondary flex items-center justify-center space-x-2"
+                className="btn-secondary flex flex-wrap items-center justify-center gap-2"
               >
                 {isExporting ? (
                   <>

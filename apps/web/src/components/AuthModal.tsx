@@ -364,7 +364,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   
                   {permissionDenied && (
                     <div className="w-full bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <div className="flex items-start space-x-2">
+                      <div className="flex items-start gap-2">
                         <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
                         <div className="text-xs text-yellow-800">
                           <p className="font-medium">啟用鏡頭權限步驟：</p>
@@ -408,7 +408,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   <div className="flex justify-center w-full">
                     <button
                       onClick={toggleCamera}
-                      className="flex items-center justify-center space-x-2 px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                      className="flex flex-wrap items-center justify-center gap-2 px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
                     >
                       <SwitchCamera className="h-4 w-4" />
                       <span>{facingMode === 'user' ? '後置' : '前置'}</span>

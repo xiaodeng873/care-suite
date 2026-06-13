@@ -538,7 +538,7 @@ const HealthAssessments: React.FC = () => {
             {selectedRows.size > 0 && (
               <button
                 onClick={handleExportSelected}
-                className="btn-secondary flex items-center space-x-2"
+                className="btn-secondary flex flex-wrap items-center gap-2"
               >
                 <Download className="h-4 w-4" />
                 <span>匯出選定記錄</span>
@@ -549,7 +549,7 @@ const HealthAssessments: React.FC = () => {
                 setSelectedAssessment(null);
                 setShowModal(true);
               }}
-              className="btn-primary flex items-center space-x-2"
+              className="btn-primary flex flex-wrap items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               <span>新增健康評估</span>
@@ -573,10 +573,10 @@ const HealthAssessments: React.FC = () => {
                 />
               </div>
             
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className={`btn-secondary flex items-center space-x-2 ${
+                  className={`btn-secondary flex flex-wrap items-center gap-2 ${
                     showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''
                   } ${hasAdvancedFilters() ? 'border-blue-300' : ''}`}
                 >
@@ -592,7 +592,7 @@ const HealthAssessments: React.FC = () => {
                 {(searchTerm || hasAdvancedFilters()) && (
                   <button
                     onClick={clearFilters}
-                    className="btn-secondary flex items-center space-x-2 text-red-600 hover:text-red-700"
+                    className="btn-secondary flex flex-wrap items-center gap-2 text-red-600 hover:text-red-700"
                   >
                     <X className="h-4 w-4" />
                     <span>清除</span>
@@ -607,7 +607,7 @@ const HealthAssessments: React.FC = () => {
                 
                 <div className="mb-4">
                   <label className="form-label">評估日期區間</label>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="date"
                       value={advancedFilters.startDate}
@@ -703,14 +703,14 @@ const HealthAssessments: React.FC = () => {
               </div>
             )}
             
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
+              <div className="flex flex-wrap items-center gap-4">
                 <span>共 {groupedAssessments.length} 位院友，{totalItems} 份評估</span>
                 {selectedRows.size > 0 && (
                   <span className="text-blue-600">已選擇 {selectedRows.size} 筆</span>
                 )}
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button onClick={expandAll} className="text-blue-600 hover:text-blue-800">全部展開</button>
                 <span>|</span>
                 <button onClick={collapseAll} className="text-blue-600 hover:text-blue-800">全部收合</button>
@@ -806,7 +806,7 @@ const HealthAssessments: React.FC = () => {
                             </td>
                             <td className="px-4 py-3" rowSpan={displayAssessments.length} onClick={(e) => e.stopPropagation()}>
                               <PatientTooltip patient={group.patient}>
-                                <div className="flex items-center space-x-2 cursor-help hover:opacity-80 transition-opacity">
+                                <div className="flex flex-wrap items-center gap-2 cursor-help hover:opacity-80 transition-opacity">
                                   <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 overflow-hidden flex items-center justify-center">
                                     {group.patient.院友相片 ? (
                                       <img
@@ -831,7 +831,7 @@ const HealthAssessments: React.FC = () => {
                           </>
                         )}
                         <td className="px-4 py-3 text-sm text-gray-900">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <span>{new Date(assessment.assessment_date).toLocaleDateString('zh-TW')}</span>
                           </div>
@@ -950,8 +950,8 @@ const HealthAssessments: React.FC = () => {
 
       {/* 分頁 */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg">
-          <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-white border border-gray-200 rounded-lg">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-gray-700">每頁顯示</span>
             <select
               value={pageSize}
@@ -965,7 +965,7 @@ const HealthAssessments: React.FC = () => {
             <span className="text-sm text-gray-700">筆</span>
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => handlePageChange(1)}
               disabled={currentPage === 1}

@@ -393,8 +393,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-6 border-b border-gray-200">
+          <div className="flex flex-wrap items-center gap-3">
             <Heart className="w-6 h-6 text-red-500" />
             <h2 className="text-xl font-semibold text-gray-900">
               {assessment ? '編輯健康評估' : '新增健康評估'}
@@ -542,7 +542,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     <label className="block text-xs text-gray-600 mb-1">左側</label>
                     <div className="space-y-2">
                       {['完全正常', '手有障礙', '腳有障礙'].map(option => (
-                        <label key={option} className="flex items-center space-x-2 p-2 border rounded cursor-pointer hover:bg-white transition-colors">
+                        <label key={option} className="flex flex-wrap items-center gap-2 p-2 border rounded cursor-pointer hover:bg-white transition-colors">
                           <input
                             type="checkbox"
                             checked={formData.daily_activities.limb_movement_left.includes(option)}
@@ -558,7 +558,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     <label className="block text-xs text-gray-600 mb-1">右側</label>
                     <div className="space-y-2">
                       {['完全正常', '手有障礙', '腳有障礙'].map(option => (
-                        <label key={option} className="flex items-center space-x-2 p-2 border rounded cursor-pointer hover:bg-white transition-colors">
+                        <label key={option} className="flex flex-wrap items-center gap-2 p-2 border rounded cursor-pointer hover:bg-white transition-colors">
                           <input
                             type="checkbox"
                             checked={formData.daily_activities.limb_movement_right.includes(option)}
@@ -878,7 +878,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {['時間認知', '人物認知', '地方認知', '無認知能力'].map(option => (
-                    <label key={option} className={`flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
+                    <label key={option} className={`flex flex-wrap items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
                       formData.consciousness_cognition.includes(option) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                     }`}>
                       <input
@@ -894,7 +894,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                   ))}
                 </div>
                 
-                <label className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors">
+                <label className="flex flex-wrap items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors">
                   <input
                     type="checkbox"
                     checked={formData.consciousness_cognition.includes('其他')}
@@ -999,7 +999,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
 
               {/* 如廁訓練 Checkbox */}
               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <label className="flex items-center space-x-3 cursor-pointer">
+                <label className="flex flex-wrap items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formData.bowel_bladder_control.toilet_training}
@@ -1025,7 +1025,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                 ].map(item => (
                   <label
                     key={item}
-                    className={`flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
+                    className={`flex flex-wrap items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
                       formData.treatment_items.includes(item)
                         ? 'border-green-500 bg-green-50'
                         : 'border-gray-200'
@@ -1063,7 +1063,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     {['喜樂', '平靜', '冷漠', '抑鬱', '激動', '其他'].map(item => (
                       <label
                         key={item}
-                        className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
+                        className={`flex flex-wrap items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
                           formData.emotional_expression.includes(item)
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200'
@@ -1108,7 +1108,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     {['遊走', '逃跑', '暴力', '偷竊', '夢遊', '囤積'].map(item => (
                       <label
                         key={item}
-                        className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
+                        className={`flex flex-wrap items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
                           formData.behavior_expression.includes(item)
                             ? 'border-purple-500 bg-purple-50'
                             : 'border-gray-200'
@@ -1161,7 +1161,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
             <button
               type="submit"
               disabled={loading || (!selectedPatientId && !defaultPatientId)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex flex-wrap items-center gap-2 transition-colors"
             >
               {loading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

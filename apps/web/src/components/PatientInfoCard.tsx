@@ -100,10 +100,10 @@ const PatientInfoCard: React.FC<PatientInfoCardProps> = ({
     <div className="bg-white border border-gray-200 rounded-lg">
       {/* 摺疊標題列 */}
       <div 
-        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors"
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center space-x-3 min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-3 min-w-0 flex-1">
           {/* 相片 */}
           <div className="flex-shrink-0">
             {patient.院友相片 ? (
@@ -129,7 +129,7 @@ const PatientInfoCard: React.FC<PatientInfoCardProps> = ({
             <span className="text-gray-600 text-sm">{patient.性別} | {calculateAge(patient.出生日期)}</span>
             
             {/* 碎藥需求開關 */}
-            <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <span className="text-sm text-gray-600">碎藥:</span>
               <button
                 onClick={handleCrushToggle}

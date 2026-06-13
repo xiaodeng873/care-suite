@@ -198,7 +198,7 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
                 <div
                   key={patient.院友id}
                   onClick={() => handleSelectPatient(patient)}
-                  className={`flex items-center space-x-3 p-3 cursor-pointer transition-colors ${
+                  className={`flex flex-wrap items-center gap-3 p-3 cursor-pointer transition-colors ${
                     index === highlightedIndex 
                       ? 'bg-blue-50 border-l-4 border-blue-500' 
                       : 'hover:bg-gray-50'
@@ -216,7 +216,7 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                         {patient.床號}
                       </span>

@@ -196,7 +196,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
       style={{ fontFamily: 'inherit' }}
     >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shrink-0">
           <div className="flex items-center gap-2">
             <NurseIcon size={28} />
             <span className="font-semibold text-sm">AI 助護</span>

@@ -94,8 +94,8 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 bg-yellow-100 rounded-lg">
                 <AlertTriangle className="h-6 w-6 text-yellow-600" />
               </div>
@@ -117,8 +117,8 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          <div className="mb-4 flex items-center justify-between bg-blue-50 p-4 rounded-lg">
-            <div className="flex items-center space-x-2">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-blue-50 p-4 rounded-lg">
+            <div className="flex flex-wrap items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-blue-600" />
               <div>
                 <p className="text-sm font-medium text-blue-900">
@@ -129,7 +129,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                 </p>
               </div>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={selectAll}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -164,7 +164,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                     onClick={() => toggleGroup(group.key)}
                   >
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-3 flex-1">
+                      <div className="flex items-start gap-3 flex-1">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -173,19 +173,19 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                           className="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
                         <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-3 mb-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <User className="h-4 w-4 text-gray-400" />
                               <span className="font-medium text-gray-900">{patientName}</span>
                               <span className="text-sm text-gray-500">({bedNumber})</span>
                             </div>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Calendar className="h-4 w-4 text-gray-400" />
                               <span className="text-sm text-gray-600">
                                 {new Date(group.keepRecord.記錄日期).toLocaleDateString('zh-TW')}
                               </span>
                             </div>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Clock className="h-4 w-4 text-gray-400" />
                               <span className="text-sm text-gray-600">
                                 {group.keepRecord.記錄時間}
@@ -215,7 +215,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                   {isSelected && (
                     <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
                       <div className="space-y-2">
-                        <div className="flex items-center space-x-2 text-sm">
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
                           <div className="w-24 text-green-700 font-medium">✓ 保留:</div>
                           <div className="text-gray-600">
                             記錄 #{group.keepRecord.記錄id} (建立於{' '}
@@ -226,7 +226,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                           </div>
                         </div>
                         {group.duplicateRecords.map((record) => (
-                          <div key={record.記錄id} className="flex items-center space-x-2 text-sm">
+                          <div key={record.記錄id} className="flex flex-wrap items-center gap-2 text-sm">
                             <div className="w-24 text-red-700 font-medium flex items-center">
                               <Trash2 className="h-3 w-3 mr-1" />
                               刪除:
@@ -250,7 +250,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
         </div>
 
         <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 rounded-b-lg">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="text-sm text-gray-600">
               已選擇 <span className="font-medium text-gray-900">{selectedDuplicates}</span> 筆重複記錄將被刪除
             </div>
@@ -264,7 +264,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
               </button>
               <button
                 onClick={handleConfirm}
-                className="btn-primary flex items-center space-x-2"
+                className="btn-primary flex flex-wrap items-center gap-2"
                 disabled={isDeleting || selectedDuplicates === 0}
               >
                 {isDeleting ? (

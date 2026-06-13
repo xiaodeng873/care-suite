@@ -181,7 +181,7 @@ const DrugAutocomplete: React.FC<DrugAutocompleteProps> = ({
                 <div
                   key={drug.id}
                   onClick={() => handleSelectDrug(drug)}
-                  className={`flex items-center space-x-3 p-3 cursor-pointer transition-colors ${
+                  className={`flex flex-wrap items-center gap-3 p-3 cursor-pointer transition-colors ${
                     index === highlightedIndex 
                       ? 'bg-blue-50 border-l-4 border-blue-500' 
                       : 'hover:bg-gray-50'
@@ -199,7 +199,7 @@ const DrugAutocomplete: React.FC<DrugAutocompleteProps> = ({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-gray-900">
                         {drug.drug_name}
                       </span>
@@ -209,7 +209,7 @@ const DrugAutocomplete: React.FC<DrugAutocompleteProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center space-x-2 mt-1">
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
                       {drug.drug_type && (
                         <span className="text-xs text-gray-500">{drug.drug_type}</span>
                       )}

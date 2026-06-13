@@ -341,7 +341,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
-        <div className="bg-white rounded-lg p-8 flex items-center space-x-3" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-white rounded-lg p-8 flex flex-wrap items-center gap-3" onClick={(e) => e.stopPropagation()}>
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
           <span className="text-gray-700">載入檢測數據中...</span>
         </div>
@@ -358,13 +358,13 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
         <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="p-2 rounded-lg bg-orange-100">
                   <AlertTriangle className="h-6 w-6 text-orange-600" />
                 </div>
                 <div>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <h2 className="text-xl font-semibold text-gray-900">派藥前檢測</h2>
                     {batchProgress && (
                       <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full">
@@ -397,7 +397,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
               <h3 className="text-lg font-medium text-orange-900 mb-3">此處方的檢測規則</h3>
               <div className="space-y-2">
                 {prescription.inspection_rules.map((rule: any, index: number) => (
-                  <div key={index} className="flex items-center space-x-2 text-sm">
+                  <div key={index} className="flex flex-wrap items-center gap-2 text-sm">
                     {getVitalSignIcon(rule.vital_sign_type)}
                     <span className="font-medium">{rule.vital_sign_type}</span>
                     <span>
@@ -431,8 +431,8 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
                     <div key={index} className={`border rounded-lg p-4 ${
                       isMatched ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
                     }`}>
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                        <div className="flex flex-wrap items-center gap-2">
                           {getVitalSignIcon(rule.vital_sign_type)}
                           <h4 className="font-medium text-gray-900">{rule.vital_sign_type}</h4>
                         </div>
@@ -445,7 +445,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
 
                       {isMatched && record ? (
                         <div>
-                          <div className="flex items-center space-x-2 text-sm text-green-700 mb-2">
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-green-700 mb-2">
                             <CheckCircle className="h-4 w-4" />
                             <span className="font-medium">已有監測記錄</span>
                           </div>
@@ -460,13 +460,13 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
                         </div>
                       ) : (
                         <div>
-                          <div className="flex items-center space-x-2 text-sm text-red-700 mb-3">
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-red-700 mb-3">
                             <XCircle className="h-4 w-4" />
                             <span className="font-medium">無監測記錄（需新增）</span>
                           </div>
                           <button
                             onClick={() => handleAddRecord(rule.vital_sign_type)}
-                            className="w-full btn-primary flex items-center justify-center space-x-2"
+                            className="w-full btn-primary flex flex-wrap items-center justify-center gap-2"
                           >
                             <Plus className="h-4 w-4" />
                             <span>新增記錄</span>
@@ -483,7 +483,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
               <div className={`border rounded-lg p-4 ${
                 checkResult.canDispense ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
               }`}>
-                <div className="flex items-center space-x-2 mb-3">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
                   {checkResult.canDispense ? (
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   ) : (
@@ -542,7 +542,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
                 <button
                   onClick={performInspectionCheck}
                   disabled={isChecking || isSubmitting || missingVitalSigns.length > 0}
-                  className="btn-primary flex-1 flex items-center justify-center space-x-2"
+                  className="btn-primary flex-1 flex flex-wrap items-center justify-center gap-2"
                   title={missingVitalSigns.length > 0 ? '請先新增所有監測記錄' : ''}
                 >
                   {isChecking || isSubmitting ? (
@@ -561,7 +561,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
                 <button
                   onClick={handleConfirmDispense}
                   disabled={isSubmitting}
-                  className={`flex-1 flex items-center justify-center space-x-2 ${
+                  className={`flex-1 flex flex-wrap items-center justify-center gap-2 ${
                     checkResult.canDispense ? 'btn-primary' : 'btn-danger'
                   }`}
                 >

@@ -307,8 +307,8 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
         <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
           {/* 標題欄 */}
           <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="p-2 rounded-lg bg-blue-100">
                   <Pill className="h-6 w-6 text-blue-600" />
                 </div>
@@ -345,7 +345,7 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
                   <button
                     onClick={handleSelectAll}
                     className="text-sm text-blue-700 hover:text-blue-800 font-medium"
@@ -376,7 +376,7 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
                         `}
                       >
                         <div className="flex items-start justify-between">
-                          <div className="flex items-center space-x-3 flex-1">
+                          <div className="flex flex-wrap items-center gap-3 flex-1">
                             <Clock className={`h-6 w-6 flex-shrink-0 ${isSelected ? 'text-blue-600' : 'text-gray-400'}`} />
                             <div className="flex-1">
                               <div className={`text-2xl font-bold mb-2 ${isSelected ? 'text-blue-700' : 'text-gray-900'}`}>
@@ -404,7 +404,7 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
                                   <div className="ml-4 mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
                                     <div className="text-xs font-medium text-gray-700 mb-2">處方細節：</div>
                                     {getPrescriptionDetails(summary.time).map((detail: any) => (
-                                      <div key={detail.id} className="text-xs text-gray-700 flex items-center space-x-2">
+                                      <div key={detail.id} className="text-xs text-gray-700 flex flex-wrap items-center gap-2">
                                         <Pill className="h-3 w-3 flex-shrink-0 text-gray-500" />
                                         <span className="font-medium">{detail.medicationName}</span>
                                         <span className="text-gray-600">{detail.dosageInfo}</span>
@@ -422,7 +422,7 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
                               </div>
 
                               {summary.hasInspectionRequired && (
-                                <div className="mt-2 flex items-center space-x-2 text-orange-700">
+                                <div className="mt-2 flex flex-wrap items-center gap-2 text-orange-700">
                                   <Activity className="h-4 w-4" />
                                   <span className="text-sm font-medium">含檢測項要求</span>
                                 </div>
@@ -455,7 +455,7 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
             <button
               onClick={handleConfirm}
               disabled={selectedTimeSlots.size === 0 || isProcessing}
-              className="btn-primary flex items-center space-x-2 px-6"
+              className="btn-primary flex flex-wrap items-center gap-2 px-6"
             >
               {isProcessing ? (
                 <>

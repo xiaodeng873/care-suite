@@ -216,7 +216,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-        <div className="bg-white rounded-lg p-8 flex items-center space-x-3" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-white rounded-lg p-8 flex flex-wrap items-center gap-3" onClick={(e) => e.stopPropagation()}>
           <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
           <span className="text-gray-700">載入中...</span>
         </div>
@@ -227,8 +227,8 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-6 border-b border-gray-200">
+          <div className="flex flex-wrap items-center gap-3">
             <Calendar className="h-6 w-6 text-blue-600" />
             <h2 className="text-xl font-semibold text-gray-900">
               VMO 排程詳情 - {new Date(schedule.到診日期).toLocaleDateString('zh-TW')}
@@ -243,7 +243,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
         </div>
 
         {error && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
+          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex flex-wrap items-center gap-2">
             <AlertCircle className="h-5 w-5 text-red-600" />
             <span className="text-red-700">{error}</span>
           </div>
@@ -252,7 +252,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6">
           <div className="border-t border-gray-200 pt-4 relative z-10">
             <h3 className="text-lg font-medium text-gray-900 mb-3">新增院友到排程</h3>
-            <div className="flex space-x-3 relative">
+            <div className="flex flex-wrap gap-3 relative">
               <div className="flex-1">
                 <PatientAutocomplete
                   value={newPatientId}
@@ -265,7 +265,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
               <button
                 onClick={addPatientToScheduleHandler}
                 disabled={!newPatientId}
-                className="btn-primary flex items-center space-x-2 whitespace-nowrap relative z-20 pointer-events-auto"
+                className="btn-primary flex flex-wrap items-center gap-2 whitespace-nowrap relative z-20 pointer-events-auto"
               >
                 <Plus className="h-4 w-4" />
                 <span>新增</span>
@@ -289,7 +289,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
                   const patient = patients.find(p => p.院友id === item.院友id);
                   return (
                     <div key={item.細項id} className="card p-4">
-                      <div className="flex items-start space-x-4">
+                      <div className="flex items-start gap-4">
                         <div className="w-16 h-16 bg-gray-100 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0">
                           {patient?.院友相片 ? (
                             <img 
@@ -303,11 +303,11 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
                         </div>
 
                         <div className="flex-1 space-y-4">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <div>
                               {patient ? (
                                 <PatientTooltip patient={patient}>
-                                  <div className="flex items-center space-x-2">
+                                  <div className="flex flex-wrap items-center gap-2">
                                     <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                                       {patient.床號}
                                     </span>

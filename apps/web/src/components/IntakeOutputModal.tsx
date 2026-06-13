@@ -374,7 +374,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
         <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
             <h2 className="text-xl font-semibold text-gray-900">
               {existingRecord ? '查看/編輯出入量記錄' : '新增出入量記錄'}
             </h2>
@@ -462,7 +462,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
               
               {/* 餐膳 */}
               <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
                   <span className="text-sm font-medium text-gray-700">🍚 餐膳</span>
                   <button
                     type="button"
@@ -496,7 +496,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
 
               {/* 飲料 */}
               <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
                   <span className="text-sm font-medium text-gray-700">💧 飲料</span>
                   <button
                     type="button"
@@ -530,7 +530,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
 
               {/* 其他 */}
               <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
                   <span className="text-sm font-medium text-gray-700">🍪 其他</span>
                   <button
                     type="button"
@@ -564,7 +564,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
 
               {/* 鼻胃飼 */}
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
                   <span className="text-sm font-medium text-gray-700">💊 鼻胃飼</span>
                   <button
                     type="button"
@@ -603,7 +603,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
               
               {/* 尿液 */}
               <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
                   <span className="text-sm font-medium text-gray-700">💧 尿液</span>
                   <button
                     type="button"
@@ -637,7 +637,7 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
 
               {/* 胃液 */}
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
                   <span className="text-sm font-medium text-gray-700">🧪 胃液</span>
                   <button
                     type="button"

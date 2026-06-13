@@ -776,7 +776,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 lg:space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="text-sm text-gray-500">
           最後更新: {new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Hong_Kong' })}
         </div>
@@ -804,19 +804,19 @@ const Dashboard: React.FC = () => {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
         <div className="card p-6 lg:p-4 lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h2 className="text-lg font-semibold text-gray-900 section-title">監測任務</h2>
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setShowBatchOCRModal(true)}
-                className="btn-primary flex items-center space-x-2 text-sm"
+                className="btn-primary flex flex-wrap items-center gap-2 text-sm"
               >
                 <Camera className="h-4 w-4" />
                 <span>批量識別上傳</span>
               </button>
               <button
                 onClick={() => setShowWorksheetModal(true)}
-                className="btn-primary flex items-center space-x-2 text-sm"
+                className="btn-primary flex flex-wrap items-center gap-2 text-sm"
               >
                 <FileText className="h-4 w-4" />
                 <span>匯出工作紙</span>
@@ -840,7 +840,7 @@ const Dashboard: React.FC = () => {
                       return (
                         <div
                           key={task.id}
-                          className={`relative flex items-center justify-between p-3 ${getTaskTimeBackgroundClass(task.next_due_at)} rounded-lg cursor-pointer transition-colors dashboard-task-card`}
+                          className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${getTaskTimeBackgroundClass(task.next_due_at)} rounded-lg cursor-pointer transition-colors dashboard-task-card`}
                           onClick={() => {
                             // 如果有多个未完成日期，弹出小日历
                             if (task.incompleteDates && task.incompleteDates.length > 1 && patient) {
@@ -856,7 +856,7 @@ const Dashboard: React.FC = () => {
                             }
                           }}
                         >
-                          <div className="flex items-center space-x-3 flex-1">
+                          <div className="flex flex-wrap items-center gap-3 flex-1">
                             {task.notes && isMonitoringTask(task.health_record_type) && (
                               <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium task-note-badge ${getNotesBadgeClass(task.notes)}`}>
                                 {task.notes}
@@ -870,11 +870,11 @@ const Dashboard: React.FC = () => {
                               )}
                             </div>
                             <div className="flex-1">
-                              <div className="flex items-center space-x-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                                 <span className="text-xs text-gray-500">({patient?.床號})</span>
                               </div>
-                              <div className="flex items-center space-x-2 mt-1">
+                              <div className="flex flex-wrap items-center gap-2 mt-1">
                                 {getTaskTypeIcon(task.health_record_type)}
                                 <p className="text-sm text-gray-600">{task.health_record_type}</p>
                               </div>
@@ -915,7 +915,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
         <div className="card p-6 lg:p-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h2 className="text-lg font-semibold text-gray-900 section-title">待辦事項</h2>
             <Link to="/tasks" className="text-sm text-blue-600 hover:text-blue-700 font-medium">查看全部</Link>
           </div>
@@ -926,16 +926,16 @@ const Dashboard: React.FC = () => {
                  const patient = patients.find(p => p.院友id === task.patient_id);
                  const status = getTaskStatus(task);
                  return (
-                    <div key={`${item.type}-${task.id}`} className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${item.type === 'nursing' ? 'bg-teal-50 hover:bg-teal-100 border border-teal-200' : 'bg-gray-50 hover:bg-gray-100'}`} onClick={() => handleDocumentTaskClick(task)}>
+                    <div key={`${item.type}-${task.id}`} className={`flex flex-wrap items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${item.type === 'nursing' ? 'bg-teal-50 hover:bg-teal-100 border border-teal-200' : 'bg-gray-50 hover:bg-gray-100'}`} onClick={() => handleDocumentTaskClick(task)}>
                         <div className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center ${item.type === 'nursing' ? 'bg-teal-100' : 'bg-blue-100'}`}>
                            {patient?.院友相片 ? <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" /> : <User className={`h-5 w-5 ${item.type === 'nursing' ? 'text-teal-600' : 'text-blue-600'}`} />}
                         </div>
                         <div className="flex-1">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                                 <span className="text-xs text-gray-500">({patient?.床號})</span>
                             </div>
-                            <div className="flex items-center space-x-2 mt-1">
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
                                 {getTaskTypeIcon(task.health_record_type)}
                                 <p className="text-sm text-gray-600">{task.health_record_type}</p>
                             </div>
@@ -954,7 +954,7 @@ const Dashboard: React.FC = () => {
                     const isOverdue = isRestraintAssessmentOverdue(assessment);
                     const isDueSoon = isRestraintAssessmentDueSoon(assessment);
                     return (
-                      <div key={`restraint-${assessment.id}`} className="flex items-center space-x-3 p-3 bg-yellow-50 rounded-lg cursor-pointer hover:bg-yellow-100 transition-colors border border-yellow-200" onClick={() => handleRestraintAssessmentClick(assessment)}>
+                      <div key={`restraint-${assessment.id}`} className="flex flex-wrap items-center gap-3 p-3 bg-yellow-50 rounded-lg cursor-pointer hover:bg-yellow-100 transition-colors border border-yellow-200" onClick={() => handleRestraintAssessmentClick(assessment)}>
                          <div className="w-10 h-10 bg-yellow-100 rounded-full overflow-hidden flex items-center justify-center">
                           {patient?.院友相片 ? (
                             <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -963,11 +963,11 @@ const Dashboard: React.FC = () => {
                           )}
                         </div>
                         <div className="flex-1">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                             <span className="text-xs text-gray-500">({patient?.床號})</span>
                           </div>
-                          <div className="flex items-center space-x-2 mt-1">
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
                             <Shield className="h-4 w-4 text-yellow-600" />
                             <p className="text-sm text-gray-600">約束物品評估</p>
                           </div>
@@ -982,7 +982,7 @@ const Dashboard: React.FC = () => {
                      const isOverdue = isHealthAssessmentOverdue(assessment);
                     const isDueSoon = isHealthAssessmentDueSoon(assessment);
                     return (
-                      <div key={`health-assessment-${assessment.id}`} className="flex items-center space-x-3 p-3 bg-red-50 rounded-lg cursor-pointer hover:bg-red-100 transition-colors border border-red-200" onClick={() => handleHealthAssessmentClick(assessment)}>
+                      <div key={`health-assessment-${assessment.id}`} className="flex flex-wrap items-center gap-3 p-3 bg-red-50 rounded-lg cursor-pointer hover:bg-red-100 transition-colors border border-red-200" onClick={() => handleHealthAssessmentClick(assessment)}>
                          <div className="w-10 h-10 bg-red-100 rounded-full overflow-hidden flex items-center justify-center">
                           {patient?.院友相片 ? (
                             <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -991,11 +991,11 @@ const Dashboard: React.FC = () => {
                           )}
                         </div>
                         <div className="flex-1">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                             <span className="text-xs text-gray-500">({patient?.床號})</span>
                           </div>
-                          <div className="flex items-center space-x-2 mt-1">
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
                             <Stethoscope className="h-4 w-4 text-red-600" />
                             <p className="text-sm text-gray-600">健康評估</p>
                           </div>
@@ -1011,7 +1011,7 @@ const Dashboard: React.FC = () => {
                     const isOverdue = isAnnualCheckupOverdue(checkup);
                     const isDueSoon = isAnnualCheckupDueSoon(checkup);
                     return (
-                      <div key={`annual-checkup-${checkup.id}`} className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors border border-blue-200" onClick={() => handleAnnualCheckupClick(checkup)}>
+                      <div key={`annual-checkup-${checkup.id}`} className="flex flex-wrap items-center gap-3 p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors border border-blue-200" onClick={() => handleAnnualCheckupClick(checkup)}>
                         <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                           {patient?.院友相片 ? (
                             <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -1020,11 +1020,11 @@ const Dashboard: React.FC = () => {
                           )}
                         </div>
                         <div className="flex-1">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                             <span className="text-xs text-gray-500">({patient?.床號})</span>
                           </div>
-                          <div className="flex items-center space-x-2 mt-1">
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
                             <CalendarCheck className="h-4 w-4 text-blue-600" />
                             <p className="text-sm text-gray-600">年度體檢</p>
                           </div>
@@ -1041,7 +1041,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
         <div className="card p-6 lg:p-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h2 className="text-lg font-semibold text-gray-900 section-title">近期覆診</h2>
             <Link to="/follow-up" className="text-sm text-blue-600 hover:text-blue-700 font-medium">查看全部</Link>
           </div>
@@ -1049,16 +1049,16 @@ const Dashboard: React.FC = () => {
              {upcomingFollowUps.map(appointment => {
                 const patient = patients.find(p => p.院友id === appointment.院友id);
                 return (
-                   <div key={appointment.覆診id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleFollowUpClick(appointment)}>
+                   <div key={appointment.覆診id} className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleFollowUpClick(appointment)}>
                       <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center task-avatar">
                         {patient?.院友相片 ? <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" /> : <User className="h-5 w-5 text-blue-600" />}
                       </div>
                       <div className="flex-1">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                           <span className="text-xs text-gray-500">({patient?.床號})</span>
                         </div>
-                        <div className="flex items-center space-x-2 mt-1">
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
                           <Calendar className="h-4 w-4 text-blue-600" />
                           <p className="text-sm text-gray-600">{appointment.覆診專科}</p>
                         </div>

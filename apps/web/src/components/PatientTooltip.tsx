@@ -64,7 +64,7 @@ const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) =>
           <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-200"></div>
           
           <div className="space-y-2">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <User className="h-4 w-4 text-blue-600" />
               <div>
                 <div className="font-medium text-gray-900">{patient.中文姓氏}{patient.中文名字}</div>
@@ -75,12 +75,12 @@ const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) =>
               </div>
             </div>
             
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <CreditCard className="h-4 w-4 text-gray-500" />
               <div className="text-sm text-gray-700">{patient.身份證號碼}</div>
             </div>
             
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Calendar className="h-4 w-4 text-gray-500" />
               <div className="text-sm text-gray-700">
                 {patient.出生日期 
@@ -93,7 +93,7 @@ const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) =>
               <>
                 <div className="border-t border-gray-200 my-2"></div>
                 <div className="text-xs text-gray-500 font-medium mb-1">第一聯絡人</div>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Phone className="h-4 w-4 text-green-600" />
                   <div className="text-sm">
                     <div className="font-medium text-gray-900">

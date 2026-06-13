@@ -73,8 +73,8 @@ const InjectionSiteModal: React.FC<InjectionSiteModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-md w-full p-6 my-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-100">
               <Syringe className="h-6 w-6 text-blue-600" />
             </div>
@@ -125,7 +125,7 @@ const InjectionSiteModal: React.FC<InjectionSiteModalProps> = ({
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <div className="font-medium text-gray-900">{area.label}</div>
                     <div className="text-sm text-gray-500">{area.prefix}1 ~ {area.prefix}8</div>
@@ -173,7 +173,7 @@ const InjectionSiteModal: React.FC<InjectionSiteModalProps> = ({
         {/* 已選擇的注射部位顯示 */}
         {selectedArea && selectedPosition && (
           <div className="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <MapPin className="h-5 w-5 text-green-600" />
               <div>
                 <div className="text-sm text-gray-600">已選擇注射部位：</div>
@@ -200,7 +200,7 @@ const InjectionSiteModal: React.FC<InjectionSiteModalProps> = ({
           <button
             onClick={handleConfirm}
             disabled={!selectedArea || !selectedPosition}
-            className="btn-primary flex-1 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary flex-1 flex flex-wrap items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Syringe className="h-4 w-4" />
             <span>確認注射部位</span>

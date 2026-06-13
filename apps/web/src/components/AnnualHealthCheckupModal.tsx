@@ -244,8 +244,8 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">
                 <Stethoscope className="h-6 w-6 text-blue-600" />
               </div>
@@ -325,7 +325,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       />
                     </td>
                     <td className="p-3 border-l border-gray-300 w-32">
-                      <div className="flex items-center space-x-4 justify-end">
+                      <div className="flex flex-wrap items-center gap-4 justify-end">
                         <label className="flex items-center space-x-1">
                           <span className="text-sm">有</span>
                           <input
@@ -365,7 +365,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       />
                     </td>
                     <td className="p-3 border-l border-gray-300">
-                      <div className="flex items-center space-x-4 justify-end">
+                      <div className="flex flex-wrap items-center gap-4 justify-end">
                         <label className="flex items-center space-x-1">
                           <span className="text-sm">有</span>
                           <input
@@ -405,7 +405,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       />
                     </td>
                     <td className="p-3 border-l border-gray-300">
-                      <div className="flex items-center space-x-4 justify-end">
+                      <div className="flex flex-wrap items-center gap-4 justify-end">
                         <label className="flex items-center space-x-1">
                           <span className="text-sm">有</span>
                           <input
@@ -445,7 +445,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       />
                     </td>
                     <td className="p-3 border-l border-gray-300">
-                      <div className="flex items-center space-x-4 justify-end">
+                      <div className="flex flex-wrap items-center gap-4 justify-end">
                         <label className="flex items-center space-x-1">
                           <span className="text-sm">有</span>
                           <input
@@ -485,7 +485,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       />
                     </td>
                     <td className="p-3 border-l border-gray-300">
-                      <div className="flex items-center space-x-4 justify-end">
+                      <div className="flex flex-wrap items-center gap-4 justify-end">
                         <label className="flex items-center space-x-1">
                           <span className="text-sm">有</span>
                           <input
@@ -525,7 +525,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       />
                     </td>
                     <td className="p-3 border-l border-gray-300">
-                      <div className="flex items-center space-x-4 justify-end">
+                      <div className="flex flex-wrap items-center gap-4 justify-end">
                         <label className="flex items-center space-x-1">
                           <span className="text-sm">有</span>
                           <input
@@ -565,13 +565,13 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
             </div>
           </div>
           <div className="border-t pt-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="text-lg font-semibold text-gray-900">身體檢查</h3>
               <button
                 type="button"
                 onClick={handleFetchLatestReadings}
                 disabled={fetchingReadings || !formData.patient_id}
-                className="btn-secondary flex items-center space-x-2"
+                className="btn-secondary flex flex-wrap items-center gap-2"
               >
                 <Download className="h-4 w-4" />
                 <span>{fetchingReadings ? '載入中...' : '取得最近讀數'}</span>
@@ -583,7 +583,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                   <tr className="bg-gray-50 border-b border-gray-300">
                     <td className="p-3 border-r border-gray-300 font-semibold w-48">血壓</td>
                     <td className="p-3 border-r border-gray-300">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <input
                           type="number"
                           value={formData.blood_pressure_systolic || ''}
@@ -604,7 +604,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                     </td>
                     <td className="p-3 border-r border-gray-300 font-semibold w-32">脈搏</td>
                     <td className="p-3 border-r border-gray-300">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <input
                           type="number"
                           value={formData.pulse || ''}
@@ -617,7 +617,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                     </td>
                     <td className="p-3 border-r border-gray-300 font-semibold w-32">體重</td>
                     <td className="p-3">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <input
                           type="number"
                           step="0.1"
@@ -670,7 +670,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                     <td className="bg-gray-50 p-3 border-r border-gray-300 w-32">
                       <div className="font-semibold mb-2">視力</div>
                       <div className="text-xs text-gray-600 mb-2">(有/没有配戴视力矯正器)</div>
-                      <div className="flex items-center space-x-3">
+                      <div className="flex flex-wrap items-center gap-3">
                         <label className="flex items-center space-x-1">
                           <input
                             type="checkbox"
@@ -700,7 +700,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                     <td className="p-3">
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {VISION_OPTIONS.map(option => (
-                          <label key={option} className="flex items-start space-x-2">
+                          <label key={option} className="flex items-start gap-2">
                             <input
                               type="checkbox"
                               checked={formData.vision_assessment === option}
@@ -717,7 +717,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                     <td className="bg-gray-50 p-3 border-r border-gray-300">
                       <div className="font-semibold mb-2">聽力</div>
                       <div className="text-xs text-gray-600 mb-2">(有/没有配戴助聽器)</div>
-                      <div className="flex items-center space-x-3">
+                      <div className="flex flex-wrap items-center gap-3">
                         <label className="flex items-center space-x-1">
                           <input
                             type="checkbox"
@@ -747,7 +747,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                     <td className="p-3">
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {HEARING_OPTIONS.map(option => (
-                          <label key={option} className="flex items-start space-x-2">
+                          <label key={option} className="flex items-start gap-2">
                             <input
                               type="checkbox"
                               checked={formData.hearing_assessment === option}
@@ -765,7 +765,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                     <td className="p-3">
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {SPEECH_OPTIONS.map(option => (
-                          <label key={option} className="flex items-start space-x-2">
+                          <label key={option} className="flex items-start gap-2">
                             <input
                               type="checkbox"
                               checked={formData.speech_assessment === option}
@@ -786,7 +786,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                           <div className="text-sm font-medium text-gray-700 mb-2">精神狀態（單選）</div>
                           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                             {MENTAL_STATE_GROUP_A.map(option => (
-                              <label key={option} className="flex items-start space-x-2">
+                              <label key={option} className="flex items-start gap-2">
                                 <input
                                   type="checkbox"
                                   checked={formData.mental_state === option}
@@ -802,7 +802,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                           <div className="text-sm font-medium text-gray-700 mb-2">認知障礙症階段（單選，可選可不選）</div>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             {MENTAL_STATE_GROUP_B.map(option => (
-                              <label key={option} className="flex items-start space-x-2">
+                              <label key={option} className="flex items-start gap-2">
                                 <input
                                   type="checkbox"
                                   checked={formData.dementia_stage === option}
@@ -830,7 +830,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                     <td className="p-3">
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {MOBILITY_OPTIONS.map(option => (
-                          <label key={option} className="flex items-start space-x-2">
+                          <label key={option} className="flex items-start gap-2">
                             <input
                               type="checkbox"
                               checked={formData.mobility_assessment === option}
@@ -848,7 +848,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                     <td className="p-3">
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {CONTINENCE_OPTIONS.map(option => (
-                          <label key={option} className="flex items-start space-x-2">
+                          <label key={option} className="flex items-start gap-2">
                             <input
                               type="checkbox"
                               checked={formData.continence_assessment === option}
@@ -866,7 +866,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                     <td className="p-3">
                       <div className="space-y-3">
                         {ADL_OPTIONS.map(option => (
-                          <label key={option.value} className="flex items-start space-x-2">
+                          <label key={option.value} className="flex items-start gap-2">
                             <input
                               type="checkbox"
                               checked={formData.adl_assessment === option.value}
@@ -894,7 +894,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
               </div>
               <div className="p-4 space-y-4">
                 {RECOMMENDATION_OPTIONS.map((option, index) => (
-                  <label key={option.value} className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <label key={option.value} className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formData.recommendation === option.value}

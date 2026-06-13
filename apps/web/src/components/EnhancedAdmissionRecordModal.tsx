@@ -251,8 +251,8 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {/* 模態框標題 */}
-        <div className={`sticky top-0 ${currentEventInfo.bgColor} border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10`}>
-          <div className="flex items-center space-x-3">
+        <div className={`sticky top-0 ${currentEventInfo.bgColor} border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 z-10`}>
+          <div className="flex flex-wrap items-center gap-3">
             <Hospital className={`h-6 w-6 ${currentEventInfo.color}`} />
             <h2 className="text-xl font-semibold text-gray-900">
               {record ? '編輯' : '新增'}出入院記錄
@@ -464,7 +464,7 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    <div className="flex items-center space-x-3 mb-2">
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
                       <input
                         type="radio"
                         name="discharge_type"
@@ -473,7 +473,7 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                         onChange={(e) => setFormData({ ...formData, discharge_type: e.target.value as any })}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                       />
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {type.icon}
                         <span className="font-medium text-gray-900">{type.label}</span>
                       </div>
@@ -578,7 +578,7 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
           {/* 轉院路徑區塊 */}
           {formData.event_type === 'transfer_out' && (
             <div className="bg-blue-50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <h3 className="text-lg font-medium text-gray-900 flex items-center">
                   <Hospital className="h-5 w-5 mr-2 text-blue-600" />
                   轉院路徑 <span className="text-red-500 ml-1">*</span>
@@ -586,7 +586,7 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                 <button
                   type="button"
                   onClick={addTransferPath}
-                  className="btn-secondary flex items-center space-x-2"
+                  className="btn-secondary flex flex-wrap items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
                   <span>新增轉院路徑</span>
@@ -602,7 +602,7 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
               <div className="space-y-4">
                 {transferPaths.map((path, index) => (
                   <div key={path.id} className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                       <h4 className="font-medium text-gray-900">轉院路徑 {index + 1}</h4>
                       {transferPaths.length > 1 && (
                         <button
@@ -727,7 +727,7 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
               disabled={isSubmitting}
             >
               {isSubmitting ? (
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>處理中...</span>
                 </div>

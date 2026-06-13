@@ -64,8 +64,8 @@ export const PatientQRCodeModal: React.FC<PatientQRCodeModalProps> = ({
       }}
     >
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border-b">
+          <div className="flex flex-wrap items-center gap-2">
             <QrCode className="h-5 w-5 text-blue-600" />
             <h2 className="text-lg font-semibold text-gray-900">院友專屬二維碼</h2>
           </div>
@@ -119,7 +119,7 @@ export const PatientQRCodeModal: React.FC<PatientQRCodeModalProps> = ({
             <button
               onClick={handleDownload}
               disabled={!qrCodeDataUrl}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex flex-wrap items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download className="h-4 w-4" />
               <span>下載二維碼 (PNG)</span>

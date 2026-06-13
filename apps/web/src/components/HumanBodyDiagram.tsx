@@ -56,7 +56,7 @@ const HumanBodyDiagram: React.FC<HumanBodyDiagramProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h4 className="text-sm font-medium text-gray-700">
           點擊人體圖選擇傷口位置
         </h4>

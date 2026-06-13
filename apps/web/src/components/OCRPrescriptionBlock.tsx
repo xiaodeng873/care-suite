@@ -194,9 +194,9 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-4 hover:bg-white hover:bg-opacity-50 transition-colors rounded-lg"
+        className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 hover:bg-white hover:bg-opacity-50 transition-colors rounded-lg"
       >
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="p-2 bg-purple-100 rounded-lg">
             <Camera className="h-5 w-5 text-purple-600" />
           </div>
@@ -205,7 +205,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
             <p className="text-sm text-gray-600">上傳處方標籤圖片，自動識別並填入資料</p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           {ocrResult?.success && (
             <span className="flex items-center space-x-1 text-sm text-green-600">
               <CheckCircle className="h-4 w-4" />
@@ -301,7 +301,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
                   type="button"
                   onClick={handleStartOCR}
                   disabled={!selectedFile || isProcessing || !prompt.trim()}
-                  className="btn-primary w-full flex items-center justify-center space-x-2"
+                  className="btn-primary w-full flex flex-wrap items-center justify-center gap-2"
                 >
                   {isProcessing ? (
                     <>
@@ -319,7 +319,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
 
               {ocrResult && (
                 <div className="bg-white rounded-lg p-3 border border-gray-200">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
                     <h4 className="font-medium text-gray-900">識別結果</h4>
                     <button
                       type="button"
@@ -331,7 +331,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
                   </div>
                   {ocrResult.success ? (
                     <div className="space-y-2">
-                      <div className="flex items-center space-x-2 text-sm text-green-600">
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-green-600">
                         <CheckCircle className="h-4 w-4" />
                         <span>識別成功 ({ocrResult.processingTimeMs}ms)</span>
                       </div>
@@ -342,7 +342,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
                       )}
                     </div>
                   ) : (
-                    <div className="flex items-center space-x-2 text-sm text-red-600">
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-red-600">
                       <AlertTriangle className="h-4 w-4" />
                       <span>{ocrResult.error}</span>
                     </div>
@@ -384,11 +384,11 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
                   placeholder="輸入AI識別指令..."
                   disabled={isProcessing}
                 />
-                <div className="flex items-center justify-between mt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-2">
                   <p className="text-xs text-gray-500">
                     自訂prompt可提高識別準確度
                   </p>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={handleRestoreDefault}
@@ -414,7 +414,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-start space-x-2">
+            <div className="flex items-start gap-2">
               <AlertTriangle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-blue-800">
                 <p className="font-medium mb-1">使用提示：</p>

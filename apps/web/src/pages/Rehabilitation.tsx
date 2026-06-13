@@ -5,7 +5,7 @@ const Rehabilitation: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-6">
-        <div className="flex items-center space-x-3 mb-2">
+        <div className="flex flex-wrap items-center gap-3 mb-2">
           <BicepsFlexed className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl font-bold text-gray-900">復康服務</h1>
         </div>

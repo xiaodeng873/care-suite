@@ -35,8 +35,8 @@ const PendingPrescriptionCard: React.FC<PendingPrescriptionCardProps> = ({
 
   return (
     <div className="card p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="p-2 rounded-lg bg-blue-100">
             <Pill className="h-6 w-6 text-blue-600" />
           </div>
@@ -56,8 +56,8 @@ const PendingPrescriptionCard: React.FC<PendingPrescriptionCardProps> = ({
             className="p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
             onClick={() => handleViewDetails(item.patient.院友id)}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3 flex-1">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3 flex-1">
                 <Pill className="h-4 w-4 text-blue-600" />
                 <div>
                   <div className="font-medium text-blue-900">
@@ -85,7 +85,7 @@ const PendingPrescriptionCard: React.FC<PendingPrescriptionCardProps> = ({
         {pendingPrescriptions.length > 2 && (
           <button
             onClick={() => setShowAll(!showAll)}
-            className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+            className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-colors flex flex-wrap items-center justify-center gap-2"
           >
             {showAll ? (
               <>

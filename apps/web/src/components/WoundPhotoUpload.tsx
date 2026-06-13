@@ -138,13 +138,13 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h4 className="text-sm font-medium text-gray-700">
           傷口相片 ({photos.length}/{maxPhotos})
         </h4>
         
         {photos.length < maxPhotos && (
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -187,7 +187,7 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
           }}
         >
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="text-lg font-semibold text-gray-900">拍攝傷口相片</h3>
               <button
                 onClick={stopCamera}
@@ -204,10 +204,10 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
               className="w-full rounded-lg mb-4"
             />
             
-            <div className="flex justify-center space-x-3">
+            <div className="flex flex-wrap justify-center gap-3">
               <button
                 onClick={capturePhoto}
-                className="btn-primary flex items-center space-x-2"
+                className="btn-primary flex flex-wrap items-center gap-2"
               >
                 <Camera className="h-4 w-4" />
                 <span>拍照</span>
@@ -246,7 +246,7 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
                   className="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
                 
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-xs text-gray-500">
                     {new Date(photo.uploadDate).toLocaleDateString('zh-TW')}
                   </span>
@@ -302,7 +302,7 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
           }}
         >
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="text-lg font-semibold text-gray-900">傷口相片預覽</h3>
               <button
                 onClick={() => setPreviewPhoto(null)}

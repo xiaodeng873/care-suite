@@ -195,8 +195,8 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
         {/* 標題 */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-gray-200">
+          <div className="flex flex-wrap items-center gap-2">
             <Camera className="h-5 w-5 text-blue-600" />
             <span className="text-lg font-medium text-gray-900">掃描院友二維碼</span>
           </div>
@@ -240,7 +240,7 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
 
             <button
               onClick={toggleCamera}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              className="w-full flex flex-wrap items-center justify-center gap-2 px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
               <SwitchCamera className="h-4 w-4" />
               <span>{facingMode === 'user' ? '切換到後置鏡頭' : '切換到前置鏡頭'}</span>
@@ -248,7 +248,7 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
 
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <div className="flex items-start space-x-2">
+                <div className="flex items-start gap-2">
                   <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm text-red-800">{error}</p>

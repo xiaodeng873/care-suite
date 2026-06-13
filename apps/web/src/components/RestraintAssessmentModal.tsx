@@ -279,8 +279,8 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-yellow-100">
                 <Shield className="h-6 w-6 text-yellow-600" />
               </div>
@@ -356,7 +356,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
               <div key={category} className="border rounded-lg p-4 bg-gray-50">
                 <div className="space-y-3">
                   {/* 主項目 checkbox */}
-                  <label className="flex items-center space-x-2">
+                  <label className="flex flex-wrap items-center gap-2">
                     <input
                       type="checkbox"
                       checked={formData.risk_factors[category] || false}
@@ -376,7 +376,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                   <div className="ml-6 space-y-2">
                     {subcategories.map(subcategory => (
                       <div key={subcategory}>
-                        <label className="flex items-center space-x-2">
+                        <label className="flex flex-wrap items-center gap-2">
                           <input
                             type="checkbox"
                             checked={formData.risk_factors[subcategory] || false}
@@ -521,7 +521,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                 
                 <div className="space-y-2">
                   {alternativeOptions.map(option => (
-                    <label key={option} className="flex items-start space-x-2">
+                    <label key={option} className="flex items-start gap-2">
                       <input
                         type="checkbox"
                         checked={formData.alternatives[option] || false}
@@ -595,7 +595,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                         {/* 約束物品種類 */}
                         <td className="px-4 py-4 border-r align-top">
                           <div className="space-y-2">
-                            <label className="flex items-center space-x-2">
+                            <label className="flex flex-wrap items-center gap-2">
                               <input
                                 type="checkbox"
                                 checked={config.checked || false}
@@ -625,7 +625,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                           {config.checked && (
                             <div className="space-y-2">
                               {restraintOption.usageConditions.map(condition => (
-                                <label key={condition} className="flex items-center space-x-2">
+                                <label key={condition} className="flex flex-wrap items-center gap-2">
                                   <input
                                     type="radio"
                                     name={`${restraintName}-usage-condition`}
@@ -646,7 +646,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                           {config.checked && (
                             <div className="space-y-3">
                               {/* 日間時段 */}
-                              <div className="flex items-center space-x-2 flex-wrap">
+                              <div className="flex flex-wrap items-center gap-2 flex-wrap">
                                 <input
                                   type="checkbox"
                                   checked={config.dayTime || false}
@@ -681,7 +681,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                               </div>
                               
                               {/* 晚上時段 */}
-                              <div className="flex items-center space-x-2 flex-wrap">
+                              <div className="flex flex-wrap items-center gap-2 flex-wrap">
                                 <input
                                   type="checkbox"
                                   checked={config.nightTime || false}
@@ -716,7 +716,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                               </div>
                               
                               {/* 全日時段 */}
-                              <div className="flex items-center space-x-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 <input
                                   type="checkbox"
                                   checked={config.allDay || false}
@@ -727,7 +727,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                               </div>
                               
                               {/* 其他時段 */}
-                              <div className="flex items-center space-x-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 <label className="text-xs font-medium text-gray-700">其他：</label>
                                 <textarea
                                   value={config.otherTime || ''}

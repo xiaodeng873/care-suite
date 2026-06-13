@@ -94,7 +94,7 @@ const PatientSelectModal: React.FC<PatientSelectModalProps> = ({ scheduleId, onC
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h2 className="text-xl font-semibold text-gray-900">選擇院友</h2>
             <button
               onClick={onClose}
@@ -135,8 +135,8 @@ const PatientSelectModal: React.FC<PatientSelectModalProps> = ({ scheduleId, onC
                 }`}
                 onClick={() => handlePatientSelect(patient)}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+                  <div className="flex flex-wrap items-center gap-3">
                     <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                       {patient.院友相片 ? (
                         <img 
@@ -171,7 +171,7 @@ const PatientSelectModal: React.FC<PatientSelectModalProps> = ({ scheduleId, onC
                         {serviceReasons.map(reason => (
                           <label 
                             key={reason.原因id} 
-                            className={`flex items-center space-x-2 p-2 rounded-lg border cursor-pointer transition-all duration-200 ${
+                            className={`flex flex-wrap items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all duration-200 ${
                               selectedPatients[patient.院友id].看診原因.includes(reason.原因名稱)
                                 ? getReasonBadgeClass(reason.原因名稱).replace('reason-badge ', 'border-current bg-opacity-50 ')
                                 : 'border-gray-200 hover:border-gray-300 bg-white'
@@ -242,7 +242,7 @@ const PatientSelectModal: React.FC<PatientSelectModalProps> = ({ scheduleId, onC
           <div className="flex flex-col sm:flex-row gap-2 pt-6 border-t border-gray-200">
             <button
               type="submit"
-              className="btn-primary flex items-center space-x-2"
+              className="btn-primary flex flex-wrap items-center gap-2"
               disabled={Object.keys(selectedPatients).length === 0}
             >
               <Plus className="h-4 w-4" />
