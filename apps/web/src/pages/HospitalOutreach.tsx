@@ -786,7 +786,7 @@ const HospitalOutreach: React.FC = () => {
           return visitDate >= today;
         }).length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="w-full min-w-[768px] divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">到診日期</th>
@@ -1080,7 +1080,7 @@ const HospitalOutreach: React.FC = () => {
       <div className="card overflow-hidden">
         {paginatedRecords.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="w-full min-w-[768px] divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left">

@@ -346,7 +346,7 @@ const Scheduling: React.FC = () => {
                 className="cursor-pointer" 
                 onDoubleClick={() => handleEdit(schedule)}
               >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <div className="flex items-center space-x-3">
                     <Calendar className="h-6 w-6 text-blue-600" />
                     <div>
@@ -363,7 +363,7 @@ const Scheduling: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => handleViewDetails(schedule)}
                       className="btn-secondary flex items-center space-x-1"

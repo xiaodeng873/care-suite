@@ -309,92 +309,6 @@ const WoundManagementNew: React.FC = () => {
         </button>
       </div>
 
-      {/* 統計卡片 */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <User className="h-5 w-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">有傷口院友</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.patientsWithActiveWounds}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Target className="h-5 w-5 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">進行中傷口</p>
-              <p className="text-2xl font-bold text-yellow-600">{stats.activeWounds}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">已痊癒</p>
-              <p className="text-2xl font-bold text-green-600">{stats.healedWounds}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">逾期評估</p>
-              <p className="text-2xl font-bold text-red-600">{stats.overdueAssessments}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">總評估次數</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.totalAssessments}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 提醒區域 */}
-      {(stats.overdueAssessments > 0 || stats.dueTodayOrTomorrow > 0) && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <div className="flex items-start space-x-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-            <div>
-              <h3 className="font-medium text-amber-800">評估提醒</h3>
-              <ul className="mt-1 text-sm text-amber-700 space-y-1">
-                {stats.overdueAssessments > 0 && (
-                  <li>⚠️ 有 <strong>{stats.overdueAssessments}</strong> 個傷口逾期未評估（超過7天未進行評估）</li>
-                )}
-                {stats.dueTodayOrTomorrow > 0 && (
-                  <li>📅 有 <strong>{stats.dueTodayOrTomorrow}</strong> 個傷口需要在今明兩天內評估</li>
-                )}
-              </ul>
-              <p className="mt-2 text-xs text-amber-600">
-                💡 每個傷口自發現起最少每週評估一次，直到痊癒為止
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 搜尋和篩選 */}
       <div className="bg-white rounded-lg shadow p-4">
         <div className="flex flex-col md:flex-row gap-4">
@@ -496,21 +410,6 @@ const WoundManagementNew: React.FC = () => {
         )}
       </div>
 
-      {/* 說明區塊 */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <History className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-          <div>
-            <h3 className="font-medium text-blue-800">傷口管理流程說明</h3>
-            <div className="mt-2 text-sm text-blue-700 space-y-1">
-              <p>📋 <strong>結構：</strong>每位院友可有多個傷口，每個傷口可有多次評估記錄</p>
-              <p>📅 <strong>評估頻率：</strong>每個傷口自發現日起，每週至少評估一次</p>
-              <p>✅ <strong>痊癒條件：</strong>評估時選擇「已痊癒」狀態，傷口將停止產生評估提醒</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* 主表格：一院友對多傷口 */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
@@ -521,7 +420,7 @@ const WoundManagementNew: React.FC = () => {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="w-full min-w-[768px] divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8"></th>

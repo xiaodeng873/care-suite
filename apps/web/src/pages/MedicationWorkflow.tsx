@@ -2575,56 +2575,59 @@ const MedicationWorkflow: React.FC = () => {
             <p className="text-sm text-gray-600 mt-1">管理院友的執藥、核藥、派藥流程</p>
           </div>
           {/* 右側：院友選擇、掃描按鈕、日期選擇 */}
-          <div className="flex flex-wrap items-end gap-3 flex-1 max-w-4xl w-full">
-            {/* 院友選擇 */}
-            <div className="flex-1 min-w-[200px] max-w-md">
-              <label className="form-label text-xs mb-1 block">
-                <User className="h-3 w-3 inline mr-1" />
-                選擇院友
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={goToPreviousPatient}
-                  disabled={sortedActivePatients.length <= 1}
-                  className="btn-secondary flex items-center px-2 py-1.5 flex-shrink-0"
-                  title="上一位院友"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <div className="flex-1 min-w-0">
-                  <PatientAutocomplete
-                    value={selectedPatientId}
-                    onChange={setSelectedPatientId}
-                    placeholder="搜索院友..."
-                    showResidencyFilter={true}
-                    defaultResidencyStatus="在住"
-                  />
+          <div className="flex flex-col lg:flex-row lg:flex-wrap items-stretch lg:items-end gap-3 flex-1 max-w-4xl w-full">
+            {/* 院友選擇 + 掃描（手機同一行）*/}
+            <div className="flex items-end gap-2">
+              {/* 院友選擇 */}
+              <div className="flex-1 min-w-0 lg:min-w-[200px] lg:max-w-md">
+                <label className="form-label text-xs mb-1 block">
+                  <User className="h-3 w-3 inline mr-1" />
+                  選擇院友
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={goToPreviousPatient}
+                    disabled={sortedActivePatients.length <= 1}
+                    className="btn-secondary flex items-center px-2 py-1.5 flex-shrink-0"
+                    title="上一位院友"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <PatientAutocomplete
+                      value={selectedPatientId}
+                      onChange={setSelectedPatientId}
+                      placeholder="搜索院友..."
+                      showResidencyFilter={true}
+                      defaultResidencyStatus="在住"
+                    />
+                  </div>
+                  <button
+                    onClick={goToNextPatient}
+                    disabled={sortedActivePatients.length <= 1}
+                    className="btn-secondary flex items-center px-2 py-1.5 flex-shrink-0"
+                    title="下一位院友"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
                 </div>
+              </div>
+
+              {/* 掃描二維碼按鈕 */}
+              <div className="flex-shrink-0">
+                <label className="form-label text-xs mb-1 block invisible">掃描</label>
                 <button
-                  onClick={goToNextPatient}
-                  disabled={sortedActivePatients.length <= 1}
-                  className="btn-secondary flex items-center px-2 py-1.5 flex-shrink-0"
-                  title="下一位院友"
+                  onClick={() => setShowQRScannerModal(true)}
+                  className="btn-secondary p-2 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors"
+                  title="掃描院友二維碼"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <Camera className="h-5 w-5" />
                 </button>
               </div>
             </div>
-            
-            {/* 掃描二維碼按鈕 */}
-            <div className="flex-shrink-0">
-              <label className="form-label text-xs mb-1 block invisible">掃描</label>
-              <button
-                onClick={() => setShowQRScannerModal(true)}
-                className="btn-secondary p-2 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors"
-                title="掃描院友二維碼"
-              >
-                <Camera className="h-5 w-5" />
-              </button>
-            </div>
 
             {/* 日期選擇 */}
-            <div className="flex-1 min-w-[250px] max-w-sm">
+            <div className="flex-1 w-full min-w-0 lg:min-w-[250px] lg:max-w-sm">
               <label className="form-label text-xs mb-1 block">
                 <Calendar className="h-3 w-3 inline mr-1" />
                 選擇日期
@@ -2743,7 +2746,7 @@ const MedicationWorkflow: React.FC = () => {
                     ref={tableContainerRef}
                     className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-400px)]"
                   >
-                <table className="min-w-full">
+                <table className="w-full min-w-[768px]">
                   <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">

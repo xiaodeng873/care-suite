@@ -292,7 +292,7 @@ const PatientContacts: React.FC = () => {
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="w-full min-w-[768px] divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <SortableHeader field="床號">床號</SortableHeader>
