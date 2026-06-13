@@ -1014,7 +1014,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
             {/* 9. 治療項目 */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="text-lg font-medium text-gray-900 mb-4">9. 治療項目</h3>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   '腹膜/血液透析',
                   '氧氣治療',

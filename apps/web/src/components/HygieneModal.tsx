@@ -228,7 +228,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-6">
             <div className="space-y-6">
               {/* 日期信息 */}
-              <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <Calendar className="w-5 h-5 text-gray-500" />
                   <span className="text-sm font-medium text-gray-700">日期:</span>
@@ -268,7 +268,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
               {/* 護理項目 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">護理項目</label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {careItems.map((item, index) => (
                     <button
                       key={index}

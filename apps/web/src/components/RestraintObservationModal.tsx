@@ -294,7 +294,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 院友姓名
@@ -374,7 +374,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
                     </p>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {suggestedRestraints.map((item) => (
                     <label key={item} className={`flex items-center space-x-2 p-3 border rounded-lg ${isSpecialStatus ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed' : 'border-blue-400 bg-blue-50 hover:bg-blue-100 cursor-pointer'}`}>
                       <input

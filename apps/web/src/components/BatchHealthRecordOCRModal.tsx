@@ -764,7 +764,7 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
                     <span>{area}區 ({records.length} 筆)</span>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full min-w-[900px] text-sm">
                       <thead className="bg-gray-50 border-b">
                         <tr>
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-500" style={{minWidth: '200px'}}>院友</th>

@@ -170,7 +170,7 @@ const DispenseConfirmModal: React.FC<DispenseConfirmModalProps> = ({
 
         <div className="p-6">
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <div className="text-gray-500 mb-1">院友</div>
                 <div className="font-medium text-gray-900">

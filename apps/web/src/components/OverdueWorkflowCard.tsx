@@ -116,7 +116,7 @@ const OverdueWorkflowCard: React.FC<OverdueWorkflowCardProps> = ({
               {isExpanded && (
                 <div className="px-3 pb-3 space-y-1">
                   <div className="text-xs text-amber-600 font-medium mb-2">逾期日期列表：</div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {dateEntries.map(([date, count]) => (
                       <button
                         key={date}

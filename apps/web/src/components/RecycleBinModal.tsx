@@ -315,7 +315,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600 mb-2">
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-3 w-3 text-gray-400" />
                             <span>記錄日期: {new Date(record.記錄日期).toLocaleDateString('zh-TW')}</span>

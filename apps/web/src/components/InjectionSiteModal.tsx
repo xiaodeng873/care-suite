@@ -111,7 +111,7 @@ const InjectionSiteModal: React.FC<InjectionSiteModalProps> = ({
         {/* 步驟1：選擇注射區域 */}
         <div className="space-y-3 mb-6">
           <label className="form-label">步驟 1：選擇注射區域</label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {injectionAreas.map(area => (
               <button
                 key={area.value}
@@ -148,7 +148,7 @@ const InjectionSiteModal: React.FC<InjectionSiteModalProps> = ({
             <label className="form-label">
               步驟 2：選擇具體位置（{selectedAreaInfo?.label}）
             </label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {positions.map(pos => (
                 <button
                   key={pos}

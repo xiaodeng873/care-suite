@@ -270,7 +270,7 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
                 )}
 
                 <div className="text-sm text-gray-700">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {ocrResult.extractedData.中文姓名 && (
                       <div>
                         <span className="font-medium">中文姓名：</span>

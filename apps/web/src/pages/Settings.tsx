@@ -292,7 +292,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
           {/* 帳號資訊 */}
           <div className="border-b pb-4">
             <h3 className="text-lg font-medium text-gray-900 mb-4">帳號資訊</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">登入帳號 *</label>
                 <input
@@ -327,7 +327,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
           {/* 個人資料 */}
           <div className="border-b pb-4">
             <h3 className="text-lg font-medium text-gray-900 mb-4">個人資料</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">中文姓名 *</label>
                 <input
@@ -375,7 +375,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
           {/* 部門與職位 */}
           <div className="border-b pb-4">
             <h3 className="text-lg font-medium text-gray-900 mb-4">部門與職位</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">部門 *</label>
                 <select
@@ -398,7 +398,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
           {/* 僱傭資訊 */}
           <div className="border-b pb-4">
             <h3 className="text-lg font-medium text-gray-900 mb-4">僱傭資訊</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">入職日期 *</label>
                 <input
@@ -445,7 +445,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
           {/* 權限設定 */}
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">權限設定</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">角色 *</label>
                 <select
@@ -721,7 +721,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
                   {/* 功能列表 */}
                   {isExpanded && (
                     <div className="p-4 overflow-x-auto">
-                      <table className="w-full">
+                      <table className="w-full min-w-[520px]">
                         <thead>
                           <tr className="text-sm text-gray-500">
                             <th className="text-left py-2 font-medium">功能</th>
@@ -1193,7 +1193,7 @@ const Settings: React.FC = () => {
               </p>
             </div>
           ) : (
-            <table className="w-full">
+            <table className="w-full min-w-[768px]">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">

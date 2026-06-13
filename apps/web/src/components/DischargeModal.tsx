@@ -103,7 +103,7 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ patient, onClose, onCon
 
           <div>
             <label className="form-label">退住原因 *</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
                 dischargeReason === '死亡' ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-gray-300'
               }`}>

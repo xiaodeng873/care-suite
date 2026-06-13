@@ -88,7 +88,7 @@ const MonthlyReportTable: React.FC<MonthlyReportTableProps> = ({ data }) => {
 
   return (
     <div className="overflow-auto max-h-[800px] border border-gray-300 rounded-lg shadow-lg">
-      <table className="min-w-full border-collapse text-sm">
+      <table className="w-full min-w-max border-collapse text-sm">
         <thead className="sticky top-0 z-30">
           <tr className="bg-blue-100">
             <th className="sticky left-0 z-40 bg-blue-100 border border-gray-300 px-3 py-2 font-semibold text-gray-700 min-w-[80px]">

@@ -1238,7 +1238,7 @@ const Reports: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">感染控制統計</h3>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <StatCard
               title="MRSA"
               value={infectionStats.MRSA.length}
@@ -1458,7 +1458,7 @@ const Reports: React.FC = () => {
                 if (!patient) return null;
                 return (
                   <div key={task.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <h4 className="font-semibold text-lg mb-2">{patient.床號} {patient.中文姓氏}{patient.中文名字}</h4>
                         <p className="text-sm text-gray-600">任務類型: <span className="font-medium">{task.health_record_type}</span></p>

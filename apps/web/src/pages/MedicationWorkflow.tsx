@@ -3058,7 +3058,7 @@ const MedicationWorkflow: React.FC = () => {
                                       )}
                                     </div>
                                     {workflowRecord ? (
-                                      <div className="grid grid-cols-3 gap-1">
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
                                         <WorkflowCell
                                           record={workflowRecord}
                                           step="preparation"

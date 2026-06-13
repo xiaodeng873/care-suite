@@ -593,7 +593,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
               {/* 基本資訊 Tab */}
               {activeTab === 'basic' && (
                 <div className="space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         院友 <span className="text-red-500">*</span>
@@ -623,7 +623,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                           
                           return (
                             <div className="space-y-3">
-                              <div className="grid grid-cols-3 gap-4 text-sm">
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                                 <div>
                                   <span className="text-gray-500">上次復檢日期：</span>
                                   <span className="font-medium">
@@ -641,7 +641,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                                   <span className="font-medium">{patient?.在住狀態 || '-'}</span>
                                 </div>
                               </div>
-                              <div className="grid grid-cols-3 gap-4 text-sm">
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                                 <div>
                                   <span className="text-gray-500">入住類型：</span>
                                   <span className="font-medium">{patient?.入住類型 || '-'}</span>
@@ -689,7 +689,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                       </div>
                     )}
                     
-                    <div className="col-span-2 grid grid-cols-3 gap-4">
+                    <div className="col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           計劃類型 <span className="text-red-500">*</span>
@@ -1396,7 +1396,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                         const defaultAssessor = problems.find(p => p.problem_category === category)?.problem_assessor || '';
                         
                         return (
-                          <div key={category} className={`grid grid-cols-3 gap-4 p-3 rounded-lg ${hasProblem ? 'bg-gray-50' : 'bg-gray-100 opacity-60'}`}>
+                          <div key={category} className={`grid grid-cols-1 sm:grid-cols-3 gap-4 p-3 rounded-lg ${hasProblem ? 'bg-gray-50' : 'bg-gray-100 opacity-60'}`}>
                             <div className="flex items-center">
                               <span className={`text-sm font-medium ${hasProblem ? 'text-gray-900' : 'text-gray-400'}`}>
                                 {category}
@@ -1476,7 +1476,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                   {/* 家屬聯絡 */}
                   <div className="border-t pt-4">
                     <h4 className="text-sm font-medium text-gray-700 mb-3">家屬聯絡</h4>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">聯絡家屬/聽取報告日期 (選填)</label>
                         <input
@@ -1584,7 +1584,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
             </div>
             
             <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">問題代碼 *</label>
                   <input

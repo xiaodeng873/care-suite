@@ -286,7 +286,7 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
               <Ruler className="h-4 w-4 mr-2" />
               傷口尺寸 (cm)
             </h3>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs text-gray-600 mb-1">長度</label>
                 <input
@@ -451,7 +451,7 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
             </div>
 
             {formData.exudate_present && (
-              <div className="grid grid-cols-3 gap-4 mt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">量</label>
                   <select
@@ -518,7 +518,7 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">敷料</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {DRESSING_OPTIONS.map(d => (
                   <label key={d} className="flex items-center space-x-2">
                     <input

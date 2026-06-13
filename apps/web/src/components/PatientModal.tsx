@@ -841,7 +841,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
 
           <div>
             <label className="form-label">中文姓名 *</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input
                 type="text"
                 name="中文姓氏"
@@ -865,7 +865,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
 
           <div>
             <label className="form-label">英文姓名</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input
                 type="text"
                 name="英文姓氏"

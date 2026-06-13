@@ -725,7 +725,7 @@ const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment,
 
                     <div>
                       <label className="form-label">敷料 (可複選)</label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {dressingOptions.map(dressing => (
                           <label key={dressing} className="flex items-center space-x-2">
                             <input

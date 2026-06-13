@@ -305,7 +305,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
           <div className="border-t pt-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">病歷</h3>
             <div className="border border-gray-300 rounded-lg overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[720px]">
                 <tbody>
                   <tr className="border-b border-gray-300">
                     <td className="p-3 align-top w-12 text-center">(1)</td>
@@ -578,7 +578,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
               </button>
             </div>
             <div className="border border-gray-300 rounded-lg overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[720px]">
                 <tbody>
                   <tr className="bg-gray-50 border-b border-gray-300">
                     <td className="p-3 border-r border-gray-300 font-semibold w-48">血壓</td>
@@ -664,7 +664,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
           <div className="border-t pt-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">身體機能評估</h3>
             <div className="border border-gray-300 rounded-lg overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[720px]">
                 <tbody>
                   <tr className="border-b border-gray-300">
                     <td className="bg-gray-50 p-3 border-r border-gray-300 w-32">
@@ -698,7 +698,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                     <td className="p-3">
-                      <div className="grid grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {VISION_OPTIONS.map(option => (
                           <label key={option} className="flex items-start space-x-2">
                             <input
@@ -745,7 +745,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       </div>
                     </td>
                     <td className="p-3">
-                      <div className="grid grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {HEARING_OPTIONS.map(option => (
                           <label key={option} className="flex items-start space-x-2">
                             <input
@@ -763,7 +763,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                   <tr className="border-b border-gray-300">
                     <td className="bg-gray-50 p-3 font-semibold border-r border-gray-300">語言能力</td>
                     <td className="p-3">
-                      <div className="grid grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {SPEECH_OPTIONS.map(option => (
                           <label key={option} className="flex items-start space-x-2">
                             <input
@@ -784,7 +784,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                       <div className="space-y-4">
                         <div>
                           <div className="text-sm font-medium text-gray-700 mb-2">精神狀態（單選）</div>
-                          <div className="grid grid-cols-4 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                             {MENTAL_STATE_GROUP_A.map(option => (
                               <label key={option} className="flex items-start space-x-2">
                                 <input
@@ -800,7 +800,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                         </div>
                         <div className="border-t border-gray-200 pt-3">
                           <div className="text-sm font-medium text-gray-700 mb-2">認知障礙症階段（單選，可選可不選）</div>
-                          <div className="grid grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             {MENTAL_STATE_GROUP_B.map(option => (
                               <label key={option} className="flex items-start space-x-2">
                                 <input
@@ -828,7 +828,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                   <tr className="border-b border-gray-300">
                     <td className="bg-gray-50 p-3 font-semibold border-r border-gray-300">活動能力</td>
                     <td className="p-3">
-                      <div className="grid grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {MOBILITY_OPTIONS.map(option => (
                           <label key={option} className="flex items-start space-x-2">
                             <input
@@ -846,7 +846,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                   <tr className="border-b border-gray-300">
                     <td className="bg-gray-50 p-3 font-semibold border-r border-gray-300">禁制能力</td>
                     <td className="p-3">
-                      <div className="grid grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {CONTINENCE_OPTIONS.map(option => (
                           <label key={option} className="flex items-start space-x-2">
                             <input

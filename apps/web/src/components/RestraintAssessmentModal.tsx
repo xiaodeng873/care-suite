@@ -565,7 +565,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
             
             {/* 約束物品建議表格 */}
             <div className="border rounded-lg overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[720px]">
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 border-r">約束物品種類</th>

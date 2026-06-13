@@ -572,7 +572,7 @@ const CareRecords: React.FC = () => {
   const renderPatrolTable = () => {
     return (
       <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse">
+        <table className="w-full min-w-[768px] border-collapse">
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
@@ -640,7 +640,7 @@ const CareRecords: React.FC = () => {
   const renderDiaperTable = () => {
     return <>
       <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse">
+        <table className="w-full min-w-[768px] border-collapse">
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
@@ -764,7 +764,7 @@ const CareRecords: React.FC = () => {
   const renderRestraintTable = () => {
     return <>
       <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse">
+        <table className="w-full min-w-[768px] border-collapse">
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
@@ -884,7 +884,7 @@ const CareRecords: React.FC = () => {
   const renderPositionTable = () => {
     return (
       <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse">
+        <table className="w-full min-w-[768px] border-collapse">
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
@@ -962,7 +962,7 @@ const CareRecords: React.FC = () => {
   const renderIntakeOutputTable = () => {
     return (
       <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse">
+        <table className="w-full min-w-[768px] border-collapse">
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">
@@ -1087,7 +1087,7 @@ const CareRecords: React.FC = () => {
     return (
       <>
       <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse">
+        <table className="w-full min-w-[768px] border-collapse">
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border">

@@ -402,7 +402,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
 
               <div>
                 <label className="form-label">地點</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {locationOptions.map(option => (
                     <label key={option} className="flex items-center space-x-2">
                       <input
@@ -717,7 +717,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                     </label>
                     {formData.limb_movement?.status === '不正常' && (
                       <div className="ml-6 mt-2 space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {['左手', '右手', '左腳', '右腳'].map(limb => (
                             <label key={limb} className="flex items-center space-x-2">
                               <input
@@ -748,7 +748,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
 
               <div>
                 <label className="form-label">受傷情況（複選）</label>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                   {injuryOptions.map(option => (
                     <div key={option} className="space-y-1">
                       <label className="flex items-center space-x-2">
@@ -787,7 +787,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
 
               <div>
                 <label className="form-label">即時處理（複選）</label>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                   {treatmentOptions.map(option => (
                     <div key={option} className="space-y-1">
                       <label className="flex items-center space-x-2">
@@ -815,7 +815,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
 
               <div>
                 <label className="form-label">就診安排</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {medicalArrangementOptions.map(option => (
                     <label key={option} className="flex items-center space-x-2">
                       <input
@@ -972,7 +972,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
           {/* 院友在醫院診治情況 */}
           <div className="border rounded-lg p-4 bg-gray-50">
             <h3 className="text-lg font-medium text-gray-900 mb-4">院友在醫院診治情況</h3>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
               {hospitalTreatmentOptions.map(option => (
                 <div key={option} className="space-y-1">
                   <label className="flex items-center space-x-2">
@@ -1007,7 +1007,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                       </label>
                       {/* 只有在沒有勾選觀察病房時才顯示醫院資訊輸入 */}
                       {!formData.hospital_treatment['觀察病房'] && (
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <input
                             type="text"
                             value={formData.hospital_admission?.hospital || ''}
