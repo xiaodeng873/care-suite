@@ -272,9 +272,9 @@ const StationBedManagement: React.FC = () => {
   };
   return (
     <div className="space-y-0">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">床位管理</h1>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setShowStationManagementModal(true)}
             className="btn-secondary flex items-center space-x-2"

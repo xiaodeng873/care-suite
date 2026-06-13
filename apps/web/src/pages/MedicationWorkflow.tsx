@@ -2568,14 +2568,14 @@ const MedicationWorkflow: React.FC = () => {
     <div className="-m-4 lg:-m-6">
       {/* 頁面標題與控制區 */}
       <div className="sticky top-16 bg-white z-[25] py-2 px-4 lg:px-6 border-b border-gray-200">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* 左側：標題 */}
           <div className="flex-shrink-0">
             <h1 className="text-2xl font-bold text-gray-900">藥物工作流程</h1>
             <p className="text-sm text-gray-600 mt-1">管理院友的執藥、核藥、派藥流程</p>
           </div>
           {/* 右側：院友選擇、掃描按鈕、日期選擇 */}
-          <div className="flex items-end gap-3 flex-1 max-w-4xl">
+          <div className="flex flex-wrap items-end gap-3 flex-1 max-w-4xl w-full">
             {/* 院友選擇 */}
             <div className="flex-1 min-w-[200px] max-w-md">
               <label className="form-label text-xs mb-1 block">

@@ -256,8 +256,8 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
           </div>
 
           {duplicateGroups.length > 0 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-              <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 pt-4 border-t border-gray-200">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={selectAll}
                   className="text-sm text-blue-600 hover:text-blue-800 font-medium"
