@@ -4,6 +4,10 @@ A long-term care facility management system for nursing homes, supporting daily 
 
 ## Language
 
+**Facility（院舍）**:
+A care home organisation that subscribes to Care Suite. Each Facility has its own Residents, Staff, and data. Multiple Facilities share one Care Suite deployment.
+_Avoid_: Client, customer, organisation, tenant
+
 **Resident（院友）**:
 A person living in the care facility who receives ongoing nursing care.
 _Avoid_: Patient, client
