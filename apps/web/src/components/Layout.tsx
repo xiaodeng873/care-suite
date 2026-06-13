@@ -288,13 +288,13 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       {/* 頂部導覽欄 */}
       <header className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
         <div className="px-4 lg:px-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 h-16">
+          <div className="flex items-center justify-between h-16">
             {/* Logo 和導覽 */}
             <div className="flex items-center flex-1">
               {/* Logo */}
               <Link 
                 to="/" 
-                className="flex flex-wrap items-center gap-2 mr-8"
+                className="flex items-center gap-2 mr-8 flex-shrink-0"
                 onClick={(e) => {
                   if (isActive('/')) {
                     e.preventDefault();
@@ -376,7 +376,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
             </div>
 
             {/* 右側：日期和用戶 */}
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-4 flex-shrink-0 ml-auto">
               <span className="text-sm text-gray-500 hidden md:inline">
                 {getHongKongDate().toLocaleDateString('zh-TW', { 
                   year: 'numeric', 
@@ -389,7 +389,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex flex-wrap items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors whitespace-nowrap"
                 >
                   <User className="w-5 h-5" />
                   <span className="text-sm hidden sm:inline">{displayName || user.email}</span>
