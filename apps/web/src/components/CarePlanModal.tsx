@@ -878,7 +878,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
               {activeTab === 'problems' && (
                 <div className="space-y-6">
                   {/* 院友資訊與操作按鈕 */}
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     {/* 院友基本資訊 */}
                     {selectedPatientId && (() => {
                       const patient = patients.find(p => p.院友id === selectedPatientId);
@@ -888,7 +888,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                       
                       return (
                         <div className="flex-1 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-                          <div className="flex items-center gap-6 text-sm">
+                          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
                             <div>
                               <span className="text-gray-600">床號：</span>
                               <span className="font-medium text-gray-900 ml-1">{patient.床號 || '-'}</span>
@@ -917,7 +917,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                     })()}
                     
                     {/* 操作按鈕 */}
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => setShowProblemLibrary(!showProblemLibrary)}
                         className={`btn-secondary flex items-center space-x-1 ${showProblemLibrary ? 'bg-blue-50 border-blue-300' : ''}`}
