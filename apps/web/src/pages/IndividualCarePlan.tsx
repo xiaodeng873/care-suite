@@ -479,9 +479,9 @@ const IndividualCarePlan: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">個人照顧計劃</h1>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             {selectedRows.size > 0 && (
               <button
                 onClick={() => {}}
@@ -512,7 +512,7 @@ const IndividualCarePlan: React.FC = () => {
         </div>
 
         {/* 搜尋和篩選 */}
-        <div className="mt-4 flex items-center space-x-4">
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input

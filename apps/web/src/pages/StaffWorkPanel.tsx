@@ -236,14 +236,14 @@ const StaffWorkPanel: React.FC = () => {
     <div className="space-y-6">
       {/* 頁面標題 */}
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">職員工作面板</h1>
             <p className="text-sm text-gray-600 mt-1">
               {displayName ? `${displayName} 的工作任務` : '今日待處理的藥物工作任務'}
             </p>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleRefresh}
               disabled={refreshing}

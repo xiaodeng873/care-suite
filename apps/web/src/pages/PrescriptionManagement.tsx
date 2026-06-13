@@ -503,12 +503,12 @@ const PrescriptionManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">處方管理</h1>
             <p className="text-sm text-gray-600 mt-1">以院友為單位管理處方，每名院友獨立顯示三種處方狀態</p>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowMedicationRecordExportModal(true)}
               className="btn-secondary flex items-center space-x-2"
@@ -1115,7 +1115,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
             )}
           </div>
         </div>
-        <div className="flex items-center space-x-1">
+        <div className="flex flex-shrink-0 items-center gap-1">
           {/* 操作按鈕 */}
           <button
             onClick={onTransfer}

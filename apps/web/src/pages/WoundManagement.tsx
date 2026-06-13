@@ -509,9 +509,9 @@ const WoundManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">傷口管理</h1>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             {selectedRows.size > 0 && (
               <button
                 onClick={handleExportSelected}
@@ -937,7 +937,7 @@ const WoundManagement: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
+                        <div className="flex flex-shrink-0 gap-2">
                           <button
                             onClick={() => handleSaveAs(assessment)}
                             className="text-green-600 hover:text-green-900"

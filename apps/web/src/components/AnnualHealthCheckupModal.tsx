@@ -304,7 +304,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
           </div>
           <div className="border-t pt-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">病歷</h3>
-            <div className="border border-gray-300 rounded-lg overflow-hidden">
+            <div className="border border-gray-300 rounded-lg overflow-x-auto">
               <table className="w-full">
                 <tbody>
                   <tr className="border-b border-gray-300">
@@ -577,7 +577,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                 <span>{fetchingReadings ? '載入中...' : '取得最近讀數'}</span>
               </button>
             </div>
-            <div className="border border-gray-300 rounded-lg overflow-hidden">
+            <div className="border border-gray-300 rounded-lg overflow-x-auto">
               <table className="w-full">
                 <tbody>
                   <tr className="bg-gray-50 border-b border-gray-300">
@@ -663,7 +663,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
           </div>
           <div className="border-t pt-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">身體機能評估</h3>
-            <div className="border border-gray-300 rounded-lg overflow-hidden">
+            <div className="border border-gray-300 rounded-lg overflow-x-auto">
               <table className="w-full">
                 <tbody>
                   <tr className="border-b border-gray-300">

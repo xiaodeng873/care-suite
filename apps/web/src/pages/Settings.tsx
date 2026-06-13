@@ -720,7 +720,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
 
                   {/* 功能列表 */}
                   {isExpanded && (
-                    <div className="p-4">
+                    <div className="p-4 overflow-x-auto">
                       <table className="w-full">
                         <thead>
                           <tr className="text-sm text-gray-500">
@@ -1279,7 +1279,7 @@ const Settings: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
+                      <div className="flex flex-shrink-0 items-center justify-end gap-2">
                         {user.role !== 'developer' && (
                           <button
                             onClick={() => openPermissionModal(user)}
