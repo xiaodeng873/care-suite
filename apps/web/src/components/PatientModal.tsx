@@ -155,6 +155,10 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     return valid;
   };
 
+  const hasAdmissionWelfareConflict = (admissionType: string, welfareType: string) => (
+    admissionType === '院舍卷' && welfareType === '綜合社會保障援助'
+  );
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     let updatedValue = value;
@@ -167,6 +171,18 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     } else if (name === '身份證號碼') {
       updatedValue = formatHKID(value);
     }
+
+    if (name === '入住類型' && hasAdmissionWelfareConflict(updatedValue, socialWelfareType)) {
+      setSocialWelfareType('');
+      setSocialWelfareSubtype('');
+      setFormData(prev => ({
+        ...prev,
+        入住類型: updatedValue,
+        社會福利: { type: '', subtype: '' }
+      }));
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: updatedValue
@@ -229,6 +245,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     setSocialWelfareSubtype(subtype);
     setFormData(prev => ({
       ...prev,
+      入住類型: hasAdmissionWelfareConflict(prev.入住類型, type) ? '' : prev.入住類型,
       社會福利: { type, subtype }
     }));
   };
@@ -403,6 +420,11 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
 
     // Create a copy of formData to ensure we work with the latest state
     let finalFormData = { ...formData };
+
+    if (hasAdmissionWelfareConflict(finalFormData.入住類型, finalFormData.社會福利?.type || '')) {
+      alert('入住類型「院舍卷」不可與社會福利「綜合社會保障援助」同時選擇');
+      return;
+    }
 
     // 如果選擇了床位，檢查床位是否已被其他在住院友佔用
     if (finalFormData.bed_id) {
@@ -795,7 +817,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                 <option value="">請選擇</option>
                 <option value="私位">私位</option>
                 <option value="買位">買位</option>
-                <option value="院舍卷">院舍卷</option>
+                <option value="院舍卷" disabled={socialWelfareType === '綜合社會保障援助'}>院舍卷</option>
                 <option value="暫住">暫住</option>
               </select>
             </div>
@@ -808,7 +830,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                 className="form-input"
               >
                 <option value="">請選擇社會福利</option>
-                <option value="綜合社會保障援助">綜合社會保障援助</option>
+                <option value="綜合社會保障援助" disabled={formData.入住類型 === '院舍卷'}>綜合社會保障援助</option>
                 <option value="公共福利金計劃">公共福利金計劃</option>
                 <option value="公務員">公務員</option>
               </select>
