@@ -304,6 +304,8 @@ const renderGridCell = (cell: GridCell): string => `
     ${cell.content}
   </div>`;
 
+const box = (className = ''): string => `box ${className}`.trim();
+
 const renderDayCells = (
   page: PageData,
   prescription: any,
@@ -401,58 +403,59 @@ const renderPage = (page: PageData): string => {
     }
   };
 
-  addCell(1, 1, 2, 1, '藥物過敏反應 :', 'label-lg');
-  addCell(1, 2, 2, 9, htmlEscape(allergy), 'text-left value-lg');
-  addCell(3, 1, 1, 1, '藥物不良反應 :', 'label-lg');
-  addCell(3, 2, 1, 9, htmlEscape(adverse), 'text-left value-lg');
+  addCell(1, 1, 2, 1, '藥物過敏反應 :', box('label-lg'));
+  addCell(1, 2, 2, 9, htmlEscape(allergy), box('text-left value-lg'));
+  addCell(3, 1, 1, 1, '藥物不良反應 :', box('label-lg'));
+  addCell(3, 2, 1, 9, htmlEscape(adverse), box('text-left value-lg'));
   addCell(1, 11, 1, 17, `${FACILITY_NAME} - 院友個人備藥及給藥記錄`, 'title');
   addCell(2, 11, 1, 17, ROUTE_LABELS[page.routeType], 'route-title');
   addCell(3, 11, 1, 17, htmlEscape(formatMonthLabel(page.selectedMonth)), 'month-title');
   addCell(1, 28, 1, 3, '姓名:', 'field-label');
-  addCell(1, 32, 1, 5, htmlEscape(name), 'field-value');
+  addCell(1, 32, 1, 5, htmlEscape(name), box('field-value'));
   addCell(1, 38, 1, 3, '院號:', 'field-label');
-  addCell(1, 41, 1, 3, htmlEscape(patient.床號 || ''), 'field-value');
+  addCell(1, 41, 1, 3, htmlEscape(patient.床號 || ''), box('field-value'));
   addCell(2, 28, 1, 3, '性別 /年齡:', 'field-label');
-  addCell(2, 32, 1, 5, htmlEscape(`${patient.性別 || ''}/${age}`), 'field-value');
+  addCell(2, 32, 1, 5, htmlEscape(`${patient.性別 || ''}/${age}`), box('field-value'));
   addCell(2, 38, 1, 3, '出生日期:', 'field-label');
-  addCell(2, 41, 1, 3, htmlEscape(formatDate(patient.出生日期)), 'field-value');
+  addCell(2, 41, 1, 3, htmlEscape(formatDate(patient.出生日期)), box('field-value'));
+  addCell(4, 1, 1, 44, '', 'section-gap');
 
-  addCell(5, 1, 2, 1, '處方日期', 'header-cell');
-  addCell(5, 2, 2, 8, '藥物名稱及劑型', 'header-cell drug-header');
-  addCell(5, 10, 2, 2, '途徑 / 次數', 'header-cell');
-  addCell(5, 14, 2, 31, '執 / 核　藥　職　員　簽　署', 'header-cell sign-header');
+  addCell(5, 1, 2, 1, '處方日期', box('header-cell'));
+  addCell(5, 2, 2, 8, '藥物名稱及劑型', box('header-cell drug-header'));
+  addCell(5, 10, 2, 2, '途徑 / 次數', box('header-cell'));
+  addCell(5, 14, 2, 31, '執 / 核　藥　職　員　簽　署', box('header-cell sign-header'));
 
   const groupStarts = [7, 12, 17, 22, 27];
   groupStarts.forEach((startRow, prescriptionIndex) => {
     const prescription = page.prescriptions[prescriptionIndex];
     const timeSlotsMap = prescription ? getTimeSlotsMap(prescription, page.routeType) : {};
-    addCell(startRow, 1, 2, 1, prescription ? htmlEscape(formatDate(prescription.prescription_date)) : '', 'date-cell');
-    addCell(startRow + 3, 1, 2, 1, '<span>執:</span><span>核:</span>', 'diagonal-sign');
-    addCell(startRow, 2, 4, 8, prescription ? htmlEscape(prescription.medication_name || '') : '', 'drug-cell');
-    addCell(startRow + 4, 2, 1, 8, prescription?.medication_source ? htmlEscape(`藥物來源: ${prescription.medication_source}`) : '', 'source-cell');
-    addCell(startRow, 10, 1, 2, prescription ? htmlEscape(prescription.administration_route || '') : '', 'route-cell');
-    addCell(startRow + 1, 10, 1, 2, prescription ? htmlEscape(getFrequencyDescription(prescription)) : '', 'route-cell');
-    addCell(startRow + 2, 10, 1, 2, prescription ? htmlEscape(getDosageText(prescription)) : '', 'route-cell');
-    addCell(startRow + 3, 10, 1, 2, prescription?.is_prn ? '需要時' : '', 'route-cell');
-    addCell(startRow + 4, 10, 1, 2, '', 'route-cell');
+    addCell(startRow, 1, 2, 1, prescription ? htmlEscape(formatDate(prescription.prescription_date)) : '', box('date-cell'));
+    addCell(startRow + 3, 1, 2, 1, '<span>執:</span><span>核:</span>', box('diagonal-sign'));
+    addCell(startRow, 2, 4, 8, prescription ? htmlEscape(prescription.medication_name || '') : '', box('drug-cell'));
+    addCell(startRow + 4, 2, 1, 8, prescription?.medication_source ? htmlEscape(`藥物來源: ${prescription.medication_source}`) : '', box('source-cell'));
+    addCell(startRow, 10, 1, 2, prescription ? htmlEscape(prescription.administration_route || '') : '', box('route-cell'));
+    addCell(startRow + 1, 10, 1, 2, prescription ? htmlEscape(getFrequencyDescription(prescription)) : '', box('route-cell'));
+    addCell(startRow + 2, 10, 1, 2, prescription ? htmlEscape(getDosageText(prescription)) : '', box('route-cell'));
+    addCell(startRow + 3, 10, 1, 2, prescription?.is_prn ? '需要時' : '', box('route-cell'));
+    addCell(startRow + 4, 10, 1, 2, '', box('route-cell'));
 
     for (let offset = 0; offset < 5; offset++) {
       const row = startRow + offset;
       const slots = timeSlotsMap[offset] || [];
       const timeContent = page.routeType === 'injection' && offset === 2 ? '注射位置' : htmlEscape(slots.join(', '));
-      addCell(row, 12, 1, 2, offset === 0 ? '服用時間' : timeContent, offset === 0 ? 'time-label' : 'time-cell');
+      addCell(row, 12, 1, 2, offset === 0 ? '服用時間' : timeContent, box(offset === 0 ? 'time-label' : 'time-cell'));
       for (let day = 1; day <= 31; day++) {
         const col = 13 + day;
         if (offset === 0) {
-          addCell(row, col, 1, 1, String(day), 'day-header');
+          addCell(row, col, 1, 1, String(day), box('day-header'));
           continue;
         }
         if (page.routeType === 'injection' && offset === 2) {
-          addCell(row, col, 1, 1, '', 'day-cell');
+          addCell(row, col, 1, 1, '', box('day-cell injection-location-cell'));
           continue;
         }
         const dayCell = prescription ? renderDayCells(page, prescription, offset, slots)[day - 1] : { content: '', disabled: false };
-        addCell(row, col, 1, 1, htmlEscape(dayCell.content), `day-cell diagonal-day${dayCell.disabled ? ' disabled-day' : ''}`);
+        addCell(row, col, 1, 1, htmlEscape(dayCell.content), box(`day-cell diagonal-day${dayCell.disabled ? ' disabled-day' : ''}`));
       }
     }
   });
@@ -461,16 +464,16 @@ const renderPage = (page: PageData): string => {
   addCell(32, 1, 4, 7, '給藥記錄簽署<br />簽名=已服藥; HL=因事回家; A=入院; S=自理;<br />LM=缺藥中; C=已痊愈; P=暫停;<br />R=拒絕一種或以上藥物; O=其他 (請註明);<br />R或O 請通知護士/保健員作出跟進並作適當記錄;<br />處方日期=該藥物第一次被處方的使用日期', 'legend-cell');
   addCell(36, 1, 1, 7, htmlEscape(line1), 'legend-cell staff-code');
   addCell(37, 1, 1, 7, htmlEscape(line2), 'legend-cell staff-code');
-  addCell(32, 8, 6, 2, patient.院友相片 ? `<img class="patient-photo" src="${htmlEscape(patient.院友相片)}" alt="" />` : '', 'photo-cell');
-  addCell(32, 10, 6, 2, '給藥簽署', 'dispense-title');
+  addCell(32, 8, 6, 2, patient.院友相片 ? `<img class="patient-photo" src="${htmlEscape(patient.院友相片)}" alt="" />` : '', box('photo-cell'));
+  addCell(32, 10, 6, 2, '給藥簽署', box('dispense-title'));
 
   const summaryDayRows = renderSummaryDayCells(page);
   for (let index = 0; index < 6; index++) {
     const row = 32 + index;
-    addCell(row, 12, 1, 2, htmlEscape(page.timeSlots[index] || ''), 'time-cell');
+    addCell(row, 12, 1, 2, htmlEscape(page.timeSlots[index] || ''), box('time-cell'));
     for (let day = 1; day <= 31; day++) {
       const dayCell = summaryDayRows[index]?.[day - 1] || { content: '', disabled: true };
-      addCell(row, 13 + day, 1, 1, htmlEscape(dayCell.content), `summary-day${dayCell.disabled ? ' disabled-day' : ''}`);
+      addCell(row, 13 + day, 1, 1, htmlEscape(dayCell.content), box(`summary-day${dayCell.disabled ? ' disabled-day' : ''}`));
     }
   }
 
@@ -535,8 +538,8 @@ const generateMedicationRecordHtml = (pages: PageData[]): string => `<!DOCTYPE h
     justify-content: center;
     min-width: 0;
     min-height: 0;
-    border: 0.7px solid #111;
-    margin: -0.35px 0 0 -0.35px;
+    border: 0.45px solid #d9d9d9;
+    margin: -0.225px 0 0 -0.225px;
     padding: 1px 2px;
     overflow: hidden;
     font-size: 8px;
@@ -545,16 +548,26 @@ const generateMedicationRecordHtml = (pages: PageData[]): string => `<!DOCTYPE h
     white-space: pre-line;
     word-break: break-word;
   }
-  .title { font-size: 16px; }
-  .route-title { align-items: flex-start; padding-top: 3px; font-size: 20px; text-decoration: underline; }
-  .month-title { font-size: 11px; border-top-color: transparent; }
+  .box {
+    border-color: #000;
+    border-width: 0.8px;
+    z-index: 1;
+  }
+  .section-gap {
+    border-top-color: #d9d9d9;
+    border-bottom: 2px solid #000;
+    z-index: 2;
+  }
+  .title { font-size: 15px; }
+  .route-title { align-items: flex-start; padding-top: 2px; font-size: 20px; text-decoration: underline; }
+  .month-title { font-size: 11px; color: transparent; }
   .label-lg { font-size: 13px; }
   .value-lg { align-items: flex-start; justify-content: flex-start; padding: 5px; font-size: 12px; }
   .field-label { justify-content: flex-start; padding-left: 3px; font-size: 13px; }
-  .field-value { font-size: 14px; font-weight: 700; }
+  .field-value { font-size: 13px; font-weight: 700; }
   .header-cell { font-size: 13px; }
   .drug-header { font-size: 15px; }
-  .sign-header { font-size: 14px; letter-spacing: 8px; }
+  .sign-header { font-size: 14px; letter-spacing: 9px; }
   .date-cell, .route-cell, .time-cell, .time-label { font-size: 8px; }
   .drug-cell { align-items: flex-start; justify-content: flex-start; padding: 4px; font-size: 10px; text-align: left; }
   .source-cell { justify-content: flex-start; padding-left: 4px; font-size: 8px; text-align: left; }
@@ -573,7 +586,7 @@ const generateMedicationRecordHtml = (pages: PageData[]): string => `<!DOCTYPE h
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, transparent calc(50% - 0.35px), #111 calc(50% - 0.35px), #111 calc(50% + 0.35px), transparent calc(50% + 0.35px));
+    background: linear-gradient(135deg, transparent calc(50% - 0.3px), #111 calc(50% - 0.3px), #111 calc(50% + 0.3px), transparent calc(50% + 0.3px));
     pointer-events: none;
   }
   .disabled-day { background: #d3d3d3 !important; }
@@ -582,18 +595,18 @@ const generateMedicationRecordHtml = (pages: PageData[]): string => `<!DOCTYPE h
     align-items: stretch;
     justify-content: space-between;
     padding: 3px;
-    font-size: 15px;
+    font-size: 14px;
   }
   .diagonal-sign::after {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(to bottom right, transparent calc(50% - 0.35px), #111 calc(50% - 0.35px), #111 calc(50% + 0.35px), transparent calc(50% + 0.35px));
+    background: linear-gradient(to bottom right, transparent calc(50% - 0.3px), #111 calc(50% - 0.3px), #111 calc(50% + 0.3px), transparent calc(50% + 0.3px));
     pointer-events: none;
   }
   .diagonal-sign span:first-child { align-self: flex-end; }
   .diagonal-sign span:last-child { align-self: center; }
-  .legend-cell { align-items: flex-start; justify-content: flex-start; padding: 2px; font-size: 9px; line-height: 1.2; text-align: left; }
+  .legend-cell { align-items: flex-start; justify-content: flex-start; padding: 2px; font-size: 9px; line-height: 1.25; text-align: left; border-top-color: #000; }
   .staff-code { font-size: 8px; }
   .photo-cell { padding: 1px; }
   .patient-photo { max-width: 100%; max-height: 100%; object-fit: contain; }
