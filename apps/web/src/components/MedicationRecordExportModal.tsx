@@ -3,6 +3,7 @@ import { X, FileDown, Calendar, Users, CheckSquare, Square, AlertCircle, Pill, S
 import { usePatients } from '../context/PatientContext';
 import { getTemplatesMetadata } from '../lib/database';
 import { exportMedicationRecordToExcel, exportSelectedMedicationRecordToExcel, categorizePrescriptionsByRoute, exportBlankMedicationRecordToExcel, exportBatchBlankMedicationRecordToExcel } from '../utils/medicationRecordExcelGenerator';
+import { exportMedicationRecordToHtml } from '../utils/medicationRecordHtmlExporter';
 import { exportPersonalMedicationListToExcel, exportSelectedPersonalMedicationListToExcel } from '../utils/personalMedicationListExcelGenerator';
 import { supabase } from '../lib/supabase';
 import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
@@ -39,6 +40,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   const [includeInactive, setIncludeInactive] = useState(false);
   const [includeWorkflowRecords, setIncludeWorkflowRecords] = useState(false);
   const [includePersonalMedicationList, setIncludePersonalMedicationList] = useState(false);
+  const [outputFormat, setOutputFormat] = useState<'excel' | 'html'>('excel');
   const [isExporting, setIsExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [prescriptionsWithWorkflowRecords, setPrescriptionsWithWorkflowRecords] = useState<Set<string>>(new Set());
@@ -315,10 +317,11 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         return;
       }
 
-      const shouldExportMedicationRecord = !includePersonalMedicationList || includeInactive || includeWorkflowRecords;
-      const shouldExportPersonalMedicationList = includePersonalMedicationList;
+      const isHtmlOutput = outputFormat === 'html';
+      const shouldExportMedicationRecord = isHtmlOutput || !includePersonalMedicationList || includeInactive || includeWorkflowRecords;
+      const shouldExportPersonalMedicationList = !isHtmlOutput && includePersonalMedicationList;
 
-      if (shouldExportMedicationRecord && !medicationTemplate) {
+      if (shouldExportMedicationRecord && !isHtmlOutput && !medicationTemplate) {
         alert('找不到個人備藥及給藥記錄範本，請先在範本管理上傳範本');
         setIsExporting(false);
         return;
@@ -336,20 +339,29 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
       let personalMedicationListMessage = '';
 
       if (exportMode === 'current' && currentPatient) {
-        if (shouldExportMedicationRecord && medicationTemplate) {
-          await exportSelectedMedicationRecordToExcel(
-            Array.from(currentPatientSelectedPrescriptions),
-            currentPatient.patient,
-            allPrescriptions,
-            medicationTemplate,
-            selectedMonth,
-            includeInactive,
-            includeWorkflowRecords
-          );
+        if (shouldExportMedicationRecord) {
+          if (isHtmlOutput) {
+            await exportMedicationRecordToHtml([
+              {
+                ...currentPatient.patient,
+                prescriptions: currentPatientPrescriptionsToExport
+              }
+            ], selectedMonth, includeWorkflowRecords);
+          } else if (medicationTemplate) {
+            await exportSelectedMedicationRecordToExcel(
+              Array.from(currentPatientSelectedPrescriptions),
+              currentPatient.patient,
+              allPrescriptions,
+              medicationTemplate,
+              selectedMonth,
+              includeInactive,
+              includeWorkflowRecords
+            );
+          }
 
           medicationRecordSuccess = true;
           const totalPrescriptions = currentRouteStats.oral + currentRouteStats.injection + currentRouteStats.topical;
-          medicationRecordMessage = `【個人備藥及給藥記錄】\n`;
+          medicationRecordMessage = `【個人備藥及給藥記錄${isHtmlOutput ? ' HTML列印版' : ''}】\n`;
           medicationRecordMessage += `共匯出 ${totalPrescriptions} 個處方\n\n`;
           medicationRecordMessage += `途徑分布：\n`;
           if (currentRouteStats.oral > 0) medicationRecordMessage += `  口服：${currentRouteStats.oral} 個\n`;
@@ -424,12 +436,16 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           return;
         }
 
-        if (shouldExportMedicationRecord && medicationTemplate && selectedPatients.length > 0) {
-          await exportMedicationRecordToExcel(selectedPatients, medicationTemplate, selectedMonth, undefined, includeWorkflowRecords);
+        if (shouldExportMedicationRecord && selectedPatients.length > 0) {
+          if (isHtmlOutput) {
+            await exportMedicationRecordToHtml(selectedPatients, selectedMonth, includeWorkflowRecords);
+          } else if (medicationTemplate) {
+            await exportMedicationRecordToExcel(selectedPatients, medicationTemplate, selectedMonth, undefined, includeWorkflowRecords);
+          }
 
           medicationRecordSuccess = true;
           const totalPrescriptions = batchRouteStats.oral + batchRouteStats.injection + batchRouteStats.topical;
-          medicationRecordMessage = `【個人備藥及給藥記錄】\n`;
+          medicationRecordMessage = `【個人備藥及給藥記錄${isHtmlOutput ? ' HTML列印版' : ''}】\n`;
           medicationRecordMessage += `共匯出 ${selectedPatients.length} 位院友的處方記錄\n`;
           medicationRecordMessage += `總處方數：${totalPrescriptions} 個\n\n`;
           medicationRecordMessage += `途徑分布：\n`;
@@ -594,6 +610,36 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
             </div>
 
             <div className="flex flex-col space-y-2 pt-8">
+              {!isBlankMode && (
+                <div>
+                  <label className="form-label mb-2">輸出格式</label>
+                  <div className="flex flex-wrap gap-2">
+                    <label className={`px-3 py-2 border rounded-md cursor-pointer text-sm ${outputFormat === 'excel' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-700'}`}>
+                      <input
+                        type="radio"
+                        name="outputFormat"
+                        checked={outputFormat === 'excel'}
+                        onChange={() => setOutputFormat('excel')}
+                        className="sr-only"
+                      />
+                      Excel 檔案
+                    </label>
+                    <label className={`px-3 py-2 border rounded-md cursor-pointer text-sm ${outputFormat === 'html' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-700'}`}>
+                      <input
+                        type="radio"
+                        name="outputFormat"
+                        checked={outputFormat === 'html'}
+                        onChange={() => {
+                          setOutputFormat('html');
+                          setIncludePersonalMedicationList(false);
+                        }}
+                        className="sr-only"
+                      />
+                      HTML 列印版
+                    </label>
+                  </div>
+                </div>
+              )}
               {!isBlankMode && (exportMode === 'batch' || isExportAll) && (
                 <label className="flex flex-wrap items-center gap-2 cursor-pointer">
                   <input
@@ -618,7 +664,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                   <span className="text-sm text-gray-700">包含執核派記錄</span>
                 </label>
               )}
-              {!isBlankMode && (
+              {!isBlankMode && outputFormat === 'excel' && (
                 <label className="flex flex-wrap items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -628,6 +674,11 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                   />
                   <span className="text-sm text-gray-700">匯出個人藥物記錄</span>
                 </label>
+              )}
+              {!isBlankMode && outputFormat === 'html' && (
+                <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md p-2">
+                  HTML 列印版會在新視窗開啟，版面按 Excel 藥紙範本比例生成。
+                </div>
               )}
             </div>
           </div>
