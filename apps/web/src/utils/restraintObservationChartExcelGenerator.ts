@@ -538,6 +538,26 @@ const applyRestraintObservationTemplateFormat = (
       worksheet.getCell('Q17').value = getCheckboxSymbol(!!tableBoard.otherTime);
       worksheet.getCell('S17').value = tableBoard.otherTime || '';
     }
+    // 其他 (rows 18-19)
+    const otherRestraint = assessment.suggested_restraints['其他：'] || {};
+    worksheet.getCell('B18').value = getCheckboxSymbol(otherRestraint.checked || false);
+    if (otherRestraint.checked) {
+      worksheet.getCell('A19').value = otherRestraint.otherRestraintType || '';
+      // 使用情況
+      worksheet.getCell('D18').value = getCheckboxSymbol(otherRestraint.usageConditions === '坐在椅上');
+      worksheet.getCell('H18').value = getCheckboxSymbol(otherRestraint.usageConditions === '躺在床上');
+      worksheet.getCell('D19').value = getCheckboxSymbol(otherRestraint.usageConditions === '坐在椅上及躺在床上');
+      // 時段
+      worksheet.getCell('J18').value = getCheckboxSymbol(otherRestraint.dayTime || false);
+      worksheet.getCell('M18').value = otherRestraint.dayStartTime || '';
+      worksheet.getCell('O18').value = otherRestraint.dayEndTime || '';
+      worksheet.getCell('J19').value = getCheckboxSymbol(otherRestraint.nightTime || false);
+      worksheet.getCell('M19').value = otherRestraint.nightStartTime || '';
+      worksheet.getCell('O19').value = otherRestraint.nightEndTime || '';
+      worksheet.getCell('Q18').value = getCheckboxSymbol(otherRestraint.allDay || false);
+      worksheet.getCell('Q19').value = getCheckboxSymbol(!!otherRestraint.otherTime);
+      worksheet.getCell('S19').value = otherRestraint.otherTime || '';
+    }
   }
     // 使用 ExcelJS 標準語法設定分頁符
     // 設定行分頁符：在第54行後分頁
