@@ -949,7 +949,22 @@ export const getPatientByQrCodeId = async (qrCodeId: string): Promise<Patient | 
 };
 
 export const assignPatientToBed = async (patientId: number, bedId: string): Promise<void> => {
-  const { error } = await supabase.from('院友主表').update({ bed_id: bedId }).eq('院友id', patientId);
+  const { data: bed, error: bedError } = await supabase
+    .from('beds')
+    .select('id, station_id, bed_number')
+    .eq('id', bedId)
+    .single();
+  if (bedError) throw bedError;
+
+  const { error } = await supabase
+    .from('院友主表')
+    .update({
+      bed_id: bed.id,
+      station_id: bed.station_id,
+      床號: bed.bed_number,
+      在住狀態: '在住'
+    })
+    .eq('院友id', patientId);
   if (error) throw error;
 };
 export const swapPatientBeds = async (patientId1: number, patientId2: number): Promise<void> => {
@@ -958,14 +973,41 @@ export const swapPatientBeds = async (patientId1: number, patientId2: number): P
   const patient1 = patients?.find(p => p.院友id === patientId1);
   const patient2 = patients?.find(p => p.院友id === patientId2);
   if (!patient1 || !patient2) throw new Error('找不到院友資料');
-  const { error: updateError1 } = await supabase.from('院友主表').update({ bed_id: patient2.bed_id }).eq('院友id', patientId1);
+
+  const bedIds = [patient1.bed_id, patient2.bed_id].filter(Boolean) as string[];
+  const { data: beds, error: bedsError } = await supabase
+    .from('beds')
+    .select('id, station_id, bed_number')
+    .in('id', bedIds);
+  if (bedsError) throw bedsError;
+
+  const bed1 = beds?.find(b => b.id === patient1.bed_id);
+  const bed2 = beds?.find(b => b.id === patient2.bed_id);
+  if (!bed1 || !bed2) throw new Error('找不到床位資料');
+
+  const { error: updateError1 } = await supabase.from('院友主表').update({
+    bed_id: bed2.id,
+    station_id: bed2.station_id,
+    床號: bed2.bed_number
+  }).eq('院友id', patientId1);
   if (updateError1) throw updateError1;
-  const { error: updateError2 } = await supabase.from('院友主表').update({ bed_id: patient1.bed_id }).eq('院友id', patientId2);
+  const { error: updateError2 } = await supabase.from('院友主表').update({
+    bed_id: bed1.id,
+    station_id: bed1.station_id,
+    床號: bed1.bed_number
+  }).eq('院友id', patientId2);
   if (updateError2) throw updateError2;
 };
 export const moveBedToStation = async (bedId: string, newStationId: string): Promise<void> => {
   const { error } = await supabase.from('beds').update({ station_id: newStationId }).eq('id', bedId);
   if (error) throw error;
+
+  const { error: patientError } = await supabase
+    .from('院友主表')
+    .update({ station_id: newStationId })
+    .eq('bed_id', bedId)
+    .eq('在住狀態', '在住');
+  if (patientError) throw patientError;
 };
 export const getSchedules = async (): Promise<Schedule[]> => {
   const { data, error } = await supabase.from('到診排程主表').select('*').order('到診日期', { ascending: false });

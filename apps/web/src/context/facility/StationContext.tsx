@@ -140,15 +140,12 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
   const assignPatientToBed = useCallback(async (patientId: number, bedId: string) => {
     try {
       await db.assignPatientToBed(patientId, bedId);
-      // 更新床位佔用狀態
-      setBeds(prev => prev.map(b => 
-        b.id === bedId ? { ...b, is_occupied: true } : b
-      ));
+      await refreshStationData();
     } catch (error) {
       console.error('Error assigning patient to bed:', error);
       throw error;
     }
-  }, []);
+  }, [refreshStationData]);
 
   const swapPatientBeds = useCallback(async (patientId1: number, patientId2: number) => {
     try {
@@ -164,14 +161,12 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
   const moveBedToStation = useCallback(async (bedId: string, newStationId: string) => {
     try {
       await db.moveBedToStation(bedId, newStationId);
-      setBeds(prev => prev.map(b => 
-        b.id === bedId ? { ...b, station_id: newStationId } : b
-      ));
+      await refreshStationData();
     } catch (error) {
       console.error('Error moving bed to station:', error);
       throw error;
     }
-  }, []);
+  }, [refreshStationData]);
 
   const value: StationContextType = {
     stations,

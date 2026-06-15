@@ -258,9 +258,9 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     addBed,
     updateBed,
     deleteBed,
-    assignPatientToBed,
-    swapPatientBeds,
-    moveBedToStation,
+    assignPatientToBed: assignPatientToBedInStation,
+    swapPatientBeds: swapPatientBedsInStation,
+    moveBedToStation: moveBedToStationInStation,
     refreshStationData,
   } = useStation();
   
@@ -716,6 +716,21 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     } catch (error) {
       console.error('Error deleting patient:', error);
     }
+  };
+
+  const assignPatientToBed = async (patientId: number, bedId: string) => {
+    await assignPatientToBedInStation(patientId, bedId);
+    await refreshData();
+  };
+
+  const swapPatientBeds = async (patientId1: number, patientId2: number) => {
+    await swapPatientBedsInStation(patientId1, patientId2);
+    await refreshData();
+  };
+
+  const moveBedToStation = async (bedId: string, newStationId: string) => {
+    await moveBedToStationInStation(bedId, newStationId);
+    await refreshData();
   };
   // addPatientHealthTask, updatePatientHealthTask, deletePatientHealthTask 已遷移至 HealthTaskContext
   // addHealthRecord, updateHealthRecord, deleteHealthRecord 已遷移至 HealthRecordContext
