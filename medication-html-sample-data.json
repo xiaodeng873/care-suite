@@ -1,0 +1,344 @@
+{
+  "generatedAt": "2026-06-15T14:22:27.805Z",
+  "purpose": "High-fidelity HTML renderer fixture for 個人備藥及給藥記錄. Data is anonymized but shaped to exercise Excel mapping, layout, and workflow rendering.",
+  "selectedMonth": "2026-06",
+  "patients": [
+    {
+      "id": "sample-patient-001",
+      "patient_number": "P-2026-0001",
+      "name": "陳美蓮",
+      "chinese_name": "陳美蓮",
+      "english_name": "CHAN Mei Lin",
+      "sex": "女",
+      "gender": "女",
+      "birth_date": "1942-09-18",
+      "age": 83,
+      "bed": "2A-08",
+      "bed_number": "2A-08",
+      "room": "2A",
+      "floor": "2/F",
+      "admission_date": "2025-11-03",
+      "allergies": "青霉素、花生；曾出現皮疹",
+      "adverse_reactions": "服用曲馬多後嗜睡及頭暈",
+      "photo_url": "",
+      "prescriptions": [
+        {
+          "id": "rx-oral-001",
+          "route": "oral",
+          "category": "口服",
+          "medication_name": "Amlodipine Tab 5mg 氨氯地平片",
+          "drug_name": "Amlodipine Tab 5mg 氨氯地平片",
+          "dosage": "5mg",
+          "unit": "tab",
+          "frequency": "每日一次",
+          "frequency_code": "QD",
+          "times": [
+            "08:00"
+          ],
+          "instructions": "早餐後服",
+          "start_date": "2026-05-12",
+          "end_date": null,
+          "status": "active",
+          "is_prn": false,
+          "is_self_administered": false
+        },
+        {
+          "id": "rx-oral-002",
+          "route": "oral",
+          "category": "口服",
+          "medication_name": "Metformin XR Tab 500mg 二甲雙胍緩釋片",
+          "drug_name": "Metformin XR Tab 500mg 二甲雙胍緩釋片",
+          "dosage": "500mg",
+          "unit": "tab",
+          "frequency": "每日兩次",
+          "frequency_code": "BID",
+          "times": [
+            "08:00",
+            "20:00"
+          ],
+          "instructions": "餐後服用，勿咬碎",
+          "start_date": "2026-06-01",
+          "end_date": null,
+          "status": "active",
+          "is_prn": false,
+          "is_self_administered": false
+        },
+        {
+          "id": "rx-oral-003",
+          "route": "oral",
+          "category": "口服",
+          "medication_name": "Carbidopa/Levodopa Controlled Release Tablet 25/100mg 長效複方多巴胺片",
+          "drug_name": "Carbidopa/Levodopa Controlled Release Tablet 25/100mg 長效複方多巴胺片",
+          "dosage": "1 tablet",
+          "unit": "tab",
+          "frequency": "每日四次",
+          "frequency_code": "QID",
+          "times": [
+            "06:00",
+            "12:00",
+            "18:00",
+            "22:00"
+          ],
+          "instructions": "定時服用，藥名特長用作測試換行",
+          "start_date": "2026-05-20",
+          "end_date": "2026-06-25",
+          "status": "active",
+          "is_prn": false,
+          "is_self_administered": false
+        },
+        {
+          "id": "rx-oral-004",
+          "route": "oral",
+          "category": "口服",
+          "medication_name": "Paracetamol Tab 500mg 撲熱息痛片",
+          "drug_name": "Paracetamol Tab 500mg 撲熱息痛片",
+          "dosage": "500mg-1g",
+          "unit": "tab",
+          "frequency": "有需要時，每6小時一次",
+          "frequency_code": "PRN Q6H",
+          "times": [
+            "PRN"
+          ],
+          "instructions": "發熱或痛楚時服，24小時最多8粒",
+          "start_date": "2026-06-02",
+          "end_date": null,
+          "status": "active",
+          "is_prn": true,
+          "is_self_administered": false
+        },
+        {
+          "id": "rx-oral-005",
+          "route": "oral",
+          "category": "口服",
+          "medication_name": "Calcium Carbonate + Vitamin D3 Chewable Tab 鈣片",
+          "drug_name": "Calcium Carbonate + Vitamin D3 Chewable Tab 鈣片",
+          "dosage": "1 tablet",
+          "unit": "tab",
+          "frequency": "每日一次",
+          "frequency_code": "QD",
+          "times": [
+            "14:00"
+          ],
+          "instructions": "院友自理藥物，午餐後",
+          "start_date": "2026-06-10",
+          "end_date": "2026-06-30",
+          "status": "active",
+          "is_prn": false,
+          "is_self_administered": true
+        },
+        {
+          "id": "rx-topical-001",
+          "route": "topical",
+          "category": "外用",
+          "medication_name": "Hydrocortisone Cream 1% 氫化可的松藥膏",
+          "drug_name": "Hydrocortisone Cream 1% 氫化可的松藥膏",
+          "dosage": "薄塗患處",
+          "unit": "application",
+          "frequency": "每日兩次",
+          "frequency_code": "BID",
+          "times": [
+            "09:00",
+            "21:00"
+          ],
+          "instructions": "左小腿濕疹位置",
+          "start_date": "2026-06-01",
+          "end_date": "2026-06-14",
+          "status": "active",
+          "is_prn": false,
+          "is_self_administered": false
+        },
+        {
+          "id": "rx-topical-002",
+          "route": "topical",
+          "category": "外用",
+          "medication_name": "Timolol Eye Drops 0.5% 噻嗎洛爾眼藥水",
+          "drug_name": "Timolol Eye Drops 0.5% 噻嗎洛爾眼藥水",
+          "dosage": "1 drop each eye",
+          "unit": "drop",
+          "frequency": "每日兩次",
+          "frequency_code": "BID",
+          "times": [
+            "08:00",
+            "20:00"
+          ],
+          "instructions": "雙眼，每次一滴",
+          "start_date": "2026-05-01",
+          "end_date": null,
+          "status": "active",
+          "is_prn": false,
+          "is_self_administered": false
+        },
+        {
+          "id": "rx-injection-001",
+          "route": "injection",
+          "category": "注射",
+          "medication_name": "Insulin Glargine Injection 100 units/ml 甘精胰島素",
+          "drug_name": "Insulin Glargine Injection 100 units/ml 甘精胰島素",
+          "dosage": "12 units",
+          "unit": "unit",
+          "frequency": "每日一次",
+          "frequency_code": "QD",
+          "times": [
+            "21:00"
+          ],
+          "instructions": "皮下注射，睡前",
+          "start_date": "2026-05-18",
+          "end_date": null,
+          "status": "active",
+          "is_prn": false,
+          "is_self_administered": false
+        },
+        {
+          "id": "rx-injection-002",
+          "route": "injection",
+          "category": "注射",
+          "medication_name": "Vitamin B12 Injection 1mg/ml 維他命B12注射液",
+          "drug_name": "Vitamin B12 Injection 1mg/ml 維他命B12注射液",
+          "dosage": "1ml",
+          "unit": "ml",
+          "frequency": "每週一次",
+          "frequency_code": "Weekly",
+          "times": [
+            "10:00"
+          ],
+          "scheduled_weekdays": [
+            "Monday"
+          ],
+          "instructions": "逢星期一肌肉注射",
+          "start_date": "2026-06-01",
+          "end_date": "2026-06-29",
+          "status": "active",
+          "is_prn": false,
+          "is_self_administered": false
+        }
+      ],
+      "workflowRecords": [
+        {
+          "id": "wf-001",
+          "prescription_id": "rx-oral-001",
+          "date": "2026-06-01",
+          "time": "08:00",
+          "route": "oral",
+          "status": "completed",
+          "prepared_by": "黃姑娘",
+          "verified_by": "李姑娘",
+          "administered_by": "陳姑娘",
+          "staff_code": "A1",
+          "display": "A1"
+        },
+        {
+          "id": "wf-002",
+          "prescription_id": "rx-oral-002",
+          "date": "2026-06-01",
+          "time": "20:00",
+          "route": "oral",
+          "status": "refused",
+          "prepared_by": "黃姑娘",
+          "verified_by": "李姑娘",
+          "administered_by": "陳姑娘",
+          "staff_code": "拒",
+          "display": "拒"
+        },
+        {
+          "id": "wf-003",
+          "prescription_id": "rx-oral-003",
+          "date": "2026-06-12",
+          "time": "18:00",
+          "route": "oral",
+          "status": "home_leave",
+          "prepared_by": "",
+          "verified_by": "",
+          "administered_by": "",
+          "staff_code": "假",
+          "display": "假"
+        },
+        {
+          "id": "wf-004",
+          "prescription_id": "rx-oral-004",
+          "date": "2026-06-15",
+          "time": "PRN",
+          "route": "oral",
+          "status": "completed_prn",
+          "prepared_by": "梁姑娘",
+          "verified_by": "李姑娘",
+          "administered_by": "梁姑娘",
+          "staff_code": "B2",
+          "display": "B2 14:35"
+        },
+        {
+          "id": "wf-005",
+          "prescription_id": "rx-topical-002",
+          "date": "2026-06-18",
+          "time": "08:00",
+          "route": "topical",
+          "status": "suspended",
+          "prepared_by": "",
+          "verified_by": "",
+          "administered_by": "",
+          "staff_code": "停",
+          "display": "停"
+        },
+        {
+          "id": "wf-006",
+          "prescription_id": "rx-injection-001",
+          "date": "2026-06-30",
+          "time": "21:00",
+          "route": "injection",
+          "status": "completed",
+          "prepared_by": "黃姑娘",
+          "verified_by": "吳姑娘",
+          "administered_by": "吳姑娘",
+          "staff_code": "C3",
+          "display": "C3"
+        }
+      ]
+    }
+  ],
+  "staffCodeLegend": [
+    {
+      "code": "A1",
+      "staffName": "陳姑娘"
+    },
+    {
+      "code": "B2",
+      "staffName": "梁姑娘"
+    },
+    {
+      "code": "C3",
+      "staffName": "吳姑娘"
+    },
+    {
+      "code": "拒",
+      "meaning": "院友拒服 / 拒用"
+    },
+    {
+      "code": "停",
+      "meaning": "暫停給藥"
+    },
+    {
+      "code": "假",
+      "meaning": "院友外出 / 回家假"
+    }
+  ],
+  "rendererExpectations": {
+    "templateArea": "A1:AR37",
+    "dayColumns": "N:AR",
+    "prescriptionRows": "7:31 in 5-row groups",
+    "timeSummaryRows": "32:37",
+    "photoArea": "J32:K37",
+    "routeSheets": [
+      "口服",
+      "外用",
+      "注射"
+    ],
+    "edgeCases": [
+      "long Chinese/English medication name requiring wrapping",
+      "31 day month grid with cross-month prescription start/end dates",
+      "PRN medication display",
+      "self-administered medication display",
+      "multiple daily time slots",
+      "weekly injection schedule",
+      "workflow symbols for completed/refused/suspended/home leave"
+    ]
+  }
+}
