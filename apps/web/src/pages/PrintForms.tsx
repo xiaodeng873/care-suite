@@ -718,6 +718,7 @@ const PrintForms: React.FC = () => {
                       <option value="">所有類型</option>
                       <option value="綜合社會保障援助">綜合社會保障援助</option>
                       <option value="公共福利金計劃">公共福利金計劃</option>
+                      <option value="公務員">公務員</option>
                     </select>
                   </div>
                 </div>

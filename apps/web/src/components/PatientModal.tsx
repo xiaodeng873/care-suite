@@ -810,9 +810,10 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                 <option value="">請選擇社會福利</option>
                 <option value="綜合社會保障援助">綜合社會保障援助</option>
                 <option value="公共福利金計劃">公共福利金計劃</option>
+                <option value="公務員">公務員</option>
               </select>
               
-              {socialWelfareType === '公共福利金計劃' && (
+              {(socialWelfareType === '公共福利金計劃' || socialWelfareType === '公務員') && (
                 <div className="mt-2">
                   <select
                     value={socialWelfareSubtype}
@@ -820,9 +821,20 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                     className="form-input"
                   >
                     <option value="">選擇項目</option>
-                    <option value="長者生活津貼">長者生活津貼</option>
-                    <option value="普通傷殘津貼">普通傷殘津貼</option>
-                    <option value="高額傷殘津貼">高額傷殘津貼</option>
+                    {socialWelfareType === '公共福利金計劃' && (
+                      <>
+                        <option value="長者生活津貼">長者生活津貼</option>
+                        <option value="高齡津貼">高齡津貼</option>
+                        <option value="普通傷殘津貼">普通傷殘津貼</option>
+                        <option value="高額傷殘津貼">高額傷殘津貼</option>
+                      </>
+                    )}
+                    {socialWelfareType === '公務員' && (
+                      <>
+                        <option value="公務員本人">公務員本人</option>
+                        <option value="公務員家屬">公務員家屬</option>
+                      </>
+                    )}
                   </select>
                 </div>
               )}
