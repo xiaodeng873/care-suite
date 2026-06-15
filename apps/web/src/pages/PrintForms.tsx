@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { 
-  Printer, 
-  FileText, 
-  Trash2, 
-  CheckCircle, 
+import {
+  Printer,
+  FileText,
+  Trash2,
+  CheckCircle,
   Plus,
   Search,
   Filter,
@@ -13,7 +13,8 @@ import {
   Upload,
   Download,
   X,
-  AlertCircle
+  AlertCircle,
+  Calendar
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { usePatients } from '../context/PatientContext';
@@ -38,6 +39,15 @@ interface AdvancedFilters {
   性別: string;
   社會福利: string;
 }
+
+const getCurrentMonthDateRange = () => {
+  const today = new Date();
+  return {
+    startDate: new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0],
+    endDate: new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0]
+  };
+};
+
 const PrintForms: React.FC = () => {
   const { patients, loading, patientRestraintAssessments, stations, beds } = usePatients();
   const [templates, setTemplates] = useState<any[]>([]);
@@ -62,6 +72,8 @@ const PrintForms: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [showYearMonthModal, setShowYearMonthModal] = useState(false);
   const [showPersonalHygieneMonthModal, setShowPersonalHygieneMonthModal] = useState(false);
+  const [showObservationDateRangeModal, setShowObservationDateRangeModal] = useState(false);
+  const [observationDateRange, setObservationDateRange] = useState(getCurrentMonthDateRange);
   const [personalHygieneMonths, setPersonalHygieneMonths] = useState(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -336,26 +348,55 @@ const PrintForms: React.FC = () => {
   const handleRestraintObservationExport = async () => {
     const selectedPatientIds = Array.from(selectedRows);
     // 獲取選中院友的約束評估記錄
-    const selectedAssessments = patientRestraintAssessments.filter(assessment => 
+    const selectedAssessments = patientRestraintAssessments.filter(assessment =>
       selectedPatientIds.includes(assessment.patient_id)
     );
     if (selectedAssessments.length === 0) {
       alert('選中的院友沒有約束評估記錄');
       return;
     }
+
+    setShowObservationDateRangeModal(true);
+  };
+
+  const handleConfirmObservationExport = async () => {
+    const selectedPatientIds = Array.from(selectedRows);
+    const selectedAssessments = patientRestraintAssessments.filter(assessment =>
+      selectedPatientIds.includes(assessment.patient_id)
+    );
+
+    if (selectedAssessments.length === 0) {
+      alert('選中的院友沒有約束評估記錄');
+      return;
+    }
+
+    if (!observationDateRange.startDate || !observationDateRange.endDate) {
+      alert('請選擇完整的日期範圍');
+      return;
+    }
+
+    if (new Date(observationDateRange.startDate) > new Date(observationDateRange.endDate)) {
+      alert('開始日期不能晚於結束日期');
+      return;
+    }
+
     try {
       setIsExporting(true);
-      // 使用當月作為預設日期範圍
-      const today = new Date();
-      const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-      const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+      const sortedAssessments = [...selectedAssessments].sort((a, b) => {
+        const patientA = patients.find(p => p.院友id === a.patient_id);
+        const patientB = patients.find(p => p.院友id === b.patient_id);
+        const bedNumberA = patientA?.床號 || '';
+        const bedNumberB = patientB?.床號 || '';
+        return bedNumberA.localeCompare(bedNumberB, 'zh-Hant', { numeric: true });
+      });
       const { exportRestraintObservationsToExcel } = await import('../utils/restraintObservationChartExcelGenerator');
       await exportRestraintObservationsToExcel(
-        selectedAssessments, 
-        patients, 
-        startDate,
-        endDate
+        sortedAssessments,
+        patients,
+        observationDateRange.startDate,
+        observationDateRange.endDate
       );
+      setShowObservationDateRangeModal(false);
     } catch (error) {
       console.error('匯出約束觀察表失敗:', error);
       alert('匯出約束觀察表失敗，請重試');
@@ -437,15 +478,15 @@ const PrintForms: React.FC = () => {
     }
   };
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode }> = ({ field, children }) => (
-    <th 
+    <th
       className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
       onClick={() => handleSort(field)}
     >
       <div className="flex items-center space-x-1">
         <span>{children}</span>
         {sortField === field && (
-          sortDirection === 'asc' ? 
-            <ChevronUp className="h-4 w-4" /> : 
+          sortDirection === 'asc' ?
+            <ChevronUp className="h-4 w-4" /> :
             <ChevronDown className="h-4 w-4" />
         )}
       </div>
@@ -791,8 +832,8 @@ const PrintForms: React.FC = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedPatients.map(patient => (
-                  <tr 
-                    key={patient.院友id} 
+                  <tr
+                    key={patient.院友id}
                     className={`hover:bg-gray-50 ${selectedRows.has(patient.院友id) ? 'bg-blue-50' : ''}`}
                     onClick={() => handleSelectRow(patient.院友id)}
                   >
@@ -811,9 +852,9 @@ const PrintForms: React.FC = () => {
                       <div className="flex flex-wrap items-center gap-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                           {patient.院友相片 ? (
-                            <img 
-                              src={patient.院友相片} 
-                              alt={patient.中文姓名} 
+                            <img
+                              src={patient.院友相片}
+                              alt={patient.中文姓名}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -944,7 +985,7 @@ const PrintForms: React.FC = () => {
       )}
       {/* 年月選擇模態框 */}
       {showYearMonthModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowYearMonthModal(false);
@@ -1004,7 +1045,7 @@ const PrintForms: React.FC = () => {
       )}
       {/* 個人衛生記錄月份選擇模態框 */}
       {showPersonalHygieneMonthModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowPersonalHygieneMonthModal(false);
@@ -1063,6 +1104,89 @@ const PrintForms: React.FC = () => {
               <button
                 onClick={() => setShowPersonalHygieneMonthModal(false)}
                 className="btn-secondary flex-1"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 約束物品觀察表日期範圍選擇模態框 */}
+      {showObservationDateRangeModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowObservationDateRangeModal(false);
+          }}
+        >
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-100">
+                  <FileText className="h-6 w-6 text-green-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900">選擇觀察期間</h3>
+              </div>
+              <button
+                onClick={() => setShowObservationDateRangeModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                請選擇約束物品觀察表的觀察期間，這將顯示在表格標題中。
+              </p>
+
+              <div>
+                <label className="form-label">
+                  <Calendar className="h-4 w-4 inline mr-1" />
+                  開始日期 *
+                </label>
+                <input
+                  type="date"
+                  value={observationDateRange.startDate}
+                  onChange={(e) => setObservationDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="form-label">
+                  <Calendar className="h-4 w-4 inline mr-1" />
+                  結束日期 *
+                </label>
+                <input
+                  type="date"
+                  value={observationDateRange.endDate}
+                  onChange={(e) => setObservationDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  <strong>觀察期間：</strong>{observationDateRange.startDate || '未選擇'} 至 {observationDateRange.endDate || '未選擇'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <button
+                onClick={handleConfirmObservationExport}
+                className="btn-primary flex-1"
+                disabled={isExporting || !observationDateRange.startDate || !observationDateRange.endDate}
+              >
+                {isExporting ? '匯出中...' : '確認匯出'}
+              </button>
+              <button
+                onClick={() => setShowObservationDateRangeModal(false)}
+                className="btn-secondary flex-1"
+                disabled={isExporting}
               >
                 取消
               </button>
