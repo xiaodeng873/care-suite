@@ -12,6 +12,8 @@ import {
 
 type RouteType = 'oral' | 'topical' | 'injection';
 
+type MarkCell = { content: string; className: string; title: string };
+
 interface HtmlSheetConfig {
   patient: any;
   prescriptions: any[];
@@ -31,16 +33,13 @@ interface PageData {
   pageNumber: number;
 }
 
-const FACILITY_NAME = '善頤 (福群) 護老院';
+const FACILITY_NAME = '善頤 (福群) 護老院 - 院友個人備藥及給藥記錄';
 const MAX_PRESCRIPTIONS_PER_PAGE = 5;
 const MAX_SUMMARY_TIME_SLOTS = 6;
+const DAY_COUNT = 31;
 const ROUTE_LABELS: Record<RouteType, string> = { oral: '口服藥物', topical: '外用藥物', injection: '注射藥物' };
-const ROUTE_PURPOSES: Record<RouteType, string> = {
-  oral: '追蹤每一個服藥時間的執藥與核藥責任，底部彙總派藥簽署。',
-  topical: '追蹤外用、滴眼、滴耳、吸入等非口服藥物的使用時間與核對責任。',
-  injection: '追蹤注射藥物的給藥時間、核對責任與注射位置紀錄。'
-};
-const SPECIAL_CODE_ITEMS = [['A', '入院'], ['S', '自理'], ['R', '拒服 / 拒用'], ['HL', '回家 / 外出'], ['LM', '缺藥中'], ['P/O', '暫停 / 其他，需註明及跟進']];
+const SPECIAL_CODE_ITEMS = [['HL', '因事回家'], ['A', '入院'], ['S', '自理'], ['LM', '缺藥中'], ['C', '已痊愈'], ['P', '暫停'], ['R', '拒絕一種或以上藥物'], ['O', '其他 (請註明)']];
+const SPECIAL_CODES = ['A', 'S', 'R', 'O', 'HL', 'LM', 'P', 'C'];
 
 const htmlEscape = (value: unknown): string => String(value ?? '')
   .replace(/&/g, '&amp;')
@@ -82,20 +81,19 @@ const getPatientName = (patient: any): string => `${patient.中文姓氏 || ''}$
 const getListText = (value: unknown, fallback: string): string => Array.isArray(value) && value.length > 0 ? value.join('、') : typeof value === 'string' && value.trim() ? value : fallback;
 
 const getFrequencyDescription = (prescription: any): string => {
-  const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots } = prescription;
-  const count = medication_time_slots?.length || 0;
+  const count = prescription.medication_time_slots?.length || 0;
   const countLabel = count === 1 ? 'QD' : count === 2 ? 'BD' : count === 3 ? 'TDS' : count === 4 ? 'QID' : count ? `${count}次/日` : '';
-  switch (frequency_type) {
+  switch (prescription.frequency_type) {
     case 'daily': return countLabel;
-    case 'every_x_days': return `隔${frequency_value}日`;
-    case 'every_x_months': return `隔${frequency_value}月`;
+    case 'every_x_days': return `隔${prescription.frequency_value}日`;
+    case 'every_x_months': return `隔${prescription.frequency_value}月`;
     case 'weekly_days': {
       const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
-      const days = specific_weekdays?.map((day: number) => dayNames[day === 7 ? 0 : day]).join('、') || '';
+      const days = prescription.specific_weekdays?.map((day: number) => dayNames[day === 7 ? 0 : day]).join('、') || '';
       return `逢${days}`;
     }
-    case 'odd_even_days': return is_odd_even_day === 'odd' ? '單日' : is_odd_even_day === 'even' ? '雙日' : '單雙日';
-    case 'hourly': return `每${frequency_value}小時`;
+    case 'odd_even_days': return prescription.is_odd_even_day === 'odd' ? '單日' : prescription.is_odd_even_day === 'even' ? '雙日' : '單雙日';
+    case 'hourly': return `每${prescription.frequency_value}小時`;
     default: return countLabel;
   }
 };
@@ -133,13 +131,14 @@ const getTimeSlotRowOffset = (timeStr: string): number => {
 };
 const getTimeSlotsMap = (prescription: any, routeType: RouteType): Record<number, string[]> => {
   const timeSlots = prescription.medication_time_slots || [];
-  const timeSlotsMap: Record<number, string[]> = {};
-  if (routeType === 'injection') {
-    timeSlots.forEach((timeSlot: string) => { if (!timeSlotsMap[1]) timeSlotsMap[1] = []; timeSlotsMap[1].push(timeSlot); });
-    return timeSlotsMap;
-  }
+  if (routeType === 'injection') return { 1: timeSlots };
   if (shouldBreakTimeRangeRule(timeSlots)) return mapTimeSlotsSequentially(timeSlots);
-  timeSlots.forEach((timeSlot: string) => { const rowOffset = getTimeSlotRowOffset(timeSlot); if (!timeSlotsMap[rowOffset]) timeSlotsMap[rowOffset] = []; timeSlotsMap[rowOffset].push(timeSlot); });
+  const timeSlotsMap: Record<number, string[]> = {};
+  timeSlots.forEach((timeSlot: string) => {
+    const rowOffset = getTimeSlotRowOffset(timeSlot);
+    if (!timeSlotsMap[rowOffset]) timeSlotsMap[rowOffset] = [];
+    timeSlotsMap[rowOffset].push(timeSlot);
+  });
   return timeSlotsMap;
 };
 
@@ -198,40 +197,28 @@ const preparePages = async (config: HtmlSheetConfig): Promise<PageData[]> => {
   const workflowRecords = config.includeWorkflowRecords ? await fetchWorkflowRecordsForMonth(config.patient.院友id, prescriptionIds, config.selectedMonth) : [];
   const staffCodeMapping = config.includeWorkflowRecords ? generateStaffCodeMapping(extractStaffNamesFromWorkflowRecords(workflowRecords)) : {};
   const pages: PageData[] = [];
-  let prescriptionIndex = 0;
-  let pageNumber = 1;
-  while (prescriptionIndex < processedPrescriptions.length) {
-    const pageTimeSlots: string[] = [];
-    const pagePrescriptions: any[] = [];
-    while (prescriptionIndex < processedPrescriptions.length && pagePrescriptions.length < MAX_PRESCRIPTIONS_PER_PAGE) {
-      const prescription = processedPrescriptions[prescriptionIndex];
-      const prescriptionTimeSlots = prescription.medication_time_slots || [];
-      const uniqueCount = new Set([...pageTimeSlots, ...prescriptionTimeSlots]).size;
-      if (uniqueCount <= MAX_SUMMARY_TIME_SLOTS || pagePrescriptions.length === 0) {
-        pagePrescriptions.push(prescription);
-        pageTimeSlots.push(...prescriptionTimeSlots);
-        prescriptionIndex++;
-      } else break;
-    }
-    pages.push({ patient: config.patient, routeType: config.routeType, selectedMonth: config.selectedMonth, prescriptions: pagePrescriptions, timeSlots: [...new Set(pageTimeSlots)].sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b)), workflowRecords, staffCodeMapping, pageNumber });
-    pageNumber++;
+  for (let index = 0; index < processedPrescriptions.length; index += MAX_PRESCRIPTIONS_PER_PAGE) {
+    const prescriptions = processedPrescriptions.slice(index, index + MAX_PRESCRIPTIONS_PER_PAGE);
+    const timeSlots = [...new Set(prescriptions.flatMap(p => p.medication_time_slots || []))].sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b));
+    pages.push({ patient: config.patient, routeType: config.routeType, selectedMonth: config.selectedMonth, prescriptions, timeSlots, workflowRecords, staffCodeMapping, pageNumber: pages.length + 1 });
   }
   return pages;
 };
 
-const getAdministrationCell = (page: PageData, prescription: any, dateStr: string, slotsInRow: string[]) => {
+const isSpecialCode = (content: string): boolean => SPECIAL_CODES.includes(content);
+const getAdministrationCell = (page: PageData, prescription: any, dateStr: string, slotsInRow: string[]): MarkCell => {
   const isInRange = slotsInRow.some(timeSlot => isDateInPrescriptionRange(dateStr, timeSlot, prescription));
   if (!isInRange) return { content: '', className: 'not-required', title: '處方未生效或已停用' };
   if (prescription.preparation_method === 'custom') return { content: 'S', className: 'special-code', title: '自理藥物' };
-  if (page.workflowRecords.length === 0) return { content: '', className: 'required', title: '應執行，未包含工作流程記錄' };
+  if (page.workflowRecords.length === 0) return { content: '', className: 'required', title: '應執行，尚未簽署' };
   for (const timeSlot of slotsInRow) {
     const record = getWorkflowRecordForPrescriptionDateTimeSlot(page.workflowRecords, prescription.id, dateStr, timeSlot);
     const formatted = formatWorkflowCellContent(record, page.staffCodeMapping);
-    if (formatted) return { content: formatted, className: ['A', 'S', 'R', 'O', 'HL'].includes(formatted) ? 'special-code' : 'signed', title: '執藥 / 核藥簽署' };
+    if (formatted) return { content: formatted, className: isSpecialCode(formatted) ? 'special-code' : 'signed', title: '執 / 核藥職員簽署' };
   }
   return { content: '', className: 'required', title: '應執行，尚未簽署' };
 };
-const getDispenseCell = (page: PageData, dateStr: string, timeSlot: string) => {
+const getDispenseCell = (page: PageData, dateStr: string, timeSlot: string): MarkCell => {
   let hasRequiredPrescription = false;
   for (const prescription of page.prescriptions) {
     if (!(prescription.medication_time_slots || []).includes(timeSlot)) continue;
@@ -240,9 +227,9 @@ const getDispenseCell = (page: PageData, dateStr: string, timeSlot: string) => {
     if (prescription.preparation_method === 'custom') return { content: 'S', className: 'special-code', title: '自理藥物' };
     const record = getWorkflowRecordForPrescriptionDateTimeSlot(page.workflowRecords, prescription.id, dateStr, timeSlot);
     const formatted = formatDispenseCellContent(record, page.staffCodeMapping);
-    if (formatted) return { content: formatted, className: ['A', 'S', 'R', 'O', 'HL'].includes(formatted) ? 'special-code' : 'signed', title: '派藥簽署' };
+    if (formatted) return { content: formatted, className: isSpecialCode(formatted) ? 'special-code' : 'signed', title: '給藥簽署' };
   }
-  return hasRequiredPrescription ? { content: '', className: 'required', title: '應派藥，尚未簽署' } : { content: '', className: 'not-required', title: '此時間沒有應派藥物' };
+  return hasRequiredPrescription ? { content: '', className: 'required', title: '應給藥，尚未簽署' } : { content: '', className: 'not-required', title: '此時間沒有應給藥物' };
 };
 const getInjectionSiteText = (page: PageData, prescription: any, dateStr: string, slotsInRow: string[]): string => {
   for (const timeSlot of slotsInRow) {
@@ -253,64 +240,75 @@ const getInjectionSiteText = (page: PageData, prescription: any, dateStr: string
   }
   return '';
 };
-const renderDayHeader = (selectedMonth: string): string => {
+const renderDayCells = (renderer: (day: number) => string): string => Array.from({ length: DAY_COUNT }, (_, index) => renderer(index + 1)).join('');
+const renderDayHeaderCells = (selectedMonth: string): string => {
   const daysInMonth = getDaysInMonth(selectedMonth);
-  return Array.from({ length: 31 }, (_, index) => {
-    const day = index + 1;
-    return `<th class="day-heading ${day > daysInMonth ? 'outside-month' : ''}">${day}</th>`;
-  }).join('');
+  return renderDayCells(day => `<th class="day-heading ${day > daysInMonth ? 'outside-month' : ''}">${day}</th>`);
 };
-const renderAdministrationCells = (page: PageData, prescription: any, slotsInRow: string[], rowKind: 'admin' | 'site'): string => {
+const renderMarkCells = (page: PageData, prescription: any, slotsInRow: string[], rowKind: 'admin' | 'site'): string => {
   const daysInMonth = getDaysInMonth(page.selectedMonth);
-  return Array.from({ length: 31 }, (_, index) => {
-    const day = index + 1;
-    if (day > daysInMonth) return '<td class="mark-cell outside-month"></td>';
+  return renderDayCells(day => {
+    if (day > daysInMonth || !prescription?.id) return '<td class="day-cell outside-month"></td>';
     const dateStr = getDateString(page.selectedMonth, day);
     if (rowKind === 'site') {
-      const site = getInjectionSiteText(page, prescription, dateStr, slotsInRow);
       const isRequired = slotsInRow.some(timeSlot => isDateInPrescriptionRange(dateStr, timeSlot, prescription));
-      return `<td class="mark-cell ${isRequired ? 'site-cell' : 'not-required'}">${htmlEscape(site)}</td>`;
+      const site = getInjectionSiteText(page, prescription, dateStr, slotsInRow);
+      return `<td class="day-cell ${isRequired ? 'site-cell' : 'not-required'}">${htmlEscape(site)}</td>`;
     }
     const cell = getAdministrationCell(page, prescription, dateStr, slotsInRow);
-    return `<td class="mark-cell ${cell.className}" title="${htmlEscape(cell.title)}">${htmlEscape(cell.content)}</td>`;
-  }).join('');
+    return `<td class="day-cell ${cell.className}" title="${htmlEscape(cell.title)}">${htmlEscape(cell.content)}</td>`;
+  });
 };
-const renderPrescriptionRows = (page: PageData): string => page.prescriptions.map((prescription, index) => {
-  const timeSlotsMap = getTimeSlotsMap(prescription, page.routeType);
-  const timeRows = page.routeType === 'injection'
-    ? [{ label: '執 / 核', slots: timeSlotsMap[1] || [], kind: 'admin' as const }, { label: '注射位置', slots: timeSlotsMap[1] || [], kind: 'site' as const }]
-    : [1, 2, 3, 4].map(offset => ({ label: offset === 1 ? '早上' : offset === 2 ? '中午 / 下午' : offset === 3 ? '傍晚' : '晚上', slots: timeSlotsMap[offset] || [], kind: 'admin' as const }));
-  const rowSpan = timeRows.length;
-  const instruction = getPrescriptionInstruction(prescription);
-  return timeRows.map((row, rowIndex) => `
-    <tr class="prescription-entry ${index % 2 === 0 ? 'entry-even' : 'entry-odd'}">
-      ${rowIndex === 0 ? `<td class="rx-index" rowspan="${rowSpan}">${index + 1}</td><td class="rx-date" rowspan="${rowSpan}">${htmlEscape(formatDate(prescription.prescription_date || prescription.start_date))}</td><td class="rx-medication" rowspan="${rowSpan}"><div class="rx-name">${htmlEscape(prescription.medication_name || '')}</div><div class="rx-subline">${htmlEscape(prescription.medication_source ? `來源：${prescription.medication_source}` : '')}</div></td><td class="rx-order" rowspan="${rowSpan}"><div>${htmlEscape(prescription.administration_route || '')}</div><div>${htmlEscape(getFrequencyDescription(prescription))}</div><div>${htmlEscape(getDosageText(prescription))}</div><div>${htmlEscape(instruction)}</div></td>` : ''}
-      <td class="rx-time-band"><div class="time-band-label">${htmlEscape(row.label)}</div><div class="time-band-slots">${htmlEscape(row.slots.join(', '))}</div></td>${renderAdministrationCells(page, prescription, row.slots, row.kind)}
-    </tr>`).join('');
-}).join('');
+const renderPrescriptionBlock = (page: PageData, prescription: any | undefined): string => {
+  const isInjection = page.routeType === 'injection';
+  const timeSlotsMap = prescription ? getTimeSlotsMap(prescription, page.routeType) : {};
+  const medicationText = prescription ? [prescription.medication_name, prescription.medication_source ? `來源：${prescription.medication_source}` : ''].filter(Boolean).join('\n') : '';
+  const orderText = prescription ? [prescription.administration_route, getFrequencyDescription(prescription), getDosageText(prescription), getPrescriptionInstruction(prescription)].filter(Boolean).join('\n') : '';
+  const firstSlots = timeSlotsMap[1] || [];
+  const secondSlots = timeSlotsMap[2] || [];
+  const thirdSlots = timeSlotsMap[3] || [];
+  const fourthSlots = timeSlotsMap[4] || [];
+  const rows = isInjection
+    ? [
+        { label: '服用時間', slots: firstSlots, kind: 'admin' as const, classes: 'block-top' },
+        { label: firstSlots.join(', '), slots: firstSlots, kind: 'admin' as const, classes: '' },
+        { label: '注射位置', slots: firstSlots, kind: 'site' as const, classes: '' },
+        { label: '執: 核：', slots: firstSlots, kind: 'admin' as const, classes: 'block-sign' },
+        { label: '', slots: firstSlots, kind: 'admin' as const, classes: 'block-bottom' }
+      ]
+    : [
+        { label: '服用時間', slots: firstSlots, kind: 'admin' as const, classes: 'block-top' },
+        { label: firstSlots.join(', '), slots: firstSlots, kind: 'admin' as const, classes: '' },
+        { label: secondSlots.concat(thirdSlots).join(', '), slots: secondSlots.concat(thirdSlots), kind: 'admin' as const, classes: '' },
+        { label: '執: 核：', slots: fourthSlots.length ? fourthSlots : firstSlots, kind: 'admin' as const, classes: 'block-sign' },
+        { label: fourthSlots.join(', '), slots: fourthSlots, kind: 'admin' as const, classes: 'block-bottom' }
+      ];
+  return rows.map((row, rowIndex) => `<tr class="rx-block-row ${row.classes}">${rowIndex === 0 ? `<td class="rx-date" rowspan="5">${htmlEscape(formatDate(prescription?.prescription_date || prescription?.start_date || ''))}</td><td class="rx-name" rowspan="5" colspan="8">${htmlEscape(medicationText)}</td><td class="rx-order" rowspan="5" colspan="2">${htmlEscape(orderText)}</td>` : ''}<td class="time-label" colspan="2">${htmlEscape(row.label)}</td>${renderMarkCells(page, prescription, row.slots, row.kind)}</tr>`).join('');
+};
+const renderPrescriptionBlocks = (page: PageData): string => Array.from({ length: MAX_PRESCRIPTIONS_PER_PAGE }, (_, index) => renderPrescriptionBlock(page, page.prescriptions[index])).join('');
 const renderDispenseSummaryRows = (page: PageData): string => {
   const rows = page.timeSlots.slice(0, MAX_SUMMARY_TIME_SLOTS);
   while (rows.length < MAX_SUMMARY_TIME_SLOTS) rows.push('');
   const daysInMonth = getDaysInMonth(page.selectedMonth);
-  return rows.map(timeSlot => `<tr><td class="summary-time" colspan="5">${htmlEscape(timeSlot)}</td>${Array.from({ length: 31 }, (_, index) => {
-    const day = index + 1;
-    if (!timeSlot || day > daysInMonth) return '<td class="mark-cell not-required"></td>';
+  return rows.map((timeSlot, index) => `<tr class="summary-row">${index === 0 ? '<td class="guide-cell" rowspan="6" colspan="10"><strong>給藥記錄簽署指引：</strong>簽名=已服藥; HL=因事回家; A=入院;<br/>S=自理; LM=缺藥中; C=已痊愈; P=暫停; R=拒絕一種或以上藥物; O=其他 (請註明);<br/>R或O 請通知護士/保健員作出跟進並作適當記錄; 處方日期=該藥物第一次被處方的使用日期。</td><td class="summary-title" rowspan="6" colspan="2">給藥簽署</td>' : ''}<td class="summary-time">${htmlEscape(timeSlot)}</td>${renderDayCells(day => {
+    if (!timeSlot || day > daysInMonth) return '<td class="day-cell not-required"></td>';
     const cell = getDispenseCell(page, getDateString(page.selectedMonth, day), timeSlot);
-    return `<td class="mark-cell ${cell.className}" title="${htmlEscape(cell.title)}">${htmlEscape(cell.content)}</td>`;
-  }).join('')}</tr>`).join('');
+    return `<td class="day-cell ${cell.className}" title="${htmlEscape(cell.title)}">${htmlEscape(cell.content)}</td>`;
+  })}</tr>`).join('');
 };
 const renderPatientHeader = (page: PageData): string => {
   const patient = page.patient;
-  return `<header class="record-header"><div class="record-title-block"><div class="facility-name">${FACILITY_NAME}</div><h1>院友個人備藥及給藥記錄</h1><div class="route-name">${ROUTE_LABELS[page.routeType]}</div><div class="route-purpose">${ROUTE_PURPOSES[page.routeType]}</div></div><div class="resident-panel"><div><span>姓名</span><strong>${htmlEscape(getPatientName(patient))}</strong></div><div><span>院號 / 床號</span><strong>${htmlEscape(patient.床號 || '')}</strong></div><div><span>性別 / 年齡</span><strong>${htmlEscape(`${patient.性別 || ''}/${calculateAge(patient.出生日期)}`)}</strong></div><div><span>出生日期</span><strong>${htmlEscape(formatDate(patient.出生日期))}</strong></div><div><span>月份</span><strong>${htmlEscape(formatMonthLabel(page.selectedMonth))}</strong></div><div><span>頁次</span><strong>${page.pageNumber}</strong></div></div></header><section class="risk-strip"><div><span>藥物過敏反應</span><strong>${htmlEscape(getListText(patient.藥物敏感, 'NKDA'))}</strong></div><div><span>藥物不良反應</span><strong>${htmlEscape(getListText(patient.不良藥物反應, 'NKADR'))}</strong></div></section>`;
+  return `<tr class="top-row"><td class="risk-label" rowspan="2">藥物過敏反應：</td><td class="risk-value" rowspan="2" colspan="9">${htmlEscape(getListText(patient.藥物敏感, 'NKDA'))}</td><td class="title-cell" colspan="17">${FACILITY_NAME}</td><td class="field-label" colspan="3">姓名:</td><td class="field-value" colspan="6">${htmlEscape(getPatientName(patient))}</td><td class="field-label" colspan="3">院號:</td><td class="field-value" colspan="3">${htmlEscape(patient.床號 || '')}</td></tr><tr class="top-row"><td class="route-title" colspan="17">${ROUTE_LABELS[page.routeType]}</td><td class="field-label" colspan="3">性別 / 年齡:</td><td class="field-value" colspan="6">${htmlEscape(`${patient.性別 || ''}/${calculateAge(patient.出生日期)}`)}</td><td class="field-label" colspan="3">出生日期：</td><td class="field-value" colspan="3">${htmlEscape(formatDate(patient.出生日期))}</td></tr><tr class="risk-row"><td class="risk-label">藥物不良反應：</td><td class="risk-value" colspan="9">${htmlEscape(getListText(patient.不良藥物反應, 'NKADR'))}</td><td class="month-cell" colspan="5">${htmlEscape(formatMonthLabel(page.selectedMonth))}</td><td class="page-cell" colspan="12">第 ${page.pageNumber} 頁</td><td class="field-label" colspan="3">床號:</td><td class="field-value" colspan="6">${htmlEscape(patient.床號 || '')}</td><td class="field-label" colspan="3">列印日期:</td><td class="field-value" colspan="3">${htmlEscape(formatDate(new Date().toISOString()))}</td></tr>`;
 };
-const renderLegend = (page: PageData): string => {
+const renderTableHeader = (page: PageData): string => `<tr class="spacer-row"><td colspan="44"></td></tr><tr class="rx-heading-row"><th class="rx-date" rowspan="2">處方日期</th><th class="rx-name" rowspan="2" colspan="8">藥物名稱及劑型</th><th class="rx-order" rowspan="2" colspan="2">途徑 / 次數</th><th class="sign-heading" rowspan="2" colspan="33">執 / 核 藥 職 員 簽 署</th></tr><tr></tr><tr class="day-heading-row"><th colspan="11"></th><th class="time-label" colspan="2">服用時間</th>${renderDayHeaderCells(page.selectedMonth)}</tr>`;
+const renderStaffLegend = (page: PageData): string => {
   const { line1, line2 } = formatStaffCodeNotation(page.staffCodeMapping);
-  return `<section class="legend-section"><div class="legend-card"><h2>代號說明</h2><div class="code-grid">${SPECIAL_CODE_ITEMS.map(([code, meaning]) => `<div><strong>${code}</strong><span>${meaning}</span></div>`).join('')}</div></div><div class="legend-card staff-card"><h2>職員簽署代號</h2><p>${htmlEscape(line1 || '未產生職員代號')}</p><p>${htmlEscape(line2)}</p></div><div class="legend-card audit-card"><h2>表格邏輯</h2><p>每一格交叉點代表「指定日期」與「指定處方時間」的一次給藥責任；空白但未灰格代表應執行但尚未簽署。</p></div></section>`;
+  return `<div class="staff-legend"><strong>職員代號：</strong>${htmlEscape(line1 || '未產生職員代號')} ${htmlEscape(line2)}</div>`;
 };
-const renderPage = (page: PageData): string => `<section class="medication-page">${renderPatientHeader(page)}<table class="record-table prescription-table"><thead><tr><th class="rx-index">項</th><th class="rx-date">處方日期</th><th class="rx-medication">藥物名稱及劑型</th><th class="rx-order">途徑 / 次數 / 份量</th><th class="rx-time-band">時間 / 指向</th>${renderDayHeader(page.selectedMonth)}</tr></thead><tbody>${renderPrescriptionRows(page)}</tbody></table><table class="record-table dispense-table"><thead><tr><th colspan="5">給藥簽署總結</th>${renderDayHeader(page.selectedMonth)}</tr></thead><tbody>${renderDispenseSummaryRows(page)}</tbody></table>${renderLegend(page)}</section>`;
+const renderPage = (page: PageData): string => `<section class="medication-page"><table class="excel-sheet"><colgroup><col class="c-date" />${Array.from({ length: 8 }, () => '<col class="c-name" />').join('')}${Array.from({ length: 2 }, () => '<col class="c-order" />').join('')}${Array.from({ length: 2 }, () => '<col class="c-time" />').join('')}${Array.from({ length: DAY_COUNT }, () => '<col class="c-day" />').join('')}</colgroup><tbody>${renderPatientHeader(page)}${renderTableHeader(page)}${renderPrescriptionBlocks(page)}${renderDispenseSummaryRows(page)}</tbody></table><div class="code-strip">${SPECIAL_CODE_ITEMS.map(([code, text]) => `<span><strong>${code}</strong>=${htmlEscape(text)}</span>`).join('')}</div>${renderStaffLegend(page)}</section>`;
 
 const generateMedicationRecordHtml = (pages: PageData[]): string => `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>個人備藥及給藥記錄</title><style>
-@page{size:A4 landscape;margin:6mm}@media print{body{background:#fff;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.print-toolbar{display:none!important}.medication-page{page-break-after:always;break-after:page;box-shadow:none;margin:0}.medication-page:last-child{page-break-after:auto;break-after:auto}}*{box-sizing:border-box}body{margin:0;padding:12px;background:#e5e7eb;color:#0f172a;font-family:"Microsoft JhengHei","微軟正黑體",Arial,sans-serif}.print-toolbar{position:sticky;top:0;z-index:10;display:flex;justify-content:center;padding:8px;background:#fff;border-bottom:1px solid #cbd5e1}.print-toolbar button{border:1px solid #0f766e;background:#0f766e;color:#fff;border-radius:4px;padding:7px 14px;font-size:14px;cursor:pointer}.medication-page{width:285mm;min-height:198mm;margin:0 auto 12px;padding:7mm;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.18)}.record-header{display:grid;grid-template-columns:1.2fr 1fr;gap:8px;align-items:stretch;margin-bottom:6px}.record-title-block{border:2px solid #111827;padding:6px 8px;text-align:center}.facility-name{font-size:12px;font-weight:700}h1{margin:1px 0;font-size:19px;line-height:1.2}.route-name{font-size:18px;font-weight:700;text-decoration:underline}.route-purpose{margin-top:2px;font-size:9px;color:#334155}.resident-panel{display:grid;grid-template-columns:repeat(3,1fr);border-top:2px solid #111827;border-left:2px solid #111827}.resident-panel div{min-height:30px;padding:3px 5px;border-right:2px solid #111827;border-bottom:2px solid #111827}.resident-panel span,.risk-strip span{display:block;margin-bottom:1px;font-size:8px;color:#475569}.resident-panel strong{font-size:13px}.risk-strip{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}.risk-strip div{min-height:28px;border:2px solid #111827;padding:3px 6px}.risk-strip strong{font-size:12px}.record-table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:6px}.record-table th,.record-table td{border:1px solid #111827;padding:2px;text-align:center;vertical-align:middle;overflow:hidden}.record-table th{background:#e2e8f0;font-size:8px;line-height:1.05;font-weight:700}.prescription-table,.dispense-table{border:2px solid #111827}.rx-index{width:6mm}.rx-date{width:17mm}.rx-medication{width:44mm}.rx-order{width:26mm}.rx-time-band{width:20mm}.day-heading{width:4.8mm}.prescription-entry td{height:8.7mm}.entry-even .rx-medication,.entry-even .rx-order,.entry-even .rx-date,.entry-even .rx-index{background:#f8fafc}.rx-index,.rx-date{font-size:9px;font-weight:700}.rx-medication{text-align:left!important;padding:3px 4px!important}.rx-name{font-size:10px;font-weight:700;line-height:1.2}.rx-subline{margin-top:4px;font-size:8px;color:#475569}.rx-order{font-size:8.5px;line-height:1.35}.time-band-label{font-size:8px;color:#475569}.time-band-slots{margin-top:1px;font-size:9px;font-weight:700}.mark-cell{width:4.8mm;height:7mm;font-size:8px;line-height:1;font-weight:700}.required{background:linear-gradient(135deg,transparent 48%,#94a3b8 49%,#94a3b8 51%,transparent 52%)}.signed{background:#ecfeff;color:#0e7490}.special-code{background:#fef3c7;color:#92400e}.not-required,.outside-month{background:#d1d5db!important;color:transparent}.site-cell{background:#fff;color:#111827;font-size:7px}.dispense-table th{background:#ccfbf1}.dispense-table td{height:6.4mm}.summary-time{font-size:9px;font-weight:700;background:#f8fafc}.legend-section{display:grid;grid-template-columns:1.05fr 1fr 1.15fr;gap:6px}.legend-card{min-height:21mm;border:1.5px solid #111827;padding:4px 5px}.legend-card h2{margin:0 0 3px;font-size:10px}.legend-card p{margin:2px 0;font-size:8px;line-height:1.3}.code-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px 5px}.code-grid div{display:flex;gap:3px;align-items:baseline}.code-grid strong{min-width:20px;font-size:9px}.code-grid span{font-size:8px}
+@page{size:A4 landscape;margin:5mm 0 0 1mm}@media print{body{background:#fff;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.print-toolbar{display:none!important}.medication-page{page-break-after:always;break-after:page;box-shadow:none;margin:0}.medication-page:last-child{page-break-after:auto;break-after:auto}}*{box-sizing:border-box}body{margin:0;padding:10px;background:#e5e7eb;color:#000;font-family:"PMingLiU","新細明體","Microsoft JhengHei",serif}.print-toolbar{position:sticky;top:0;z-index:10;display:flex;justify-content:center;padding:8px;background:#fff;border-bottom:1px solid #cbd5e1}.print-toolbar button{border:1px solid #0f766e;background:#0f766e;color:#fff;border-radius:4px;padding:7px 14px;font-size:14px;cursor:pointer}.medication-page{width:293.4mm;min-height:203mm;margin:0 auto 12px;padding:0;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.18);overflow:hidden}.excel-sheet{width:293.4mm;border-collapse:collapse;table-layout:fixed;font-size:8pt;line-height:1.05}.excel-sheet th,.excel-sheet td{border:.5pt solid #000;padding:0 2px;height:9.8mm;text-align:center;vertical-align:middle;white-space:pre-line;overflow:hidden}.c-date{width:12.1mm}.c-name{width:3.3mm}.c-order{width:4.6mm}.c-time{width:3.2mm}.c-day{width:2.8mm}.top-row td,.risk-row td{height:13.1mm}.risk-label{width:12.1mm;font-size:11pt;text-align:left!important;vertical-align:top!important}.risk-value{text-align:left!important;vertical-align:top!important;font-size:11pt}.title-cell{font-size:12pt;font-weight:700}.route-title{font-size:16pt;font-weight:700}.field-label{font-size:11pt;text-align:left!important}.field-value{font-size:11pt;text-align:left!important}.month-cell,.page-cell{font-size:11pt;font-weight:700}.spacer-row td{height:3.7mm;border-left:none;border-right:none}.rx-heading-row th{height:5.3mm;font-size:10pt;font-weight:700}.day-heading-row th{height:9.8mm;font-size:10pt;font-weight:700}.rx-block-row td{height:9.8mm}.rx-date{width:12.1mm;font-size:8pt}.rx-name{text-align:left!important;font-size:8pt;padding-left:3px!important}.rx-order{font-size:7.5pt}.time-label{font-size:8pt;font-weight:700}.sign-heading{font-size:10pt;letter-spacing:1px}.day-heading,.day-cell{width:2.8mm;min-width:2.8mm;max-width:2.8mm;padding:0!important;font-size:7pt}.day-cell{height:9.8mm}.block-top td{border-top:1.5pt solid #000}.block-bottom td{border-bottom:1.5pt solid #000}.block-sign .time-label{font-size:9pt}.required{background:#fff}.signed{color:#000;font-weight:700}.special-code{color:#000;font-weight:700;background:#fff7cc}.not-required,.outside-month{background:#d9d9d9!important;color:transparent}.site-cell{font-size:6pt;color:#000}.summary-row td{height:9.8mm}.guide-cell{text-align:left!important;font-size:8pt;line-height:1.25;padding:2px 4px!important}.summary-title{font-size:10pt;font-weight:700;writing-mode:vertical-rl;letter-spacing:2px}.summary-time{width:6.4mm;font-size:8pt;font-weight:700}.code-strip{display:flex;flex-wrap:wrap;gap:8px;padding:2px 4px;font-size:7.5pt}.staff-legend{padding:0 4px 4px;font-size:7.5pt}
 </style></head><body><div class="print-toolbar"><button onclick="window.print()">列印 HTML 藥紙</button></div>${pages.map(renderPage).join('')}</body></html>`;
 
 const openPrintableHtml = (html: string): void => {

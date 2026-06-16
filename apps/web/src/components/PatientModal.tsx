@@ -38,7 +38,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     退住日期: patient?.退住日期 || '',
     護理等級: patient?.護理等級 || '',
     入住類型: patient?.入住類型 || '',
-    社會福利: patient?.社會福利 || { type: '', subtype: '' },
+    社會福利: patient?.社會福利?.type === '公務員' ? { type: '', subtype: '' } : patient?.社會福利 || { type: '', subtype: '' },
+    公務員: patient?.公務員 || (patient?.社會福利?.type === '公務員' ? patient?.社會福利?.subtype || '' : ''),
     discharge_reason: patient?.discharge_reason || '',
     death_date: patient?.death_date || '',
     transfer_facility_name: patient?.transfer_facility_name || '',
@@ -49,10 +50,10 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
   const [newAdverseReaction, setNewAdverseReaction] = useState('');
   const [newInfectionControl, setNewInfectionControl] = useState('');
   const [socialWelfareType, setSocialWelfareType] = useState(
-    patient?.社會福利?.type || ''
+    patient?.社會福利?.type === '公務員' ? '' : patient?.社會福利?.type || ''
   );
   const [socialWelfareSubtype, setSocialWelfareSubtype] = useState(
-    patient?.社會福利?.subtype || ''
+    patient?.社會福利?.type === '公共福利金計劃' ? patient?.社會福利?.subtype || '' : ''
   );
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [dischargeDate, setDischargeDate] = useState('');
@@ -247,6 +248,13 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
       ...prev,
       入住類型: hasAdmissionWelfareConflict(prev.入住類型, type) ? '' : prev.入住類型,
       社會福利: { type, subtype }
+    }));
+  };
+
+  const handleCivilServantChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      公務員: value
     }));
   };
 
@@ -790,7 +798,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="form-label">護理等級</label>
               <select
@@ -832,10 +840,9 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                 <option value="">請選擇社會福利</option>
                 <option value="綜合社會保障援助" disabled={formData.入住類型 === '院舍卷'}>綜合社會保障援助</option>
                 <option value="公共福利金計劃">公共福利金計劃</option>
-                <option value="公務員">公務員</option>
               </select>
               
-              {(socialWelfareType === '公共福利金計劃' || socialWelfareType === '公務員') && (
+              {socialWelfareType === '公共福利金計劃' && (
                 <div className="mt-2">
                   <select
                     value={socialWelfareSubtype}
@@ -851,12 +858,6 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                         <option value="高額傷殘津貼">高額傷殘津貼</option>
                       </>
                     )}
-                    {socialWelfareType === '公務員' && (
-                      <>
-                        <option value="公務員本人">公務員本人</option>
-                        <option value="公務員家屬">公務員家屬</option>
-                      </>
-                    )}
                   </select>
                 </div>
               )}
@@ -870,6 +871,19 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                   </p>
                 </div>
               )}
+            </div>
+
+            <div>
+              <label className="form-label">公務員</label>
+              <select
+                value={formData.公務員}
+                onChange={(e) => handleCivilServantChange(e.target.value)}
+                className="form-input"
+              >
+                <option value="">請選擇</option>
+                <option value="公務員本人">公務員本人</option>
+                <option value="公務員家屬">公務員家屬</option>
+              </select>
             </div>
           </div>
 

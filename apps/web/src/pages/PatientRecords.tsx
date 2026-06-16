@@ -23,6 +23,7 @@ interface AdvancedFilters {
   入住類型: string;
   在住狀態: string;
   社會福利: string;
+  公務員: string;
   藥物敏感: string;
   不良藥物反應: string;
   startDate: string;
@@ -54,6 +55,7 @@ const PatientRecords: React.FC = () => {
     入住類型: '',
     在住狀態: '在住', // 預設初始為「在住」
     社會福利: '',
+    公務員: '',
     藥物敏感: '',
     不良藥物反應: '',
     startDate: '',
@@ -92,6 +94,9 @@ const PatientRecords: React.FC = () => {
       return false;
     }
     if (advancedFilters.社會福利 && patient.社會福利?.type !== advancedFilters.社會福利) {
+      return false;
+    }
+    if (advancedFilters.公務員 && patient.公務員 !== advancedFilters.公務員) {
       return false;
     }
     if (advancedFilters.藥物敏感 && !patient.藥物敏感?.some(allergy => 
@@ -397,11 +402,12 @@ const PatientRecords: React.FC = () => {
       入住類型: patient.入住類型 || '',
       在住狀態: patient.在住狀態 || '',
       社會福利: patient.社會福利?.type || '',
+      公務員: patient.公務員 || '',
       藥物敏感: Array.isArray(patient.藥物敏感) ? patient.藥物敏感.join(', ') : (patient.藥物敏感 || ''),
       不良藥物反應: Array.isArray(patient.不良藥物反應) ? patient.不良藥物反應.join(', ') : (patient.不良藥物反應 || '')
     }));
 
-    const headers = ['床號', '中文姓名', '英文姓名', '性別', '身份證號碼', '出生日期', '年齡', '入住日期', '退住日期', '護理等級', '入住類型', '在住狀態', '社會福利', '藥物敏感', '不良藥物反應'];
+    const headers = ['床號', '中文姓名', '英文姓名', '性別', '身份證號碼', '出生日期', '年齡', '入住日期', '退住日期', '護理等級', '入住類型', '在住狀態', '社會福利', '公務員', '藥物敏感', '不良藥物反應'];
     const csvContent = [
       `"院友記錄"`,
       `"生成日期: ${new Date().toLocaleDateString('zh-TW')}"`,
@@ -717,7 +723,19 @@ const PatientRecords: React.FC = () => {
                       <option value="">所有類型</option>
                       <option value="綜合社會保障援助">綜合社會保障援助</option>
                       <option value="公共福利金計劃">公共福利金計劃</option>
-                      <option value="公務員">公務員</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="form-label">公務員</label>
+                    <select
+                      value={advancedFilters.公務員}
+                      onChange={(e) => updateAdvancedFilter('公務員', e.target.value)}
+                      className="form-input"
+                    >
+                      <option value="">所有類型</option>
+                      <option value="公務員本人">公務員本人</option>
+                      <option value="公務員家屬">公務員家屬</option>
                     </select>
                   </div>
                   

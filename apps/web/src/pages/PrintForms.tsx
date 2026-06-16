@@ -38,6 +38,7 @@ interface AdvancedFilters {
   在住狀態: string;
   性別: string;
   社會福利: string;
+  公務員: string;
 }
 
 const getCurrentMonthDateRange = () => {
@@ -67,7 +68,8 @@ const PrintForms: React.FC = () => {
     入住類型: '',
     在住狀態: '在住',
     性別: '',
-    社會福利: ''
+    社會福利: '',
+    公務員: ''
   });
   const [isExporting, setIsExporting] = useState(false);
   const [showYearMonthModal, setShowYearMonthModal] = useState(false);
@@ -176,6 +178,9 @@ const PrintForms: React.FC = () => {
       return false;
     }
     if (advancedFilters.社會福利 && patient.社會福利?.type !== advancedFilters.社會福利) {
+      return false;
+    }
+    if (advancedFilters.公務員 && patient.公務員 !== advancedFilters.公務員) {
       return false;
     }
     // Search term
@@ -759,7 +764,18 @@ const PrintForms: React.FC = () => {
                       <option value="">所有類型</option>
                       <option value="綜合社會保障援助">綜合社會保障援助</option>
                       <option value="公共福利金計劃">公共福利金計劃</option>
-                      <option value="公務員">公務員</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">公務員</label>
+                    <select
+                      value={advancedFilters.公務員}
+                      onChange={(e) => updateAdvancedFilter('公務員', e.target.value)}
+                      className="form-input"
+                    >
+                      <option value="">所有類型</option>
+                      <option value="公務員本人">公務員本人</option>
+                      <option value="公務員家屬">公務員家屬</option>
                     </select>
                   </div>
                 </div>
