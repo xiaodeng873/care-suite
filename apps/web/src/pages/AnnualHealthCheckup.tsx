@@ -65,6 +65,7 @@ const AnnualHealthCheckup: React.FC = () => {
     在住狀態: '在住'
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
@@ -183,11 +184,31 @@ const AnnualHealthCheckup: React.FC = () => {
       return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
     }
   });
-  const totalItems = sortedCheckups.length;
+  // 依 patient_id 分組，組內依 created_at desc 排列（最新在前）
+  const groupedCheckups = (() => {
+    const seen = new Set<number>();
+    const groups: { patientId: number; checkups: AnnualHealthCheckup[] }[] = [];
+    sortedCheckups.forEach(c => {
+      if (!seen.has(c.patient_id)) {
+        seen.add(c.patient_id);
+        groups.push({ patientId: c.patient_id, checkups: [c] });
+      } else {
+        groups.find(g => g.patientId === c.patient_id)!.checkups.push(c);
+      }
+    });
+    // 組內依 created_at desc 排列
+    groups.forEach(g => g.checkups.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    return groups;
+  })();
+  const totalItems = groupedCheckups.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const paginatedCheckups = sortedCheckups.slice(startIndex, endIndex);
+  const paginatedGroups = groupedCheckups.slice(startIndex, endIndex);
+  // 目前頁面實際顯示的所有記錄（已展開的顯示全部，未展開的只顯示第一筆）
+  const allDisplayedCheckups = paginatedGroups.flatMap(g =>
+    expandedPatients.has(g.patientId) ? g.checkups : [g.checkups[0]]
+  );
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
     setCurrentPage(1);
@@ -280,23 +301,31 @@ const AnnualHealthCheckup: React.FC = () => {
     setSelectedRows(newSelected);
   };
   const handleSelectAll = () => {
-    if (selectedRows.size === paginatedCheckups.length) {
+    if (selectedRows.size === allDisplayedCheckups.length) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(paginatedCheckups.map(c => c.id)));
+      setSelectedRows(new Set(allDisplayedCheckups.map(c => c.id)));
     }
   };
   const handleInvertSelection = () => {
     const newSelected = new Set<string>();
-    paginatedCheckups.forEach(checkup => {
+    allDisplayedCheckups.forEach(checkup => {
       if (!selectedRows.has(checkup.id)) {
         newSelected.add(checkup.id);
       }
     });
     setSelectedRows(newSelected);
   };
+  const togglePatientExpand = (patientId: number) => {
+    setExpandedPatients(prev => {
+      const next = new Set(prev);
+      if (next.has(patientId)) next.delete(patientId);
+      else next.add(patientId);
+      return next;
+    });
+  };
   const handleExportSelected = async () => {
-    const selectedCheckups = paginatedCheckups.filter(c => selectedRows.has(c.id));
+    const selectedCheckups = allDisplayedCheckups.filter(c => selectedRows.has(c.id));
     if (selectedCheckups.length === 0) {
       alert('請先選擇要匯出的記錄');
       return;
@@ -560,7 +589,7 @@ const AnnualHealthCheckup: React.FC = () => {
               </div>
             )}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
-              <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 筆年度體檢記錄 (共 {annualHealthCheckups.length} 筆)</span>
+              <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 位院友 (共 {annualHealthCheckups.length} 筆記錄)</span>
               {(searchTerm || hasAdvancedFilters()) && (
                 <span className="text-blue-600">已套用篩選條件</span>
               )}
@@ -578,7 +607,7 @@ const AnnualHealthCheckup: React.FC = () => {
                   onClick={handleSelectAll}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  {selectedRows.size === paginatedCheckups.length ? '取消全選' : '全選'}
+                  {selectedRows.size === allDisplayedCheckups.length && allDisplayedCheckups.length > 0 ? '取消全選' : '全選'}
                 </button>
                 <button
                   onClick={handleInvertSelection}
@@ -597,7 +626,7 @@ const AnnualHealthCheckup: React.FC = () => {
                 )}
               </div>
               <div className="text-sm text-gray-600">
-                已選擇 {selectedRows.size} / {totalItems} 筆記錄
+                已選擇 {selectedRows.size} / {allDisplayedCheckups.length} 筆記錄
               </div>
             </div>
           </div>
@@ -605,7 +634,7 @@ const AnnualHealthCheckup: React.FC = () => {
       )}
       {/* 年度體檢列表 */}
       <div className="card overflow-hidden">
-        {paginatedCheckups.length > 0 ? (
+        {paginatedGroups.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[768px] divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -613,11 +642,12 @@ const AnnualHealthCheckup: React.FC = () => {
                   <th className="px-4 py-3 text-left">
                     <input
                       type="checkbox"
-                      checked={selectedRows.size === paginatedCheckups.length && paginatedCheckups.length > 0}
+                      checked={selectedRows.size === allDisplayedCheckups.length && allDisplayedCheckups.length > 0}
                       onChange={handleSelectAll}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">展開</th>
                   <SortableHeader field="院友姓名">院友</SortableHeader>
                   <SortableHeader field="last_doctor_signature_date">醫生簽署日期</SortableHeader>
                   <SortableHeader field="next_due_date">下次到期日</SortableHeader>
@@ -631,9 +661,12 @@ const AnnualHealthCheckup: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedCheckups.map(checkup => {
-                  const patient = patients.find(p => p.院友id === checkup.patient_id);
-                  return (
+                {paginatedGroups.map(group => {
+                  const patient = patients.find(p => p.院友id === group.patientId);
+                  const isExpanded = expandedPatients.has(group.patientId);
+                  const displayCheckups = isExpanded ? group.checkups : [group.checkups[0]];
+                  const hasMultiple = group.checkups.length > 1;
+                  return displayCheckups.map((checkup, checkupIndex) => (
                     <tr
                       key={checkup.id}
                       className={`hover:bg-gray-50 ${selectedRows.has(checkup.id) ? 'bg-blue-50' : ''}`}
@@ -647,35 +680,50 @@ const AnnualHealthCheckup: React.FC = () => {
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
-                            {patient?.院友相片 ? (
-                              <img
-                                src={patient.院友相片}
-                                alt={patient.中文姓名}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <User className="h-5 w-5 text-blue-600" />
+                      {checkupIndex === 0 && (
+                        <>
+                          <td
+                            rowSpan={displayCheckups.length}
+                            className="px-4 py-4 whitespace-nowrap w-10 text-center align-middle"
+                            onClick={() => hasMultiple && togglePatientExpand(group.patientId)}
+                            style={{ cursor: hasMultiple ? 'pointer' : 'default' }}
+                          >
+                            {hasMultiple && (
+                              <div className="flex flex-col items-center gap-1">
+                                {isExpanded ? (
+                                  <ChevronUp className="h-4 w-4 text-blue-600" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-blue-600" />
+                                )}
+                                <span className="text-xs text-blue-600 font-medium">{group.checkups.length}</span>
+                              </div>
                             )}
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {patient ? (
-                                <PatientTooltip patient={patient}>
-                                  <span className="cursor-help hover:text-blue-600 transition-colors">
-                                    {patient.中文姓氏}{patient.中文名字}
-                                  </span>
-                                </PatientTooltip>
-                              ) : (
-                                '-'
-                              )}
+                          </td>
+                          <td rowSpan={displayCheckups.length} className="px-4 py-4 whitespace-nowrap align-middle">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
+                                {patient?.院友相片 ? (
+                                  <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
+                                ) : (
+                                  <User className="h-5 w-5 text-blue-600" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {patient ? (
+                                    <PatientTooltip patient={patient}>
+                                      <span className="cursor-help hover:text-blue-600 transition-colors">
+                                        {patient.中文姓氏}{patient.中文名字}
+                                      </span>
+                                    </PatientTooltip>
+                                  ) : '-'}
+                                </div>
+                                <div className="text-sm text-gray-500">{patient?.床號}</div>
+                              </div>
                             </div>
-                            <div className="text-sm text-gray-500">{patient?.床號}</div>
-                          </div>
-                        </div>
-                      </td>
+                          </td>
+                        </>
+                      )}
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         {checkup.last_doctor_signature_date ? (
                           <div className="flex items-center space-x-1">
@@ -710,11 +758,7 @@ const AnnualHealthCheckup: React.FC = () => {
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-shrink-0 gap-2">
                           <button
-                            onClick={() => {
-                              if (patient) {
-                                printMedicalExaminationForm(checkup, patient);
-                              }
-                            }}
+                            onClick={() => { if (patient) printMedicalExaminationForm(checkup, patient); }}
                             className="text-green-600 hover:text-green-900"
                             title="列印體檢報告書"
                             disabled={!patient}
@@ -744,7 +788,7 @@ const AnnualHealthCheckup: React.FC = () => {
                         </div>
                       </td>
                     </tr>
-                  );
+                  ));
                 })}
               </tbody>
             </table>

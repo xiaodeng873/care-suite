@@ -248,6 +248,38 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
       return;
     }
 
+    // 必須至少勾選一個風險因素
+    const hasAnyRiskFactor = riskFactorCategories.some(({ category, subcategories }) =>
+      formData.risk_factors[category] || subcategories.some(sub => formData.risk_factors[sub])
+    );
+    if (!hasAnyRiskFactor) {
+      alert('請至少勾選一個風險因素評估');
+      return;
+    }
+
+    // 必須至少勾選一個折衷辦法
+    const hasAnyAlternative = Object.values(formData.alternatives).some(v => v === true);
+    if (!hasAnyAlternative) {
+      alert('請至少勾選一個折衷辦法');
+      return;
+    }
+
+    // 必須至少勾選一個約束物品建議
+    const hasAnyRestraint = Object.values(formData.suggested_restraints).some(
+      (config: any) => config?.checked === true
+    );
+    if (!hasAnyRestraint) {
+      alert('請至少勾選一個約束物品建議');
+      return;
+    }
+
+    // 勾選「其他：」時必須填寫約束物品類型
+    const otherRestraint = formData.suggested_restraints['其他：'] as any;
+    if (otherRestraint?.checked && !otherRestraint?.otherRestraintType?.trim()) {
+      alert('請輸入其他約束物品類型');
+      return;
+    }
+
     try {
       const assessmentData = {
         patient_id: parseInt(formData.patient_id),
@@ -360,18 +392,18 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                     <input
                       type="checkbox"
                       checked={formData.risk_factors[category] || false}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        risk_factors: {
-                          ...prev.risk_factors,
-                          [category]: e.target.checked
+                      onChange={(e) => setFormData(prev => {
+                        const newRiskFactors = { ...prev.risk_factors, [category]: e.target.checked };
+                        // 取消勾選父類時，同時取消其下所有子類
+                        if (!e.target.checked) {
+                          subcategories.forEach(sub => { newRiskFactors[sub] = false; });
                         }
-                      }))}
+                        return { ...prev, risk_factors: newRiskFactors };
+                      })}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <span className="font-medium text-gray-900">{category}</span>
                   </label>
-                  
                   {/* 子項目 */}
                   <div className="ml-6 space-y-2">
                     {subcategories.map(subcategory => (

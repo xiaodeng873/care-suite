@@ -2205,13 +2205,9 @@ export const getAnnualHealthCheckupByPatientId = async (patientId: number): Prom
   return data;
 };
 export const createAnnualHealthCheckup = async (checkup: any): Promise<any> => {
-  // 使用 upsert 避免唯一性約束衝突（每個院友只能有一筆記錄）
   const { data, error } = await supabase
     .from('annual_health_checkups')
-    .upsert([checkup], {
-      onConflict: 'patient_id',
-      ignoreDuplicates: false
-    })
+    .insert([checkup])
     .select()
     .single();
   if (error) throw error;

@@ -60,6 +60,7 @@ const RestraintManagement: React.FC = () => {
     在住狀態: '在住'
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
   const [showObservationDateRangeModal, setShowObservationDateRangeModal] = useState(false);
   const [observationDateRange, setObservationDateRange] = useState({
     startDate: new Date().toISOString().split('T')[0],
@@ -202,12 +203,29 @@ const RestraintManagement: React.FC = () => {
     }
   });
 
-  // Pagination logic
-  const totalItems = sortedAssessments.length;
+  // 依 patient_id 分組，組內依 created_at desc
+  const groupedAssessments = (() => {
+    const seen = new Set<number>();
+    const groups: { patientId: number; assessments: PatientRestraintAssessment[] }[] = [];
+    sortedAssessments.forEach(a => {
+      if (!seen.has(a.patient_id)) {
+        seen.add(a.patient_id);
+        groups.push({ patientId: a.patient_id, assessments: [a] });
+      } else {
+        groups.find(g => g.patientId === a.patient_id)!.assessments.push(a);
+      }
+    });
+    groups.forEach(g => g.assessments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    return groups;
+  })();
+  const totalItems = groupedAssessments.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const paginatedAssessments = sortedAssessments.slice(startIndex, endIndex);
+  const paginatedGroups = groupedAssessments.slice(startIndex, endIndex);
+  const allDisplayedAssessments = paginatedGroups.flatMap(g =>
+    expandedPatients.has(g.patientId) ? g.assessments : [g.assessments[0]]
+  );
 
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
@@ -317,16 +335,16 @@ const RestraintManagement: React.FC = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedRows.size === paginatedAssessments.length) {
+    if (selectedRows.size === allDisplayedAssessments.length) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(paginatedAssessments.map(a => a.id)));
+      setSelectedRows(new Set(allDisplayedAssessments.map(a => a.id)));
     }
   };
 
   const handleInvertSelection = () => {
     const newSelected = new Set<string>();
-    paginatedAssessments.forEach(assessment => {
+    allDisplayedAssessments.forEach(assessment => {
       if (!selectedRows.has(assessment.id)) {
         newSelected.add(assessment.id);
       }
@@ -334,8 +352,17 @@ const RestraintManagement: React.FC = () => {
     setSelectedRows(newSelected);
   };
 
+  const togglePatientExpand = (patientId: number) => {
+    setExpandedPatients(prev => {
+      const next = new Set(prev);
+      if (next.has(patientId)) next.delete(patientId);
+      else next.add(patientId);
+      return next;
+    });
+  };
+
   const handleExportSelected = async (exportType: 'consent-form') => {
-    const selectedAssessments = paginatedAssessments.filter(a => selectedRows.has(a.id));
+    const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
     
     if (selectedAssessments.length === 0) {
       alert('請先選擇要匯出的記錄');
@@ -351,7 +378,7 @@ const RestraintManagement: React.FC = () => {
   };
 
   const handleExportObservationChart = async () => {
-    const selectedAssessments = paginatedAssessments.filter(a => selectedRows.has(a.id));
+    const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
     
     if (selectedAssessments.length === 0) {
       alert('請先選擇要匯出的記錄');
@@ -362,7 +389,7 @@ const RestraintManagement: React.FC = () => {
   };
 
   const handleConfirmObservationExport = async () => {
-    const selectedAssessments = paginatedAssessments.filter(a => selectedRows.has(a.id));
+    const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
     
     if (!observationDateRange.startDate || !observationDateRange.endDate) {
       alert('請選擇完整的日期範圍');
@@ -398,7 +425,7 @@ const RestraintManagement: React.FC = () => {
   };
 
   const handleExportSelectedCSV = () => {
-    const selectedAssessments = paginatedAssessments.filter(a => selectedRows.has(a.id));
+    const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
     
     if (selectedAssessments.length === 0) {
       alert('請先選擇要匯出的記錄');
@@ -714,7 +741,7 @@ const RestraintManagement: React.FC = () => {
             )}
             
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
-              <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 筆約束物品評估 (共 {patientRestraintAssessments.length} 筆)</span>
+              <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 位院友 (共 {patientRestraintAssessments.length} 筆記錄)</span>
               {(searchTerm || hasAdvancedFilters()) && (
                 <span className="text-blue-600">已套用篩選條件</span>
               )}
@@ -733,7 +760,7 @@ const RestraintManagement: React.FC = () => {
                   onClick={handleSelectAll}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  {selectedRows.size === paginatedAssessments.length ? '取消全選' : '全選'}
+                  {selectedRows.size === allDisplayedAssessments.length && allDisplayedAssessments.length > 0 ? '取消全選' : '全選'}
                 </button>
                 <button
                   onClick={handleInvertSelection}
@@ -752,7 +779,7 @@ const RestraintManagement: React.FC = () => {
                 )}
               </div>
               <div className="text-sm text-gray-600">
-                已選擇 {selectedRows.size} / {totalItems} 筆記錄
+                已選擇 {selectedRows.size} / {allDisplayedAssessments.length} 筆記錄
               </div>
             </div>
           </div>
@@ -761,7 +788,7 @@ const RestraintManagement: React.FC = () => {
 
       {/* 約束物品評估列表 */}
       <div className="card overflow-hidden">
-        {paginatedAssessments.length > 0 ? (
+        {paginatedGroups.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[768px] divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -769,11 +796,12 @@ const RestraintManagement: React.FC = () => {
                   <th className="px-4 py-3 text-left">
                     <input
                       type="checkbox"
-                      checked={selectedRows.size === paginatedAssessments.length && paginatedAssessments.length > 0}
+                      checked={selectedRows.size === allDisplayedAssessments.length && allDisplayedAssessments.length > 0}
                       onChange={handleSelectAll}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">展開</th>
                   <SortableHeader field="院友姓名">院友</SortableHeader>
                   <SortableHeader field="doctor_signature_date">醫生簽署日期</SortableHeader>
                   <SortableHeader field="next_due_date">下次到期日</SortableHeader>
@@ -790,12 +818,14 @@ const RestraintManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedAssessments.map(assessment => {
-                  const patient = patients.find(p => p.院友id === assessment.patient_id);
-                  
-                  return (
-                    <tr 
-                      key={assessment.id} 
+                {paginatedGroups.map(group => {
+                  const patient = patients.find(p => p.院友id === group.patientId);
+                  const isExpanded = expandedPatients.has(group.patientId);
+                  const displayAssessments = isExpanded ? group.assessments : [group.assessments[0]];
+                  const hasMultiple = group.assessments.length > 1;
+                  return displayAssessments.map((assessment, assessmentIndex) => (
+                    <tr
+                      key={assessment.id}
                       className={`hover:bg-gray-50 ${selectedRows.has(assessment.id) ? 'bg-blue-50' : ''}`}
                       onDoubleClick={() => handleEdit(assessment)}
                     >
@@ -807,35 +837,50 @@ const RestraintManagement: React.FC = () => {
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
-                            {patient?.院友相片 ? (
-                              <img 
-                                src={patient.院友相片} 
-                                alt={patient.中文姓名} 
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <User className="h-5 w-5 text-blue-600" />
+                      {assessmentIndex === 0 && (
+                        <>
+                          <td
+                            rowSpan={displayAssessments.length}
+                            className="px-4 py-4 whitespace-nowrap w-10 text-center align-middle"
+                            onClick={() => hasMultiple && togglePatientExpand(group.patientId)}
+                            style={{ cursor: hasMultiple ? 'pointer' : 'default' }}
+                          >
+                            {hasMultiple && (
+                              <div className="flex flex-col items-center gap-1">
+                                {isExpanded ? (
+                                  <ChevronUp className="h-4 w-4 text-blue-600" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-blue-600" />
+                                )}
+                                <span className="text-xs text-blue-600 font-medium">{group.assessments.length}</span>
+                              </div>
                             )}
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {patient ? (
-                                <PatientTooltip patient={patient}>
-                                  <span className="cursor-help hover:text-blue-600 transition-colors">
-                                    {patient.中文姓氏}{patient.中文名字}
-                                  </span>
-                                </PatientTooltip>
-                              ) : (
-                                '-'
-                              )}
+                          </td>
+                          <td rowSpan={displayAssessments.length} className="px-4 py-4 whitespace-nowrap align-middle">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
+                                {patient?.院友相片 ? (
+                                  <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
+                                ) : (
+                                  <User className="h-5 w-5 text-blue-600" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {patient ? (
+                                    <PatientTooltip patient={patient}>
+                                      <span className="cursor-help hover:text-blue-600 transition-colors">
+                                        {patient.中文姓氏}{patient.中文名字}
+                                      </span>
+                                    </PatientTooltip>
+                                  ) : '-'}
+                                </div>
+                                <div className="text-sm text-gray-500">{patient?.床號}</div>
+                              </div>
                             </div>
-                            <div className="text-sm text-gray-500">{patient?.床號}</div>
-                          </div>
-                        </div>
-                      </td>
+                          </td>
+                        </>
+                      )}
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         {assessment.doctor_signature_date ? (
                           <div className="flex items-center space-x-1">
@@ -865,7 +910,7 @@ const RestraintManagement: React.FC = () => {
                         <div className="truncate">
                           {assessment.suggested_restraints && typeof assessment.suggested_restraints === 'object' ? (
                             Object.entries(assessment.suggested_restraints)
-                              .filter(([key, value]) => value === true || (typeof value === 'object' && value?.checked))
+                              .filter(([key, value]) => value === true || (typeof value === 'object' && (value as any)?.checked))
                               .map(([key]) => key)
                               .join(', ') || '-'
                           ) : '-'}
@@ -902,7 +947,7 @@ const RestraintManagement: React.FC = () => {
                         </div>
                       </td>
                     </tr>
-                  );
+                  ));
                 })}
               </tbody>
             </table>

@@ -536,8 +536,17 @@ const Dashboard: React.FC = () => {
   }, [healthAssessments, patientsMap]);
   const urgentHealthAssessments = [...overdueHealthAssessments, ...dueSoonHealthAssessments];
   const { overdueAnnualCheckups, dueSoonAnnualCheckups } = useMemo(() => {
-    const overdue = annualHealthCheckups.filter(checkup => { const patient = patientsMap.get(checkup.patient_id); return patient && patient.在住狀態 === '在住' && isAnnualCheckupOverdue(checkup); });
-    const dueSoon = annualHealthCheckups.filter(checkup => { const patient = patientsMap.get(checkup.patient_id); return patient && patient.在住狀態 === '在住' && isAnnualCheckupDueSoon(checkup); });
+    // 每位院友只取最新一筆（created_at 最大），避免多筆歷史記錄重複計入
+    const latestPerPatient = new Map<number, typeof annualHealthCheckups[0]>();
+    annualHealthCheckups.forEach(checkup => {
+      const existing = latestPerPatient.get(checkup.patient_id);
+      if (!existing || new Date(checkup.created_at) > new Date(existing.created_at)) {
+        latestPerPatient.set(checkup.patient_id, checkup);
+      }
+    });
+    const latestCheckups = Array.from(latestPerPatient.values());
+    const overdue = latestCheckups.filter(checkup => { const patient = patientsMap.get(checkup.patient_id); return patient && patient.在住狀態 === '在住' && isAnnualCheckupOverdue(checkup); });
+    const dueSoon = latestCheckups.filter(checkup => { const patient = patientsMap.get(checkup.patient_id); return patient && patient.在住狀態 === '在住' && isAnnualCheckupDueSoon(checkup); });
     return { overdueAnnualCheckups: overdue, dueSoonAnnualCheckups: dueSoon };
   }, [annualHealthCheckups, patientsMap]);
   

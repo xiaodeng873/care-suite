@@ -18,7 +18,6 @@ import {
   parseMentalStateAssessment,
   combineMentalStateAssessment,
 } from '../utils/annualHealthCheckupHelper';
-import * as db from '../lib/database';
 interface AnnualHealthCheckupModalProps {
   checkup: AnnualHealthCheckup | null;
   onClose: () => void;
@@ -28,7 +27,6 @@ interface AnnualHealthCheckupModalProps {
 export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, prefilledPatientId }: AnnualHealthCheckupModalProps) {
   const { 
     patients, 
-    annualHealthCheckups, 
     diagnosisRecords, 
     updateAnnualHealthCheckup: contextUpdateAnnualHealthCheckup,
     addAnnualHealthCheckup: contextAddAnnualHealthCheckup
@@ -208,12 +206,6 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
     }
     setLoading(true);
     try {
-      const existingCheckup = await db.getAnnualHealthCheckupByPatientId(formData.patient_id);
-      if (existingCheckup && (!checkup || existingCheckup.id !== checkup.id)) {
-        alert('該院友已有年度體檢記錄，請編輯現有記錄');
-        setLoading(false);
-        return;
-      }
       const { mental_state, dementia_stage, ...restFormData } = formData;
       const checkupData = {
         ...restFormData,
@@ -799,7 +791,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                           </div>
                         </div>
                         <div className="border-t border-gray-200 pt-3">
-                          <div className="text-sm font-medium text-gray-700 mb-2">認知障礙症階段（單選，可選可不選）</div>
+                          <div className="text-sm font-medium text-gray-700 mb-2">認知障礙症階段</div>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             {MENTAL_STATE_GROUP_B.map(option => (
                               <label key={option} className="flex items-start gap-2">
