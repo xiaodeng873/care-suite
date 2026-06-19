@@ -873,6 +873,9 @@ export const createPatient = async (patient: Omit<Patient, '院友id'>): Promise
   Object.keys(cleanedPatient).forEach(key => {
     if (cleanedPatient[key] === '') cleanedPatient[key] = null;
   });
+  // 若遠端 DB 尚未套用 20260616000000_add_civil_servant_to_patients migration，
+  // '公務員' 欄位不存在，傳 null 會觸發 PGRST204；null 時直接省略即可。
+  if (cleanedPatient.公務員 == null) delete cleanedPatient.公務員;
 
   // 防止重複身份證號碼建立院友（跨所有在住狀態，使用正規化比對）
   if (cleanedPatient.身份證號碼) {
@@ -907,6 +910,8 @@ export const updatePatient = async (patient: Patient): Promise<Patient> => {
   Object.keys(cleanedPatient).forEach(key => {
     if (cleanedPatient[key] === '') cleanedPatient[key] = null;
   });
+  // 同上：若欄位不存在於 DB，null 值直接省略避免 PGRST204。
+  if (cleanedPatient.公務員 == null) delete cleanedPatient.公務員;
   const { data, error } = await supabase.from('院友主表').update(cleanedPatient).eq('院友id', patient.院友id).select().single();
   if (error) throw error;
   return data;
