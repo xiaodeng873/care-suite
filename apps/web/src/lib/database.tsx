@@ -873,6 +873,31 @@ export const createPatient = async (patient: Omit<Patient, '院友id'>): Promise
   Object.keys(cleanedPatient).forEach(key => {
     if (cleanedPatient[key] === '') cleanedPatient[key] = null;
   });
+
+  // 防止重複身份證號碼建立院友（跨所有在住狀態，使用正規化比對）
+  if (cleanedPatient.身份證號碼) {
+    const normalizeHKID = (value: string) => value.replace(/[\s()]/g, '').toUpperCase();
+    const targetHKID = normalizeHKID(cleanedPatient.身份證號碼);
+
+    const { data: existingPatients, error: checkError } = await supabase
+      .from('院友主表')
+      .select('院友id, 中文姓名, 床號, 在住狀態, 身份證號碼')
+      .not('身份證號碼', 'is', null);
+
+    if (checkError) throw checkError;
+
+    const duplicatedPatient = (existingPatients || []).find((p) => {
+      const currentHKID = normalizeHKID(p.身份證號碼 || '');
+      return !!currentHKID && currentHKID === targetHKID;
+    });
+
+    if (duplicatedPatient) {
+      throw new Error(
+        `身份證號碼已存在（${duplicatedPatient.中文姓名 || '未命名'} / ${duplicatedPatient.床號 || '無床號'} / ${duplicatedPatient.在住狀態 || '未知狀態'}），不能重複新增`
+      );
+    }
+  }
+
   const { data, error } = await supabase.from('院友主表').insert(cleanedPatient).select('*').single();
   if (error) throw error;
   return data;
@@ -2727,7 +2752,11 @@ export const createBatchHealthRecords = async (records: Omit<HealthRecord, '記�
 // [修復可能性2] 核心同步功能 - 使用智能推進策略並添加詳細日誌
 export const syncTaskStatus = async (taskId: string) => {
   const SYNC_CUTOFF_DATE = new Date(SYNC_CUTOFF_DATE_STR);
-  const { data: task, error: taskError } = await supabase.from('patient_health_tasks').select('*').eq('id', taskId).single();
+  const { data: task, error: taskError } = await supabase
+    .from('patient_health_tasks')
+    .select('*')
+    .eq('id', taskId)
+    .maybeSingle();
   if (taskError || !task) {
     return;
   }

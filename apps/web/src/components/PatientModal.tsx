@@ -411,7 +411,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // 驗證必填欄位
@@ -424,6 +424,25 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     if (formData.身份證號碼 && !/^[A-Z]{1,2}\d{6}\([0-9A]\)$/.test(formData.身份證號碼)) {
       alert('身份證號碼格式不正確，正確格式為：A123456(7) 或 AB123456(7)');
       return;
+    }
+
+    // 新增/編輯時，身份證號碼不可與任何院友（在住/待入住/已退住）重複
+    const normalizeHKID = (value: string) => value.replace(/[\s()]/g, '').toUpperCase();
+    const targetHKID = normalizeHKID(formData.身份證號碼 || '');
+    if (targetHKID) {
+      const duplicatedPatient = patients.find((p) => {
+        const currentHKID = normalizeHKID(p.身份證號碼 || '');
+        if (!currentHKID || currentHKID !== targetHKID) return false;
+        // 編輯時排除自己
+        if (patient && p.院友id === patient.院友id) return false;
+        return true;
+      });
+
+      if (duplicatedPatient) {
+        const duplicatedName = duplicatedPatient.中文姓名 || `${duplicatedPatient.中文姓氏 || ''}${duplicatedPatient.中文名字 || ''}`;
+        alert(`身份證號碼已被院友「${duplicatedName || '未命名'}」（床號：${duplicatedPatient.床號 || '無'}，狀態：${duplicatedPatient.在住狀態 || '未知'}）使用，不能新增/儲存。`);
+        return;
+      }
     }
 
     // Create a copy of formData to ensure we work with the latest state
@@ -487,16 +506,21 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
       bed_id: finalFormData.bed_id || null
     };
 
-    if (patient) {
-      updatePatient({
-        院友id: patient.院友id,
-        ...sanitizedFormData
-      });
-    } else {
-      addPatient(sanitizedFormData);
-    }
+    try {
+      if (patient) {
+        await updatePatient({
+          院友id: patient.院友id,
+          ...sanitizedFormData
+        });
+      } else {
+        await addPatient(sanitizedFormData);
+      }
 
-    onClose();
+      onClose();
+    } catch (error: any) {
+      console.error('新增/更新院友失敗:', error);
+      alert(error?.message || '儲存失敗，請稍後再試');
+    }
   };
 
   return (
