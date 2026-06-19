@@ -6,9 +6,11 @@ import PatientAutocomplete from './PatientAutocomplete';
 interface RestraintAssessmentModalProps {
   assessment?: PatientRestraintAssessment;
   onClose: () => void;
+  onUpdate?: () => void;
+  renewFrom?: PatientRestraintAssessment | null;
 }
 
-const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ assessment, onClose }) => {
+const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ assessment, onClose, onUpdate, renewFrom }) => {
   const { patients, addPatientRestraintAssessment, updatePatientRestraintAssessment } = usePatients();
 
   // 香港時區輔助函數
@@ -19,13 +21,13 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
   };
 
   const [formData, setFormData] = useState({
-    patient_id: assessment?.patient_id || '',
+    patient_id: assessment?.patient_id || (renewFrom ? renewFrom.patient_id : '') as string | number,
     doctor_signature_date: assessment?.doctor_signature_date || '',
     next_due_date: assessment?.next_due_date || '',
-    risk_factors: assessment?.risk_factors || {},
-    alternatives: assessment?.alternatives || {},
-    suggested_restraints: assessment?.suggested_restraints || {},
-    other_restraint_notes: assessment?.other_restraint_notes || ''
+    risk_factors: assessment?.risk_factors || (renewFrom?.risk_factors ?? {}),
+    alternatives: assessment?.alternatives || (renewFrom?.alternatives ?? {}),
+    suggested_restraints: assessment?.suggested_restraints || (renewFrom?.suggested_restraints ?? {}),
+    other_restraint_notes: assessment?.other_restraint_notes || renewFrom?.other_restraint_notes || ''
   });
 
   // 計算下次到期日期（醫生簽署日期 + 6個月）
@@ -300,6 +302,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
         await addPatientRestraintAssessment(assessmentData);
       }
       
+      onUpdate?.();
       onClose();
     } catch (error) {
       console.error('儲存約束物品評估失敗:', error);
@@ -317,7 +320,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                 <Shield className="h-6 w-6 text-yellow-600" />
               </div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {assessment ? '編輯約束物品評估' : '新增約束物品評估'}
+                {assessment ? '編輯約束物品評估' : renewFrom ? '新增評估（續期）' : '新增約束物品評估'}
               </h2>
             </div>
             <button
@@ -337,13 +340,24 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                 <User className="h-4 w-4 inline mr-1" />
                 院友 *
               </label>
-              <PatientAutocomplete
-                value={formData.patient_id}
-                onChange={(patientId) => setFormData(prev => ({ ...prev, patient_id: patientId }))}
-                placeholder="搜索院友..."
-                showResidencyFilter={true}
-                defaultResidencyStatus="在住"
-              />
+              {assessment || renewFrom ? (
+                <div className="form-input bg-gray-100 cursor-not-allowed">
+                  {(() => {
+                    const pid = assessment?.patient_id ?? renewFrom?.patient_id;
+                    const p = patients.find(pt => pt.院友id === Number(pid));
+                    return p ? `${p.床號} - ${p.中文姓名}` : '未知院友';
+                  })()
+                  }
+                </div>
+              ) : (
+                <PatientAutocomplete
+                  value={formData.patient_id}
+                  onChange={(patientId) => setFormData(prev => ({ ...prev, patient_id: patientId }))}
+                  placeholder="搜尋院友..."
+                  showResidencyFilter={true}
+                  defaultResidencyStatus="在住"
+                />
+              )}
             </div>
 
             <div>

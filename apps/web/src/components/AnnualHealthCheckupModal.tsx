@@ -23,8 +23,9 @@ interface AnnualHealthCheckupModalProps {
   onClose: () => void;
   onSave: () => void;
   prefilledPatientId?: number | null;
+  renewFrom?: AnnualHealthCheckup | null;
 }
-export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, prefilledPatientId }: AnnualHealthCheckupModalProps) {
+export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, prefilledPatientId, renewFrom }: AnnualHealthCheckupModalProps) {
   const { 
     patients, 
     diagnosisRecords, 
@@ -147,6 +148,62 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
       });
     }
   }, [checkup?.id, patients, diagnosisRecords]); // 监听患者和诊断记录的变化
+  // 續期：以上一份為底稿，清空日期
+  useEffect(() => {
+    if (renewFrom && !checkup) {
+      const parsedState = parseMentalStateAssessment(renewFrom.mental_state_assessment || null);
+      const patient = patients.find(p => p.院友id === renewFrom.patient_id);
+      const patientDiagnosis = diagnosisRecords
+        .filter(d => d.patient_id === renewFrom.patient_id)
+        .map(d => d.diagnosis_item)
+        .join(', ');
+      setFormData({
+        patient_id: renewFrom.patient_id,
+        last_doctor_signature_date: '',
+        next_due_date: '',
+        has_serious_illness: !!(patientDiagnosis && patientDiagnosis.trim()),
+        serious_illness_details: patientDiagnosis || '',
+        has_allergy: !!(patient?.藥物敏感?.length),
+        allergy_details: patient?.藥物敏感?.join(', ') || '',
+        has_infectious_disease: !!(patient?.感染控制?.length),
+        infectious_disease_details: patient?.感染控制?.join(', ') || '',
+        needs_followup_treatment: !!(renewFrom.followup_treatment_details && renewFrom.followup_treatment_details.trim()),
+        followup_treatment_details: renewFrom.followup_treatment_details || '',
+        has_swallowing_difficulty: !!(renewFrom.swallowing_difficulty_details && renewFrom.swallowing_difficulty_details.trim()),
+        swallowing_difficulty_details: renewFrom.swallowing_difficulty_details || '',
+        has_special_diet: !!(renewFrom.special_diet_details && renewFrom.special_diet_details.trim()),
+        special_diet_details: renewFrom.special_diet_details || '',
+        mental_illness_record: renewFrom.mental_illness_record || '',
+        blood_pressure_systolic: renewFrom.blood_pressure_systolic || null,
+        blood_pressure_diastolic: renewFrom.blood_pressure_diastolic || null,
+        pulse: renewFrom.pulse || null,
+        body_weight: renewFrom.body_weight || null,
+        cardiovascular_notes: renewFrom.cardiovascular_notes || '',
+        respiratory_notes: renewFrom.respiratory_notes || '',
+        central_nervous_notes: renewFrom.central_nervous_notes || '',
+        musculo_skeletal_notes: renewFrom.musculo_skeletal_notes || '',
+        abdomen_urogenital_notes: renewFrom.abdomen_urogenital_notes || '',
+        lymphatic_notes: renewFrom.lymphatic_notes || '',
+        thyroid_notes: renewFrom.thyroid_notes || '',
+        skin_condition_notes: renewFrom.skin_condition_notes || '',
+        foot_notes: renewFrom.foot_notes || '',
+        eye_ear_nose_throat_notes: renewFrom.eye_ear_nose_throat_notes || '',
+        oral_dental_notes: renewFrom.oral_dental_notes || '',
+        physical_exam_others: renewFrom.physical_exam_others || '',
+        vision_assessment: renewFrom.vision_assessment || '',
+        with_visual_corrective_devices: renewFrom.with_visual_corrective_devices ?? null,
+        hearing_assessment: renewFrom.hearing_assessment || '',
+        with_hearing_aids: renewFrom.with_hearing_aids ?? null,
+        speech_assessment: renewFrom.speech_assessment || '',
+        mental_state: parsedState.mental_state,
+        dementia_stage: parsedState.dementia_stage,
+        mobility_assessment: renewFrom.mobility_assessment || '',
+        continence_assessment: renewFrom.continence_assessment || '',
+        adl_assessment: renewFrom.adl_assessment || '',
+        recommendation: renewFrom.recommendation || '',
+      });
+    }
+  }, [renewFrom?.id, patients, diagnosisRecords]);
   useEffect(() => {
     if (formData.last_doctor_signature_date) {
       const calculatedDate = calculateNextDueDate(formData.last_doctor_signature_date);
@@ -242,7 +299,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                 <Stethoscope className="h-6 w-6 text-blue-600" />
               </div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {checkup ? '編輯年度體檢' : '新增年度體檢'}
+                {checkup ? '編輯年度體檢' : renewFrom ? '新增體檢（續期）' : '新增年度體檢'}
               </h2>
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -255,7 +312,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="form-label">院友 *</label>
-                {checkup ? (
+                {checkup || renewFrom ? (
                   <div className="form-input bg-gray-100 cursor-not-allowed">
                     {selectedPatient ? `${selectedPatient.床號} - ${selectedPatient.中文姓名}` : '未知院友'}
                   </div>
@@ -268,7 +325,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
                     defaultResidencyStatus="在住"
                   />
                 )}
-                {selectedPatient && !checkup && (
+                {selectedPatient && !checkup && !renewFrom && (
                   <p className="text-sm text-gray-600 mt-1">
                     床號: {selectedPatient.床號}
                   </p>

@@ -84,10 +84,12 @@ const Dashboard: React.FC = () => {
   const [selectedFollowUp, setSelectedFollowUp] = useState<FollowUpAppointment | null>(null);
   const [showRestraintAssessmentModal, setShowRestraintAssessmentModal] = useState(false);
   const [selectedRestraintAssessment, setSelectedRestraintAssessment] = useState<any | null>(null);
+  const [renewFromRestraintAssessment, setRenewFromRestraintAssessment] = useState<any | null>(null);
   const [showHealthAssessmentModal, setShowHealthAssessmentModal] = useState(false);
   const [selectedHealthAssessment, setSelectedHealthAssessment] = useState<any | null>(null);
   const [showAnnualCheckupModal, setShowAnnualCheckupModal] = useState(false);
   const [selectedAnnualCheckup, setSelectedAnnualCheckup] = useState<any | null>(null);
+  const [renewFromAnnualCheckup, setRenewFromAnnualCheckup] = useState<any | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTaskType, setSelectedTaskType] = useState<'生命表徵' | null>(null);
   const [prefilledAnnualCheckupPatientId, setPrefilledAnnualCheckupPatientId] = useState<number | null>(null);
@@ -237,7 +239,8 @@ const Dashboard: React.FC = () => {
     setShowFollowUpModal(true);
   };
   const handleRestraintAssessmentClick = (assessment: any) => {
-    setSelectedRestraintAssessment(assessment);
+    setRenewFromRestraintAssessment(assessment);
+    setSelectedRestraintAssessment(null);
     setShowRestraintAssessmentModal(true);
   };
   const handleHealthAssessmentClick = (assessment: any) => {
@@ -245,7 +248,8 @@ const Dashboard: React.FC = () => {
     setShowHealthAssessmentModal(true);
   };
   const handleAnnualCheckupClick = (checkup: any) => {
-    setSelectedAnnualCheckup(checkup);
+    setRenewFromAnnualCheckup(checkup);
+    setSelectedAnnualCheckup(null);
     setShowAnnualCheckupModal(true);
   };
   // [核心修復] 標準化時間格式的輔助函數
@@ -1122,9 +1126,9 @@ const Dashboard: React.FC = () => {
       )}
       {showDocumentTaskModal && selectedDocumentTask && <DocumentTaskModal isOpen={showDocumentTaskModal} onClose={() => { setShowDocumentTaskModal(false); setSelectedDocumentTask(null); }} task={selectedDocumentTask.task} patient={selectedDocumentTask.patient} onTaskCompleted={handleDocumentTaskCompleted} />}
       {showFollowUpModal && selectedFollowUp && <FollowUpModal isOpen={showFollowUpModal} onClose={() => { setShowFollowUpModal(false); setSelectedFollowUp(null); }} appointment={selectedFollowUp} onUpdate={refreshData} />}
-      {showRestraintAssessmentModal && selectedRestraintAssessment && <RestraintAssessmentModal isOpen={showRestraintAssessmentModal} onClose={() => { setShowRestraintAssessmentModal(false); setSelectedRestraintAssessment(null); }} assessment={selectedRestraintAssessment} onUpdate={refreshData} />}
+      {showRestraintAssessmentModal && <RestraintAssessmentModal onClose={() => { setShowRestraintAssessmentModal(false); setSelectedRestraintAssessment(null); setRenewFromRestraintAssessment(null); }} assessment={selectedRestraintAssessment ?? undefined} renewFrom={renewFromRestraintAssessment} onUpdate={refreshData} />}
       {showHealthAssessmentModal && selectedHealthAssessment && <HealthAssessmentModal isOpen={showHealthAssessmentModal} onClose={() => { setShowHealthAssessmentModal(false); setSelectedHealthAssessment(null); }} assessment={selectedHealthAssessment} onUpdate={refreshData} />}
-      {showAnnualCheckupModal && <AnnualHealthCheckupModal checkup={selectedAnnualCheckup} onClose={() => { setShowAnnualCheckupModal(false); setSelectedAnnualCheckup(null); setPrefilledAnnualCheckupPatientId(null); }} onSave={refreshData} prefilledPatientId={prefilledAnnualCheckupPatientId} />}
+      {showAnnualCheckupModal && <AnnualHealthCheckupModal checkup={selectedAnnualCheckup} renewFrom={renewFromAnnualCheckup} onClose={() => { setShowAnnualCheckupModal(false); setSelectedAnnualCheckup(null); setRenewFromAnnualCheckup(null); setPrefilledAnnualCheckupPatientId(null); }} onSave={refreshData} prefilledPatientId={prefilledAnnualCheckupPatientId} />}
       {showPatientModal && <PatientModal patient={selectedPatientForEdit} onClose={() => { setShowPatientModal(false); setSelectedPatientForEdit(null); refreshData(); }} />}
       {showVaccinationModal && <VaccinationRecordModal patientId={selectedPatientForVaccination?.院友id} onClose={() => { setShowVaccinationModal(false); setSelectedPatientForVaccination(null); }} />}
       {showBatchOCRModal && (

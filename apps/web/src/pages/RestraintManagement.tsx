@@ -16,7 +16,8 @@ import {
   Clock,
   ChevronUp,
   ChevronDown,
-  X
+  X,
+  Copy
 } from 'lucide-react';
 import { usePatients, type PatientRestraintAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -43,6 +44,7 @@ const RestraintManagement: React.FC = () => {
   const { patientRestraintAssessments, patients, deletePatientRestraintAssessment, loading } = usePatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<PatientRestraintAssessment | null>(null);
+  const [renewFromAssessment, setRenewFromAssessment] = useState<PatientRestraintAssessment | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('next_due_date');
@@ -542,11 +544,12 @@ const RestraintManagement: React.FC = () => {
     </th>
   );
 
+  const latestAssessments = groupedAssessments.map(g => g.assessments[0]);
   const stats = {
-    total: patientRestraintAssessments.length,
-    signed: patientRestraintAssessments.filter(a => a.doctor_signature_date).length,
-    overdue: patientRestraintAssessments.filter(a => isOverdue(a)).length,
-    dueSoon: patientRestraintAssessments.filter(a => isDueSoon(a)).length
+    total: groupedAssessments.length,
+    signed: latestAssessments.filter(a => a.doctor_signature_date).length,
+    overdue: latestAssessments.filter(a => isOverdue(a)).length,
+    dueSoon: latestAssessments.filter(a => isDueSoon(a)).length
   };
 
   return (
@@ -904,7 +907,10 @@ const RestraintManagement: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        {getStatusBadge(assessment)}
+                        {assessmentIndex === 0
+                          ? getStatusBadge(assessment)
+                          : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">舊記錄</span>
+                        }
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900 max-w-xs">
                         <div className="truncate">
@@ -932,6 +938,20 @@ const RestraintManagement: React.FC = () => {
                           >
                             <Edit3 className="h-4 w-4" />
                           </button>
+                          {assessmentIndex === 0 && (
+                            <button
+                              onClick={() => {
+                                setRenewFromAssessment(assessment);
+                                setSelectedAssessment(null);
+                                setShowModal(true);
+                              }}
+                              className="text-green-600 hover:text-green-900"
+                              title="另存新檔（續期）"
+                              disabled={deletingIds.has(assessment.id)}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDelete(assessment.id)}
                             className="text-red-600 hover:text-red-900"
@@ -1044,10 +1064,17 @@ const RestraintManagement: React.FC = () => {
 
       {showModal && (
         <RestraintAssessmentModal
-          assessment={selectedAssessment}
+          assessment={selectedAssessment ?? undefined}
+          renewFrom={renewFromAssessment}
           onClose={() => {
             setShowModal(false);
             setSelectedAssessment(null);
+            setRenewFromAssessment(null);
+          }}
+          onUpdate={() => {
+            setShowModal(false);
+            setSelectedAssessment(null);
+            setRenewFromAssessment(null);
           }}
         />
       )}

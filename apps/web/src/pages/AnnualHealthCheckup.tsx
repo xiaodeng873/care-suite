@@ -16,7 +16,8 @@ import {
   ChevronUp,
   ChevronDown,
   X,
-  FileText
+  FileText,
+  Copy
 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -48,6 +49,7 @@ const AnnualHealthCheckup: React.FC = () => {
   const { annualHealthCheckups, patients, prescriptions, deleteAnnualHealthCheckup, loading } = usePatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedCheckup, setSelectedCheckup] = useState<AnnualHealthCheckup | null>(null);
+  const [renewFromCheckup, setRenewFromCheckup] = useState<AnnualHealthCheckup | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('next_due_date');
@@ -429,11 +431,12 @@ const AnnualHealthCheckup: React.FC = () => {
       </div>
     </th>
   );
+  const latestCheckups = groupedCheckups.map(g => g.checkups[0]);
   const stats = {
-    total: annualHealthCheckups.length,
-    signed: annualHealthCheckups.filter(c => c.last_doctor_signature_date).length,
-    overdue: annualHealthCheckups.filter(c => checkIsOverdue(c)).length,
-    dueSoon: annualHealthCheckups.filter(c => checkIsDueSoon(c)).length
+    total: groupedCheckups.length,
+    signed: latestCheckups.filter(c => c.last_doctor_signature_date).length,
+    overdue: latestCheckups.filter(c => checkIsOverdue(c)).length,
+    dueSoon: latestCheckups.filter(c => checkIsDueSoon(c)).length
   };
   return (
     <div className="space-y-6">
@@ -747,7 +750,10 @@ const AnnualHealthCheckup: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        {getStatusBadge(checkup)}
+                        {checkupIndex === 0
+                          ? getStatusBadge(checkup)
+                          : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">舊記錄</span>
+                        }
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center space-x-1">
@@ -773,6 +779,20 @@ const AnnualHealthCheckup: React.FC = () => {
                           >
                             <Edit3 className="h-4 w-4" />
                           </button>
+                          {checkupIndex === 0 && (
+                            <button
+                              onClick={() => {
+                                setRenewFromCheckup(checkup);
+                                setSelectedCheckup(null);
+                                setShowModal(true);
+                              }}
+                              className="text-green-600 hover:text-green-900"
+                              title="另存新檔（續期）"
+                              disabled={deletingIds.has(checkup.id)}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDelete(checkup.id)}
                             className="text-red-600 hover:text-red-900"
@@ -880,13 +900,16 @@ const AnnualHealthCheckup: React.FC = () => {
       {showModal && (
         <AnnualHealthCheckupModal
           checkup={selectedCheckup}
+          renewFrom={renewFromCheckup}
           onClose={() => {
             setShowModal(false);
             setSelectedCheckup(null);
+            setRenewFromCheckup(null);
           }}
           onSave={() => {
             setShowModal(false);
             setSelectedCheckup(null);
+            setRenewFromCheckup(null);
           }}
         />
       )}
