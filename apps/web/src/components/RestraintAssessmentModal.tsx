@@ -259,6 +259,17 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
       return;
     }
 
+    // 有子類的父類如被勾選，必須至少有一個子類被勾選
+    for (const { category, subcategories } of riskFactorCategories) {
+      if (subcategories.length > 0 && formData.risk_factors[category]) {
+        const hasChild = subcategories.some(sub => formData.risk_factors[sub]);
+        if (!hasChild) {
+          alert(`「${category}」已勾選，請至少選擇一個子項目`);
+          return;
+        }
+      }
+    }
+
     // 必須至少勾選一個折衷辦法
     const hasAnyAlternative = Object.values(formData.alternatives).some(v => v === true);
     if (!hasAnyAlternative) {

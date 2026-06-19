@@ -18,6 +18,8 @@ import MissingRequirementsCard from '../components/MissingRequirementsCard';
 import NotesCard from '../components/NotesCard';
 import OverdueWorkflowCard from '../components/OverdueWorkflowCard';
 import PendingPrescriptionCard from '../components/PendingPrescriptionCard';
+import MedicationRemindersCard from '../components/MedicationRemindersCard';
+import CarePlanDueReminderCard from '../components/CarePlanDueReminderCard';
 import PatientModal from '../components/PatientModal';
 import VaccinationRecordModal from '../components/VaccinationRecordModal';
 import TaskHistoryModal from '../components/TaskHistoryModal';
@@ -812,8 +814,8 @@ const Dashboard: React.FC = () => {
             onAddCarePlan={handleAddCarePlan}
           />
         </div>
-        <div className="col-span-1"><OverdueWorkflowCard overdueWorkflows={overdueWorkflows} /></div>
-        <div className="col-span-1"><PendingPrescriptionCard pendingPrescriptions={pendingPrescriptions} /></div>
+        <div className="col-span-1"><CarePlanDueReminderCard carePlans={carePlans} patients={patients} /></div>
+        <div className="col-span-1"><MedicationRemindersCard overdueWorkflows={overdueWorkflows} pendingPrescriptions={pendingPrescriptions} /></div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
         <div className="card p-6 lg:p-4 lg:col-span-2">

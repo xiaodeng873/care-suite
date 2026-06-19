@@ -1,0 +1,179 @@
+import React, { useState } from 'react';
+import { Clock, Pill, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+interface Patient {
+  院友id: number;
+  中文姓名: string;
+  床號: string;
+  中文姓氏?: string;
+  中文名字?: string;
+}
+
+interface OverdueWorkflow {
+  patient: Patient;
+  overdueCount: number;
+  dates: { [date: string]: number };
+}
+
+interface PendingPrescription {
+  patient: Patient;
+  count: number;
+}
+
+interface MedicationRemindersCardProps {
+  overdueWorkflows: OverdueWorkflow[];
+  pendingPrescriptions: PendingPrescription[];
+}
+
+const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
+  overdueWorkflows,
+  pendingPrescriptions,
+}) => {
+  const navigate = useNavigate();
+  const [showAllOverdue, setShowAllOverdue] = useState(false);
+  const [showAllPending, setShowAllPending] = useState(false);
+  const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
+
+  if (overdueWorkflows.length === 0 && pendingPrescriptions.length === 0) return null;
+
+  const displayOverdue = showAllOverdue ? overdueWorkflows : overdueWorkflows.slice(0, 2);
+  const displayPending = showAllPending ? pendingPrescriptions : pendingPrescriptions.slice(0, 2);
+
+  const togglePatientExpand = (patientId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedPatients(prev => {
+      const next = new Set(prev);
+      next.has(patientId) ? next.delete(patientId) : next.add(patientId);
+      return next;
+    });
+  };
+
+  return (
+    <div className="card p-6 space-y-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="p-2 rounded-lg bg-amber-100">
+          <Clock className="h-6 w-6 text-amber-600" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">藥物管理提醒</h2>
+          <p className="text-sm text-gray-600">
+            {overdueWorkflows.length > 0 && `${overdueWorkflows.length} 位逾期執核`}
+            {overdueWorkflows.length > 0 && pendingPrescriptions.length > 0 && ' · '}
+            {pendingPrescriptions.length > 0 && `${pendingPrescriptions.length} 位待變更處方`}
+          </p>
+        </div>
+      </div>
+
+      {/* 執核派藥逾期 */}
+      {overdueWorkflows.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="h-4 w-4 text-amber-600" />
+            <span className="text-sm font-medium text-amber-800">執核派藥逾期</span>
+          </div>
+          <div className="space-y-2">
+            {displayOverdue.map((item) => {
+              const dateEntries = Object.entries(item.dates).sort();
+              const isExpanded = expandedPatients.has(item.patient.院友id);
+              return (
+                <div key={item.patient.院友id} className="bg-amber-50 border border-amber-200 rounded-lg">
+                  <div
+                    className="p-3 hover:bg-amber-100 cursor-pointer"
+                    onClick={() => navigate(`/medication-workflow?patientId=${item.patient.院友id}`)}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="font-medium text-amber-900">
+                          {item.patient.床號} {item.patient.中文姓氏}{item.patient.中文名字}
+                        </div>
+                        <div className="text-sm text-amber-700">
+                          {item.overdueCount} 個逾期流程 · {dateEntries.length} 個日期
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => togglePatientExpand(item.patient.院友id, e)}
+                          className="p-1 hover:bg-amber-200 rounded"
+                        >
+                          {isExpanded ? <ChevronUp className="h-4 w-4 text-amber-600" /> : <ChevronDown className="h-4 w-4 text-amber-600" />}
+                        </button>
+                        <ArrowRight className="h-4 w-4 text-amber-600" />
+                      </div>
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="px-3 pb-3">
+                      <div className="text-xs text-amber-600 font-medium mb-2">逾期日期列表：</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {dateEntries.map(([date, count]) => (
+                          <button
+                            key={date}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/medication-workflow?patientId=${item.patient.院友id}&date=${date}`); }}
+                            className="text-left px-3 py-2 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded text-sm text-amber-900"
+                          >
+                            <div className="font-medium">{date}</div>
+                            <div className="text-xs text-amber-700">{count} 個流程</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {overdueWorkflows.length > 2 && (
+              <button
+                onClick={() => setShowAllOverdue(!showAllOverdue)}
+                className="w-full p-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 flex items-center justify-center gap-2"
+              >
+                {showAllOverdue ? <><ChevronUp className="h-4 w-4" /><span>收起</span></> : <><ChevronDown className="h-4 w-4" /><span>展開另外 {overdueWorkflows.length - 2} 位</span></>}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 待變更處方 */}
+      {pendingPrescriptions.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Pill className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-800">待變更處方</span>
+          </div>
+          <div className="space-y-2">
+            {displayPending.map((item) => (
+              <div
+                key={item.patient.院友id}
+                className="p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 cursor-pointer"
+                onClick={() => navigate(`/prescriptions?patient=${item.patient.院友id}&tab=pending_change`)}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div>
+                      <div className="font-medium text-blue-900">
+                        {item.patient.床號} {item.patient.中文姓氏}{item.patient.中文名字}
+                      </div>
+                      <div className="text-sm text-blue-700">{item.count} 個待變更處方</div>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-blue-600" />
+                </div>
+              </div>
+            ))}
+            {pendingPrescriptions.length > 2 && (
+              <button
+                onClick={() => setShowAllPending(!showAllPending)}
+                className="w-full p-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 flex items-center justify-center gap-2"
+              >
+                {showAllPending ? <><ChevronUp className="h-4 w-4" /><span>收起</span></> : <><ChevronDown className="h-4 w-4" /><span>展開另外 {pendingPrescriptions.length - 2} 位</span></>}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default MedicationRemindersCard;
