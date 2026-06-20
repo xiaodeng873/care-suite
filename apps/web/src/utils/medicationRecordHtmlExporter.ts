@@ -319,19 +319,22 @@ const fillPatientPhoto = (rows: HTMLTableRowElement[], patient: PatientWithPresc
   cell.appendChild(img);
 };
 
-// 標記需要左下→右上對角斜線的儲存格 / 區塊 (列印時由內嵌 script 以 SVG 疊繪)。
+// 標記需要左下→右上對角斜線的儲存格 (列印時由內嵌 script 以 SVG 疊繪)。
+// 簽署格以斜線將每格分成「執 / 核」兩半，故範圍內每一格各自一條斜線。
 const markDiagonals = (rows: HTMLTableRowElement[]): void => {
-  BLOCK_START_ROWS.forEach((blockStart, index) => {
+  BLOCK_START_ROWS.forEach((blockStart) => {
     // 「執:核:」格 (A10/A15/A20/A25/A30) — 單格斜線。
     const execCell = rows[blockStart + 3]?.cells[0];
     if (execCell) execCell.classList.add('mr-diag-cell');
 
-    // 簽署日格區塊 N..AR × 4 列 (blockStart+1 ~ blockStart+4) — 整塊一條斜線。
-    const topLeft = rows[blockStart + 1]?.cells[SIGNATURE_DAY_CELL_BASE + 1]; // N (day1)
-    const bottomRight = rows[blockStart + 4]?.cells[SIGNATURE_DAY_CELL_BASE + 31]; // AR (day31)
-    if (topLeft && bottomRight) {
-      topLeft.setAttribute('data-mr-region-tl', String(index));
-      bottomRight.setAttribute('data-mr-region-br', String(index));
+    // 簽署日格 N..AR × 4 列 (blockStart+1 ~ blockStart+4) — 每一格各畫一條斜線。
+    for (let rowOffset = 1; rowOffset <= 4; rowOffset += 1) {
+      const row = rows[blockStart + rowOffset];
+      if (!row) continue;
+      for (let day = 1; day <= DAY_COUNT; day += 1) {
+        const cell = row.cells[SIGNATURE_DAY_CELL_BASE + day];
+        if (cell) cell.classList.add('mr-diag-cell');
+      }
     }
   });
 };
@@ -530,16 +533,13 @@ html, body { margin: 0; padding: 0; background: #fff; }
   height: 194mm;
   margin: 0 auto;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   page-break-after: always;
   break-after: page;
   page-break-inside: avoid;
   break-inside: avoid;
 }
 .medication-record-page:last-child { page-break-after: auto; break-after: auto; }
-.mr-scale { transform-origin: center center; }
+.mr-scale { position: absolute; top: 0; left: 0; transform-origin: top left; }
 .mr-scale > table { margin: 0 !important; }
 .mr-footer {
   position: absolute;
@@ -571,19 +571,26 @@ ${renderedPages.join('\n')}
 (function () {
   var NS = 'http://www.w3.org/2000/svg';
 
-  // 將每頁內容等比縮放並置中，確保剛好填滿可列印範圍、不溢出造成空白頁。
+  // 將每頁內容拉伸填滿整張可列印紙面 (橫向與縱向各自縮放)，不留大片空白。
   function fitPages() {
     document.querySelectorAll('.medication-record-page').forEach(function (page) {
       var scaler = page.querySelector('.mr-scale');
       if (!scaler) return;
+      var table = scaler.querySelector('table');
       scaler.style.transform = 'none';
+      scaler.style.left = '0px';
+      scaler.style.top = '0px';
       var availW = page.clientWidth;
       var availH = page.clientHeight;
-      var contentW = scaler.scrollWidth;
-      var contentH = scaler.scrollHeight;
+      var contentW = table ? table.offsetWidth : scaler.scrollWidth;
+      var contentH = table ? table.offsetHeight : scaler.scrollHeight;
       if (!contentW || !contentH || !availW || !availH) return;
-      var s = Math.min(availW / contentW, availH / contentH);
-      scaler.style.transform = 'scale(' + s + ')';
+      // 預留極小安全邊界避免邊框被裁切。
+      var sx = (availW / contentW) * 0.998;
+      var sy = (availH / contentH) * 0.998;
+      scaler.style.transform = 'scale(' + sx + ',' + sy + ')';
+      scaler.style.left = ((availW - contentW * sx) / 2) + 'px';
+      scaler.style.top = ((availH - contentH * sy) / 2) + 'px';
     });
   }
 
@@ -604,23 +611,11 @@ ${renderedPages.join('\n')}
         l.setAttribute('vector-effect', 'non-scaling-stroke');
         svg.appendChild(l);
       }
+      // 每個標記儲存格各畫一條左下→右上斜線。
       page.querySelectorAll('.mr-diag-cell').forEach(function (c) {
         var r = c.getBoundingClientRect();
         if (!r.width || !r.height) return;
         addLine(r.left - prect.left, r.bottom - prect.top, r.right - prect.left, r.top - prect.top);
-      });
-      page.querySelectorAll('[data-mr-region-tl]').forEach(function (tl) {
-        var id = tl.getAttribute('data-mr-region-tl');
-        var br = page.querySelector('[data-mr-region-br="' + id + '"]');
-        if (!br) return;
-        var a = tl.getBoundingClientRect();
-        var b = br.getBoundingClientRect();
-        if (!a.width || !b.width) return;
-        var left = Math.min(a.left, b.left) - prect.left;
-        var right = Math.max(a.right, b.right) - prect.left;
-        var top = Math.min(a.top, b.top) - prect.top;
-        var bottom = Math.max(a.bottom, b.bottom) - prect.top;
-        addLine(left, bottom, right, top);
       });
       page.appendChild(svg);
     });
