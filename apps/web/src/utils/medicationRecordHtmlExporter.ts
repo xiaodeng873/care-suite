@@ -155,7 +155,14 @@ const paginateBlocks = (blocks: PrescriptionBlock[]): PrescriptionBlock[][] => {
   const available = PAGE_CONTENT_HEIGHT_MM - HEADER_REGION_MM - COLUMN_HEADER_MM - LEGEND_MM - SAFETY_MM;
 
   const pageHeightMm = (pageBlocks: PrescriptionBlock[]): number => {
-    const blockRows = pageBlocks.reduce((sum, block) => sum + Math.max(1, block.timeSlots.length), 0);
+    const blockRows = pageBlocks.reduce((sum, block) => {
+      const slotCount = Math.max(1, block.timeSlots.length);
+      const inspTypeCount = prescriptionHasInspection(block.prescription)
+        ? new Set((block.prescription.inspection_rules as any[])
+            .map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean)).size
+        : 0;
+      return sum + slotCount * (1 + inspTypeCount);
+    }, 0);
     const summaryRows = Math.max(1, summaryRowCount(pageBlocks));
     return (blockRows + summaryRows) * GRID_ROW_MM;
   };
@@ -175,41 +182,27 @@ const paginateBlocks = (blocks: PrescriptionBlock[]): PrescriptionBlock[][] => {
   return result.length > 0 ? result : [[]];
 };
 
-// 彙總區列數：每個去重時段一列給藥列；若該時段有「服藥前檢測項」處方，再加一列檢測值列。
+// 彙總區列數：每個去重時段一列給藥列（檢測值已移至處方區）。
 const summaryRowCount = (blocks: PrescriptionBlock[]): number => {
   const slots = sortDistinctTimeSlots(blocks.flatMap((block) => block.timeSlots));
-  return slots.reduce((sum, slot) => sum + 1 + (slotNeedsInspectionRow(blocks, slot) ? 1 : 0), 0);
-};
-
-const slotNeedsInspectionRow = (blocks: PrescriptionBlock[], slot: string): boolean =>
-  !!slot && blocks.some((block) => prescriptionHasInspection(block.prescription) && block.timeSlots.includes(slot));
-
-// 該時段去重後的檢測項目名稱（如「上壓」、「血糖值」），用作彙總檢測列的列首標籤。
-const formatSlotInspectionLabel = (blocks: PrescriptionBlock[], slot: string): string => {
-  const types: string[] = [];
-  for (const block of blocks) {
-    if (!block.timeSlots.includes(slot)) continue;
-    if (!prescriptionHasInspection(block.prescription)) continue;
-    for (const rule of block.prescription.inspection_rules as any[]) {
-      const type = String(rule?.vital_sign_type ?? '').trim();
-      if (type && !types.includes(type)) types.push(type);
-    }
-  }
-  return types.join('、');
+  return slots.length;
 };
 
 // ---- 服藥前檢測項 ----
 
 const INSPECTION_OPERATOR_LABELS: Record<string, string> = { gt: '>', lt: '<', gte: '≥', lte: '≤' };
+const INSPECTION_ACTION_LABELS: Record<string, string> = { block_dispensing: '停服' };
 
 const prescriptionHasInspection = (prescription: MedicationPrescription): boolean =>
   Array.isArray(prescription.inspection_rules) && prescription.inspection_rules.length > 0;
 
 const formatInspectionRequirement = (prescription: MedicationPrescription): string => {
   if (!prescriptionHasInspection(prescription)) return '';
-  const parts = prescription.inspection_rules.map((rule: any) =>
-    `${rule.vital_sign_type ?? ''}${INSPECTION_OPERATOR_LABELS[rule.condition_operator] ?? ''}${rule.condition_value ?? ''}`
-  );
+  const parts = prescription.inspection_rules.map((rule: any) => {
+    const condition = `${rule.vital_sign_type ?? ''}${INSPECTION_OPERATOR_LABELS[rule.condition_operator] ?? ''}${rule.condition_value ?? ''}`;
+    const action = INSPECTION_ACTION_LABELS[rule.action_if_met ?? ''] ?? '';
+    return action ? `${condition} ${action}` : condition;
+  });
   return `服藥前檢測：${parts.join('、')}`;
 };
 
@@ -354,7 +347,6 @@ const renderPrescriptionBlock = (
 ): string => {
   const { prescription, timeSlots } = block;
   const slots = timeSlots.length > 0 ? timeSlots : [''];
-  const rowCount = slots.length;
 
   const dateInfo = `<div>開始：${escapeHtml(formatDate(prescription.start_date))}</div>`
     + `<div>處方：${escapeHtml(formatDate(prescription.prescription_date))}</div>`;
@@ -372,18 +364,75 @@ const renderPrescriptionBlock = (
     .map((line) => `<div>${escapeHtml(String(line))}</div>`)
     .join('');
 
+  // 每個處方的檢測項類型（不重複），各自在時段下方加一行。
+  const inspectionTypes: string[] = prescriptionHasInspection(prescription)
+    ? [...new Set((prescription.inspection_rules as any[])
+        .map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean))]
+    : [];
+  const rowsPerSlot = 1 + inspectionTypes.length;
+  const totalRowCount = slots.length * rowsPerSlot;
+
   return slots
-    .map((slot, slotIndex) => {
+    .flatMap((slot, slotIndex) => {
       const leftCells = slotIndex === 0
-        ? `<td class="c-date" rowspan="${rowCount}">${dateInfo}</td>`
-          + `<td class="c-name" rowspan="${rowCount}">${nameInfo}</td>`
-          + `<td class="c-route" rowspan="${rowCount}">${routeInfo || '&nbsp;'}</td>`
+        ? `<td class="c-date" rowspan="${totalRowCount}">${dateInfo}</td>`
+          + `<td class="c-name" rowspan="${totalRowCount}">${nameInfo}</td>`
+          + `<td class="c-route" rowspan="${totalRowCount}">${routeInfo || '&nbsp;'}</td>`
         : '';
       const timeCell = `<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>`;
       const dayCells = signatureDayCells(prescription, slot, selectedMonth, dayCount, workflowRecords, staffMapping);
-      return `<tr class="mr-sign-row">${leftCells}${timeCell}${dayCells}</tr>`;
+      const signRow = `<tr class="mr-sign-row">${leftCells}${timeCell}${dayCells}</tr>`;
+      const inspRows = inspectionTypes.map((inspType) =>
+        renderBodyInspectionRow(block, slot, inspType, selectedMonth, dayCount, workflowRecords)
+      );
+      return [signRow, ...inspRows];
     })
     .join('');
+};
+
+// 處方區檢測值子列：顯示在對應時段正下方，不加斜線；數值不合格（canDispense===false）標紅。
+const renderBodyInspectionRow = (
+  block: PrescriptionBlock,
+  slot: string,
+  vitalSignType: string,
+  selectedMonth: string,
+  dayCount: number,
+  workflowRecords: WorkflowRecord[]
+): string => {
+  const { prescription } = block;
+  let dayCells = '';
+  for (let day = 1; day <= dayCount; day += 1) {
+    const dateStr = toDateString(selectedMonth, day);
+    let content = '';
+    let isFailed = false;
+    const inRange = slot && block.timeSlots.includes(slot) && isDateInPrescriptionRange(dateStr, slot, prescription);
+    if (inRange) {
+      const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
+      if (record) {
+        const result = parseInspectionResult(record);
+        if (result) {
+          if (result.isHospitalized) {
+            content = 'A';
+          } else {
+            const data = result.usedVitalSignData;
+            if (data && typeof data === 'object') {
+              const direct = data[vitalSignType];
+              if (direct != null && String(direct).trim()) {
+                content = String(direct);
+              } else {
+                const vals = Object.values(data).filter((v) => v != null && String(v).trim() !== '');
+                if (vals.length > 0) content = vals.map(String).join('/');
+              }
+            }
+            isFailed = result.canDispense === false;
+          }
+        }
+      }
+    }
+    const cellClass = `c-day${isFailed ? ' mr-insp-fail' : ''}${!inRange ? ' mr-inactive' : ''}`;
+    dayCells += `<td class="${cellClass}">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
+  }
+  return `<tr class="mr-insp-body-row"><td class="c-time mr-insp-type">${escapeHtml(vitalSignType)}</td>${dayCells}</tr>`;
 };
 
 const signatureDayCells = (
@@ -398,11 +447,12 @@ const signatureDayCells = (
   for (let day = 1; day <= dayCount; day += 1) {
     const dateStr = toDateString(selectedMonth, day);
     let content = '';
-    if (slot && isDateInPrescriptionRange(dateStr, slot, prescription)) {
+    const inRange = slot && isDateInPrescriptionRange(dateStr, slot, prescription);
+    if (inRange) {
       const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
       content = formatWorkflowCellContent(record, staffMapping) || '';
     }
-    cells += `<td class="c-day mr-diag">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
+    cells += `<td class="c-day mr-diag${inRange ? '' : ' mr-inactive'}">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
   }
   return cells;
 };
@@ -419,10 +469,7 @@ const renderFooterRegion = (
 ): string => {
   const pageSlots = sortDistinctTimeSlots(page.blocks.flatMap((block) => block.timeSlots));
   const summarySlots = pageSlots.length > 0 ? pageSlots : [''];
-  const totalRows = summarySlots.reduce(
-    (sum, slot) => sum + 1 + (slotNeedsInspectionRow(page.blocks, slot) ? 1 : 0),
-    0
-  );
+  const totalRows = summarySlots.length;
 
   const legendCodes = '<div class="mr-legend-codes">'
     + DISPENSE_CODE_ITEMS.map((item) => `<span>${escapeHtml(item)}</span>`).join('')
@@ -454,11 +501,6 @@ const renderFooterRegion = (
     const dayCells = dispenseDayCells(page.blocks, slot, selectedMonth, dayCount, workflowRecords, staffMapping);
     rows.push(`<tr class="mr-sum-row">${labelCell}${timeCell}${dayCells}</tr>`);
 
-    if (slotNeedsInspectionRow(page.blocks, slot)) {
-      const inspectionCells = inspectionDayCells(page.blocks, slot, selectedMonth, dayCount, workflowRecords);
-      const inspectionLabel = formatSlotInspectionLabel(page.blocks, slot) || '檢測值';
-      rows.push(`<tr class="mr-sum-row mr-insp-row"><td class="c-time">${escapeHtml(inspectionLabel)}</td>${inspectionCells}</tr>`);
-    }
   }
 
   const summaryTable = `<table class="mr-grid mr-summary">${colGroup(dayCount)}<tbody>${rows.join('')}</tbody></table>`;
@@ -481,55 +523,33 @@ const dispenseDayCells = (
   for (let day = 1; day <= dayCount; day += 1) {
     const dateStr = toDateString(selectedMonth, day);
     let content = '';
+    let anyInRange = false;
     if (slot) {
+      let successContent = '';
+      let fallbackContent = '';
       for (const block of blocks) {
         const prescription = block.prescription;
         if (!block.timeSlots.includes(slot)) continue;
         if (!isDateInPrescriptionRange(dateStr, slot, prescription)) continue;
+        anyInRange = true;
         if (prescription.preparation_method === 'custom') {
-          content = 'S';
-          break;
+          if (!successContent) successContent = 'S';
+          continue;
         }
         const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
         const value = formatDispenseCellContent(record, staffMapping);
         if (value) {
-          content = value;
-          break;
+          if (record?.dispensing_status === 'completed') {
+            successContent = value;
+            break; // 有成功派發，直接用
+          } else if (!fallbackContent) {
+            fallbackContent = value; // 保留失敗代號作備用
+          }
         }
       }
+      content = successContent || fallbackContent;
     }
-    cells += `<td class="c-day">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
-  }
-  return cells;
-};
-
-// 彙總區檢測值列：映射該時段有檢測項處方的服藥前生命表徵數值。
-const inspectionDayCells = (
-  blocks: PrescriptionBlock[],
-  slot: string,
-  selectedMonth: string,
-  dayCount: number,
-  workflowRecords: WorkflowRecord[]
-): string => {
-  let cells = '';
-  for (let day = 1; day <= dayCount; day += 1) {
-    const dateStr = toDateString(selectedMonth, day);
-    let content = '';
-    if (slot) {
-      for (const block of blocks) {
-        const prescription = block.prescription;
-        if (!prescriptionHasInspection(prescription)) continue;
-        if (!block.timeSlots.includes(slot)) continue;
-        if (!isDateInPrescriptionRange(dateStr, slot, prescription)) continue;
-        const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
-        const value = formatInspectionValue(record);
-        if (value) {
-          content = value;
-          break;
-        }
-      }
-    }
-    cells += `<td class="c-day mr-insp-cell">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
+    cells += `<td class="c-day${anyInRange ? '' : ' mr-inactive'}">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
   }
   return cells;
 };
@@ -727,6 +747,8 @@ td.mr-diag {
     transparent calc(50% - 0.4px), #9aa7b4 calc(50% - 0.4px),
     #9aa7b4 calc(50% + 0.4px), transparent calc(50% + 0.4px));
 }
+/* 不在處方有效期內的日格：灰底、移除斜線 */
+td.mr-inactive { background: #e2e8f0 !important; background-image: none !important; }
 
 /* 底部給藥彙總（左側標籤格內含簽署指引） */
 .mr-footer-region { flex: 0 0 auto; }
@@ -744,8 +766,9 @@ td.mr-diag {
 .mr-staff-codes span { margin-right: 2.4mm; white-space: nowrap; }
 .mr-legend-note { font-size: 7pt; line-height: 1.3; color: #64748b; margin-top: 0.3mm; }
 .mr-sum-row td.c-time { font-size: 8pt; }
-.mr-insp-row td.c-time { font-size: 7.2pt; font-weight: bold; color: #1d4ed8; }
-.mr-insp-cell { font-size: 7.2pt; color: #1d4ed8; }
+.mr-insp-body-row td { height: 5mm; }
+.mr-insp-type { font-size: 7.2pt; font-weight: bold; color: #1d4ed8; }
+td.mr-insp-fail { color: #dc2626; font-weight: bold; }
 .mr-pagelabel { text-align: right; font-size: 8pt; color: #475569; margin-top: 0.6mm; }
 </style>
 </head>

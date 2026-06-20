@@ -1112,7 +1112,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                           onChange={(e) => updateInspectionRule(index, 'action_if_met', e.target.value)}
                           className="form-input"
                         >
-                          <option value="block_dispensing">阻止派藥</option>
+                          <option value="block_dispensing">停服</option>
                           <option value="warning_only">僅警告</option>
                         </select>
                       </div>
