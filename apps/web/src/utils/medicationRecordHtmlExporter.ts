@@ -676,7 +676,7 @@ body {
 .mr-hc-logo { width: 36mm; }
 .mr-hc-title { width: 58mm; }
 .mr-hc-photo { width: 28mm; }
-.mr-hc-info { width: 32mm; }
+.mr-hc-info { width: 36mm; }
 .mr-h-logo { text-align: center; background: #f1f5f9; }
 .mr-logo { width: 100%; max-width: 35mm; height: auto; object-fit: contain; display: block; margin: 0 auto; }
 .mr-h-title { text-align: center; }
