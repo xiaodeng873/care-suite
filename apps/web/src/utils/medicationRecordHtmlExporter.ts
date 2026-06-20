@@ -183,6 +183,21 @@ const summaryRowCount = (blocks: PrescriptionBlock[]): number => {
 const slotNeedsInspectionRow = (blocks: PrescriptionBlock[], slot: string): boolean =>
   !!slot && blocks.some((block) => prescriptionHasInspection(block.prescription) && block.timeSlots.includes(slot));
 
+// 該時段所有檢測項處方的生命表徵名稱（去重），用作彙總檢測列標籤，如「上壓／血糖值」。
+const slotInspectionLabel = (blocks: PrescriptionBlock[], slot: string): string => {
+  if (!slot) return '';
+  const names: string[] = [];
+  for (const block of blocks) {
+    if (!block.timeSlots.includes(slot)) continue;
+    if (!prescriptionHasInspection(block.prescription)) continue;
+    for (const rule of block.prescription.inspection_rules) {
+      const name = String(rule?.vital_sign_type ?? '').trim();
+      if (name && !names.includes(name)) names.push(name);
+    }
+  }
+  return names.join('／');
+};
+
 // ---- 服藥前檢測項 ----
 
 const INSPECTION_OPERATOR_LABELS: Record<string, string> = { gt: '>', lt: '<', gte: '≥', lte: '≤' };
@@ -228,7 +243,7 @@ const sortDistinctTimeSlots = (slots: string[]): string[] => {
 
 const classifyRoute = (prescription: MedicationPrescription): RouteKind => {
   const route = String(prescription.administration_route ?? '').trim();
-  if (route === '注射') return 'injection';
+  if (route.includes('注射')) return 'injection';
   if (route === '口服') return 'oral';
   if (!route) return 'oral';
   return 'topical';
@@ -436,7 +451,8 @@ const renderFooterRegion = (
 
     if (slotNeedsInspectionRow(page.blocks, slot)) {
       const inspectionCells = inspectionDayCells(page.blocks, slot, selectedMonth, dayCount, workflowRecords);
-      rows.push(`<tr class="mr-sum-row mr-insp-row"><td class="c-time">檢測值</td>${inspectionCells}</tr>`);
+      const inspectionLabel = slotInspectionLabel(page.blocks, slot) || '檢測';
+      rows.push(`<tr class="mr-sum-row mr-insp-row"><td class="c-time">${escapeHtml(inspectionLabel)}</td>${inspectionCells}</tr>`);
     }
   }
 

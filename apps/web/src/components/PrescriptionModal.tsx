@@ -684,7 +684,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 >
                   <option value="">請選擇途徑</option>
                   <option value="口服">口服</option>
-                  <option value="注射">注射</option>
+                  <option value="肌肉注射">肌肉注射</option>
+                  <option value="皮下注射">皮下注射</option>
                   <option value="外用">外用</option>
                   <option value="滴眼">滴眼</option>
                   <option value="滴耳">滴耳</option>
