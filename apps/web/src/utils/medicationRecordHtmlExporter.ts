@@ -674,9 +674,9 @@ body {
 .mr-header-table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 0.8pt solid #2f3a45; }
 .mr-header-table td { border: 0.4pt solid #9aa7b4; padding: 1mm 1.5mm; vertical-align: middle; }
 .mr-hc-logo { width: 36mm; }
-.mr-hc-title { width: 50mm; }
-.mr-hc-photo { width: 22mm; }
-.mr-hc-info { width: 22mm; }
+.mr-hc-title { width: 58mm; }
+.mr-hc-photo { width: 28mm; }
+.mr-hc-info { width: 32mm; }
 .mr-h-logo { text-align: center; background: #f1f5f9; }
 .mr-logo { width: 100%; max-width: 35mm; height: auto; object-fit: contain; display: block; margin: 0 auto; }
 .mr-h-title { text-align: center; }
@@ -687,7 +687,7 @@ body {
 .mr-h-photo { text-align: center; }
 .mr-photo { width: 22mm; height: 26mm; object-fit: contain; border: 0.5pt solid #9aa7b4; border-radius: 1.2mm; display: block; margin: 0 auto; }
 .mr-photo-empty { display: flex; align-items: center; justify-content: center; height: 26mm; font-size: 9pt; color: #888; }
-.mr-h-info { font-size: 9pt; white-space: normal; word-break: break-word; }
+.mr-h-info { font-size: 9pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mr-h-react { white-space: normal; word-break: break-word; }
 .mr-info-label { font-weight: bold; }
 
