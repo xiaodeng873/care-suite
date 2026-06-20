@@ -50,12 +50,17 @@ const DAY_COUNT = 31;
 // 表頭儲存格位置 (rowIndex, cellIndex) — 由原始範本實際結構推導。
 const HEADER_CELLS = {
   allergy: { row: 0, cell: 1 }, // B1 藥物敏感
-  name: { row: 0, cell: 4 }, // AF1 姓名
+  name: { row: 0, cell: 5 }, // AF1:AJ1 姓名值格 (cell[4]=AE1 為格線間隔，須填右側值格)
   bedNumber: { row: 0, cell: 8 }, // AO1 床號 (顯示於「院號」格)
-  genderAge: { row: 1, cell: 2 }, // AF2 性別/年齡
+  genderAge: { row: 1, cell: 3 }, // AF2:AJ2 性別/年齡值格 (cell[2]=AE2 為間隔)
   birthDate: { row: 1, cell: 6 }, // AO2 出生日期
   adverseReaction: { row: 2, cell: 1 }, // B3 不良藥物反應
 };
+
+// 給藥簽署標籤格 (院友相片覆蓋於此)。
+const DISPENSE_LABEL_CELL = { row: 31, cell: 1 };
+// 每個處方區塊內，逐日簽署格的日欄索引基準 (day 1 → cell 3 = N欄, day 31 → cell 33 = AR欄)。
+const SIGNATURE_DAY_CELL_BASE = 2;
 
 export const exportMedicationRecordToHtml = async (
   patients: PatientWithPrescriptions[],
@@ -63,7 +68,7 @@ export const exportMedicationRecordToHtml = async (
   includeWorkflowRecords = false
 ): Promise<void> => {
   const html = await buildMedicationRecordHtml(patients, selectedMonth, includeWorkflowRecords);
-  openHtmlInNewWindow(html);
+  printViaIframe(html);
 };
 
 export const exportSelectedMedicationRecordToHtml = async (
@@ -141,6 +146,8 @@ const renderPage = (
   fillHeader(rows, page.patient);
   fillPrescriptionBlocks(rows, page, selectedMonth, workflowRecords, staffMapping);
   fillDispenseSummary(rows, page, selectedMonth, workflowRecords, staffMapping);
+  fillPatientPhoto(rows, page.patient);
+  markDiagonals(rows);
 
   return `<div class="medication-record-page">${table.outerHTML}</div>`;
 };
@@ -275,6 +282,37 @@ const fillDispenseSummary = (
       if (dispenseContent) {
         setCellHtml(rows, { row: rowIndex, cell: dayCellBase + day }, escapeHtml(dispenseContent));
       }
+    }
+  });
+};
+
+// 院友相片覆蓋於「給藥簽署」標籤格上。
+const fillPatientPhoto = (rows: HTMLTableRowElement[], patient: PatientWithPrescriptions): void => {
+  const photo = patient.院友相片;
+  if (!photo) return;
+  const cell = rows[DISPENSE_LABEL_CELL.row]?.cells[DISPENSE_LABEL_CELL.cell];
+  if (!cell) return;
+  cell.classList.add('mr-photo-cell');
+  const img = cell.ownerDocument.createElement('img');
+  img.setAttribute('src', String(photo));
+  img.setAttribute('alt', '');
+  img.className = 'mr-patient-photo';
+  cell.appendChild(img);
+};
+
+// 標記需要左下→右上對角斜線的儲存格 / 區塊 (列印時由內嵌 script 以 SVG 疊繪)。
+const markDiagonals = (rows: HTMLTableRowElement[]): void => {
+  BLOCK_START_ROWS.forEach((blockStart, index) => {
+    // 「執:核:」格 (A10/A15/A20/A25/A30) — 單格斜線。
+    const execCell = rows[blockStart + 3]?.cells[0];
+    if (execCell) execCell.classList.add('mr-diag-cell');
+
+    // 簽署日格區塊 N..AR × 4 列 (blockStart+1 ~ blockStart+4) — 整塊一條斜線。
+    const topLeft = rows[blockStart + 1]?.cells[SIGNATURE_DAY_CELL_BASE + 1]; // N (day1)
+    const bottomRight = rows[blockStart + 4]?.cells[SIGNATURE_DAY_CELL_BASE + 31]; // AR (day31)
+    if (topLeft && bottomRight) {
+      topLeft.setAttribute('data-mr-region-tl', String(index));
+      bottomRight.setAttribute('data-mr-region-br', String(index));
     }
   });
 };
@@ -466,8 +504,19 @@ const assembleDocument = (renderedPages: string[]): string => `<!DOCTYPE html>
 ${templateStylesheet}
 @page { size: landscape; margin: 0.2in 0in 0in 0.04in; }
 html, body { margin: 0; padding: 0; background: #fff; }
-.medication-record-page { page-break-after: always; }
+.medication-record-page { position: relative; page-break-after: always; }
 .medication-record-page:last-child { page-break-after: auto; }
+.mr-photo-cell { position: relative; }
+.mr-patient-photo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.mr-diag-overlay { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 5; }
 @media print {
   .medication-record-page { page-break-after: always; }
   .medication-record-page:last-child { page-break-after: auto; }
@@ -476,20 +525,96 @@ html, body { margin: 0; padding: 0; background: #fff; }
 </head>
 <body link="blue" vlink="purple">
 ${renderedPages.join('\n')}
+<script>
+(function () {
+  var NS = 'http://www.w3.org/2000/svg';
+  function drawDiagonals() {
+    document.querySelectorAll('.medication-record-page').forEach(function (page) {
+      var old = page.querySelector('svg.mr-diag-overlay');
+      if (old) old.remove();
+      var prect = page.getBoundingClientRect();
+      var svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class', 'mr-diag-overlay');
+      svg.style.width = page.offsetWidth + 'px';
+      svg.style.height = page.offsetHeight + 'px';
+      function addLine(x1, y1, x2, y2) {
+        var l = document.createElementNS(NS, 'line');
+        l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+        l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+        l.setAttribute('stroke', '#000'); l.setAttribute('stroke-width', '1');
+        svg.appendChild(l);
+      }
+      page.querySelectorAll('.mr-diag-cell').forEach(function (c) {
+        var r = c.getBoundingClientRect();
+        addLine(r.left - prect.left, r.bottom - prect.top, r.right - prect.left, r.top - prect.top);
+      });
+      page.querySelectorAll('[data-mr-region-tl]').forEach(function (tl) {
+        var id = tl.getAttribute('data-mr-region-tl');
+        var br = page.querySelector('[data-mr-region-br="' + id + '"]');
+        if (!br) return;
+        var a = tl.getBoundingClientRect();
+        var b = br.getBoundingClientRect();
+        var left = Math.min(a.left, b.left) - prect.left;
+        var right = Math.max(a.right, b.right) - prect.left;
+        var top = Math.min(a.top, b.top) - prect.top;
+        var bottom = Math.max(a.bottom, b.bottom) - prect.top;
+        addLine(left, bottom, right, top);
+      });
+      page.appendChild(svg);
+    });
+  }
+  if (document.readyState === 'complete') drawDiagonals();
+  else window.addEventListener('load', drawDiagonals);
+  window.addEventListener('beforeprint', drawDiagonals);
+  window.addEventListener('resize', drawDiagonals);
+})();
+</script>
 </body>
 </html>`;
 
-const openHtmlInNewWindow = (html: string): void => {
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const popup = window.open(url, '_blank');
+// 以隱藏 iframe 列印，不另開視窗。
+const printViaIframe = (html: string): void => {
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.visibility = 'hidden';
+  document.body.appendChild(iframe);
 
-  if (!popup) {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = '個人備藥及給藥記錄.html';
-    link.click();
+  const cleanup = (): void => {
+    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+  };
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) {
+    cleanup();
+    return;
   }
 
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  const win = iframe.contentWindow!;
+  win.addEventListener('afterprint', () => setTimeout(cleanup, 200));
+
+  const triggerPrint = (): void => {
+    window.setTimeout(() => {
+      win.focus();
+      win.print();
+    }, 400);
+  };
+
+  if (doc.readyState === 'complete') {
+    triggerPrint();
+  } else {
+    win.addEventListener('load', triggerPrint);
+  }
+
+  // 後備清理：列印對話框未觸發 afterprint 時，仍移除 iframe。
+  window.setTimeout(cleanup, 60_000);
 };
