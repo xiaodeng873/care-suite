@@ -47,6 +47,8 @@ const ROUTE_LABELS: Record<RouteKind, string> = {
 
 // 第一頁固定 38 列 (table.rows 索引 0-37)。
 const FIRST_PAGE_ROW_COUNT = 38;
+// 範本前 44 個邏輯欄 (A..AR) 才是表單本體，最後一欄 AR 為第 31 天；其後皆為空白欄。
+const MEANINGFUL_COL_COUNT = 44;
 const PRESCRIPTIONS_PER_PAGE = 5;
 // 每個處方區塊的起始列 (table.rows 索引)。
 const BLOCK_START_ROWS = [6, 11, 16, 21, 26];
@@ -182,7 +184,62 @@ const parseFirstPageTable = (sheetHtml: string): HTMLTableElement => {
   for (let index = allRows.length - 1; index >= FIRST_PAGE_ROW_COUNT; index -= 1) {
     allRows[index].remove();
   }
+
+  // Excel 範本在最後一個日期欄 (AR / 第 44 欄) 之後還塞了 29 個空白欄
+  // (寬 69 + 179 + 66×27 ≈ 2030px)，會讓表格右半邊全是空白、表單只佔頁面左半。
+  // 移除這些尾端空白欄，表單才能填滿整張 A4。
+  trimTrailingColumns(table, MEANINGFUL_COL_COUNT);
   return table;
+};
+
+// 裁掉邏輯欄索引 >= keepCols 的所有欄 (含 <col> 定義與每列對應的儲存格)，
+// 並正確處理 colspan / rowspan，最後清掉固定總寬讓表格依剩餘欄寬自然收縮。
+const trimTrailingColumns = (table: HTMLTableElement, keepCols: number): void => {
+  const rows = Array.from(table.rows);
+  const rowspanRemaining: number[] = [];
+
+  for (const row of rows) {
+    let col = 0;
+    for (const cell of Array.from(row.cells)) {
+      while (rowspanRemaining[col] && rowspanRemaining[col] > 0) col += 1;
+      const colspan = cell.colSpan || 1;
+      const rowspan = cell.rowSpan || 1;
+      const startCol = col;
+      const endCol = startCol + colspan - 1;
+
+      if (startCol >= keepCols) {
+        cell.remove();
+        continue;
+      }
+      if (endCol >= keepCols) {
+        cell.colSpan = keepCols - startCol;
+      }
+      const effEnd = Math.min(endCol, keepCols - 1);
+      if (rowspan > 1) {
+        for (let c = startCol; c <= effEnd; c += 1) rowspanRemaining[c] = rowspan;
+      }
+      col = endCol + 1;
+    }
+    for (let c = 0; c < rowspanRemaining.length; c += 1) {
+      if (rowspanRemaining[c] && rowspanRemaining[c] > 0) rowspanRemaining[c] -= 1;
+    }
+  }
+
+  let acc = 0;
+  for (const colEl of Array.from(table.querySelectorAll('col'))) {
+    const span = (colEl as HTMLTableColElement).span || 1;
+    if (acc >= keepCols) {
+      colEl.remove();
+      continue;
+    }
+    if (acc + span > keepCols) {
+      (colEl as HTMLTableColElement).span = keepCols - acc;
+    }
+    acc += span;
+  }
+
+  table.style.width = '';
+  table.removeAttribute('width');
 };
 
 const fillHeader = (rows: HTMLTableRowElement[], patient: PatientWithPrescriptions): void => {
@@ -570,9 +627,17 @@ ${renderedPages.join('\n')}
 <script>
 (function () {
   var NS = 'http://www.w3.org/2000/svg';
+  // 與 CSS 的 .medication-record-page 尺寸一致 (mm)。
+  var PAGE_W_MM = 281;
+  var PAGE_H_MM = 194;
+  var PX_PER_MM = 96 / 25.4; // CSS 標準：1in = 96px = 25.4mm
 
   // 將每頁內容拉伸填滿整張可列印紙面 (橫向與縱向各自縮放)，不留大片空白。
+  // 可列印區大小以「已知的 mm 尺寸」換算，避免在隱藏 iframe / 列印當下用 clientWidth
+  // 量到錯誤值 (這是先前縮到極小、靠角落的主因)；表格尺寸則用版面實測 (off-screen 仍可靠)。
   function fitPages() {
+    var availW = PAGE_W_MM * PX_PER_MM;
+    var availH = PAGE_H_MM * PX_PER_MM;
     document.querySelectorAll('.medication-record-page').forEach(function (page) {
       var scaler = page.querySelector('.mr-scale');
       if (!scaler) return;
@@ -580,14 +645,12 @@ ${renderedPages.join('\n')}
       scaler.style.transform = 'none';
       scaler.style.left = '0px';
       scaler.style.top = '0px';
-      var availW = page.clientWidth;
-      var availH = page.clientHeight;
       var contentW = table ? table.offsetWidth : scaler.scrollWidth;
       var contentH = table ? table.offsetHeight : scaler.scrollHeight;
-      if (!contentW || !contentH || !availW || !availH) return;
+      if (!contentW || !contentH) return;
       // 預留極小安全邊界避免邊框被裁切。
-      var sx = (availW / contentW) * 0.998;
-      var sy = (availH / contentH) * 0.998;
+      var sx = (availW / contentW) * 0.997;
+      var sy = (availH / contentH) * 0.997;
       scaler.style.transform = 'scale(' + sx + ',' + sy + ')';
       scaler.style.left = ((availW - contentW * sx) / 2) + 'px';
       scaler.style.top = ((availH - contentH * sy) / 2) + 'px';
