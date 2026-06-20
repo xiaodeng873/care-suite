@@ -42,10 +42,28 @@ const ROUTE_SUBTITLES: Record<RouteKind, string> = {
   injection: '注射藥物',
 };
 
+const ROUTE_SHEET_LABELS: Record<RouteKind, string> = {
+  oral: '口服藥紙',
+  topical: '外用藥紙',
+  injection: '注射藥紙',
+};
+
 const ROUTE_ORDER: RouteKind[] = ['oral', 'topical', 'injection'];
 
-// 底部「給藥記錄簽署指引」原文（取自原始 Excel 範本）。
-const DISPENSE_LEGEND = '給藥記錄簽署指引：簽名＝已服藥；HL＝因事回家；A＝入院';
+// 「給藥記錄簽署指引」逐項說明（顯示於彙總區左側標籤格，取代「給藥簽署」字眼）。
+const DISPENSE_LEGEND_ITEMS: string[] = [
+  '簽名＝已服藥',
+  'HL＝因事回家',
+  'A＝入院',
+  'S＝自理',
+  'LM＝缺藥中',
+  'C＝已痊癒',
+  'P＝暫停',
+  'R＝拒絕一種或以上藥物',
+  'O＝其他（請註明）',
+  'R 或 O 請通知護士／保健員作出跟進並作適當記錄',
+  '處方日期＝該藥物第一次被處方的使用日期',
+];
 
 // 版面尺寸與分頁預算（mm）。A4 橫向去除 7mm 邊界後，可列印區約 283 × 196mm。
 const PAGE_CONTENT_HEIGHT_MM = 196;
@@ -135,7 +153,7 @@ const paginateBlocks = (blocks: PrescriptionBlock[]): PrescriptionBlock[][] => {
 
   const pageHeightMm = (pageBlocks: PrescriptionBlock[]): number => {
     const blockRows = pageBlocks.reduce((sum, block) => sum + Math.max(1, block.timeSlots.length), 0);
-    const summaryRows = Math.max(1, distinctSlotCount(pageBlocks));
+    const summaryRows = Math.max(1, summaryRowCount(pageBlocks));
     return (blockRows + summaryRows) * GRID_ROW_MM;
   };
 
@@ -154,10 +172,51 @@ const paginateBlocks = (blocks: PrescriptionBlock[]): PrescriptionBlock[][] => {
   return result.length > 0 ? result : [[]];
 };
 
-const distinctSlotCount = (blocks: PrescriptionBlock[]): number => {
-  const set = new Set<string>();
-  blocks.forEach((block) => block.timeSlots.forEach((slot) => set.add(slot)));
-  return set.size;
+// 彙總區列數：每個去重時段一列給藥列；若該時段有「服藥前檢測項」處方，再加一列檢測值列。
+const summaryRowCount = (blocks: PrescriptionBlock[]): number => {
+  const slots = sortDistinctTimeSlots(blocks.flatMap((block) => block.timeSlots));
+  return slots.reduce((sum, slot) => sum + 1 + (slotNeedsInspectionRow(blocks, slot) ? 1 : 0), 0);
+};
+
+const slotNeedsInspectionRow = (blocks: PrescriptionBlock[], slot: string): boolean =>
+  !!slot && blocks.some((block) => prescriptionHasInspection(block.prescription) && block.timeSlots.includes(slot));
+
+// ---- 服藥前檢測項 ----
+
+const INSPECTION_OPERATOR_LABELS: Record<string, string> = { gt: '>', lt: '<', gte: '≥', lte: '≤' };
+
+const prescriptionHasInspection = (prescription: MedicationPrescription): boolean =>
+  Array.isArray(prescription.inspection_rules) && prescription.inspection_rules.length > 0;
+
+const formatInspectionRequirement = (prescription: MedicationPrescription): string => {
+  if (!prescriptionHasInspection(prescription)) return '';
+  const parts = prescription.inspection_rules.map((rule: any) =>
+    `${rule.vital_sign_type ?? ''}${INSPECTION_OPERATOR_LABELS[rule.condition_operator] ?? ''}${rule.condition_value ?? ''}`
+  );
+  return `服藥前檢測：${parts.join('、')}`;
+};
+
+const parseInspectionResult = (record: WorkflowRecord | null): any => {
+  if (!record || !record.inspection_check_result) return null;
+  try {
+    return typeof record.inspection_check_result === 'string'
+      ? JSON.parse(record.inspection_check_result)
+      : record.inspection_check_result;
+  } catch {
+    return null;
+  }
+};
+
+const formatInspectionValue = (record: WorkflowRecord | null): string => {
+  const result = parseInspectionResult(record);
+  if (!result) return '';
+  if (result.isHospitalized) return 'A';
+  const data = result.usedVitalSignData;
+  if (data && typeof data === 'object') {
+    const values = Object.values(data).filter((value) => value != null && String(value).trim() !== '');
+    if (values.length > 0) return values.map((value) => String(value)).join('/');
+  }
+  return '';
 };
 
 const sortDistinctTimeSlots = (slots: string[]): string[] => {
@@ -180,7 +239,7 @@ const renderPage = (
   staffMapping: StaffCodeMapping
 ): string => {
   const dayCount = getDaysInMonth(selectedMonth);
-  const pageLabel = `${ROUTE_LABELS[page.routeKind]} 共${page.pageIndexInRoute}/${page.pageCountInRoute}頁`;
+  const pageLabel = `${ROUTE_SHEET_LABELS[page.routeKind]} 共${page.pageIndexInRoute}/${page.pageCountInRoute}頁`;
 
   return '<section class="mr-page">'
     + renderHeaderRegion(page.patient, page.routeKind)
@@ -277,12 +336,15 @@ const renderPrescriptionBlock = (
 
   const dateInfo = `<div>開始：${escapeHtml(formatDate(prescription.start_date))}</div>`
     + `<div>處方：${escapeHtml(formatDate(prescription.prescription_date))}</div>`;
+  const inspectionRequirement = formatInspectionRequirement(prescription);
+  const nameInfo = `<div class="mr-med-name">${escapeHtml(prescription.medication_name ?? '')}</div>`
+    + (inspectionRequirement ? `<div class="mr-med-test">${escapeHtml(inspectionRequirement)}</div>` : '')
+    + (prescription.medication_source ? `<div class="mr-med-source">來源：${escapeHtml(String(prescription.medication_source))}</div>` : '');
   const routeInfo = [
     prescription.administration_route ?? '',
     getFrequencyDescription(prescription),
     getDosageText(prescription),
     prescription.is_prn ? '需要時' : '',
-    prescription.medication_source ? `來源：${prescription.medication_source}` : '',
   ]
     .filter((line) => line != null && String(line).trim() !== '')
     .map((line) => `<div>${escapeHtml(String(line))}</div>`)
@@ -292,7 +354,7 @@ const renderPrescriptionBlock = (
     .map((slot, slotIndex) => {
       const leftCells = slotIndex === 0
         ? `<td class="c-date" rowspan="${rowCount}">${dateInfo}</td>`
-          + `<td class="c-name" rowspan="${rowCount}">${escapeHtml(prescription.medication_name ?? '')}</td>`
+          + `<td class="c-name" rowspan="${rowCount}">${nameInfo}</td>`
           + `<td class="c-route" rowspan="${rowCount}">${routeInfo || '&nbsp;'}</td>`
         : '';
       const timeCell = `<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>`;
@@ -335,23 +397,36 @@ const renderFooterRegion = (
 ): string => {
   const pageSlots = sortDistinctTimeSlots(page.blocks.flatMap((block) => block.timeSlots));
   const summarySlots = pageSlots.length > 0 ? pageSlots : [''];
-  const labelRowSpan = summarySlots.length;
+  const totalRows = summarySlots.reduce(
+    (sum, slot) => sum + 1 + (slotNeedsInspectionRow(page.blocks, slot) ? 1 : 0),
+    0
+  );
 
-  const summaryRows = summarySlots
-    .map((slot, index) => {
-      const labelCell = index === 0
-        ? `<td class="mr-sum-label" colspan="3" rowspan="${labelRowSpan}">給藥簽署</td>`
-        : '';
-      const timeCell = `<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>`;
-      const dayCells = dispenseDayCells(page.blocks, slot, selectedMonth, dayCount, workflowRecords, staffMapping);
-      return `<tr class="mr-sum-row">${labelCell}${timeCell}${dayCells}</tr>`;
-    })
-    .join('');
+  const legendHtml = '<div class="mr-legend-list">'
+    + DISPENSE_LEGEND_ITEMS.map((item) => `<div>${escapeHtml(item)}</div>`).join('')
+    + '</div>';
 
-  const summaryTable = `<table class="mr-grid mr-summary">${colGroup(dayCount)}<tbody>${summaryRows}</tbody></table>`;
+  const rows: string[] = [];
+  let labelEmitted = false;
+  for (const slot of summarySlots) {
+    const labelCell = labelEmitted
+      ? ''
+      : `<td class="mr-sum-label" colspan="3" rowspan="${totalRows}">${legendHtml}</td>`;
+    labelEmitted = true;
+
+    const timeCell = `<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>`;
+    const dayCells = dispenseDayCells(page.blocks, slot, selectedMonth, dayCount, workflowRecords, staffMapping);
+    rows.push(`<tr class="mr-sum-row">${labelCell}${timeCell}${dayCells}</tr>`);
+
+    if (slotNeedsInspectionRow(page.blocks, slot)) {
+      const inspectionCells = inspectionDayCells(page.blocks, slot, selectedMonth, dayCount, workflowRecords);
+      rows.push(`<tr class="mr-sum-row mr-insp-row"><td class="c-time">檢測值</td>${inspectionCells}</tr>`);
+    }
+  }
+
+  const summaryTable = `<table class="mr-grid mr-summary">${colGroup(dayCount)}<tbody>${rows.join('')}</tbody></table>`;
 
   return '<footer class="mr-footer-region">'
-    + `<div class="mr-legend">${escapeHtml(DISPENSE_LEGEND)}</div>`
     + summaryTable
     + `<div class="mr-pagelabel">${escapeHtml(pageLabel)}</div>`
   + '</footer>';
@@ -391,6 +466,37 @@ const dispenseDayCells = (
   return cells;
 };
 
+// 彙總區檢測值列：映射該時段有檢測項處方的服藥前生命表徵數值。
+const inspectionDayCells = (
+  blocks: PrescriptionBlock[],
+  slot: string,
+  selectedMonth: string,
+  dayCount: number,
+  workflowRecords: WorkflowRecord[]
+): string => {
+  let cells = '';
+  for (let day = 1; day <= dayCount; day += 1) {
+    const dateStr = toDateString(selectedMonth, day);
+    let content = '';
+    if (slot) {
+      for (const block of blocks) {
+        const prescription = block.prescription;
+        if (!prescriptionHasInspection(prescription)) continue;
+        if (!block.timeSlots.includes(slot)) continue;
+        if (!isDateInPrescriptionRange(dateStr, slot, prescription)) continue;
+        const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
+        const value = formatInspectionValue(record);
+        if (value) {
+          content = value;
+          break;
+        }
+      }
+    }
+    cells += `<td class="c-day mr-insp-cell">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
+  }
+  return cells;
+};
+
 const formatTimeSlot = (slot: string): string => {
   const match = String(slot ?? '').match(/(\d{1,2}):(\d{2})/);
   return match ? `${match[1].padStart(2, '0')}:${match[2]}` : String(slot ?? '');
@@ -405,31 +511,27 @@ const parseTimeToMinutes = (timeStr: string): number => {
 };
 
 const getFrequencyDescription = (prescription: MedicationPrescription): string => {
-  const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots } = prescription;
-  const abbreviation = (count: number): string => {
-    switch (count) {
-      case 1: return 'QD';
-      case 2: return 'BD';
-      case 3: return 'TDS';
-      case 4: return 'QID';
-      default: return `${count}次/日`;
-    }
-  };
+  const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
   const timeSlotsCount = medication_time_slots?.length ?? 0;
+  const perDay = timeSlotsCount || daily_frequency || frequency_value || 1;
 
   switch (frequency_type) {
-    case 'every_x_days': return `隔${frequency_value}日服`;
-    case 'every_x_months': return `隔${frequency_value}月服`;
+    case 'every_x_days': {
+      const gap = Number(frequency_value) || 1;
+      const gapLabel = gap === 1 ? '隔日' : `隔${gap}日`;
+      return `${gapLabel}${perDay}次`;
+    }
+    case 'every_x_months': return `隔${frequency_value}月${perDay}次`;
     case 'weekly_days': {
       const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
       const days = specific_weekdays?.map((day: number) => dayNames[day === 7 ? 0 : day]).join('、') ?? '';
-      return `逢${days}服`;
+      return `逢${days}${perDay}次`;
     }
     case 'odd_even_days':
-      return is_odd_even_day === 'odd' ? '單日服' : is_odd_even_day === 'even' ? '雙日服' : '單雙日服';
-    case 'hourly': return `每${frequency_value}小時服用`;
+      return is_odd_even_day === 'odd' ? `單日${perDay}次` : is_odd_even_day === 'even' ? `雙日${perDay}次` : `單雙日${perDay}次`;
+    case 'hourly': return `每${frequency_value}小時1次`;
     case 'daily':
-    default: return abbreviation(timeSlotsCount);
+    default: return `每日${perDay}次`;
   }
 };
 
@@ -512,8 +614,8 @@ const assembleDocument = (renderedPages: string[]): string => `<!DOCTYPE html>
 html, body { margin: 0; padding: 0; background: #fff; }
 * { box-sizing: border-box; }
 body {
-  font-family: "新細明體", "PMingLiU", "Microsoft JhengHei", serif;
-  color: #000;
+  font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang TC", "Noto Sans TC", "Heiti TC", sans-serif;
+  color: #1a1a1a;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -534,59 +636,69 @@ body {
 .mr-header { flex: 0 0 auto; }
 .mr-header-top { display: flex; align-items: stretch; gap: 3mm; }
 .mr-photo-box { flex: 0 0 22mm; }
-.mr-photo { width: 22mm; height: 26mm; object-fit: contain; border: 0.5pt solid #000; display: block; }
+.mr-photo { width: 22mm; height: 26mm; object-fit: contain; border: 0.5pt solid #9aa7b4; border-radius: 1.2mm; display: block; }
 .mr-photo-empty { display: flex; align-items: center; justify-content: center; font-size: 9pt; color: #888; }
 .mr-title-box { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.mr-title { font-size: 15pt; font-weight: bold; text-align: center; }
-.mr-subtitle { font-size: 12pt; font-weight: bold; margin-top: 1mm; }
+.mr-title { font-size: 15pt; font-weight: bold; text-align: center; color: #0f2740; letter-spacing: 0.5pt; }
+.mr-subtitle { font-size: 12pt; font-weight: bold; margin-top: 1mm; color: #0f766e; letter-spacing: 1pt; }
 .mr-info-grid { flex: 0 0 80mm; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5mm 3mm; align-content: center; }
 .mr-info-cell { font-size: 9.5pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mr-info-label { font-weight: bold; }
-.mr-header-bottom { display: flex; gap: 6mm; margin-top: 1mm; border-top: 0.5pt solid #000; padding-top: 1mm; }
+.mr-header-bottom { display: flex; gap: 6mm; margin-top: 1mm; border-top: 0.5pt solid #cbd5e1; padding-top: 1mm; }
 .mr-react { flex: 1 1 50%; font-size: 9.5pt; }
 .mr-react-label { font-weight: bold; }
 
 /* 共用格線表 */
-.mr-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.mr-grid { width: 100%; border-collapse: collapse; table-layout: fixed; border: 0.8pt solid #2f3a45; }
 .mr-grid th, .mr-grid td {
-  border: 0.5pt solid #000;
+  border: 0.4pt solid #9aa7b4;
   text-align: center;
   vertical-align: middle;
   overflow: hidden;
   font-size: 8pt;
-  padding: 0;
-  line-height: 1.05;
+  padding: 0.3mm 0.4mm;
+  line-height: 1.15;
   word-break: break-word;
 }
 .mr-grid col.c-date { width: 22mm; }
 .mr-grid col.c-name { width: 40mm; }
 .mr-grid col.c-route { width: 26mm; }
 .mr-grid col.c-time { width: 12mm; }
-.mr-colhead th { font-weight: bold; height: 6mm; }
-.mr-dayhead th { font-size: 7pt; height: 5mm; }
+.mr-colhead th { font-weight: bold; height: 6mm; background: #e8eef4; color: #1f2c38; }
+.mr-dayhead th { font-size: 7pt; height: 5mm; background: #f1f5f9; color: #1f2c38; }
 .mr-sign-head { font-weight: bold; letter-spacing: 0.5pt; }
 .mr-sign-row td { height: 7mm; }
 .mr-sign-row td.c-date, .mr-sign-row td.c-name, .mr-sign-row td.c-route {
   font-size: 8pt;
   text-align: left;
-  padding: 0 1mm;
+  padding: 0.4mm 1mm;
+  vertical-align: top;
 }
-.mr-sign-row td.c-name { font-weight: bold; }
+.mr-med-name { font-weight: bold; }
+.mr-med-test { font-size: 7.2pt; color: #b45309; margin-top: 0.4mm; }
+.mr-med-source { font-size: 7.2pt; color: #475569; margin-top: 0.4mm; }
 
 /* 每個簽署日格的左下→右上斜線（執＝左下、核＝右上） */
 td.mr-diag {
   background-image: linear-gradient(to bottom right,
-    transparent calc(50% - 0.4px), #000 calc(50% - 0.4px),
-    #000 calc(50% + 0.4px), transparent calc(50% + 0.4px));
+    transparent calc(50% - 0.4px), #9aa7b4 calc(50% - 0.4px),
+    #9aa7b4 calc(50% + 0.4px), transparent calc(50% + 0.4px));
 }
 
-/* 底部指引＋給藥彙總 */
+/* 底部給藥彙總（左側標籤格內含簽署指引） */
 .mr-footer-region { flex: 0 0 auto; }
-.mr-legend { font-size: 8.5pt; margin-bottom: 0.5mm; }
 .mr-summary td { height: 7mm; }
-.mr-sum-label { font-weight: bold; font-size: 9pt; }
+.mr-sum-label {
+  background: #f1f5f9;
+  vertical-align: top;
+  text-align: left;
+  padding: 1mm 1.2mm;
+}
+.mr-legend-list { font-size: 7.2pt; line-height: 1.3; color: #1f2c38; }
 .mr-sum-row td.c-time { font-size: 8pt; }
-.mr-pagelabel { text-align: right; font-size: 11pt; margin-top: 0.5mm; }
+.mr-insp-row td.c-time { font-size: 7.2pt; font-weight: bold; color: #1d4ed8; }
+.mr-insp-cell { font-size: 7.2pt; color: #1d4ed8; }
+.mr-pagelabel { text-align: right; font-size: 8pt; color: #475569; margin-top: 0.6mm; }
 </style>
 </head>
 <body>
