@@ -284,9 +284,9 @@ const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: RouteK
     + '</colgroup><tbody>'
       + '<tr>'
         + `<td class="mr-h-logo" rowspan="2"><img class="mr-logo" src="${MR_LOGO_DATA_URI}" alt="善頤護老 SeniorCare"></td>`
-        + '<td class="mr-h-title"><div class="mr-title">善頤 (福群) 護老院   個人備藥及給藥記錄</div></td>'
+        + '<td class="mr-h-title"><div class="mr-org">善頤 (福群) 護老院</div><div class="mr-doc">個人備藥及給藥記錄</div></td>'
         + `<td class="mr-h-photo" rowspan="2">${photoHtml}</td>`
-        + infoCell('姓名', name)
+        + infoCell('院友姓名', name)
         + infoCell('院號', String(patient.床號 ?? ''))
         + reactCell('藥物過敏反應', joinList(patient.藥物敏感))
       + '</tr>'
@@ -673,19 +673,21 @@ body {
 .mr-header { flex: 0 0 auto; margin-bottom: 1.5mm; }
 .mr-header-table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 0.8pt solid #2f3a45; }
 .mr-header-table td { border: 0.4pt solid #9aa7b4; padding: 1mm 1.5mm; vertical-align: middle; }
-.mr-hc-logo { width: 38mm; }
-.mr-hc-photo { width: 24mm; }
-.mr-hc-react { width: 40mm; }
+.mr-hc-logo { width: 36mm; }
+.mr-hc-title { width: 50mm; }
+.mr-hc-photo { width: 22mm; }
+.mr-hc-info { width: 22mm; }
 .mr-h-logo { text-align: center; background: #f1f5f9; }
 .mr-logo { width: 100%; max-width: 35mm; height: auto; object-fit: contain; display: block; margin: 0 auto; }
 .mr-h-title { text-align: center; }
-.mr-title { font-size: 13pt; font-weight: bold; color: #0f2740; line-height: 1.25; letter-spacing: 0.3pt; }
+.mr-org { font-size: 15pt; font-weight: bold; color: #0f2740; line-height: 1.3; letter-spacing: 1pt; }
+.mr-doc { font-size: 11.5pt; font-weight: bold; color: #1f3a52; line-height: 1.2; letter-spacing: 2pt; margin-top: 0.8mm; }
 .mr-h-subtitle { text-align: center; }
 .mr-subtitle { font-size: 11pt; font-weight: bold; color: #0f766e; letter-spacing: 1pt; }
 .mr-h-photo { text-align: center; }
 .mr-photo { width: 22mm; height: 26mm; object-fit: contain; border: 0.5pt solid #9aa7b4; border-radius: 1.2mm; display: block; margin: 0 auto; }
 .mr-photo-empty { display: flex; align-items: center; justify-content: center; height: 26mm; font-size: 9pt; color: #888; }
-.mr-h-info { font-size: 9pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-h-info { font-size: 9pt; white-space: normal; word-break: break-word; }
 .mr-h-react { white-space: normal; word-break: break-word; }
 .mr-info-label { font-weight: bold; }
 
