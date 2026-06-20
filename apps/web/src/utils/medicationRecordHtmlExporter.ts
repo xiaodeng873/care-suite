@@ -29,6 +29,8 @@ interface PageData {
   patient: PatientWithPrescriptions;
   routeKind: RouteKind;
   prescriptions: MedicationPrescription[];
+  pageIndexInRoute: number;
+  pageCountInRoute: number;
 }
 
 const TEMPLATE_CONFIGS: TemplateConfig[] = [
@@ -36,6 +38,12 @@ const TEMPLATE_CONFIGS: TemplateConfig[] = [
   { routeKind: 'topical', sheetHtml: sheet002Html },
   { routeKind: 'injection', sheetHtml: sheet003Html },
 ];
+
+const ROUTE_LABELS: Record<RouteKind, string> = {
+  oral: '口服',
+  topical: '外用',
+  injection: '注射',
+};
 
 // 第一頁固定 38 列 (table.rows 索引 0-37)。
 const FIRST_PAGE_ROW_COUNT = 38;
@@ -114,11 +122,17 @@ const preparePages = (patient: PatientWithPrescriptions, prescriptions: Medicati
   const pages: PageData[] = [];
   for (const config of TEMPLATE_CONFIGS) {
     const routePrescriptions = categorized[config.routeKind];
+    const pageCount = Math.max(1, Math.ceil(routePrescriptions.length / PRESCRIPTIONS_PER_PAGE));
+    if (routePrescriptions.length === 0) continue;
+    let pageIndex = 0;
     for (let start = 0; start < routePrescriptions.length; start += PRESCRIPTIONS_PER_PAGE) {
+      pageIndex += 1;
       pages.push({
         patient,
         routeKind: config.routeKind,
         prescriptions: routePrescriptions.slice(start, start + PRESCRIPTIONS_PER_PAGE),
+        pageIndexInRoute: pageIndex,
+        pageCountInRoute: pageCount,
       });
     }
   }
@@ -149,7 +163,8 @@ const renderPage = (
   fillPatientPhoto(rows, page.patient);
   markDiagonals(rows);
 
-  return `<div class="medication-record-page">${table.outerHTML}</div>`;
+  const footer = `${ROUTE_LABELS[page.routeKind]} 共${page.pageIndexInRoute}/${page.pageCountInRoute}頁`;
+  return `<div class="medication-record-page"><div class="mr-scale">${table.outerHTML}</div><div class="mr-footer">${escapeHtml(footer)}</div></div>`;
 };
 
 // 用瀏覽器 DOMParser 解析原始 Excel HTML，取出主表並只保留第一頁 (前 38 列)。
@@ -181,6 +196,10 @@ const fillHeader = (rows: HTMLTableRowElement[], patient: PatientWithPrescriptio
   setCellText(rows, HEADER_CELLS.genderAge, formatGenderAge(patient));
   setCellText(rows, HEADER_CELLS.birthDate, formatDate(patient.出生日期));
   setCellText(rows, HEADER_CELLS.adverseReaction, joinList(patient.不良藥物反應));
+
+  // B1 藥物敏感值格頂框線缺失，補上。
+  const allergyCell = rows[HEADER_CELLS.allergy.row]?.cells[HEADER_CELLS.allergy.cell];
+  if (allergyCell) allergyCell.classList.add('mr-allergy-box');
 };
 
 const fillPrescriptionBlocks = (
@@ -502,10 +521,36 @@ const assembleDocument = (renderedPages: string[]): string => `<!DOCTYPE html>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <style>
 ${templateStylesheet}
-@page { size: landscape; margin: 0.2in 0in 0in 0.04in; }
+@page { size: A4 landscape; margin: 7mm; }
 html, body { margin: 0; padding: 0; background: #fff; }
-.medication-record-page { position: relative; page-break-after: always; }
-.medication-record-page:last-child { page-break-after: auto; }
+.medication-record-page {
+  position: relative;
+  box-sizing: border-box;
+  width: 281mm;
+  height: 194mm;
+  margin: 0 auto;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  page-break-after: always;
+  break-after: page;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.medication-record-page:last-child { page-break-after: auto; break-after: auto; }
+.mr-scale { transform-origin: center center; }
+.mr-scale > table { margin: 0 !important; }
+.mr-footer {
+  position: absolute;
+  right: 3mm;
+  bottom: 1.5mm;
+  font-family: "新細明體", "PMingLiU", serif;
+  font-size: 11pt;
+  line-height: 1;
+  color: #000;
+  z-index: 6;
+}
 .mr-photo-cell { position: relative; }
 .mr-patient-photo {
   position: absolute;
@@ -516,11 +561,8 @@ html, body { margin: 0; padding: 0; background: #fff; }
   object-fit: contain;
   pointer-events: none;
 }
+.mr-allergy-box { border-top: 0.5pt solid #000 !important; }
 .mr-diag-overlay { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 5; }
-@media print {
-  .medication-record-page { page-break-after: always; }
-  .medication-record-page:last-child { page-break-after: auto; }
-}
 </style>
 </head>
 <body link="blue" vlink="purple">
@@ -528,6 +570,23 @@ ${renderedPages.join('\n')}
 <script>
 (function () {
   var NS = 'http://www.w3.org/2000/svg';
+
+  // 將每頁內容等比縮放並置中，確保剛好填滿可列印範圍、不溢出造成空白頁。
+  function fitPages() {
+    document.querySelectorAll('.medication-record-page').forEach(function (page) {
+      var scaler = page.querySelector('.mr-scale');
+      if (!scaler) return;
+      scaler.style.transform = 'none';
+      var availW = page.clientWidth;
+      var availH = page.clientHeight;
+      var contentW = scaler.scrollWidth;
+      var contentH = scaler.scrollHeight;
+      if (!contentW || !contentH || !availW || !availH) return;
+      var s = Math.min(availW / contentW, availH / contentH);
+      scaler.style.transform = 'scale(' + s + ')';
+    });
+  }
+
   function drawDiagonals() {
     document.querySelectorAll('.medication-record-page').forEach(function (page) {
       var old = page.querySelector('svg.mr-diag-overlay');
@@ -542,10 +601,12 @@ ${renderedPages.join('\n')}
         l.setAttribute('x1', x1); l.setAttribute('y1', y1);
         l.setAttribute('x2', x2); l.setAttribute('y2', y2);
         l.setAttribute('stroke', '#000'); l.setAttribute('stroke-width', '1');
+        l.setAttribute('vector-effect', 'non-scaling-stroke');
         svg.appendChild(l);
       }
       page.querySelectorAll('.mr-diag-cell').forEach(function (c) {
         var r = c.getBoundingClientRect();
+        if (!r.width || !r.height) return;
         addLine(r.left - prect.left, r.bottom - prect.top, r.right - prect.left, r.top - prect.top);
       });
       page.querySelectorAll('[data-mr-region-tl]').forEach(function (tl) {
@@ -554,6 +615,7 @@ ${renderedPages.join('\n')}
         if (!br) return;
         var a = tl.getBoundingClientRect();
         var b = br.getBoundingClientRect();
+        if (!a.width || !b.width) return;
         var left = Math.min(a.left, b.left) - prect.left;
         var right = Math.max(a.right, b.right) - prect.left;
         var top = Math.min(a.top, b.top) - prect.top;
@@ -563,10 +625,16 @@ ${renderedPages.join('\n')}
       page.appendChild(svg);
     });
   }
-  if (document.readyState === 'complete') drawDiagonals();
-  else window.addEventListener('load', drawDiagonals);
-  window.addEventListener('beforeprint', drawDiagonals);
-  window.addEventListener('resize', drawDiagonals);
+
+  function refresh() {
+    fitPages();
+    drawDiagonals();
+  }
+
+  if (document.readyState === 'complete') refresh();
+  else window.addEventListener('load', refresh);
+  window.addEventListener('beforeprint', refresh);
+  window.addEventListener('resize', refresh);
 })();
 </script>
 </body>
@@ -576,13 +644,14 @@ ${renderedPages.join('\n')}
 const printViaIframe = (html: string): void => {
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
+  // 須給 iframe 真實尺寸 (A4 橫向 @96dpi)，否則版面塌縮為 0，
+  // 導致量測錯誤 (斜線消失、縮放/分頁異常)。移到畫面外即可隱藏。
   iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
+  iframe.style.left = '-10000px';
+  iframe.style.top = '0';
+  iframe.style.width = '1123px';
+  iframe.style.height = '794px';
   iframe.style.border = '0';
-  iframe.style.visibility = 'hidden';
   document.body.appendChild(iframe);
 
   const cleanup = (): void => {

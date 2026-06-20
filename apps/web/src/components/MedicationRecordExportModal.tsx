@@ -394,7 +394,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         if (medicationRecordSuccess) successMessage += medicationRecordMessage + '\n\n';
         if (personalMedicationListSuccess) successMessage += personalMedicationListMessage;
 
-        alert(successMessage);
+        if (!isHtmlOutput) alert(successMessage);
       } else {
         const selectedPatients = activePatients
           .filter(p => selectedPatientIds.has(p.院友id))
@@ -498,7 +498,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         if (medicationRecordSuccess) successMessage += medicationRecordMessage + '\n\n';
         if (personalMedicationListSuccess) successMessage += personalMedicationListMessage;
 
-        alert(successMessage);
+        if (!isHtmlOutput) alert(successMessage);
       }
 
       onClose();
