@@ -369,8 +369,9 @@ const PrescriptionManagement: React.FC = () => {
 
   const updatePrescriptionStatus = async (prescription: any, targetStatus: 'active' | 'pending_change' | 'inactive', endDate?: string | null) => {
     try {
+      // 僅傳送需要變更的欄位，避免把整列回寫導致 NOT NULL 欄位（如 medication_source）被空字串轉成 null。
       const updateData: any = {
-        ...prescription,
+        id: prescription.id,
         status: targetStatus
       };
 

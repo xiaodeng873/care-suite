@@ -846,10 +846,12 @@ export const createPrescription = async (prescription: Omit<MedicationPrescripti
 };
 export const updatePrescription = async (prescription: Partial<MedicationPrescription> & { id: string }): Promise<MedicationPrescription> => {
   const { id, ...updateData } = prescription;
+  // 不可為 NULL 的文字欄位：空字串需保留（轉成 null 會違反 NOT NULL 限制）
+  const notNullTextColumns = new Set(['medication_source', 'medication_name']);
   // Clean up empty string values by converting them to null
   const cleanedData = { ...updateData };
   Object.keys(cleanedData).forEach(key => {
-    if (cleanedData[key] === '') {
+    if (cleanedData[key] === '' && !notNullTextColumns.has(key)) {
       cleanedData[key] = null;
     }
   });

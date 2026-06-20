@@ -131,9 +131,10 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
     const finalEndDate = endDate !== undefined ? endDate : (pendingTransfer?.endDate || null);
 
     try {
-      // 準備更新資料
+      // 準備更新資料：僅傳送需要變更的欄位，避免把整列回寫
+      // 導致 NOT NULL 欄位（如 medication_source）被空字串轉成 null。
       const updateData: any = {
-        ...prescription,
+        id: prescription.id,
         status: finalTargetStatus
       };
 
@@ -155,12 +156,13 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
       if (finalTargetStatus === 'active' && comparisonResult?.existingPrescription) {
         if (selectedAction === 'replace') {
           // 將現有處方轉為停用，設定結束日期和時間為當前系統時間
-          await updatePrescription({
-            ...comparisonResult.existingPrescription,
+          const replaceData: any = {
+            id: comparisonResult.existingPrescription.id,
             status: 'inactive',
             end_date: getHongKongDate(),
             end_time: getHongKongTime()
-          });
+          };
+          await updatePrescription(replaceData);
         }
         // 如果選擇保留兩者，不需要額外操作
       }
