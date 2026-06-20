@@ -1,7 +1,3 @@
-import sheet001Html from '../assets/medication-record-template/sheet001.htm?raw';
-import sheet002Html from '../assets/medication-record-template/sheet002.htm?raw';
-import sheet003Html from '../assets/medication-record-template/sheet003.htm?raw';
-import templateStylesheet from '../assets/medication-record-template/stylesheet.css?raw';
 import {
   extractStaffNamesFromWorkflowRecords,
   fetchWorkflowRecordsForMonth,
@@ -13,31 +9,26 @@ import {
   type WorkflowRecord,
 } from './medicationWorkflowHelper';
 
-// 此匯出器嚴格使用上傳的 Excel HTML 範本 (sheet001/002/003.htm + stylesheet.css)。
-// 版面、字型、欄寬、線條完全來自原始檔，程式只負責把資料填入既有儲存格。
+// 此匯出器完全以程式自寫的語意化 HTML/CSS 產生列印版面（不再依賴 Excel 範本檔）。
+// 版面分三區：頂置院友資訊 / 中間動態處方區 / 底部指引＋給藥彙總；
+// 日格依當月天數填滿寬度；內容超頁自動分頁，且單一處方區塊不會被切割到兩頁。
 
 type RouteKind = 'oral' | 'topical' | 'injection';
 type MedicationPrescription = Record<string, any>;
 type PatientWithPrescriptions = Record<string, any> & { prescriptions?: MedicationPrescription[] };
 
-interface TemplateConfig {
-  routeKind: RouteKind;
-  sheetHtml: string;
+interface PrescriptionBlock {
+  prescription: MedicationPrescription;
+  timeSlots: string[];
 }
 
 interface PageData {
   patient: PatientWithPrescriptions;
   routeKind: RouteKind;
-  prescriptions: MedicationPrescription[];
+  blocks: PrescriptionBlock[];
   pageIndexInRoute: number;
   pageCountInRoute: number;
 }
-
-const TEMPLATE_CONFIGS: TemplateConfig[] = [
-  { routeKind: 'oral', sheetHtml: sheet001Html },
-  { routeKind: 'topical', sheetHtml: sheet002Html },
-  { routeKind: 'injection', sheetHtml: sheet003Html },
-];
 
 const ROUTE_LABELS: Record<RouteKind, string> = {
   oral: '口服',
@@ -45,32 +36,24 @@ const ROUTE_LABELS: Record<RouteKind, string> = {
   injection: '注射',
 };
 
-// 第一頁固定 38 列 (table.rows 索引 0-37)。
-const FIRST_PAGE_ROW_COUNT = 38;
-// 範本前 44 個邏輯欄 (A..AR) 才是表單本體，最後一欄 AR 為第 31 天；其後皆為空白欄。
-const MEANINGFUL_COL_COUNT = 44;
-const PRESCRIPTIONS_PER_PAGE = 5;
-// 每個處方區塊的起始列 (table.rows 索引)。
-const BLOCK_START_ROWS = [6, 11, 16, 21, 26];
-// 底部「給藥簽署」總結區起始列。
-const DISPENSE_START_ROW = 31;
-const DISPENSE_ROW_COUNT = 6;
-const DAY_COUNT = 31;
-
-// 表頭儲存格位置 (rowIndex, cellIndex) — 由原始範本實際結構推導。
-const HEADER_CELLS = {
-  allergy: { row: 0, cell: 1 }, // B1 藥物敏感
-  name: { row: 0, cell: 5 }, // AF1:AJ1 姓名值格 (cell[4]=AE1 為格線間隔，須填右側值格)
-  bedNumber: { row: 0, cell: 8 }, // AO1 床號 (顯示於「院號」格)
-  genderAge: { row: 1, cell: 3 }, // AF2:AJ2 性別/年齡值格 (cell[2]=AE2 為間隔)
-  birthDate: { row: 1, cell: 6 }, // AO2 出生日期
-  adverseReaction: { row: 2, cell: 1 }, // B3 不良藥物反應
+const ROUTE_SUBTITLES: Record<RouteKind, string> = {
+  oral: '口服藥物',
+  topical: '外用藥物',
+  injection: '注射藥物',
 };
 
-// 給藥簽署標籤格 (院友相片覆蓋於此)。
-const DISPENSE_LABEL_CELL = { row: 31, cell: 1 };
-// 每個處方區塊內，逐日簽署格的日欄索引基準 (day 1 → cell 3 = N欄, day 31 → cell 33 = AR欄)。
-const SIGNATURE_DAY_CELL_BASE = 2;
+const ROUTE_ORDER: RouteKind[] = ['oral', 'topical', 'injection'];
+
+// 底部「給藥記錄簽署指引」原文（取自原始 Excel 範本）。
+const DISPENSE_LEGEND = '給藥記錄簽署指引：簽名＝已服藥；HL＝因事回家；A＝入院';
+
+// 版面尺寸與分頁預算（mm）。A4 橫向去除 7mm 邊界後，可列印區約 283 × 196mm。
+const PAGE_CONTENT_HEIGHT_MM = 196;
+const HEADER_REGION_MM = 26; // 頂置院友資訊區
+const COLUMN_HEADER_MM = 12; // 欄標題 + 日號兩列
+const LEGEND_MM = 6; // 底部指引單列
+const GRID_ROW_MM = 7; // 每個簽署 / 彙總列高
+const SAFETY_MM = 4; // 安全邊界
 
 export const exportMedicationRecordToHtml = async (
   patients: PatientWithPrescriptions[],
@@ -122,23 +105,64 @@ const preparePages = (patient: PatientWithPrescriptions, prescriptions: Medicati
   }
 
   const pages: PageData[] = [];
-  for (const config of TEMPLATE_CONFIGS) {
-    const routePrescriptions = categorized[config.routeKind];
-    const pageCount = Math.max(1, Math.ceil(routePrescriptions.length / PRESCRIPTIONS_PER_PAGE));
+  for (const routeKind of ROUTE_ORDER) {
+    const routePrescriptions = categorized[routeKind];
     if (routePrescriptions.length === 0) continue;
-    let pageIndex = 0;
-    for (let start = 0; start < routePrescriptions.length; start += PRESCRIPTIONS_PER_PAGE) {
-      pageIndex += 1;
+
+    const blocks: PrescriptionBlock[] = routePrescriptions.map((prescription) => ({
+      prescription,
+      timeSlots: sortDistinctTimeSlots(prescription.medication_time_slots ?? []),
+    }));
+
+    const grouped = paginateBlocks(blocks);
+    grouped.forEach((pageBlocks, index) => {
       pages.push({
         patient,
-        routeKind: config.routeKind,
-        prescriptions: routePrescriptions.slice(start, start + PRESCRIPTIONS_PER_PAGE),
-        pageIndexInRoute: pageIndex,
-        pageCountInRoute: pageCount,
+        routeKind,
+        blocks: pageBlocks,
+        pageIndexInRoute: index + 1,
+        pageCountInRoute: grouped.length,
       });
-    }
+    });
   }
   return pages;
+};
+
+// 依可列印高度貪婪分頁：每個處方區塊佔（時段數）列，底部彙總列數 = 該頁所有時段去重後的數量。
+// 單一處方區塊永不跨頁；若某區塊本身已超過整頁，仍讓它獨佔一頁（極端情況容許自然溢出）。
+const paginateBlocks = (blocks: PrescriptionBlock[]): PrescriptionBlock[][] => {
+  const available = PAGE_CONTENT_HEIGHT_MM - HEADER_REGION_MM - COLUMN_HEADER_MM - LEGEND_MM - SAFETY_MM;
+
+  const pageHeightMm = (pageBlocks: PrescriptionBlock[]): number => {
+    const blockRows = pageBlocks.reduce((sum, block) => sum + Math.max(1, block.timeSlots.length), 0);
+    const summaryRows = Math.max(1, distinctSlotCount(pageBlocks));
+    return (blockRows + summaryRows) * GRID_ROW_MM;
+  };
+
+  const result: PrescriptionBlock[][] = [];
+  let current: PrescriptionBlock[] = [];
+  for (const block of blocks) {
+    const tentative = [...current, block];
+    if (current.length > 0 && pageHeightMm(tentative) > available) {
+      result.push(current);
+      current = [block];
+    } else {
+      current = tentative;
+    }
+  }
+  if (current.length > 0) result.push(current);
+  return result.length > 0 ? result : [[]];
+};
+
+const distinctSlotCount = (blocks: PrescriptionBlock[]): number => {
+  const set = new Set<string>();
+  blocks.forEach((block) => block.timeSlots.forEach((slot) => set.add(slot)));
+  return set.size;
+};
+
+const sortDistinctTimeSlots = (slots: string[]): string[] => {
+  const distinct = [...new Set((slots ?? []).filter((slot) => slot != null && String(slot).trim() !== ''))];
+  return distinct.sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b));
 };
 
 const classifyRoute = (prescription: MedicationPrescription): RouteKind => {
@@ -155,300 +179,224 @@ const renderPage = (
   workflowRecords: WorkflowRecord[],
   staffMapping: StaffCodeMapping
 ): string => {
-  const config = TEMPLATE_CONFIGS.find((template) => template.routeKind === page.routeKind) ?? TEMPLATE_CONFIGS[0];
-  const table = parseFirstPageTable(config.sheetHtml);
+  const dayCount = getDaysInMonth(selectedMonth);
+  const pageLabel = `${ROUTE_LABELS[page.routeKind]} 共${page.pageIndexInRoute}/${page.pageCountInRoute}頁`;
 
-  const rows = Array.from(table.rows);
-  fillHeader(rows, page.patient);
-  fillPrescriptionBlocks(rows, page, selectedMonth, workflowRecords, staffMapping);
-  fillDispenseSummary(rows, page, selectedMonth, workflowRecords, staffMapping);
-  fillPatientPhoto(rows, page.patient);
-  markDiagonals(rows);
-
-  const footer = `${ROUTE_LABELS[page.routeKind]} 共${page.pageIndexInRoute}/${page.pageCountInRoute}頁`;
-  return `<div class="medication-record-page"><div class="mr-scale">${table.outerHTML}</div><div class="mr-footer">${escapeHtml(footer)}</div></div>`;
+  return '<section class="mr-page">'
+    + renderHeaderRegion(page.patient, page.routeKind)
+    + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping)}</div>`
+    + '<div class="mr-spacer"></div>'
+    + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel)
+    + '</section>';
 };
 
-// 用瀏覽器 DOMParser 解析原始 Excel HTML，取出主表並只保留第一頁 (前 38 列)。
-// 字元實體 (&#xXXXX;) 由 DOMParser 正確解碼；windows-1252 的 0xA0 在 Vite ?raw 讀取時
-// 變成 U+FFFD，這裡還原為不換行空格，避免亂碼。
-const parseFirstPageTable = (sheetHtml: string): HTMLTableElement => {
-  const cleaned = sheetHtml.replace(/\uFFFD/g, '\u00a0');
-  const doc = new DOMParser().parseFromString(cleaned, 'text/html');
-  const table = doc.querySelector('body > table') as HTMLTableElement | null;
-  if (!table) {
-    throw new Error('個人備藥及給藥記錄範本缺少主表格');
-  }
+// ---- 頂置院友資訊區 ----
 
-  const allRows = Array.from(table.rows);
-  for (let index = allRows.length - 1; index >= FIRST_PAGE_ROW_COUNT; index -= 1) {
-    allRows[index].remove();
-  }
-
-  // Excel 範本在最後一個日期欄 (AR / 第 44 欄) 之後還塞了 29 個空白欄
-  // (寬 69 + 179 + 66×27 ≈ 2030px)，會讓表格右半邊全是空白、表單只佔頁面左半。
-  // 移除這些尾端空白欄，表單才能填滿整張 A4。
-  trimTrailingColumns(table, MEANINGFUL_COL_COUNT);
-  return table;
-};
-
-// 裁掉邏輯欄索引 >= keepCols 的所有欄 (含 <col> 定義與每列對應的儲存格)，
-// 並正確處理 colspan / rowspan，最後清掉固定總寬讓表格依剩餘欄寬自然收縮。
-const trimTrailingColumns = (table: HTMLTableElement, keepCols: number): void => {
-  const rows = Array.from(table.rows);
-  const rowspanRemaining: number[] = [];
-
-  for (const row of rows) {
-    let col = 0;
-    for (const cell of Array.from(row.cells)) {
-      while (rowspanRemaining[col] && rowspanRemaining[col] > 0) col += 1;
-      const colspan = cell.colSpan || 1;
-      const rowspan = cell.rowSpan || 1;
-      const startCol = col;
-      const endCol = startCol + colspan - 1;
-
-      if (startCol >= keepCols) {
-        cell.remove();
-        continue;
-      }
-      if (endCol >= keepCols) {
-        cell.colSpan = keepCols - startCol;
-      }
-      const effEnd = Math.min(endCol, keepCols - 1);
-      if (rowspan > 1) {
-        for (let c = startCol; c <= effEnd; c += 1) rowspanRemaining[c] = rowspan;
-      }
-      col = endCol + 1;
-    }
-    for (let c = 0; c < rowspanRemaining.length; c += 1) {
-      if (rowspanRemaining[c] && rowspanRemaining[c] > 0) rowspanRemaining[c] -= 1;
-    }
-  }
-
-  let acc = 0;
-  for (const colEl of Array.from(table.querySelectorAll('col'))) {
-    const span = (colEl as HTMLTableColElement).span || 1;
-    if (acc >= keepCols) {
-      colEl.remove();
-      continue;
-    }
-    if (acc + span > keepCols) {
-      (colEl as HTMLTableColElement).span = keepCols - acc;
-    }
-    acc += span;
-  }
-
-  table.style.width = '';
-  table.removeAttribute('width');
-};
-
-const fillHeader = (rows: HTMLTableRowElement[], patient: PatientWithPrescriptions): void => {
+const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: RouteKind): string => {
   const name = patient.中文姓氏 != null || patient.中文名字 != null
     ? `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`
     : (patient.中文姓名 ?? '');
-
-  setCellText(rows, HEADER_CELLS.allergy, joinList(patient.藥物敏感));
-  setCellText(rows, HEADER_CELLS.name, name);
-  setCellText(rows, HEADER_CELLS.bedNumber, patient.床號 ?? '');
-  setCellText(rows, HEADER_CELLS.genderAge, formatGenderAge(patient));
-  setCellText(rows, HEADER_CELLS.birthDate, formatDate(patient.出生日期));
-  setCellText(rows, HEADER_CELLS.adverseReaction, joinList(patient.不良藥物反應));
-
-  // B1 藥物敏感值格頂框線缺失，補上。
-  const allergyCell = rows[HEADER_CELLS.allergy.row]?.cells[HEADER_CELLS.allergy.cell];
-  if (allergyCell) allergyCell.classList.add('mr-allergy-box');
-};
-
-const fillPrescriptionBlocks = (
-  rows: HTMLTableRowElement[],
-  page: PageData,
-  selectedMonth: string,
-  workflowRecords: WorkflowRecord[],
-  staffMapping: StaffCodeMapping
-): void => {
-  const daysInMonth = getDaysInMonth(selectedMonth);
-
-  page.prescriptions.forEach((prescription, index) => {
-    const blockStart = BLOCK_START_ROWS[index];
-    if (blockStart === undefined) return;
-
-    // 區塊標頭列：開始日期 / 藥物名稱 / 途徑。
-    setCellText(rows, { row: blockStart, cell: 0 }, formatDate(prescription.start_date));
-    setCellText(rows, { row: blockStart, cell: 1 }, prescription.medication_name ?? '');
-    setCellText(rows, { row: blockStart, cell: 2 }, prescription.administration_route ?? '');
-
-    // 途徑/次數欄 (各資料列 cell[1])：頻率 / 份量 / 需要時。
-    setCellText(rows, { row: blockStart + 1, cell: 1 }, getFrequencyDescription(prescription));
-    setCellText(rows, { row: blockStart + 2, cell: 0 }, formatDate(prescription.prescription_date));
-    setCellText(rows, { row: blockStart + 2, cell: 1 }, getDosageText(prescription));
-    setCellText(rows, { row: blockStart + 3, cell: 1 }, prescription.is_prn ? '需要時' : '');
-    if (prescription.medication_source) {
-      setCellText(rows, { row: blockStart + 4, cell: 0 }, `藥物來源: ${prescription.medication_source}`);
-    }
-
-    const timeSlots: string[] = prescription.medication_time_slots ?? [];
-    const timeSlotsMap = mapTimeSlots(timeSlots, page.routeKind);
-
-    Object.entries(timeSlotsMap).forEach(([offsetText, slots]) => {
-      const offset = Number(offsetText);
-      if (page.routeKind === 'injection' && offset === 2) return; // 注射類不觸碰第 2 列
-
-      const slotRow = blockStart + offset;
-      // 服用時間欄 (cell[2])。
-      setCellText(rows, { row: slotRow, cell: 2 }, slots.join(', '));
-
-      // 逐日 執/核 簽署：cell 索引 = 2 + day。
-      for (let day = 1; day <= daysInMonth; day += 1) {
-        const dateStr = toDateString(selectedMonth, day);
-        const representativeSlot = slots[0];
-        if (!isDateInPrescriptionRange(dateStr, representativeSlot, prescription)) continue;
-
-        const record = getWorkflowRecordForPrescriptionDateTimeSlot(
-          workflowRecords,
-          prescription.id,
-          dateStr,
-          representativeSlot
-        );
-        const content = formatWorkflowCellContent(record, staffMapping);
-        if (content) {
-          setCellHtml(rows, { row: slotRow, cell: 2 + day }, escapeHtml(content));
-        }
-      }
-    });
-  });
-};
-
-const fillDispenseSummary = (
-  rows: HTMLTableRowElement[],
-  page: PageData,
-  selectedMonth: string,
-  workflowRecords: WorkflowRecord[],
-  staffMapping: StaffCodeMapping
-): void => {
-  const daysInMonth = getDaysInMonth(selectedMonth);
-  const pageTimeSlots = [...new Set(page.prescriptions.flatMap((prescription) => prescription.medication_time_slots ?? []))]
-    .sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b))
-    .slice(0, DISPENSE_ROW_COUNT);
-
-  pageTimeSlots.forEach((timeSlot, timeSlotIndex) => {
-    const rowIndex = DISPENSE_START_ROW + timeSlotIndex;
-    // 第一列 (R31) 多了「給藥簽署」標籤格，日格索引 = 2 + day；其後列為 1 + day。
-    const dayCellBase = rowIndex === DISPENSE_START_ROW ? 2 : 1;
-
-    for (let day = 1; day <= daysInMonth; day += 1) {
-      const dateStr = toDateString(selectedMonth, day);
-      let dispenseContent = '';
-
-      for (const prescription of page.prescriptions) {
-        if (!(prescription.medication_time_slots ?? []).includes(timeSlot)) continue;
-        if (!isDateInPrescriptionRange(dateStr, timeSlot, prescription)) continue;
-
-        if (prescription.preparation_method === 'custom') {
-          dispenseContent = 'S';
-          break;
-        }
-        const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, timeSlot);
-        const content = formatDispenseCellContent(record, staffMapping);
-        if (content) {
-          dispenseContent = content;
-          break;
-        }
-      }
-
-      if (dispenseContent) {
-        setCellHtml(rows, { row: rowIndex, cell: dayCellBase + day }, escapeHtml(dispenseContent));
-      }
-    }
-  });
-};
-
-// 院友相片覆蓋於「給藥簽署」標籤格上。
-const fillPatientPhoto = (rows: HTMLTableRowElement[], patient: PatientWithPrescriptions): void => {
   const photo = patient.院友相片;
-  if (!photo) return;
-  const cell = rows[DISPENSE_LABEL_CELL.row]?.cells[DISPENSE_LABEL_CELL.cell];
-  if (!cell) return;
-  cell.classList.add('mr-photo-cell');
-  const img = cell.ownerDocument.createElement('img');
-  img.setAttribute('src', String(photo));
-  img.setAttribute('alt', '');
-  img.className = 'mr-patient-photo';
-  cell.appendChild(img);
+  const photoHtml = photo
+    ? `<img class="mr-photo" src="${escapeAttr(String(photo))}" alt="">`
+    : '<div class="mr-photo mr-photo-empty">相片</div>';
+
+  return '<header class="mr-header">'
+    + '<div class="mr-header-top">'
+      + `<div class="mr-photo-box">${photoHtml}</div>`
+      + '<div class="mr-title-box">'
+        + '<div class="mr-title">善頤 (福群) 護老院 － 院友個人備藥及給藥記錄</div>'
+        + `<div class="mr-subtitle">${escapeHtml(ROUTE_SUBTITLES[routeKind])}</div>`
+      + '</div>'
+      + '<div class="mr-info-grid">'
+        + infoCell('姓名', name)
+        + infoCell('院號', String(patient.床號 ?? ''))
+        + infoCell('性別 / 年齡', formatGenderAge(patient))
+        + infoCell('出生日期', formatDate(patient.出生日期))
+      + '</div>'
+    + '</div>'
+    + '<div class="mr-header-bottom">'
+      + `<div class="mr-react"><span class="mr-react-label">藥物過敏反應：</span><span class="mr-react-value">${escapeHtml(joinList(patient.藥物敏感))}</span></div>`
+      + `<div class="mr-react"><span class="mr-react-label">藥物不良反應：</span><span class="mr-react-value">${escapeHtml(joinList(patient.不良藥物反應))}</span></div>`
+    + '</div>'
+  + '</header>';
 };
 
-// 標記需要左下→右上對角斜線的儲存格 (列印時由內嵌 script 以 SVG 疊繪)。
-// 簽署格以斜線將每格分成「執 / 核」兩半，故範圍內每一格各自一條斜線。
-const markDiagonals = (rows: HTMLTableRowElement[]): void => {
-  BLOCK_START_ROWS.forEach((blockStart) => {
-    // 「執:核:」格 (A10/A15/A20/A25/A30) — 單格斜線。
-    const execCell = rows[blockStart + 3]?.cells[0];
-    if (execCell) execCell.classList.add('mr-diag-cell');
+const infoCell = (label: string, value: string): string =>
+  `<div class="mr-info-cell"><span class="mr-info-label">${escapeHtml(label)}：</span><span class="mr-info-value">${escapeHtml(value)}</span></div>`;
 
-    // 簽署日格 N..AR × 4 列 (blockStart+1 ~ blockStart+4) — 每一格各畫一條斜線。
-    for (let rowOffset = 1; rowOffset <= 4; rowOffset += 1) {
-      const row = rows[blockStart + rowOffset];
-      if (!row) continue;
-      for (let day = 1; day <= DAY_COUNT; day += 1) {
-        const cell = row.cells[SIGNATURE_DAY_CELL_BASE + day];
-        if (cell) cell.classList.add('mr-diag-cell');
+// ---- 中間動態處方區 ----
+
+const colGroup = (dayCount: number): string => {
+  let cols = '<col class="c-date"><col class="c-name"><col class="c-route"><col class="c-time">';
+  for (let day = 0; day < dayCount; day += 1) cols += '<col class="c-day">';
+  return `<colgroup>${cols}</colgroup>`;
+};
+
+const dayNumberCells = (dayCount: number): string => {
+  let cells = '';
+  for (let day = 1; day <= dayCount; day += 1) cells += `<th class="c-day">${day}</th>`;
+  return cells;
+};
+
+const renderBodyTable = (
+  page: PageData,
+  selectedMonth: string,
+  dayCount: number,
+  workflowRecords: WorkflowRecord[],
+  staffMapping: StaffCodeMapping
+): string => {
+  const header = '<thead>'
+    + '<tr class="mr-colhead">'
+      + '<th class="c-date" rowspan="2">開始 / 處方日期</th>'
+      + '<th class="c-name" rowspan="2">藥物名稱及劑型</th>'
+      + '<th class="c-route" rowspan="2">途徑 / 次數</th>'
+      + '<th class="c-time" rowspan="2">時間</th>'
+      + `<th class="mr-sign-head" colspan="${dayCount}">執 / 核藥職員簽署</th>`
+    + '</tr>'
+    + `<tr class="mr-dayhead">${dayNumberCells(dayCount)}</tr>`
+  + '</thead>';
+
+  const body = page.blocks
+    .map((block) => renderPrescriptionBlock(block, selectedMonth, dayCount, workflowRecords, staffMapping))
+    .join('');
+
+  return `<table class="mr-grid">${colGroup(dayCount)}${header}<tbody>${body}</tbody></table>`;
+};
+
+const renderPrescriptionBlock = (
+  block: PrescriptionBlock,
+  selectedMonth: string,
+  dayCount: number,
+  workflowRecords: WorkflowRecord[],
+  staffMapping: StaffCodeMapping
+): string => {
+  const { prescription, timeSlots } = block;
+  const slots = timeSlots.length > 0 ? timeSlots : [''];
+  const rowCount = slots.length;
+
+  const dateInfo = `<div>開始：${escapeHtml(formatDate(prescription.start_date))}</div>`
+    + `<div>處方：${escapeHtml(formatDate(prescription.prescription_date))}</div>`;
+  const routeInfo = [
+    prescription.administration_route ?? '',
+    getFrequencyDescription(prescription),
+    getDosageText(prescription),
+    prescription.is_prn ? '需要時' : '',
+    prescription.medication_source ? `來源：${prescription.medication_source}` : '',
+  ]
+    .filter((line) => line != null && String(line).trim() !== '')
+    .map((line) => `<div>${escapeHtml(String(line))}</div>`)
+    .join('');
+
+  return slots
+    .map((slot, slotIndex) => {
+      const leftCells = slotIndex === 0
+        ? `<td class="c-date" rowspan="${rowCount}">${dateInfo}</td>`
+          + `<td class="c-name" rowspan="${rowCount}">${escapeHtml(prescription.medication_name ?? '')}</td>`
+          + `<td class="c-route" rowspan="${rowCount}">${routeInfo || '&nbsp;'}</td>`
+        : '';
+      const timeCell = `<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>`;
+      const dayCells = signatureDayCells(prescription, slot, selectedMonth, dayCount, workflowRecords, staffMapping);
+      return `<tr class="mr-sign-row">${leftCells}${timeCell}${dayCells}</tr>`;
+    })
+    .join('');
+};
+
+const signatureDayCells = (
+  prescription: MedicationPrescription,
+  slot: string,
+  selectedMonth: string,
+  dayCount: number,
+  workflowRecords: WorkflowRecord[],
+  staffMapping: StaffCodeMapping
+): string => {
+  let cells = '';
+  for (let day = 1; day <= dayCount; day += 1) {
+    const dateStr = toDateString(selectedMonth, day);
+    let content = '';
+    if (slot && isDateInPrescriptionRange(dateStr, slot, prescription)) {
+      const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
+      content = formatWorkflowCellContent(record, staffMapping) || '';
+    }
+    cells += `<td class="c-day mr-diag">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
+  }
+  return cells;
+};
+
+// ---- 底部指引＋給藥彙總區 ----
+
+const renderFooterRegion = (
+  page: PageData,
+  selectedMonth: string,
+  dayCount: number,
+  workflowRecords: WorkflowRecord[],
+  staffMapping: StaffCodeMapping,
+  pageLabel: string
+): string => {
+  const pageSlots = sortDistinctTimeSlots(page.blocks.flatMap((block) => block.timeSlots));
+  const summarySlots = pageSlots.length > 0 ? pageSlots : [''];
+  const labelRowSpan = summarySlots.length;
+
+  const summaryRows = summarySlots
+    .map((slot, index) => {
+      const labelCell = index === 0
+        ? `<td class="mr-sum-label" colspan="3" rowspan="${labelRowSpan}">給藥簽署</td>`
+        : '';
+      const timeCell = `<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>`;
+      const dayCells = dispenseDayCells(page.blocks, slot, selectedMonth, dayCount, workflowRecords, staffMapping);
+      return `<tr class="mr-sum-row">${labelCell}${timeCell}${dayCells}</tr>`;
+    })
+    .join('');
+
+  const summaryTable = `<table class="mr-grid mr-summary">${colGroup(dayCount)}<tbody>${summaryRows}</tbody></table>`;
+
+  return '<footer class="mr-footer-region">'
+    + `<div class="mr-legend">${escapeHtml(DISPENSE_LEGEND)}</div>`
+    + summaryTable
+    + `<div class="mr-pagelabel">${escapeHtml(pageLabel)}</div>`
+  + '</footer>';
+};
+
+const dispenseDayCells = (
+  blocks: PrescriptionBlock[],
+  slot: string,
+  selectedMonth: string,
+  dayCount: number,
+  workflowRecords: WorkflowRecord[],
+  staffMapping: StaffCodeMapping
+): string => {
+  let cells = '';
+  for (let day = 1; day <= dayCount; day += 1) {
+    const dateStr = toDateString(selectedMonth, day);
+    let content = '';
+    if (slot) {
+      for (const block of blocks) {
+        const prescription = block.prescription;
+        if (!block.timeSlots.includes(slot)) continue;
+        if (!isDateInPrescriptionRange(dateStr, slot, prescription)) continue;
+        if (prescription.preparation_method === 'custom') {
+          content = 'S';
+          break;
+        }
+        const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
+        const value = formatDispenseCellContent(record, staffMapping);
+        if (value) {
+          content = value;
+          break;
+        }
       }
     }
-  });
-};
-
-// ---- 資料對映輔助 (與 Excel 匯出器一致) ----
-
-const mapTimeSlots = (timeSlots: string[], routeKind: RouteKind): Record<number, string[]> => {
-  const map: Record<number, string[]> = {};
-
-  if (routeKind === 'injection') {
-    timeSlots.forEach((slot) => {
-      (map[1] ??= []).push(slot);
-    });
-    return map;
+    cells += `<td class="c-day">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
   }
-
-  if (shouldBreakTimeRangeRule(timeSlots)) {
-    return mapTimeSlotsSequentially(timeSlots);
-  }
-
-  timeSlots.forEach((slot) => {
-    const offset = getTimeSlotRowOffset(slot);
-    (map[offset] ??= []).push(slot);
-  });
-  return map;
+  return cells;
 };
 
-const getTimeSlotRowOffset = (timeStr: string): number => {
-  const minutes = parseTimeToMinutes(timeStr);
-  if (minutes < 0) return 1;
-  if (minutes >= 7 * 60 && minutes < 12 * 60) return 1;
-  if (minutes >= 12 * 60 && minutes < 16 * 60) return 2;
-  if (minutes >= 16 * 60 && minutes < 20 * 60) return 3;
-  if (minutes >= 20 * 60 && minutes <= 22 * 60) return 4;
-  return 1;
+const formatTimeSlot = (slot: string): string => {
+  const match = String(slot ?? '').match(/(\d{1,2}):(\d{2})/);
+  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : String(slot ?? '');
 };
 
-const shouldBreakTimeRangeRule = (timeSlots: string[]): boolean => {
-  const rangeCounts = [0, 0, 0, 0];
-  timeSlots.forEach((timeSlot) => {
-    const minutes = parseTimeToMinutes(timeSlot);
-    if (minutes >= 7 * 60 && minutes < 12 * 60) rangeCounts[0] += 1;
-    else if (minutes >= 12 * 60 && minutes < 16 * 60) rangeCounts[1] += 1;
-    else if (minutes >= 16 * 60 && minutes < 20 * 60) rangeCounts[2] += 1;
-    else if (minutes >= 20 * 60 && minutes <= 22 * 60) rangeCounts[3] += 1;
-  });
-  return rangeCounts.some((count) => count >= 2);
-};
-
-const mapTimeSlotsSequentially = (timeSlots: string[]): Record<number, string[]> => {
-  const sorted = [...timeSlots].sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b));
-  const map: Record<number, string[]> = {};
-  sorted.slice(0, 4).forEach((slot, index) => {
-    map[index + 1] = [slot];
-  });
-  return map;
-};
+const escapeAttr = (value: string): string => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
 const parseTimeToMinutes = (timeStr: string): number => {
   const match = String(timeStr ?? '').match(/(\d{1,2}):(\d{2})/);
@@ -511,27 +459,7 @@ const isDateInPrescriptionRange = (dateStr: string, timeSlot: string | undefined
   return true;
 };
 
-// ---- DOM 與格式化輔助 ----
-
-const setCellText = (
-  rows: HTMLTableRowElement[],
-  position: { row: number; cell: number },
-  value: string
-): void => {
-  const cell = rows[position.row]?.cells[position.cell];
-  if (!cell) return;
-  cell.textContent = value && value.length > 0 ? value : '\u00a0';
-};
-
-const setCellHtml = (
-  rows: HTMLTableRowElement[],
-  position: { row: number; cell: number },
-  html: string
-): void => {
-  const cell = rows[position.row]?.cells[position.cell];
-  if (!cell) return;
-  cell.innerHTML = html && html.length > 0 ? html : '&nbsp;';
-};
+// ---- 格式化輔助 ----
 
 const formatGenderAge = (patient: PatientWithPrescriptions): string => {
   const gender = patient.性別 ?? '';
@@ -576,125 +504,93 @@ const escapeHtml = (value: string): string => value
   .replace(/'/g, '&#39;');
 
 const assembleDocument = (renderedPages: string[]): string => `<!DOCTYPE html>
-<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<html lang="zh-Hant">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
 <style>
-${templateStylesheet}
 @page { size: A4 landscape; margin: 7mm; }
 html, body { margin: 0; padding: 0; background: #fff; }
-.medication-record-page {
-  position: relative;
-  box-sizing: border-box;
-  width: 281mm;
-  height: 194mm;
+* { box-sizing: border-box; }
+body {
+  font-family: "新細明體", "PMingLiU", "Microsoft JhengHei", serif;
+  color: #000;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.mr-page {
+  width: 283mm;
+  height: 196mm;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   page-break-after: always;
   break-after: page;
-  page-break-inside: avoid;
-  break-inside: avoid;
 }
-.medication-record-page:last-child { page-break-after: auto; break-after: auto; }
-.mr-scale { position: absolute; top: 0; left: 0; transform-origin: top left; }
-.mr-scale > table { margin: 0 !important; }
-.mr-footer {
-  position: absolute;
-  right: 3mm;
-  bottom: 1.5mm;
-  font-family: "新細明體", "PMingLiU", serif;
-  font-size: 11pt;
-  line-height: 1;
-  color: #000;
-  z-index: 6;
+.mr-page:last-child { page-break-after: auto; break-after: auto; }
+.mr-spacer { flex: 1 1 auto; }
+
+/* 頂置院友資訊區 */
+.mr-header { flex: 0 0 auto; }
+.mr-header-top { display: flex; align-items: stretch; gap: 3mm; }
+.mr-photo-box { flex: 0 0 22mm; }
+.mr-photo { width: 22mm; height: 26mm; object-fit: contain; border: 0.5pt solid #000; display: block; }
+.mr-photo-empty { display: flex; align-items: center; justify-content: center; font-size: 9pt; color: #888; }
+.mr-title-box { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.mr-title { font-size: 15pt; font-weight: bold; text-align: center; }
+.mr-subtitle { font-size: 12pt; font-weight: bold; margin-top: 1mm; }
+.mr-info-grid { flex: 0 0 80mm; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5mm 3mm; align-content: center; }
+.mr-info-cell { font-size: 9.5pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-info-label { font-weight: bold; }
+.mr-header-bottom { display: flex; gap: 6mm; margin-top: 1mm; border-top: 0.5pt solid #000; padding-top: 1mm; }
+.mr-react { flex: 1 1 50%; font-size: 9.5pt; }
+.mr-react-label { font-weight: bold; }
+
+/* 共用格線表 */
+.mr-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.mr-grid th, .mr-grid td {
+  border: 0.5pt solid #000;
+  text-align: center;
+  vertical-align: middle;
+  overflow: hidden;
+  font-size: 8pt;
+  padding: 0;
+  line-height: 1.05;
+  word-break: break-word;
 }
-.mr-photo-cell { position: relative; }
-.mr-patient-photo {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  pointer-events: none;
+.mr-grid col.c-date { width: 22mm; }
+.mr-grid col.c-name { width: 40mm; }
+.mr-grid col.c-route { width: 26mm; }
+.mr-grid col.c-time { width: 12mm; }
+.mr-colhead th { font-weight: bold; height: 6mm; }
+.mr-dayhead th { font-size: 7pt; height: 5mm; }
+.mr-sign-head { font-weight: bold; letter-spacing: 0.5pt; }
+.mr-sign-row td { height: 7mm; }
+.mr-sign-row td.c-date, .mr-sign-row td.c-name, .mr-sign-row td.c-route {
+  font-size: 8pt;
+  text-align: left;
+  padding: 0 1mm;
 }
-.mr-allergy-box { border-top: 0.5pt solid #000 !important; }
-.mr-diag-overlay { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 5; }
+.mr-sign-row td.c-name { font-weight: bold; }
+
+/* 每個簽署日格的左下→右上斜線（執＝左下、核＝右上） */
+td.mr-diag {
+  background-image: linear-gradient(to bottom right,
+    transparent calc(50% - 0.4px), #000 calc(50% - 0.4px),
+    #000 calc(50% + 0.4px), transparent calc(50% + 0.4px));
+}
+
+/* 底部指引＋給藥彙總 */
+.mr-footer-region { flex: 0 0 auto; }
+.mr-legend { font-size: 8.5pt; margin-bottom: 0.5mm; }
+.mr-summary td { height: 7mm; }
+.mr-sum-label { font-weight: bold; font-size: 9pt; }
+.mr-sum-row td.c-time { font-size: 8pt; }
+.mr-pagelabel { text-align: right; font-size: 11pt; margin-top: 0.5mm; }
 </style>
 </head>
-<body link="blue" vlink="purple">
+<body>
 ${renderedPages.join('\n')}
-<script>
-(function () {
-  var NS = 'http://www.w3.org/2000/svg';
-  // 與 CSS 的 .medication-record-page 尺寸一致 (mm)。
-  var PAGE_W_MM = 281;
-  var PAGE_H_MM = 194;
-  var PX_PER_MM = 96 / 25.4; // CSS 標準：1in = 96px = 25.4mm
-
-  // 將每頁內容拉伸填滿整張可列印紙面 (橫向與縱向各自縮放)，不留大片空白。
-  // 可列印區大小以「已知的 mm 尺寸」換算，避免在隱藏 iframe / 列印當下用 clientWidth
-  // 量到錯誤值 (這是先前縮到極小、靠角落的主因)；表格尺寸則用版面實測 (off-screen 仍可靠)。
-  function fitPages() {
-    var availW = PAGE_W_MM * PX_PER_MM;
-    var availH = PAGE_H_MM * PX_PER_MM;
-    document.querySelectorAll('.medication-record-page').forEach(function (page) {
-      var scaler = page.querySelector('.mr-scale');
-      if (!scaler) return;
-      var table = scaler.querySelector('table');
-      scaler.style.transform = 'none';
-      scaler.style.left = '0px';
-      scaler.style.top = '0px';
-      var contentW = table ? table.offsetWidth : scaler.scrollWidth;
-      var contentH = table ? table.offsetHeight : scaler.scrollHeight;
-      if (!contentW || !contentH) return;
-      // 預留極小安全邊界避免邊框被裁切。
-      var sx = (availW / contentW) * 0.997;
-      var sy = (availH / contentH) * 0.997;
-      scaler.style.transform = 'scale(' + sx + ',' + sy + ')';
-      scaler.style.left = ((availW - contentW * sx) / 2) + 'px';
-      scaler.style.top = ((availH - contentH * sy) / 2) + 'px';
-    });
-  }
-
-  function drawDiagonals() {
-    document.querySelectorAll('.medication-record-page').forEach(function (page) {
-      var old = page.querySelector('svg.mr-diag-overlay');
-      if (old) old.remove();
-      var prect = page.getBoundingClientRect();
-      var svg = document.createElementNS(NS, 'svg');
-      svg.setAttribute('class', 'mr-diag-overlay');
-      svg.style.width = page.offsetWidth + 'px';
-      svg.style.height = page.offsetHeight + 'px';
-      function addLine(x1, y1, x2, y2) {
-        var l = document.createElementNS(NS, 'line');
-        l.setAttribute('x1', x1); l.setAttribute('y1', y1);
-        l.setAttribute('x2', x2); l.setAttribute('y2', y2);
-        l.setAttribute('stroke', '#000'); l.setAttribute('stroke-width', '1');
-        l.setAttribute('vector-effect', 'non-scaling-stroke');
-        svg.appendChild(l);
-      }
-      // 每個標記儲存格各畫一條左下→右上斜線。
-      page.querySelectorAll('.mr-diag-cell').forEach(function (c) {
-        var r = c.getBoundingClientRect();
-        if (!r.width || !r.height) return;
-        addLine(r.left - prect.left, r.bottom - prect.top, r.right - prect.left, r.top - prect.top);
-      });
-      page.appendChild(svg);
-    });
-  }
-
-  function refresh() {
-    fitPages();
-    drawDiagonals();
-  }
-
-  if (document.readyState === 'complete') refresh();
-  else window.addEventListener('load', refresh);
-  window.addEventListener('beforeprint', refresh);
-  window.addEventListener('resize', refresh);
-})();
-</script>
 </body>
 </html>`;
 
