@@ -51,7 +51,7 @@ const ROUTE_SHEET_LABELS: Record<RouteKind, string> = {
 const ROUTE_ORDER: RouteKind[] = ['oral', 'topical', 'injection'];
 
 // 「給藥記錄簽署指引」逐項說明（顯示於彙總區左側標籤格，取代「給藥簽署」字眼）。
-const DISPENSE_LEGEND_ITEMS: string[] = [
+const DISPENSE_CODE_ITEMS: string[] = [
   '簽名＝已服藥',
   'HL＝因事回家',
   'A＝入院',
@@ -61,6 +61,8 @@ const DISPENSE_LEGEND_ITEMS: string[] = [
   'P＝暫停',
   'R＝拒絕一種或以上藥物',
   'O＝其他（請註明）',
+];
+const DISPENSE_NOTE_ITEMS: string[] = [
   'R 或 O 請通知護士／保健員作出跟進並作適當記錄',
   '處方日期＝該藥物第一次被處方的使用日期',
 ];
@@ -402,9 +404,23 @@ const renderFooterRegion = (
     0
   );
 
-  const legendHtml = '<div class="mr-legend-list">'
-    + DISPENSE_LEGEND_ITEMS.map((item) => `<div>${escapeHtml(item)}</div>`).join('')
+  const legendCodes = '<div class="mr-legend-codes">'
+    + DISPENSE_CODE_ITEMS.map((item) => `<span>${escapeHtml(item)}</span>`).join('')
     + '</div>';
+  const legendNotes = DISPENSE_NOTE_ITEMS
+    .map((item) => `<div class="mr-legend-note">${escapeHtml(item)}</div>`)
+    .join('');
+  const staffEntries = Object.entries(staffMapping);
+  const staffCodesHtml = staffEntries.length > 0
+    ? '<div class="mr-staff-title">職員簽署代號</div>'
+      + '<div class="mr-staff-codes">'
+      + staffEntries.map(([name, code]) => `<span>${escapeHtml(code)}＝${escapeHtml(name)}</span>`).join('')
+      + '</div>'
+    : '';
+  const legendHtml = '<div class="mr-legend-title">給藥簽署指引</div>'
+    + legendCodes
+    + legendNotes
+    + staffCodesHtml;
 
   const rows: string[] = [];
   let labelEmitted = false;
@@ -688,13 +704,18 @@ td.mr-diag {
 /* 底部給藥彙總（左側標籤格內含簽署指引） */
 .mr-footer-region { flex: 0 0 auto; }
 .mr-summary td { height: 7mm; }
-.mr-sum-label {
+.mr-grid td.mr-sum-label {
   background: #f1f5f9;
   vertical-align: top;
   text-align: left;
   padding: 1mm 1.2mm;
 }
-.mr-legend-list { font-size: 7.2pt; line-height: 1.3; color: #1f2c38; }
+.mr-legend-title, .mr-staff-title { font-weight: bold; font-size: 8pt; color: #0f2740; }
+.mr-staff-title { margin-top: 1mm; }
+.mr-legend-codes, .mr-staff-codes { font-size: 7.2pt; line-height: 1.45; color: #1f2c38; margin-top: 0.3mm; }
+.mr-legend-codes span { margin-right: 2.4mm; white-space: nowrap; }
+.mr-staff-codes span { margin-right: 2.4mm; white-space: nowrap; }
+.mr-legend-note { font-size: 7pt; line-height: 1.3; color: #64748b; margin-top: 0.3mm; }
 .mr-sum-row td.c-time { font-size: 8pt; }
 .mr-insp-row td.c-time { font-size: 7.2pt; font-weight: bold; color: #1d4ed8; }
 .mr-insp-cell { font-size: 7.2pt; color: #1d4ed8; }
