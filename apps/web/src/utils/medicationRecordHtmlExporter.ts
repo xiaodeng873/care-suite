@@ -189,13 +189,14 @@ const fillPrescriptionBlocks = (
     const blockStart = BLOCK_START_ROWS[index];
     if (blockStart === undefined) return;
 
-    // 區塊標頭列：處方日期 / 藥物名稱 / 途徑。
-    setCellText(rows, { row: blockStart, cell: 0 }, formatDate(prescription.prescription_date));
+    // 區塊標頭列：開始日期 / 藥物名稱 / 途徑。
+    setCellText(rows, { row: blockStart, cell: 0 }, formatDate(prescription.start_date));
     setCellText(rows, { row: blockStart, cell: 1 }, prescription.medication_name ?? '');
     setCellText(rows, { row: blockStart, cell: 2 }, prescription.administration_route ?? '');
 
     // 途徑/次數欄 (各資料列 cell[1])：頻率 / 份量 / 需要時。
     setCellText(rows, { row: blockStart + 1, cell: 1 }, getFrequencyDescription(prescription));
+    setCellText(rows, { row: blockStart + 2, cell: 0 }, formatDate(prescription.prescription_date));
     setCellText(rows, { row: blockStart + 2, cell: 1 }, getDosageText(prescription));
     setCellText(rows, { row: blockStart + 3, cell: 1 }, prescription.is_prn ? '需要時' : '');
     if (prescription.medication_source) {

@@ -6076,8 +6076,8 @@
           "address": "A5",
           "row": 5,
           "col": 1,
-          "value": "處方日期",
-          "text": "處方日期",
+          "value": "開始/處方日期",
+          "text": "開始/處方日期",
           "type": 3,
           "style": {
             "font": {
