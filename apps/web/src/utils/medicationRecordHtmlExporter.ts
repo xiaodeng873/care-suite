@@ -284,7 +284,7 @@ const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: RouteK
     + '</colgroup><tbody>'
       + '<tr>'
         + `<td class="mr-h-logo" rowspan="2"><img class="mr-logo" src="${MR_LOGO_DATA_URI}" alt="善頤護老 SeniorCare"></td>`
-        + '<td class="mr-h-title"><div class="mr-title">善頤 (福群) 護老院 － 院友個人備藥及給藥記錄</div></td>'
+        + '<td class="mr-h-title"><div class="mr-title">善頤 (福群) 護老院   個人備藥及給藥記錄</div></td>'
         + `<td class="mr-h-photo" rowspan="2">${photoHtml}</td>`
         + infoCell('姓名', name)
         + infoCell('院號', String(patient.床號 ?? ''))
