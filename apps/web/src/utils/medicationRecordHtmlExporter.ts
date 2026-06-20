@@ -8,6 +8,7 @@ import {
   type StaffCodeMapping,
   type WorkflowRecord,
 } from './medicationWorkflowHelper';
+import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 
 // 此匯出器完全以程式自寫的語意化 HTML/CSS 產生列印版面（不再依賴 Excel 範本檔）。
 // 版面分三區：頂置院友資訊 / 中間動態處方區 / 底部指引＋給藥彙總；
@@ -183,19 +184,18 @@ const summaryRowCount = (blocks: PrescriptionBlock[]): number => {
 const slotNeedsInspectionRow = (blocks: PrescriptionBlock[], slot: string): boolean =>
   !!slot && blocks.some((block) => prescriptionHasInspection(block.prescription) && block.timeSlots.includes(slot));
 
-// 該時段所有檢測項處方的生命表徵名稱（去重），用作彙總檢測列標籤，如「上壓／血糖值」。
-const slotInspectionLabel = (blocks: PrescriptionBlock[], slot: string): string => {
-  if (!slot) return '';
-  const names: string[] = [];
+// 該時段去重後的檢測項目名稱（如「上壓」、「血糖值」），用作彙總檢測列的列首標籤。
+const formatSlotInspectionLabel = (blocks: PrescriptionBlock[], slot: string): string => {
+  const types: string[] = [];
   for (const block of blocks) {
     if (!block.timeSlots.includes(slot)) continue;
     if (!prescriptionHasInspection(block.prescription)) continue;
-    for (const rule of block.prescription.inspection_rules) {
-      const name = String(rule?.vital_sign_type ?? '').trim();
-      if (name && !names.includes(name)) names.push(name);
+    for (const rule of block.prescription.inspection_rules as any[]) {
+      const type = String(rule?.vital_sign_type ?? '').trim();
+      if (type && !types.includes(type)) types.push(type);
     }
   }
-  return names.join('／');
+  return types.join('、');
 };
 
 // ---- 服藥前檢測項 ----
@@ -278,28 +278,33 @@ const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: RouteK
     : '<div class="mr-photo mr-photo-empty">相片</div>';
 
   return '<header class="mr-header">'
-    + '<div class="mr-header-top">'
-      + `<div class="mr-photo-box">${photoHtml}</div>`
-      + '<div class="mr-title-box">'
-        + '<div class="mr-title">善頤 (福群) 護老院 － 院友個人備藥及給藥記錄</div>'
-        + `<div class="mr-subtitle">${escapeHtml(ROUTE_SUBTITLES[routeKind])}</div>`
-      + '</div>'
-      + '<div class="mr-info-grid">'
+    + '<table class="mr-header-table"><colgroup>'
+      + '<col class="mr-hc-logo"><col class="mr-hc-title"><col class="mr-hc-photo">'
+      + '<col class="mr-hc-info"><col class="mr-hc-info"><col class="mr-hc-react">'
+    + '</colgroup><tbody>'
+      + '<tr>'
+        + `<td class="mr-h-logo" rowspan="2"><img class="mr-logo" src="${MR_LOGO_DATA_URI}" alt="善頤護老 SeniorCare"></td>`
+        + '<td class="mr-h-title"><div class="mr-title">善頤 (福群) 護老院 － 院友個人備藥及給藥記錄</div></td>'
+        + `<td class="mr-h-photo" rowspan="2">${photoHtml}</td>`
         + infoCell('姓名', name)
         + infoCell('院號', String(patient.床號 ?? ''))
+        + reactCell('藥物過敏反應', joinList(patient.藥物敏感))
+      + '</tr>'
+      + '<tr>'
+        + `<td class="mr-h-subtitle"><div class="mr-subtitle">${escapeHtml(ROUTE_SUBTITLES[routeKind])}</div></td>`
         + infoCell('性別 / 年齡', formatGenderAge(patient))
         + infoCell('出生日期', formatDate(patient.出生日期))
-      + '</div>'
-    + '</div>'
-    + '<div class="mr-header-bottom">'
-      + `<div class="mr-react"><span class="mr-react-label">藥物過敏反應：</span><span class="mr-react-value">${escapeHtml(joinList(patient.藥物敏感))}</span></div>`
-      + `<div class="mr-react"><span class="mr-react-label">藥物不良反應：</span><span class="mr-react-value">${escapeHtml(joinList(patient.不良藥物反應))}</span></div>`
-    + '</div>'
+        + reactCell('藥物不良反應', joinList(patient.不良藥物反應))
+      + '</tr>'
+    + '</tbody></table>'
   + '</header>';
 };
 
 const infoCell = (label: string, value: string): string =>
-  `<div class="mr-info-cell"><span class="mr-info-label">${escapeHtml(label)}：</span><span class="mr-info-value">${escapeHtml(value)}</span></div>`;
+  `<td class="mr-h-info"><span class="mr-info-label">${escapeHtml(label)}：</span><span class="mr-info-value">${escapeHtml(value)}</span></td>`;
+
+const reactCell = (label: string, value: string): string =>
+  `<td class="mr-h-info mr-h-react"><span class="mr-info-label">${escapeHtml(label)}：</span><span class="mr-info-value">${escapeHtml(value)}</span></td>`;
 
 // ---- 中間動態處方區 ----
 
@@ -451,7 +456,7 @@ const renderFooterRegion = (
 
     if (slotNeedsInspectionRow(page.blocks, slot)) {
       const inspectionCells = inspectionDayCells(page.blocks, slot, selectedMonth, dayCount, workflowRecords);
-      const inspectionLabel = slotInspectionLabel(page.blocks, slot) || '檢測';
+      const inspectionLabel = formatSlotInspectionLabel(page.blocks, slot) || '檢測值';
       rows.push(`<tr class="mr-sum-row mr-insp-row"><td class="c-time">${escapeHtml(inspectionLabel)}</td>${inspectionCells}</tr>`);
     }
   }
@@ -665,20 +670,24 @@ body {
 .mr-spacer { flex: 1 1 auto; }
 
 /* 頂置院友資訊區 */
-.mr-header { flex: 0 0 auto; }
-.mr-header-top { display: flex; align-items: stretch; gap: 3mm; }
-.mr-photo-box { flex: 0 0 22mm; }
-.mr-photo { width: 22mm; height: 26mm; object-fit: contain; border: 0.5pt solid #9aa7b4; border-radius: 1.2mm; display: block; }
-.mr-photo-empty { display: flex; align-items: center; justify-content: center; font-size: 9pt; color: #888; }
-.mr-title-box { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.mr-title { font-size: 15pt; font-weight: bold; text-align: center; color: #0f2740; letter-spacing: 0.5pt; }
-.mr-subtitle { font-size: 12pt; font-weight: bold; margin-top: 1mm; color: #0f766e; letter-spacing: 1pt; }
-.mr-info-grid { flex: 0 0 80mm; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5mm 3mm; align-content: center; }
-.mr-info-cell { font-size: 9.5pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-header { flex: 0 0 auto; margin-bottom: 1.5mm; }
+.mr-header-table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 0.8pt solid #2f3a45; }
+.mr-header-table td { border: 0.4pt solid #9aa7b4; padding: 1mm 1.5mm; vertical-align: middle; }
+.mr-hc-logo { width: 38mm; }
+.mr-hc-photo { width: 24mm; }
+.mr-hc-react { width: 40mm; }
+.mr-h-logo { text-align: center; background: #f1f5f9; }
+.mr-logo { width: 100%; max-width: 35mm; height: auto; object-fit: contain; display: block; margin: 0 auto; }
+.mr-h-title { text-align: center; }
+.mr-title { font-size: 13pt; font-weight: bold; color: #0f2740; line-height: 1.25; letter-spacing: 0.3pt; }
+.mr-h-subtitle { text-align: center; }
+.mr-subtitle { font-size: 11pt; font-weight: bold; color: #0f766e; letter-spacing: 1pt; }
+.mr-h-photo { text-align: center; }
+.mr-photo { width: 22mm; height: 26mm; object-fit: contain; border: 0.5pt solid #9aa7b4; border-radius: 1.2mm; display: block; margin: 0 auto; }
+.mr-photo-empty { display: flex; align-items: center; justify-content: center; height: 26mm; font-size: 9pt; color: #888; }
+.mr-h-info { font-size: 9pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-h-react { white-space: normal; word-break: break-word; }
 .mr-info-label { font-weight: bold; }
-.mr-header-bottom { display: flex; gap: 6mm; margin-top: 1mm; border-top: 0.5pt solid #cbd5e1; padding-top: 1mm; }
-.mr-react { flex: 1 1 50%; font-size: 9.5pt; }
-.mr-react-label { font-weight: bold; }
 
 /* 共用格線表 */
 .mr-grid { width: 100%; border-collapse: collapse; table-layout: fixed; border: 0.8pt solid #2f3a45; }
