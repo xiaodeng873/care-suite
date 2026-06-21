@@ -148,7 +148,7 @@ const preparePages = (
 // ---- 版面高度常數（毫米）& 高度感知分頁 ----
 const PAGE_HEIGHT_MM = 196;           // A4橫向含7mm邊距後可用高度
 const TOP_RESERVED_MM = 3;            // 頁面頂部固定留白（整頁內容底置時仍保留）
-const HEADER_HEIGHT_MM = 24;          // 頂置院友資訊區估算高度
+const HEADER_HEIGHT_MM = 30;          // 頂置院友資訊區實際高度（含26mm相片+邊距）
 const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
 const ROW_HEIGHT_MM = 6;              // mr-sign-row 列高
 const FOOTER_PER_ROW_MM = 6;          // 彙總區每列列高
@@ -268,6 +268,7 @@ const renderPage = (
   const pageLabel = `${ROUTE_SHEET_LABELS[page.routeKind]} 共${page.pageIndexInRoute}/${page.pageCountInRoute}頁`;
 
   return '<section class="mr-page">'
+    + '<div class="mr-top-spacer"></div>'
     + renderHeaderRegion(page.patient, page.routeKind)
     + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows)}</div>`
     + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel, includeBlankRows)
@@ -799,12 +800,13 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   overflow: hidden;
   page-break-after: always;
   break-after: page;
 }
 .mr-page:last-child { page-break-after: auto; break-after: auto; }
+/* 頂部彈性留白：內容不足時撐開使整體底置；內容滿頁時收為 0，溢出只發生在底部，表頭永遠完整 */
+.mr-top-spacer { flex: 1 1 auto; }
 .mr-body { flex: 0 0 auto; overflow: hidden; }
 
 /* 頂置院友資訊區 */
