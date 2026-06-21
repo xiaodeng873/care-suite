@@ -103,8 +103,9 @@ const buildMedicationRecordHtml = async (
       workflowRecords = await fetchWorkflowRecordsForMonth(patient.院友id, prescriptionIds, selectedMonth);
     }
     const staffMapping = generateStaffCodeMapping(extractStaffNamesFromWorkflowRecords(workflowRecords));
+    const staffCount = Object.keys(staffMapping).length;
 
-    for (const page of preparePages(patient, prescriptions, includeBlankRows)) {
+    for (const page of preparePages(patient, prescriptions, includeBlankRows, staffCount)) {
       renderedPages.push(renderPage(page, selectedMonth, workflowRecords, staffMapping, includeBlankRows));
     }
   }
@@ -116,12 +117,14 @@ const preparePages = (
   patient: PatientWithPrescriptions,
   prescriptions: MedicationPrescription[],
   includeBlankRows: boolean,
+  staffCount: number,
 ): PageData[] => {
   const categorized: Record<RouteKind, MedicationPrescription[]> = { oral: [], topical: [], subcutaneous: [], intramuscular: [] };
   for (const prescription of prescriptions) {
     categorized[classifyRoute(prescription)].push(prescription);
   }
 
+  const footerLegendMm = estimateFooterLegendMm(staffCount);
   const pages: PageData[] = [];
 
   const addRoute = (routeKind: PageRouteKind, rxList: MedicationPrescription[]): void => {
@@ -130,7 +133,7 @@ const preparePages = (
       prescription: rx,
       timeSlots: sortDistinctTimeSlots(rx.medication_time_slots ?? []),
     }));
-    const grouped = paginateBlocks(blocks, includeBlankRows);
+    const grouped = paginateBlocks(blocks, includeBlankRows, footerLegendMm);
     grouped.forEach((pb, i) => pages.push({
       patient, routeKind, blocks: pb,
       pageIndexInRoute: i + 1, pageCountInRoute: grouped.length,
@@ -145,55 +148,70 @@ const preparePages = (
   return pages;
 };
 
-// ---- 版面高度常數（毫米）& 高度感知分頁 ----
+// ---- 版面高度常數（毫米）& 高度感知分頁（全程以 mm 精算）----
 const PAGE_HEIGHT_MM = 196;           // A4橫向含7mm邊距後可用高度
 const TOP_RESERVED_MM = 3;            // 頁面頂部固定留白（整頁內容底置時仍保留）
 const HEADER_HEIGHT_MM = 30;          // 頂置院友資訊區實際高度（含26mm相片+邊距）
 const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
-const ROW_HEIGHT_MM = 6;              // mr-sign-row 列高
-const FOOTER_PER_ROW_MM = 6;          // 彙總區每列列高
+const ROW_SIGN_MM = 6;                // 簽署列（mr-sign-row）實際列高
+const ROW_INSP_MM = 5;                // 檢測值列（mr-insp-body-row）實際列高
+const MIN_BLOCK_MM = 16;              // 單時段處方左欄多行內容（途徑最多4行）保守高度下限
 const FOOTER_FIXED_MM = 4;            // 頁碼標籤高度
-const FOOTER_LEGEND_MIN_MM = 28;      // 給藥簽署指引文字區最小高度（rowspan 撐高 footer）
-const SAFETY_MARGIN_MM = 4;           // 累積邊框／行距誤差的安全餘量（避免過度進取）
+const SAFETY_MARGIN_MM = 4;           // 累積邊框／行距誤差的安全餘量
 
-// 給定彙總列數，計算 body table 可容納的最多內容列數
-const bodyRowsCapacity = (summarySlots: number, includeBlankRows: boolean): number => {
+// 估算 footer 左側「給藥簽署指引」文字區高度（mm）。
+// 含：標題＋9個代號(約2行)＋2條註記；若有職員代號則再加標題與代號行。
+const estimateFooterLegendMm = (staffCount: number): number => {
+  let mm = 20; // 標題(約3.4) + 代號2行(約7.4) + 註記2行(約7) + 標籤內距(約2)
+  if (staffCount > 0) {
+    const staffLines = Math.ceil(staffCount / 5); // 每行約可容納 5 個代號
+    mm += 4.4 + staffLines * 3.7;                 // 職員標題 + 代號各行
+  }
+  return mm;
+};
+
+// 給定彙總時段數，計算 body 可用高度（mm）。
+const bodyUsableMm = (summarySlots: number, includeBlankRows: boolean, footerLegendMm: number): number => {
   const footerRows = includeBlankRows ? Math.max(MIN_SUMMARY_ROWS, summarySlots) : Math.max(1, summarySlots);
   // footer 實際高度＝彙總列高與指引文字區高度之較大者（文字區以 rowspan 跨列撐高）
-  const footerMm = Math.max(footerRows * FOOTER_PER_ROW_MM, FOOTER_LEGEND_MIN_MM) + FOOTER_FIXED_MM;
-  const usable = PAGE_HEIGHT_MM - TOP_RESERVED_MM - HEADER_HEIGHT_MM - TABLE_HEADER_MM - footerMm - SAFETY_MARGIN_MM;
-  return Math.floor(usable / ROW_HEIGHT_MM);
+  const footerMm = Math.max(footerRows * ROW_SIGN_MM, footerLegendMm) + FOOTER_FIXED_MM;
+  return PAGE_HEIGHT_MM - TOP_RESERVED_MM - HEADER_HEIGHT_MM - TABLE_HEADER_MM - footerMm - SAFETY_MARGIN_MM;
 };
 
-// 計算一個處方區塊佔用的顯示列數（保守估算：不足 MIN_SLOT_ROWS 時按 MIN_SLOT_ROWS 計）
-const getBlockRows = (block: PrescriptionBlock): number => {
-  const inspTypes = prescriptionHasInspection(block.prescription)
-    ? [...new Set((block.prescription.inspection_rules as any[]).map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean))]
-    : [];
-  const rowsPerSlot = 1 + inspTypes.length;
-  return Math.max(block.timeSlots.length * rowsPerSlot, MIN_SLOT_ROWS);
+// 計算一個處方區塊實際佔用高度（mm）：簽署列6mm + 檢測列各5mm；左欄多行內容下限 MIN_BLOCK_MM。
+const getBlockHeightMm = (block: PrescriptionBlock): number => {
+  const inspCount = prescriptionHasInspection(block.prescription)
+    ? new Set((block.prescription.inspection_rules as any[]).map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean)).size
+    : 0;
+  const slots = Math.max(block.timeSlots.length, 1);
+  const rowsMm = slots * ROW_SIGN_MM + slots * inspCount * ROW_INSP_MM;
+  return Math.max(rowsMm, MIN_BLOCK_MM);
 };
 
-// 高度感知分頁：逐一偵測加入下一個處方後是否超出可用列數；
+// 高度感知分頁：以 mm 精算逐一偵測加入下一個處方是否超出可用高度；
 // 每頁至少放 1 個處方（即使超高也不可整頁空）；同時受 MAX_PRESCRIPTIONS_PER_PAGE 上限約束。
-const paginateBlocks = (blocks: PrescriptionBlock[], includeBlankRows: boolean): PrescriptionBlock[][] => {
+const paginateBlocks = (
+  blocks: PrescriptionBlock[],
+  includeBlankRows: boolean,
+  footerLegendMm: number,
+): PrescriptionBlock[][] => {
   const result: PrescriptionBlock[][] = [];
   let current: PrescriptionBlock[] = [];
-  let currentRows = 0;
+  let currentMm = 0;
 
   for (const block of blocks) {
-    const blockRows = getBlockRows(block);
+    const blockMm = getBlockHeightMm(block);
     if (current.length > 0) {
       const projected = [...current, block];
-      const available = bodyRowsCapacity(summaryRowCount(projected), includeBlankRows);
-      if (currentRows + blockRows > available || current.length >= MAX_PRESCRIPTIONS_PER_PAGE) {
+      const usableMm = bodyUsableMm(summaryRowCount(projected), includeBlankRows, footerLegendMm);
+      if (currentMm + blockMm > usableMm || current.length >= MAX_PRESCRIPTIONS_PER_PAGE) {
         result.push(current);
         current = [];
-        currentRows = 0;
+        currentMm = 0;
       }
     }
     current.push(block);
-    currentRows += blockRows;
+    currentMm += blockMm;
   }
 
   if (current.length > 0) result.push(current);
