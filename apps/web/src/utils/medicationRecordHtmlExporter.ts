@@ -30,6 +30,7 @@ interface PageData {
   blocks: PrescriptionBlock[];
   pageIndexInRoute: number;
   pageCountInRoute: number;
+  fillerCount: number; // 勾「處方空白列」時，本頁依剩餘空間可補的空白處方區塊數
 }
 
 const ROUTE_SUBTITLES: Record<PageRouteKind, string> = {
@@ -134,10 +135,21 @@ const preparePages = (
       timeSlots: sortDistinctTimeSlots(rx.medication_time_slots ?? []),
     }));
     const grouped = paginateBlocks(blocks, includeBlankRows, footerLegendMm);
-    grouped.forEach((pb, i) => pages.push({
-      patient, routeKind, blocks: pb,
-      pageIndexInRoute: i + 1, pageCountInRoute: grouped.length,
-    }));
+    grouped.forEach((pb, i) => {
+      // 依本頁實際剩餘高度計算可補的空白處方列數（避免補到 MAX 而擠爆 footer）
+      let fillerCount = 0;
+      if (includeBlankRows) {
+        const realSumMm = pb.reduce((sum, b) => sum + getBlockHeightMm(b), 0);
+        const usableMm = bodyUsableMm(summaryRowCount(pb), includeBlankRows, footerLegendMm);
+        const roomForFillers = Math.floor((usableMm - realSumMm) / FILLER_BLOCK_MM);
+        fillerCount = Math.max(0, Math.min(MAX_PRESCRIPTIONS_PER_PAGE - pb.length, roomForFillers));
+      }
+      pages.push({
+        patient, routeKind, blocks: pb,
+        pageIndexInRoute: i + 1, pageCountInRoute: grouped.length,
+        fillerCount,
+      });
+    });
   };
 
   addRoute('oral', categorized.oral);
@@ -154,8 +166,9 @@ const TOP_RESERVED_MM = 3;            // 頁面頂部固定留白（整頁內容
 const HEADER_HEIGHT_MM = 30;          // 頂置院友資訊區實際高度（含26mm相片+邊距）
 const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
 const ROW_SIGN_MM = 6;                // 簽署列（mr-sign-row）實際列高
-const ROW_INSP_MM = 5;                // 檢測值列（mr-insp-body-row）實際列高
+const ROW_INSP_MM = 6;                // 檢測值列（mr-insp-body-row）實際列高
 const MIN_BLOCK_MM = 16;              // 單時段處方左欄多行內容（途徑最多4行）保守高度下限
+const FILLER_BLOCK_MM = MIN_SLOT_ROWS * ROW_SIGN_MM; // 一個空白處方區塊（4列）高度
 const FOOTER_FIXED_MM = 4;            // 頁碼標籤高度
 const SAFETY_MARGIN_MM = 4;           // 累積邊框／行距誤差的安全餘量
 
@@ -374,8 +387,8 @@ const renderBodyTable = (
     .map((block) => renderPrescriptionBlock(block, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows))
     .join('');
 
-  // 填充空白處方列：勾選「處方空白列」時，每頁不足 MAX_PRESCRIPTIONS_PER_PAGE 個處方時補空行
-  const missingSlots = includeBlankRows ? Math.max(0, MAX_PRESCRIPTIONS_PER_PAGE - page.blocks.length) : 0;
+  // 填充空白處方列：依本頁實際剩餘高度計算（preparePages 已算好 fillerCount，避免擠爆 footer）
+  const missingSlots = includeBlankRows ? page.fillerCount : 0;
   let fillerRows = '';
   if (missingSlots > 0) {
     const dayCells = Array(dayCount).fill('<td class="c-day">&nbsp;</td>').join('');
