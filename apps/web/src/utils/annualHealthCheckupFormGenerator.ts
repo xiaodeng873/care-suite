@@ -5,6 +5,12 @@
  */
 import { AnnualHealthCheckup, parseMentalStateAssessment } from './annualHealthCheckupHelper';
 import { supabase } from '../lib/supabase';
+
+const formatDosage = (amount?: string, unit?: string): string => {
+  if (!amount) return '';
+  const amt = String(amount);
+  return /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + (unit ?? '') : amt;
+};
 interface Patient {
   院友id: number;
   床號: string;
@@ -109,7 +115,7 @@ const formatPrescriptionList = (prescriptions: MedicationPrescription[]): string
     const freq = formatFrequencyDisplay(p);
     if (freq) parts.push(freq);
     if (p.is_prn) parts.push('PRN');
-    if (p.dosage_amount) parts.push(`每次${p.dosage_amount}${p.dosage_unit || ''}`);
+    if (p.dosage_amount) parts.push(`每次${formatDosage(p.dosage_amount, p.dosage_unit)}`);
     return parts.join(' ');
   }).join('\n');
 };
@@ -326,7 +332,7 @@ export const generateMedicalExaminationFormHTML = (
       <td style="vertical-align:top;">${p.administration_route || ''}</td>
       <td style="vertical-align:top;">${formatFrequencyDisplay(p)}</td>
       <td style="text-align:center; vertical-align:top;">${p.is_prn ? '✓' : ''}</td>
-      <td style="vertical-align:top;">${p.dosage_amount ? `每次${p.dosage_amount}${p.dosage_unit || ''}` : ''}</td>
+      <td style="vertical-align:top;">${p.dosage_amount ? `每次${formatDosage(p.dosage_amount, p.dosage_unit)}` : ''}</td>
     </tr>
     `).join('') : `
     <tr>
@@ -646,4 +652,123 @@ export const printMedicalExaminationForm = async (
     console.error('Error generating medical examination form:', error);
     alert('生成體檢報告書失敗，請重試');
   }
+};
+
+// ===== 個人藥物記錄獨立 HTML 匯出（附件 12.1 - 1a）=====
+
+interface PatientForPml {
+  中文姓名?: string;
+  中文姓氏?: string;
+  中文名字?: string;
+  床號?: string;
+  身份證號碼?: string;
+}
+
+const generatePmlPage = (patient: PatientForPml, prescriptions: MedicationPrescription[]): string => {
+  const name = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
+  return `<div class="page">
+  <div class="header">
+    <span>《安老院實務守則》2024年6月（修訂版）</span>
+    <span>附件 12.1</span>
+  </div>
+  <div class="title">
+    <h1>Personal Medication Record</h1>
+    <h2>個人藥物記錄</h2>
+  </div>
+  <table style="margin-bottom:5mm;">
+    <tr>
+      <td style="width:25%; background:#f0f0f0; font-weight:bold; vertical-align:top;">Name 姓名</td>
+      <td style="width:25%; vertical-align:top;">${name}</td>
+      <td style="width:25%; background:#f0f0f0; font-weight:bold; vertical-align:top;">Bed No. 床號</td>
+      <td style="width:25%; vertical-align:top;">${patient.床號 || ''}</td>
+    </tr>
+    <tr>
+      <td style="background:#f0f0f0; font-weight:bold; vertical-align:top;">HKID No. 身份證號碼</td>
+      <td style="vertical-align:top;">${patient.身份證號碼 || ''}</td>
+      <td style="background:#f0f0f0; font-weight:bold; vertical-align:top;">Date 日期</td>
+      <td style="vertical-align:top;">${new Date().toLocaleDateString('zh-TW')}</td>
+    </tr>
+  </table>
+  <table>
+    <tr style="background:#d9d9d9; font-weight:bold;">
+      <td style="width:5%; text-align:center; vertical-align:top;">#</td>
+      <td style="width:26%; vertical-align:top;">Medication Name<br/>藥物名稱</td>
+      <td style="width:10%; vertical-align:top;">Form<br/>劑型</td>
+      <td style="width:12%; vertical-align:top;">Route<br/>給藥途徑</td>
+      <td style="width:10%; vertical-align:top;">Frequency<br/>頻次</td>
+      <td style="width:8%; text-align:center; vertical-align:top;">PRN<br/>需要時</td>
+      <td style="width:17%; vertical-align:top;">Dosage<br/>劑量</td>
+    </tr>
+    ${prescriptions.length > 0 ? prescriptions.map((p, index) => `
+    <tr>
+      <td style="text-align:center; vertical-align:top;">${index + 1}</td>
+      <td style="vertical-align:top;">${p.medication_name || ''}</td>
+      <td style="vertical-align:top;">${p.dosage_form || ''}</td>
+      <td style="vertical-align:top;">${p.administration_route || ''}</td>
+      <td style="vertical-align:top;">${formatFrequencyDisplay(p)}</td>
+      <td style="text-align:center; vertical-align:top;">${p.is_prn ? '✓' : ''}</td>
+      <td style="vertical-align:top;">${p.dosage_amount ? `每次${formatDosage(p.dosage_amount, p.dosage_unit)}` : ''}</td>
+    </tr>`).join('') : `
+    <tr>
+      <td colspan="7" style="text-align:center; padding:20px; color:#666; vertical-align:top;">暫無在服藥物記錄</td>
+    </tr>`}
+  </table>
+  <p style="text-align:center; margin-top:5mm; font-size:9pt;">附件 12.1 - 1a</p>
+</div>`;
+};
+
+export const generatePersonalMedicationListHtml = (
+  patients: Array<{ patient: PatientForPml; prescriptions: MedicationPrescription[] }>
+): string => {
+  const pages = patients.map(({ patient, prescriptions }) => generatePmlPage(patient, prescriptions)).join('\n');
+  return `<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>個人藥物記錄</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Times New Roman", "PMingLiU", "新細明體", serif; font-size: 10pt; line-height: 1.4; background: #fff; }
+    .page { width: 210mm; height: 297mm; padding: 8mm 15mm 8mm 15mm; position: relative; page-break-after: always; overflow: hidden; }
+    .page:last-child { page-break-after: auto; }
+    .header { display: flex; justify-content: space-between; font-size: 9pt; margin-bottom: 3mm; }
+    .title { text-align: center; margin-bottom: 4mm; }
+    .title h1 { font-size: 13pt; font-weight: bold; margin: 2px 0; }
+    .title h2 { font-size: 11pt; font-weight: bold; margin: 2px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    td, th { border: 1px solid #000; padding: 4px 8px; vertical-align: bottom; font-size: 10pt; line-height: 1.4; }
+    @media print { .page { margin: 0; } }
+  </style>
+</head>
+<body>
+${pages}
+</body>
+</html>`;
+};
+
+export const exportPersonalMedicationListToHtmlWindow = (
+  patients: Array<{ patient: PatientForPml; prescriptions: MedicationPrescription[] }>
+): void => {
+  const html = generatePersonalMedicationListHtml(patients);
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-10000px';
+  iframe.style.top = '0';
+  iframe.style.width = '794px';
+  iframe.style.height = '1123px';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+  const cleanup = (): void => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); };
+  const doc = iframe.contentWindow?.document;
+  if (!doc) { cleanup(); return; }
+  doc.open();
+  doc.write(html);
+  doc.close();
+  const win = iframe.contentWindow!;
+  win.addEventListener('afterprint', () => setTimeout(cleanup, 200));
+  const trigger = (): void => { window.setTimeout(() => { win.focus(); win.print(); }, 400); };
+  if (doc.readyState === 'complete') { trigger(); }
+  else { win.addEventListener('load', trigger); }
 };

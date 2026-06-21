@@ -371,6 +371,7 @@ const renderPrescriptionBlock = (
     : [];
   const rowsPerSlot = 1 + inspectionTypes.length;
   const totalRowCount = slots.length * rowsPerSlot;
+  const boundary = getBoundaryCells(prescription, slots, selectedMonth, dayCount);
 
   return slots
     .flatMap((slot, slotIndex) => {
@@ -380,7 +381,7 @@ const renderPrescriptionBlock = (
           + `<td class="c-route" rowspan="${totalRowCount}">${routeInfo || '&nbsp;'}</td>`
         : '';
       const timeCell = `<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>`;
-      const dayCells = signatureDayCells(prescription, slot, selectedMonth, dayCount, workflowRecords, staffMapping);
+      const dayCells = signatureDayCells(prescription, slot, selectedMonth, dayCount, workflowRecords, staffMapping, boundary);
       const signRow = `<tr class="mr-sign-row">${leftCells}${timeCell}${dayCells}</tr>`;
       const inspRows = inspectionTypes.map((inspType) =>
         renderBodyInspectionRow(block, slot, inspType, selectedMonth, dayCount, workflowRecords)
@@ -435,14 +436,55 @@ const renderBodyInspectionRow = (
   return `<tr class="mr-insp-body-row"><td class="c-time mr-insp-type">${escapeHtml(vitalSignType)}</td>${dayCells}</tr>`;
 };
 
+// 計算處方邊界標記格：▶ = 開始前 N 格，◄ = 結束後 N 格（N = 此處方所有日內時段數）。
+const getBoundaryCells = (
+  prescription: MedicationPrescription,
+  slots: string[],
+  selectedMonth: string,
+  dayCount: number
+): { before: Set<string>; after: Set<string> } => {
+  const before = new Set<string>();
+  const after = new Set<string>();
+  const effectiveSlots = slots.filter((s) => s && s.trim());
+  if (effectiveSlots.length === 0) return { before, after };
+  const N = effectiveSlots.length;
+  const allCells: Array<[string, string]> = [];
+  for (let day = 1; day <= dayCount; day += 1) {
+    const dateStr = toDateString(selectedMonth, day);
+    for (const s of effectiveSlots) allCells.push([dateStr, s]);
+  }
+  let firstActiveIdx = -1;
+  for (let i = 0; i < allCells.length; i += 1) {
+    if (isDateInPrescriptionRange(allCells[i][0], allCells[i][1], prescription)) { firstActiveIdx = i; break; }
+  }
+  let lastActiveIdx = -1;
+  for (let i = allCells.length - 1; i >= 0; i -= 1) {
+    if (isDateInPrescriptionRange(allCells[i][0], allCells[i][1], prescription)) { lastActiveIdx = i; break; }
+  }
+  if (firstActiveIdx > 0) {
+    for (let i = Math.max(0, firstActiveIdx - N); i < firstActiveIdx; i += 1) {
+      before.add(`${allCells[i][0]}__${allCells[i][1]}`);
+    }
+  }
+  if (lastActiveIdx >= 0 && lastActiveIdx < allCells.length - 1) {
+    for (let i = lastActiveIdx + 1; i <= Math.min(allCells.length - 1, lastActiveIdx + N); i += 1) {
+      after.add(`${allCells[i][0]}__${allCells[i][1]}`);
+    }
+  }
+  return { before, after };
+};
+
 const signatureDayCells = (
   prescription: MedicationPrescription,
   slot: string,
   selectedMonth: string,
   dayCount: number,
   workflowRecords: WorkflowRecord[],
-  staffMapping: StaffCodeMapping
+  staffMapping: StaffCodeMapping,
+  boundary: { before: Set<string>; after: Set<string> }
 ): string => {
+  const isImmediate = prescription.preparation_method === 'immediate';
+  const diagClass = isImmediate ? 'mr-diag-prn' : 'mr-diag';
   let cells = '';
   for (let day = 1; day <= dayCount; day += 1) {
     const dateStr = toDateString(selectedMonth, day);
@@ -451,8 +493,14 @@ const signatureDayCells = (
     if (inRange) {
       const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
       content = formatWorkflowCellContent(record, staffMapping) || '';
+    } else {
+      const key = `${dateStr}__${slot}`;
+      if (boundary.before.has(key)) content = '▶';
+      else if (boundary.after.has(key)) content = '◄';
     }
-    cells += `<td class="c-day mr-diag${inRange ? '' : ' mr-inactive'}">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
+    const inactiveClass = !inRange ? (isImmediate ? ' mr-inactive-prn' : ' mr-inactive') : '';
+    const boundaryClass = !inRange && content ? ' mr-boundary' : '';
+    cells += `<td class="c-day ${diagClass}${inactiveClass}${boundaryClass}">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
   }
   return cells;
 };
@@ -519,6 +567,10 @@ const dispenseDayCells = (
   workflowRecords: WorkflowRecord[],
   staffMapping: StaffCodeMapping
 ): string => {
+  const blockBoundaries = blocks.map((block) => ({
+    block,
+    boundary: getBoundaryCells(block.prescription, block.timeSlots, selectedMonth, dayCount),
+  }));
   let cells = '';
   for (let day = 1; day <= dayCount; day += 1) {
     const dateStr = toDateString(selectedMonth, day);
@@ -541,15 +593,30 @@ const dispenseDayCells = (
         if (value) {
           if (record?.dispensing_status === 'completed') {
             successContent = value;
-            break; // 有成功派發，直接用
+            break;
           } else if (!fallbackContent) {
-            fallbackContent = value; // 保留失敗代號作備用
+            fallbackContent = value;
           }
         }
       }
       content = successContent || fallbackContent;
+      if (!anyInRange && !content) {
+        const key = `${dateStr}__${slot}`;
+        const hasBefore = blockBoundaries.some(({ block, boundary }) =>
+          block.timeSlots.includes(slot) && boundary.before.has(key)
+        );
+        if (hasBefore) {
+          content = '▶';
+        } else {
+          const hasAfter = blockBoundaries.some(({ block, boundary }) =>
+            block.timeSlots.includes(slot) && boundary.after.has(key)
+          );
+          if (hasAfter) content = '◄';
+        }
+      }
     }
-    cells += `<td class="c-day${anyInRange ? '' : ' mr-inactive'}">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
+    const boundaryClass = !anyInRange && content ? ' mr-boundary' : '';
+    cells += `<td class="c-day${anyInRange ? '' : ' mr-inactive'}${boundaryClass}">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
   }
   return cells;
 };
@@ -594,7 +661,12 @@ const getFrequencyDescription = (prescription: MedicationPrescription): string =
 
 const getDosageText = (prescription: MedicationPrescription): string => {
   if (prescription.special_dosage_instruction) return prescription.special_dosage_instruction;
-  if (prescription.dosage_amount) return `每次${prescription.dosage_amount}${prescription.dosage_unit ?? ''}`;
+  if (prescription.dosage_amount) {
+    const amt = String(prescription.dosage_amount);
+    const unit = prescription.dosage_unit ?? '';
+    const dosage = /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + unit : amt;
+    return `每次${dosage}`;
+  }
   return '';
 };
 
@@ -749,6 +821,21 @@ td.mr-diag {
 }
 /* 不在處方有效期內的日格：灰底、移除斜線 */
 td.mr-inactive { background: #e2e8f0 !important; background-image: none !important; }
+/* 即時備藥（preparation_method=immediate）簽署格：深色粗斜線提示勿誤簽 */
+td.mr-diag-prn {
+  background-image: linear-gradient(to bottom right,
+    transparent calc(50% - 1.5px), #334155 calc(50% - 1.5px),
+    #334155 calc(50% + 1.5px), transparent calc(50% + 1.5px));
+}
+/* 即時備藥非有效期日格：灰底保留深色斜線 */
+td.mr-inactive-prn {
+  background: #e2e8f0;
+  background-image: linear-gradient(to bottom right,
+    transparent calc(50% - 1.5px), #334155 calc(50% - 1.5px),
+    #334155 calc(50% + 1.5px), transparent calc(50% + 1.5px));
+}
+/* ▶/◄ 邊界標記格：紫色提示開始/結束 */
+td.mr-boundary { color: #7c3aed; font-weight: bold; }
 
 /* 底部給藥彙總（左側標籤格內含簽署指引） */
 .mr-footer-region { flex: 0 0 auto; }

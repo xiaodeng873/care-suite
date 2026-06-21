@@ -1030,7 +1030,9 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
               <div className="flex items-center space-x-1">
                 <span className="text-gray-500">份量:</span>
                 <span className="font-medium">
-                  {prescription.dosage_amount}{prescription.dosage_unit || ''}
+                  {String(prescription.dosage_amount || '').match(/^\d+(\.\d+)?$/)
+                    ? `${prescription.dosage_amount}${prescription.dosage_unit || ''}`
+                    : String(prescription.dosage_amount || '')}
                 </span>
               </div>
             )}
