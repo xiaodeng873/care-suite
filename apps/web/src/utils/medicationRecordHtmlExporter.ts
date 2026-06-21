@@ -72,7 +72,7 @@ const DISPENSE_NOTE_ITEMS: string[] = [
 ];
 
 // 分頁及版面固定規格
-const MAX_PRESCRIPTIONS_PER_PAGE = 4; // 每頁最多處方數
+const MAX_PRESCRIPTIONS_PER_PAGE = 5; // 每頁最多處方數
 const MIN_SLOT_ROWS = 4;              // 每個處方最少顯示時段列數（不足補空行）
 const MIN_SUMMARY_ROWS = 6;           // 彙總區最少列數（不足補空行）
 
