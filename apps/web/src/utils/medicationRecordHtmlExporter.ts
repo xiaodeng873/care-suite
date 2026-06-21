@@ -62,7 +62,7 @@ const DISPENSE_NOTE_ITEMS: string[] = [
 ];
 
 // 分頁及版面固定規格
-const MAX_PRESCRIPTIONS_PER_PAGE = 4; // 每頁最多處方數
+const MAX_PRESCRIPTIONS_PER_PAGE = 5; // 每頁最多處方數
 const MIN_SLOT_ROWS = 4;              // 每個處方最少顯示時段列數（不足補空行）
 const MIN_SUMMARY_ROWS = 6;           // 彙總區最少列數（不足補空行）
 
@@ -153,12 +153,16 @@ const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
 const ROW_HEIGHT_MM = 6;              // mr-sign-row 列高
 const FOOTER_PER_ROW_MM = 6;          // 彙總區每列列高
 const FOOTER_FIXED_MM = 4;            // 頁碼標籤高度
+const FOOTER_LEGEND_MIN_MM = 28;      // 給藥簽署指引文字區最小高度（rowspan 撐高 footer）
+const SAFETY_MARGIN_MM = 4;           // 累積邊框／行距誤差的安全餘量（避免過度進取）
 
 // 給定彙總列數，計算 body table 可容納的最多內容列數
 const bodyRowsCapacity = (summarySlots: number, includeBlankRows: boolean): number => {
   const footerRows = includeBlankRows ? Math.max(MIN_SUMMARY_ROWS, summarySlots) : Math.max(1, summarySlots);
-  const footerMm = footerRows * FOOTER_PER_ROW_MM + FOOTER_FIXED_MM;
-  return Math.floor((PAGE_HEIGHT_MM - TOP_RESERVED_MM - HEADER_HEIGHT_MM - TABLE_HEADER_MM - footerMm) / ROW_HEIGHT_MM);
+  // footer 實際高度＝彙總列高與指引文字區高度之較大者（文字區以 rowspan 跨列撐高）
+  const footerMm = Math.max(footerRows * FOOTER_PER_ROW_MM, FOOTER_LEGEND_MIN_MM) + FOOTER_FIXED_MM;
+  const usable = PAGE_HEIGHT_MM - TOP_RESERVED_MM - HEADER_HEIGHT_MM - TABLE_HEADER_MM - footerMm - SAFETY_MARGIN_MM;
+  return Math.floor(usable / ROW_HEIGHT_MM);
 };
 
 // 計算一個處方區塊佔用的顯示列數（保守估算：不足 MIN_SLOT_ROWS 時按 MIN_SLOT_ROWS 計）
