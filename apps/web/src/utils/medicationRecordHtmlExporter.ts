@@ -14,7 +14,8 @@ import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 // 版面分三區：頂置院友資訊 / 中間動態處方區 / 底部指引＋給藥彙總；
 // 日格依當月天數填滿寬度；內容超頁自動分頁，且單一處方區塊不會被切割到兩頁。
 
-type RouteKind = 'oral' | 'topical' | 'subcutaneous' | 'intramuscular';
+type RouteKind = 'oral' | 'topical' | 'subcutaneous' | 'intramuscular'; // 處方分類（保留細分）
+type PageRouteKind = 'oral' | 'topical' | 'injection';                  // 藥紙頁面：皮下+肌肉合併為 injection
 type MedicationPrescription = Record<string, any>;
 type PatientWithPrescriptions = Record<string, any> & { prescriptions?: MedicationPrescription[] };
 
@@ -25,34 +26,23 @@ interface PrescriptionBlock {
 
 interface PageData {
   patient: PatientWithPrescriptions;
-  routeKind: RouteKind;
+  routeKind: PageRouteKind;
   blocks: PrescriptionBlock[];
   pageIndexInRoute: number;
   pageCountInRoute: number;
 }
 
-const ROUTE_LABELS: Record<RouteKind, string> = {
-  oral: '口服',
-  topical: '外用',
-  subcutaneous: '皮下注射',
-  intramuscular: '肌肉注射',
-};
-
-const ROUTE_SUBTITLES: Record<RouteKind, string> = {
+const ROUTE_SUBTITLES: Record<PageRouteKind, string> = {
   oral: '口服藥物',
   topical: '外用藥物',
-  subcutaneous: '皮下注射藥物',
-  intramuscular: '肌肉注射藥物',
+  injection: '注射藥物',
 };
 
-const ROUTE_SHEET_LABELS: Record<RouteKind, string> = {
+const ROUTE_SHEET_LABELS: Record<PageRouteKind, string> = {
   oral: '口服藥紙',
   topical: '外用藥紙',
-  subcutaneous: '皮下注射藥紙',
-  intramuscular: '肌肉注射藥紙',
+  injection: '注射藥紙',
 };
-
-const ROUTE_ORDER: RouteKind[] = ['oral', 'topical', 'subcutaneous', 'intramuscular'];
 
 // 「給藥記錄簽署指引」逐項說明（顯示於彙總區左側標籤格，取代「給藥簽署」字眼）。
 const DISPENSE_CODE_ITEMS: string[] = [
@@ -114,7 +104,7 @@ const buildMedicationRecordHtml = async (
     }
     const staffMapping = generateStaffCodeMapping(extractStaffNamesFromWorkflowRecords(workflowRecords));
 
-    for (const page of preparePages(patient, prescriptions)) {
+    for (const page of preparePages(patient, prescriptions, includeBlankRows)) {
       renderedPages.push(renderPage(page, selectedMonth, workflowRecords, staffMapping, includeBlankRows));
     }
   }
@@ -122,73 +112,82 @@ const buildMedicationRecordHtml = async (
   return assembleDocument(renderedPages);
 };
 
-const preparePages = (patient: PatientWithPrescriptions, prescriptions: MedicationPrescription[]): PageData[] => {
+const preparePages = (
+  patient: PatientWithPrescriptions,
+  prescriptions: MedicationPrescription[],
+  includeBlankRows: boolean,
+): PageData[] => {
   const categorized: Record<RouteKind, MedicationPrescription[]> = { oral: [], topical: [], subcutaneous: [], intramuscular: [] };
   for (const prescription of prescriptions) {
     categorized[classifyRoute(prescription)].push(prescription);
   }
 
   const pages: PageData[] = [];
-  for (const routeKind of ROUTE_ORDER) {
-    const routePrescriptions = categorized[routeKind];
-    if (routePrescriptions.length === 0) continue;
 
-    const blocks: PrescriptionBlock[] = routePrescriptions.map((prescription) => ({
-      prescription,
-      timeSlots: sortDistinctTimeSlots(prescription.medication_time_slots ?? []),
+  const addRoute = (routeKind: PageRouteKind, rxList: MedicationPrescription[]): void => {
+    if (rxList.length === 0) return;
+    const blocks = rxList.map((rx) => ({
+      prescription: rx,
+      timeSlots: sortDistinctTimeSlots(rx.medication_time_slots ?? []),
     }));
+    const grouped = paginateBlocks(blocks, includeBlankRows);
+    grouped.forEach((pb, i) => pages.push({
+      patient, routeKind, blocks: pb,
+      pageIndexInRoute: i + 1, pageCountInRoute: grouped.length,
+    }));
+  };
 
-    const grouped = paginateBlocks(blocks);
-    grouped.forEach((pageBlocks, index) => {
-      pages.push({
-        patient,
-        routeKind,
-        blocks: pageBlocks,
-        pageIndexInRoute: index + 1,
-        pageCountInRoute: grouped.length,
-      });
-    });
-  }
+  addRoute('oral', categorized.oral);
+  addRoute('topical', categorized.topical);
+  // 皮下注射 + 肌肉注射 合併至同一份注射藥紙
+  addRoute('injection', [...categorized.subcutaneous, ...categorized.intramuscular]);
+
   return pages;
 };
 
-// 分頁規則：每頁最多 MAX_PRESCRIPTIONS_PER_PAGE 個處方。
-// 簽署效益最佳化：若當前頁全為相同時段組合（slotSig），下一個處方屬不同組合且會增加彙總列數，
-// 則優先新開一頁，以減少每頁彙總行數（每日需簽名次數）。
-const paginateBlocks = (blocks: PrescriptionBlock[]): PrescriptionBlock[][] => {
-  const slotSig = (block: PrescriptionBlock): string =>
-    [...block.timeSlots].sort().join('|');
+// ---- 版面高度常數（毫米）& 高度感知分頁 ----
+const PAGE_HEIGHT_MM = 196;           // A4橫向含7mm邊距後可用高度
+const HEADER_HEIGHT_MM = 24;          // 頂置院友資訊區估算高度
+const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
+const ROW_HEIGHT_MM = 6;              // mr-sign-row 列高
+const FOOTER_PER_ROW_MM = 6;          // 彙總區每列列高
+const FOOTER_FIXED_MM = 4;            // 頁碼標籤高度
 
+// 給定彙總列數，計算 body table 可容納的最多內容列數
+const bodyRowsCapacity = (summarySlots: number): number => {
+  const footerMm = Math.max(MIN_SUMMARY_ROWS, summarySlots) * FOOTER_PER_ROW_MM + FOOTER_FIXED_MM;
+  return Math.floor((PAGE_HEIGHT_MM - HEADER_HEIGHT_MM - TABLE_HEADER_MM - footerMm) / ROW_HEIGHT_MM);
+};
+
+// 計算一個處方區塊佔用的顯示列數（保守估算：不足 MIN_SLOT_ROWS 時按 MIN_SLOT_ROWS 計）
+const getBlockRows = (block: PrescriptionBlock): number => {
+  const inspTypes = prescriptionHasInspection(block.prescription)
+    ? [...new Set((block.prescription.inspection_rules as any[]).map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean))]
+    : [];
+  const rowsPerSlot = 1 + inspTypes.length;
+  return Math.max(block.timeSlots.length * rowsPerSlot, MIN_SLOT_ROWS);
+};
+
+// 高度感知分頁：逐一偵測加入下一個處方後是否超出可用列數；
+// 每頁至少放 1 個處方（即使超高也不可整頁空）；同時受 MAX_PRESCRIPTIONS_PER_PAGE 上限約束。
+const paginateBlocks = (blocks: PrescriptionBlock[], _includeBlankRows: boolean): PrescriptionBlock[][] => {
   const result: PrescriptionBlock[][] = [];
   let current: PrescriptionBlock[] = [];
+  let currentRows = 0;
 
   for (const block of blocks) {
-    if (current.length === 0) {
-      current = [block];
-      continue;
-    }
-
-    // 已達上限：強制新頁
-    if (current.length >= MAX_PRESCRIPTIONS_PER_PAGE) {
-      result.push(current);
-      current = [block];
-      continue;
-    }
-
-    // 最佳化：當前頁純一組合且下一個跨組會增加彙總列 → 新頁
-    const firstSig = slotSig(current[0]);
-    const allSameSig = current.every((b) => slotSig(b) === firstSig);
-    if (allSameSig && slotSig(block) !== firstSig) {
-      const beforeRows = summaryRowCount(current);
-      const afterRows = summaryRowCount([...current, block]);
-      if (afterRows > beforeRows) {
+    const blockRows = getBlockRows(block);
+    if (current.length > 0) {
+      const projected = [...current, block];
+      const available = bodyRowsCapacity(summaryRowCount(projected));
+      if (currentRows + blockRows > available || current.length >= MAX_PRESCRIPTIONS_PER_PAGE) {
         result.push(current);
-        current = [block];
-        continue;
+        current = [];
+        currentRows = 0;
       }
     }
-
     current.push(block);
+    currentRows += blockRows;
   }
 
   if (current.length > 0) result.push(current);
@@ -804,7 +803,8 @@ body {
   break-after: page;
 }
 .mr-page:last-child { page-break-after: auto; break-after: auto; }
-.mr-spacer { flex: 1 1 auto; }
+.mr-body { flex: 1 1 0; min-height: 0; overflow: hidden; }
+.mr-spacer { flex: 0 0 0; }
 
 /* 頂置院友資訊區 */
 .mr-header { flex: 0 0 auto; margin-bottom: 1mm; }

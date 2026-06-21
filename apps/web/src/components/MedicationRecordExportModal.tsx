@@ -18,8 +18,7 @@ interface MedicationRecordExportModalProps {
 
 interface RouteStats {
   oral: number;
-  subcutaneous: number;
-  intramuscular: number;
+  injection: number;  // 皮下注射 + 肌肉注射 合併
   topical: number;
   noRoute: number;
 }
@@ -169,7 +168,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   }, [exportMode, currentPatient, allPrescriptions, includeInactive, includeWorkflowRecords, prescriptionsWithWorkflowRecords, prescriptionSortOrder]);
 
   const batchRouteStats = useMemo(() => {
-    const stats: RouteStats = { oral: 0, subcutaneous: 0, intramuscular: 0, topical: 0, noRoute: 0 };
+    const stats: RouteStats = { oral: 0, injection: 0, topical: 0, noRoute: 0 };
 
     selectedPatientIds.forEach(patientId => {
       const patientPrescriptions = prescriptions.filter(p => p.patient_id === patientId);
@@ -190,10 +189,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           stats.noRoute++;
         } else if (route === '口服') {
           stats.oral++;
-        } else if (route.includes('皮下注射')) {
-          stats.subcutaneous++;
         } else if (route.includes('注射')) {
-          stats.intramuscular++;
+          stats.injection++;
         } else {
           stats.topical++;
         }
@@ -219,15 +216,14 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   }, [exportMode, currentPatient, currentPatientSelectedPrescriptions, allPrescriptions, currentPatientAvailablePrescriptions]);
 
   const currentRouteStats = useMemo((): RouteStats => {
-    if (exportMode !== 'current') return { oral: 0, subcutaneous: 0, intramuscular: 0, topical: 0, noRoute: 0 };
+    if (exportMode !== 'current') return { oral: 0, injection: 0, topical: 0, noRoute: 0 };
 
-    const stats: RouteStats = { oral: 0, subcutaneous: 0, intramuscular: 0, topical: 0, noRoute: 0 };
+    const stats: RouteStats = { oral: 0, injection: 0, topical: 0, noRoute: 0 };
     currentPatientPrescriptionsToExport.forEach(p => {
       const route = p.administration_route?.trim() || '';
       if (!route) stats.noRoute++;
       else if (route === '口服') stats.oral++;
-      else if (route.includes('皮下注射')) stats.subcutaneous++;
-      else if (route.includes('注射')) stats.intramuscular++;
+      else if (route.includes('注射')) stats.injection++;
       else stats.topical++;
     });
     return stats;
@@ -274,8 +270,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
       const routePrescriptions = currentPatientAvailablePrescriptions.filter(p => {
         const r = p.administration_route?.trim() || '';
         if (routeLabel === '口服') return r === '口服';
-        if (routeLabel === '皮下注射') return r.includes('皮下注射');
-        if (routeLabel === '肌肉注射') return r.includes('注射') && !r.includes('皮下注射');
+        if (routeLabel === '注射') return r.includes('注射');
         return !!(r && r !== '口服' && !r.includes('注射'));
       });
       if (routePrescriptions.length === 0) return;
@@ -425,13 +420,12 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           }
 
           medicationRecordSuccess = true;
-          const totalPrescriptions = currentRouteStats.oral + currentRouteStats.subcutaneous + currentRouteStats.intramuscular + currentRouteStats.topical;
+          const totalPrescriptions = currentRouteStats.oral + currentRouteStats.injection + currentRouteStats.topical;
           medicationRecordMessage = `【個人備藥及給藥記錄${isHtmlOutput ? ' HTML列印版' : ''}】\n`;
           medicationRecordMessage += `共匯出 ${totalPrescriptions} 個處方\n\n`;
           medicationRecordMessage += `途徑分布：\n`;
           if (currentRouteStats.oral > 0) medicationRecordMessage += `  口服：${currentRouteStats.oral} 個\n`;
-          if (currentRouteStats.subcutaneous > 0) medicationRecordMessage += `  皮下注射：${currentRouteStats.subcutaneous} 個\n`;
-          if (currentRouteStats.intramuscular > 0) medicationRecordMessage += `  肌肉注射：${currentRouteStats.intramuscular} 個\n`;
+          if (currentRouteStats.injection > 0) medicationRecordMessage += `  注射：${currentRouteStats.injection} 個\n`;
           if (currentRouteStats.topical > 0) medicationRecordMessage += `  外用：${currentRouteStats.topical} 個\n`;
 
           if (currentRouteStats.noRoute > 0) {
@@ -493,12 +487,10 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
               if (batchRouteFilter.size > 0) {
                 const r = prescription.administration_route?.trim() || '';
                 const isOral = r === '口服';
-                const isSubcutaneous = r.includes('皮下注射');
-                const isIntramuscular = r.includes('注射') && !r.includes('皮下注射');
-                const isTopical = !!(r && !isOral && !isSubcutaneous && !isIntramuscular);
+                const isInjection = r.includes('注射');
+                const isTopical = !!(r && !isOral && !isInjection);
                 if (!((batchRouteFilter.has('口服') && isOral) ||
-                      (batchRouteFilter.has('皮下注射') && isSubcutaneous) ||
-                      (batchRouteFilter.has('肌肉注射') && isIntramuscular) ||
+                      (batchRouteFilter.has('注射') && isInjection) ||
                       (batchRouteFilter.has('外用') && isTopical))) return false;
               }
               return true;
@@ -525,14 +517,13 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           }
 
           medicationRecordSuccess = true;
-          const totalPrescriptions = batchRouteStats.oral + batchRouteStats.subcutaneous + batchRouteStats.intramuscular + batchRouteStats.topical;
+          const totalPrescriptions = batchRouteStats.oral + batchRouteStats.injection + batchRouteStats.topical;
           medicationRecordMessage = `【個人備藥及給藥記錄${isHtmlOutput ? ' HTML列印版' : ''}】\n`;
           medicationRecordMessage += `共匯出 ${selectedPatients.length} 位院友的處方記錄\n`;
           medicationRecordMessage += `總處方數：${totalPrescriptions} 個\n\n`;
           medicationRecordMessage += `途徑分布：\n`;
           if (batchRouteStats.oral > 0) medicationRecordMessage += `  口服：${batchRouteStats.oral} 個\n`;
-          if (batchRouteStats.subcutaneous > 0) medicationRecordMessage += `  皮下注射：${batchRouteStats.subcutaneous} 個\n`;
-          if (batchRouteStats.intramuscular > 0) medicationRecordMessage += `  肌肉注射：${batchRouteStats.intramuscular} 個\n`;
+          if (batchRouteStats.injection > 0) medicationRecordMessage += `  注射：${batchRouteStats.injection} 個\n`;
           if (batchRouteStats.topical > 0) medicationRecordMessage += `  外用：${batchRouteStats.topical} 個\n`;
 
           if (batchRouteStats.noRoute > 0) {
@@ -609,7 +600,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           {currentPatient && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="font-medium text-blue-900 mb-3">選擇匯出模式</h4>
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
                 <label className="flex flex-wrap items-center gap-3 cursor-pointer">
                   <input
                     type="radio"
@@ -836,11 +827,11 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           {!isBlankMode && ((exportMode === 'current' && currentPatient) || exportMode === 'batch') && (
             <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 pb-3">
               <span className="text-sm font-medium text-gray-600">途徑分布：</span>
-              {(['口服', '皮下注射', '肌肉注射', '外用'] as const).map((label) => {
+              {(['口服', '注射', '外用'] as const).map((label) => {
                 const count = label === '口服' ? routeStats.oral
-                  : label === '皮下注射' ? routeStats.subcutaneous
-                  : label === '肌肉注射' ? routeStats.intramuscular
+                  : label === '注射' ? routeStats.injection
                   : routeStats.topical;
+                if (count === 0) return null; // 沒有該途徑的處方就不顯示
                 const Icon = label === '口服' ? Pill : label === '外用' ? Package : Syringe;
                 const color = label === '口服' ? 'text-blue-600' : label === '外用' ? 'text-green-600' : 'text-red-600';
                 const activeCls = label === '口服' ? 'bg-blue-50 border-blue-400' : label === '外用' ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400';
@@ -850,8 +841,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                       if (!currentPatientSelectedPrescriptions.has(p.id)) return false;
                       const r = p.administration_route?.trim() || '';
                       if (label === '口服') return r === '口服';
-                      if (label === '皮下注射') return r.includes('皮下注射');
-                      if (label === '肌肉注射') return r.includes('注射') && !r.includes('皮下注射');
+                      if (label === '注射') return r.includes('注射');
                       return !!(r && r !== '口服' && !r.includes('注射'));
                     });
                 return (
