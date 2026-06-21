@@ -355,16 +355,18 @@ const renderBodyTable = (
   const missingSlots = includeBlankRows ? Math.max(0, MAX_PRESCRIPTIONS_PER_PAGE - page.blocks.length) : 0;
   let fillerRows = '';
   if (missingSlots > 0) {
-    const inactiveDayCells = Array(dayCount).fill('<td class="c-day mr-inactive">&nbsp;</td>').join('');
-    // 第一行：c-date / c-name / c-route 以 rowspan=MIN_SLOT_ROWS 合併，模擬真實處方區塊結構
-    const fillerFirstRow = `<tr class="mr-sign-row mr-filler-row">`
-      + `<td class="c-date" rowspan="${MIN_SLOT_ROWS}">&nbsp;</td>`
+    const dayCells = Array(dayCount).fill('<td class="c-day">&nbsp;</td>').join('');
+    // c-date 保留 4 行獨立格，行間無橫線；第 1 行「開始日期」、第 3 行「處方日期」作提示文字
+    // c-name / c-route 仍以 rowspan=MIN_SLOT_ROWS 合併
+    const fillerRow1 = `<tr class="mr-sign-row mr-filler-row">`
+      + `<td class="c-date mr-filler-date">開始日期</td>`
       + `<td class="c-name" rowspan="${MIN_SLOT_ROWS}">&nbsp;</td>`
       + `<td class="c-route" rowspan="${MIN_SLOT_ROWS}">&nbsp;</td>`
-      + `<td class="c-time">&nbsp;</td>${inactiveDayCells}</tr>`;
-    // 後續行：只有 c-time + 日格
-    const fillerSubRow = `<tr class="mr-sign-row mr-filler-row"><td class="c-time">&nbsp;</td>${inactiveDayCells}</tr>`;
-    const fillerBlock = fillerFirstRow + Array(MIN_SLOT_ROWS - 1).fill(fillerSubRow).join('');
+      + `<td class="c-time">&nbsp;</td>${dayCells}</tr>`;
+    const fillerRow2 = `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">&nbsp;</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
+    const fillerRow3 = `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">處方日期</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
+    const fillerRow4 = `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">&nbsp;</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
+    const fillerBlock = fillerRow1 + fillerRow2 + fillerRow3 + fillerRow4;
     fillerRows = Array(missingSlots).fill(fillerBlock).join('');
   }
 
@@ -382,8 +384,8 @@ const renderPrescriptionBlock = (
   const { prescription, timeSlots } = block;
   const actualSlots = timeSlots.length > 0 ? timeSlots : [''];
 
-  const dateInfo = `<div>開始：${escapeHtml(formatDate(prescription.start_date))}</div>`
-    + `<div>處方：${escapeHtml(formatDate(prescription.prescription_date))}</div>`;
+  const dateInfo = `<div>開始日期：${escapeHtml(formatDate(prescription.start_date))}</div>`
+    + `<div>處方日期：${escapeHtml(formatDate(prescription.prescription_date))}</div>`;
   const inspectionRequirement = formatInspectionRequirement(prescription);
   const nameInfo = `<div class="mr-med-name">${escapeHtml(prescription.medication_name ?? '')}</div>`
     + (inspectionRequirement ? `<div class="mr-med-test">${escapeHtml(inspectionRequirement)}</div>` : '')
@@ -875,7 +877,11 @@ td.mr-inactive-prn { background: #fff !important; background-image: none !import
 /* ▶/◄ 邊界標記格：紫色提示開始/結束 */
 td.mr-boundary { color: #7c3aed; font-weight: bold; }
 /* 處方區空白填充列 */
-.mr-filler-row td { background: #f8fafc; }
+.mr-filler-row td { background: white; }
+/* c-date 提示文字（開始日期／處方日期）*/
+td.mr-filler-date { color: #94a3b8; font-size: 7.5pt; text-align: left; padding: 0.4mm 1mm; vertical-align: middle; }
+/* c-date 第 2-4 行：取消上框線 */
+td.mr-filler-nobt { border-top: none !important; }
 
 /* 底部給藥彙總（左側標籤格內含簽署指引） */
 .mr-footer-region { flex: 0 0 auto; }
