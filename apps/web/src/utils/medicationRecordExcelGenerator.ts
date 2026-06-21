@@ -167,7 +167,7 @@ export const categorizePrescriptionsByRoute = (prescriptions: any[]) => {
       noRoute.push(prescription);
     } else if (route === '口服') {
       oral.push(prescription);
-    } else if (route === '注射') {
+    } else if (route.includes('注射')) {
       injection.push(prescription);
     } else {
       topical.push(prescription);

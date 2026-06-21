@@ -14,7 +14,7 @@ import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 // 版面分三區：頂置院友資訊 / 中間動態處方區 / 底部指引＋給藥彙總；
 // 日格依當月天數填滿寬度；內容超頁自動分頁，且單一處方區塊不會被切割到兩頁。
 
-type RouteKind = 'oral' | 'topical' | 'injection';
+type RouteKind = 'oral' | 'topical' | 'subcutaneous' | 'intramuscular';
 type MedicationPrescription = Record<string, any>;
 type PatientWithPrescriptions = Record<string, any> & { prescriptions?: MedicationPrescription[] };
 
@@ -34,22 +34,25 @@ interface PageData {
 const ROUTE_LABELS: Record<RouteKind, string> = {
   oral: '口服',
   topical: '外用',
-  injection: '注射',
+  subcutaneous: '皮下注射',
+  intramuscular: '肌肉注射',
 };
 
 const ROUTE_SUBTITLES: Record<RouteKind, string> = {
   oral: '口服藥物',
   topical: '外用藥物',
-  injection: '注射藥物',
+  subcutaneous: '皮下注射藥物',
+  intramuscular: '肌肉注射藥物',
 };
 
 const ROUTE_SHEET_LABELS: Record<RouteKind, string> = {
   oral: '口服藥紙',
   topical: '外用藥紙',
-  injection: '注射藥紙',
+  subcutaneous: '皮下注射藥紙',
+  intramuscular: '肌肉注射藥紙',
 };
 
-const ROUTE_ORDER: RouteKind[] = ['oral', 'topical', 'injection'];
+const ROUTE_ORDER: RouteKind[] = ['oral', 'topical', 'subcutaneous', 'intramuscular'];
 
 // 「給藥記錄簽署指引」逐項說明（顯示於彙總區左側標籤格，取代「給藥簽署」字眼）。
 const DISPENSE_CODE_ITEMS: string[] = [
@@ -76,9 +79,10 @@ const MIN_SUMMARY_ROWS = 6;           // 彙總區最少列數（不足補空行
 export const exportMedicationRecordToHtml = async (
   patients: PatientWithPrescriptions[],
   selectedMonth: string,
-  includeWorkflowRecords = false
+  includeWorkflowRecords = false,
+  includeBlankRows = false
 ): Promise<void> => {
-  const html = await buildMedicationRecordHtml(patients, selectedMonth, includeWorkflowRecords);
+  const html = await buildMedicationRecordHtml(patients, selectedMonth, includeWorkflowRecords, includeBlankRows);
   printViaIframe(html);
 };
 
@@ -86,15 +90,17 @@ export const exportSelectedMedicationRecordToHtml = async (
   patient: PatientWithPrescriptions,
   prescriptions: MedicationPrescription[],
   selectedMonth: string,
-  includeWorkflowRecords = false
+  includeWorkflowRecords = false,
+  includeBlankRows = false
 ): Promise<void> => {
-  await exportMedicationRecordToHtml([{ ...patient, prescriptions }], selectedMonth, includeWorkflowRecords);
+  await exportMedicationRecordToHtml([{ ...patient, prescriptions }], selectedMonth, includeWorkflowRecords, includeBlankRows);
 };
 
 const buildMedicationRecordHtml = async (
   patients: PatientWithPrescriptions[],
   selectedMonth: string,
-  includeWorkflowRecords: boolean
+  includeWorkflowRecords: boolean,
+  includeBlankRows: boolean
 ): Promise<string> => {
   const renderedPages: string[] = [];
 
@@ -109,7 +115,7 @@ const buildMedicationRecordHtml = async (
     const staffMapping = generateStaffCodeMapping(extractStaffNamesFromWorkflowRecords(workflowRecords));
 
     for (const page of preparePages(patient, prescriptions)) {
-      renderedPages.push(renderPage(page, selectedMonth, workflowRecords, staffMapping));
+      renderedPages.push(renderPage(page, selectedMonth, workflowRecords, staffMapping, includeBlankRows));
     }
   }
 
@@ -117,7 +123,7 @@ const buildMedicationRecordHtml = async (
 };
 
 const preparePages = (patient: PatientWithPrescriptions, prescriptions: MedicationPrescription[]): PageData[] => {
-  const categorized: Record<RouteKind, MedicationPrescription[]> = { oral: [], topical: [], injection: [] };
+  const categorized: Record<RouteKind, MedicationPrescription[]> = { oral: [], topical: [], subcutaneous: [], intramuscular: [] };
   for (const prescription of prescriptions) {
     categorized[classifyRoute(prescription)].push(prescription);
   }
@@ -243,7 +249,8 @@ const sortDistinctTimeSlots = (slots: string[]): string[] => {
 
 const classifyRoute = (prescription: MedicationPrescription): RouteKind => {
   const route = String(prescription.administration_route ?? '').trim();
-  if (route.includes('注射')) return 'injection';
+  if (route.includes('皮下注射')) return 'subcutaneous';
+  if (route.includes('注射')) return 'intramuscular'; // 肌肉注射及舊版「注射」
   if (route === '口服') return 'oral';
   if (!route) return 'oral';
   return 'topical';
@@ -253,16 +260,17 @@ const renderPage = (
   page: PageData,
   selectedMonth: string,
   workflowRecords: WorkflowRecord[],
-  staffMapping: StaffCodeMapping
+  staffMapping: StaffCodeMapping,
+  includeBlankRows: boolean
 ): string => {
   const dayCount = getDaysInMonth(selectedMonth);
   const pageLabel = `${ROUTE_SHEET_LABELS[page.routeKind]} 共${page.pageIndexInRoute}/${page.pageCountInRoute}頁`;
 
   return '<section class="mr-page">'
     + renderHeaderRegion(page.patient, page.routeKind)
-    + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping)}</div>`
+    + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows)}</div>`
     + '<div class="mr-spacer"></div>'
-    + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel)
+    + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel, includeBlankRows)
     + '</section>';
 };
 
@@ -325,7 +333,8 @@ const renderBodyTable = (
   selectedMonth: string,
   dayCount: number,
   workflowRecords: WorkflowRecord[],
-  staffMapping: StaffCodeMapping
+  staffMapping: StaffCodeMapping,
+  includeBlankRows: boolean
 ): string => {
   const header = '<thead>'
     + '<tr class="mr-colhead">'
@@ -339,15 +348,15 @@ const renderBodyTable = (
   + '</thead>';
 
   const body = page.blocks
-    .map((block) => renderPrescriptionBlock(block, selectedMonth, dayCount, workflowRecords, staffMapping))
+    .map((block) => renderPrescriptionBlock(block, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows))
     .join('');
 
-  // 填充空白處方列：每頁不足 MAX_PRESCRIPTIONS_PER_PAGE 個處方時補空行
-  const missingSlots = Math.max(0, MAX_PRESCRIPTIONS_PER_PAGE - page.blocks.length);
+  // 填充空白處方列：勾選「處方空白列」時，每頁不足 MAX_PRESCRIPTIONS_PER_PAGE 個處方時補空行
+  const missingSlots = includeBlankRows ? Math.max(0, MAX_PRESCRIPTIONS_PER_PAGE - page.blocks.length) : 0;
   let fillerRows = '';
   if (missingSlots > 0) {
     const inactiveDayCells = Array(dayCount).fill('<td class="c-day mr-inactive">&nbsp;</td>').join('');
-    const fillerRow = `<tr class="mr-sign-row mr-filler-row"><td class="c-date"></td><td class="c-name"></td><td class="c-route"></td><td class="c-time"></td>${inactiveDayCells}</tr>`;
+    const fillerRow = `<tr class="mr-sign-row mr-filler-row"><td class="c-date">&nbsp;</td><td class="c-name">&nbsp;</td><td class="c-route">&nbsp;</td><td class="c-time">&nbsp;</td>${inactiveDayCells}</tr>`;
     fillerRows = Array(missingSlots * MIN_SLOT_ROWS).fill(fillerRow).join('');
   }
 
@@ -359,7 +368,8 @@ const renderPrescriptionBlock = (
   selectedMonth: string,
   dayCount: number,
   workflowRecords: WorkflowRecord[],
-  staffMapping: StaffCodeMapping
+  staffMapping: StaffCodeMapping,
+  includeBlankRows: boolean
 ): string => {
   const { prescription, timeSlots } = block;
   const actualSlots = timeSlots.length > 0 ? timeSlots : [''];
@@ -385,7 +395,7 @@ const renderPrescriptionBlock = (
     ? [...new Set((prescription.inspection_rules as any[])
         .map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean))]
     : [];
-  const paddingSlotCount = Math.max(0, MIN_SLOT_ROWS - actualSlots.length);
+  const paddingSlotCount = includeBlankRows ? Math.max(0, MIN_SLOT_ROWS - actualSlots.length) : 0;
   const rowsPerSlot = 1 + inspectionTypes.length;
   const totalRowCount = actualSlots.length * rowsPerSlot + paddingSlotCount;
   const boundary = getBoundaryCells(prescription, actualSlots, selectedMonth, dayCount);
@@ -533,12 +543,15 @@ const renderFooterRegion = (
   dayCount: number,
   workflowRecords: WorkflowRecord[],
   staffMapping: StaffCodeMapping,
-  pageLabel: string
+  pageLabel: string,
+  includeBlankRows: boolean
 ): string => {
   const pageSlots = sortDistinctTimeSlots(page.blocks.flatMap((block) => block.timeSlots));
   const rawSummarySlots = pageSlots.length > 0 ? pageSlots : [''];
   const summarySlots = [...rawSummarySlots];
-  while (summarySlots.length < MIN_SUMMARY_ROWS) summarySlots.push('');
+  if (includeBlankRows) {
+    while (summarySlots.length < MIN_SUMMARY_ROWS) summarySlots.push('');
+  }
   const totalRows = summarySlots.length;
 
   const legendCodes = '<div class="mr-legend-codes">'
@@ -784,7 +797,7 @@ body {
 .mr-spacer { flex: 1 1 auto; }
 
 /* 頂置院友資訊區 */
-.mr-header { flex: 0 0 auto; margin-bottom: 1.5mm; }
+.mr-header { flex: 0 0 auto; margin-bottom: 1mm; }
 .mr-header-table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 0.8pt solid #2f3a45; }
 .mr-header-table td { border: 0.4pt solid #9aa7b4; padding: 1mm 1.5mm; vertical-align: middle; }
 .mr-hc-logo { width: 36mm; }
@@ -821,10 +834,10 @@ body {
 .mr-grid col.c-name { width: 40mm; }
 .mr-grid col.c-route { width: 26mm; }
 .mr-grid col.c-time { width: 12mm; }
-.mr-colhead th { font-weight: bold; height: 6mm; background: #e8eef4; color: #1f2c38; }
-.mr-dayhead th { font-size: 7pt; height: 5mm; background: #f1f5f9; color: #1f2c38; }
+.mr-colhead th { font-weight: bold; height: 5mm; background: #e8eef4; color: #1f2c38; }
+.mr-dayhead th { font-size: 7pt; height: 4mm; background: #f1f5f9; color: #1f2c38; }
 .mr-sign-head { font-weight: bold; letter-spacing: 0.5pt; }
-.mr-sign-row td { height: 7mm; }
+.mr-sign-row td { height: 6mm; }
 .mr-sign-row td.c-date, .mr-sign-row td.c-name, .mr-sign-row td.c-route {
   font-size: 8pt;
   text-align: left;
@@ -843,19 +856,14 @@ td.mr-diag {
 }
 /* 不在處方有效期內的日格：灰底、移除斜線 */
 td.mr-inactive { background: #e2e8f0 !important; background-image: none !important; }
-/* 即時備藥（preparation_method=immediate）簽署格：深色粗斜線提示勿誤簽 */
+/* 即時備藥（preparation_method=immediate）簽署格：深色細斜線提示 */
 td.mr-diag-prn {
   background-image: linear-gradient(to bottom right,
-    transparent calc(50% - 1.5px), #334155 calc(50% - 1.5px),
-    #334155 calc(50% + 1.5px), transparent calc(50% + 1.5px));
+    transparent calc(50% - 0.4px), #334155 calc(50% - 0.4px),
+    #334155 calc(50% + 0.4px), transparent calc(50% + 0.4px));
 }
-/* 即時備藥非有效期日格：灰底保留深色斜線 */
-td.mr-inactive-prn {
-  background: #e2e8f0;
-  background-image: linear-gradient(to bottom right,
-    transparent calc(50% - 1.5px), #334155 calc(50% - 1.5px),
-    #334155 calc(50% + 1.5px), transparent calc(50% + 1.5px));
-}
+/* 即時備藥非有效期日格：空格（無斜線無灰底） */
+td.mr-inactive-prn { background: #fff !important; background-image: none !important; }
 /* ▶/◄ 邊界標記格：紫色提示開始/結束 */
 td.mr-boundary { color: #7c3aed; font-weight: bold; }
 /* 處方區空白填充列 */
@@ -863,7 +871,7 @@ td.mr-boundary { color: #7c3aed; font-weight: bold; }
 
 /* 底部給藥彙總（左側標籤格內含簽署指引） */
 .mr-footer-region { flex: 0 0 auto; }
-.mr-summary td { height: 7mm; }
+.mr-summary td { height: 6mm; }
 .mr-grid td.mr-sum-label {
   background: #f1f5f9;
   vertical-align: top;
