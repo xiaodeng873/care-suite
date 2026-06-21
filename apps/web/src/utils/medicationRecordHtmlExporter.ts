@@ -317,6 +317,8 @@ const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRo
     ? `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`
     : (patient.中文姓名 ?? '');
   const photo = patient.院友相片;
+  const allergyText = joinList(patient.藥物敏感) || 'NKDA';
+  const adverseDrugReactionText = joinList(patient.不良藥物反應) || 'NKADR';
   const photoHtml = photo
     ? `<img class="mr-photo" src="${escapeAttr(String(photo))}" alt="">`
     : '<div class="mr-photo mr-photo-empty">相片</div>';
@@ -332,13 +334,13 @@ const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRo
         + `<td class="mr-h-photo" rowspan="2">${photoHtml}</td>`
         + infoCell('院友姓名', name)
         + infoCell('院號', String(patient.床號 ?? ''))
-        + reactCell('藥物過敏反應', joinList(patient.藥物敏感))
+        + reactCell('藥物過敏反應', allergyText)
       + '</tr>'
       + '<tr>'
         + `<td class="mr-h-subtitle"><div class="mr-subtitle">${escapeHtml(ROUTE_SUBTITLES[routeKind])}</div></td>`
         + infoCell('性別 / 年齡', formatGenderAge(patient))
         + infoCell('出生日期', formatDate(patient.出生日期))
-        + reactCell('藥物不良反應', joinList(patient.不良藥物反應))
+        + reactCell('藥物不良反應', adverseDrugReactionText)
       + '</tr>'
     + '</tbody></table>'
   + '</header>';
@@ -652,6 +654,7 @@ const dispenseDayCells = (
     block,
     boundary: getBoundaryCells(block.prescription, block.timeSlots, selectedMonth, dayCount),
   }));
+  const isBlankSummaryRow = !slot || String(slot).trim() === '';
   let cells = '';
   for (let day = 1; day <= dayCount; day += 1) {
     const dateStr = toDateString(selectedMonth, day);
@@ -697,7 +700,8 @@ const dispenseDayCells = (
       }
     }
     const boundaryClass = !anyInRange && content ? ' mr-boundary' : '';
-    cells += `<td class="c-day${anyInRange ? '' : ' mr-inactive'}${boundaryClass}">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
+    const inactiveClass = !anyInRange && !isBlankSummaryRow ? ' mr-inactive' : '';
+    cells += `<td class="c-day${inactiveClass}${boundaryClass}">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
   }
   return cells;
 };
