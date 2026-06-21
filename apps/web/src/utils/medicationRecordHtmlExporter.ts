@@ -72,7 +72,7 @@ const DISPENSE_NOTE_ITEMS: string[] = [
 ];
 
 // 分頁及版面固定規格
-const MAX_PRESCRIPTIONS_PER_PAGE = 5; // 每頁最多處方數
+const MAX_PRESCRIPTIONS_PER_PAGE = 4; // 每頁最多處方數
 const MIN_SLOT_ROWS = 4;              // 每個處方最少顯示時段列數（不足補空行）
 const MIN_SUMMARY_ROWS = 6;           // 彙總區最少列數（不足補空行）
 
@@ -356,8 +356,16 @@ const renderBodyTable = (
   let fillerRows = '';
   if (missingSlots > 0) {
     const inactiveDayCells = Array(dayCount).fill('<td class="c-day mr-inactive">&nbsp;</td>').join('');
-    const fillerRow = `<tr class="mr-sign-row mr-filler-row"><td class="c-date">&nbsp;</td><td class="c-name">&nbsp;</td><td class="c-route">&nbsp;</td><td class="c-time">&nbsp;</td>${inactiveDayCells}</tr>`;
-    fillerRows = Array(missingSlots * MIN_SLOT_ROWS).fill(fillerRow).join('');
+    // 第一行：c-date / c-name / c-route 以 rowspan=MIN_SLOT_ROWS 合併，模擬真實處方區塊結構
+    const fillerFirstRow = `<tr class="mr-sign-row mr-filler-row">`
+      + `<td class="c-date" rowspan="${MIN_SLOT_ROWS}">&nbsp;</td>`
+      + `<td class="c-name" rowspan="${MIN_SLOT_ROWS}">&nbsp;</td>`
+      + `<td class="c-route" rowspan="${MIN_SLOT_ROWS}">&nbsp;</td>`
+      + `<td class="c-time">&nbsp;</td>${inactiveDayCells}</tr>`;
+    // 後續行：只有 c-time + 日格
+    const fillerSubRow = `<tr class="mr-sign-row mr-filler-row"><td class="c-time">&nbsp;</td>${inactiveDayCells}</tr>`;
+    const fillerBlock = fillerFirstRow + Array(MIN_SLOT_ROWS - 1).fill(fillerSubRow).join('');
+    fillerRows = Array(missingSlots).fill(fillerBlock).join('');
   }
 
   return `<table class="mr-grid">${colGroup(dayCount)}${header}<tbody>${body}${fillerRows}</tbody></table>`;
