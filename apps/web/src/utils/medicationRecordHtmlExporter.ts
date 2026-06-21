@@ -405,8 +405,8 @@ const renderPrescriptionBlock = (
     ? [...new Set((prescription.inspection_rules as any[])
         .map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean))]
     : [];
-  const paddingSlotCount = includeBlankRows ? Math.max(0, MIN_SLOT_ROWS - actualSlots.length) : 0;
   const rowsPerSlot = 1 + inspectionTypes.length;
+  const paddingSlotCount = includeBlankRows ? Math.max(0, MIN_SLOT_ROWS - actualSlots.length * rowsPerSlot) : 0;
   const totalRowCount = actualSlots.length * rowsPerSlot + paddingSlotCount;
   const boundary = getBoundaryCells(prescription, actualSlots, selectedMonth, dayCount);
 
