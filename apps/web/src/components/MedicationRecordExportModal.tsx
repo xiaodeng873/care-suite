@@ -23,6 +23,34 @@ interface RouteStats {
   noRoute: number;
 }
 
+type PrescriptionSortOrder = 'efficiency' | 'name' | 'time' | 'source';
+
+const sortPrescriptionsByOrder = (prescriptions: any[], order: PrescriptionSortOrder): any[] => {
+  const sorted = [...prescriptions];
+  const slotSig = (p: any): string => [...(p.medication_time_slots ?? [])].sort().join('|');
+  const firstSlot = (p: any): string => [...(p.medication_time_slots ?? [])].sort()[0] ?? '';
+  const byName = (a: any, b: any): number =>
+    (a.medication_name ?? '').localeCompare(b.medication_name ?? '', 'zh-TW');
+  switch (order) {
+    case 'name':
+      return sorted.sort(byName);
+    case 'time':
+      return sorted.sort((a, b) => firstSlot(a).localeCompare(firstSlot(b)) || byName(a, b));
+    case 'source':
+      return sorted.sort((a, b) =>
+        (a.medication_source ?? '').localeCompare(b.medication_source ?? '', 'zh-TW') || byName(a, b));
+    case 'efficiency':
+    default:
+      return sorted.sort((a, b) => {
+        const sigCmp = slotSig(a).localeCompare(slotSig(b));
+        if (sigCmp !== 0) return sigCmp;
+        const fsCmp = firstSlot(a).localeCompare(firstSlot(b));
+        if (fsCmp !== 0) return fsCmp;
+        return byName(a, b);
+      });
+  }
+};
+
 const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = ({
   onClose,
   currentPatient,
@@ -50,6 +78,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   const [blankRouteInjection, setBlankRouteInjection] = useState(true);
   const [blankRouteTopical, setBlankRouteTopical] = useState(true);
   const [batchRouteFilter, setBatchRouteFilter] = useState<Set<string>>(new Set());
+  const [prescriptionSortOrder, setPrescriptionSortOrder] = useState<PrescriptionSortOrder>('efficiency');
 
   const activePatients = useMemo(() => {
     return patients.filter(p => p.在住狀態 === '在住')
@@ -124,7 +153,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   const currentPatientAvailablePrescriptions = useMemo(() => {
     if (exportMode !== 'current' || !currentPatient) return [];
 
-    return allPrescriptions.filter(p => {
+    const filtered = allPrescriptions.filter(p => {
       if (p.patient_id !== currentPatient.patient.院友id) return false;
       if (p.status === 'pending_change') return false;
       if (p.status === 'inactive') {
@@ -134,7 +163,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
       }
       return true;
     });
-  }, [exportMode, currentPatient, allPrescriptions, includeInactive, includeWorkflowRecords, prescriptionsWithWorkflowRecords]);
+    return sortPrescriptionsByOrder(filtered, prescriptionSortOrder);
+  }, [exportMode, currentPatient, allPrescriptions, includeInactive, includeWorkflowRecords, prescriptionsWithWorkflowRecords, prescriptionSortOrder]);
 
   const batchRouteStats = useMemo(() => {
     const stats: RouteStats = { oral: 0, injection: 0, topical: 0, noRoute: 0 };
@@ -158,10 +188,10 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           stats.noRoute++;
         } else if (route === '口服') {
           stats.oral++;
-        } else if (route === '注射') {
+        } else if (route.includes('注射')) {
           stats.injection++;
         } else {
-          stats.topical++;
+          stats.topical++
         }
       });
     });
@@ -237,8 +267,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
       const routePrescriptions = currentPatientAvailablePrescriptions.filter(p => {
         const r = p.administration_route?.trim() || '';
         if (routeLabel === '口服') return r === '口服';
-        if (routeLabel === '注射') return r === '注射';
-        return !!(r && r !== '口服' && r !== '注射');
+        if (routeLabel === '注射') return r.includes('注射');
+        return !!(r && r !== '口服' && !r.includes('注射'));
       });
       if (routePrescriptions.length === 0) return;
       const allSelected = routePrescriptions.every(p => currentPatientSelectedPrescriptions.has(p.id));
@@ -454,7 +484,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
               if (batchRouteFilter.size > 0) {
                 const r = prescription.administration_route?.trim() || '';
                 const isOral = r === '口服';
-                const isInjection = r === '注射';
+                const isInjection = r.includes('注射');
                 const isTopical = !!(r && !isOral && !isInjection);
                 if (!((batchRouteFilter.has('口服') && isOral) ||
                       (batchRouteFilter.has('注射') && isInjection) ||
@@ -465,7 +495,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
             return {
               ...patient,
-              prescriptions: validPrescriptions
+              prescriptions: sortPrescriptionsByOrder(validPrescriptions, prescriptionSortOrder)
             };
           })
           .filter(p => p.prescriptions.length > 0);
@@ -705,6 +735,21 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                   <span className="text-sm text-gray-700">匯出個人藥物記錄</span>
                 </label>
               )}
+              {!isBlankMode && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-700 whitespace-nowrap">處方排列：</span>
+                  <select
+                    value={prescriptionSortOrder}
+                    onChange={(e) => setPrescriptionSortOrder(e.target.value as PrescriptionSortOrder)}
+                    className="form-input text-sm py-1 px-2 h-8"
+                  >
+                    <option value="efficiency">按簽署效益</option>
+                    <option value="name">按藥物名稱</option>
+                    <option value="time">按派藥時間</option>
+                    <option value="source">按藥物來源</option>
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
@@ -779,8 +824,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                       if (!currentPatientSelectedPrescriptions.has(p.id)) return false;
                       const r = p.administration_route?.trim() || '';
                       if (label === '口服') return r === '口服';
-                      if (label === '注射') return r === '注射';
-                      return !!(r && r !== '口服' && r !== '注射');
+                      if (label === '注射') return r.includes('注射');
+                      return !!(r && r !== '口服' && !r.includes('注射'));
                     });
                 return (
                   <button key={label} type="button" onClick={() => handleRouteClick(label)}
@@ -824,9 +869,9 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                       {currentPatientAvailablePrescriptions.map(prescription => {
                         const isSelected = currentPatientSelectedPrescriptions.has(prescription.id);
                         const route = prescription.administration_route;
-                        const routeIcon = route === '口服' ? Pill : route === '注射' ? Syringe : Package;
+                        const routeIcon = route === '口服' ? Pill : route?.includes('注射') ? Syringe : Package;
                         const RouteIcon = routeIcon;
-                        const routeColor = route === '口服' ? 'text-blue-600' : route === '注射' ? 'text-red-600' : 'text-green-600';
+                        const routeColor = route === '口服' ? 'text-blue-600' : route?.includes('注射') ? 'text-red-600' : 'text-green-600';
 
                         return (
                           <div
@@ -1021,9 +1066,9 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                       });
 
                       const oralCount = validPrescriptions.filter(p => p.administration_route === '口服').length;
-                      const injectionCount = validPrescriptions.filter(p => p.administration_route === '注射').length;
+                      const injectionCount = validPrescriptions.filter(p => p.administration_route?.includes('注射')).length;
                       const topicalCount = validPrescriptions.filter(p =>
-                        p.administration_route && p.administration_route !== '口服' && p.administration_route !== '注射'
+                        p.administration_route && p.administration_route !== '口服' && !p.administration_route.includes('注射')
                       ).length;
                       const noRouteCount = validPrescriptions.filter(p => !p.administration_route).length;
 

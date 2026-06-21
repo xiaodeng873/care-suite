@@ -68,13 +68,10 @@ const DISPENSE_NOTE_ITEMS: string[] = [
   '處方日期＝該藥物第一次被處方的使用日期',
 ];
 
-// 版面尺寸與分頁預算（mm）。A4 橫向去除 7mm 邊界後，可列印區約 283 × 196mm。
-const PAGE_CONTENT_HEIGHT_MM = 196;
-const HEADER_REGION_MM = 26; // 頂置院友資訊區
-const COLUMN_HEADER_MM = 12; // 欄標題 + 日號兩列
-const LEGEND_MM = 6; // 底部指引單列
-const GRID_ROW_MM = 7; // 每個簽署 / 彙總列高
-const SAFETY_MM = 4; // 安全邊界
+// 分頁及版面固定規格
+const MAX_PRESCRIPTIONS_PER_PAGE = 5; // 每頁最多處方數
+const MIN_SLOT_ROWS = 4;              // 每個處方最少顯示時段列數（不足補空行）
+const MIN_SUMMARY_ROWS = 6;           // 彙總區最少列數（不足補空行）
 
 export const exportMedicationRecordToHtml = async (
   patients: PatientWithPrescriptions[],
@@ -149,35 +146,45 @@ const preparePages = (patient: PatientWithPrescriptions, prescriptions: Medicati
   return pages;
 };
 
-// 依可列印高度貪婪分頁：每個處方區塊佔（時段數）列，底部彙總列數 = 該頁所有時段去重後的數量。
-// 單一處方區塊永不跨頁；若某區塊本身已超過整頁，仍讓它獨佔一頁（極端情況容許自然溢出）。
+// 分頁規則：每頁最多 MAX_PRESCRIPTIONS_PER_PAGE 個處方。
+// 簽署效益最佳化：若當前頁全為相同時段組合（slotSig），下一個處方屬不同組合且會增加彙總列數，
+// 則優先新開一頁，以減少每頁彙總行數（每日需簽名次數）。
 const paginateBlocks = (blocks: PrescriptionBlock[]): PrescriptionBlock[][] => {
-  const available = PAGE_CONTENT_HEIGHT_MM - HEADER_REGION_MM - COLUMN_HEADER_MM - LEGEND_MM - SAFETY_MM;
-
-  const pageHeightMm = (pageBlocks: PrescriptionBlock[]): number => {
-    const blockRows = pageBlocks.reduce((sum, block) => {
-      const slotCount = Math.max(1, block.timeSlots.length);
-      const inspTypeCount = prescriptionHasInspection(block.prescription)
-        ? new Set((block.prescription.inspection_rules as any[])
-            .map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean)).size
-        : 0;
-      return sum + slotCount * (1 + inspTypeCount);
-    }, 0);
-    const summaryRows = Math.max(1, summaryRowCount(pageBlocks));
-    return (blockRows + summaryRows) * GRID_ROW_MM;
-  };
+  const slotSig = (block: PrescriptionBlock): string =>
+    [...block.timeSlots].sort().join('|');
 
   const result: PrescriptionBlock[][] = [];
   let current: PrescriptionBlock[] = [];
+
   for (const block of blocks) {
-    const tentative = [...current, block];
-    if (current.length > 0 && pageHeightMm(tentative) > available) {
+    if (current.length === 0) {
+      current = [block];
+      continue;
+    }
+
+    // 已達上限：強制新頁
+    if (current.length >= MAX_PRESCRIPTIONS_PER_PAGE) {
       result.push(current);
       current = [block];
-    } else {
-      current = tentative;
+      continue;
     }
+
+    // 最佳化：當前頁純一組合且下一個跨組會增加彙總列 → 新頁
+    const firstSig = slotSig(current[0]);
+    const allSameSig = current.every((b) => slotSig(b) === firstSig);
+    if (allSameSig && slotSig(block) !== firstSig) {
+      const beforeRows = summaryRowCount(current);
+      const afterRows = summaryRowCount([...current, block]);
+      if (afterRows > beforeRows) {
+        result.push(current);
+        current = [block];
+        continue;
+      }
+    }
+
+    current.push(block);
   }
+
   if (current.length > 0) result.push(current);
   return result.length > 0 ? result : [[]];
 };
@@ -335,7 +342,16 @@ const renderBodyTable = (
     .map((block) => renderPrescriptionBlock(block, selectedMonth, dayCount, workflowRecords, staffMapping))
     .join('');
 
-  return `<table class="mr-grid">${colGroup(dayCount)}${header}<tbody>${body}</tbody></table>`;
+  // 填充空白處方列：每頁不足 MAX_PRESCRIPTIONS_PER_PAGE 個處方時補空行
+  const missingSlots = Math.max(0, MAX_PRESCRIPTIONS_PER_PAGE - page.blocks.length);
+  let fillerRows = '';
+  if (missingSlots > 0) {
+    const inactiveDayCells = Array(dayCount).fill('<td class="c-day mr-inactive">&nbsp;</td>').join('');
+    const fillerRow = `<tr class="mr-sign-row mr-filler-row"><td class="c-date"></td><td class="c-name"></td><td class="c-route"></td><td class="c-time"></td>${inactiveDayCells}</tr>`;
+    fillerRows = Array(missingSlots * MIN_SLOT_ROWS).fill(fillerRow).join('');
+  }
+
+  return `<table class="mr-grid">${colGroup(dayCount)}${header}<tbody>${body}${fillerRows}</tbody></table>`;
 };
 
 const renderPrescriptionBlock = (
@@ -346,7 +362,7 @@ const renderPrescriptionBlock = (
   staffMapping: StaffCodeMapping
 ): string => {
   const { prescription, timeSlots } = block;
-  const slots = timeSlots.length > 0 ? timeSlots : [''];
+  const actualSlots = timeSlots.length > 0 ? timeSlots : [''];
 
   const dateInfo = `<div>開始：${escapeHtml(formatDate(prescription.start_date))}</div>`
     + `<div>處方：${escapeHtml(formatDate(prescription.prescription_date))}</div>`;
@@ -369,11 +385,13 @@ const renderPrescriptionBlock = (
     ? [...new Set((prescription.inspection_rules as any[])
         .map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean))]
     : [];
+  const paddingSlotCount = Math.max(0, MIN_SLOT_ROWS - actualSlots.length);
   const rowsPerSlot = 1 + inspectionTypes.length;
-  const totalRowCount = slots.length * rowsPerSlot;
-  const boundary = getBoundaryCells(prescription, slots, selectedMonth, dayCount);
+  const totalRowCount = actualSlots.length * rowsPerSlot + paddingSlotCount;
+  const boundary = getBoundaryCells(prescription, actualSlots, selectedMonth, dayCount);
 
-  return slots
+  const inactiveDayCells = Array(dayCount).fill('<td class="c-day mr-inactive">&nbsp;</td>').join('');
+  const slotRows = actualSlots
     .flatMap((slot, slotIndex) => {
       const leftCells = slotIndex === 0
         ? `<td class="c-date" rowspan="${totalRowCount}">${dateInfo}</td>`
@@ -387,8 +405,10 @@ const renderPrescriptionBlock = (
         renderBodyInspectionRow(block, slot, inspType, selectedMonth, dayCount, workflowRecords)
       );
       return [signRow, ...inspRows];
-    })
-    .join('');
+    });
+  const paddingRow = `<tr class="mr-sign-row"><td class="c-time"></td>${inactiveDayCells}</tr>`;
+  const paddingRows = Array(paddingSlotCount).fill(paddingRow);
+  return [...slotRows, ...paddingRows].join('');
 };
 
 // 處方區檢測值子列：顯示在對應時段正下方，不加斜線；數值不合格（canDispense===false）標紅。
@@ -516,7 +536,9 @@ const renderFooterRegion = (
   pageLabel: string
 ): string => {
   const pageSlots = sortDistinctTimeSlots(page.blocks.flatMap((block) => block.timeSlots));
-  const summarySlots = pageSlots.length > 0 ? pageSlots : [''];
+  const rawSummarySlots = pageSlots.length > 0 ? pageSlots : [''];
+  const summarySlots = [...rawSummarySlots];
+  while (summarySlots.length < MIN_SUMMARY_ROWS) summarySlots.push('');
   const totalRows = summarySlots.length;
 
   const legendCodes = '<div class="mr-legend-codes">'
@@ -836,6 +858,8 @@ td.mr-inactive-prn {
 }
 /* ▶/◄ 邊界標記格：紫色提示開始/結束 */
 td.mr-boundary { color: #7c3aed; font-weight: bold; }
+/* 處方區空白填充列 */
+.mr-filler-row td { background: #f8fafc; }
 
 /* 底部給藥彙總（左側標籤格內含簽署指引） */
 .mr-footer-region { flex: 0 0 auto; }
