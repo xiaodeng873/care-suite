@@ -147,6 +147,7 @@ const preparePages = (
 
 // ---- 版面高度常數（毫米）& 高度感知分頁 ----
 const PAGE_HEIGHT_MM = 196;           // A4橫向含7mm邊距後可用高度
+const TOP_RESERVED_MM = 3;            // 頁面頂部固定留白（整頁內容底置時仍保留）
 const HEADER_HEIGHT_MM = 24;          // 頂置院友資訊區估算高度
 const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
 const ROW_HEIGHT_MM = 6;              // mr-sign-row 列高
@@ -154,9 +155,10 @@ const FOOTER_PER_ROW_MM = 6;          // 彙總區每列列高
 const FOOTER_FIXED_MM = 4;            // 頁碼標籤高度
 
 // 給定彙總列數，計算 body table 可容納的最多內容列數
-const bodyRowsCapacity = (summarySlots: number): number => {
-  const footerMm = Math.max(MIN_SUMMARY_ROWS, summarySlots) * FOOTER_PER_ROW_MM + FOOTER_FIXED_MM;
-  return Math.floor((PAGE_HEIGHT_MM - HEADER_HEIGHT_MM - TABLE_HEADER_MM - footerMm) / ROW_HEIGHT_MM);
+const bodyRowsCapacity = (summarySlots: number, includeBlankRows: boolean): number => {
+  const footerRows = includeBlankRows ? Math.max(MIN_SUMMARY_ROWS, summarySlots) : Math.max(1, summarySlots);
+  const footerMm = footerRows * FOOTER_PER_ROW_MM + FOOTER_FIXED_MM;
+  return Math.floor((PAGE_HEIGHT_MM - TOP_RESERVED_MM - HEADER_HEIGHT_MM - TABLE_HEADER_MM - footerMm) / ROW_HEIGHT_MM);
 };
 
 // 計算一個處方區塊佔用的顯示列數（保守估算：不足 MIN_SLOT_ROWS 時按 MIN_SLOT_ROWS 計）
@@ -170,7 +172,7 @@ const getBlockRows = (block: PrescriptionBlock): number => {
 
 // 高度感知分頁：逐一偵測加入下一個處方後是否超出可用列數；
 // 每頁至少放 1 個處方（即使超高也不可整頁空）；同時受 MAX_PRESCRIPTIONS_PER_PAGE 上限約束。
-const paginateBlocks = (blocks: PrescriptionBlock[], _includeBlankRows: boolean): PrescriptionBlock[][] => {
+const paginateBlocks = (blocks: PrescriptionBlock[], includeBlankRows: boolean): PrescriptionBlock[][] => {
   const result: PrescriptionBlock[][] = [];
   let current: PrescriptionBlock[] = [];
   let currentRows = 0;
@@ -179,7 +181,7 @@ const paginateBlocks = (blocks: PrescriptionBlock[], _includeBlankRows: boolean)
     const blockRows = getBlockRows(block);
     if (current.length > 0) {
       const projected = [...current, block];
-      const available = bodyRowsCapacity(summaryRowCount(projected));
+      const available = bodyRowsCapacity(summaryRowCount(projected), includeBlankRows);
       if (currentRows + blockRows > available || current.length >= MAX_PRESCRIPTIONS_PER_PAGE) {
         result.push(current);
         current = [];
@@ -268,14 +270,13 @@ const renderPage = (
   return '<section class="mr-page">'
     + renderHeaderRegion(page.patient, page.routeKind)
     + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows)}</div>`
-    + '<div class="mr-spacer"></div>'
     + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel, includeBlankRows)
     + '</section>';
 };
 
 // ---- 頂置院友資訊區 ----
 
-const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: RouteKind): string => {
+const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRouteKind): string => {
   const name = patient.中文姓氏 != null || patient.中文名字 != null
     ? `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`
     : (patient.中文姓名 ?? '');
@@ -798,13 +799,13 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   overflow: hidden;
   page-break-after: always;
   break-after: page;
 }
 .mr-page:last-child { page-break-after: auto; break-after: auto; }
-.mr-body { flex: 1 1 0; min-height: 0; overflow: hidden; }
-.mr-spacer { flex: 0 0 0; }
+.mr-body { flex: 0 0 auto; overflow: hidden; }
 
 /* 頂置院友資訊區 */
 .mr-header { flex: 0 0 auto; margin-bottom: 1mm; }
