@@ -873,7 +873,7 @@ td.mr-diag-prn {
     #334155 calc(50% + 0.4px), transparent calc(50% + 0.4px));
 }
 /* 即時備藥非有效期日格：空格（無斜線無灰底） */
-td.mr-inactive-prn { background: #fff !important; background-image: none !important; }
+td.mr-inactive-prn { background: #e2e8f0 !important; background-image: none !important; }
 /* ▶/◄ 邊界標記格：紫色提示開始/結束 */
 td.mr-boundary { color: #7c3aed; font-weight: bold; }
 /* 處方區空白填充列 */
