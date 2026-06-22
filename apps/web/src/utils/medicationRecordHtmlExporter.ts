@@ -393,7 +393,7 @@ const renderBodyTable = (
   const missingSlots = includeBlankRows ? page.fillerCount : 0;
   let fillerRows = '';
   if (missingSlots > 0) {
-    const dayCells = Array(dayCount).fill('<td class="c-day">&nbsp;</td>').join('');
+    const dayCells = Array(dayCount).fill('<td class="c-day mr-diag">&nbsp;</td>').join('');
     // c-date 保留 4 行獨立格，行間無橫線；第 1 行「開始日期」、第 3 行「處方日期」作提示文字
     // c-name / c-route 仍以 rowspan=MIN_SLOT_ROWS 合併
     const fillerRow1 = `<tr class="mr-sign-row mr-filler-row">`
@@ -437,6 +437,8 @@ const renderPrescriptionBlock = (
     .filter((line) => line != null && String(line).trim() !== '')
     .map((line) => `<div>${escapeHtml(String(line))}</div>`)
     .join('');
+  const isImmediate = prescription.preparation_method === 'immediate';
+  const diagClass = isImmediate ? 'mr-diag-prn' : 'mr-diag';
 
   // 每個處方的檢測項類型（不重複），各自在時段下方加一行。
   const inspectionTypes: string[] = prescriptionHasInspection(prescription)
@@ -448,7 +450,7 @@ const renderPrescriptionBlock = (
   const totalRowCount = actualSlots.length * rowsPerSlot + paddingSlotCount;
   const boundary = getBoundaryCells(prescription, actualSlots, selectedMonth, dayCount);
 
-  const inactiveDayCells = Array(dayCount).fill('<td class="c-day mr-inactive">&nbsp;</td>').join('');
+  const inactiveDayCells = Array(dayCount).fill(`<td class="c-day ${diagClass}">&nbsp;</td>`).join('');
   const slotRows = actualSlots
     .flatMap((slot, slotIndex) => {
       const leftCells = slotIndex === 0
@@ -919,7 +921,7 @@ td.mr-inactive-prn { background: #e2e8f0 !important; background-image: none !imp
 /* ▶/◄ 邊界標記格：紫色提示開始/結束 */
 td.mr-boundary { color: #7c3aed; font-weight: bold; }
 /* 處方區空白填充列 */
-.mr-filler-row td { background: white; }
+.mr-filler-row td { background-color: white; }
 /* c-date 提示文字（開始日期／處方日期）*/
 td.mr-filler-date { color: #94a3b8; font-size: 7.5pt; text-align: left; padding: 0.4mm 1mm; vertical-align: middle; }
 /* c-date 第 2-4 行：取消上框線 */
