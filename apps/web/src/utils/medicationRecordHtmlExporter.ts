@@ -303,7 +303,7 @@ const renderPage = (
   const pageLabel = `${ROUTE_SHEET_LABELS[page.routeKind]} 共${page.pageIndexInRoute}/${page.pageCountInRoute}頁`;
 
   return '<section class="mr-page">'
-    + '<div class="mr-top-spacer"></div>'
+    + (includeBlankRows ? '<div class="mr-top-spacer"></div>' : '')
     + renderHeaderRegion(page.patient, page.routeKind)
     + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows)}</div>`
     + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel, includeBlankRows)
@@ -450,7 +450,7 @@ const renderPrescriptionBlock = (
   const totalRowCount = actualSlots.length * rowsPerSlot + paddingSlotCount;
   const boundary = getBoundaryCells(prescription, actualSlots, selectedMonth, dayCount);
 
-  const inactiveDayCells = Array(dayCount).fill(`<td class="c-day ${diagClass}">&nbsp;</td>`).join('');
+  const inactiveDayCells = Array(dayCount).fill(`<td class="c-day mr-filler-day ${diagClass}">&nbsp;</td>`).join('');
   const slotRows = actualSlots
     .flatMap((slot, slotIndex) => {
       const leftCells = slotIndex === 0
@@ -920,6 +920,7 @@ td.mr-diag-prn {
 td.mr-inactive-prn { background: #e2e8f0 !important; background-image: none !important; }
 /* ▶/◄ 邊界標記格：紫色提示開始/結束 */
 td.mr-boundary { color: #7c3aed; font-weight: bold; }
+td.mr-filler-day { background-color: #fff !important; }
 /* 處方區空白填充列 */
 .mr-filler-row td { background-color: white; }
 /* c-date 提示文字（開始日期／處方日期）*/
