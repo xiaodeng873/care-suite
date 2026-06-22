@@ -306,6 +306,7 @@ const renderPage = (
     + (includeBlankRows ? '<div class="mr-top-spacer"></div>' : '')
     + renderHeaderRegion(page.patient, page.routeKind)
     + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows)}</div>`
+    + (!includeBlankRows ? '<div class="mr-top-spacer"></div>' : '')
     + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel, includeBlankRows)
     + '</section>';
 };
