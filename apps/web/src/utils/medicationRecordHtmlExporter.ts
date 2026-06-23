@@ -185,7 +185,7 @@ const preparePages = (
 };
 
 // ---- 版面高度常數（毫米）& 高度感知分頁（全程以 mm 精算）----
-const PUNCH_ZONE_MM = 20;             // 頁頂打孔區高度（2cm，避免打孔機破壞表頭）
+const PUNCH_ZONE_MM = 19;             // 頁頂打孔區高度（2cm，避免打孔機破壞表頭）
 const PAGE_HEIGHT_MM = 196 - PUNCH_ZONE_MM; // A4橫向含7mm邊距後可用高度（196mm 扣除打孔區）
 const TOP_RESERVED_MM = 3;            // 頁面頂部固定留白（整頁內容底置時仍保留）
 const HEADER_HEIGHT_MM = 30;          // 頂置院友資訊區實際高度（含26mm相片+邊距）
@@ -329,7 +329,6 @@ const renderPage = (
 
   return '<section class="mr-page">'
     + '<div class="mr-punch-zone" aria-hidden="true"><div class="mr-punch-hole"></div><div class="mr-punch-hole"></div></div>'
-    + (includeBlankRows ? '<div class="mr-top-spacer"></div>' : '')
     + renderHeaderRegion(page.patient, page.routeKind, selectedMonth)
     + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows)}</div>`
     + (!includeBlankRows ? '<div class="mr-top-spacer"></div>' : '')
