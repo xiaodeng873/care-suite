@@ -160,13 +160,13 @@ const preparePages = (
     }));
     const grouped = paginateBlocks(blocks, includeBlankRows, footerLegendMm);
     grouped.forEach((pb, i) => {
-      // 依本頁實際剩餘高度計算可補的空白處方列數（避免補到 MAX 而擠爆 footer）
+      // 依本頁實際剩餘高度計算可補的空白處方列數（空白列模式不受每頁 5 個處方上限）
       let fillerCount = 0;
       if (includeBlankRows) {
         const realSumMm = pb.reduce((sum, b) => sum + getBlockHeightMm(b), 0);
-        const usableMm = bodyUsableMm(summaryRowCount(pb), includeBlankRows, footerLegendMm);
+        const usableMm = bodyUsableMm(summaryRowCount(pb, includeBlankRows), includeBlankRows, footerLegendMm);
         const roomForFillers = Math.floor((usableMm - realSumMm) / FILLER_BLOCK_MM);
-        fillerCount = Math.max(0, Math.min(MAX_PRESCRIPTIONS_PER_PAGE - pb.length, roomForFillers));
+        fillerCount = Math.max(0, roomForFillers);
       }
       pages.push({
         patient, routeKind, blocks: pb,
@@ -185,18 +185,33 @@ const preparePages = (
 };
 
 // ---- 版面高度常數（毫米）& 高度感知分頁（全程以 mm 精算）----
-const PUNCH_ZONE_MM = 15;             // 頁頂打孔區高度（2cm，避免打孔機破壞表頭）
-const PAGE_HEIGHT_MM = 196 - PUNCH_ZONE_MM; // A4橫向含7mm邊距後可用高度（196mm 扣除打孔區）
-const TOP_RESERVED_MM = 3;            // 頁面頂部固定留白（整頁內容底置時仍保留）
+const PUNCH_ZONE_MM = 10;             // 頁頂打孔區高度（2cm，避免打孔機破壞表頭）
+const PAGE_HEIGHT_MM = 206 - PUNCH_ZONE_MM; // A4橫向含2mm邊距後可用高度（206mm 扣除打孔區）
 const HEADER_HEIGHT_MM = 30;          // 頂置院友資訊區實際高度（含26mm相片+邊距）
 const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
-const ROW_SIGN_MM = 5;                // 簽署列（mr-sign-row）實際列高
-const ROW_SUMMARY_MM = 6;             // 彙總列（mr-summary td）實際列高（略高於簽署列，作視覺區別）
+const ROW_SIGN_MM = 6;                // 簽署列（mr-sign-row）實際列高
+const ROW_SUMMARY_MM = 6;             // 彙總列（mr-summary td）實際列高
 const ROW_INSP_MM = 6;                // 檢測值列（mr-insp-body-row）實際列高
 const MIN_BLOCK_MM = 16;              // 單時段處方左欄多行內容（途徑最多4行）保守高度下限
 const FILLER_BLOCK_MM = MIN_SLOT_ROWS * ROW_SIGN_MM; // 一個空白處方區塊（4列）高度
-const FOOTER_FIXED_MM = 4;            // 頁碼標籤高度（8pt字體約3.4mm＋margin 0.6mm）
-const SAFETY_MARGIN_MM = 2;           // 累積邊框／行距誤差的安全餘量
+const FOOTER_FIXED_MM = 1;            // 頁碼標籤高度（8pt字體約 1mm）
+const SAFETY_MARGIN_MM = 0;           // 移除安全邊距，讓 footer 能貼底填滿
+const AM_SECTION_MIN = 2;             // 處方列上午時段區最少預留列數（≤12:00，PM 從第3行起）
+const SUMMARY_AM_MIN = 3;             // 彙總區上午時段區最少預留列數（PM 從第4行起）
+const PM_SECTION_MIN = 2;             // 下午時段區最少預留列數（>12:00）
+const SUMMARY_PM_MIN = 3;             // 彙總區下午最少列數（= MIN_SUMMARY_ROWS - SUMMARY_AM_MIN）
+
+// 將時間點分為上午（≤12:00）和下午（>12:00）兩組。
+// 注意：故意不依賴 parseTimeToMinutes，以避免 const 初始化順序問題。
+const splitAmPm = (slots: string[]): { am: string[]; pm: string[] } => {
+  const am: string[] = [], pm: string[] = [];
+  for (const s of slots) {
+    if (!s) continue;
+    const m = String(s).match(/^(\d{1,2}):(\d{2})/);
+    if (m) (parseInt(m[1], 10) * 60 + parseInt(m[2], 10) <= 720 ? am : pm).push(s);
+  }
+  return { am, pm };
+};
 
 // 估算 footer 左側「給藥簽署指引」文字區高度（mm）。
 // 含：標題＋9個代號(約2行)＋2條註記；若有職員代號則再加標題與代號行。
@@ -210,21 +225,28 @@ const estimateFooterLegendMm = (staffCount: number): number => {
 };
 
 // 給定彙總時段數，計算 body 可用高度（mm）。
+// 需保留 footer（含頁碼）高度，避免頁尾被 body 擠出頁面造成裁切。
 const bodyUsableMm = (summarySlots: number, includeBlankRows: boolean, footerLegendMm: number): number => {
   const footerRows = includeBlankRows ? Math.max(MIN_SUMMARY_ROWS, summarySlots) : Math.max(1, summarySlots);
-  // footer 實際高度＝彙總列高與指引文字區高度之較大者（文字區以 rowspan 跨列撐高）
   const footerMm = Math.max(footerRows * ROW_SUMMARY_MM, footerLegendMm) + FOOTER_FIXED_MM;
-  return PAGE_HEIGHT_MM - TOP_RESERVED_MM - HEADER_HEIGHT_MM - TABLE_HEADER_MM - footerMm - SAFETY_MARGIN_MM;
+  return PAGE_HEIGHT_MM - HEADER_HEIGHT_MM - TABLE_HEADER_MM - footerMm - SAFETY_MARGIN_MM;
 };
 
-// 計算一個處方區塊實際佔用高度（mm）：簽署列6mm + 檢測列各5mm；左欄多行內容下限 MIN_BLOCK_MM。
+// 計算一個處方區塊實際佔用高度（mm）。
+// 採 AM/PM 分區排列：上午（≤12:00）時段占前 AM_SECTION_MIN 列起，
+// 下午（>12:00）時段占後 PM_SECTION_MIN 列起，不足最小列數的部分以空白列補齊。
 const getBlockHeightMm = (block: PrescriptionBlock): number => {
   const inspCount = prescriptionHasInspection(block.prescription)
     ? new Set((block.prescription.inspection_rules as any[]).map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean)).size
     : 0;
-  const slots = Math.max(block.timeSlots.length, 1);
-  const rowsMm = slots * ROW_SIGN_MM + slots * inspCount * ROW_INSP_MM;
-  return Math.max(rowsMm, MIN_BLOCK_MM);
+  const rowsPerSlot = 1 + inspCount;
+  const { am, pm } = splitAmPm(block.timeSlots);
+  // AM 區：實際列數（含檢測行）不足 2 列才補白；PM 區：只在合計 < MIN_SLOT_ROWS（4）時補白
+  const amActualRows = am.length * rowsPerSlot;
+  const amPadRows = Math.max(0, AM_SECTION_MIN - amActualRows);
+  const pmActualRows = pm.length * rowsPerSlot;
+  const pmPadRows = Math.max(0, MIN_SLOT_ROWS - (amActualRows + amPadRows + pmActualRows));
+  return (amActualRows + amPadRows + pmActualRows + pmPadRows) * ROW_SIGN_MM;
 };
 
 // 高度感知分頁：以 mm 精算逐一偵測加入下一個處方是否超出可用高度；
@@ -242,7 +264,7 @@ const paginateBlocks = (
     const blockMm = getBlockHeightMm(block);
     if (current.length > 0) {
       const projected = [...current, block];
-      const usableMm = bodyUsableMm(summaryRowCount(projected), includeBlankRows, footerLegendMm);
+      const usableMm = bodyUsableMm(summaryRowCount(projected, includeBlankRows), includeBlankRows, footerLegendMm);
       if (currentMm + blockMm > usableMm || current.length >= MAX_PRESCRIPTIONS_PER_PAGE) {
         result.push(current);
         current = [];
@@ -257,10 +279,15 @@ const paginateBlocks = (
   return result.length > 0 ? result : [[]];
 };
 
-// 彙總區列數：每個去重時段一列給藥列（檢測值已移至處方區）。
-const summaryRowCount = (blocks: PrescriptionBlock[]): number => {
-  const slots = sortDistinctTimeSlots(blocks.flatMap((block) => block.timeSlots));
-  return slots.length;
+// 彙總區列數（彙總無檢測行，每時段 1 列；AM 最少 2 列，合計最少 4／6 列）。
+const summaryRowCount = (blocks: PrescriptionBlock[], includeBlankRows: boolean): number => {
+  const allSlots = [...new Set(blocks.flatMap((b) => b.timeSlots).filter(Boolean))];
+  const { am, pm } = splitAmPm(allSlots);
+  const amPad = Math.max(0, SUMMARY_AM_MIN - am.length);  // 彙總區 AM 最少 3 列（PM 從第4行起）
+  const amTotal = am.length + amPad;
+  const minTotal = includeBlankRows ? MIN_SUMMARY_ROWS : MIN_SLOT_ROWS;
+  const pmPad = Math.max(0, minTotal - amTotal - pm.length);
+  return amTotal + pm.length + pmPad;
 };
 
 // ---- 服藥前檢測項 ----
@@ -332,7 +359,7 @@ const renderPage = (
     + '<div class="mr-punch-zone" aria-hidden="true"><div class="mr-punch-hole"></div><div class="mr-punch-hole"></div></div>'
     + renderHeaderRegion(page.patient, page.routeKind, selectedMonth)
     + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows)}</div>`
-    + (!includeBlankRows ? '<div class="mr-top-spacer"></div>' : '')
+    + '<div class="mr-top-spacer"></div>'
     + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel, includeBlankRows)
     + '</section>';
 };
@@ -418,12 +445,15 @@ const renderBodyTable = (
   + '</thead>';
 
   const body = page.blocks
-    .map((block) => renderPrescriptionBlock(block, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows))
+    .map((block) => {
+      const blockRows = renderPrescriptionBlock(block, selectedMonth, dayCount, workflowRecords, staffMapping);
+      return `<tbody class="mr-prescription-body">${blockRows}</tbody>`;
+    })
     .join('');
 
   // 填充空白處方列：依本頁實際剩餘高度計算（preparePages 已算好 fillerCount，避免擠爆 footer）
   const missingSlots = includeBlankRows ? page.fillerCount : 0;
-  let fillerRows = '';
+  let fillerBodies = '';
   if (missingSlots > 0) {
     const dayCells = Array(dayCount).fill('<td class="c-day mr-diag">&nbsp;</td>').join('');
     // c-date 保留 4 行獨立格，行間無橫線；第 1 行「開始日期」、第 3 行「處方日期」作提示文字
@@ -437,10 +467,11 @@ const renderBodyTable = (
     const fillerRow3 = `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">處方日期</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
     const fillerRow4 = `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">&nbsp;</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
     const fillerBlock = fillerRow1 + fillerRow2 + fillerRow3 + fillerRow4;
-    fillerRows = Array(missingSlots).fill(fillerBlock).join('');
+    fillerBodies = Array(missingSlots).fill(`<tbody class="mr-filler-block">${fillerBlock}</tbody>`).join('');
   }
 
-  return `<table class="mr-grid">${colGroup(dayCount)}${header}<tbody>${body}${fillerRows}</tbody></table>`;
+  // 每個處方區塊各自包裹在 <tbody> 中，以便 CSS 選取相鄰 tbody 加深分隔線
+  return `<table class="mr-grid">${colGroup(dayCount)}${header}${body}${fillerBodies}</table>`;
 };
 
 const renderPrescriptionBlock = (
@@ -448,11 +479,9 @@ const renderPrescriptionBlock = (
   selectedMonth: string,
   dayCount: number,
   workflowRecords: WorkflowRecord[],
-  staffMapping: StaffCodeMapping,
-  includeBlankRows: boolean
+  staffMapping: StaffCodeMapping
 ): string => {
   const { prescription, timeSlots } = block;
-  const actualSlots = timeSlots.length > 0 ? timeSlots : [''];
 
   const dateInfo = `<div>開始日期：${escapeHtml(formatDate(prescription.start_date))}</div>`
     + `<div>處方日期：${escapeHtml(formatDate(prescription.prescription_date))}</div>`;
@@ -478,29 +507,54 @@ const renderPrescriptionBlock = (
         .map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean))]
     : [];
   const rowsPerSlot = 1 + inspectionTypes.length;
-  const paddingSlotCount = includeBlankRows ? Math.max(0, MIN_SLOT_ROWS - actualSlots.length * rowsPerSlot) : 0;
-  const totalRowCount = actualSlots.length * rowsPerSlot + paddingSlotCount;
-  const boundary = getBoundaryCells(prescription, actualSlots, selectedMonth, dayCount);
 
-  const inactiveDayCells = Array(dayCount).fill(`<td class="c-day mr-filler-day ${diagClass}">&nbsp;</td>`).join('');
-  const slotRows = actualSlots
-    .flatMap((slot, slotIndex) => {
-      const leftCells = slotIndex === 0
-        ? `<td class="c-date" rowspan="${totalRowCount}">${dateInfo}</td>`
-          + `<td class="c-name" rowspan="${totalRowCount}">${nameInfo}</td>`
-          + `<td class="c-route" rowspan="${totalRowCount}">${routeInfo || '&nbsp;'}</td>`
-        : '';
-      const timeCell = `<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>`;
-      const dayCells = signatureDayCells(prescription, slot, selectedMonth, dayCount, workflowRecords, staffMapping, boundary);
-      const signRow = `<tr class="mr-sign-row">${leftCells}${timeCell}${dayCells}</tr>`;
-      const inspRows = inspectionTypes.map((inspType) =>
-        renderBodyInspectionRow(block, slot, inspType, selectedMonth, dayCount, workflowRecords)
-      );
-      return [signRow, ...inspRows];
-    });
-  const paddingRow = `<tr class="mr-sign-row"><td class="c-time"></td>${inactiveDayCells}</tr>`;
-  const paddingRows = Array(paddingSlotCount).fill(paddingRow);
-  return [...slotRows, ...paddingRows].join('');
+  // AM/PM 分區：上午（≤12:00）先、下午（>12:00）後。
+  // 規則：AM 區含檢測行共計最少 2 列；整體合計最少 MIN_SLOT_ROWS（4）列。
+  // 檢測行已計入列數，不另重複補白。
+  const { am, pm } = splitAmPm(timeSlots);
+  const amActualRows = am.length * rowsPerSlot;
+  const amPadRows = Math.max(0, AM_SECTION_MIN - amActualRows);  // AM 不足 2 列才補
+  const pmActualRows = pm.length * rowsPerSlot;
+  const pmPadRows = Math.max(0, MIN_SLOT_ROWS - (amActualRows + amPadRows + pmActualRows));  // 合計不足 4 才補
+  const totalRowCount = amActualRows + amPadRows + pmActualRows + pmPadRows;
+
+  const boundary = getBoundaryCells(prescription, timeSlots, selectedMonth, dayCount);
+  // 補白列的日格：白底＋斜線，與空白處方格相同（不用灰格）
+  const padDayCells = Array(dayCount).fill(`<td class="c-day ${diagClass}">&nbsp;</td>`).join('');
+
+  let isFirstRow = true;
+  const leftFor = (): string => {
+    if (!isFirstRow) return '';
+    isFirstRow = false;
+    return `<td class="c-date" rowspan="${totalRowCount}">${dateInfo}</td>`
+      + `<td class="c-name" rowspan="${totalRowCount}">${nameInfo}</td>`
+      + `<td class="c-route" rowspan="${totalRowCount}">${routeInfo || '&nbsp;'}</td>`;
+  };
+  const rows: string[] = [];
+
+  // --- AM 時段（依序渲染簽署列＋檢測列）---
+  for (const slot of am) {
+    rows.push(`<tr class="mr-sign-row">${leftFor()}<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>${signatureDayCells(prescription, slot, selectedMonth, dayCount, workflowRecords, staffMapping, boundary)}</tr>`);
+    for (const inspType of inspectionTypes) {
+      rows.push(renderBodyInspectionRow(block, slot, inspType, selectedMonth, dayCount, workflowRecords));
+    }
+  }
+  for (let i = 0; i < amPadRows; i++) {
+    rows.push(`<tr class="mr-sign-row">${leftFor()}<td class="c-time">&nbsp;</td>${padDayCells}</tr>`);
+  }
+
+  // --- PM 時段 ---
+  for (const slot of pm) {
+    rows.push(`<tr class="mr-sign-row">${leftFor()}<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>${signatureDayCells(prescription, slot, selectedMonth, dayCount, workflowRecords, staffMapping, boundary)}</tr>`);
+    for (const inspType of inspectionTypes) {
+      rows.push(renderBodyInspectionRow(block, slot, inspType, selectedMonth, dayCount, workflowRecords));
+    }
+  }
+  for (let i = 0; i < pmPadRows; i++) {
+    rows.push(`<tr class="mr-sign-row">${leftFor()}<td class="c-time">&nbsp;</td>${padDayCells}</tr>`);
+  }
+
+  return rows.join('');
 };
 
 // 處方區檢測值子列：顯示在對應時段正下方，不加斜線；數值不合格（canDispense===false）標紅。
@@ -586,6 +640,30 @@ const getBoundaryCells = (
   return { before, after };
 };
 
+// 從工作流記錄提取執藥者、核藥者代號及特殊代號（供四象限格渲染）。
+// 特殊代號（A/S/R/O/HL）優先顯示於格中央；否則左上放執藥者、右下放核藥者。
+const getWorkflowCellParts = (
+  record: WorkflowRecord | null,
+  staffMapping: StaffCodeMapping
+): { prep: string; verify: string; special: string } => {
+  if (!record) return { prep: '', verify: '', special: '' };
+  const isAnyFailed = record.preparation_status === 'failed'
+    || record.verification_status === 'failed'
+    || record.dispensing_status === 'failed';
+  if (isAnyFailed) {
+    const r = record.dispensing_failure_reason, c = record.custom_failure_reason;
+    const special = r === '入院' ? 'A' : r === '自理' ? 'S' : r === '拒服' ? 'R' : r === '暫停' ? 'O'
+      : r === '回家渡假' ? 'HL'
+      : r === '其他' ? (c === '暫停' ? 'O' : c === '回家渡假' ? 'HL' : c === '自理' ? 'S' : '') : '';
+    if (special) return { prep: '', verify: '', special };
+  }
+  const prep = record.preparation_status === 'completed' && record.preparation_staff
+    ? (staffMapping[record.preparation_staff] ?? '') : '';
+  const verify = record.verification_status === 'completed' && record.verification_staff
+    ? (staffMapping[record.verification_staff] ?? '') : '';
+  return { prep, verify, special: '' };
+};
+
 const signatureDayCells = (
   prescription: MedicationPrescription,
   slot: string,
@@ -600,19 +678,29 @@ const signatureDayCells = (
   let cells = '';
   for (let day = 1; day <= dayCount; day += 1) {
     const dateStr = toDateString(selectedMonth, day);
-    let content = '';
+    let cellInner = '';
+    let isBoundary = false;
     const inRange = slot && isDateInPrescriptionRange(dateStr, slot, prescription);
     if (inRange) {
       const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
-      content = formatWorkflowCellContent(record, staffMapping) || '';
+      const { prep, verify, special } = getWorkflowCellParts(record, staffMapping);
+      if (special) {
+        cellInner = `<span class="mr-cell-special">${escapeHtml(special)}</span>`;
+      } else {
+        cellInner = (prep ? `<span class="mr-cell-prep">${escapeHtml(prep)}</span>` : '')
+          + (verify ? `<span class="mr-cell-verify">${escapeHtml(verify)}</span>` : '');
+      }
     } else {
       const key = `${dateStr}__${slot}`;
-      if (boundary.before.has(key)) content = '▶';
-      else if (boundary.after.has(key)) content = '◄';
+      if (boundary.before.has(key)) {
+        cellInner = '<span class="mr-cell-special">▶</span>'; isBoundary = true;
+      } else if (boundary.after.has(key)) {
+        cellInner = '<span class="mr-cell-special">◄</span>'; isBoundary = true;
+      }
     }
     const inactiveClass = !inRange ? (isImmediate ? ' mr-inactive-prn' : ' mr-inactive') : '';
-    const boundaryClass = !inRange && content ? ' mr-boundary' : '';
-    cells += `<td class="c-day ${diagClass}${inactiveClass}${boundaryClass}">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
+    const boundaryClass = isBoundary ? ' mr-boundary' : '';
+    cells += `<td class="c-day ${diagClass}${inactiveClass}${boundaryClass}">${cellInner || '&nbsp;'}</td>`;
   }
   return cells;
 };
@@ -629,11 +717,16 @@ const renderFooterRegion = (
   includeBlankRows: boolean
 ): string => {
   const pageSlots = sortDistinctTimeSlots(page.blocks.flatMap((block) => block.timeSlots));
-  const rawSummarySlots = pageSlots.length > 0 ? pageSlots : [''];
-  const summarySlots = [...rawSummarySlots];
-  if (includeBlankRows) {
-    while (summarySlots.length < MIN_SUMMARY_ROWS) summarySlots.push('');
-  }
+  // AM/PM 分區：上午時段固定占前兩行（rows 1-2），下午時段從第3行起（row 3+）
+  const { am: amPageSlots, pm: pmPageSlots } = splitAmPm(pageSlots);
+  const summaryAm = [...amPageSlots];
+  const summaryPm = [...pmPageSlots];
+  // 上午固定預留 SUMMARY_AM_MIN(3) 行（彙總區 PM 從第4行起）
+  while (summaryAm.length < SUMMARY_AM_MIN) summaryAm.push('');
+  // 下午：空白模式補至 SUMMARY_PM_MIN（合計 MIN_SUMMARY_ROWS），有資料模式補至 PM_SECTION_MIN
+  const pmMinRows = includeBlankRows ? SUMMARY_PM_MIN : PM_SECTION_MIN;
+  while (summaryPm.length < pmMinRows) summaryPm.push('');
+  const summarySlots = [...summaryAm, ...summaryPm];
   const totalRows = summarySlots.length;
 
   const legendCodes = '<div class="mr-legend-codes">'
@@ -858,7 +951,7 @@ const assembleDocument = (renderedPages: string[]): string => `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <style>
-@page { size: A4 landscape; margin: 7mm; }
+@page { size: A4 landscape; margin: 2mm; }
 html, body { margin: 0; padding: 0; background: #fff; }
 * { box-sizing: border-box; }
 body {
@@ -868,19 +961,19 @@ body {
   print-color-adjust: exact;
 }
 .mr-page {
-  width: 283mm;
-  height: 196mm;
+  width: 293mm;
+  height: 206mm;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   page-break-after: always;
   break-after: page;
 }
 .mr-page:last-child { page-break-after: auto; break-after: auto; }
-/* 頂部彈性留白：內容不足時撐開使整體底置；內容滿頁時收為 0，溢出只發生在底部，表頭永遠完整 */
-.mr-top-spacer { flex: 1 1 auto; }
-.mr-body { flex: 0 0 auto; overflow: hidden; }
+/* 頂部彈性留白已廢用，footer 改用 margin-top: auto 絕對貼底 */
+.mr-top-spacer { display: none; }
+.mr-body { flex: 0 0 auto; overflow: visible; }
 
 /* 頂置院友資訊區 */
 .mr-header { flex: 0 0 auto; margin-bottom: 1mm; }
@@ -923,7 +1016,7 @@ body {
 .mr-colhead th { font-weight: bold; height: 5mm; background: #e8eef4; color: #1f2c38; }
 .mr-dayhead th { font-size: 7pt; height: 4mm; background: #f1f5f9; color: #1f2c38; }
 .mr-sign-head { font-weight: bold; letter-spacing: 0.5pt; }
-.mr-sign-row td { height: 5mm; }
+.mr-sign-row td { height: ${ROW_SIGN_MM}mm; }
 .mr-sign-row td.c-date, .mr-sign-row td.c-name, .mr-sign-row td.c-route {
   font-size: 8pt;
   text-align: left;
@@ -952,7 +1045,27 @@ td.mr-diag-prn {
 td.mr-inactive-prn { background: #e2e8f0 !important; background-image: none !important; }
 /* ▶/◄ 邊界標記格：紫色提示開始/結束 */
 td.mr-boundary { color: #7c3aed; font-weight: bold; }
-td.mr-filler-day { background-color: #fff !important; }
+/* 處方列之間加深色分隔線（空白列同樣套用，確保版面統一） */
+tbody.mr-prescription-body + tbody.mr-prescription-body > tr:first-child > td,
+tbody.mr-prescription-body + tbody.mr-filler-block > tr:first-child > td,
+tbody.mr-filler-block + tbody.mr-filler-block > tr:first-child > td {
+  border-top: 1.5pt solid #1e3a5c !important;
+}
+/* 簽署日格四象限：執藥者代號在左上，核藥者代號在右下 */
+td.c-day { position: relative; }
+.mr-cell-prep {
+  position: absolute; top: 0.3mm; left: 0.4mm;
+  font-size: 4.5pt; line-height: 1; font-weight: bold; pointer-events: none;
+}
+.mr-cell-verify {
+  position: absolute; bottom: 0.3mm; right: 0.4mm;
+  font-size: 4.5pt; line-height: 1; font-weight: bold; pointer-events: none;
+}
+.mr-cell-special {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 5.5pt; font-weight: bold; pointer-events: none;
+}
 /* 處方區空白填充列 */
 .mr-filler-row td { background-color: white; }
 /* c-date 提示文字（開始日期／處方日期）*/
@@ -961,13 +1074,13 @@ td.mr-filler-date { color: #94a3b8; font-size: 7.5pt; text-align: left; padding:
 td.mr-filler-nobt { border-top: none !important; }
 
 /* 底部給藥彙總（左側標籤格內含簽署指引） */
-.mr-footer-region { flex: 0 0 auto; }
+.mr-footer-region { flex: 0 0 auto; margin-top: auto; }
 .mr-summary td { height: ${ROW_SUMMARY_MM}mm; }
 .mr-grid td.mr-sum-label {
   background: #f1f5f9;
   vertical-align: top;
   text-align: left;
-  padding: 1mm 1.2mm;
+  padding: 0.4mm 1mm;
 }
 .mr-legend-title, .mr-staff-title { font-weight: bold; font-size: 8pt; color: #0f2740; }
 .mr-staff-title { margin-top: 1mm; }
@@ -976,10 +1089,10 @@ td.mr-filler-nobt { border-top: none !important; }
 .mr-staff-codes span { margin-right: 2.4mm; white-space: nowrap; }
 .mr-legend-note { font-size: 7pt; line-height: 1.3; color: #64748b; margin-top: 0.3mm; }
 .mr-sum-row td.c-time { font-size: 8pt; }
-.mr-insp-body-row td { height: 5mm; }
+.mr-insp-body-row td { height: ${ROW_INSP_MM}mm; }
 .mr-insp-type { font-size: 7.2pt; font-weight: bold; color: #1d4ed8; }
 td.mr-insp-fail { color: #dc2626; font-weight: bold; }
-.mr-pagelabel { text-align: right; font-size: 8pt; color: #475569; margin-top: 0.6mm; }
+.mr-pagelabel { text-align: right; font-size: 8pt; color: #475569; margin-top: 0; padding: 0 1mm; line-height: 1; }
 /* 打孔區：頁頂預留 20mm，避免打孔機破壞表頭內容；顯示兩個定位圓圈（ISO 838：80mm 間距，居中）*/
 .mr-punch-zone {
   flex: 0 0 ${PUNCH_ZONE_MM}mm;
