@@ -1451,9 +1451,39 @@ const CareRecords: React.FC = () => {
       </div>
       {selectedPatientId && (
         <>
-          <div className="card">
-            <div className="flex flex-nowrap items-start justify-between gap-4 p-4 border-b border-gray-200">
-              <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+          {/* ── 週選取器（card 之上） ── */}
+          <div className="card px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePreviousWeek}
+                className="btn-secondary flex items-center space-x-1 px-3 py-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span>上週</span>
+              </button>
+              <button
+                onClick={handleCurrentWeek}
+                className="btn-primary px-4 py-2"
+              >
+                本週
+              </button>
+              <button
+                onClick={handleNextWeek}
+                className="btn-secondary flex items-center space-x-1 px-3 py-2"
+              >
+                <span>下週</span>
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="text-sm text-gray-600">
+              📅 {formatDate(weekDates[0])} - {formatDate(weekDates[6])}
+            </div>
+          </div>
+
+          {/* ── Grid 容器（第一張：tab + 表格，橫跨全寬；後續可在此添加更多 card） ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="card col-span-full">
+              <div className="flex flex-wrap gap-1 p-4 border-b border-gray-200">
                 {visibleTabTypes.map(tabType => {
                   const tabConfig = {
                     patrol: { icon: ClipboardCheck, label: '巡房記錄' },
@@ -1533,42 +1563,15 @@ const CareRecords: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={handlePreviousWeek}
-                    className="btn-secondary flex items-center space-x-1 px-3 py-2"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    <span>上週</span>
-                  </button>
-                  <button
-                    onClick={handleCurrentWeek}
-                    className="btn-primary px-4 py-2"
-                  >
-                    本週
-                  </button>
-                  <button
-                    onClick={handleNextWeek}
-                    className="btn-secondary flex items-center space-x-1 px-3 py-2"
-                  >
-                    <span>下週</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="text-sm text-gray-600">
-                  📅 {formatDate(weekDates[0])} - {formatDate(weekDates[6])}
-                </div>
+              <div className="p-4">
+                {activeTab === 'patrol' && renderPatrolTable()}
+                {activeTab === 'diaper' && renderDiaperTable()}
+                {activeTab === 'intake_output' && renderIntakeOutputTable()}
+                {activeTab === 'restraint' && renderRestraintTable()}
+                {activeTab === 'position' && renderPositionTable()}
+                {activeTab === 'toilet_training' && renderPlaceholder('如廁訓練記錄')}
+                {activeTab === 'hygiene' && renderHygieneTable()}
               </div>
-            </div>
-            <div className="p-4">
-              {activeTab === 'patrol' && renderPatrolTable()}
-              {activeTab === 'diaper' && renderDiaperTable()}
-              {activeTab === 'intake_output' && renderIntakeOutputTable()}
-              {activeTab === 'restraint' && renderRestraintTable()}
-              {activeTab === 'position' && renderPositionTable()}
-              {activeTab === 'toilet_training' && renderPlaceholder('如廁訓練記錄')}
-              {activeTab === 'hygiene' && renderHygieneTable()}
             </div>
           </div>
         </>
