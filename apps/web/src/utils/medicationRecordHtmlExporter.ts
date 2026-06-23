@@ -87,6 +87,30 @@ export const exportSelectedMedicationRecordToHtml = async (
   await exportMedicationRecordToHtml([{ ...patient, prescriptions }], selectedMonth, includeWorkflowRecords, includeBlankRows);
 };
 
+// 空白藥紙 HTML 版：每位院友、每個選定途徑各產生一頁，填入 MAX_PRESCRIPTIONS_PER_PAGE 個空白處方列。
+export const exportBlankMedicationRecordToHtml = async (
+  patients: PatientWithPrescriptions[],
+  selectedMonth: string,
+  routeTypes: PageRouteKind[]
+): Promise<void> => {
+  const renderedPages: string[] = [];
+  for (const patient of patients) {
+    for (const routeKind of routeTypes) {
+      const page: PageData = {
+        patient,
+        routeKind,
+        blocks: [],
+        pageIndexInRoute: 1,
+        pageCountInRoute: 1,
+        fillerCount: MAX_PRESCRIPTIONS_PER_PAGE,
+      };
+      renderedPages.push(renderPage(page, selectedMonth, [], {}, true));
+    }
+  }
+  const html = assembleDocument(renderedPages);
+  printViaIframe(html);
+};
+
 const buildMedicationRecordHtml = async (
   patients: PatientWithPrescriptions[],
   selectedMonth: string,
@@ -304,7 +328,7 @@ const renderPage = (
 
   return '<section class="mr-page">'
     + (includeBlankRows ? '<div class="mr-top-spacer"></div>' : '')
-    + renderHeaderRegion(page.patient, page.routeKind)
+    + renderHeaderRegion(page.patient, page.routeKind, selectedMonth)
     + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows)}</div>`
     + (!includeBlankRows ? '<div class="mr-top-spacer"></div>' : '')
     + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel, includeBlankRows)
@@ -313,7 +337,12 @@ const renderPage = (
 
 // ---- 頂置院友資訊區 ----
 
-const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRouteKind): string => {
+const formatYearMonth = (selectedMonth: string): string => {
+  const [year, month] = selectedMonth.split('-').map(Number);
+  return `${year}年${month}月`;
+};
+
+const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRouteKind, selectedMonth: string): string => {
   const name = patient.中文姓氏 != null || patient.中文名字 != null
     ? `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`
     : (patient.中文姓名 ?? '');
@@ -338,7 +367,7 @@ const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRo
         + reactCell('藥物過敏反應', allergyText)
       + '</tr>'
       + '<tr>'
-        + `<td class="mr-h-subtitle"><div class="mr-subtitle">${escapeHtml(ROUTE_SUBTITLES[routeKind])}</div></td>`
+        + `<td class="mr-h-subtitle"><div class="mr-subtitle">${escapeHtml(formatYearMonth(selectedMonth))} ${escapeHtml(ROUTE_SUBTITLES[routeKind])}</div></td>`
         + infoCell('性別 / 年齡', formatGenderAge(patient))
         + infoCell('出生日期', formatDate(patient.出生日期))
         + reactCell('藥物不良反應', adverseDrugReactionText)
@@ -903,19 +932,19 @@ body {
 .mr-med-test { font-size: 7.2pt; color: #b45309; margin-top: 0.4mm; }
 .mr-med-source { font-size: 7.2pt; color: #475569; margin-top: 0.4mm; }
 
-/* 每個簽署日格的左下→右上斜線（執＝左下、核＝右上） */
+/* 每個簽署日格的左上→右下斜線（以 SVG 背景繪製，避免 sub-pixel 斷線問題） */
 td.mr-diag {
-  background-image: linear-gradient(to bottom right,
-    transparent calc(50% - 0.4px), #9aa7b4 calc(50% - 0.4px),
-    #9aa7b4 calc(50% + 0.4px), transparent calc(50% + 0.4px));
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3Cline x1='0' y1='0' x2='1' y2='1' stroke='%239aa7b4' stroke-width='0.08' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 /* 不在處方有效期內的日格：灰底、移除斜線 */
 td.mr-inactive { background: #e2e8f0 !important; background-image: none !important; }
 /* 即時備藥（preparation_method=immediate）簽署格：深色細斜線提示 */
 td.mr-diag-prn {
-  background-image: linear-gradient(to bottom right,
-    transparent calc(50% - 0.4px), #334155 calc(50% - 0.4px),
-    #334155 calc(50% + 0.4px), transparent calc(50% + 0.4px));
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3Cline x1='0' y1='0' x2='1' y2='1' stroke='%23334155' stroke-width='0.08' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 /* 即時備藥非有效期日格：空格（無斜線無灰底） */
 td.mr-inactive-prn { background: #e2e8f0 !important; background-image: none !important; }

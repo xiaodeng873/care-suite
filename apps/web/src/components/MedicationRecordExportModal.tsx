@@ -4,6 +4,7 @@ import { usePatients } from '../context/PatientContext';
 import { getTemplatesMetadata } from '../lib/database';
 import { exportMedicationRecordToExcel, exportSelectedMedicationRecordToExcel, categorizePrescriptionsByRoute, exportBlankMedicationRecordToExcel, exportBatchBlankMedicationRecordToExcel } from '../utils/medicationRecordExcelGenerator';
 import { exportMedicationRecordToHtml } from '../utils/medicationRecordHtmlExporter';
+import { exportBlankMedicationRecordToHtml } from '../utils/medicationRecordHtmlExporter';
 import { exportPersonalMedicationListToExcel, exportSelectedPersonalMedicationListToExcel } from '../utils/personalMedicationListExcelGenerator';
 import { exportPersonalMedicationListToHtmlWindow } from '../utils/annualHealthCheckupFormGenerator';
 import { supabase } from '../lib/supabase';
@@ -68,6 +69,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   });
   const [includeInactive, setIncludeInactive] = useState(false);
   const [includeWorkflowRecords, setIncludeWorkflowRecords] = useState(false);
+  const [includeMedicationRecord, setIncludeMedicationRecord] = useState(true);
   const [includePersonalMedicationList, setIncludePersonalMedicationList] = useState(false);
   const [outputFormat, setOutputFormat] = useState<'excel' | 'html'>('excel');
   const [isExporting, setIsExporting] = useState(false);
@@ -312,65 +314,75 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
       
       // 空白藥紙模式的處理
       if (exportMode === 'currentBlank' && currentPatient) {
-        if (!medicationTemplate) {
-          alert('找不到個人備藥及給藥記錄範本，請先在範本管理上傳範本');
-          setIsExporting(false);
-          return;
-        }
-        
-        // 建立選擇的途徑類型數組
         const selectedRouteTypes: ('oral' | 'injection' | 'topical')[] = [];
         if (blankRouteOral) selectedRouteTypes.push('oral');
         if (blankRouteInjection) selectedRouteTypes.push('injection');
         if (blankRouteTopical) selectedRouteTypes.push('topical');
-        
+
         if (selectedRouteTypes.length === 0) {
           alert('請至少選擇一種藥紙類型');
           setIsExporting(false);
           return;
         }
-        
+
+        if (outputFormat === 'html') {
+          await exportBlankMedicationRecordToHtml([currentPatient.patient], selectedMonth, selectedRouteTypes);
+          onClose();
+          return;
+        }
+
+        if (!medicationTemplate) {
+          alert('找不到個人備藥及給藥記錄範本，請先在範本管理上傳範本');
+          setIsExporting(false);
+          return;
+        }
+
         await exportBlankMedicationRecordToExcel(
           currentPatient.patient,
           medicationTemplate,
           selectedMonth,
           selectedRouteTypes
         );
-        
+
         const routeNames = selectedRouteTypes.map(r => r === 'oral' ? '口服' : r === 'injection' ? '注射' : '外用').join('、');
         alert(`匯出成功！\n\n【空白藥紙】\n已為 ${currentPatient.patient.中文姓氏}${currentPatient.patient.中文名字} 匯出空白藥紙\n（包含 ${routeNames} 工作表）`);
         onClose();
         return;
       }
-      
+
       if (exportMode === 'batchBlank') {
-        if (!medicationTemplate) {
-          alert('找不到個人備藥及給藥記錄範本，請先在範本管理上傳範本');
-          setIsExporting(false);
-          return;
-        }
-        
-        // 建立選擇的途徑類型數組
         const selectedRouteTypes: ('oral' | 'injection' | 'topical')[] = [];
         if (blankRouteOral) selectedRouteTypes.push('oral');
         if (blankRouteInjection) selectedRouteTypes.push('injection');
         if (blankRouteTopical) selectedRouteTypes.push('topical');
-        
+
         if (selectedRouteTypes.length === 0) {
           alert('請至少選擇一種藥紙類型');
           setIsExporting(false);
           return;
         }
-        
+
         const selectedPatientsForBlank = activePatients.filter(p => selectedPatientIds.has(p.院友id));
-        
+
+        if (outputFormat === 'html') {
+          await exportBlankMedicationRecordToHtml(selectedPatientsForBlank, selectedMonth, selectedRouteTypes);
+          onClose();
+          return;
+        }
+
+        if (!medicationTemplate) {
+          alert('找不到個人備藥及給藥記錄範本，請先在範本管理上傳範本');
+          setIsExporting(false);
+          return;
+        }
+
         await exportBatchBlankMedicationRecordToExcel(
           selectedPatientsForBlank,
           medicationTemplate,
           selectedMonth,
           selectedRouteTypes
         );
-        
+
         const routeNames = selectedRouteTypes.map(r => r === 'oral' ? '口服' : r === 'injection' ? '注射' : '外用').join('、');
         alert(`匯出成功！\n\n【空白藥紙】\n已為 ${selectedPatientsForBlank.length} 位院友匯出空白藥紙\n（每位院友包含 ${routeNames} 工作表）`);
         onClose();
@@ -378,7 +390,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
       }
 
       const isHtmlOutput = outputFormat === 'html';
-      const shouldExportMedicationRecord = true;
+      const shouldExportMedicationRecord = includeMedicationRecord;
       const shouldExportPersonalMedicationList = includePersonalMedicationList;
 
       if (shouldExportMedicationRecord && !isHtmlOutput && !medicationTemplate) {
@@ -676,32 +688,41 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
             </div>
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-8 items-start">
-              {!isBlankMode && (
-                <div className="col-span-2">
-                  <label className="form-label mb-2">輸出格式</label>
-                  <div className="flex flex-wrap gap-2">
-                    <label className={`px-3 py-2 border rounded-md cursor-pointer text-sm ${outputFormat === 'excel' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-700'}`}>
-                      <input
-                        type="radio"
-                        name="outputFormat"
-                        checked={outputFormat === 'excel'}
-                        onChange={() => setOutputFormat('excel')}
-                        className="sr-only"
-                      />
-                      Excel 檔案
-                    </label>
-                    <label className={`px-3 py-2 border rounded-md cursor-pointer text-sm ${outputFormat === 'html' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-700'}`}>
-                      <input
-                        type="radio"
-                        name="outputFormat"
-                        checked={outputFormat === 'html'}
-                        onChange={() => setOutputFormat('html')}
-                        className="sr-only"
-                      />
-                      HTML 列印版
-                    </label>
-                  </div>
+              <div className="col-span-2">
+                <label className="form-label mb-2">輸出格式</label>
+                <div className="flex flex-wrap gap-2">
+                  <label className={`px-3 py-2 border rounded-md cursor-pointer text-sm ${outputFormat === 'excel' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-700'}`}>
+                    <input
+                      type="radio"
+                      name="outputFormat"
+                      checked={outputFormat === 'excel'}
+                      onChange={() => setOutputFormat('excel')}
+                      className="sr-only"
+                    />
+                    Excel 檔案
+                  </label>
+                  <label className={`px-3 py-2 border rounded-md cursor-pointer text-sm ${outputFormat === 'html' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-700'}`}>
+                    <input
+                      type="radio"
+                      name="outputFormat"
+                      checked={outputFormat === 'html'}
+                      onChange={() => setOutputFormat('html')}
+                      className="sr-only"
+                    />
+                    HTML 列印版
+                  </label>
                 </div>
+              </div>
+              {!isBlankMode && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeMedicationRecord}
+                    onChange={(e) => setIncludeMedicationRecord(e.target.checked)}
+                    className="form-checkbox h-5 w-5 text-blue-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700">匯出個人備藥及給藥記錄</span>
+                </label>
               )}
               {!isBlankMode && (exportMode === 'batch' || isExportAll) && (
                 <label className="flex items-center gap-2 cursor-pointer">
