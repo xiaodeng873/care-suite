@@ -191,10 +191,11 @@ const TOP_RESERVED_MM = 3;            // 頁面頂部固定留白（整頁內容
 const HEADER_HEIGHT_MM = 30;          // 頂置院友資訊區實際高度（含26mm相片+邊距）
 const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
 const ROW_SIGN_MM = 5;                // 簽署列（mr-sign-row）實際列高
+const ROW_SUMMARY_MM = 6;             // 彙總列（mr-summary td）實際列高（略高於簽署列，作視覺區別）
 const ROW_INSP_MM = 6;                // 檢測值列（mr-insp-body-row）實際列高
 const MIN_BLOCK_MM = 16;              // 單時段處方左欄多行內容（途徑最多4行）保守高度下限
 const FILLER_BLOCK_MM = MIN_SLOT_ROWS * ROW_SIGN_MM; // 一個空白處方區塊（4列）高度
-const FOOTER_FIXED_MM = 2;            // 頁碼標籤高度
+const FOOTER_FIXED_MM = 4;            // 頁碼標籤高度（8pt字體約3.4mm＋margin 0.6mm）
 const SAFETY_MARGIN_MM = 2;           // 累積邊框／行距誤差的安全餘量
 
 // 估算 footer 左側「給藥簽署指引」文字區高度（mm）。
@@ -212,7 +213,7 @@ const estimateFooterLegendMm = (staffCount: number): number => {
 const bodyUsableMm = (summarySlots: number, includeBlankRows: boolean, footerLegendMm: number): number => {
   const footerRows = includeBlankRows ? Math.max(MIN_SUMMARY_ROWS, summarySlots) : Math.max(1, summarySlots);
   // footer 實際高度＝彙總列高與指引文字區高度之較大者（文字區以 rowspan 跨列撐高）
-  const footerMm = Math.max(footerRows * ROW_SIGN_MM, footerLegendMm) + FOOTER_FIXED_MM;
+  const footerMm = Math.max(footerRows * ROW_SUMMARY_MM, footerLegendMm) + FOOTER_FIXED_MM;
   return PAGE_HEIGHT_MM - TOP_RESERVED_MM - HEADER_HEIGHT_MM - TABLE_HEADER_MM - footerMm - SAFETY_MARGIN_MM;
 };
 
@@ -961,7 +962,7 @@ td.mr-filler-nobt { border-top: none !important; }
 
 /* 底部給藥彙總（左側標籤格內含簽署指引） */
 .mr-footer-region { flex: 0 0 auto; }
-.mr-summary td { height: 6mm; }
+.mr-summary td { height: ${ROW_SUMMARY_MM}mm; }
 .mr-grid td.mr-sum-label {
   background: #f1f5f9;
   vertical-align: top;
@@ -981,8 +982,8 @@ td.mr-insp-fail { color: #dc2626; font-weight: bold; }
 .mr-pagelabel { text-align: right; font-size: 8pt; color: #475569; margin-top: 0.6mm; }
 /* 打孔區：頁頂預留 20mm，避免打孔機破壞表頭內容；顯示兩個定位圓圈（ISO 838：80mm 間距，居中）*/
 .mr-punch-zone {
-  flex: 0 0 20mm;
-  height: 20mm;
+  flex: 0 0 ${PUNCH_ZONE_MM}mm;
+  height: ${PUNCH_ZONE_MM}mm;
   width: 100%;
   position: relative;
   border-bottom: 0.3pt dashed #c8d3dd;
