@@ -76,6 +76,21 @@ interface HealthRecord {
   血糖值?: number;
   體重?: number;
 }
+// 每位院友只保留最新一筆（以 created_at 比較，null-safe），避免歷史記錄重複計入提醒
+function pickLatestPerPatient<T extends { patient_id: number; created_at?: string | null }>(records: T[]): T[] {
+  const latestPerPatient = new Map<number, T>();
+  const toTime = (value?: string | null) => {
+    const time = value ? new Date(value).getTime() : NaN;
+    return Number.isNaN(time) ? -Infinity : time;
+  };
+  records.forEach(record => {
+    const existing = latestPerPatient.get(record.patient_id);
+    if (!existing || toTime(record.created_at) > toTime(existing.created_at)) {
+      latestPerPatient.set(record.patient_id, record);
+    }
+  });
+  return Array.from(latestPerPatient.values());
+}
 const Dashboard: React.FC = () => {
   const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, loading, updatePatientHealthTask, refreshData } = usePatients();
   const [showHealthRecordModal, setShowHealthRecordModal] = useState(false);
@@ -530,27 +545,24 @@ const Dashboard: React.FC = () => {
   }, [nursingTasks, recordLookup]);
   const urgentNursingTasks = [...overdueNursingTasks, ...pendingNursingTasks, ...dueSoonNursingTasks].slice(0, 10);
   const { overdueRestraintAssessments, dueSoonRestraintAssessments } = useMemo(() => {
-    const overdue = patientRestraintAssessments.filter(assessment => { const patient = patientsMap.get(assessment.patient_id); return patient && patient.在住狀態 === '在住' && isRestraintAssessmentOverdue(assessment); });
-    const dueSoon = patientRestraintAssessments.filter(assessment => { const patient = patientsMap.get(assessment.patient_id); return patient && patient.在住狀態 === '在住' && isRestraintAssessmentDueSoon(assessment); });
+    // 每位院友只取最新一筆，續期（新檔）後舊記錄不再計入提醒
+    const latestAssessments = pickLatestPerPatient(patientRestraintAssessments);
+    const overdue = latestAssessments.filter(assessment => { const patient = patientsMap.get(assessment.patient_id); return patient && patient.在住狀態 === '在住' && isRestraintAssessmentOverdue(assessment); });
+    const dueSoon = latestAssessments.filter(assessment => { const patient = patientsMap.get(assessment.patient_id); return patient && patient.在住狀態 === '在住' && isRestraintAssessmentDueSoon(assessment); });
     return { overdueRestraintAssessments: overdue, dueSoonRestraintAssessments: dueSoon };
   }, [patientRestraintAssessments, patientsMap]);
   const urgentRestraintAssessments = [...overdueRestraintAssessments, ...dueSoonRestraintAssessments];
   const { overdueHealthAssessments, dueSoonHealthAssessments } = useMemo(() => {
-    const overdue = healthAssessments.filter(assessment => { const patient = patientsMap.get(assessment.patient_id); return patient && patient.在住狀態 === '在住' && isHealthAssessmentOverdue(assessment); });
-    const dueSoon = healthAssessments.filter(assessment => { const patient = patientsMap.get(assessment.patient_id); return patient && patient.在住狀態 === '在住' && isHealthAssessmentDueSoon(assessment); });
+    // 每位院友只取最新一筆，續期（新檔）後舊記錄不再計入提醒
+    const latestAssessments = pickLatestPerPatient(healthAssessments);
+    const overdue = latestAssessments.filter(assessment => { const patient = patientsMap.get(assessment.patient_id); return patient && patient.在住狀態 === '在住' && isHealthAssessmentOverdue(assessment); });
+    const dueSoon = latestAssessments.filter(assessment => { const patient = patientsMap.get(assessment.patient_id); return patient && patient.在住狀態 === '在住' && isHealthAssessmentDueSoon(assessment); });
     return { overdueHealthAssessments: overdue, dueSoonHealthAssessments: dueSoon };
   }, [healthAssessments, patientsMap]);
   const urgentHealthAssessments = [...overdueHealthAssessments, ...dueSoonHealthAssessments];
   const { overdueAnnualCheckups, dueSoonAnnualCheckups } = useMemo(() => {
     // 每位院友只取最新一筆（created_at 最大），避免多筆歷史記錄重複計入
-    const latestPerPatient = new Map<number, typeof annualHealthCheckups[0]>();
-    annualHealthCheckups.forEach(checkup => {
-      const existing = latestPerPatient.get(checkup.patient_id);
-      if (!existing || new Date(checkup.created_at) > new Date(existing.created_at)) {
-        latestPerPatient.set(checkup.patient_id, checkup);
-      }
-    });
-    const latestCheckups = Array.from(latestPerPatient.values());
+    const latestCheckups = pickLatestPerPatient(annualHealthCheckups);
     const overdue = latestCheckups.filter(checkup => { const patient = patientsMap.get(checkup.patient_id); return patient && patient.在住狀態 === '在住' && isAnnualCheckupOverdue(checkup); });
     const dueSoon = latestCheckups.filter(checkup => { const patient = patientsMap.get(checkup.patient_id); return patient && patient.在住狀態 === '在住' && isAnnualCheckupDueSoon(checkup); });
     return { overdueAnnualCheckups: overdue, dueSoonAnnualCheckups: dueSoon };
