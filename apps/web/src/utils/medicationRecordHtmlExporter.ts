@@ -185,12 +185,12 @@ const preparePages = (
 };
 
 // ---- 版面高度常數（毫米）& 高度感知分頁（全程以 mm 精算）----
-const PUNCH_ZONE_MM = 19;             // 頁頂打孔區高度（2cm，避免打孔機破壞表頭）
+const PUNCH_ZONE_MM = 18;             // 頁頂打孔區高度（2cm，避免打孔機破壞表頭）
 const PAGE_HEIGHT_MM = 196 - PUNCH_ZONE_MM; // A4橫向含7mm邊距後可用高度（196mm 扣除打孔區）
 const TOP_RESERVED_MM = 3;            // 頁面頂部固定留白（整頁內容底置時仍保留）
 const HEADER_HEIGHT_MM = 30;          // 頂置院友資訊區實際高度（含26mm相片+邊距）
 const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
-const ROW_SIGN_MM = 6;                // 簽署列（mr-sign-row）實際列高
+const ROW_SIGN_MM = 5;                // 簽署列（mr-sign-row）實際列高
 const ROW_INSP_MM = 6;                // 檢測值列（mr-insp-body-row）實際列高
 const MIN_BLOCK_MM = 16;              // 單時段處方左欄多行內容（途徑最多4行）保守高度下限
 const FILLER_BLOCK_MM = MIN_SLOT_ROWS * ROW_SIGN_MM; // 一個空白處方區塊（4列）高度
@@ -922,7 +922,7 @@ body {
 .mr-colhead th { font-weight: bold; height: 5mm; background: #e8eef4; color: #1f2c38; }
 .mr-dayhead th { font-size: 7pt; height: 4mm; background: #f1f5f9; color: #1f2c38; }
 .mr-sign-head { font-weight: bold; letter-spacing: 0.5pt; }
-.mr-sign-row td { height: 6mm; }
+.mr-sign-row td { height: 5mm; }
 .mr-sign-row td.c-date, .mr-sign-row td.c-name, .mr-sign-row td.c-route {
   font-size: 8pt;
   text-align: left;
@@ -933,9 +933,9 @@ body {
 .mr-med-test { font-size: 7.2pt; color: #b45309; margin-top: 0.4mm; }
 .mr-med-source { font-size: 7.2pt; color: #475569; margin-top: 0.4mm; }
 
-/* 每個簽署日格的左上→右下斜線（以 SVG 背景繪製，避免 sub-pixel 斷線問題） */
+/* 每個簽署日格的左下→右上斜線（以 SVG 背景繪製，避免 sub-pixel 斷線問題） */
 td.mr-diag {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3Cline x1='0' y1='0' x2='1' y2='1' stroke='%239aa7b4' stroke-width='0.08' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3Cline x1='0' y1='1' x2='1' y2='0' stroke='%239aa7b4' stroke-width='0.08' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
@@ -943,7 +943,7 @@ td.mr-diag {
 td.mr-inactive { background: #e2e8f0 !important; background-image: none !important; }
 /* 即時備藥（preparation_method=immediate）簽署格：深色細斜線提示 */
 td.mr-diag-prn {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3Cline x1='0' y1='0' x2='1' y2='1' stroke='%23334155' stroke-width='0.08' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3Cline x1='0' y1='1' x2='1' y2='0' stroke='%23334155' stroke-width='0.08' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
