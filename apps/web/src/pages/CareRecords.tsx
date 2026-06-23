@@ -1452,7 +1452,7 @@ const CareRecords: React.FC = () => {
       {selectedPatientId && (
         <>
           <div className="card">
-            <div className="flex flex-wrap lg:flex-nowrap items-start justify-between gap-4 p-4 border-b border-gray-200">
+            <div className="flex flex-nowrap items-start justify-between gap-4 p-4 border-b border-gray-200">
               <div className="flex flex-wrap gap-1 flex-1 min-w-0">
                 {visibleTabTypes.map(tabType => {
                   const tabConfig = {
