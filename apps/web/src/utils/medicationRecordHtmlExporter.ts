@@ -194,7 +194,7 @@ const ROW_SIGN_MM = 5;                // 簽署列（mr-sign-row）實際列高
 const ROW_INSP_MM = 6;                // 檢測值列（mr-insp-body-row）實際列高
 const MIN_BLOCK_MM = 16;              // 單時段處方左欄多行內容（途徑最多4行）保守高度下限
 const FILLER_BLOCK_MM = MIN_SLOT_ROWS * ROW_SIGN_MM; // 一個空白處方區塊（4列）高度
-const FOOTER_FIXED_MM = 4;            // 頁碼標籤高度
+const FOOTER_FIXED_MM = 2;            // 頁碼標籤高度
 const SAFETY_MARGIN_MM = 2;           // 累積邊框／行距誤差的安全餘量
 
 // 估算 footer 左側「給藥簽署指引」文字區高度（mm）。
