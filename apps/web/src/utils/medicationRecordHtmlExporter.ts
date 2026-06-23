@@ -185,7 +185,8 @@ const preparePages = (
 };
 
 // ---- 版面高度常數（毫米）& 高度感知分頁（全程以 mm 精算）----
-const PAGE_HEIGHT_MM = 196;           // A4橫向含7mm邊距後可用高度
+const PUNCH_ZONE_MM = 20;             // 頁頂打孔區高度（2cm，避免打孔機破壞表頭）
+const PAGE_HEIGHT_MM = 196 - PUNCH_ZONE_MM; // A4橫向含7mm邊距後可用高度（196mm 扣除打孔區）
 const TOP_RESERVED_MM = 3;            // 頁面頂部固定留白（整頁內容底置時仍保留）
 const HEADER_HEIGHT_MM = 30;          // 頂置院友資訊區實際高度（含26mm相片+邊距）
 const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
@@ -327,6 +328,7 @@ const renderPage = (
   const pageLabel = `${ROUTE_SHEET_LABELS[page.routeKind]} 共${page.pageIndexInRoute}/${page.pageCountInRoute}頁`;
 
   return '<section class="mr-page">'
+    + '<div class="mr-punch-zone" aria-hidden="true"><div class="mr-punch-hole"></div><div class="mr-punch-hole"></div></div>'
     + (includeBlankRows ? '<div class="mr-top-spacer"></div>' : '')
     + renderHeaderRegion(page.patient, page.routeKind, selectedMonth)
     + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows)}</div>`
@@ -978,6 +980,26 @@ td.mr-filler-nobt { border-top: none !important; }
 .mr-insp-type { font-size: 7.2pt; font-weight: bold; color: #1d4ed8; }
 td.mr-insp-fail { color: #dc2626; font-weight: bold; }
 .mr-pagelabel { text-align: right; font-size: 8pt; color: #475569; margin-top: 0.6mm; }
+/* 打孔區：頁頂預留 20mm，避免打孔機破壞表頭內容；顯示兩個定位圓圈（ISO 838：80mm 間距，居中）*/
+.mr-punch-zone {
+  flex: 0 0 20mm;
+  height: 20mm;
+  width: 100%;
+  position: relative;
+  border-bottom: 0.3pt dashed #c8d3dd;
+}
+.mr-punch-hole {
+  position: absolute;
+  width: 8mm;
+  height: 8mm;
+  border-radius: 50%;
+  border: 0.5pt dashed #b0b8c4;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #fff;
+}
+.mr-punch-hole:first-child { left: calc(50% - 44mm); }
+.mr-punch-hole:last-child  { left: calc(50% + 36mm); }
 </style>
 </head>
 <body>

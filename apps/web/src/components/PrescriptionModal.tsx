@@ -65,6 +65,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
   const [ocrFilledFields, setOcrFilledFields] = useState<Set<string>>(new Set());
   const [fieldConfidences, setFieldConfidences] = useState<Record<string, number>>({});
   const [validationError, setValidationError] = useState<string>('');
+  const [showContradictionModal, setShowContradictionModal] = useState(false);
+  const [contradictionDetails, setContradictionDetails] = useState<string>('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -319,24 +321,25 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       return;
     }
 
-    // 驗證服用時間點數量與每日服用次數的一致性
+    // 驗證服用時間點數量與每日服用次數的一致性（矛盾時以 Modal 提醒）
+    const freqLabel = (n: number): string => ({ 1: 'QD（每日1次）', 2: 'BID（每日2次）', 3: 'TID（每日3次）', 4: 'QID（每日4次）' }[n] ?? `每日${n}次`);
+
     if (!formData.is_prn) {
-      // 非PRN藥物：服用時間點數量必須與每日服用次數相同
       const expectedTimeSlots = formData.daily_frequency || 1;
       const actualTimeSlots = formData.medication_time_slots.length;
-
       if (actualTimeSlots !== expectedTimeSlots) {
-        setValidationError(`非PRN藥物的服用時間點數量必須與每日服用次數相同。\n\n目前設定：每日${expectedTimeSlots}次\n實際時間點：${actualTimeSlots}個\n\n請調整服用時間點或每日服用次數。`);
+        setContradictionDetails(
+          `定服藥物的服用時間點數量與每日服用次數不符。\n\n每日次數：${freqLabel(expectedTimeSlots)}\n已設時間點：${actualTimeSlots} 個\n\n請補齊全部 ${expectedTimeSlots} 個時間點，或將每日次數改為 ${actualTimeSlots}。`
+        );
+        setShowContradictionModal(true);
         return;
       }
     } else {
-      // PRN藥物：至少需要一個服用時間點，且服用時間點的數量不能超過每日服用次數
-      if (formData.medication_time_slots.length === 0) {
-        setValidationError('PRN藥物至少需要設定一個服用時間點');
-        return;
-      }
       if (formData.medication_time_slots.length > formData.daily_frequency) {
-        setValidationError(`PRN藥物的服用時間點數量 (${formData.medication_time_slots.length}) 不能超過每日服用次數 (${formData.daily_frequency})。`);
+        setContradictionDetails(
+          `需要時服（PRN）的時間點數量超過每日次數上限。\n\n每日次數上限：${freqLabel(formData.daily_frequency)}\n已設時間點：${formData.medication_time_slots.length} 個\n\n請移除多餘的時間點，或將每日次數上限調高。`
+        );
+        setShowContradictionModal(true);
         return;
       }
     }
@@ -1160,6 +1163,38 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
           </div>
         </form>
       </div>
+
+      {/* 處方矛盾提醒 Modal */}
+      {showContradictionModal && (
+        <div
+          className="fixed inset-0 flex items-center justify-center p-4 z-[60] bg-black bg-opacity-60"
+          onClick={() => setShowContradictionModal(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 rounded-full bg-amber-100 flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">處方資料有矛盾</h3>
+                <p className="text-sm text-amber-800 whitespace-pre-line">{contradictionDetails}</p>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium"
+                onClick={() => setShowContradictionModal(false)}
+              >
+                返回修改
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
