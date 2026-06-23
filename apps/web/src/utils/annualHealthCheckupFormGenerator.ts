@@ -667,11 +667,7 @@ interface PatientForPml {
 const generatePmlPage = (patient: PatientForPml, prescriptions: MedicationPrescription[]): string => {
   const name = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   return `<div class="page">
-  <div class="header">
-    <span>《安老院實務守則》2024年6月（修訂版）</span>
-    <span>附件 12.1</span>
-  </div>
-  <div class="title">
+   <div class="title">
     <h1>Personal Medication Record</h1>
     <h2>個人藥物記錄</h2>
   </div>
@@ -713,7 +709,7 @@ const generatePmlPage = (patient: PatientForPml, prescriptions: MedicationPrescr
       <td colspan="7" style="text-align:center; padding:20px; color:#666; vertical-align:top;">暫無在服藥物記錄</td>
     </tr>`}
   </table>
-  <p style="text-align:center; margin-top:5mm; font-size:9pt;">附件 12.1 - 1a</p>
+  <p style="text-align:center; margin-top:5mm; font-size:9pt;"></p>
 </div>`;
 };
 
