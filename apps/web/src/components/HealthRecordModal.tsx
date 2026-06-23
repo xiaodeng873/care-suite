@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { X, Heart, Activity, Droplets, Scale, User, Calendar, Clock, AlertTriangle, ChevronDown, ChevronUp, Sparkles, RefreshCw, Loader2, CheckCircle } from 'lucide-react';
+import { X, Heart, Activity, Droplets, Scale, User, Calendar, Clock, AlertTriangle, ChevronDown, ChevronUp, Sparkles, RefreshCw, Loader2, CheckCircle, Camera } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { isInHospital } from '../utils/careRecordHelper';
 import { getRecentHealthRecordsByPatient } from '../lib/database';
 import { generateHealthRecordSuggestions, GeneratedHealthData } from '../utils/healthRecordGenerator';
+import VitalSignScanner from './VitalSignScanner';
+import type { VitalSignScanResult } from '../utils/vitalSignOcrParser';
 interface HealthRecordModalProps {
   record?: any;
   initialData?: {
@@ -227,6 +229,31 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
   const updateFormData = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+  // 直向手機/平板才顯示「掃描儀表」入口
+  const [isPortrait, setIsPortrait] = useState(false);
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(orientation: portrait) and (max-width: 1024px)');
+    const update = () => setIsPortrait(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanLowConfidence, setScanLowConfidence] = useState(false);
+  const handleScanResult = (result: VitalSignScanResult) => {
+    setFormData(prev => {
+      const next: typeof prev = { ...prev };
+      for (const [field, value] of Object.entries(result.values)) {
+        if (value != null && value !== '') {
+          (next as Record<string, string>)[field] = value;
+        }
+      }
+      return next;
+    });
+    setScanLowConfidence(result.lowConfidence);
+    setShowScanner(false);
+  };
   const handleAbsenceChange = (checked: boolean) => {
     if (checked) {
       setFormData(prev => ({
@@ -388,6 +415,13 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
   dateWarningHandlersRef.current.cancel = handleDateWarningCancel;
   return (
     <>
+      {showScanner && (formData.記錄類型 === '生命表徵' || formData.記錄類型 === '血糖控制') && (
+        <VitalSignScanner
+          recordType={formData.記錄類型 as '生命表徵' | '血糖控制'}
+          onResult={handleScanResult}
+          onCancel={() => setShowScanner(false)}
+        />
+      )}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
         onClick={onClose}
@@ -461,6 +495,22 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                 />
               </div>
             </div>
+            {isPortrait && !formData.isAbsent && (formData.記錄類型 === '生命表徵' || formData.記錄類型 === '血糖控制') && (
+              <button
+                type="button"
+                onClick={() => setShowScanner(true)}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-600 text-white font-medium active:bg-blue-700"
+              >
+                <Camera className="h-5 w-5" />
+                掃描{formData.記錄類型 === '血糖控制' ? '血糖儀' : '血壓計'}
+              </button>
+            )}
+            {scanLowConfidence && (
+              <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>已自動填入掃描結果，但辨識信心較低，請核對數值是否正確。</span>
+              </div>
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-[60%_40%] gap-4">
               <div>
                 <label className="form-label">
