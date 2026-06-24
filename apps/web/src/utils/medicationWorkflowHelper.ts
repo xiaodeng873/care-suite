@@ -270,21 +270,16 @@ export const formatDispenseCellContent = (
     return '';
   }
   // 檢查派藥是否失敗，返回特殊代號
+  // 規則：入院=A、回家渡假=HL、暫停=W/H、其他=O
   if (workflowRecord.dispensing_status === 'failed') {
     const reason = workflowRecord.dispensing_failure_reason;
-    const customReason = workflowRecord.custom_failure_reason;
     // 處理所有特殊執行結果
     if (reason === '入院') return 'A';
     if (reason === '自理') return 'S';
     if (reason === '拒服') return 'R';
-    if (reason === '暫停') return 'O';
+    if (reason === '暫停') return 'P';
     if (reason === '回家渡假') return 'HL';
-    // 處理「其他」類別中的特殊情況
-    if (reason === '其他') {
-      if (customReason === '暫停') return 'O';
-      if (customReason === '回家渡假') return 'HL';
-      if (customReason === '自理') return 'S';
-    }
+    if (reason === '其他') return 'O';
   }
   const dispenseStaffName = workflowRecord.dispensing_staff;
   const isDispenseCompleted = workflowRecord.dispensing_status === 'completed';

@@ -640,28 +640,18 @@ const getBoundaryCells = (
   return { before, after };
 };
 
-// 從工作流記錄提取執藥者、核藥者代號及特殊代號（供四象限格渲染）。
-// 特殊代號（A/S/R/O/HL）優先顯示於格中央；否則左上放執藥者、右下放核藥者。
+// 從工作流記錄提取執藥者、核藥者代號（供四象限格渲染）。
+// 規則：四象限格僅映射執藥/核藥；派藥結果代號（A/S/R/O/HL）只在彙總區顯示。
 const getWorkflowCellParts = (
   record: WorkflowRecord | null,
   staffMapping: StaffCodeMapping
-): { prep: string; verify: string; special: string } => {
-  if (!record) return { prep: '', verify: '', special: '' };
-  const isAnyFailed = record.preparation_status === 'failed'
-    || record.verification_status === 'failed'
-    || record.dispensing_status === 'failed';
-  if (isAnyFailed) {
-    const r = record.dispensing_failure_reason, c = record.custom_failure_reason;
-    const special = r === '入院' ? 'A' : r === '自理' ? 'S' : r === '拒服' ? 'R' : r === '暫停' ? 'O'
-      : r === '回家渡假' ? 'HL'
-      : r === '其他' ? (c === '暫停' ? 'O' : c === '回家渡假' ? 'HL' : c === '自理' ? 'S' : '') : '';
-    if (special) return { prep: '', verify: '', special };
-  }
+): { prep: string; verify: string } => {
+  if (!record) return { prep: '', verify: '' };
   const prep = record.preparation_status === 'completed' && record.preparation_staff
     ? (staffMapping[record.preparation_staff] ?? '') : '';
   const verify = record.verification_status === 'completed' && record.verification_staff
     ? (staffMapping[record.verification_staff] ?? '') : '';
-  return { prep, verify, special: '' };
+  return { prep, verify };
 };
 
 const signatureDayCells = (
@@ -683,13 +673,9 @@ const signatureDayCells = (
     const inRange = slot && isDateInPrescriptionRange(dateStr, slot, prescription);
     if (inRange) {
       const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
-      const { prep, verify, special } = getWorkflowCellParts(record, staffMapping);
-      if (special) {
-        cellInner = `<span class="mr-cell-special">${escapeHtml(special)}</span>`;
-      } else {
-        cellInner = (prep ? `<span class="mr-cell-prep">${escapeHtml(prep)}</span>` : '')
-          + (verify ? `<span class="mr-cell-verify">${escapeHtml(verify)}</span>` : '');
-      }
+      const { prep, verify } = getWorkflowCellParts(record, staffMapping);
+      cellInner = (prep ? `<span class="mr-cell-prep">${escapeHtml(prep)}</span>` : '')
+        + (verify ? `<span class="mr-cell-verify">${escapeHtml(verify)}</span>` : '');
     } else {
       const key = `${dateStr}__${slot}`;
       if (boundary.before.has(key)) {
@@ -788,29 +774,50 @@ const dispenseDayCells = (
     let content = '';
     let anyInRange = false;
     if (slot) {
-      let successContent = '';
-      let fallbackContent = '';
+      // 優先檢查是否有派藥失敗（失敗代號優先於職員代號）
+      let failureCode = '';
+      let successStaffCode = '';
+      let hasCustom = false;
+      
       for (const block of blocks) {
         const prescription = block.prescription;
         if (!block.timeSlots.includes(slot)) continue;
         if (!isDateInPrescriptionRange(dateStr, slot, prescription)) continue;
         anyInRange = true;
+        
         if (prescription.preparation_method === 'custom') {
-          if (!successContent) successContent = 'S';
+          hasCustom = true;
           continue;
         }
+        
         const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
-        const value = formatDispenseCellContent(record, staffMapping);
-        if (value) {
-          if (record?.dispensing_status === 'completed') {
-            successContent = value;
-            break;
-          } else if (!fallbackContent) {
-            fallbackContent = value;
-          }
+        if (!record) continue;
+        
+        // 檢查派藥狀態
+        if (record.dispensing_status === 'failed') {
+          // 提取失敗代號
+          const reason = record.dispensing_failure_reason;
+          if (reason === '入院') failureCode = 'A';
+          else if (reason === '自理') failureCode = 'S';
+          else if (reason === '拒服') failureCode = 'R';
+          else if (reason === '暫停') failureCode = 'W/H';
+          else if (reason === '回家渡假') failureCode = 'HL';
+          else if (reason === '其他') failureCode = 'O';
+        } else if (record.dispensing_status === 'completed' && record.dispensing_staff) {
+          // 記錄成功的職員代號（只有全部成功時才使用）
+          successStaffCode = staffMapping[record.dispensing_staff] ?? '';
         }
       }
-      content = successContent || fallbackContent;
+      
+      // 優先級：失敗代號 > 自理 > 職員代號 > 邊界標記
+      if (failureCode) {
+        content = failureCode;
+      } else if (hasCustom) {
+        content = 'S';
+      } else {
+        content = successStaffCode;
+      }
+      
       if (!anyInRange && !content) {
         const key = `${dateStr}__${slot}`;
         const hasBefore = blockBoundaries.some(({ block, boundary }) =>
@@ -1049,22 +1056,22 @@ td.mr-boundary { color: #7c3aed; font-weight: bold; }
 tbody.mr-prescription-body + tbody.mr-prescription-body > tr:first-child > td,
 tbody.mr-prescription-body + tbody.mr-filler-block > tr:first-child > td,
 tbody.mr-filler-block + tbody.mr-filler-block > tr:first-child > td {
-  border-top: 1.5pt solid #1e3a5c !important;
+  border-top: 1.5pt solid #6d7a8a !important;
 }
 /* 簽署日格四象限：執藥者代號在左上，核藥者代號在右下 */
 td.c-day { position: relative; }
 .mr-cell-prep {
   position: absolute; top: 0.3mm; left: 0.4mm;
-  font-size: 4.5pt; line-height: 1; font-weight: bold; pointer-events: none;
+  font-size: 7.5pt; line-height: 1; pointer-events: none;
 }
 .mr-cell-verify {
   position: absolute; bottom: 0.3mm; right: 0.4mm;
-  font-size: 4.5pt; line-height: 1; font-weight: bold; pointer-events: none;
+  font-size: 7.5pt; line-height: 1; pointer-events: none;
 }
 .mr-cell-special {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 5.5pt; font-weight: bold; pointer-events: none;
+  font-size: 7pt; font-weight: bold; pointer-events: none;
 }
 /* 處方區空白填充列 */
 .mr-filler-row td { background-color: white; }
