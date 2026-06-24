@@ -27,6 +27,13 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     return hongKongTime.toISOString().split('T')[1].slice(0, 5);
   };
 
+  const normalizeDateToISO = (value: unknown): string => {
+    if (!value) return '';
+    const date = new Date(String(value));
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0];
+  };
+
   const [formData, setFormData] = useState({
     patient_id: prescription?.patient_id || '',
     medication_name: prescription?.medication_name || '',
@@ -55,6 +62,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     status: prescription?.status || 'pending_change',
     notes: prescription?.notes || ''
   });
+
+  const [startDateMode, setStartDateMode] = useState<'manual' | 'admission'>('manual');
+  const selectedPatient = patients.find((p: any) => String(p?.院友id) === String(formData.patient_id));
+  const admissionDateIso = normalizeDateToISO(selectedPatient?.入住日期);
 
   const [inspectionRules, setInspectionRules] = useState(
     prescription?.inspection_rules || []
@@ -207,6 +218,12 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       }));
     }
   }, [formData.daily_frequency, formData.meal_timing]);
+
+  useEffect(() => {
+    if (startDateMode !== 'admission') return;
+    if (!admissionDateIso) return;
+    setFormData(prev => (prev.start_date === admissionDateIso ? prev : { ...prev, start_date: admissionDateIso }));
+  }, [startDateMode, admissionDateIso]);
 
   const addInspectionRule = () => {
     setInspectionRules(prev => [...prev, {
@@ -481,7 +498,15 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   value={formData.patient_id}
                   onChange={(patientId) => {
                     if (validationError) setValidationError('');
-                    setFormData(prev => ({ ...prev, patient_id: patientId }));
+                    const matchedPatient = patients.find((p: any) => String(p?.院友id) === String(patientId));
+                    const matchedAdmissionDate = normalizeDateToISO(matchedPatient?.入住日期);
+                    setFormData(prev => ({
+                      ...prev,
+                      patient_id: patientId,
+                      start_date: startDateMode === 'admission' && matchedAdmissionDate
+                        ? matchedAdmissionDate
+                        : prev.start_date,
+                    }));
                   }}
                   placeholder="搜索院友..."
                   className={getFieldClassName('patient_id', '')}
@@ -570,14 +595,36 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   <Calendar className="h-4 w-4 inline mr-1" />
                   開始日期 *
                 </label>
+                <select
+                  value={startDateMode}
+                  onChange={(e) => {
+                    const mode = e.target.value as 'manual' | 'admission';
+                    setStartDateMode(mode);
+                    if (mode === 'admission') {
+                      if (admissionDateIso) {
+                        setFormData(prev => ({ ...prev, start_date: admissionDateIso }));
+                      } else {
+                        setValidationError('此院友尚未設定入住日期，請先在院友資料補上，或改用手動輸入開始日期。');
+                      }
+                    }
+                  }}
+                  className="form-input mb-2"
+                >
+                  <option value="manual">手動輸入日期</option>
+                  <option value="admission">入住前（使用入住日）</option>
+                </select>
                 <input
                   type="date"
                   name="start_date"
                   value={formData.start_date}
                   onChange={handleChange}
                   className="form-input"
+                  disabled={startDateMode === 'admission' && !!admissionDateIso}
                   required
                 />
+                {startDateMode === 'admission' && admissionDateIso && (
+                  <p className="text-xs text-gray-500 mt-1">已套用入住日：{admissionDateIso}</p>
+                )}
               </div>
 
               <div>

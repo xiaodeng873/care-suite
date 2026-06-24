@@ -31,6 +31,7 @@ interface PageData {
   pageIndexInRoute: number;
   pageCountInRoute: number;
   fillerCount: number; // 勾「處方空白列」時，本頁依剩餘空間可補的空白處方區塊數
+  oralQuantityStat?: string; // 口服藥紙第一頁：全部口服藥物（單位「粒」）各時間點數量統計
 }
 
 const ROUTE_SUBTITLES: Record<PageRouteKind, string> = {
@@ -151,12 +152,13 @@ const preparePages = (
 
   const footerLegendMm = estimateFooterLegendMm(staffCount);
   const pages: PageData[] = [];
+  const oralQuantityStat = computeOralQuantityStat(categorized.oral);
 
   const addRoute = (routeKind: PageRouteKind, rxList: MedicationPrescription[]): void => {
     if (rxList.length === 0) return;
     const blocks = rxList.map((rx) => ({
       prescription: rx,
-      timeSlots: sortDistinctTimeSlots(rx.medication_time_slots ?? []),
+      timeSlots: resolvePrescriptionTimeSlots(rx),
     }));
     const grouped = paginateBlocks(blocks, includeBlankRows, footerLegendMm);
     grouped.forEach((pb, i) => {
@@ -172,6 +174,7 @@ const preparePages = (
         patient, routeKind, blocks: pb,
         pageIndexInRoute: i + 1, pageCountInRoute: grouped.length,
         fillerCount,
+        oralQuantityStat: routeKind === 'oral' && i === 0 ? oralQuantityStat : undefined,
       });
     });
   };
@@ -331,9 +334,116 @@ const formatInspectionValue = (record: WorkflowRecord | null): string => {
   return '';
 };
 
+const TIME_SLOT_LABEL_TO_TIME: Record<string, string> = {
+  '餐前': '07:00',
+  '早餐前': '07:00',
+  '午餐前': '11:00',
+  '晚餐前': '17:00',
+  '進餐時': '08:00',
+  '早餐時': '08:00',
+  '午餐時': '12:00',
+  '晚餐時': '16:00',
+  '餐後': '09:00',
+  '早餐後': '09:00',
+  '午餐後': '13:00',
+  '晚餐後': '18:00',
+  '早上': '08:00',
+  '中午': '12:00',
+  '晚上': '20:00',
+  '睡前': '20:00',
+};
+
+const normalizeTimeSlotValue = (slot: unknown): string => {
+  const raw = String(slot ?? '').trim();
+  if (!raw) return '';
+  const match = raw.match(/^(\d{1,2}):(\d{2})/);
+  if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
+  return TIME_SLOT_LABEL_TO_TIME[raw] ?? raw;
+};
+
+const getAutoTimeSlotsForExport = (dailyFrequency: number, mealTiming: string): string[] => {
+  const f = Math.max(1, Number(dailyFrequency) || 1);
+  if (f === 1) {
+    return [normalizeTimeSlotValue(mealTiming) || '08:00'];
+  }
+  if (f === 2) {
+    const first = mealTiming === '早餐前' || mealTiming === '餐前' ? '07:00' : '08:00';
+    return [first, '16:00'];
+  }
+  if (f === 3) {
+    const first = mealTiming === '早餐前' || mealTiming === '餐前' ? '07:00' : '08:00';
+    return [first, '12:00', '16:00'];
+  }
+  if (f === 4) {
+    const first = mealTiming === '早餐前' || mealTiming === '餐前' ? '07:00' : '08:00';
+    return [first, '12:00', '16:00', '20:00'];
+  }
+  return ['08:00'];
+};
+
+const resolvePrescriptionTimeSlots = (prescription: MedicationPrescription): string[] => {
+  const rawSlots = Array.isArray(prescription.medication_time_slots)
+    ? prescription.medication_time_slots
+    : [];
+  const normalizedSlots = sortDistinctTimeSlots(rawSlots.map(normalizeTimeSlotValue).filter(Boolean));
+  if (normalizedSlots.length > 0) return normalizedSlots;
+
+  const mealTiming = String(prescription.meal_timing ?? '').trim();
+  if (!mealTiming) return [];
+  return sortDistinctTimeSlots(getAutoTimeSlotsForExport(Number(prescription.daily_frequency) || 1, mealTiming));
+};
+
+const getMealTimingLabel = (prescription: MedicationPrescription): string => {
+  const raw = String(prescription.meal_timing ?? '').trim();
+  if (raw) return raw;
+
+  const rawSlots = Array.isArray(prescription.medication_time_slots)
+    ? prescription.medication_time_slots
+    : [];
+  // 若資料只存文字時段（例如 晚上/餐前），可回填到「途徑/次數」欄
+  const textualSlots = [...new Set(rawSlots
+    .map((s) => String(s ?? '').trim())
+    .filter((s) => s && !/^\d{1,2}:\d{2}/.test(s)))];
+  return textualSlots.join('、');
+};
+
 const sortDistinctTimeSlots = (slots: string[]): string[] => {
-  const distinct = [...new Set((slots ?? []).filter((slot) => slot != null && String(slot).trim() !== ''))];
+  const distinct = [...new Set((slots ?? []).map((slot) => normalizeTimeSlotValue(slot)).filter(Boolean))];
   return distinct.sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b));
+};
+
+// 將 "HH:mm" 轉為短標籤：上午加 A、下午加 P，並以 12 小時制顯示（08:00→8A、10:00→10A、16:00→4P）
+const formatSlotShortLabel = (slot: string): string => {
+  const match = String(slot ?? '').match(/(\d{1,2}):(\d{2})/);
+  if (!match) return slot;
+  const hour = parseInt(match[1], 10);
+  const minute = match[2];
+  const suffix = hour < 12 ? 'A' : 'P';
+  let hour12 = hour % 12;
+  if (hour12 === 0) hour12 = 12;
+  return minute === '00' ? `${hour12}${suffix}` : `${hour12}:${minute}${suffix}`;
+};
+
+// 統計全部口服藥物中單位為「粒」的藥物，於各時間點的總數量（如：藥物數量統計 8A(10) 10A(5.5) 4P(6)）
+const computeOralQuantityStat = (oralPrescriptions: MedicationPrescription[]): string => {
+  const totals = new Map<string, number>();
+  for (const rx of oralPrescriptions) {
+    const unit = String(rx.dosage_unit ?? '').trim();
+    if (unit !== '粒') continue;
+    const amount = parseFloat(String(rx.dosage_amount ?? ''));
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+    for (const slot of resolvePrescriptionTimeSlots(rx)) {
+      totals.set(slot, (totals.get(slot) ?? 0) + amount);
+    }
+  }
+  if (totals.size === 0) return '';
+  const sortedSlots = [...totals.keys()].sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b));
+  const parts = sortedSlots.map((slot) => {
+    const total = totals.get(slot) ?? 0;
+    const totalStr = Number.isInteger(total) ? String(total) : String(parseFloat(total.toFixed(2)));
+    return `${formatSlotShortLabel(slot)}(${totalStr})`;
+  });
+  return `藥物數量統計 ${parts.join(' ')}`;
 };
 
 const classifyRoute = (prescription: MedicationPrescription): RouteKind => {
@@ -486,12 +596,14 @@ const renderPrescriptionBlock = (
   const dateInfo = `<div>開始日期：${escapeHtml(formatDate(prescription.start_date))}</div>`
     + `<div>處方日期：${escapeHtml(formatDate(prescription.prescription_date))}</div>`;
   const inspectionRequirement = formatInspectionRequirement(prescription);
+  const mealTimingLabel = getMealTimingLabel(prescription);
   const nameInfo = `<div class="mr-med-name">${escapeHtml(prescription.medication_name ?? '')}</div>`
     + (inspectionRequirement ? `<div class="mr-med-test">${escapeHtml(inspectionRequirement)}</div>` : '')
     + (prescription.medication_source ? `<div class="mr-med-source">來源：${escapeHtml(String(prescription.medication_source))}</div>` : '');
   const routeInfo = [
     prescription.administration_route ?? '',
     getFrequencyDescription(prescription),
+    mealTimingLabel,
     getDosageText(prescription),
     prescription.is_prn ? '需要時' : '',
   ]
@@ -731,14 +843,15 @@ const renderFooterRegion = (
   const legendHtml = '<div class="mr-legend-title">給藥簽署指引</div>'
     + legendCodes
     + legendNotes
-    + staffCodesHtml;
+    + staffCodesHtml
+    + (page.oralQuantityStat ? `<div class="mr-legend-qty">${escapeHtml(page.oralQuantityStat)}</div>` : '');
 
   const rows: string[] = [];
   let labelEmitted = false;
   for (const slot of summarySlots) {
     const labelCell = labelEmitted
       ? ''
-      : `<td class="mr-sum-label" colspan="3" rowspan="${totalRows}">${legendHtml}</td>`;
+      : `<td class="mr-sum-label" colspan="3" rowspan="${totalRows}"><div class="mr-legend-wrap">${legendHtml}</div></td>`;
     labelEmitted = true;
 
     const timeCell = `<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>`;
@@ -800,7 +913,7 @@ const dispenseDayCells = (
           if (reason === '入院') failureCode = 'A';
           else if (reason === '自理') failureCode = 'S';
           else if (reason === '拒服') failureCode = 'R';
-          else if (reason === '暫停') failureCode = 'W/H';
+          else if (reason === '暫停') failureCode = 'P';
           else if (reason === '回家渡假') failureCode = 'HL';
           else if (reason === '其他') failureCode = 'O';
         } else if (record.dispensing_status === 'completed' && record.dispensing_staff) {
@@ -1030,7 +1143,7 @@ body {
   padding: 0.4mm 1mm;
   vertical-align: top;
 }
-.mr-med-name { font-weight: bold; }
+.mr-med-name { font-weight: bold; font-size: 10pt; }
 .mr-med-test { font-size: 7.2pt; color: #b45309; margin-top: 0.4mm; }
 .mr-med-source { font-size: 7.2pt; color: #475569; margin-top: 0.4mm; }
 
@@ -1056,7 +1169,7 @@ td.mr-boundary { color: #7c3aed; font-weight: bold; }
 tbody.mr-prescription-body + tbody.mr-prescription-body > tr:first-child > td,
 tbody.mr-prescription-body + tbody.mr-filler-block > tr:first-child > td,
 tbody.mr-filler-block + tbody.mr-filler-block > tr:first-child > td {
-  border-top: 1.5pt solid #6d7a8a !important;
+  border-top: 1.5pt solid #929496 !important;
 }
 /* 簽署日格四象限：執藥者代號在左上，核藥者代號在右下 */
 td.c-day { position: relative; }
@@ -1095,6 +1208,8 @@ td.mr-filler-nobt { border-top: none !important; }
 .mr-legend-codes span { margin-right: 2.4mm; white-space: nowrap; }
 .mr-staff-codes span { margin-right: 2.4mm; white-space: nowrap; }
 .mr-legend-note { font-size: 7pt; line-height: 1.3; color: #64748b; margin-top: 0.3mm; }
+.mr-grid td.mr-sum-label .mr-legend-wrap { display: flex; flex-direction: column; height: 100%; }
+.mr-legend-qty { margin-top: auto; padding-top: 1mm; font-size: 7.6pt; font-weight: bold; color: #0f2740; }
 .mr-sum-row td.c-time { font-size: 8pt; }
 .mr-insp-body-row td { height: ${ROW_INSP_MM}mm; }
 .mr-insp-type { font-size: 7.2pt; font-weight: bold; color: #1d4ed8; }
