@@ -63,36 +63,27 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
     stillSinceRef.current = null;
   }, []);
 
-  // 影像前處理：灰階 + 對比增強 + 2 倍放大，提升 LCD/LED 儀表辨識率。
-  const buildPreprocessedDataUrl = useCallback((): string | null => {
+  // 擷取相機畫面送 Gemini 辨識。
+  // 重要：送「彩色、未經灰階/強對比處理」的高品質影像，與文件識別一致。
+  // 灰階+強對比是傳統 OCR(Tesseract) 的前處理，會讓 LCD 反光區死白、
+  // 數字邊緣斷裂，反而降低 Gemini Vision 的辨識率。
+  const buildCaptureDataUrl = useCallback((): string | null => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return null;
     const canvas = captureCanvasRef.current ?? document.createElement('canvas');
     captureCanvasRef.current = canvas;
-    const scale = 2;
     const w = video.videoWidth;
     const h = video.videoHeight;
-    canvas.width = w * scale;
-    canvas.height = h * scale;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
     if (!ctx) return null;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const d = img.data;
-    const contrast = 1.6;
-    const intercept = 128 * (1 - contrast);
-    for (let i = 0; i < d.length; i += 4) {
-      const gray = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
-      let v = contrast * gray + intercept;
-      v = v < 0 ? 0 : v > 255 ? 255 : v;
-      d[i] = d[i + 1] = d[i + 2] = v;
-    }
-    ctx.putImageData(img, 0, 0);
-    return canvas.toDataURL('image/png');
+    ctx.drawImage(video, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg', 0.92);
   }, []);
 
   const runGeminiRecognition = useCallback(async () => {
-    const dataUrl = buildPreprocessedDataUrl();
+    const dataUrl = buildCaptureDataUrl();
     if (!dataUrl) {
       busyRef.current = false;
       return;
@@ -104,7 +95,7 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
       const { data, error } = await supabase.functions.invoke('gemini-vision-extract', {
         body: {
           imageBase64: base64,
-          mimeType: 'image/png',
+          mimeType: 'image/jpeg',
           prompt: DEVICE_PROMPTS[recordType],
         },
       });
@@ -136,7 +127,7 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
         setPhase('failed');
       }
     }
-  }, [buildPreprocessedDataUrl, onResult, recordType, stopDetectionLoop]);
+  }, [buildCaptureDataUrl, onResult, recordType, stopDetectionLoop]);
 
   // 靜止偵測：縮圖取樣，比較與上一幀的平均像素差。
   const sampleTick = useCallback(() => {
