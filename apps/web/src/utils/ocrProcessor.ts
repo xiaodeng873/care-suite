@@ -92,6 +92,49 @@ async function logOCRResult(
     console.error('Failed to log OCR result:', error);
   }
 }
+
+// 漏斗法錯誤碼 → 明確中文原因。任何失敗都必須對應到一句肯定的中文說明，
+// 嚴禁把英文萬用訊息（如 "Edge Function returned a non-2xx status code"）丟給使用者。
+export function mapGeminiErrorToChinese(code: string, rawMsg?: string): string {
+  switch (code) {
+    case 'GEMINI_QUOTA_EXCEEDED':
+      return 'AI 服務繁忙或每日配額已用罄，請稍後再試。';
+    case 'AUTH_MISSING_KEY':
+      return '系統未設定 API 金鑰（GEMINI_API_KEY 遺失），請聯絡系統管理員。';
+    case 'GEMINI_FORBIDDEN':
+      return 'API 金鑰失效或權限不足，請至 Google AI Studio 確認金鑰狀態。';
+    case 'GEMINI_MODEL_NOT_FOUND':
+      return 'AI 模型設定錯誤（找不到指定模型或 API 版本不符），請聯絡系統管理員。';
+    case 'GEMINI_BAD_REQUEST':
+      return 'AI 拒絕了此請求（圖片或參數格式問題），請重拍或改用手動輸入。';
+    case 'GEMINI_DOWN':
+    case 'UPSTREAM_ERROR':
+      return 'AI 伺服器暫時異常，請稍後再試。';
+    case 'NETWORK_ERROR':
+      return '無法連線到 AI 服務，請檢查網路後再試。';
+    case 'RESPONSE_TRUNCATED':
+      return '圖片內容過多導致回應被截斷，請裁剪或分批上傳。';
+    case 'EMPTY_RESPONSE':
+      return 'AI 無法讀取此圖片（可能太模糊或被安全過濾），請重拍更清晰的照片。';
+    case 'SAFETY_BLOCKED':
+      return '圖片被 AI 安全過濾器攔截，請確認圖片內容。';
+    case 'PARSE_ERROR':
+      return 'AI 回傳的資料格式無法解析，請重試或手動輸入。';
+    case 'MISSING_IMAGE':
+      return '未收到圖片資料，請重新拍攝。';
+    case 'MISSING_PROMPT':
+      return '系統設定異常（缺少辨識指令），請聯絡系統管理員。';
+    case 'BAD_REQUEST':
+      return '傳送的資料格式錯誤，請重試。';
+    case 'INTERNAL_SERVER_ERROR':
+      return 'AI 服務發生未預期的系統錯誤，請稍後再試或聯絡系統管理員。';
+    case 'EDGE_NON_2XX':
+      return '無法連線到 AI 辨識服務（Edge Function 無回應），請稍後再試或聯絡系統管理員。';
+    default:
+      return rawMsg || 'AI 視覺識別失敗，請重試或手動輸入。';
+  }
+}
+
 export async function processImageWithGeminiVision(
   file: File,
   prompt: string,
@@ -139,10 +182,26 @@ export async function processImageWithGeminiVision(
       }
     });
     if (error) {
-      console.error('Gemini Vision extract error:', error);
+      // supabase-js 對 non-2xx 回應只給通用英文訊息且不解析 body。
+      // 雖然 Edge Function 已改為一律回傳 200，這裡仍從 Response body 嘗試取出
+      // 漏斗法的結構化錯誤碼作為雙保險，確保永遠顯示明確中文原因。
+      let code = 'EDGE_NON_2XX';
+      let rawMsg: string | undefined;
+      const ctx: any = (error as any)?.context;
+      try {
+        if (ctx && typeof ctx.json === 'function') {
+          const body = await ctx.json();
+          code = body?.error?.code ?? code;
+          rawMsg = body?.error?.message ?? rawMsg;
+        }
+      } catch {
+        // body 非 JSON 或已被讀取，維持預設碼
+      }
+      const userError = mapGeminiErrorToChinese(code, rawMsg);
+      console.error(`[OCR Error] ${code}: ${rawMsg ?? error.message}`);
       const failResult: OCRResult = {
         success: false,
-        error: `網路或連線錯誤: ${error.message}`,
+        error: userError,
         processingTimeMs: Date.now() - startTime
       };
       await logOCRResult(imageHash, failResult, '', prompt);
@@ -153,25 +212,7 @@ export async function processImageWithGeminiVision(
       const errCode: string = (typeof errObj === 'object' && errObj !== null) ? (errObj as any).code : 'UNKNOWN';
       const errMsg: string = (typeof errObj === 'object' && errObj !== null) ? (errObj as any).message : (errObj || 'AI視覺識別失敗');
 
-      let userError = errMsg;
-      switch (errCode) {
-        case 'GEMINI_QUOTA_EXCEEDED':
-          userError = 'AI 服務繁忙，請稍後再試（每日配額限制）。';
-          break;
-        case 'AUTH_MISSING_KEY':
-        case 'GEMINI_FORBIDDEN':
-          userError = '系統設定異常，請聯絡系統管理員（API 金鑰問題）。';
-          break;
-        case 'GEMINI_MODEL_NOT_FOUND':
-          userError = '系統設定異常，請聯絡系統管理員（模型設定錯誤）。';
-          break;
-        case 'RESPONSE_TRUNCATED':
-          userError = '圖片內容過多，請嘗試分批上傳或裁剪圖片。';
-          break;
-        case 'PARSE_ERROR':
-          userError = '無法解析 AI 回傳的資料，請重試或手動輸入。';
-          break;
-      }
+      const userError = mapGeminiErrorToChinese(errCode, errMsg);
 
       console.error(`[OCR Error] ${errCode}: ${errMsg}`);
       const failResult: OCRResult = {

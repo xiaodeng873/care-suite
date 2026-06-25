@@ -242,7 +242,7 @@ Deno.serve(async (req: Request) => {
 
   } catch (err) {
     const isAPIError = err instanceof APIError;
-    const status = isAPIError ? err.status : 500;
+    const httpStatus = isAPIError ? err.status : 500;
     const code = isAPIError ? err.code : "INTERNAL_SERVER_ERROR";
     const message = isAPIError ? err.message : "發生未預期的系統錯誤。";
 
@@ -250,9 +250,13 @@ Deno.serve(async (req: Request) => {
       console.error("[Unexpected Error]", err);
     }
 
+    // 重要：一律以 HTTP 200 回傳，並把漏斗法的結構化錯誤（code + 中文 message）放在 body。
+    // supabase-js 對 non-2xx 回應只會丟出通用的 "Edge Function returned a non-2xx status
+    // code" 並「不解析 body」，導致前端拿不到明確失敗原因。改回 200 後，前端能直接讀到
+    // { success:false, error:{ code, message } } 並顯示確定的中文原因（如 API 金鑰失效）。
     return new Response(
-      JSON.stringify({ success: false, error: { code, message } }),
-      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, error: { code, message, httpStatus } }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
