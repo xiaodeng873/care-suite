@@ -20,18 +20,24 @@ const STILLNESS_DURATION = 1200; // 需維持靜止的毫秒數
 const SAMPLE_INTERVAL = 200; // 取樣間隔
 const SAMPLE_W = 80; // 取樣縮圖寬（用於偵測靜止，省效能）
 const SAMPLE_H = 60;
+const MAX_AUTO_RETRIES = 6; // 連續辨識失敗上限，達到後才停下提示手動輸入
 
 // 血壓計 / 血糖儀的 Gemini Vision prompt
 const DEVICE_PROMPTS: Record<VitalRecordType, string> = {
-  '生命表徵': `你是醫療設備讀取專家。請從圖片中讀取血壓計螢幕上的測量值。
-找出 SYS（收縮壓）、DIA（舒張壓）和 PULSE（脈搏）的數字。
-只返回 JSON，不要其他文字：
+  '生命表徵': `你是醫療設備讀取專家。圖片是電子血壓計的螢幕。
+螢幕上通常有三個大型數字（7 段式 LCD）：
+- 最上方數字為 SYS 收縮壓（常見範圍 90–200）
+- 中間數字為 DIA 舒張壓（常見範圍 50–130）
+- 最下方數字（常伴隨心形圖示）為 PULSE 脈搏（常見範圍 40–150）
+請讀出這三個數字，忽略 mmHg、日期、時間等文字。
+只返回 JSON，不要任何其他文字或說明：
 {"血壓收縮壓": 120, "血壓舒張壓": 80, "脈搏": 72}
-如果某個值看不清楚，省略該欄位。`,
-  '血糖控制': `你是醫療設備讀取專家。請從圖片中讀取血糖儀螢幕上的主要血糖測量值（mmol/L）。
-只返回 JSON，不要其他文字：
-{"血糖值": 6.5}
-只提取主要的血糖讀數，忽略電池格、日期、時間等其他顯示資訊。`,
+若某個數字確實看不清楚，省略該欄位。`,
+  '血糖控制': `你是醫療設備讀取專家。圖片是血糖儀的螢幕。
+螢幕中央有一個大型主要數字，即血糖讀數（單位 mmol/L，常見範圍 2.0–30.0，通常含一位小數）。
+請只讀取這個主要的血糖數字，忽略電池格、日期、時間、單位文字等其他顯示資訊。
+只返回 JSON，不要任何其他文字或說明：
+{"血糖值": 6.5}`,
 };
 
 const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResult, onCancel }) => {
@@ -43,6 +49,7 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
   const stillSinceRef = useRef<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const busyRef = useRef(false);
+  const failCountRef = useRef(0);
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +98,7 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
       return;
     }
     setPhase('recognizing');
+    let recognised = false;
     try {
       const base64 = dataUrl.split(',')[1];
       const { data, error } = await supabase.functions.invoke('gemini-vision-extract', {
@@ -101,24 +109,34 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
         },
       });
       if (error || !data?.success) {
-        const msg = data?.error?.message ?? error?.message ?? '辨識失敗';
-        console.error('Gemini Vision 辨識失敗:', msg);
-        setPhase('failed');
-        return;
+        // Edge Function 層級錯誤（金鑰、模型、配額等）
+        console.error('[掃描] Gemini 呼叫失敗:', data?.error ?? error?.message ?? error, data);
+      } else {
+        const result = parseGeminiResponse(data.extractedData, recordType);
+        if (result.success) {
+          recognised = true;
+          failCountRef.current = 0;
+          onResult(result);
+          return;
+        }
+        // Gemini 有回應但讀數未通過驗證 → 印出原始讀數方便診斷，並自動重試
+        console.warn('[掃描] Gemini 有回應但未通過驗證，將自動重試。原始讀數:', data.extractedData);
       }
-      const result = parseGeminiResponse(data.extractedData, recordType);
-      if (result.success) {
-        onResult(result);
-        return;
-      }
-      setPhase('failed');
     } catch (err) {
-      console.error('Gemini Vision 辨識失敗:', err);
-      setPhase('failed');
+      console.error('[掃描] Gemini 辨識例外:', err);
     } finally {
       busyRef.current = false;
     }
-  }, [buildPreprocessedDataUrl, onResult, recordType]);
+
+    // 本次未成功：累計失敗次數，未達上限則由偵測迴圈自動重試
+    if (!recognised) {
+      failCountRef.current += 1;
+      if (failCountRef.current >= MAX_AUTO_RETRIES) {
+        stopDetectionLoop();
+        setPhase('failed');
+      }
+    }
+  }, [buildPreprocessedDataUrl, onResult, recordType, stopDetectionLoop]);
 
   // 靜止偵測：縮圖取樣，比較與上一幀的平均像素差。
   const sampleTick = useCallback(() => {
@@ -148,8 +166,9 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
         if (stillSinceRef.current == null) stillSinceRef.current = now;
         setPhase('detecting');
         if (now - stillSinceRef.current >= STILLNESS_DURATION) {
+          // 不停止迴圈，只用 busyRef 暫停取樣；辨識失敗後自動重試。
           busyRef.current = true;
-          stopDetectionLoop();
+          stillSinceRef.current = null;
           void runGeminiRecognition();
         }
       } else {
@@ -165,11 +184,13 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
     prevSampleRef.current = null;
     stillSinceRef.current = null;
     busyRef.current = false;
+    failCountRef.current = 0;
     setPhase('aligning');
     intervalRef.current = setInterval(sampleTick, SAMPLE_INTERVAL);
   }, [sampleTick, stopDetectionLoop]);
 
   const handleRetry = useCallback(() => {
+    failCountRef.current = 0;
     setError(null);
     startDetectionLoop();
   }, [startDetectionLoop]);
