@@ -16,10 +16,11 @@ interface VitalSignScannerProps {
 type Phase = 'loading' | 'aligning' | 'detecting' | 'recognizing' | 'failed';
 
 const STILLNESS_THRESHOLD = 12; // 平均像素差 (0-255) 低於此值視為靜止
-const STILLNESS_DURATION = 1200; // 需維持靜止的毫秒數
-const SAMPLE_INTERVAL = 200; // 取樣間隔
+const STILLNESS_DURATION = 450; // 需維持靜止的毫秒數（縮短以加快觸發）
+const SAMPLE_INTERVAL = 120; // 取樣間隔（縮短以更快偵測穩定）
 const SAMPLE_W = 80; // 取樣縮圖寬（用於偵測靜止，省效能）
 const SAMPLE_H = 60;
+const CAPTURE_MAX_EDGE = 1280; // 送 Gemini 前縮放長邊上限：縮小負載、加速上傳與推論，又保留 LCD 數字清晰度
 const MAX_AUTO_RETRIES = 6; // 連續辨識失敗上限，達到後才停下提示手動輸入
 
 // 血壓計 / 血糖儀的 Gemini Vision prompt
@@ -72,14 +73,18 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
     if (!video || !video.videoWidth) return null;
     const canvas = captureCanvasRef.current ?? document.createElement('canvas');
     captureCanvasRef.current = canvas;
-    const w = video.videoWidth;
-    const h = video.videoHeight;
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    // 將長邊縮放至上限，縮小 payload 與 Gemini 推論成本（小螢幕數字仍清晰）
+    const scale = Math.min(1, CAPTURE_MAX_EDGE / Math.max(vw, vh));
+    const w = Math.round(vw * scale);
+    const h = Math.round(vh * scale);
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
     ctx.drawImage(video, 0, 0, w, h);
-    return canvas.toDataURL('image/jpeg', 0.92);
+    return canvas.toDataURL('image/jpeg', 0.85);
   }, []);
 
   const runGeminiRecognition = useCallback(async () => {
@@ -97,6 +102,7 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
           imageBase64: base64,
           mimeType: 'image/jpeg',
           prompt: DEVICE_PROMPTS[recordType],
+          fastMode: true, // 關閉模型 thinking、降低 token 上限，大幅縮短回應時間
         },
       });
       if (error || !data?.success) {

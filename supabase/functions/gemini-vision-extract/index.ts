@@ -19,6 +19,7 @@ interface GeminiVisionRequest {
   mimeType?: string;
   prompt: string;
   classificationPrompt?: string;
+  fastMode?: boolean;
 }
 
 interface DocumentClassification {
@@ -113,7 +114,7 @@ Deno.serve(async (req: Request) => {
       throw new APIError(400, "BAD_REQUEST", "傳入的資料格式錯誤，無法解析 JSON。");
     }
 
-    const { imageBase64, mimeType, prompt, classificationPrompt } = body;
+    const { imageBase64, mimeType, prompt, classificationPrompt, fastMode } = body;
 
     if (!imageBase64) {
       console.error("[Stage 2 Failed] Missing imageBase64");
@@ -129,6 +130,18 @@ Deno.serve(async (req: Request) => {
     // ─── 排除點三：呼叫 Gemini ───────────────────────────────────────────────────
     console.log("[Stage 3] Initiating Gemini extraction call...");
 
+    // fastMode：用於儀表掃描等「簡單結構化讀取」。關閉模型 thinking 並縮小 token 上限，
+    // 可大幅降低延遲（思考型 flash 模型預設會花數秒思考，對讀數字毫無幫助）。
+    const generationConfig: Record<string, unknown> = {
+      temperature: 0.1,
+      topK: 1,
+      topP: 1,
+      maxOutputTokens: fastMode ? 1024 : 8192,
+    };
+    if (fastMode) {
+      generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    }
+
     const geminiPayload = {
       contents: [{
         parts: [
@@ -140,12 +153,7 @@ Deno.serve(async (req: Request) => {
           },
         ],
       }],
-      generationConfig: {
-        temperature: 0.1,
-        topK: 1,
-        topP: 1,
-        maxOutputTokens: 8192,
-      },
+      generationConfig,
     };
 
     // ─── 排除點四：精準攔截 Gemini 錯誤碼（在 callGemini 內處理）────────────────
