@@ -142,16 +142,41 @@ export async function processImageWithGeminiVision(
       console.error('Gemini Vision extract error:', error);
       const failResult: OCRResult = {
         success: false,
-        error: `AI視覺識別失敗: ${error.message}`,
+        error: `網路或連線錯誤: ${error.message}`,
         processingTimeMs: Date.now() - startTime
       };
       await logOCRResult(imageHash, failResult, '', prompt);
       return failResult;
     }
     if (!data.success) {
+      const errObj = data.error;
+      const errCode: string = (typeof errObj === 'object' && errObj !== null) ? (errObj as any).code : 'UNKNOWN';
+      const errMsg: string = (typeof errObj === 'object' && errObj !== null) ? (errObj as any).message : (errObj || 'AI視覺識別失敗');
+
+      let userError = errMsg;
+      switch (errCode) {
+        case 'GEMINI_QUOTA_EXCEEDED':
+          userError = 'AI 服務繁忙，請稍後再試（每日配額限制）。';
+          break;
+        case 'AUTH_MISSING_KEY':
+        case 'GEMINI_FORBIDDEN':
+          userError = '系統設定異常，請聯絡系統管理員（API 金鑰問題）。';
+          break;
+        case 'GEMINI_MODEL_NOT_FOUND':
+          userError = '系統設定異常，請聯絡系統管理員（模型設定錯誤）。';
+          break;
+        case 'RESPONSE_TRUNCATED':
+          userError = '圖片內容過多，請嘗試分批上傳或裁剪圖片。';
+          break;
+        case 'PARSE_ERROR':
+          userError = '無法解析 AI 回傳的資料，請重試或手動輸入。';
+          break;
+      }
+
+      console.error(`[OCR Error] ${errCode}: ${errMsg}`);
       const failResult: OCRResult = {
         success: false,
-        error: data.error || 'AI視覺識別失敗',
+        error: userError,
         processingTimeMs: Date.now() - startTime
       };
       await logOCRResult(imageHash, failResult, '', prompt);

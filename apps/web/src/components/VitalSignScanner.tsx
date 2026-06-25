@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { X } from 'lucide-react';
-import { createWorker, type Worker } from 'tesseract.js';
+import { supabase } from '../lib/supabase';
 import {
-  parseVitalSignWords,
-  type OcrWord,
+  parseGeminiResponse,
   type VitalRecordType,
   type VitalSignScanResult,
 } from '../utils/vitalSignOcrParser';
@@ -22,28 +21,22 @@ const SAMPLE_INTERVAL = 200; // 取樣間隔
 const SAMPLE_W = 80; // 取樣縮圖寬（用於偵測靜止，省效能）
 const SAMPLE_H = 60;
 
-// 從 Tesseract recognize 結果攤平出每個帶座標的文字詞。
-const extractWords = (data: any): OcrWord[] => {
-  const words: OcrWord[] = [];
-  const blocks = data?.blocks ?? [];
-  for (const b of blocks) {
-    for (const p of b?.paragraphs ?? []) {
-      for (const l of p?.lines ?? []) {
-        for (const w of l?.words ?? []) {
-          const bbox = w?.bbox;
-          if (!bbox) continue;
-          words.push({ text: w.text ?? '', x0: bbox.x0, y0: bbox.y0, x1: bbox.x1, y1: bbox.y1 });
-        }
-      }
-    }
-  }
-  return words;
+// 血壓計 / 血糖儀的 Gemini Vision prompt
+const DEVICE_PROMPTS: Record<VitalRecordType, string> = {
+  '生命表徵': `你是醫療設備讀取專家。請從圖片中讀取血壓計螢幕上的測量值。
+找出 SYS（收縮壓）、DIA（舒張壓）和 PULSE（脈搏）的數字。
+只返回 JSON，不要其他文字：
+{"血壓收縮壓": 120, "血壓舒張壓": 80, "脈搏": 72}
+如果某個值看不清楚，省略該欄位。`,
+  '血糖控制': `你是醫療設備讀取專家。請從圖片中讀取血糖儀螢幕上的主要血糖測量值（mmol/L）。
+只返回 JSON，不要其他文字：
+{"血糖值": 6.5}
+只提取主要的血糖讀數，忽略電池格、日期、時間等其他顯示資訊。`,
 };
 
 const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResult, onCancel }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const workerRef = useRef<Worker | null>(null);
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const prevSampleRef = useRef<Uint8ClampedArray | null>(null);
@@ -91,9 +84,7 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
     return canvas.toDataURL('image/png');
   }, []);
 
-  const runRecognition = useCallback(async () => {
-    const worker = workerRef.current;
-    if (!worker) return;
+  const runGeminiRecognition = useCallback(async () => {
     const dataUrl = buildPreprocessedDataUrl();
     if (!dataUrl) {
       busyRef.current = false;
@@ -101,16 +92,28 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
     }
     setPhase('recognizing');
     try {
-      const { data } = await worker.recognize(dataUrl, {}, { blocks: true } as any);
-      const words = extractWords(data);
-      const result = parseVitalSignWords(words, recordType);
+      const base64 = dataUrl.split(',')[1];
+      const { data, error } = await supabase.functions.invoke('gemini-vision-extract', {
+        body: {
+          imageBase64: base64,
+          mimeType: 'image/png',
+          prompt: DEVICE_PROMPTS[recordType],
+        },
+      });
+      if (error || !data?.success) {
+        const msg = data?.error?.message ?? error?.message ?? '辨識失敗';
+        console.error('Gemini Vision 辨識失敗:', msg);
+        setPhase('failed');
+        return;
+      }
+      const result = parseGeminiResponse(data.extractedData, recordType);
       if (result.success) {
         onResult(result);
         return;
       }
       setPhase('failed');
     } catch (err) {
-      console.error('OCR 辨識失敗:', err);
+      console.error('Gemini Vision 辨識失敗:', err);
       setPhase('failed');
     } finally {
       busyRef.current = false;
@@ -147,7 +150,7 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
         if (now - stillSinceRef.current >= STILLNESS_DURATION) {
           busyRef.current = true;
           stopDetectionLoop();
-          void runRecognition();
+          void runGeminiRecognition();
         }
       } else {
         stillSinceRef.current = null;
@@ -155,7 +158,7 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
       }
     }
     prevSampleRef.current = new Uint8ClampedArray(curr);
-  }, [runRecognition, stopDetectionLoop]);
+  }, [runGeminiRecognition, stopDetectionLoop]);
 
   const startDetectionLoop = useCallback(() => {
     stopDetectionLoop();
@@ -171,7 +174,7 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
     startDetectionLoop();
   }, [startDetectionLoop]);
 
-  // 初始化：相機 + Tesseract worker。
+  // 初始化：相機
   useEffect(() => {
     let cancelled = false;
 
@@ -190,6 +193,7 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
           videoRef.current.srcObject = stream;
           await videoRef.current.play().catch(() => undefined);
         }
+        if (!cancelled) startDetectionLoop();
       } catch (err: any) {
         if (cancelled) return;
         const msg =
@@ -197,25 +201,6 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
             ? '鏡頭權限被拒絕，請改用手動輸入。'
             : '無法啟動鏡頭，請改用手動輸入。';
         setError(msg);
-        setPhase('failed');
-        return;
-      }
-
-      try {
-        const worker = await createWorker('eng');
-        if (cancelled) {
-          await worker.terminate();
-          return;
-        }
-        await worker.setParameters({
-          tessedit_char_whitelist: '0123456789./% ',
-        });
-        workerRef.current = worker;
-        if (!cancelled) startDetectionLoop();
-      } catch (err) {
-        if (cancelled) return;
-        console.error('OCR 引擎載入失敗:', err);
-        setError('辨識引擎載入失敗，請改用手動輸入。');
         setPhase('failed');
       }
     };
@@ -227,9 +212,6 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
       stopDetectionLoop();
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
-      const w = workerRef.current;
-      workerRef.current = null;
-      if (w) void w.terminate();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
