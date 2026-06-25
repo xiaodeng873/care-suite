@@ -54,6 +54,20 @@ async function callGemini(url: string, payload: unknown): Promise<any> {
     const errorMsg: string = errorData?.error?.message ?? "Unknown Gemini Error";
     console.error(`[Stage 4 Failed] Gemini API ${response.status}: ${errorMsg}`);
 
+    // 金鑰無效：Gemini 回 400 且訊息含 "API key not valid" / "API_KEY_INVALID"。
+    // 這不是圖片或參數問題，必須明確指出是金鑰本身問題，避免誤導排錯。
+    const lowerMsg = errorMsg.toLowerCase();
+    if (
+      response.status === 400 &&
+      (lowerMsg.includes("api key not valid") || lowerMsg.includes("api_key_invalid"))
+    ) {
+      throw new APIError(
+        400,
+        "GEMINI_API_KEY_INVALID",
+        "Gemini 金鑰無效：Supabase 的 GEMINI_API_KEY 與有效金鑰不符（常見原因：貼上時夾帶空白/換行、含引號、金鑰已重新產生或屬於其他專案）。"
+      );
+    }
+
     switch (response.status) {
       case 400:
         throw new APIError(400, "GEMINI_BAD_REQUEST", `請求格式被 Gemini 拒絕: ${errorMsg}`);
@@ -87,7 +101,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     // ─── 排除點一：環境變數 ──────────────────────────────────────────────────────
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    const apiKey = Deno.env.get("GEMINI_API_KEY")?.trim().replace(/^["']|["']$/g, "");
     if (!apiKey) {
       console.error("[Stage 1 Failed] Missing GEMINI_API_KEY secret");
       throw new APIError(

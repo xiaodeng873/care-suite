@@ -101,6 +101,8 @@ export function mapGeminiErrorToChinese(code: string, rawMsg?: string): string {
       return 'AI 服務繁忙或每日配額已用罄，請稍後再試。';
     case 'AUTH_MISSING_KEY':
       return '系統未設定 API 金鑰（GEMINI_API_KEY 遺失），請聯絡系統管理員。';
+    case 'GEMINI_API_KEY_INVALID':
+      return 'Gemini API 金鑰無效：請在 Supabase 重新設定 GEMINI_API_KEY，注意勿夾帶空白、換行或引號，並確認金鑰未被重新產生。';
     case 'GEMINI_FORBIDDEN':
       return 'API 金鑰失效或權限不足，請至 Google AI Studio 確認金鑰狀態。';
     case 'GEMINI_MODEL_NOT_FOUND':
