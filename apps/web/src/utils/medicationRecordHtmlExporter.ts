@@ -9,6 +9,14 @@ import {
   type WorkflowRecord,
 } from './medicationWorkflowHelper';
 import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
+import {
+  getFacilitySettings,
+  DEFAULT_FACILITY_SETTINGS,
+  type FacilitySettings,
+} from './facilitySettings';
+
+// 渲染為同步流程，故於各匯出入口（async）先取得院舍設定後存於模組層，供 renderHeaderRegion 讀取。
+let activeFacility: FacilitySettings = DEFAULT_FACILITY_SETTINGS;
 
 // 此匯出器完全以程式自寫的語意化 HTML/CSS 產生列印版面（不再依賴 Excel 範本檔）。
 // 版面分三區：頂置院友資訊 / 中間動態處方區 / 底部指引＋給藥彙總；
@@ -94,6 +102,7 @@ export const exportBlankMedicationRecordToHtml = async (
   selectedMonth: string,
   routeTypes: PageRouteKind[]
 ): Promise<void> => {
+  activeFacility = await getFacilitySettings();
   const renderedPages: string[] = [];
   for (const patient of patients) {
     for (const routeKind of routeTypes) {
@@ -118,6 +127,7 @@ const buildMedicationRecordHtml = async (
   includeWorkflowRecords: boolean,
   includeBlankRows: boolean
 ): Promise<string> => {
+  activeFacility = await getFacilitySettings();
   const renderedPages: string[] = [];
 
   for (const patient of patients) {
@@ -492,14 +502,19 @@ const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRo
     ? `<img class="mr-photo" src="${escapeAttr(String(photo))}" alt="">`
     : '<div class="mr-photo mr-photo-empty">相片</div>';
 
+  const facilityLogo = activeFacility.logoDataUri || MR_LOGO_DATA_URI;
+  const facilityNameZh = activeFacility.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
+  const facilityNameEn = activeFacility.facilityNameEn || DEFAULT_FACILITY_SETTINGS.facilityNameEn;
+  const logoAlt = `${facilityNameZh} ${facilityNameEn}`.trim();
+
   return '<header class="mr-header">'
     + '<table class="mr-header-table"><colgroup>'
       + '<col class="mr-hc-logo"><col class="mr-hc-title"><col class="mr-hc-photo">'
       + '<col class="mr-hc-info"><col class="mr-hc-info"><col class="mr-hc-react">'
     + '</colgroup><tbody>'
       + '<tr>'
-        + `<td class="mr-h-logo" rowspan="2"><img class="mr-logo" src="${MR_LOGO_DATA_URI}" alt="善頤護老 SeniorCare"></td>`
-        + '<td class="mr-h-title"><div class="mr-org">善頤 (福群) 護老院</div><div class="mr-doc">個人備藥及給藥記錄</div></td>'
+        + `<td class="mr-h-logo" rowspan="2"><img class="mr-logo" src="${escapeAttr(facilityLogo)}" alt="${escapeAttr(logoAlt)}"></td>`
+        + `<td class="mr-h-title"><div class="mr-org">${escapeHtml(facilityNameZh)}</div><div class="mr-doc">個人備藥及給藥記錄</div></td>`
         + `<td class="mr-h-photo" rowspan="2">${photoHtml}</td>`
         + infoCell('院友姓名', name)
         + infoCell('院號', String(patient.床號 ?? ''))

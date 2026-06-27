@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode, Building2 } from 'lucide-react';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { UserQRCodeModal } from '../components/UserQRCodeModal';
+import FacilitySettingsPanel from '../components/FacilitySettingsPanel';
 import { fuzzyMatch } from '../utils/searchUtils';
 import { useAuth, supabase } from '../context/AuthContext';
 import { getSupabaseUrl, getSupabaseAnonKey } from '../config/supabase.config';
@@ -801,6 +802,9 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
 const Settings: React.FC = () => {
   const { canManageUsers, isDeveloper, isAdmin, customToken, user, session } = useAuth();
   
+  // 設定分類
+  const [activeCategory, setActiveCategory] = useState<'users' | 'facility'>('users');
+
   // 用戶列表狀態
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1119,10 +1123,42 @@ const Settings: React.FC = () => {
           <SettingsIcon className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl font-bold text-gray-900">系統設定</h1>
         </div>
-        <p className="text-gray-600">管理用戶帳號和權限</p>
+        <p className="text-gray-600">管理用戶帳號和院舍設定</p>
       </div>
 
+      {/* 分類導覽 */}
+      <div className="mb-6 border-b border-gray-200">
+        <nav className="flex gap-1">
+          <button
+            onClick={() => setActiveCategory('users')}
+            className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${
+              activeCategory === 'users'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Users className="h-4 w-4" />
+            用戶管理
+          </button>
+          <button
+            onClick={() => setActiveCategory('facility')}
+            className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${
+              activeCategory === 'facility'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Building2 className="h-4 w-4" />
+            院舍設定
+          </button>
+        </nav>
+      </div>
+
+      {/* 院舍設定區塊 */}
+      {activeCategory === 'facility' && <FacilitySettingsPanel />}
+
       {/* 用戶管理區塊 */}
+      {activeCategory === 'users' && (
       <div className="bg-white rounded-lg shadow-sm">
         {/* 工具列 */}
         <div className="border-b px-6 py-4">
@@ -1317,6 +1353,7 @@ const Settings: React.FC = () => {
           )}
         </div>
       </div>
+      )}
 
       {/* 用戶編輯 Modal */}
       <UserModal
