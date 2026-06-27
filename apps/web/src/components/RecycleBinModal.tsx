@@ -37,18 +37,15 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
       : { name: '未知', bed: '-' };
   };
 
-  const formatRecordValues = (record: DeletedHealthRecord) => {
-    const values: string[] = [];
-    if (record.血壓收縮壓 && record.血壓舒張壓) {
-      values.push(`血壓: ${record.血壓收縮壓}/${record.血壓舒張壓} mmHg`);
-    }
-    if (record.脈搏) values.push(`脈搏: ${record.脈搏} /min`);
-    if (record.體溫) values.push(`體溫: ${record.體溫}°C`);
-    if (record.呼吸頻率) values.push(`呼吸: ${record.呼吸頻率} /min`);
-    if (record.血含氧量) values.push(`血氧: ${record.血含氧量}%`);
-    if (record.血糖值) values.push(`血糖: ${record.血糖值} mmol/L`);
-    if (record.體重) values.push(`體重: ${record.體重} kg`);
-    return values.length > 0 ? values.join(', ') : '無數值';
+  const formatRecordValues = (record: DeletedHealthRecord): string => {
+    if (record.監測類型 === '血壓') return `血壓: ${record.數值}/${record.數值_副} mmHg`;
+    if (record.監測類型 === '脈搏') return `脈搏: ${record.數值} 次/分`;
+    if (record.監測類型 === '體溫') return `體溫: ${record.數值}°C`;
+    if (record.監測類型 === '呼吸頻率') return `呼吸: ${record.數值} 次/分`;
+    if (record.監測類型 === '血含氧量') return `血氧: ${record.數值}%`;
+    if (record.監測類型 === '血糖值') return `血糖: ${record.數值} mmol/L`;
+    if (record.監測類型 === '體重') return `體重: ${record.數值} kg`;
+    return `${record.監測類型}: ${record.數值}`;
   };
 
   const filteredRecords = deletedHealthRecords.filter(record => {
@@ -61,7 +58,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
       matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
       matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
       fuzzyMatch(patient?.身份證號碼, searchTerm) ||
-      fuzzyMatch(record.記錄類型, searchTerm) ||
+      fuzzyMatch(record.監測類型, searchTerm) ||
       fuzzyMatch(record.deletion_reason, searchTerm)
     );
   });
@@ -285,14 +282,8 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                               <span className="font-medium text-gray-900">{patientInfo.name}</span>
                               <span className="text-sm text-gray-500">({patientInfo.bed})</span>
                             </div>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              record.記錄類型 === '生命表徵'
-                                ? 'bg-blue-100 text-blue-800'
-                                : record.記錄類型 === '血糖控制'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-green-100 text-green-800'
-                            }`}>
-                              {record.記錄類型}
+                            <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-800">
+                              {record.監測類型}
                             </span>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">

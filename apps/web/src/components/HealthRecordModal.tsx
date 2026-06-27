@@ -1,23 +1,38 @@
-import React, { useState } from 'react';
-import { X, Heart, Activity, Droplets, Scale, User, Calendar, Clock, AlertTriangle, ChevronDown, ChevronUp, Sparkles, RefreshCw, Loader2, CheckCircle, Camera } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { X, Activity, User, Calendar, Clock, AlertTriangle, Camera, Sparkles, ChevronDown, ChevronUp, CheckCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { isInHospital } from '../utils/careRecordHelper';
-import { getRecentHealthRecordsByPatient } from '../lib/database';
-import { generateHealthRecordSuggestions, GeneratedHealthData } from '../utils/healthRecordGenerator';
+import { createHealthRecordsForSession, getRecentHealthRecordsByPatient } from '../lib/database';
+import type { VitalSignType, HealthRecord } from '../lib/database';
 import VitalSignScanner from './VitalSignScanner';
 import type { VitalSignScanResult } from '../utils/vitalSignOcrParser';
+import { generateVitalSuggestion } from '../utils/healthRecordGenerator';
+
+const ALL_VITAL_TYPES: { type: VitalSignType; label: string; unit: string; color: string }[] = [
+  { type: '血壓',   label: '血壓',   unit: 'mmHg',   color: 'bg-red-500' },
+  { type: '脈搏',   label: '脈搏',   unit: '次/分',  color: 'bg-pink-500' },
+  { type: '體溫',   label: '體溫',   unit: '°C',     color: 'bg-orange-500' },
+  { type: '血含氧量', label: '血含氧量', unit: '%',  color: 'bg-blue-500' },
+  { type: '呼吸頻率', label: '呼吸頻率', unit: '次/分', color: 'bg-teal-500' },
+  { type: '血糖值', label: '血糖',   unit: 'mmol/L', color: 'bg-purple-500' },
+  { type: '體重',   label: '體重',   unit: 'kg',     color: 'bg-green-500' },
+];
+
+const VITAL_TYPE_SET = new Set<string>(ALL_VITAL_TYPES.map(v => v.type));
+const isVitalSignType = (t: string | null | undefined): t is VitalSignType =>
+  !!t && VITAL_TYPE_SET.has(t);
+
+interface VitalEntry { primary: string; secondary: string; }
+
 interface HealthRecordModalProps {
-  record?: any;
+  record?: HealthRecord;
   initialData?: {
     patient?: { 院友id: number; 中文姓名?: string; 床號?: string };
-    task?: {
-      id: string;
-      health_record_type: string;
-      next_due_at: string;
-      specific_times?: string[];
-    };
+    task?: { id: string; health_record_type: string; next_due_at: string; specific_times?: string[] };
+    任務清單?: { id: string; health_record_type: string }[];
+    預設監測類型?: VitalSignType;
     預設記錄類型?: string;
     預設日期?: string;
     預設時間?: string;
@@ -25,640 +40,436 @@ interface HealthRecordModalProps {
   onClose: () => void;
   onTaskCompleted?: (taskId: string, recordDateTime: Date) => void;
 }
+
+const legacyTypeMap: Record<string, VitalSignType[]> = {
+  '生命表徵': ['血壓', '脈搏', '體溫', '血含氧量', '呼吸頻率'],
+  '血糖控制': ['血糖值'],
+  '體重控制': ['體重'],
+};
+
+const getInitialActiveTypes = (
+  record?: HealthRecord,
+  initialData?: HealthRecordModalProps['initialData'],
+): VitalSignType[] => {
+  if (record) return [record.監測類型];
+  // 多任務整合：同院友同時間點的多種監測類型一起輸入
+  if (initialData?.任務清單 && initialData.任務清單.length > 0) {
+    const types = initialData.任務清單
+      .map(t => t.health_record_type)
+      .filter(isVitalSignType);
+    if (types.length > 0) return Array.from(new Set(types));
+  }
+  const taskType = initialData?.task?.health_record_type;
+  if (taskType && isVitalSignType(taskType)) return [taskType];
+  if (initialData?.預設監測類型) return [initialData.預設監測類型];
+  const old = initialData?.預設記錄類型;
+  if (old && legacyTypeMap[old]) return legacyTypeMap[old];
+  return [];
+};
+
 const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialData, onClose, onTaskCompleted }) => {
-  const { addHealthRecord, updateHealthRecord, patients, hospitalEpisodes, admissionRecords } = usePatients();
+  const { updateHealthRecord, patients, hospitalEpisodes, admissionRecords } = usePatients();
   const { displayName } = useAuth();
-  // 自動聚焦輸入框的 ref
-  const bloodPressureInputRef = React.useRef<HTMLInputElement>(null);
-  const bloodSugarInputRef = React.useRef<HTMLInputElement>(null);
-  const weightInputRef = React.useRef<HTMLInputElement>(null);
-  // 日期確認模態框 state (需在 useEffect 之前宣告)
-  const [showDateWarningModal, setShowDateWarningModal] = useState(false);
-  const [isDateWarningConfirmed, setIsDateWarningConfirmed] = useState(false);
-  // 使用 ref 來存儲確認和取消的處理函數
-  const dateWarningHandlersRef = React.useRef<{
-    confirm: () => void;
-    cancel: () => void;
-  }>({
-    confirm: () => {},
-    cancel: () => {}
-  });
-  // ESC 鍵關閉主模態框
-  React.useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !showDateWarningModal) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [onClose, showDateWarningModal]);
-  // 日期確認模態框鍵盤事件 (Enter 確認, ESC 取消)
-  React.useEffect(() => {
-    if (!showDateWarningModal) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        dateWarningHandlersRef.current.confirm();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        dateWarningHandlersRef.current.cancel();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showDateWarningModal]);
-  const getHongKongDateTime = (dateString?: string) => {
-    const date = dateString ? new Date(dateString) : new Date();
-    const hongKongTime = new Date(date.toLocaleString("en-US", {timeZone: "Asia/Hong_Kong"}));
-    const year = hongKongTime.getFullYear();
-    const month = (hongKongTime.getMonth() + 1).toString().padStart(2, '0');
-    const day = hongKongTime.getDate().toString().padStart(2, '0');
-    const hours = hongKongTime.getHours().toString().padStart(2, '0');
-    const minutes = hongKongTime.getMinutes().toString().padStart(2, '0');
-    return {
-      date: `${year}-${month}-${day}`,
-      time: `${hours}:${minutes}`,
-    };
+
+  const getHKNow = () => {
+    const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Hong_Kong' }));
+    const p = (n: number) => String(n).padStart(2, '0');
+    return { date: `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`, time: `${p(d.getHours())}:${p(d.getMinutes())}` };
   };
-  const generateRandomDefaults = (recordType: string) => {
-    if (recordType === '生命表徵') {
+
+  const getDefaultDateTime = () => {
+    if (record) return { date: record.記錄日期, time: record.記錄時間 };
+    const src = initialData?.預設日期 || initialData?.task?.next_due_at;
+    if (src) {
+      const d = new Date(new Date(src).toLocaleString('en-US', { timeZone: 'Asia/Hong_Kong' }));
+      const p = (n: number) => String(n).padStart(2, '0');
       return {
-        體溫: (Math.random() * 0.9 + 36.0).toFixed(1),
-        血含氧量: Math.floor(Math.random() * 5 + 95).toString(),
-        呼吸頻率: Math.floor(Math.random() * 9 + 14).toString()
+        date: `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`,
+        time: initialData?.預設時間 || initialData?.task?.specific_times?.[0] || `${p(d.getHours())}:${p(d.getMinutes())}`,
       };
     }
-    return {};
+    const now = getHKNow();
+    return { date: now.date, time: initialData?.預設時間 || now.time };
   };
-  const initialPatientId = record?.院友id?.toString() || initialData?.patient?.院友id?.toString() || '';
-  const initialRecordTypeForDefaults = initialData?.預設記錄類型 || initialData?.task?.health_record_type || '生命表徵';
-  const initialRandomDefaults = record ? {} : (initialData?.task ? generateRandomDefaults(initialRecordTypeForDefaults) : {});
-  // 檢查院友在指定日期時間是否入院中（包括住院和外出就醫）
-  const checkPatientAbsent = (patientId: string, recordDate: string, recordTime: string): boolean => {
-    if (!patientId || !recordDate || !recordTime) {
-      return false;
+
+  const initialActiveTypes = getInitialActiveTypes(record, initialData);
+  const isTypeFixed = !!(record || initialData?.task || initialData?.任務清單 || initialData?.預設監測類型 || initialData?.預設記錄類型);
+  const [activeTypes, setActiveTypes] = useState<VitalSignType[]>(initialActiveTypes);
+
+  // 每種監測類型對應其 task id（多任務整合時，各筆記錄寫回各自的任務）
+  const typeToTaskId = useMemo(() => {
+    const m: Partial<Record<VitalSignType, string>> = {};
+    initialData?.任務清單?.forEach(t => {
+      if (isVitalSignType(t.health_record_type)) m[t.health_record_type] = t.id;
+    });
+    if (initialData?.task && isVitalSignType(initialData.task.health_record_type) && !m[initialData.task.health_record_type]) {
+      m[initialData.task.health_record_type] = initialData.task.id;
     }
-    const patient = patients.find(p => p.院友id.toString() === patientId.toString());
-    if (!patient) {
-      return false;
-    }
-    // 檢查是否在入院期間（使用 careRecordHelper 的 isInHospital 函數）
-    const inHospital = isInHospital(patient, recordDate, recordTime, admissionRecords, hospitalEpisodes);
-    return inHospital;
-  };
-  const getDefaultDateTime = () => {
+    return m;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const defaultDT = getDefaultDateTime();
+  const [formData, setFormData] = useState({
+    院友id: record?.院友id?.toString() || initialData?.patient?.院友id?.toString() || '',
+    記錄日期: defaultDT.date, 記錄時間: defaultDT.time,
+    備註: record?.備註 || '', 記錄人員: record?.記錄人員 || displayName || '',
+    isAbsent: !!(record?.備註?.includes('無法量度')),
+    absenceReason: record?.備註?.match(/無法量度原因:\s*(.+)/)?.[1]?.trim() || '',
+  });
+
+  const [vitalEntries, setVitalEntries] = useState<Record<string, VitalEntry>>(() => {
+    const init: Record<string, VitalEntry> = {};
     if (record) {
-      return { date: record.記錄日期, time: record.記錄時間 };
+      init[record.監測類型] = { primary: record.數值?.toString() ?? '', secondary: record.數值_副?.toString() ?? '' };
+      return init;
     }
-    const hongKongDateTime = getHongKongDateTime(initialData?.預設日期 || initialData?.task?.next_due_at);
-    // [修正] 優先順序：預設時間 > 任務的第一個時間點 > 當前時間
-    const specificTime = initialData?.預設時間 || initialData?.task?.specific_times?.[0];
-    return {
-      date: hongKongDateTime.date,
-      time: specificTime || hongKongDateTime.time
-    };
-  };
-  const { date: defaultRecordDate, time: defaultRecordTime } = getDefaultDateTime();
-  const initialIsPatientAbsent = checkPatientAbsent(
-    initialPatientId,
-    initialData?.預設日期 || initialData?.task?.next_due_at?.split('T')[0] || defaultRecordDate,
-    initialData?.預設時間 || initialData?.task?.specific_times?.[0] || defaultRecordTime
-  );
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  // 生成器狀態管理
+    // 從任務卡片開啟時，為可隨機預填的監測類型自動填入合理數值（保留原設計）
+    if (initialData?.task) {
+      const randomDefaults: Partial<Record<VitalSignType, string>> = {
+        體溫: (Math.random() * 0.9 + 36.0).toFixed(1),
+        血含氧量: Math.floor(Math.random() * 5 + 95).toString(),
+        呼吸頻率: Math.floor(Math.random() * 9 + 14).toString(),
+      };
+      initialActiveTypes.forEach(type => {
+        const def = randomDefaults[type];
+        if (def !== undefined) init[type] = { primary: def, secondary: '' };
+      });
+    }
+    return init;
+  });
+
+  const setEntry = (type: VitalSignType, updates: Partial<VitalEntry>) =>
+    setVitalEntries(prev => ({ ...prev, [type]: { ...(prev[type] ?? { primary: '', secondary: '' }), ...updates } }));
+
+  // 智能數據生成器（保留原設計）：依歷史記錄為各監測類型生成建議值
   type GeneratorStatus = 'idle' | 'loading' | 'generated' | 'error' | 'no-data';
   const [generatorStatus, setGeneratorStatus] = useState<GeneratorStatus>('idle');
   const [isGeneratorCollapsed, setIsGeneratorCollapsed] = useState(true);
-  const [generatedData, setGeneratedData] = useState<GeneratedHealthData | null>(null);
-  const [generatedRecordCount, setGeneratedRecordCount] = useState<number>(0);
-  const [formData, setFormData] = useState({
-    院友id: initialPatientId,
-    記錄類型: record?.記錄類型 || initialRecordTypeForDefaults,
-    記錄日期: defaultRecordDate,
-    記錄時間: defaultRecordTime,
-    血壓收縮壓: record?.血壓收縮壓?.toString() || (initialIsPatientAbsent ? '' : ''),
-    血壓舒張壓: record?.血壓舒張壓?.toString() || (initialIsPatientAbsent ? '' : ''),
-    脈搏: record?.脈搏?.toString() || (initialIsPatientAbsent ? '' : ''),
-    體溫: record?.體溫?.toString() || (initialIsPatientAbsent ? '' : initialRandomDefaults.體溫 || ''),
-    血含氧量: record?.血含氧量?.toString() || (initialIsPatientAbsent ? '' : initialRandomDefaults.血含氧量 || ''),
-    呼吸頻率: record?.呼吸頻率?.toString() || (initialIsPatientAbsent ? '' : initialRandomDefaults.呼吸頻率 || ''),
-    血糖值: record?.血糖值?.toString() || (initialIsPatientAbsent ? '' : ''),
-    體重: record?.體重?.toString() || (initialIsPatientAbsent ? '' : ''),
-    備註: record?.備註 || (initialIsPatientAbsent && !record ? '無法量度原因: 入院' : ''),
-    記錄人員: record?.記錄人員 || displayName || '',
-    isAbsent: record ? (record.備註?.includes('無法量度') || false) : initialIsPatientAbsent,
-    absenceReason: record ? '' : (initialIsPatientAbsent ? '入院' : ''),
-    customAbsenceReason: ''
-  });
-  // 組件掛載時記錄初始狀態和自動聚焦
-  React.useEffect(() => {
+  const [generatedRecordCount, setGeneratedRecordCount] = useState(0);
 
-    // 自動聚焦到對應的輸入框
-    setTimeout(() => {
-      if (!formData.isAbsent) {
-        if (formData.記錄類型 === '生命表徵' && bloodPressureInputRef.current) {
-          bloodPressureInputRef.current.focus();
-        } else if (formData.記錄類型 === '血糖控制' && bloodSugarInputRef.current) {
-          bloodSugarInputRef.current.focus();
-        } else if (formData.記錄類型 === '體重控制' && weightInputRef.current) {
-          weightInputRef.current.focus();
-        }
-      }
-    }, 100);
-  }, []);
-  // 計算當前院友是否在指定日期時間處於入院狀態（用於 UI 顯示）
-  const currentIsPatientAbsent = React.useMemo(() => {
-    const result = checkPatientAbsent(formData.院友id, formData.記錄日期, formData.記錄時間);
-    return result;
-  }, [formData.院友id, formData.記錄日期, formData.記錄時間, admissionRecords, hospitalEpisodes]);
-  // 當院友ID、日期或時間改變時，檢查是否在入院期間並自動設定
-  React.useEffect(() => {
-    // [診斷] 打印該院友的所有住院事件
-    if (formData.院友id) {
-      const patientEpisodes = hospitalEpisodes.filter(ep => ep.patient_id === formData.院友id);
-    }
-    if (formData.院友id && formData.記錄日期 && formData.記錄時間 && !record) {
-      const isAbsent = currentIsPatientAbsent;
-      if (isAbsent && !formData.isAbsent) {
-        // 在入院期間，自動設定為無法量度
-        setFormData(prev => ({
-          ...prev,
-          isAbsent: true,
-          absenceReason: '入院',
-          備註: '無法量度原因: 入院',
-          血壓收縮壓: '', 血壓舒張壓: '', 脈搏: '', 體溫: '', 血含氧量: '', 呼吸頻率: '', 血糖值: '', 體重: ''
-        }));
-      } else if (!isAbsent && formData.isAbsent && formData.absenceReason === '入院') {
-        // 不在入院期間，清除自動設定的入院狀態
-        setFormData(prev => ({
-          ...prev,
-          isAbsent: false,
-          absenceReason: '',
-          備註: ''
-        }));
-      } else {
-      }
-    } else {
-    }
-  }, [formData.院友id, formData.記錄日期, formData.記錄時間, record, currentIsPatientAbsent, hospitalEpisodes]);
-  React.useEffect(() => {
-    if (record?.備註?.includes('無法量度原因:')) {
-      const reasonMatch = record.備註.match(/無法量度原因:\s*(.+)/);
-      if (reasonMatch) {
-       const reason = reasonMatch[1].trim();
-       const predefinedReasons = ['入院', '回家', '拒絕'];
-       if (predefinedReasons.includes(reason)) {
-         setFormData(prev => ({ ...prev, isAbsent: true, absenceReason: reason }));
-       } else {
-         setFormData(prev => ({ ...prev, isAbsent: true, absenceReason: '其他', customAbsenceReason: reason }));
-       }
-      }
-    }
-  }, [record]);
-  React.useEffect(() => {
-    if (formData.記錄類型 === '體重控制') {
-      setFormData(prev => ({ ...prev, 記錄時間: '00:00' }));
-    }
-  }, [formData.記錄類型]);
-  const getCurrentHongKongDate = (): string => {
-    const now = new Date();
-    const hongKongTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Hong_Kong"}));
-    return hongKongTime.toISOString().split('T')[0];
-  };
-  const updateFormData = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-  // 直向手機/平板才顯示「掃描儀表」入口
-  const [isPortrait, setIsPortrait] = useState(false);
-  React.useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    const mq = window.matchMedia('(orientation: portrait) and (max-width: 1024px)');
-    const update = () => setIsPortrait(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-  const [showScanner, setShowScanner] = useState(false);
-  const [scanLowConfidence, setScanLowConfidence] = useState(false);
-  const handleScanResult = (result: VitalSignScanResult) => {
-    setFormData(prev => {
-      const next: typeof prev = { ...prev };
-      for (const [field, value] of Object.entries(result.values)) {
-        if (value != null && value !== '') {
-          (next as Record<string, string>)[field] = value;
-        }
-      }
-      return next;
-    });
-    setScanLowConfidence(result.lowConfidence);
-    setShowScanner(false);
-  };
-  const handleAbsenceChange = (checked: boolean) => {
-    if (checked) {
-      setFormData(prev => ({
-        ...prev,
-        isAbsent: true,
-        血壓收縮壓: '', 血壓舒張壓: '', 脈搏: '', 體溫: '', 血含氧量: '', 呼吸頻率: '', 血糖值: '', 體重: '',
-        備註: prev.absenceReason ? `無法量度原因: ${prev.absenceReason}` : '無法量度'
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, isAbsent: false, absenceReason: '', 備註: '' }));
-    }
-  };
-  const handleAbsenceReasonChange = (reason: string) => {
-   if (reason === '其他') {
-     setFormData(prev => ({ ...prev, absenceReason: reason, customAbsenceReason: '', 備註: '無法量度原因: ' }));
-   } else {
-     setFormData(prev => ({ ...prev, absenceReason: reason, customAbsenceReason: '', 備註: reason ? `無法量度原因: ${reason}` : '無法量度' }));
-   }
- };
- React.useEffect(() => {
-   if (formData.absenceReason === '其他' && formData.customAbsenceReason) {
-     setFormData(prev => ({ ...prev, 備註: `無法量度原因: ${prev.customAbsenceReason}` }));
-   }
- }, [formData.customAbsenceReason]);
-  const validateForm = () => {
-    const errors: string[] = [];
-    if (!formData.院友id) errors.push('請選擇院友');
-    if (!formData.記錄日期) errors.push('請填寫記錄日期');
-    if (formData.記錄類型 !== '體重控制' && !formData.記錄時間) errors.push('請填寫記錄時間');
-    if (!formData.isAbsent) {
-      if (formData.記錄類型 === '生命表徵') {
-        const hasVitalSign = formData.血壓收縮壓 || formData.血壓舒張壓 || formData.脈搏 || formData.體溫 || formData.血含氧量 || formData.呼吸頻率;
-        if (!hasVitalSign) errors.push('至少需要填寫一項生命表徵數值');
-      } else if (formData.記錄類型 === '血糖控制' && !formData.血糖值) {
-        errors.push('請填寫血糖值');
-      } else if (formData.記錄類型 === '體重控制' && !formData.體重) {
-        errors.push('請填寫體重');
-      }
-    } else {
-      if (!formData.absenceReason) errors.push('請選擇原因');
-    }
-    return errors;
-  };
-  // 生成器處理函數
   const handleGenerateData = async () => {
-    if (!formData.院友id) {
-      alert('請先選擇院友');
-      return;
-    }
+    if (!formData.院友id) { alert('請先選擇院友'); return; }
     setGeneratorStatus('loading');
     setIsGeneratorCollapsed(false);
     try {
-      const recentRecords = await getRecentHealthRecordsByPatient(
-        parseInt(formData.院友id),
-        formData.記錄類型,
-        5
-      );
-      const result = generateHealthRecordSuggestions(recentRecords, formData.記錄類型);
-      if (result.success && result.data) {
-        setGeneratedData(result.data);
-        setGeneratedRecordCount(result.recordCount || 0);
-        setGeneratorStatus('generated');
-        // 自動填入表單
-        setFormData(prev => ({
-          ...prev,
-          ...result.data
-        }));
-      } else if (result.error === 'no-data') {
-        setGeneratorStatus('no-data');
-      } else {
-        setGeneratorStatus('error');
+      const pid = parseInt(formData.院友id);
+      const updates: Record<string, VitalEntry> = {};
+      let maxCount = 0;
+      let filledAny = false;
+      for (const type of activeTypes) {
+        const recent = await getRecentHealthRecordsByPatient(pid, type, 5);
+        maxCount = Math.max(maxCount, recent.length);
+        const sug = generateVitalSuggestion(type, recent as any);
+        if (sug?.primary) {
+          updates[type] = { primary: sug.primary, secondary: sug.secondary ?? '' };
+          filledAny = true;
+        }
       }
-    } catch (error) {
-      console.error('[生成器] 發生錯誤:', error);
+      if (filledAny) {
+        setVitalEntries(prev => ({ ...prev, ...updates }));
+        setGeneratedRecordCount(maxCount);
+        setGeneratorStatus('generated');
+      } else {
+        setGeneratorStatus('no-data');
+      }
+    } catch (e) {
+      console.error('[生成器] 發生錯誤:', e);
       setGeneratorStatus('error');
     }
   };
-  const handleRegenerateData = async () => {
-    await handleGenerateData();
-  };
-  // 當院友、記錄類型改變時，重置生成器
-  React.useEffect(() => {
+
+  // 院友或監測類型改變時重置生成器
+  useEffect(() => {
     setGeneratorStatus('idle');
-    setGeneratedData(null);
     setGeneratedRecordCount(0);
-  }, [formData.院友id, formData.記錄類型]);
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    const errors = validateForm();
-    if (errors.length > 0) {
-      alert(errors.join('\n'));
-      return;
+  }, [formData.院友id, activeTypes]);
+
+  const currentIsPatientAbsent = useMemo(() => {
+    if (!formData.院友id || !formData.記錄日期 || !formData.記錄時間) return false;
+    const patient = patients.find(p => p.院友id.toString() === formData.院友id);
+    if (!patient) return false;
+    return isInHospital(patient, formData.記錄日期, formData.記錄時間, admissionRecords, hospitalEpisodes);
+  }, [formData.院友id, formData.記錄日期, formData.記錄時間, admissionRecords, hospitalEpisodes, patients]);
+
+  useEffect(() => {
+    if (record) return;
+    if (currentIsPatientAbsent && !formData.isAbsent)
+      setFormData(prev => ({ ...prev, isAbsent: true, absenceReason: '入院', 備註: '無法量度原因: 入院' }));
+    else if (!currentIsPatientAbsent && formData.isAbsent && formData.absenceReason === '入院')
+      setFormData(prev => ({ ...prev, isAbsent: false, absenceReason: '', 備註: '' }));
+  }, [currentIsPatientAbsent]);
+
+  const [showDateWarning, setShowDateWarning] = useState(false);
+  const dwHandlers = useRef({ confirm: async () => {}, cancel: () => {} });
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && !showDateWarning) onClose(); };
+    window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
+  }, [onClose, showDateWarning]);
+
+  useEffect(() => {
+    if (!showDateWarning) return;
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') { e.preventDefault(); dwHandlers.current.confirm(); }
+      else if (e.key === 'Escape') { e.preventDefault(); dwHandlers.current.cancel(); }
+    };
+    window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
+  }, [showDateWarning]);
+
+  const [isPortrait, setIsPortrait] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(orientation: portrait) and (max-width: 1024px)');
+    const update = () => setIsPortrait(mq.matches); update();
+    mq.addEventListener('change', update); return () => mq.removeEventListener('change', update);
+  }, []);
+
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanLowConfidence, setScanLowConfidence] = useState(false);
+  const hasBP = activeTypes.includes('血壓');
+  const hasBG = activeTypes.includes('血糖值');
+  const canScan = isPortrait && !formData.isAbsent && (hasBP || hasBG);
+  const scanType: '生命表徵' | '血糖控制' = hasBG && !hasBP ? '血糖控制' : '生命表徵';
+
+  const handleScanResult = (result: VitalSignScanResult) => {
+    if (result.success) {
+      setVitalEntries(prev => {
+        const next = { ...prev };
+        const bp = next['血壓'] ?? { primary: '', secondary: '' };
+        if (result.values.血壓收縮壓) next['血壓'] = { ...bp, primary: result.values.血壓收縮壓 };
+        if (result.values.血壓舒張壓) next['血壓'] = { ...(next['血壓'] ?? bp), secondary: result.values.血壓舒張壓 };
+        if (result.values.脈搏)   next['脈搏']   = { primary: result.values.脈搏, secondary: '' };
+        if (result.values.血含氧量) next['血含氧量'] = { primary: result.values.血含氧量, secondary: '' };
+        if (result.values.血糖值)   next['血糖值'] = { primary: result.values.血糖值, secondary: '' };
+        return next;
+      });
+      setScanLowConfidence(result.lowConfidence);
     }
-    const currentDate = getCurrentHongKongDate();
-    const recordDate = formData.記錄日期;
-    if (recordDate < currentDate && !isDateWarningConfirmed) {
-      setShowDateWarningModal(true);
-      return;
-    }
-    if (isDateWarningConfirmed) setIsDateWarningConfirmed(false);
-    await saveRecord();
+    setShowScanner(false);
   };
-  const saveRecord = async () => {
-    setIsSubmitting(true);
-    const recordData = {
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const buildRecords = () => {
+    const base = {
       院友id: parseInt(formData.院友id),
-      task_id: initialData?.task?.id || record?.task_id || undefined,
       記錄日期: formData.記錄日期,
-      記錄時間: formData.記錄類型 === '體重控制' ? '00:00' : formData.記錄時間,
-      記錄類型: formData.記錄類型 as any,
-      血壓收縮壓: formData.血壓收縮壓 ? parseInt(formData.血壓收縮壓) : undefined,
-      血壓舒張壓: formData.血壓舒張壓 ? parseInt(formData.血壓舒張壓) : undefined,
-      脈搏: formData.脈搏 ? parseInt(formData.脈搏) : undefined,
-      體溫: formData.體溫 ? parseFloat(formData.體溫) : undefined,
-      血含氧量: formData.血含氧量 ? parseInt(formData.血含氧量) : undefined,
-      呼吸頻率: formData.呼吸頻率 ? parseInt(formData.呼吸頻率) : undefined,
-      血糖值: formData.血糖值 ? parseFloat(formData.血糖值) : undefined,
-      體重: formData.體重 ? parseFloat(formData.體重) : undefined,
       備註: formData.備註 || undefined,
       記錄人員: formData.記錄人員 || undefined,
     };
+    const typesToProcess = formData.isAbsent ? activeTypes : activeTypes.filter(t => vitalEntries[t]?.primary.trim());
+    return typesToProcess.map(type => ({
+      ...base,
+      任務id: typeToTaskId[type] ?? initialData?.task?.id ?? record?.任務id ?? undefined,
+      記錄時間: type === '體重' ? '00:00' : formData.記錄時間,
+      監測類型: type,
+      數值: formData.isAbsent ? 0 : parseFloat(vitalEntries[type].primary),
+      數值_副: type === '血壓'
+        ? (formData.isAbsent ? 0 : parseFloat(vitalEntries[type]?.secondary || '0'))
+        : undefined,
+    }));
+  };
+
+  const doSave = async () => {
+    setIsSubmitting(true);
     try {
+      const records = buildRecords();
+      if (!formData.isAbsent && records.length === 0) { alert('請至少填寫一項監測數值'); return; }
       if (record) {
-        await updateHealthRecord({ 記錄id: record.記錄id, ...recordData });
-        onClose();
-        // [核心修復] 更新記錄時也需要同步任務狀態
-        if (onTaskCompleted && (initialData?.task?.id || record?.task_id)) {
-          const taskId = initialData?.task?.id || record?.task_id;
-          const recordDateTime = new Date(`${formData.記錄日期}T${formData.記錄時間}`);
-          onTaskCompleted(taskId, recordDateTime);
-        }
+        const r = records[0];
+        if (r) await updateHealthRecord({ ...record, ...r } as HealthRecord);
       } else {
-        await addHealthRecord(recordData);
-        onClose();
-        if (onTaskCompleted && initialData?.task?.id) {
-          const recordDateTime = new Date(`${formData.記錄日期}T${formData.記錄時間}`);
-          onTaskCompleted(initialData.task.id, recordDateTime);
-        }
+        await createHealthRecordsForSession(records as Omit<HealthRecord, '記錄id' | '建立時間'>[]);
       }
-      setIsSubmitting(false);
-    } catch (error) {
-      console.error('[saveRecord] 儲存失敗:', error);
-      alert(`儲存失敗: ${error instanceof Error ? error.message : '未知錯誤'}`);
-      setIsSubmitting(false);
+      onClose();
+      // 完成所有相關任務（多任務整合時逐一更新各任務的下次到期）
+      if (onTaskCompleted) {
+        const dt = new Date(`${formData.記錄日期}T${formData.記錄時間}`);
+        const completedTaskIds = new Set<string>();
+        (records as { 任務id?: string }[]).forEach(r => { if (r.任務id) completedTaskIds.add(r.任務id); });
+        const fallback = initialData?.task?.id ?? record?.任務id;
+        if (completedTaskIds.size === 0 && fallback) completedTaskIds.add(fallback);
+        completedTaskIds.forEach(id => onTaskCompleted(id, dt));
+      }
+    } catch (err) {
+      console.error('儲存失敗:', err);
+      alert(`儲存失敗: ${err instanceof Error ? err.message : '未知錯誤'}`);
+    } finally { setIsSubmitting(false); }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    if (!formData.院友id) { alert('請選擇院友'); return; }
+    if (!formData.記錄日期) { alert('請填寫記錄日期'); return; }
+    if (!isTypeFixed && activeTypes.length === 0) { alert('請選擇至少一種監測項目'); return; }
+    if (formData.isAbsent && !formData.absenceReason) { alert('請選擇無法量度原因'); return; }
+    const today = getHKNow().date;
+    if (formData.記錄日期 < today) {
+      dwHandlers.current = { confirm: async () => { setShowDateWarning(false); await doSave(); }, cancel: () => setShowDateWarning(false) };
+      setShowDateWarning(true); return;
     }
+    await doSave();
   };
-  const handleDateWarningConfirm = async () => {
-    setShowDateWarningModal(false);
-    setIsDateWarningConfirmed(true);
-    await saveRecord();
+
+  const renderInput = (type: VitalSignType) => {
+    const entry = vitalEntries[type] ?? { primary: '', secondary: '' };
+    const disabled = formData.isAbsent;
+    const info = ALL_VITAL_TYPES.find(v => v.type === type)!;
+    const isDecimal = ['體溫', '血糖值', '體重'].includes(type);
+    const placeholders: Record<string, string> = { '血壓': '120', '脈搏': '72', '體溫': '36.5', '血含氧量': '98', '呼吸頻率': '18', '血糖值': '5.5', '體重': '65.0' };
+    if (type === '血壓') {
+      return (
+        <div key={type}>
+          <label className="form-label">血壓 (收縮壓 / 舒張壓) mmHg</label>
+          <div className="flex items-center gap-2">
+            <input type="text" inputMode="numeric" value={entry.primary} onChange={e => setEntry(type, { primary: e.target.value.replace(/[^0-9]/g, '') })} className="form-input" placeholder="120" disabled={disabled} />
+            <span className="text-gray-400 flex-shrink-0">/</span>
+            <input type="text" inputMode="numeric" value={entry.secondary} onChange={e => setEntry(type, { secondary: e.target.value.replace(/[^0-9]/g, '') })} className="form-input" placeholder="80" disabled={disabled} />
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div key={type}>
+        <label className="form-label">{info.label} ({info.unit})</label>
+        <input type="text" inputMode={isDecimal ? 'decimal' : 'numeric'} value={entry.primary}
+          onChange={e => setEntry(type, { primary: isDecimal ? e.target.value : e.target.value.replace(/[^0-9]/g, '') })}
+          className="form-input" placeholder={placeholders[type] || ''} disabled={disabled} />
+      </div>
+    );
   };
-  const handleDateWarningCancel = () => {
-    setShowDateWarningModal(false);
-    setIsDateWarningConfirmed(false);
-  };
-  // 更新 ref 中的處理函數
-  dateWarningHandlersRef.current.confirm = handleDateWarningConfirm;
-  dateWarningHandlersRef.current.cancel = handleDateWarningCancel;
+
   return (
     <>
-      {showScanner && (formData.記錄類型 === '生命表徵' || formData.記錄類型 === '血糖控制') && (
-        <VitalSignScanner
-          recordType={formData.記錄類型 as '生命表徵' | '血糖控制'}
-          onResult={handleScanResult}
-          onCancel={() => setShowScanner(false)}
-        />
-      )}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-        onClick={onClose}
-      >
-        <div
-          className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <div className="flex flex-wrap items-center gap-3">
-              {formData.記錄類型 === '生命表徵' && <Activity className="h-5 w-5 text-blue-600" />}
-              {formData.記錄類型 === '血糖控制' && <Droplets className="h-5 w-5 text-red-600" />}
-              {formData.記錄類型 === '體重控制' && <Scale className="h-5 w-5 text-green-600" />}
-              <h2 className="text-xl font-semibold text-gray-900">
-                {record ? '編輯監測記錄' : '新增監測記錄'}
-              </h2>
+      {showScanner && <VitalSignScanner recordType={scanType} onResult={handleScanResult} onCancel={() => setShowScanner(false)} />}
+      {showDateWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="h-6 w-6 text-amber-500 flex-shrink-0" />
+              <h3 className="font-semibold text-gray-900">確認補錄</h3>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <X className="h-6 w-6" />
-            </button>
+            <p className="text-sm text-gray-600 mb-6">記錄日期（{formData.記錄日期}）早於今天，確定要補錄嗎？</p>
+            <div className="flex gap-3">
+              <button type="button" onClick={dwHandlers.current.cancel} className="btn-secondary flex-1">取消</button>
+              <button type="button" onClick={dwHandlers.current.confirm} className="btn-primary flex-1">確認補錄</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
+        <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Activity className="h-5 w-5 text-blue-600" />
+              <h2 className="text-xl font-semibold text-gray-900">{record ? '編輯監測記錄' : '新增監測記錄'}</h2>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="h-6 w-6" /></button>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="form-label">記錄人員</label>
-                <input
-                  type="text"
-                  value={formData.記錄人員}
-                  onChange={(e) => updateFormData('記錄人員', e.target.value)}
-                  className="form-input"
-                  placeholder="記錄人員姓名"
-                />
+                <label className="form-label"><User className="h-4 w-4 inline mr-1" />院友 *</label>
+                <PatientAutocomplete value={formData.院友id} onChange={id => setFormData(prev => ({ ...prev, 院友id: id }))} placeholder="搜索院友..." showResidencyFilter defaultResidencyStatus="在住" />
               </div>
-              <div>
-                <label className="form-label">記錄類型 *</label>
-                <select
-                  value={formData.記錄類型}
-                  onChange={(e) => updateFormData('記錄類型', e.target.value)}
-                  className="form-input"
-                  required
-                >
-                  <option value="生命表徵">生命表徵</option>
-                  <option value="血糖控制">血糖控制</option>
-                  <option value="體重控制">體重控制</option>
-                </select>
-              </div>
-              <div>
-                <label className="form-label">
-                  <Calendar className="h-4 w-4 inline mr-1" />
-                  記錄日期 *
-                </label>
-                <input
-                  type="date"
-                  value={formData.記錄日期}
-                  onChange={(e) => updateFormData('記錄日期', e.target.value)}
-                  className="form-input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label">
-                  <Clock className="h-4 w-4 inline mr-1" />
-                  {formData.記錄類型 === '體重控制' ? '記錄時間' : '記錄時間 *'}
-                </label>
-                <input
-                  type="time"
-                  value={formData.記錄時間}
-                  onChange={(e) => updateFormData('記錄時間', e.target.value)}
-                  className="form-input"
-                  required={formData.記錄類型 !== '體重控制'}
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="form-label"><Calendar className="h-4 w-4 inline mr-1" />日期 *</label>
+                  <input type="date" value={formData.記錄日期} onChange={e => setFormData(prev => ({ ...prev, 記錄日期: e.target.value }))} className="form-input" required />
+                </div>
+                <div>
+                  <label className="form-label"><Clock className="h-4 w-4 inline mr-1" />時間</label>
+                  <input type="time" value={formData.記錄時間} onChange={e => setFormData(prev => ({ ...prev, 記錄時間: e.target.value }))} className="form-input" />
+                </div>
               </div>
             </div>
-            {isPortrait && !formData.isAbsent && (formData.記錄類型 === '生命表徵' || formData.記錄類型 === '血糖控制') && (
-              <button
-                type="button"
-                onClick={() => setShowScanner(true)}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-600 text-white font-medium active:bg-blue-700"
-              >
-                <Camera className="h-5 w-5" />
-                掃描{formData.記錄類型 === '血糖控制' ? '血糖儀' : '血壓計'}
+            {!isTypeFixed && (
+              <div>
+                <label className="form-label">監測項目 * （可多選）</label>
+                <div className="flex flex-wrap gap-2">
+                  {ALL_VITAL_TYPES.map(({ type, label, color }) => {
+                    const selected = activeTypes.includes(type);
+                    return (
+                      <button key={type} type="button"
+                        onClick={() => setActiveTypes(prev => selected ? prev.filter(t => t !== type) : [...prev, type])}
+                        className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-colors ${selected ? `${color} text-white border-transparent` : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <div className={`p-3 rounded-lg border ${currentIsPatientAbsent ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="isAbsent" checked={formData.isAbsent}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setFormData(prev => ({ ...prev, isAbsent: checked, absenceReason: checked ? prev.absenceReason : '', 備註: checked ? (prev.absenceReason ? `無法量度原因: ${prev.absenceReason}` : '無法量度') : '' }));
+                  }}
+                  className="h-4 w-4 rounded border-gray-300" />
+                <label htmlFor="isAbsent" className={`text-sm font-medium cursor-pointer ${currentIsPatientAbsent ? 'text-red-800' : 'text-orange-800'}`}>
+                  院友未能進行監測{currentIsPatientAbsent && <span className="ml-1 text-red-600 font-bold">(入院中)</span>}
+                </label>
+              </div>
+              {formData.isAbsent && (
+                <div className="mt-2 flex items-center gap-2">
+                  <label className="text-sm text-gray-600 flex-shrink-0">原因:</label>
+                  <select value={formData.absenceReason}
+                    onChange={e => { const r = e.target.value; setFormData(prev => ({ ...prev, absenceReason: r, 備註: r ? `無法量度原因: ${r}` : '無法量度' })); }}
+                    className="form-input text-sm flex-1" required={formData.isAbsent} disabled={currentIsPatientAbsent && formData.absenceReason === '入院'}>
+                    <option value="">請選擇</option>
+                    <option value="入院">入院</option>
+                    <option value="回家">回家</option>
+                    <option value="拒絕">拒絕</option>
+                    <option value="其他">其他</option>
+                  </select>
+                </div>
+              )}
+            </div>
+            {canScan && (
+              <button type="button" onClick={() => setShowScanner(true)} className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-600 text-white font-medium active:bg-blue-700">
+                <Camera className="h-5 w-5" />揃描{hasBG && !hasBP ? '血糖儀' : '血壓計'}
               </button>
             )}
             {scanLowConfidence && (
               <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                 <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>已自動填入掃描結果，但辨識信心較低，請核對數值是否正確。</span>
+                <span>已自動填入揃描結果，但辨識信心較低，請核對數值是否正確。</span>
               </div>
             )}
-            <div className="grid grid-cols-1 lg:grid-cols-[60%_40%] gap-4">
+            {!formData.isAbsent && activeTypes.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{activeTypes.map(renderInput)}</div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="form-label">
-                  <User className="h-4 w-4 inline mr-1" />
-                  院友 *
-                </label>
-                <PatientAutocomplete
-                  value={formData.院友id}
-                  onChange={(patientId) => updateFormData('院友id', patientId)}
-                  placeholder="搜索院友..."
-                  showResidencyFilter={true}
-                  defaultResidencyStatus="在住"
-                />
+                <label className="form-label">備註</label>
+                <textarea value={formData.備註} onChange={e => setFormData(prev => ({ ...prev, 備註: e.target.value }))} className="form-input" rows={2} placeholder="其他備註..." disabled={formData.isAbsent && !!formData.absenceReason} />
               </div>
               <div>
-                <label className="form-label">監測狀態</label>
-                <div className={`p-3 rounded-lg border ${
-                  currentIsPatientAbsent ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'
-                }`}>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.isAbsent}
-                      onChange={(e) => handleAbsenceChange(e.target.checked)}
-                      className={`h-4 w-4 focus:ring-orange-500 border-gray-300 rounded ${
-                        currentIsPatientAbsent ? 'text-red-600 focus:ring-red-500' : 'text-orange-600 focus:ring-orange-500'
-                      }`}
-                    />
-                    <label className={`text-sm font-medium cursor-pointer ${
-                      currentIsPatientAbsent ? 'text-red-800' : 'text-orange-800'
-                    }`}>
-                      院友未能進行監測
-                      {currentIsPatientAbsent && <span className="ml-1 text-red-600 font-bold">(入院中)</span>}
-                    </label>
-                  </div>
-                  {formData.isAbsent && (
-                    <div className="mt-3 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <label className={`text-sm ${currentIsPatientAbsent ? 'text-red-700' : 'text-orange-700'}`}>原因:</label>
-                        <select
-                          value={formData.absenceReason}
-                          onChange={(e) => handleAbsenceReasonChange(e.target.value)}
-                          className="form-input text-sm flex-1"
-                          required={formData.isAbsent}
-                          disabled={currentIsPatientAbsent && formData.absenceReason === '入院'}
-                        >
-                          <option value="">請選擇</option>
-                          <option value="入院">入院</option>
-                          <option value="回家">回家</option>
-                          <option value="拒絕">拒絕</option>
-                          <option value="其他">其他</option>
-                        </select>
-                      </div>
-                      {formData.absenceReason === '其他' && (
-                        <input
-                          type="text"
-                          value={formData.customAbsenceReason || ''}
-                          ref={bloodPressureInputRef}
-                          onChange={(e) => setFormData(prev => ({ ...prev, customAbsenceReason: e.target.value }))}
-                          className="form-input text-sm w-full"
-                          placeholder="請輸入原因..."
-                          required
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
+                <label className="form-label">記錄人員</label>
+                <input type="text" value={formData.記錄人員} onChange={e => setFormData(prev => ({ ...prev, 記錄人員: e.target.value }))} className="form-input" placeholder="記錄人員姓名" />
               </div>
             </div>
-            {formData.記錄類型 === '生命表徵' && (
-              <div className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="form-label">血壓 (mmHg)</label>
-                    <div className="flex flex-wrap gap-2">
-                      <input ref={bloodPressureInputRef} type="text" value={formData.血壓收縮壓} onChange={(e) => updateFormData('血壓收縮壓', e.target.value.replace(/[^0-9]/g, ''))} className="form-input" placeholder="120" disabled={formData.isAbsent} inputMode="numeric" />
-                      <span className="flex items-center text-gray-500">/</span>
-                      <input type="text" value={formData.血壓舒張壓} onChange={(e) => updateFormData('血壓舒張壓', e.target.value.replace(/[^0-9]/g, ''))} className="form-input" placeholder="80" disabled={formData.isAbsent} inputMode="numeric" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="form-label">脈搏 (每分鐘)</label>
-                    <input type="text" value={formData.脈搏} onChange={(e) => updateFormData('脈搏', e.target.value.replace(/[^0-9]/g, ''))} className="form-input" placeholder="72" disabled={formData.isAbsent} inputMode="numeric" />
-                  </div>
-                  <div>
-                    <label className="form-label">體溫 (°C)</label>
-                    <input type="text" value={formData.體溫} onChange={(e) => updateFormData('體溫', e.target.value)} className="form-input" placeholder="36.5" disabled={formData.isAbsent} inputMode="decimal" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="form-label">血含氧量 (%)</label>
-                    <input type="text" value={formData.血含氧量} onChange={(e) => updateFormData('血含氧量', e.target.value.replace(/[^0-9]/g, ''))} className="form-input" placeholder="98" disabled={formData.isAbsent} inputMode="numeric" />
-                  </div>
-                  <div>
-                    <label className="form-label">呼吸頻率 (每分鐘)</label>
-                    <input type="text" value={formData.呼吸頻率} onChange={(e) => updateFormData('呼吸頻率', e.target.value.replace(/[^0-9]/g, ''))} className="form-input" placeholder="18" disabled={formData.isAbsent} inputMode="numeric" />
-                  </div>
-                  <div>
-                    <label className="form-label">備註</label>
-                    <textarea value={formData.備註} onChange={(e) => updateFormData('備註', e.target.value)} className="form-input" rows={1} placeholder="其他備註資訊..." disabled={formData.isAbsent} />
-                  </div>
-                </div>
-              </div>
-            )}
-            {formData.記錄類型 === '血糖控制' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                  <label className="form-label">血糖值 (mmol/L) *</label>
-                  <input ref={bloodSugarInputRef} type="text" value={formData.血糖值} onChange={(e) => updateFormData('血糖值', e.target.value)} className="form-input" placeholder="5.5" required disabled={formData.isAbsent} inputMode="decimal" />
-                </div>
-                <div>
-                  <label className="form-label">備註</label>
-                  <textarea value={formData.備註} onChange={(e) => updateFormData('備註', e.target.value)} className="form-input" rows={1} placeholder="血糖測試相關備註..." disabled={formData.isAbsent} />
-                </div>
-              </div>
-            )}
-            {formData.記錄類型 === '體重控制' && (
-              <div className="grid grid-cols-1 gap-4 mt-4">
-                <div>
-                  <label className="form-label">體重 (kg) *</label>
-                  <input type="text" value={formData.體重} onChange={(e) => updateFormData('體重', e.target.value)} className="form-input" placeholder="65.0" required disabled={formData.isAbsent} inputMode="decimal" />
-                </div>
-              </div>
-            )}
-            <div className="flex flex-col sm:flex-row gap-2 pt-4">
-              <button type="submit" className="btn-primary flex-1">
-                {record ? '更新記錄' : '儲存記錄'}
-              </button>
-              <button type="button" onClick={onClose} className="btn-secondary flex-1">
-                取消
-              </button>
+            <div className="flex gap-2 pt-2">
+              <button type="submit" disabled={isSubmitting} className="btn-primary flex-1">{isSubmitting ? '儲存中...' : record ? '更新記錄' : '儲存記錄'}</button>
+              <button type="button" onClick={onClose} className="btn-secondary flex-1">取消</button>
             </div>
             {/* 智能數據生成器 - 只在新增模式下顯示 */}
             {!record && (
-              <div className="mt-6 border-t pt-4">
+              <div className="mt-2 border-t pt-4">
                 <button
                   type="button"
                   onClick={() => setIsGeneratorCollapsed(!isGeneratorCollapsed)}
-                  className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-lg transition-colors"
+                  className="w-full flex items-center justify-between gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-lg transition-colors"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <Sparkles className="h-5 w-5 text-blue-600" />
                     <span className="font-medium text-blue-900">智能數據生成器</span>
                     {generatorStatus === 'generated' && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                        已生成
-                      </span>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">已生成</span>
                     )}
                   </div>
                   {isGeneratorCollapsed ? (
@@ -669,7 +480,6 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                 </button>
                 {!isGeneratorCollapsed && (
                   <div className="mt-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                    {/* 顯示當前選中院友 */}
                     <div className="mb-4">
                       {formData.院友id ? (
                         <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
@@ -682,7 +492,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                             })()}
                           </span>
                           <span className="text-blue-600">|</span>
-                          <span>記錄類型：{formData.記錄類型}</span>
+                          <span>監測類型：{activeTypes.join('、') || '未選擇'}</span>
                         </div>
                       ) : (
                         <div className="text-sm text-orange-600 flex flex-wrap items-center gap-2">
@@ -691,13 +501,12 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                         </div>
                       )}
                     </div>
-                    {/* 生成器內容 */}
                     {generatorStatus === 'idle' && (
                       <div className="text-center py-4">
                         <button
                           type="button"
                           onClick={handleGenerateData}
-                          disabled={!formData.院友id || formData.isAbsent}
+                          disabled={!formData.院友id || formData.isAbsent || activeTypes.length === 0}
                           className="btn-primary inline-flex flex-wrap items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Sparkles className="h-4 w-4" />
@@ -730,26 +539,18 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
                           <span className="font-medium">生成失敗</span>
                         </div>
                         <p className="text-sm text-gray-600 mb-3">請稍後再試</p>
-                        <button
-                          type="button"
-                          onClick={handleGenerateData}
-                          className="btn-secondary text-sm"
-                        >
-                          重試
-                        </button>
+                        <button type="button" onClick={handleGenerateData} className="btn-secondary text-sm">重試</button>
                       </div>
                     )}
-                    {generatorStatus === 'generated' && generatedData && (
+                    {generatorStatus === 'generated' && (
                       <div className="text-center py-4">
                         <div className="flex flex-wrap items-center justify-center gap-2 text-green-600 mb-4">
                           <CheckCircle className="h-5 w-5" />
-                          <span className="text-sm font-medium">
-                            已根據最近 {generatedRecordCount} 次記錄生成並填入表單
-                          </span>
+                          <span className="text-sm font-medium">已根據最近 {generatedRecordCount} 次記錄生成並填入表單</span>
                         </div>
                         <button
                           type="button"
-                          onClick={handleRegenerateData}
+                          onClick={handleGenerateData}
                           className="btn-secondary inline-flex flex-wrap items-center gap-2"
                         >
                           <RefreshCw className="h-4 w-4" />
@@ -764,51 +565,8 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
           </form>
         </div>
       </div>
-      {showDateWarningModal && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]"
-          onClick={handleDateWarningCancel}
-        >
-          <div
-            className="bg-white rounded-lg max-w-md w-full p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="p-2 rounded-lg bg-orange-100">
-                  <AlertTriangle className="h-6 w-6 text-orange-600" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900">日期確認</h3>
-              </div>
-              <button onClick={handleDateWarningCancel} className="text-gray-400 hover:text-gray-600">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="mb-6">
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
-                  <div>
-                    <h4 className="font-medium text-orange-900 mb-2">記錄日期早於當前日期</h4>
-                    <div className="text-sm text-orange-800 space-y-1">
-                      <p><strong>記錄日期：</strong>{new Date(formData.記錄日期).toLocaleDateString('zh-TW')}</p>
-                      <p><strong>當前日期：</strong>{new Date(getCurrentHongKongDate()).toLocaleDateString('zh-TW')}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <p className="text-gray-700 text-sm">
-                您輸入的記錄日期早於當前系統日期。這可能是補錄過往的記錄，請確認是否要繼續儲存？
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button onClick={handleDateWarningConfirm} className="btn-primary flex-1">確認儲存</button>
-              <button onClick={handleDateWarningCancel} className="btn-secondary flex-1">取消</button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };
+
 export default HealthRecordModal;

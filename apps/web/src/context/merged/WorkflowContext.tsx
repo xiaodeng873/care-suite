@@ -41,6 +41,19 @@ import {
   useDeletePrescriptionTimeSlotDefinition,
 } from '../../hooks/queries/useWorkflowQueries';
 
+// ========== Vital Sign 映射表 ==========
+// 將舊式檢測規則 vital_sign_type 字段映射到新的 VitalSignType + 數据欄位
+type VitalSignMapping = { monitoringType: db.VitalSignType; field: '數值' | '數值_副' };
+const VITAL_SIGN_TYPE_MAP: Record<string, VitalSignMapping> = {
+  '上壓': { monitoringType: '血壓', field: '數值' },        // 收縮壓
+  '下壓': { monitoringType: '血壓', field: '數值_副' },    // 舒張壓
+  '脈搏': { monitoringType: '脈搏', field: '數值' },
+  '血糖值': { monitoringType: '血糖值', field: '數值' },
+  '呼吸': { monitoringType: '呼吸頻率', field: '數值' },
+  '血含氧量': { monitoringType: '血含氧量', field: '數值' },
+  '體溫': { monitoringType: '體溫', field: '數值' },
+};
+
 // ========== 類型定義 ==========
 // Extended schedule interface for UI
 export interface ScheduleWithDetails extends db.Schedule {
@@ -525,20 +538,20 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
       const usedVitalSignData: any = {};
       const missingVitalSigns: string[] = [];
       for (const rule of prescription.inspection_rules) {
+        const mapping = VITAL_SIGN_TYPE_MAP[rule.vital_sign_type];
+        if (!mapping) {
+          missingVitalSigns.push(rule.vital_sign_type);
+          continue;
+        }
         let healthRecord: db.HealthRecord | null = null;
         if (scheduledDate && scheduledTime) {
-          healthRecord = await db.getHealthRecordByDateTime(patientId, scheduledDate, scheduledTime, rule.vital_sign_type);
+          healthRecord = await db.getHealthRecordByDateTime(patientId, scheduledDate, scheduledTime, mapping.monitoringType);
         }
         if (!healthRecord) {
           missingVitalSigns.push(rule.vital_sign_type);
           continue;
         }
-        const vitalSignFieldMap: Record<string, keyof db.HealthRecord> = {
-          '上壓': '血壓收縮壓', '下壓': '血壓舒張壓', '脈搏': '脈搏',
-          '血糖值': '血糖值', '呼吸': '呼吸頻率', '血含氧量': '血含氧量', '體溫': '體溫'
-        };
-        const fieldName = vitalSignFieldMap[rule.vital_sign_type];
-        const fieldValue = healthRecord[fieldName];
+        const fieldValue = healthRecord[mapping.field];
         if (fieldValue === null || fieldValue === undefined) {
           missingVitalSigns.push(rule.vital_sign_type);
           continue;
@@ -571,25 +584,14 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
     targetTime?: string
   ): Promise<{ record: db.HealthRecord | null; isExactMatch: boolean }> => {
     try {
+      const mapping = VITAL_SIGN_TYPE_MAP[vitalSignType];
+      const monitoringType = mapping?.monitoringType ?? (vitalSignType as db.VitalSignType);
       if (targetDate && targetTime) {
-        const record = await db.getHealthRecordByDateTime(patientId, targetDate, targetTime, vitalSignType);
+        const record = await db.getHealthRecordByDateTime(patientId, targetDate, targetTime, monitoringType);
         return record ? { record, isExactMatch: true } : { record: null, isExactMatch: false };
       }
-      const records = await db.getHealthRecords();
-      const filtered = records.filter(r => r.院友id === patientId);
-      if (filtered.length === 0) return { record: null, isExactMatch: false };
-      filtered.sort((a, b) => {
-        const dateA = new Date(`${a.記錄日期}T${a.記錄時間 || '00:00:00'}`);
-        const dateB = new Date(`${b.記錄日期}T${b.記錄時間 || '00:00:00'}`);
-        return dateB.getTime() - dateA.getTime();
-      });
-      const vitalSignFieldMap: Record<string, keyof db.HealthRecord> = {
-        '上壓': '血壓收縮壓', '下壓': '血壓舒張壓', '脈搏': '脈搏',
-        '血糖值': '血糖值', '呼吸': '呼吸頻率', '血含氧量': '血含氧量', '體溫': '體溫'
-      };
-      const fieldName = vitalSignFieldMap[vitalSignType];
-      const recordWithValue = filtered.find(r => r[fieldName] !== null && r[fieldName] !== undefined);
-      return { record: recordWithValue || null, isExactMatch: false };
+      const records = await db.getRecentHealthRecordsByPatient(patientId, monitoringType, 1);
+      return { record: records[0] ?? null, isExactMatch: false };
     } catch (error) {
       console.error('獲取生命表徵失敗:', error);
       return { record: null, isExactMatch: false };

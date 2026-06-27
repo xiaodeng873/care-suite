@@ -423,31 +423,22 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
       const blockedRules: any[] = [];
       const usedVitalSignData: any = {};
       const missingVitalSigns: string[] = [];
+      const VITAL_TO_MONITORING: Record<string, db.VitalSignType> = {
+        '上壓': '血壓', '下壓': '血壓', '脈搏': '脈搏',
+        '血糖值': '血糖值', '呼吸': '呼吸頻率', '血含氧量': '血含氧量', '體溫': '體溫',
+      };
       for (const rule of prescription.inspection_rules) {
+        const monitoringType = VITAL_TO_MONITORING[rule.vital_sign_type];
+        if (!monitoringType) { missingVitalSigns.push(rule.vital_sign_type); continue; }
         let healthRecord: db.HealthRecord | null = null;
         if (scheduledDate && scheduledTime) {
-          healthRecord = await db.getHealthRecordByDateTime(
-            patientId,
-            scheduledDate,
-            scheduledTime,
-            rule.vital_sign_type
-          );
+          healthRecord = await db.getHealthRecordByDateTime(patientId, scheduledDate, scheduledTime, monitoringType);
         }
         if (!healthRecord) {
           missingVitalSigns.push(rule.vital_sign_type);
           continue;
         }
-        const vitalSignFieldMap: Record<string, keyof db.HealthRecord> = {
-          '上壓': '血壓收縮壓',
-          '下壓': '血壓舒張壓',
-          '脈搏': '脈搏',
-          '血糖值': '血糖值',
-          '呼吸': '呼吸頻率',
-          '血含氧量': '血含氧量',
-          '體溫': '體溫'
-        };
-        const fieldName = vitalSignFieldMap[rule.vital_sign_type];
-        const fieldValue = healthRecord[fieldName];
+        const fieldValue = rule.vital_sign_type === '下壓' ? healthRecord.數值_副 : healthRecord.數值;
         if (fieldValue === null || fieldValue === undefined) {
           missingVitalSigns.push(rule.vital_sign_type);
           continue;
@@ -498,34 +489,25 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
     targetTime?: string
   ): Promise<{ record: db.HealthRecord | null; isExactMatch: boolean }> => {
     try {
+      const VITAL_TO_MONITORING: Record<string, db.VitalSignType> = {
+        '上壓': '血壓', '下壓': '血壓', '脈搏': '脈搏',
+        '血糖值': '血糖值', '呼吸': '呼吸頻率', '血含氧量': '血含氧量', '體溫': '體溫',
+      };
+      const monitoringType = VITAL_TO_MONITORING[vitalSignType];
+      if (!monitoringType) return { record: null, isExactMatch: false };
       if (targetDate && targetTime) {
-        const record = await db.getHealthRecordByDateTime(
-          patientId,
-          targetDate,
-          targetTime,
-          vitalSignType
-        );
+        const record = await db.getHealthRecordByDateTime(patientId, targetDate, targetTime, monitoringType);
         return record ? { record, isExactMatch: true } : { record: null, isExactMatch: false };
       }
       const records = await db.getHealthRecords();
-      const filtered = records.filter(r => r.院友id === patientId);
+      const filtered = records.filter(r => r.院友id === patientId && r.監測類型 === monitoringType);
       if (filtered.length === 0) return { record: null, isExactMatch: false };
       filtered.sort((a, b) => {
         const dateA = new Date(`${a.記錄日期}T${a.記錄時間 || '00:00:00'}`);
         const dateB = new Date(`${b.記錄日期}T${b.記錄時間 || '00:00:00'}`);
         return dateB.getTime() - dateA.getTime();
       });
-      const vitalSignFieldMap: Record<string, keyof db.HealthRecord> = {
-        '上壓': '血壓收縮壓',
-        '下壓': '血壓舒張壓',
-        '脈搏': '脈搏',
-        '血糖值': '血糖值',
-        '呼吸': '呼吸頻率',
-        '血含氧量': '血含氧量',
-        '體溫': '體溫'
-      };
-      const fieldName = vitalSignFieldMap[vitalSignType];
-      const recordWithValue = filtered.find(r => r[fieldName] !== null && r[fieldName] !== undefined);
+      const recordWithValue = filtered.find(r => r.數值 !== null && r.數值 !== undefined);
       return { record: recordWithValue || null, isExactMatch: false };
     } catch (error) {
       console.error('獲取生命表徵失敗:', error);

@@ -23,7 +23,6 @@ import CarePlanDueReminderCard from '../components/CarePlanDueReminderCard';
 import PatientModal from '../components/PatientModal';
 import VaccinationRecordModal from '../components/VaccinationRecordModal';
 import TaskHistoryModal from '../components/TaskHistoryModal';
-import BatchHealthRecordOCRModal from '../components/BatchHealthRecordOCRModal';
 import MonitoringTaskWorksheetModal from '../components/MonitoringTaskWorksheetModal';
 import { syncTaskStatus, SYNC_CUTOFF_DATE_STR, supabase } from '../lib/database';
 interface Patient {
@@ -64,17 +63,12 @@ interface FollowUpAppointment {
 interface HealthRecord {
   記錄id: string;
   院友id: string;
-  記錄類型: string;
+  監測類型: string;
   記錄日期: string;
   記錄時間: string;
-  task_id?: string;
-  血壓收縮壓?: number;
-  血壓舒張壓?: number;
-  脈搏?: number;
-  體溫?: number;
-  血含氧量?: number;
-  血糖值?: number;
-  體重?: number;
+  任務id?: string;
+  數值?: number;
+  數值_副?: number;
 }
 // 每位院友只保留最新一筆（以 created_at 比較，null-safe），避免歷史記錄重複計入提醒
 function pickLatestPerPatient<T extends { patient_id: number; created_at?: string | null }>(records: T[]): T[] {
@@ -122,11 +116,10 @@ const Dashboard: React.FC = () => {
   const [selectedPatientForEdit, setSelectedPatientForEdit] = useState<any>(null);
   const [showVaccinationModal, setShowVaccinationModal] = useState(false);
   const [selectedPatientForVaccination, setSelectedPatientForVaccination] = useState<any>(null);
-  const [showBatchOCRModal, setShowBatchOCRModal] = useState(false);
   const [showWorksheetModal, setShowWorksheetModal] = useState(false);
   // 歷史日曆 Modal 狀態
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [selectedHistoryTask, setSelectedHistoryTask] = useState<{ task: HealthTask; patient: Patient; initialDate?: Date | null } | null>(null);
+  const [selectedHistoryTask, setSelectedHistoryTask] = useState<{ task: HealthTask; patient: Patient; initialDate?: Date | null; groupTasks?: HealthTask[] } | null>(null);
   const uniquePatientHealthTasks = useMemo(() => {
     const seen = new Map<string, boolean>();
     const uniqueTasks: typeof patientHealthTasks = [];
@@ -138,7 +131,7 @@ const Dashboard: React.FC = () => {
     });
     return uniqueTasks;
   }, [patientHealthTasks]);
-  const handleTaskClick = (task: HealthTask, date?: string) => {
+  const handleTaskClick = (task: HealthTask, date?: string, groupTasks?: HealthTask[]) => {
     const patient = patients.find(p => p.院友id === task.patient_id);
     // 调试：呂葉少芳
     const isLyuPatient = patient?.中文姓名 === '呂葉少芳';
@@ -216,11 +209,11 @@ const Dashboard: React.FC = () => {
     let selectedTime: string | undefined;
     if (task.specific_times && task.specific_times.length > 0) {
       const dateRecords = healthRecords.filter(r => {
-        if (r.task_id && r.task_id === task.id) {
+        if (r.任務id && r.任務id === task.id) {
           return r.記錄日期 === targetDate;
         }
         return r.院友id.toString() === task.patient_id.toString() &&
-               r.記錄類型 === task.health_record_type &&
+               r.監測類型 === task.health_record_type &&
                r.記錄日期 === targetDate;
       });
       const completedTimes = new Set(dateRecords.map(r => normalizeTime(r.記錄時間)));
@@ -238,6 +231,10 @@ const Dashboard: React.FC = () => {
         next_due_at: task.next_due_at,
         specific_times: task.specific_times
       },
+      任務清單: (groupTasks && groupTasks.length > 0 ? groupTasks : [task]).map(t => ({
+        id: t.id,
+        health_record_type: t.health_record_type,
+      })),
       預設日期: targetDate,
       預設時間: selectedTime
     };
@@ -288,17 +285,17 @@ const Dashboard: React.FC = () => {
   const recordLookup = useMemo(() => {
     const lookup = new Set<string>();
     healthRecords.forEach((r) => {
-      if (r.task_id) {
+      if (r.任務id) {
         const normalizedTime = normalizeTime(r.記錄時間);
-        const keyWithTime = `${r.task_id}_${r.記錄日期}_${normalizedTime}`;
-        const keyWithoutTime = `${r.task_id}_${r.記錄日期}`;
+        const keyWithTime = `${r.任務id}_${r.記錄日期}_${normalizedTime}`;
+        const keyWithoutTime = `${r.任務id}_${r.記錄日期}`;
         lookup.add(keyWithTime);
         lookup.add(keyWithoutTime);
       }
       const normalizedTime = normalizeTime(r.記錄時間);
       const patientIdStr = r.院友id?.toString() || '';
-      const oldKeyWithTime = `${patientIdStr}_${r.記錄類型}_${r.記錄日期}_${normalizedTime}`;
-      const oldKeyWithoutTime = `${patientIdStr}_${r.記錄類型}_${r.記錄日期}`;
+      const oldKeyWithTime = `${patientIdStr}_${r.監測類型}_${r.記錄日期}_${normalizedTime}`;
+      const oldKeyWithoutTime = `${patientIdStr}_${r.監測類型}_${r.記錄日期}`;
       lookup.add(oldKeyWithTime);
       lookup.add(oldKeyWithoutTime);
     });
@@ -378,7 +375,7 @@ const Dashboard: React.FC = () => {
     const result: { patient: any; missingTaskTypes: string[] }[] = [];
     activePatients.forEach(patient => {
       const patientTasks = patientHealthTasks.filter(task => task.patient_id === patient.院友id);
-      const vitalSignTasks = patientTasks.filter(task => task.health_record_type === '生命表徵');
+      const vitalSignTasks = patientTasks.filter(task => isMonitoringTask(task.health_record_type));
       const missing: string[] = [];
       const hasAnnualCheckup = annualHealthCheckups.some(checkup => checkup.patient_id === patient.院友id);
       if (!hasAnnualCheckup) missing.push('年度體檢');
@@ -697,9 +694,9 @@ const Dashboard: React.FC = () => {
       for (const task of outdatedTasks) {
         const nextDueDate = new Date(task.next_due_at!);
         const taskRecords = healthRecords.filter(r => {
-          if (r.task_id === task.id) return true;
+          if (r.任務id === task.id) return true;
           return r.院友id?.toString() === task.patient_id?.toString() &&
-                 r.記錄類型 === task.health_record_type;
+                 r.監測類型 === task.health_record_type;
         });
         if (taskRecords.length === 0) continue;
         const latestRecordDate = taskRecords.reduce((latest, r) => {
@@ -835,13 +832,6 @@ const Dashboard: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 section-title">監測任務</h2>
             <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={() => setShowBatchOCRModal(true)}
-                className="btn-primary flex flex-wrap items-center gap-2 text-sm"
-              >
-                <Camera className="h-4 w-4" />
-                <span>批量識別上傳</span>
-              </button>
-              <button
                 onClick={() => setShowWorksheetModal(true)}
                 className="btn-primary flex flex-wrap items-center gap-2 text-sm"
               >
@@ -862,33 +852,43 @@ const Dashboard: React.FC = () => {
                 <div key={idx}>
                   <h3 className="text-md font-medium text-gray-700 mb-2 time-slot-title">{slot.title}</h3>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2">
-                    {slot.tasks.map((task) => {
-                      const patient = patients.find(p => p.院友id === task.patient_id);
-                      return (
+                    {(() => {
+                      // 同一院友、同一首個未完成日期、同一時間點的多種監測類型整合為一張卡片
+                      const groups = new Map<string, typeof slot.tasks>();
+                      slot.tasks.forEach(t => {
+                        const dateToken = t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) : '';
+                        const timeToken = (t.specific_times && t.specific_times.length > 0)
+                          ? normalizeTime(t.specific_times[0])
+                          : new Date(t.next_due_at).toTimeString().slice(0, 5);
+                        const key = `${t.patient_id}_${dateToken}_${timeToken}`;
+                        if (!groups.has(key)) groups.set(key, []);
+                        groups.get(key)!.push(t);
+                      });
+                      return Array.from(groups.entries()).map(([groupKey, group]) => {
+                        const rep = group[0];
+                        const patient = patients.find(p => p.院友id === rep.patient_id);
+                        const hasMultipleDates = group.some(t => t.incompleteDates && t.incompleteDates.length > 1);
+                        return (
                         <div
-                          key={task.id}
-                          className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${getTaskTimeBackgroundClass(task.next_due_at)} rounded-lg cursor-pointer transition-colors dashboard-task-card`}
+                          key={groupKey || rep.id}
+                          className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${getTaskTimeBackgroundClass(rep.next_due_at)} rounded-lg cursor-pointer transition-colors dashboard-task-card`}
                           onClick={() => {
                             // 如果有多个未完成日期，弹出小日历
-                            if (task.incompleteDates && task.incompleteDates.length > 1 && patient) {
-                              setSelectedHistoryTask({ 
-                                task, 
-                                patient, 
-                                initialDate: task.firstIncompleteDate || null 
+                            if (hasMultipleDates && patient) {
+                              setSelectedHistoryTask({
+                                task: rep,
+                                patient,
+                                initialDate: rep.firstIncompleteDate || null,
+                                groupTasks: group,
                               });
                               setShowHistoryModal(true);
                             } else {
-                              // 只有一个日期，直接打开记录模态框
-                              handleTaskClick(task);
+                              // 只有一个日期，直接打开记录模态框（同時間多種監測類型一起輸入）
+                              handleTaskClick(rep, undefined, group);
                             }
                           }}
                         >
                           <div className="flex flex-wrap items-center gap-3 flex-1">
-                            {task.notes && isMonitoringTask(task.health_record_type) && (
-                              <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium task-note-badge ${getNotesBadgeClass(task.notes)}`}>
-                                {task.notes}
-                              </div>
-                            )}
                             <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center task-avatar">
                               {patient?.院友相片 ? (
                                 <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -901,20 +901,34 @@ const Dashboard: React.FC = () => {
                                 <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                                 <span className="text-xs text-gray-500">({patient?.床號})</span>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2 mt-1">
-                                {getTaskTypeIcon(task.health_record_type)}
-                                <p className="text-sm text-gray-600">{task.health_record_type}</p>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                {(() => {
+                                  // 不逐項列出量度類型，改以備註分類：「N個項目 服藥前」「N個項目 定期」
+                                  const notesGroups = new Map<string, number>();
+                                  group.forEach(t => {
+                                    const noteKey = t.notes && isMonitoringTask(t.health_record_type) ? t.notes : '';
+                                    notesGroups.set(noteKey, (notesGroups.get(noteKey) || 0) + 1);
+                                  });
+                                  return Array.from(notesGroups.entries()).map(([note, count]) => (
+                                    <span key={note || '_'} className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/70 rounded-full text-sm text-gray-700">
+                                      <span>{count}個項目</span>
+                                      {note && (
+                                        <span className={`ml-0.5 px-1.5 rounded-full text-xs font-medium ${getNotesBadgeClass(note)}`}>{note}</span>
+                                      )}
+                                    </span>
+                                  ));
+                                })()}
                               </div>
                               <div className="flex items-center mt-1 space-x-3 text-xs text-gray-600 font-medium">
                                 <div className="flex items-center space-x-1">
                                   <Repeat className="h-3 w-3" />
-                                  <span>{formatFrequencyDescription(task)}</span>
+                                  <span>{formatFrequencyDescription(rep)}</span>
                                 </div>
                               </div>
                             </div>
-                            {task.firstIncompleteDate && (() => {
+                            {rep.firstIncompleteDate && (() => {
                               const todayStr = formatLocalDate(new Date());
-                              const incompleteDateStr = formatLocalDate(task.firstIncompleteDate);
+                              const incompleteDateStr = formatLocalDate(rep.firstIncompleteDate);
                               const isToday = incompleteDateStr === todayStr;
                               return (
                                 <span className={`status-badge flex-shrink-0 ${
@@ -925,10 +939,10 @@ const Dashboard: React.FC = () => {
                               );
                             })()}
                           </div>
-                          {/* [修改] 徹底移除日曆圖示按鈕 */}
                         </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               )
@@ -1132,7 +1146,7 @@ const Dashboard: React.FC = () => {
           cutoffDateStr={selectedHistoryTask.patient.入住日期 || SYNC_CUTOFF_DATE_STR}
           onClose={() => setShowHistoryModal(false)}
           onDateSelect={(date) => {
-            handleTaskClick(selectedHistoryTask.task, date);
+            handleTaskClick(selectedHistoryTask.task, date, selectedHistoryTask.groupTasks);
             // 選擇日期後關閉日曆
             setShowHistoryModal(false);
           }}
@@ -1145,14 +1159,6 @@ const Dashboard: React.FC = () => {
       {showAnnualCheckupModal && <AnnualHealthCheckupModal checkup={selectedAnnualCheckup} renewFrom={renewFromAnnualCheckup} onClose={() => { setShowAnnualCheckupModal(false); setSelectedAnnualCheckup(null); setRenewFromAnnualCheckup(null); setPrefilledAnnualCheckupPatientId(null); }} onSave={refreshData} prefilledPatientId={prefilledAnnualCheckupPatientId} />}
       {showPatientModal && <PatientModal patient={selectedPatientForEdit} onClose={() => { setShowPatientModal(false); setSelectedPatientForEdit(null); refreshData(); }} />}
       {showVaccinationModal && <VaccinationRecordModal patientId={selectedPatientForVaccination?.院友id} onClose={() => { setShowVaccinationModal(false); setSelectedPatientForVaccination(null); }} />}
-      {showBatchOCRModal && (
-        <BatchHealthRecordOCRModal
-          onClose={() => {
-            setShowBatchOCRModal(false);
-            refreshData();
-          }}
-        />
-      )}
       {showWorksheetModal && (
         <MonitoringTaskWorksheetModal
           onClose={() => setShowWorksheetModal(false)}

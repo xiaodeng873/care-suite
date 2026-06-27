@@ -221,41 +221,53 @@ export async function getLatestHealthReadings(patientId: number): Promise<Latest
 
   try {
     const { data: vitalSignRecords } = await supabase
-      .from('健康記錄主表')
-      .select('血壓收縮壓, 血壓舒張壓, 脈搏')
+      .from('健康監測記錄')
+      .select('數值, 數值_副')
       .eq('院友id', patientId)
-      .eq('記錄類型', '生命表徵')
-      .not('血壓收縮壓', 'is', null)
+      .eq('監測類型', '血壓')
+      .not('數值', 'is', null)
       .order('記錄日期', { ascending: false })
       .order('記錄時間', { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (vitalSignRecords) {
-      if (vitalSignRecords.血壓收縮壓) {
-        result.blood_pressure_systolic = vitalSignRecords.血壓收縮壓;
+      if (vitalSignRecords.數值) {
+        result.blood_pressure_systolic = vitalSignRecords.數值;
       }
-      if (vitalSignRecords.血壓舒張壓) {
-        result.blood_pressure_diastolic = vitalSignRecords.血壓舒張壓;
-      }
-      if (vitalSignRecords.脈搏) {
-        result.pulse = vitalSignRecords.脈搏;
+      if (vitalSignRecords.數值_副) {
+        result.blood_pressure_diastolic = vitalSignRecords.數值_副;
       }
     }
 
     const { data: bodyWeightRecord } = await supabase
-      .from('健康記錄主表')
-      .select('體重')
+      .from('健康監測記錄')
+      .select('數值')
       .eq('院友id', patientId)
-      .eq('記錄類型', '體重控制')
-      .not('體重', 'is', null)
+      .eq('監測類型', '體重')
+      .not('數值', 'is', null)
       .order('記錄日期', { ascending: false })
       .order('記錄時間', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (bodyWeightRecord && bodyWeightRecord.體重) {
-      result.body_weight = bodyWeightRecord.體重;
+    if (bodyWeightRecord && bodyWeightRecord.數值) {
+      result.body_weight = bodyWeightRecord.數值;
+    }
+
+    const { data: pulseRecord } = await supabase
+      .from('健康監測記錄')
+      .select('數值')
+      .eq('院友id', patientId)
+      .eq('監測類型', '脈搏')
+      .not('數值', 'is', null)
+      .order('記錄日期', { ascending: false })
+      .order('記錄時間', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pulseRecord && pulseRecord.數值) {
+      result.pulse = pulseRecord.數值;
     }
   } catch (error) {
     console.error('Error fetching latest health readings:', error);

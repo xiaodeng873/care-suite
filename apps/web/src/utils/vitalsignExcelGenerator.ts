@@ -2,7 +2,7 @@ import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
 import { getTemplatesMetadata } from '../lib/database';
 export interface VitalSignExportData {
-  記錄id?: number;
+  記錄id?: string;
   床號: string;
   中文姓氏: string;
   中文名字: string;

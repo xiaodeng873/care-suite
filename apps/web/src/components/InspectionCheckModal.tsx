@@ -305,11 +305,13 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
     }
   };
 
-  const getRecordType = (vitalSignType: string): string => {
-    if (vitalSignType === '血糖值') {
-      return '血糖控制';
-    }
-    return '生命表徵';
+  const vitalSignToMonitoringType = (vs: string): import('../lib/database').VitalSignType => {
+    const map: Record<string, import('../lib/database').VitalSignType> = {
+      '上壓': '血壓', '下壓': '血壓', '脈搏': '脈搏',
+      '血糖值': '血糖值', '呼吸': '呼吸頻率', '血含氧量': '血含氧量',
+      '體溫': '體溫', '體重': '體重',
+    };
+    return map[vs] ?? '血壓';
   };
 
   const getFocusField = (vitalSignType: string): string => {
@@ -604,7 +606,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
               中文姓名: `${patient.中文姓氏}${patient.中文名字}`,
               床號: patient.床號
             } : undefined,
-            預設記錄類型: getRecordType(currentAddingVitalSign),
+            預設監測類型: vitalSignToMonitoringType(currentAddingVitalSign),
             預設日期: `${workflowRecord.scheduled_date}T${workflowRecord.scheduled_time || '00:00:00'}`
           }}
           onClose={() => {

@@ -5,8 +5,13 @@ export function isDocumentTask(taskType: string): boolean {
   return taskType === '藥物自存同意書' || taskType === '晚晴計劃';
 }
 // 判斷是否為監測任務
+const MONITORING_TASK_TYPES = new Set([
+  '血壓', '脈搏', '體溫', '血含氧量', '呼吸頻率', '血糖值', '體重',
+  // 向後相容舊類型
+  '生命表徵', '血糖控制', '體重控制',
+]);
 export function isMonitoringTask(taskType: string): boolean {
-  return taskType === '生命表徵' || taskType === '血糖控制' || taskType === '體重控制';
+  return MONITORING_TASK_TYPES.has(taskType);
 }
 // 判斷是否為護理任務
 export function isNursingTask(taskType: string): boolean {
@@ -26,7 +31,20 @@ export function isTaskScheduledForDate(task: any, date: Date): boolean {
   };
   if (task.frequency_unit === 'daily') {
     const freqValue = task.frequency_value || 1;
-    if (freqValue === 1) return true;
+    if (freqValue === 1) {
+      // [修復] 與 weekly/monthly 一致：不要把任務建立日期之前的日子視為已排程
+      // （避免遷移前未記錄的日子被誤判為逾期）
+      if (task.created_at) {
+        const targetDate = new Date(date);
+        targetDate.setHours(0, 0, 0, 0);
+        const createdDate = new Date(task.created_at);
+        createdDate.setHours(0, 0, 0, 0);
+        if (targetDate < createdDate) {
+          return false;
+        }
+      }
+      return true;
+    }
     const targetDate = new Date(date);
     targetDate.setHours(0, 0, 0, 0);
     let anchorDate: Date | null = null;
@@ -174,17 +192,17 @@ export async function findFirstMissingDate(
         };
         // [優化] 一次性查詢該日期的所有記錄
         const { data: records, error } = await supabase
-          .from('健康記錄主表')
-          .select('記錄id, 記錄時間, 院友id, 記錄類型, task_id')
+          .from('健康監測記錄')
+          .select('記錄id, 記錄時間, 院友id, 監測類型, 任務id')
           .eq('記錄日期', dateStr)
-          .or(`task_id.eq.${task.id},and(院友id.eq.${task.patient_id},記錄類型.eq.${task.health_record_type})`);
+          .or(`任務id.eq.${task.id},and(院友id.eq.${task.patient_id},監測類型.eq.${task.health_record_type})`);
         if (error) {
           break;
         }
         // 過濾出屬於該任務的記錄
         const taskRecords = records.filter(r => {
-          if (r.task_id === task.id) return true;
-          return r.院友id === task.patient_id && r.記錄類型 === task.health_record_type;
+          if (r.任務id === task.id) return true;
+          return r.院友id === task.patient_id && r.監測類型 === task.health_record_type;
         });
         // 收集已完成的時間點
         const completedTimes = new Set(
@@ -208,10 +226,10 @@ export async function findFirstMissingDate(
         }
       } else {
         const { data: records, error } = await supabase
-          .from('健康記錄主表')
+          .from('健康監測記錄')
           .select('記錄id')
-          .eq('task_id', task.id)
           .eq('記錄日期', dateStr)
+          .or(`任務id.eq.${task.id},and(院友id.eq.${task.patient_id},監測類型.eq.${task.health_record_type})`)
           .limit(1);
         if (error) {
           break;

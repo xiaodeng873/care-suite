@@ -538,21 +538,21 @@ const Reports: React.FC = () => {
     const weightDecreasePatients = activePatients.filter(p => {
       const currentMonthRecords = (healthRecords || []).filter(r =>
         r.院友id === p.院友id &&
-        r.記錄類型 === '體重控制' &&
-        r.體重 &&
+        r.監測類型 === '體重' &&
+        r.數值 &&
         new Date(r.記錄日期) >= monthStart &&
         new Date(r.記錄日期) <= monthEnd
       );
       const lastMonthRecords = (healthRecords || []).filter(r =>
         r.院友id === p.院友id &&
-        r.記錄類型 === '體重控制' &&
-        r.體重 &&
+        r.監測類型 === '體重' &&
+        r.數值 &&
         new Date(r.記錄日期) >= lastMonthDate &&
         new Date(r.記錄日期) < monthStart
       );
       if (currentMonthRecords.length === 0 || lastMonthRecords.length === 0) return false;
-      const currentWeight = currentMonthRecords[currentMonthRecords.length - 1].體重;
-      const lastWeight = lastMonthRecords[lastMonthRecords.length - 1].體重;
+      const currentWeight = currentMonthRecords[currentMonthRecords.length - 1].數值;
+      const lastWeight = lastMonthRecords[lastMonthRecords.length - 1].數值;
       if (!currentWeight || !lastWeight) return false;
       const decrease = ((lastWeight - currentWeight) / lastWeight) * 100;
       return decrease >= 5;
@@ -1098,21 +1098,21 @@ const Reports: React.FC = () => {
       const hasWeightDecrease = (() => {
         const currentMonthRecords = (healthRecords || []).filter(r =>
           r.院友id === patient.院友id &&
-          r.記錄類型 === '體重控制' &&
-          r.體重 &&
+          r.監測類型 === '體重' &&
+          r.數值 &&
           new Date(r.記錄日期) >= monthStart &&
           new Date(r.記錄日期) <= monthEnd
         );
         const lastMonthRecords = (healthRecords || []).filter(r =>
           r.院友id === patient.院友id &&
-          r.記錄類型 === '體重控制' &&
-          r.體重 &&
+          r.監測類型 === '體重' &&
+          r.數值 &&
           new Date(r.記錄日期) >= lastMonthDate &&
           new Date(r.記錄日期) < monthStart
         );
         if (currentMonthRecords.length === 0 || lastMonthRecords.length === 0) return false;
-        const currentWeight = currentMonthRecords[currentMonthRecords.length - 1].體重;
-        const lastWeight = lastMonthRecords[lastMonthRecords.length - 1].體重;
+        const currentWeight = currentMonthRecords[currentMonthRecords.length - 1].數值;
+        const lastWeight = lastMonthRecords[lastMonthRecords.length - 1].數值;
         if (!currentWeight || !lastWeight) return false;
         const decrease = ((lastWeight - currentWeight) / lastWeight) * 100;
         return decrease >= 5;

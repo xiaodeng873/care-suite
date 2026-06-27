@@ -72,13 +72,23 @@ const TaskManagement: React.FC = () => {
     在住狀態: '在住'
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
+
+  const togglePatientExpand = (patientId: number) => {
+    setExpandedPatients(prev => {
+      const next = new Set(prev);
+      if (next.has(patientId)) next.delete(patientId);
+      else next.add(patientId);
+      return next;
+    });
+  };
 
   // [核心數據源] 構建 recordLookup：基於實際健康記錄的快速查找表
   const recordLookup = useMemo(() => {
     const lookup = new Set<string>();
     healthRecords.forEach(record => {
-      if (record.task_id && record.記錄日期) {
-        const key = `${record.task_id}_${record.記錄日期}`;
+      if (record.任務id && record.記錄日期) {
+        const key = `${record.任務id}_${record.記錄日期}`;
         lookup.add(key);
       }
     });
@@ -256,16 +266,30 @@ const TaskManagement: React.FC = () => {
     });
   }, [filteredTasks, patients, sortField, sortDirection]);
 
-  // Pagination logic
-  const totalItems = sortedTasks.length;
+  // 按院友分組（每個 patientId 為一組，維持 sortedTasks 的排序）
+  const groupedTasks = useMemo(() => {
+    const seen = new Set<number>();
+    const groups: { patientId: number; tasks: PatientHealthTask[] }[] = [];
+    sortedTasks.forEach(t => {
+      if (!seen.has(t.patient_id)) {
+        seen.add(t.patient_id);
+        groups.push({ patientId: t.patient_id, tasks: [t] });
+      } else {
+        groups.find(g => g.patientId === t.patient_id)!.tasks.push(t);
+      }
+    });
+    return groups;
+  }, [sortedTasks]);
+
+  // Pagination logic — 按院友組計算
+  const totalItems = groupedTasks.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  
-  // Memoize paginated tasks
-  const paginatedTasks = useMemo(() => {
-    return sortedTasks.slice(startIndex, endIndex);
-  }, [sortedTasks, startIndex, endIndex]);
+
+  const paginatedGroups = useMemo(() => groupedTasks.slice(startIndex, endIndex), [groupedTasks, startIndex, endIndex]);
+  // 保留 paginatedTasks 供選取控制使用
+  const paginatedTasks = useMemo(() => paginatedGroups.flatMap(g => g.tasks), [paginatedGroups]);
 
   const scheduledTasks = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -687,7 +711,7 @@ const TaskManagement: React.FC = () => {
           )}
           
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
-            <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 個任務 (共 {patientHealthTasks.length} 個)</span>
+            <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 位院友 (共 {filteredTasks.length} 個任務)</span>
             {(filters.searchTerm || filters.filterType !== 'all' || filters.filterStatus !== 'all' || hasAdvancedFilters()) && (
               <span className="text-blue-600">已套用篩選條件</span>
             )}
@@ -764,51 +788,85 @@ const TaskManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedTasks.map(task => {
-                  const patient = patients.find(p => p.院友id === task.patient_id);
+                {paginatedGroups.map(group => {
+                  const patient = patients.find(p => p.院友id === group.patientId);
+                  const isExpanded = expandedPatients.has(group.patientId);
+                  // 全部任務摺疊於院友列之下，未展開時不露出任何任務
+                  const displayTasks = isExpanded ? group.tasks : [];
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  const overdueCount = group.tasks.filter(t => isTaskOverdue(t, recordLookup, todayStr)).length;
+                  const pendingCount = group.tasks.filter(t => isTaskPendingToday(t, recordLookup, todayStr)).length;
                   return (
-                    <tr 
-                      key={task.id} 
-                      className={`hover:bg-gray-50 ${selectedRows.has(task.id) ? 'bg-blue-50' : ''}`}
-                      onDoubleClick={() => handleEdit(task)}
-                    >
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.has(task.id)}
-                          onChange={() => handleSelectRow(task.id)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
-                            {patient?.院友相片 ? (
-                              <img 
-                                src={patient.院友相片} 
-                                alt={patient.中文姓名} 
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <User className="h-5 w-5 text-blue-600" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {patient ? (
-                                <PatientTooltip patient={patient}>
-                                  <span className="cursor-help hover:text-blue-600 transition-colors">
-                                    {patient.中文姓氏}{patient.中文名字}
-                                  </span>
-                                </PatientTooltip>
+                    <React.Fragment key={group.patientId}>
+                      {/* 院友標題列 */}
+                      <tr
+                        className="bg-blue-50 hover:bg-blue-100 cursor-pointer select-none"
+                        onClick={() => togglePatientExpand(group.patientId)}
+                      >
+                        <td className="px-4 py-3" colSpan={1}>
+                          <input
+                            type="checkbox"
+                            checked={group.tasks.every(t => selectedRows.has(t.id))}
+                            onChange={e => {
+                              e.stopPropagation();
+                              setSelectedRows(prev => {
+                                const next = new Set(prev);
+                                if (group.tasks.every(t => prev.has(t.id))) {
+                                  group.tasks.forEach(t => next.delete(t.id));
+                                } else {
+                                  group.tasks.forEach(t => next.add(t.id));
+                                }
+                                return next;
+                              });
+                            }}
+                            onClick={e => e.stopPropagation()}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap" colSpan={8}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 bg-blue-200 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0">
+                              {patient?.院友相片 ? (
+                                <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
                               ) : (
-                                '-'
+                                <User className="h-5 w-5 text-blue-700" />
                               )}
                             </div>
-                            <div className="text-sm text-gray-500">{patient?.床號}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-semibold text-gray-900 text-sm">
+                                  {patient ? `${patient.中文姓氏}${patient.中文名字}` : '-'}
+                                </span>
+                                <span className="text-xs text-gray-500">{patient?.床號}</span>
+                                <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">{group.tasks.length} 個任務</span>
+                                {overdueCount > 0 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{overdueCount} 逾期</span>}
+                                {pendingCount > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{pendingCount} 待完成</span>}
+                              </div>
+                            </div>
+                            <div className="flex-shrink-0 text-blue-600">
+                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
+                      </tr>
+                      {/* 任務列 */}
+                      {displayTasks.map(task => (
+                        <tr
+                          key={task.id}
+                          className={`hover:bg-gray-50 ${selectedRows.has(task.id) ? 'bg-blue-50' : ''}`}
+                          onDoubleClick={() => handleEdit(task)}
+                        >
+                          <td className="px-4 py-4 whitespace-nowrap pl-8">
+                            <input
+                              type="checkbox"
+                              checked={selectedRows.has(task.id)}
+                              onChange={() => handleSelectRow(task.id)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap pl-8">
+                            <div className="text-xs text-gray-400 pl-2">↳</div>
+                          </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(task.health_record_type)}`}>
@@ -821,13 +879,9 @@ const TaskManagement: React.FC = () => {
                         {task.start_date ? (
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-4 w-4 text-gray-400" />
-                            <span>
-                              {new Date(task.start_date).toLocaleDateString('zh-TW')}
-                            </span>
+                            <span>{new Date(task.start_date).toLocaleDateString('zh-TW')}</span>
                           </div>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
+                        ) : <span className="text-gray-400">-</span>}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatFrequencyDescription(task)}
@@ -836,14 +890,10 @@ const TaskManagement: React.FC = () => {
                         {task.specific_times && task.specific_times.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {task.specific_times.map((time, idx) => (
-                              <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700">
-                                {time}
-                              </span>
+                              <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700">{time}</span>
                             ))}
                           </div>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
+                        ) : <span className="text-gray-400">-</span>}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         {getStatusBadge(task)}
@@ -853,29 +903,17 @@ const TaskManagement: React.FC = () => {
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => handleEdit(task)}
-                            className="text-blue-600 hover:text-blue-900"
-                            title="編輯"
-                            disabled={deletingIds.has(task.id)}
-                          >
+                          <button onClick={() => handleEdit(task)} className="text-blue-600 hover:text-blue-900" title="編輯" disabled={deletingIds.has(task.id)}>
                             <Edit3 className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={() => handleDelete(task.id)}
-                            className="text-red-600 hover:text-red-900"
-                            title="刪除"
-                            disabled={deletingIds.has(task.id)}
-                          >
-                            {deletingIds.has(task.id) ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
+                          <button onClick={() => handleDelete(task.id)} className="text-red-600 hover:text-red-900" title="刪除" disabled={deletingIds.has(task.id)}>
+                            {deletingIds.has(task.id) ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div> : <Trash2 className="h-4 w-4" />}
                           </button>
                         </div>
                       </td>
                     </tr>
+                      ))}
+                    </React.Fragment>
                   );
                 })}
               </tbody>

@@ -30,18 +30,15 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
     return patient?.床號 || '-';
   };
 
-  const formatRecordValues = (record: HealthRecord) => {
-    const values: string[] = [];
-    if (record.血壓收縮壓 && record.血壓舒張壓) {
-      values.push(`血壓: ${record.血壓收縮壓}/${record.血壓舒張壓} mmHg`);
-    }
-    if (record.脈搏) values.push(`脈搏: ${record.脈搏} /min`);
-    if (record.體溫) values.push(`體溫: ${record.體溫}°C`);
-    if (record.呼吸頻率) values.push(`呼吸: ${record.呼吸頻率} /min`);
-    if (record.血含氧量) values.push(`血氧: ${record.血含氧量}%`);
-    if (record.血糖值) values.push(`血糖: ${record.血糖值} mmol/L`);
-    if (record.體重) values.push(`體重: ${record.體重} kg`);
-    return values;
+  const formatRecordValues = (record: HealthRecord): string[] => {
+    if (record.監測類型 === '血壓') return [`血壓: ${record.數值}/${record.數值_副} mmHg`];
+    if (record.監測類型 === '脈搏') return [`脈搏: ${record.數值} 次/分`];
+    if (record.監測類型 === '體溫') return [`體溫: ${record.數值}°C`];
+    if (record.監測類型 === '呼吸頻率') return [`呼吸: ${record.數值} 次/分`];
+    if (record.監測類型 === '血含氧量') return [`血氧: ${record.數值}%`];
+    if (record.監測類型 === '血糖值') return [`血糖: ${record.數值} mmol/L`];
+    if (record.監測類型 === '體重') return [`體重: ${record.數值} kg`];
+    return [`${record.監測類型}: ${record.數值}`];
   };
 
   const toggleGroup = (groupKey: string) => {

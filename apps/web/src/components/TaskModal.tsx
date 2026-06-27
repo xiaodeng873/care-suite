@@ -1,8 +1,32 @@
 import React, { useState } from 'react';
-import { X, CheckSquare, User, Calendar, Clock, Activity, Droplets, Scale, FileText, Stethoscope } from 'lucide-react';
+import { X, CheckSquare, User, Calendar, Clock, Activity, FileText } from 'lucide-react';
 import PatientAutocomplete from './PatientAutocomplete';
 import { usePatients, type PatientHealthTask, type HealthTaskType, type FrequencyUnit, type MonitoringTaskNotes } from '../context/PatientContext';
+import type { VitalSignType } from '../lib/database';
 import { calculateNextDueDate } from '../utils/taskScheduler';
+
+// ===== 監測項目選項 =====
+type TaskCategory = 'monitoring' | 'care' | 'document';
+
+const VITAL_SIGN_OPTIONS: { type: VitalSignType; label: string; color: string }[] = [
+  { type: '血壓', label: '血壓', color: 'bg-red-500' },
+  { type: '脈搏', label: '脈搏', color: 'bg-pink-500' },
+  { type: '體溫', label: '體溫', color: 'bg-orange-500' },
+  { type: '血含氧量', label: '血含氧量', color: 'bg-blue-500' },
+  { type: '呼吸頻率', label: '呼吸頻率', color: 'bg-teal-500' },
+  { type: '血糖值', label: '血糖', color: 'bg-purple-500' },
+  { type: '體重', label: '體重', color: 'bg-green-500' },
+];
+
+const VITAL_SIGN_TYPE_SET = new Set<string>(VITAL_SIGN_OPTIONS.map(o => o.type));
+const isVitalSignType = (t: string | undefined | null): t is VitalSignType =>
+  !!t && VITAL_SIGN_TYPE_SET.has(t);
+
+const getTaskCategory = (type?: HealthTaskType | null): TaskCategory => {
+  if (!type || isVitalSignType(type)) return 'monitoring';
+  if (['尿導管更換', '鼻胃飼管更換', '傷口換症', '氧氣喉管清洗/更換'].includes(type)) return 'care';
+  return 'document';
+};
 
 interface TaskModalProps {
   task?: PatientHealthTask | null;
@@ -29,26 +53,32 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
   };
 
   // 根據任務類型設置默認頻率
-  const getDefaultFrequency = (type: HealthTaskType): { unit: FrequencyUnit; value: number } => {
+  const getDefaultFrequency = (category: TaskCategory, type?: HealthTaskType): { unit: FrequencyUnit; value: number } => {
+    if (category === 'monitoring') return { unit: 'daily', value: 1 };
+    if (category === 'care') return { unit: 'monthly', value: 1 };
     switch (type) {
-      case '生命表徵':
-      case '血糖控制':
-      case '體重控制':
-        return { unit: 'daily', value: 1 };
       case '約束物品同意書':
-      case '藥物自存同意書':
-        return { unit: 'monthly', value: 6 };
-      case '晚晴計劃':
-        return { unit: 'yearly', value: 1 };
-      default:
-        return { unit: 'monthly', value: 1 };
+      case '藥物自存同意書': return { unit: 'monthly', value: 6 };
+      case '晩晴計劃': return { unit: 'yearly', value: 1 };
+      default: return { unit: 'monthly', value: 1 };
     }
   };
 
-  const defaultFrequency = getDefaultFrequency(task?.health_record_type || '生命表徵');
+  const initialCategory = getTaskCategory(task?.health_record_type);
+  const defaultFrequency = getDefaultFrequency(initialCategory, task?.health_record_type);
+
+  // 任務分類 state
+  const [taskCategory, setTaskCategory] = useState<TaskCategory>(initialCategory);
+  // 監測任務：多選chip
+  const [selectedVitalTypes, setSelectedVitalTypes] = useState<VitalSignType[]>(
+    isVitalSignType(task?.health_record_type) ? [task!.health_record_type as VitalSignType] : []
+  );
+
   const [formData, setFormData] = useState({
     patient_id: task?.patient_id?.toString() || '',
-    health_record_type: task?.health_record_type || '生命表徵' as HealthTaskType,
+    health_record_type: (task && !isVitalSignType(task.health_record_type)
+      ? task.health_record_type
+      : '尿導管更換') as HealthTaskType,
     frequency_unit: task?.frequency_unit || defaultFrequency.unit,
     frequency_value: task?.frequency_value || defaultFrequency.value,
     specific_times: task?.specific_times?.[0] || '',
@@ -112,27 +142,18 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.patient_id) {
-      alert('請選擇院友');
+    if (!formData.patient_id) { alert('請選擇院友'); return; }
+    if (taskCategory === 'monitoring' && selectedVitalTypes.length === 0) {
+      alert('請選擇至少一種監測項目');
       return;
     }
-
     if (!formData.is_recurring) {
-      if (!formData.end_date) {
-        alert('非循環任務必須設定結束日期');
-        return;
-      }
-      if (!formData.end_time) {
-        alert('非循環任務必須設定結束時間');
-        return;
-      }
+      if (!formData.end_date) { alert('非循環任務必須設定結束日期'); return; }
+      if (!formData.end_time) { alert('非循環任務必須設定結束時間'); return; }
     }
-
     try {
       let baseDateTime: Date;
       let lastCompletedAt: string;
-      
       if (formData.start_date && formData.start_time) {
         baseDateTime = new Date(`${formData.start_date}T${formData.start_time}:00+08:00`);
         lastCompletedAt = baseDateTime.toISOString();
@@ -141,37 +162,15 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
         baseDateTime.setTime(baseDateTime.getTime() + 8 * 60 * 60 * 1000);
         lastCompletedAt = baseDateTime.toISOString();
       }
-      
-      const mockTask: PatientHealthTask = {
-        id: '',
+      const baseTaskData = {
         patient_id: parseInt(formData.patient_id),
-        health_record_type: formData.health_record_type,
         frequency_unit: formData.frequency_unit,
         frequency_value: formData.frequency_value,
         specific_times: formData.specific_times ? [formData.specific_times] : [],
         specific_days_of_week: formData.specific_days_of_week,
         specific_days_of_month: formData.specific_days_of_month,
         last_completed_at: lastCompletedAt,
-        next_due_at: '',
-        created_at: '',
-        updated_at: '',
-        is_recurring: formData.is_recurring,
-        end_date: formData.end_date,
-        end_time: formData.end_time,
-      };
-
-      const nextDueAt = calculateNextDueDate(mockTask, baseDateTime);
-      const taskData = {
-        patient_id: parseInt(formData.patient_id),
-        health_record_type: formData.health_record_type,
-        frequency_unit: formData.frequency_unit,
-        frequency_value: formData.frequency_value,
-        specific_times: formData.specific_times ? [formData.specific_times] : [],
-        specific_days_of_week: formData.specific_days_of_week,
-        specific_days_of_month: formData.specific_days_of_month,
-        last_completed_at: lastCompletedAt,
-        next_due_at: nextDueAt.toISOString(),
-        start_date: formData.start_date,  // 保存任務開始執行日期
+        start_date: formData.start_date,
         tube_type: formData.tube_type || null,
         tube_size: formData.tube_size || null,
         notes: (formData.notes && formData.notes.trim() !== '') ? formData.notes as MonitoringTaskNotes : null,
@@ -179,21 +178,28 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
         end_date: formData.is_recurring ? null : formData.end_date,
         end_time: formData.is_recurring ? null : formData.end_time,
       };
-
       if (task && task.id) {
-        // [Optimistic Update] 這裡會直接更新本地狀態，介面會立即反應
-        await updatePatientHealthTask({
-          ...task,
-          ...taskData,
-        });
+        // 編輯現有任務：單一類型不變
+        const editType = taskCategory === 'monitoring'
+          ? (selectedVitalTypes[0] ?? task.health_record_type)
+          : formData.health_record_type;
+        const mockTask: PatientHealthTask = { ...task, ...baseTaskData, health_record_type: editType, next_due_at: '' };
+        const nextDueAt = calculateNextDueDate(mockTask, baseDateTime);
+        await updatePatientHealthTask({ ...task, ...baseTaskData, health_record_type: editType, next_due_at: nextDueAt.toISOString() });
       } else {
-        // [Optimistic Update] 這裡會等待 DB 回傳新 ID 後更新本地狀態
-        await addPatientHealthTask(taskData);
+        // 新建任務：監測類可多種類型同時建立
+        const typesToCreate: HealthTaskType[] = taskCategory === 'monitoring'
+          ? selectedVitalTypes
+          : [formData.health_record_type];
+        for (const healthType of typesToCreate) {
+          const mockTask: PatientHealthTask = {
+            id: '', ...baseTaskData, health_record_type: healthType,
+            next_due_at: '', created_at: '', updated_at: '',
+          };
+          const nextDueAt = calculateNextDueDate(mockTask, baseDateTime);
+          await addPatientHealthTask({ ...baseTaskData, health_record_type: healthType, next_due_at: nextDueAt.toISOString() });
+        }
       }
-
-      // [移除] 不再呼叫全量刷新，大幅提升速度
-      // await refreshData(); 
-      
       if (onUpdate) await onUpdate();
       onClose();
     } catch (error) {
@@ -240,8 +246,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
-              <div className={`p-2 rounded-lg ${getTypeColor(formData.health_record_type)} bg-opacity-10`}>
-                {getTypeIcon(formData.health_record_type)}
+              <div className={`p-2 rounded-lg ${taskCategory === 'monitoring' ? 'text-blue-600' : getTypeColor(formData.health_record_type)} bg-opacity-10`}>
+                {taskCategory === 'monitoring' ? <Activity className="h-5 w-5" /> : getTypeIcon(formData.health_record_type)}
               </div>
               <h2 className="text-xl font-semibold text-gray-900">
                 {task ? '編輯健康任務' : '新增健康任務'}
@@ -268,36 +274,80 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
             </div>
 
             <div>
-              <label className="form-label">任務類型 *</label>
-              <select
-                name="health_record_type"
-                value={formData.health_record_type}
-                onChange={handleChange}
-                className="form-input"
-                required
-              >
-                <optgroup label="監測任務">
-                  <option value="生命表徵">生命表徵</option>
-                  <option value="血糖控制">血糖控制</option>
-                  <option value="體重控制">體重控制</option>
-                </optgroup>
-                <optgroup label="護理任務">
-                  <option value="尿導管更換">尿導管更換</option>
-                  <option value="鼻胃飼管更換">鼻胃飼管更換</option>
-                  <option value="傷口換症">傷口換症</option>
-                  <option value="氧氣喉管清洗/更換">氧氣喉管清洗/更換</option>
-                </optgroup>
-                <optgroup label="文件任務">
-                  <option value="約束物品同意書">約束物品同意書</option>
-                  <option value="年度體檢">年度體檢</option>
-                  <option value="藥物自存同意書">藥物自存同意書</option>
-                  <option value="晚晴計劃">晚晴計劃</option>
-                </optgroup>
-              </select>
+              <label className="form-label">任務分類 *</label>
+              <div className="flex gap-2 mb-3">
+                {([['monitoring', '監測任務'], ['care', '護理任務'], ['document', '文件任務']] as [TaskCategory, string][]).map(([cat, label]) => (
+                  <button key={cat} type="button"
+                    onClick={() => {
+                      setTaskCategory(cat);
+                      if (cat !== 'monitoring') setSelectedVitalTypes([]);
+                    }}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
+                      taskCategory === cat
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {taskCategory === 'monitoring' && (
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">
+                    {task ? '監測項目（編輯時不可更改類型）' : '監測項目 * （可多選）'}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {VITAL_SIGN_OPTIONS.map(({ type, label, color }) => {
+                      const selected = selectedVitalTypes.includes(type);
+                      return (
+                        <button key={type} type="button"
+                          onClick={() => {
+                            if (task) return;
+                            setSelectedVitalTypes(prev =>
+                              selected ? prev.filter(t => t !== type) : [...prev, type]
+                            );
+                          }}
+                          className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-colors ${
+                            selected ? `${color} text-white border-transparent` : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                          } ${task ? 'cursor-default opacity-80' : ''}`}>
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {taskCategory !== 'monitoring' && (
+                <div>
+                  <label className="form-label text-sm">任務類型 *</label>
+                  <select
+                    name="health_record_type"
+                    value={formData.health_record_type}
+                    onChange={handleChange}
+                    className="form-input"
+                    required
+                  >
+                    {taskCategory === 'care' && (<>
+                      <option value="尿導管更換">尿導管更換</option>
+                      <option value="鼻胃飼管更換">鼻胃飼管更換</option>
+                      <option value="傷口換症">傷口換症</option>
+                      <option value="氧氣喉管清洗/更換">氧氣喉管清洗/更換</option>
+                    </>)}
+                    {taskCategory === 'document' && (<>
+                      <option value="約束物品同意書">約束物品同意書</option>
+                      <option value="年度體檢">年度體檢</option>
+                      <option value="藥物自存同意書">藥物自存同意書</option>
+                      <option value="晚晴計劃">晚晴計劃</option>
+                    </>)}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
-          {(formData.health_record_type === '藥物自存同意書' || formData.health_record_type === '晚晴計劃') && (
+          {taskCategory === 'document' && (formData.health_record_type === '藥物自存同意書' || formData.health_record_type === '晚晴計劃') && (
             <div>
               <label className="form-label">
                 <Calendar className="h-4 w-4 inline mr-1" />
@@ -307,8 +357,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
             </div>
           )}
 
-          {(formData.health_record_type === '尿導管更換' || formData.health_record_type === '鼻胃飼管更換' ||
-            formData.health_record_type === '傷口換症' || formData.health_record_type === '氧氣喉管清洗/更換') && (
+          {taskCategory === 'care' && (
             <div>
               <label className="form-label">
                 <Calendar className="h-4 w-4 inline mr-1" />
@@ -318,7 +367,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
             </div>
           )}
 
-          {(formData.health_record_type === '生命表徵' || formData.health_record_type === '血糖控制' || formData.health_record_type === '體重控制') && (
+          {taskCategory === 'monitoring' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="form-label"><Calendar className="h-4 w-4 inline mr-1" />開始日期</label>
@@ -363,8 +412,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
               </div>
             </div>
 
-            {(formData.frequency_unit === 'daily' || formData.frequency_unit === 'weekly' || formData.frequency_unit === 'monthly') && 
-             (formData.health_record_type === '生命表徵' || formData.health_record_type === '血糖控制' || formData.health_record_type === '體重控制') && (
+            {(formData.frequency_unit === 'daily' || formData.frequency_unit === 'weekly' || formData.frequency_unit === 'monthly') &&
+             taskCategory === 'monitoring' && (
               <div>
                 <label className="form-label">特定時間</label>
                 <select name="specific_times" value={formData.specific_times} onChange={handleChange} className="form-input">
@@ -403,7 +452,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
             )}
           </div>
 
-          {(formData.health_record_type === '尿導管更換' || formData.health_record_type === '鼻胃飼管更換') && (
+          {taskCategory === 'care' && (formData.health_record_type === '尿導管更換' || formData.health_record_type === '鼻胃飼管更換') && (
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">喉管設定</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -429,7 +478,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
             </div>
           )}
 
-          {(formData.health_record_type === '生命表徵' || formData.health_record_type === '血糖控制' || formData.health_record_type === '體重控制') ? (
+          {taskCategory === 'monitoring' ? (
             <div>
               <label className="form-label">備註</label>
               <select name="notes" value={formData.notes} onChange={handleChange} className="form-input">

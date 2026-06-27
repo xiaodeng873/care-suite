@@ -567,8 +567,8 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       const hasTemperatureRecord = healthRecords.some(record => 
         record.院友id === patient.院友id && 
         record.記錄日期 === today && 
-        record.記錄類型 === '生命表徵' && 
-        record.體溫 !== null
+        record.監測類型 === '體溫' &&
+        record.數值 !== null
       );
       if (hasTemperatureRecord) {
         excludedPatients.push({ patient, reason: '已量度體溫' });

@@ -121,3 +121,60 @@ export const generateHealthRecordSuggestions = (
     };
   }
 };
+
+// [窄表多類型版] 針對單一監測類型，根據歷史窄表記錄（數值 / 數值_副）生成建議值
+// 沿用原 generateHealthRecordSuggestions 的偏移範圍與夾限，回傳 { primary, secondary }
+export type VitalGenType =
+  | '血壓' | '脈搏' | '體溫' | '血含氧量' | '呼吸頻率' | '血糖值' | '體重';
+
+export interface VitalSuggestion {
+  primary?: string;
+  secondary?: string;
+}
+
+export const generateVitalSuggestion = (
+  type: VitalGenType,
+  recentRecords: { 數值?: number | null; 數值_副?: number | null }[]
+): VitalSuggestion | null => {
+  const primaries = recentRecords
+    .map(r => Number(r.數值))
+    .filter(n => Number.isFinite(n));
+  if (primaries.length === 0) return null;
+  const avgP = primaries.reduce((a, b) => a + b, 0) / primaries.length;
+  const sug: VitalSuggestion = {};
+  switch (type) {
+    case '血壓': {
+      sug.primary = Math.max(80, Math.round(avgP + generateRandomOffset(-10, 10))).toString();
+      const secs = recentRecords
+        .map(r => Number(r.數值_副))
+        .filter(n => Number.isFinite(n));
+      if (secs.length > 0) {
+        const avgS = secs.reduce((a, b) => a + b, 0) / secs.length;
+        sug.secondary = Math.max(50, Math.round(avgS + generateRandomOffset(-10, 10))).toString();
+      }
+      break;
+    }
+    case '脈搏':
+      sug.primary = Math.max(40, Math.round(avgP + generateRandomOffset(-10, 10))).toString();
+      break;
+    case '體溫': {
+      let v = avgP + generateRandomOffset(-0.5, 0.5);
+      v = Math.min(37.4, Math.max(35.0, v));
+      sug.primary = roundToDecimal(v, 1);
+      break;
+    }
+    case '血含氧量':
+      sug.primary = Math.max(90, Math.min(100, Math.round(avgP + generateRandomOffset(-2, 2)))).toString();
+      break;
+    case '呼吸頻率':
+      sug.primary = Math.max(12, Math.round(avgP + generateRandomOffset(-5, 5))).toString();
+      break;
+    case '血糖值':
+      sug.primary = roundToDecimal(Math.max(4.0, avgP + generateRandomOffset(-7, 7)), 1);
+      break;
+    case '體重':
+      sug.primary = roundToDecimal(Math.max(22.0, avgP + generateRandomOffset(-1, 1)), 1);
+      break;
+  }
+  return sug;
+};

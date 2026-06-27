@@ -1,14 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import type { HealthRecord, HealthRecordType } from './types';
+import type { HealthRecord, VitalSignType } from './types';
 
 export function useHealthRecords(
   patientId: number | null | undefined,
-  recordType: HealthRecordType,
+  monitoringType: VitalSignType,
   days = 14
 ) {
   return useQuery<HealthRecord[]>({
-    queryKey: ['health-records', patientId, recordType, days],
+    queryKey: ['health-records', patientId, monitoringType, days],
     enabled: !!patientId,
     queryFn: async () => {
       const cutoff = new Date();
@@ -16,15 +16,15 @@ export function useHealthRecords(
       const cutoffStr = cutoff.toISOString().slice(0, 10);
 
       const { data, error } = await supabase
-        .from('健康記錄主表')
+        .from('健康監測記錄')
         .select('*')
         .eq('院友id', patientId!)
-        .eq('記錄類型', recordType)
+        .eq('監測類型', monitoringType)
         .gte('記錄日期', cutoffStr)
         .order('記錄日期', { ascending: false })
         .order('記錄時間', { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as HealthRecord[];
     },
   });
 }
@@ -32,8 +32,11 @@ export function useHealthRecords(
 export function useCreateHealthRecord() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: Omit<HealthRecord, '記錄id' | 'created_at'>) => {
-      const { data, error } = await supabase.from('健康記錄主表').insert(payload).select().single();
+    mutationFn: async (payload: Omit<HealthRecord, '記錄id' | '建立時間'>) => {
+      if (payload.監測類型 === '血壓' && payload.數值_副 == null) {
+        throw new Error('血壓記錄必須同時提供收縮壓和舒張壓');
+      }
+      const { data, error } = await supabase.from('健康監測記錄').insert(payload).select().single();
       if (error) throw error;
       return data as HealthRecord;
     },
@@ -46,8 +49,8 @@ export function useCreateHealthRecord() {
 export function useDeleteHealthRecord() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, patientId }: { id: number; patientId: number }) => {
-      const { error } = await supabase.from('健康記錄主表').delete().eq('記錄id', id);
+    mutationFn: async ({ id, patientId }: { id: string; patientId: number }) => {
+      const { error } = await supabase.from('健康監測記錄').delete().eq('記錄id', id);
       if (error) throw error;
       return patientId;
     },

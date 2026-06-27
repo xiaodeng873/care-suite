@@ -106,11 +106,11 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
       const hasRecord = healthRecords.some(r => {
         const normalizedRecordTime = normalizeTime(r.記錄時間);
 
-        if (r.task_id && r.task_id === task.id) {
+        if (r.任務id && r.任務id === task.id) {
           return r.記錄日期 === dateStr && normalizedRecordTime === normalizedSpecificTime;
         }
         const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
-        const typeMatch = r.記錄類型 === task.health_record_type;
+        const typeMatch = r.監測類型 === task.health_record_type;
         const dateMatch = r.記錄日期 === dateStr;
         const timeMatch = normalizedRecordTime === normalizedSpecificTime;
 
@@ -147,11 +147,11 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
     // [關鍵修正] 對於多時間點任務，需要檢查每個時間點
     if (task.specific_times && task.specific_times.length > 0) {
       const timeRecords = healthRecords.filter(r => {
-        if (r.task_id && r.task_id === task.id) {
+        if (r.任務id && r.任務id === task.id) {
           return r.記錄日期 === dateStr;
         }
         const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
-        const typeMatch = r.記錄類型 === task.health_record_type;
+        const typeMatch = r.監測類型 === task.health_record_type;
         const dateMatch = r.記錄日期 === dateStr;
 
         return patientMatch && typeMatch && dateMatch;
@@ -192,12 +192,12 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
     } else {
       // 單時間點任務
       const hasRecord = healthRecords.some(r => {
-        if (r.task_id && r.task_id === task.id) {
+        if (r.任務id && r.任務id === task.id) {
           return r.記錄日期 === dateStr;
         }
         // [增強] 更容錯的匹配邏輯
         const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
-        const typeMatch = r.記錄類型 === task.health_record_type;
+        const typeMatch = r.監測類型 === task.health_record_type;
         const dateMatch = r.記錄日期 === dateStr;
 
         return patientMatch && typeMatch && dateMatch;

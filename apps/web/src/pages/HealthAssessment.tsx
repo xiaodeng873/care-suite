@@ -29,20 +29,18 @@ import {
 } from 'lucide-react';
 import { usePatients, DuplicateRecordGroup } from '../context/PatientContext';
 import HealthRecordModal from '../components/HealthRecordModal';
-import BatchHealthRecordModal from '../components/BatchHealthRecordModal';
 import DeduplicateRecordsModal from '../components/DeduplicateRecordsModal';
 import RecycleBinModal from '../components/RecycleBinModal';
 import { exportVitalSignsToExcel, type VitalSignExportData } from '../utils/vitalsignExcelGenerator';
 import { exportBloodSugarToExcel, type BloodSugarExportData } from '../utils/bloodSugarExcelGenerator';
 import PatientTooltip from '../components/PatientTooltip';
 import { syncTaskStatus } from '../lib/database';
-type RecordType = '生命表徵' | '血糖控制' | '體重控制' | 'all';
-type SortField = '記錄日期' | '記錄時間' | '院友姓名' | '記錄類型' | '體重' | '血糖值' | '血壓';
+type SortField = '記錄日期' | '記錄時間' | '院友姓名' | '監測類型' | '數值';
 type SortDirection = 'asc' | 'desc';
 interface AdvancedFilters {
   床號: string;
   中文姓名: string;
-  記錄類型: string;
+  監測類型: string;
   記錄人員: string;
   備註: string;
   startDate: string;
@@ -72,9 +70,7 @@ const HealthAssessment: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('記錄日期');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
-  const [showBatchModal, setShowBatchModal] = useState(false);
-  const [batchRecordType, setBatchRecordType] = useState<'生命表徵' | '血糖控制' | '體重控制'>('生命表徵');
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
   const [showDeduplicateModal, setShowDeduplicateModal] = useState(false);
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateRecordGroup[]>([]);
@@ -87,14 +83,14 @@ const HealthAssessment: React.FC = () => {
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
     床號: '',
     中文姓名: '',
-    記錄類型: '',
+    監測類型: '',
     記錄人員: '',
     備註: '',
     startDate: '',
     endDate: '',
     在住狀態: '在住'
   });
-  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
   const [isGeneratingTemperature, setIsGeneratingTemperature] = useState(false);
   // Helper functions
@@ -112,7 +108,7 @@ const HealthAssessment: React.FC = () => {
     setAdvancedFilters({
       床號: '',
       中文姓名: '',
-      記錄類型: '',
+      監測類型: '',
       記錄人員: '',
       備註: '',
       startDate: '',
@@ -156,7 +152,7 @@ const HealthAssessment: React.FC = () => {
     if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
       return false;
     }
-    if (advancedFilters.記錄類型 && advancedFilters.記錄類型 !== '' && record.記錄類型.trim() !== advancedFilters.記錄類型.trim()) {
+    if (advancedFilters.監測類型 && advancedFilters.監測類型 !== '' && record.監測類型 !== advancedFilters.監測類型) {
       return false;
     }
     if (advancedFilters.記錄人員 && !fuzzyMatch(record.記錄人員, advancedFilters.記錄人員)) {
@@ -204,21 +200,13 @@ const HealthAssessment: React.FC = () => {
         valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
         valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
         break;
-      case '記錄類型':
-        valueA = a.記錄類型;
-        valueB = b.記錄類型;
+      case '監測類型':
+        valueA = a.監測類型;
+        valueB = b.監測類型;
         break;
-      case '體重':
-        valueA = a.體重 || 0;
-        valueB = b.體重 || 0;
-        break;
-      case '血糖值':
-        valueA = a.血糖值 || 0;
-        valueB = b.血糖值 || 0;
-        break;
-      case '血壓':
-        valueA = (a.血壓收縮壓 || 0) + (a.血壓舒張壓 || 0);
-        valueB = (b.血壓收縮壓 || 0) + (b.血壓舒張壓 || 0);
+      case '數值':
+        valueA = a.數值 || 0;
+        valueB = b.數值 || 0;
         break;
     }
     if (typeof valueA === 'string' && typeof valueB === 'string') {
@@ -271,16 +259,15 @@ const HealthAssessment: React.FC = () => {
     setSelectedRecord(record);
     setShowModal(true);
   };
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     const record = healthRecords.find(r => r.記錄id === id);
     const patient = patients.find(p => p.院友id === record?.院友id);
-    if (confirm(`確定要刪除 ${patient?.中文姓名} 在 ${record?.記錄日期} ${record?.記錄時間} 的${record?.記錄類型}記錄嗎？\n\n刪除後可在回收筒中恢復。`)) {
+    if (confirm(`確定要刪除 ${patient?.中文姓名} 在 ${record?.記錄日期} ${record?.記錄時間} 的${record?.監測類型}記錄嗎？\n\n此操作不可復原。`)) {
       try {
         setDeletingIds(prev => new Set(prev).add(id));
         await deleteHealthRecord(id);
-        // [新增] 同步任務狀態
-        if (record?.task_id) {
-          await syncTaskStatus(record.task_id);
+        if (record?.任務id) {
+          await syncTaskStatus(record.任務id);
           if (refreshData) await refreshData();
         }
         setSelectedRows(prev => {
@@ -313,7 +300,7 @@ const HealthAssessment: React.FC = () => {
     setDeletingIds(new Set(deletingArray));
     let successCount = 0;
     let failCount = 0;
-    const failedIds: number[] = [];
+    const failedIds: string[] = [];
     try {
       for (const recordId of deletingArray) {
         try {
@@ -326,7 +313,7 @@ const HealthAssessment: React.FC = () => {
           failedIds.push(recordId);
         }
       }
-      const newSelectedRows = new Set<number>();
+      const newSelectedRows = new Set<string>();
       failedIds.forEach(id => newSelectedRows.add(id));
       setSelectedRows(newSelectedRows);
       if (failCount === 0) {
@@ -343,7 +330,7 @@ const HealthAssessment: React.FC = () => {
       setDeletingIds(new Set());
     }
   };
-  const handleSelectRow = (recordId: number) => {
+  const handleSelectRow = (recordId: string) => {
     const newSelected = new Set(selectedRows);
     if (newSelected.has(recordId)) {
       newSelected.delete(recordId);
@@ -368,49 +355,60 @@ const HealthAssessment: React.FC = () => {
     });
     setSelectedRows(newSelected);
   };
-  const handleExportSelected = async (recordType: '生命表徵' | '血糖控制' | '體重控制') => {
-    const filteredByType = healthRecords.filter(record => record.記錄類型 === recordType);
-    const selectedRecords = selectedRows.size > 0 
+  const handleExportSelected = async (exportCategory: '生命表徵' | '血糖控制' | '體重控制') => {
+    let filterFn: (r: (typeof healthRecords)[0]) => boolean;
+    if (exportCategory === '血糖控制') filterFn = r => r.監測類型 === '血糖值';
+    else if (exportCategory === '體重控制') filterFn = r => r.監測類型 === '體重';
+    else filterFn = r => ['血壓', '脈搏', '體溫', '血含氧量', '呼吸頻率'].includes(r.監測類型);
+
+    const filteredByType = healthRecords.filter(filterFn);
+    const selectedRecords = selectedRows.size > 0
       ? filteredByType.filter(r => selectedRows.has(r.記錄id))
       : filteredByType;
     if (selectedRecords.length === 0) {
-      alert(`沒有${recordType}記錄可匯出`);
+      alert(`沒有${exportCategory}記錄可匯出`);
       return;
     }
     const uniquePatients = [...new Set(selectedRecords.map(r => r.院友id))].length;
-    const isLargeExport = selectedRecords.length > 1000 || uniquePatients > 50;
-    if (isLargeExport) {
-      if (!confirm(`您即將匯出大量資料 (${selectedRecords.length} 筆)，是否繼續？`)) {
-        return;
-      }
+    if (selectedRecords.length > 1000 || uniquePatients > 50) {
+      if (!confirm(`您即將匯出大量資料 (${selectedRecords.length} 筆)，是否繼續？`)) return;
     }
     try {
       setIsExporting(true);
-      if (recordType === '生命表徵') {
-        const vitalSignData: VitalSignExportData[] = selectedRecords.map(record => {
-          const patient = patients.find(p => p.院友id === record.院友id);
+      if (exportCategory === '生命表徵') {
+        // 將同一時段（院友+日期+時間）的記錄合併為一行
+        const sessionMap = new Map<string, typeof selectedRecords>();
+        selectedRecords.forEach(r => {
+          const key = `${r.院友id}-${r.記錄日期}-${r.記錄時間}`;
+          if (!sessionMap.has(key)) sessionMap.set(key, []);
+          sessionMap.get(key)!.push(r);
+        });
+        const vitalSignData: VitalSignExportData[] = Array.from(sessionMap.values()).map(group => {
+          const first = group[0];
+          const patient = patients.find(p => p.院友id === first.院友id);
+          const bp = group.find(r => r.監測類型 === '血壓');
           return {
-            記錄id: record.記錄id,
+            記錄id: first.記錄id,
             床號: patient?.床號 || '',
             中文姓氏: patient?.中文姓氏 || '',
             中文名字: patient?.中文名字 || '',
             中文姓名: patient ? `${patient.中文姓氏}${patient.中文名字}` : '',
             性別: patient?.性別 || '',
             出生日期: patient?.出生日期 || '',
-            記錄日期: record.記錄日期,
-            記錄時間: record.記錄時間,
-            血壓收縮壓: record.血壓收縮壓,
-            血壓舒張壓: record.血壓舒張壓,
-            脈搏: record.脈搏,
-            體溫: record.體溫,
-            血含氧量: record.血含氧量,
-            呼吸頻率: record.呼吸頻率,
-            備註: record.備註,
-            記錄人員: record.記錄人員
+            記錄日期: first.記錄日期,
+            記錄時間: first.記錄時間,
+            血壓收縮壓: bp?.數值,
+            血壓舒張壓: bp?.數值_副,
+            脈搏: group.find(r => r.監測類型 === '脈搏')?.數值,
+            體溫: group.find(r => r.監測類型 === '體溫')?.數值,
+            血含氧量: group.find(r => r.監測類型 === '血含氧量')?.數值,
+            呼吸頻率: group.find(r => r.監測類型 === '呼吸頻率')?.數值,
+            備註: first.備註,
+            記錄人員: first.記錄人員,
           };
         });
         await exportVitalSignsToExcel(vitalSignData, patients);
-      } else if (recordType === '血糖控制') {
+      } else if (exportCategory === '血糖控制') {
         const bloodSugarData: BloodSugarExportData[] = selectedRecords.map(record => {
           const patient = patients.find(p => p.院友id === record.院友id);
           return {
@@ -423,13 +421,13 @@ const HealthAssessment: React.FC = () => {
             出生日期: patient?.出生日期 || '',
             記錄日期: record.記錄日期,
             記錄時間: record.記錄時間,
-            血糖值: record.血糖值,
+            血糖值: record.數值,
             備註: record.備註,
-            記錄人員: record.記錄人員
+            記錄人員: record.記錄人員,
           };
         });
         await exportBloodSugarToExcel(bloodSugarData, patients);
-      } else if (recordType === '體重控制') {
+      } else {
         const { exportBodyweightToExcel } = await import('../utils/bodyweightExcelGenerator');
         const bodyweightData = selectedRecords.map(record => {
           const patient = patients.find(p => p.院友id === record.院友id);
@@ -443,22 +441,18 @@ const HealthAssessment: React.FC = () => {
             出生日期: patient?.出生日期 || '',
             記錄日期: record.記錄日期,
             記錄時間: record.記錄時間,
-            體重: record.體重,
+            體重: record.數值,
             備註: record.備註,
-            記錄人員: record.記錄人員
+            記錄人員: record.記錄人員,
           };
         });
         await exportBodyweightToExcel(bodyweightData, patients);
       }
     } catch (error) {
-      alert(`匯出${recordType}失敗`);
+      alert(`匯出${exportCategory}失敗`);
     } finally {
       setIsExporting(false);
     }
-  };
-  const handleBatchUpload = (recordType: '生命表徵' | '血糖控制' | '體重控制') => {
-    setBatchRecordType(recordType);
-    setShowBatchModal(true);
   };
   const handleDeduplicateRecords = async () => {
     setIsAnalyzingDuplicates(true);
@@ -509,8 +503,8 @@ const HealthAssessment: React.FC = () => {
   };
   const calculateWeightChange = (currentWeight: number, patientId: number, currentDate: string): string => {
     const allWeightRecords = healthRecords
-      .filter(r => r.院友id === patientId && typeof r.體重 === 'number')
-      .map(r => ({ 體重: r.體重, 記錄日期: r.記錄日期, 記錄時間: r.記錄時間 }))
+      .filter(r => r.院友id === patientId && r.監測類型 === '體重')
+      .map(r => ({ 體重: r.數值, 記錄日期: r.記錄日期, 記錄時間: r.記錄時間 }))
       .sort((a, b) => new Date(`${a.記錄日期} ${a.記錄時間}`).getTime() - new Date(`${b.記錄日期} ${b.記錄時間}`).getTime());
     if (allWeightRecords.length === 0) return '最遠記錄';
     const currentDateTime = new Date(`${currentDate} 00:00`).getTime();
@@ -605,42 +599,6 @@ const HealthAssessment: React.FC = () => {
                     onClick={() => setShowMoreMenu(false)}
                   />
                   <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 min-w-[200px] max-h-[70vh] overflow-y-auto">
-                    {/* 批量上傳子選單 */}
-                    <div className="border-b border-gray-200">
-                      <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        批量上傳
-                      </div>
-                      <button
-                        onClick={() => {
-                          handleBatchUpload('生命表徵');
-                          setShowMoreMenu(false);
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
-                      >
-                        <Activity className="h-4 w-4 text-blue-600" />
-                        <span>批量新增生命表徵</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleBatchUpload('血糖控制');
-                          setShowMoreMenu(false);
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
-                      >
-                        <Droplets className="h-4 w-4 text-red-600" />
-                        <span>批量新增血糖記錄</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleBatchUpload('體重控制');
-                          setShowMoreMenu(false);
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
-                      >
-                        <Scale className="h-4 w-4 text-green-600" />
-                        <span>批量新增體重記錄</span>
-                      </button>
-                    </div>
                     {/* 其他功能 */}
                     <div className="py-1">
                       <button
@@ -797,16 +755,20 @@ const HealthAssessment: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="form-label">記錄類型</label>
+                  <label className="form-label">監測類型</label>
                   <select
-                    value={advancedFilters.記錄類型}
-                    onChange={(e) => updateAdvancedFilter('記錄類型', e.target.value)}
+                    value={advancedFilters.監測類型}
+                    onChange={(e) => updateAdvancedFilter('監測類型', e.target.value)}
                     className="form-input"
                   >
                     <option value="">所有類型</option>
-                    <option value="生命表徵">生命表徵</option>
-                    <option value="血糖控制">血糖控制</option>
-                    <option value="體重控制">體重控制</option>
+                    <option value="血壓">血壓</option>
+                    <option value="脈搏">脈搏</option>
+                    <option value="體溫">體溫</option>
+                    <option value="血含氧量">血含氧量</option>
+                    <option value="呼吸頻率">呼吸頻率</option>
+                    <option value="血糖值">血糖值</option>
+                    <option value="體重">體重</option>
                   </select>
                 </div>
                 <div>
@@ -909,11 +871,8 @@ const HealthAssessment: React.FC = () => {
                   </th>
                   <SortableHeader field="院友姓名">院友姓名</SortableHeader>
                   <SortableHeader field="記錄日期">日期時間</SortableHeader>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    生命表徵
-                  </th>
-                  <SortableHeader field="血糖值">血糖值</SortableHeader>
-                  <SortableHeader field="體重">體重</SortableHeader>
+                  <SortableHeader field="監測類型">監測類型</SortableHeader>
+                  <SortableHeader field="數值">數值</SortableHeader>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     備註
                   </th>
@@ -925,10 +884,28 @@ const HealthAssessment: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedRecords.map(record => {
                   const patient = patients.find(p => p.院友id === record.院友id);
-                  const weightChange = record.體重 ? calculateWeightChange(record.體重, record.院友id, record.記錄日期) : null;
+                  const isWeight = record.監測類型 === '體重';
+                  const weightChange = isWeight
+                    ? calculateWeightChange(record.數值, record.院友id, record.記錄日期)
+                    : null;
+                  const typeColorMap: Record<string, string> = {
+                    '血壓': 'bg-red-100 text-red-800', '脈搏': 'bg-pink-100 text-pink-800',
+                    '體溫': 'bg-orange-100 text-orange-800', '血含氧量': 'bg-blue-100 text-blue-800',
+                    '呼吸頻率': 'bg-teal-100 text-teal-800', '血糖值': 'bg-purple-100 text-purple-800',
+                    '體重': 'bg-green-100 text-green-800',
+                  };
+                  const unitMap: Record<string, string> = {
+                    '血壓': 'mmHg', '脈搏': '次/分', '體溫': '°C',
+                    '血含氧量': '%', '呼吸頻率': '次/分', '血糖值': 'mmol/L', '體重': 'kg',
+                  };
+                  const formatValue = () => {
+                    if (record.數值 === 0) return record.備註?.includes('無法量度') ? '-' : '0';
+                    if (record.監測類型 === '血壓') return `${record.數值}/${record.數值_副} mmHg`;
+                    return `${record.數值} ${unitMap[record.監測類型] || ''}`;
+                  };
                   return (
-                    <tr 
-                      key={record.記錄id} 
+                    <tr
+                      key={record.記錄id}
                       className={`hover:bg-gray-50 ${selectedRows.has(record.記錄id) ? 'bg-blue-50' : ''}`}
                       onDoubleClick={() => handleEdit(record)}
                     >
@@ -944,11 +921,7 @@ const HealthAssessment: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-2">
                           <div className="w-8 h-8 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                             {patient?.院友相片 ? (
-                              <img 
-                                src={patient.院友相片} 
-                                alt={patient.中文姓名} 
-                                className="w-full h-full object-cover"
-                              />
+                              <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
                             ) : (
                               <User className="h-4 w-4 text-blue-600" />
                             )}
@@ -961,9 +934,7 @@ const HealthAssessment: React.FC = () => {
                                     {patient.中文姓氏}{patient.中文名字}
                                   </span>
                                 </PatientTooltip>
-                              ) : (
-                                '-'
-                              )}
+                              ) : '-'}
                             </div>
                             <div className="text-xs text-gray-500">{patient?.床號}</div>
                           </div>
@@ -974,78 +945,37 @@ const HealthAssessment: React.FC = () => {
                           <Calendar className="h-4 w-4 text-gray-400" />
                           <div>
                             <div>{new Date(record.記錄日期).toLocaleDateString('zh-TW')}</div>
-                            {record.記錄類型 !== '體重控制' && record.記錄時間 !== '00:00' && (
+                            {!isWeight && record.記錄時間 && record.記錄時間 !== '00:00' && (
                               <div className="text-xs text-gray-500 flex items-center">
                                 <Clock className="h-3 w-3 mr-1" />
-                                {new Date(`2000-01-01T${record.記錄時間}`).toLocaleTimeString('zh-TW', { 
-                                  hour: 'numeric', 
-                                  minute: '2-digit', 
-                                  hour12: true 
-                                })}
+                                {new Date(`2000-01-01T${record.記錄時間}`).toLocaleTimeString('zh-TW', { hour: 'numeric', minute: '2-digit', hour12: true })}
                               </div>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="space-y-1">
-                          {record.血壓收縮壓 && record.血壓舒張壓 && (
-                            <div className="text-xs">血壓: {record.血壓收縮壓}/{record.血壓舒張壓} mmHg</div>
-                          )}
-                          {record.脈搏 && (
-                            <div className="text-xs">脈搏: {record.脈搏} /min</div>
-                          )}
-                          {record.體溫 && (
-                            <div className="text-xs">體溫: {record.體溫}°C</div>
-                          )}
-                          {record.血含氧量 && (
-                            <div className="text-xs">血氧: {record.血含氧量}%</div>
-                          )}
-                          {record.呼吸頻率 && (
-                            <div className="text-xs">呼吸: {record.呼吸頻率} /min</div>
-                          )}
-                        </div>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeColorMap[record.監測類型] || 'bg-gray-100 text-gray-800'}`}>
+                          {record.監測類型}
+                        </span>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {record.血糖值 ? (
+                        {record.數值 === 0 && record.備註?.includes('無法量度') ? (
+                          <span className="text-gray-400 italic text-xs">無法量度</span>
+                        ) : (
                           <div>
-                            <div className="font-medium">{record.血糖值} mmol/L</div>
-                            {record.記錄類型 === '血糖控制' && record.備註 && (
-                              <div className="text-xs text-gray-500 truncate" title={record.備註}>
-                                {record.備註}
-                              </div>
-                            )}
-                          </div>
-                        ) : '-'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {record.體重 ? (
-                          <div>
-                            <div className="font-medium">{record.體重} kg</div>
-                            {weightChange && weightChange !== '首次記錄' && weightChange !== '無變化' && (
-                              <div className={`text-xs flex items-center ${
-                                weightChange.startsWith('+')
-                                  ? 'text-green-600'
-                                  : 'text-red-600'
-                              }`}>
-                                {weightChange.startsWith('+') ? 
-                                  <TrendingUp className="h-3 w-3 mr-1" /> : 
-                                  <TrendingDown className="h-3 w-3 mr-1" />
-                                }
+                            <div className="font-medium">{formatValue()}</div>
+                            {isWeight && weightChange && weightChange !== '最遠記錄' && weightChange !== '無變化' && (
+                              <div className={`text-xs flex items-center ${weightChange.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                                {weightChange.startsWith('+') ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
                                 {weightChange}
                               </div>
                             )}
-                            {weightChange === '無變化' && (
-                              <div className="text-xs text-gray-500 flex items-center">
-                                <Minus className="h-3 w-3 mr-1" />
-                                {weightChange}
-                              </div>
-                            )}
-                            {weightChange === '首次記錄' && (
-                              <div className="text-xs text-blue-600">{weightChange}</div>
+                            {isWeight && weightChange === '無變化' && (
+                              <div className="text-xs text-gray-500 flex items-center"><Minus className="h-3 w-3 mr-1" />無變化</div>
                             )}
                           </div>
-                        ) : '-'}
+                        )}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">
                         {record.備註 || '-'}
@@ -1179,12 +1109,6 @@ const HealthAssessment: React.FC = () => {
               console.error('[HealthAssessment] syncTaskStatus 失敗:', error);
             }
           }}
-        />
-      )}
-      {showBatchModal && (
-        <BatchHealthRecordModal
-          recordType={batchRecordType}
-          onClose={() => setShowBatchModal(false)}
         />
       )}
       {showDeduplicateModal && (

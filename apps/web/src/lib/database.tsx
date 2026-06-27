@@ -83,47 +83,42 @@ export interface Prescription {
   需要時: boolean;
   服用時間: string[];
 }
+/** 7 種獨立生命表徵監測類型（narrow table 每 row 一種） */
+export type VitalSignType = '血壓' | '脈搏' | '體溫' | '血含氧量' | '呼吸頻率' | '血糖值' | '體重';
+
 export interface HealthRecord {
-  記錄id: number;
+  記錄id: string;          // UUID（原 SERIAL 已改為 UUID）
   院友id: number;
-  task_id?: string;
+  任務id?: string;          // FK → patient_health_tasks.id
   記錄日期: string;
   記錄時間: string;
-  記錄類型: '生命表徵' | '血糖控制' | '體重控制';
-  血壓收縮壓?: number;
-  血壓舒張壓?: number;
-  脈搏?: number;
-  體溫?: number;
-  血含氧量?: number;
-  呼吸頻率?: number;
-  血糖值?: number;
-  體重?: number;
+  監測類型: VitalSignType;  // 每 row 只存一種量度
+  數值: number;             // 主要數值（收縮壓 / 體溫 / 血糖…）
+  數值_副?: number;          // 僅血壓使用（舒張壓），血壓必須同時提供
   備註?: string;
   記錄人員?: string;
-  created_at?: string;
+  建立時間?: string;
 }
+
+/** @deprecated 回收筒已廢棄（deleted_health_records 表已移除），保留型別供上游 Context 編譯相容 */
 export interface DeletedHealthRecord {
   id: string;
-  original_record_id: number;
+  original_record_id: string;
   院友id: number;
   記錄日期: string;
   記錄時間: string;
-  記錄類型: '生命表徵' | '血糖控制' | '體重控制';
-  血壓收縮壓?: number;
-  血壓舒張壓?: number;
-  脈搏?: number;
-  體溫?: number;
-  血含氧量?: number;
-  呼吸頻率?: number;
-  血糖值?: number;
-  體重?: number;
+  監測類型: VitalSignType;
+  數值: number;
+  數值_副?: number;
   備註?: string;
   記錄人員?: string;
-  created_at?: string;
+  建立時間?: string;
   deleted_at: string;
   deleted_by?: string;
   deletion_reason: string;
 }
+
+/** @deprecated narrow table 無需去重，保留型別供上游編譯相容 */
 export interface DuplicateRecordGroup {
   key: string;
   records: HealthRecord[];
@@ -161,7 +156,8 @@ export interface MealGuidance {
   created_at: string;
   updated_at: string;
 }
-export type HealthTaskType = '生命表徵' | '血糖控制' | '體重控制' | '約束物品同意書' | '年度體檢' | '尿導管更換' | '鼻胃飼管更換' | '傷口換症' | '藥物自存同意書' | '晚晴計劃' | '氧氣喉管清洗/更換';
+/** 所有任務類型（VitalSignType 為其子集，監測任務用）*/
+export type HealthTaskType = VitalSignType | '約束物品同意書' | '年度體檢' | '尿導管更換' | '鼻胃飼管更換' | '傷口換症' | '藥物自存同意書' | '晚晴計劃' | '氧氣喉管清洗/更換';
 export type FrequencyUnit = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type MonitoringTaskNotes = '注射前' | '服藥前' | '定期' | '特別關顧' | '社康';
 export interface PatientHealthTask {
@@ -665,12 +661,12 @@ export interface DrugData {
   created_at: string;
   updated_at: string;
 }
-export type VitalSignType = '上壓' | '下壓' | '脈搏' | '血糖值' | '呼吸' | '血含氧量' | '體溫';
+export type InspectionVitalSignType = '上壓' | '下壓' | '脈搏' | '血糖值' | '呼吸' | '血含氧量' | '體溫';
 export type ConditionOperatorType = 'gt' | 'lt' | 'gte' | 'lte';
 export interface MedicationInspectionRule {
   id: string;
   prescription_id: string;
-  vital_sign_type: VitalSignType;
+  vital_sign_type: InspectionVitalSignType;
   condition_operator: ConditionOperatorType;
   condition_value: number;
   action_if_met?: string;
@@ -1236,36 +1232,52 @@ export const getHealthRecords = async (options?: { limit?: number; daysBack?: nu
   let allRecords: HealthRecord[] = [];
   let page = 0;
   let hasMore = true;
-  
-  // 如果指定 limit，直接限制數量
+
   if (options?.limit !== undefined) {
-    const { data, error } = await supabase.from('健康記錄主表').select('*').order('記錄日期', { ascending: false }).order('記錄時間', { ascending: false }).limit(options.limit);
+    const { data, error } = await supabase
+      .from('健康監測記錄')
+      .select('*')
+      .order('記錄日期', { ascending: false })
+      .order('記錄時間', { ascending: false })
+      .limit(options.limit);
     if (error) throw error;
-    return data || [];
+    return (data || []) as HealthRecord[];
   }
-  
-  // 如果指定 daysBack，只加載最近 N 天的記錄（快速初始加載）
+
   if (options?.daysBack !== undefined) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - options.daysBack);
     const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
-    
-    const { data, error } = await supabase
-      .from('健康記錄主表')
-      .select('*')
-      .gte('記錄日期', cutoffDateStr)
-      .order('記錄日期', { ascending: false })
-      .order('記錄時間', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('健康監測記錄')
+        .select('*')
+        .gte('記錄日期', cutoffDateStr)
+        .order('記錄日期', { ascending: false })
+        .order('記錄時間', { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      if (error) throw error;
+      if (data && data.length > 0) {
+        allRecords = [...allRecords, ...(data as HealthRecord[])];
+        page++;
+        hasMore = data.length === pageSize;
+      } else {
+        hasMore = false;
+      }
+    }
+    return allRecords;
   }
-  
-  // 否則加載所有記錄（分頁）
+
   while (hasMore) {
-    const { data, error } = await supabase.from('健康記錄主表').select('*').order('記錄日期', { ascending: false }).order('記錄時間', { ascending: false }).range(page * pageSize, (page + 1) * pageSize - 1);
+    const { data, error } = await supabase
+      .from('健康監測記錄')
+      .select('*')
+      .order('記錄日期', { ascending: false })
+      .order('記錄時間', { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
     if (error) throw error;
     if (data && data.length > 0) {
-      allRecords = [...allRecords, ...data];
+      allRecords = [...allRecords, ...(data as HealthRecord[])];
       page++;
       hasMore = data.length === pageSize;
     } else {
@@ -1274,54 +1286,56 @@ export const getHealthRecords = async (options?: { limit?: number; daysBack?: nu
   }
   return allRecords;
 };
-export const createHealthRecord = async (record: Omit<HealthRecord, '記錄id'>): Promise<HealthRecord> => {
-  const { data, error } = await supabase.from('健康記錄主表').insert([record]).select('記錄id').single();
+export const createHealthRecord = async (record: Omit<HealthRecord, '記錄id' | '建立時間'>): Promise<HealthRecord> => {
+  const { data, error } = await supabase.from('健康監測記錄').insert([record]).select('記錄id').single();
   if (error) { console.error('Error creating health record:', error); throw error; }
   return { ...record, ...data } as HealthRecord;
 };
+
+/** 批量建立同一 session 的多筆 narrow 記錄（動態 modal submit 用，相同 記錄日期/記錄時間）*/
+export const createHealthRecordsForSession = async (
+  records: Omit<HealthRecord, '記錄id' | '建立時間'>[]
+): Promise<HealthRecord[]> => {
+  if (records.length === 0) return [];
+  // 血壓記錄必須有舒張壓
+  for (const r of records) {
+    if (r.監測類型 === '血壓' && (r.數值_副 == null)) {
+      throw new Error('血壓記錄必須同時提供收縮壓（數值）和舒張壓（數值_副）');
+    }
+  }
+  const { data, error } = await supabase.from('健康監測記錄').insert(records).select();
+  if (error) { console.error('Error creating session health records:', error); throw error; }
+  return (data || []) as HealthRecord[];
+};
+
 export const updateHealthRecord = async (record: HealthRecord): Promise<HealthRecord> => {
-  const { error } = await supabase.from('健康記錄主表').update(record).eq('記錄id', record.記錄id);
+  const { error } = await supabase.from('健康監測記錄').update(record).eq('記錄id', record.記錄id);
   if (error) { console.error('Error updating health record:', error); throw error; }
   return record;
 };
-export const getHealthRecordById = async (recordId: number): Promise<HealthRecord | null> => {
-  const { data, error } = await supabase.from('健康記錄主表').select('*').eq('記錄id', recordId).maybeSingle();
+export const getHealthRecordById = async (recordId: string): Promise<HealthRecord | null> => {
+  const { data, error } = await supabase.from('健康監測記錄').select('*').eq('記錄id', recordId).maybeSingle();
   if (error) { console.error('Error fetching health record:', error); throw error; }
-  return data || null;
+  return (data || null) as HealthRecord | null;
 };
-export const deleteHealthRecord = async (recordId: number): Promise<void> => {
-  const { error } = await supabase.from('健康記錄主表').delete().eq('記錄id', recordId);
+export const deleteHealthRecord = async (recordId: string): Promise<void> => {
+  const { error } = await supabase.from('健康監測記錄').delete().eq('記錄id', recordId);
   if (error) { console.error('Error deleting health record:', error); throw error; }
 };
 export const getHealthRecordByDateTime = async (
   patientId: number,
   recordDate: string,
   recordTime: string,
-  vitalSignType: string
+  monitoringType: VitalSignType
 ): Promise<HealthRecord | null> => {
-  const vitalSignTypeMap: Record<string, { recordType: '生命表徵' | '血糖控制' | '體重控制', field: keyof HealthRecord }> = {
-    '上壓': { recordType: '生命表徵', field: '血壓收縮壓' },
-    '下壓': { recordType: '生命表徵', field: '血壓舒張壓' },
-    '脈搏': { recordType: '生命表徵', field: '脈搏' },
-    '血糖值': { recordType: '血糖控制', field: '血糖值' },
-    '呼吸': { recordType: '生命表徵', field: '呼吸頻率' },
-    '血含氧量': { recordType: '生命表徵', field: '血含氧量' },
-    '體溫': { recordType: '生命表徵', field: '體溫' }
-  };
-  const mapping = vitalSignTypeMap[vitalSignType];
-  if (!mapping) {
-    console.warn(`Unknown vital sign type: ${vitalSignType}`);
-    return null;
-  }
   const { data, error } = await supabase
-    .from('健康記錄主表')
+    .from('健康監測記錄')
     .select('*')
     .eq('院友id', patientId)
     .eq('記錄日期', recordDate)
     .eq('記錄時間', recordTime)
-    .eq('記錄類型', mapping.recordType)
-    .not(mapping.field as string, 'is', null)
-    .order('記錄id', { ascending: false })
+    .eq('監測類型', monitoringType)
+    .order('建立時間', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) {
@@ -1332,14 +1346,14 @@ export const getHealthRecordByDateTime = async (
 };
 export const getRecentHealthRecordsByPatient = async (
   patientId: number,
-  recordType: '生命表徵' | '血糖控制' | '體重控制',
+  monitoringType: VitalSignType,
   limit: number = 5
 ): Promise<HealthRecord[]> => {
   const { data, error } = await supabase
-    .from('健康記錄主表')
+    .from('健康監測記錄')
     .select('*')
     .eq('院友id', patientId)
-    .eq('記錄類型', recordType)
+    .eq('監測類型', monitoringType)
     .order('記錄日期', { ascending: false })
     .order('記錄時間', { ascending: false })
     .limit(limit);
@@ -1347,12 +1361,9 @@ export const getRecentHealthRecordsByPatient = async (
     console.error('[getRecentHealthRecordsByPatient] 查詢錯誤:', error);
     throw error;
   }
-
-  // 在客戶端過濾掉「無法量度」的記錄
-  const filtered = (data as HealthRecord[])?.filter(record => {
-    const hasUnmeasurable = record.備註?.includes('無法量度');
-    return !hasUnmeasurable;
-  }) || [];
+  const filtered = (data as HealthRecord[])?.filter(
+    record => !record.備註?.includes('無法量度')
+  ) || [];
   return filtered;
 };
 export const getHealthTasks = async (): Promise<PatientHealthTask[]> => {
@@ -2065,7 +2076,7 @@ export const getMedicationInspectionRules = async (prescriptionId?: string): Pro
 };
 export const createMedicationInspectionRule = async (ruleData: {
   prescription_id: string;
-  vital_sign_type: VitalSignType;
+  vital_sign_type: InspectionVitalSignType;
   condition_operator: ConditionOperatorType;
   condition_value: number;
   action_if_met?: string;
@@ -2077,7 +2088,7 @@ export const createMedicationInspectionRule = async (ruleData: {
 export const updateMedicationInspectionRule = async (ruleData: {
   id: string;
   prescription_id: string;
-  vital_sign_type: VitalSignType;
+  vital_sign_type: InspectionVitalSignType;
   condition_operator: ConditionOperatorType;
   condition_value: number;
   action_if_met?: string;
@@ -2629,129 +2640,22 @@ export const downloadTemplateFile = async (storagePath: string, originalName: st
   URL.revokeObjectURL(url);
 };
 // Recycle bin functions
-export const moveHealthRecordToRecycleBin = async (record: HealthRecord, deletedBy?: string, deletionReason: string = '使用者刪除'): Promise<void> => {
-  const safeRecordTime = record.記錄時間 && record.記錄時間.trim() !== '' ? record.記錄時間 : '00:00';
-  const safeRecordType = record.記錄類型 || '生命表徵';
-
-  const { data, error: insertError } = await supabase.from('deleted_health_records').insert({
-    original_record_id: record.記錄id,
-    院友id: record.院友id,
-    記錄日期: record.記錄日期,
-    記錄時間: safeRecordTime,
-    記錄類型: safeRecordType,
-    血壓收縮壓: record.血壓收縮壓,
-    血壓舒張壓: record.血壓舒張壓,
-    脈搏: record.脈搏,
-    體溫: record.體溫,
-    血含氧量: record.血含氧量,
-    呼吸頻率: record.呼吸頻率,
-    血糖值: record.血糖值,
-    體重: record.體重,
-    備註: record.備註,
-    記錄人員: record.記錄人員,
-    created_at: record.created_at,
-    deleted_by: deletedBy,
-    deletion_reason: deletionReason
-  }).select('id');
-
-  if (insertError) {
-    console.error('回收筒插入失敗:', insertError);
-    throw new Error(`回收筒插入失敗: ${insertError.message}`);
-  }
-
-  // PostgREST 在 RLS 阻止時不報錯但不插入，必須驗證
-  if (!data || data.length === 0) {
-    throw new Error('回收筒插入被拒絕（RLS 權限問題），已中止刪除以保護數據');
-  }
-
-  const { error: deleteError } = await supabase.from('健康記錄主表').delete().eq('記錄id', record.記錄id);
-  if (deleteError) throw deleteError;
+/** @deprecated 回收筒已廢棄。直接永久刪除記錄。 */
+export const moveHealthRecordToRecycleBin = async (record: HealthRecord, _deletedBy?: string, _deletionReason?: string): Promise<void> => {
+  await deleteHealthRecord(record.記錄id);
 };
-export const getDeletedHealthRecords = async (): Promise<DeletedHealthRecord[]> => {
-  const { data, error } = await supabase.from('deleted_health_records').select('*').order('deleted_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+/** @deprecated 回收筒已廢棄，永遠回傳空陣列。 */
+export const getDeletedHealthRecords = async (): Promise<DeletedHealthRecord[]> => [];
+/** @deprecated 回收筒已廢棄，此功能已移除。 */
+export const restoreHealthRecordFromRecycleBin = async (_deletedRecordId: string): Promise<void> => {
+  throw new Error('回收筒功能已移除，無法還原記錄');
 };
-export const restoreHealthRecordFromRecycleBin = async (deletedRecordId: string): Promise<void> => {
-  const { data: deletedRecord, error: fetchError } = await supabase.from('deleted_health_records').select('*').eq('id', deletedRecordId).single();
-  if (fetchError || !deletedRecord) throw fetchError || new Error('Record not found');
-  const { error: insertError } = await supabase.from('健康記錄主表').insert({
-    院友id: deletedRecord.院友id,
-    記錄日期: deletedRecord.記錄日期,
-    記錄時間: deletedRecord.記錄時間,
-    記錄類型: deletedRecord.記錄類型,
-    血壓收縮壓: deletedRecord.血壓收縮壓,
-    血壓舒張壓: deletedRecord.血壓舒張壓,
-    脈搏: deletedRecord.脈搏,
-    體溫: deletedRecord.體溫,
-    血含氧量: deletedRecord.血含氧量,
-    呼吸頻率: deletedRecord.呼吸頻率,
-    血糖值: deletedRecord.血糖值,
-    體重: deletedRecord.體重,
-    備註: deletedRecord.備註,
-    記錄人員: deletedRecord.記錄人員
-  });
-  if (insertError) throw insertError;
-  const { error: deleteError } = await supabase.from('deleted_health_records').delete().eq('id', deletedRecordId);
-  if (deleteError) throw deleteError;
-};
-export const permanentlyDeleteHealthRecord = async (deletedRecordId: string): Promise<void> => {
-  const { error } = await supabase.from('deleted_health_records').delete().eq('id', deletedRecordId);
-  if (error) throw error;
-};
-export const findDuplicateHealthRecords = async (): Promise<DuplicateRecordGroup[]> => {
-  // 部分環境缺少 created_at 欄位，直接改用 記錄id 排序避免 400 錯誤
-  const { data, error } = await supabase
-    .from('健康記錄主表')
-    .select('*')
-    .order('記錄id', { ascending: false })
-    .limit(1000);
-  if (error) throw error;
-  const records = data || [];
-  const recordGroups = new Map<string, HealthRecord[]>();
-  records.forEach((record) => {
-    const key = `${record.院友id}_${record.記錄日期}_${record.記錄時間}`;
-    if (!recordGroups.has(key)) recordGroups.set(key, []);
-    recordGroups.get(key)!.push(record);
-  });
-  const duplicateGroups: DuplicateRecordGroup[] = [];
-  recordGroups.forEach((groupRecords, key) => {
-    if (groupRecords.length < 2) return;
-    const valueGroups = new Map<string, HealthRecord[]>();
-    groupRecords.forEach((record) => {
-      const values = [];
-      if (record.血壓收縮壓 != null) values.push(`bp_sys:${record.血壓收縮壓}`);
-      if (record.血壓舒張壓 != null) values.push(`bp_dia:${record.血壓舒張壓}`);
-      if (record.脈搏 != null) values.push(`pulse:${record.脈搏}`);
-      if (record.體溫 != null) values.push(`temp:${record.體溫}`);
-      if (record.呼吸頻率 != null) values.push(`resp:${record.呼吸頻率}`);
-      if (record.血含氧量 != null) values.push(`spo2:${record.血含氧量}`);
-      if (record.血糖值 != null) values.push(`glucose:${record.血糖值}`);
-      if (record.體重 != null) values.push(`weight:${record.體重}`);
-      const valueKey = values.sort().join('|') || 'no_values';
-      if (!valueGroups.has(valueKey)) valueGroups.set(valueKey, []);
-      valueGroups.get(valueKey)!.push(record);
-    });
-    valueGroups.forEach((valueGroupRecords, valueKey) => {
-      if (valueGroupRecords.length >= 2) {
-        const sortedRecords = valueGroupRecords.sort((a, b) => (a.created_at && b.created_at) ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime() : a.記錄id - b.記錄id);
-        duplicateGroups.push({ key: `${key}_${valueKey}`, records: sortedRecords, keepRecord: sortedRecords[0], duplicateRecords: sortedRecords.slice(1) });
-      }
-    });
-  });
-  return duplicateGroups;
-};
-export const batchMoveDuplicatesToRecycleBin = async (duplicateRecordIds: number[], deletedBy?: string): Promise<void> => {
-  for (const recordId of duplicateRecordIds) {
-    const { data: record, error } = await supabase.from('健康記錄主表').select('*').eq('記錄id', recordId).maybeSingle();
-    if (record) await moveHealthRecordToRecycleBin(record, deletedBy, '記錄去重');
-  }
-};
-export const createBatchHealthRecords = async (records: Omit<HealthRecord, '記錄id'>[]): Promise<HealthRecord[]> => {
-  const { data, error } = await supabase.from('健康記錄主表').insert(records).select();
-  if (error) { console.error('Error creating batch health records:', error); throw error; }
-  return data || [];
-};
+/** @deprecated 回收筒已廢棄，此功能已移除。 */
+export const permanentlyDeleteHealthRecord = async (_deletedRecordId: string): Promise<void> => {};
+/** @deprecated narrow table 無需去重，永遠回傳空陣列。 */
+export const findDuplicateHealthRecords = async (): Promise<DuplicateRecordGroup[]> => [];
+/** @deprecated 已移除。 */
+export const batchMoveDuplicatesToRecycleBin = async (_duplicateRecordIds: string[], _deletedBy?: string): Promise<void> => {};
 // [修復可能性2] 核心同步功能 - 使用智能推進策略並添加詳細日誌
 export const syncTaskStatus = async (taskId: string) => {
   const SYNC_CUTOFF_DATE = new Date(SYNC_CUTOFF_DATE_STR);
@@ -2763,7 +2667,15 @@ export const syncTaskStatus = async (taskId: string) => {
   if (taskError || !task) {
     return;
   }
-  const { data: latestRecord } = await supabase.from('健康記錄主表').select('記錄日期, 記錄時間, task_id').eq('task_id', taskId).order('記錄日期', { ascending: false }).order('記錄時間', { ascending: false }).limit(1).maybeSingle();
+  // [修復] 遷移的舊記錄 任務id 為 NULL，無法只靠 任務id 連結；改用 任務id 或 (院友id + 監測類型) 後備配對
+  const { data: latestRecords } = await supabase
+    .from('健康監測記錄')
+    .select('記錄日期, 記錄時間, 任務id')
+    .or(`任務id.eq.${taskId},and(院友id.eq.${task.patient_id},監測類型.eq.${task.health_record_type})`)
+    .order('記錄日期', { ascending: false })
+    .order('記錄時間', { ascending: false })
+    .limit(1);
+  const latestRecord = latestRecords && latestRecords.length > 0 ? latestRecords[0] : null;
   let updates = {};
   if (latestRecord) {
     const recordDate = new Date(latestRecord.記錄日期);
