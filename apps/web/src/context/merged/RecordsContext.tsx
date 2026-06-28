@@ -388,10 +388,8 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
   const addPatientHealthTask = useCallback(async (task: Omit<db.PatientHealthTask, 'id' | 'created_at' | 'updated_at'>) => {
     const newTask = await db.createPatientHealthTask(task);
     setPatientHealthTasks(prev => [newTask, ...prev]);
-    // 立即從 DB 重新同步，確保狀態一致（不 await，避免阻塞 UI）
-    refreshHealthTaskData().catch(() => {});
     return newTask;
-  }, [refreshHealthTaskData]);
+  }, []);
   const updatePatientHealthTask = useCallback(async (task: db.PatientHealthTask) => {
     setPatientHealthTasks(prev => prev.map(t => t.id === task.id ? { ...t, ...task } : t));
     try { await db.updatePatientHealthTask(task); }
