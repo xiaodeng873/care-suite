@@ -15,7 +15,6 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import * as db from '../../lib/database';
-import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
 
 // ========== Context 類型定義 ==========
@@ -496,21 +495,7 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
     });
   }, [isAuthenticated, refreshEssentialRecordsData, refreshNonEssentialRecordsData]);
 
-  // ===== patient_health_tasks 實時訂閱，確保任何 INSERT/UPDATE/DELETE 立即反映到 UI =====
-  useEffect(() => {
-    if (!isAuthenticated()) return;
 
-    const channel = supabase
-      .channel('patient_health_tasks_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'patient_health_tasks' }, () => {
-        refreshHealthTaskData().catch(() => {});
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isAuthenticated, refreshHealthTaskData]);
 
   // ===== 統一 loading 狀態 =====
   const loading = carePlanLoading || careRecordsLoading || assessmentLoading || incidentLoading || mealLoading || patientLogLoading || healthTaskLoading || admissionLoading;
