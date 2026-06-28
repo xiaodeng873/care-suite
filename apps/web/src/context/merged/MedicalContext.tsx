@@ -110,6 +110,7 @@ interface MedicalContextType {
   isAllHealthRecordsLoaded: boolean;
   healthRecordLoading: boolean;
   addHealthRecord: (record: Omit<db.HealthRecord, '記錄id'>) => Promise<db.HealthRecord>;
+  addHealthRecordsForSession: (records: Omit<db.HealthRecord, '記錄id' | '建立時間'>[]) => Promise<db.HealthRecord[]>;
   updateHealthRecord: (record: db.HealthRecord) => Promise<void>;
   deleteHealthRecord: (id: string) => Promise<void>;
   fetchDeletedHealthRecords: () => Promise<void>;
@@ -632,6 +633,19 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
     }
   }, []);
 
+  const addHealthRecordsForSession = useCallback(async (records: Omit<db.HealthRecord, '記錄id' | '建立時間'>[]): Promise<db.HealthRecord[]> => {
+    try {
+      const newRecords = await db.createHealthRecordsForSession(records);
+      if (newRecords.length > 0) {
+        setHealthRecords(prev => [...newRecords, ...prev]);
+      }
+      return newRecords;
+    } catch (error) {
+      console.error('Error adding session health records:', error);
+      throw error;
+    }
+  }, []);
+
   const updateHealthRecord = useCallback(async (record: db.HealthRecord): Promise<void> => {
     try {
       await db.updateHealthRecord(record);
@@ -819,6 +833,7 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
     isAllHealthRecordsLoaded,
     healthRecordLoading,
     addHealthRecord,
+    addHealthRecordsForSession,
     updateHealthRecord,
     deleteHealthRecord,
     fetchDeletedHealthRecords,
@@ -958,6 +973,7 @@ export function useHealthRecord() {
     isAllHealthRecordsLoaded: ctx.isAllHealthRecordsLoaded,
     loading: ctx.healthRecordLoading,
     addHealthRecord: ctx.addHealthRecord,
+    addHealthRecordsForSession: ctx.addHealthRecordsForSession,
     updateHealthRecord: ctx.updateHealthRecord,
     deleteHealthRecord: ctx.deleteHealthRecord,
     fetchDeletedHealthRecords: ctx.fetchDeletedHealthRecords,

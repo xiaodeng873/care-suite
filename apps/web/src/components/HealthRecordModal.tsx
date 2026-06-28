@@ -4,7 +4,7 @@ import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { isInHospital } from '../utils/careRecordHelper';
-import { createHealthRecordsForSession, getRecentHealthRecordsByPatient } from '../lib/database';
+import { getRecentHealthRecordsByPatient } from '../lib/database';
 import type { VitalSignType, HealthRecord } from '../lib/database';
 import VitalSignScanner from './VitalSignScanner';
 import type { VitalSignScanResult } from '../utils/vitalSignOcrParser';
@@ -71,7 +71,7 @@ const getInitialActiveTypes = (
 };
 
 const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialData, onClose, onTaskCompleted }) => {
-  const { updateHealthRecord, patients, hospitalEpisodes, admissionRecords } = usePatients();
+  const { updateHealthRecord, addHealthRecordsForSession, patients, hospitalEpisodes, admissionRecords } = usePatients();
   const { displayName } = useAuth();
 
   const getHKNow = () => {
@@ -283,7 +283,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
         const r = records[0];
         if (r) await updateHealthRecord({ ...record, ...r } as HealthRecord);
       } else {
-        await createHealthRecordsForSession(records as Omit<HealthRecord, '記錄id' | '建立時間'>[]);
+        await addHealthRecordsForSession(records as Omit<HealthRecord, '記錄id' | '建立時間'>[]);
       }
       onClose();
       // 完成所有相關任務（多任務整合時逐一更新各任務的下次到期）

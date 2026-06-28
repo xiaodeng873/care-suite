@@ -111,6 +111,7 @@ interface PatientContextType {
   updatePrescription: (prescription: db.Prescription) => Promise<void>;
   deletePrescription: (id: number) => Promise<void>;
   addHealthRecord: (record: Omit<db.HealthRecord, '記錄id'>) => Promise<db.HealthRecord>;
+  addHealthRecordsForSession: (records: Omit<db.HealthRecord, '記錄id' | '建立時間'>[]) => Promise<db.HealthRecord[]>;
   updateHealthRecord: (record: db.HealthRecord) => Promise<void>;
   deleteHealthRecord: (id: number) => Promise<void>;
   addFollowUpAppointment: (appointment: Omit<db.FollowUpAppointment, '覆診id' | '創建時間' | '更新時間'>) => Promise<void>;
@@ -401,6 +402,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     deletedHealthRecords,
     isAllHealthRecordsLoaded,
     addHealthRecord,
+    addHealthRecordsForSession,
     updateHealthRecord,
     deleteHealthRecord,
     fetchDeletedHealthRecords,
@@ -801,6 +803,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       updateScheduleDetail,
       deleteScheduleDetail,
       addHealthRecord,
+      addHealthRecordsForSession,
       updateHealthRecord,
       deleteHealthRecord,
       addFollowUpAppointment,
