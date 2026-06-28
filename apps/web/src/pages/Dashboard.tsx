@@ -86,7 +86,7 @@ function pickLatestPerPatient<T extends { patient_id: number; created_at?: strin
   return Array.from(latestPerPatient.values());
 }
 const Dashboard: React.FC = () => {
-  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, loading, updatePatientHealthTask, refreshData } = usePatients();
+  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData } = usePatients();
   const [showHealthRecordModal, setShowHealthRecordModal] = useState(false);
   const [selectedHealthRecordInitialData, setSelectedHealthRecordInitialData] = useState<any>({});
   const [showDocumentTaskModal, setShowDocumentTaskModal] = useState(false);
@@ -1116,7 +1116,7 @@ const Dashboard: React.FC = () => {
         <TaskModal
           task={prefilledTaskData}
           onClose={() => { setShowTaskModal(false); setPrefilledTaskData(null); }}
-          onUpdate={refreshData}
+          onUpdate={refreshHealthTaskData}
         />
       )}
       {showMealGuidanceModal && (

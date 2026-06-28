@@ -191,6 +191,7 @@ interface PatientContextType {
   }) => Promise<void>;
   refreshData: () => Promise<void>;
   refreshHealthData: () => Promise<void>;
+  refreshHealthTaskData: () => Promise<void>;
   // 新增的處方工作流程相關函數
   fetchPrescriptionWorkflowRecords: (patientId?: number, date?: string) => Promise<PrescriptionWorkflowRecord[]>;
   createPrescriptionWorkflowRecord: (recordData: Omit<PrescriptionWorkflowRecord, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -889,6 +890,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       getOverdueDailySystemTasks,
       refreshData,
       refreshHealthData,
+      refreshHealthTaskData,
       fetchPrescriptionWorkflowRecords,
       createPrescriptionWorkflowRecord,
       updatePrescriptionWorkflowRecord,

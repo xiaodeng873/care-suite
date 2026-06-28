@@ -48,7 +48,7 @@ interface TaskFilters {
 }
 
 const TaskManagement: React.FC = () => {
-  const { patientHealthTasks, patients, deletePatientHealthTask, loading, healthRecords } = usePatients();
+  const { patientHealthTasks, patients, deletePatientHealthTask, loading, healthRecords, refreshHealthTaskData } = usePatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<PatientHealthTask | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -1016,6 +1016,7 @@ const TaskManagement: React.FC = () => {
             setShowModal(false);
             setSelectedTask(null);
           }}
+          onUpdate={refreshHealthTaskData}
         />
       )}
     </div>
