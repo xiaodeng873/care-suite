@@ -15,6 +15,7 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import * as db from '../../lib/database';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
 
 // ========== Context 類型定義 ==========
@@ -388,8 +389,10 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
   const addPatientHealthTask = useCallback(async (task: Omit<db.PatientHealthTask, 'id' | 'created_at' | 'updated_at'>) => {
     const newTask = await db.createPatientHealthTask(task);
     setPatientHealthTasks(prev => [newTask, ...prev]);
+    // 立即從 DB 重新同步，確保狀態一致（不 await，避免阻塞 UI）
+    refreshHealthTaskData().catch(() => {});
     return newTask;
-  }, []);
+  }, [refreshHealthTaskData]);
   const updatePatientHealthTask = useCallback(async (task: db.PatientHealthTask) => {
     setPatientHealthTasks(prev => prev.map(t => t.id === task.id ? { ...t, ...task } : t));
     try { await db.updatePatientHealthTask(task); }
@@ -492,6 +495,22 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
       }, 500);
     });
   }, [isAuthenticated, refreshEssentialRecordsData, refreshNonEssentialRecordsData]);
+
+  // ===== patient_health_tasks 實時訂閱，確保任何 INSERT/UPDATE/DELETE 立即反映到 UI =====
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+
+    const channel = supabase
+      .channel('patient_health_tasks_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'patient_health_tasks' }, () => {
+        refreshHealthTaskData().catch(() => {});
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAuthenticated, refreshHealthTaskData]);
 
   // ===== 統一 loading 狀態 =====
   const loading = carePlanLoading || careRecordsLoading || assessmentLoading || incidentLoading || mealLoading || patientLogLoading || healthTaskLoading || admissionLoading;
