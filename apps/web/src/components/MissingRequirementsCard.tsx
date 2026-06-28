@@ -42,7 +42,7 @@ interface MissingRequirementsCardProps {
   missingVaccination: MissingVaccination[];
   missingHealthAssessment: MissingHealthAssessment[];
   missingCarePlan: MissingCarePlan[];
-  onCreateTask: (patient: Patient, taskType: '年度體檢' | '生命表徵') => void;
+  onCreateTask: (patient: Patient, taskType: string) => void;
   onAddMealGuidance: (patient: Patient) => void;
   onEditPatient: (patient: Patient) => void;
   onAddVaccinationRecord: (patient: Patient) => void;
@@ -175,7 +175,7 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
       return item.missingTaskTypes.map(taskType => (
         <button
           key={taskType}
-          onClick={(e) => { e.stopPropagation(); onCreateTask(patient, taskType as '年度體檢' | '生命表徵'); }}
+          onClick={(e) => { e.stopPropagation(); onCreateTask(patient, taskType); }}
           className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded transition-colors"
           title={`新增${taskType}`}
         >

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { X, FileText } from 'lucide-react';
+import { X, FileText, Thermometer } from 'lucide-react';
 import { generateMonitoringTaskWorksheet } from '../utils/monitoringTaskWorksheetGenerator';
+import { generateTemperatureRecordWorksheet } from '../utils/temperatureRecordWorksheetGenerator';
 
 interface MonitoringTaskWorksheetModalProps {
   onClose: () => void;
 }
+
+type WorksheetType = 'task' | 'temperature';
 
 const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> = ({ onClose }) => {
   const getHongKongDate = () => {
@@ -13,7 +16,17 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
     return hongKongTime.toISOString().split('T')[0];
   };
 
+  const getDateBefore = (days: number) => {
+    const now = new Date();
+    const hongKongTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    hongKongTime.setDate(hongKongTime.getDate() - days);
+    return hongKongTime.toISOString().split('T')[0];
+  };
+
+  const [worksheetType, setWorksheetType] = useState<WorksheetType>('task');
   const [startDate, setStartDate] = useState(getHongKongDate());
+  const [tempStartDate, setTempStartDate] = useState(getDateBefore(29));
+  const [tempEndDate, setTempEndDate] = useState(getHongKongDate());
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -45,12 +58,20 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
   };
 
   const handleExport = async () => {
+    if (worksheetType === 'temperature' && tempStartDate > tempEndDate) {
+      setError('起始日期不可晚於結束日期');
+      return;
+    }
     setIsGenerating(true);
     setError(null);
     setSuccess(false);
     try {
-      const date = new Date(startDate);
-      await generateMonitoringTaskWorksheet(date);
+      if (worksheetType === 'temperature') {
+        await generateTemperatureRecordWorksheet(tempStartDate, tempEndDate);
+      } else {
+        const date = new Date(startDate);
+        await generateMonitoringTaskWorksheet(date);
+      }
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {
@@ -71,7 +92,7 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
             <div className="p-2 rounded-lg bg-blue-100">
               <FileText className="h-5 w-5 text-blue-600" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">匯出監測任務工作紙</h2>
+            <h2 className="text-xl font-semibold text-gray-900">匯出監測記錄</h2>
           </div>
           <button
             onClick={onClose}
@@ -84,36 +105,95 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              選擇起始日期
+              選擇匯出類型
             </label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="mt-1 text-xs text-gray-500">預設為今天</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setWorksheetType('task')}
+                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md border text-sm font-medium ${worksheetType === 'task' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+              >
+                <FileText className="h-4 w-4" />
+                <span>監測任務工作紙</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWorksheetType('temperature')}
+                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md border text-sm font-medium ${worksheetType === 'temperature' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+              >
+                <Thermometer className="h-4 w-4" />
+                <span>院友體溫記錄</span>
+              </button>
+            </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm font-medium text-gray-900 mb-2">
-              將匯出連續4天的工作紙：
-            </p>
-            <ul className="space-y-1 text-sm text-gray-700">
-              {dates.map((date, index) => (
-                <li key={index}>• {date}</li>
-              ))}
-            </ul>
-          </div>
+          {worksheetType === 'task' ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  選擇起始日期
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">預設為今天</p>
+              </div>
 
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <p className="text-sm font-medium text-gray-900 mb-1">
-              檔案名稱：
-            </p>
-            <p className="text-sm text-gray-700 font-mono">{getFileName()}</p>
-          </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm font-medium text-gray-900 mb-2">
+                  將匯出連續4天的工作紙：
+                </p>
+                <ul className="space-y-1 text-sm text-gray-700">
+                  {dates.map((date, index) => (
+                    <li key={index}>• {date}</li>
+                  ))}
+                </ul>
+              </div>
 
-      
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-sm font-medium text-gray-900 mb-1">
+                  檔案名稱：
+                </p>
+                <p className="text-sm text-gray-700 font-mono">{getFileName()}</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">起始日期</label>
+                  <input
+                    type="date"
+                    value={tempStartDate}
+                    onChange={(e) => setTempStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">結束日期</label>
+                  <input
+                    type="date"
+                    value={tempEndDate}
+                    onChange={(e) => setTempEndDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm font-medium text-gray-900 mb-1">
+                  將為「全部在住院友」各匯出一張體溫記錄表
+                </p>
+                <p className="text-sm text-gray-700">
+                  記錄期間：{tempStartDate} 至 {tempEndDate}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">每張表最多 150 筆記錄，超出會自動分頁</p>
+              </div>
+            </>
+          )}
 
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">

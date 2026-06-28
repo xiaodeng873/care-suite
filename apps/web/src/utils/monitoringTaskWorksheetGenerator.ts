@@ -32,6 +32,21 @@ const getTimeSlot = (time: string): '早餐' | '午餐' | '晚餐' | '宵夜' | 
   if (totalMinutes >= 18 * 60 && totalMinutes <= 20 * 60) return '宵夜';
   return null;
 };
+// 監測任務類型 → 工作紙分類（沿用上壓/下壓/脈搏/血糖欄位版面）。
+// 新版任務改為逐項生命表徵（血壓/脈搏/體溫/血含氧量/呼吸）以及血糖值/體重，
+// 在此映射回三大分類，並於同一時段、同一院友去重，避免逐項任務產生多列。
+const WORKSHEET_CATEGORY_MAP: Record<string, '生命表徵' | '血糖控制' | '體重控制'> = {
+  '血壓': '生命表徵', '脈搏': '生命表徵', '體溫': '生命表徵',
+  '血含氧量': '生命表徵', '呼吸': '生命表徵', '生命表徵': '生命表徵',
+  '血糖值': '血糖控制', '血糖控制': '血糖控制',
+  '體重': '體重控制', '體重控制': '體重控制',
+};
+// 注意：health_record_type 為 Postgres enum (health_task_type)，
+// 只可查詢實際存在於 enum 的值。傳入舊版彙總值（生命表徵/血糖控制/體重控制）
+// 會令整個查詢拋出 22P02 enum 錯誤，導致工作紙空白。
+const MONITORING_WORKSHEET_TYPES = [
+  '血壓', '脈搏', '體溫', '血含氧量', '呼吸', '血糖值', '體重',
+];
 const fetchTasksForDate = async (targetDate: Date): Promise<TimeSlotTasks> => {
   const { data: allTasks, error } = await supabase
     .from('patient_health_tasks')
@@ -39,7 +54,7 @@ const fetchTasksForDate = async (targetDate: Date): Promise<TimeSlotTasks> => {
       *,
       院友主表!inner(床號, 中文姓名, 在住狀態)
     `)
-    .in('health_record_type', ['生命表徵', '血糖控制', '體重控制'])
+    .in('health_record_type', MONITORING_WORKSHEET_TYPES)
     .order('next_due_at', { ascending: true });
   if (error) {
     console.error('獲取任務失敗:', error);
@@ -53,24 +68,31 @@ const fetchTasksForDate = async (targetDate: Date): Promise<TimeSlotTasks> => {
   };
   const targetDateCopy = new Date(targetDate);
   targetDateCopy.setHours(0, 0, 0, 0);
+  const seen = new Set<string>();
+  const pushTask = (slot: keyof TimeSlotTasks, time: string, task: any, taskType: string) => {
+    const key = `${slot}|${task.院友主表.床號}|${time}|${taskType}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    timeSlotTasks[slot].push({
+      床號: task.院友主表.床號,
+      姓名: task.院友主表.中文姓名,
+      任務類型: taskType,
+      備註: task.notes || '',
+      時間: time
+    });
+  };
   allTasks?.forEach((task: any) => {
     if (task.院友主表.在住狀態 !== '在住') return;
     const isScheduled = isTaskScheduledForDate(task, targetDateCopy);
     if (!isScheduled) return;
-    const taskType = task.health_record_type === '生命表徵' ? '生命表徵' :
-                     task.health_record_type === '血糖控制' ? '血糖控制' : '體重控制';
+    const taskType = WORKSHEET_CATEGORY_MAP[task.health_record_type as string];
+    if (!taskType) return;
     const specificTimes = task.specific_times || [];
     if (specificTimes.length > 0) {
       specificTimes.forEach((timeStr: string) => {
         const timeSlot = getTimeSlot(timeStr);
         if (timeSlot) {
-          timeSlotTasks[timeSlot].push({
-            床號: task.院友主表.床號,
-            姓名: task.院友主表.中文姓名,
-            任務類型: taskType,
-            備註: task.notes || '',
-            時間: timeStr
-          });
+          pushTask(timeSlot, timeStr, task, taskType);
         }
       });
     } else {
@@ -78,13 +100,7 @@ const fetchTasksForDate = async (targetDate: Date): Promise<TimeSlotTasks> => {
       const time = dueDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
       const timeSlot = getTimeSlot(time);
       if (timeSlot) {
-        timeSlotTasks[timeSlot].push({
-          床號: task.院友主表.床號,
-          姓名: task.院友主表.中文姓名,
-          任務類型: taskType,
-          備註: task.notes || '',
-          時間: time
-        });
+        pushTask(timeSlot, time, task, taskType);
       }
     }
   });

@@ -25,6 +25,7 @@ import VaccinationRecordModal from '../components/VaccinationRecordModal';
 import TaskHistoryModal from '../components/TaskHistoryModal';
 import MonitoringTaskWorksheetModal from '../components/MonitoringTaskWorksheetModal';
 import { syncTaskStatus, SYNC_CUTOFF_DATE_STR, supabase } from '../lib/database';
+import { getMissingMonitoringVitals } from '../utils/monitoringCoverage';
 interface Patient {
   院友id: string;
   中文姓名: string;
@@ -375,11 +376,12 @@ const Dashboard: React.FC = () => {
     const result: { patient: any; missingTaskTypes: string[] }[] = [];
     activePatients.forEach(patient => {
       const patientTasks = patientHealthTasks.filter(task => task.patient_id === patient.院友id);
-      const vitalSignTasks = patientTasks.filter(task => isMonitoringTask(task.health_record_type));
       const missing: string[] = [];
       const hasAnnualCheckup = annualHealthCheckups.some(checkup => checkup.patient_id === patient.院友id);
       if (!hasAnnualCheckup) missing.push('年度體檢');
-      if (vitalSignTasks.length === 0) missing.push('生命表徵');
+      // 依頻率規則檢查欠缺的必要生命表徵任務
+      // （血壓/脈搏/血含氧量/呼吸：每周；體溫：每天）
+      getMissingMonitoringVitals(patientTasks).forEach(vital => missing.push(vital));
       if (missing.length > 0) result.push({ patient, missingTaskTypes: missing });
     });
     return result;
@@ -608,7 +610,7 @@ const Dashboard: React.FC = () => {
     }
   }, [loading, patients, healthRecords, uniquePatientHealthTasks, patientsMap, missingTasks, combinedUrgentTasks, setDashboardReady]);
   
-  const handleCreateMissingTask = (patient: any, taskType: '年度體檢' | '生命表徵') => {
+  const handleCreateMissingTask = (patient: any, taskType: string) => {
     if (taskType === '年度體檢') {
       setPrefilledAnnualCheckupPatientId(patient.院友id);
       setSelectedAnnualCheckup(null);
@@ -836,7 +838,7 @@ const Dashboard: React.FC = () => {
                 className="btn-primary flex flex-wrap items-center gap-2 text-sm"
               >
                 <FileText className="h-4 w-4" />
-                <span>匯出工作紙</span>
+                <span>匯出監測記錄</span>
               </button>
               <Link to="/tasks" className="text-sm text-blue-600 hover:text-blue-700 font-medium">查看全部</Link>
             </div>
