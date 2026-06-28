@@ -84,7 +84,7 @@ export interface Prescription {
   服用時間: string[];
 }
 /** 7 種獨立生命表徵監測類型（narrow table 每 row 一種） */
-export type VitalSignType = '血壓' | '脈搏' | '體溫' | '血含氧量' | '呼吸頻率' | '血糖值' | '體重';
+export type VitalSignType = '血壓' | '脈搏' | '體溫' | '血含氧量' | '呼吸' | '血糖值' | '體重';
 
 export interface HealthRecord {
   記錄id: string;          // UUID（原 SERIAL 已改為 UUID）

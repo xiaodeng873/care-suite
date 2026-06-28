@@ -6,7 +6,7 @@ export function isDocumentTask(taskType: string): boolean {
 }
 // 判斷是否為監測任務
 const MONITORING_TASK_TYPES = new Set([
-  '血壓', '脈搏', '體溫', '血含氧量', '呼吸頻率', '血糖值', '體重',
+  '血壓', '脈搏', '體溫', '血含氧量', '呼吸', '血糖值', '體重',
   // 向後相容舊類型
   '生命表徵', '血糖控制', '體重控制',
 ]);

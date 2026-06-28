@@ -1,5 +1,5 @@
 /** 7 種生命表徵監測類型 */
-export type VitalSignType = '血壓' | '脈搏' | '體溫' | '血含氧量' | '呼吸頻率' | '血糖值' | '體重';
+export type VitalSignType = '血壓' | '脈搏' | '體溫' | '血含氧量' | '呼吸' | '血糖值' | '體重';
 
 /** @deprecated 保留互相容，新代碼請使用 VitalSignType */
 export type HealthRecordType = VitalSignType;

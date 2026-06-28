@@ -30,7 +30,7 @@ CREATE TABLE 健康監測記錄 (
   記錄人員 VARCHAR(50),
   建立時間 TIMESTAMPTZ      DEFAULT now(),
   CONSTRAINT 監測類型_限定 CHECK (
-    監測類型 IN ('血壓','脈搏','體溫','血含氧量','呼吸頻率','血糖值','體重')
+    監測類型 IN ('血壓','脈搏','體溫','血含氧量','呼吸','血糖值','體重')
   )
 );
 
@@ -89,9 +89,9 @@ FROM   健康記錄主表
 WHERE  記錄類型::text = '生命表徵'
   AND  血含氧量 IS NOT NULL;
 
--- 3f 呼吸頻率
+-- 3f 呼吸
 INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
-SELECT 院友id, 記錄日期, 記錄時間, '呼吸頻率'::health_task_type,
+SELECT 院友id, 記錄日期, 記錄時間, '呼吸'::health_task_type,
        呼吸頻率, 備註, 記錄人員
 FROM   健康記錄主表
 WHERE  記錄類型::text = '生命表徵'
@@ -176,7 +176,7 @@ SELECT
 FROM patient_health_tasks
 WHERE health_record_type::text = '生命表徵';
 
--- 呼吸頻率
+-- 呼吸
 INSERT INTO patient_health_tasks (
   patient_id, health_record_type, frequency_unit, frequency_value,
   specific_times, specific_days_of_week, specific_days_of_month,
@@ -184,7 +184,7 @@ INSERT INTO patient_health_tasks (
   start_date, end_date, end_time
 )
 SELECT
-  patient_id, '呼吸頻率'::health_task_type, frequency_unit, frequency_value,
+  patient_id, '呼吸'::health_task_type, frequency_unit, frequency_value,
   specific_times, specific_days_of_week, specific_days_of_month,
   last_completed_at, next_due_at, notes, is_recurring,
   start_date, end_date, end_time
@@ -231,7 +231,7 @@ ALTER TYPE health_task_type RENAME TO health_task_type_old;
 
 CREATE TYPE health_task_type AS ENUM (
   -- 生命表徵（7 種獨立類型，取代原有的生命表徵/血糖控制/體重控制）
-  '血壓', '脈搏', '體溫', '血含氧量', '呼吸頻率', '血糖值', '體重',
+  '血壓', '脈搏', '體溫', '血含氧量', '呼吸', '血糖值', '體重',
   -- 護理任務
   '尿導管更換', '鼻胃飼管更換', '傷口換症', '氧氣喉管清洗/更換',
   -- 文件任務
@@ -251,7 +251,7 @@ DROP TYPE health_task_type_old;
 -- 重建 CHECK constraint（使用清理後的新 enum 類型）
 ALTER TABLE 健康監測記錄
   ADD CONSTRAINT 監測類型_限定 CHECK (
-    監測類型 IN ('血壓','脈搏','體溫','血含氧量','呼吸頻率','血糖值','體重')
+    監測類型 IN ('血壓','脈搏','體溫','血含氧量','呼吸','血糖值','體重')
   );
 
 -- ─── Step 7: 廢棄舊表及相關型別 ──────────────────────────────

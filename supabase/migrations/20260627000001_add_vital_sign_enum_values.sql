@@ -13,6 +13,6 @@ ALTER TYPE health_task_type ADD VALUE IF NOT EXISTS '血壓';
 ALTER TYPE health_task_type ADD VALUE IF NOT EXISTS '脈搏';
 ALTER TYPE health_task_type ADD VALUE IF NOT EXISTS '體溫';
 ALTER TYPE health_task_type ADD VALUE IF NOT EXISTS '血含氧量';
-ALTER TYPE health_task_type ADD VALUE IF NOT EXISTS '呼吸頻率';
+ALTER TYPE health_task_type ADD VALUE IF NOT EXISTS '呼吸';
 ALTER TYPE health_task_type ADD VALUE IF NOT EXISTS '血糖值';
 ALTER TYPE health_task_type ADD VALUE IF NOT EXISTS '體重';

@@ -359,7 +359,7 @@ const HealthAssessment: React.FC = () => {
     let filterFn: (r: (typeof healthRecords)[0]) => boolean;
     if (exportCategory === '血糖控制') filterFn = r => r.監測類型 === '血糖值';
     else if (exportCategory === '體重控制') filterFn = r => r.監測類型 === '體重';
-    else filterFn = r => ['血壓', '脈搏', '體溫', '血含氧量', '呼吸頻率'].includes(r.監測類型);
+    else filterFn = r => ['血壓', '脈搏', '體溫', '血含氧量', '呼吸'].includes(r.監測類型);
 
     const filteredByType = healthRecords.filter(filterFn);
     const selectedRecords = selectedRows.size > 0
@@ -402,7 +402,7 @@ const HealthAssessment: React.FC = () => {
             脈搏: group.find(r => r.監測類型 === '脈搏')?.數值,
             體溫: group.find(r => r.監測類型 === '體溫')?.數值,
             血含氧量: group.find(r => r.監測類型 === '血含氧量')?.數值,
-            呼吸頻率: group.find(r => r.監測類型 === '呼吸頻率')?.數值,
+            呼吸: group.find(r => r.監測類型 === '呼吸')?.數值,
             備註: first.備註,
             記錄人員: first.記錄人員,
           };
@@ -766,7 +766,7 @@ const HealthAssessment: React.FC = () => {
                     <option value="脈搏">脈搏</option>
                     <option value="體溫">體溫</option>
                     <option value="血含氧量">血含氧量</option>
-                    <option value="呼吸頻率">呼吸頻率</option>
+                    <option value="呼吸">呼吸</option>
                     <option value="血糖值">血糖值</option>
                     <option value="體重">體重</option>
                   </select>
@@ -891,12 +891,12 @@ const HealthAssessment: React.FC = () => {
                   const typeColorMap: Record<string, string> = {
                     '血壓': 'bg-red-100 text-red-800', '脈搏': 'bg-pink-100 text-pink-800',
                     '體溫': 'bg-orange-100 text-orange-800', '血含氧量': 'bg-blue-100 text-blue-800',
-                    '呼吸頻率': 'bg-teal-100 text-teal-800', '血糖值': 'bg-purple-100 text-purple-800',
+                    '呼吸': 'bg-teal-100 text-teal-800', '血糖值': 'bg-purple-100 text-purple-800',
                     '體重': 'bg-green-100 text-green-800',
                   };
                   const unitMap: Record<string, string> = {
-                    '血壓': 'mmHg', '脈搏': '次/分', '體溫': '°C',
-                    '血含氧量': '%', '呼吸頻率': '次/分', '血糖值': 'mmol/L', '體重': 'kg',
+                    '血壓': 'mmHg', '脈搏': '/min', '體溫': '°C',
+                    '血含氧量': '%', '呼吸': '/min', '血糖值': 'mmol/L', '體重': 'kg',
                   };
                   const formatValue = () => {
                     if (record.數值 === 0) return record.備註?.includes('無法量度') ? '-' : '0';

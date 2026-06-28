@@ -55,10 +55,10 @@ function VitalCard({ record }: { record: HealthRecord }) {
           </Text>
         </View>
       ) : null}
-      <VitalRow label="脈搏" value={record.脈搏} unit="bpm" />
+      <VitalRow label="脈搏" value={record.脈搏} unit="/min" />
       <VitalRow label="體溫" value={record.體溫} unit="°C" warning={tempAbnormal} />
       <VitalRow label="血氧" value={record.血含氧量} unit="%" warning={spo2Low} />
-      <VitalRow label="呼吸" value={record.呼吸頻率} unit="次/分" />
+      <VitalRow label="呼吸" value={record.呼吸} unit="/min" />
       {record.備註 ? (
         <Text className="text-xs text-gray-400 mt-1 pt-1 border-t border-gray-100">
           {record.備註}
@@ -199,7 +199,7 @@ export default function HealthDetail() {
         脈搏: form.pulse ? Number(form.pulse) : undefined,
         體溫: form.temp ? Number(form.temp) : undefined,
         血含氧量: form.spo2 ? Number(form.spo2) : undefined,
-        呼吸頻率: form.resp ? Number(form.resp) : undefined,
+        呼吸: form.resp ? Number(form.resp) : undefined,
       };
     } else if (activeTab === '血糖控制') {
       if (!form.glucose) { Alert.alert('提示', '請輸入血糖值'); return; }
@@ -346,7 +346,7 @@ export default function HealthDetail() {
                   <TextInput className="bg-white border border-gray-200 rounded-xl px-3 py-3 text-base" value={form.spo2} onChangeText={v => setForm(f => ({ ...f, spo2: v }))} keyboardType="numeric" placeholder="98" />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-medium text-gray-700 mb-1">呼吸 (次/分)</Text>
+                  <Text className="text-sm font-medium text-gray-700 mb-1">呼吸 (/min)</Text>
                   <TextInput className="bg-white border border-gray-200 rounded-xl px-3 py-3 text-base" value={form.resp} onChangeText={v => setForm(f => ({ ...f, resp: v }))} keyboardType="numeric" placeholder="16" />
                 </View>
               </View>

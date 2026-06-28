@@ -425,7 +425,7 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
       const missingVitalSigns: string[] = [];
       const VITAL_TO_MONITORING: Record<string, db.VitalSignType> = {
         '上壓': '血壓', '下壓': '血壓', '脈搏': '脈搏',
-        '血糖值': '血糖值', '呼吸': '呼吸頻率', '血含氧量': '血含氧量', '體溫': '體溫',
+        '血糖值': '血糖值', '呼吸': '呼吸', '血含氧量': '血含氧量', '體溫': '體溫',
       };
       for (const rule of prescription.inspection_rules) {
         const monitoringType = VITAL_TO_MONITORING[rule.vital_sign_type];
@@ -491,7 +491,7 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
     try {
       const VITAL_TO_MONITORING: Record<string, db.VitalSignType> = {
         '上壓': '血壓', '下壓': '血壓', '脈搏': '脈搏',
-        '血糖值': '血糖值', '呼吸': '呼吸頻率', '血含氧量': '血含氧量', '體溫': '體溫',
+        '血糖值': '血糖值', '呼吸': '呼吸', '血含氧量': '血含氧量', '體溫': '體溫',
       };
       const monitoringType = VITAL_TO_MONITORING[vitalSignType];
       if (!monitoringType) return { record: null, isExactMatch: false };

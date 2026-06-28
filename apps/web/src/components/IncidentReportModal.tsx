@@ -628,7 +628,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                       value={formData.vital_signs?.pulse || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, vital_signs: { ...prev.vital_signs, pulse: e.target.value } }))}
                       className="form-input text-sm"
-                      placeholder="次/分"
+                      placeholder="/min"
                     />
                   </div>
                   <div>
@@ -638,7 +638,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                       value={formData.vital_signs?.respiration || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, vital_signs: { ...prev.vital_signs, respiration: e.target.value } }))}
                       className="form-input text-sm"
-                      placeholder="次/分"
+                      placeholder="/min"
                     />
                   </div>
                   <div>

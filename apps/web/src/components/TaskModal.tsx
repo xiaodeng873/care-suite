@@ -13,7 +13,7 @@ const VITAL_SIGN_OPTIONS: { type: VitalSignType; label: string; color: string }[
   { type: '脈搏', label: '脈搏', color: 'bg-pink-500' },
   { type: '體溫', label: '體溫', color: 'bg-orange-500' },
   { type: '血含氧量', label: '血含氧量', color: 'bg-blue-500' },
-  { type: '呼吸頻率', label: '呼吸頻率', color: 'bg-teal-500' },
+  { type: '呼吸', label: '呼吸', color: 'bg-teal-500' },
   { type: '血糖值', label: '血糖', color: 'bg-purple-500' },
   { type: '體重', label: '體重', color: 'bg-green-500' },
 ];

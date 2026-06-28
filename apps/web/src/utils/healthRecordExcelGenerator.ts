@@ -15,7 +15,7 @@ export interface HealthRecordExportData {
   脈搏?: number;
   體溫?: number;
   血含氧量?: number;
-  呼吸頻率?: number;
+  呼吸?: number;
   血糖值?: number;
   體重?: number;
   備註?: string;
@@ -251,8 +251,8 @@ const applyHealthRecordTemplateFormat = (
       worksheet.getCell(getTargetCell('F', rowIndex)).value = bloodPressure;
       // I: 脈搏
       worksheet.getCell(`I${rowIndex}`).value = record.脈搏 || '';
-      // J: 呼吸頻率
-      worksheet.getCell(`J${rowIndex}`).value = record.呼吸頻率 || '';
+      // J: 呼吸
+      worksheet.getCell(`J${rowIndex}`).value = record.呼吸 || '';
       // K: 血含氧量
       worksheet.getCell(`K${rowIndex}`).value = record.血含氧量 || '';
       // L: 備註 (LM 合併)
@@ -298,8 +298,8 @@ const applyHealthRecordTemplateFormat = (
       worksheet.getCell(getTargetCell('F', rowIndex)).value = bloodPressure;
       // I: 脈搏
       worksheet.getCell(`I${rowIndex}`).value = record.脈搏 || '';
-      // J: 呼吸頻率
-      worksheet.getCell(`J${rowIndex}`).value = record.呼吸頻率 || '';
+      // J: 呼吸
+      worksheet.getCell(`J${rowIndex}`).value = record.呼吸 || '';
       // K: 血含氧量
       worksheet.getCell(`K${rowIndex}`).value = record.血含氧量 || '';
       // L: 備註 (LM 合併)
@@ -734,7 +734,7 @@ const exportHealthRecordsToExcelSimple = async (
           '',                                 // G
           '',                                 // H
           record.脈搏 || '',                  // I
-          record.呼吸頻率 || '',              // J
+          record.呼吸 || '',              // J
           record.血含氧量 || '',              // K
           record.備註 || '',                  // L
           ''                                  // M
@@ -819,7 +819,7 @@ const exportHealthRecordsToExcelSimple = async (
           record.血壓收縮壓 ? `${record.血壓收縮壓}/-` :
           record.血壓舒張壓 ? `-/${record.血壓舒張壓}` : '',
           record.脈搏 || '',
-          record.呼吸頻率 || '',
+          record.呼吸 || '',
           record.血含氧量 || '',
           record.備註 || ''
         ];

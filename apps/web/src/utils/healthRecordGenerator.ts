@@ -5,7 +5,7 @@ export interface GeneratedHealthData {
   脈搏?: string;
   體溫?: string;
   血含氧量?: string;
-  呼吸頻率?: string;
+  呼吸?: string;
   血糖值?: string;
   體重?: string;
 }
@@ -39,7 +39,7 @@ export const generateHealthRecordSuggestions = (
       const validPulse = recentRecords.filter(r => r.脈搏 != null).map(r => r.脈搏!);
       const validTemp = recentRecords.filter(r => r.體溫 != null).map(r => r.體溫!);
       const validOxygen = recentRecords.filter(r => r.血含氧量 != null).map(r => r.血含氧量!);
-      const validResp = recentRecords.filter(r => r.呼吸頻率 != null).map(r => r.呼吸頻率!);
+      const validResp = recentRecords.filter(r => r.呼吸 != null).map(r => r.呼吸!);
       console.log('[healthRecordGenerator] 有效數據數量:', {
         收縮壓: validSystolic.length,
         舒張壓: validDiastolic.length,
@@ -83,7 +83,7 @@ export const generateHealthRecordSuggestions = (
         const avg = validResp.reduce((a, b) => a + b, 0) / validResp.length;
         const offset = generateRandomOffset(-5, 5);
         const value = Math.max(12, Math.round(avg + offset));
-        result.呼吸頻率 = value.toString();
+        result.呼吸 = value.toString();
       }
     } else if (recordType === '血糖控制') {
       const validGlucose = recentRecords.filter(r => r.血糖值 != null).map(r => r.血糖值!);
@@ -125,7 +125,7 @@ export const generateHealthRecordSuggestions = (
 // [窄表多類型版] 針對單一監測類型，根據歷史窄表記錄（數值 / 數值_副）生成建議值
 // 沿用原 generateHealthRecordSuggestions 的偏移範圍與夾限，回傳 { primary, secondary }
 export type VitalGenType =
-  | '血壓' | '脈搏' | '體溫' | '血含氧量' | '呼吸頻率' | '血糖值' | '體重';
+  | '血壓' | '脈搏' | '體溫' | '血含氧量' | '呼吸' | '血糖值' | '體重';
 
 export interface VitalSuggestion {
   primary?: string;
@@ -166,7 +166,7 @@ export const generateVitalSuggestion = (
     case '血含氧量':
       sug.primary = Math.max(90, Math.min(100, Math.round(avgP + generateRandomOffset(-2, 2)))).toString();
       break;
-    case '呼吸頻率':
+    case '呼吸':
       sug.primary = Math.max(12, Math.round(avgP + generateRandomOffset(-5, 5))).toString();
       break;
     case '血糖值':

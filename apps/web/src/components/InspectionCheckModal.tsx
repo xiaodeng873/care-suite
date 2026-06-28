@@ -308,7 +308,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
   const vitalSignToMonitoringType = (vs: string): import('../lib/database').VitalSignType => {
     const map: Record<string, import('../lib/database').VitalSignType> = {
       '上壓': '血壓', '下壓': '血壓', '脈搏': '脈搏',
-      '血糖值': '血糖值', '呼吸': '呼吸頻率', '血含氧量': '血含氧量',
+      '血糖值': '血糖值', '呼吸': '呼吸', '血含氧量': '血含氧量',
       '體溫': '體溫', '體重': '體重',
     };
     return map[vs] ?? '血壓';
@@ -320,7 +320,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
       '下壓': '血壓舒張壓',
       '脈搏': '脈搏',
       '血糖值': '血糖值',
-      '呼吸': '呼吸頻率',
+      '呼吸': '呼吸',
       '血含氧量': '血含氧量',
       '體溫': '體溫'
     };
@@ -333,7 +333,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
       '下壓': '血壓舒張壓',
       '脈搏': '脈搏',
       '血糖值': '血糖值',
-      '呼吸': '呼吸頻率',
+      '呼吸': '呼吸',
       '血含氧量': '血含氧量',
       '體溫': '體溫'
     };

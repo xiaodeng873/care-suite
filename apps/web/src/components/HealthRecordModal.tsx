@@ -12,10 +12,10 @@ import { generateVitalSuggestion } from '../utils/healthRecordGenerator';
 
 const ALL_VITAL_TYPES: { type: VitalSignType; label: string; unit: string; color: string }[] = [
   { type: '血壓',   label: '血壓',   unit: 'mmHg',   color: 'bg-red-500' },
-  { type: '脈搏',   label: '脈搏',   unit: '次/分',  color: 'bg-pink-500' },
+  { type: '脈搏',   label: '脈搏',   unit: '/min',   color: 'bg-pink-500' },
   { type: '體溫',   label: '體溫',   unit: '°C',     color: 'bg-orange-500' },
   { type: '血含氧量', label: '血含氧量', unit: '%',  color: 'bg-blue-500' },
-  { type: '呼吸頻率', label: '呼吸頻率', unit: '次/分', color: 'bg-teal-500' },
+  { type: '呼吸', label: '呼吸', unit: '/min', color: 'bg-teal-500' },
   { type: '血糖值', label: '血糖',   unit: 'mmol/L', color: 'bg-purple-500' },
   { type: '體重',   label: '體重',   unit: 'kg',     color: 'bg-green-500' },
 ];
@@ -42,7 +42,7 @@ interface HealthRecordModalProps {
 }
 
 const legacyTypeMap: Record<string, VitalSignType[]> = {
-  '生命表徵': ['血壓', '脈搏', '體溫', '血含氧量', '呼吸頻率'],
+  '生命表徵': ['血壓', '脈搏', '體溫', '血含氧量', '呼吸'],
   '血糖控制': ['血糖值'],
   '體重控制': ['體重'],
 };
@@ -57,7 +57,10 @@ const getInitialActiveTypes = (
     const types = initialData.任務清單
       .map(t => t.health_record_type)
       .filter(isVitalSignType);
-    if (types.length > 0) return Array.from(new Set(types));
+    if (types.length > 0) {
+      const order = ALL_VITAL_TYPES.map(v => v.type);
+      return Array.from(new Set(types)).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    }
   }
   const taskType = initialData?.task?.health_record_type;
   if (taskType && isVitalSignType(taskType)) return [taskType];
@@ -129,7 +132,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
       const randomDefaults: Partial<Record<VitalSignType, string>> = {
         體溫: (Math.random() * 0.9 + 36.0).toFixed(1),
         血含氧量: Math.floor(Math.random() * 5 + 95).toString(),
-        呼吸頻率: Math.floor(Math.random() * 9 + 14).toString(),
+        呼吸: Math.floor(Math.random() * 9 + 14).toString(),
       };
       initialActiveTypes.forEach(type => {
         const def = randomDefaults[type];
@@ -318,7 +321,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
     const disabled = formData.isAbsent;
     const info = ALL_VITAL_TYPES.find(v => v.type === type)!;
     const isDecimal = ['體溫', '血糖值', '體重'].includes(type);
-    const placeholders: Record<string, string> = { '血壓': '120', '脈搏': '72', '體溫': '36.5', '血含氧量': '98', '呼吸頻率': '18', '血糖值': '5.5', '體重': '65.0' };
+    const placeholders: Record<string, string> = { '血壓': '120', '脈搏': '72', '體溫': '36.5', '血含氧量': '98', '呼吸': '18', '血糖值': '5.5', '體重': '65.0' };
     if (type === '血壓') {
       return (
         <div key={type}>

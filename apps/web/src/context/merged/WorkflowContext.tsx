@@ -49,7 +49,7 @@ const VITAL_SIGN_TYPE_MAP: Record<string, VitalSignMapping> = {
   '下壓': { monitoringType: '血壓', field: '數值_副' },    // 舒張壓
   '脈搏': { monitoringType: '脈搏', field: '數值' },
   '血糖值': { monitoringType: '血糖值', field: '數值' },
-  '呼吸': { monitoringType: '呼吸頻率', field: '數值' },
+  '呼吸': { monitoringType: '呼吸', field: '數值' },
   '血含氧量': { monitoringType: '血含氧量', field: '數值' },
   '體溫': { monitoringType: '體溫', field: '數值' },
 };

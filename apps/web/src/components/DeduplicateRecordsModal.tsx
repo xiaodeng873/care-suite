@@ -32,9 +32,9 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
 
   const formatRecordValues = (record: HealthRecord): string[] => {
     if (record.監測類型 === '血壓') return [`血壓: ${record.數值}/${record.數值_副} mmHg`];
-    if (record.監測類型 === '脈搏') return [`脈搏: ${record.數值} 次/分`];
+    if (record.監測類型 === '脈搏') return [`脈搏: ${record.數值} /min`];
     if (record.監測類型 === '體溫') return [`體溫: ${record.數值}°C`];
-    if (record.監測類型 === '呼吸頻率') return [`呼吸: ${record.數值} 次/分`];
+    if (record.監測類型 === '呼吸') return [`呼吸: ${record.數值} /min`];
     if (record.監測類型 === '血含氧量') return [`血氧: ${record.數值}%`];
     if (record.監測類型 === '血糖值') return [`血糖: ${record.數值} mmol/L`];
     if (record.監測類型 === '體重') return [`體重: ${record.數值} kg`];

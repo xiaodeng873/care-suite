@@ -201,10 +201,10 @@ export const convertIncidentReportToTemplateData = (
     data['血壓'] = (vs.blood_pressure_systolic && vs.blood_pressure_diastolic)
       ? `${vs.blood_pressure_systolic}/${vs.blood_pressure_diastolic} mmHg`
       : '';
-    data['脈搏'] = vs.pulse ? `${vs.pulse} 次/分鐘` : '';
+    data['脈搏'] = vs.pulse ? `${vs.pulse} /min` : '';
     data['體溫'] = vs.temperature ? `${vs.temperature} °C` : '';
     data['血氧'] = vs.oxygen_saturation ? `${vs.oxygen_saturation} %` : '';
-    data['呼吸'] = (vs.respiration || vs.respiratory_rate) ? `${vs.respiration || vs.respiratory_rate} 次/分鐘` : '';
+    data['呼吸'] = (vs.respiration || vs.respiratory_rate) ? `${vs.respiration || vs.respiratory_rate} /min` : '';
     data['血糖'] = (vs.blood_glucose || vs.blood_sugar) ? `${vs.blood_glucose || vs.blood_sugar} mmol/L` : '';
   } else {
     data['血壓'] = '';

@@ -409,8 +409,8 @@ export default function IncidentsScreen() {
               {[
                 { k: 'blood_pressure_systolic', label: '血壓（收縮壓）', ph: 'mmHg' },
                 { k: 'blood_pressure_diastolic', label: '血壓（舒張壓）', ph: 'mmHg' },
-                { k: 'pulse', label: '脈搏', ph: '次/分' },
-                { k: 'respiration', label: '呼吸', ph: '次/分' },
+                { k: 'pulse', label: '脈搏', ph: '/min' },
+                { k: 'respiration', label: '呼吸', ph: '/min' },
                 { k: 'temperature', label: '體溫', ph: '°C' },
                 { k: 'oxygen_saturation', label: '血含氧量', ph: '%' },
                 { k: 'blood_sugar', label: '血糖', ph: 'mmol/L' },
