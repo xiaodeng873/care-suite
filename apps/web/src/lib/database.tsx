@@ -200,6 +200,26 @@ export interface PatientRestraintAssessment {
   alternatives: any;
   suggested_restraints: any;
   other_restraint_notes?: string;
+  is_terminated?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+export type TubeCareType = '尿導管更換' | '鼻胃飼管更換' | '氧氣喉管清洗/更換' | '造口袋更換';
+export type OxygenAction = '清洗' | '更換';
+export interface PatientTubeCareRecord {
+  id: string;
+  patient_id: number;
+  care_type: TubeCareType;
+  execution_date: string;
+  next_due_date?: string;
+  tube_material?: string;
+  tube_size?: string;
+  oxygen_action?: OxygenAction;
+  cycle_days?: number;
+  wash_cycle_days?: number;
+  replace_cycle_days?: number;
+  notes?: string;
+  is_terminated?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -1463,6 +1483,31 @@ export const updateRestraintAssessment = async (assessment: PatientRestraintAsse
 };
 export const deleteRestraintAssessment = async (assessmentId: string): Promise<void> => {
   const { error } = await supabase.from('patient_restraint_assessments').delete().eq('id', assessmentId);
+  if (error) throw error;
+};
+export const getTubeCareRecords = async (): Promise<PatientTubeCareRecord[]> => {
+  const { data, error } = await supabase.from('patient_tube_care_records').select('*').order('execution_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+export const createTubeCareRecord = async (record: Omit<PatientTubeCareRecord, 'id' | 'created_at' | 'updated_at'>): Promise<PatientTubeCareRecord> => {
+  const { data, error } = await supabase.from('patient_tube_care_records').insert([record]).select().single();
+  if (error) throw error;
+  return data;
+};
+export const updateTubeCareRecord = async (record: PatientTubeCareRecord): Promise<PatientTubeCareRecord> => {
+  const cleaned: any = { ...record };
+  Object.keys(cleaned).forEach(key => {
+    if (cleaned[key] === '') {
+      cleaned[key] = null;
+    }
+  });
+  const { error } = await supabase.from('patient_tube_care_records').update(cleaned).eq('id', cleaned.id);
+  if (error) throw error;
+  return cleaned;
+};
+export const deleteTubeCareRecord = async (recordId: string): Promise<void> => {
+  const { error } = await supabase.from('patient_tube_care_records').delete().eq('id', recordId);
   if (error) throw error;
 };
 export const getHealthAssessments = async (statusFilter: 'active' | 'archived' | 'all' = 'active'): Promise<HealthAssessment[]> => {

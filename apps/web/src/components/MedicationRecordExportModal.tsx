@@ -8,7 +8,7 @@ import { exportBlankMedicationRecordToHtml } from '../utils/medicationRecordHtml
 import { exportPersonalMedicationListToExcel, exportSelectedPersonalMedicationListToExcel } from '../utils/personalMedicationListExcelGenerator';
 import { exportPersonalMedicationListToHtmlWindow } from '../utils/annualHealthCheckupFormGenerator';
 import { supabase } from '../lib/supabase';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 
 interface MedicationRecordExportModalProps {
   onClose: () => void;
@@ -95,10 +95,10 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
       return (
         matchChineseName(p.中文姓氏, p.中文名字, p.中文姓名, searchTerm) ||
         matchEnglishName(p.英文姓氏, p.英文名字, p.英文姓名, searchTerm) ||
-        fuzzyMatch(p.床號, searchTerm) ||
+        matchBedNumber(p.床號, searchTerm) ||
         fuzzyMatch(p.身份證號碼, searchTerm)
       );
-    });
+    }).sort((a, b) => comparePatientsForSearch(a, b, searchTerm));
   }, [activePatients, searchTerm]);
 
   // 查詢在選定月份有工作流程記錄的處方

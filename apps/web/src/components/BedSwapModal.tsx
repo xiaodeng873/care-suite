@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, ArrowRightLeft, User, Bed, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientTooltip from './PatientTooltip';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 
 interface BedSwapModalProps {
   onClose: () => void;
@@ -25,10 +25,10 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
     return (
       matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm1) ||
       matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm1) ||
-      fuzzyMatch(patient.床號, searchTerm1) ||
+      matchBedNumber(patient.床號, searchTerm1) ||
       fuzzyMatch(patient.身份證號碼, searchTerm1)
     );
-  });
+  }).sort((a, b) => comparePatientsForSearch(a, b, searchTerm1));
 
   const filteredPatients2 = patientsWithBeds.filter(patient => {
     // 排除已選擇的第一位院友
@@ -40,10 +40,10 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
     return (
       matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm2) ||
       matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm2) ||
-      fuzzyMatch(patient.床號, searchTerm2) ||
+      matchBedNumber(patient.床號, searchTerm2) ||
       fuzzyMatch(patient.身份證號碼, searchTerm2)
     );
-  });
+  }).sort((a, b) => comparePatientsForSearch(a, b, searchTerm2));
 
   const getPatientBedInfo = (patient: any) => {
     const bed = beds.find(b => b.id === patient.bed_id);

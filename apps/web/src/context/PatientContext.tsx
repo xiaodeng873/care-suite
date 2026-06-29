@@ -19,7 +19,7 @@ import {
   useHealthTask, useAdmission, useServiceReason, useDailySystemTask
 } from './merged/RecordsContext';
 // Re-export types from database module
-export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, ResponsibleUnit, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote, CarePlan, CarePlanProblem, CarePlanNursingNeed, CarePlanWithDetails, ProblemLibrary, NursingNeedItem, PlanType, ProblemCategory, OutcomeReview, CaseConferenceProfessional, MedicationPrescription } from '../lib/database';
+export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, ResponsibleUnit, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote, CarePlan, CarePlanProblem, CarePlanNursingNeed, CarePlanWithDetails, ProblemLibrary, NursingNeedItem, PlanType, ProblemCategory, OutcomeReview, CaseConferenceProfessional, MedicationPrescription, PatientTubeCareRecord, TubeCareType, OxygenAction } from '../lib/database';
 // Re-export Station types for backward compatibility
 export type { Station, Bed } from './facility';
 // Re-export Schedule types for backward compatibility (from merged context)
@@ -43,6 +43,7 @@ interface PatientContextType {
   patientLogs: db.PatientLog[];
   patientHealthTasks: db.PatientHealthTask[];
   patientRestraintAssessments: db.PatientRestraintAssessment[];
+  patientTubeCareRecords: db.PatientTubeCareRecord[];
   healthAssessments: db.HealthAssessment[];
   woundAssessments: db.WoundAssessment[];
   wounds: db.Wound[];
@@ -131,6 +132,9 @@ interface PatientContextType {
   addPatientRestraintAssessment: (assessment: Omit<db.PatientRestraintAssessment, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updatePatientRestraintAssessment: (assessment: db.PatientRestraintAssessment) => Promise<void>;
   deletePatientRestraintAssessment: (id: string) => Promise<void>;
+  addPatientTubeCareRecord: (record: Omit<db.PatientTubeCareRecord, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updatePatientTubeCareRecord: (record: db.PatientTubeCareRecord) => Promise<void>;
+  deletePatientTubeCareRecord: (id: string) => Promise<void>;
   addHealthAssessment: (assessment: Omit<db.HealthAssessment, 'id' | 'created_at' | 'updated_at' | 'status' | 'archived_at'>) => Promise<void>;
   updateHealthAssessment: (assessment: db.HealthAssessment) => Promise<void>;
   deleteHealthAssessment: (id: string) => Promise<void>;
@@ -428,6 +432,10 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     addPatientRestraintAssessment,
     updatePatientRestraintAssessment,
     deletePatientRestraintAssessment,
+    patientTubeCareRecords,
+    addPatientTubeCareRecord,
+    updatePatientTubeCareRecord,
+    deletePatientTubeCareRecord,
     addAnnualHealthCheckup,
     updateAnnualHealthCheckup,
     deleteAnnualHealthCheckup,
@@ -774,6 +782,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       patientLogs,
       patientHealthTasks,
       patientRestraintAssessments,
+      patientTubeCareRecords,
       healthAssessments,
       woundAssessments,
       patientAdmissionRecords,
@@ -823,6 +832,9 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       addPatientRestraintAssessment,
       updatePatientRestraintAssessment,
       deletePatientRestraintAssessment,
+      addPatientTubeCareRecord,
+      updatePatientTubeCareRecord,
+      deletePatientTubeCareRecord,
       addHealthAssessment,
       updateHealthAssessment,
       deleteHealthAssessment,

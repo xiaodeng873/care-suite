@@ -25,7 +25,7 @@ import CarePlanModal from '../components/CarePlanModal';
 import ProblemLibraryModal from '../components/ProblemLibraryModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { useAuth } from '../context/AuthContext';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 
 type SortField = '院友姓名' | 'plan_date' | 'plan_type' | 'review_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -144,7 +144,7 @@ const IndividualCarePlan: React.FC = () => {
       return false;
     }
 
-    if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
+    if (advancedFilters.床號 && !matchBedNumber(patient?.床號, advancedFilters.床號)) {
       return false;
     }
     if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
@@ -168,7 +168,7 @@ const IndividualCarePlan: React.FC = () => {
       matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
                          matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
                          fuzzyMatch(patient?.身份證號碼, searchTerm) ||
-                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         matchBedNumber(patient?.床號, searchTerm) ||
                          fuzzyMatch(plan.created_by, searchTerm) ||
                          fuzzyMatch(plan.remarks, searchTerm) ||
                          false;

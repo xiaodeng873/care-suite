@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import {
   Heart,
@@ -25,12 +25,14 @@ import {
   Recycle,
   Copy,
   MoreVertical,
-  Thermometer
+  Thermometer,
+  Printer
 } from 'lucide-react';
 import { usePatients, DuplicateRecordGroup } from '../context/PatientContext';
 import HealthRecordModal from '../components/HealthRecordModal';
 import DeduplicateRecordsModal from '../components/DeduplicateRecordsModal';
 import RecycleBinModal from '../components/RecycleBinModal';
+import TemperatureWorksheetModal from '../components/TemperatureWorksheetModal';
 import { exportVitalSignsToExcel, type VitalSignExportData } from '../utils/vitalsignExcelGenerator';
 import { exportBloodSugarToExcel, type BloodSugarExportData } from '../utils/bloodSugarExcelGenerator';
 import PatientTooltip from '../components/PatientTooltip';
@@ -78,6 +80,8 @@ const HealthAssessment: React.FC = () => {
   const [isAnalyzingDuplicates, setIsAnalyzingDuplicates] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showPrintMenu, setShowPrintMenu] = useState(false);
+  const [showTemperatureModal, setShowTemperatureModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
@@ -146,7 +150,7 @@ const HealthAssessment: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
+    if (advancedFilters.床號 && !matchBedNumber(patient?.床號, advancedFilters.床號)) {
       return false;
     }
     if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
@@ -175,7 +179,7 @@ const HealthAssessment: React.FC = () => {
       matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
                          matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
                          fuzzyMatch(patient?.身份證號碼, searchTerm) ||
-                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         matchBedNumber(patient?.床號, searchTerm) ||
                          fuzzyMatch(record.備註, searchTerm) ||
                          fuzzyMatch(new Date(record.記錄日期).toLocaleDateString('zh-TW'), searchTerm) ||
                          false;
@@ -185,6 +189,10 @@ const HealthAssessment: React.FC = () => {
   const sortedRecords = [...filteredRecords].sort((a, b) => {
     const patientA = patients.find(p => p.院友id === a.院友id);
     const patientB = patients.find(p => p.院友id === b.院友id);
+    if (searchTerm) {
+      const bedCmp = comparePatientsForSearch({ 床號: patientA?.床號 }, { 床號: patientB?.床號 }, searchTerm);
+      if (bedCmp !== 0) return bedCmp;
+    }
     let valueA: string | number = '';
     let valueB: string | number = '';
     switch (sortField) {
@@ -224,6 +232,30 @@ const HealthAssessment: React.FC = () => {
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const paginatedRecords = sortedRecords.slice(startIndex, endIndex);
+  // 將同一院友、同一日期時間的多項監測合併為一列（各類型作為欄目）
+  interface GroupedRow {
+    key: string;
+    院友id: number;
+    記錄日期: string;
+    記錄時間: string;
+    byType: Record<string, any>;
+    ids: string[];
+    備註: string;
+  }
+  const groupedRows: GroupedRow[] = (() => {
+    const map = new Map<string, GroupedRow>();
+    paginatedRecords.forEach(r => {
+      const key = `${r.院友id}|${r.記錄日期}|${r.記錄時間}`;
+      if (!map.has(key)) {
+        map.set(key, { key, 院友id: r.院友id, 記錄日期: r.記錄日期, 記錄時間: r.記錄時間, byType: {}, ids: [], 備註: '' });
+      }
+      const g = map.get(key)!;
+      g.byType[r.監測類型] = r;
+      g.ids.push(r.記錄id);
+      if (r.備註) g.備註 = g.備註 ? `${g.備註}；${r.備註}` : r.備註;
+    });
+    return Array.from(map.values());
+  })();
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
     setCurrentPage(1);
@@ -340,20 +372,50 @@ const HealthAssessment: React.FC = () => {
     setSelectedRows(newSelected);
   };
   const handleSelectAll = () => {
-    if (selectedRows.size === paginatedRecords.length) {
+    const allIds = groupedRows.flatMap(g => g.ids);
+    if (selectedRows.size === allIds.length && allIds.length > 0) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(paginatedRecords.map(r => r.記錄id)));
+      setSelectedRows(new Set(allIds));
     }
   };
   const handleInvertSelection = () => {
-    const newSelected = new Set<number>();
-    paginatedRecords.forEach(record => {
-      if (!selectedRows.has(record.記錄id)) {
-        newSelected.add(record.記錄id);
-      }
+    const newSelected = new Set<string>();
+    groupedRows.forEach(g => {
+      g.ids.forEach(id => {
+        if (!selectedRows.has(id)) newSelected.add(id);
+      });
     });
     setSelectedRows(newSelected);
+  };
+  const toggleGroupSelection = (ids: string[]) => {
+    setSelectedRows(prev => {
+      const next = new Set(prev);
+      const allSelected = ids.every(id => next.has(id));
+      ids.forEach(id => { if (allSelected) next.delete(id); else next.add(id); });
+      return next;
+    });
+  };
+  const handleDeleteGroupRecords = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    if (!confirm(`確定要刪除此列共 ${ids.length} 項監測記錄嗎？\n\n刪除後可在回收筒中恢復。`)) return;
+    setDeletingIds(new Set(ids));
+    try {
+      for (const id of ids) {
+        await deleteHealthRecord(id);
+      }
+      setSelectedRows(prev => {
+        const next = new Set(prev);
+        ids.forEach(id => next.delete(id));
+        return next;
+      });
+      if (refreshData) await refreshData();
+    } catch (error) {
+      console.error('刪除記錄失敗:', error);
+      alert('刪除記錄失敗，請重試');
+    } finally {
+      setDeletingIds(new Set());
+    }
   };
   const handleExportSelected = async (exportCategory: '生命表徵' | '血糖控制' | '體重控制') => {
     let filterFn: (r: (typeof healthRecords)[0]) => boolean;
@@ -582,6 +644,36 @@ const HealthAssessment: React.FC = () => {
                 </div>
               </div>
             )}
+            {/* 列印下拉選單 */}
+            <div className="relative">
+              <button
+                onClick={() => setShowPrintMenu(!showPrintMenu)}
+                className="btn-secondary flex flex-wrap items-center gap-2 whitespace-nowrap"
+                title="列印"
+              >
+                <Printer className="h-4 w-4" />
+                <span>列印</span>
+              </button>
+              {showPrintMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowPrintMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 min-w-[200px]">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setShowTemperatureModal(true);
+                          setShowPrintMenu(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
+                      >
+                        <Thermometer className="h-4 w-4 text-orange-600" />
+                        <span>體溫記錄</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             {/* 其他功能下拉選單 */}
             <div className="relative">
               <button
@@ -830,7 +922,7 @@ const HealthAssessment: React.FC = () => {
                   onClick={handleSelectAll}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  {selectedRows.size === paginatedRecords.length ? '取消全選' : '全選'}
+                  {selectedRows.size === groupedRows.flatMap(g => g.ids).length && groupedRows.length > 0 ? '取消全選' : '全選'}
                 </button>
                 <button
                   onClick={handleInvertSelection}
@@ -856,67 +948,61 @@ const HealthAssessment: React.FC = () => {
         </div>
       )}
       <div className="card overflow-hidden">
-        {paginatedRecords.length > 0 ? (
+        {groupedRows.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[768px] divide-y divide-gray-200">
+            <table className="w-full min-w-[1024px] divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left">
                     <input
                       type="checkbox"
-                      checked={selectedRows.size === paginatedRecords.length && paginatedRecords.length > 0} 
+                      checked={selectedRows.size === groupedRows.flatMap(g => g.ids).length && groupedRows.length > 0} 
                       onChange={handleSelectAll}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                   </th>
+                  <SortableHeader field="院友姓名">床號</SortableHeader>
                   <SortableHeader field="院友姓名">院友姓名</SortableHeader>
                   <SortableHeader field="記錄日期">日期時間</SortableHeader>
-                  <SortableHeader field="監測類型">監測類型</SortableHeader>
-                  <SortableHeader field="數值">數值</SortableHeader>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    備註
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    操作
-                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">體溫</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">血壓</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">脈搏</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">血含氧量</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">呼吸</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">血糖值</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">體重</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">備註</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedRecords.map(record => {
-                  const patient = patients.find(p => p.院友id === record.院友id);
-                  const isWeight = record.監測類型 === '體重';
-                  const weightChange = isWeight
-                    ? calculateWeightChange(record.數值, record.院友id, record.記錄日期)
-                    : null;
-                  const typeColorMap: Record<string, string> = {
-                    '血壓': 'bg-red-100 text-red-800', '脈搏': 'bg-pink-100 text-pink-800',
-                    '體溫': 'bg-orange-100 text-orange-800', '血含氧量': 'bg-blue-100 text-blue-800',
-                    '呼吸': 'bg-teal-100 text-teal-800', '血糖值': 'bg-purple-100 text-purple-800',
-                    '體重': 'bg-green-100 text-green-800',
+                {groupedRows.map(group => {
+                  const patient = patients.find(p => p.院友id === group.院友id);
+                  const fmt = (type: string) => {
+                    const r = group.byType[type];
+                    if (!r) return '-';
+                    if (r.數值 === 0 && r.備註?.includes('無法量度')) return '-';
+                    if (type === '血壓') return `${r.數值}/${r.數值_副}`;
+                    return r.數值 ?? '-';
                   };
-                  const unitMap: Record<string, string> = {
-                    '血壓': 'mmHg', '脈搏': '/min', '體溫': '°C',
-                    '血含氧量': '%', '呼吸': '/min', '血糖值': 'mmol/L', '體重': 'kg',
-                  };
-                  const formatValue = () => {
-                    if (record.數值 === 0) return record.備註?.includes('無法量度') ? '-' : '0';
-                    if (record.監測類型 === '血壓') return `${record.數值}/${record.數值_副} mmHg`;
-                    return `${record.數值} ${unitMap[record.監測類型] || ''}`;
-                  };
+                  const groupSelected = group.ids.every(id => selectedRows.has(id));
+                  const firstRecord = group.byType['體重'] ? group.byType['體重'] : group.byType[Object.keys(group.byType)[0]];
+                  const isDeleting = group.ids.some(id => deletingIds.has(id));
                   return (
                     <tr
-                      key={record.記錄id}
-                      className={`hover:bg-gray-50 ${selectedRows.has(record.記錄id) ? 'bg-blue-50' : ''}`}
-                      onDoubleClick={() => handleEdit(record)}
+                      key={group.key}
+                      className={`hover:bg-gray-50 ${groupSelected ? 'bg-blue-50' : ''}`}
+                      onDoubleClick={() => handleEdit(firstRecord)}
                     >
                       <td className="px-4 py-4 whitespace-nowrap">
                         <input
                           type="checkbox"
-                          checked={selectedRows.has(record.記錄id)}
-                          onChange={() => handleSelectRow(record.記錄id)}
+                          checked={groupSelected}
+                          onChange={() => toggleGroupSelection(group.ids)}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
                       </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{patient?.床號 || '-'}</td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex flex-wrap items-center gap-2">
                           <div className="w-8 h-8 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
@@ -926,77 +1012,47 @@ const HealthAssessment: React.FC = () => {
                               <User className="h-4 w-4 text-blue-600" />
                             )}
                           </div>
-                          <div>
-                            <div className="font-medium">
-                              {patient ? (
-                                <PatientTooltip patient={patient}>
-                                  <span className="cursor-help hover:text-blue-600 transition-colors">
-                                    {patient.中文姓氏}{patient.中文名字}
-                                  </span>
-                                </PatientTooltip>
-                              ) : '-'}
-                            </div>
-                            <div className="text-xs text-gray-500">{patient?.床號}</div>
-                          </div>
+                          {patient ? (
+                            <PatientTooltip patient={patient}>
+                              <span className="cursor-help hover:text-blue-600 transition-colors">{patient.中文姓氏}{patient.中文名字}</span>
+                            </PatientTooltip>
+                          ) : '-'}
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <div>
-                            <div>{new Date(record.記錄日期).toLocaleDateString('zh-TW')}</div>
-                            {!isWeight && record.記錄時間 && record.記錄時間 !== '00:00' && (
-                              <div className="text-xs text-gray-500 flex items-center">
-                                <Clock className="h-3 w-3 mr-1" />
-                                {new Date(`2000-01-01T${record.記錄時間}`).toLocaleTimeString('zh-TW', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeColorMap[record.監測類型] || 'bg-gray-100 text-gray-800'}`}>
-                          {record.監測類型}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {record.數值 === 0 && record.備註?.includes('無法量度') ? (
-                          <span className="text-gray-400 italic text-xs">無法量度</span>
-                        ) : (
-                          <div>
-                            <div className="font-medium">{formatValue()}</div>
-                            {isWeight && weightChange && weightChange !== '最遠記錄' && weightChange !== '無變化' && (
-                              <div className={`text-xs flex items-center ${weightChange.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                                {weightChange.startsWith('+') ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                                {weightChange}
-                              </div>
-                            )}
-                            {isWeight && weightChange === '無變化' && (
-                              <div className="text-xs text-gray-500 flex items-center"><Minus className="h-3 w-3 mr-1" />無變化</div>
-                            )}
+                        <div>{new Date(group.記錄日期).toLocaleDateString('zh-TW')}</div>
+                        {group.記錄時間 && group.記錄時間 !== '00:00' && (
+                          <div className="text-xs text-gray-500 flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {new Date(`2000-01-01T${group.記錄時間}`).toLocaleTimeString('zh-TW', { hour: 'numeric', minute: '2-digit', hour12: true })}
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">
-                        {record.備註 || '-'}
-                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{fmt('體溫')}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{fmt('血壓')}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{fmt('脈搏')}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{fmt('血含氧量')}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{fmt('呼吸')}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{fmt('血糖值')}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{fmt('體重')}</td>
+                      <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">{group.備註 || '-'}</td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => handleEdit(record)}
+                            onClick={() => handleEdit(firstRecord)}
                             className="text-blue-600 hover:text-blue-900"
                             title="編輯"
-                            disabled={deletingIds.has(record.記錄id)}
+                            disabled={isDeleting}
                           >
                             <Edit3 className="h-4 w-4" />
                           </button>
                           <button
-                            onClick={() => handleDelete(record.記錄id)}
+                            onClick={() => handleDeleteGroupRecords(group.ids)}
                             className="text-red-600 hover:text-red-900"
                             title="刪除"
-                            disabled={deletingIds.has(record.記錄id)}
+                            disabled={isDeleting}
                           >
-                            {deletingIds.has(record.記錄id) ? (
+                            {isDeleting ? (
                               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
                             ) : (
                               <Trash2 className="h-4 w-4" />
@@ -1125,6 +1181,11 @@ const HealthAssessment: React.FC = () => {
       {showRecycleBin && (
         <RecycleBinModal
           onClose={() => setShowRecycleBin(false)}
+        />
+      )}
+      {showTemperatureModal && (
+        <TemperatureWorksheetModal
+          onClose={() => setShowTemperatureModal(false)}
         />
       )}
 

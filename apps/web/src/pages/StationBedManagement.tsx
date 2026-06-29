@@ -28,7 +28,7 @@ import BedSwapModal from '../components/BedSwapModal';
 import PatientTooltip from '../components/PatientTooltip';
 import StationManagementModal from '../components/StationManagementModal';
 import { exportBedLayoutToExcel } from '../utils/bedLayoutExcelGenerator';
-import { fuzzyMatch, matchChineseName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName , matchBedNumber } from '../utils/searchUtils';
 const StationBedManagement: React.FC = () => {
   const { 
     stations, 
@@ -157,7 +157,7 @@ const StationBedManagement: React.FC = () => {
         fuzzyMatch(bed.bed_name, searchTerm) ||
         fuzzyMatch(station?.name, searchTerm) ||
         matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
-        fuzzyMatch(patient?.床號, searchTerm)
+        matchBedNumber(patient?.床號, searchTerm)
       );
     }
     return true;

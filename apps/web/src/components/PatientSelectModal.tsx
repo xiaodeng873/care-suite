@@ -3,7 +3,7 @@ import { X, Users, Plus, Search, User } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { getReasonBadgeClass, getReasonIcon } from '../utils/reasonColors';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 
 interface PatientSelectModalProps {
   scheduleId: number;
@@ -67,10 +67,11 @@ const PatientSelectModal: React.FC<PatientSelectModalProps> = ({ scheduleId, onC
       return (
         matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
         matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
-        fuzzyMatch(patient.床號, searchTerm) ||
+        matchBedNumber(patient.床號, searchTerm) ||
         fuzzyMatch(patient.身份證號碼, searchTerm)
       );
-    });
+    })
+    .sort((a, b) => comparePatientsForSearch(a, b, searchTerm));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

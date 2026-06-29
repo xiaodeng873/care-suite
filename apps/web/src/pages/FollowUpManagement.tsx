@@ -3,7 +3,7 @@ import { CalendarCheck, Plus, CreditCard as Edit3, Trash2, Search, Filter, Downl
 import { usePatients, type FollowUpAppointment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import FollowUpModal from '../components/FollowUpModal';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { exportFollowUpListToExcel, type FollowUpExportData } from '../utils/followUpListGenerator';
@@ -75,7 +75,7 @@ const FollowUpManagement: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient && patient.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && patient && !fuzzyMatch(patient.床號, advancedFilters.床號)) {
+    if (advancedFilters.床號 && patient && !matchBedNumber(patient.床號, advancedFilters.床號)) {
       return false;
     }
     if (advancedFilters.中文姓名 && patient && !matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名)) {
@@ -113,7 +113,7 @@ const FollowUpManagement: React.FC = () => {
       matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
                          matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
                          fuzzyMatch(patient?.身份證號碼, searchTerm) ||
-                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         matchBedNumber(patient?.床號, searchTerm) ||
                          fuzzyMatch(appointment.覆診地點, searchTerm) ||
                          fuzzyMatch(appointment.覆診專科, searchTerm) ||
                          fuzzyMatch(appointment.備註, searchTerm) ||
@@ -190,6 +190,10 @@ const FollowUpManagement: React.FC = () => {
   const sortedAppointments = [...filteredAppointments].sort((a, b) => {
     const patientA = patients.find(p => p.院友id === a.院友id);
     const patientB = patients.find(p => p.院友id === b.院友id);
+    if (searchTerm) {
+      const bedCmp = comparePatientsForSearch({ 床號: patientA?.床號 }, { 床號: patientB?.床號 }, searchTerm);
+      if (bedCmp !== 0) return bedCmp;
+    }
     
     let valueA: string | number = '';
     let valueB: string | number = '';

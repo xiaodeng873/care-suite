@@ -5,13 +5,14 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import TaskModal from '../components/TaskModal';
 import { Hop as Home, Users, Calendar, Heart, SquareCheck as CheckSquare, TriangleAlert as AlertTriangle, Clock, TrendingUp, TrendingDown, Activity, Droplets, Scale, FileText, Stethoscope, Shield, CalendarCheck, Utensils, BookOpen, Guitar as Hospital, Pill, Building2, X, User, ArrowRight, Repeat, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { isTaskOverdue, isTaskPendingToday, isTaskDueSoon, getTaskStatus, isDocumentTask, isMonitoringTask, isNursingTask, isRestraintAssessmentOverdue, isRestraintAssessmentDueSoon, isHealthAssessmentOverdue, isHealthAssessmentDueSoon, calculateNextDueDate, isTaskScheduledForDate, formatFrequencyDescription, findFirstMissingDate } from '../utils/taskScheduler';
+import { isTaskOverdue, isTaskPendingToday, isTaskDueSoon, getTaskStatus, isDocumentTask, isMonitoringTask, isNursingTask, isRestraintAssessmentOverdue, isRestraintAssessmentDueSoon, isHealthAssessmentOverdue, isHealthAssessmentDueSoon, isTubeCareOverdue, isTubeCareDueSoon, calculateNextDueDate, isTaskScheduledForDate, formatFrequencyDescription, findFirstMissingDate } from '../utils/taskScheduler';
 import { getPatientsWithOverdueWorkflow } from '../utils/workflowStatusHelper';
 import HealthRecordModal from '../components/HealthRecordModal';
 import MealGuidanceModal from '../components/MealGuidanceModal';
 import FollowUpModal from '../components/FollowUpModal';
 import DocumentTaskModal from '../components/DocumentTaskModal';
 import RestraintAssessmentModal from '../components/RestraintAssessmentModal';
+import TubeCareModal from '../components/TubeCareModal';
 import HealthAssessmentModal from '../components/HealthAssessmentModal';
 import AnnualHealthCheckupModal from '../components/AnnualHealthCheckupModal';
 import MissingRequirementsCard from '../components/MissingRequirementsCard';
@@ -87,7 +88,7 @@ function pickLatestPerPatient<T extends { patient_id: number; created_at?: strin
   return Array.from(latestPerPatient.values());
 }
 const Dashboard: React.FC = () => {
-  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData } = usePatients();
+  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData } = usePatients();
   const [showHealthRecordModal, setShowHealthRecordModal] = useState(false);
   const [selectedHealthRecordInitialData, setSelectedHealthRecordInitialData] = useState<any>({});
   const [showDocumentTaskModal, setShowDocumentTaskModal] = useState(false);
@@ -97,6 +98,9 @@ const Dashboard: React.FC = () => {
   const [showRestraintAssessmentModal, setShowRestraintAssessmentModal] = useState(false);
   const [selectedRestraintAssessment, setSelectedRestraintAssessment] = useState<any | null>(null);
   const [renewFromRestraintAssessment, setRenewFromRestraintAssessment] = useState<any | null>(null);
+  const [showTubeCareModal, setShowTubeCareModal] = useState(false);
+  const [selectedTubeCareRecord, setSelectedTubeCareRecord] = useState<any | null>(null);
+  const [renewFromTubeCare, setRenewFromTubeCare] = useState<any | null>(null);
   const [showHealthAssessmentModal, setShowHealthAssessmentModal] = useState(false);
   const [selectedHealthAssessment, setSelectedHealthAssessment] = useState<any | null>(null);
   const [showAnnualCheckupModal, setShowAnnualCheckupModal] = useState(false);
@@ -184,11 +188,9 @@ const Dashboard: React.FC = () => {
         }
         let isDateCompleted = false;
         if (normalizedTaskTimes.length > 0) {
-          isDateCompleted = normalizedTaskTimes.every(time => {
-            const keyWithTaskId = `${task.id}_${dateStr}_${time}`;
-            const keyWithPatientId = `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}_${time}`;
-            return recordLookup.has(keyWithTaskId) || recordLookup.has(keyWithPatientId);
-          });
+          isDateCompleted = normalizedTaskTimes.every(time =>
+            hasRecordWithinTolerance([`${task.id}_${dateStr}`, `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}`], time)
+          );
         } else {
           const keyWithTaskId = `${task.id}_${dateStr}`;
           const keyWithPatientId = `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}`;
@@ -258,6 +260,11 @@ const Dashboard: React.FC = () => {
     setSelectedRestraintAssessment(null);
     setShowRestraintAssessmentModal(true);
   };
+  const handleTubeCareClick = (record: any) => {
+    setRenewFromTubeCare(record);
+    setSelectedTubeCareRecord(null);
+    setShowTubeCareModal(true);
+  };
   const handleHealthAssessmentClick = (assessment: any) => {
     setSelectedHealthAssessment(assessment);
     setShowHealthAssessmentModal(true);
@@ -302,6 +309,31 @@ const Dashboard: React.FC = () => {
     });
     return lookup;
   }, [healthRecords]);
+  // [時間容差] 建立「日期鍵 → 已記錄時間（分鐘）」查找表，支援 ±30 分鐘容差比對
+  const recordTimes = useMemo(() => {
+    const map = new Map<string, number[]>();
+    const toMin = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+    healthRecords.forEach((r) => {
+      const minutes = toMin(normalizeTime(r.記錄時間));
+      const patientIdStr = r.院友id?.toString() || '';
+      const keys = [`${patientIdStr}_${r.監測類型}_${r.記錄日期}`];
+      if (r.任務id) keys.push(`${r.任務id}_${r.記錄日期}`);
+      keys.forEach(k => {
+        if (!map.has(k)) map.set(k, []);
+        map.get(k)!.push(minutes);
+      });
+    });
+    return map;
+  }, [healthRecords]);
+  const TIME_TOLERANCE_MIN = 30;
+  const hasRecordWithinTolerance = (dateKeys: string[], time: string): boolean => {
+    const [h, m] = normalizeTime(time).split(':').map(Number);
+    const target = (h || 0) * 60 + (m || 0);
+    return dateKeys.some(k => (recordTimes.get(k) || []).some(min => Math.abs(min - target) <= TIME_TOLERANCE_MIN));
+  };
   // [輔助函數] 檢查特定日期和時間是否有記錄
   const hasRecordForDateTime = (task: HealthTask, dateStr: string, timeStr?: string) => {
     // [關鍵修復] 確保 patient_id 類型一致
@@ -309,24 +341,18 @@ const Dashboard: React.FC = () => {
     // [修復] 如果任務有多個時間點，需要檢查所有時間點
     if (task.specific_times && task.specific_times.length > 0) {
       if (timeStr) {
-        // 檢查特定時間點（標準化格式）
-        const normalizedTime = normalizeTime(timeStr);
-        return recordLookup.has(`${task.id}_${dateStr}_${normalizedTime}`) ||
-               recordLookup.has(`${patientIdStr}_${task.health_record_type}_${dateStr}_${normalizedTime}`);
+        // 檢查特定時間點（±30 分鐘容差）
+        return hasRecordWithinTolerance([`${task.id}_${dateStr}`, `${patientIdStr}_${task.health_record_type}_${dateStr}`], timeStr);
       } else {
-        // 檢查所有時間點是否都完成
-        return task.specific_times.every(time => {
-          const normalizedTime = normalizeTime(time);
-          return recordLookup.has(`${task.id}_${dateStr}_${normalizedTime}`) ||
-                 recordLookup.has(`${patientIdStr}_${task.health_record_type}_${dateStr}_${normalizedTime}`);
-        });
+        // 檢查所有時間點是否都完成（±30 分鐘容差）
+        return task.specific_times.every(time =>
+          hasRecordWithinTolerance([`${task.id}_${dateStr}`, `${patientIdStr}_${task.health_record_type}_${dateStr}`], time)
+        );
       }
     } else {
       if (timeStr) {
-        // 有時間但任務沒有定義時間點（標準化格式）
-        const normalizedTime = normalizeTime(timeStr);
-        return recordLookup.has(`${task.id}_${dateStr}_${normalizedTime}`) ||
-               recordLookup.has(`${patientIdStr}_${task.health_record_type}_${dateStr}_${normalizedTime}`);
+        // 有時間但任務沒有定義時間點（±30 分鐘容差）
+        return hasRecordWithinTolerance([`${task.id}_${dateStr}`, `${patientIdStr}_${task.health_record_type}_${dateStr}`], timeStr);
       } else {
         // 檢查整天（不分時間）
         return recordLookup.has(`${task.id}_${dateStr}`) ||
@@ -472,11 +498,9 @@ const Dashboard: React.FC = () => {
         }
         let isDateCompleted = false;
         if (normalizedTaskTimes.length > 0) {
-          isDateCompleted = normalizedTaskTimes.every(time => {
-            const keyWithTaskId = `${task.id}_${dateStr}_${time}`;
-            const keyWithPatientId = `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}_${time}`;
-            return recordLookup.has(keyWithTaskId) || recordLookup.has(keyWithPatientId);
-          });
+          isDateCompleted = normalizedTaskTimes.every(time =>
+            hasRecordWithinTolerance([`${task.id}_${dateStr}`, `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}`], time)
+          );
         } else {
           const keyWithTaskId = `${task.id}_${dateStr}`;
           const keyWithPatientId = `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}`;
@@ -497,21 +521,52 @@ const Dashboard: React.FC = () => {
     return urgent.sort((a, b) => 
       (a.firstIncompleteDate?.getTime() || 0) - (b.firstIncompleteDate?.getTime() || 0)
     ).slice(0, 100);
-  }, [monitoringTasks, patientsMap, recordLookup]);
+  }, [monitoringTasks, patientsMap, recordLookup, recordTimes]);
   const taskGroups = useMemo(() => {
     const breakfast: typeof urgentMonitoringTasks = [];
     const lunch: typeof urgentMonitoringTasks = [];
     const dinner: typeof urgentMonitoringTasks = [];
     const snack: typeof urgentMonitoringTasks = [];
     urgentMonitoringTasks.forEach(task => {
-      const hour = new Date(task.next_due_at).getHours();
+      // 以最早特定時間決定時段，無特定時間才用 next_due_at
+      let hour: number;
+      if (task.specific_times && task.specific_times.length > 0) {
+        hour = Math.min(...task.specific_times.map(t => Number(normalizeTime(t).split(':')[0]) || 0));
+      } else {
+        hour = new Date(task.next_due_at).getHours();
+      }
       if (hour >= 7 && hour < 10) breakfast.push(task);
       else if (hour >= 10 && hour < 13) lunch.push(task);
       else if (hour >= 13 && hour < 18) dinner.push(task);
       else if (hour >= 18 && hour <= 20) snack.push(task);
     });
+    // 第一順序：任務特定時間（時:分，忽略日期）；第二順序：床號
+    const timeOfDay = (task: typeof urgentMonitoringTasks[number]) => {
+      // 優先用 specific_times 的最早時間，否則用 next_due_at 的時:分
+      if (task.specific_times && task.specific_times.length > 0) {
+        const mins = task.specific_times.map(t => {
+          const [h, m] = normalizeTime(t).split(':').map(Number);
+          return (h || 0) * 60 + (m || 0);
+        });
+        return Math.min(...mins);
+      }
+      const d = new Date(task.next_due_at);
+      return d.getHours() * 60 + d.getMinutes();
+    };
+    const sortByTimeThenBed = (a: typeof urgentMonitoringTasks[number], b: typeof urgentMonitoringTasks[number]) => {
+      const timeA = timeOfDay(a);
+      const timeB = timeOfDay(b);
+      if (timeA !== timeB) return timeA - timeB;
+      const bedA = patientsMap.get(a.patient_id)?.床號 || '';
+      const bedB = patientsMap.get(b.patient_id)?.床號 || '';
+      return bedA.localeCompare(bedB, 'zh-Hant', { numeric: true });
+    };
+    breakfast.sort(sortByTimeThenBed);
+    lunch.sort(sortByTimeThenBed);
+    dinner.sort(sortByTimeThenBed);
+    snack.sort(sortByTimeThenBed);
     return { breakfast, lunch, dinner, snack };
-  }, [urgentMonitoringTasks]);
+  }, [urgentMonitoringTasks, patientsMap]);
   const { breakfast: breakfastTasks, lunch: lunchTasks, dinner: dinnerTasks, snack: snackTasks } = taskGroups;
   const { overdueDocumentTasks, pendingDocumentTasks, dueSoonDocumentTasks } = useMemo(() => {
     const overdue: typeof documentTasks = [];
@@ -551,6 +606,65 @@ const Dashboard: React.FC = () => {
     return { overdueRestraintAssessments: overdue, dueSoonRestraintAssessments: dueSoon };
   }, [patientRestraintAssessments, patientsMap]);
   const urgentRestraintAssessments = [...overdueRestraintAssessments, ...dueSoonRestraintAssessments];
+  const { overdueTubeCare, dueSoonTubeCare } = useMemo(() => {
+    const addDaysStr = (dateStr: string, days: number): string => {
+      const d = new Date(dateStr);
+      const due = new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
+      const yyyy = due.getFullYear();
+      const mm = String(due.getMonth() + 1).padStart(2, '0');
+      const dd = String(due.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+    const execTime = (r: any) => (r?.execution_date ? new Date(r.execution_date).getTime() : -Infinity);
+
+    // 非氧氣（尿導管/鼻胃飼管/造口袋）：每位院友每類最新一筆
+    const latestByStream = new Map<string, any>();
+    const oxygenByPatient = new Map<number, any[]>();
+    (patientTubeCareRecords || []).forEach((r: any) => {
+      if (r.care_type === '氧氣喉管清洗/更換') {
+        if (!oxygenByPatient.has(r.patient_id)) oxygenByPatient.set(r.patient_id, []);
+        oxygenByPatient.get(r.patient_id)!.push(r);
+        return;
+      }
+      const key = `${r.patient_id}|${r.care_type}`;
+      const existing = latestByStream.get(key);
+      if (!existing || execTime(r) > execTime(existing)) latestByStream.set(key, r);
+    });
+
+    // 氧氣：一條喉管同時帶清洗/更換兩排程；更換時清洗計時一併歸零；只取較早到期那條
+    const oxygenStreams: any[] = [];
+    oxygenByPatient.forEach((records, _patientId) => {
+      const latestWash = records.filter((r: any) => r.oxygen_action === '清洗').sort((a, b) => execTime(b) - execTime(a))[0];
+      const latestReplace = records.filter((r: any) => r.oxygen_action === '更換').sort((a, b) => execTime(b) - execTime(a))[0];
+      const mostRecent = records.slice().sort((a, b) => execTime(b) - execTime(a))[0];
+      if (!mostRecent) return;
+      const washCycle = mostRecent.wash_cycle_days ?? latestWash?.wash_cycle_days ?? latestReplace?.wash_cycle_days;
+      // 清洗基準日 = 最近一次清洗或更換（更換亦清潔）
+      const washBaseline = [latestWash, latestReplace].filter(Boolean).sort((a, b) => execTime(b) - execTime(a))[0];
+      const washDue = (washBaseline && typeof washCycle === 'number' && washCycle > 0)
+        ? addDaysStr(washBaseline.execution_date, washCycle) : undefined;
+      const replaceCycle = latestReplace?.replace_cycle_days;
+      const replaceDue = (latestReplace && typeof replaceCycle === 'number' && replaceCycle > 0)
+        ? addDaysStr(latestReplace.execution_date, replaceCycle) : undefined;
+      const candidates = [
+        washDue ? { action: '清洗', due: washDue, base: washBaseline } : null,
+        replaceDue ? { action: '更換', due: replaceDue, base: latestReplace } : null,
+      ].filter(Boolean) as { action: string; due: string; base: any }[];
+      if (candidates.length === 0) return;
+      // 只顯示較早到期那條
+      const earliest = candidates.sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime())[0];
+      oxygenStreams.push({ ...earliest.base, next_due_date: earliest.due, oxygen_action: earliest.action });
+    });
+
+    const finalStreams = [...Array.from(latestByStream.values()), ...oxygenStreams].filter((r: any) => {
+      const p = patientsMap.get(r.patient_id);
+      return p && p.在住狀態 === '在住';
+    });
+    const overdue = finalStreams.filter((r: any) => isTubeCareOverdue(r));
+    const dueSoon = finalStreams.filter((r: any) => !isTubeCareOverdue(r) && isTubeCareDueSoon(r));
+    return { overdueTubeCare: overdue, dueSoonTubeCare: dueSoon };
+  }, [patientTubeCareRecords, patientsMap]);
+  const urgentTubeCare = [...overdueTubeCare, ...dueSoonTubeCare];
   const { overdueHealthAssessments, dueSoonHealthAssessments } = useMemo(() => {
     // 每位院友只取最新一筆，續期（新檔）後舊記錄不再計入提醒
     const latestAssessments = pickLatestPerPatient(healthAssessments);
@@ -576,6 +690,7 @@ const Dashboard: React.FC = () => {
     ...filteredUrgentDocumentTasks.map(task => ({ type: 'document', data: task })),
     ...urgentNursingTasks.map(task => ({ type: 'nursing', data: task })),
     ...urgentRestraintAssessments.map(assessment => ({ type: 'restraint', data: assessment })),
+    ...urgentTubeCare.map(record => ({ type: 'tube-care', data: record })),
     ...urgentHealthAssessments.map(assessment => ({ type: 'health-assessment', data: assessment })),
     ...urgentAnnualCheckups.map(checkup => ({ type: 'annual-checkup', data: checkup }))
   ].sort((a, b) => {
@@ -838,7 +953,7 @@ const Dashboard: React.FC = () => {
                 className="btn-primary flex flex-wrap items-center gap-2 text-sm"
               >
                 <FileText className="h-4 w-4" />
-                <span>匯出監測記錄</span>
+                <span>匯出監測記錄工作紙</span>
               </button>
               <Link to="/tasks" className="text-sm text-blue-600 hover:text-blue-700 font-medium">查看全部</Link>
             </div>
@@ -856,26 +971,58 @@ const Dashboard: React.FC = () => {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2">
                     {(() => {
                       // 同一院友、同一首個未完成日期、同一時間點的多種監測類型整合為一張卡片
+                      const padTime = (t: string) => {
+                        const [h, m] = (t || '').split(':');
+                        return `${String(Number(h) || 0).padStart(2, '0')}:${String(Number(m) || 0).padStart(2, '0')}`;
+                      };
+                      const earliestTime = (t: typeof slot.tasks[number]) => {
+                        if (t.specific_times && t.specific_times.length > 0) {
+                          return t.specific_times.map(normalizeTime).map(padTime).sort()[0];
+                        }
+                        return new Date(t.next_due_at).toTimeString().slice(0, 5);
+                      };
                       const groups = new Map<string, typeof slot.tasks>();
                       slot.tasks.forEach(t => {
                         const dateToken = t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) : '';
-                        const timeToken = (t.specific_times && t.specific_times.length > 0)
-                          ? normalizeTime(t.specific_times[0])
-                          : new Date(t.next_due_at).toTimeString().slice(0, 5);
+                        const timeToken = earliestTime(t);
                         const key = `${t.patient_id}_${dateToken}_${timeToken}`;
                         if (!groups.has(key)) groups.set(key, []);
                         groups.get(key)!.push(t);
                       });
-                      return Array.from(groups.entries()).map(([groupKey, group]) => {
+                      return Array.from(groups.entries())
+                        .sort(([ka, ga], [kb, gb]) => {
+                          // 與工作紙(monitoringTaskWorksheetGenerator)完全一致：時間 → 備註優先序 → 床號(localeCompare)
+                          const toMin = (k: string) => { const t = k.split('_')[2] || '00:00'; const [h, m] = t.split(':'); return (Number(h) || 0) * 60 + (Number(m) || 0); };
+                          const ma = toMin(ka); const mb = toMin(kb);
+                          if (ma !== mb) return ma - mb;
+                          const notePriority = (note: string) => {
+                            if (note.includes('注射前')) return 1;
+                            if (note.includes('服藥前')) return 2;
+                            if (note.includes('特別關顧')) return 3;
+                            if (note.includes('定期')) return 4;
+                            return 5;
+                          };
+                          const groupNote = (g: typeof ga) => Math.min(...g.map(t => notePriority(t.notes || '')));
+                          const na = groupNote(ga); const nb = groupNote(gb);
+                          if (na !== nb) return na - nb;
+                          const pa = ka.split('_')[0];
+                          const pb = kb.split('_')[0];
+                          const bedA = patients.find(p => String(p.院友id) === pa)?.床號 || '';
+                          const bedB = patients.find(p => String(p.院友id) === pb)?.床號 || '';
+                          return bedA.localeCompare(bedB);
+                        })
+                        .map(([groupKey, group]) => {
                         const rep = group[0];
                         const patient = patients.find(p => p.院友id === rep.patient_id);
-                        const hasMultipleDates = group.some(t => t.incompleteDates && t.incompleteDates.length > 1);
+                        const todayStrCard = formatLocalDate(new Date());
+                        const isOverdueCard = rep.firstIncompleteDate ? formatLocalDate(rep.firstIncompleteDate) < todayStrCard : false;
+                        const hasMultipleDates = group.some(t => t.incompleteDates && t.incompleteDates.length > 1) || isOverdueCard;
                         return (
                         <div
                           key={groupKey || rep.id}
                           className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${getTaskTimeBackgroundClass(rep.next_due_at)} rounded-lg cursor-pointer transition-colors dashboard-task-card`}
                           onClick={() => {
-                            // 如果有多个未完成日期，弹出小日历
+                            // 逾期或有多个未完成日期，弹出小日历以便補回
                             if (hasMultipleDates && patient) {
                               setSelectedHistoryTask({
                                 task: rep,
@@ -993,7 +1140,39 @@ const Dashboard: React.FC = () => {
                } else {
                   const assessment = item.data;
                   const patient = patients.find(p => p.院友id === assessment.patient_id);
-                  if (item.type === 'restraint') {
+                  if (item.type === 'tube-care') {
+                    const record = item.data;
+                    const isOverdue = isTubeCareOverdue(record);
+                    const isDueSoon = isTubeCareDueSoon(record);
+                    const detail = record.care_type === '氧氣喉管清洗/更換'
+                      ? `氧氣喉管${record.oxygen_action ?? ''}`
+                      : record.care_type;
+                    return (
+                      <div key={`tube-care-${record.id}`} className="flex flex-wrap items-center gap-3 p-3 bg-teal-50 rounded-lg cursor-pointer hover:bg-teal-100 transition-colors border border-teal-200" onClick={() => handleTubeCareClick(record)}>
+                        <div className="w-10 h-10 bg-teal-100 rounded-full overflow-hidden flex items-center justify-center">
+                          {patient?.院友相片 ? (
+                            <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="h-5 w-5 text-teal-600" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
+                            <span className="text-xs text-gray-500">({patient?.床號})</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <Stethoscope className="h-4 w-4 text-teal-600" />
+                            <p className="text-sm text-gray-600">{detail}</p>
+                          </div>
+                          <p className="text-xs text-gray-500">到期: {record.next_due_date ? new Date(record.next_due_date).toLocaleDateString('zh-TW') : '未設定'}</p>
+                        </div>
+                        <span className={`status-badge ${isOverdue ? 'bg-red-100 text-red-800' : isDueSoon ? 'bg-orange-100 text-orange-800' : 'bg-teal-100 text-teal-800'}`}>
+                          {isOverdue ? '逾期' : isDueSoon ? '即將到期' : '排程中'}
+                        </span>
+                      </div>
+                    );
+                  } else if (item.type === 'restraint') {
                     const isOverdue = isRestraintAssessmentOverdue(assessment);
                     const isDueSoon = isRestraintAssessmentDueSoon(assessment);
                     return (
@@ -1157,6 +1336,7 @@ const Dashboard: React.FC = () => {
       {showDocumentTaskModal && selectedDocumentTask && <DocumentTaskModal isOpen={showDocumentTaskModal} onClose={() => { setShowDocumentTaskModal(false); setSelectedDocumentTask(null); }} task={selectedDocumentTask.task} patient={selectedDocumentTask.patient} onTaskCompleted={handleDocumentTaskCompleted} />}
       {showFollowUpModal && selectedFollowUp && <FollowUpModal isOpen={showFollowUpModal} onClose={() => { setShowFollowUpModal(false); setSelectedFollowUp(null); }} appointment={selectedFollowUp} onUpdate={refreshData} />}
       {showRestraintAssessmentModal && <RestraintAssessmentModal onClose={() => { setShowRestraintAssessmentModal(false); setSelectedRestraintAssessment(null); setRenewFromRestraintAssessment(null); }} assessment={selectedRestraintAssessment ?? undefined} renewFrom={renewFromRestraintAssessment} onUpdate={refreshData} />}
+      {showTubeCareModal && <TubeCareModal onClose={() => { setShowTubeCareModal(false); setSelectedTubeCareRecord(null); setRenewFromTubeCare(null); }} record={selectedTubeCareRecord ?? undefined} renewFrom={renewFromTubeCare} onUpdate={refreshData} />}
       {showHealthAssessmentModal && selectedHealthAssessment && <HealthAssessmentModal isOpen={showHealthAssessmentModal} onClose={() => { setShowHealthAssessmentModal(false); setSelectedHealthAssessment(null); }} assessment={selectedHealthAssessment} onUpdate={refreshData} />}
       {showAnnualCheckupModal && <AnnualHealthCheckupModal checkup={selectedAnnualCheckup} renewFrom={renewFromAnnualCheckup} onClose={() => { setShowAnnualCheckupModal(false); setSelectedAnnualCheckup(null); setRenewFromAnnualCheckup(null); setPrefilledAnnualCheckupPatientId(null); }} onSave={refreshData} prefilledPatientId={prefilledAnnualCheckupPatientId} />}
       {showPatientModal && <PatientModal patient={selectedPatientForEdit} onClose={() => { setShowPatientModal(false); setSelectedPatientForEdit(null); refreshData(); }} />}

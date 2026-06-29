@@ -15,7 +15,7 @@ import { usePatients, type DiagnosisRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import DiagnosisRecordModal from '../components/DiagnosisRecordModal';
 import PatientTooltip from '../components/PatientTooltip';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 
 type SortField = '院友姓名' | 'diagnosis_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -111,14 +111,14 @@ const DiagnosisRecords: React.FC = () => {
       matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
       matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
       fuzzyMatch(patient.身份證號碼, searchTerm) ||
-      fuzzyMatch(patient.床號, searchTerm) ||
+      matchBedNumber(patient.床號, searchTerm) ||
       group.records.some(r =>
         fuzzyMatch(r.diagnosis_item, searchTerm) ||
         fuzzyMatch(r.diagnosis_unit, searchTerm)
       );
 
     const matchesBedNumber = !advancedFilters.床號 ||
-      fuzzyMatch(patient.床號, advancedFilters.床號);
+      matchBedNumber(patient.床號, advancedFilters.床號);
 
     const matchesName = !advancedFilters.中文姓名 ||
       matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名);
@@ -149,6 +149,13 @@ const DiagnosisRecords: React.FC = () => {
   const sortedPatientGroups = [...filteredPatientGroups].sort((a, b) => {
     let valueA: any;
     let valueB: any;
+
+    if (searchTerm) {
+      const pa = patients.find(p => p.院友id === a.patientId);
+      const pb = patients.find(p => p.院友id === b.patientId);
+      const bedCmp = comparePatientsForSearch({ 床號: pa?.床號 }, { 床號: pb?.床號 }, searchTerm);
+      if (bedCmp !== 0) return bedCmp;
+    }
 
     if (sortField === '院友姓名') {
       const patientA = patients.find(p => p.院友id === a.patientId);

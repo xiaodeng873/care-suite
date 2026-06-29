@@ -68,11 +68,12 @@ const formatGenderAge = (patient: PatientRow): string => {
   return age ? `${gender} / ${age}` : gender;
 };
 
-// 日期顯示為 M/D（與紙本手寫風格一致，欄位較窄）
+// 日期顯示為 YY/M/D（含兩位年份，與紙本手寫風格一致、欄位較窄）
 const formatShortDate = (dateStr: string): string => {
   const date = new Date(dateStr);
   if (Number.isNaN(date.getTime())) return dateStr;
-  return `${date.getMonth() + 1}/${date.getDate()}`;
+  const yy = String(date.getFullYear() % 100).padStart(2, '0');
+  return `${yy}/${date.getMonth() + 1}/${date.getDate()}`;
 };
 
 const formatTemperature = (value: number | null): string => {
@@ -80,15 +81,19 @@ const formatTemperature = (value: number | null): string => {
   return Number.isInteger(value) ? value.toFixed(1) : String(value);
 };
 
-// 取得在住院友（依床號排序）
-const fetchInResidencePatients = async (): Promise<PatientRow[]> => {
-  const { data, error } = await supabase
+// 取得院友（依床號排序）；提供 patientIds 時僅取指定院友，否則取全部在住院友
+const fetchInResidencePatients = async (patientIds?: number[]): Promise<PatientRow[]> => {
+  let query = supabase
     .from('院友主表')
-    .select('院友id, 中文姓名, 床號, 性別, 出生日期')
-    .eq('在住狀態', '在住')
-    .order('床號', { ascending: true });
+    .select('院友id, 中文姓名, 床號, 性別, 出生日期');
+  if (patientIds && patientIds.length > 0) {
+    query = query.in('院友id', patientIds);
+  } else {
+    query = query.eq('在住狀態', '在住');
+  }
+  const { data, error } = await query.order('床號', { ascending: true });
   if (error) {
-    console.error('讀取在住院友失敗:', error);
+    console.error('讀取院友失敗:', error);
     throw error;
   }
   return (data ?? []) as PatientRow[];
@@ -275,6 +280,7 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
     min-width: 14mm;
     padding: 0 1mm;
     min-height: 5mm;
+    text-align: center;
   }
 
   /* 表格 */
@@ -286,7 +292,16 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   .tr-table th, .tr-table td {
     border: 0.3mm solid #000;
     text-align: center;
+    vertical-align: middle;
     font-size: 10.5pt;
+  }
+  /* 每一對「日期+體溫」之間加粗分隔線（體溫欄為每對最右欄） */
+  .tr-th-temp, .tr-td-temp {
+    border-right: 0.7mm solid #000;
+  }
+  /* 表格最左緣加粗，與右側分隔線對稱 */
+  .tr-th-date:first-child, .tr-td-date:first-child {
+    border-left: 0.7mm solid #000;
   }
   .tr-table th {
     height: 7mm;
@@ -296,8 +311,8 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   .tr-table td {
     height: 7.2mm;
   }
-  .tr-th-date, .tr-td-date { width: 9%; }
-  .tr-th-temp, .tr-td-temp { width: 11%; }
+  .tr-th-date, .tr-td-date { width: 11%; }
+  .tr-th-temp, .tr-td-temp { width: 9%; }
 
   /* 頁尾 */
   .tr-footer {
@@ -346,12 +361,13 @@ const openPrintWindow = (html: string) => {
  */
 export const generateTemperatureRecordWorksheet = async (
   startDate: string,
-  endDate: string
+  endDate: string,
+  patientIds?: number[]
 ): Promise<void> => {
   activeFacility = await getFacilitySettings();
 
   const [patients, records] = await Promise.all([
-    fetchInResidencePatients(),
+    fetchInResidencePatients(patientIds),
     fetchTemperatureRecords(startDate, endDate),
   ]);
 

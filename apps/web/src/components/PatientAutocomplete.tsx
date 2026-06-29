@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, User, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 
 interface PatientAutocompleteProps {
   value: string | number;
@@ -44,12 +44,12 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
     if (!searchTerm) return true;
 
     return (
-      fuzzyMatch(patient.床號, searchTerm) ||
+      matchBedNumber(patient.床號, searchTerm) ||
       matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
       matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
       fuzzyMatch(patient.身份證號碼, searchTerm)
     );
-  });
+  }).sort((a, b) => comparePatientsForSearch(a, b, searchTerm));
 
   // 處理點擊外部關閉
   useEffect(() => {

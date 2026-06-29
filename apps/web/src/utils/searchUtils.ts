@@ -144,3 +144,55 @@ export function matchEnglishName(
   
   return false;
 }
+
+/**
+ * 床號自然排序比較（數字部分按數值比較，例如 2 < 21 < 22 < 100，A1 < A2 < A10）
+ */
+export function compareBedNumbers(a: string | null | undefined, b: string | null | undefined): number {
+  const aa = (a || '').trim();
+  const bb = (b || '').trim();
+  if (!aa && !bb) return 0;
+  if (!aa) return 1;
+  if (!bb) return -1;
+  return aa.localeCompare(bb, 'zh-Hant', { numeric: true, sensitivity: 'base' });
+}
+
+/**
+ * 床號搜尋配對排名（越小越優先；-1 代表不配對）
+ * 規則：搜尋詞作為連續子字串出現的位置，前綴(首字)配對最優先，否則看出現的位置（次字、再次字…）。
+ * 例如搜尋 "2"：21、22 皆首字配對(0)，再以床號自然排序 21 在 22 前。
+ *               若床號為 A2，配對位置為 1（次字），排在 0 之後。
+ */
+export function bedMatchRank(bed: string | null | undefined, search: string): number {
+  if (!bed) return -1;
+  if (!search) return 0;
+  return bed.toLowerCase().indexOf(search.toLowerCase());
+}
+
+/**
+ * 是否配對床號（連續子字串）
+ */
+export function matchBedNumber(bed: string | null | undefined, search: string): boolean {
+  return bedMatchRank(bed, search) >= 0;
+}
+
+/**
+ * 院友搜尋排序比較：優先床號配對位置，再床號自然排序。
+ * 用於 sorting 表格與 autocomplete，需先以 search 過濾後套用。
+ */
+export function comparePatientsForSearch(
+  a: { 床號?: string | null },
+  b: { 床號?: string | null },
+  search: string
+): number {
+  if (search) {
+    const ra = bedMatchRank(a.床號, search);
+    const rb = bedMatchRank(b.床號, search);
+    // 兩者皆無床號命中：不介入排序，交由表頭欄決定
+    if (ra < 0 && rb < 0) return 0;
+    const sa = ra < 0 ? Number.MAX_SAFE_INTEGER : ra;
+    const sb = rb < 0 ? Number.MAX_SAFE_INTEGER : rb;
+    if (sa !== sb) return sa - sb;
+  }
+  return compareBedNumbers(a.床號, b.床號);
+}

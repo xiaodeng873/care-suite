@@ -21,12 +21,13 @@ import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 import {
   getTemplatesMetadata
 } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { exportPrintFormsToExcel } from '../utils/printFormExcelGenerator';
+import { printDiaperRecordForm } from '../utils/diaperRecordPrintFormHtml';
 import { exportDiaperChangeToExcel } from '../utils/diaperChangeExcelGenerator';
 type SortField = '床號' | '中文姓名' | '護理等級' | '入住類型' | '在住狀態';
 type SortDirection = 'asc' | 'desc';
@@ -162,7 +163,7 @@ const PrintForms: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && !fuzzyMatch(patient.床號, advancedFilters.床號)) {
+    if (advancedFilters.床號 && !matchBedNumber(patient.床號, advancedFilters.床號)) {
       return false;
     }
     if (advancedFilters.中文姓名 && !matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名)) {
@@ -188,7 +189,7 @@ const PrintForms: React.FC = () => {
     if (searchTerm) {
       matchesSearch = matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
                          matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
-                         fuzzyMatch(patient.床號, searchTerm) ||
+                         matchBedNumber(patient.床號, searchTerm) ||
                          fuzzyMatch(patient.身份證號碼, searchTerm);
     }
     return matchesSearch;
@@ -215,6 +216,14 @@ const PrintForms: React.FC = () => {
     });
   };
   const sortedPatients = [...filteredPatients].sort((a, b) => {
+    if (searchTerm) {
+      const bedCmp = comparePatientsForSearch(a, b, searchTerm);
+      if (bedCmp !== 0) return bedCmp;
+    }
+    if (sortField === '床號') {
+      const cmp = compareBedNumbers(a.床號, b.床號);
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
     let valueA: string | number = '';
     let valueB: string | number = '';
     switch (sortField) {
@@ -433,6 +442,11 @@ const PrintForms: React.FC = () => {
     } finally {
       setIsExporting(false);
     }
+  };
+  const handleYearMonthHtmlPrint = () => {
+    const selectedPatients = sortedPatients.filter(p => selectedRows.has(p.院友id));
+    setShowYearMonthModal(false);
+    printDiaperRecordForm(selectedPatients, yearMonth);
   };
   const handlePersonalHygieneMonthConfirm = async () => {
     const selectedPatients = sortedPatients.filter(p => selectedRows.has(p.院友id));
@@ -1048,6 +1062,13 @@ const PrintForms: React.FC = () => {
                 className="btn-primary flex-1"
               >
                 確認生成
+              </button>
+              <button
+                onClick={handleYearMonthHtmlPrint}
+                disabled={!yearMonth.match(/^\d{4}年\d{2}月$/)}
+                className="btn-primary flex-1"
+              >
+                列印 HTML 版
               </button>
               <button
                 onClick={() => setShowYearMonthModal(false)}

@@ -18,6 +18,7 @@ const routeNames: Record<string, string> = {
   '/meal-guidance': '飲食指導',
   '/patient-logs': '院友日誌',
   '/restraint': '約束物品',
+  '/tube-care': '喉管護理',
   '/admission-records': '入院記錄',
   '/print-forms': '列印表格',
   '/wound': '傷口管理',
@@ -144,6 +145,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
         { name: '健康評估', href: '/health-assessments', icon: UserSearch, feature: 'health_assessment' },
         { name: '個人照顧計劃', href: '/individual-care-plan', icon: ClipboardList, feature: 'care_plan' },
         { name: '約束物品', href: '/restraint', icon: Shield, feature: 'restraint' },
+        { name: '喉管護理', href: '/tube-care', icon: Stethoscope, feature: 'tube_care' },
         { name: '傷口管理', href: '/wound', icon: Scissors, feature: 'wound_management' },
       ]
     },

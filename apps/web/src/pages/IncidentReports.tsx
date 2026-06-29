@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import {
   AlertTriangle,
@@ -99,7 +99,7 @@ const IncidentReports: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
+    if (advancedFilters.床號 && !matchBedNumber(patient?.床號, advancedFilters.床號)) {
       return false;
     }
     if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
@@ -129,7 +129,7 @@ const IncidentReports: React.FC = () => {
       matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
                          matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
                          fuzzyMatch(patient?.身份證號碼, searchTerm) ||
-                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         matchBedNumber(patient?.床號, searchTerm) ||
                          fuzzyMatch(report.location, searchTerm) ||
                          false;
     }

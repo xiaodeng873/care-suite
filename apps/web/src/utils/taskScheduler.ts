@@ -15,7 +15,8 @@ export function isMonitoringTask(taskType: string): boolean {
 }
 // 判斷是否為護理任務
 export function isNursingTask(taskType: string): boolean {
-  return taskType === '尿導管更換' || taskType === '鼻胃飼管更換' || taskType === '傷口換症';
+  // 尿導管更換、鼻胃飼管更換 已移至「喉管護理」獨立管理；此處只保留 傷口換症
+  return taskType === '傷口換症';
 }
 // 判斷是否為晚晴計劃任務
 export function isEveningCarePlanTask(taskType: string): boolean {
@@ -437,12 +438,55 @@ export function isTaskScheduled(task: PatientHealthTask): boolean {
   return false;
 }
 export function getTaskStatus(task: PatientHealthTask, recordLookup?: Set<string>, todayStr?: string): 'overdue' | 'pending' | 'due_soon' | 'scheduled' {
+  // [統一邏輯] 監測類任務改用與主畫面相同的「首個未完成日期」掃描，避免 next_due_at 過時造成狀態不一致
+  if (isMonitoringTask(task.health_record_type)) {
+    const first = getFirstIncompleteMonitoringDate(task, recordLookup, todayStr);
+    if (!first) return 'scheduled';
+    const t = todayStr || new Date().toISOString().split('T')[0];
+    const firstStr = `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, '0')}-${String(first.getDate()).padStart(2, '0')}`;
+    return firstStr < t ? 'overdue' : 'pending';
+  }
   if (isTaskOverdue(task, recordLookup, todayStr)) return 'overdue';
   if (isTaskPendingToday(task, recordLookup, todayStr)) return 'pending';
   if (isTaskDueSoon(task, recordLookup, todayStr)) return 'due_soon';
   return 'scheduled';
 }
+
+// [統一邏輯] 計算監測類任務首個未完成的應做日期（由今天往回掃描 28 天），與 Dashboard.urgentMonitoringTasks 一致
+export function getFirstIncompleteMonitoringDate(task: PatientHealthTask, recordLookup?: Set<string>, _todayStr?: string): Date | null {
+  if (!isMonitoringTask(task.health_record_type)) return null;
+  const fmt = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const normalize = (time: string) => time ? time.substring(0, 5) : '';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const taskStartDate = task.start_date ? new Date(task.start_date) : null;
+  if (taskStartDate) taskStartDate.setHours(0, 0, 0, 0);
+  const normalizedTaskTimes = (task as any).specific_times?.map(normalize) || [];
+  let firstIncomplete: Date | null = null;
+  for (let i = 0; i <= 28; i++) {
+    const checkDate = new Date(today);
+    checkDate.setDate(checkDate.getDate() - i);
+    const dateStr = fmt(checkDate);
+    if (dateStr <= SYNC_CUTOFF_DATE_STR) continue;
+    if (taskStartDate && checkDate < taskStartDate) continue;
+    if (!isTaskScheduledForDate(task, checkDate)) continue;
+    let completed = false;
+    if (recordLookup) {
+      if (normalizedTaskTimes.length > 0) {
+        completed = normalizedTaskTimes.every((time: string) =>
+          recordLookup.has(`${task.id}_${dateStr}_${time}`) ||
+          recordLookup.has(`${task.patient_id}_${task.health_record_type}_${dateStr}_${time}`));
+      } else {
+        completed = recordLookup.has(`${task.id}_${dateStr}`) ||
+          recordLookup.has(`${task.patient_id}_${task.health_record_type}_${dateStr}`);
+      }
+    }
+    if (!completed && !firstIncomplete) firstIncomplete = new Date(checkDate);
+  }
+  return firstIncomplete;
+}
 export function isRestraintAssessmentOverdue(assessment: any): boolean {
+  if (assessment.is_terminated) return false;
   if (!assessment.next_due_date) return false;
   const today = new Date();
   const dueDate = new Date(assessment.next_due_date);
@@ -451,6 +495,7 @@ export function isRestraintAssessmentOverdue(assessment: any): boolean {
   return dueDateOnly < todayDate;
 }
 export function isRestraintAssessmentDueSoon(assessment: any): boolean {
+  if (assessment.is_terminated) return false;
   if (!assessment.next_due_date) return false;
   const today = new Date();
   const dueDate = new Date(assessment.next_due_date);
@@ -485,6 +530,69 @@ export function getHealthAssessmentStatus(assessment: any): 'overdue' | 'due_soo
   if (isHealthAssessmentOverdue(assessment)) return 'overdue';
   if (isHealthAssessmentDueSoon(assessment)) return 'due_soon';
   return 'scheduled';
+}
+// ===== 喉管護理 =====
+export function isTubeCareOverdue(record: any): boolean {
+  if (record?.is_terminated) return false;
+  if (!record?.next_due_date) return false;
+  const today = new Date();
+  const dueDate = new Date(record.next_due_date);
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+  return dueDateOnly < todayDate;
+}
+export function isTubeCareDueSoon(record: any): boolean {
+  if (record?.is_terminated) return false;
+  if (!record?.next_due_date) return false;
+  const today = new Date();
+  const dueDate = new Date(record.next_due_date);
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+  const sevenDaysLater = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+  return dueDateOnly >= todayDate && dueDateOnly <= sevenDaysLater;
+}
+export function getTubeCareStatus(record: any): 'overdue' | 'due_soon' | 'scheduled' {
+  if (isTubeCareOverdue(record)) return 'overdue';
+  if (isTubeCareDueSoon(record)) return 'due_soon';
+  return 'scheduled';
+}
+// 依類型/材質/週期計算下次到期日（回傳 yyyy-mm-dd）
+export function calculateTubeCareNextDueDate(params: {
+  care_type: string;
+  execution_date: string;
+  tube_material?: string | null;
+  cycle_days?: number | null;
+  oxygen_action?: string | null;
+  wash_cycle_days?: number | null;
+  replace_cycle_days?: number | null;
+}): string | undefined {
+  const { care_type, execution_date, tube_material, cycle_days, oxygen_action, wash_cycle_days, replace_cycle_days } = params;
+  if (!execution_date) return undefined;
+  const base = new Date(execution_date);
+  if (Number.isNaN(base.getTime())) return undefined;
+  let days: number | undefined;
+  if (care_type === '氧氣喉管清洗/更換') {
+    // 氧氣：清洗用清洗間隔、更換用更換間隔，各自獨立計算
+    days = oxygen_action === '更換' ? (replace_cycle_days ?? undefined) : (wash_cycle_days ?? undefined);
+  } else if (care_type === '造口袋更換') {
+    // 造口袋：固定預設間隔 7 天，可自由調整
+    days = cycle_days ?? 7;
+  } else {
+    // 尿導管 / 鼻胃飼管：Latex +14、Silicon +28；若有自訂 cycle_days 則優先
+    if (typeof cycle_days === 'number' && cycle_days > 0) {
+      days = cycle_days;
+    } else if (tube_material === 'Silicon') {
+      days = 28;
+    } else if (tube_material === 'Latex') {
+      days = 14;
+    }
+  }
+  if (typeof days !== 'number' || days <= 0) return undefined;
+  const due = new Date(base.getFullYear(), base.getMonth(), base.getDate() + days);
+  const yyyy = due.getFullYear();
+  const mm = String(due.getMonth() + 1).padStart(2, '0');
+  const dd = String(due.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 export function formatFrequencyDescription(task: PatientHealthTask): string {
   const { frequency_unit, frequency_value, specific_days_of_week, specific_days_of_month } = task;

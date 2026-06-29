@@ -9,8 +9,7 @@ import { PatientQRCodeModal } from '../components/PatientQRCodeModal';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { deletePatientSchedulesAfterDate } from '../lib/database';
 import type { Patient } from '../lib/database';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
-
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 type SortField = '床號' | '中文姓名' | '性別' | '年齡' | '入住日期' | '退住日期' | '在住天數' | '護理等級' | '入住類型' | '在住狀態';
 type SortDirection = 'asc' | 'desc';
 
@@ -72,7 +71,7 @@ const PatientRecords: React.FC = () => {
   }
 
   const filteredPatients = patients.filter(patient => {
-    if (advancedFilters.床號 && !fuzzyMatch(patient.床號, advancedFilters.床號)) {
+    if (advancedFilters.床號 && !matchBedNumber(patient.床號, advancedFilters.床號)) {
       return false;
     }
     if (advancedFilters.中文姓名 && !matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名)) {
@@ -126,7 +125,7 @@ const PatientRecords: React.FC = () => {
     if (searchTerm) {
       matchesSearch = matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
                          matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
-                         fuzzyMatch(patient.床號, searchTerm) ||
+                         matchBedNumber(patient.床號, searchTerm) ||
                          fuzzyMatch(patient.身份證號碼, searchTerm);
     }
     
@@ -163,6 +162,16 @@ const PatientRecords: React.FC = () => {
   };
 
   const sortedPatients = [...filteredPatients].sort((a, b) => {
+    // 搜尋時：床號配對優先（首字含關鍵字者最前，再依床號自然排序），其次才身份證等
+    if (searchTerm) {
+      const bedCmp = comparePatientsForSearch(a, b, searchTerm);
+      if (bedCmp !== 0) return bedCmp;
+    }
+    // 床號欄：自然數值排序（A5<A12<B168-2<C233-3<C237-4<C237-10）
+    if (sortField === '床號') {
+      const cmp = compareBedNumbers(a.床號, b.床號);
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
     let valueA: string | number = '';
     let valueB: string | number = '';
     

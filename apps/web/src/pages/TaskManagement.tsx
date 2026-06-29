@@ -27,7 +27,7 @@ import { formatFrequencyDescription, getTaskStatus, isTaskOverdue, isTaskDueSoon
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { SYNC_CUTOFF_DATE_STR } from '../lib/database';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 
 type SortField = 'patient_name' | 'health_record_type' | 'frequency' | 'next_due_at' | 'last_completed_at' | 'notes';
 type SortDirection = 'asc' | 'desc';
@@ -83,13 +83,20 @@ const TaskManagement: React.FC = () => {
     });
   };
 
-  // [核心數據源] 構建 recordLookup：基於實際健康記錄的快速查找表
+  // [核心數據源] 構建 recordLookup：基於實際健康記錄的快速查找表（與主畫面 Dashboard 一致）
   const recordLookup = useMemo(() => {
+    const normalizeTime = (time?: string) => time ? time.substring(0, 5) : '';
     const lookup = new Set<string>();
     healthRecords.forEach(record => {
+      const normalizedTime = normalizeTime(record.記錄時間);
       if (record.任務id && record.記錄日期) {
-        const key = `${record.任務id}_${record.記錄日期}`;
-        lookup.add(key);
+        lookup.add(`${record.任務id}_${record.記錄日期}`);
+        lookup.add(`${record.任務id}_${record.記錄日期}_${normalizedTime}`);
+      }
+      const patientIdStr = record.院友id?.toString() || '';
+      if (patientIdStr && record.監測類型 && record.記錄日期) {
+        lookup.add(`${patientIdStr}_${record.監測類型}_${record.記錄日期}`);
+        lookup.add(`${patientIdStr}_${record.監測類型}_${record.記錄日期}_${normalizedTime}`);
       }
     });
     return lookup;
@@ -115,7 +122,7 @@ const TaskManagement: React.FC = () => {
       if (filters.在住狀態 && filters.在住狀態 !== '全部' && patient?.在住狀態 !== filters.在住狀態) {
         return false;
       }
-      if (filters.床號 && !fuzzyMatch(patient?.床號, filters.床號)) {
+      if (filters.床號 && !matchBedNumber(patient?.床號, filters.床號)) {
         return false;
       }
       if (filters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, filters.中文姓名)) {
@@ -149,7 +156,7 @@ const TaskManagement: React.FC = () => {
       let matchesSearch = true;
       if (filters.searchTerm) {
         matchesSearch = 
-        fuzzyMatch(patient?.床號, filters.searchTerm) ||
+        matchBedNumber(patient?.床號, filters.searchTerm) ||
         matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, filters.searchTerm) ||
         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, filters.searchTerm) ||
         fuzzyMatch(patient?.身份證號碼, filters.searchTerm) ||
@@ -222,6 +229,11 @@ const TaskManagement: React.FC = () => {
     return [...filteredTasks].sort((a, b) => {
       const patientA = patients.find(p => p.院友id === a.patient_id);
       const patientB = patients.find(p => p.院友id === b.patient_id);
+      
+      if (filters.searchTerm) {
+        const bedCmp = comparePatientsForSearch({ 床號: patientA?.床號 }, { 床號: patientB?.床號 }, filters.searchTerm);
+        if (bedCmp !== 0) return bedCmp;
+      }
       
       let valueA: string | number = '';
       let valueB: string | number = '';
@@ -640,8 +652,6 @@ const TaskManagement: React.FC = () => {
                       <option value="體重控制">體重控制</option>
                     </optgroup>
                     <optgroup label="護理任務">
-                      <option value="尿導管更換">尿導管更換</option>
-                      <option value="鼻胃飼管更換">鼻胃飼管更換</option>
                       <option value="傷口換症">傷口換症</option>
                     </optgroup>
                     <optgroup label="文件任務">

@@ -62,6 +62,7 @@ interface RecordsContextType {
   // ===== 評估 =====
   healthAssessments: db.HealthAssessment[];
   patientRestraintAssessments: db.PatientRestraintAssessment[];
+  patientTubeCareRecords: db.PatientTubeCareRecord[];
   annualHealthCheckups: any[];
   assessmentLoading: boolean;
   addHealthAssessment: (assessment: Omit<db.HealthAssessment, 'id' | 'created_at' | 'updated_at' | 'status' | 'archived_at'>) => Promise<void>;
@@ -70,6 +71,9 @@ interface RecordsContextType {
   addPatientRestraintAssessment: (assessment: Omit<db.PatientRestraintAssessment, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updatePatientRestraintAssessment: (assessment: db.PatientRestraintAssessment) => Promise<void>;
   deletePatientRestraintAssessment: (id: string) => Promise<void>;
+  addPatientTubeCareRecord: (record: Omit<db.PatientTubeCareRecord, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updatePatientTubeCareRecord: (record: db.PatientTubeCareRecord) => Promise<void>;
+  deletePatientTubeCareRecord: (id: string) => Promise<void>;
   addAnnualHealthCheckup: (checkup: any) => Promise<void>;
   updateAnnualHealthCheckup: (checkup: any) => Promise<void>;
   deleteAnnualHealthCheckup: (id: string) => Promise<void>;
@@ -165,6 +169,7 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
   // ===== 評估狀態 =====
   const [healthAssessments, setHealthAssessments] = useState<db.HealthAssessment[]>([]);
   const [patientRestraintAssessments, setPatientRestraintAssessments] = useState<db.PatientRestraintAssessment[]>([]);
+  const [patientTubeCareRecords, setPatientTubeCareRecords] = useState<db.PatientTubeCareRecord[]>([]);
   const [annualHealthCheckups, setAnnualHealthCheckups] = useState<any[]>([]);
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   
@@ -310,12 +315,13 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
     if (!isAuthenticated()) return;
     setAssessmentLoading(true);
     try {
-      const [healthAssessmentsData, patientRestraintAssessmentsData, annualHealthCheckupsData] = await Promise.all([
-        db.getHealthAssessments('all'), db.getRestraintAssessments(), db.getAnnualHealthCheckups()
+      const [healthAssessmentsData, patientRestraintAssessmentsData, annualHealthCheckupsData, tubeCareRecordsData] = await Promise.all([
+        db.getHealthAssessments('all'), db.getRestraintAssessments(), db.getAnnualHealthCheckups(), db.getTubeCareRecords()
       ]);
       setHealthAssessments(healthAssessmentsData);
       setPatientRestraintAssessments(patientRestraintAssessmentsData);
       setAnnualHealthCheckups(annualHealthCheckupsData || []);
+      setPatientTubeCareRecords(tubeCareRecordsData || []);
     } catch (error) {
       console.error('刷新評估數據失敗:', error);
     } finally {
@@ -329,6 +335,9 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
   const addPatientRestraintAssessment = useCallback(async (assessment: Omit<db.PatientRestraintAssessment, 'id' | 'created_at' | 'updated_at'>) => { await db.createRestraintAssessment(assessment); await refreshAssessmentData(); }, [refreshAssessmentData]);
   const updatePatientRestraintAssessment = useCallback(async (assessment: db.PatientRestraintAssessment) => { await db.updateRestraintAssessment(assessment); await refreshAssessmentData(); }, [refreshAssessmentData]);
   const deletePatientRestraintAssessment = useCallback(async (id: string) => { await db.deleteRestraintAssessment(id); await refreshAssessmentData(); }, [refreshAssessmentData]);
+  const addPatientTubeCareRecord = useCallback(async (record: Omit<db.PatientTubeCareRecord, 'id' | 'created_at' | 'updated_at'>) => { await db.createTubeCareRecord(record); await refreshAssessmentData(); }, [refreshAssessmentData]);
+  const updatePatientTubeCareRecord = useCallback(async (record: db.PatientTubeCareRecord) => { await db.updateTubeCareRecord(record); await refreshAssessmentData(); }, [refreshAssessmentData]);
+  const deletePatientTubeCareRecord = useCallback(async (id: string) => { await db.deleteTubeCareRecord(id); await refreshAssessmentData(); }, [refreshAssessmentData]);
   const addAnnualHealthCheckup = useCallback(async (checkup: any) => { await db.createAnnualHealthCheckup(checkup); await refreshAssessmentData(); }, [refreshAssessmentData]);
   const updateAnnualHealthCheckup = useCallback(async (checkup: any) => { await db.updateAnnualHealthCheckup(checkup); await refreshAssessmentData(); }, [refreshAssessmentData]);
   const deleteAnnualHealthCheckup = useCallback(async (id: string) => { await db.deleteAnnualHealthCheckup(id); await refreshAssessmentData(); }, [refreshAssessmentData]);
@@ -517,6 +526,7 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
     healthAssessments, patientRestraintAssessments, annualHealthCheckups, assessmentLoading,
     addHealthAssessment, updateHealthAssessment, deleteHealthAssessment,
     addPatientRestraintAssessment, updatePatientRestraintAssessment, deletePatientRestraintAssessment,
+    patientTubeCareRecords, addPatientTubeCareRecord, updatePatientTubeCareRecord, deletePatientTubeCareRecord,
     addAnnualHealthCheckup, updateAnnualHealthCheckup, deleteAnnualHealthCheckup, refreshAssessmentData,
     
     // 事故報告
@@ -595,6 +605,8 @@ export function useAssessment() {
     addHealthAssessment: ctx.addHealthAssessment, updateHealthAssessment: ctx.updateHealthAssessment, deleteHealthAssessment: ctx.deleteHealthAssessment,
     addPatientRestraintAssessment: ctx.addPatientRestraintAssessment, updatePatientRestraintAssessment: ctx.updatePatientRestraintAssessment,
     deletePatientRestraintAssessment: ctx.deletePatientRestraintAssessment, addAnnualHealthCheckup: ctx.addAnnualHealthCheckup,
+    patientTubeCareRecords: ctx.patientTubeCareRecords, addPatientTubeCareRecord: ctx.addPatientTubeCareRecord,
+    updatePatientTubeCareRecord: ctx.updatePatientTubeCareRecord, deletePatientTubeCareRecord: ctx.deletePatientTubeCareRecord,
     updateAnnualHealthCheckup: ctx.updateAnnualHealthCheckup, deleteAnnualHealthCheckup: ctx.deleteAnnualHealthCheckup, refreshAssessmentData: ctx.refreshAssessmentData,
   };
 }

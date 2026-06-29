@@ -25,7 +25,7 @@ import HealthAssessmentModal from '../components/HealthAssessmentModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { isHealthAssessmentOverdue, isHealthAssessmentDueSoon } from '../utils/taskScheduler';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 import { printHealthAssessment } from '../utils/healthAssessmentPrintGenerator';
 
 type SortField = '院友姓名' | 'assessment_date' | 'assessor' | 'created_at';
@@ -100,7 +100,7 @@ const HealthAssessments: React.FC = () => {
       // '全部' 不做篩選
     }
 
-    if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
+    if (advancedFilters.床號 && !matchBedNumber(patient?.床號, advancedFilters.床號)) {
       return false;
     }
     if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
@@ -128,7 +128,7 @@ const HealthAssessments: React.FC = () => {
       matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
                          matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
                          fuzzyMatch(patient?.身份證號碼, searchTerm) ||
-                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         matchBedNumber(patient?.床號, searchTerm) ||
                          fuzzyMatch(assessment.assessor, searchTerm) ||
                          fuzzyMatch(assessment.remarks, searchTerm);
     }

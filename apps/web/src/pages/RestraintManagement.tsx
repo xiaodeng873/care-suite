@@ -17,12 +17,13 @@ import {
   ChevronUp,
   ChevronDown,
   X,
-  Copy
+  Copy,
+  Ban
 } from 'lucide-react';
 import { usePatients, type PatientRestraintAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import RestraintAssessmentModal from '../components/RestraintAssessmentModal';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import { exportRestraintConsentsToExcel } from '../utils/restraintConsentExcelGenerator';
 import { exportRestraintObservationsToExcel } from '../utils/restraintObservationChartExcelGenerator';
@@ -35,13 +36,14 @@ interface AdvancedFilters {
   中文姓名: string;
   has_signature: string;
   is_overdue: string;
+  is_terminated: string;
   startDate: string;
   endDate: string;
   在住狀態: string;
 }
 
 const RestraintManagement: React.FC = () => {
-  const { patientRestraintAssessments, patients, deletePatientRestraintAssessment, loading } = usePatients();
+  const { patientRestraintAssessments, patients, deletePatientRestraintAssessment, updatePatientRestraintAssessment, loading } = usePatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<PatientRestraintAssessment | null>(null);
   const [renewFromAssessment, setRenewFromAssessment] = useState<PatientRestraintAssessment | null>(null);
@@ -57,6 +59,7 @@ const RestraintManagement: React.FC = () => {
     中文姓名: '',
     has_signature: '',
     is_overdue: '',
+    is_terminated: '',
     startDate: '',
     endDate: '',
     在住狀態: '在住'
@@ -100,7 +103,13 @@ const RestraintManagement: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
+    // 終止：預設隱藏已終止；篩選器選「是」只顯示已終止
+    if (advancedFilters.is_terminated === '是') {
+      if (!assessment.is_terminated) return false;
+    } else {
+      if (assessment.is_terminated) return false;
+    }
+    if (advancedFilters.床號 && !matchBedNumber(patient?.床號, advancedFilters.床號)) {
       return false;
     }
     if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
@@ -136,7 +145,7 @@ const RestraintManagement: React.FC = () => {
       matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
                          matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
                          fuzzyMatch(patient?.身份證號碼, searchTerm) ||
-                         fuzzyMatch(patient?.床號, searchTerm) ||
+                         matchBedNumber(patient?.床號, searchTerm) ||
                          fuzzyMatch(assessment.other_restraint_notes, searchTerm);
     }
     
@@ -161,6 +170,7 @@ const RestraintManagement: React.FC = () => {
       中文姓名: '',
       has_signature: '',
       is_overdue: '',
+      is_terminated: '',
       startDate: '',
       endDate: '',
       在住狀態: '在住'
@@ -270,6 +280,17 @@ const RestraintManagement: React.FC = () => {
   const handleEdit = (assessment: PatientRestraintAssessment) => {
     setSelectedAssessment(assessment);
     setShowModal(true);
+  };
+
+  const handleTerminate = async (assessment: PatientRestraintAssessment) => {
+    const patient = patients.find(p => p.院友id === assessment.patient_id);
+    if (!confirm(`確定要終止 ${patient?.中文姓名 ?? ''} 的約束物品評估嗎？終止後不再續期，並列為已終止記錄。`)) return;
+    try {
+      await updatePatientRestraintAssessment({ ...assessment, is_terminated: true });
+    } catch (error) {
+      console.error('終止約束物品評估失敗:', error);
+      alert('終止失敗，請重試');
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -493,6 +514,14 @@ const RestraintManagement: React.FC = () => {
   };
 
   const getStatusBadge = (assessment: PatientRestraintAssessment) => {
+    if (assessment.is_terminated) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">
+          <Ban className="h-3 w-3 mr-1" />
+          已終止
+        </span>
+      );
+    }
     if (!assessment.doctor_signature_date) {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -739,6 +768,17 @@ const RestraintManagement: React.FC = () => {
                       <option value="">全部</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="form-label">終止狀態</label>
+                    <select
+                      value={advancedFilters.is_terminated}
+                      onChange={(e) => updateAdvancedFilter('is_terminated', e.target.value)}
+                      className="form-input"
+                    >
+                      <option value="">進行中</option>
+                      <option value="是">已終止</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             )}
@@ -938,7 +978,7 @@ const RestraintManagement: React.FC = () => {
                           >
                             <Edit3 className="h-4 w-4" />
                           </button>
-                          {assessmentIndex === 0 && (
+                          {assessmentIndex === 0 && !assessment.is_terminated && (
                             <button
                               onClick={() => {
                                 setRenewFromAssessment(assessment);
@@ -950,6 +990,16 @@ const RestraintManagement: React.FC = () => {
                               disabled={deletingIds.has(assessment.id)}
                             >
                               <Copy className="h-4 w-4" />
+                            </button>
+                          )}
+                          {assessmentIndex === 0 && !assessment.is_terminated && (
+                            <button
+                              onClick={() => handleTerminate(assessment)}
+                              className="text-orange-500 hover:text-orange-700"
+                              title="終止（不再續期）"
+                              disabled={deletingIds.has(assessment.id)}
+                            >
+                              <Ban className="h-4 w-4" />
                             </button>
                           )}
                           <button

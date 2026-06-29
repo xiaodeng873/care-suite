@@ -78,7 +78,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
     patient_id: task?.patient_id?.toString() || '',
     health_record_type: (task && !isVitalSignType(task.health_record_type)
       ? task.health_record_type
-      : '尿導管更換') as HealthTaskType,
+      : '傷口換症') as HealthTaskType,
     frequency_unit: task?.frequency_unit || defaultFrequency.unit,
     frequency_value: task?.frequency_value || defaultFrequency.value,
     specific_times: task?.specific_times?.[0] || '',
@@ -330,10 +330,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
                     required
                   >
                     {taskCategory === 'care' && (<>
-                      <option value="尿導管更換">尿導管更換</option>
-                      <option value="鼻胃飼管更換">鼻胃飼管更換</option>
                       <option value="傷口換症">傷口換症</option>
-                      <option value="氧氣喉管清洗/更換">氧氣喉管清洗/更換</option>
                     </>)}
                     {taskCategory === 'document' && (<>
                       <option value="約束物品同意書">約束物品同意書</option>

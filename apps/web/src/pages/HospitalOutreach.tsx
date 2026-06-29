@@ -7,7 +7,7 @@ import DoctorVisitScheduleModal from '../components/DoctorVisitScheduleModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { isInHospital } from '../utils/careRecordHelper';
-import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 
 type SortField = '藥袋日期' | '院友姓名' | '藥完日期' | '覆診日期' | '取藥安排' | '創建時間';
 type SortDirection = 'asc' | 'desc';
@@ -221,7 +221,7 @@ const HospitalOutreach: React.FC = () => {
       if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && residenceStatus !== advancedFilters.在住狀態) {
         return false;
       }
-      if (advancedFilters.床號 && !fuzzyMatch(patient?.床號, advancedFilters.床號)) {
+      if (advancedFilters.床號 && !matchBedNumber(patient?.床號, advancedFilters.床號)) {
         return false;
       }
       if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
@@ -275,7 +275,7 @@ const HospitalOutreach: React.FC = () => {
         matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
                        matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
                        fuzzyMatch(patient?.身份證號碼, searchTerm) ||
-                       fuzzyMatch(patient?.床號, searchTerm) ||
+                       matchBedNumber(patient?.床號, searchTerm) ||
                        fuzzyMatch(record.remarks, searchTerm) ||
                        new Date(record.medication_bag_date).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase()) ||
                        false;
