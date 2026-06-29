@@ -28,24 +28,27 @@ const TIME_SLOTS = [
   '3AM-7AM',
 ];
 
-// 單一天（8 行）空白表格區塊
+// 單一天空白表格區塊（嚴格複刻範本線條）
+// 欄位：日期欄(1) + 6 時段 × [小便, 色, 質, 量, 簽名]
 const dayBlock = (): string => {
   const slot = TIME_SLOTS.length;
-  // 時間行
-  const timeRow = `<tr><th class="hc">時間</th>${TIME_SLOTS.map(s => `<th class="hc" colspan="5">${s}</th>`).join('')}</tr>`;
-  // 日期行：小便 | 大便(colspan3) | 簽名
-  const dateRow = `<tr><th class="hc">日期</th>${Array(slot).fill('').map(() => `<th class="hc">小便</th><th class="hc" colspan="3">大便</th><th class="hc">簽名</th>`).join('')}</tr>`;
-  // (色、質、量) 子行
-  const subRow = `<tr><th class="hc"></th>${Array(slot).fill('').map(() => `<th class="hc"></th><th class="hc sm" colspan="3">(色、質、量)</th><th class="hc"></th>`).join('')}</tr>`;
-  // 資料行：小便|色|質|量|簽名
   const cell = (t: string) => `<td class="cb">${t ? '☐ ' + t : ''}</td>`;
+  // 1. 時間行
+  const timeRow = `<tr><th class="hc">時間</th>${TIME_SLOTS.map(s => `<th class="hc" colspan="5">${s}</th>`).join('')}</tr>`;
+  // 2. 日期行：日期(rowspan2) | 小便(rowspan2) | 大便(colspan3) | 簽名(rowspan2)
+  const dateRow = `<tr><th class="hc" rowspan="2">日期</th>${Array(slot).fill('').map(() => `<th class="hc" rowspan="2">小便</th><th class="hc" colspan="3">大便</th><th class="hc" rowspan="2">簽名</th>`).join('')}</tr>`;
+  // 3. (色、質、量) 子行：僅大便欄
+  const subRow = `<tr>${Array(slot).fill('').map(() => `<th class="hc sm" colspan="3">(色、質、量)</th>`).join('')}</tr>`;
+  // 4. 資料行 1：日期欄(rowspan5 到底) | 小便|色|質|量 | 簽名欄(rowspan5 到底)
   const r1 = `<tr><td class="dc" rowspan="5"></td>${Array(slot).fill('').map(() => cell('多') + cell('正常') + cell('硬') + cell('多') + `<td class="sig" rowspan="5"></td>`).join('')}</tr>`;
   const r2 = `<tr>${Array(slot).fill('').map(() => cell('中') + cell('有血') + cell('軟') + cell('中')).join('')}</tr>`;
   const r3 = `<tr>${Array(slot).fill('').map(() => cell('少') + cell('有潺') + cell('稀') + cell('少')).join('')}</tr>`;
   const r4 = `<tr>${Array(slot).fill('').map(() => cell('') + cell('黑便') + cell('') + cell('')).join('')}</tr>`;
-  const r5 = `<tr>${Array(slot).fill('').map(() => `<td class="cb">尿片</td><td class="cb" colspan="2"></td><td class="cb">片芯</td>`).join('')}</tr>`;
+  // 5. 尿片/片芯行：日期欄與簽名欄已被 rowspan5 蓋住，不再出格 | 尿片|空|片芯(質)|空
+  const r5 = `<tr>${Array(slot).fill('').map(() => `<td class="cb">尿片</td><td class="cb"></td><td class="cb">片芯</td><td class="cb"></td>`).join('')}</tr>`;
   return timeRow + dateRow + subRow + r1 + r2 + r3 + r4 + r5;
 };
+
 
 const pageBlock = (name: string, bed: string, yearMonth: string): string => {
   const days = Array(DATES_PER_PAGE).fill('').map(() => dayBlock()).join('<tr class="sep"><td colspan="31"></td></tr>') + '<tr class="sep"><td colspan="31"></td></tr>';
@@ -77,20 +80,20 @@ export const generateDiaperRecordPrintFormHtml = (patients: Patient[], yearMonth
 body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-serif; margin:0; padding:0; background:#f4f4f4; font-size:10px; color:#000; }
 .no-print { text-align:center; margin:10px; }
 .no-print button { padding:8px 20px; font-size:12px; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer; }
-.page { width:100%; min-height:198mm; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; justify-content:center; align-items:center; }
-.inner { width:100%; display:flex; flex-direction:column; align-items:center; }
+.page { width:100%; height:198mm; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; }
+.inner { width:100%; flex:1; display:flex; flex-direction:column; min-height:0; }
 .inst { text-align:center; font-size:16px; font-weight:bold; }
-.title { text-align:center; font-size:14px; font-weight:bold; margin:2px 0 8px; }
-.info { display:flex; justify-content:center; gap:40px; margin-bottom:6px; font-size:12px; }
+.title { text-align:center; font-size:14px; font-weight:bold; margin:2px 0 4px; }
+.info { display:flex; justify-content:center; gap:40px; margin-bottom:3px; font-size:12px; }
 .ul { border-bottom:1px solid #000; padding:0 30px; font-weight:bold; }
 .rt { width:100%; border-collapse:collapse; table-layout:fixed; }
 .rt th,.rt td { border:1px solid #000; text-align:center; vertical-align:middle; padding:2px; overflow:hidden; }
-.hc { background:#e9ecef; font-weight:bold; height:22px; }
-.sm { font-size:8px; }
-.cb { height:20px; white-space:nowrap; font-size:9px; }
+.hc { background:#e9ecef; font-weight:bold; height:5mm; }
+.sm { font-size:8px; height:3.5mm; }
+.cb { height:5.5mm; white-space:nowrap; font-size:9px; }
 .dc { width:34px; font-weight:bold; }
 .sig { width:40px; }
-.sep td { border:none; height:8px; background:#d9d9d9; }
+.sep td { border:none; height:1.5mm; background:#d9d9d9; }
 @media print { body{background:#fff;} .no-print{display:none!important;} .page{box-shadow:none;margin:0;} }
 </style></head>
 <body>
