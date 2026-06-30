@@ -28,6 +28,7 @@ interface VitalEntry { primary: string; secondary: string; }
 
 interface HealthRecordModalProps {
   record?: HealthRecord;
+  recordGroup?: HealthRecord[];
   initialData?: {
     patient?: { 院友id: number; 中文姓名?: string; 床號?: string };
     task?: { id: string; health_record_type: string; next_due_at: string; specific_times?: string[] };
@@ -50,7 +51,10 @@ const legacyTypeMap: Record<string, VitalSignType[]> = {
 const getInitialActiveTypes = (
   record?: HealthRecord,
   initialData?: HealthRecordModalProps['initialData'],
+  recordGroup?: HealthRecord[],
 ): VitalSignType[] => {
+  // 整列編輯：顯示全部 7 種類型，讓用戶可查閱已有值並補填缺少的種類
+  if (recordGroup) return ALL_VITAL_TYPES.map(v => v.type);
   if (record) return [record.監測類型];
   // 多任務整合：同院友同時間點的多種監測類型一起輸入
   if (initialData?.任務清單 && initialData.任務清單.length > 0) {
@@ -70,7 +74,7 @@ const getInitialActiveTypes = (
   return [];
 };
 
-const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialData, onClose, onTaskCompleted }) => {
+const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGroup, initialData, onClose, onTaskCompleted }) => {
   const { updateHealthRecord, addHealthRecordsForSession, patients, hospitalEpisodes, admissionRecords } = usePatients();
   const { displayName } = useAuth();
 
@@ -82,6 +86,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
 
   const getDefaultDateTime = () => {
     if (record) return { date: record.記錄日期, time: record.記錄時間 };
+    if (recordGroup && recordGroup.length > 0) return { date: recordGroup[0].記錄日期, time: recordGroup[0].記錄時間 };
     const src = initialData?.預設日期 || initialData?.task?.next_due_at;
     if (src) {
       const d = new Date(new Date(src).toLocaleString('en-US', { timeZone: 'Asia/Hong_Kong' }));
@@ -95,8 +100,8 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
     return { date: now.date, time: initialData?.預設時間 || now.time };
   };
 
-  const initialActiveTypes = getInitialActiveTypes(record, initialData);
-  const isTypeFixed = !!(record || initialData?.task || initialData?.任務清單 || initialData?.預設監測類型 || initialData?.預設記錄類型);
+  const initialActiveTypes = getInitialActiveTypes(record, initialData, recordGroup);
+  const isTypeFixed = !!(record || recordGroup || initialData?.task || initialData?.任務清單 || initialData?.預設監測類型 || initialData?.預設記錄類型);
   const [activeTypes, setActiveTypes] = useState<VitalSignType[]>(initialActiveTypes);
 
   // 每種監測類型對應其 task id（多任務整合時，各筆記錄寫回各自的任務）
@@ -108,23 +113,42 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
     if (initialData?.task && isVitalSignType(initialData.task.health_record_type) && !m[initialData.task.health_record_type]) {
       m[initialData.task.health_record_type] = initialData.task.id;
     }
+    // 整列編輯：從各筆現有記錄取出 任務id
+    recordGroup?.forEach(r => {
+      if (isVitalSignType(r.監測類型) && r.任務id && !m[r.監測類型]) {
+        m[r.監測類型] = r.任務id;
+      }
+    });
     return m;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const defaultDT = getDefaultDateTime();
+  const groupFirst = recordGroup?.[0];
   const [formData, setFormData] = useState({
-    院友id: record?.院友id?.toString() || initialData?.patient?.院友id?.toString() || '',
+    院友id: record?.院友id?.toString() || groupFirst?.院友id?.toString() || initialData?.patient?.院友id?.toString() || '',
     記錄日期: defaultDT.date, 記錄時間: defaultDT.time,
-    備註: record?.備註 || '', 記錄人員: record?.記錄人員 || displayName || '',
-    isAbsent: !!(record?.備註?.includes('無法量度')),
-    absenceReason: record?.備註?.match(/無法量度原因:\s*(.+)/)?.[1]?.trim() || '',
+    備註: record?.備註 || groupFirst?.備註 || '', 記錄人員: record?.記錄人員 || groupFirst?.記錄人員 || displayName || '',
+    isAbsent: !!(record?.備註?.includes('無法量度') || groupFirst?.備註?.includes('無法量度')),
+    absenceReason: (record?.備註 || groupFirst?.備註)?.match(/無法量度原因:\s*(.+)/)?.[1]?.trim() || '',
   });
 
   const [vitalEntries, setVitalEntries] = useState<Record<string, VitalEntry>>(() => {
     const init: Record<string, VitalEntry> = {};
     if (record) {
       init[record.監測類型] = { primary: record.數值?.toString() ?? '', secondary: record.數值_副?.toString() ?? '' };
+      return init;
+    }
+    // 整列編輯：從各筆現有記錄預填數值
+    if (recordGroup && recordGroup.length > 0) {
+      recordGroup.forEach(r => {
+        if (isVitalSignType(r.監測類型)) {
+          init[r.監測類型] = {
+            primary: r.數值 != null ? r.數值.toString() : '',
+            secondary: r.數值_副 != null ? r.數值_副.toString() : '',
+          };
+        }
+      });
       return init;
     }
     // 從任務卡片開啟時，為可隨機預填的監測類型自動填入合理數值（保留原設計）
@@ -282,6 +306,21 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
       if (record) {
         const r = records[0];
         if (r) await updateHealthRecord({ ...record, ...r } as HealthRecord);
+      } else if (recordGroup) {
+        // 整列編輯：已有的種類 → update；新種類 → insert
+        const existingByType = new Map(recordGroup.map(r => [r.監測類型, r]));
+        const toUpdate: HealthRecord[] = [];
+        const toInsert: Omit<HealthRecord, '記錄id' | '建立時間'>[] = [];
+        for (const r of records) {
+          const existing = existingByType.get(r.監測類型 as VitalSignType);
+          if (existing) {
+            toUpdate.push({ ...existing, ...r } as HealthRecord);
+          } else {
+            toInsert.push(r as Omit<HealthRecord, '記錄id' | '建立時間'>);
+          }
+        }
+        for (const r of toUpdate) await updateHealthRecord(r);
+        if (toInsert.length > 0) await addHealthRecordsForSession(toInsert);
       } else {
         await addHealthRecordsForSession(records as Omit<HealthRecord, '記錄id' | '建立時間'>[]);
       }
@@ -367,7 +406,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, initialDa
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <Activity className="h-5 w-5 text-blue-600" />
-              <h2 className="text-xl font-semibold text-gray-900">{record ? '編輯監測記錄' : '新增監測記錄'}</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{record ? '編輯監測記錄' : recordGroup ? '編輯監測記錄（整列）' : '新增監測記錄'}</h2>
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="h-6 w-6" /></button>
           </div>

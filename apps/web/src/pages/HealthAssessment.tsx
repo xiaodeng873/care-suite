@@ -38,6 +38,7 @@ import { exportVitalSignsToExcel, type VitalSignExportData } from '../utils/vita
 import { exportBloodSugarToExcel, type BloodSugarExportData } from '../utils/bloodSugarExcelGenerator';
 import PatientTooltip from '../components/PatientTooltip';
 import { syncTaskStatus } from '../lib/database';
+import type { HealthRecord } from '../lib/database';
 type SortField = '記錄日期' | '記錄時間' | '院友姓名' | '監測類型' | '數值';
 type SortDirection = 'asc' | 'desc';
 interface AdvancedFilters {
@@ -66,7 +67,7 @@ const HealthAssessment: React.FC = () => {
     loadFullHealthRecords();
   }, [loadFullHealthRecords]);
   const [showModal, setShowModal] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [selectedRecordGroup, setSelectedRecordGroup] = useState<HealthRecord[] | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
   const [sortField, setSortField] = useState<SortField>('記錄日期');
@@ -286,8 +287,8 @@ const HealthAssessment: React.FC = () => {
       setSortDirection('asc');
     }
   };
-  const handleEdit = (record: any) => {
-    setSelectedRecord(record);
+  const handleEdit = (group: GroupedRow) => {
+    setSelectedRecordGroup(Object.values(group.byType) as HealthRecord[]);
     setShowModal(true);
   };
   const handleDelete = async (id: string) => {
@@ -718,7 +719,7 @@ const HealthAssessment: React.FC = () => {
             </div>
             <button
               onClick={() => {
-                setSelectedRecord(null);
+                setSelectedRecordGroup(null);
                 setShowModal(true);
               }}
               className="btn-primary flex flex-wrap items-center gap-2 whitespace-nowrap"
@@ -960,7 +961,7 @@ const HealthAssessment: React.FC = () => {
                     <tr
                       key={group.key}
                       className={`hover:bg-gray-50 ${groupSelected ? 'bg-blue-50' : ''}`}
-                      onDoubleClick={() => handleEdit(firstRecord)}
+                      onDoubleClick={() => handleEdit(group)}
                     >
                       <td className="px-4 py-4 whitespace-nowrap">
                         <input
@@ -1007,7 +1008,7 @@ const HealthAssessment: React.FC = () => {
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => handleEdit(firstRecord)}
+                            onClick={() => handleEdit(group)}
                             className="text-blue-600 hover:text-blue-900"
                             title="編輯"
                             disabled={isDeleting}
@@ -1120,10 +1121,10 @@ const HealthAssessment: React.FC = () => {
       )}
       {showModal && (
         <HealthRecordModal
-          record={selectedRecord}
+          recordGroup={selectedRecordGroup ?? undefined}
           onClose={() => {
             setShowModal(false);
-            setSelectedRecord(null);
+            setSelectedRecordGroup(null);
           }}
           onTaskCompleted={async (taskId, recordDateTime) => {
             try {
