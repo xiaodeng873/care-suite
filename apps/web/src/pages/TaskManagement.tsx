@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useDeferredValue } from 'react';
 import { 
   CheckSquare, 
   Plus, 
@@ -71,6 +71,7 @@ const TaskManagement: React.FC = () => {
     status: '',
     在住狀態: '在住'
   });
+  const deferredFilters = useDeferredValue(filters);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
 
@@ -119,61 +120,61 @@ const TaskManagement: React.FC = () => {
       const taskStatus = getTaskStatus(task, recordLookup, todayStr);
       
       // 先應用進階篩選
-      if (filters.在住狀態 && filters.在住狀態 !== '全部' && patient?.在住狀態 !== filters.在住狀態) {
+      if (deferredFilters.在住狀態 && deferredFilters.在住狀態 !== '全部' && patient?.在住狀態 !== deferredFilters.在住狀態) {
         return false;
       }
-      if (filters.床號 && !matchBedNumber(patient?.床號, filters.床號)) {
+      if (deferredFilters.床號 && !matchBedNumber(patient?.床號, deferredFilters.床號)) {
         return false;
       }
-      if (filters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, filters.中文姓名)) {
+      if (deferredFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, deferredFilters.中文姓名)) {
         return false;
       }
-      if (filters.health_record_type && task.health_record_type !== filters.health_record_type) {
+      if (deferredFilters.health_record_type && task.health_record_type !== deferredFilters.health_record_type) {
         return false;
       }
-      if (filters.frequency_unit && task.frequency_unit !== filters.frequency_unit) {
+      if (deferredFilters.frequency_unit && task.frequency_unit !== deferredFilters.frequency_unit) {
         return false;
       }
-      if (filters.notes && !fuzzyMatch(task.notes, filters.notes)) {
+      if (deferredFilters.notes && !fuzzyMatch(task.notes, deferredFilters.notes)) {
         return false;
       }
-      if (filters.status && taskStatus !== filters.status) {
+      if (deferredFilters.status && taskStatus !== deferredFilters.status) {
         return false;
       }
       
       // 日期區間篩選
-      if (filters.startDate || filters.endDate) {
+      if (deferredFilters.startDate || deferredFilters.endDate) {
         const taskDate = new Date(task.next_due_at);
-        if (filters.startDate && taskDate < new Date(filters.startDate)) {
+        if (deferredFilters.startDate && taskDate < new Date(deferredFilters.startDate)) {
           return false;
         }
-        if (filters.endDate && taskDate > new Date(filters.endDate)) {
+        if (deferredFilters.endDate && taskDate > new Date(deferredFilters.endDate)) {
           return false;
         }
       }
       
       // 然後應用搜索條件
       let matchesSearch = true;
-      if (filters.searchTerm) {
+      if (deferredFilters.searchTerm) {
         matchesSearch = 
-        matchBedNumber(patient?.床號, filters.searchTerm) ||
-        matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, filters.searchTerm) ||
-        matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, filters.searchTerm) ||
-        fuzzyMatch(patient?.身份證號碼, filters.searchTerm) ||
-        fuzzyMatch(task.health_record_type, filters.searchTerm) ||
-        fuzzyMatch(task.notes, filters.searchTerm) ||
-        fuzzyMatch(formatFrequencyDescription(task), filters.searchTerm);
+        matchBedNumber(patient?.床號, deferredFilters.searchTerm) ||
+        matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, deferredFilters.searchTerm) ||
+        matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, deferredFilters.searchTerm) ||
+        fuzzyMatch(patient?.身份證號碼, deferredFilters.searchTerm) ||
+        fuzzyMatch(task.health_record_type, deferredFilters.searchTerm) ||
+        fuzzyMatch(task.notes, deferredFilters.searchTerm) ||
+        fuzzyMatch(formatFrequencyDescription(task), deferredFilters.searchTerm);
       }
       
       // 類型篩選
-      const matchesType = filters.filterType === 'all' || task.health_record_type === filters.filterType;
+      const matchesType = deferredFilters.filterType === 'all' || task.health_record_type === deferredFilters.filterType;
       
       // 狀態篩選
-      const matchesStatus = filters.filterStatus === 'all' || taskStatus === filters.filterStatus;
+      const matchesStatus = deferredFilters.filterStatus === 'all' || taskStatus === deferredFilters.filterStatus;
       
       return matchesSearch && matchesType && matchesStatus;
     });
-  }, [patientHealthTasks, patients, filters, recordLookup]);
+  }, [patientHealthTasks, patients, deferredFilters, recordLookup]);
 
   // 檢查是否有進階篩選條件
   const hasAdvancedFilters = () => {
@@ -230,8 +231,8 @@ const TaskManagement: React.FC = () => {
       const patientA = patients.find(p => p.院友id === a.patient_id);
       const patientB = patients.find(p => p.院友id === b.patient_id);
       
-      if (filters.searchTerm) {
-        const bedCmp = comparePatientsForSearch({ 床號: patientA?.床號 }, { 床號: patientB?.床號 }, filters.searchTerm);
+      if (deferredFilters.searchTerm) {
+        const bedCmp = comparePatientsForSearch({ 床號: patientA?.床號 }, { 床號: patientB?.床號 }, deferredFilters.searchTerm);
         if (bedCmp !== 0) return bedCmp;
       }
       

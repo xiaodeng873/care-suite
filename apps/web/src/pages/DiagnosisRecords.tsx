@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useDeferredValue } from 'react';
 import {
   FileText,
   Plus,
@@ -36,6 +36,7 @@ const DiagnosisRecords: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<number | undefined>();
   const [selectedPatientRecords, setSelectedPatientRecords] = useState<DiagnosisRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('diagnosis_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -107,14 +108,14 @@ const DiagnosisRecords: React.FC = () => {
     const patient = patients.find(p => p.院友id === group.patientId);
     if (!patient) return false;
 
-    const matchesSearch = !searchTerm ||
-      matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
-      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
-      fuzzyMatch(patient.身份證號碼, searchTerm) ||
-      matchBedNumber(patient.床號, searchTerm) ||
+    const matchesSearch = !deferredSearch ||
+      matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch) ||
+      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch) ||
+      fuzzyMatch(patient.身份證號碼, deferredSearch) ||
+      matchBedNumber(patient.床號, deferredSearch) ||
       group.records.some(r =>
-        fuzzyMatch(r.diagnosis_item, searchTerm) ||
-        fuzzyMatch(r.diagnosis_unit, searchTerm)
+        fuzzyMatch(r.diagnosis_item, deferredSearch) ||
+        fuzzyMatch(r.diagnosis_unit, deferredSearch)
       );
 
     const matchesBedNumber = !advancedFilters.床號 ||
@@ -150,10 +151,10 @@ const DiagnosisRecords: React.FC = () => {
     let valueA: any;
     let valueB: any;
 
-    if (searchTerm) {
+    if (deferredSearch) {
       const pa = patients.find(p => p.院友id === a.patientId);
       const pb = patients.find(p => p.院友id === b.patientId);
-      const bedCmp = comparePatientsForSearch({ 床號: pa?.床號 }, { 床號: pb?.床號 }, searchTerm);
+      const bedCmp = comparePatientsForSearch({ 床號: pa?.床號 }, { 床號: pb?.床號 }, deferredSearch);
       if (bedCmp !== 0) return bedCmp;
     }
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useDeferredValue } from 'react';
 import {
   Printer,
   FileText,
@@ -56,6 +56,7 @@ const PrintForms: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
   const [restraintUserIds, setRestraintUserIds] = useState<Set<number>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [sortField, setSortField] = useState<SortField>('床號');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -186,11 +187,11 @@ const PrintForms: React.FC = () => {
     }
     // Search term
     let matchesSearch = true;
-    if (searchTerm) {
-      matchesSearch = matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
-                         matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
-                         matchBedNumber(patient.床號, searchTerm) ||
-                         fuzzyMatch(patient.身份證號碼, searchTerm);
+    if (deferredSearch) {
+      matchesSearch = matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch) ||
+                         matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch) ||
+                         matchBedNumber(patient.床號, deferredSearch) ||
+                         fuzzyMatch(patient.身份證號碼, deferredSearch);
     }
     return matchesSearch;
   });
@@ -216,8 +217,8 @@ const PrintForms: React.FC = () => {
     });
   };
   const sortedPatients = [...filteredPatients].sort((a, b) => {
-    if (searchTerm) {
-      const bedCmp = comparePatientsForSearch(a, b, searchTerm);
+    if (deferredSearch) {
+      const bedCmp = comparePatientsForSearch(a, b, deferredSearch);
       if (bedCmp !== 0) return bedCmp;
     }
     if (sortField === '床號') {

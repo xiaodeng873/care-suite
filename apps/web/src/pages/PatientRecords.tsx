@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useDeferredValue } from 'react';
 import { Users, Plus, Edit3, Trash2, Search, Filter, Download, User, Calendar, CreditCard, Heart, AlertTriangle, CheckCircle, ChevronUp, ChevronDown, X, LogOut, QrCode } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -36,6 +36,7 @@ const PatientRecords: React.FC = () => {
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [sortField, setSortField] = useState<SortField>('床號');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -122,11 +123,11 @@ const PatientRecords: React.FC = () => {
     }
     
     let matchesSearch = true;
-    if (searchTerm) {
-      matchesSearch = matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
-                         matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
-                         matchBedNumber(patient.床號, searchTerm) ||
-                         fuzzyMatch(patient.身份證號碼, searchTerm);
+    if (deferredSearch) {
+      matchesSearch = matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch) ||
+                         matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch) ||
+                         matchBedNumber(patient.床號, deferredSearch) ||
+                         fuzzyMatch(patient.身份證號碼, deferredSearch);
     }
     
     return matchesSearch;
@@ -163,8 +164,8 @@ const PatientRecords: React.FC = () => {
 
   const sortedPatients = [...filteredPatients].sort((a, b) => {
     // 搜尋時：床號配對優先（首字含關鍵字者最前，再依床號自然排序），其次才身份證等
-    if (searchTerm) {
-      const bedCmp = comparePatientsForSearch(a, b, searchTerm);
+    if (deferredSearch) {
+      const bedCmp = comparePatientsForSearch(a, b, deferredSearch);
       if (bedCmp !== 0) return bedCmp;
     }
     // 床號欄：自然數值排序（A5<A12<B168-2<C233-3<C237-4<C237-10）

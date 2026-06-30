@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useDeferredValue } from 'react';
 import { Edit3, Trash2, User, ChevronUp, ChevronDown, Filter, X, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -26,6 +26,7 @@ const PatientContacts: React.FC = () => {
   const [contacts, setContacts] = useState<(PatientContact & { patient?: any })[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
     床號: '',
     中文姓名: '',
@@ -90,16 +91,16 @@ const PatientContacts: React.FC = () => {
     }
 
     let matchesSearch = true;
-    if (searchTerm) {
+    if (deferredSearch) {
       const patientContacts = contactsByPatient[patient.院友id] || [];
-      matchesSearch = matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
-                      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
-                      matchBedNumber(patient.床號, searchTerm) ||
+      matchesSearch = matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch) ||
+                      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch) ||
+                      matchBedNumber(patient.床號, deferredSearch) ||
                       patientContacts.some(c =>
-                        fuzzyMatch(c.聯絡人姓名, searchTerm) ||
-                        fuzzyMatch(c.關係, searchTerm) ||
-                        fuzzyMatch(c.聯絡電話, searchTerm) ||
-                        fuzzyMatch(c.電郵, searchTerm)
+                        fuzzyMatch(c.聯絡人姓名, deferredSearch) ||
+                        fuzzyMatch(c.關係, deferredSearch) ||
+                        fuzzyMatch(c.聯絡電話, deferredSearch) ||
+                        fuzzyMatch(c.電郵, deferredSearch)
                       );
     }
 
@@ -107,8 +108,8 @@ const PatientContacts: React.FC = () => {
   });
 
   const sortedPatients = [...filteredPatients].sort((a, b) => {
-    if (searchTerm) {
-      const bedCmp = comparePatientsForSearch(a, b, searchTerm);
+    if (deferredSearch) {
+      const bedCmp = comparePatientsForSearch(a, b, deferredSearch);
       if (bedCmp !== 0) return bedCmp;
     }
     if (sortField === '床號') {

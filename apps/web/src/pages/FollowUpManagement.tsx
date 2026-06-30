@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useDeferredValue } from 'react';
 import { CalendarCheck, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Clock, MapPin, Car, UserCheck, ChevronUp, ChevronDown, Copy, MessageSquare, X, FileText } from 'lucide-react';
 import { usePatients, type FollowUpAppointment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -32,6 +32,7 @@ const FollowUpManagement: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<FollowUpAppointment | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('覆診日期');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -109,15 +110,15 @@ const FollowUpManagement: React.FC = () => {
     
     // 應用搜索條件
     let matchesSearch = true;
-    if (searchTerm) {
-      matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
-                         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
-                         fuzzyMatch(patient?.身份證號碼, searchTerm) ||
-                         matchBedNumber(patient?.床號, searchTerm) ||
-                         fuzzyMatch(appointment.覆診地點, searchTerm) ||
-                         fuzzyMatch(appointment.覆診專科, searchTerm) ||
-                         fuzzyMatch(appointment.備註, searchTerm) ||
-                         new Date(appointment.覆診日期).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase());
+    if (deferredSearch) {
+      matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, deferredSearch) ||
+                         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, deferredSearch) ||
+                         fuzzyMatch(patient?.身份證號碼, deferredSearch) ||
+                         matchBedNumber(patient?.床號, deferredSearch) ||
+                         fuzzyMatch(appointment.覆診地點, deferredSearch) ||
+                         fuzzyMatch(appointment.覆診專科, deferredSearch) ||
+                         fuzzyMatch(appointment.備註, deferredSearch) ||
+                         new Date(appointment.覆診日期).toLocaleDateString('zh-TW').includes(deferredSearch.toLowerCase());
     }
     
     return matchesSearch;
@@ -190,8 +191,8 @@ const FollowUpManagement: React.FC = () => {
   const sortedAppointments = [...filteredAppointments].sort((a, b) => {
     const patientA = patients.find(p => p.院友id === a.院友id);
     const patientB = patients.find(p => p.院友id === b.院友id);
-    if (searchTerm) {
-      const bedCmp = comparePatientsForSearch({ 床號: patientA?.床號 }, { 床號: patientB?.床號 }, searchTerm);
+    if (deferredSearch) {
+      const bedCmp = comparePatientsForSearch({ 床號: patientA?.床號 }, { 床號: patientB?.床號 }, deferredSearch);
       if (bedCmp !== 0) return bedCmp;
     }
     

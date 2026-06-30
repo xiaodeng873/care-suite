@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useDeferredValue } from 'react';
 import { ChevronDown, User, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
@@ -24,6 +24,7 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
   const { patients } = usePatients();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [residencyStatus, setResidencyStatus] = useState(defaultResidencyStatus);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,15 +42,15 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
     }
 
     // 再根據搜索條件篩選
-    if (!searchTerm) return true;
+    if (!deferredSearch) return true;
 
     return (
-      matchBedNumber(patient.床號, searchTerm) ||
-      matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
-      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
-      fuzzyMatch(patient.身份證號碼, searchTerm)
+      matchBedNumber(patient.床號, deferredSearch) ||
+      matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch) ||
+      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch) ||
+      fuzzyMatch(patient.身份證號碼, deferredSearch)
     );
-  }).sort((a, b) => comparePatientsForSearch(a, b, searchTerm));
+  }).sort((a, b) => comparePatientsForSearch(a, b, deferredSearch));
 
   // 處理點擊外部關閉
   useEffect(() => {

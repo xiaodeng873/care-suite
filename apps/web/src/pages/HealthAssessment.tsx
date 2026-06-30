@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useDeferredValue } from 'react';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import {
@@ -33,6 +33,7 @@ import HealthRecordModal from '../components/HealthRecordModal';
 import DeduplicateRecordsModal from '../components/DeduplicateRecordsModal';
 import RecycleBinModal from '../components/RecycleBinModal';
 import TemperatureWorksheetModal from '../components/TemperatureWorksheetModal';
+import GenerateTemperatureModal from '../components/GenerateTemperatureModal';
 import { exportVitalSignsToExcel, type VitalSignExportData } from '../utils/vitalsignExcelGenerator';
 import { exportBloodSugarToExcel, type BloodSugarExportData } from '../utils/bloodSugarExcelGenerator';
 import PatientTooltip from '../components/PatientTooltip';
@@ -55,9 +56,6 @@ const HealthAssessment: React.FC = () => {
     patients,
     loading,
     deleteHealthRecord,
-    generateRandomTemperaturesForActivePatients,
-    recordDailyTemperatureGenerationCompletion,
-    checkEligiblePatientsForTemperature,
     findDuplicateHealthRecords,
     batchDeleteDuplicateRecords,
     refreshData,
@@ -70,6 +68,7 @@ const HealthAssessment: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [sortField, setSortField] = useState<SortField>('記錄日期');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -82,6 +81,7 @@ const HealthAssessment: React.FC = () => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
   const [showTemperatureModal, setShowTemperatureModal] = useState(false);
+  const [showGenerateTemperatureModal, setShowGenerateTemperatureModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
@@ -96,7 +96,6 @@ const HealthAssessment: React.FC = () => {
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
-  const [isGeneratingTemperature, setIsGeneratingTemperature] = useState(false);
   // Helper functions
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');
@@ -175,13 +174,13 @@ const HealthAssessment: React.FC = () => {
       }
     }
     let matchesSearch = true;
-    if (searchTerm) {
-      matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
-                         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
-                         fuzzyMatch(patient?.身份證號碼, searchTerm) ||
-                         matchBedNumber(patient?.床號, searchTerm) ||
-                         fuzzyMatch(record.備註, searchTerm) ||
-                         fuzzyMatch(new Date(record.記錄日期).toLocaleDateString('zh-TW'), searchTerm) ||
+    if (deferredSearch) {
+      matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, deferredSearch) ||
+                         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, deferredSearch) ||
+                         fuzzyMatch(patient?.身份證號碼, deferredSearch) ||
+                         matchBedNumber(patient?.床號, deferredSearch) ||
+                         fuzzyMatch(record.備註, deferredSearch) ||
+                         fuzzyMatch(new Date(record.記錄日期).toLocaleDateString('zh-TW'), deferredSearch) ||
                          false;
     }
     return matchesSearch;
@@ -189,8 +188,8 @@ const HealthAssessment: React.FC = () => {
   const sortedRecords = [...filteredRecords].sort((a, b) => {
     const patientA = patients.find(p => p.院友id === a.院友id);
     const patientB = patients.find(p => p.院友id === b.院友id);
-    if (searchTerm) {
-      const bedCmp = comparePatientsForSearch({ 床號: patientA?.床號 }, { 床號: patientB?.床號 }, searchTerm);
+    if (deferredSearch) {
+      const bedCmp = comparePatientsForSearch({ 床號: patientA?.床號 }, { 床號: patientB?.床號 }, deferredSearch);
       if (bedCmp !== 0) return bedCmp;
     }
     let valueA: string | number = '';
@@ -542,27 +541,6 @@ const HealthAssessment: React.FC = () => {
       throw error;
     }
   };
-  const handleGenerateRandomTemperatures = async () => {
-    try {
-      setIsGeneratingTemperature(true);
-      const { eligiblePatients, excludedPatients } = checkEligiblePatientsForTemperature();
-      let confirmMessage = `一鍵生成體溫記錄\n\n`;
-      confirmMessage += `將為 ${eligiblePatients.length} 位符合條件的院友生成體溫記錄\n`;
-      if (eligiblePatients.length === 0) {
-        alert(confirmMessage + '\n\n沒有符合條件的院友需要生成體溫記錄。');
-        return;
-      }
-      if (!confirm(confirmMessage + '\n\n確定要生成體溫記錄嗎？')) return;
-      const count = await generateRandomTemperaturesForActivePatients();
-      await recordDailyTemperatureGenerationCompletion();
-      alert(`成功為 ${count} 位院友生成體溫記錄！`);
-      if (refreshData) await refreshData();
-    } catch (error) {
-      alert('生成體溫記錄失敗');
-    } finally {
-      setIsGeneratingTemperature(false);
-    }
-  };
   const calculateWeightChange = (currentWeight: number, patientId: number, currentDate: string): string => {
     const allWeightRecords = healthRecords
       .filter(r => r.院友id === patientId && r.監測類型 === '體重')
@@ -725,23 +703,13 @@ const HealthAssessment: React.FC = () => {
                       </button>
                       <button
                         onClick={() => {
-                          handleGenerateRandomTemperatures();
+                          setShowGenerateTemperatureModal(true);
                           setShowMoreMenu(false);
                         }}
-                        disabled={isGeneratingTemperature}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 last:rounded-b-lg flex flex-wrap items-center gap-2 disabled:opacity-50"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 last:rounded-b-lg flex flex-wrap items-center gap-2"
                       >
-                        {isGeneratingTemperature ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600"></div>
-                            <span>生成中...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Thermometer className="h-4 w-4" />
-                            <span>一鍵生成體溫</span>
-                          </>
-                        )}
+                        <Thermometer className="h-4 w-4" />
+                        <span>一鍵生成體溫</span>
                       </button>
                     </div>
                   </div>
@@ -1186,6 +1154,11 @@ const HealthAssessment: React.FC = () => {
       {showTemperatureModal && (
         <TemperatureWorksheetModal
           onClose={() => setShowTemperatureModal(false)}
+        />
+      )}
+      {showGenerateTemperatureModal && (
+        <GenerateTemperatureModal
+          onClose={() => setShowGenerateTemperatureModal(false)}
         />
       )}
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useDeferredValue } from 'react';
 import { X, ArrowRightLeft, User, Bed, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientTooltip from './PatientTooltip';
@@ -14,6 +14,8 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
   const [selectedPatient2, setSelectedPatient2] = useState<any>(null);
   const [searchTerm1, setSearchTerm1] = useState('');
   const [searchTerm2, setSearchTerm2] = useState('');
+  const deferredSearch1 = useDeferredValue(searchTerm1);
+  const deferredSearch2 = useDeferredValue(searchTerm2);
 
   // 只顯示有床位的在住院友
   const patientsWithBeds = patients.filter(patient => 
@@ -21,14 +23,14 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
   );
 
   const filteredPatients1 = patientsWithBeds.filter(patient => {
-    if (!searchTerm1) return true;
+    if (!deferredSearch1) return true;
     return (
-      matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm1) ||
-      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm1) ||
-      matchBedNumber(patient.床號, searchTerm1) ||
-      fuzzyMatch(patient.身份證號碼, searchTerm1)
+      matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch1) ||
+      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch1) ||
+      matchBedNumber(patient.床號, deferredSearch1) ||
+      fuzzyMatch(patient.身份證號碼, deferredSearch1)
     );
-  }).sort((a, b) => comparePatientsForSearch(a, b, searchTerm1));
+  }).sort((a, b) => comparePatientsForSearch(a, b, deferredSearch1));
 
   const filteredPatients2 = patientsWithBeds.filter(patient => {
     // 排除已選擇的第一位院友
@@ -36,14 +38,14 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
       return false;
     }
     
-    if (!searchTerm2) return true;
+    if (!deferredSearch2) return true;
     return (
-      matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm2) ||
-      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm2) ||
-      matchBedNumber(patient.床號, searchTerm2) ||
-      fuzzyMatch(patient.身份證號碼, searchTerm2)
+      matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch2) ||
+      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch2) ||
+      matchBedNumber(patient.床號, deferredSearch2) ||
+      fuzzyMatch(patient.身份證號碼, deferredSearch2)
     );
-  }).sort((a, b) => comparePatientsForSearch(a, b, searchTerm2));
+  }).sort((a, b) => comparePatientsForSearch(a, b, deferredSearch2));
 
   const getPatientBedInfo = (patient: any) => {
     const bed = beds.find(b => b.id === patient.bed_id);

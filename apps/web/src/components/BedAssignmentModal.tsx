@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useDeferredValue } from 'react';
 import { X, Bed, User, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientTooltip from './PatientTooltip';
@@ -12,6 +12,7 @@ interface BedAssignmentModalProps {
 const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose }) => {
   const { patients, stations, assignPatientToBed } = usePatients();
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
   const station = stations.find(s => s.id === bed.station_id);
@@ -24,12 +25,12 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
     }
     
     // 搜索條件
-    if (searchTerm) {
+    if (deferredSearch) {
       const matchesSearch = (
-        matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
-        matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
-        matchBedNumber(patient.床號, searchTerm) ||
-        fuzzyMatch(patient.身份證號碼, searchTerm)
+        matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch) ||
+        matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch) ||
+        matchBedNumber(patient.床號, deferredSearch) ||
+        fuzzyMatch(patient.身份證號碼, deferredSearch)
       );
       
       // 只返回符合搜索條件且狀態為在住或待入住的院友
@@ -38,7 +39,7 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
     
     // 沒有搜索條件時，顯示所有在住和待入住的院友
     return patient.在住狀態 === '在住' || patient.在住狀態 === '待入住';
-  }).sort((a, b) => comparePatientsForSearch(a, b, searchTerm));
+  }).sort((a, b) => comparePatientsForSearch(a, b, deferredSearch));
 
   const handleAssign = async () => {
     if (!selectedPatient) {

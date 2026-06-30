@@ -33,10 +33,11 @@ const getTimeSlot = (time: string): '早餐' | '午餐' | '晚餐' | '宵夜' | 
   return null;
 };
 // 監測任務類型 → 工作紙分類（沿用上壓/下壓/脈搏/血糖欄位版面）。
-// 新版任務改為逐項生命表徵（血壓/脈搏/體溫/血含氧量/呼吸）以及血糖值/體重，
+// 新版任務改為逐項生命表徵（血壓/脈搏/血含氧量/呼吸）以及血糖值/體重，
 // 在此映射回三大分類，並於同一時段、同一院友去重，避免逐項任務產生多列。
+// 註：體溫任務改由「一鍵生成體溫」流程處理，故不納入監測工作紙。
 const WORKSHEET_CATEGORY_MAP: Record<string, '生命表徵' | '血糖控制' | '體重控制'> = {
-  '血壓': '生命表徵', '脈搏': '生命表徵', '體溫': '生命表徵',
+  '血壓': '生命表徵', '脈搏': '生命表徵',
   '血含氧量': '生命表徵', '呼吸': '生命表徵', '生命表徵': '生命表徵',
   '血糖值': '血糖控制', '血糖控制': '血糖控制',
   '體重': '體重控制', '體重控制': '體重控制',
@@ -44,8 +45,9 @@ const WORKSHEET_CATEGORY_MAP: Record<string, '生命表徵' | '血糖控制' | '
 // 注意：health_record_type 為 Postgres enum (health_task_type)，
 // 只可查詢實際存在於 enum 的值。傳入舊版彙總值（生命表徵/血糖控制/體重控制）
 // 會令整個查詢拋出 22P02 enum 錯誤，導致工作紙空白。
+// 體溫不納入工作紙（改由一鍵生成體溫流程處理）。
 const MONITORING_WORKSHEET_TYPES = [
-  '血壓', '脈搏', '體溫', '血含氧量', '呼吸', '血糖值', '體重',
+  '血壓', '脈搏', '血含氧量', '呼吸', '血糖值', '體重',
 ];
 const fetchTasksForDate = async (targetDate: Date): Promise<TimeSlotTasks> => {
   const { data: allTasks, error } = await supabase

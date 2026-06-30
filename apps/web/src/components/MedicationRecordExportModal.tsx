@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { X, FileDown, Calendar, Users, CheckSquare, Square, AlertCircle, Pill, Syringe, Package } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { getTemplatesMetadata } from '../lib/database';
@@ -74,6 +74,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   const [outputFormat, setOutputFormat] = useState<'excel' | 'html'>('excel');
   const [isExporting, setIsExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [prescriptionsWithWorkflowRecords, setPrescriptionsWithWorkflowRecords] = useState<Set<string>>(new Set());
   // 空白藥紙途徑選擇
   const [blankRouteOral, setBlankRouteOral] = useState(true);
@@ -89,17 +90,17 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   }, [patients]);
 
   const filteredPatients = useMemo(() => {
-    if (!searchTerm) return activePatients;
+    if (!deferredSearch) return activePatients;
 
     return activePatients.filter(p => {
       return (
-        matchChineseName(p.中文姓氏, p.中文名字, p.中文姓名, searchTerm) ||
-        matchEnglishName(p.英文姓氏, p.英文名字, p.英文姓名, searchTerm) ||
-        matchBedNumber(p.床號, searchTerm) ||
-        fuzzyMatch(p.身份證號碼, searchTerm)
+        matchChineseName(p.中文姓氏, p.中文名字, p.中文姓名, deferredSearch) ||
+        matchEnglishName(p.英文姓氏, p.英文名字, p.英文姓名, deferredSearch) ||
+        matchBedNumber(p.床號, deferredSearch) ||
+        fuzzyMatch(p.身份證號碼, deferredSearch)
       );
-    }).sort((a, b) => comparePatientsForSearch(a, b, searchTerm));
-  }, [activePatients, searchTerm]);
+    }).sort((a, b) => comparePatientsForSearch(a, b, deferredSearch));
+  }, [activePatients, deferredSearch]);
 
   // 查詢在選定月份有工作流程記錄的處方
   useEffect(() => {

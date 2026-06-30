@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useDeferredValue } from 'react';
 import { X, Users, Plus, Search, User } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { getReasonBadgeClass, getReasonIcon } from '../utils/reasonColors';
@@ -14,6 +14,7 @@ const PatientSelectModal: React.FC<PatientSelectModalProps> = ({ scheduleId, onC
   const { patients, schedules, updateSchedule, serviceReasons } = usePatients();
   const [selectedPatients, setSelectedPatients] = useState<{[key: number]: any}>({});
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   
   const currentSchedule = schedules.find(s => s.排程id === scheduleId);
   const existingPatientIds = currentSchedule?.院友列表.map(p => p.院友id) || [];
@@ -63,15 +64,15 @@ const PatientSelectModal: React.FC<PatientSelectModalProps> = ({ scheduleId, onC
     .filter(p => !existingPatientIds.includes(p.院友id))
     .filter(p => p.在住狀態 !== '已退住') // 隱藏已退住的院友
     .filter(patient => {
-      if (!searchTerm) return true;
+      if (!deferredSearch) return true;
       return (
-        matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, searchTerm) ||
-        matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, searchTerm) ||
-        matchBedNumber(patient.床號, searchTerm) ||
-        fuzzyMatch(patient.身份證號碼, searchTerm)
+        matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch) ||
+        matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch) ||
+        matchBedNumber(patient.床號, deferredSearch) ||
+        fuzzyMatch(patient.身份證號碼, deferredSearch)
       );
     })
-    .sort((a, b) => comparePatientsForSearch(a, b, searchTerm));
+    .sort((a, b) => comparePatientsForSearch(a, b, deferredSearch));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
