@@ -543,6 +543,7 @@ const Dashboard: React.FC = () => {
       else if (hour >= 10 && hour < 13) lunch.push(task);
       else if (hour >= 13 && hour < 18) dinner.push(task);
       else if (hour >= 18 && hour <= 20) snack.push(task);
+      else breakfast.push(task); // 無特定時段（如午夜 00:00）或超出範圍，預設歸入早餐段確保不被丟棄
     });
     // 第一順序：任務特定時間（時:分，忽略日期）；第二順序：床號
     const timeOfDay = (task: typeof urgentMonitoringTasks[number]) => {
