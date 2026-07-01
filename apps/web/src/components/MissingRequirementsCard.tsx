@@ -8,6 +8,7 @@ interface Patient {
   中文姓氏?: string;
   中文名字?: string;
   院友相片?: string;
+  在住狀態?: string;
 }
 
 interface MissingTask {
@@ -77,6 +78,7 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
   onAddCarePlan,
 }) => {
   const [showAll, setShowAll] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'在住' | '全部'>('在住');
 
   // 按院友分組所有欠缺項目
   const groupedByPatient = useMemo<PatientMissing[]>(() => {
@@ -156,14 +158,19 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
     });
 
     // 轉換為陣列並按欠缺項目數量排序（從多到少），相同數量則按床號排序
-    return Array.from(patientMap.values()).sort((a, b) => {
+    return Array.from(patientMap.values())
+      .filter(g => {
+        if (statusFilter === '在住') return !g.patient.在住狀態 || g.patient.在住狀態 === '在住';
+        return true;
+      })
+      .sort((a, b) => {
       // 先按欠缺項目數量排序（降序）
       const itemsDiff = b.items.length - a.items.length;
       if (itemsDiff !== 0) return itemsDiff;
       // 數量相同則按床號排序
       return a.patient.床號.localeCompare(b.patient.床號, 'zh-Hant', { numeric: true });
     });
-  }, [missingTasks, missingMealGuidance, missingDeathDate, missingVaccination, missingHealthAssessment, missingCarePlan]);
+  }, [missingTasks, missingMealGuidance, missingDeathDate, missingVaccination, missingHealthAssessment, missingCarePlan, statusFilter]);
 
   const totalMissing = groupedByPatient.length;
   const displayPatients = showAll ? groupedByPatient : groupedByPatient.slice(0, 3);
@@ -219,6 +226,20 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
               共 {totalMissing} 位院友欠缺必要項目
             </p>
           </div>
+        </div>
+        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => { setStatusFilter('在住'); setShowAll(false); }}
+            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+              statusFilter === '在住' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >在住</button>
+          <button
+            onClick={() => { setStatusFilter('全部'); setShowAll(false); }}
+            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+              statusFilter === '全部' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >全部</button>
         </div>
       </div>
 

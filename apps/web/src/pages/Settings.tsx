@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode, Building2 } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode, Building2, Pill } from 'lucide-react';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { UserQRCodeModal } from '../components/UserQRCodeModal';
 import FacilitySettingsPanel from '../components/FacilitySettingsPanel';
+import MedicationSettingsPanel from '../components/MedicationSettingsPanel';
 import { fuzzyMatch } from '../utils/searchUtils';
 import { useAuth, supabase } from '../context/AuthContext';
 import { getSupabaseUrl, getSupabaseAnonKey } from '../config/supabase.config';
@@ -803,7 +804,7 @@ const Settings: React.FC = () => {
   const { canManageUsers, isDeveloper, isAdmin, customToken, user, session } = useAuth();
   
   // 設定分類
-  const [activeCategory, setActiveCategory] = useState<'users' | 'facility'>('users');
+  const [activeCategory, setActiveCategory] = useState<'users' | 'facility' | 'medication'>('users');
 
   // 用戶列表狀態
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -1151,11 +1152,29 @@ const Settings: React.FC = () => {
             <Building2 className="h-4 w-4" />
             院舍設定
           </button>
+          <button
+            onClick={() => setActiveCategory('medication')}
+            className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${
+              activeCategory === 'medication'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Pill className="h-4 w-4" />
+            藥物設定
+          </button>
         </nav>
       </div>
 
       {/* 院舍設定區塊 */}
       {activeCategory === 'facility' && <FacilitySettingsPanel />}
+
+      {/* 藥物設定區塊 */}
+      {activeCategory === 'medication' && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <MedicationSettingsPanel />
+        </div>
+      )}
 
       {/* 用戶管理區塊 */}
       {activeCategory === 'users' && (

@@ -22,7 +22,7 @@ function mapRow(row: {
 }): FacilitySettings {
   return {
     facilityNameZh: row.facility_name_zh?.trim() || DEFAULT_FACILITY_SETTINGS.facilityNameZh,
-    facilityNameEn: row.facility_name_en?.trim() || DEFAULT_FACILITY_SETTINGS.facilityNameEn,
+    facilityNameEn: row.facility_name_en?.trim() ?? '',
     logoDataUri: row.logo_data_uri || null,
   };
 }
@@ -81,7 +81,7 @@ export async function saveFacilitySettings(settings: FacilitySettings): Promise<
 
   cachedSettings = {
     facilityNameZh,
-    facilityNameEn: settings.facilityNameEn.trim() || DEFAULT_FACILITY_SETTINGS.facilityNameEn,
+    facilityNameEn: settings.facilityNameEn.trim(),
     logoDataUri: settings.logoDataUri || null,
   };
 }

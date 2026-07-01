@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Pill, Calendar, Clock, User, AlertTriangle, Plus, Trash2, Sparkles } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import DrugAutocomplete from './DrugAutocomplete';
 import OCRPrescriptionBlock from './OCRPrescriptionBlock';
 import { mapOCRDataToPrescriptionForm, getConfidenceColor, getConfidenceIcon } from '../utils/ocrFieldMapper';
+import { getMedicationSettings } from '../utils/medicationSettings';
 
 interface PrescriptionModalProps {
   prescription?: any;
@@ -13,6 +14,8 @@ interface PrescriptionModalProps {
 
 const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onClose }) => {
   const { addPrescription, updatePrescription, patients } = usePatients();
+  // 每次開啟 modal 時讀取一次（已儲存的設定）
+  const medSettings = useMemo(() => getMedicationSettings(), []);
 
   // 香港時區輔助函數
   const getHongKongDate = () => {
@@ -711,13 +714,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   className={getFieldClassName('dosage_form', 'form-input')}
                 >
                   <option value="">請選擇劑型</option>
-                  <option value="片劑">片劑</option>
-                  <option value="膠囊">膠囊</option>
-                  <option value="藥水">藥水</option>
-                  <option value="注射劑">注射劑</option>
-                  <option value="外用藥膏">外用藥膏</option>
-                  <option value="滴劑">滴劑</option>
-                  <option value="皮膚貼劑">皮膚貼劑</option>
+                  {medSettings.劑型.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div>
 
@@ -733,14 +730,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   className={getFieldClassName('administration_route', 'form-input')}
                 >
                   <option value="">請選擇途徑</option>
-                  <option value="口服">口服</option>
-                  <option value="肌肉注射">肌肉注射</option>
-                  <option value="皮下注射">皮下注射</option>
-                  <option value="外用">外用</option>
-                  <option value="滴眼">滴眼</option>
-                  <option value="滴耳">滴耳</option>
-                  <option value="鼻胃管">鼻胃管</option>
-                  <option value="吸入">吸入</option>
+                  {medSettings.服用途徑.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div>
 
@@ -758,13 +748,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   }}
                   className="form-input"
                 >
-                  <option value={1}>QD (每日1次)</option>
-                  <option value={2}>BD (每日2次)</option>
-                  <option value={3}>TDS (每日3次)</option>
-                  <option value={4}>QID (每日4次)</option>
-                  <option value={5}>每日5次</option>
-                  <option value={6}>每日6次</option>
-                  <option value={8}>每日8次</option>
+                  {medSettings.每日次數.map(n => {
+                    const labels: Record<number,string> = {1:'QD',2:'BD',3:'TDS',4:'QID'};
+                    return <option key={n} value={n}>{labels[n] ? `${labels[n]} (每日${n}次)` : `每日${n}次`}</option>;
+                  })}
                 </select>
               </div>
 
@@ -822,21 +809,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                         className="form-input"
                       >
                         <option value="">請選擇單位</option>
-                        <option value="粒">粒</option>
-                        <option value="片">片</option>
-                        <option value="膠囊">膠囊</option>
-                        <option value="毫升">毫升</option>
-                        <option value="滴">滴</option>
-                        <option value="口">口</option>
-                        <option value="支">支</option>
-                        <option value="包">包</option>
-                        <option value="茶匙">茶匙</option>
-                        <option value="湯匙">湯匙</option>
-                        <option value="mg">mg</option>
-                        <option value="ml">ml</option>
-                        <option value="g">g</option>
-                        <option value="mcg">mcg</option>
-                        <option value="IU">IU</option>
+                        {medSettings.服用單位.map(v => <option key={v} value={v}>{v}</option>)}
                       </select>
                     </div>
                   </div>
@@ -850,10 +823,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                       className="form-input"
                     >
                       <option value="適量">適量</option>
-                      <option value="搽患處">搽患處</option>
-                      <option value="貼在皮膚上">貼在皮膚上</option>
-                      <option value="薄薄一層">薄薄一層</option>
-                      <option value="按需要使用">按需要使用</option>
+                      {medSettings.特殊用法.filter(v => v !== '適量').map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                   </div>
                 )}
@@ -868,22 +838,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   className="form-input"
                 >
                   <option value="">請選擇時段</option>
-                  <option value="餐前">餐前</option>
-                  <option value="進餐時">進餐時</option>
-                  <option value="餐後">餐後</option>
-                  <option value="早餐前">早餐前</option>
-                  <option value="早餐時">早餐時</option>
-                  <option value="早餐後">早餐後</option>
-                  <option value="午餐前">午餐前</option>
-                  <option value="午餐時">午餐時</option>
-                  <option value="午餐後">午餐後</option>
-                  <option value="晚餐前">晚餐前</option>
-                  <option value="晚餐時">晚餐時</option>
-                  <option value="晚餐後">晚餐後</option>
-                  <option value="早上">早上</option>
-                  <option value="中午">中午</option>
-                  <option value="晚上">晚上</option>
-                  <option value="睡前">睡前</option>
+                  {medSettings.服用時段.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div>
 
