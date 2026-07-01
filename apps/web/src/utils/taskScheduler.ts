@@ -30,19 +30,21 @@ export function isTaskScheduledForDate(task: any, date: Date): boolean {
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   };
+  // [時區修復] 以 UTC 日曆日作為「建立邊界」，與 next_due_at（以 UTC 午夜儲存）一致。
+  // 避免 created_at 働晚時間（UTC）在正時區被進位到隳天，導致任務在其自身應做日被誤判為「尚未建立」而跳過。
+  const createdBoundaryStr = task.created_at
+    ? (() => {
+        const c = new Date(task.created_at);
+        return `${c.getUTCFullYear()}-${String(c.getUTCMonth() + 1).padStart(2, '0')}-${String(c.getUTCDate()).padStart(2, '0')}`;
+      })()
+    : null;
   if (task.frequency_unit === 'daily') {
     const freqValue = task.frequency_value || 1;
     if (freqValue === 1) {
       // [修復] 與 weekly/monthly 一致：不要把任務建立日期之前的日子視為已排程
       // （避免遷移前未記錄的日子被誤判為逾期）
-      if (task.created_at) {
-        const targetDate = new Date(date);
-        targetDate.setHours(0, 0, 0, 0);
-        const createdDate = new Date(task.created_at);
-        createdDate.setHours(0, 0, 0, 0);
-        if (targetDate < createdDate) {
-          return false;
-        }
+      if (createdBoundaryStr && formatLocalDate(date) < createdBoundaryStr) {
+        return false;
       }
       return true;
     }
@@ -75,12 +77,8 @@ export function isTaskScheduledForDate(task: any, date: Date): boolean {
        const targetDate = new Date(date);
        targetDate.setHours(0, 0, 0, 0);
        const targetDateStr = formatLocalDate(targetDate);
-       if (task.created_at) {
-         const createdDate = new Date(task.created_at);
-         createdDate.setHours(0, 0, 0, 0);
-         if (targetDate < createdDate) {
-           return false;
-         }
+       if (createdBoundaryStr && targetDateStr < createdBoundaryStr) {
+         return false;
        }
        const day = date.getDay();
        const dbDay = day === 0 ? 7 : day;
@@ -94,12 +92,8 @@ export function isTaskScheduledForDate(task: any, date: Date): boolean {
      if (task.specific_days_of_month && task.specific_days_of_month.length > 0) {
        const targetDate = new Date(date);
        targetDate.setHours(0, 0, 0, 0);
-       if (task.created_at) {
-         const createdDate = new Date(task.created_at);
-         createdDate.setHours(0, 0, 0, 0);
-         if (targetDate < createdDate) {
-           return false;
-         }
+       if (createdBoundaryStr && formatLocalDate(targetDate) < createdBoundaryStr) {
+         return false;
        }
        return task.specific_days_of_month.includes(date.getDate());
      }
