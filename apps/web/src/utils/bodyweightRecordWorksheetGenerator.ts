@@ -7,15 +7,17 @@ import {
 import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 院友體溫記錄表（A4 直印）
-// 嚴格複刻紙本表格：5 組「日期 / 體溫 C°」欄位 × 30 列，含院舍抬頭與頁尾編號。
-// 映射關係：每位在住院友的「健康監測記錄（監測類型 = 體溫）」依日期/時間排序，
-// 以欄為主（column-major）由左組到右組、由上而下填入日期與數值。
+// 院友體重記錄表（A4 直印）
+// 嚴格複刻體溫記錄表版式，惟表頭字眼改為體重，並將欄位改為 2 組
+// 「日期 / 體重 Kg / 比較上次 / 跟進行動」（共 8 欄），其中「跟進行動」欄寬為其他欄的兩倍。
+// 「比較上次」= 該筆體重與上一筆記錄比較的增/減百分比（沿用體重控制的計算邏輯）。
+// 映射關係：每位在住院友的「健康監測記錄（監測類型 = 體重）」依日期/時間排序，
+// 以欄為主（column-major）由左組到右組、由上而下填入。
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ROWS_PER_PAGE = 32; // 每頁資料列數（不計表頭）
-const PAIRS_PER_PAGE = 5; // 每頁「日期/體溫」組數
-const CELLS_PER_PAGE = ROWS_PER_PAGE * PAIRS_PER_PAGE; // 每頁可容納的記錄數 = 160
+const GROUPS_PER_PAGE = 2; // 每頁「日期/體重/比較上次/跟進行動」組數
+const CELLS_PER_PAGE = ROWS_PER_PAGE * GROUPS_PER_PAGE; // 每頁可容納的記錄數 = 64
 const FOOTER_LABEL = '更新 B26 FK (09/2016)';
 
 interface PatientRow {
@@ -26,16 +28,17 @@ interface PatientRow {
   出生日期: string | null;
 }
 
-interface TempRecord {
+interface WeightRecord {
   院友id: number;
   記錄日期: string;
   記錄時間: string | null;
   數值: number | null;
 }
 
-interface TempCell {
+interface WeightCell {
   date: string;
-  value: string;
+  weight: string;
+  compare: string;
 }
 
 let activeFacility: FacilitySettings = DEFAULT_FACILITY_SETTINGS;
@@ -76,9 +79,20 @@ const formatShortDate = (dateStr: string): string => {
   return `${yy}/${date.getMonth() + 1}/${date.getDate()}`;
 };
 
-const formatTemperature = (value: number | null): string => {
+const formatWeight = (value: number | null): string => {
   if (value == null || Number.isNaN(value)) return '';
-  return Number.isInteger(value) ? value.toFixed(1) : String(value);
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+};
+
+// 沿用體重控制的比較邏輯：與上一筆記錄比較的增/減百分比
+const formatCompare = (current: number | null, previous: number | null): string => {
+  if (current == null || Number.isNaN(current)) return '';
+  if (previous == null || Number.isNaN(previous) || previous === 0) return '—';
+  const difference = current - previous;
+  if (difference === 0) return '無變化';
+  const percentage = (difference / previous) * 100;
+  const sign = difference > 0 ? '+' : '';
+  return `${sign}${percentage.toFixed(1)}%`;
 };
 
 // 取得院友（依床號排序）；提供 patientIds 時僅取指定院友，否則取全部在住院友
@@ -99,30 +113,39 @@ const fetchInResidencePatients = async (patientIds?: number[]): Promise<PatientR
   return (data ?? []) as PatientRow[];
 };
 
-// 取得指定日期範圍內的所有體溫記錄
-const fetchTemperatureRecords = async (startDate: string, endDate: string): Promise<TempRecord[]> => {
+// 取得指定日期範圍內的所有體重記錄
+const fetchWeightRecords = async (startDate: string, endDate: string): Promise<WeightRecord[]> => {
   const { data, error } = await supabase
     .from('健康監測記錄')
     .select('院友id, 記錄日期, 記錄時間, 數值')
-    .eq('監測類型', '體溫')
+    .eq('監測類型', '體重')
     .gte('記錄日期', startDate)
     .lte('記錄日期', endDate)
     .order('記錄日期', { ascending: true })
     .order('記錄時間', { ascending: true });
   if (error) {
-    console.error('讀取體溫記錄失敗:', error);
+    console.error('讀取體重記錄失敗:', error);
     throw error;
   }
-  return (data ?? []) as TempRecord[];
+  return (data ?? []) as WeightRecord[];
 };
 
-// 將院友的體溫記錄切成多頁（每頁最多 150 筆）
-const chunkRecordsIntoPages = (records: TempRecord[]): TempCell[][] => {
-  const cells: TempCell[] = records.map(r => ({
-    date: formatShortDate(r.記錄日期),
-    value: formatTemperature(r.數值),
+// 將一位院友的體重記錄轉為含「比較上次」的儲存格（依日期/時間排序）
+const buildCells = (records: WeightRecord[]): WeightCell[] => {
+  const sorted = [...records].sort((a, b) =>
+    new Date(`${a.記錄日期} ${a.記錄時間 ?? '00:00'}`).getTime()
+    - new Date(`${b.記錄日期} ${b.記錄時間 ?? '00:00'}`).getTime()
+  );
+  return sorted.map((record, index) => ({
+    date: formatShortDate(record.記錄日期),
+    weight: formatWeight(record.數值),
+    compare: formatCompare(record.數值, index > 0 ? sorted[index - 1].數值 : null),
   }));
-  const pages: TempCell[][] = [];
+};
+
+// 將院友的儲存格切成多頁
+const chunkCellsIntoPages = (cells: WeightCell[]): WeightCell[][] => {
+  const pages: WeightCell[][] = [];
   if (cells.length === 0) {
     // 沒有記錄的院友仍輸出一張空白表
     pages.push([]);
@@ -134,16 +157,16 @@ const chunkRecordsIntoPages = (records: TempRecord[]): TempCell[][] => {
   return pages;
 };
 
-// 將一頁的記錄以「欄為主」排成 30 列 × 5 組
-const buildGrid = (cells: TempCell[]): (TempCell | null)[][] => {
-  const grid: (TempCell | null)[][] = Array.from({ length: ROWS_PER_PAGE }, () =>
-    Array.from({ length: PAIRS_PER_PAGE }, () => null as TempCell | null)
+// 將一頁的記錄以「欄為主」排成 32 列 × 2 組
+const buildGrid = (cells: WeightCell[]): (WeightCell | null)[][] => {
+  const grid: (WeightCell | null)[][] = Array.from({ length: ROWS_PER_PAGE }, () =>
+    Array.from({ length: GROUPS_PER_PAGE }, () => null as WeightCell | null)
   );
   cells.forEach((cell, index) => {
-    const pair = Math.floor(index / ROWS_PER_PAGE); // 0..4
-    const row = index % ROWS_PER_PAGE; // 0..29
-    if (pair < PAIRS_PER_PAGE) {
-      grid[row][pair] = cell;
+    const group = Math.floor(index / ROWS_PER_PAGE); // 0..1
+    const row = index % ROWS_PER_PAGE; // 0..31
+    if (group < GROUPS_PER_PAGE) {
+      grid[row][group] = cell;
     }
   });
   return grid;
@@ -155,56 +178,57 @@ const renderHeader = (): string => {
   const nameEn = activeFacility.facilityNameEn?.trim() || '';
   const logoAlt = nameEn ? `${nameZh} ${nameEn}` : nameZh;
   return `
-    <div class="tr-header">
-      <div class="tr-side-spacer"></div>
-      <div class="tr-title-block">
-        <div class="tr-org">${escapeHtml(nameZh)}</div>
-        <div class="tr-doc">院友體溫記錄</div>
+    <div class="wr-header">
+      <div class="wr-side-spacer"></div>
+      <div class="wr-title-block">
+        <div class="wr-org">${escapeHtml(nameZh)}</div>
+        <div class="wr-doc">院友體重記錄</div>
       </div>
-      <div class="tr-logo-block">
-        <img class="tr-logo" src="${escapeAttr(logo)}" alt="${escapeAttr(logoAlt)}">
-        ${nameEn ? `<div class="tr-logo-text">${escapeHtml(nameEn)}</div>` : ''}
+      <div class="wr-logo-block">
+        <img class="wr-logo" src="${escapeAttr(logo)}" alt="${escapeAttr(logoAlt)}">
+        ${nameEn ? `<div class="wr-logo-text">${escapeHtml(nameEn)}</div>` : ''}
       </div>
     </div>
   `;
 };
 
 const renderInfoRow = (patient: PatientRow, pageLabel: string): string => `
-  <div class="tr-info">
-    <div class="tr-info-item"><span class="tr-info-label">姓名：</span><span class="tr-info-value">${escapeHtml(patient.中文姓名 ?? '')}</span></div>
-    <div class="tr-info-item"><span class="tr-info-label">床號：</span><span class="tr-info-value">${escapeHtml(patient.床號 ?? '')}</span></div>
-    <div class="tr-info-item"><span class="tr-info-label">性別/年齡：</span><span class="tr-info-value">${escapeHtml(formatGenderAge(patient))}</span></div>
-    <div class="tr-info-item"><span class="tr-info-label">頁數：</span><span class="tr-info-value">${escapeHtml(pageLabel)}</span></div>
+  <div class="wr-info">
+    <div class="wr-info-item"><span class="wr-info-label">姓名：</span><span class="wr-info-value">${escapeHtml(patient.中文姓名 ?? '')}</span></div>
+    <div class="wr-info-item"><span class="wr-info-label">床號：</span><span class="wr-info-value">${escapeHtml(patient.床號 ?? '')}</span></div>
+    <div class="wr-info-item"><span class="wr-info-label">性別/年齡：</span><span class="wr-info-value">${escapeHtml(formatGenderAge(patient))}</span></div>
+    <div class="wr-info-item"><span class="wr-info-label">頁數：</span><span class="wr-info-value">${escapeHtml(pageLabel)}</span></div>
   </div>
 `;
 
-const renderTable = (cells: TempCell[]): string => {
+const renderTable = (cells: WeightCell[]): string => {
   const grid = buildGrid(cells);
-  const headerCells = Array.from({ length: PAIRS_PER_PAGE }, () =>
-    '<th class="tr-th-date">日期</th><th class="tr-th-temp">體溫 C°</th>'
+  const headerCells = Array.from({ length: GROUPS_PER_PAGE }, () =>
+    '<th class="wr-th-date">日期</th><th class="wr-th-weight">體重 Kg</th><th class="wr-th-compare">比較上次</th><th class="wr-th-action">跟進行動</th>'
   ).join('');
   const bodyRows = grid.map(row => {
     const tds = row.map(cell => {
       const dateText = cell ? escapeHtml(cell.date) : '';
-      const valueText = cell ? escapeHtml(cell.value) : '';
-      return `<td class="tr-td-date">${dateText}</td><td class="tr-td-temp">${valueText}</td>`;
+      const weightText = cell ? escapeHtml(cell.weight) : '';
+      const compareText = cell ? escapeHtml(cell.compare) : '';
+      return `<td class="wr-td-date">${dateText}</td><td class="wr-td-weight">${weightText}</td><td class="wr-td-compare">${compareText}</td><td class="wr-td-action"></td>`;
     }).join('');
     return `<tr>${tds}</tr>`;
   }).join('');
   return `
-    <table class="tr-table">
+    <table class="wr-table">
       <thead><tr>${headerCells}</tr></thead>
       <tbody>${bodyRows}</tbody>
     </table>
   `;
 };
 
-const renderPage = (patient: PatientRow, cells: TempCell[], pageLabel: string): string => `
-  <section class="tr-page">
+const renderPage = (patient: PatientRow, cells: WeightCell[], pageLabel: string): string => `
+  <section class="wr-page">
     ${renderHeader()}
     ${renderInfoRow(patient, pageLabel)}
     ${renderTable(cells)}
-    <div class="tr-footer">${escapeHtml(FOOTER_LABEL)}</div>
+    <div class="wr-footer">${escapeHtml(FOOTER_LABEL)}</div>
   </section>
 `;
 
@@ -212,7 +236,7 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>院友體溫記錄</title>
+<title>院友體重記錄</title>
 <style>
   @page { size: A4 portrait; margin: 10mm; }
   * { box-sizing: border-box; }
@@ -221,7 +245,7 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
     font-family: "標楷體", "DFKai-SB", "BiauKai", "KaiTi", "TW-Kai", "AR PL UKai TW", serif;
     color: #000;
   }
-  .tr-page {
+  .wr-page {
     width: 190mm;
     min-height: 277mm;
     margin: 0 auto;
@@ -230,35 +254,35 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
     display: flex;
     flex-direction: column;
   }
-  .tr-page:last-child { page-break-after: auto; }
+  .wr-page:last-child { page-break-after: auto; }
 
   /* 抬頭 */
-  .tr-header {
+  .wr-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 4mm;
   }
-  .tr-side-spacer {
+  .wr-side-spacer {
     width: 34mm;
     flex-shrink: 0;
   }
-  .tr-title-block {
+  .wr-title-block {
     flex: 1;
     text-align: center;
   }
-  .tr-org { font-size: 24pt; font-weight: 700; letter-spacing: 2px; }
-  .tr-doc { font-size: 20pt; font-weight: 700; margin-top: 1mm; }
-  .tr-logo-block {
+  .wr-org { font-size: 24pt; font-weight: 700; letter-spacing: 2px; }
+  .wr-doc { font-size: 20pt; font-weight: 700; margin-top: 1mm; }
+  .wr-logo-block {
     width: 34mm;
     text-align: center;
     flex-shrink: 0;
   }
-  .tr-logo { max-width: 30mm; max-height: 16mm; object-fit: contain; }
-  .tr-logo-text { font-size: 8pt; font-weight: 700; margin-top: 0.5mm; }
+  .wr-logo { max-width: 30mm; max-height: 16mm; object-fit: contain; }
+  .wr-logo-text { font-size: 8pt; font-weight: 700; margin-top: 0.5mm; }
 
   /* 院友資訊列 */
-  .tr-info {
+  .wr-info {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
@@ -267,14 +291,14 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
     padding: 0 1mm;
     font-size: 11pt;
   }
-  .tr-info-item {
+  .wr-info-item {
     display: flex;
     align-items: baseline;
     white-space: nowrap;
     flex: 1;
   }
-  .tr-info-label { font-weight: 600; flex-shrink: 0; }
-  .tr-info-value {
+  .wr-info-label { font-weight: 600; flex-shrink: 0; }
+  .wr-info-value {
     flex: 1;
     border-bottom: 0.3mm solid #000;
     min-width: 14mm;
@@ -284,38 +308,41 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   }
 
   /* 表格 */
-  .tr-table {
+  .wr-table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
   }
-  .tr-table th, .tr-table td {
+  .wr-table th, .wr-table td {
     border: 0.3mm solid #000;
     text-align: center;
     vertical-align: middle;
     font-size: 10.5pt;
   }
-  /* 每一對「日期+體溫」之間加粗分隔線（體溫欄為每對最右欄） */
-  .tr-th-temp, .tr-td-temp {
+  /* 每組（日期/體重/比較上次/跟進行動）之間加粗分隔線（跟進行動欄為每組最右欄） */
+  .wr-th-action, .wr-td-action {
     border-right: 0.7mm solid #000;
   }
   /* 表格最左緣加粗，與右側分隔線對稱 */
-  .tr-th-date:first-child, .tr-td-date:first-child {
+  .wr-th-date:first-child, .wr-td-date:first-child {
     border-left: 0.7mm solid #000;
   }
-  .tr-table th {
+  .wr-table th {
     height: 7mm;
     font-weight: 700;
     background: #fff;
   }
-  .tr-table td {
+  .wr-table td {
     height: 7.2mm;
   }
-  .tr-th-date, .tr-td-date { width: 11%; }
-  .tr-th-temp, .tr-td-temp { width: 9%; }
+  /* 欄寬：日期/體重/比較上次均寬，跟進行動為兩倍寬 */
+  .wr-th-date, .wr-td-date { width: 10%; }
+  .wr-th-weight, .wr-td-weight { width: 10%; }
+  .wr-th-compare, .wr-td-compare { width: 10%; }
+  .wr-th-action, .wr-td-action { width: 20%; }
 
   /* 頁尾 */
-  .tr-footer {
+  .wr-footer {
     margin-top: auto;
     padding-top: 2mm;
     text-align: right;
@@ -355,11 +382,11 @@ const openPrintWindow = (html: string) => {
 };
 
 /**
- * 產生院友體溫記錄表並開啟列印視窗。
+ * 產生院友體重記錄表並開啟列印視窗。
  * @param startDate 起始日期 (YYYY-MM-DD)
  * @param endDate 結束日期 (YYYY-MM-DD)
  */
-export const generateTemperatureRecordWorksheet = async (
+export const generateBodyweightRecordWorksheet = async (
   startDate: string,
   endDate: string,
   patientIds?: number[]
@@ -368,11 +395,11 @@ export const generateTemperatureRecordWorksheet = async (
 
   const [patients, records] = await Promise.all([
     fetchInResidencePatients(patientIds),
-    fetchTemperatureRecords(startDate, endDate),
+    fetchWeightRecords(startDate, endDate),
   ]);
 
   // 依院友分組記錄
-  const recordsByPatient = new Map<number, TempRecord[]>();
+  const recordsByPatient = new Map<number, WeightRecord[]>();
   records.forEach(record => {
     const list = recordsByPatient.get(record.院友id) ?? [];
     list.push(record);
@@ -382,10 +409,11 @@ export const generateTemperatureRecordWorksheet = async (
   const pagesHtml: string[] = [];
   patients.forEach(patient => {
     const patientRecords = recordsByPatient.get(patient.院友id) ?? [];
-    const pages = chunkRecordsIntoPages(patientRecords);
-    pages.forEach((cells, index) => {
+    const cells = buildCells(patientRecords);
+    const pages = chunkCellsIntoPages(cells);
+    pages.forEach((pageCells, index) => {
       const pageLabel = pages.length > 1 ? `${index + 1} / ${pages.length}` : '1';
-      pagesHtml.push(renderPage(patient, cells, pageLabel));
+      pagesHtml.push(renderPage(patient, pageCells, pageLabel));
     });
   });
 

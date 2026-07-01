@@ -34,6 +34,7 @@ import HealthRecordModal from '../components/HealthRecordModal';
 import DeduplicateRecordsModal from '../components/DeduplicateRecordsModal';
 import RecycleBinModal from '../components/RecycleBinModal';
 import TemperatureWorksheetModal from '../components/TemperatureWorksheetModal';
+import BodyweightWorksheetModal from '../components/BodyweightWorksheetModal';
 import GenerateTemperatureModal from '../components/GenerateTemperatureModal';
 import { exportVitalSignsToExcel, type VitalSignExportData } from '../utils/vitalsignExcelGenerator';
 import { exportBloodSugarToExcel, type BloodSugarExportData } from '../utils/bloodSugarExcelGenerator';
@@ -83,6 +84,7 @@ const HealthAssessment: React.FC = () => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
   const [showTemperatureModal, setShowTemperatureModal] = useState(false);
+  const [showBodyweightModal, setShowBodyweightModal] = useState(false);
   const [showGenerateTemperatureModal, setShowGenerateTemperatureModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -649,6 +651,16 @@ const HealthAssessment: React.FC = () => {
                         <Thermometer className="h-4 w-4 text-orange-600" />
                         <span>體溫記錄</span>
                       </button>
+                      <button
+                        onClick={() => {
+                          setShowBodyweightModal(true);
+                          setShowPrintMenu(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
+                      >
+                        <Scale className="h-4 w-4 text-green-600" />
+                        <span>體重記錄</span>
+                      </button>
                     </div>
                   </div>
                 </>
@@ -1156,6 +1168,11 @@ const HealthAssessment: React.FC = () => {
       {showTemperatureModal && (
         <TemperatureWorksheetModal
           onClose={() => setShowTemperatureModal(false)}
+        />
+      )}
+      {showBodyweightModal && (
+        <BodyweightWorksheetModal
+          onClose={() => setShowBodyweightModal(false)}
         />
       )}
       {showGenerateTemperatureModal && (

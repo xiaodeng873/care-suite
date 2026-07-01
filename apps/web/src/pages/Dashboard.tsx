@@ -400,9 +400,8 @@ const Dashboard: React.FC = () => {
     return daysDiff <= 14 && daysDiff > 0;
   };
   const missingTasks = useMemo(() => {
-    const activePatients = patients.filter(p => p.在住狀態 === '在住');
     const result: { patient: any; missingTaskTypes: string[] }[] = [];
-    activePatients.forEach(patient => {
+    patients.forEach(patient => {
       const patientTasks = patientHealthTasks.filter(task => task.patient_id === patient.院友id);
       const missing: string[] = [];
       const hasAnnualCheckup = annualHealthCheckups.some(checkup => checkup.patient_id === patient.院友id);
@@ -415,24 +414,21 @@ const Dashboard: React.FC = () => {
     return result;
   }, [patients, patientHealthTasks, annualHealthCheckups]);
   const missingMealGuidance = useMemo(() => {
-    const activePatients = patients.filter(p => p.在住狀態 === '在住');
-    return activePatients.filter(patient => !mealGuidances.some(guidance => guidance.patient_id === patient.院友id));
+    return patients.filter(patient => !mealGuidances.some(guidance => guidance.patient_id === patient.院友id));
   }, [patients, mealGuidances]);
   const missingDeathDate = useMemo(() => {
     return patients.filter(p => p.在住狀態 === '已退住' && p.discharge_reason === '死亡' && (!p.death_date || p.death_date === '')).map(patient => ({ patient, missingInfo: '死亡日期' }));
   }, [patients]);
   const missingVaccination = useMemo(() => {
-    return patients.filter(p => p.在住狀態 === '在住' && !vaccinationRecords.some(record => record.patient_id === p.院友id)).map(patient => ({ patient, missingInfo: '疫苗記錄' }));
+    return patients.filter(p => !vaccinationRecords.some(record => record.patient_id === p.院友id)).map(patient => ({ patient, missingInfo: '疫苗記錄' }));
   }, [patients, vaccinationRecords]);
-  // 欠缺健康評估的在住院友
+  // 欠缺健康評估的院友
   const missingHealthAssessment = useMemo(() => {
-    const activePatients = patients.filter(p => p.在住狀態 === '在住');
-    return activePatients.filter(patient => !healthAssessments.some(assessment => assessment.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '健康評估' }));
+    return patients.filter(patient => !healthAssessments.some(assessment => assessment.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '健康評估' }));
   }, [patients, healthAssessments]);
-  // 欠缺個人護理計劃的在住院友
+  // 欠缺個人護理計劃的院友
   const missingCarePlan = useMemo(() => {
-    const activePatients = patients.filter(p => p.在住狀態 === '在住');
-    return activePatients.filter(patient => !carePlans.some(plan => plan.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '個人護理計劃' }));
+    return patients.filter(patient => !carePlans.some(plan => plan.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '個人護理計劃' }));
   }, [patients, carePlans]);
   const overdueWorkflows = useMemo(() => {
     const result = getPatientsWithOverdueWorkflow(prescriptionWorkflowRecords, patients);
