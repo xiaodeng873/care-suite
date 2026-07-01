@@ -25,6 +25,7 @@ import PatientModal from '../components/PatientModal';
 import VaccinationRecordModal from '../components/VaccinationRecordModal';
 import TaskHistoryModal from '../components/TaskHistoryModal';
 import MonitoringTaskWorksheetModal from '../components/MonitoringTaskWorksheetModal';
+import BatchHealthRecordOCRModal from '../components/BatchHealthRecordOCRModal';
 import { syncTaskStatus, SYNC_CUTOFF_DATE_STR, supabase } from '../lib/database';
 import { getMissingMonitoringVitals } from '../utils/monitoringCoverage';
 interface Patient {
@@ -122,6 +123,7 @@ const Dashboard: React.FC = () => {
   const [showVaccinationModal, setShowVaccinationModal] = useState(false);
   const [selectedPatientForVaccination, setSelectedPatientForVaccination] = useState<any>(null);
   const [showWorksheetModal, setShowWorksheetModal] = useState(false);
+  const [showOCRModal, setShowOCRModal] = useState(false);
   // 歷史日曆 Modal 狀態
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedHistoryTask, setSelectedHistoryTask] = useState<{ task: HealthTask; patient: Patient; initialDate?: Date | null; groupTasks?: HealthTask[] } | null>(null);
@@ -955,6 +957,14 @@ const Dashboard: React.FC = () => {
                 <FileText className="h-4 w-4" />
                 <span>匯出監測記錄工作紙</span>
               </button>
+              <button
+                onClick={() => setShowOCRModal(true)}
+                className="btn-secondary flex items-center gap-1.5 text-sm"
+                title="拍照識別監測工作紙"
+              >
+                <Camera className="h-4 w-4" />
+                <span className="hidden sm:inline">識別工作紙</span>
+              </button>
               <Link to="/tasks" className="text-sm text-blue-600 hover:text-blue-700 font-medium">查看全部</Link>
             </div>
           </div>
@@ -1347,6 +1357,9 @@ const Dashboard: React.FC = () => {
         <MonitoringTaskWorksheetModal
           onClose={() => setShowWorksheetModal(false)}
         />
+      )}
+      {showOCRModal && (
+        <BatchHealthRecordOCRModal onClose={() => setShowOCRModal(false)} />
       )}
     </div>
   );
