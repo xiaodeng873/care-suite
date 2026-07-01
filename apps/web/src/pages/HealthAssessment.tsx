@@ -36,6 +36,7 @@ import RecycleBinModal from '../components/RecycleBinModal';
 import TemperatureWorksheetModal from '../components/TemperatureWorksheetModal';
 import BodyweightWorksheetModal from '../components/BodyweightWorksheetModal';
 import GlucoseWorksheetModal from '../components/GlucoseWorksheetModal';
+import BloodPressureWorksheetModal from '../components/BloodPressureWorksheetModal';
 import GenerateTemperatureModal from '../components/GenerateTemperatureModal';
 import { exportVitalSignsToExcel, type VitalSignExportData } from '../utils/vitalsignExcelGenerator';
 import { exportBloodSugarToExcel, type BloodSugarExportData } from '../utils/bloodSugarExcelGenerator';
@@ -87,6 +88,7 @@ const HealthAssessment: React.FC = () => {
   const [showTemperatureModal, setShowTemperatureModal] = useState(false);
   const [showBodyweightModal, setShowBodyweightModal] = useState(false);
   const [showGlucoseModal, setShowGlucoseModal] = useState(false);
+  const [showBloodPressureModal, setShowBloodPressureModal] = useState(false);
   const [showGenerateTemperatureModal, setShowGenerateTemperatureModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -673,6 +675,16 @@ const HealthAssessment: React.FC = () => {
                         <Droplets className="h-4 w-4 text-red-600" />
                         <span>血糖記錄</span>
                       </button>
+                      <button
+                        onClick={() => {
+                          setShowBloodPressureModal(true);
+                          setShowPrintMenu(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
+                      >
+                        <Activity className="h-4 w-4 text-blue-600" />
+                        <span>血壓記錄</span>
+                      </button>
                     </div>
                   </div>
                 </>
@@ -1190,6 +1202,11 @@ const HealthAssessment: React.FC = () => {
       {showGlucoseModal && (
         <GlucoseWorksheetModal
           onClose={() => setShowGlucoseModal(false)}
+        />
+      )}
+      {showBloodPressureModal && (
+        <BloodPressureWorksheetModal
+          onClose={() => setShowBloodPressureModal(false)}
         />
       )}
       {showGenerateTemperatureModal && (
