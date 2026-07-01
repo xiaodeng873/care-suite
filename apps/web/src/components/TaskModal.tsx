@@ -166,7 +166,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
         patient_id: parseInt(formData.patient_id),
         frequency_unit: formData.frequency_unit,
         frequency_value: formData.frequency_value,
-        specific_times: formData.specific_times ? [formData.specific_times] : [],
+        specific_times: formData.specific_times ? [formData.specific_times] : ['08:00'],
         specific_days_of_week: formData.specific_days_of_week,
         specific_days_of_month: formData.specific_days_of_month,
         last_completed_at: lastCompletedAt,

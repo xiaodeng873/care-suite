@@ -420,7 +420,7 @@ const Dashboard: React.FC = () => {
     return patients.filter(p => p.在住狀態 === '已退住' && p.discharge_reason === '死亡' && (!p.death_date || p.death_date === '')).map(patient => ({ patient, missingInfo: '死亡日期' }));
   }, [patients]);
   const missingVaccination = useMemo(() => {
-    return patients.filter(patient => !vaccinationRecords.some(record => record.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '疫苗記錄' }));
+    return patients.filter(p => p.在住狀態 === '在住' && !vaccinationRecords.some(record => record.patient_id === p.院友id)).map(patient => ({ patient, missingInfo: '疫苗記錄' }));
   }, [patients, vaccinationRecords]);
   // 欠缺健康評估的在住院友
   const missingHealthAssessment = useMemo(() => {
@@ -518,9 +518,11 @@ const Dashboard: React.FC = () => {
         urgent.push({ ...task, firstIncompleteDate, incompleteDates });
       }
     });
-    return urgent.sort((a, b) => 
-      (a.firstIncompleteDate?.getTime() || 0) - (b.firstIncompleteDate?.getTime() || 0)
-    ).slice(0, 100);
+    // 只顯示今日未完成任務（之前的不管）
+    const todayStr = formatLocalDate(today);
+    return urgent.filter(t =>
+      t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) === todayStr : false
+    );
   }, [monitoringTasks, patientsMap, recordLookup, recordTimes]);
   const taskGroups = useMemo(() => {
     const breakfast: typeof urgentMonitoringTasks = [];
@@ -893,14 +895,12 @@ const Dashboard: React.FC = () => {
       default: return <CheckSquare className="h-4 w-4" />;
     }
   };
-  const getTaskTimeBackgroundClass = (nextDueAt: string) => {
-    const hour = new Date(nextDueAt).getHours();
-    if (hour >= 7 && hour < 10) return 'bg-red-50 hover:bg-red-100';
-    if (hour >= 10 && hour < 13) return 'bg-yellow-50 hover:bg-yellow-100';
-    if (hour >= 13 && hour < 18) return 'bg-green-50 hover:bg-green-100';
-    if (hour >= 18 && hour <= 20) return 'bg-purple-50 hover:bg-purple-100';
-    return 'bg-gray-50 hover:bg-gray-100';
-  };
+  const slotBgClasses = [
+    'bg-red-100 hover:bg-red-200',      // 早餐
+    'bg-yellow-100 hover:bg-yellow-200', // 午餐
+    'bg-green-100 hover:bg-green-200',   // 晚餐
+    'bg-purple-100 hover:bg-purple-200', // 夜宵
+  ];
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case '尚未安排': return 'bg-red-100 text-red-800';
@@ -964,8 +964,9 @@ const Dashboard: React.FC = () => {
               { title: "午餐 (10:00 - 12:59)", tasks: taskGroups.lunch },
               { title: "晚餐 (13:00 - 17:59)", tasks: taskGroups.dinner },
               { title: "夜宵 (18:00 - 20:00)", tasks: taskGroups.snack }
-            ].map((slot, idx) => (
-              slot.tasks.length > 0 && (
+            ].map((slot, idx) => {
+              const slotBgClass = slotBgClasses[idx] ?? 'bg-gray-50 hover:bg-gray-100';
+              return slot.tasks.length > 0 && (
                 <div key={idx}>
                   <h3 className="text-md font-medium text-gray-700 mb-2 time-slot-title">{slot.title}</h3>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2">
@@ -1020,7 +1021,7 @@ const Dashboard: React.FC = () => {
                         return (
                         <div
                           key={groupKey || rep.id}
-                          className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${getTaskTimeBackgroundClass(rep.next_due_at)} rounded-lg cursor-pointer transition-colors dashboard-task-card`}
+                          className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card`}
                           onClick={() => {
                             // 逾期或有多个未完成日期，弹出小日历以便補回
                             if (hasMultipleDates && patient) {
@@ -1094,8 +1095,8 @@ const Dashboard: React.FC = () => {
                     })()}
                   </div>
                 </div>
-              )
-            ))}
+              );
+            })}
             {breakfastTasks.length === 0 && lunchTasks.length === 0 && dinnerTasks.length === 0 && snackTasks.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <CheckSquare className="h-12 w-12 mx-auto mb-2 text-gray-300" />

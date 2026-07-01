@@ -183,7 +183,8 @@ export async function findFirstMissingDate(
   while (daysChecked < maxDaysToCheck) {
     // 檢查這一天是否應該有任務
     if (isTaskScheduledForDate(task, checkDate)) {
-      const dateStr = checkDate.toISOString().split('T')[0];
+      // [修復] 使用本地日期格式，避免 toISOString() 返回 UTC 日期（在 UTC+8 會早一天）
+      const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth()+1).padStart(2,'0')}-${String(checkDate.getDate()).padStart(2,'0')}`;
       // [修復] 對於多時間點任務，需要檢查特定時間點的記錄
       if (task.specific_times && task.specific_times.length > 0) {
         // 標準化時間格式
@@ -200,10 +201,14 @@ export async function findFirstMissingDate(
         if (error) {
           break;
         }
-        // 過濾出屬於該任務的記錄
+        // 過濾出屬於該任務的記錄：
+        // - 有 任務id 且等於本任務：精確匹配
+        // - 無 任務id（舊記錄）且 院友id+監測類型 匹配：後備匹配
+        // [修復] 排除屬於其他任務的記錄，避免誤判為本任務已完成
         const taskRecords = records.filter(r => {
           if (r.任務id === task.id) return true;
-          return r.院友id === task.patient_id && r.監測類型 === task.health_record_type;
+          if (!r.任務id) return r.院友id === task.patient_id && r.監測類型 === task.health_record_type;
+          return false;
         });
         // 收集已完成的時間點
         const completedTimes = new Set(
@@ -226,16 +231,22 @@ export async function findFirstMissingDate(
           return checkDate;
         }
       } else {
+        // [修復] 選取 任務id 以便後備過濾
         const { data: records, error } = await supabase
           .from('健康監測記錄')
-          .select('記錄id')
+          .select('記錄id, 任務id, 院友id, 監測類型')
           .eq('記錄日期', dateStr)
-          .or(`任務id.eq.${task.id},and(院友id.eq.${task.patient_id},監測類型.eq.${task.health_record_type})`)
-          .limit(1);
+          .or(`任務id.eq.${task.id},and(院友id.eq.${task.patient_id},監測類型.eq.${task.health_record_type})`);
         if (error) {
           break;
         }
-        if (!records || records.length === 0) {
+        // [修復] 排除屬於其他任務的記錄
+        const taskRecords = (records || []).filter(r => {
+          if (r.任務id === task.id) return true;
+          if (!r.任務id) return r.院友id === task.patient_id && r.監測類型 === task.health_record_type;
+          return false;
+        });
+        if (taskRecords.length === 0) {
           if (task.specific_times && task.specific_times.length > 0) {
             const timeStr = task.specific_times[0];
             if (timeStr.includes(':')) {
