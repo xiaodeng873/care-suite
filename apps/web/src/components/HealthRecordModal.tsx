@@ -427,23 +427,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
                 </div>
               </div>
             </div>
-            {!isTypeFixed && (
-              <div>
-                <label className="form-label">監測項目 * （可多選）</label>
-                <div className="flex flex-wrap gap-2">
-                  {ALL_VITAL_TYPES.map(({ type, label, color }) => {
-                    const selected = activeTypes.includes(type);
-                    return (
-                      <button key={type} type="button"
-                        onClick={() => setActiveTypes(prev => selected ? prev.filter(t => t !== type) : [...prev, type])}
-                        className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-colors ${selected ? `${color} text-white border-transparent` : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {/* 監測項目選擇器已移除：所有呼叫點均由 task/任務清單/預設監測類型預先指定類型 */}
             <div className={`p-3 rounded-lg border ${currentIsPatientAbsent ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}>
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="isAbsent" checked={formData.isAbsent}

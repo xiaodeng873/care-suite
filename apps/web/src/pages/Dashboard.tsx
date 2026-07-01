@@ -1313,7 +1313,7 @@ const Dashboard: React.FC = () => {
           initialData={selectedHealthRecordInitialData}
           onClose={() => {
             setShowHealthRecordModal(false);
-            setTimeout(() => { setSelectedHealthRecordInitialData({}); }, 150);
+            setSelectedHealthRecordInitialData({});
           }}
           onTaskCompleted={handleTaskCompleted}
         />
