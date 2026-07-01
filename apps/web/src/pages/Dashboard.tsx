@@ -1051,29 +1051,30 @@ const Dashboard: React.FC = () => {
                                 <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                                 <span className="text-xs text-gray-500">({patient?.床號})</span>
                               </div>
-                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                              <div className="flex flex-wrap gap-1.5 mt-1">
                                 {(() => {
-                                  // 不逐項列出量度類型，改以備註分類：「N個項目 服藥前」「N個項目 定期」
-                                  const notesGroups = new Map<string, number>();
+                                  // 按「備註 × 頻率」分組，每個唯一組合顯示一個小塊
+                                  type FreqGroup = { count: number; note: string; freqTask: typeof group[number] };
+                                  const freqGroups = new Map<string, FreqGroup>();
                                   group.forEach(t => {
-                                    const noteKey = t.notes && isMonitoringTask(t.health_record_type) ? t.notes : '';
-                                    notesGroups.set(noteKey, (notesGroups.get(noteKey) || 0) + 1);
+                                    const note = (t.notes && isMonitoringTask(t.health_record_type)) ? t.notes : '';
+                                    const key = `${note}||${t.frequency_unit}||${t.frequency_value}`;
+                                    if (!freqGroups.has(key)) freqGroups.set(key, { count: 0, note, freqTask: t });
+                                    freqGroups.get(key)!.count += 1;
                                   });
-                                  return Array.from(notesGroups.entries()).map(([note, count]) => (
-                                    <span key={note || '_'} className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/70 rounded-full text-sm text-gray-700">
-                                      <span>{count}個項目</span>
-                                      {note && (
-                                        <span className={`ml-0.5 px-1.5 rounded-full text-xs font-medium ${getNotesBadgeClass(note)}`}>{note}</span>
-                                      )}
+                                  return Array.from(freqGroups.values()).map(({ count, note, freqTask }, i) => (
+                                    <span key={i} className="inline-flex flex-col px-2 py-1 bg-white/70 rounded-lg border border-white/60 text-xs text-gray-700">
+                                      <span className="flex items-center gap-1">
+                                        <span className="font-medium">{count}個項目</span>
+                                        {note && <span className={`px-1.5 rounded-full font-medium ${getNotesBadgeClass(note)}`}>{note}</span>}
+                                      </span>
+                                      <span className="flex items-center gap-0.5 text-gray-500 mt-0.5">
+                                        <Repeat className="h-2.5 w-2.5 flex-shrink-0" />
+                                        <span>{formatFrequencyDescription(freqTask)}</span>
+                                      </span>
                                     </span>
                                   ));
                                 })()}
-                              </div>
-                              <div className="flex items-center mt-1 space-x-3 text-xs text-gray-600 font-medium">
-                                <div className="flex items-center space-x-1">
-                                  <Repeat className="h-3 w-3" />
-                                  <span>{formatFrequencyDescription(rep)}</span>
-                                </div>
                               </div>
                             </div>
                             {rep.firstIncompleteDate && (() => {
