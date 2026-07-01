@@ -424,8 +424,7 @@ const WoundManagementNew: React.FC = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8"></th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">床號</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">院友姓名</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">院友</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">傷口數量</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">負責換症單位</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">評估狀態</th>
@@ -435,7 +434,7 @@ const WoundManagementNew: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredPatientsWithWounds.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                     <div className="flex flex-col items-center space-y-2">
                       <Activity className="h-8 w-8 text-gray-400" />
                       <p>沒有找到符合條件的傷口記錄</p>
@@ -481,9 +480,6 @@ const WoundManagementNew: React.FC = () => {
                             <ChevronRight className="h-5 w-5 text-gray-400" />
                           )}
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {patientData.bed_number}
-                        </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className="flex flex-wrap items-center gap-3">
                             <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0">
@@ -509,6 +505,7 @@ const WoundManagementNew: React.FC = () => {
                                   {patientData.patient_name}
                                 </span>
                               )}
+                              <div className="text-sm text-gray-500">{patientData.bed_number}</div>
                             </div>
                           </div>
                         </td>
@@ -604,7 +601,7 @@ const WoundManagementNew: React.FC = () => {
                                   )}
                                 </button>
                               </td>
-                              <td colSpan={6} className="px-4 py-3">
+                              <td colSpan={5} className="px-4 py-3">
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 flex-wrap gap-2">
                                   <div className="flex items-center flex-wrap gap-3">
                                     {/* 傷口編號和名稱 */}
@@ -710,7 +707,7 @@ const WoundManagementNew: React.FC = () => {
                             {isWoundExpanded && (
                               <tr className="bg-white border-l-4 border-gray-200">
                                 <td></td>
-                                <td colSpan={6} className="px-8 py-4">
+                                <td colSpan={5} className="px-8 py-4">
                                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                                     <div className="text-sm font-medium text-gray-700 flex items-center">
                                       <History className="h-4 w-4 mr-2 text-gray-500" />

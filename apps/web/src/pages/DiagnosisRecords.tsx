@@ -16,7 +16,7 @@ import { usePatients, type DiagnosisRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import DiagnosisRecordModal from '../components/DiagnosisRecordModal';
 import PatientTooltip from '../components/PatientTooltip';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 
 type SortField = '院友姓名' | 'diagnosis_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -160,8 +160,8 @@ const DiagnosisRecords: React.FC = () => {
     if (sortField === '院友姓名') {
       const patientA = patients.find(p => p.院友id === a.patientId);
       const patientB = patients.find(p => p.院友id === b.patientId);
-      valueA = patientA?.中文姓名 || '';
-      valueB = patientB?.中文姓名 || '';
+      const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+      return sortDirection === 'asc' ? bedCmp : -bedCmp;
     } else if (sortField === 'diagnosis_date') {
       valueA = a.records[0]?.diagnosis_date || '';
       valueB = b.records[0]?.diagnosis_date || '';

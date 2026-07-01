@@ -24,7 +24,7 @@ import {
 import { usePatients, type PatientRestraintAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import RestraintAssessmentModal from '../components/RestraintAssessmentModal';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import { exportRestraintConsentsToExcel } from '../utils/restraintConsentExcelGenerator';
 import { exportRestraintObservationsToExcel } from '../utils/restraintObservationChartExcelGenerator';
@@ -190,10 +190,10 @@ const RestraintManagement: React.FC = () => {
     let valueB: string | number = '';
     
     switch (sortField) {
-      case '院友姓名':
-        valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
-        valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
-        break;
+      case '院友姓名': {
+        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+        return sortDirection === 'asc' ? bedCmp : -bedCmp;
+      }
       case 'doctor_signature_date':
         valueA = a.doctor_signature_date ? new Date(a.doctor_signature_date).getTime() : 0;
         valueB = b.doctor_signature_date ? new Date(b.doctor_signature_date).getTime() : 0;
@@ -209,8 +209,8 @@ const RestraintManagement: React.FC = () => {
     }
     
     if (typeof valueA === 'string' && typeof valueB === 'string') {
-      valueA = valueA.toLowerCase();
-      valueB = valueB.toLowerCase();
+      valueA = (valueA as string).toLowerCase();
+      valueB = (valueB as string).toLowerCase();
     }
     
     if (sortDirection === 'asc') {

@@ -20,6 +20,7 @@ import {
 import { usePatients, type PatientTubeCareRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import TubeCareModal from '../components/TubeCareModal';
+import PatientTooltip from '../components/PatientTooltip';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 import { getTubeCareStatus } from '../utils/taskScheduler';
 
@@ -361,9 +362,21 @@ const TubeCareManagement: React.FC = () => {
                       <td className="px-4 py-3 whitespace-nowrap">
                         {isLatest ? (
                           <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-400" />
+                            <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0">
+                              {patient?.院友相片 ? (
+                                <img src={patient.院友相片} alt={patient?.中文姓名} className="w-full h-full object-cover" />
+                              ) : (
+                                <User className="h-5 w-5 text-blue-600" />
+                              )}
+                            </div>
                             <div>
-                              <div className="text-sm font-medium text-gray-900">{patient?.中文姓名 ?? '未知院友'}</div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {patient ? (
+                                  <PatientTooltip patient={patient}>
+                                    <span className="cursor-help hover:text-blue-600 transition-colors">{patient.中文姓氏}{patient.中文名字}</span>
+                                  </PatientTooltip>
+                                ) : '未知院友'}
+                              </div>
                               <div className="text-xs text-gray-500">{patient?.床號 ?? ''}</div>
                             </div>
                             {hasOld && (

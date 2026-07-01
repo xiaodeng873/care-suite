@@ -43,6 +43,7 @@ const PatientContacts: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('床號');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
 
   const fetchContacts = async () => {
     setLoading(true);
@@ -121,10 +122,6 @@ const PatientContacts: React.FC = () => {
     let valueB: string = '';
 
     switch (sortField) {
-      case '床號':
-        valueA = a.床號;
-        valueB = b.床號;
-        break;
       case '中文姓名':
         valueA = `${a.中文姓氏 || ''}${a.中文名字 || ''}`;
         valueB = `${b.中文姓氏 || ''}${b.中文名字 || ''}`;
@@ -190,6 +187,14 @@ const PatientContacts: React.FC = () => {
         alert('刪除失敗');
       }
     }
+  };
+
+  const toggleExpand = (patientId: number) => {
+    setExpandedPatients(prev => {
+      const next = new Set(prev);
+      if (next.has(patientId)) next.delete(patientId); else next.add(patientId);
+      return next;
+    });
   };
 
   if (loading) {
@@ -305,14 +310,10 @@ const PatientContacts: React.FC = () => {
           <table className="w-full min-w-[768px] divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <SortableHeader field="床號">床號</SortableHeader>
-                <SortableHeader field="中文姓名">院友姓名</SortableHeader>
+                <th className="w-8 px-2 py-3"></th>
+                <SortableHeader field="床號">院友</SortableHeader>
                 <SortableHeader field="在住狀態">在住狀態</SortableHeader>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">聯絡人姓名</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">關係</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">電話</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">地址</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">備註</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">聯絡人數</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
               </tr>
             </thead>
@@ -326,34 +327,38 @@ const PatientContacts: React.FC = () => {
                   if (advancedFilters.電郵 && !fuzzyMatch(contact.電郵, advancedFilters.電郵)) return false;
                   return true;
                 });
-                
-                // 如果沒有聯絡人，顯示一行空資料
-                if (filteredPatientContacts.length === 0) {
-                  return (
-                    <tr key={patient.院友id} className="hover:bg-blue-50 group">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 align-top border-r border-gray-100">
-                        {patient.床號}
+                const isExpanded = expandedPatients.has(patient.院友id);
+                const hasContacts = filteredPatientContacts.length > 0;
+
+                return (
+                  <>
+                    {/* 院友主列 */}
+                    <tr
+                      key={`patient-${patient.院友id}`}
+                      className={`hover:bg-blue-50 cursor-pointer ${isExpanded ? 'bg-blue-50' : ''}`}
+                      onClick={() => toggleExpand(patient.院友id)}
+                    >
+                      <td className="px-2 py-3 text-center">
+                        {isExpanded
+                          ? <ChevronUp className="h-4 w-4 text-blue-600 mx-auto" />
+                          : <ChevronDown className="h-4 w-4 text-gray-400 mx-auto" />}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap align-top border-r border-gray-100">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
-                            {patient.院友相片 ? (
-                              <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
-                            ) : (
-                              <User className="h-4 w-4 text-blue-600" />
-                            )}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0">
+                            {patient.院友相片
+                              ? <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
+                              : <User className="h-4 w-4 text-blue-600" />}
                           </div>
                           <div>
-                            <PatientTooltip patient={patient}>
-                              <span className="text-sm font-medium text-gray-900 cursor-help hover:text-blue-600 transition-colors">{patient.中文姓名}</span>
-                            </PatientTooltip>
+                            <div className="text-sm font-medium text-gray-900">{patient.床號} · {patient.中文姓名}</div>
                             <div className="text-xs text-gray-500">
-                              {getFormattedEnglishName(patient.英文姓氏, patient.英文名字) || patient.英文姓名 || '-'}
+                              {getFormattedEnglishName(patient.英文姓氏, patient.英文名字) || patient.英文姓名 || ''}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap align-top border-r border-gray-100">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           patient.在住狀態 === '在住' ? 'bg-green-100 text-green-800' :
                           patient.在住狀態 === '已退住' ? 'bg-gray-100 text-gray-800' :
@@ -363,91 +368,85 @@ const PatientContacts: React.FC = () => {
                           {patient.在住狀態 || '在住'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-400" colSpan={6}>無聯絡人</td>
-                    </tr>
-                  );
-                }
-                
-                // 有聯絡人時，每個聯絡人一行
-                return filteredPatientContacts.map((contact, index) => (
-                  <tr 
-                    key={`${patient['院友 id']}-${contact.id}`} 
-                    className="hover:bg-blue-50 group cursor-pointer"
-                    onDoubleClick={() => {
-                      setSelectedContact(contact);
-                      setModalPatientId(patient['院友 id']);
-                      setShowModal(true);
-                    }}
-                  >
-                    {index === 0 ? (
-                      <>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 align-top border-r border-gray-100" rowSpan={filteredPatientContacts.length}>
-                          {patient.床號}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap align-top border-r border-gray-100" rowSpan={filteredPatientContacts.length}>
-                          <div className="flex flex-wrap items-center gap-3">
-                            <div className="w-8 h-8 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
-                              {patient.院友相片 ? (
-                                <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
-                              ) : (
-                                <User className="h-4 w-4 text-blue-600" />
-                              )}
-                            </div>
-                            <div>
-                              <PatientTooltip patient={patient}>
-                                <span className="text-sm font-medium text-gray-900 cursor-help hover:text-blue-600 transition-colors">{patient.中文姓名}</span>
-                              </PatientTooltip>
-                              <div className="text-xs text-gray-500">
-                                {getFormattedEnglishName(patient.英文姓氏, patient.英文名字) || patient.英文姓名 || '-'}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap align-top border-r border-gray-100" rowSpan={filteredPatientContacts.length}>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            patient.在住狀態 === '在住' ? 'bg-green-100 text-green-800' :
-                            patient.在住狀態 === '已退住' ? 'bg-gray-100 text-gray-800' :
-                            patient.在住狀態 === '待入住' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-blue-100 text-blue-800'
-                          }`}>
-                            {patient.在住狀態 || '在住'}
-                          </span>
-                        </td>
-                      </>
-                    ) : null}
-                    <td className="px-4 py-3 text-sm text-gray-900">{contact.聯絡人姓名 || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{contact.關係 || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{contact.聯絡電話 || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{contact.地址 || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{contact.備註 || '-'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                      <div className="flex flex-wrap gap-2">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          hasContacts ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {filteredPatientContacts.length} 位聯絡人
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <button
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation();
-                            setSelectedContact(contact);
+                            setSelectedContact(null);
                             setModalPatientId(patient.院友id);
                             setShowModal(true);
                           }}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="編輯"
+                          className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                         >
-                          <Edit3 className="h-4 w-4" />
+                          + 新增聯絡人
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(contact);
-                          }}
-                          className="text-red-600 hover:text-red-900"
-                          title="刪除"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ));
+                      </td>
+                    </tr>
+
+                    {/* 展開後的聯絡人明細 */}
+                    {isExpanded && (
+                      <tr key={`contacts-${patient.院友id}`}>
+                        <td colSpan={5} className="px-0 py-0 bg-blue-50">
+                          {!hasContacts ? (
+                            <div className="px-12 py-3 text-sm text-gray-400">此院友尚無聯絡人記錄</div>
+                          ) : (
+                            <table className="w-full divide-y divide-blue-100">
+                              <thead>
+                                <tr className="bg-blue-100">
+                                  <th className="px-12 py-2 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">聯絡人姓名</th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">關係</th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">電話</th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">地址</th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">備註</th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">操作</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-blue-50">
+                                {filteredPatientContacts.map(contact => (
+                                  <tr key={contact.id} className="hover:bg-blue-100 group">
+                                    <td className="px-12 py-2 text-sm text-gray-900">{contact.聯絡人姓名 || '-'}</td>
+                                    <td className="px-4 py-2 text-sm text-gray-600">{contact.關係 || '-'}</td>
+                                    <td className="px-4 py-2 text-sm text-gray-900">{contact.聯絡電話 || '-'}</td>
+                                    <td className="px-4 py-2 text-sm text-gray-600">{contact.地址 || '-'}</td>
+                                    <td className="px-4 py-2 text-sm text-gray-500">{contact.備註 || '-'}</td>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm">
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            setSelectedContact(contact);
+                                            setModalPatientId(patient.院友id);
+                                            setShowModal(true);
+                                          }}
+                                          className="text-blue-600 hover:text-blue-900" title="編輯"
+                                        >
+                                          <Edit3 className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                          onClick={e => { e.stopPropagation(); handleDelete(contact); }}
+                                          className="text-red-600 hover:text-red-900" title="刪除"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
               })}
             </tbody>
           </table>

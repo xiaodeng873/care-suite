@@ -4,7 +4,7 @@ import { CalendarCheck, Plus, CreditCard as Edit3, Trash2, Search, Filter, Downl
 import { usePatients, type FollowUpAppointment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import FollowUpModal from '../components/FollowUpModal';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { exportFollowUpListToExcel, type FollowUpExportData } from '../utils/followUpListGenerator';
@@ -209,10 +209,10 @@ const FollowUpManagement: React.FC = () => {
         valueA = a.覆診時間 || '';
         valueB = b.覆診時間 || '';
         break;
-      case '院友姓名':
-        valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
-        valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
-        break;
+      case '院友姓名': {
+        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+        return sortDirection === 'asc' ? bedCmp : -bedCmp;
+      }
       case '覆診地點':
         valueA = a.覆診地點 || '';
         valueB = b.覆診地點 || '';
@@ -961,6 +961,7 @@ const FollowUpManagement: React.FC = () => {
                   <SortableHeader field="交通安排">交通安排</SortableHeader>
                   <SortableHeader field="陪診人員">陪診人員</SortableHeader>
                   <SortableHeader field="狀態">狀態</SortableHeader>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">建立日期</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     操作
                   </th>
@@ -1068,6 +1069,9 @@ const FollowUpManagement: React.FC = () => {
                             {appointment.備註.length > 20 ? `${appointment.備註.substring(0, 20)}...` : appointment.備註}
                           </div>
                         )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {appointment.創建時間 ? new Date(appointment.創建時間).toLocaleDateString('zh-TW') : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-shrink-0 gap-2">

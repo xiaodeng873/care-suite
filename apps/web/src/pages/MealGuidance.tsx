@@ -22,7 +22,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import MealGuidanceModal from '../components/MealGuidanceModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 
 type SortField = '院友姓名' | 'meal_combination' | 'guidance_date' | 'guidance_source' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -191,10 +191,10 @@ const MealGuidance: React.FC = () => {
     let valueB: string | number = '';
     
     switch (sortField) {
-      case '院友姓名':
-        valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
-        valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
-        break;
+      case '院友姓名': {
+        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+        return sortDirection === 'asc' ? bedCmp : -bedCmp;
+      }
       case 'meal_combination':
         valueA = a.meal_combination;
         valueB = b.meal_combination;
@@ -872,6 +872,7 @@ const MealGuidance: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     備註
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">建立日期</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     操作
                   </th>
@@ -978,6 +979,9 @@ const MealGuidance: React.FC = () => {
                         <div className="truncate" title={guidance.remarks || ''}>
                           {guidance.remarks || '-'}
                         </div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {guidance.created_at ? new Date(guidance.created_at).toLocaleDateString('zh-TW') : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-wrap gap-2">

@@ -8,7 +8,7 @@ import DoctorVisitScheduleModal from '../components/DoctorVisitScheduleModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { isInHospital } from '../utils/careRecordHelper';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 
 type SortField = '藥袋日期' | '院友姓名' | '藥完日期' | '覆診日期' | '取藥安排' | '創建時間';
 type SortDirection = 'asc' | 'desc';
@@ -348,10 +348,10 @@ const HospitalOutreach: React.FC = () => {
         valueA = sourcesA.length > 0 ? new Date(sourcesA[0].medication_end_date).getTime() : 0;
         valueB = sourcesB.length > 0 ? new Date(sourcesB[0].medication_end_date).getTime() : 0;
         break;
-      case '院友姓名':
-        valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
-        valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
-        break;
+      case '院友姓名': {
+        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+        return sortDirection === 'asc' ? bedCmp : -bedCmp;
+      }
       case '藥完日期':
         // 使用最早的藥完日期進行排序（最近到期的排在前面）
         const endSourcesA = getAllMedicationSources(a);

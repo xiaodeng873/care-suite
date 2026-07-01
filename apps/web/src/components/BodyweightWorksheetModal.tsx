@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { X, Scale, CheckSquare, Square } from 'lucide-react';
+import { X, Scale, CheckSquare, Square, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { generateBodyweightRecordWorksheet } from '../utils/bodyweightRecordWorksheetGenerator';
 
@@ -27,6 +27,7 @@ const BodyweightWorksheetModal: React.FC<BodyweightWorksheetModalProps> = ({ onC
   const [stationFilter, setStationFilter] = useState<string>('all');
   const [residencyFilter, setResidencyFilter] = useState<'在住' | '已退住'>('在住');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [quickSearch, setQuickSearch] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -38,7 +39,27 @@ const BodyweightWorksheetModal: React.FC<BodyweightWorksheetModalProps> = ({ onC
       .sort((a, b) => (a.床號 || '').localeCompare(b.床號 || '', 'zh-Hant', { numeric: true }));
   }, [patients, residencyFilter, stationFilter]);
 
+  const handleQuickSearch = (term: string) => {
+    setQuickSearch(term);
+    if (!term.trim()) return;
+    const t = term.trim().toLowerCase();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      filteredPatients.forEach(p => {
+        const name = `${p.中文姓氏 ?? ''}${p.中文名字 ?? ''}${p.中文姓名 ?? ''}`;
+        if ((p.床號 || '').toLowerCase().includes(t) || name.includes(t)) next.add(p.院友id);
+      });
+      return next;
+    });
+  };
   const allSelected = filteredPatients.length > 0 && filteredPatients.every(p => selectedIds.has(p.院友id));
+  const displayPatients = quickSearch.trim()
+    ? filteredPatients.filter(p => {
+        const t = quickSearch.trim().toLowerCase();
+        const name = `${p.中文姓氏 ?? ''}${p.中文名字 ?? ''}${p.中文姓名 ?? ''}`;
+        return (p.床號 || '').toLowerCase().includes(t) || name.includes(t);
+      })
+    : filteredPatients;
 
   const toggleOne = (id: number) => {
     setSelectedIds(prev => {
@@ -157,11 +178,21 @@ const BodyweightWorksheetModal: React.FC<BodyweightWorksheetModalProps> = ({ onC
                 <button type="button" onClick={invertSelection} className="text-sm text-blue-600 hover:text-blue-700">反選</button>
               </div>
             </div>
+            <div className="relative mb-2">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                value={quickSearch}
+                onChange={e => handleQuickSearch(e.target.value)}
+                placeholder="輸入姓名或床號自動勾選..."
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
             <div className="border border-gray-200 rounded-md max-h-64 overflow-y-auto divide-y divide-gray-100">
               {filteredPatients.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-gray-500">沒有符合條件的院友</p>
               ) : (
-                filteredPatients.map(p => (
+                displayPatients.map(p => (
                   <button
                     key={p.院友id}
                     type="button"

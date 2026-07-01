@@ -823,8 +823,7 @@ const PatientRecords: React.FC = () => {
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                   </th>
-                  <SortableHeader field="床號">床號</SortableHeader>
-                  <SortableHeader field="中文姓名">院友姓名</SortableHeader>
+                  <SortableHeader field="床號">院友</SortableHeader>
                   <SortableHeader field="性別">性別</SortableHeader>
                   <SortableHeader field="年齡">年齡</SortableHeader>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -861,9 +860,6 @@ const PatientRecords: React.FC = () => {
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {patient.床號}
-                    </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex flex-wrap items-center gap-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
@@ -883,9 +879,7 @@ const PatientRecords: React.FC = () => {
                               {patient.中文姓名}
                             </span>
                           </PatientTooltip>
-                          <div className="text-sm text-gray-500">
-                            {getFormattedEnglishName(patient?.英文姓氏, patient?.英文名字) || patient?.英文姓名 || '-'}
-                          </div>
+                          <div className="text-sm text-gray-500">{patient.床號}</div>
                         </div>
                       </div>
                     </td>

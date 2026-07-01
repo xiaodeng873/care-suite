@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import {
   Heart,
@@ -211,10 +211,10 @@ const HealthAssessment: React.FC = () => {
         valueA = a.記錄時間;
         valueB = b.記錄時間;
         break;
-      case '院友姓名':
-        valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
-        valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
-        break;
+      case '院友姓名': {
+        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+        return sortDirection === 'asc' ? bedCmp : -bedCmp;
+      }
       case '監測類型':
         valueA = a.監測類型;
         valueB = b.監測類型;
@@ -967,8 +967,7 @@ const HealthAssessment: React.FC = () => {
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                   </th>
-                  <SortableHeader field="院友姓名">床號</SortableHeader>
-                  <SortableHeader field="院友姓名">院友姓名</SortableHeader>
+                  <SortableHeader field="院友姓名">院友</SortableHeader>
                   <SortableHeader field="記錄日期">日期時間</SortableHeader>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">體溫</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">血壓</th>
@@ -1008,21 +1007,25 @@ const HealthAssessment: React.FC = () => {
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{patient?.床號 || '-'}</td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                             {patient?.院友相片 ? (
                               <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
                             ) : (
-                              <User className="h-4 w-4 text-blue-600" />
+                              <User className="h-5 w-5 text-blue-600" />
                             )}
                           </div>
-                          {patient ? (
-                            <PatientTooltip patient={patient}>
-                              <span className="cursor-help hover:text-blue-600 transition-colors">{patient.中文姓氏}{patient.中文名字}</span>
-                            </PatientTooltip>
-                          ) : '-'}
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {patient ? (
+                                <PatientTooltip patient={patient}>
+                                  <span className="cursor-help hover:text-blue-600 transition-colors">{patient.中文姓氏}{patient.中文名字}</span>
+                                </PatientTooltip>
+                              ) : '-'}
+                            </div>
+                            <div className="text-sm text-gray-500">{patient?.床號}</div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">

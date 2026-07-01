@@ -26,7 +26,7 @@ import CarePlanModal from '../components/CarePlanModal';
 import ProblemLibraryModal from '../components/ProblemLibraryModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { useAuth } from '../context/AuthContext';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 
 type SortField = '院友姓名' | 'plan_date' | 'plan_type' | 'review_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -220,10 +220,10 @@ const IndividualCarePlan: React.FC = () => {
     let valueB: string | number = '';
 
     switch (sortField) {
-      case '院友姓名':
-        valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
-        valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
-        break;
+      case '院友姓名': {
+        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+        return sortDirection === 'asc' ? bedCmp : -bedCmp;
+      }
       case 'plan_date':
         valueA = new Date(a.plan_date).getTime();
         valueB = new Date(b.plan_date).getTime();
@@ -690,6 +690,7 @@ const IndividualCarePlan: React.FC = () => {
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">營養師</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">醫生</th>
 
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">建立日期</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
               </tr>
             </thead>
@@ -829,6 +830,7 @@ const IndividualCarePlan: React.FC = () => {
                           }
                         })()}
                       </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{plan.created_at ? new Date(plan.created_at).toLocaleDateString('zh-TW') : '-'}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-wrap items-center gap-2">
                           <button

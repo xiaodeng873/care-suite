@@ -4,7 +4,7 @@ import { Guitar as Hospital, Plus, CreditCard as Edit3, Trash2, Search, Filter, 
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import HospitalEpisodeModal from '../components/HospitalEpisodeModal';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 
@@ -206,10 +206,10 @@ const AdmissionRecords: React.FC = () => {
         valueA = new Date(a.episode_start_date).getTime();
         valueB = new Date(b.episode_start_date).getTime();
         break;
-      case '院友姓名':
-        valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
-        valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
-        break;
+      case '院友姓名': {
+        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+        return sortDirection === 'asc' ? bedCmp : -bedCmp;
+      }
       case '主要醫院':
         valueA = a.primary_hospital || '';
         valueB = b.primary_hospital || '';
@@ -941,6 +941,7 @@ const AdmissionRecords: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     備註
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">建立日期</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     操作
                   </th>
@@ -1141,6 +1142,9 @@ const AdmissionRecords: React.FC = () => {
                         <div className="truncate" title={episode.remarks || ''}>
                           {episode.remarks || '-'}
                         </div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {episode.created_at ? new Date(episode.created_at).toLocaleDateString('zh-TW') : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-wrap gap-2">

@@ -5,7 +5,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import WoundAssessmentModal from '../components/WoundAssessmentModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 
 type SortField = '院友姓名' | 'assessment_date' | 'next_assessment_date' | 'stage' | 'infection' | 'assessor';
 type SortDirection = 'asc' | 'desc';
@@ -196,10 +196,10 @@ const WoundManagement: React.FC = () => {
     let valueB: string | number = '';
     
     switch (sortField) {
-      case '院友姓名':
-        valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
-        valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
-        break;
+      case '院友姓名': {
+        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+        return sortDirection === 'asc' ? bedCmp : -bedCmp;
+      }
       case 'assessment_date':
         valueA = new Date(a.assessment_date).getTime();
         valueB = new Date(b.assessment_date).getTime();
@@ -809,6 +809,7 @@ const WoundManagement: React.FC = () => {
                     記錄狀態
                   </th>
                   <SortableHeader field="stage">傷口階段</SortableHeader>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">建立日期</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     操作
                   </th>
@@ -935,6 +936,9 @@ const WoundManagement: React.FC = () => {
                             <span className="text-gray-500">-</span>
                           )}
                         </div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {assessment.created_at ? new Date(assessment.created_at).toLocaleDateString('zh-TW') : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-shrink-0 gap-2">

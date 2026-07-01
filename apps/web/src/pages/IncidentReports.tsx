@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import {
   AlertTriangle,
@@ -150,10 +150,10 @@ const IncidentReports: React.FC = () => {
     let valueB: string | number = '';
 
     switch (sortField) {
-      case '院友姓名':
-        valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
-        valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
-        break;
+      case '院友姓名': {
+        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+        return sortDirection === 'asc' ? bedCmp : -bedCmp;
+      }
       case 'incident_date':
         valueA = a.incident_date ? new Date(a.incident_date).getTime() : 0;
         valueB = b.incident_date ? new Date(b.incident_date).getTime() : 0;
@@ -629,6 +629,7 @@ const IncidentReports: React.FC = () => {
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                   填報人
                 </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">建立日期</th>
                 <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 w-24">
                   操作
                 </th>
@@ -714,6 +715,9 @@ const IncidentReports: React.FC = () => {
                       <td className="px-4 py-3">
                         <div className="text-sm text-gray-900">{report.reporter_signature || '-'}</div>
                         <div className="text-xs text-gray-500">{report.reporter_position || ''}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-500">{report.created_at ? new Date(report.created_at).toLocaleDateString('zh-TW') : '-'}</div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center justify-center gap-2">

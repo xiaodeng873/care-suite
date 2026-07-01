@@ -20,7 +20,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientLogModal from '../components/PatientLogModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 
 type SortField = '記錄日期' | '院友姓名' | '日誌類型' | '記錄人員' | '創建時間';
 type SortDirection = 'asc' | 'desc';
@@ -177,10 +177,10 @@ const PatientLogs: React.FC = () => {
         valueA = new Date(a.log_date).getTime();
         valueB = new Date(b.log_date).getTime();
         break;
-      case '院友姓名':
-        valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
-        valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
-        break;
+      case '院友姓名': {
+        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+        return sortDirection === 'asc' ? bedCmp : -bedCmp;
+      }
       case '日誌類型':
         valueA = a.log_type;
         valueB = b.log_type;
@@ -662,6 +662,7 @@ const PatientLogs: React.FC = () => {
                     日誌內容
                   </th>
                   <SortableHeader field="記錄人員">記錄人員</SortableHeader>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">建立日期</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     操作
                   </th>
@@ -735,6 +736,9 @@ const PatientLogs: React.FC = () => {
                           <User className="h-4 w-4 mr-1 text-gray-400" />
                           {log.recorder}
                         </div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {log.created_at ? new Date(log.created_at).toLocaleDateString('zh-TW') : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-shrink-0 gap-2">

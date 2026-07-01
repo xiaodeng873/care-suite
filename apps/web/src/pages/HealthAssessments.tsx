@@ -26,7 +26,7 @@ import HealthAssessmentModal from '../components/HealthAssessmentModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { isHealthAssessmentOverdue, isHealthAssessmentDueSoon } from '../utils/taskScheduler';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { printHealthAssessment } from '../utils/healthAssessmentPrintGenerator';
 
 type SortField = '院友姓名' | 'assessment_date' | 'assessor' | 'created_at';
@@ -191,10 +191,10 @@ const HealthAssessments: React.FC = () => {
     let valueB: string | number = '';
 
     switch (sortField) {
-      case '院友姓名':
-        valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
-        valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
-        break;
+      case '院友姓名': {
+        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+        return sortDirection === 'asc' ? bedCmp : -bedCmp;
+      }
       case 'assessment_date':
         valueA = new Date(a.assessment_date).getTime();
         valueB = new Date(b.assessment_date).getTime();
@@ -750,9 +750,8 @@ const HealthAssessments: React.FC = () => {
                     下次評估日期
                   </th>
                   <SortableHeader field="assessor">評估人員</SortableHeader>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    狀態
-                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">建立日期</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     操作
                   </th>
@@ -898,6 +897,9 @@ const HealthAssessments: React.FC = () => {
                               );
                             }
                           })()}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500" onClick={(e) => e.stopPropagation()}>
+                          {assessment.created_at ? new Date(assessment.created_at).toLocaleDateString('zh-TW') : '-'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                           <div className="flex flex-shrink-0 items-center gap-2">
