@@ -304,9 +304,19 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
                         <button key={type} type="button"
                           onClick={() => {
                             if (task) return;
-                            setSelectedVitalTypes(prev =>
-                              selected ? prev.filter(t => t !== type) : [...prev, type]
-                            );
+                            setSelectedVitalTypes(prev => {
+                              let next = selected ? prev.filter(t => t !== type) : [...prev, type];
+                              // 血壓與脈搏自動綁定：選一個同時選另一個，取消一個同時取消另一個
+                              if (type === '血壓' || type === '脈搏') {
+                                const partner: VitalSignType = type === '血壓' ? '脈搏' : '血壓';
+                                if (!selected) {
+                                  if (!next.includes(partner)) next = [...next, partner];
+                                } else {
+                                  next = next.filter(t => t !== partner);
+                                }
+                              }
+                              return next;
+                            });
                           }}
                           className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-colors ${
                             selected ? `${color} text-white border-transparent` : 'border-gray-300 text-gray-700 hover:bg-gray-50'
