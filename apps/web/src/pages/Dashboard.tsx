@@ -520,10 +520,10 @@ const Dashboard: React.FC = () => {
         urgent.push({ ...task, firstIncompleteDate, incompleteDates });
       }
     });
-    // 只顯示今日未完成任務（之前的不管）
+    // 顯示「首個未完成日期 ≤ 今天」的任務（包含逾期補錄）
     const todayStr = formatLocalDate(today);
     return urgent.filter(t =>
-      t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) === todayStr : false
+      t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) <= todayStr : false
     );
   }, [monitoringTasks, patientsMap, recordLookup, recordTimes]);
   const taskGroups = useMemo(() => {
@@ -981,7 +981,7 @@ const Dashboard: React.FC = () => {
                   <h3 className="text-md font-medium text-gray-700 mb-2 time-slot-title">{slot.title}</h3>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2">
                     {(() => {
-                      // 同一院友、同一首個未完成日期、同一時間點的多種監測類型整合為一張卡片
+                      // 同一院友、同一時間點的多種監測類型整合為一張卡片（逾期與今日未完成合併顯示）
                       const padTime = (t: string) => {
                         const [h, m] = (t || '').split(':');
                         return `${String(Number(h) || 0).padStart(2, '0')}:${String(Number(m) || 0).padStart(2, '0')}`;
@@ -994,16 +994,15 @@ const Dashboard: React.FC = () => {
                       };
                       const groups = new Map<string, typeof slot.tasks>();
                       slot.tasks.forEach(t => {
-                        const dateToken = t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) : '';
                         const timeToken = earliestTime(t);
-                        const key = `${t.patient_id}_${dateToken}_${timeToken}`;
+                        const key = `${t.patient_id}_${timeToken}`;
                         if (!groups.has(key)) groups.set(key, []);
                         groups.get(key)!.push(t);
                       });
                       return Array.from(groups.entries())
                         .sort(([ka, ga], [kb, gb]) => {
                           // 與工作紙(monitoringTaskWorksheetGenerator)完全一致：時間 → 備註優先序 → 床號(localeCompare)
-                          const toMin = (k: string) => { const t = k.split('_')[2] || '00:00'; const [h, m] = t.split(':'); return (Number(h) || 0) * 60 + (Number(m) || 0); };
+                          const toMin = (k: string) => { const t = k.split('_')[1] || '00:00'; const [h, m] = t.split(':'); return (Number(h) || 0) * 60 + (Number(m) || 0); };
                           const ma = toMin(ka); const mb = toMin(kb);
                           if (ma !== mb) return ma - mb;
                           const notePriority = (note: string) => {
@@ -1023,10 +1022,15 @@ const Dashboard: React.FC = () => {
                           return bedA.localeCompare(bedB);
                         })
                         .map(([groupKey, group]) => {
-                        const rep = group[0];
+                        // 以最早 firstIncompleteDate 為代表任務（確保逾期日期優先作為 initialDate）
+                        const rep = [...group].sort((a, b) => {
+                          const da = a.firstIncompleteDate?.getTime() ?? Infinity;
+                          const db = b.firstIncompleteDate?.getTime() ?? Infinity;
+                          return da - db;
+                        })[0];
                         const patient = patients.find(p => p.院友id === rep.patient_id);
                         const todayStrCard = formatLocalDate(new Date());
-                        const isOverdueCard = rep.firstIncompleteDate ? formatLocalDate(rep.firstIncompleteDate) < todayStrCard : false;
+                        const isOverdueCard = group.some(t => t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) < todayStrCard : false);
                         const hasMultipleDates = group.some(t => t.incompleteDates && t.incompleteDates.length > 1) || isOverdueCard;
                         return (
                         <div
@@ -1087,18 +1091,11 @@ const Dashboard: React.FC = () => {
                                 })()}
                               </div>
                             </div>
-                            {rep.firstIncompleteDate && (() => {
-                              const todayStr = formatLocalDate(new Date());
-                              const incompleteDateStr = formatLocalDate(rep.firstIncompleteDate);
-                              const isToday = incompleteDateStr === todayStr;
-                              return (
-                                <span className={`status-badge flex-shrink-0 ${
-                                  isToday ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {isToday ? '未完成' : '逾期'}
-                                </span>
-                              );
-                            })()}
+                            <span className={`status-badge flex-shrink-0 ${
+                              isOverdueCard ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                            }`}>
+                              {isOverdueCard ? '逾期' : '未完成'}
+                            </span>
                           </div>
                         </div>
                         );
