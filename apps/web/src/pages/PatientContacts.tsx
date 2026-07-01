@@ -1,4 +1,5 @@
-import { useState, useEffect, useDeferredValue } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { Edit3, Trash2, User, ChevronUp, ChevronDown, Filter, X, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -26,7 +27,7 @@ const PatientContacts: React.FC = () => {
   const [contacts, setContacts] = useState<(PatientContact & { patient?: any })[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const deferredSearch = useDeferredValue(searchTerm);
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
     床號: '',
     中文姓名: '',
@@ -72,14 +73,14 @@ const PatientContacts: React.FC = () => {
     }
   }, [patients]);
 
-  const contactsByPatient = contacts.reduce((acc, contact) => {
+  const contactsByPatient = useMemo(() => contacts.reduce((acc, contact) => {
     const pid = contact.院友id;
     if (!acc[pid]) acc[pid] = [];
     acc[pid].push(contact);
     return acc;
-  }, {} as Record<number, PatientContact[]>);
+  }, {} as Record<number, PatientContact[]>), [contacts]);
 
-  const filteredPatients = patients.filter(patient => {
+  const filteredPatients = useMemo(() => patients.filter(patient => {
     if (advancedFilters.床號 && !matchBedNumber(patient.床號, advancedFilters.床號)) {
       return false;
     }
@@ -105,9 +106,9 @@ const PatientContacts: React.FC = () => {
     }
 
     return matchesSearch;
-  });
+  }), [patients, advancedFilters, deferredSearch, contactsByPatient]);
 
-  const sortedPatients = [...filteredPatients].sort((a, b) => {
+  const sortedPatients = useMemo(() => [...filteredPatients].sort((a, b) => {
     if (deferredSearch) {
       const bedCmp = comparePatientsForSearch(a, b, deferredSearch);
       if (bedCmp !== 0) return bedCmp;
@@ -144,7 +145,7 @@ const PatientContacts: React.FC = () => {
     } else {
       return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
     }
-  });
+  }), [filteredPatients, deferredSearch, sortField, sortDirection]);
 
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useDeferredValue } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import {
@@ -69,7 +70,7 @@ const HealthAssessment: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedRecordGroup, setSelectedRecordGroup] = useState<HealthRecord[] | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const deferredSearch = useDeferredValue(searchTerm);
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [sortField, setSortField] = useState<SortField>('記錄日期');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -143,7 +144,7 @@ const HealthAssessment: React.FC = () => {
   if (loading) {
     return <LoadingScreen pageName="監測記錄" />;
   }
-  const filteredRecords = healthRecords.filter(record => {
+  const filteredRecords = useMemo(() => healthRecords.filter(record => {
     const patient = patients.find(p => p.院友id === record.院友id);
     // 確保院友存在
     if (!patient) return false;
@@ -185,8 +186,8 @@ const HealthAssessment: React.FC = () => {
                          false;
     }
     return matchesSearch;
-  });
-  const sortedRecords = [...filteredRecords].sort((a, b) => {
+  }), [healthRecords, patients, advancedFilters, deferredSearch]);
+  const sortedRecords = useMemo(() => [...filteredRecords].sort((a, b) => {
     const patientA = patients.find(p => p.院友id === a.院友id);
     const patientB = patients.find(p => p.院友id === b.院友id);
     if (deferredSearch) {
@@ -226,7 +227,7 @@ const HealthAssessment: React.FC = () => {
     } else {
       return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
     }
-  });
+  }), [filteredRecords, patients, deferredSearch, sortField, sortDirection]);
   const totalItems = sortedRecords.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { 
   Utensils, 
   Plus, 
@@ -43,6 +44,7 @@ const MealGuidance: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedGuidance, setSelectedGuidance] = useState<MealGuidance | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -72,7 +74,9 @@ const MealGuidance: React.FC = () => {
     return <LoadingScreen pageName="飲食指導" />;
   }
 
-  const filteredGuidances = mealGuidances.filter(guidance => {
+  const filteredGuidances = useMemo(() => {
+    const searchTerm = deferredSearch;
+    return mealGuidances.filter(guidance => {
     const patient = patients.find(p => p.院友id === guidance.patient_id);
     
     // 確保院友存在
@@ -132,7 +136,8 @@ const MealGuidance: React.FC = () => {
     }
     
     return matchesSearch;
-  });
+    });
+  }, [mealGuidances, patients, advancedFilters, deferredSearch]);
 
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');

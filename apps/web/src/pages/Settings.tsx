@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode, Building2, Pill } from 'lucide-react';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { UserQRCodeModal } from '../components/UserQRCodeModal';
@@ -810,6 +811,7 @@ const Settings: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [filterDepartment, setFilterDepartment] = useState<string>('');
   const [filterRole, setFilterRole] = useState<string>('');
   
@@ -1077,17 +1079,17 @@ const Settings: React.FC = () => {
   };
 
   // 過濾用戶
-  const filteredUsers = users.filter(user => {
-    const matchSearch = !searchTerm || 
-      fuzzyMatch(user.name_zh, searchTerm) ||
-      fuzzyMatch(user.name_en, searchTerm) ||
-      fuzzyMatch(user.username, searchTerm);
+  const filteredUsers = useMemo(() => users.filter(user => {
+    const matchSearch = !deferredSearch || 
+      fuzzyMatch(user.name_zh, deferredSearch) ||
+      fuzzyMatch(user.name_en, deferredSearch) ||
+      fuzzyMatch(user.username, deferredSearch);
     
     const matchDepartment = !filterDepartment || user.department === filterDepartment;
     const matchRole = !filterRole || user.role === filterRole;
     
     return matchSearch && matchDepartment && matchRole;
-  });
+  }), [users, deferredSearch, filterDepartment, filterRole]);
 
   // 如果沒有管理權限，顯示原始設定頁面
   if (!canManageUsers()) {

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { 
   Pill, 
   Plus, 
@@ -36,6 +37,7 @@ const DrugDatabase: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedDrug, setSelectedDrug] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('drug_name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -61,7 +63,9 @@ const DrugDatabase: React.FC = () => {
     return <LoadingScreen pageName="藥物資料庫" />;
   }
 
-  const filteredDrugs = (drugDatabase || []).filter(drug => {
+  const filteredDrugs = useMemo(() => {
+    const searchTerm = deferredSearch;
+    return (drugDatabase || []).filter(drug => {
     // 先應用進階篩選
     if (advancedFilters.drug_name && !fuzzyMatch(drug.drug_name, advancedFilters.drug_name)) {
       return false;
@@ -94,7 +98,8 @@ const DrugDatabase: React.FC = () => {
     }
     
     return matchesSearch;
-  });
+    });
+  }, [drugDatabase, advancedFilters, deferredSearch]);
 
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');

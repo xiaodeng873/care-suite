@@ -1,4 +1,5 @@
-import React, { useState, useDeferredValue } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { CalendarCheck, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Clock, MapPin, Car, UserCheck, ChevronUp, ChevronDown, Copy, MessageSquare, X, FileText } from 'lucide-react';
 import { usePatients, type FollowUpAppointment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -32,7 +33,7 @@ const FollowUpManagement: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<FollowUpAppointment | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
-  const deferredSearch = useDeferredValue(searchTerm);
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('覆診日期');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -64,7 +65,7 @@ const FollowUpManagement: React.FC = () => {
     return <LoadingScreen pageName="覆診管理" />;
   }
 
-  const filteredAppointments = followUpAppointments.filter(appointment => {
+  const filteredAppointments = useMemo(() => followUpAppointments.filter(appointment => {
     const patient = patients.find(p => p.院友id === appointment.院友id);
     
     // 確保院友存在 - 但仍顯示沒有對應院友的記錄以便調試
@@ -122,7 +123,7 @@ const FollowUpManagement: React.FC = () => {
     }
     
     return matchesSearch;
-  });
+  }), [followUpAppointments, patients, advancedFilters, deferredSearch]);
 
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => Array.isArray(value) ? value.length > 0 : value !== '');

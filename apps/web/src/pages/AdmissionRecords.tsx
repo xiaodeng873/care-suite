@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { Guitar as Hospital, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, MapPin, Bed, FileText, ChevronUp, ChevronDown, X, Activity } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -28,6 +29,7 @@ const AdmissionRecords: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('開始日期');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -57,7 +59,9 @@ const AdmissionRecords: React.FC = () => {
     return <LoadingScreen pageName="入院記錄" />;
   }
 
-  const filteredEpisodes = hospitalEpisodes.filter(episode => {
+  const filteredEpisodes = useMemo(() => {
+    const searchTerm = deferredSearch;
+    return hospitalEpisodes.filter(episode => {
     const patient = patients.find(p => p.院友id === episode.patient_id);
     
     // 確保院友存在
@@ -123,7 +127,8 @@ const AdmissionRecords: React.FC = () => {
     }
     
     return matchesSearch;
-  });
+    });
+  }, [hospitalEpisodes, patients, advancedFilters, deferredSearch]);
 
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');

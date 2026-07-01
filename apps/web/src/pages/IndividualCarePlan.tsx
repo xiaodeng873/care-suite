@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { 
   FileText, 
   Plus, 
@@ -47,6 +48,7 @@ const IndividualCarePlan: React.FC = () => {
   const [showProblemLibraryModal, setShowProblemLibraryModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<CarePlan | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('plan_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -121,7 +123,9 @@ const IndividualCarePlan: React.FC = () => {
     return <LoadingScreen pageName="個人照顧計劃" />;
   }
 
-  const filteredPlans = (carePlans || []).filter(plan => {
+  const filteredPlans = useMemo(() => {
+    const searchTerm = deferredSearch;
+    return (carePlans || []).filter(plan => {
     const patient = patients.find(p => p.院友id === plan.patient_id);
 
     // 先應用進階篩選
@@ -175,7 +179,8 @@ const IndividualCarePlan: React.FC = () => {
     }
     
     return matchesSearch;
-  });
+    });
+  }, [carePlans, patients, advancedFilters, deferredSearch]);
 
   const hasAdvancedFilters = () => {
     return advancedFilters.床號 !== '' || 

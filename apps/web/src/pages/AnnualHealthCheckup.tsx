@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import {
   Stethoscope,
   Plus,
@@ -51,6 +52,7 @@ const AnnualHealthCheckup: React.FC = () => {
   const [selectedCheckup, setSelectedCheckup] = useState<AnnualHealthCheckup | null>(null);
   const [renewFromCheckup, setRenewFromCheckup] = useState<AnnualHealthCheckup | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('next_due_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -91,7 +93,9 @@ const AnnualHealthCheckup: React.FC = () => {
     const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return daysDiff <= 14 && daysDiff > 0;
   };
-  const filteredCheckups = annualHealthCheckups.filter(checkup => {
+  const filteredCheckups = useMemo(() => {
+    const searchTerm = deferredSearch;
+    return annualHealthCheckups.filter(checkup => {
     const patient = patients.find(p => p.院友id === checkup.patient_id);
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
       return false;
@@ -131,7 +135,8 @@ const AnnualHealthCheckup: React.FC = () => {
                          matchBedNumber(patient?.床號, searchTerm);
     }
     return matchesSearch;
-  });
+    });
+  }, [annualHealthCheckups, patients, advancedFilters, deferredSearch]);
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');
   };

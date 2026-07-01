@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { 
   Shield, 
   Plus, 
@@ -48,6 +49,7 @@ const RestraintManagement: React.FC = () => {
   const [selectedAssessment, setSelectedAssessment] = useState<PatientRestraintAssessment | null>(null);
   const [renewFromAssessment, setRenewFromAssessment] = useState<PatientRestraintAssessment | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('next_due_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -96,7 +98,9 @@ const RestraintManagement: React.FC = () => {
     return daysDiff <= 30 && daysDiff > 0;
   };
 
-  const filteredAssessments = patientRestraintAssessments.filter(assessment => {
+  const filteredAssessments = useMemo(() => {
+    const searchTerm = deferredSearch;
+    return patientRestraintAssessments.filter(assessment => {
     const patient = patients.find(p => p.院友id === assessment.patient_id);
     
     // 先應用進階篩選
@@ -150,7 +154,8 @@ const RestraintManagement: React.FC = () => {
     }
     
     return matchesSearch;
-  });
+    });
+  }, [patientRestraintAssessments, patients, advancedFilters, deferredSearch]);
 
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useDeferredValue } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { Users, Plus, Edit3, Trash2, Search, Filter, Download, User, Calendar, CreditCard, Heart, AlertTriangle, CheckCircle, ChevronUp, ChevronDown, X, LogOut, QrCode } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -36,7 +37,7 @@ const PatientRecords: React.FC = () => {
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const deferredSearch = useDeferredValue(searchTerm);
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [sortField, setSortField] = useState<SortField>('床號');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -71,7 +72,7 @@ const PatientRecords: React.FC = () => {
     return <LoadingScreen pageName="院友列表" />;
   }
 
-  const filteredPatients = patients.filter(patient => {
+  const filteredPatients = useMemo(() => patients.filter(patient => {
     if (advancedFilters.床號 && !matchBedNumber(patient.床號, advancedFilters.床號)) {
       return false;
     }
@@ -131,7 +132,7 @@ const PatientRecords: React.FC = () => {
     }
     
     return matchesSearch;
-  });
+  }), [patients, advancedFilters, deferredSearch]);
 
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');

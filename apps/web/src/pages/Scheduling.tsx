@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { Calendar, Plus, Edit3, Trash2, Download, Users, Settings, User, Search, Filter, X, AlertCircle } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -19,6 +20,7 @@ const Scheduling: React.FC = () => {
   const [selectedSchedule, setSelectedSchedule] = useState<db.ScheduleWithDetails | null>(null);
   const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [dateFilter, setDateFilter] = useState('');
   const [reasonFilter, setReasonFilter] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -158,7 +160,9 @@ const Scheduling: React.FC = () => {
     }
   };
   // 進階搜索邏輯
-  const filteredSchedules = schedules.filter(schedule => {
+  const filteredSchedules = useMemo(() => {
+    const searchTerm = deferredSearch;
+    return schedules.filter(schedule => {
     if (dateFilter && schedule.到診日期 !== dateFilter) {
       return false;
     }
@@ -185,7 +189,8 @@ const Scheduling: React.FC = () => {
       matchesSearch = dateMatch || patientMatch;
     }
     return matchesSearch;
-  });
+    });
+  }, [schedules, patientMap, deferredSearch, dateFilter, reasonFilter]);
   // 獲取所有看診原因選項
   const getAllReasons = () => {
     const reasons = new Set<string>();

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { Building2, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, Clock, Pill, ChevronUp, ChevronDown, X, AlertTriangle, CheckCircle, Copy, MessageCircle, Stethoscope, Settings, ToggleLeft, ToggleRight } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -271,19 +272,19 @@ const HospitalOutreach: React.FC = () => {
 
       // 然後應用搜索條件
       let matchesSearch = true;
-      if (searchTerm) {
-        matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
-                       matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
-                       fuzzyMatch(patient?.身份證號碼, searchTerm) ||
-                       matchBedNumber(patient?.床號, searchTerm) ||
-                       fuzzyMatch(record.remarks, searchTerm) ||
-                       new Date(record.medication_bag_date).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase()) ||
+      if (deferredSearch) {
+        matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, deferredSearch) ||
+                       matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, deferredSearch) ||
+                       fuzzyMatch(patient?.身份證號碼, deferredSearch) ||
+                       matchBedNumber(patient?.床號, deferredSearch) ||
+                       fuzzyMatch(record.remarks, deferredSearch) ||
+                       new Date(record.medication_bag_date).toLocaleDateString('zh-TW').includes(deferredSearch.toLowerCase()) ||
                        false;
       }
 
       return matchesSearch;
     });
-  }, [hospitalOutreachRecords, patients, advancedFilters, searchTerm]);
+  }, [hospitalOutreachRecords, patients, advancedFilters, deferredSearch]);
 
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');

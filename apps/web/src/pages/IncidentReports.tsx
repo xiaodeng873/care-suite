@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import {
@@ -41,6 +42,7 @@ const IncidentReports: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState<IncidentReport | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('incident_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -93,7 +95,9 @@ const IncidentReports: React.FC = () => {
     });
   };
 
-  const filteredReports = incidentReports.filter(report => {
+  const filteredReports = useMemo(() => {
+    const searchTerm = deferredSearch;
+    return incidentReports.filter(report => {
     const patient = patients.find(p => p.院友id === report.patient_id);
 
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
@@ -135,7 +139,8 @@ const IncidentReports: React.FC = () => {
     }
 
     return matchesSearch;
-  });
+    });
+  }, [incidentReports, patients, advancedFilters, deferredSearch]);
 
   const sortedReports = [...filteredReports].sort((a, b) => {
     const patientA = patients.find(p => p.院友id === a.patient_id);

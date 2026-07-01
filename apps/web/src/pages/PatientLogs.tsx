@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { 
   FileText, 
   Plus, 
@@ -40,6 +41,7 @@ const PatientLogs: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedLog, setSelectedLog] = useState<PatientLog | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('記錄日期');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -67,7 +69,9 @@ const PatientLogs: React.FC = () => {
     return <LoadingScreen pageName="院友日誌" />;
   }
 
-  const filteredLogs = patientLogs.filter(log => {
+  const filteredLogs = useMemo(() => {
+    const searchTerm = deferredSearch;
+    return patientLogs.filter(log => {
     const patient = patients.find(p => p.院友id === log.patient_id);
     
     // 先應用進階篩選
@@ -115,7 +119,8 @@ const PatientLogs: React.FC = () => {
     }
     
     return matchesSearch;
-  });
+    });
+  }, [patientLogs, patients, advancedFilters, deferredSearch]);
 
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');

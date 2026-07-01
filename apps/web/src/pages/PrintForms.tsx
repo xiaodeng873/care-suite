@@ -1,4 +1,5 @@
-import React, { useState, useRef, useDeferredValue } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import {
   Printer,
   FileText,
@@ -56,7 +57,7 @@ const PrintForms: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
   const [restraintUserIds, setRestraintUserIds] = useState<Set<number>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
-  const deferredSearch = useDeferredValue(searchTerm);
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [sortField, setSortField] = useState<SortField>('床號');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -153,7 +154,7 @@ const PrintForms: React.FC = () => {
     // Implementation for deleting template
   };
   // Patient filtering logic
-  const filteredPatients = patients.filter(patient => {
+  const filteredPatients = useMemo(() => patients.filter(patient => {
     // 如果選擇約束物品觀察表，只顯示使用約束物品的院友
     if (selectedTemplate?.type === 'restraint-observation') {
       if (!restraintUserIds.has(patient.院友id)) {
@@ -194,7 +195,7 @@ const PrintForms: React.FC = () => {
                          fuzzyMatch(patient.身份證號碼, deferredSearch);
     }
     return matchesSearch;
-  });
+  }), [patients, advancedFilters, deferredSearch]);
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');
   };

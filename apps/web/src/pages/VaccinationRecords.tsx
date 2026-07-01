@@ -1,4 +1,5 @@
-import React, { useState, useDeferredValue } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import {
   Syringe,
   Plus,
@@ -36,7 +37,7 @@ const VaccinationRecords: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<number | undefined>();
   const [selectedPatientRecords, setSelectedPatientRecords] = useState<VaccinationRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const deferredSearch = useDeferredValue(searchTerm);
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('vaccination_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -88,23 +89,20 @@ const VaccinationRecords: React.FC = () => {
     });
   };
 
-  const groupedByPatient = vaccinationRecords.reduce((acc, record) => {
-    const patientId = record.patient_id;
-    if (!acc[patientId]) {
-      acc[patientId] = [];
-    }
-    acc[patientId].push(record);
-    return acc;
-  }, {} as Record<number, VaccinationRecord[]>);
-
-  const patientGroups = Object.entries(groupedByPatient).map(([patientId, records]) => ({
-    patientId: parseInt(patientId),
-    records: records.sort((a, b) =>
-      new Date(b.vaccination_date).getTime() - new Date(a.vaccination_date).getTime()
-    )
-  }));
-
-  const filteredPatientGroups = patientGroups.filter(group => {
+  const filteredPatientGroups = useMemo(() => {
+    const groupedByPatient = vaccinationRecords.reduce((acc, record) => {
+      const patientId = record.patient_id;
+      if (!acc[patientId]) acc[patientId] = [];
+      acc[patientId].push(record);
+      return acc;
+    }, {} as Record<number, VaccinationRecord[]>);
+    const patientGroups = Object.entries(groupedByPatient).map(([patientId, records]) => ({
+      patientId: parseInt(patientId),
+      records: records.sort((a, b) =>
+        new Date(b.vaccination_date).getTime() - new Date(a.vaccination_date).getTime()
+      )
+    }));
+    return patientGroups.filter(group => {
     const patient = patients.find(p => p.院友id === group.patientId);
     if (!patient) return false;
 
@@ -145,9 +143,10 @@ const VaccinationRecords: React.FC = () => {
 
     return matchesSearch && matchesBedNumber && matchesName && matchesVaccineItem &&
            matchesVaccinationUnit && matchesResidencyStatus && matchesDateRange;
-  });
+    });
+  }, [vaccinationRecords, patients, advancedFilters, deferredSearch]);
 
-  const sortedPatientGroups = [...filteredPatientGroups].sort((a, b) => {
+  const sortedPatientGroups = useMemo(() => [...filteredPatientGroups].sort((a, b) => {
     let valueA: any;
     let valueB: any;
 
@@ -181,7 +180,7 @@ const VaccinationRecords: React.FC = () => {
     } else {
       return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
     }
-  });
+  }), [filteredPatientGroups, patients, deferredSearch, sortField, sortDirection]);
 
   const totalItems = sortedPatientGroups.length;
   const totalPages = Math.ceil(totalItems / pageSize);

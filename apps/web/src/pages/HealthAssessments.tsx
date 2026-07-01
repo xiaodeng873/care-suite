@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { 
   Heart, 
   Plus, 
@@ -50,6 +51,7 @@ const HealthAssessments: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<HealthAssessment | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('assessment_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -81,7 +83,9 @@ const HealthAssessments: React.FC = () => {
     return <LoadingScreen pageName="健康評估" />;
   }
 
-  const filteredAssessments = (healthAssessments || []).filter(assessment => {
+  const filteredAssessments = useMemo(() => {
+    const searchTerm = deferredSearch;
+    return (healthAssessments || []).filter(assessment => {
     const patient = patients.find(p => p.院友id === assessment.patient_id);
 
     // 先應用進階篩選
@@ -134,7 +138,8 @@ const HealthAssessments: React.FC = () => {
     }
     
     return matchesSearch;
-  });
+    });
+  }, [healthAssessments, patients, advancedFilters, deferredSearch]);
 
   const hasAdvancedFilters = () => {
     return Object.values(advancedFilters).some(value => value !== '');
