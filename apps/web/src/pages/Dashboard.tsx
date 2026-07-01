@@ -527,7 +527,18 @@ const Dashboard: React.FC = () => {
     const lunch: typeof urgentMonitoringTasks = [];
     const dinner: typeof urgentMonitoringTasks = [];
     const snack: typeof urgentMonitoringTasks = [];
+    const temperature: typeof urgentMonitoringTasks = [];
+    const weight: typeof urgentMonitoringTasks = [];
     urgentMonitoringTasks.forEach(task => {
+      // 體溫/體重 抽離至獨立時段
+      if (task.health_record_type === '體溫') {
+        temperature.push(task);
+        return;
+      }
+      if (task.health_record_type === '體重' || task.health_record_type === '體重控制') {
+        weight.push(task);
+        return;
+      }
       // 以最早特定時間決定時段，無特定時間才用 next_due_at
       let hour: number;
       if (task.specific_times && task.specific_times.length > 0) {
@@ -566,9 +577,21 @@ const Dashboard: React.FC = () => {
     lunch.sort(sortByTimeThenBed);
     dinner.sort(sortByTimeThenBed);
     snack.sort(sortByTimeThenBed);
-    return { breakfast, lunch, dinner, snack };
+    // 體溫/體重：逾期優先，再按床號（數值排序）
+    const todayStrSort = formatLocalDate(new Date());
+    const sortByOverdueThenBed = (a: typeof urgentMonitoringTasks[number], b: typeof urgentMonitoringTasks[number]) => {
+      const aOverdue = a.firstIncompleteDate ? formatLocalDate(a.firstIncompleteDate) < todayStrSort : false;
+      const bOverdue = b.firstIncompleteDate ? formatLocalDate(b.firstIncompleteDate) < todayStrSort : false;
+      if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+      const bedA = patientsMap.get(a.patient_id)?.床號 || '';
+      const bedB = patientsMap.get(b.patient_id)?.床號 || '';
+      return bedA.localeCompare(bedB, 'zh-Hant', { numeric: true });
+    };
+    temperature.sort(sortByOverdueThenBed);
+    weight.sort(sortByOverdueThenBed);
+    return { breakfast, lunch, dinner, snack, temperature, weight };
   }, [urgentMonitoringTasks, patientsMap]);
-  const { breakfast: breakfastTasks, lunch: lunchTasks, dinner: dinnerTasks, snack: snackTasks } = taskGroups;
+  const { breakfast: breakfastTasks, lunch: lunchTasks, dinner: dinnerTasks, snack: snackTasks, temperature: temperatureTasks, weight: weightTasks } = taskGroups;
   const { overdueDocumentTasks, pendingDocumentTasks, dueSoonDocumentTasks } = useMemo(() => {
     const overdue: typeof documentTasks = [];
     const pending: typeof documentTasks = [];
@@ -899,6 +922,8 @@ const Dashboard: React.FC = () => {
     'bg-yellow-100 hover:bg-yellow-200', // 午餐
     'bg-green-100 hover:bg-green-200',   // 晚餐
     'bg-purple-100 hover:bg-purple-200', // 夜宵
+    'bg-orange-100 hover:bg-orange-200', // 體溫
+    'bg-teal-100 hover:bg-teal-200',     // 體重
   ];
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -1102,7 +1127,187 @@ const Dashboard: React.FC = () => {
                 </div>
               );
             })}
-            {breakfastTasks.length === 0 && lunchTasks.length === 0 && dinnerTasks.length === 0 && snackTasks.length === 0 && (
+            {/* 體溫 時段 */}
+            {temperatureTasks.length > 0 && (() => {
+              const slotBgClass = slotBgClasses[4];
+              const todayStrCard = formatLocalDate(new Date());
+              const groups = new Map<string, typeof temperatureTasks>();
+              temperatureTasks.forEach(t => {
+                const key = String(t.patient_id);
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key)!.push(t);
+              });
+              return (
+                <div>
+                  <h3 className="text-md font-medium text-gray-700 mb-2 time-slot-title">體溫</h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2">
+                    {Array.from(groups.entries())
+                      .sort(([ka, ga], [kb, gb]) => {
+                        const aOv = ga.some(t => t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) < todayStrCard : false);
+                        const bOv = gb.some(t => t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) < todayStrCard : false);
+                        if (aOv !== bOv) return aOv ? -1 : 1;
+                        const bedA = patients.find(p => String(p.院友id) === ka)?.床號 || '';
+                        const bedB = patients.find(p => String(p.院友id) === kb)?.床號 || '';
+                        return bedA.localeCompare(bedB, 'zh-Hant', { numeric: true });
+                      })
+                      .map(([groupKey, group]) => {
+                        const rep = [...group].sort((a, b) => (a.firstIncompleteDate?.getTime() ?? Infinity) - (b.firstIncompleteDate?.getTime() ?? Infinity))[0];
+                        const patient = patients.find(p => p.院友id === rep.patient_id);
+                        const isOverdueCard = group.some(t => t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) < todayStrCard : false);
+                        const hasMultipleDates = group.some(t => t.incompleteDates && t.incompleteDates.length > 1) || isOverdueCard;
+                        return (
+                          <div
+                            key={groupKey || rep.id}
+                            className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card`}
+                            onClick={() => {
+                              if (hasMultipleDates && patient) {
+                                setSelectedHistoryTask({ task: rep, patient, initialDate: rep.firstIncompleteDate || null, groupTasks: group });
+                                setShowHistoryModal(true);
+                              } else {
+                                handleTaskClick(rep, undefined, group);
+                              }
+                            }}
+                          >
+                            <div className="flex flex-wrap items-center gap-3 flex-1">
+                              <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center task-avatar">
+                                {patient?.院友相片 ? (
+                                  <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
+                                ) : (
+                                  <User className="h-5 w-5 text-blue-600" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
+                                  <span className="text-xs text-gray-500">({patient?.床號})</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                  {(() => {
+                                    type FreqGroup = { count: number; note: string; freqTask: typeof group[number] };
+                                    const freqGroups = new Map<string, FreqGroup>();
+                                    group.forEach(t => {
+                                      const note = (t.notes && isMonitoringTask(t.health_record_type)) ? t.notes : '';
+                                      const key = `${note}||${t.frequency_unit}||${t.frequency_value}`;
+                                      if (!freqGroups.has(key)) freqGroups.set(key, { count: 0, note, freqTask: t });
+                                      freqGroups.get(key)!.count += 1;
+                                    });
+                                    return Array.from(freqGroups.values()).map(({ count, note, freqTask }, i) => (
+                                      <span key={i} className="inline-flex flex-col px-2 py-1 bg-white/70 rounded-lg border border-white/60 text-xs text-gray-700">
+                                        <span className="flex items-center gap-1">
+                                          <span className="font-medium">{count}個項目</span>
+                                          {note && <span className={`px-1.5 rounded-full font-medium ${getNotesBadgeClass(note)}`}>{note}</span>}
+                                        </span>
+                                        <span className="flex items-center gap-0.5 text-gray-500 mt-0.5">
+                                          <Repeat className="h-2.5 w-2.5 flex-shrink-0" />
+                                          <span>{formatFrequencyDescription(freqTask)}</span>
+                                        </span>
+                                      </span>
+                                    ));
+                                  })()}
+                                </div>
+                              </div>
+                              <span className={`status-badge flex-shrink-0 ${isOverdueCard ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                                {isOverdueCard ? '逾期' : '未完成'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              );
+            })()}
+            {/* 體重 時段 */}
+            {weightTasks.length > 0 && (() => {
+              const slotBgClass = slotBgClasses[5];
+              const todayStrCard = formatLocalDate(new Date());
+              const groups = new Map<string, typeof weightTasks>();
+              weightTasks.forEach(t => {
+                const key = String(t.patient_id);
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key)!.push(t);
+              });
+              return (
+                <div>
+                  <h3 className="text-md font-medium text-gray-700 mb-2 time-slot-title">體重</h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2">
+                    {Array.from(groups.entries())
+                      .sort(([ka, ga], [kb, gb]) => {
+                        const aOv = ga.some(t => t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) < todayStrCard : false);
+                        const bOv = gb.some(t => t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) < todayStrCard : false);
+                        if (aOv !== bOv) return aOv ? -1 : 1;
+                        const bedA = patients.find(p => String(p.院友id) === ka)?.床號 || '';
+                        const bedB = patients.find(p => String(p.院友id) === kb)?.床號 || '';
+                        return bedA.localeCompare(bedB, 'zh-Hant', { numeric: true });
+                      })
+                      .map(([groupKey, group]) => {
+                        const rep = [...group].sort((a, b) => (a.firstIncompleteDate?.getTime() ?? Infinity) - (b.firstIncompleteDate?.getTime() ?? Infinity))[0];
+                        const patient = patients.find(p => p.院友id === rep.patient_id);
+                        const isOverdueCard = group.some(t => t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) < todayStrCard : false);
+                        const hasMultipleDates = group.some(t => t.incompleteDates && t.incompleteDates.length > 1) || isOverdueCard;
+                        return (
+                          <div
+                            key={groupKey || rep.id}
+                            className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card`}
+                            onClick={() => {
+                              if (hasMultipleDates && patient) {
+                                setSelectedHistoryTask({ task: rep, patient, initialDate: rep.firstIncompleteDate || null, groupTasks: group });
+                                setShowHistoryModal(true);
+                              } else {
+                                handleTaskClick(rep, undefined, group);
+                              }
+                            }}
+                          >
+                            <div className="flex flex-wrap items-center gap-3 flex-1">
+                              <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center task-avatar">
+                                {patient?.院友相片 ? (
+                                  <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
+                                ) : (
+                                  <User className="h-5 w-5 text-blue-600" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
+                                  <span className="text-xs text-gray-500">({patient?.床號})</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                  {(() => {
+                                    type FreqGroup = { count: number; note: string; freqTask: typeof group[number] };
+                                    const freqGroups = new Map<string, FreqGroup>();
+                                    group.forEach(t => {
+                                      const note = (t.notes && isMonitoringTask(t.health_record_type)) ? t.notes : '';
+                                      const key = `${note}||${t.frequency_unit}||${t.frequency_value}`;
+                                      if (!freqGroups.has(key)) freqGroups.set(key, { count: 0, note, freqTask: t });
+                                      freqGroups.get(key)!.count += 1;
+                                    });
+                                    return Array.from(freqGroups.values()).map(({ count, note, freqTask }, i) => (
+                                      <span key={i} className="inline-flex flex-col px-2 py-1 bg-white/70 rounded-lg border border-white/60 text-xs text-gray-700">
+                                        <span className="flex items-center gap-1">
+                                          <span className="font-medium">{count}個項目</span>
+                                          {note && <span className={`px-1.5 rounded-full font-medium ${getNotesBadgeClass(note)}`}>{note}</span>}
+                                        </span>
+                                        <span className="flex items-center gap-0.5 text-gray-500 mt-0.5">
+                                          <Repeat className="h-2.5 w-2.5 flex-shrink-0" />
+                                          <span>{formatFrequencyDescription(freqTask)}</span>
+                                        </span>
+                                      </span>
+                                    ));
+                                  })()}
+                                </div>
+                              </div>
+                              <span className={`status-badge flex-shrink-0 ${isOverdueCard ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                                {isOverdueCard ? '逾期' : '未完成'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              );
+            })()}
+            {breakfastTasks.length === 0 && lunchTasks.length === 0 && dinnerTasks.length === 0 && snackTasks.length === 0 && temperatureTasks.length === 0 && weightTasks.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <CheckSquare className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                 <p>無待處理任務</p>

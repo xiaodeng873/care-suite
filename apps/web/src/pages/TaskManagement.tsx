@@ -23,7 +23,7 @@ import {
 import { usePatients, type PatientHealthTask, type HealthTaskType, type FrequencyUnit } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import TaskModal from '../components/TaskModal';
-import { formatFrequencyDescription, getTaskStatus, isTaskOverdue, isTaskDueSoon, isTaskPendingToday, isDocumentTask, isNursingTask } from '../utils/taskScheduler';
+import { formatFrequencyDescription, getTaskStatus, isDocumentTask, isNursingTask } from '../utils/taskScheduler';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { SYNC_CUTOFF_DATE_STR } from '../lib/database';
@@ -313,8 +313,8 @@ const TaskManagement: React.FC = () => {
     const todayStr = new Date().toISOString().split('T')[0];
     return {
       total: patientHealthTasks.length,
-      overdue: patientHealthTasks.filter(task => isTaskOverdue(task, recordLookup, todayStr)).length,
-      pending: patientHealthTasks.filter(task => isTaskPendingToday(task, recordLookup, todayStr)).length,
+      overdue: patientHealthTasks.filter(task => getTaskStatus(task, recordLookup, todayStr) === 'overdue').length,
+      pending: patientHealthTasks.filter(task => getTaskStatus(task, recordLookup, todayStr) === 'pending').length,
       dueSoon: patientHealthTasks.filter(task => getTaskStatus(task, recordLookup, todayStr) === 'due_soon').length,
       vitalSigns: patientHealthTasks.filter(task => task.health_record_type === '生命表徵').length,
       bloodSugar: patientHealthTasks.filter(task => task.health_record_type === '血糖控制').length,
@@ -805,8 +805,8 @@ const TaskManagement: React.FC = () => {
                   // 全部任務摺疊於院友列之下，未展開時不露出任何任務
                   const displayTasks = isExpanded ? group.tasks : [];
                   const todayStr = new Date().toISOString().split('T')[0];
-                  const overdueCount = group.tasks.filter(t => isTaskOverdue(t, recordLookup, todayStr)).length;
-                  const pendingCount = group.tasks.filter(t => isTaskPendingToday(t, recordLookup, todayStr)).length;
+                  const overdueCount = group.tasks.filter(t => getTaskStatus(t, recordLookup, todayStr) === 'overdue').length;
+                  const pendingCount = group.tasks.filter(t => getTaskStatus(t, recordLookup, todayStr) === 'pending').length;
                   return (
                     <React.Fragment key={group.patientId}>
                       {/* 院友標題列 */}
