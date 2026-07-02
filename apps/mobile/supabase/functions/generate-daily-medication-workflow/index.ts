@@ -310,8 +310,9 @@ function checkMedicationSchedule(prescription: Prescription, targetDate: Date): 
       const targetDateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
       const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
       const daysDiff = Math.floor((targetDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-      const interval = frequency_value || 1;
-      const shouldTake = daysDiff % interval === 0;
+      // 「間隔X日」：frequency_value=N 表示跳過 N 天 → 週期 = N+1
+      const interval = (frequency_value || 1) + 1;
+      const shouldTake = daysDiff >= 0 && daysDiff % interval === 0;
       return shouldTake;
 
     case 'weekly_days':
@@ -334,8 +335,8 @@ function checkMedicationSchedule(prescription: Prescription, targetDate: Date): 
     case 'every_x_months':
       const monthsDiff = (targetDate.getFullYear() - startDate.getFullYear()) * 12 +
                         (targetDate.getMonth() - startDate.getMonth());
-      const monthInterval = frequency_value || 1;
-      const monthResult = monthsDiff % monthInterval === 0 &&
+      const monthInterval = (frequency_value || 1) + 1; // 間隔X月 = 週期 X+1 月
+      const monthResult = monthsDiff >= 0 && monthsDiff % monthInterval === 0 &&
              targetDate.getDate() === startDate.getDate();
       return monthResult;
 

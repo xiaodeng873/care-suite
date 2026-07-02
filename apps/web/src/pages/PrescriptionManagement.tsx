@@ -519,7 +519,8 @@ const PrescriptionManagement: React.FC = () => {
             </button>
             <button
               onClick={() => {
-                setSelectedPrescription(null);
+                // 若目前正在瀏覽某院友，預填該院友；否則留空由使用者自行選擇
+                setSelectedPrescription(currentPatient ? { patient_id: currentPatient.patient.院友id } : null);
                 setShowModal(true);
               }}
               className="btn-primary flex flex-wrap items-center gap-2"

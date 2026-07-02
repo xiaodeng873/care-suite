@@ -12,6 +12,24 @@ import React, { createContext, useContext, useState, useCallback, useEffect, Rea
 import * as db from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
+import { generateWorkflowRecordsClient } from '../../utils/workflowGenerator';
+
+// 回溯生成範圍：由處方開始日到今天 + 14 天
+const WORKFLOW_HORIZON_DAYS = 14;
+const backfillWorkflowForPrescription = (created: any) => {
+  try {
+    if (!created || created.status !== 'active' || !created.start_date) return;
+    const today = new Date();
+    const horizon = new Date(today.getTime() + WORKFLOW_HORIZON_DAYS * 24 * 60 * 60 * 1000);
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const toDate = fmt(horizon);
+    // 背景執行，不阻塞 UI
+    generateWorkflowRecordsClient(Number(created.patient_id), [created], created.start_date, toDate)
+      .catch(err => console.warn('處方回溯生成工作流程失敗（背景）:', err));
+  } catch (err) {
+    console.warn('觸發處方回溯生成失敗:', err);
+  }
+};
 
 // ========== 類型定義 ==========
 // 處方工作流程記錄類型
@@ -196,8 +214,10 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
   // ========== 處方 CRUD ==========
   const addPrescription = useCallback(async (prescription: any) => {
     try {
-      await db.createPrescription(prescription);
+      const created = await db.createPrescription(prescription);
       await refreshPrescriptionData();
+      // Plan A: 建立處方後，背景回溯生成工作流程記錄（由開始日起），避免翻頁時才慢慢生成
+      backfillWorkflowForPrescription(created);
     } catch (error) {
       console.error('Error adding prescription:', error);
       throw error;
@@ -209,8 +229,10 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
       if (prescription.status === 'inactive' && !prescription.end_date) {
         throw new Error('停用處方必須設定結束日期');
       }
-      await db.updatePrescription(prescription);
+      const updated = await db.updatePrescription(prescription);
       await refreshPrescriptionData();
+      // Plan A: 處方轉為 active（啟用/編輯）後，背景回溯生成工作流程記錄
+      backfillWorkflowForPrescription(updated);
     } catch (error) {
       console.error('Error updating prescription:', error);
       throw error;

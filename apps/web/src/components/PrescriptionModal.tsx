@@ -12,6 +12,8 @@ interface PrescriptionModalProps {
   onClose: () => void;
 }
 
+const LAST_RX_KEY = (patientId: string | number) => `care_suite_last_rx_${patientId}`;
+
 const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onClose }) => {
   const { addPrescription, updatePrescription, patients } = usePatients();
   // 每次開啟 modal 時讀取一次（已儲存的設定）
@@ -37,33 +39,43 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     return date.toISOString().split('T')[0];
   };
 
-  const [formData, setFormData] = useState({
-    patient_id: prescription?.patient_id || '',
-    medication_name: prescription?.medication_name || '',
-    medication_source: prescription?.medication_source || '',
-    medication_quantity: prescription?.medication_quantity || '',
-    prescription_date: prescription?.prescription_date || getHongKongDate(),
-    start_date: prescription?.start_date || getHongKongDate(),
-    start_time: prescription?.start_time || getHongKongTime(),
-    end_date: prescription?.end_date || '',
-    end_time: prescription?.end_time || '',
-    duration_days: prescription?.duration_days || '',
-    dosage_form: prescription?.dosage_form || '',
-    administration_route: prescription?.administration_route || '',
-    dosage_amount: prescription?.dosage_amount || '',
-    dosage_unit: prescription?.dosage_unit || '',
-    special_dosage_instruction: prescription?.special_dosage_instruction || '',
-    daily_frequency: prescription?.daily_frequency || 1,
-    frequency_type: prescription?.frequency_type || 'daily',
-    frequency_value: prescription?.frequency_value || 1,
-    specific_weekdays: prescription?.specific_weekdays || [],
-    is_odd_even_day: prescription?.is_odd_even_day || 'none',
-    medication_time_slots: prescription?.medication_time_slots || [],
-    meal_timing: prescription?.meal_timing || '',
-    is_prn: prescription?.is_prn || false,
-    preparation_method: prescription?.preparation_method || 'advanced',
-    status: prescription?.status || 'pending_change',
-    notes: prescription?.notes || ''
+  const [formData, setFormData] = useState(() => {
+    // 新增處方，且有预填院友 id，嘗試從 localStorage 讀取該院友上次登記的處方水指
+    let prefill: { prescription_date?: string; start_date?: string; medication_source?: string } = {};
+    if (!prescription?.id && prescription?.patient_id) {
+      try {
+        const raw = localStorage.getItem(LAST_RX_KEY(prescription.patient_id));
+        if (raw) prefill = JSON.parse(raw);
+      } catch { /* ignore */ }
+    }
+    return {
+      patient_id: prescription?.patient_id || '',
+      medication_name: prescription?.medication_name || '',
+      medication_source: prescription?.medication_source || prefill.medication_source || '',
+      medication_quantity: prescription?.medication_quantity || '',
+      prescription_date: prescription?.prescription_date || prefill.prescription_date || getHongKongDate(),
+      start_date: prescription?.start_date || prefill.start_date || getHongKongDate(),
+      start_time: prescription?.start_time || getHongKongTime(),
+      end_date: prescription?.end_date || '',
+      end_time: prescription?.end_time || '',
+      duration_days: prescription?.duration_days || '',
+      dosage_form: prescription?.dosage_form || '',
+      administration_route: prescription?.administration_route || '',
+      dosage_amount: prescription?.dosage_amount || '',
+      dosage_unit: prescription?.dosage_unit || '',
+      special_dosage_instruction: prescription?.special_dosage_instruction || '',
+      daily_frequency: prescription?.daily_frequency || 1,
+      frequency_type: prescription?.frequency_type || 'daily',
+      frequency_value: prescription?.frequency_value || 1,
+      specific_weekdays: prescription?.specific_weekdays || [],
+      is_odd_even_day: prescription?.is_odd_even_day || 'none',
+      medication_time_slots: prescription?.medication_time_slots || [],
+      meal_timing: prescription?.meal_timing || '',
+      is_prn: prescription?.is_prn || false,
+      preparation_method: prescription?.preparation_method || 'advanced',
+      status: prescription?.status || 'pending_change',
+      notes: prescription?.notes || ''
+    };
   });
 
   const [startDateMode, setStartDateMode] = useState<'manual' | 'admission'>('manual');
@@ -427,6 +439,16 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         });
       } else {
         await addPrescription(prescriptionData);
+        // 成功新增後將門診日期、開始日期、藥物來源儲存至 localStorage 位院友
+        if (formData.patient_id) {
+          try {
+            localStorage.setItem(LAST_RX_KEY(formData.patient_id), JSON.stringify({
+              prescription_date: formData.prescription_date,
+              start_date: formData.start_date,
+              medication_source: formData.medication_source,
+            }));
+          } catch { /* ignore quota errors */ }
+        }
       }
       
       onClose();
@@ -545,14 +567,17 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   藥物來源
                   {renderFieldIndicator('medication_source')}
                 </label>
-                <input
-                  type="text"
+                <select
                   name="medication_source"
                   value={formData.medication_source}
                   onChange={handleChange}
                   className={getFieldClassName('medication_source', 'form-input')}
-                  placeholder="例如：醫院、診所、藥房"
-                />
+                >
+                  <option value="">— 請選擇 —</option>
+                  {medSettings.藥物來源.map((src) => (
+                    <option key={src} value={src}>{src}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -598,24 +623,33 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   <Calendar className="h-4 w-4 inline mr-1" />
                   開始日期 *
                 </label>
-                <select
-                  value={startDateMode}
-                  onChange={(e) => {
-                    const mode = e.target.value as 'manual' | 'admission';
-                    setStartDateMode(mode);
-                    if (mode === 'admission') {
-                      if (admissionDateIso) {
-                        setFormData(prev => ({ ...prev, start_date: admissionDateIso }));
-                      } else {
-                        setValidationError('此院友尚未設定入住日期，請先在院友資料補上，或改用手動輸入開始日期。');
-                      }
-                    }
-                  }}
-                  className="form-input mb-2"
-                >
-                  <option value="manual">手動輸入日期</option>
-                  <option value="admission">入住前（使用入住日）</option>
-                </select>
+                <div className="flex gap-4 mb-2">
+                  {([
+                    { value: 'manual', label: '手動輸入日期' },
+                    { value: 'admission', label: '入住前（使用入住日）' },
+                  ] as const).map(({ value, label }) => (
+                    <label key={value} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <input
+                        type="radio"
+                        name="startDateMode"
+                        value={value}
+                        checked={startDateMode === value}
+                        onChange={() => {
+                          setStartDateMode(value);
+                          if (value === 'admission') {
+                            if (admissionDateIso) {
+                              setFormData(prev => ({ ...prev, start_date: admissionDateIso }));
+                            } else {
+                              setValidationError('此院友尚未設定入住日期，請先在院友資料補上，或改用手動輸入開始日期。');
+                            }
+                          }
+                        }}
+                        className="accent-blue-600"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
                 <input
                   type="date"
                   name="start_date"

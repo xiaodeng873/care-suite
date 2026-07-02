@@ -1,5 +1,86 @@
 import { supabase } from '../lib/supabase';
 import { getSupabaseUrl, getSupabaseAnonKey } from '../config/supabase.config';
+import { isPrescriptionScheduledOnDate } from './prescriptionSchedule';
+import { SYNC_CUTOFF_DATE_STR } from '../lib/database';
+
+/**
+ * 前端批次生成工作流程記錄（單次 upsert，取代逐日多次 Edge Function HTTP 呼叫）。
+ * 使用統一的 isPrescriptionScheduledOnDate 排程邏輯，只新增缺漏的服藥日記錄，
+ * 以 (prescription_id, scheduled_date, scheduled_time) 為衝突鍵、ignoreDuplicates，
+ * 因此冪等、可安全重複執行、且不會覆蓋已處理的記錄。
+ */
+export async function generateWorkflowRecordsClient(
+  patientId: number,
+  prescriptions: any[],
+  fromDate: string,
+  toDate: string
+): Promise<{ inserted: number }> {
+  const normalizeTime = (t: any): string => (t ? String(t).substring(0, 5) : '');
+  const fmt = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  // 起點不早於同步分界日（避免回補遠古歷史）
+  const effectiveFrom = fromDate < SYNC_CUTOFF_DATE_STR ? SYNC_CUTOFF_DATE_STR : fromDate;
+
+  const active = (prescriptions || []).filter(
+    p => Number(p.patient_id) === Number(patientId) && p.status === 'active'
+  );
+
+  const records: any[] = [];
+  for (const p of active) {
+    const slots: string[] = Array.isArray(p.medication_time_slots) && p.medication_time_slots.length
+      ? p.medication_time_slots
+      : [];
+    if (slots.length === 0) continue;
+
+    const startStr: string = p.start_date;
+    if (!startStr) continue;
+    const startTime = normalizeTime(p.start_time) || '00:00';
+    const endTime = normalizeTime(p.end_time) || '23:59';
+
+    // 逐日掃描 [max(from, start) .. min(to, end)]
+    const scanStart = effectiveFrom > startStr ? effectiveFrom : startStr;
+    let d = new Date(scanStart + 'T00:00:00');
+    const end = new Date(toDate + 'T00:00:00');
+    for (; d <= end; d.setDate(d.getDate() + 1)) {
+      const ds = fmt(d);
+      if (p.end_date && ds > p.end_date) break;
+      if (!isPrescriptionScheduledOnDate(p, ds)) continue;
+      for (const slot of slots) {
+        const sl = normalizeTime(slot);
+        if (!sl) continue;
+        if (ds === startStr && sl < startTime) continue;
+        if (p.end_date && ds === p.end_date && sl > endTime) continue;
+        records.push({
+          patient_id: patientId,
+          prescription_id: p.id,
+          scheduled_date: ds,
+          scheduled_time: sl,
+          preparation_status: 'pending',
+          verification_status: 'pending',
+          dispensing_status: 'pending',
+        });
+      }
+    }
+  }
+
+  if (records.length === 0) return { inserted: 0 };
+
+  const { data, error } = await supabase
+    .from('medication_workflow_records')
+    .upsert(records, {
+      onConflict: 'prescription_id,scheduled_date,scheduled_time',
+      ignoreDuplicates: true,
+    })
+    .select();
+
+  if (error) {
+    console.error('前端批次生成工作流程失敗:', error);
+    throw error;
+  }
+  return { inserted: data?.length || 0 };
+}
+
 /**
  * 為指定日期和院友生成藥物工作流程記錄
  */

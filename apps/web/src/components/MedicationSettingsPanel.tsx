@@ -16,6 +16,7 @@ const STRING_FIELDS: { key: StringKey; label: string; section: '服用資訊' | 
   { key: '服用單位', label: '服用單位（份量）', section: '服用資訊' },
   { key: '特殊用法', label: '特殊用法', section: '服用資訊' },
   { key: '服用時段', label: '服用時段', section: '服用資訊' },
+  { key: '藥物來源', label: '藥物來源', section: '服用資訊' },
 ];
 
 const MedicationSettingsPanel: React.FC = () => {

@@ -8,6 +8,7 @@ export interface MedicationSettingsData {
   特殊用法: string[];
   服用時段: string[];
   每日次數: number[];       // 對應 daily_frequency 的可選值
+  藥物來源: string[];       // 處方藥物來源下拉清單
 }
 
 export const DEFAULT_MEDICATION_SETTINGS: MedicationSettingsData = {
@@ -23,6 +24,38 @@ export const DEFAULT_MEDICATION_SETTINGS: MedicationSettingsData = {
     '早上', '中午', '晚上', '睡前',
   ],
   每日次數: [1, 2, 3, 4, 5, 6, 8],
+  藥物來源: [
+    'KWH 廣華醫院',
+    'QEH 伊利沙伯醫院',
+    'QMH 瑪麗醫院',
+    'PWH 威爾斯親王醫院',
+    'PMH 瑪嘉烈醫院',
+    'TMH 屯門醫院',
+    'POH 博愛醫院',
+    'UCH 基督教聯合醫院',
+    'PYNEH 東區尤德夫人那打素醫院',
+    'NDH 北區醫院',
+    'AH 雅麗氏何妙齡那打素醫院',
+    'CMC 明愛醫院',
+    'YCH 仁濟醫院',
+    'RH 律敦治醫院',
+    'GTH 葛量洪醫院',
+    'CPH 青山醫院',
+    'TKOH 將軍澳醫院',
+    'NLH 北大嶼山醫院',
+    'WCH 黃竹坑醫院',
+    'HTH 靈實醫院',
+    'TSH 贊育醫院',
+    'SH 沙田醫院',
+    'SKH 石硤尾醫院',
+    'KH 九龍醫院',
+    'TWH 大埔醫院',
+    'BCH 白普理寧養中心',
+    '私家診所',
+    '私家藥房',
+    '出院病房配發',
+    '其他',
+  ],
 };
 
 const STORAGE_KEY = 'care_suite_medication_settings';

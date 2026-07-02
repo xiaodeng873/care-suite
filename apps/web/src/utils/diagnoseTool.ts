@@ -172,8 +172,9 @@ function shouldTakeMedicationOnDate(prescription: any, targetDate: Date): boolea
       const targetDateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
       const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
       const daysDiff = Math.floor((targetDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-      const interval = frequency_value || 1;
-      return daysDiff % interval === 0;
+      // 「間隔X日」= 週期 X+1 天；隔1日(隔日服)=週期2；隔2日=週期3
+      const interval = (frequency_value || 1) + 1;
+      return daysDiff >= 0 && daysDiff % interval === 0;
     case 'weekly_days':
       const dayOfWeek = targetDate.getDay();
       const targetDay = dayOfWeek === 0 ? 7 : dayOfWeek;
@@ -189,8 +190,8 @@ function shouldTakeMedicationOnDate(prescription: any, targetDate: Date): boolea
     case 'every_x_months':
       const monthsDiff = (targetDate.getFullYear() - startDate.getFullYear()) * 12 +
                         (targetDate.getMonth() - startDate.getMonth());
-      const monthInterval = frequency_value || 1;
-      return monthsDiff % monthInterval === 0 &&
+      const monthInterval = (frequency_value || 1) + 1; // 間隔X月 = 週期 X+1 月
+      return monthsDiff >= 0 && monthsDiff % monthInterval === 0 &&
              targetDate.getDate() === startDate.getDate();
     default:
       return true;

@@ -14,6 +14,7 @@ import {
   DEFAULT_FACILITY_SETTINGS,
   type FacilitySettings,
 } from './facilitySettings';
+import { isPrescriptionScheduledOnDate } from './prescriptionSchedule';
 
 // 渲染為同步流程，故於各匯出入口（async）先取得院舍設定後存於模組層，供 renderHeaderRegion 讀取。
 let activeFacility: FacilitySettings = DEFAULT_FACILITY_SETTINGS;
@@ -1034,6 +1035,8 @@ const isDateInPrescriptionRange = (dateStr: string, timeSlot: string | undefined
     if (checkDate > endDate) return false;
     if (dateStr === prescription.end_date && normalizedTimeSlot > endTime) return false;
   }
+  // 頻率規則：非服藥日（隔日/隔月/逢星期/單雙日）須灰掉，不只看日期範圍
+  if (!isPrescriptionScheduledOnDate(prescription, dateStr)) return false;
   return true;
 };
 

@@ -40,8 +40,9 @@ import InjectionSiteModal from '../components/InjectionSiteModal';
 import RevertConfirmModal from '../components/RevertConfirmModal';
 import WorkflowDeduplicateModal from '../components/WorkflowDeduplicateModal';
 import { Portal } from '../components/Portal';
-import { generateDailyWorkflowRecords, generateBatchWorkflowRecords } from '../utils/workflowGenerator';
+import { generateDailyWorkflowRecords, generateBatchWorkflowRecords, generateWorkflowRecordsClient } from '../utils/workflowGenerator';
 import { diagnoseWorkflowDisplayIssue } from '../utils/diagnoseTool';
+import { isPrescriptionScheduledOnDate } from '../utils/prescriptionSchedule';
 import { supabase } from '../lib/supabase';
 import { getPatientByQrCodeId } from '../lib/database';
 import {
@@ -498,44 +499,9 @@ const MedicationWorkflow: React.FC = () => {
     return week;
   };
   const weekDates = useMemo(() => computeWeekDates(selectedDate), [selectedDate]);
-  // 檢查處方是否應在指定日期服藥（與 Edge Function 邏輯一致）
+  // 檢查處方是否應在指定日期服藥（統一使用 isPrescriptionScheduledOnDate）
   const shouldTakeMedicationOnDate = (prescription: any, targetDate: Date): boolean => {
-    const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day } = prescription;
-    const startDate = new Date(prescription.start_date);
-    switch (frequency_type) {
-      case 'daily':
-        return true; // 每日服
-      case 'every_x_days':
-        // 隔X日服
-        const targetDateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-        const daysDiff = Math.floor((targetDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-        const interval = frequency_value || 1;
-        return daysDiff % interval === 0;
-      case 'weekly_days':
-        // 逢星期X服
-        const dayOfWeek = targetDate.getDay(); // 0=週日, 1=週一, ..., 6=週六
-        const targetDay = dayOfWeek === 0 ? 7 : dayOfWeek; // 轉換為 1-7 格式
-        return specific_weekdays?.includes(targetDay) || false;
-      case 'odd_even_days':
-        // 單日/雙日服
-        const dateNumber = targetDate.getDate();
-        if (is_odd_even_day === 'odd') {
-          return dateNumber % 2 === 1; // 單日
-        } else if (is_odd_even_day === 'even') {
-          return dateNumber % 2 === 0; // 雙日
-        }
-        return false;
-      case 'every_x_months':
-        // 隔X月服
-        const monthsDiff = (targetDate.getFullYear() - startDate.getFullYear()) * 12 +
-                          (targetDate.getMonth() - startDate.getMonth());
-        const monthInterval = frequency_value || 1;
-        return monthsDiff % monthInterval === 0 &&
-               targetDate.getDate() === startDate.getDate();
-      default:
-        return true; // 預設為需要服藥
-    }
+    return isPrescriptionScheduledOnDate(prescription, targetDate);
   };
   // 檢查當周工作流程記錄是否完整
   const checkWeekWorkflowCompleteness = async (patientIdNum: number, weekDates: string[]) => {
@@ -606,10 +572,10 @@ const MedicationWorkflow: React.FC = () => {
       isGeneratingRef.current = true;
       const startDate = weekDates[0];
       const endDate = weekDates[6];
-      const result = await generateBatchWorkflowRecords(startDate, endDate, patientIdNum);
+      // 前端一次批次 upsert（取代逐日 7 次 Edge Function HTTP 呼叫），使用統一排程邏輯
+      const genResult = await generateWorkflowRecordsClient(patientIdNum, prescriptions, startDate, endDate);
+      const result = { success: true, message: `生成 ${genResult.inserted} 筆`, totalRecords: genResult.inserted, failedDates: [] as string[] };
       if (result.success) {
-        // 等待 500ms 確保 Supabase 數據一致性
-        await new Promise(resolve => setTimeout(resolve, 500));
         // 直接查詢 Supabase 重新載入數據
         const { data, error } = await supabase
           .from('medication_workflow_records')
