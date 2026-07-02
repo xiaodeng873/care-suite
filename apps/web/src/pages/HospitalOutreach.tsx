@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useDeferredValue } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { Building2, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, Clock, Pill, ChevronUp, ChevronDown, X, AlertTriangle, CheckCircle, Copy, MessageCircle, Stethoscope, Settings, ToggleLeft, ToggleRight } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
@@ -45,6 +45,7 @@ const HospitalOutreach: React.FC = () => {
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [selectedDoctorVisit, setSelectedDoctorVisit] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('藥袋日期');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
