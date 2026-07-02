@@ -31,7 +31,8 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
     const hongKongTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
     return hongKongTime.toISOString().split('T')[0];
   };
-  const targetDate = useMemo(() => getHongKongDate(), []);
+  const todayHK = getHongKongDate();
+  const [targetDate, setTargetDate] = useState(todayHK);
 
   const [stationFilter, setStationFilter] = useState<string>('all');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -75,6 +76,15 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
   }, [filteredPatients, isAbsent, hasTemperatureToday]);
 
   const [selectedIds, setSelectedIds] = useState<Set<number> | null>(null);
+  // 日期或篩選變更時重置勾選
+  const handleDateChange = (date: string) => {
+    setTargetDate(date);
+    setSelectedIds(null);
+  };
+  const handleStationChange = (station: string) => {
+    setStationFilter(station);
+    setSelectedIds(null);
+  };
   // 首次/篩選變更時，依預設勾選合資格者
   const effectiveSelected = selectedIds ?? new Set<number>(eligibleIds);
 
@@ -175,11 +185,21 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
         </div>
 
         <div className="p-6 space-y-4 overflow-y-auto">
+          {/* 日期選擇 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">生成日期</label>
+            <input
+              type="date"
+              value={targetDate}
+              onChange={e => handleDateChange(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">居住區</label>
             <select
               value={stationFilter}
-              onChange={(e) => { setStationFilter(e.target.value); setSelectedIds(null); }}
+              onChange={(e) => handleStationChange(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               <option value="all">全部居住區</option>
