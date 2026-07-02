@@ -749,18 +749,19 @@ const getBoundaryCells = (
   }
   let firstActiveIdx = -1;
   for (let i = 0; i < allCells.length; i += 1) {
-    if (isDateInPrescriptionRange(allCells[i][0], allCells[i][1], prescription)) { firstActiveIdx = i; break; }
+    if (isDateInPrescriptionDateRange(allCells[i][0], allCells[i][1], prescription)) { firstActiveIdx = i; break; }
   }
   let lastActiveIdx = -1;
   for (let i = allCells.length - 1; i >= 0; i -= 1) {
-    if (isDateInPrescriptionRange(allCells[i][0], allCells[i][1], prescription)) { lastActiveIdx = i; break; }
+    if (isDateInPrescriptionDateRange(allCells[i][0], allCells[i][1], prescription)) { lastActiveIdx = i; break; }
   }
   if (firstActiveIdx > 0) {
     for (let i = Math.max(0, firstActiveIdx - N); i < firstActiveIdx; i += 1) {
       before.add(`${allCells[i][0]}__${allCells[i][1]}`);
     }
   }
-  if (lastActiveIdx >= 0 && lastActiveIdx < allCells.length - 1) {
+  // ◄（結束後）只在處方「確有結束日」時標記；無 end_date 的長期處方不標，避免月尾非服藥日誤畫箭頭
+  if (prescription.end_date && lastActiveIdx >= 0 && lastActiveIdx < allCells.length - 1) {
     for (let i = lastActiveIdx + 1; i <= Math.min(allCells.length - 1, lastActiveIdx + N); i += 1) {
       after.add(`${allCells[i][0]}__${allCells[i][1]}`);
     }
@@ -1018,7 +1019,9 @@ const getDosageText = (prescription: MedicationPrescription): string => {
   return '';
 };
 
-const isDateInPrescriptionRange = (dateStr: string, timeSlot: string | undefined, prescription: MedicationPrescription): boolean => {
+// 純「日期範圍」判斷：只看 start_date/end_date + start_time/end_time，不看服藥頻率。
+// 供 ▶/◄ 邊界標記使用（邊界代表處方起訖，非個別服藥日）。
+const isDateInPrescriptionDateRange = (dateStr: string, timeSlot: string | undefined, prescription: MedicationPrescription): boolean => {
   const checkDate = new Date(dateStr);
   const startDate = prescription.start_date ? new Date(prescription.start_date) : null;
   const endDate = prescription.end_date ? new Date(prescription.end_date) : null;
@@ -1035,7 +1038,13 @@ const isDateInPrescriptionRange = (dateStr: string, timeSlot: string | undefined
     if (checkDate > endDate) return false;
     if (dateStr === prescription.end_date && normalizedTimeSlot > endTime) return false;
   }
-  // 頻率規則：非服藥日（隔日/隔月/逢星期/單雙日）須灰掉，不只看日期範圍
+  return true;
+};
+
+const isDateInPrescriptionRange = (dateStr: string, timeSlot: string | undefined, prescription: MedicationPrescription): boolean => {
+  // 先過日期範圍（起訖 + 起訖時間）
+  if (!isDateInPrescriptionDateRange(dateStr, timeSlot, prescription)) return false;
+  // 再過頻率規則：非服藥日（隔日/隔月/逢星期/單雙日）須灰掉
   if (!isPrescriptionScheduledOnDate(prescription, dateStr)) return false;
   return true;
 };
