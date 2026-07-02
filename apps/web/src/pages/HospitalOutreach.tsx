@@ -710,16 +710,7 @@ const HospitalOutreach: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">醫院外展</h1>
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => {
-                setSelectedDoctorVisit(null);
-                setShowDoctorVisitModal(true);
-              }}
-              className="btn-secondary flex flex-wrap items-center gap-2"
-            >
-              <Stethoscope className="h-4 w-4" />
-              <span>管理醫生到診日期</span>
-            </button>
+            
             {selectedRows.size > 0 && (
               <button
                 onClick={handleExportSelected}
