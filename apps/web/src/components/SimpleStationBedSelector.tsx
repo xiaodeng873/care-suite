@@ -18,7 +18,7 @@ const SimpleStationBedSelector: React.FC<SimpleStationBedSelectorProps> = ({
 }) => {
   const { stations, beds, patients } = usePatients();
 
-  // 獲取選中站點的可用床位（排除當前院友自己佔用的床位）
+  // 獲取選中居住區的可用床位（排除當前院友自己佔用的床位）
   const availableBeds = beds.filter(bed => 
     bed.station_id === selectedStationId && 
     !patients.some(patient => 
@@ -29,7 +29,7 @@ const SimpleStationBedSelector: React.FC<SimpleStationBedSelectorProps> = ({
     )
   );
 
-  const handleStationChange = (stationId: string) => {
+  const handleSeniorCarehange = (stationId: string) => {
     onSelectionChange(stationId, '', '');
   };
 
@@ -42,16 +42,16 @@ const SimpleStationBedSelector: React.FC<SimpleStationBedSelectorProps> = ({
 
   return (
     <div className="space-y-3">
-      {/* 站點選擇 */}
+      {/* 居住區選擇 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             <Building2 className="h-4 w-4 inline mr-1" />
-            站點
+            居住區
           </label>
           <select
             value={selectedStationId}
-            onChange={(e) => handleStationChange(e.target.value)}
+            onChange={(e) => handleSeniorCarehange(e.target.value)}
             className="form-input"
           >
             <option value="">不指派床位</option>
@@ -98,7 +98,7 @@ const SimpleStationBedSelector: React.FC<SimpleStationBedSelectorProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
             <span className="text-sm text-orange-800">
-              此站點暫無可用床位
+              此居住區暫無可用床位
             </span>
           </div>
         </div>

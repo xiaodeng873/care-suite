@@ -2,7 +2,7 @@
  * Facility Context Exports
  * 
  * 導出設施管理相關的 Context：
- * - StationContext: 站點與床位管理
+ * - SeniorCareontext: 居住區與床位管理
  */
 
 export { 
@@ -12,4 +12,4 @@ export {
 } from './StationContext';
 
 export type { Station, Bed } from './StationContext';
-export { default as StationContext } from './StationContext';
+export { default as SeniorCareontext } from './StationContext';

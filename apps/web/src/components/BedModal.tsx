@@ -29,7 +29,7 @@ const BedModal: React.FC<BedModalProps> = ({ bed, preselectedStation, onClose })
     e.preventDefault();
     
     if (!formData.station_id || !formData.bed_number.trim()) {
-      alert('請選擇站點並輸入床位號碼');
+      alert('請選擇居住區並輸入床位號碼');
       return;
     }
 
@@ -58,7 +58,7 @@ const BedModal: React.FC<BedModalProps> = ({ bed, preselectedStation, onClose })
         if (error.message.includes('duplicate key') || 
             error.message.includes('23505') ||
             error.message.includes('beds_station_id_bed_number_key')) {
-          alert('此床位號碼與所選站點的現有床位重複，請使用不同的床位號碼。');
+          alert('此床位號碼與所選居住區的現有床位重複，請使用不同的床位號碼。');
         } else {
           alert('儲存床位失敗，請重試');
         }
@@ -92,7 +92,7 @@ const BedModal: React.FC<BedModalProps> = ({ bed, preselectedStation, onClose })
           <div>
             <label className="form-label">
               <Building2 className="h-4 w-4 inline mr-1" />
-              所屬站點 *
+              所屬居住區 *
             </label>
             <select
               name="station_id"
@@ -102,14 +102,14 @@ const BedModal: React.FC<BedModalProps> = ({ bed, preselectedStation, onClose })
               required
               disabled={!!preselectedStation}
             >
-              <option value="">請選擇站點</option>
+              <option value="">請選擇居住區</option>
               {stations.map(station => (
                 <option key={station.id} value={station.id}>{station.name}</option>
               ))}
             </select>
             {preselectedStation && (
               <p className="text-xs text-gray-500 mt-1">
-                已預選站點：{preselectedStation.name}
+                已預選居住區：{preselectedStation.name}
               </p>
             )}
           </div>
@@ -126,7 +126,7 @@ const BedModal: React.FC<BedModalProps> = ({ bed, preselectedStation, onClose })
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              床位號碼在同一站點內必須唯一
+              床位號碼在同一居住區內必須唯一
             </p>
           </div>
 

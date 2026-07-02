@@ -1,4 +1,4 @@
-# Station C Android 平板應用程式 - 設定指南
+# SeniorCare Android 平板應用程式 - 設定指南
 
 ## 📱 專案位置
 

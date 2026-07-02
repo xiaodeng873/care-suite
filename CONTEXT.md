@@ -1,11 +1,11 @@
-# Care Suite
+# SeniorCare
 
 A long-term care facility management system for nursing homes, supporting daily care workflows, health records, and clinical assessments for residents.
 
 ## Language
 
 **Facility（院舍）**:
-A care home organisation that subscribes to Care Suite. Each Facility has its own Residents, Staff, and data. Multiple Facilities share one Care Suite deployment.
+A care home organisation that subscribes to SeniorCare. Each Facility has its own Residents, Staff, and data. Multiple Facilities share one SeniorCare deployment.
 _Avoid_: Client, customer, organisation, tenant
 
 **Resident（院友）**:

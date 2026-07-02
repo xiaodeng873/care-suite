@@ -27,7 +27,7 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
     e.preventDefault();
     
     if (!formData.name.trim()) {
-      alert('請輸入站點名稱');
+      alert('請輸入居住區名稱');
       return;
     }
 
@@ -43,8 +43,8 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
       
       onClose();
     } catch (error) {
-      console.error('儲存站點失敗:', error);
-      alert('儲存站點失敗，請重試');
+      console.error('儲存居住區失敗:', error);
+      alert('儲存居住區失敗，請重試');
     }
   };
 
@@ -57,7 +57,7 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
               <Building2 className="h-6 w-6 text-blue-600" />
             </div>
             <h2 className="text-xl font-semibold text-gray-900">
-              {station ? '編輯站點' : '新增站點'}
+              {station ? '編輯居住區' : '新增居住區'}
             </h2>
           </div>
           <button
@@ -70,7 +70,7 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="form-label">站點名稱 *</label>
+            <label className="form-label">居住區名稱 *</label>
             <input
               type="text"
               name="name"
@@ -83,14 +83,14 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
           </div>
 
           <div>
-            <label className="form-label">站點描述</label>
+            <label className="form-label">居住區描述</label>
             <textarea
               name="description"
               value={formData.description}
               onChange={handleChange}
               className="form-input"
               rows={3}
-              placeholder="站點的詳細描述或備註..."
+              placeholder="居住區的詳細描述或備註..."
             />
           </div>
 
@@ -99,7 +99,7 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
               type="submit"
               className="btn-primary flex-1"
             >
-              {station ? '更新站點' : '建立站點'}
+              {station ? '更新居住區' : '建立居住區'}
             </button>
             <button
               type="button"

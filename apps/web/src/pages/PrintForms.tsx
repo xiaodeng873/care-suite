@@ -352,7 +352,7 @@ const PrintForms: React.FC = () => {
     try {
       setIsExporting(true);
       const { exportBedLayoutToExcel } = await import('../utils/bedLayoutExcelGenerator');
-      // 導出所有站點的床位表
+      // 導出所有居住區的床位表
       await exportBedLayoutToExcel(stations, beds, patients);
     } catch (error) {
       console.error('匯出床位表失敗:', error);
@@ -612,7 +612,7 @@ const PrintForms: React.FC = () => {
                 {selectedTemplate.type === 'station-bed-layout' && (
                   <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
                     <p className="text-sm text-yellow-800">
-                      <strong>提示：</strong>床位表無需選擇院友，將匯出所有站點的床位配置
+                      <strong>提示：</strong>床位表無需選擇院友，將匯出所有居住區的床位配置
                     </p>
                   </div>
                 )}

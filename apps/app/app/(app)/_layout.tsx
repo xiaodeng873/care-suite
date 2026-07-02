@@ -19,7 +19,7 @@ export default function AppLayout() {
         }}
       >
         {/* ── 院友 ── */}
-        <Drawer.Screen name="index"     options={{ drawerLabel: '主頁',         headerTitle: 'StationC' }} />
+        <Drawer.Screen name="index"     options={{ drawerLabel: '主頁',         headerTitle: 'SeniorCare' }} />
         <Drawer.Screen name="residents" options={{ drawerLabel: '院友列表',     headerTitle: '院友記錄' }} />
         <Drawer.Screen name="contacts"  options={{ drawerLabel: '院友聯絡人',   headerTitle: '院友聯絡人' }} />
         <Drawer.Screen name="beds"      options={{ drawerLabel: '床位管理',     headerTitle: '床位管理' }} />

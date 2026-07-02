@@ -23,7 +23,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
     return patients.find(patient => patient.bed_id === bedId && patient.在住狀態 === '在住');
   };
 
-  // 獲取站點統計資訊
+  // 獲取居住區統計資訊
   const getStationStats = (stationId: string) => {
     const stationBeds = beds.filter(bed => bed.station_id === stationId);
     
@@ -51,7 +51,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
     };
   };
 
-  // 篩選站點
+  // 篩選居住區
   const filteredStations = stations.filter(station => {
     if (!searchTerm) return true;
     return (
@@ -91,22 +91,22 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
         const patient = getPatientInBed(bed.id);
         return `${bed.bed_number}(${patient?.中文姓名 || '未知院友'})`;
       }).join('、');
-      alert(`無法刪除站點「${station?.name}」，因為以下床位仍有院友：\n\n${occupiedBedsList}\n\n請先將所有院友遷移到其他床位。`);
+      alert(`無法刪除居住區「${station?.name}」，因為以下床位仍有院友：\n\n${occupiedBedsList}\n\n請先將所有院友遷移到其他床位。`);
       return;
     }
     
     if (stats.totalBeds > 0) {
       const allBeds = beds.filter(bed => bed.station_id === stationId);
       const bedsList = allBeds.map(bed => bed.bed_number).join('、');
-      alert(`無法刪除站點「${station?.name}」，因為該站點下還有以下床位：\n\n${bedsList}\n\n請先將所有床位遷移到其他站點或刪除這些床位。`);
+      alert(`無法刪除居住區「${station?.name}」，因為該居住區下還有以下床位：\n\n${bedsList}\n\n請先將所有床位遷移到其他居住區或刪除這些床位。`);
       return;
     }
     
-    if (confirm(`確定要刪除站點「${station?.name}」嗎？`)) {
+    if (confirm(`確定要刪除居住區「${station?.name}」嗎？`)) {
       try {
         await deleteStation(stationId);
       } catch (error) {
-        alert('刪除站點失敗，請重試');
+        alert('刪除居住區失敗，請重試');
       }
     }
   };
@@ -143,7 +143,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
               <div className="p-2 rounded-lg bg-blue-100">
                 <Building2 className="h-6 w-6 text-blue-600" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900">站點管理</h2>
+              <h2 className="text-xl font-semibold text-gray-900">居住區管理</h2>
             </div>
             <button
               onClick={onClose}
@@ -166,7 +166,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
               }`}
             >
               <Building2 className="h-4 w-4 inline mr-2" />
-              站點管理
+              居住區管理
             </button>
             <button
               onClick={() => setActiveTab('beds')}
@@ -187,7 +187,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder={activeTab === 'stations' ? "搜索站點名稱或描述..." : "搜索床位號碼、床位名稱、站點名稱或院友姓名..."}
+                placeholder={activeTab === 'stations' ? "搜索居住區名稱或描述..." : "搜索床位號碼、床位名稱、居住區名稱或院友姓名..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="form-input pl-10 w-full"
@@ -195,11 +195,11 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
             </div>
           </div>
 
-          {/* 站點管理標籤 */}
+          {/* 居住區管理標籤 */}
           {activeTab === 'stations' && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <h3 className="text-lg font-medium text-gray-900">站點列表</h3>
+                <h3 className="text-lg font-medium text-gray-900">居住區列表</h3>
                 <button
                   onClick={() => {
                     setSelectedStation(null);
@@ -208,7 +208,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
                   className="btn-primary flex flex-wrap items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>新增站點</span>
+                  <span>新增居住區</span>
                 </button>
               </div>
 
@@ -243,14 +243,14 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
                             <button
                               onClick={() => handleEditStation(station)}
                               className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50"
-                              title="編輯站點"
+                              title="編輯居住區"
                             >
                               <Edit3 className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteStation(station.id)}
                               className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50"
-                              title="刪除站點"
+                              title="刪除居住區"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -263,7 +263,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
                   <div className="text-center py-8">
                     <Building2 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                     <p className="text-gray-500">
-                      {searchTerm ? '找不到符合條件的站點' : '暫無站點'}
+                      {searchTerm ? '找不到符合條件的居住區' : '暫無居住區'}
                     </p>
                   </div>
                 )}

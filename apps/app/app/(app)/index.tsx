@@ -58,7 +58,7 @@ export default function DashboardScreen() {
       {/* Header */}
       <View className="flex-row items-center justify-between bg-primary-600 px-4 py-3">
         <View>
-          <Text className="text-lg font-bold text-white">Care Suite</Text>
+          <Text className="text-lg font-bold text-white">SeniorCare</Text>
           <Text className="text-xs text-primary-100">{displayName}</Text>
         </View>
         <Pressable

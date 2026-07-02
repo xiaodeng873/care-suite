@@ -258,7 +258,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       <div className="bg-white/95 backdrop-blur rounded-xl shadow-2xl w-full max-w-md mx-4 relative z-10">
         {/* 歡迎標題區塊 */}
         <div className="p-6 pb-4 text-center border-b border-gray-100">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Station C</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">SeniorCare</h1>
           <p className="text-gray-600">請登入以繼續使用系統</p>
         </div>
         

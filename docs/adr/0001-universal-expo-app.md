@@ -5,11 +5,11 @@
 
 ## Context
 
-Care Suite currently has two separate frontends:
+SeniorCare currently has two separate frontends:
 - `apps/web/` — React + Vite + Tailwind CSS, deployed on Vercel
 - `apps/mobile/` — Expo + React Native, covering only the Care Records feature
 
-The goal is to deliver Care Suite as a native app (iOS/Android) with full feature parity with the web, while also maintaining a web deployment. The stated pain point is UI adaptation across phone portrait, tablet landscape, and web browser.
+The goal is to deliver SeniorCare as a native app (iOS/Android) with full feature parity with the web, while also maintaining a web deployment. The stated pain point is UI adaptation across phone portrait, tablet landscape, and web browser.
 
 Three options were considered:
 

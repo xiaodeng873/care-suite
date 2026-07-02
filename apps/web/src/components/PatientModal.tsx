@@ -581,7 +581,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
             </div>
           )}
 
-          {/* 站點和床位選擇 - 編輯時顯示資訊，新增時可選擇 */}
+          {/* 居住區和床位選擇 - 編輯時顯示資訊，新增時可選擇 */}
           {patient ? (
             <div>
               <label className="form-label">目前床位</label>
@@ -602,7 +602,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
             </div>
           ) : (
             <div>
-              <label className="form-label">站點和床位 (可選)</label>
+              <label className="form-label">居住區和床位 (可選)</label>
               <SimpleStationBedSelector
                 selectedStationId={formData.station_id}
                 selectedBedId={formData.bed_id}

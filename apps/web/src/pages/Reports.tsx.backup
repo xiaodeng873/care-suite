@@ -30,7 +30,7 @@ const Reports: React.FC = () => {
 
   const { today, yesterday, thisMonthStart, thisMonthEnd, lastMonthStart, lastMonthEnd } = getDateRanges();
 
-  // 過濾院友(按站點)
+  // 過濾院友(按居住區)
   const filteredPatients = useMemo(() => {
     if (stationFilter === 'all') return patients;
     return patients.filter(p => p.station_id === stationFilter);
@@ -213,7 +213,7 @@ const Reports: React.FC = () => {
 
   const renderDailyReport = () => (
     <div className="space-y-6">
-      {/* 時間和站點篩選 */}
+      {/* 時間和居住區篩選 */}
       <div className="flex space-x-4">
         <div className="flex space-x-2">
           <button
@@ -234,7 +234,7 @@ const Reports: React.FC = () => {
           onChange={(e) => setStationFilter(e.target.value)}
           className="form-input"
         >
-          <option value="all">全部站點</option>
+          <option value="all">全部居住區</option>
           {stations.map(station => (
             <option key={station.id} value={station.id}>{station.name}</option>
           ))}

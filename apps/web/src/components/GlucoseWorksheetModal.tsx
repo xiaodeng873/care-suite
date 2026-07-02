@@ -142,13 +142,13 @@ const GlucoseWorksheetModal: React.FC<GlucoseWorksheetModalProps> = ({ onClose }
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">站點</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">居住區</label>
               <select
                 value={stationFilter}
                 onChange={(e) => setStationFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
               >
-                <option value="all">全部站點</option>
+                <option value="all">全部居住區</option>
                 {stations.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}

@@ -742,7 +742,7 @@ const Reports: React.FC = () => {
             onChange={(e) => setStationFilter(e.target.value)}
             className="form-input"
           >
-            <option value="all">全部站點</option>
+            <option value="all">全部居住區</option>
             {(stations || []).map(station => (
               <option key={station.id} value={station.id}>{station.name}</option>
             ))}

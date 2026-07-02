@@ -154,7 +154,7 @@ export const queryKeys = {
     },
   },
   
-  // 站點相關
+  // 居住區相關
   stations: {
     all: ['stations'] as const,
     list: () => ['stations', 'list'] as const,

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Care Suite",
+    "name": "SeniorCare",
     "slug": "care-suite",
     "version": "1.0.0",
     "orientation": "default",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.stationc.caresuite",
+      "bundleIdentifier": "com.SeniorCare.caresuite",
       "infoPlist": {
         "NSCameraUsageDescription": "此應用程式需要存取您的相機以掃描院友 QR Code"
       }
@@ -25,7 +25,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#2563eb"
       },
-      "package": "com.stationc.caresuite",
+      "package": "com.SeniorCare.caresuite",
       "permissions": [
         "android.permission.CAMERA"
       ]

@@ -182,7 +182,7 @@ const PageLoadingScreen: React.FC<PageLoadingScreenProps> = ({
                 />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-1">Care Suite</h1>
+            <h1 className="text-2xl font-bold text-gray-800 mb-1">SeniorCare</h1>
             <p className="text-gray-500">正在載入 {pageName}...</p>
           </div>
 
@@ -253,7 +253,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-1">Care Suite</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-1">SeniorCare</h1>
           <p className="text-gray-500">正在載入 {pageName}...</p>
         </div>
 

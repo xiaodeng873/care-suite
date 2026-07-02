@@ -1,7 +1,7 @@
 /**
- * StationContext - 站點與床位管理
+ * SeniorCareontext - 居住區與床位管理
  * 
- * 此 Context 負責管理站點（Station）和床位（Bed）相關的狀態和操作。
+ * 此 Context 負責管理居住區（Station）和床位（Bed）相關的狀態和操作。
  * 從 PatientContext 中拆分出來，以提高性能和可維護性。
  */
 
@@ -12,13 +12,13 @@ import { useAuth } from '../AuthContext';
 // Re-export types for convenience
 export type { Station, Bed } from '../../lib/database';
 
-interface StationContextType {
+interface SeniorCareontextType {
   // 狀態
   stations: db.Station[];
   beds: db.Bed[];
   loading: boolean;
   
-  // 站點操作
+  // 居住區操作
   addStation: (station: Omit<db.Station, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateStation: (station: db.Station) => Promise<void>;
   deleteStation: (id: string) => Promise<void>;
@@ -37,7 +37,7 @@ interface StationContextType {
   refreshStationData: () => Promise<void>;
 }
 
-const StationContext = createContext<StationContextType | undefined>(undefined);
+const SeniorCareontext = createContext<SeniorCareontextType | undefined>(undefined);
 
 interface StationProviderProps {
   children: ReactNode;
@@ -49,7 +49,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
   const [beds, setBeds] = useState<db.Bed[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 載入站點和床位數據
+  // 載入居住區和床位數據
   const refreshStationData = useCallback(async () => {
     if (!isAuthenticated()) return;
     setLoading(true);
@@ -72,7 +72,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     refreshStationData();
   }, [refreshStationData]);
 
-  // 站點 CRUD 操作
+  // 居住區 CRUD 操作
   const addStation = useCallback(async (station: Omit<db.Station, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const newStation = await db.createStation(station);
@@ -97,7 +97,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     try {
       await db.deleteStation(id);
       setStations(prev => prev.filter(s => s.id !== id));
-      // 同時刪除該站點下的所有床位
+      // 同時刪除該居住區下的所有床位
       setBeds(prev => prev.filter(b => b.station_id !== id));
     } catch (error) {
       console.error('Error deleting station:', error);
@@ -168,7 +168,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     }
   }, [refreshStationData]);
 
-  const value: StationContextType = {
+  const value: SeniorCareontextType = {
     stations,
     beds,
     loading,
@@ -185,22 +185,22 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
   };
 
   return (
-    <StationContext.Provider value={value}>
+    <SeniorCareontext.Provider value={value}>
       {children}
-    </StationContext.Provider>
+    </SeniorCareontext.Provider>
   );
 };
 
 /**
- * useStation hook - 使用站點和床位管理功能
+ * useStation hook - 使用居住區和床位管理功能
  * 
  * @example
  * ```tsx
  * const { stations, beds, addStation, addBed } = useStation();
  * ```
  */
-export const useStation = (): StationContextType => {
-  const context = useContext(StationContext);
+export const useStation = (): SeniorCareontextType => {
+  const context = useContext(SeniorCareontext);
   if (!context) {
     throw new Error('useStation must be used within a StationProvider');
   }
@@ -208,7 +208,7 @@ export const useStation = (): StationContextType => {
 };
 
 /**
- * useStationData hook - 只獲取站點數據（用於只需要讀取的組件）
+ * useStationData hook - 只獲取居住區數據（用於只需要讀取的組件）
  * 
  * @example
  * ```tsx
@@ -220,4 +220,4 @@ export const useStationData = () => {
   return { stations, beds, loading };
 };
 
-export default StationContext;
+export default SeniorCareontext;

@@ -168,17 +168,17 @@ CREATE POLICY "允許已認證用戶刪除床位"
   ON "beds" FOR DELETE TO authenticated USING (true);
 
 -- stations 表
-DROP POLICY IF EXISTS "允許已認證用戶新增站點" ON "stations";
-DROP POLICY IF EXISTS "允許已認證用戶修改站點" ON "stations";
-DROP POLICY IF EXISTS "允許已認證用戶刪除站點" ON "stations";
+DROP POLICY IF EXISTS "允許已認證用戶新增居住區" ON "stations";
+DROP POLICY IF EXISTS "允許已認證用戶修改居住區" ON "stations";
+DROP POLICY IF EXISTS "允許已認證用戶刪除居住區" ON "stations";
 
-CREATE POLICY "允許已認證用戶新增站點"
+CREATE POLICY "允許已認證用戶新增居住區"
   ON "stations" FOR INSERT TO authenticated WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶修改站點"
+CREATE POLICY "允許已認證用戶修改居住區"
   ON "stations" FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶刪除站點"
+CREATE POLICY "允許已認證用戶刪除居住區"
   ON "stations" FOR DELETE TO authenticated USING (true);
 
 -- daily_system_tasks 表

@@ -254,7 +254,7 @@ const PatientContext = createContext<PatientContextType | undefined>(undefined);
 export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) => {
   const { user, userProfile, authReady, displayName, isAuthenticated } = useAuth();
   
-  // 從 StationContext 獲取站點和床位數據（委託模式，向後兼容）
+  // 從 SeniorCareontext 獲取居住區和床位數據（委託模式，向後兼容）
   const {
     stations,
     beds,
@@ -529,7 +529,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   const DEBOUNCE_DELAY = 500; // 500ms 防抖延遲
   // 資料狀態
   const [patients, setPatients] = useState<db.Patient[]>([]);
-  // stations 和 beds 現在從 StationContext 獲取
+  // stations 和 beds 現在從 SeniorCareontext 獲取
   // schedules 和 doctorVisitSchedule 現在從 ScheduleContext 獲取
   // carePlans, problemLibrary, nursingNeedItems 現在從 CarePlanContext 獲取
   // serviceReasons 已遷移至 ServiceReasonContext
@@ -654,7 +654,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     
     if (!authenticated) {
       setPatients([]);
-      // stations 和 beds 現在由 StationContext 管理，無需在此清空
+      // stations 和 beds 現在由 SeniorCareontext 管理，無需在此清空
       // schedules 現在由 ScheduleContext 管理，無需在此清空
       // serviceReasons 現在由 ServiceReasonContext 管理，無需在此清空
       // healthRecords 現在由 HealthRecordContext 管理，無需在此清空
@@ -765,7 +765,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   
   // 健康記錄回收筒和去重函數 (findDuplicateHealthRecords, batchDeleteDuplicateRecords, fetchDeletedHealthRecords, restoreHealthRecord, permanentlyDeleteHealthRecord) 已遷移至 HealthRecordContext
   // addDrug, updateDrug, deleteDrug 已遷移至 DrugContext
-  // Station 和 Bed 相關函數現在從 StationContext 獲取（見 PatientProvider 頂部的 useStation()）
+  // Station 和 Bed 相關函數現在從 SeniorCareontext 獲取（見 PatientProvider 頂部的 useStation()）
   
   return (
     <PatientContext.Provider value={{

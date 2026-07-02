@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.stationc.carerecords",
+      "bundleIdentifier": "com.SeniorCare.carerecords",
       "infoPlist": {
         "NSCameraUsageDescription": "此應用程式需要存取您的相機以掃描床位 QR Code"
       }
@@ -24,7 +24,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#2563eb"
       },
-      "package": "com.stationc.carerecords",
+      "package": "com.SeniorCare.carerecords",
       "permissions": [
         "android.permission.CAMERA"
       ]

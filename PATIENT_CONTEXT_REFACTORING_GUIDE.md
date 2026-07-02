@@ -10,9 +10,9 @@
 
 ## ✅ 已完成的拆分
 
-### StationContext（站點與床位管理）- ✅ 已完成
+### SeniorCareontext（居住區與床位管理）- ✅ 已完成
 
-**檔案位置：** `apps/web/src/context/facility/StationContext.tsx`
+**檔案位置：** `apps/web/src/context/facility/SeniorCareontext.tsx`
 
 **拆分內容：**
 - `stations` 狀態
@@ -24,7 +24,7 @@
 
 **使用方式：**
 ```typescript
-// 新組件可以直接使用 StationContext
+// 新組件可以直接使用 SeniorCareontext
 import { useStation } from '../context/facility';
 const { stations, beds, addStation } = useStation();
 
@@ -77,7 +77,7 @@ apps/web/src/context/
 │   ├── FollowUpContext.tsx（追蹤管理）
 │   └── DiagnosisContext.tsx（診斷、疫苗）
 ├── facility/
-│   ├── StationContext.tsx（站點、床位）
+│   ├── SeniorCareontext.tsx（居住區、床位）
 │   └── ScheduleContext.tsx（排程）
 └── workflow/
     └── WorkflowContext.tsx（工作流程記錄）
@@ -403,4 +403,4 @@ function PatientList() {
 2. **中優先級** - PatientHealthContext（健康記錄）
 3. **低優先級** - 其他 Context
 
-選擇一個小範圍開始（如 StationContext），驗證方案可行性後再全面推廣。
+選擇一個小範圍開始（如 SeniorCareontext），驗證方案可行性後再全面推廣。

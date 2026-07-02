@@ -444,8 +444,8 @@ export const translations = {
     // 關於
     version: '版本',
     system: '系統',
-    systemName: 'Station C 護理記錄',
-    footer: 'Station C 護理記錄系統',
+    systemName: 'SeniorCare 護理記錄',
+    footer: 'SeniorCare 護理記錄系統',
     copyright: '© 2025 All Rights Reserved',
     
     // 語言選項
@@ -792,8 +792,8 @@ export const translations = {
     // 关于
     version: '版本',
     system: '系统',
-    systemName: 'Station C 护理记录',
-    footer: 'Station C 护理记录系统',
+    systemName: 'SeniorCare 护理记录',
+    footer: 'SeniorCare 护理记录系统',
     copyright: '© 2025 All Rights Reserved',
     
     // 语言选项
@@ -1140,8 +1140,8 @@ export const translations = {
     // About
     version: 'Version',
     system: 'System',
-    systemName: 'Station C Care Records',
-    footer: 'Station C Care Records System',
+    systemName: 'SeniorCare Care Records',
+    footer: 'SeniorCare Care Records System',
     copyright: '© 2025 All Rights Reserved',
     
     // Language Options

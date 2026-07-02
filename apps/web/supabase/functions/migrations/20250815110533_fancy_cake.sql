@@ -2,10 +2,10 @@
   # 創建床位管理系統
 
   1. 新增表格
-    - `stations` - 站點管理表
+    - `stations` - 居住區管理表
       - `id` (uuid, primary key)
-      - `name` (text, 站點名稱)
-      - `description` (text, 站點描述)
+      - `name` (text, 居住區名稱)
+      - `description` (text, 居住區描述)
       - `created_at` (timestamptz)
       - `updated_at` (timestamptz)
     
@@ -31,7 +31,7 @@
     - 為常用查詢欄位新增索引
 */
 
--- 創建站點表
+-- 創建居住區表
 CREATE TABLE IF NOT EXISTS stations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL UNIQUE,
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS beds (
 ALTER TABLE stations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE beds ENABLE ROW LEVEL SECURITY;
 
--- 新增站點和床位欄位到院友主表
+-- 新增居住區和床位欄位到院友主表
 DO $$
 BEGIN
   -- 新增 station_id 欄位

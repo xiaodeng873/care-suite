@@ -56,7 +56,7 @@ export default function LoginScreen() {
       <View className="flex-1 justify-center px-8">
         {/* Logo / Title */}
         <View className="mb-10 items-center">
-          <Text className="text-3xl font-bold text-primary-600">Care Suite</Text>
+          <Text className="text-3xl font-bold text-primary-600">SeniorCare</Text>
           <Text className="mt-1 text-sm text-gray-500">院舍管理系統</Text>
         </View>
 

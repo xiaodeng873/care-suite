@@ -469,7 +469,7 @@ export const exportBedLayoutToExcel = async (
     // 構建工作表配置
     const sheetsConfig: SheetConfig[] = [];
     selectedStations.forEach(station => {
-      // 獲取該站點的所有床位
+      // 獲取該居住區的所有床位
       const stationBeds = allBeds.filter(bed => bed.station_id === station.id);
       // 準備床位資料
       const bedData: BedLayoutExportData[] = stationBeds.map(bed => {
@@ -507,7 +507,7 @@ export const exportBedLayoutToExcel = async (
     const finalFilename = filename || 
       (sheetsConfig.length === 1 
         ? `${sheetsConfig[0].station.name}_床位表.xlsx`
-        : `床位表(${sheetsConfig.length}個站點).xlsx`);
+        : `床位表(${sheetsConfig.length}個居住區).xlsx`);
     // 創建工作簿並匯出
     const workbook = await createBedLayoutWorkbook(sheetsConfig);
     await saveExcelFile(workbook, finalFilename);
@@ -525,7 +525,7 @@ const exportBedLayoutToExcelSimple = async (
 ): Promise<void> => {
   const workbook = new ExcelJS.Workbook();
   selectedStations.forEach(station => {
-    // 獲取該站點的所有床位
+    // 獲取該居住區的所有床位
     const stationBeds = allBeds.filter(bed => bed.station_id === station.id);
     const sheetName = `${station.name}床位表`;
     const worksheet = workbook.addWorksheet(sheetName);
@@ -556,8 +556,8 @@ const exportBedLayoutToExcelSimple = async (
       pattern: 'solid',
       fgColor: { argb: 'FFE6F7FF' }
     };
-    // 站點資訊
-    worksheet.getCell('A3').value = `站點名稱: ${station.name}`;
+    // 居住區資訊
+    worksheet.getCell('A3').value = `居住區名稱: ${station.name}`;
     if (station.description) {
       worksheet.getCell('E3').value = `描述: ${station.description}`;
     }

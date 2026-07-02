@@ -137,7 +137,7 @@ const StationBedManagement: React.FC = () => {
   };
   // 篩選床位
   const filteredBeds = beds.filter(bed => {
-    // 站點篩選
+    // 居住區篩選
     if (selectedStationFilter && bed.station_id !== selectedStationFilter) {
       return false;
     }
@@ -175,19 +175,19 @@ const StationBedManagement: React.FC = () => {
         const patient = getPatientInBed(bed.id);
         return `${bed.bed_number}(${patient?.中文姓名 || '未知院友'})`;
       }).join('、');
-      alert(`無法刪除站點「${station?.name}」，因為以下床位仍有院友：\n\n${occupiedBedsList}\n\n請先將所有院友遷移到其他床位，然後刪除或遷移所有床位。`);
+      alert(`無法刪除居住區「${station?.name}」，因為以下床位仍有院友：\n\n${occupiedBedsList}\n\n請先將所有院友遷移到其他床位，然後刪除或遷移所有床位。`);
       return;
     }
     if (stationBeds.length > 0) {
       const emptyBedsList = stationBeds.map(bed => bed.bed_number).join('、');
-      alert(`無法刪除站點「${station?.name}」，因為該站點下還有以下空置床位：\n\n${emptyBedsList}\n\n請先刪除或遷移所有床位到其他站點。`);
+      alert(`無法刪除居住區「${station?.name}」，因為該居住區下還有以下空置床位：\n\n${emptyBedsList}\n\n請先刪除或遷移所有床位到其他居住區。`);
       return;
     }
-    if (confirm(`確定要刪除站點「${station?.name}」嗎？`)) {
+    if (confirm(`確定要刪除居住區「${station?.name}」嗎？`)) {
       try {
         await deleteStation(stationId);
       } catch (error) {
-        alert('刪除站點失敗，請重試');
+        alert('刪除居住區失敗，請重試');
       }
     }
   };
@@ -252,7 +252,7 @@ const StationBedManagement: React.FC = () => {
   };
   const handleConfirmExport = async () => {
     if (selectedStationsForExport.size === 0) {
-      alert('請至少選擇一個站點');
+      alert('請至少選擇一個居住區');
       return;
     }
     try {
@@ -280,7 +280,7 @@ const StationBedManagement: React.FC = () => {
             className="btn-secondary flex flex-wrap items-center gap-2"
           >
             <Settings className="h-4 w-4" />
-            <span>站點管理</span>
+            <span>居住區管理</span>
           </button>
           <button
             onClick={() => setShowSwapModal(true)}
@@ -298,18 +298,18 @@ const StationBedManagement: React.FC = () => {
           </button>
         </div>
       </div>
-      {/* 站點概覽 */}
+      {/* 居住區概覽 */}
       <div className="space-y-4">
         {stations.length === 0 ? (
           <div className="text-center py-12">
             <Building2 className="h-24 w-24 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">暫無站點</h3>
-            <p className="text-gray-600 mb-4">開始建立您的第一個站點</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">暫無居住區</h3>
+            <p className="text-gray-600 mb-4">開始建立您的第一個居住區</p>
             <button
               onClick={() => setShowStationModal(true)}
               className="btn-primary"
             >
-              新增站點
+              新增居住區
             </button>
           </div>
         ) : (
@@ -343,7 +343,7 @@ const StationBedManagement: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="搜索床位號碼、床位名稱、站點名稱或院友姓名..."
+              placeholder="搜索床位號碼、床位名稱、居住區名稱或院友姓名..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="form-input pl-10"
@@ -355,7 +355,7 @@ const StationBedManagement: React.FC = () => {
               onChange={(e) => setSelectedStationFilter(e.target.value)}
               className="form-input lg:w-40"
             >
-              <option value="">所有站點</option>
+              <option value="">所有居住區</option>
               {stations.map(station => (
                 <option key={station.id} value={station.id}>{station.name}</option>
               ))}
@@ -451,7 +451,7 @@ const StationBedManagement: React.FC = () => {
                                     </button>
                                   )}
                                   <div className="border-t border-gray-100 my-1"></div>
-                                  <div className="px-4 py-2 text-xs text-gray-500">遷移到其他站點</div>
+                                  <div className="px-4 py-2 text-xs text-gray-500">遷移到其他居住區</div>
                                   {stations.filter(s => s.id !== station.id).map(targetStation => (
                                     <button
                                       key={targetStation.id}
@@ -541,8 +541,8 @@ const StationBedManagement: React.FC = () => {
                 ) : (
                   <div className="text-center py-8">
                     <Bed className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">此站點暫無床位</h3>
-                    <p className="text-gray-600 mb-4">為此站點新增床位</p>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">此居住區暫無床位</h3>
+                    <p className="text-gray-600 mb-4">為此居住區新增床位</p>
                     <button
                       onClick={() => {
                         setSelectedStation(station);
@@ -631,7 +631,7 @@ const StationBedManagement: React.FC = () => {
             </div>
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                請選擇要匯出床位表的站點，每個站點將生成獨立的工作表：
+                請選擇要匯出床位表的居住區，每個居住區將生成獨立的工作表：
               </p>
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {stations.map(station => {
@@ -663,7 +663,7 @@ const StationBedManagement: React.FC = () => {
               {stations.length === 0 && (
                 <div className="text-center py-8">
                   <Building2 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p className="text-gray-500">暫無站點可匯出</p>
+                  <p className="text-gray-500">暫無居住區可匯出</p>
                 </div>
               )}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">

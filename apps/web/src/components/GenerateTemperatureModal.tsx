@@ -38,7 +38,7 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // 當天在住院友（依站點篩選、床號排序）
+  // 當天在住院友（依居住區篩選、床號排序）
   const filteredPatients = useMemo(() => {
     return patients
       .filter(p => p.在住狀態 === '在住')
@@ -176,13 +176,13 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
 
         <div className="p-6 space-y-4 overflow-y-auto">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">站點</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">居住區</label>
             <select
               value={stationFilter}
               onChange={(e) => { setStationFilter(e.target.value); setSelectedIds(null); }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
-              <option value="all">全部站點</option>
+              <option value="all">全部居住區</option>
               {stations.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}

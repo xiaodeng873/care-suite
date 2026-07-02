@@ -66,7 +66,7 @@ mobile/
 4. **position_change_records** - 轉身記錄
 5. **院友主表** - 院友基本資料
 6. **beds** - 床位資料（包含 QR Code ID）
-7. **stations** - 站點資料
+7. **stations** - 居住區資料
 
 ## 開發指南
 

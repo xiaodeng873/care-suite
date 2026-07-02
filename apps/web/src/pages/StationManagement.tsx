@@ -54,7 +54,7 @@ const StationManagement: React.FC = () => {
     return patients.find(patient => patient.bed_id === bedId && patient.在住狀態 === '在住');
   };
 
-  // 篩選站點
+  // 篩選居住區
   const filteredStations = stations.filter(station => {
     if (!searchTerm) return true;
     return (
@@ -78,21 +78,21 @@ const StationManagement: React.FC = () => {
         const patient = getPatientInBed(bed.id);
         return `${bed.bed_number}(${patient?.中文姓名 || '未知院友'})`;
       }).join('、');
-      alert(`無法刪除站點「${station?.name}」，因為以下床位仍有院友：\n\n${occupiedBedsList}\n\n請先將所有院友遷移到其他床位。`);
+      alert(`無法刪除居住區「${station?.name}」，因為以下床位仍有院友：\n\n${occupiedBedsList}\n\n請先將所有院友遷移到其他床位。`);
       return;
     }
     
     if (stationBeds.length > 0) {
       const emptyBedsList = stationBeds.map(bed => bed.bed_number).join('、');
-      alert(`無法刪除站點「${station?.name}」，因為該站點下還有以下床位：\n\n${emptyBedsList}\n\n請先將所有床位遷移到其他站點或刪除這些床位。`);
+      alert(`無法刪除居住區「${station?.name}」，因為該居住區下還有以下床位：\n\n${emptyBedsList}\n\n請先將所有床位遷移到其他居住區或刪除這些床位。`);
       return;
     }
     
-    if (confirm(`確定要刪除站點「${station?.name}」嗎？\n\n此操作無法復原。`)) {
+    if (confirm(`確定要刪除居住區「${station?.name}」嗎？\n\n此操作無法復原。`)) {
       try {
         await deleteStation(stationId);
       } catch (error) {
-        alert('刪除站點失敗，請重試');
+        alert('刪除居住區失敗，請重試');
       }
     }
   };
@@ -108,7 +108,7 @@ const StationManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">站點管理</h1>
+        <h1 className="text-2xl font-bold text-gray-900">居住區管理</h1>
         <button
           onClick={() => {
             setSelectedStation(null);
@@ -117,7 +117,7 @@ const StationManagement: React.FC = () => {
           className="btn-primary flex flex-wrap items-center gap-2"
         >
           <Plus className="h-4 w-4" />
-          <span>新增站點</span>
+          <span>新增居住區</span>
         </button>
       </div>
 
@@ -128,7 +128,7 @@ const StationManagement: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="搜索站點名稱或描述..."
+              placeholder="搜索居住區名稱或描述..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="form-input pl-10"
@@ -147,14 +147,14 @@ const StationManagement: React.FC = () => {
         </div>
         
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600 mt-2">
-          <span>顯示 {filteredStations.length} / {stations.length} 個站點</span>
+          <span>顯示 {filteredStations.length} / {stations.length} 個居住區</span>
           {hasActiveFilters() && (
             <span className="text-blue-600">已套用篩選條件</span>
           )}
         </div>
       </div>
 
-      {/* 站點列表 */}
+      {/* 居住區列表 */}
       <div className="space-y-4">
         {filteredStations.length > 0 ? (
           filteredStations.map(station => {
@@ -201,7 +201,7 @@ const StationManagement: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 站點統計 */}
+                {/* 居住區統計 */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                   <div className="bg-blue-50 rounded-lg p-4 text-center">
                     <div className="flex items-center justify-center mb-2">
@@ -278,8 +278,8 @@ const StationManagement: React.FC = () => {
                 ) : (
                   <div className="text-center py-8">
                     <Bed className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">此站點暫無床位</h3>
-                    <p className="text-gray-600">請前往「床位管理」頁面為此站點新增床位</p>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">此居住區暫無床位</h3>
+                    <p className="text-gray-600">請前往「床位管理」頁面為此居住區新增床位</p>
                   </div>
                 )}
               </div>
@@ -289,17 +289,17 @@ const StationManagement: React.FC = () => {
           <div className="text-center py-12">
             <Building2 className="h-24 w-24 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm ? '找不到符合條件的站點' : '暫無站點'}
+              {searchTerm ? '找不到符合條件的居住區' : '暫無居住區'}
             </h3>
             <p className="text-gray-600 mb-4">
-              {searchTerm ? '請嘗試調整搜索條件' : '開始建立您的第一個站點'}
+              {searchTerm ? '請嘗試調整搜索條件' : '開始建立您的第一個居住區'}
             </p>
             {!searchTerm ? (
               <button
                 onClick={() => setShowStationModal(true)}
                 className="btn-primary"
               >
-                新增站點
+                新增居住區
               </button>
             ) : (
               <button

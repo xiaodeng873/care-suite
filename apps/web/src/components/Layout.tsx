@@ -306,7 +306,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
                 }}
               >
                 <Home className="h-6 w-6 text-blue-600" />
-                <span className="text-xl font-bold text-gray-900 hidden sm:inline">StationC</span>
+                <span className="text-xl font-bold text-gray-900 hidden sm:inline">SeniorCare</span>
               </Link>
 
               {/* 桌面版導覽 */}
