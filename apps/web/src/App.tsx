@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import NurseApp from './nurse/NurseApp';
 import { BrowserRouter } from 'react-router-dom';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -197,7 +198,9 @@ function AuthenticatedContent({
   setShowInitialLoadingScreen: (value: boolean) => void;
   minTimeElapsed: boolean;
 }) {
-  // 獲取所有 Context 的加載狀態
+  const { userProfile } = useAuth();
+
+  // 獲取所有 Context 的加載狀態（hooks 必須在任何条件返回前呼叫）
   const { loading: patientLoading, patients } = usePatients();
   const { loading: medicalLoading, healthRecords, followUpAppointments } = useMedical();
   const { scheduleLoading, prescriptionLoading, prescriptions } = useWorkflow();
@@ -253,6 +256,11 @@ function AuthenticatedContent({
       setShowInitialLoadingScreen(false);
     }
   }, [showInitialLoadingScreen, allDataLoaded, hasEssentialData, isDashboardReady, fallbackTimeout, minTimeElapsed, setShowInitialLoadingScreen]);
+
+  // 護理員走獨立 NurseApp，跳過 Loading Screen 和 Layout
+  if (userProfile?.nursing_position === '護理員') {
+    return <NurseApp onSignOut={onSignOut} />;
+  }
 
   // 顯示初始加載頁面
   if (showInitialLoadingScreen) {

@@ -14,6 +14,37 @@ export const DIAPER_CHANGE_SLOTS = [
   { time: '3AM-6AM', label: '3AM-6AM' }
 ];
 
+/** 把換片時段字符串（如 '7AM-10AM'）轉換為24小時格式的起始時間（如 '07:00'），供 isOverdue 使用 */
+export const parseDiaperSlotStartTime = (slot: string): string => {
+  const startPart = slot.split('-')[0]; // e.g. '7AM', '11PM'
+  const isPM = startPart.endsWith('PM');
+  const isAM = startPart.endsWith('AM');
+  let hour = parseInt(startPart.replace(/AM|PM/i, ''), 10);
+  if (isPM && hour !== 12) hour += 12;
+  if (isAM && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, '0')}:00`;
+};
+
+/**
+ * 護理記錄一天從 07:00 開始，00:00–06:xx 屬於下一個日曆日。
+ * 回傳該時段實際發生的日期字串（YYYY-MM-DD）。
+ */
+export const getActualSlotDate = (dateString: string, timeString: string): string => {
+  const hour = parseInt(timeString.split(':')[0], 10);
+  if (hour < 7) {
+    const [y, m, d] = dateString.split('-').map(Number);
+    const next = new Date(y, m - 1, d + 1);
+    return formatDate(next);
+  }
+  return dateString;
+};
+
+/** 考慮隔夜時段，判斷護理時段是否已過（07:00 起為一天開始，00:00–06:xx 屬下一日曆日） */
+export const isSlotOverdue = (dateString: string, timeString: string): boolean => {
+  const actualDate = getActualSlotDate(dateString, timeString);
+  return new Date(`${actualDate}T${timeString}:00`) < new Date();
+};
+
 // 出入量時段 - 從07:00開始，順序與mobile端一致
 export const INTAKE_OUTPUT_SLOTS = [
   { time: '07:00', label: '07:00' },

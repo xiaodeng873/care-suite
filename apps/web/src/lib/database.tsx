@@ -533,7 +533,8 @@ export interface VaccinationRecord {
 }
 export interface PatrolRound {
   id: string;
-  patient_id: number;
+  bed_id?: string;           // 床位 ID（巡房以床位為主；空床時 patient_id 為 null）
+  patient_id?: number | null; // 可空：空床巡房時無院友
   patrol_date: string;
   patrol_time: string;
   scheduled_time: string;
@@ -976,6 +977,69 @@ export const deleteBed = async (bedId: string): Promise<void> => {
   const { error } = await supabase.from('beds').delete().eq('id', bedId);
   if (error) throw error;
 };
+// 根據床位 ID 查詢在住院友
+export const getPatientByBedId = async (bedId: string): Promise<Patient | null> => {
+  const { data, error } = await supabase
+    .from('院友主表')
+    .select('*')
+    .eq('bed_id', bedId)
+    .eq('在住狀態', '在住')
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+// 按床位 ID 查詢指定日期範圍內的巡房記錄（護理員頁專用）
+export const getPatrolRoundsByBedId = async (
+  bedId: string,
+  startDate: string,
+  endDate: string,
+  fallbackPatientId?: number
+): Promise<PatrolRound[]> => {
+  const { data, error } = await supabase
+    .from('patrol_rounds')
+    .select('*')
+    .eq('bed_id', bedId)
+    .gte('patrol_date', startDate)
+    .lte('patrol_date', endDate)
+    .order('patrol_date', { ascending: true })
+    .order('scheduled_time', { ascending: true });
+  if (error) {
+    // migration 未 push → bed_id 欄不存在，降級到 patient_id 查詢
+    if ((error.code === '42703' || error.message?.includes('bed_id'))) {
+      if (fallbackPatientId != null) {
+        const { data: d2, error: e2 } = await supabase
+          .from('patrol_rounds')
+          .select('*')
+          .eq('patient_id', fallbackPatientId)
+          .gte('patrol_date', startDate)
+          .lte('patrol_date', endDate)
+          .order('patrol_date', { ascending: true })
+          .order('scheduled_time', { ascending: true });
+        if (e2) throw e2;
+        return d2 || [];
+      }
+      return []; // 空床且無 patient_id 可 fallback
+    }
+    throw error;
+  }
+  return data || [];
+};
+
+// 按院友 ID 查詢指定日期範圍內的出入量記錄（護理員頁專用）
+export const getIntakeOutputRecordsByPatient = async (patientId: number, startDate: string, endDate: string): Promise<IntakeOutputRecord[]> => {
+  const { data, error } = await supabase
+    .from('intake_output_records')
+    .select('*, intake_items(*), output_items(*)')
+    .eq('patient_id', patientId)
+    .gte('record_date', startDate)
+    .lte('record_date', endDate)
+    .order('record_date', { ascending: true })
+    .order('hour_slot', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
 export const getBedByQrCodeId = async (qrCodeId: string): Promise<Bed | null> => {
   const { data, error } = await supabase
     .from('beds')
@@ -2400,12 +2464,34 @@ export const getPatrolRounds = async (options?: { daysBack?: number }): Promise<
   return data || [];
 };
 export const createPatrolRound = async (round: Omit<PatrolRound, 'id' | 'created_at' | 'updated_at'>): Promise<PatrolRound> => {
-  const { data, error } = await supabase.from('patrol_rounds').insert([round]).select().single();
-  if (error) throw error;
+  // 只插入有值的欄位，避免把尚未在 DB 中的欄位（如 bed_id）發送給還沒 migrate 的資料庫
+  const roundData: Record<string, any> = {
+    patient_id:     round.patient_id ?? undefined,
+    patrol_date:    round.patrol_date,
+    patrol_time:    round.patrol_time,
+    scheduled_time: round.scheduled_time,
+    recorder:       round.recorder,
+  };
+  if (round.co_signer)  roundData.co_signer = round.co_signer;
+  if (round.bed_id)     roundData.bed_id    = round.bed_id;
+  const { data, error } = await supabase.from('patrol_rounds').insert([roundData]).select().single();
+  if (error) {
+    // code 42703 = "column does not exist"（migration 未 push 時 bed_id 欄位不存在），自動降級重試
+    if ((error.code === '42703' || error.message?.includes('bed_id')) && roundData.bed_id) {
+      delete roundData.bed_id;
+      const { data: data2, error: error2 } = await supabase.from('patrol_rounds').insert([roundData]).select().single();
+      if (error2) throw error2;
+      return data2;
+    }
+    throw error;
+  }
   return data;
 };
 export const updatePatrolRound = async (round: PatrolRound): Promise<PatrolRound> => {
-  const { id, created_at, updated_at, ...updateData } = round;
+  const { id, created_at, updated_at, bed_id, ...coreData } = round;
+  // bed_id 只在有值時才加入更新（避免在 migration 上線前把 undefined 欄位發給 DB）
+  const updateData: Record<string, any> = { ...coreData };
+  if (bed_id) updateData.bed_id = bed_id;
   const { data, error } = await supabase.from('patrol_rounds').update(updateData).eq('id', id).select().single();
   if (error) throw error;
   return data;

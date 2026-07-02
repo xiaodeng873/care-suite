@@ -33,7 +33,9 @@ import {
   getWeekStartDate,
   formatDate,
   isInHospital,
-  getPositionSequence
+  getPositionSequence,
+  isSlotOverdue,
+  parseDiaperSlotStartTime,
 } from '../utils/careRecordHelper';
 import type { Patient, PatrolRound, DiaperChangeRecord, RestraintObservationRecord, PositionChangeRecord, HygieneRecord, IntakeOutputRecord, PatientCareTab } from '../lib/database';
 import * as db from '../lib/database';
@@ -613,7 +615,7 @@ const CareRecords: React.FC = () => {
                       className={`px-2 py-3 text-center text-sm border cursor-pointer ${
                         inHospital ? 'bg-gray-100' :
                         record ? 'bg-green-50 hover:bg-green-100' :
-                        'hover:bg-blue-50'
+                        isSlotOverdue(dateString, timeSlot) ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-blue-50'
                       }`}
                       onClick={() => !inHospital && handleCellClick(dateString, timeSlot, record)}
                     >
@@ -624,6 +626,8 @@ const CareRecords: React.FC = () => {
                           <div className="text-green-600 font-bold">✓</div>
                           <div className="text-xs text-gray-600">{record.recorder}</div>
                         </div>
+                      ) : isSlotOverdue(dateString, timeSlot) ? (
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span>
                       ) : (
                         <span className="text-gray-400 text-xs">待巡</span>
                       )}
@@ -684,7 +688,7 @@ const CareRecords: React.FC = () => {
                             ? 'bg-orange-50 hover:bg-orange-100'
                             : 'bg-blue-50 hover:bg-blue-100'
                         ) :
-                        'hover:bg-blue-50'
+                        isSlotOverdue(dateString, parseDiaperSlotStartTime(slot.time)) ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-blue-50'
                       }`}
                       onClick={() => !inHospital && handleCellClick(dateString, slot.time, record)}
                     >
@@ -715,6 +719,8 @@ const CareRecords: React.FC = () => {
                             <div className="text-xs text-gray-500">{record.recorder}</div>
                           </div>
                         )
+                      ) : isSlotOverdue(dateString, parseDiaperSlotStartTime(slot.time)) ? (
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span>
                       ) : (
                         <span className="text-gray-400 text-xs">待記錄</span>
                       )}
@@ -808,7 +814,7 @@ const CareRecords: React.FC = () => {
                             : record.observation_status === 'P' ? 'bg-red-50 hover:bg-red-100'
                             : 'bg-orange-50 hover:bg-orange-100'
                         ) :
-                        'hover:bg-blue-50'
+                        isSlotOverdue(dateString, timeSlot) ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-blue-50'
                       }`}
                       onClick={() => !inHospital && handleCellClick(dateString, timeSlot, record)}
                     >
@@ -833,6 +839,8 @@ const CareRecords: React.FC = () => {
                             <div className="text-xs text-gray-600">{record.recorder}</div>
                           </div>
                         )
+                      ) : isSlotOverdue(dateString, timeSlot) ? (
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span>
                       ) : (
                         <span className="text-gray-400 text-xs">待觀察</span>
                       )}
@@ -927,7 +935,7 @@ const CareRecords: React.FC = () => {
                             ? 'bg-orange-50 hover:bg-orange-100'
                             : 'bg-purple-50 hover:bg-purple-100'
                         ) :
-                        'hover:bg-blue-50'
+                        isSlotOverdue(dateString, timeSlot) ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-blue-50'
                       }`}
                       onClick={() => !inHospital && handleCellClick(dateString, timeSlot, record)}
                     >
@@ -945,6 +953,8 @@ const CareRecords: React.FC = () => {
                             <div className="text-xs text-gray-600">{record.recorder}</div>
                           </div>
                         )
+                      ) : isSlotOverdue(dateString, timeSlot) ? (
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span>
                       ) : (
                         <span className="text-gray-400 text-xs">[{expectedPosition}]</span>
                       )}
@@ -1040,7 +1050,7 @@ const CareRecords: React.FC = () => {
                             ? 'bg-orange-50 hover:bg-orange-100'
                             : 'bg-blue-50 hover:bg-blue-100'
                         ) :
-                        'hover:bg-blue-50'
+                        isSlotOverdue(dateString, slot.time) ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-blue-50'
                       }`}
                       onClick={() => !inHospital && handleCellClick(dateString, slot.time, record)}
                     >
@@ -1063,8 +1073,13 @@ const CareRecords: React.FC = () => {
                                 ▼ {outputDetails.join('、')}
                               </div>
                             )}
+                            {intakeDetails.length === 0 && outputDetails.length === 0 && (
+                              <span className="text-gray-500 text-xs">無</span>
+                            )}
                           </div>
                         )
+                      ) : isSlotOverdue(dateString, slot.time) ? (
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span>
                       ) : (
                         <span className="text-gray-400 text-xs">待記錄</span>
                       )}

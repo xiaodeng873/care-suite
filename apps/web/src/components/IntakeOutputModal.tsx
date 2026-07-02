@@ -139,12 +139,6 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
       return;
     }
 
-    // 驗證：非特殊狀態時必須至少有一個項目
-    if (!isSpecialStatus && intakeItems.length === 0 && outputItems.length === 0) {
-      alert('請至少新增一個攝入或排出項目');
-      return;
-    }
-
     setIsSaving(true);
 
     try {
