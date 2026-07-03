@@ -42,7 +42,7 @@ const ScanPage: React.FC<ScanPageProps> = ({ onPatientFound, onGoToPatients }) =
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
-        <div className="w-full rounded-xl overflow-hidden bg-black aspect-square max-w-xs mx-auto">
+        <div className="w-full rounded-xl overflow-hidden bg-black max-w-xs mx-auto" style={{ aspectRatio: '9/16' }}>
           <QRScanner
             key={scanKey}
             acceptType="bed"
