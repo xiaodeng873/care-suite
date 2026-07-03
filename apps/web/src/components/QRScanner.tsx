@@ -222,9 +222,9 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
             )}
           </div>
         ) : (
-          <div className="flex gap-3">
-            {/* 左側：掃描器實時畫面 */}
-            <div className="flex-shrink-0 relative">
+          <div className="flex flex-col gap-2">
+            {/* 掃描器實時畫面 */}
+            <div className="relative">
               <div id={scannerIdRef.current} className="rounded-lg overflow-hidden" style={{ width: '240px', height: '427px', aspectRatio: '9/16' }} />
               {/* 二維碼指引框 */}
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
@@ -236,31 +236,19 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
                 </div>
               </div>
             </div>
-            {/* 右側：控制按鈕 */}
-            <div className="flex flex-col justify-center space-y-2 flex-1">
-              {debugMessage && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mb-2">
-                  <p className="text-xs text-blue-800 break-all">{debugMessage}</p>
+            {debugMessage && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                <p className="text-xs text-blue-800 break-all">{debugMessage}</p>
+              </div>
+            )}
+            {error && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-yellow-800">{error}</p>
                 </div>
-              )}
-              {!hideCameraSwitch && (
-              <button
-                onClick={toggleCamera}
-                className="flex flex-wrap items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors w-full"
-              >
-                <SwitchCamera className="h-4 w-4" />
-                <span>{facingMode === 'user' ? '切換到後置' : '切換到前置'}</span>
-              </button>
-              )}
-              {error && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-yellow-800">{error}</p>
-                  </div>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </div>
