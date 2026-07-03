@@ -257,73 +257,90 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
 
           {hasUrine && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 小便量
               </label>
-              <select
-                value={urineAmount}
-                onChange={(e) => setUrineAmount(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">請選擇</option>
-                <option value="少">少</option>
-                <option value="中">中</option>
-                <option value="多">多</option>
-              </select>
+              <div className="flex gap-4">
+                {['少', '中', '多'].map(option => (
+                  <label key={option} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="urineAmount"
+                      value={option}
+                      checked={urineAmount === option}
+                      onChange={(e) => setUrineAmount(e.target.value)}
+                      className="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{option}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           )}
 
           {hasStool && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   大便顏色
                 </label>
-                <select
-                  value={stoolColor}
-                  onChange={(e) => setStoolColor(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">請選擇</option>
-                  <option value="黃">黃</option>
-                  <option value="啡">啡</option>
-                  <option value="綠">綠</option>
-                  <option value="黑">黑</option>
-                  <option value="紅">紅</option>
-                </select>
+                <div className="flex gap-3 flex-wrap">
+                  {['黃', '啡', '綠', '黑', '紅'].map(option => (
+                    <label key={option} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="stoolColor"
+                        value={option}
+                        checked={stoolColor === option}
+                        onChange={(e) => setStoolColor(e.target.value)}
+                        className="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{option}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   大便質地
                 </label>
-                <select
-                  value={stoolTexture}
-                  onChange={(e) => setStoolTexture(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">請選擇</option>
-                  <option value="硬">硬</option>
-                  <option value="軟">軟</option>
-                  <option value="稀">稀</option>
-                  <option value="水狀">水狀</option>
-                </select>
+                <div className="flex gap-3 flex-wrap">
+                  {['硬', '軟', '稀', '水狀'].map(option => (
+                    <label key={option} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="stoolTexture"
+                        value={option}
+                        checked={stoolTexture === option}
+                        onChange={(e) => setStoolTexture(e.target.value)}
+                        className="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{option}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   大便量
                 </label>
-                <select
-                  value={stoolAmount}
-                  onChange={(e) => setStoolAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">請選擇</option>
-                  <option value="少">少</option>
-                  <option value="中">中</option>
-                  <option value="多">多</option>
-                </select>
+                <div className="flex gap-4">
+                  {['少', '中', '多'].map(option => (
+                    <label key={option} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="stoolAmount"
+                        value={option}
+                        checked={stoolAmount === option}
+                        onChange={(e) => setStoolAmount(e.target.value)}
+                        className="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{option}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </>
           )}

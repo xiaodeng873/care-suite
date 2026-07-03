@@ -36,6 +36,7 @@ interface RecordsPageProps {
   bed: Bed;
   patient: Patient | null;
   onBack: () => void;
+  onSelectPatient?: (bed: Bed, patient: Patient | null) => void;
   initialDate?: string;
 }
 
@@ -46,9 +47,9 @@ interface ModalState {
   existing: any;
 }
 
-const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, initialDate }) => {
+const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelectPatient, initialDate }) => {
   const { displayName } = useAuth();
-  const { admissionRecords, hospitalEpisodes, patientRestraintAssessments, restraintObservationRecords } = usePatients();
+  const { admissionRecords, hospitalEpisodes, patientRestraintAssessments, restraintObservationRecords, beds, patients } = usePatients();
 
   // ─── Today only view ─────────────────────────────────────────
   const today = new Date();
@@ -67,6 +68,25 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, initial
   // ─── Tab state ────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabType>('patrol');
   const [patientCareTabs, setPatientCareTabs] = useState<PatientCareTab[]>([]);
+
+  // 計算上一位/下一位院友
+  const currentBedIndex = beds.findIndex(b => b.id === bed.id);
+  const prevBed = currentBedIndex > 0 ? beds[currentBedIndex - 1] : null;
+  const nextBed = currentBedIndex >= 0 && currentBedIndex < beds.length - 1 ? beds[currentBedIndex + 1] : null;
+
+  const handleSelectPrev = () => {
+    if (prevBed && onSelectPatient) {
+      const prevPatient = patients.find(p => p.院友id === prevBed.occupant_id) || null;
+      onSelectPatient(prevBed, prevPatient);
+    }
+  };
+
+  const handleSelectNext = () => {
+    if (nextBed && onSelectPatient) {
+      const nextPatient = patients.find(p => p.院友id === nextBed.occupant_id) || null;
+      onSelectPatient(nextBed, nextPatient);
+    }
+  };
 
   // 是否缺席（住院）→ 凍結院友相關 tab
   const isAbsent = useMemo(() => {
@@ -287,21 +307,39 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, initial
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 flex-shrink-0">
-        <button onClick={onBack} className="text-gray-500 hover:text-gray-700 active:text-gray-900">
-          <ArrowLeft className="w-5 h-5" />
+      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
+        {/* Left: Previous button */}
+        <button
+          onClick={handleSelectPrev}
+          disabled={!prevBed}
+          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-gray-700"
+          title="上一位"
+        >
+          <ChevronLeft className="w-5 h-5" />
         </button>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 truncate">
+
+        {/* Center: Patient name and bed number */}
+        <div className="flex-1 text-center">
+          <p className="font-semibold text-gray-900">
             {patient ? t2s(patient.中文姓名) : '空床'}
-            <span className="text-sm font-normal text-gray-500 ml-2">{bed.bed_number}</span>
+            <span className="text-sm font-normal text-gray-500 ml-1">{bed.bed_number}</span>
           </p>
           {isAbsent && (
-            <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
+            <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5 justify-center">
               <Lock className="w-3 h-3" /> 院友缺席中，仅可填写巡房
             </p>
           )}
         </div>
+
+        {/* Right: Next button */}
+        <button
+          onClick={handleSelectNext}
+          disabled={!nextBed}
+          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 hover:text-gray-700"
+          title="下一位"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
       </div>
 
       {/* 錯誤提示 */}
@@ -371,7 +409,7 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, initial
       </div>
 
       {/* Grid */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-20">
         {activeTab === 'toilet_training' ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2 p-8 text-center">
             <p className="text-sm">如厕训练记录功能暂未开放</p>
@@ -536,6 +574,16 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, initial
             ))}
           </div>
         )}
+      </div>
+
+      {/* Footer - Return button */}
+      <div className="bg-white border-t border-gray-100 px-4 py-3 flex-shrink-0">
+        <button
+          onClick={onBack}
+          className="w-full py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors text-sm"
+        >
+          返回
+        </button>
       </div>
 
       {/* ─── Modals ─────────────────────────────────────────────── */}

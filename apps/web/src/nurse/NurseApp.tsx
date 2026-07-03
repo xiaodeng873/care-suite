@@ -49,7 +49,7 @@ const NurseApp: React.FC<NurseAppProps> = () => {
     );
   }
 
-  const showBottomTab = nav.screen !== 'records';
+  const showBottomTab = true;
 
   return (
     <div
@@ -58,7 +58,7 @@ const NurseApp: React.FC<NurseAppProps> = () => {
       style={{ fontFamily: "'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif" }}
     >
       {/* Page content */}
-      <div className={`flex-1 flex flex-col overflow-hidden ${showBottomTab ? 'pb-16' : ''}`}>
+      <div className="flex-1 flex flex-col overflow-hidden pb-16">
         {nav.screen === 'scan' && (
           <ScanPage
             onPatientFound={handlePatientFound}
@@ -79,15 +79,14 @@ const NurseApp: React.FC<NurseAppProps> = () => {
             bed={nav.bed}
             patient={nav.patient}
             onBack={() => setNav({ screen: nav.from })}
+            onSelectPatient={(bed, patient) => setNav({ screen: 'records', bed, patient, from: nav.from })}
             initialDate={nav.initialDate}
           />
         )}
       </div>
 
-      {/* Bottom tab bar (hidden when in records page) */}
-      {showBottomTab && (
-        <BottomTabBar activeTab={activeTab} onTabChange={handleTabChange} />
-      )}
+      {/* Bottom tab bar (always show) */}
+      <BottomTabBar activeTab={activeTab} onTabChange={handleTabChange} />
     </div>
   );
 };
