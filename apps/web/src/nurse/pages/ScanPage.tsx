@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import QRScanner from '../../components/QRScanner';
 import { getBedByQrCodeId, getPatientByBedId } from '../../lib/database';
 import type { Bed, Patient } from '../../lib/database';
-import { AlertCircle, QrCode, Users } from 'lucide-react';
+import { AlertCircle, QrCode } from 'lucide-react';
 
 interface ScanPageProps {
   onPatientFound: (bed: Bed, patient: Patient | null) => void;
@@ -42,7 +42,7 @@ const ScanPage: React.FC<ScanPageProps> = ({ onPatientFound, onGoToPatients }) =
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
-        <div className="w-full rounded-xl overflow-hidden bg-black aspect-square max-w-xs">
+        <div className="w-full rounded-xl overflow-hidden bg-black aspect-square max-w-xs mx-auto">
           <QRScanner
             key={scanKey}
             acceptType="bed"
@@ -66,21 +66,6 @@ const ScanPage: React.FC<ScanPageProps> = ({ onPatientFound, onGoToPatients }) =
             <p className="text-sm text-red-700">{error}</p>
           </div>
         )}
-
-        <div className="flex flex-col items-center gap-2 w-full max-w-xs">
-          <div className="flex items-center gap-3 w-full">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-400">或</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-          <button
-            onClick={onGoToPatients}
-            className="flex items-center gap-2 w-full justify-center px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-colors"
-          >
-            <Users className="w-5 h-5" />
-            <span className="text-sm font-medium">手动选择院友</span>
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ interface HygieneModalProps {
   onClose: () => void;
   onSubmit: (data: Omit<HygieneRecord, 'id' | 'created_at' | 'updated_at'>) => void;
   onDelete?: (recordId: string) => void;
+  shouldHideBowelCount?: boolean;
 }
 
 const HygieneModal: React.FC<HygieneModalProps> = ({
@@ -20,7 +21,8 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
   existingRecord,
   onClose,
   onSubmit,
-  onDelete
+  onDelete,
+  shouldHideBowelCount = false
 }) => {
   // 護理項目 state
   const [hasBath, setHasBath] = useState(false);
@@ -96,7 +98,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
     e.preventDefault();
 
     if (!recorder.trim()) {
-      alert('請輸入記錄者姓名');
+      alert('请输入记录者姓名');
       return;
     }
 
@@ -153,7 +155,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
     } else {
       setNotes(value);
       if (['入院', '渡假', '外出'].includes(value)) {
-        // 清空所有護理項目
+        // 清空所有护理项目
         setHasBath(false);
         setHasFaceWash(false);
         setHasShave(false);
@@ -189,16 +191,16 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
   const careItems = [
     { label: '沐浴', value: hasBath, setter: setHasBath },
     { label: '洗面', value: hasFaceWash, setter: setHasFaceWash },
-    { label: '剃鬚', value: hasShave, setter: setHasShave },
-    { label: '洗牙漱口', value: hasOralCare, setter: setHasOralCare },
-    { label: '洗口受假牙', value: hasDentureCare, setter: setHasDentureCare },
+    { label: '刮胡子', value: hasShave, setter: setHasShave },
+    { label: '刷牙漱口', value: hasOralCare, setter: setHasOralCare },
+    { label: '清洗假牙', value: hasDentureCare, setter: setHasDentureCare },
     { label: '剪指甲', value: hasNailTrim, setter: setHasNailTrim },
-    { label: '換被套', value: hasBeddingChange, setter: setHasBeddingChange },
-    { label: '換床單枕袋', value: hasSheetPillowChange, setter: setHasSheetPillowChange },
+    { label: '换被套', value: hasBeddingChange, setter: setHasBeddingChange },
+    { label: '换床单枕套', value: hasSheetPillowChange, setter: setHasSheetPillowChange },
     { label: '洗杯', value: hasCupWash, setter: setHasCupWash },
-    { label: '整理床頭櫃', value: hasBedsideCabinet, setter: setHasBedsideCabinet },
-    { label: '整理衣箱', value: hasWardrobe, setter: setHasWardrobe },
-    { label: '剪髮', value: hasHaircut, setter: setHasHaircut },
+    { label: '整理床头柜', value: hasBedsideCabinet, setter: setHasBedsideCabinet },
+    { label: '整理衣柜', value: hasWardrobe, setter: setHasWardrobe },
+    { label: '剪头发', value: hasHaircut, setter: setHasHaircut },
   ];
 
   return (
@@ -212,7 +214,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
                 <User className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">衛生記錄</h2>
+                <h2 className="text-xl font-bold text-white">卫生记录</h2>
                 <p className="text-sm text-blue-100">{patient.中文姓名} - 床號: {patient.床號}</p>
               </div>
             </div>
@@ -231,7 +233,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
                 <div className="flex flex-wrap items-center gap-2">
                   <Calendar className="w-5 h-5 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">日期:</span>
+                  <span className="text-sm font-medium text-gray-700">日期：</span>
                   <span className="text-sm text-gray-900">{date}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -241,7 +243,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
                     value={recorder}
                     onChange={(e) => setRecorder(e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="記錄者"
+                    placeholder="记录者"
                     required
                     disabled={isSpecialStatus}
                   />
@@ -250,7 +252,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
 
               {/* 狀態按鈕 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">狀態</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">状态</label>
                 <div className="flex gap-2">
                   {['入院', '渡假', '外出'].map(status => (
                     <button
@@ -267,7 +269,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
 
               {/* 護理項目 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">護理項目</label>
+                <label className="block text-sm font-medium text-gray-700 mb-3">护理项目</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {careItems.map((item, index) => (
                     <button
@@ -295,11 +297,12 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
               </div>
 
               {/* 大便記錄 */}
+              {!shouldHideBowelCount && (
               <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">大便記錄</h3>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">大便记录</h3>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">大便次數</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">大便次数</label>
                   <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="number"
@@ -313,7 +316,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
                     <span className="text-sm text-gray-600">次</span>
                   </div>
                   {parsedCount === 0 && (
-                    <p className="mt-1 text-xs text-gray-500">次數為 0 表示無大便</p>
+                    <p className="mt-1 text-xs text-gray-500">次数为 0 表示无大便</p>
                   )}
                 </div>
 
@@ -346,10 +349,10 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
                   <label className={`block text-sm font-medium mb-2 ${
                     isBowelFieldsDisabled ? 'text-gray-400' : 'text-gray-700'
                   }`}>
-                    大便性質
+                    大便性质
                   </label>
                   <div className="flex gap-2">
-                    {['硬', '軟', '稀', '水狀'].map(consistency => (
+                    {['硬', '软', '稀', '水状'].map(consistency => (
                       <button
                         key={consistency}
                         type="button"
@@ -367,17 +370,18 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
                   </div>
                 </div>
               </div>
+              )}
 
               {/* 備註 */}
               {!isSpecialStatus && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">備註</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">备注</label>
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                    placeholder="其他備註..."
+                    placeholder="其他备注..."
                   />
                 </div>
               )}
@@ -394,7 +398,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
                   className="flex flex-wrap items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
-                  <span>刪除記錄</span>
+                  <span>删除记录</span>
                 </button>
               )}
             </div>
@@ -410,7 +414,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
                 onClick={handleSubmit}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
-                {existingRecord ? '更新' : '儲存'}
+                {existingRecord ? '更新' : '保存'}
               </button>
             </div>
           </div>
@@ -422,8 +426,8 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
           isOpen={showDeleteConfirm}
           onClose={() => setShowDeleteConfirm(false)}
           onConfirm={handleDeleteConfirm}
-          title="刪除衛生記錄"
-          recordType="衛生記錄"
+          title="删除卫生记录"
+          recordType="卫生记录"
           patientInfo={{
             name: patient.中文姓名,
             bedNumber: patient.床號
@@ -431,7 +435,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
           recordDetails={[
             { label: '日期', value: date }
           ]}
-          warningMessage={`確定要刪除 ${patient.中文姓名} 在 ${date} 的衛生記錄嗎？`}
+          warningMessage={`确定要删除 ${patient.中文姓名} 在 ${date} 的卫生记录吗？`}
         />
       )}
     </>

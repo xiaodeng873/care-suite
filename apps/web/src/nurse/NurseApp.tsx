@@ -15,7 +15,7 @@ type NurseNav =
   | { screen: 'scan' }
   | { screen: 'patients' }
   | { screen: 'settings' }
-  | { screen: 'records'; bed: Bed; patient: Patient | null };
+  | { screen: 'records'; bed: Bed; patient: Patient | null; initialDate?: string; from: 'scan' | 'patients' };
 
 const NurseApp: React.FC<NurseAppProps> = () => {
   const { loading: dataLoading } = usePatients();
@@ -26,8 +26,8 @@ const NurseApp: React.FC<NurseAppProps> = () => {
     nav.screen === 'patients' ? 'patients' :
     nav.screen === 'settings' ? 'settings' : 'scan';
 
-  const handlePatientFound = (bed: Bed, patient: Patient | null) => {
-    setNav({ screen: 'records', bed, patient });
+  const handlePatientFound = (bed: Bed, patient: Patient | null, initialDate?: string, from: 'scan' | 'patients' = 'scan') => {
+    setNav({ screen: 'records', bed, patient, initialDate, from });
   };
 
   const handleGoToPatients = () => setNav({ screen: 'patients' });
@@ -67,7 +67,7 @@ const NurseApp: React.FC<NurseAppProps> = () => {
         )}
 
         {nav.screen === 'patients' && (
-          <PatientListPage onSelectPatient={handlePatientFound} />
+          <PatientListPage onSelectPatient={(bed, patient, initialDate) => handlePatientFound(bed, patient, initialDate, 'patients')} />
         )}
 
         {nav.screen === 'settings' && (
@@ -78,7 +78,8 @@ const NurseApp: React.FC<NurseAppProps> = () => {
           <RecordsPage
             bed={nav.bed}
             patient={nav.patient}
-            onBack={() => setNav({ screen: 'scan' })}
+            onBack={() => setNav({ screen: nav.from })}
+            initialDate={nav.initialDate}
           />
         )}
       </div>

@@ -170,12 +170,18 @@ export function getVisibleTabTypes(
   diaperChangeRecords: any[],
   restraintObservationRecords: any[],
   positionChangeRecords: any[],
-  hygieneRecords?: any[]
+  hygieneRecords?: any[],
+  restraintAssessments?: any[]
 ): ('patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene')[] {
   const visibleTabs = new Set<'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene'>();
 
   const configuredTabs = patientCareTabs.filter(t => t.patient_id === patientId && !t.is_hidden);
-  configuredTabs.forEach(t => visibleTabs.add(t.tab_type));
+  configuredTabs.forEach(t => {
+    // 除外 'restraint'：約束觀察必須有評估才能顯示
+    if (t.tab_type !== 'restraint') {
+      visibleTabs.add(t.tab_type);
+    }
+  });
 
   if (patrolRounds.some(r => r.patient_id === patientId)) {
     visibleTabs.add('patrol');
@@ -183,7 +189,8 @@ export function getVisibleTabTypes(
   if (diaperChangeRecords.some(r => r.patient_id === patientId)) {
     visibleTabs.add('diaper');
   }
-  if (restraintObservationRecords.some(r => r.patient_id === patientId)) {
+  // 只在有約束評估時才顯示「約束觀察」選項卡（前置條件：已完成評估才能錄入觀察）
+  if (restraintAssessments && restraintAssessments.some(a => a.patient_id === patientId)) {
     visibleTabs.add('restraint');
   }
   if (positionChangeRecords.some(r => r.patient_id === patientId)) {

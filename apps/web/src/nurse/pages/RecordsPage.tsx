@@ -36,6 +36,7 @@ interface RecordsPageProps {
   bed: Bed;
   patient: Patient | null;
   onBack: () => void;
+  initialDate?: string;
 }
 
 interface ModalState {
@@ -45,35 +46,23 @@ interface ModalState {
   existing: any;
 }
 
-const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack }) => {
+const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, initialDate }) => {
   const { displayName } = useAuth();
   const { admissionRecords, hospitalEpisodes, patientRestraintAssessments, restraintObservationRecords } = usePatients();
 
-  // ─── Week navigation ──────────────────────────────────────────
-  const [weekStart, setWeekStart] = useState(() => getWeekStartDate());
-  const weekDates = useMemo(() => generateWeekDates(weekStart), [weekStart]);
-  const weekStartStr = formatDate(weekDates[0]);
-  const weekEndStr   = formatDate(weekDates[6]);
-
-  const lookback = parseInt(localStorage.getItem(LOOKBACK_KEY) || '7', 10);
+  // ─── Today only view ─────────────────────────────────────────
   const today = new Date();
-  const minDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - lookback);
-
-  const canGoPrev = weekStart > minDate;
-  const canGoNext = weekStart < getWeekStartDate(); // 不允許進入未來週
-
-  const prevWeek = () => {
-    if (!canGoPrev) return;
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() - 7);
-    setWeekStart(d);
-  };
-  const nextWeek = () => {
-    if (!canGoNext) return;
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + 7);
-    setWeekStart(d);
-  };
+  const todayStr = formatDate(today);
+  
+  // Calculate min date (30 days ago)
+  const minDate = new Date(today);
+  minDate.setDate(minDate.getDate() - 30);
+  const minDateStr = formatDate(minDate);
+  
+  // Date navigation: default to today, but can be overridden
+  const [displayDate, setDisplayDate] = useState(initialDate || todayStr);
+  
+  const displayDateObj = new Date(displayDate + 'T00:00:00');
 
   // ─── Tab state ────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabType>('patrol');
@@ -98,19 +87,19 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack }) => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // Patrol: by bed_id，migration 未 push 時自動降級到 patient_id
-      const patrol = await db.getPatrolRoundsByBedId(bed.id, weekStartStr, weekEndStr, patient?.院友id);
+      // Load today's data only (but display date might differ)
+      const patrol = await db.getPatrolRoundsByBedId(bed.id, displayDate, displayDate, patient?.院友id);
       setPatrolRounds(patrol);
 
       if (patient) {
         const pid = patient.院友id;
         const [careTabs, diaper, restraint, position, hygiene, intake] = await Promise.all([
           loadPatientCareTabs(pid),
-          db.getDiaperChangeRecordsInDateRange(weekStartStr, weekEndStr),
-          db.getRestraintObservationRecordsInDateRange(weekStartStr, weekEndStr),
-          db.getPositionChangeRecordsInDateRange(weekStartStr, weekEndStr),
-          db.getHygieneRecordsInDateRange(weekStartStr, weekEndStr),
-          db.getIntakeOutputRecordsByPatient(pid, weekStartStr, weekEndStr),
+          db.getDiaperChangeRecordsInDateRange(displayDate, displayDate),
+          db.getRestraintObservationRecordsInDateRange(displayDate, displayDate),
+          db.getPositionChangeRecordsInDateRange(displayDate, displayDate),
+          db.getHygieneRecordsInDateRange(displayDate, displayDate),
+          db.getIntakeOutputRecordsByPatient(pid, displayDate, displayDate),
         ]);
         setPatientCareTabs(careTabs);
         setDiaperRecords(diaper.filter(r => r.patient_id === pid));
@@ -126,7 +115,7 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack }) => {
     } finally {
       setLoading(false);
     }
-  }, [bed.id, patient, weekStartStr, weekEndStr]);
+  }, [bed.id, patient, displayDate]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -152,8 +141,9 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack }) => {
       restraintRecords,
       positionRecords,
       hygieneRecords,
+      patientRestraintAssessments,
     ) as TabType[];
-  }, [patient, patientCareTabs, patrolRounds, diaperRecords, restraintRecords, positionRecords, hygieneRecords]);
+  }, [patient, patientCareTabs, patrolRounds, diaperRecords, restraintRecords, positionRecords, hygieneRecords, patientRestraintAssessments]);
 
   // 若 activeTab 不在 visibleTabs 中，重置為 patrol
   useEffect(() => {
@@ -291,10 +281,6 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack }) => {
     wrapSave(async () => { await db.deleteIntakeOutputRecord(id); closeModal(); loadData(); });
 
   // ─── Helpers ──────────────────────────────────────────────────
-  const todayStr = formatDate(today);
-
-  const isToday = (date: Date) => formatDate(date) === todayStr;
-
   const staffName = displayName || '护理员';
 
   // ─── Render ───────────────────────────────────────────────────
@@ -326,21 +312,35 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack }) => {
         </div>
       )}
 
-      {/* Week navigation */}
+      {/* Date navigation - showing one day at a time */}
       <div className="bg-white border-b border-gray-100 flex items-center justify-between px-4 py-2 flex-shrink-0">
         <button
-          onClick={prevWeek}
-          disabled={!canGoPrev}
+          onClick={() => {
+            const d = new Date(displayDateObj);
+            d.setDate(d.getDate() - 1);
+            const ds = formatDate(d);
+            if (ds >= minDateStr) {
+              setDisplayDate(ds);
+            }
+          }}
+          disabled={displayDate <= minDateStr}
           className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
         <span className="text-sm font-medium text-gray-700">
-          {weekStartStr} – {weekEndStr}
+          {displayDateObj.getFullYear()}年{String(displayDateObj.getMonth() + 1).padStart(2, '0')}月{String(displayDateObj.getDate()).padStart(2, '0')}日 星期{['日','一','二','三','四','五','六'][displayDateObj.getDay()]}
         </span>
         <button
-          onClick={nextWeek}
-          disabled={!canGoNext}
+          onClick={() => {
+            const d = new Date(displayDateObj);
+            d.setDate(d.getDate() + 1);
+            const ds = formatDate(d);
+            if (ds <= todayStr) {
+              setDisplayDate(ds);
+            }
+          }}
+          disabled={displayDate >= todayStr}
           className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30"
         >
           <ChevronRight className="w-5 h-5" />
@@ -383,21 +383,12 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack }) => {
           </div>
         ) : (
           <div className="p-2">
-            {/* Date header row */}
+            {/* Date header row - empty, date shown in navigation bar above */}
             <div className="flex mb-1 sticky top-0 bg-gray-50 z-10">
               <div className="w-14 flex-shrink-0" />
-              {weekDates.map(d => {
-                const ds = formatDate(d);
-                const todayCls = isToday(d) ? 'text-blue-600 font-bold' : 'text-gray-600';
-                return (
-                  <div key={ds} className="flex-1 text-center">
-                    <p className={`text-[10px] ${todayCls}`}>
-                      {['一','二','三','四','五','六','日'][d.getDay() === 0 ? 6 : d.getDay() - 1]}
-                    </p>
-                    <p className={`text-[11px] ${todayCls}`}>{d.getDate()}</p>
-                  </div>
-                );
-              })}
+              <div className="flex-1 text-center">
+                {/* Date display moved to navigation bar */}
+              </div>
             </div>
 
             {/* Slot rows */}
@@ -407,55 +398,110 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack }) => {
                 <div className="w-14 flex-shrink-0 flex items-center">
                   <span className="text-[10px] text-gray-400 font-mono leading-none">{label}</span>
                 </div>
-                {/* Date cells */}
-                {weekDates.map(d => {
-                  const ds = formatDate(d);
-                  const actualSlot = activeTab === 'hygiene' ? ds : slot;
-                  const done = hasRecord(ds, activeTab === 'hygiene' ? 'daily' : slot);
+                {/* Display date's cell */}
+                {(() => {
+                  const ds = displayDate;
+                  const existingRecord = getExisting(ds, activeTab === 'hygiene' ? 'daily' : slot);
+                  const done = !!existingRecord;
                   const frozen = isAbsent && activeTab !== 'patrol';
-                  const isFuture = d > today;
-                  const clickable = !frozen && !isFuture;
 
-                  // 紅點：時段實際發生日期在補錄窗口內且已過、未填、未凍結
+                  // 紅點：時段未填且已過
                   const checkTime =
                     activeTab === 'hygiene' ? '23:59' :
                     activeTab === 'diaper' ? parseDiaperSlotStartTime(slot) :
                     slot;
-                  const actualDateStr = getActualSlotDate(ds, checkTime);
                   const showMissingDot =
                     !done && !frozen &&
-                    isSlotOverdue(ds, checkTime) &&
-                    new Date(actualDateStr + 'T00:00:00') >= minDate;
+                    isSlotOverdue(ds, checkTime);
+
+                  // 根據 tab 類型渲染記錄內容
+                  let cellContent: React.ReactNode = null;
+                  if (done && existingRecord) {
+                    switch (activeTab) {
+                      case 'patrol':
+                        cellContent = existingRecord.notes ? (
+                          <div className="text-xs text-orange-600 truncate font-medium">
+                            {existingRecord.notes}
+                          </div>
+                        ) : (
+                          <svg className="w-3.5 h-3.5 text-green-700" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        );
+                        break;
+                      case 'diaper':
+                        const diaperContent: string[] = [];
+                        if (existingRecord.has_urine) diaperContent.push('小');
+                        if (existingRecord.has_stool) diaperContent.push('大');
+                        if (existingRecord.has_none) diaperContent.push('無');
+                        cellContent = existingRecord.notes ? (
+                          <div className="text-xs text-orange-600 font-medium">{existingRecord.notes}</div>
+                        ) : (
+                          <div className="text-xs text-blue-600 font-medium">{diaperContent.join('/')}</div>
+                        );
+                        break;
+                      case 'intake_output':
+                        cellContent = existingRecord.notes ? (
+                          <div className="text-xs text-orange-600 font-medium">{existingRecord.notes}</div>
+                        ) : (
+                          <div className="text-xs space-y-0.5">
+                            {existingRecord.intake_items?.length > 0 && (
+                              <div className="text-green-600">▲ 出入</div>
+                            )}
+                          </div>
+                        );
+                        break;
+                      case 'restraint':
+                        cellContent = existingRecord.notes ? (
+                          <div className="text-xs text-orange-600 font-medium">{existingRecord.notes}</div>
+                        ) : (
+                          <div className="text-xs text-purple-600 font-medium">
+                            {existingRecord.observation_status === 'N' ? '正常' :
+                             existingRecord.observation_status === 'P' ? '異常' :
+                             existingRecord.observation_status === 'S' ? '暫停' : '記錄'}
+                          </div>
+                        );
+                        break;
+                      case 'position':
+                        cellContent = existingRecord.notes ? (
+                          <div className="text-xs text-orange-600 font-medium">{existingRecord.notes}</div>
+                        ) : (
+                          <div className="text-xs text-purple-600 font-medium">{existingRecord.position || '記錄'}</div>
+                        );
+                        break;
+                      case 'hygiene':
+                        cellContent = existingRecord.status_notes ? (
+                          <div className="text-xs text-orange-600 font-medium">{existingRecord.status_notes}</div>
+                        ) : (
+                          <svg className="w-3.5 h-3.5 text-green-700" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        );
+                        break;
+                    }
+                  }
 
                   return (
                     <button
                       key={ds}
-                      disabled={!clickable}
-                      onClick={() => openCell(activeTab, ds, activeTab === 'hygiene' ? 'daily' : slot, getExisting(ds, activeTab === 'hygiene' ? 'daily' : slot))}
-                      className={`flex-1 mx-0.5 h-8 rounded-md flex items-center justify-center transition-colors ${
+                      disabled={frozen}
+                      onClick={() => openCell(activeTab, ds, activeTab === 'hygiene' ? 'daily' : slot, existingRecord)}
+                      className={`flex-1 mx-0.5 h-12 rounded-md flex flex-col items-center justify-center transition-colors px-1 ${
                         done
-                          ? 'bg-green-100 text-green-700'
-                          : frozen || isFuture
+                          ? 'bg-green-50 text-green-700'
+                          : frozen
                           ? 'bg-gray-100 text-gray-300'
                           : showMissingDot
                           ? 'bg-red-50 border border-red-300 hover:bg-red-100'
-                          : isToday(d)
-                          ? 'bg-blue-50 border border-blue-200 text-gray-400 hover:bg-blue-100'
-                          : 'bg-white border border-gray-200 text-gray-400 hover:bg-gray-50'
+                          : 'bg-blue-50 border border-blue-200 text-gray-400 hover:bg-blue-100'
                       }`}
                     >
-                      {done ? (
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : frozen ? (
-                        <Lock className="w-3 h-3 opacity-40" />
-                      ) : showMissingDot ? (
-                        <span className="w-2 h-2 rounded-full bg-red-400 block" />
-                      ) : null}
+                      {cellContent}
+                      {!done && frozen && <Lock className="w-3 h-3 opacity-40 mt-1" />}
+                      {!done && !frozen && showMissingDot && <span className="w-2 h-2 rounded-full bg-red-400 block mt-1" />}
                     </button>
                   );
-                })}
+                })()}
               </div>
             ))}
           </div>
@@ -527,6 +573,7 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack }) => {
           onClose={closeModal}
           onSubmit={handleHygieneSubmit}
           onDelete={handleHygieneDelete}
+          shouldHideBowelCount={visibleTabs.includes('diaper')}
         />
       )}
 
