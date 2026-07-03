@@ -43,6 +43,18 @@ const PatrolRoundModal: React.FC<PatrolRoundModalProps> = ({
     }
   }, [existingRecord, timeSlot, staffName]);
 
+  // ESC 鍵監聽 - 關閉 modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 

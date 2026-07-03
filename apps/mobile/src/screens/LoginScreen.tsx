@@ -95,6 +95,7 @@ const LoginScreen: React.FC = () => {
               placeholder={t('passwordPlaceholder')}
               value={password}
               onChangeText={setPassword}
+              onSubmitEditing={handleLogin}
               secureTextEntry={!showPassword}
               editable={!loading}
             />

@@ -196,3 +196,114 @@ export function comparePatientsForSearch(
   }
   return compareBedNumbers(a.床號, b.床號);
 }
+
+/**
+ * 提取字符串的首個非空格字符
+ */
+function getFirstCharacter(text: string | null | undefined): string {
+  if (!text) return '';
+  const trimmed = text.trim();
+  return trimmed.length > 0 ? trimmed.charAt(0) : '';
+}
+
+/**
+ * 判斷字符是否為中文字符
+ */
+function isChineseCharacter(char: string): boolean {
+  const code = char.charCodeAt(0);
+  // 漢字的 Unicode 範圍（CJK Unified Ideographs）
+  return code >= 0x4e00 && code <= 0x9fff;
+}
+
+/**
+ * 判斷字符是否為數字
+ */
+function isDigit(char: string): boolean {
+  return /[0-9]/.test(char);
+}
+
+/**
+ * 判斷字符是否為英文字母
+ */
+function isEnglishLetter(char: string): boolean {
+  return /[a-zA-Z]/.test(char);
+}
+
+/**
+ * 根據首字分類排序
+ * 優先級：中文字 > 英文字母 > 數字
+ * 返回排序優先級 (0=中文, 1=英文, 2=數字, 3=其他)
+ */
+function getCharacterPriority(char: string): number {
+  if (isChineseCharacter(char)) return 0;
+  if (isEnglishLetter(char)) return 1;
+  if (isDigit(char)) return 2;
+  return 3;
+}
+
+/**
+ * 比較兩個中文字符的筆劃數（使用 localeCompare 的筆劃排序）
+ * 返回 < 0 表示 a 的筆劃少於 b，= 0 表示相同，> 0 表示 a 的筆劃多於 b
+ */
+function compareStrokeCount(charA: string, charB: string): number {
+  // 使用 zh-Hant 語言環境的筆劃排序
+  // 設定 caseFirst: 'false' 和 sensitivity: 'variant' 使其按筆劃順序排列
+  const comparison = charA.localeCompare(charB, 'zh-Hant', { 
+    numeric: false,
+    sensitivity: 'base'
+  });
+  return comparison;
+}
+
+/**
+ * 居住區名稱排序（首字筆劃 + 首字母 + 數字大小）
+ * 規則：
+ * 1. 首先按首字的分類排序（中文字 > 英文字母 > 數字 > 其他）
+ * 2. 對於中文首字，按筆劃數升序排列
+ * 3. 對於相同筆劃的中文字，按字碼順序排列
+ * 4. 對於英文或數字，按自然排序
+ * 5. 對於相同首字，比較後續字符
+ * 
+ * 例如：一般病房 < 二號房 < 2樓護理區 < 3號區 < A棟 < 健康區 < 護理區 < 長照區
+ */
+export function compareStationNames(a: string | null | undefined, b: string | null | undefined): number {
+  const nameA = (a || '').trim();
+  const nameB = (b || '').trim();
+
+  if (!nameA && !nameB) return 0;
+  if (!nameA) return 1;
+  if (!nameB) return -1;
+
+  const firstCharA = getFirstCharacter(nameA);
+  const firstCharB = getFirstCharacter(nameB);
+
+  if (!firstCharA && !firstCharB) return nameA.localeCompare(nameB, 'zh-Hant', { numeric: true });
+  if (!firstCharA) return 1;
+  if (!firstCharB) return -1;
+
+  // 1. 比較首字的分類優先級
+  const priorityA = getCharacterPriority(firstCharA);
+  const priorityB = getCharacterPriority(firstCharB);
+
+  if (priorityA !== priorityB) {
+    return priorityA - priorityB;
+  }
+
+  // 2. 同分類內的比較
+  if (priorityA === 0) {
+    // 中文字：先比筆劃數，再比字碼
+    const strokeComparison = compareStrokeCount(firstCharA, firstCharB);
+    if (strokeComparison !== 0) {
+      return strokeComparison;
+    }
+  } else {
+    // 英文字母或數字：直接字碼比較
+    const charComparison = firstCharA.localeCompare(firstCharB, 'zh-Hant', { numeric: true });
+    if (charComparison !== 0) {
+      return charComparison;
+    }
+  }
+
+  // 3. 首字相同，比較整個字符串（使用自然排序）
+  return nameA.localeCompare(nameB, 'zh-Hant', { numeric: true, sensitivity: 'base' });
+}

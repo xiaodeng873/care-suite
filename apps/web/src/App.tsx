@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
 import { PatientProvider, usePatients } from './context/PatientContext';
 import { StationProvider } from './context/facility';
+import { StationFilterProvider } from './context/StationFilterContext';
 // 使用合併的 Context（減少 Provider 嵌套層級，提升性能）
 import { MedicalProvider, useMedical } from './context/merged/MedicalContext';
 import { WorkflowProvider, useWorkflow } from './context/merged/WorkflowContext';
@@ -320,6 +321,7 @@ function App() {
       <DashboardReadyProvider>
         <AuthProvider>
           <StationProvider>
+            <StationFilterProvider>
             <MedicalProvider>
               <WorkflowProvider>
                 <RecordsProvider>
@@ -328,8 +330,7 @@ function App() {
                   </PatientProvider>
                 </RecordsProvider>
               </WorkflowProvider>
-            </MedicalProvider>
-          </StationProvider>
+            </MedicalProvider>          </StationFilterProvider>          </StationProvider>
         </AuthProvider>
       </DashboardReadyProvider>
       {/* React Query DevTools - 僅開發環境顯示 */}

@@ -83,6 +83,7 @@ export default function LoginScreen() {
               secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
+              onSubmitEditing={handleLogin}
             />
             <Pressable
               className="px-4"

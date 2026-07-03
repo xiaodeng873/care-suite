@@ -48,7 +48,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, bgColor, textColor, s
 };
 
 const Reports: React.FC = () => {
-  const { patients, stations, healthAssessments, woundAssessments, incidentReports, patientHealthTasks, patientRestraintAssessments, prescriptions, healthRecords, mealGuidances, hospitalEpisodes, loading } = usePatients();
+  const { allPatients: patients, stations, healthAssessments, woundAssessments, incidentReports, patientHealthTasks, patientRestraintAssessments, prescriptions, healthRecords, mealGuidances, hospitalEpisodes, loading } = usePatients();
   const [activeTab, setActiveTab] = useState<ReportTab>('daily');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('today');
   const [stationFilter, setStationFilter] = useState<StationFilter>('all');

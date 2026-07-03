@@ -165,9 +165,10 @@ const CareRecords: React.FC = () => {
       diaperChangeRecords,
       restraintObservationRecords,
       positionChangeRecords,
-      hygieneRecords
+      hygieneRecords,
+      patientRestraintAssessments
     ) as TabType[];
-  }, [selectedPatient, patientCareTabs, patrolRounds, diaperChangeRecords, restraintObservationRecords, positionChangeRecords, hygieneRecords]);
+  }, [selectedPatient, patientCareTabs, patrolRounds, diaperChangeRecords, restraintObservationRecords, positionChangeRecords, hygieneRecords, patientRestraintAssessments]);
   const patientPatrolRounds = useMemo(() => {
     if (!selectedPatientId) return [];
     const patientIdNum = parseInt(selectedPatientId);
@@ -609,28 +610,38 @@ const CareRecords: React.FC = () => {
                     }
                   );
                   const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, timeSlot, admissionRecords, hospitalEpisodes);
+                  const done = !!record;
+                  const isOverdue = !done && !inHospital && isSlotOverdue(dateString, timeSlot);
+
+                  let cellContent: React.ReactNode = null;
+                  let cellTextColor = 'text-gray-600';
+
+                  if (done) {
+                    // ─── 已填 ───
+                    cellContent = '已巡';
+                    cellTextColor = 'text-green-600';
+                  } else if (isOverdue) {
+                    // ─── 逾期未填 ───
+                    cellContent = '未巡';
+                    cellTextColor = 'text-red-600';
+                  } else {
+                    // ─── 未到點 ───
+                    cellContent = '待巡';
+                    cellTextColor = 'text-gray-500';
+                  }
+
                   return (
                     <td
                       key={dateString}
-                      className={`px-2 py-3 text-center text-sm border cursor-pointer ${
-                        inHospital ? 'bg-gray-100' :
-                        record ? 'bg-green-50 hover:bg-green-100' :
-                        isSlotOverdue(dateString, timeSlot) ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-blue-50'
-                      }`}
+                      className={`px-2 py-3 text-center text-sm border cursor-pointer font-medium ${
+                        inHospital ? 'bg-gray-100 text-gray-500' :
+                        done ? 'bg-green-50 hover:bg-green-100' :
+                        isOverdue ? 'border-red-200 bg-red-50 hover:bg-red-100' :
+                        'hover:bg-blue-50'
+                      } ${!inHospital ? cellTextColor : ''}`}
                       onClick={() => !inHospital && handleCellClick(dateString, timeSlot, record)}
                     >
-                      {inHospital ? (
-                        <span className="text-gray-500">入院</span>
-                      ) : record ? (
-                        <div>
-                          <div className="text-green-600 font-bold">✓</div>
-                          <div className="text-xs text-gray-600">{record.recorder}</div>
-                        </div>
-                      ) : isSlotOverdue(dateString, timeSlot) ? (
-                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">待巡</span>
-                      )}
+                      {inHospital ? '入院' : cellContent}
                     </td>
                   );
                 })}
@@ -678,52 +689,42 @@ const CareRecords: React.FC = () => {
                   );
                   const timeStr = slot.time.split('-')[0];
                   const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, timeStr, admissionRecords, hospitalEpisodes);
+                  const done = !!record;
+                  const isOverdue = !done && !inHospital && isSlotOverdue(dateString, parseDiaperSlotStartTime(slot.time));
+
+                  let cellContent: React.ReactNode = null;
+                  let cellTextColor = 'text-gray-600';
+
+                  if (done && record) {
+                    // ─── 已填 ───
+                    const diaperContent: string[] = [];
+                    if (record.has_urine) diaperContent.push('小');
+                    if (record.has_stool) diaperContent.push('大');
+                    if (record.has_none) diaperContent.push('無');
+                    cellContent = diaperContent.join('/') || '已記錄';
+                    cellTextColor = 'text-blue-600';
+                  } else if (isOverdue) {
+                    // ─── 逾期未填 ───
+                    cellContent = '未記錄';
+                    cellTextColor = 'text-red-600';
+                  } else {
+                    // ─── 未到點 ───
+                    cellContent = '未知';
+                    cellTextColor = 'text-gray-500';
+                  }
+
                   return (
                     <td
                       key={dateString}
-                      className={`px-2 py-3 text-center text-sm border cursor-pointer ${
-                        inHospital ? 'bg-gray-100' :
-                        record ? (
-                          record.notes && ['入院', '渡假', '外出'].includes(record.notes)
-                            ? 'bg-orange-50 hover:bg-orange-100'
-                            : 'bg-blue-50 hover:bg-blue-100'
-                        ) :
-                        isSlotOverdue(dateString, parseDiaperSlotStartTime(slot.time)) ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-blue-50'
-                      }`}
+                      className={`px-2 py-3 text-center text-sm border cursor-pointer font-medium ${
+                        inHospital ? 'bg-gray-100 text-gray-500' :
+                        done ? 'bg-green-50 hover:bg-green-100' :
+                        isOverdue ? 'border-red-200 bg-red-50 hover:bg-red-100' :
+                        'hover:bg-blue-50'
+                      } ${!inHospital ? cellTextColor : ''}`}
                       onClick={() => !inHospital && handleCellClick(dateString, slot.time, record)}
                     >
-                      {inHospital ? (
-                        <span className="text-gray-500">入院</span>
-                      ) : record ? (
-                        record.notes && ['入院', '渡假', '外出'].includes(record.notes) ? (
-                          <div className="space-y-1">
-                            <div className="font-medium text-orange-600">{record.notes}</div>
-                            <div className="text-xs text-gray-500">{record.recorder}</div>
-                          </div>
-                        ) : (
-                          <div className="space-y-1">
-                            <div className="font-medium text-gray-900">
-                              {record.has_urine && '小便'}
-                              {record.has_urine && record.has_stool && '/'}
-                              {record.has_stool && '大便'}
-                              {record.has_none && '無'}
-                            </div>
-                            {record.has_urine && record.urine_amount && (
-                              <div className="text-xs text-gray-600">小便: {record.urine_amount}</div>
-                            )}
-                            {record.has_stool && (
-                              <div className="text-xs text-gray-600">
-                                大便: {record.stool_color || ''}{record.stool_texture ? ` ${record.stool_texture}` : ''}{record.stool_amount ? ` ${record.stool_amount}` : ''}
-                              </div>
-                            )}
-                            <div className="text-xs text-gray-500">{record.recorder}</div>
-                          </div>
-                        )
-                      ) : isSlotOverdue(dateString, parseDiaperSlotStartTime(slot.time)) ? (
-                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">待記錄</span>
-                      )}
+                      {inHospital ? '入院' : cellContent}
                     </td>
                   );
                 })}
@@ -802,48 +803,41 @@ const CareRecords: React.FC = () => {
                     r => r.observation_date === dateString && r.scheduled_time === timeSlot
                   );
                   const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, timeSlot, admissionRecords, hospitalEpisodes);
+                  const done = !!record;
+                  const isOverdue = !done && !inHospital && isSlotOverdue(dateString, timeSlot);
+
+                  let cellContent: React.ReactNode = null;
+                  let cellTextColor = 'text-gray-600';
+
+                  if (done && record) {
+                    // ─── 已填 ───
+                    cellContent = record.observation_status === 'N' ? '正常' :
+                                  record.observation_status === 'P' ? '異常' :
+                                  record.observation_status === 'S' ? '暫停' : '已觀察';
+                    cellTextColor = record.observation_status === 'N' ? 'text-green-600' :
+                                    record.observation_status === 'P' ? 'text-red-600' : 'text-orange-600';
+                  } else if (isOverdue) {
+                    // ─── 逾期未填 ───
+                    cellContent = '未記錄';
+                    cellTextColor = 'text-red-600';
+                  } else {
+                    // ─── 未到點 ───
+                    cellContent = '待記錄';
+                    cellTextColor = 'text-gray-500';
+                  }
+
                   return (
                     <td
                       key={dateString}
-                      className={`px-2 py-3 text-center text-sm border cursor-pointer ${
-                        inHospital ? 'bg-gray-100' :
-                        record ? (
-                          record.notes && ['入院', '渡假', '外出'].includes(record.notes)
-                            ? 'bg-orange-50 hover:bg-orange-100'
-                            : record.observation_status === 'N' ? 'bg-green-50 hover:bg-green-100'
-                            : record.observation_status === 'P' ? 'bg-red-50 hover:bg-red-100'
-                            : 'bg-orange-50 hover:bg-orange-100'
-                        ) :
-                        isSlotOverdue(dateString, timeSlot) ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-blue-50'
-                      }`}
+                      className={`px-2 py-3 text-center text-sm border cursor-pointer font-medium ${
+                        inHospital ? 'bg-gray-100 text-gray-500' :
+                        done ? 'bg-green-50 hover:bg-green-100' :
+                        isOverdue ? 'border-red-200 bg-red-50 hover:bg-red-100' :
+                        'hover:bg-blue-50'
+                      } ${!inHospital ? cellTextColor : ''}`}
                       onClick={() => !inHospital && handleCellClick(dateString, timeSlot, record)}
                     >
-                      {inHospital ? (
-                        <span className="text-gray-500">入院</span>
-                      ) : record ? (
-                        record.notes && ['入院', '渡假', '外出'].includes(record.notes) ? (
-                          <div>
-                            <div className="font-medium text-orange-600">{record.notes}</div>
-                            <div className="text-xs text-gray-500">{record.recorder}</div>
-                          </div>
-                        ) : (
-                          <div>
-                            <div className={`font-bold ${
-                              record.observation_status === 'N' ? 'text-green-600' :
-                              record.observation_status === 'P' ? 'text-red-600' :
-                              'text-orange-600'
-                            }`}>
-                              {record.observation_status === 'N' ? '🟢N' :
-                               record.observation_status === 'P' ? '🔴P' : '🟠S'}
-                            </div>
-                            <div className="text-xs text-gray-600">{record.recorder}</div>
-                          </div>
-                        )
-                      ) : isSlotOverdue(dateString, timeSlot) ? (
-                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">待觀察</span>
-                      )}
+                      {inHospital ? '入院' : cellContent}
                     </td>
                   );
                 })}
@@ -925,39 +919,38 @@ const CareRecords: React.FC = () => {
                   );
                   const inHospital = selectedPatient && isInHospital(selectedPatient, dateString, timeSlot, admissionRecords, hospitalEpisodes);
                   const expectedPosition = getPositionSequence(timeSlot);
+                  const done = !!record;
+                  const isOverdue = !done && !inHospital && isSlotOverdue(dateString, timeSlot);
+
+                  let cellContent: React.ReactNode = null;
+                  let cellTextColor = 'text-gray-600';
+
+                  if (done && record) {
+                    // ─── 已填 ───
+                    cellContent = record.position || '已記錄';
+                    cellTextColor = 'text-blue-600';
+                  } else if (isOverdue) {
+                    // ─── 逾期未填 ───
+                    cellContent = '未記錄';
+                    cellTextColor = 'text-red-600';
+                  } else {
+                    // ─── 未到點 ───
+                    cellContent = `[${expectedPosition}]`;
+                    cellTextColor = 'text-gray-500';
+                  }
+
                   return (
                     <td
                       key={dateString}
-                      className={`px-2 py-3 text-center text-sm border cursor-pointer ${
-                        inHospital ? 'bg-gray-100' :
-                        record ? (
-                          record.notes && ['入院', '渡假', '外出'].includes(record.notes)
-                            ? 'bg-orange-50 hover:bg-orange-100'
-                            : 'bg-purple-50 hover:bg-purple-100'
-                        ) :
-                        isSlotOverdue(dateString, timeSlot) ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-blue-50'
-                      }`}
+                      className={`px-2 py-3 text-center text-sm border cursor-pointer font-medium ${
+                        inHospital ? 'bg-gray-100 text-gray-500' :
+                        done ? 'bg-green-50 hover:bg-green-100' :
+                        isOverdue ? 'border-red-200 bg-red-50 hover:bg-red-100' :
+                        'hover:bg-blue-50'
+                      } ${!inHospital ? cellTextColor : ''}`}
                       onClick={() => !inHospital && handleCellClick(dateString, timeSlot, record)}
                     >
-                      {inHospital ? (
-                        <span className="text-gray-500">入院</span>
-                      ) : record ? (
-                        record.notes && ['入院', '渡假', '外出'].includes(record.notes) ? (
-                          <div>
-                            <div className="font-medium text-orange-600">{record.notes}</div>
-                            <div className="text-xs text-gray-500">{record.recorder}</div>
-                          </div>
-                        ) : (
-                          <div>
-                            <div className="font-medium text-purple-600">{record.position}</div>
-                            <div className="text-xs text-gray-600">{record.recorder}</div>
-                          </div>
-                        )
-                      ) : isSlotOverdue(dateString, timeSlot) ? (
-                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">[{expectedPosition}]</span>
-                      )}
+                      {inHospital ? '入院' : cellContent}
                     </td>
                   );
                 })}
@@ -1040,49 +1033,56 @@ const CareRecords: React.FC = () => {
                       }
                     });
                   }
+
+                  const done = !!record;
+                  const isOverdue = !done && !inHospital && isSlotOverdue(dateString, slot.time);
+
+                  let cellContent: React.ReactNode = null;
+                  let cellTextColor = 'text-gray-600';
+
+                  if (done) {
+                    // ─── 已填 ───
+                    if (intakeDetails.length > 0 || outputDetails.length > 0) {
+                      cellContent = (
+                        <>
+                          {intakeDetails.length > 0 && (
+                            <div className="text-xs truncate" title={intakeDetails.join('、')}>
+                              ▲ {intakeDetails.join('、')}
+                            </div>
+                          )}
+                          {outputDetails.length > 0 && (
+                            <div className="text-xs truncate" title={outputDetails.join('、')}>
+                              ▼ {outputDetails.join('、')}
+                            </div>
+                          )}
+                        </>
+                      );
+                    } else {
+                      cellContent = '無';
+                    }
+                    cellTextColor = 'text-blue-600';
+                  } else if (isOverdue) {
+                    // ─── 逾期未填 ───
+                    cellContent = '未記錄';
+                    cellTextColor = 'text-red-600';
+                  } else {
+                    // ─── 未到點 ───
+                    cellContent = '待記錄';
+                    cellTextColor = 'text-gray-500';
+                  }
+
                   return (
                     <td
                       key={dateString}
-                      className={`px-2 py-3 text-center text-sm border cursor-pointer ${
-                        inHospital ? 'bg-gray-100' :
-                        record ? (
-                          statusLabel
-                            ? 'bg-orange-50 hover:bg-orange-100'
-                            : 'bg-blue-50 hover:bg-blue-100'
-                        ) :
-                        isSlotOverdue(dateString, slot.time) ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-blue-50'
-                      }`}
+                      className={`px-2 py-3 text-center text-sm border cursor-pointer font-medium ${
+                        inHospital ? 'bg-gray-100 text-gray-500' :
+                        done ? 'bg-green-50 hover:bg-green-100' :
+                        isOverdue ? 'border-red-200 bg-red-50 hover:bg-red-100' :
+                        'hover:bg-blue-50'
+                      } ${!inHospital ? cellTextColor : ''}`}
                       onClick={() => !inHospital && handleCellClick(dateString, slot.time, record)}
                     >
-                      {inHospital ? (
-                        <span className="text-gray-500">入院</span>
-                      ) : record ? (
-                        statusLabel ? (
-                          <div className="space-y-1">
-                            <div className="font-medium text-orange-600">{statusLabel}</div>
-                          </div>
-                        ) : (
-                          <div className="space-y-1">
-                            {intakeDetails.length > 0 && (
-                              <div className="text-xs text-green-600 truncate" title={intakeDetails.join('、')}>
-                                ▲ {intakeDetails.join('、')}
-                              </div>
-                            )}
-                            {outputDetails.length > 0 && (
-                              <div className="text-xs text-red-600 truncate" title={outputDetails.join('、')}>
-                                ▼ {outputDetails.join('、')}
-                              </div>
-                            )}
-                            {intakeDetails.length === 0 && outputDetails.length === 0 && (
-                              <span className="text-gray-500 text-xs">無</span>
-                            )}
-                          </div>
-                        )
-                      ) : isSlotOverdue(dateString, slot.time) ? (
-                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">待記錄</span>
-                      )}
+                      {inHospital ? '入院' : cellContent}
                     </td>
                   );
                 })}

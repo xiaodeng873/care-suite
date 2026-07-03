@@ -74,7 +74,9 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
       matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
       fuzzyMatch(patient?.身份證號碼, searchTerm)
     );
-  });
+  }).sort((a, b) =>
+    a.bed_number.localeCompare(b.bed_number, 'zh-Hant', { numeric: true })
+  );
 
   const handleEditStation = (station: any) => {
     setSelectedStation(station);

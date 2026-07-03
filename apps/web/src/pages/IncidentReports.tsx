@@ -38,7 +38,7 @@ interface AdvancedFilters {
 }
 
 const IncidentReports: React.FC = () => {
-  const { incidentReports, patients, deleteIncidentReport, loading } = usePatients();
+  const { incidentReports, allPatients: patients, deleteIncidentReport, loading } = usePatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState<IncidentReport | null>(null);
   const [searchTerm, setSearchTerm] = useState('');

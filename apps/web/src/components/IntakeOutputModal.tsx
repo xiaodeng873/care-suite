@@ -119,6 +119,18 @@ const IntakeOutputModal: React.FC<IntakeOutputModalProps> = ({
     }
   }, [existingRecord, staffName]);
 
+  // ESC 鍵監聽 - 關閉 modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const isSpecialStatus = ['入院', '渡假', '外出'].includes(notes);
 
   const handleNoteButtonClick = (value: string) => {

@@ -15,7 +15,7 @@ import {
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import StationModal from '../components/StationModal';
-import { fuzzyMatch } from '../utils/searchUtils';
+import { fuzzyMatch, compareStationNames } from '../utils/searchUtils';
 
 const StationManagement: React.FC = () => {
   const { 
@@ -54,14 +54,16 @@ const StationManagement: React.FC = () => {
     return patients.find(patient => patient.bed_id === bedId && patient.在住狀態 === '在住');
   };
 
-  // 篩選居住區
-  const filteredStations = stations.filter(station => {
-    if (!searchTerm) return true;
-    return (
-      fuzzyMatch(station.name, searchTerm) ||
-      fuzzyMatch(station.description, searchTerm)
-    );
-  });
+  // 篩選並排序居住區
+  const filteredStations = stations
+    .filter(station => {
+      if (!searchTerm) return true;
+      return (
+        fuzzyMatch(station.name, searchTerm) ||
+        fuzzyMatch(station.description, searchTerm)
+      );
+    })
+    .sort((a, b) => compareStationNames(a.name, b.name));
 
   const handleEditStation = (station: any) => {
     setSelectedStation(station);
@@ -159,7 +161,9 @@ const StationManagement: React.FC = () => {
         {filteredStations.length > 0 ? (
           filteredStations.map(station => {
             const stats = getStationStats(station.id);
-            const stationBeds = beds.filter(bed => bed.station_id === station.id);
+            const stationBeds = beds.filter(bed => bed.station_id === station.id).sort((a, b) =>
+              a.bed_number.localeCompare(b.bed_number, 'zh-Hant', { numeric: true })
+            );
             
             return (
               <div key={station.id} className="card p-6">

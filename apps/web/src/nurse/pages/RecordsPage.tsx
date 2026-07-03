@@ -508,7 +508,7 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelec
                         cellTextColor = 'text-red-600';
                         break;
                       case 'restraint':
-                        cellContent = '未觀察';
+                        cellContent = '未記錄';
                         cellTextColor = 'text-red-600';
                         break;
                       case 'position':
@@ -536,7 +536,7 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelec
                         cellTextColor = 'text-gray-500';
                         break;
                       case 'restraint':
-                        cellContent = '待觀察';
+                        cellContent = '待記錄';
                         cellTextColor = 'text-gray-500';
                         break;
                       case 'position':

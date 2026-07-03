@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X } from 'lucide-react';
+import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2 } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
 import { usePatients } from '../context/PatientContext';
+import { useStationFilter } from '../context/StationFilterContext';
 import { LoadingScreen } from './PageLoadingScreen';
 import type { PermissionCategory } from '@care-suite/shared';
 
@@ -73,14 +74,17 @@ const getPositionLabel = (userProfile: any): string => {
 
 const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showStationFilter, setShowStationFilter] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { displayName, hasPermission, hasCategoryViewPermission, isDeveloper, userProfile, customLogout } = useAuth();
   const { isNavigating, navigatingTo, isInitialLoad, startNavigation, finishNavigation } = useNavigation();
-  const { loading: patientLoading } = usePatients();
+  const { loading: patientLoading, stations } = usePatients();
+  const { selectedStationIds, setSelectedStationIds, isFiltered } = useStationFilter();
   const location = useLocation();
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const stationFilterRef = useRef<HTMLDivElement | null>(null);
 
   // 當 PatientContext 載入完成時，結束初始導航狀態
   useEffect(() => {
@@ -88,6 +92,19 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       finishNavigation();
     }
   }, [isInitialLoad, patientLoading, finishNavigation]);
+
+  // 點擊外部關閉居住區過濾器 dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (stationFilterRef.current && !stationFilterRef.current.contains(e.target as Node)) {
+        setShowStationFilter(false);
+      }
+    };
+    if (showStationFilter) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showStationFilter]);
 
   // 香港時區輔助函數
   const getHongKongDate = () => {
@@ -377,8 +394,70 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
               </button>
             </div>
 
-            {/* 右側：日期和用戶 */}
+            {/* 右側：居住區過濾器 + 日期和用戶 */}
             <div className="flex items-center gap-4 flex-shrink-0 ml-auto">
+
+              {/* 居住區過濾器 */}
+              {stations.length > 0 && (
+                <div className="relative" ref={stationFilterRef}>
+                  <button
+                    onClick={() => setShowStationFilter(v => !v)}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm transition-colors ${
+                      isFiltered
+                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                        : 'text-gray-500 hover:bg-gray-100'
+                    }`}
+                    title="居住區過濾器"
+                  >
+                    <Building2 className="w-4 h-4" />
+                    {isFiltered && (
+                      <span className="font-semibold tabular-nums">{selectedStationIds.length}</span>
+                    )}
+                  </button>
+
+                  {showStationFilter && (
+                    <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 z-50 py-2">
+                      <div className="flex items-center justify-between px-3 pb-2 border-b border-gray-100">
+                        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">居住區</span>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setSelectedStationIds(stations.map(s => s.id))}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                          >全選</button>
+                          <span className="text-gray-300">|</span>
+                          <button
+                            onClick={() => setSelectedStationIds([])}
+                            className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+                          >清除</button>
+                        </div>
+                      </div>
+                      <div className="py-1 max-h-64 overflow-y-auto">
+                        {stations.map(station => (
+                          <label
+                            key={station.id}
+                            className="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedStationIds.includes(station.id)}
+                              onChange={e => {
+                                if (e.target.checked) {
+                                  setSelectedStationIds([...selectedStationIds, station.id]);
+                                } else {
+                                  setSelectedStationIds(selectedStationIds.filter(id => id !== station.id));
+                                }
+                              }}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{station.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <span className="text-sm text-gray-500 hidden md:inline">
                 {getHongKongDate().toLocaleDateString('zh-TW', { 
                   year: 'numeric', 

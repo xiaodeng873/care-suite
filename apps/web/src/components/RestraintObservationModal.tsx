@@ -46,6 +46,18 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
     return patientAssessments[0] || null;
   }, [restraintAssessments, patient.院友id]);
 
+  // ESC 鍵監聽 - 關閉 modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   // 解析建議的約束物品
   const suggestedRestraints = useMemo(() => {
     if (!latestAssessment || !latestAssessment.suggested_restraints) return [];

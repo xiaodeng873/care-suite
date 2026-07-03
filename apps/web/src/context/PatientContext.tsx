@@ -1,10 +1,11 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ReactNode } from 'react';
 import * as db from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { generateDailyWorkflowRecords } from '../utils/workflowGenerator';
 import { useAuth } from './AuthContext';
 import { useStation } from './facility';
+import { useStationFilter } from './StationFilterContext';
 // 使用合併的 Context（減少 Provider 嵌套層級，提升性能）
 import { 
   useMedical, useFollowUp, useDiagnosis, useHospitalOutreach, useWound, useHealthRecord,
@@ -31,6 +32,7 @@ export type { WoundPhoto, HospitalOutreachRecord } from './merged/MedicalContext
 
 interface PatientContextType {
   patients: db.Patient[];
+  allPatients: db.Patient[];
   stations: db.Station[];
   beds: db.Bed[];
   schedules: ScheduleWithDetails[];
@@ -253,6 +255,7 @@ interface PatientProviderProps {
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
 export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) => {
   const { user, userProfile, authReady, displayName, isAuthenticated } = useAuth();
+  const { selectedStationIds } = useStationFilter();
   
   // 從 SeniorCareontext 獲取居住區和床位數據（委託模式，向後兼容）
   const {
@@ -528,7 +531,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   const lastRefreshTimeRef = useRef<number>(0);
   const DEBOUNCE_DELAY = 500; // 500ms 防抖延遲
   // 資料狀態
-  const [patients, setPatients] = useState<db.Patient[]>([]);
+  const [allPatientsData, setAllPatientsData] = useState<db.Patient[]>([]);
   // stations 和 beds 現在從 SeniorCareontext 獲取
   // schedules 和 doctorVisitSchedule 現在從 ScheduleContext 獲取
   // carePlans, problemLibrary, nursingNeedItems 現在從 CarePlanContext 獲取
@@ -566,7 +569,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     const today = targetDate || getHongKongDate();
     const eligiblePatients: db.Patient[] = [];
     const excludedPatients: { patient: db.Patient; reason: string }[] = [];
-    patients.forEach(patient => {
+    allPatientsData.forEach(patient => {
       if (patient.在住狀態 !== '在住') {
         excludedPatients.push({ patient, reason: '不在住狀態' });
         return;
@@ -599,7 +602,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   
   // 包裝器函數，用於保持向後兼容的 API
   const addHospitalOutreachRecord = async (recordData: any): Promise<void> => {
-    const patient = patients.find(p => p.院友id === recordData.patient_id);
+    const patient = allPatientsData.find(p => p.院友id === recordData.patient_id);
     const patientName = patient ? `${patient.中文姓氏}${patient.中文名字}` : undefined;
     await addHospitalOutreachRecordFn(recordData, patientName);
   };
@@ -614,7 +617,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       // PatientContext 現在只負責獲取 patients 數據
       // 其他數據由各自的子 Context 管理，避免重複獲取
       const patientsData = await db.getPatients();
-      setPatients(patientsData);
+      setAllPatientsData(patientsData);
       setLoading(false);
     } catch (error) {
       console.error('刷新數據失敗:', error);
@@ -653,7 +656,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     const authenticated = isAuthenticated();
     
     if (!authenticated) {
-      setPatients([]);
+      setAllPatientsData([]);
       // stations 和 beds 現在由 SeniorCareontext 管理，無需在此清空
       // schedules 現在由 ScheduleContext 管理，無需在此清空
       // serviceReasons 現在由 ServiceReasonContext 管理，無需在此清空
@@ -767,9 +770,17 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   // addDrug, updateDrug, deleteDrug 已遷移至 DrugContext
   // Station 和 Bed 相關函數現在從 SeniorCareontext 獲取（見 PatientProvider 頂部的 useStation()）
   
+  // 全域居住區過濾：selectedStationIds 全選時等同無過濾
+  const patients = useMemo(() => {
+    if (!selectedStationIds.length || !stations.length) return allPatientsData;
+    if (selectedStationIds.length >= stations.length) return allPatientsData;
+    return allPatientsData.filter(p => p.station_id && selectedStationIds.includes(p.station_id));
+  }, [allPatientsData, selectedStationIds, stations]);
+
   return (
     <PatientContext.Provider value={{
       patients,
+      allPatients: allPatientsData,
       stations,
       beds,
       schedules,

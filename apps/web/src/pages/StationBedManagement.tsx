@@ -33,7 +33,7 @@ const StationBedManagement: React.FC = () => {
   const { 
     stations, 
     beds, 
-    patients, 
+    allPatients: patients, 
     loading, 
     deleteStation, 
     deleteBed,
@@ -390,7 +390,9 @@ const StationBedManagement: React.FC = () => {
       {/* 床位列表 */}
       <div className="space-y-6 mt-6">
         {stations.map(station => {
-          const stationBeds = filteredBeds.filter(bed => bed.station_id === station.id);
+          const stationBeds = filteredBeds.filter(bed => bed.station_id === station.id).sort((a, b) =>
+            a.bed_number.localeCompare(b.bed_number, 'zh-Hant', { numeric: true })
+          );
           return (stationBeds.length === 0 && hasActiveFilters()) ? null : (
             <div key={station.id} className="card">
               <div className="p-6">

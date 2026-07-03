@@ -177,27 +177,29 @@ export function getVisibleTabTypes(
 
   const configuredTabs = patientCareTabs.filter(t => t.patient_id === patientId && !t.is_hidden);
   configuredTabs.forEach(t => {
-    // 除外 'restraint'：約束觀察必須有評估才能顯示
+    // 約束觀察tab由restraintAssessments控制，先跳過在此處理
     if (t.tab_type !== 'restraint') {
       visibleTabs.add(t.tab_type);
     }
   });
 
+  // 添加其他基於記錄存在性的tabs
   if (patrolRounds.some(r => r.patient_id === patientId)) {
     visibleTabs.add('patrol');
   }
   if (diaperChangeRecords.some(r => r.patient_id === patientId)) {
     visibleTabs.add('diaper');
   }
-  // 只在有約束評估時才顯示「約束觀察」選項卡（前置條件：已完成評估才能錄入觀察）
-  if (restraintAssessments && restraintAssessments.some(a => a.patient_id === patientId)) {
-    visibleTabs.add('restraint');
-  }
   if (positionChangeRecords.some(r => r.patient_id === patientId)) {
     visibleTabs.add('position');
   }
   if (hygieneRecords && hygieneRecords.some(r => r.patient_id === patientId)) {
     visibleTabs.add('hygiene');
+  }
+
+  // 約束觀察tab：只在有約束評估時才自動顯示
+  if (restraintAssessments && restraintAssessments.some(a => a.patient_id === patientId)) {
+    visibleTabs.add('restraint');
   }
 
   // 預設所有院友都有「巡房記錄」和「衛生記錄」選項卡

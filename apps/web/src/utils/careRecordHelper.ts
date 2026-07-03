@@ -6,12 +6,12 @@ export const TIME_SLOTS = [
 ];
 
 export const DIAPER_CHANGE_SLOTS = [
-  { time: '7AM-10AM', label: '7AM-10AM' },
-  { time: '11AM-2PM', label: '11AM-2PM' },
-  { time: '3PM-6PM', label: '3PM-6PM' },
-  { time: '7PM-10PM', label: '7PM-10PM' },
-  { time: '11PM-2AM', label: '11PM-2AM' },
-  { time: '3AM-6AM', label: '3AM-6AM' }
+  { time: '7AM-11AM', label: '7AM-11AM' },
+  { time: '11AM-3PM', label: '11AM-3PM' },
+  { time: '3PM-7PM', label: '3PM-7PM' },
+  { time: '7PM-11PM', label: '7PM-11PM' },
+  { time: '11PM-3AM', label: '11PM-3AM' },
+  { time: '3AM-7AM', label: '3AM-7AM' }
 ];
 
 /** 把換片時段字符串（如 '7AM-10AM'）轉換為24小時格式的起始時間（如 '07:00'），供 isOverdue 使用 */
