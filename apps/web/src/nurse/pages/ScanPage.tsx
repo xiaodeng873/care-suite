@@ -50,6 +50,7 @@ const ScanPage: React.FC<ScanPageProps> = ({ onPatientFound, onGoToPatients }) =
             onScanSuccess={handleScanSuccess}
             onError={handleScanError}
             className="w-full h-full"
+            hideCameraSwitch
           />
         </div>
 

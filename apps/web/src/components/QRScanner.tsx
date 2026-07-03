@@ -10,8 +10,9 @@ interface QRScannerProps {
   className?: string;
   autoStart?: boolean;
   acceptType?: QRType; // 接受的二維碼類型，默認為 'any' 表示接受 bed 或 patient
+  hideCameraSwitch?: boolean; // 隱藏切換鏡頭按鈕
 }
-const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className = '', autoStart = false, acceptType = 'any' }) => {
+const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className = '', autoStart = false, acceptType = 'any', hideCameraSwitch = false }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [shouldStartScanning, setShouldStartScanning] = useState(autoStart);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
@@ -224,10 +225,10 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
           <div className="flex gap-3">
             {/* 左側：掃描器實時畫面 */}
             <div className="flex-shrink-0 relative">
-              <div id={scannerIdRef.current} className="rounded-lg overflow-hidden" style={{ width: '300px', height: '300px' }} />
+              <div id={scannerIdRef.current} className="rounded-lg overflow-hidden" style={{ width: '240px', height: '427px', aspectRatio: '9/16' }} />
               {/* 二維碼指引框 */}
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-48 h-48 border-2 border-green-400 rounded-lg">
+                <div className="w-32 h-32 border-2 border-green-400 rounded-lg">
                   <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-green-500"></div>
                   <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-green-500"></div>
                   <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-green-500"></div>
@@ -242,6 +243,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
                   <p className="text-xs text-blue-800 break-all">{debugMessage}</p>
                 </div>
               )}
+              {!hideCameraSwitch && (
               <button
                 onClick={toggleCamera}
                 className="flex flex-wrap items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors w-full"
@@ -249,6 +251,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
                 <SwitchCamera className="h-4 w-4" />
                 <span>{facingMode === 'user' ? '切換到後置' : '切換到前置'}</span>
               </button>
+              )}
               {error && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2">
                   <div className="flex items-start gap-2">
