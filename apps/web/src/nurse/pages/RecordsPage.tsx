@@ -25,7 +25,7 @@ const TAB_CONFIG: Record<TabType, { label: string }> = {
   diaper:          { label: '换片记录' },
   intake_output:   { label: '出入量' },
   restraint:       { label: '约束观察' },
-  position:        { label: '翻身记录' },
+  position:        { label: '转身记录' },
   toilet_training: { label: '如厕训练' },
   hygiene:         { label: '卫生记录' },
 };
@@ -405,78 +405,109 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, initial
                   const done = !!existingRecord;
                   const frozen = isAbsent && activeTab !== 'patrol';
 
-                  // 紅點：時段未填且已過
+                  // 檢查是否逾期
                   const checkTime =
                     activeTab === 'hygiene' ? '23:59' :
                     activeTab === 'diaper' ? parseDiaperSlotStartTime(slot) :
                     slot;
-                  const showMissingDot =
-                    !done && !frozen &&
-                    isSlotOverdue(ds, checkTime);
+                  const isOverdue = !done && !frozen && isSlotOverdue(ds, checkTime);
 
-                  // 根據 tab 類型渲染記錄內容
+                  // 根據 tab 類型和狀態渲染內容
                   let cellContent: React.ReactNode = null;
+                  let cellTextColor = 'text-gray-600';
+
                   if (done && existingRecord) {
+                    // ─── 已填 ───
                     switch (activeTab) {
                       case 'patrol':
-                        cellContent = existingRecord.notes ? (
-                          <div className="text-xs text-orange-600 truncate font-medium">
-                            {existingRecord.notes}
-                          </div>
-                        ) : (
-                          <svg className="w-3.5 h-3.5 text-green-700" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        );
+                        cellContent = existingRecord.notes || '已巡';
+                        cellTextColor = existingRecord.notes ? 'text-orange-600' : 'text-green-600';
                         break;
                       case 'diaper':
                         const diaperContent: string[] = [];
                         if (existingRecord.has_urine) diaperContent.push('小');
                         if (existingRecord.has_stool) diaperContent.push('大');
                         if (existingRecord.has_none) diaperContent.push('無');
-                        cellContent = existingRecord.notes ? (
-                          <div className="text-xs text-orange-600 font-medium">{existingRecord.notes}</div>
-                        ) : (
-                          <div className="text-xs text-blue-600 font-medium">{diaperContent.join('/')}</div>
-                        );
+                        cellContent = existingRecord.notes || diaperContent.join('/');
+                        cellTextColor = existingRecord.notes ? 'text-orange-600' : 'text-blue-600';
                         break;
                       case 'intake_output':
-                        cellContent = existingRecord.notes ? (
-                          <div className="text-xs text-orange-600 font-medium">{existingRecord.notes}</div>
-                        ) : (
-                          <div className="text-xs space-y-0.5">
-                            {existingRecord.intake_items?.length > 0 && (
-                              <div className="text-green-600">▲ 出入</div>
-                            )}
-                          </div>
-                        );
+                        cellContent = existingRecord.notes || '已記錄';
+                        cellTextColor = existingRecord.notes ? 'text-orange-600' : 'text-blue-600';
                         break;
                       case 'restraint':
-                        cellContent = existingRecord.notes ? (
-                          <div className="text-xs text-orange-600 font-medium">{existingRecord.notes}</div>
-                        ) : (
-                          <div className="text-xs text-purple-600 font-medium">
-                            {existingRecord.observation_status === 'N' ? '正常' :
-                             existingRecord.observation_status === 'P' ? '異常' :
-                             existingRecord.observation_status === 'S' ? '暫停' : '記錄'}
-                          </div>
-                        );
+                        cellContent = existingRecord.notes || 
+                          (existingRecord.observation_status === 'N' ? '正常' :
+                           existingRecord.observation_status === 'P' ? '異常' :
+                           existingRecord.observation_status === 'S' ? '暫停' : '已觀察');
+                        cellTextColor = existingRecord.notes ? 'text-orange-600' : 'text-blue-600';
                         break;
                       case 'position':
-                        cellContent = existingRecord.notes ? (
-                          <div className="text-xs text-orange-600 font-medium">{existingRecord.notes}</div>
-                        ) : (
-                          <div className="text-xs text-purple-600 font-medium">{existingRecord.position || '記錄'}</div>
-                        );
+                        cellContent = existingRecord.notes || (existingRecord.position || '已記錄');
+                        cellTextColor = existingRecord.notes ? 'text-orange-600' : 'text-blue-600';
                         break;
                       case 'hygiene':
-                        cellContent = existingRecord.status_notes ? (
-                          <div className="text-xs text-orange-600 font-medium">{existingRecord.status_notes}</div>
-                        ) : (
-                          <svg className="w-3.5 h-3.5 text-green-700" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        );
+                        // 檢查是否有任何卫生项目記錄
+                        const hasAnyHygieneItem = existingRecord.status_notes || 
+                          (existingRecord.care_items && Object.values(existingRecord.care_items).some(v => v));
+                        cellContent = '已完成';
+                        cellTextColor = 'text-green-600';
+                        break;
+                    }
+                  } else if (isOverdue) {
+                    // ─── 逾期未填 ───
+                    switch (activeTab) {
+                      case 'patrol':
+                        cellContent = '未巡';
+                        cellTextColor = 'text-red-600';
+                        break;
+                      case 'diaper':
+                        cellContent = '未記錄';
+                        cellTextColor = 'text-red-600';
+                        break;
+                      case 'intake_output':
+                        cellContent = '未記錄';
+                        cellTextColor = 'text-red-600';
+                        break;
+                      case 'restraint':
+                        cellContent = '未觀察';
+                        cellTextColor = 'text-red-600';
+                        break;
+                      case 'position':
+                        cellContent = '未記錄';
+                        cellTextColor = 'text-red-600';
+                        break;
+                      case 'hygiene':
+                        cellContent = '未完成';
+                        cellTextColor = 'text-red-600';
+                        break;
+                    }
+                  } else {
+                    // ─── 未到點 ───
+                    switch (activeTab) {
+                      case 'patrol':
+                        cellContent = '待巡';
+                        cellTextColor = 'text-gray-500';
+                        break;
+                      case 'diaper':
+                        cellContent = '未知';
+                        cellTextColor = 'text-gray-500';
+                        break;
+                      case 'intake_output':
+                        cellContent = '未知';
+                        cellTextColor = 'text-gray-500';
+                        break;
+                      case 'restraint':
+                        cellContent = '待觀察';
+                        cellTextColor = 'text-gray-500';
+                        break;
+                      case 'position':
+                        cellContent = '待記錄';
+                        cellTextColor = 'text-gray-500';
+                        break;
+                      case 'hygiene':
+                        cellContent = '待完成';
+                        cellTextColor = 'text-gray-500';
                         break;
                     }
                   }
@@ -486,19 +517,18 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, initial
                       key={ds}
                       disabled={frozen}
                       onClick={() => openCell(activeTab, ds, activeTab === 'hygiene' ? 'daily' : slot, existingRecord)}
-                      className={`flex-1 mx-0.5 h-12 rounded-md flex flex-col items-center justify-center transition-colors px-1 ${
+                      className={`flex-1 mx-0.5 h-12 rounded-md flex flex-col items-center justify-center transition-colors px-1 text-xs font-medium ${cellTextColor} ${
                         done
-                          ? 'bg-green-50 text-green-700'
+                          ? 'bg-green-50'
+                          : isOverdue
+                          ? 'bg-red-50 border border-red-300'
                           : frozen
                           ? 'bg-gray-100 text-gray-300'
-                          : showMissingDot
-                          ? 'bg-red-50 border border-red-300 hover:bg-red-100'
-                          : 'bg-blue-50 border border-blue-200 text-gray-400 hover:bg-blue-100'
+                          : 'bg-blue-50 border border-blue-200 hover:bg-blue-100'
                       }`}
                     >
                       {cellContent}
                       {!done && frozen && <Lock className="w-3 h-3 opacity-40 mt-1" />}
-                      {!done && !frozen && showMissingDot && <span className="w-2 h-2 rounded-full bg-red-400 block mt-1" />}
                     </button>
                   );
                 })()}

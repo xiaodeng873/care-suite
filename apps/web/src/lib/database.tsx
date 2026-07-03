@@ -555,6 +555,8 @@ export interface DiaperChangeRecord {
   stool_color?: string;
   stool_texture?: string;
   stool_amount?: string;
+  urine_count?: number | null;
+  core_count?: number | null;
   recorder: string;
   notes?: string | null;
   created_at: string;

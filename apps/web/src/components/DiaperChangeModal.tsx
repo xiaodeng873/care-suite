@@ -31,6 +31,8 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
   const [stoolColor, setStoolColor] = useState('');
   const [stoolTexture, setStoolTexture] = useState('');
   const [stoolAmount, setStoolAmount] = useState('');
+  const [urineCount, setUrineCount] = useState('');
+  const [coreCount, setCoreCount] = useState('');
   const [recorder, setRecorder] = useState('');
   const [notes, setNotes] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -44,6 +46,8 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
       setStoolColor(existingRecord.stool_color || '');
       setStoolTexture(existingRecord.stool_texture || '');
       setStoolAmount(existingRecord.stool_amount || '');
+      setUrineCount(existingRecord.urine_count ? String(existingRecord.urine_count) : '');
+      setCoreCount(existingRecord.core_count ? String(existingRecord.core_count) : '');
       setRecorder(existingRecord.recorder);
       setNotes(existingRecord.notes || '');
     } else {
@@ -54,6 +58,8 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
       setStoolColor('');
       setStoolTexture('');
       setStoolAmount('');
+      setUrineCount('');
+      setCoreCount('');
       setRecorder(staffName);
       setNotes('');
     }
@@ -62,17 +68,24 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 互斥邏輯：如果同時無大小便，自動設定為"無"
+    const finalHasNone = !hasUrine && !hasStool ? true : hasNone;
+    const finalHasUrine = finalHasNone ? false : hasUrine;
+    const finalHasStool = finalHasNone ? false : hasStool;
+
     const data: Omit<DiaperChangeRecord, 'id' | 'created_at' | 'updated_at'> = {
       patient_id: patient.院友id,
       change_date: date,
       time_slot: timeSlot,
-      has_urine: hasUrine,
-      has_stool: hasStool,
-      has_none: hasNone,
-      urine_amount: urineAmount || undefined,
-      stool_color: stoolColor || undefined,
-      stool_texture: stoolTexture || undefined,
-      stool_amount: stoolAmount || undefined,
+      has_urine: finalHasUrine,
+      has_stool: finalHasStool,
+      has_none: finalHasNone,
+      urine_amount: finalHasUrine ? urineAmount || undefined : undefined,
+      stool_color: finalHasStool ? stoolColor || undefined : undefined,
+      stool_texture: finalHasStool ? stoolTexture || undefined : undefined,
+      stool_amount: finalHasStool ? stoolAmount || undefined : undefined,
+      urine_count: urineCount ? parseInt(urineCount, 10) : null,
+      core_count: coreCount ? parseInt(coreCount, 10) : null,
       recorder,
       notes: notes.trim() || null
     };
@@ -314,6 +327,34 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
               </div>
             </>
           )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              尿片
+            </label>
+            <input
+              type="number"
+              value={urineCount}
+              onChange={(e) => setUrineCount(e.target.value)}
+              min="0"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="數量"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              片芯
+            </label>
+            <input
+              type="number"
+              value={coreCount}
+              onChange={(e) => setCoreCount(e.target.value)}
+              min="0"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="數量"
+            />
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
