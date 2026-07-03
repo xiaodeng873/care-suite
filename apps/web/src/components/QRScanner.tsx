@@ -224,8 +224,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScanSuccess, onError, className
         ) : (
           <div className="flex flex-col gap-2">
             {/* 掃描器實時畫面 */}
-            <div className="relative">
-              <div id={scannerIdRef.current} className="rounded-lg overflow-hidden" style={{ width: '240px', height: '427px', aspectRatio: '9/16' }} />
+            <div className="relative w-full">
+              <div id={scannerIdRef.current} className="w-full rounded-lg overflow-hidden" style={{ aspectRatio: '9/16' }} />
               {/* 二維碼指引框 */}
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                 <div className="w-32 h-32 border-2 border-green-400 rounded-lg">
