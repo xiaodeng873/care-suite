@@ -76,14 +76,14 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelec
 
   const handleSelectPrev = () => {
     if (prevBed && onSelectPatient) {
-      const prevPatient = patients.find(p => p.院友id === prevBed.occupant_id) || null;
+      const prevPatient = patients.find(p => p.床號 === prevBed.bed_number) || null;
       onSelectPatient(prevBed, prevPatient);
     }
   };
 
   const handleSelectNext = () => {
     if (nextBed && onSelectPatient) {
-      const nextPatient = patients.find(p => p.院友id === nextBed.occupant_id) || null;
+      const nextPatient = patients.find(p => p.床號 === nextBed.bed_number) || null;
       onSelectPatient(nextBed, nextPatient);
     }
   };
