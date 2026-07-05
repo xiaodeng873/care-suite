@@ -17,12 +17,14 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
   const storageKey = userProfile?.id ? `stationFilter_${userProfile.id}` : null;
 
   const [selectedStationIds, setSelectedStationIdsState] = useState<string[]>([]);
-  const [initialized, setInitialized] = useState(false);
+  // 用 initializedKey 取代 boolean，確保 userProfile 後加載時能重讀對應 localStorage
+  const [initializedKey, setInitializedKey] = useState<string | null>(null);
 
   // 初始化：從 localStorage 讀取，fallback 全選
   useEffect(() => {
     if (!stations.length) return;
-    if (initialized) return;
+    const currentKey = storageKey ?? '__no_user__';
+    if (initializedKey === currentKey) return; // 已用此 key 初始化過，跳過
 
     const allIds = stations.map(s => s.id);
 
@@ -46,8 +48,8 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
     } else {
       setSelectedStationIdsState(allIds);
     }
-    setInitialized(true);
-  }, [stations, storageKey, initialized]);
+    setInitializedKey(currentKey);
+  }, [stations, storageKey, initializedKey]);
 
   const setSelectedStationIds = useCallback((ids: string[]) => {
     setSelectedStationIdsState(ids);
@@ -57,9 +59,9 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [storageKey]);
 
   const isFiltered = useMemo(() => {
-    if (!initialized || !stations.length) return false;
+    if (!initializedKey || !stations.length) return false;
     return selectedStationIds.length !== stations.length;
-  }, [selectedStationIds, stations, initialized]);
+  }, [selectedStationIds, stations, initializedKey]);
 
   return (
     <StationFilterContext.Provider value={{ selectedStationIds, setSelectedStationIds, isFiltered }}>

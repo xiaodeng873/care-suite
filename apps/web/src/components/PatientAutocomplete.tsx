@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useDeferredValue } from 'react';
 import { ChevronDown, User, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { useStation } from '../context/facility';
+import { useStationFilter } from '../context/StationFilterContext';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 
@@ -11,6 +13,7 @@ interface PatientAutocompleteProps {
   className?: string;
   showResidencyFilter?: boolean;
   defaultResidencyStatus?: string;
+  showStationFilter?: boolean;
 }
 
 const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
@@ -19,13 +22,22 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
   placeholder = "搜索院友...",
   className = "",
   showResidencyFilter = false,
-  defaultResidencyStatus = "在住"
+  defaultResidencyStatus = "在住",
+  showStationFilter = false,
 }) => {
   const { patients } = usePatients();
+  const { stations } = useStation();
+  const { selectedStationIds } = useStationFilter();
+
+  // 只列出全域過濾器已選的站別；若全選則列出全部
+  const visibleStations = stations.filter(s => selectedStationIds.includes(s.id));
+  // 有 ≥2 個可用站別時自動顯示站別篩選（也可由 prop 強制開啟）
+  const shouldShowStationFilter = showStationFilter || visibleStations.length > 1;
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
   const [residencyStatus, setResidencyStatus] = useState(defaultResidencyStatus);
+  const [stationFilter, setStationFilter] = useState<string>('all');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,6 +48,8 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
 
   // 過濾院友列表
   const filteredPatients = patients.filter(patient => {
+    // 居住區篩選
+    if (stationFilter !== 'all' && patient.station_id !== stationFilter) return false;
     // 先根據在住狀態篩選
     if (residencyStatus !== '全部' && patient.在住狀態 !== residencyStatus) {
       return false;
@@ -173,22 +187,34 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
 
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
-          {showResidencyFilter && (
-            <div className="p-3 border-b border-gray-200">
-              <select
-                value={residencyStatus}
-                onChange={(e) => {
-                  setResidencyStatus(e.target.value);
-                  setHighlightedIndex(-1);
-                }}
-                className="form-input w-full text-sm"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="在住">在住院友</option>
-                <option value="待入住">待入住院友</option>
-                <option value="已退住">已退住院友</option>
-                <option value="全部">全部院友</option>
-              </select>
+          {(showResidencyFilter || shouldShowStationFilter) && (
+            <div className="p-3 border-b border-gray-200 space-y-2">
+              {shouldShowStationFilter && (
+                <select
+                  value={stationFilter}
+                  onChange={(e) => { setStationFilter(e.target.value); setHighlightedIndex(-1); }}
+                  className="form-input w-full text-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <option value="all">全部居住區</option>
+                  {visibleStations.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              )}
+              {showResidencyFilter && (
+                <select
+                  value={residencyStatus}
+                  onChange={(e) => { setResidencyStatus(e.target.value); setHighlightedIndex(-1); }}
+                  className="form-input w-full text-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <option value="在住">在住院友</option>
+                  <option value="待入住">待入住院友</option>
+                  <option value="已退住">已退住院友</option>
+                  <option value="全部">全部院友</option>
+                </select>
+              )}
             </div>
           )}
 

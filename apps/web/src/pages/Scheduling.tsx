@@ -12,8 +12,10 @@ import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { checkAnnualHealthCheckupDue, checkRestraintAssessmentDue, DueItem } from '../utils/scheduleDueChecker';
 import { supabase } from '../lib/supabase';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { useStationFilter } from '../context/StationFilterContext';
 const Scheduling: React.FC = () => {
   const { schedules, deleteSchedule, patients, loading, refreshData } = usePatients();
+  const { isFiltered } = useStationFilter();
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -188,9 +190,13 @@ const Scheduling: React.FC = () => {
       });
       matchesSearch = dateMatch || patientMatch;
     }
+    // 站別過濾：當導覽列有過濾時，排除沒有任何可見院友的排程
+    if (isFiltered && !schedule.院友列表.some(item => patientMap.has(item.院友id))) {
+      return false;
+    }
     return matchesSearch;
     });
-  }, [schedules, patientMap, deferredSearch, dateFilter, reasonFilter]);
+  }, [schedules, patientMap, deferredSearch, dateFilter, reasonFilter, isFiltered]);
   // 獲取所有看診原因選項
   const getAllReasons = () => {
     const reasons = new Set<string>();
@@ -364,7 +370,10 @@ const Scheduling: React.FC = () => {
                         })}
                       </h3>
                       <p className="text-sm text-gray-600">
-                        {schedule.院友列表.length} 位院友預約
+                        {isFiltered
+                          ? `${schedule.院友列表.filter(item => patientMap.has(item.院友id)).length} 位院友預約（本居住區）`
+                          : `${schedule.院友列表.length} 位院友預約`
+                        }
                       </p>
                     </div>
                   </div>
@@ -401,7 +410,9 @@ const Scheduling: React.FC = () => {
                 </div>
               </div>
               <div className="space-y-3">
-                {schedule.院友列表.map(item => {
+                {schedule.院友列表
+                  .filter(item => !isFiltered || patientMap.has(item.院友id))
+                  .map(item => {
                   const patient = patientMap.get(item.院友id);
                   return (
                     <div key={item.細項id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gray-50 rounded-lg">
