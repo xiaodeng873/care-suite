@@ -259,25 +259,20 @@ const StationBedManagement: React.FC = () => {
   const handlePrintBedList = async (stationId: string) => {
     const station = stations.find(s => s.id === stationId);
     if (!station) return;
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const todayStr = todayStart.toISOString().split('T')[0];
+
     const stationBeds = beds.filter(b => b.station_id === stationId)
       .sort((a, b) => a.bed_number.localeCompare(b.bed_number, 'zh-Hant', { numeric: true }));
-    const stationPatientIds = stationBeds
-      .map(bed => patients.find(p => p.bed_id === bed.id && p.在住狀態 === '在住'))
-      .filter(Boolean)
-      .map(p => p!.院友id);
-    // 並行取 logo 和特別關顧人數
-    const [facilitySettings, taskResult] = await Promise.all([
-      getFacilitySettings().catch(() => null),
-      stationPatientIds.length > 0
-        ? supabase
-            .from('patient_health_tasks')
-            .select('patient_id')
-            .eq('notes', '特別關顧')
-            .in('patient_id', stationPatientIds)
-        : Promise.resolve({ data: [] as { patient_id: number }[] }),
-    ]);
-    const specialIds = new Set((taskResult.data ?? []).map(r => r.patient_id));
-    const specialCareCount = specialIds.size;
+
+    const stationPatients = (patients || []).filter(p =>
+      p.在住狀態 === '在住' && stationBeds.some(b => b.id === p.bed_id)
+    );
+    const stationPatientIds = stationPatients.map(p => p.院友id);
+
     const bedList = stationBeds.map(bed => {
       const patient = patients.find(p => p.bed_id === bed.id && p.在住狀態 === '在住');
       return {
@@ -293,12 +288,160 @@ const StationBedManagement: React.FC = () => {
           : null,
       };
     });
+
+    if (stationPatientIds.length === 0) {
+      const facilitySettings = await getFacilitySettings().catch(() => null);
+      printBedList({
+        stationName: station.name,
+        facilityName: facilitySettings?.facilityNameZh || '善頤(福群)護老院',
+        logoBase64: facilitySettings?.logoDataUri || undefined,
+        beds: bedList,
+      });
+      return;
+    }
+
+    const [
+      facilitySettings,
+      taskResult,
+      episodeResult,
+      healthResult,
+      woundResult,
+      incidentResult,
+      restraintResult,
+    ] = await Promise.all([
+      getFacilitySettings().catch(() => null),
+      supabase.from('patient_health_tasks').select('patient_id, health_record_type, notes').in('patient_id', stationPatientIds),
+      supabase.from('hospital_episodes').select('patient_id, episode_events(event_type, event_date)').in('patient_id', stationPatientIds),
+      supabase.from('health_assessments').select('patient_id, treatment_items, bowel_bladder_control').in('patient_id', stationPatientIds),
+      supabase.from('wound_assessments').select('patient_id, wound_details').in('patient_id', stationPatientIds),
+      supabase.from('incident_reports').select('patient_id, incident_type, incident_nature, incident_date').in('patient_id', stationPatientIds).gte('incident_date', todayStr),
+      supabase.from('patient_restraint_assessments').select('patient_id').in('patient_id', stationPatientIds),
+    ]);
+
+    const taskRows: any[] = taskResult.data ?? [];
+    const episodeRows: any[] = episodeResult.data ?? [];
+    const healthRows: any[] = healthResult.data ?? [];
+    const woundRows: any[] = woundResult.data ?? [];
+    const incidentRows: any[] = incidentResult.data ?? [];
+    const restraintRows: any[] = restraintResult.data ?? [];
+
+    // ── 特別關顧（男/女）──
+    const specialIds = new Set(taskRows.filter(r => r.notes === '特別關顧').map(r => r.patient_id));
+    const specialCare = {
+      男: stationPatients.filter(p => specialIds.has(p.院友id) && p.性別 === '男').length,
+      女: stationPatients.filter(p => specialIds.has(p.院友id) && p.性別 === '女').length,
+    };
+
+    // ── 入住醫院 / 暫時回家（男/女）──
+    const parseDateOnly = (s: string) => {
+      const d = new Date(s);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    };
+    const checkEpisodeStatus = (patientId: number, startType: string | string[], endType: string): boolean => {
+      const startTypes = Array.isArray(startType) ? startType : [startType];
+      const eps = episodeRows.filter(e => e.patient_id === patientId);
+      for (const ep of eps) {
+        const events = [...(ep.episode_events || [])].sort(
+          (a: any, b: any) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+        );
+        for (let i = 0; i < events.length; i++) {
+          if (startTypes.includes(events[i].event_type)) {
+            const start = parseDateOnly(events[i].event_date);
+            if (start.getTime() <= todayStart.getTime()) {
+              const end = events.slice(i + 1).find((e: any) => e.event_type === endType);
+              if (!end) return true;
+              if (parseDateOnly(end.event_date).getTime() > todayStart.getTime()) return true;
+            }
+          }
+        }
+      }
+      return false;
+    };
+
+    const hospitalized = {
+      男: stationPatients.filter(p => checkEpisodeStatus(p.院友id, ['admission', 'transfer'], 'discharge') && p.性別 === '男').length,
+      女: stationPatients.filter(p => checkEpisodeStatus(p.院友id, ['admission', 'transfer'], 'discharge') && p.性別 === '女').length,
+    };
+    const vacation = {
+      男: stationPatients.filter(p => checkEpisodeStatus(p.院友id, 'vacation_start', 'vacation_end') && p.性別 === '男').length,
+      女: stationPatients.filter(p => checkEpisodeStatus(p.院友id, 'vacation_start', 'vacation_end') && p.性別 === '女').length,
+    };
+
+    // ── 過去 24 小時 ──
+    const allStationPats = (patients || []).filter(p =>
+      p.station_id === stationId || stationBeds.some(b => b.id === p.bed_id)
+    );
+    const newAdmissions = allStationPats.filter(p => {
+      if (!p.入住日期) return false;
+      return parseDateOnly(p.入住日期).getTime() === todayStart.getTime();
+    }).length;
+    const discharges = allStationPats.filter(p => {
+      if (!p.退住日期) return false;
+      return parseDateOnly(p.退住日期).getTime() === todayStart.getTime();
+    }).length;
+    const deaths24h = allStationPats.filter(p => {
+      if (!p.death_date || p.discharge_reason !== '死亡') return false;
+      return parseDateOnly(p.death_date).getTime() === todayStart.getTime();
+    }).length;
+    const monthlyDeaths = (patients || []).filter(p => {
+      if (!p.death_date || p.discharge_reason !== '死亡') return false;
+      return parseDateOnly(p.death_date) >= monthStart;
+    }).length;
+
+    // ── 醫療項目 ──
+    const ngTubeIds = new Set(taskRows.filter(r => r.health_record_type === '鼻胃飼更換').map(r => r.patient_id));
+    const catheterIds = new Set(taskRows.filter(r => r.health_record_type === '尿導管更換').map(r => r.patient_id));
+    const woundPids = new Set<number>();
+    const pressurePids = new Set<number>();
+    woundRows.forEach(wa => {
+      (wa.wound_details || []).forEach((wd: any) => {
+        if (wd.wound_status === '未處理' || wd.wound_status === '治療中') {
+          woundPids.add(wa.patient_id);
+          if (wd.wound_type === '壓力性') pressurePids.add(wa.patient_id);
+        }
+      });
+    });
+    const dialysisPids = new Set(healthRows.filter(h => (h.treatment_items || []).includes('腹膜/血液透析')).map(h => h.patient_id));
+    const oxygenPids = new Set(healthRows.filter(h => (h.treatment_items || []).includes('氧氣治療')).map(h => h.patient_id));
+    const stomaPids = new Set(healthRows.filter(h =>
+      h.bowel_bladder_control?.bowel === '腸造口' || h.bowel_bladder_control?.bladder === '小便造口'
+    ).map(h => h.patient_id));
+    const infPids = new Set(stationPatients.filter(p => p.感染控制 && p.感染控制.length > 0).map(p => p.院友id));
+    const restraintPids = new Set(restraintRows.map(r => r.patient_id));
+    const cnt = (ids: Set<number>) => stationPatients.filter(p => ids.has(p.院友id)).length;
+    const medical = {
+      鼻胃飼: cnt(ngTubeIds),
+      尿管: cnt(catheterIds),
+      傷口: cnt(woundPids),
+      壓瘡: cnt(pressurePids),
+      腹膜透析: cnt(dialysisPids),
+      吸氧: cnt(oxygenPids),
+      造口: cnt(stomaPids),
+      傳染病隔離: cnt(infPids),
+      使用約束物品: cnt(restraintPids),
+    };
+
+    // ── 意外事件 ──
+    const todayInc = incidentRows.filter(i =>
+      parseDateOnly(i.incident_date).getTime() === todayStart.getTime()
+    );
+    const incidents = {
+      藥物: todayInc.filter(i => i.incident_type === '藥物').length,
+      跌倒: todayInc.filter(i => i.incident_nature === '跌倒').length,
+      死亡: deaths24h,
+    };
+
     printBedList({
       stationName: station.name,
       facilityName: facilitySettings?.facilityNameZh || '善頤(福群)護老院',
       logoBase64: facilitySettings?.logoDataUri || undefined,
       beds: bedList,
-      specialCareCount,
+      specialCare,
+      hospitalized,
+      vacation,
+      over24h: { 新收: newAdmissions, 退住: discharges, 死亡: deaths24h, 當月累積死亡: monthlyDeaths },
+      medical,
+      incidents,
     });
   };
 

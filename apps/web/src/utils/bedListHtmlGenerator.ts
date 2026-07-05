@@ -1,6 +1,6 @@
 /**
- * 床位表 HTML 列印產生器 v3
- * A4 橫向，4 區塊統計欄，逐床縱向，每行高度按該行最多床決定
+ * 床位表 HTML 列印產生器 v4
+ * A4 橫向，6 區塊統計欄（護理統計2欄/醫療項目3欄），逐床縱向，每行高度按該行最多床決定
  */
 
 export interface BedListBed {
@@ -20,8 +20,18 @@ export interface BedListInput {
   logoBase64?: string;
   beds: BedListBed[];
   printDate?: string;
-  /** 特別關顧人數（需從任務表預先計算，不提供則顯示 — ） */
-  specialCareCount?: number;
+  /** 特別關顧（男/女），從任務表預先計算 */
+  specialCare?: { 男: number; 女: number };
+  /** 入住醫院（男/女） */
+  hospitalized?: { 男: number; 女: number };
+  /** 暫時回家（男/女） */
+  vacation?: { 男: number; 女: number };
+  /** 過去 24 小時統計 */
+  over24h?: { 新收: number; 退住: number; 死亡: number; 當月累積死亡: number };
+  /** 醫療項目人數 */
+  medical?: { 鼻胃飼: number; 尿管: number; 傷口: number; 壓瘡: number; 腹膜透析: number; 吸氧: number; 造口: number; 傳染病隔離: number; 使用約束物品: number };
+  /** 意外事件統計 */
+  incidents?: { 藥物: number; 跌倒: number; 死亡: number };
 }
 
 function typeLabel(t?: string | null): string {
@@ -52,7 +62,12 @@ export function generateBedListHtml(input: BedListInput): string {
     logoBase64,
     beds,
     printDate,
-    specialCareCount,
+    specialCare,
+    hospitalized,
+    vacation,
+    over24h,
+    medical,
+    incidents,
   } = input;
 
   /* ── 1. 排序 & 分組 ── */
@@ -82,17 +97,6 @@ export function generateBedListHtml(input: BedListInput): string {
   const fcM = care('全護理', '男'), fcF = care('全護理', '女');
   const hcM = care('半護理', '男'), hcF = care('半護理', '女');
   const scM = care('自理', '男'),   scF = care('自理', '女');
-  const spN = specialCareCount ?? -1;
-  // 感染控制：按類型統計
-  const infMap = new Map<string, number>();
-  for (const b of occ) {
-    if (b.patient?.infectionControl) {
-      for (const t of b.patient.infectionControl) {
-        infMap.set(t, (infMap.get(t) ?? 0) + 1);
-      }
-    }
-  }
-  const infEntries = Array.from(infMap.entries()).sort((a, b) => b[1] - a[1]);
 
   /* ── 3. 版面自適應（per-row height） ── */
   const HDR_MM     = 6.5;
@@ -156,15 +160,13 @@ export function generateBedListHtml(input: BedListInput): string {
     ? `<img src="${logoBase64}" class="logo" alt="logo">`
     : `<div class="logo-ph"></div>`;
 
-  /* ── 9. 統計欄 HTML（4 區塊） ── */
+  /* ── 9. 統計欄 HTML（6 區塊） ── */
+  const dash = '—';
+  const nv = (v?: number) => v != null ? String(v) : dash;
   const mkRow = (label: string, val: string | number) =>
     `<div class="sr"><span class="sl">${label}</span><span class="sv">${val}</span></div>`;
-  const mkCareRow = (label: string, m: number, f: number) =>
-    `<div class="sr-care"><span class="sc-lbl">${label}</span><span class="sc-g"><span class="sc-val">男 ${m}</span><span class="sc-sep">/</span><span class="sc-val">女 ${f}</span></span></div>`;
-
-  const infHtml = infEntries.length > 0
-    ? infEntries.map(([t, n]) => mkRow(t, n)).join('')
-    : `<div class="sr"><span class="sl" style="color:#9ca3af">無記錄</span></div>`;
+  const mkCareRow2 = (label: string, mf?: { 男: number; 女: number } | null) =>
+    `<div class="sr-c2"><span class="sc-l2">${label}</span><span class="sc-v2">${mf ? `男${mf.男}/女${mf.女}` : dash}</span></div>`;
 
   const statsHtml = `
   <div class="stats-grid">
@@ -181,16 +183,53 @@ export function generateBedListHtml(input: BedListInput): string {
       ${mkRow('院舍卷', vouN)}
       ${mkRow('暫住', tempN)}
     </div>
-    <div class="sg-block sg-wide">
-      <div class="sg-title">護理統計</div>
-      ${mkCareRow('全護理', fcM, fcF)}
-      ${mkCareRow('半護理', hcM, hcF)}
-      ${mkCareRow('自理', scM, scF)}
-      ${mkRow('特別關顧', spN >= 0 ? spN : '—')}
+    <div class="sg-block">
+      <div class="sg-title">過去 24 小時</div>
+      ${mkRow('新收', nv(over24h?.新收))}
+      ${mkRow('退住', nv(over24h?.退住))}
+      ${mkRow('死亡', nv(over24h?.死亡))}
+      ${mkRow('月累積死亡', nv(over24h?.當月累積死亡))}
     </div>
     <div class="sg-block">
-      <div class="sg-title">感染控制</div>
-      ${infHtml}
+      <div class="sg-title">護理統計</div>
+      <div class="sg-2col">
+        <div class="sg-sub">
+          ${mkCareRow2('全護理', { 男: fcM, 女: fcF })}
+          ${mkCareRow2('半護理', { 男: hcM, 女: hcF })}
+          ${mkCareRow2('自理', { 男: scM, 女: scF })}
+        </div>
+        <div class="sg-sub">
+          ${mkCareRow2('特別關顧', specialCare ?? null)}
+          ${mkCareRow2('入住醫院', hospitalized ?? null)}
+          ${mkCareRow2('暫時回家', vacation ?? null)}
+        </div>
+      </div>
+    </div>
+    <div class="sg-block">
+      <div class="sg-title">醫療項目</div>
+      <div class="sg-3col">
+        <div class="sg-sub">
+          ${mkRow('鼻胃飼', nv(medical?.鼻胃飼))}
+          ${mkRow('尿管', nv(medical?.尿管))}
+          ${mkRow('傷口', nv(medical?.傷口))}
+        </div>
+        <div class="sg-sub">
+          ${mkRow('壓瘡', nv(medical?.壓瘡))}
+          ${mkRow('腹膜透析', nv(medical?.腹膜透析))}
+          ${mkRow('吸氧', nv(medical?.吸氧))}
+        </div>
+        <div class="sg-sub">
+          ${mkRow('造口', nv(medical?.造口))}
+          ${mkRow('傳染病隔離', nv(medical?.傳染病隔離))}
+          ${mkRow('約束物品', nv(medical?.使用約束物品))}
+        </div>
+      </div>
+    </div>
+    <div class="sg-block">
+      <div class="sg-title">意外事件</div>
+      ${mkRow('藥物', nv(incidents?.藥物))}
+      ${mkRow('跌倒', nv(incidents?.跌倒))}
+      ${mkRow('死亡', nv(incidents?.死亡))}
     </div>
   </div>`;
 
@@ -217,27 +256,31 @@ body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-se
 .tbl-title { font-size:10px; color:#6b7280; margin-top:1.5px; }
 .hdr-right { font-size:8.5px; color:#6b7280; text-align:right; white-space:nowrap; line-height:2; }
 
-/* 統計欄（4 區塊 grid） */
+/* 統計欄（6 區塊 grid） */
 .stats-grid {
   display:grid;
-  grid-template-columns:1fr 1fr 1.7fr 1fr;
+  grid-template-columns:1fr 1fr 1fr 2.2fr 3fr 1fr;
   border:1.5px solid #94a3b8;
   border-radius:4px;
   overflow:hidden;
   flex-shrink:0;
   background:#fff;
 }
-.sg-block { padding:2.5px 6px 3px; border-right:1px solid #d1d5db; display:flex; flex-direction:column; gap:0.5px; }
+.sg-block { padding:2.5px 5px 3px; border-right:1px solid #d1d5db; display:flex; flex-direction:column; gap:0.5px; }
 .sg-block:last-child { border-right:none; }
-.sg-title { font-size:8px; font-weight:700; color:#334155; letter-spacing:.3px; border-bottom:1px solid #e5e7eb; padding-bottom:1.5px; margin-bottom:1.5px; text-transform:uppercase; }
+.sg-title { font-size:8px; font-weight:700; color:#334155; letter-spacing:.3px; border-bottom:1px solid #e5e7eb; padding-bottom:1.5px; margin-bottom:1.5px; }
 .sr { display:flex; justify-content:space-between; align-items:center; padding:0.5px 0; }
-.sl { font-size:8.5px; color:#64748b; }
-.sv { font-size:10px; font-weight:700; color:#1e293b; }
-.sr-care { display:flex; align-items:center; gap:3px; padding:0.5px 0; }
-.sc-lbl { font-size:8.5px; color:#64748b; min-width:30px; flex-shrink:0; }
-.sc-g { display:flex; align-items:center; gap:2px; }
-.sc-val { font-size:9.5px; font-weight:700; color:#1e293b; }
-.sc-sep { font-size:8px; color:#9ca3af; }
+.sl { font-size:7.5px; color:#64748b; }
+.sv { font-size:9.5px; font-weight:700; color:#1e293b; }
+/* 護理統計 & 醫療項目 內部子欄 */
+.sg-2col { display:flex; flex:1; gap:4px; align-items:stretch; }
+.sg-3col { display:flex; flex:1; gap:2px; align-items:stretch; }
+.sg-sub { flex:1; display:flex; flex-direction:column; gap:0.5px; min-width:0; }
+.sg-sub + .sg-sub { border-left:1px solid #e5e7eb; padding-left:3px; }
+/* 護理統計 compact care row（標籤 + 男X/女Y） */
+.sr-c2 { display:flex; align-items:center; justify-content:space-between; padding:0.5px 0; }
+.sc-l2 { font-size:7px; color:#64748b; flex-shrink:0; white-space:nowrap; }
+.sc-v2 { font-size:7.5px; font-weight:700; color:#1e293b; white-space:nowrap; }
 
 /* 卡片區 */
 .card-area { flex:1; display:flex; flex-direction:column; gap:${GAP}mm; overflow:hidden; min-height:0; }

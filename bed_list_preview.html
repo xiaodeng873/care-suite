@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1120, initial-scale=1">
-<title>善頤(福群)護老院 C站 床位表</title>
+<title>善頤(福群)護老院 甲區 床位表</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-serif; color: #111; }
@@ -20,27 +20,31 @@ body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-se
 .tbl-title { font-size:10px; color:#6b7280; margin-top:1.5px; }
 .hdr-right { font-size:8.5px; color:#6b7280; text-align:right; white-space:nowrap; line-height:2; }
 
-/* 統計欄（4 區塊 grid） */
+/* 統計欄（6 區塊 grid） */
 .stats-grid {
   display:grid;
-  grid-template-columns:1fr 1fr 1.7fr 1fr;
+  grid-template-columns:1fr 1fr 1fr 2.2fr 3fr 1fr;
   border:1.5px solid #94a3b8;
   border-radius:4px;
   overflow:hidden;
   flex-shrink:0;
   background:#fff;
 }
-.sg-block { padding:2.5px 6px 3px; border-right:1px solid #d1d5db; display:flex; flex-direction:column; gap:0.5px; }
+.sg-block { padding:2.5px 5px 3px; border-right:1px solid #d1d5db; display:flex; flex-direction:column; gap:0.5px; }
 .sg-block:last-child { border-right:none; }
-.sg-title { font-size:8px; font-weight:700; color:#334155; letter-spacing:.3px; border-bottom:1px solid #e5e7eb; padding-bottom:1.5px; margin-bottom:1.5px; text-transform:uppercase; }
+.sg-title { font-size:8px; font-weight:700; color:#334155; letter-spacing:.3px; border-bottom:1px solid #e5e7eb; padding-bottom:1.5px; margin-bottom:1.5px; }
 .sr { display:flex; justify-content:space-between; align-items:center; padding:0.5px 0; }
-.sl { font-size:8.5px; color:#64748b; }
-.sv { font-size:10px; font-weight:700; color:#1e293b; }
-.sr-care { display:flex; align-items:center; gap:3px; padding:0.5px 0; }
-.sc-lbl { font-size:8.5px; color:#64748b; min-width:30px; flex-shrink:0; }
-.sc-g { display:flex; align-items:center; gap:2px; }
-.sc-val { font-size:9.5px; font-weight:700; color:#1e293b; }
-.sc-sep { font-size:8px; color:#9ca3af; }
+.sl { font-size:7.5px; color:#64748b; }
+.sv { font-size:9.5px; font-weight:700; color:#1e293b; }
+/* 護理統計 & 醫療項目 內部子欄 */
+.sg-2col { display:flex; flex:1; gap:4px; align-items:stretch; }
+.sg-3col { display:flex; flex:1; gap:2px; align-items:stretch; }
+.sg-sub { flex:1; display:flex; flex-direction:column; gap:0.5px; min-width:0; }
+.sg-sub + .sg-sub { border-left:1px solid #e5e7eb; padding-left:3px; }
+/* 護理統計 compact care row（標籤 + 男X/女Y） */
+.sr-c2 { display:flex; align-items:center; justify-content:space-between; padding:0.5px 0; }
+.sc-l2 { font-size:7px; color:#64748b; flex-shrink:0; white-space:nowrap; }
+.sc-v2 { font-size:7.5px; font-weight:700; color:#1e293b; white-space:nowrap; }
 
 /* 卡片區 */
 .card-area { flex:1; display:flex; flex-direction:column; gap:1.5mm; overflow:hidden; min-height:0; }
@@ -96,7 +100,7 @@ body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-se
   .no-print { display:none; }
   html, body { background:white; }
   .pw  { display:block; }
-  .page { height:auto; overflow:visible; box-shadow:none; }
+  .page { width:100%; height:auto; overflow:visible; box-shadow:none; }
 }
 </style>
 </head>
@@ -108,39 +112,76 @@ body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-se
     <div class="logo-ph"></div>
     <div class="hdr-mid">
       <div class="facility">善頤(福群)護老院</div>
-      <div class="tbl-title">C站 · 床位表</div>
+      <div class="tbl-title">甲區 · 床位表</div>
     </div>
-    <div class="hdr-right">列印日期<br>2026/07/04</div>
+    <div class="hdr-right">列印日期<br>2026/07/05</div>
   </div>
   
   <div class="stats-grid">
     <div class="sg-block">
       <div class="sg-title">床位統計</div>
-      <div class="sr"><span class="sl">總床位</span><span class="sv">3</span></div>
-      <div class="sr"><span class="sl">已入住</span><span class="sv">2</span></div>
-      <div class="sr"><span class="sl">空床</span><span class="sv">1</span></div>
+      <div class="sr"><span class="sl">總床位</span><span class="sv">6</span></div>
+      <div class="sr"><span class="sl">已入住</span><span class="sv">4</span></div>
+      <div class="sr"><span class="sl">空床</span><span class="sv">2</span></div>
     </div>
     <div class="sg-block">
       <div class="sg-title">入住類型</div>
       <div class="sr"><span class="sl">私位</span><span class="sv">1</span></div>
       <div class="sr"><span class="sl">買位</span><span class="sv">1</span></div>
-      <div class="sr"><span class="sl">院舍卷</span><span class="sv">0</span></div>
-      <div class="sr"><span class="sl">暫住</span><span class="sv">0</span></div>
-    </div>
-    <div class="sg-block sg-wide">
-      <div class="sg-title">護理統計</div>
-      <div class="sr-care"><span class="sc-lbl">全護理</span><span class="sc-g"><span class="sc-val">男 1</span><span class="sc-sep">/</span><span class="sc-val">女 0</span></span></div>
-      <div class="sr-care"><span class="sc-lbl">半護理</span><span class="sc-g"><span class="sc-val">男 0</span><span class="sc-sep">/</span><span class="sc-val">女 1</span></span></div>
-      <div class="sr-care"><span class="sc-lbl">自理</span><span class="sc-g"><span class="sc-val">男 0</span><span class="sc-sep">/</span><span class="sc-val">女 0</span></span></div>
-      <div class="sr"><span class="sl">特別關顧</span><span class="sv">—</span></div>
+      <div class="sr"><span class="sl">院舍卷</span><span class="sv">1</span></div>
+      <div class="sr"><span class="sl">暫住</span><span class="sv">1</span></div>
     </div>
     <div class="sg-block">
-      <div class="sg-title">感染控制</div>
-      <div class="sr"><span class="sl">MRSA</span><span class="sv">1</span></div>
+      <div class="sg-title">過去 24 小時</div>
+      <div class="sr"><span class="sl">新收</span><span class="sv">1</span></div>
+      <div class="sr"><span class="sl">退住</span><span class="sv">0</span></div>
+      <div class="sr"><span class="sl">死亡</span><span class="sv">0</span></div>
+      <div class="sr"><span class="sl">月累積死亡</span><span class="sv">2</span></div>
+    </div>
+    <div class="sg-block">
+      <div class="sg-title">護理統計</div>
+      <div class="sg-2col">
+        <div class="sg-sub">
+          <div class="sr-c2"><span class="sc-l2">全護理</span><span class="sc-v2">男2/女0</span></div>
+          <div class="sr-c2"><span class="sc-l2">半護理</span><span class="sc-v2">男0/女1</span></div>
+          <div class="sr-c2"><span class="sc-l2">自理</span><span class="sc-v2">男0/女1</span></div>
+        </div>
+        <div class="sg-sub">
+          <div class="sr-c2"><span class="sc-l2">特別關顧</span><span class="sc-v2">男1/女1</span></div>
+          <div class="sr-c2"><span class="sc-l2">入住醫院</span><span class="sc-v2">男0/女1</span></div>
+          <div class="sr-c2"><span class="sc-l2">暫時回家</span><span class="sc-v2">男0/女0</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="sg-block">
+      <div class="sg-title">醫療項目</div>
+      <div class="sg-3col">
+        <div class="sg-sub">
+          <div class="sr"><span class="sl">鼻胃飼</span><span class="sv">2</span></div>
+          <div class="sr"><span class="sl">尿管</span><span class="sv">1</span></div>
+          <div class="sr"><span class="sl">傷口</span><span class="sv">3</span></div>
+        </div>
+        <div class="sg-sub">
+          <div class="sr"><span class="sl">壓瘡</span><span class="sv">1</span></div>
+          <div class="sr"><span class="sl">腹膜透析</span><span class="sv">0</span></div>
+          <div class="sr"><span class="sl">吸氧</span><span class="sv">1</span></div>
+        </div>
+        <div class="sg-sub">
+          <div class="sr"><span class="sl">造口</span><span class="sv">0</span></div>
+          <div class="sr"><span class="sl">傳染病隔離</span><span class="sv">1</span></div>
+          <div class="sr"><span class="sl">約束物品</span><span class="sv">2</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="sg-block">
+      <div class="sg-title">意外事件</div>
+      <div class="sr"><span class="sl">藥物</span><span class="sv">0</span></div>
+      <div class="sr"><span class="sl">跌倒</span><span class="sv">1</span></div>
+      <div class="sr"><span class="sl">死亡</span><span class="sv">0</span></div>
     </div>
   </div>
   <div class="card-area">
-    <div class="crow" style="height:17.0mm"><div class="rc"><div class="rh">101房</div><div class="rbed"><div class="br"><span class="bnum">101-1</span><span class="bdg bdg-p">私</span><span class="bname">張大明</span></div><div class="br br-e br-alt"><span class="bnum-e">101-2</span><span class="bempty-tag">空床</span></div><div class="rsp"></div></div></div><div class="rc"><div class="rh">102房</div><div class="rbed"><div class="br"><span class="bnum">102-1</span><span class="bdg bdg-b">買</span><span class="bname">李小花</span></div><div class="rsp"></div></div></div><div class="rc rc-ph"></div><div class="rc rc-ph"></div><div class="rc rc-ph"></div><div class="rc rc-ph"></div></div>
+    <div class="crow" style="height:22.0mm"><div class="rc"><div class="rh">101房</div><div class="rbed"><div class="br"><span class="bnum">101-1</span><span class="bdg bdg-b">買</span><span class="bname">陳大文</span></div><div class="br br-alt"><span class="bnum">101-2</span><span class="bdg bdg-p">私</span><span class="bname">李小明</span></div><div class="br br-e"><span class="bnum-e">101-3</span><span class="bempty-tag">空床</span></div><div class="rsp"></div></div></div><div class="rc"><div class="rh">102房</div><div class="rbed"><div class="br"><span class="bnum">102-1</span><span class="bdg bdg-v">卷</span><span class="bname">王美玲</span></div><div class="br br-e br-alt"><span class="bnum-e">102-2</span><span class="bempty-tag">空床</span></div><div class="rsp"></div></div></div><div class="rc"><div class="rh">103房</div><div class="rbed"><div class="br"><span class="bnum">103-1</span><span class="bdg bdg-t">暫</span><span class="bname">黃志強</span></div><div class="rsp"></div></div></div><div class="rc rc-ph"></div><div class="rc rc-ph"></div><div class="rc rc-ph"></div></div>
   </div>
 </div>
 </div>
