@@ -121,12 +121,26 @@ export function useDrugDatabase() {
   return useQuery({
     queryKey: queryKeys.workflow.drugDatabase.all,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('medication_drug_database')
-        .select('*')
-        .order('drug_name');
-      if (error) throw error;
-      return data || [];
+      // 分頁查詢以支持超過 1000 筆的藥物記錄
+      let allData = [];
+      let pageNo = 0;
+      const PAGE_SIZE = 1000;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from('medication_drug_database')
+          .select('*')
+          .order('drug_name')
+          .range(pageNo * PAGE_SIZE, (pageNo + 1) * PAGE_SIZE - 1);
+        
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        
+        allData = allData.concat(data);
+        pageNo++;
+      }
+      
+      return allData;
     },
     enabled: isAuthenticated(),
     // 藥物資料庫變化較少，可以更長的 staleTime

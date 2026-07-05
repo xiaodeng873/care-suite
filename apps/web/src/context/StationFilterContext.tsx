@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { useStation } from './facility';
+import { supabase } from '../lib/supabase';
 
 interface StationFilterContextType {
   selectedStationIds: string[];
@@ -17,46 +18,77 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
   const storageKey = userProfile?.id ? `stationFilter_${userProfile.id}` : null;
 
   const [selectedStationIds, setSelectedStationIdsState] = useState<string[]>([]);
-  // 用 initializedKey 取代 boolean，確保 userProfile 後加載時能重讀對應 localStorage
   const [initializedKey, setInitializedKey] = useState<string | null>(null);
 
-  // 初始化：從 localStorage 讀取，fallback 全選
+  // 初始化：從資料庫或 localStorage 讀取
   useEffect(() => {
     if (!stations.length) return;
     const currentKey = storageKey ?? '__no_user__';
-    if (initializedKey === currentKey) return; // 已用此 key 初始化過，跳過
+    if (initializedKey === currentKey) return;
 
     const allIds = stations.map(s => s.id);
 
-    if (storageKey) {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved) as string[];
-          // 過濾掉已不存在的居住區
-          const validIds = parsed.filter(id => allIds.includes(id));
-          // 若有新增的居住區（不在已儲存清單中），自動納入選擇
-          const newStationIds = allIds.filter(id => !parsed.includes(id));
-          const mergedIds = [...validIds, ...newStationIds];
-          setSelectedStationIdsState(mergedIds.length > 0 ? mergedIds : allIds);
-        } catch {
-          setSelectedStationIdsState(allIds);
-        }
-      } else {
-        setSelectedStationIdsState(allIds);
-      }
-    } else {
-      setSelectedStationIdsState(allIds);
-    }
-    setInitializedKey(currentKey);
-  }, [stations, storageKey, initializedKey]);
+    const loadPreferences = async () => {
+      let selectedIds = allIds;
 
-  const setSelectedStationIds = useCallback((ids: string[]) => {
+      if (storageKey && userProfile?.id) {
+        try {
+          // 嘗試從資料庫讀取用戶偏好
+          const { data } = await supabase
+            .from('user_profiles')
+            .select('preferred_station_ids')
+            .eq('id', userProfile.id)
+            .single();
+
+          if (data?.preferred_station_ids && Array.isArray(data.preferred_station_ids)) {
+            // 檢查保存的 ID 是否仍有效
+            const validIds = (data.preferred_station_ids as string[]).filter(id => allIds.includes(id));
+            // 新增的居住區自動納入
+            const newStationIds = allIds.filter(id => !data.preferred_station_ids.includes(id));
+            selectedIds = validIds.length > 0 ? [...validIds, ...newStationIds] : allIds;
+          }
+        } catch {
+          // 資料庫讀取失敗，fallback 到 localStorage
+          const saved = localStorage.getItem(storageKey);
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved) as string[];
+              const validIds = parsed.filter(id => allIds.includes(id));
+              const newStationIds = allIds.filter(id => !parsed.includes(id));
+              selectedIds = validIds.length > 0 ? [...validIds, ...newStationIds] : allIds;
+            } catch {
+              selectedIds = allIds;
+            }
+          }
+        }
+      }
+
+      setSelectedStationIdsState(selectedIds);
+      setInitializedKey(currentKey);
+    };
+
+    loadPreferences();
+  }, [stations, storageKey, userProfile?.id, initializedKey]);
+
+  const setSelectedStationIds = useCallback(async (ids: string[]) => {
     setSelectedStationIdsState(ids);
+    
+    // 同時保存到 localStorage 和資料庫
     if (storageKey) {
       localStorage.setItem(storageKey, JSON.stringify(ids));
     }
-  }, [storageKey]);
+
+    if (userProfile?.id) {
+      try {
+        await supabase
+          .from('user_profiles')
+          .update({ preferred_station_ids: ids })
+          .eq('id', userProfile.id);
+      } catch (error) {
+        console.warn('無法保存居住區偏好設定:', error);
+      }
+    }
+  }, [storageKey, userProfile?.id]);
 
   const isFiltered = useMemo(() => {
     if (!initializedKey || !stations.length) return false;
