@@ -429,8 +429,6 @@ const MedicationWorkflow: React.FC = () => {
   const [selectedDateForMenu, setSelectedDateForMenu] = useState<string | null>(null);
   const [isDateMenuOpen, setIsDateMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
-  const [hoveredPrescriptionId, setHoveredPrescriptionId] = useState<string | null>(null);
-  const [medicationInfoPosition, setMedicationInfoPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [optimisticCrushState, setOptimisticCrushState] = useState<Map<number, boolean>>(new Map());
   const [optimisticWorkflowUpdates, setOptimisticWorkflowUpdates] = useState<Map<string, {
     preparation_status?: string;
@@ -1494,135 +1492,6 @@ const MedicationWorkflow: React.FC = () => {
     }
     return true;
   };
-  // 一鍵全程（即時備藥+口服+無檢測項）- 完成執藥、核藥、派藥全流程
-  const handleOneClickDispenseSpecial = async () => {
-    if (!selectedPatientId || !selectedDate) {
-      return;
-    }
-    const patientIdNum = parseInt(selectedPatientId);
-    if (isNaN(patientIdNum)) {
-      return;
-    }
-    setOneClickProcessing(prev => ({ ...prev, dispensing: true }));
-    try {
-      // 找到所有符合一鍵全程條件的當日即時備藥處方記錄（任何階段）
-      const eligibleRecords = currentDayWorkflowRecords.filter(r => {
-        const prescription = prescriptions.find(p => p.id === r.prescription_id);
-        // 只要符合即時備藥條件，無論目前在哪個階段
-        return canOneClickDispense(prescription);
-      });
-      if (eligibleRecords.length === 0) {
-        return;
-      }
-      // 統計各階段數量
-      let successCount = 0;
-      let hospitalizedCount = 0;
-      let vacationCount = 0;
-      let failCount = 0;
-      // 收集各階段成功的記錄 ID
-      const preparedIds: string[] = [];
-      const verifiedIds: string[] = [];
-      const dispensedSuccessIds: string[] = [];
-      const dispensedHospitalizedIds: string[] = [];
-      const dispensedVacationIds: string[] = [];
-      // 並行處理所有記錄
-      const results = await Promise.allSettled(
-        eligibleRecords.map(async (record) => {
-          // 檢查此筆記錄的服藥時間是否在入院期間
-          const inHospitalizationPeriod = isInHospitalizationPeriod(
-            patientIdNum,
-            record.scheduled_date,
-            record.scheduled_time
-          );
-          // 檢查此筆記錄的服藥時間是否在渡假期間
-          const inVacationPeriod = isInVacationPeriod(
-            patientIdNum,
-            record.scheduled_date,
-            record.scheduled_time
-          );
-          // 執行完整流程：執藥 -> 核藥 -> 派藥
-          try {
-            // 1. 執藥（如果還未執藥）
-            if (record.preparation_status === 'pending') {
-              await prepareMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, selectedDate);
-              preparedIds.push(record.id);
-            }
-            // 2. 核藥（如果還未核藥）
-            if (record.verification_status === 'pending') {
-              await verifyMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, selectedDate);
-              verifiedIds.push(record.id);
-            }
-            // 3. 派藥（如果還未派藥）
-            if (record.dispensing_status === 'pending') {
-              if (inHospitalizationPeriod) {
-                // 如果服藥時間在入院期間，自動標記為「入院」失敗原因
-                await dispenseMedication(record.id, displayName || '未知', '入院', undefined, patientIdNum, selectedDate);
-                dispensedHospitalizedIds.push(record.id);
-                return { type: 'hospitalized', recordId: record.id };
-              } else if (inVacationPeriod) {
-                // 如果服藥時間在渡假期間，自動標記為「回家」失敗原因
-                await dispenseMedication(record.id, displayName || '未知', '回家', undefined, patientIdNum, selectedDate);
-                dispensedVacationIds.push(record.id);
-                return { type: 'vacation', recordId: record.id };
-              } else {
-                // 正常派藥
-                await dispenseMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, selectedDate);
-                dispensedSuccessIds.push(record.id);
-                return { type: 'success', recordId: record.id };
-              }
-            }
-            return { type: 'already_completed', recordId: record.id };
-          } catch (error) {
-            console.error(`處理記錄 ${record.id} 失敗:`, error);
-            throw error;
-          }
-        })
-      );
-      // 批量更新本地狀態
-      if (preparedIds.length > 0) {
-        updateLocalWorkflowRecords(preparedIds, 'preparation', 'completed');
-      }
-      if (verifiedIds.length > 0) {
-        updateLocalWorkflowRecords(verifiedIds, 'verification', 'completed');
-      }
-      if (dispensedSuccessIds.length > 0) {
-        updateLocalWorkflowRecords(dispensedSuccessIds, 'dispensing', 'completed');
-      }
-      if (dispensedHospitalizedIds.length > 0) {
-        updateLocalWorkflowRecords(dispensedHospitalizedIds, 'dispensing', 'failed', '入院');
-      }
-      if (dispensedVacationIds.length > 0) {
-        updateLocalWorkflowRecords(dispensedVacationIds, 'dispensing', 'failed', '回家');
-      }
-      // 統計結果
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          switch (result.value.type) {
-            case 'success':
-              successCount++;
-              break;
-            case 'hospitalized':
-              hospitalizedCount++;
-              break;
-            case 'vacation':
-              vacationCount++;
-              break;
-          }
-        } else {
-          failCount++;
-        }
-      });
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          console.error(`一鍵全程失敗 (記錄ID: ${eligibleRecords[index].id}):`, result.reason);
-        }
-      });
-    } catch (error) {
-      console.error('一鍵全程失敗:', error);
-    } finally {
-      setOneClickProcessing(prev => ({ ...prev, dispensing: false }));
-    }
-  };
   // 一鍵派藥（僅當日）- 打開確認對話框
   const handleOneClickDispense = (targetDate?: string) => {
     if (!selectedPatientId) {
@@ -1844,132 +1713,6 @@ const MedicationWorkflow: React.FC = () => {
     } catch (error) {
       console.error('一鍵派藥失敗:', error);
       alert('一鍵派藥失敗，請查看控制台');
-    } finally {
-      setOneClickProcessing(prev => ({ ...prev, dispensing: false }));
-    }
-  };
-  // 為指定日期執行一鍵全程
-  const handleDateOneClickFullProcess = async (targetDate: string) => {
-    if (!selectedPatientId) {
-      return;
-    }
-    const patientIdNum = parseInt(selectedPatientId);
-    if (isNaN(patientIdNum)) {
-      return;
-    }
-    setOneClickProcessing(prev => ({ ...prev, dispensing: true }));
-    try {
-      // 找到指定日期所有符合一鍵全程條件的記錄（使用已應用樂觀更新的記錄）
-      const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate);
-      const eligibleRecords = dayWorkflowRecords.filter(r => {
-        const prescription = prescriptions.find(p => p.id === r.prescription_id);
-        return canOneClickDispense(prescription);
-      });
-      if (eligibleRecords.length === 0) {
-        return;
-      }
-      let successCount = 0;
-      let hospitalizedCount = 0;
-      let vacationCount = 0;
-      let failCount = 0;
-      // 收集各階段成功的記錄 ID
-      const preparedIds: string[] = [];
-      const verifiedIds: string[] = [];
-      const dispensedSuccessIds: string[] = [];
-      const dispensedHospitalizedIds: string[] = [];
-      const dispensedVacationIds: string[] = [];
-      // 並行處理所有記錄
-      const results = await Promise.allSettled(
-        eligibleRecords.map(async (record) => {
-          // 檢查是否在入院期間
-          const inHospitalizationPeriod = isInHospitalizationPeriod(
-            patientIdNum,
-            record.scheduled_date,
-            record.scheduled_time
-          );
-          // 檢查是否在渡假期間
-          const inVacationPeriod = isInVacationPeriod(
-            patientIdNum,
-            record.scheduled_date,
-            record.scheduled_time
-          );
-          // 執行完整流程：執藥 -> 核藥 -> 派藥
-          try {
-            // 1. 執藥（如果還未執藥）
-            if (record.preparation_status === 'pending') {
-              await prepareMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, targetDate);
-              preparedIds.push(record.id);
-            }
-            // 2. 核藥（如果還未核藥）
-            if (record.verification_status === 'pending') {
-              await verifyMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, targetDate);
-              verifiedIds.push(record.id);
-            }
-            // 3. 派藥（如果還未派藥）
-            if (record.dispensing_status === 'pending') {
-              if (inHospitalizationPeriod) {
-                await dispenseMedication(record.id, displayName || '未知', '入院', undefined, patientIdNum, targetDate);
-                dispensedHospitalizedIds.push(record.id);
-                return { type: 'hospitalized', recordId: record.id };
-              } else if (inVacationPeriod) {
-                await dispenseMedication(record.id, displayName || '未知', '回家', undefined, patientIdNum, targetDate);
-                dispensedVacationIds.push(record.id);
-                return { type: 'vacation', recordId: record.id };
-              } else {
-                await dispenseMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, targetDate);
-                dispensedSuccessIds.push(record.id);
-                return { type: 'success', recordId: record.id };
-              }
-            }
-            return { type: 'already_completed', recordId: record.id };
-          } catch (error) {
-            console.error(`處理記錄 ${record.id} 失敗:`, error);
-            throw error;
-          }
-        })
-      );
-      // 批量更新本地狀態
-      if (preparedIds.length > 0) {
-        updateLocalWorkflowRecords(preparedIds, 'preparation', 'completed');
-      }
-      if (verifiedIds.length > 0) {
-        updateLocalWorkflowRecords(verifiedIds, 'verification', 'completed');
-      }
-      if (dispensedSuccessIds.length > 0) {
-        updateLocalWorkflowRecords(dispensedSuccessIds, 'dispensing', 'completed');
-      }
-      if (dispensedHospitalizedIds.length > 0) {
-        updateLocalWorkflowRecords(dispensedHospitalizedIds, 'dispensing', 'failed', '入院');
-      }
-      if (dispensedVacationIds.length > 0) {
-        updateLocalWorkflowRecords(dispensedVacationIds, 'dispensing', 'failed', '回家');
-      }
-      // 統計結果
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          switch (result.value.type) {
-            case 'success':
-              successCount++;
-              break;
-            case 'hospitalized':
-              hospitalizedCount++;
-              break;
-            case 'vacation':
-              vacationCount++;
-              break;
-          }
-        } else {
-          failCount++;
-        }
-      });
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          console.error(`一鍵全程失敗 (記錄ID: ${eligibleRecords[index].id}):`, result.reason);
-        }
-      });
-    } catch (error) {
-      console.error('一鍵全程失敗:', error);
-      alert('一鍵全程失敗，請查看控制台');
     } finally {
       setOneClickProcessing(prev => ({ ...prev, dispensing: false }));
     }
@@ -2719,14 +2462,11 @@ const MedicationWorkflow: React.FC = () => {
                         行號
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        藥物詳情
+                        藥物名稱及劑型
                       </th>
-                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto landscape:w-20">
-                        使用次數
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto landscape:w-28">
+                        途徑/次數
                       </th>
-                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto landscape:w-20">
-                        劑量
-                    </th>
                     {weekDates.map((date) => {
                       const d = new Date(date);
                       const month = d.getMonth() + 1;
@@ -2852,24 +2592,6 @@ const MedicationWorkflow: React.FC = () => {
                                     <Users className="h-4 w-4" />
                                     <span>一鍵派藥</span>
                                   </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDateOneClickFullProcess(date);
-                                      setIsDateMenuOpen(false);
-                                      setSelectedDateForMenu(null);
-                                    }}
-                                    disabled={!canFullProcess || oneClickProcessing.dispensing}
-                                    className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
-                                      canFullProcess && !oneClickProcessing.dispensing
-                                        ? 'hover:bg-gray-100 text-gray-700 bg-purple-50'
-                                        : 'text-gray-400 cursor-not-allowed'
-                                    }`}
-                                    title={canFullProcess ? '完成當日所有即時備藥+口服+無檢測的全流程' : '當日無可全程記錄'}
-                                  >
-                                    <Zap className="h-4 w-4 text-purple-600" />
-                                    <span className="text-purple-700 font-medium">一鍵全程</span>
-                                  </button>
                                 </div>
                               </div>
                             </Portal>
@@ -2919,80 +2641,104 @@ const MedicationWorkflow: React.FC = () => {
                           {index + 1}
                         </td>
                         <td
-                          className="px-4 py-4 relative"
+                          className="px-4 py-4"
                           data-prescription-id={prescription.id}
-                          onMouseEnter={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setMedicationInfoPosition({
-                              top: rect.top,
-                              left: rect.right + 10
-                            });
-                            setHoveredPrescriptionId(prescription.id);
-                          }}
-                          onMouseLeave={() => {
-                            setHoveredPrescriptionId(null);
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setMedicationInfoPosition({
-                              top: rect.top,
-                              left: rect.right + 10
-                            });
-                            setHoveredPrescriptionId(hoveredPrescriptionId === prescription.id ? null : prescription.id);
-                          }}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors">
-                            {prescription.medication_name}
-                            <span className="ml-2 text-xs text-gray-400">
-                              {(prescription.inspection_rules && prescription.inspection_rules.length > 0) && '⚠️'}
-                              {prescription.preparation_method === 'immediate' && '⚡'}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900 w-auto landscape:w-10">
-                          <div className="space-y-1">
-                            {prescription.is_prn && (
-                              <div className="text-red-600 font-bold">PRN</div>
+                          <div className="space-y-1.5">
+                            {/* 藥物名稱及劑型 */}
+                            <div className="font-medium text-gray-900">
+                              {prescription.medication_name}
+                            </div>
+                            {prescription.dosage_form && (
+                              <div className="text-xs text-gray-500">{prescription.dosage_form}</div>
                             )}
-                            <div>
-                              {(() => {
-                                // 根據每日服用次數顯示標準縮寫
-                                const getFrequencyAbbreviation = (count: number) => {
-                                  switch (count) {
-                                    case 1: return 'QD';
-                                    case 2: return 'BD';
-                                    case 3: return 'TDS';
-                                    case 4: return 'QID';
-                                    default: return `${count}次/日`;
-                                  }
-                                };
-                                const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, daily_frequency } = prescription;
-                                switch (frequency_type) {
-                                  case 'daily':
-                                    return getFrequencyAbbreviation(daily_frequency || 1);
-                                  case 'every_x_days':
-                                    return `每隔${frequency_value}日`;
-                                  case 'every_x_months':
-                                    return `每隔${frequency_value}月`;
-                                  case 'weekly_days':
-                                    const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
-                                    const days = specific_weekdays?.map((day: number) => dayNames[day - 1]).join('、') || '';
-                                    return `逢${days}`;
-                                  case 'odd_even_days':
-                                    return is_odd_even_day === 'odd' ? '單日服' : is_odd_even_day === 'even' ? '雙日服' : '單雙日服';
-                                  case 'hourly':
-                                    return `每${frequency_value}小時`;
-                                  default:
-                                    return getFrequencyAbbreviation(daily_frequency || 1);
-                                }
-                              })()}
+                            {/* 其餘詳情 */}
+                            <div className="text-xs space-y-0.5 text-gray-600 mt-2 pt-2 border-t border-gray-200">
+                              {/* 檢測項要求（完整格式對齊 HTML 藥紙 formatInspectionRequirement） */}
+                              {prescription.inspection_rules && prescription.inspection_rules.length > 0 && (
+                                <div className="text-orange-600 font-medium">
+                                  {`服藥前檢測：${prescription.inspection_rules.map((r: any) => {
+                                    const OPERATOR_LABELS: Record<string, string> = { gt: '>', lt: '<', gte: '≥', lte: '≤' };
+                                    const ACTION_LABELS: Record<string, string> = { block_dispensing: '停服' };
+                                    const condition = `${r.vital_sign_type ?? ''}${OPERATOR_LABELS[r.condition_operator] ?? ''}${r.condition_value ?? ''}`;
+                                    const action = ACTION_LABELS[r.action_if_met ?? ''] ?? '';
+                                    return action ? `${condition} ${action}` : condition;
+                                  }).join('、')}`}
+                                </div>
+                              )}
+                              {/* 藥物來源 */}
+                              {prescription.medication_source && (
+                                <div>來源：{prescription.medication_source}</div>
+                              )}
+                              {/* 不可碎藥警告 */}
+                              {prescription.cannot_crush && (
+                                <div className="text-red-600 font-medium">⚠️ 不可碎藥</div>
+                              )}
+                              {/* 即時備藥 */}
+                              {prescription.preparation_method === 'immediate' && (
+                                <div className="text-blue-600 font-medium">⚡ 即時備藥</div>
+                              )}
+                              {/* 備註 */}
+                              {prescription.notes && (
+                                <div className="text-gray-700 mt-1">{prescription.notes}</div>
+                              )}
                             </div>
                           </div>
                         </td>
-                        <td className="px-2 py-4 text-sm text-gray-900 w-auto landscape:w-20">
-                          <div>每次 {prescription.dosage_amount || '1'}{prescription.dosage_unit || ''}</div>
-                          {prescription.dosage_form && <div className="text-xs text-gray-600 mt-0.5">{prescription.dosage_form}</div>}
+                        <td className="px-2 py-4 text-xs text-gray-900 w-auto landscape:w-28">
+                          {/* 途徑/次數欄 — 對應 HTML 藥紙 routeInfo 欄位 */}
+                          <div className="space-y-0.5">
+                            {/* 給藥途徑 */}
+                            {prescription.administration_route && (
+                              <div>{prescription.administration_route}</div>
+                            )}
+                            {/* 服藥頻率（對應 getFrequencyDescription） */}
+                            <div>
+                              {(() => {
+                                const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
+                                const perDay = (medication_time_slots?.length) || daily_frequency || frequency_value || 1;
+                                switch (frequency_type) {
+                                  case 'every_x_days': {
+                                    const gap = Number(frequency_value) || 1;
+                                    return `${gap === 1 ? '隔日' : `隔${gap}日`}${perDay}次`;
+                                  }
+                                  case 'every_x_months': return `隔${frequency_value}月${perDay}次`;
+                                  case 'weekly_days': {
+                                    const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+                                    const days = specific_weekdays?.map((d: number) => dayNames[d === 7 ? 0 : d]).join('、') ?? '';
+                                    return `逢${days}${perDay}次`;
+                                  }
+                                  case 'odd_even_days':
+                                    return is_odd_even_day === 'odd' ? `單日${perDay}次` : is_odd_even_day === 'even' ? `雙日${perDay}次` : `單雙日${perDay}次`;
+                                  case 'hourly': return `每${frequency_value}小時1次`;
+                                  case 'daily':
+                                  default: return `每日${perDay}次`;
+                                }
+                              })()}
+                            </div>
+                            {/* 進食時間（對應 getMealTimingLabel） */}
+                            {prescription.meal_timing && (
+                              <div>{prescription.meal_timing}</div>
+                            )}
+                            {/* 劑量（對應 getDosageText） */}
+                            {(() => {
+                              if (prescription.special_dosage_instruction) {
+                                return <div>{prescription.special_dosage_instruction}</div>;
+                              }
+                              if (prescription.dosage_amount) {
+                                const amt = String(prescription.dosage_amount);
+                                const unit = prescription.dosage_unit ?? '';
+                                const dosage = /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + unit : amt;
+                                return <div>每次{dosage}</div>;
+                              }
+                              return null;
+                            })()}
+                            {/* 需要時 PRN */}
+                            {prescription.is_prn && (
+                              <div className="text-red-600 font-medium">需要時</div>
+                            )}
+                          </div>
                         </td>
                         {weekDates.map((date) => {
                           const isSelectedDate = date === selectedDate;
@@ -3077,75 +2823,7 @@ const MedicationWorkflow: React.FC = () => {
                   })}
                 </tbody>
               </table>
-              {/* 藥物資訊懸浮清單 */}
-              {hoveredPrescriptionId && (
-                <Portal>
-                  <div
-                    className="fixed bg-white rounded-lg shadow-2xl border-2 border-blue-300 p-4 z-[99999] w-80"
-                    style={{
-                      top: `${medicationInfoPosition.top}px`,
-                      left: `${medicationInfoPosition.left}px`,
-                    }}
-                    onMouseEnter={() => setHoveredPrescriptionId(hoveredPrescriptionId)}
-                    onMouseLeave={() => setHoveredPrescriptionId(null)}
-                  >
-                    {(() => {
-                      const prescription = prescriptions.find(p => p.id === hoveredPrescriptionId);
-                      if (!prescription) return null;
-                      return (
-                        <div className="space-y-3">
-                          <div className="font-bold text-lg text-gray-900 border-b pb-2">
-                            {prescription.medication_name}
-                          </div>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
-                              <span className="text-gray-600">開始日期:</span>
-                              <span className="font-medium">{new Date(prescription.start_date).toLocaleDateString('zh-TW')}</span>
-                            </div>
-                            {prescription.end_date && (
-                              <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
-                                <span className="text-gray-600">結束日期:</span>
-                                <span className="font-medium">{new Date(prescription.end_date).toLocaleDateString('zh-TW')}</span>
-                              </div>
-                            )}
-                            <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
-                              <span className="text-gray-600">處方日期:</span>
-                              <span className="font-medium">{new Date(prescription.prescription_date).toLocaleDateString('zh-TW')}</span>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
-                              <span className="text-gray-600">藥物來源:</span>
-                              <span className="font-medium">{prescription.medication_source || '未指定'}</span>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
-                              <span className="text-gray-600">給藥途徑:</span>
-                              <span className="font-medium">{prescription.administration_route}</span>
-                            </div>
-                            {prescription.preparation_method === 'immediate' && (
-                              <div className="bg-blue-50 border border-blue-200 rounded p-2 flex items-center">
-                                <Zap className="h-4 w-4 text-blue-600 mr-2" />
-                                <span className="text-blue-600 font-medium">即時備藥</span>
-                              </div>
-                            )}
-                            {prescription.inspection_rules && prescription.inspection_rules.length > 0 && (
-                              <div className="bg-orange-50 border border-orange-200 rounded p-2 flex items-center">
-                                <AlertTriangle className="h-4 w-4 text-orange-600 mr-2" />
-                                <span className="text-orange-600 font-medium">有檢測項要求</span>
-                              </div>
-                            )}
-                            {prescription.notes && (
-                              <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
-                                <div className="text-yellow-800 font-medium mb-1">注意事項:</div>
-                                <div className="text-yellow-700">{prescription.notes}</div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </Portal>
-              )}
-              </div>
+            </div>
                 </div>
               ) : (
                 <div className="text-center py-12">

@@ -614,8 +614,10 @@ const renderPrescriptionBlock = (
   const inspectionRequirement = formatInspectionRequirement(prescription);
   const mealTimingLabel = getMealTimingLabel(prescription);
   const nameInfo = `<div class="mr-med-name">${escapeHtml(prescription.medication_name ?? '')}</div>`
+    + (prescription.dosage_form ? `<div class="mr-med-form">${escapeHtml(String(prescription.dosage_form))}</div>` : '')
     + (inspectionRequirement ? `<div class="mr-med-test">${escapeHtml(inspectionRequirement)}</div>` : '')
-    + (prescription.medication_source ? `<div class="mr-med-source">來源：${escapeHtml(String(prescription.medication_source))}</div>` : '');
+    + (prescription.medication_source ? `<div class="mr-med-source">來源：${escapeHtml(String(prescription.medication_source))}</div>` : '')
+    + (prescription.cannot_crush ? `<div class="mr-med-warning" style="color: #dc2626; font-weight: bold;">⚠️ 不可碎藥</div>` : '');
   const routeInfo = [
     prescription.administration_route ?? '',
     getFrequencyDescription(prescription),

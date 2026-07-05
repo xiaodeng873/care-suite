@@ -19,17 +19,18 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
     administration_route: drug?.administration_route || '',
     unit: drug?.unit || '',
     photo_url: drug?.photo_url || '',
-    notes: drug?.notes || ''
+    notes: drug?.notes || '',
+    cannot_crush: drug?.cannot_crush || false
   });
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(drug?.photo_url || null);
   const [isUploading, setIsUploading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
   };
 
@@ -97,7 +98,8 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
         administration_route: formData.administration_route || null,
         unit: formData.unit.trim() || null,
         photo_url: formData.photo_url || null,
-        notes: formData.notes.trim() || null
+        notes: formData.notes.trim() || null,
+        cannot_crush: formData.cannot_crush
       };
 
       if (drug?.id) {
@@ -259,6 +261,21 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
                 placeholder="例如：mg、ml、片、滴"
               />
             </div>
+          </div>
+
+          {/* 不可碎藥 */}
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              name="cannot_crush"
+              checked={formData.cannot_crush}
+              onChange={handleChange}
+              className="w-5 h-5 rounded border-gray-300 text-blue-600"
+            />
+            <label className="flex-1 cursor-pointer">
+              <span className="font-medium text-gray-900">不可碎藥</span>
+              <p className="text-sm text-gray-500 mt-1">若勾選，表示此藥物不可碎藥，須完整服用</p>
+            </label>
           </div>
 
           {/* 備註 */}

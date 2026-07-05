@@ -32,8 +32,9 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
       let selectedIds = allIds;
 
       if (storageKey && userProfile?.id) {
+        // 1. 先嘗試從資料庫讀取
+        let dbIds: string[] | null = null;
         try {
-          // 嘗試從資料庫讀取用戶偏好
           const { data } = await supabase
             .from('user_profiles')
             .select('preferred_station_ids')
@@ -41,14 +42,19 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
             .single();
 
           if (data?.preferred_station_ids && Array.isArray(data.preferred_station_ids)) {
-            // 檢查保存的 ID 是否仍有效
-            const validIds = (data.preferred_station_ids as string[]).filter(id => allIds.includes(id));
-            // 新增的居住區自動納入
-            const newStationIds = allIds.filter(id => !data.preferred_station_ids.includes(id));
-            selectedIds = validIds.length > 0 ? [...validIds, ...newStationIds] : allIds;
+            dbIds = data.preferred_station_ids as string[];
           }
         } catch {
-          // 資料庫讀取失敗，fallback 到 localStorage
+          // 資料庫讀取失敗，繼續嘗試 localStorage
+        }
+
+        if (dbIds !== null) {
+          // 資料庫有資料：用資料庫值，新增的居住區自動納入
+          const validIds = dbIds.filter(id => allIds.includes(id));
+          const newStationIds = allIds.filter(id => !dbIds!.includes(id));
+          selectedIds = validIds.length > 0 ? [...validIds, ...newStationIds] : allIds;
+        } else {
+          // 資料庫無資料（null）：嘗試從 localStorage 遷移
           const saved = localStorage.getItem(storageKey);
           if (saved) {
             try {
@@ -56,6 +62,12 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
               const validIds = parsed.filter(id => allIds.includes(id));
               const newStationIds = allIds.filter(id => !parsed.includes(id));
               selectedIds = validIds.length > 0 ? [...validIds, ...newStationIds] : allIds;
+              // 遷移：將 localStorage 資料寫入資料庫，下次登入直接用資料庫
+              supabase
+                .from('user_profiles')
+                .update({ preferred_station_ids: selectedIds })
+                .eq('id', userProfile.id)
+                .then(() => {});
             } catch {
               selectedIds = allIds;
             }
