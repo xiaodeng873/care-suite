@@ -507,9 +507,8 @@ const Dashboard: React.FC = () => {
         if (!isDateCompleted) {
           const incompleteDate = new Date(checkDate);
           incompleteDates.push(incompleteDate);
-          if (!firstIncompleteDate) {
-            firstIncompleteDate = incompleteDate;
-          }
+          // 持續覆寫：循環從今天往回扫描，最後賦値 = 最早未完成日期
+          firstIncompleteDate = incompleteDate;
         }
       }
       if (firstIncompleteDate) {

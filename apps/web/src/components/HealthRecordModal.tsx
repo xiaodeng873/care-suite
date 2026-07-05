@@ -229,11 +229,26 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
 
   const [showDateWarning, setShowDateWarning] = useState(false);
   const dwHandlers = useRef({ confirm: async () => {}, cancel: () => {} });
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && !showDateWarning) onClose(); };
     window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
   }, [onClose, showDateWarning]);
+
+  // Enter 鍵快捷儲存（textarea/select/button 除外）
+  useEffect(() => {
+    if (showDateWarning) return;
+    const h = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter') return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
+      e.preventDefault();
+      formRef.current?.requestSubmit();
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [showDateWarning]);
 
   useEffect(() => {
     if (!showDateWarning) return;
@@ -410,7 +425,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="h-6 w-6" /></button>
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="form-label"><User className="h-4 w-4 inline mr-1" />院友 *</label>

@@ -51,7 +51,7 @@ import { exportRestraintObservationHtml, exportRestraintObservationRangeHtml } f
 import { exportDiaperRecordHtml, exportDiaperRecordRangeHtml } from '../utils/diaperRecordHtmlExporter';
 import { exportHygieneRecordHtml, exportHygieneRecordRangeHtml } from '../utils/hygieneRecordHtmlExporter';
 import { exportIntakeOutputRangeHtml, convertDbRecordToRow } from '../utils/intakeOutputHtmlGenerator';
-import { exportPatrolRoundsRangeHtml } from '../utils/patrolRoundsHtmlExporter';
+import { exportPatrolRoundsHtml, exportPatrolRoundsRangeHtml } from '../utils/patrolRoundsHtmlExporter';
 import { getFacilitySettings } from '../utils/facilitySettings';
 type TabType = 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene';
 // 衛生記錄項目配置（16項：備註 + 11護理項目 + 4大便項目）

@@ -38,12 +38,18 @@ export function isTaskScheduledForDate(task: any, date: Date): boolean {
         return `${c.getUTCFullYear()}-${String(c.getUTCMonth() + 1).padStart(2, '0')}-${String(c.getUTCDate()).padStart(2, '0')}`;
       })()
     : null;
+  // 若明確設定了 start_date，以本地日期作為排程邊界（允許早於 created_at UTC 日期）。
+  // 修正：今日新增、start_date 為昨日的任務，昨日應被視為已排程（逾期）。
+  const effectiveBoundaryStr = task.start_date
+    ? (() => {
+        const s = new Date(task.start_date);
+        return `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`;
+      })()
+    : createdBoundaryStr;
   if (task.frequency_unit === 'daily') {
     const freqValue = task.frequency_value || 1;
     if (freqValue === 1) {
-      // [修復] 與 weekly/monthly 一致：不要把任務建立日期之前的日子視為已排程
-      // （避免遷移前未記錄的日子被誤判為逾期）
-      if (createdBoundaryStr && formatLocalDate(date) < createdBoundaryStr) {
+      if (effectiveBoundaryStr && formatLocalDate(date) < effectiveBoundaryStr) {
         return false;
       }
       return true;
@@ -57,6 +63,10 @@ export function isTaskScheduledForDate(task: any, date: Date): boolean {
        if (targetDate > lastCompleted) {
          anchorDate = lastCompleted;
        }
+    }
+    if (!anchorDate && task.start_date) {
+      anchorDate = new Date(task.start_date);
+      anchorDate.setHours(0, 0, 0, 0);
     }
     if (!anchorDate && task.created_at) {
       anchorDate = new Date(task.created_at);
@@ -77,7 +87,7 @@ export function isTaskScheduledForDate(task: any, date: Date): boolean {
        const targetDate = new Date(date);
        targetDate.setHours(0, 0, 0, 0);
        const targetDateStr = formatLocalDate(targetDate);
-       if (createdBoundaryStr && targetDateStr < createdBoundaryStr) {
+       if (effectiveBoundaryStr && targetDateStr < effectiveBoundaryStr) {
          return false;
        }
        const day = date.getDay();
@@ -92,7 +102,7 @@ export function isTaskScheduledForDate(task: any, date: Date): boolean {
      if (task.specific_days_of_month && task.specific_days_of_month.length > 0) {
        const targetDate = new Date(date);
        targetDate.setHours(0, 0, 0, 0);
-       if (createdBoundaryStr && formatLocalDate(targetDate) < createdBoundaryStr) {
+       if (effectiveBoundaryStr && formatLocalDate(targetDate) < effectiveBoundaryStr) {
          return false;
        }
        return task.specific_days_of_month.includes(date.getDate());
@@ -486,7 +496,7 @@ export function getFirstIncompleteMonitoringDate(task: PatientHealthTask, record
           recordLookup.has(`${task.patient_id}_${task.health_record_type}_${dateStr}`);
       }
     }
-    if (!completed && !firstIncomplete) firstIncomplete = new Date(checkDate);
+    if (!completed) firstIncomplete = new Date(checkDate); // 持續覆寫：循環從今天往回扫描，最後賦値 = 最早未完成日期
   }
   return firstIncomplete;
 }

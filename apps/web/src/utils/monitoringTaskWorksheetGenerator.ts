@@ -49,7 +49,7 @@ const WORKSHEET_CATEGORY_MAP: Record<string, '生命表徵' | '血糖控制' | '
 const MONITORING_WORKSHEET_TYPES = [
   '血壓', '脈搏', '血含氧量', '呼吸', '血糖值', '體重',
 ];
-const fetchTasksForDate = async (targetDate: Date): Promise<TimeSlotTasks> => {
+const fetchTasksForDate = async (targetDate: Date, patientIds?: Set<number>): Promise<TimeSlotTasks> => {
   const { data: allTasks, error } = await supabase
     .from('patient_health_tasks')
     .select(`
@@ -85,6 +85,7 @@ const fetchTasksForDate = async (targetDate: Date): Promise<TimeSlotTasks> => {
   };
   allTasks?.forEach((task: any) => {
     if (task.院友主表.在住狀態 !== '在住') return;
+    if (patientIds && !patientIds.has(task.patient_id)) return;
     const isScheduled = isTaskScheduledForDate(task, targetDateCopy);
     if (!isScheduled) return;
     const taskType = WORKSHEET_CATEGORY_MAP[task.health_record_type as string];
@@ -125,12 +126,12 @@ const fetchTasksForDate = async (targetDate: Date): Promise<TimeSlotTasks> => {
   });
   return timeSlotTasks;
 };
-export const generateMonitoringTaskWorksheet = async (startDate: Date) => {
+export const generateMonitoringTaskWorksheet = async (startDate: Date, patientIds?: Set<number>) => {
   const daysData: DayData[] = [];
   for (let i = 0; i < 4; i++) {
     const targetDate = new Date(startDate);
     targetDate.setDate(startDate.getDate() + i);
-    const tasks = await fetchTasksForDate(targetDate);
+    const tasks = await fetchTasksForDate(targetDate, patientIds);
     console.log(`第 ${i + 1} 天任務數量:`, {
       早餐: tasks.早餐.length,
       午餐: tasks.午餐.length,

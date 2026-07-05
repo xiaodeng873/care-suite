@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, FileText } from 'lucide-react';
 import { generateMonitoringTaskWorksheet } from '../utils/monitoringTaskWorksheetGenerator';
+import { usePatients } from '../context/PatientContext';
 
 interface MonitoringTaskWorksheetModalProps {
   onClose: () => void;
 }
 
 const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> = ({ onClose }) => {
+  const { stations, patients } = usePatients();
+  const [selectedStationId, setSelectedStationId] = useState<string>('all');
+
   const getHongKongDate = () => {
     const now = new Date();
     const hongKongTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
@@ -44,13 +48,21 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
     return `監測任務工作紙_${formatDate(start)}-${formatDate(end).slice(4)}.pdf`;
   };
 
+  const patientIdsForStation = useMemo(() => {
+    if (selectedStationId === 'all') return undefined;
+    const ids = patients
+      .filter(p => p.station_id === selectedStationId && p.在住狀態 === '在住')
+      .map(p => p.院友id as number);
+    return new Set(ids);
+  }, [selectedStationId, patients]);
+
   const handleExport = async () => {
     setIsGenerating(true);
     setError(null);
     setSuccess(false);
     try {
       const date = new Date(startDate);
-      await generateMonitoringTaskWorksheet(date);
+      await generateMonitoringTaskWorksheet(date, patientIdsForStation);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {
@@ -82,6 +94,24 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
         </div>
 
         <div className="p-6 space-y-4">
+          {stations.length > 1 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                居住區
+              </label>
+              <select
+                value={selectedStationId}
+                onChange={(e) => setSelectedStationId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">全部居住區</option>
+                {stations.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               選擇起始日期

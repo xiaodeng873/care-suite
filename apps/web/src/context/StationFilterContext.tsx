@@ -33,7 +33,10 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
           const parsed = JSON.parse(saved) as string[];
           // 過濾掉已不存在的居住區
           const validIds = parsed.filter(id => allIds.includes(id));
-          setSelectedStationIdsState(validIds.length > 0 ? validIds : allIds);
+          // 若有新增的居住區（不在已儲存清單中），自動納入選擇
+          const newStationIds = allIds.filter(id => !parsed.includes(id));
+          const mergedIds = [...validIds, ...newStationIds];
+          setSelectedStationIdsState(mergedIds.length > 0 ? mergedIds : allIds);
         } catch {
           setSelectedStationIdsState(allIds);
         }
