@@ -16,7 +16,8 @@ import {
   X,
   Settings,
   Download,
-  QrCode
+  QrCode,
+  Printer
 } from 'lucide-react';
 import * as QRCode from 'qrcode';
 import { usePatients } from '../context/PatientContext';
@@ -28,6 +29,9 @@ import BedSwapModal from '../components/BedSwapModal';
 import PatientTooltip from '../components/PatientTooltip';
 import StationManagementModal from '../components/StationManagementModal';
 import { exportBedLayoutToExcel } from '../utils/bedLayoutExcelGenerator';
+import { printBedList } from '../utils/bedListHtmlGenerator';
+import { getFacilitySettings } from '../utils/facilitySettings';
+import { supabase } from '../lib/supabase';
 import { fuzzyMatch, matchChineseName , matchBedNumber } from '../utils/searchUtils';
 const StationBedManagement: React.FC = () => {
   const { 
@@ -52,6 +56,8 @@ const StationBedManagement: React.FC = () => {
   const [occupancyFilter, setOccupancyFilter] = useState('all');
   const [selectedStationsForExport, setSelectedStationsForExport] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
+  const [showPrintStationModal, setShowPrintStationModal] = useState(false);
+  const [selectedStationForPrint, setSelectedStationForPrint] = useState<string>('');
   
   // 下載床位 QR Code
   const downloadBedQRCode = async (bed: any) => {
@@ -250,6 +256,52 @@ const StationBedManagement: React.FC = () => {
     }
     setSelectedStationsForExport(newSelection);
   };
+  const handlePrintBedList = async (stationId: string) => {
+    const station = stations.find(s => s.id === stationId);
+    if (!station) return;
+    const stationBeds = beds.filter(b => b.station_id === stationId)
+      .sort((a, b) => a.bed_number.localeCompare(b.bed_number, 'zh-Hant', { numeric: true }));
+    const stationPatientIds = stationBeds
+      .map(bed => patients.find(p => p.bed_id === bed.id && p.在住狀態 === '在住'))
+      .filter(Boolean)
+      .map(p => p!.院友id);
+    // 並行取 logo 和特別關顧人數
+    const [facilitySettings, taskResult] = await Promise.all([
+      getFacilitySettings().catch(() => null),
+      stationPatientIds.length > 0
+        ? supabase
+            .from('patient_health_tasks')
+            .select('patient_id')
+            .eq('notes', '特別關顧')
+            .in('patient_id', stationPatientIds)
+        : Promise.resolve({ data: [] as { patient_id: number }[] }),
+    ]);
+    const specialIds = new Set((taskResult.data ?? []).map(r => r.patient_id));
+    const specialCareCount = specialIds.size;
+    const bedList = stationBeds.map(bed => {
+      const patient = patients.find(p => p.bed_id === bed.id && p.在住狀態 === '在住');
+      return {
+        bed_number: bed.bed_number,
+        patient: patient
+          ? {
+              name: `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`.trim() || patient.中文姓名 || '',
+              gender: patient.性別,
+              admissionType: patient.入住類型,
+              careLevel: patient.護理等級,
+              infectionControl: patient.感染控制 ?? null,
+            }
+          : null,
+      };
+    });
+    printBedList({
+      stationName: station.name,
+      facilityName: facilitySettings?.facilityNameZh || '善頤(福群)護老院',
+      logoBase64: facilitySettings?.logoDataUri || undefined,
+      beds: bedList,
+      specialCareCount,
+    });
+  };
+
   const handleConfirmExport = async () => {
     if (selectedStationsForExport.size === 0) {
       alert('請至少選擇一個居住區');
@@ -295,6 +347,13 @@ const StationBedManagement: React.FC = () => {
           >
             <Download className="h-4 w-4" />
             <span>匯出床位表</span>
+          </button>
+          <button
+            onClick={() => setShowPrintStationModal(true)}
+            className="btn-secondary flex flex-wrap items-center gap-2"
+          >
+            <Printer className="h-4 w-4" />
+            <span>列印床位表</span>
           </button>
         </div>
       </div>
@@ -704,6 +763,52 @@ const StationBedManagement: React.FC = () => {
                 取消
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* 列印床位表：選擇居住區 */}
+      {showPrintStationModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowPrintStationModal(false); }}
+        >
+          <div className="bg-white rounded-lg max-w-sm w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-100">
+                  <Printer className="h-5 w-5 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">列印床位表</h3>
+              </div>
+              <button onClick={() => setShowPrintStationModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">選擇要列印的居住區：</p>
+            <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
+              {stations.map(station => {
+                const stats = getStationStats(station.id);
+                return (
+                  <button
+                    key={station.id}
+                    onClick={() => {
+                      setShowPrintStationModal(false);
+                      handlePrintBedList(station.id);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 border rounded-lg hover:bg-blue-50 hover:border-blue-300 text-left transition-colors"
+                  >
+                    <Building2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                    <div>
+                      <span className="font-medium text-gray-900">{station.name}</span>
+                      <div className="text-xs text-gray-500">
+                        {stats.totalBeds} 床位 · {stats.occupiedBeds} 已佔用 · {stats.availableBeds} 空置
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <button onClick={() => setShowPrintStationModal(false)} className="btn-secondary w-full">取消</button>
           </div>
         </div>
       )}

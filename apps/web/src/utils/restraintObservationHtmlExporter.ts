@@ -671,3 +671,26 @@ export const exportRestraintObservationHtml = (
     alert('無法建立列印框架');
   }
 };
+
+// ── 日期範圍版匯出（每4天一頁）──────────────────────────────────
+export const exportRestraintObservationRangeHtml = (
+  patient: Patient,
+  records: RestraintObservationRecord[],
+  assessment: PatientRestraintAssessment | null,
+  startDate: string,
+  endDate: string,
+  facilityName: string = '善頤(福群)護老院'
+): void => {
+  import('./printUtils').then(({ printCombinedHtml, dateChunks, addDays }) => {
+    const chunks = dateChunks(startDate, endDate, 4);
+    const pages = chunks.map(chunkStart => {
+      const chunkEnd = addDays(chunkStart, 3);
+      return generateRestraintObservationHtml({
+        patient, records, assessment,
+        dateRange: { start: chunkStart, end: chunkEnd },
+        facilityName,
+      });
+    });
+    printCombinedHtml(pages, 'restraint-print-iframe');
+  });
+};

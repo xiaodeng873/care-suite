@@ -208,7 +208,7 @@ const ROW_SUMMARY_MM = 6;             // 彙總列（mr-summary td）實際列�
 const ROW_INSP_MM = 6;                // 檢測值列（mr-insp-body-row）實際列高
 const MIN_BLOCK_MM = 16;              // 單時段處方左欄多行內容（途徑最多4行）保守高度下限
 const FILLER_BLOCK_MM = MIN_SLOT_ROWS * ROW_SIGN_MM; // 一個空白處方區塊（4列）高度
-const FOOTER_FIXED_MM = 1;            // 頁碼標籤高度（8pt字體約 1mm）
+const FOOTER_FIXED_MM = 4;            // 頁碼標籤高度（8pt字體≈2.82mm + 瀏覽器行高差異安全邊距）
 const SAFETY_MARGIN_MM = 0;           // 移除安全邊距，讓 footer 能貼底填滿
 const AM_SECTION_MIN = 2;             // 處方列上午時段區最少預留列數（≤12:00，PM 從第3行起）
 const SUMMARY_AM_MIN = 3;             // 彙總區上午時段區最少預留列數（PM 從第4行起）
@@ -1113,14 +1113,14 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
   page-break-after: always;
   break-after: page;
 }
 .mr-page:last-child { page-break-after: auto; break-after: auto; }
 /* 頂部彈性留白已廢用，footer 改用 margin-top: auto 絕對貼底 */
 .mr-top-spacer { display: none; }
-.mr-body { flex: 0 0 auto; overflow: visible; }
+.mr-body { flex: 0 0 auto; overflow: hidden; }
 
 /* 頂置院友資訊區 */
 .mr-header { flex: 0 0 auto; margin-bottom: 1mm; }

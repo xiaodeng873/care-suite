@@ -417,3 +417,28 @@ export const exportHygieneRecordHtml = (
     alert('無法建立列印框架');
   }
 };
+
+// ── 日期範圍版匯出（每月一頁）──────────────────────────────────
+export const exportHygieneRecordRangeHtml = (
+  patient: Patient,
+  records: HygieneRecord[],
+  startDate: string,
+  endDate: string,
+  facilityName: string = '善頤(福群)護老院'
+): void => {
+  import('./printUtils').then(({ printCombinedHtml }) => {
+    const pages: string[] = [];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let y = start.getFullYear();
+    let m = start.getMonth() + 1;
+    const ey = end.getFullYear();
+    const em = end.getMonth() + 1;
+    while (y < ey || (y === ey && m <= em)) {
+      pages.push(generateHygieneRecordHtml({ patient, records, year: y, month: m, facilityName }));
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+    printCombinedHtml(pages, 'hygiene-print-iframe');
+  });
+};

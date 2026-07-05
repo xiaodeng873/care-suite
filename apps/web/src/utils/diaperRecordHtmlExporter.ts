@@ -407,3 +407,25 @@ export const exportDiaperRecordHtml = (
     alert('無法建立列印框架');
   }
 };
+
+// ── 日期範圍版匯出（每4天一頁）──────────────────────────────────
+export const exportDiaperRecordRangeHtml = (
+  patient: Patient,
+  records: DiaperChangeRecord[],
+  startDate: string,
+  endDate: string,
+  facilityName: string = '善頤(福群)護老院'
+): void => {
+  import('./printUtils').then(({ printCombinedHtml, dateChunks, addDays }) => {
+    const chunks = dateChunks(startDate, endDate, 4);
+    const pages = chunks.map(chunkStart => {
+      const chunkEnd = addDays(chunkStart, 3);
+      return generateDiaperRecordHtml({
+        patient, records,
+        dateRange: { start: chunkStart, end: chunkEnd },
+        facilityName,
+      });
+    });
+    printCombinedHtml(pages, 'diaper-print-iframe');
+  });
+};

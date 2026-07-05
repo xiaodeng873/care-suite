@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=820, initial-scale=1">
+<title>善頤(福群)護老院 出入量記錄表</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+@page { size: A4 portrait; margin: 5mm; }
+body {
+  font-family: 'Microsoft JhengHei', '微軟正黑體', 'PingFang TC', sans-serif;
+  font-size: 7.5pt;
+  color: #111;
+  background: #fff;
+}
+@media screen {
+  html { background: #c8ccd0; min-height: 100%; }
+  body { background: #c8ccd0; }
+  .pw  { padding: 8mm; }
+  .page { box-shadow: 0 4px 20px rgba(0,0,0,.25); }
+}
+@media print {
+  html, body { background: white; }
+  .pw  { display: block; }
+  .page { box-shadow: none; }
+  .no-print { display: none !important; }
+}
+/* 置中 */
+.pw { min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; }
+.page {
+  width: 200mm;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+/* ── 表頭 ── */
+.hdr {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  padding-bottom: 2mm;
+  border-bottom: 1.5px solid #1f2937;
+  margin-bottom: 2mm;
+}
+.logo { width: 14mm; height: 14mm; object-fit: contain; flex-shrink: 0; }
+.logo-ph { width: 14mm; height: 14mm; border: 1px dashed #bbb; flex-shrink: 0; }
+.hdr-info { flex: 1; }
+.facility { font-size: 13pt; font-weight: bold; color: #1f2937; }
+.doc-title { font-size: 10pt; font-weight: bold; color: #0f766e; margin-top: 1mm; letter-spacing: .5pt; }
+.hdr-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1mm 3mm;
+  margin-top: 2mm;
+  font-size: 8pt;
+}
+.hdr-field { display: flex; gap: 1mm; align-items: baseline; }
+.hdr-label { color: #555; white-space: nowrap; }
+.hdr-val { border-bottom: 1px solid #888; flex: 1; min-width: 20mm; font-weight: 600; }
+.hdr-meal {
+  margin-top: 2.5mm;
+  padding: 1.5mm 2mm;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2mm 5mm;
+  font-size: 8.5pt;
+}
+.hdr-meal-item { display: flex; gap: 1.5mm; align-items: center; }
+.hdr-meal-label { color: #166534; font-weight: 700; white-space: nowrap; }
+.hdr-meal-val { color: #14532d; font-weight: 600; }
+.hdr-meal-tag {
+  display: inline-block;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 3px;
+  padding: 0 3px;
+  font-size: 8pt;
+  color: #166534;
+  font-weight: 600;
+}
+
+/* ── 主表格 ── */
+.io-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.io-table th, .io-table td {
+  border: 0.5pt solid #6b7280;
+  vertical-align: middle;
+  padding: 0.3mm 0.8mm;
+  font-size: 7pt;
+  overflow: hidden;
+  line-height: 1.2;
+}
+.io-table thead th {
+  background: #e8eef4;
+  font-weight: bold;
+  text-align: center;
+  font-size: 7pt;
+}
+.io-table thead .th-group {
+  background: #1f2937;
+  color: #fff;
+  font-size: 7.5pt;
+  letter-spacing: 0.3pt;
+}
+.io-table tbody tr { height: 9mm; }
+.io-table tbody tr:nth-child(odd)  { background: #fff; }
+.io-table tbody tr:nth-child(even) { background: #f9fafb; }
+/* 跨夜分隔：23:00後換班 */
+.io-table tbody tr.night-break td { border-top: 1.5pt solid #374151; }
+
+.io-table td.tc { text-align: center; font-weight: 600; font-size: 7.5pt; }
+.io-table td.tl { text-align: left; }
+.io-table td.tr { text-align: right; }
+
+/* ── 總量統計 ── */
+.totals {
+  margin-top: 2mm;
+  border: 1pt solid #374151;
+  border-radius: 2px;
+  padding: 2mm 3mm;
+  display: flex;
+  gap: 6mm;
+  align-items: center;
+  font-size: 8.5pt;
+}
+.totals-label { font-weight: bold; color: #334155; }
+.totals-item { display: flex; gap: 2mm; align-items: baseline; }
+.totals-key { color: #64748b; }
+.totals-val { font-weight: 700; font-size: 10pt; color: #1e293b; min-width: 12mm; text-align: right; }
+.totals-val.neg { color: #dc2626; }
+.totals-val.pos { color: #16a34a; }
+
+/* ── 列印按鈕 ── */
+.print-btn {
+  position: fixed; top: 12px; right: 12px;
+  background: #2563eb; color: #fff; border: none;
+  padding: 8px 18px; border-radius: 6px; cursor: pointer;
+  font-size: 13px; font-family: inherit; font-weight: 600;
+  box-shadow: 0 2px 8px rgba(37,99,235,.4); z-index: 9999;
+}
+.print-btn:hover { background: #1d4ed8; }
+</style>
+</head>
+<body>
+<button class="print-btn no-print" onclick="window.print()">列印</button>
+<div class="pw">
+<div class="page">
+  <!-- 表頭 -->
+  <div class="hdr">
+    <div class="logo-ph"></div>
+    <div class="hdr-info">
+      <div class="facility">善頤(福群)護老院</div>
+      <div class="doc-title">個人出入量記錄表</div>
+      <div class="hdr-fields">
+        <div class="hdr-field"><span class="hdr-label">院友姓名：</span><span class="hdr-val">許樂麗</span></div>
+        <div class="hdr-field"><span class="hdr-label">院號/床號：</span><span class="hdr-val">C202-1</span></div>
+        <div class="hdr-field"><span class="hdr-label">性別/年齡：</span><span class="hdr-val">女/93</span></div>
+        <div class="hdr-field"><span class="hdr-label">記錄日期：</span><span class="hdr-val">2026/07/04</span></div>
+        <div class="hdr-field"><span class="hdr-label">目標攝入量：</span><span class="hdr-val">1500 ml/日</span></div>
+      </div>
+      
+      <div class="hdr-meal">
+        <div class="hdr-meal-item"><span class="hdr-meal-label">餐膳組合：</span><span class="hdr-meal-val">正飯+碎餸</span></div>
+        <div class="hdr-meal-item"><span class="hdr-meal-label">特別餐單：</span><span class="hdr-meal-tag">糖尿餐</span><span class="hdr-meal-tag">低鹽餐</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主表格 -->
+  <table class="io-table">
+    <colgroup>
+      <col style="width:10mm"><!-- 時間 -->
+      <col style="width:26mm"><!-- 餐膳 -->
+      <col style="width:15mm"><!-- 飲料種類 -->
+      <col style="width:15mm"><!-- 飲料ml -->
+      <col style="width:15mm"><!-- 鼻胃飼種類 -->
+      <col style="width:15mm"><!-- 鼻胃飼ml -->
+      <col style="width:20mm"><!-- 其他 -->
+      <col style="width:17mm"><!-- 胃液色+pH -->
+      <col style="width:18mm"><!-- 胃液ml -->
+      <col style="width:12mm"><!-- 尿色 -->
+      <col style="width:16mm"><!-- 尿液ml -->
+      <col style="width:21mm"><!-- 記錄員+備注 -->
+    </colgroup>
+    <thead>
+      <tr>
+        <th rowspan="3">時間</th>
+        <th colspan="6" class="th-group">攝　入</th>
+        <th colspan="4" class="th-group">排　出</th>
+        <th rowspan="3">記錄員<br>備注</th>
+      </tr>
+      <tr>
+        <th rowspan="2">餐膳<br><span style="font-weight:normal;font-size:6pt">早/午/茶/晚</span></th>
+        <th colspan="2">飲料</th>
+        <th colspan="2">鼻胃飼</th>
+        <th rowspan="2">其他</th>
+        <th colspan="2">胃液</th>
+        <th colspan="2">尿液</th>
+      </tr>
+      <tr>
+        <th>種類</th><th>ml</th>
+        <th>種類</th><th>ml</th>
+        <th>顏色/pH</th><th>ml</th>
+        <th>顏色</th><th>ml</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+      <td class="tc">07:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">08:00</td>
+      <td class="tl">早 1/2</td>
+      <td class="tl">水</td>
+      <td class="tr">200</td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl">陳</td>
+    </tr><tr>
+      <td class="tc">09:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">10:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">11:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">12:00</td>
+      <td class="tl">午 3/4</td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl">Isocal</td>
+      <td class="tr">250</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl">李</td>
+    </tr><tr>
+      <td class="tc">13:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">14:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">15:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">16:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl">黃</td>
+      <td class="tr">250</td>
+      <td class="tl">李</td>
+    </tr><tr>
+      <td class="tc">17:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">18:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">19:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">20:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">21:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">22:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">23:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">00:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">01:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">02:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">03:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">04:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">05:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr><tr>
+      <td class="tc">06:00</td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+      <td class="tr"></td>
+      <td class="tl"></td>
+    </tr>
+    </tbody>
+  </table>
+
+  <!-- 總量統計 -->
+  <div class="totals">
+    <span class="totals-label">24小時統計</span>
+    <div class="totals-item">
+      <span class="totals-key">攝入總量(ml)</span>
+      <span class="totals-val">450</span>
+    </div>
+    <div class="totals-item">
+      <span class="totals-key">排出總量(ml)</span>
+      <span class="totals-val">250</span>
+    </div>
+    <div class="totals-item">
+      <span class="totals-key">出入平衡(ml)</span>
+      <span class="totals-val pos">+200</span>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>
