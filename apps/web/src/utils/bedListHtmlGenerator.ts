@@ -55,6 +55,11 @@ function roomOf(bedNum: string): string {
   return i > 0 ? bedNum.slice(0, i) : bedNum;
 }
 
+function stripCodePrefix(s: string): string {
+  // 去掉第一個字母（代號），e.g. 'C202' → '202', 'C202-1' → '202-1'
+  return s.slice(1);
+}
+
 export function generateBedListHtml(input: BedListInput): string {
   const {
     stationName,
@@ -130,17 +135,17 @@ export function generateBedListHtml(input: BedListInput): string {
   const renderBedRow = (bed: BedListBed, idx: number): string => {
     const alt = idx % 2 === 1 ? ' br-alt' : '';
     if (!bed.patient) {
-      return `<div class="br br-e${alt}"><span class="bnum-e">${bed.bed_number}</span><span class="bempty-tag">空床</span></div>`;
+      return `<div class="br br-e${alt}"><span class="bnum-e">${stripCodePrefix(bed.bed_number)}</span><span class="bempty-tag">空床</span></div>`;
     }
     const lbl = typeLabel(bed.patient.admissionType);
     const cls = badgeClass(bed.patient.admissionType);
-    return `<div class="br${alt}"><span class="bnum">${bed.bed_number}</span>${cls ? `<span class="${cls}">${lbl}</span>` : ''}<span class="bname">${bed.patient.name}</span></div>`;
+    return `<div class="br${alt}"><span class="bnum">${stripCodePrefix(bed.bed_number)}</span>${cls ? `<span class="${cls}">${lbl}</span>` : ''}<span class="bname">${bed.patient.name}</span></div>`;
   };
 
   /* ── 6. 渲染房間卡片 ── */
   const renderRoom = ([roomId, roomBeds]: [string, BedListBed[]]): string => {
     const rows = roomBeds.map((b, i) => renderBedRow(b, i)).join('');
-    return `<div class="rc"><div class="rh">${roomId}房</div><div class="rbed">${rows}<div class="rsp"></div></div></div>`;
+    return `<div class="rc"><div class="rh">${stripCodePrefix(roomId)}房</div><div class="rbed">${rows}<div class="rsp"></div></div></div>`;
   };
 
   /* ── 7. 組裝卡片列 ── */

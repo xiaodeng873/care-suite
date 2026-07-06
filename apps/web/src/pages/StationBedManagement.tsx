@@ -617,9 +617,6 @@ const StationBedManagement: React.FC = () => {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-lg font-semibold text-gray-900">{station.name}</h2>
-                      {station.code && (
-                        <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-semibold">代號 {station.code}</span>
-                      )}
                       <span className="text-xs text-gray-500">{stationRooms.length} 房 · {stationBeds.length} 床</span>
                     </div>
                     {station.description && (
