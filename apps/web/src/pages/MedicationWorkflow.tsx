@@ -424,6 +424,7 @@ const MedicationWorkflow: React.FC = () => {
   const [currentInjectionRecord, setCurrentInjectionRecord] = useState<any>(null);
   const [allWorkflowRecords, setAllWorkflowRecords] = useState<any[]>([]);
   const [preparationFilter, setPreparationFilter] = useState<'all' | 'advanced' | 'immediate'>('all');
+  const [workflowStep, setWorkflowStep] = useState<'preparation' | 'verification' | 'dispensing'>('preparation');
   const [autoGenerationChecked, setAutoGenerationChecked] = useState(false);
   const [showDeduplicateModal, setShowDeduplicateModal] = useState(false);
   const [selectedDateForMenu, setSelectedDateForMenu] = useState<string | null>(null);
@@ -2407,6 +2408,30 @@ const MedicationWorkflow: React.FC = () => {
             <>
               {filteredPrescriptions.length > 0 ? (
                 <div className="relative">
+                  {/* 步驟 Tab（執藥 / 核藥 / 派藥） */}
+                  <div className="bg-white border-b-2 border-gray-200">
+                    <div className="flex">
+                      {(
+                        [
+                          { step: 'preparation', label: '執藥', icon: <FastForward className="h-4 w-4" />, active: 'border-blue-500 text-blue-600 bg-blue-50', inactive: 'hover:text-blue-500' },
+                          { step: 'verification', label: '核藥', icon: <CheckSquare className="h-4 w-4" />, active: 'border-green-500 text-green-600 bg-green-50', inactive: 'hover:text-green-500' },
+                          { step: 'dispensing',   label: '派藥', icon: <Users className="h-4 w-4" />,       active: 'border-purple-500 text-purple-600 bg-purple-50', inactive: 'hover:text-purple-500' },
+                        ] as const
+                      ).map(({ step, label, icon, active, inactive }) => (
+                        <button
+                          key={step}
+                          onClick={() => setWorkflowStep(step)}
+                          className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                            workflowStep === step
+                              ? active
+                              : `border-transparent text-gray-500 ${inactive}`
+                          }`}
+                        >
+                          {icon}{label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   {/* 備藥方式分類標籤 - 在表格上方 */}
                   <div className="border-b border-gray-200 bg-gray-50">
                     <div className="flex space-x-1 p-2">
@@ -2538,60 +2563,66 @@ const MedicationWorkflow: React.FC = () => {
                                 }}
                               >
                                 <div className="py-1">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDateOneClickPrepare(date);
-                                      setIsDateMenuOpen(false);
-                                      setSelectedDateForMenu(null);
-                                    }}
-                                    disabled={!canPrepare || oneClickProcessing.preparation}
-                                    className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
-                                      canPrepare && !oneClickProcessing.preparation
-                                        ? 'hover:bg-gray-100 text-gray-700'
-                                        : 'text-gray-400 cursor-not-allowed'
-                                    }`}
-                                    title={canPrepare ? '完成當日所有待執藥記錄' : '當日無可執藥記錄'}
-                                  >
-                                    <FastForward className="h-4 w-4" />
-                                    <span>一鍵執藥</span>
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDateOneClickVerify(date);
-                                      setIsDateMenuOpen(false);
-                                      setSelectedDateForMenu(null);
-                                    }}
-                                    disabled={!canVerify || oneClickProcessing.verification}
-                                    className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
-                                      canVerify && !oneClickProcessing.verification
-                                        ? 'hover:bg-gray-100 text-gray-700'
-                                        : 'text-gray-400 cursor-not-allowed'
-                                    }`}
-                                    title={canVerify ? '完成當日所有待核藥記錄' : '當日無可核藥記錄'}
-                                  >
-                                    <CheckSquare className="h-4 w-4" />
-                                    <span>一鍵核藥</span>
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOneClickDispense(date);
-                                      setIsDateMenuOpen(false);
-                                      setSelectedDateForMenu(null);
-                                    }}
-                                    disabled={!canDispense || oneClickProcessing.dispensing}
-                                    className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
-                                      canDispense && !oneClickProcessing.dispensing
-                                        ? 'hover:bg-gray-100 text-gray-700'
-                                        : 'text-gray-400 cursor-not-allowed'
-                                    }`}
-                                    title={canDispense ? '完成當日所有待派藥記錄' : '當日無可派藥記錄'}
-                                  >
-                                    <Users className="h-4 w-4" />
-                                    <span>一鍵派藥</span>
-                                  </button>
+                                  {workflowStep === 'preparation' && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDateOneClickPrepare(date);
+                                        setIsDateMenuOpen(false);
+                                        setSelectedDateForMenu(null);
+                                      }}
+                                      disabled={!canPrepare || oneClickProcessing.preparation}
+                                      className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
+                                        canPrepare && !oneClickProcessing.preparation
+                                          ? 'hover:bg-gray-100 text-gray-700'
+                                          : 'text-gray-400 cursor-not-allowed'
+                                      }`}
+                                      title={canPrepare ? '完成當日所有待執藥記錄' : '當日無可執藥記錄'}
+                                    >
+                                      <FastForward className="h-4 w-4" />
+                                      <span>一鍵執藥</span>
+                                    </button>
+                                  )}
+                                  {workflowStep === 'verification' && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDateOneClickVerify(date);
+                                        setIsDateMenuOpen(false);
+                                        setSelectedDateForMenu(null);
+                                      }}
+                                      disabled={!canVerify || oneClickProcessing.verification}
+                                      className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
+                                        canVerify && !oneClickProcessing.verification
+                                          ? 'hover:bg-gray-100 text-gray-700'
+                                          : 'text-gray-400 cursor-not-allowed'
+                                      }`}
+                                      title={canVerify ? '完成當日所有待核藥記錄' : '當日無可核藥記錄'}
+                                    >
+                                      <CheckSquare className="h-4 w-4" />
+                                      <span>一鍵核藥</span>
+                                    </button>
+                                  )}
+                                  {workflowStep === 'dispensing' && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOneClickDispense(date);
+                                        setIsDateMenuOpen(false);
+                                        setSelectedDateForMenu(null);
+                                      }}
+                                      disabled={!canDispense || oneClickProcessing.dispensing}
+                                      className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
+                                        canDispense && !oneClickProcessing.dispensing
+                                          ? 'hover:bg-gray-100 text-gray-700'
+                                          : 'text-gray-400 cursor-not-allowed'
+                                      }`}
+                                      title={canDispense ? '完成當日所有待派藥記錄' : '當日無可派藥記錄'}
+                                    >
+                                      <Users className="h-4 w-4" />
+                                      <span>一鍵派藥</span>
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </Portal>
@@ -2770,22 +2801,10 @@ const MedicationWorkflow: React.FC = () => {
                                       )}
                                     </div>
                                     {workflowRecord ? (
-                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
+                                      <div>
                                         <WorkflowCell
                                           record={workflowRecord}
-                                          step="preparation"
-                                          onStepClick={handleStepClick}
-                                          selectedDate={selectedDate}
-                                        />
-                                        <WorkflowCell
-                                          record={workflowRecord}
-                                          step="verification"
-                                          onStepClick={handleStepClick}
-                                          selectedDate={selectedDate}
-                                        />
-                                        <WorkflowCell
-                                          record={workflowRecord}
-                                          step="dispensing"
+                                          step={workflowStep}
                                           onStepClick={handleStepClick}
                                           selectedDate={selectedDate}
                                         />

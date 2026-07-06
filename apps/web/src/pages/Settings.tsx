@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode, Building2, Pill } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode, Building2, Pill, SunMedium, Moon } from 'lucide-react';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { UserQRCodeModal } from '../components/UserQRCodeModal';
 import FacilitySettingsPanel from '../components/FacilitySettingsPanel';
 import MedicationSettingsPanel from '../components/MedicationSettingsPanel';
 import { fuzzyMatch } from '../utils/searchUtils';
 import { useAuth, supabase } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { getSupabaseUrl, getSupabaseAnonKey } from '../config/supabase.config';
 import {
   UserProfile,
@@ -803,9 +804,10 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
 
 const Settings: React.FC = () => {
   const { canManageUsers, isDeveloper, isAdmin, customToken, user, session } = useAuth();
+  const { theme, setTheme } = useTheme();
   
   // 設定分類
-  const [activeCategory, setActiveCategory] = useState<'users' | 'facility' | 'medication'>('users');
+  const [activeCategory, setActiveCategory] = useState<'users' | 'facility' | 'medication' | 'general'>('users');
 
   // 用戶列表狀態
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -1165,6 +1167,17 @@ const Settings: React.FC = () => {
             <Pill className="h-4 w-4" />
             藥物設定
           </button>
+          <button
+            onClick={() => setActiveCategory('general')}
+            className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${
+              activeCategory === 'general'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <SettingsIcon className="h-4 w-4" />
+            基本設定
+          </button>
         </nav>
       </div>
 
@@ -1175,6 +1188,44 @@ const Settings: React.FC = () => {
       {activeCategory === 'medication' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <MedicationSettingsPanel />
+        </div>
+      )}
+
+      {/* 基本設定區塊 */}
+      {activeCategory === 'general' && (
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">基本設定</h2>
+          {/* 系統主題 */}
+          <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-slate-700">
+            <div>
+              <p className="text-sm font-medium text-gray-900 dark:text-slate-100">系統主題</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">選擇介面顯示模式</p>
+            </div>
+            <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
+              <button
+                onClick={() => setTheme('light')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  theme === 'light'
+                    ? 'bg-white dark:bg-slate-500 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                }`}
+              >
+                <SunMedium className="h-4 w-4" />
+                Light
+              </button>
+              <button
+                onClick={() => setTheme('dark')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  theme === 'dark'
+                    ? 'bg-slate-600 text-white shadow-sm'
+                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                }`}
+              >
+                <Moon className="h-4 w-4" />
+                Dark
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
