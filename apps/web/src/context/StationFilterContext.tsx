@@ -54,7 +54,7 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
           const newStationIds = allIds.filter(id => !dbIds!.includes(id));
           selectedIds = validIds.length > 0 ? [...validIds, ...newStationIds] : allIds;
         } else {
-          // 資料庫無資料（null）：嘗試從 localStorage 遷移
+          // 資料庫無資料（null）：先嘗試從 localStorage 讀取，然後無論如何都寫入 DB
           const saved = localStorage.getItem(storageKey);
           if (saved) {
             try {
@@ -62,16 +62,19 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
               const validIds = parsed.filter(id => allIds.includes(id));
               const newStationIds = allIds.filter(id => !parsed.includes(id));
               selectedIds = validIds.length > 0 ? [...validIds, ...newStationIds] : allIds;
-              // 遷移：將 localStorage 資料寫入資料庫，下次登入直接用資料庫
-              supabase
-                .from('user_profiles')
-                .update({ preferred_station_ids: selectedIds })
-                .eq('id', userProfile.id)
-                .then(() => {});
             } catch {
               selectedIds = allIds;
             }
           }
+          // 無論來源是 localStorage 還是預設值，都寫入 DB
+          // 確保下次在其他裝置/瀏覽器登入時能從 DB 讀取
+          supabase
+            .from('user_profiles')
+            .update({ preferred_station_ids: selectedIds })
+            .eq('id', userProfile.id)
+            .then(({ error }) => {
+              if (error) console.warn('居住區偏好初始化寫入 DB 失敗:', error.message);
+            });
         }
       }
 
@@ -91,14 +94,11 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     if (userProfile?.id) {
-      try {
-        await supabase
-          .from('user_profiles')
-          .update({ preferred_station_ids: ids })
-          .eq('id', userProfile.id);
-      } catch (error) {
-        console.warn('無法保存居住區偏好設定:', error);
-      }
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ preferred_station_ids: ids })
+        .eq('id', userProfile.id);
+      if (error) console.warn('無法保存居住區偏好設定:', error.message);
     }
   }, [storageKey, userProfile?.id]);
 

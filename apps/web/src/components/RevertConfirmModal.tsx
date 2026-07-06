@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { X, AlertTriangle, Clock, User, Pill, CheckCircle, XCircle } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 
@@ -18,6 +18,21 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
   onConfirm
 }) => {
   const { patients, prescriptions } = usePatients();
+
+  const handleConfirmAndClose = useCallback(() => {
+    onConfirm();
+    onClose();
+  }, [onConfirm, onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+      if (e.key === 'Enter') { e.preventDefault(); handleConfirmAndClose(); }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [isOpen, onClose, handleConfirmAndClose]);
 
   if (!isOpen) return null;
 
@@ -105,10 +120,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
   const dispensingStatus = getDispensingStatus();
   const dispensingInfo = getDispensingInfo();
 
-  const handleConfirm = () => {
-    onConfirm();
-    onClose();
-  };
+  // handleConfirmAndClose defined above (needs to be before hooks)
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
@@ -252,7 +264,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
 
         <div className="flex flex-col sm:flex-row gap-2">
           <button
-            onClick={handleConfirm}
+            onClick={handleConfirmAndClose}
             className="btn-danger flex-1 flex flex-wrap items-center justify-center gap-2"
           >
             <AlertTriangle className="h-4 w-4" />
