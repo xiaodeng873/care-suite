@@ -420,6 +420,10 @@ const MedicationWorkflow: React.FC = () => {
     verification: false,
     dispensing: false
   });
+  // 截止時間（執核分班用），預設 18:00，持久化至 localStorage
+  const [batchCutoffTime, setBatchCutoffTime] = useState<string>(() => {
+    return localStorage.getItem('mw_batch_cutoff_time') || '18:00';
+  });
   const [currentInjectionRecord, setCurrentInjectionRecord] = useState<any>(null);
   const [allWorkflowRecords, setAllWorkflowRecords] = useState<any[]>([]);
   const [workflowStep, setWorkflowStep] = useState<'preparation' | 'verification' | 'dispensing'>('preparation');
@@ -1538,7 +1542,7 @@ const MedicationWorkflow: React.FC = () => {
     setShowBatchDispenseModal(true);
   };
   // 為指定日期執行一鍵執藥
-  const handleDateOneClickPrepare = async (targetDate: string) => {
+  const handleDateOneClickPrepare = async (targetDate: string, timeFilter: 'before' | 'after' | 'all' = 'all') => {
     if (!selectedPatientId) {
       return;
     }
@@ -1550,9 +1554,16 @@ const MedicationWorkflow: React.FC = () => {
     try {
       // 找到指定日期所有待執藥的記錄（排除即時備藥，使用已應用樂觀更新的記錄）
       const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate);
+      const [cutH, cutM] = batchCutoffTime.split(':').map(Number);
+      const cutoffMins = cutH * 60 + cutM;
       const pendingPreparationRecords = dayWorkflowRecords.filter(r => {
         const prescription = prescriptions.find(p => p.id === r.prescription_id);
-        return r.preparation_status === 'pending' && prescription?.preparation_method !== 'immediate';
+        if (!(r.preparation_status === 'pending' && prescription?.preparation_method !== 'immediate')) return false;
+        if (timeFilter === 'all') return true;
+        const t = (r.scheduled_time || '00:00').trim().substring(0, 5);
+        const [th, tm] = t.split(':').map(Number);
+        const mins = th * 60 + tm;
+        return timeFilter === 'before' ? mins < cutoffMins : mins >= cutoffMins;
       });
       if (pendingPreparationRecords.length === 0) {
         return;
@@ -1583,7 +1594,7 @@ const MedicationWorkflow: React.FC = () => {
     }
   };
   // 為指定日期執行一鍵核藥
-  const handleDateOneClickVerify = async (targetDate: string) => {
+  const handleDateOneClickVerify = async (targetDate: string, timeFilter: 'before' | 'after' | 'all' = 'all') => {
     if (!selectedPatientId) {
       return;
     }
@@ -1595,11 +1606,18 @@ const MedicationWorkflow: React.FC = () => {
     try {
       // 找到指定日期所有待核藥的記錄（排除即時備藥，使用已應用樂觀更新的記錄）
       const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate);
+      const [cutH, cutM] = batchCutoffTime.split(':').map(Number);
+      const cutoffMins = cutH * 60 + cutM;
       const pendingVerificationRecords = dayWorkflowRecords.filter(r => {
         const prescription = prescriptions.find(p => p.id === r.prescription_id);
-        return r.verification_status === 'pending' &&
+        if (!(r.verification_status === 'pending' &&
                r.preparation_status === 'completed' &&
-               prescription?.preparation_method !== 'immediate';
+               prescription?.preparation_method !== 'immediate')) return false;
+        if (timeFilter === 'all') return true;
+        const t = (r.scheduled_time || '00:00').trim().substring(0, 5);
+        const [th, tm] = t.split(':').map(Number);
+        const mins = th * 60 + tm;
+        return timeFilter === 'before' ? mins < cutoffMins : mins >= cutoffMins;
       });
       if (pendingVerificationRecords.length === 0) {
         return;
@@ -2475,6 +2493,35 @@ const MedicationWorkflow: React.FC = () => {
                         const prescription = prescriptions.find(p => p.id === r.prescription_id);
                         return canOneClickDispense(prescription);
                       });
+                      // 截止時間相關：按時段計算可操作記錄
+                      const [cutHH, cutMM] = batchCutoffTime.split(':').map(Number);
+                      const cutoffMinsLocal = cutHH * 60 + cutMM;
+                      const toLocalMins = (t: string) => {
+                        const [h, m] = (t || '00:00').trim().substring(0, 5).split(':').map(Number);
+                        return h * 60 + m;
+                      };
+                      const canPrepareBefore = dayWorkflowRecords.some(r => {
+                        const prescription = prescriptions.find(p => p.id === r.prescription_id);
+                        return r.preparation_status === 'pending' && prescription?.preparation_method !== 'immediate'
+                          && toLocalMins(r.scheduled_time) < cutoffMinsLocal;
+                      });
+                      const canPrepareAfter = dayWorkflowRecords.some(r => {
+                        const prescription = prescriptions.find(p => p.id === r.prescription_id);
+                        return r.preparation_status === 'pending' && prescription?.preparation_method !== 'immediate'
+                          && toLocalMins(r.scheduled_time) >= cutoffMinsLocal;
+                      });
+                      const canVerifyBefore = dayWorkflowRecords.some(r => {
+                        const prescription = prescriptions.find(p => p.id === r.prescription_id);
+                        return r.verification_status === 'pending' && r.preparation_status === 'completed'
+                          && prescription?.preparation_method !== 'immediate'
+                          && toLocalMins(r.scheduled_time) < cutoffMinsLocal;
+                      });
+                      const canVerifyAfter = dayWorkflowRecords.some(r => {
+                        const prescription = prescriptions.find(p => p.id === r.prescription_id);
+                        return r.verification_status === 'pending' && r.preparation_status === 'completed'
+                          && prescription?.preparation_method !== 'immediate'
+                          && toLocalMins(r.scheduled_time) >= cutoffMinsLocal;
+                      });
                       return (
                         <th
                           key={date}
@@ -2503,7 +2550,7 @@ const MedicationWorkflow: React.FC = () => {
                           {isMenuOpen && (
                             <Portal>
                               <div
-                                className="fixed w-40 bg-white rounded-lg shadow-xl border-2 border-blue-300"
+                                className="fixed w-56 bg-white rounded-lg shadow-xl border-2 border-blue-300"
                                 ref={dateMenuRef}
                                 style={{
                                   bottom: menuPosition.bottom !== undefined ? `${menuPosition.bottom}px` : 'auto',
@@ -2511,46 +2558,134 @@ const MedicationWorkflow: React.FC = () => {
                                   zIndex: 99999
                                 }}
                               >
+                                {/* 截止時間設定（執藥/核藥時顯示） */}
+                                {(workflowStep === 'preparation' || workflowStep === 'verification') && (
+                                  <div className="px-3 py-2 border-b border-gray-100 flex items-center gap-2">
+                                    <Clock className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                    <span className="text-xs text-gray-500 flex-shrink-0">截止時間</span>
+                                    <input
+                                      type="time"
+                                      value={batchCutoffTime}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setBatchCutoffTime(val);
+                                        localStorage.setItem('mw_batch_cutoff_time', val);
+                                      }}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="ml-auto text-xs border border-gray-200 rounded px-1 py-0.5 w-20 text-center"
+                                    />
+                                  </div>
+                                )}
                                 <div className="py-1">
                                   {workflowStep === 'preparation' && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDateOneClickPrepare(date);
-                                        setIsDateMenuOpen(false);
-                                        setSelectedDateForMenu(null);
-                                      }}
-                                      disabled={!canPrepare || oneClickProcessing.preparation}
-                                      className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
-                                        canPrepare && !oneClickProcessing.preparation
-                                          ? 'hover:bg-gray-100 text-gray-700'
-                                          : 'text-gray-400 cursor-not-allowed'
-                                      }`}
-                                      title={canPrepare ? '完成當日所有待執藥記錄' : '當日無可執藥記錄'}
-                                    >
-                                      <FastForward className="h-4 w-4" />
-                                      <span>一鍵執藥</span>
-                                    </button>
+                                    <>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDateOneClickPrepare(date, 'before');
+                                          setIsDateMenuOpen(false);
+                                          setSelectedDateForMenu(null);
+                                        }}
+                                        disabled={!canPrepareBefore || oneClickProcessing.preparation}
+                                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${
+                                          canPrepareBefore && !oneClickProcessing.preparation
+                                            ? 'hover:bg-gray-100 text-gray-700'
+                                            : 'text-gray-400 cursor-not-allowed'
+                                        }`}
+                                      >
+                                        <FastForward className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <span>執藥: {batchCutoffTime} 前</span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDateOneClickPrepare(date, 'after');
+                                          setIsDateMenuOpen(false);
+                                          setSelectedDateForMenu(null);
+                                        }}
+                                        disabled={!canPrepareAfter || oneClickProcessing.preparation}
+                                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${
+                                          canPrepareAfter && !oneClickProcessing.preparation
+                                            ? 'hover:bg-gray-100 text-gray-700'
+                                            : 'text-gray-400 cursor-not-allowed'
+                                        }`}
+                                      >
+                                        <FastForward className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <span>執藥: {batchCutoffTime} 後</span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDateOneClickPrepare(date, 'all');
+                                          setIsDateMenuOpen(false);
+                                          setSelectedDateForMenu(null);
+                                        }}
+                                        disabled={!canPrepare || oneClickProcessing.preparation}
+                                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 border-t border-gray-100 ${
+                                          canPrepare && !oneClickProcessing.preparation
+                                            ? 'hover:bg-gray-100 text-gray-700'
+                                            : 'text-gray-400 cursor-not-allowed'
+                                        }`}
+                                      >
+                                        <FastForward className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <span>執藥: 全部</span>
+                                      </button>
+                                    </>
                                   )}
                                   {workflowStep === 'verification' && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDateOneClickVerify(date);
-                                        setIsDateMenuOpen(false);
-                                        setSelectedDateForMenu(null);
-                                      }}
-                                      disabled={!canVerify || oneClickProcessing.verification}
-                                      className={`w-full text-left px-4 py-2 text-sm flex flex-wrap items-center gap-2 ${
-                                        canVerify && !oneClickProcessing.verification
-                                          ? 'hover:bg-gray-100 text-gray-700'
-                                          : 'text-gray-400 cursor-not-allowed'
-                                      }`}
-                                      title={canVerify ? '完成當日所有待核藥記錄' : '當日無可核藥記錄'}
-                                    >
-                                      <CheckSquare className="h-4 w-4" />
-                                      <span>一鍵核藥</span>
-                                    </button>
+                                    <>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDateOneClickVerify(date, 'before');
+                                          setIsDateMenuOpen(false);
+                                          setSelectedDateForMenu(null);
+                                        }}
+                                        disabled={!canVerifyBefore || oneClickProcessing.verification}
+                                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${
+                                          canVerifyBefore && !oneClickProcessing.verification
+                                            ? 'hover:bg-gray-100 text-gray-700'
+                                            : 'text-gray-400 cursor-not-allowed'
+                                        }`}
+                                      >
+                                        <CheckSquare className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <span>核藥: {batchCutoffTime} 前</span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDateOneClickVerify(date, 'after');
+                                          setIsDateMenuOpen(false);
+                                          setSelectedDateForMenu(null);
+                                        }}
+                                        disabled={!canVerifyAfter || oneClickProcessing.verification}
+                                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${
+                                          canVerifyAfter && !oneClickProcessing.verification
+                                            ? 'hover:bg-gray-100 text-gray-700'
+                                            : 'text-gray-400 cursor-not-allowed'
+                                        }`}
+                                      >
+                                        <CheckSquare className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <span>核藥: {batchCutoffTime} 後</span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDateOneClickVerify(date, 'all');
+                                          setIsDateMenuOpen(false);
+                                          setSelectedDateForMenu(null);
+                                        }}
+                                        disabled={!canVerify || oneClickProcessing.verification}
+                                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 border-t border-gray-100 ${
+                                          canVerify && !oneClickProcessing.verification
+                                            ? 'hover:bg-gray-100 text-gray-700'
+                                            : 'text-gray-400 cursor-not-allowed'
+                                        }`}
+                                      >
+                                        <CheckSquare className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <span>核藥: 全部</span>
+                                      </button>
+                                    </>
                                   )}
                                   {workflowStep === 'dispensing' && (
                                     <button
