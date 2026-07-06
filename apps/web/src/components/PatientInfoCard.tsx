@@ -27,8 +27,7 @@ const PatientInfoCard: React.FC<PatientInfoCardProps> = ({
     );
   }
 
-  const handleCrushToggle = async (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleCrushToggle = async (e: React.SyntheticEvent) => {
     e.stopPropagation();
 
     const newValue = !patient.needs_medication_crushing;
@@ -129,22 +128,16 @@ const PatientInfoCard: React.FC<PatientInfoCardProps> = ({
             <span className="text-gray-600 text-sm">{patient.性別} | {calculateAge(patient.出生日期)}</span>
             
             {/* 碎藥需求開關 */}
-            <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <label className="flex flex-wrap items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
               <span className="text-sm text-gray-600">碎藥:</span>
-              <button
-                onClick={handleCrushToggle}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
-                  patient.needs_medication_crushing ? 'bg-green-600' : 'bg-gray-300'
-                }`}
+              <input
+                type="checkbox"
+                checked={!!patient.needs_medication_crushing}
+                onChange={handleCrushToggle}
+                className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-2 focus:ring-green-500 cursor-pointer"
                 aria-label="碎藥需求開關"
-              >
-                <span
-                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                    patient.needs_medication_crushing ? 'translate-x-5' : 'translate-x-0.5'
-                  }`}
-                />
-              </button>
-            </div>
+              />
+            </label>
             
             {/* 警示標誌 */}
             {hasAlertInfo && (

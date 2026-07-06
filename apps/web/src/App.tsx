@@ -319,9 +319,9 @@ function AuthenticatedContent({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
       <DashboardReadyProvider>
         <AuthProvider>
+          <ThemeProvider>
           <StationProvider>
             <StationFilterProvider>
             <MedicalProvider>
@@ -333,11 +333,11 @@ function App() {
                 </RecordsProvider>
               </WorkflowProvider>
             </MedicalProvider>          </StationFilterProvider>          </StationProvider>
+          </ThemeProvider>
         </AuthProvider>
       </DashboardReadyProvider>
       {/* React Query DevTools - 僅開發環境顯示 */}
       <ReactQueryDevtools initialIsOpen={false} position="bottom" />
-      </ThemeProvider>
     </QueryClientProvider>
   );
 }

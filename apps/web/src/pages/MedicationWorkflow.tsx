@@ -47,8 +47,7 @@ import { supabase } from '../lib/supabase';
 import { getPatientByQrCodeId } from '../lib/database';
 import {
   hasOverdueWorkflowOnDate,
-  calculateOverdueCountByDate,
-  calculateOverdueCountByPreparationMethod
+  calculateOverdueCountByDate
 } from '../utils/workflowStatusHelper';
 interface WorkflowCellProps {
   record: any;
@@ -423,7 +422,6 @@ const MedicationWorkflow: React.FC = () => {
   });
   const [currentInjectionRecord, setCurrentInjectionRecord] = useState<any>(null);
   const [allWorkflowRecords, setAllWorkflowRecords] = useState<any[]>([]);
-  const [preparationFilter, setPreparationFilter] = useState<'all' | 'advanced' | 'immediate'>('all');
   const [workflowStep, setWorkflowStep] = useState<'preparation' | 'verification' | 'dispensing'>('preparation');
   const [autoGenerationChecked, setAutoGenerationChecked] = useState(false);
   const [showDeduplicateModal, setShowDeduplicateModal] = useState(false);
@@ -903,14 +901,10 @@ const MedicationWorkflow: React.FC = () => {
       return false;
     });
   }, [prescriptions, selectedPatientId, weekDates, weekPrescriptionIds]);
-  // 根據備藥方式過濾處方
+  // 依步驟過濾處方：即時備藥只在「派藥」頁顯示；「執藥」「核藥」頁排除即時備藥
   const filteredPrescriptions = activePrescriptions.filter(p => {
-    if (preparationFilter === 'all') {
-      return true;
-    } else if (preparationFilter === 'advanced') {
-      return p.preparation_method === 'advanced';
-    } else if (preparationFilter === 'immediate') {
-      return p.preparation_method === 'immediate';
+    if (workflowStep !== 'dispensing' && p.preparation_method === 'immediate') {
+      return false;
     }
     return true;
   });
@@ -918,10 +912,6 @@ const MedicationWorkflow: React.FC = () => {
   const dateOverdueStatus = useMemo(() => {
     return calculateOverdueCountByDate(recordsWithOptimisticUpdates, weekDates);
   }, [recordsWithOptimisticUpdates, weekDates]);
-  // 計算每個備藥方式的逾期未完成流程數量（用於分頁標籤紅點提示，使用樂觀更新記錄）
-  const preparationMethodOverdueCounts = useMemo(() => {
-    return calculateOverdueCountByPreparationMethod(recordsWithOptimisticUpdates, prescriptions);
-  }, [recordsWithOptimisticUpdates, prescriptions]);
   // 計算藥物數量統計
   const medicationStats = useMemo(() => {
     const timeSlotStats: { [timeSlot: string]: { [dosageForm: string]: { count: number; totalAmount: number; unit: string } } } = {};
@@ -2430,50 +2420,6 @@ const MedicationWorkflow: React.FC = () => {
                           {icon}{label}
                         </button>
                       ))}
-                    </div>
-                  </div>
-                  {/* 備藥方式分類標籤 - 在表格上方 */}
-                  <div className="border-b border-gray-200 bg-gray-50">
-                    <div className="flex space-x-1 p-2">
-                      <button
-                        onClick={() => setPreparationFilter('all')}
-                        className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          preparationFilter === 'all'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        全部 ({activePrescriptions.length})
-                        {preparationMethodOverdueCounts.all > 0 && (
-                          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setPreparationFilter('advanced')}
-                        className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          preparationFilter === 'advanced'
-                            ? 'bg-green-100 text-green-700'
-                            : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        提前備藥 ({activePrescriptions.filter(p => p.preparation_method === 'advanced').length})
-                        {preparationMethodOverdueCounts.advanced > 0 && (
-                          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setPreparationFilter('immediate')}
-                        className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          preparationFilter === 'immediate'
-                            ? 'bg-orange-100 text-orange-700'
-                            : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        即時備藥 ({activePrescriptions.filter(p => p.preparation_method === 'immediate').length})
-                        {preparationMethodOverdueCounts.immediate > 0 && (
-                          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                        )}
-                      </button>
                     </div>
                   </div>
                   <div
