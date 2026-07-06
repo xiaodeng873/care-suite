@@ -44,7 +44,7 @@ import { generateDailyWorkflowRecords, generateBatchWorkflowRecords, generateWor
 import { diagnoseWorkflowDisplayIssue } from '../utils/diagnoseTool';
 import { isPrescriptionScheduledOnDate } from '../utils/prescriptionSchedule';
 import { supabase } from '../lib/supabase';
-import { getPatientByQrCodeId } from '../lib/database';
+import { getPatientByQrCodeId, getPatientWorkflowSettings, updatePatientBatchCutoffTime } from '../lib/database';
 import {
   hasOverdueWorkflowOnDate,
   calculateOverdueCountByDate
@@ -420,10 +420,9 @@ const MedicationWorkflow: React.FC = () => {
     verification: false,
     dispensing: false
   });
-  // 截止時間（執核分班用），預設 18:00，持久化至 localStorage
-  const [batchCutoffTime, setBatchCutoffTime] = useState<string>(() => {
-    return localStorage.getItem('mw_batch_cutoff_time') || '18:00';
-  });
+  // 截止時間（執核分班用），預設 18:00，從 DB 讀取持久化
+  const [batchCutoffTime, setBatchCutoffTime] = useState<string>('18:00');
+  const [loadingCutoffTime, setLoadingCutoffTime] = useState(true);
   const [currentInjectionRecord, setCurrentInjectionRecord] = useState<any>(null);
   const [allWorkflowRecords, setAllWorkflowRecords] = useState<any[]>([]);
   const [workflowStep, setWorkflowStep] = useState<'preparation' | 'verification' | 'dispensing'>('preparation');
@@ -816,6 +815,32 @@ const MedicationWorkflow: React.FC = () => {
       });
     }
   }, [isDateMenuOpen, selectedDateForMenu]);
+  
+  // 從 DB 讀取截止時間設定
+  useEffect(() => {
+    const loadCutoffTime = async () => {
+      if (!selectedPatientId) {
+        setLoadingCutoffTime(false);
+        return;
+      }
+      try {
+        const patientId = parseInt(selectedPatientId, 10);
+        const settings = await getPatientWorkflowSettings(currentUser!.id, patientId);
+        if (settings && settings.batch_cutoff_time) {
+          setBatchCutoffTime(settings.batch_cutoff_time);
+        } else {
+          setBatchCutoffTime('18:00');
+        }
+      } catch (err) {
+        console.error('讀取截止時間設定失敗:', err);
+        setBatchCutoffTime('18:00');
+      } finally {
+        setLoadingCutoffTime(false);
+      }
+    };
+    loadCutoffTime();
+  }, [selectedPatientId, currentUser]);
+  
   // 獲取當前日期的工作流程記錄（用於一鍵操作等）
   // 重要：包含在服處方(status='active')和有效期內的停用處方(status='inactive')的記錄
   const currentDayWorkflowRecords = useMemo(() => {
@@ -2569,10 +2594,17 @@ const MedicationWorkflow: React.FC = () => {
                                       onChange={(e) => {
                                         const val = e.target.value;
                                         setBatchCutoffTime(val);
-                                        localStorage.setItem('mw_batch_cutoff_time', val);
+                                        // 保存到 DB
+                                        if (selectedPatientId && currentUser) {
+                                          const patientId = parseInt(selectedPatientId, 10);
+                                          updatePatientBatchCutoffTime(currentUser.id, patientId, val).catch((err) => {
+                                            console.error('保存截止時間失敗:', err);
+                                          });
+                                        }
                                       }}
                                       onClick={(e) => e.stopPropagation()}
                                       className="ml-auto text-xs border border-gray-200 rounded px-1 py-0.5 w-20 text-center"
+                                      disabled={loadingCutoffTime}
                                     />
                                   </div>
                                 )}

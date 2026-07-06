@@ -795,10 +795,14 @@ export interface PatientContact {
 export interface MedicationWorkflowSettings {
   id: string;
   user_id: string;
+  patient_id?: number | null;
+  batch_cutoff_time?: string;
   enable_one_click_functions: boolean;
   enable_immediate_preparation_alerts: boolean;
   auto_jump_to_next_patient: boolean;
   default_preparation_lead_time: number;
+  created_at?: string;
+  updated_at?: string;
 }
 // --- 核心函式庫 (Functions) ---
 // [重要] 優先放置您之前報錯的函式
@@ -2317,6 +2321,60 @@ export const updateMedicationWorkflowSettings = async (userId: string, settings:
     if (error) throw error;
     return data;
   }
+};
+// 獲取特定院友的工作流程設定（包含截止時間）
+export const getPatientWorkflowSettings = async (userId: string, patientId: number): Promise<MedicationWorkflowSettings | null> => {
+  const { data, error } = await supabase
+    .from('medication_workflow_settings')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('patient_id', patientId)
+    .single();
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+};
+// 更新特定院友的截止時間設定
+export const updatePatientBatchCutoffTime = async (
+  userId: string,
+  patientId: number,
+  batchCutoffTime: string
+): Promise<MedicationWorkflowSettings> => {
+  const { data: existing } = await supabase
+    .from('medication_workflow_settings')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('patient_id', patientId)
+    .single();
+  
+  let result;
+  if (existing) {
+    const { data, error } = await supabase
+      .from('medication_workflow_settings')
+      .update({ batch_cutoff_time: batchCutoffTime })
+      .eq('user_id', userId)
+      .eq('patient_id', patientId)
+      .select()
+      .single();
+    if (error) throw error;
+    result = data;
+  } else {
+    const { data, error } = await supabase
+      .from('medication_workflow_settings')
+      .insert([{
+        user_id: userId,
+        patient_id: patientId,
+        batch_cutoff_time: batchCutoffTime,
+        enable_one_click_functions: true,
+        enable_immediate_preparation_alerts: true,
+        auto_jump_to_next_patient: false,
+        default_preparation_lead_time: 60
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    result = data;
+  }
+  return result;
 };
 export const getMedicationWorkflowRecords = async (filters?: any): Promise<MedicationWorkflowRecord[]> => {
   let query = supabase.from('medication_workflow_records').select('*');
