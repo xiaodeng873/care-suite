@@ -49,10 +49,11 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         if (dbIds !== null) {
-          // 資料庫有資料：用資料庫值，新增的居住區自動納入
+          // 資料庫有資料：完全沿用上次選擇，只過濾掉已被刪除的居住區。
+          // 不可自動合併「新」居住區，否則被用戶取消勾選的居住區會被誤判為新居住區而重新加回 → 記憶失效。
           const validIds = dbIds.filter(id => allIds.includes(id));
-          const newStationIds = allIds.filter(id => !dbIds!.includes(id));
-          selectedIds = validIds.length > 0 ? [...validIds, ...newStationIds] : allIds;
+          // dbIds 為空陣列代表用戶主動清除全部，須尊重；只有過濾後變空（原本有值但都失效）才 fallback 全選
+          selectedIds = dbIds.length === 0 ? [] : (validIds.length > 0 ? validIds : allIds);
         } else {
           // 資料庫無資料（null）：先嘗試從 localStorage 讀取，然後無論如何都寫入 DB
           const saved = localStorage.getItem(storageKey);
@@ -60,8 +61,7 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
             try {
               const parsed = JSON.parse(saved) as string[];
               const validIds = parsed.filter(id => allIds.includes(id));
-              const newStationIds = allIds.filter(id => !parsed.includes(id));
-              selectedIds = validIds.length > 0 ? [...validIds, ...newStationIds] : allIds;
+              selectedIds = parsed.length === 0 ? [] : (validIds.length > 0 ? validIds : allIds);
             } catch {
               selectedIds = allIds;
             }
