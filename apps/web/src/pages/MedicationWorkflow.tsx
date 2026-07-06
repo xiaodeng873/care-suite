@@ -39,6 +39,7 @@ import InspectionCheckModal from '../components/InspectionCheckModal';
 import InjectionSiteModal from '../components/InjectionSiteModal';
 import RevertConfirmModal from '../components/RevertConfirmModal';
 import WorkflowDeduplicateModal from '../components/WorkflowDeduplicateModal';
+import InjectionWorkflowModal, { InjectionWorkflowPayload } from '../components/InjectionWorkflowModal';
 import { Portal } from '../components/Portal';
 import { generateDailyWorkflowRecords, generateBatchWorkflowRecords, generateWorkflowRecordsClient } from '../utils/workflowGenerator';
 import { diagnoseWorkflowDisplayIssue } from '../utils/diagnoseTool';
@@ -49,6 +50,10 @@ import {
   hasOverdueWorkflowOnDate,
   calculateOverdueCountByDate
 } from '../utils/workflowStatusHelper';
+
+// 判斷是否為注射途徑（涵蓋皮下注射／肌肉注射／舊版「注射」）
+const isInjectionRoute = (route?: string | null): boolean => /注射/.test(String(route ?? ''));
+
 interface WorkflowCellProps {
   record: any;
   step: 'preparation' | 'verification' | 'dispensing';
@@ -250,6 +255,10 @@ const WorkflowCell: React.FC<WorkflowCellProps> = ({ record, step, onStepClick, 
     }
     // 派藥：需要核藥完成才能執行，但總是可以撤銷
     if (step === 'dispensing') {
+      // 即時備藥：執/核在此頁隱藏，允許直接點擊派藥（點擊時再處理執核簽署）
+      if (isImmediatePreparation && status === 'pending') {
+        return true;
+      }
       return status === 'pending' ? record.verification_status === 'completed' : true;
     }
     return false;
@@ -384,7 +393,8 @@ const MedicationWorkflow: React.FC = () => {
     refreshData,
     loading
   } = usePatients();
-  const { displayName } = useAuth();
+  const { displayName, user, userProfile } = useAuth();
+  const currentUserId = userProfile?.id || user?.id || null;
   const [searchParams] = useSearchParams();
   // 獲取本地今天日期（避免 UTC 時區問題）
   const getTodayLocalDate = () => {
@@ -405,6 +415,7 @@ const MedicationWorkflow: React.FC = () => {
   const [showBatchDispenseModal, setShowBatchDispenseModal] = useState(false);
   const [showInspectionCheckModal, setShowInspectionCheckModal] = useState(false);
   const [showInjectionSiteModal, setShowInjectionSiteModal] = useState(false);
+  const [showInjectionWorkflowModal, setShowInjectionWorkflowModal] = useState(false);
   const [showQRScannerModal, setShowQRScannerModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
@@ -825,7 +836,7 @@ const MedicationWorkflow: React.FC = () => {
       }
       try {
         const patientId = parseInt(selectedPatientId, 10);
-        const settings = await getPatientWorkflowSettings(currentUser!.id, patientId);
+        const settings = await getPatientWorkflowSettings(currentUserId!, patientId);
         if (settings && settings.batch_cutoff_time) {
           setBatchCutoffTime(settings.batch_cutoff_time);
         } else {
@@ -839,7 +850,7 @@ const MedicationWorkflow: React.FC = () => {
       }
     };
     loadCutoffTime();
-  }, [selectedPatientId, currentUser]);
+  }, [selectedPatientId, currentUserId]);
   
   // 獲取當前日期的工作流程記錄（用於一鍵操作等）
   // 重要：包含在服處方(status='active')和有效期內的停用處方(status='inactive')的記錄
@@ -1318,16 +1329,16 @@ const MedicationWorkflow: React.FC = () => {
           }
           return;
         }
-        // 正確流程：優先檢測項 → 注射位置 → 派藥確認
-        if (prescription?.inspection_rules && prescription.inspection_rules.length > 0) {
+        // 正確流程：注射類 → 注射給藥程序 Modal；否則 檢測項 → 派藥確認
+        if (isInjectionRoute(prescription?.administration_route)) {
+          // 注射類：開注射給藥程序 Modal（三簽署 + 注射位置）
+          setCurrentInjectionRecord(record);
+          setShowInjectionWorkflowModal(true);
+        } else if (prescription?.inspection_rules && prescription.inspection_rules.length > 0) {
           // 有檢測項要求的藥物需要檢測
           setSelectedWorkflowRecord(record);
           setSelectedStep(step);
           setShowInspectionCheckModal(true);
-        } else if (prescription?.administration_route === '注射') {
-          // 針劑需要選擇注射位置（無檢測項要求）
-          setCurrentInjectionRecord(record);
-          setShowInjectionSiteModal(true);
         } else {
           // 普通藥物：顯示派藥確認對話框
           setSelectedWorkflowRecord(record);
@@ -1553,11 +1564,11 @@ const MedicationWorkflow: React.FC = () => {
         // 其他狀態（如 pending_change）：跳過
         return false;
       }
-      // 排除注射類藥物
-      if (prescription.administration_route === '注射') {
-        return false;
+      // 即時備藥（含注射）：執/核在此頁隱藏，允許直接納入批量派藥（於確認時處理執核與注射位置）
+      if (prescription.preparation_method === 'immediate') {
+        return r.dispensing_status === 'pending';
       }
-      // 包含所有待派藥的記錄（包括有檢測項要求的）
+      // 一般藥物：包含所有待派藥的記錄（包括有檢測項要求的），需核藥完成
       return r.dispensing_status === 'pending' && r.verification_status === 'completed';
     });
     if (eligibleRecords.length === 0) {
@@ -1752,7 +1763,7 @@ const MedicationWorkflow: React.FC = () => {
     }
   };
   // 處理批量派藥確認
-  const handleBatchDispenseConfirm = async (selectedTimeSlots: string[], recordsToProcess: any[], inspectionResults?: Map<string, any>) => {
+  const handleBatchDispenseConfirm = async (selectedTimeSlots: string[], recordsToProcess: any[], inspectionResults?: Map<string, any>, injectionResults?: Map<string, InjectionWorkflowPayload>) => {
     if (!selectedPatientId || !selectedDate) {
       return;
     }
@@ -1816,75 +1827,96 @@ const MedicationWorkflow: React.FC = () => {
               inspectionResult
             );
             return { type: 'vacation' };
-          } else if (hasInspectionRules) {
-            // 有檢測項要求：先檢查是否有用戶提供的檢測結果
-            const userInspectionResult = inspectionResults?.get(record.id);
-            if (userInspectionResult) {
-              if (userInspectionResult.canDispense) {
-                // 檢測合格：正常派藥
-                await dispenseMedication(
-                  record.id,
-                  displayName || '未知',
-                  undefined,
-                  undefined,
-                  patientIdNum,
-                  selectedDate,
-                  undefined,
-                  userInspectionResult.inspectionCheckResult
-                );
-                return { type: 'success' };
+          } else {
+            // 非入院/渡假分支
+            const isInjection = isInjectionRoute(prescription?.administration_route);
+            const isImmediate = prescription?.preparation_method === 'immediate';
+            // 注射類：使用注射給藥程序收集的三簽署與注射位置
+            if (isInjection) {
+              const inj = injectionResults?.get(record.id);
+              if (!inj) {
+                return { type: 'skipped' };
+              }
+              await prepareMedication(record.id, inj.preparationStaff, undefined, undefined, patientIdNum, selectedDate);
+              await verifyMedication(record.id, inj.verificationStaff, undefined, undefined, patientIdNum, selectedDate);
+              await dispenseMedication(record.id, inj.dispensingStaff, undefined, undefined, patientIdNum, selectedDate, `注射位置: ${inj.site}`);
+              return { type: 'success' };
+            }
+            // 非注射即時備藥：由當前登入者一人回補執藥+核藥
+            if (isImmediate) {
+              await prepareMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, selectedDate);
+              await verifyMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, selectedDate);
+            }
+            if (hasInspectionRules) {
+              // 有檢測項要求：先檢查是否有用戶提供的檢測結果
+              const userInspectionResult = inspectionResults?.get(record.id);
+              if (userInspectionResult) {
+                if (userInspectionResult.canDispense) {
+                  // 檢測合格：正常派藥
+                  await dispenseMedication(
+                    record.id,
+                    displayName || '未知',
+                    undefined,
+                    undefined,
+                    patientIdNum,
+                    selectedDate,
+                    undefined,
+                    userInspectionResult.inspectionCheckResult
+                  );
+                  return { type: 'success' };
+                } else {
+                  // 檢測不合格：標記為暫停
+                  await dispenseMedication(
+                    record.id,
+                    displayName || '未知',
+                    userInspectionResult.failureReason || '暫停',
+                    '檢測項條件不符',
+                    patientIdNum,
+                    selectedDate,
+                    undefined,
+                    userInspectionResult.inspectionCheckResult
+                  );
+                  return { type: 'paused' };
+                }
               } else {
-                // 檢測不合格：標記為暫停
-                await dispenseMedication(
-                  record.id,
-                  displayName || '未知',
-                  userInspectionResult.failureReason || '暫停',
-                  '檢測項條件不符',
-                  patientIdNum,
-                  selectedDate,
-                  undefined,
-                  userInspectionResult.inspectionCheckResult
+                // 沒有用戶提供的檢測結果，使用自動檢測
+                const checkResult = await checkPrescriptionInspectionRules(
+                  prescription.id,
+                  patientIdNum
                 );
-                return { type: 'paused' };
+                if (checkResult.canDispense) {
+                  // 檢測合格：正常派藥
+                  await dispenseMedication(
+                    record.id,
+                    displayName || '未知',
+                    undefined,
+                    undefined,
+                    patientIdNum,
+                    selectedDate,
+                    undefined,
+                    checkResult
+                  );
+                  return { type: 'success' };
+                } else {
+                  // 檢測不合格：標記為暫停
+                  await dispenseMedication(
+                    record.id,
+                    displayName || '未知',
+                    '暫停',
+                    '檢測項條件不符',
+                    patientIdNum,
+                    selectedDate,
+                    undefined,
+                    checkResult
+                  );
+                  return { type: 'paused' };
+                }
               }
             } else {
-              // 沒有用戶提供的檢測結果，使用自動檢測
-              const checkResult = await checkPrescriptionInspectionRules(
-                prescription.id,
-                patientIdNum
-              );
-              if (checkResult.canDispense) {
-                // 檢測合格：正常派藥
-                await dispenseMedication(
-                  record.id,
-                  displayName || '未知',
-                  undefined,
-                  undefined,
-                  patientIdNum,
-                  selectedDate,
-                  undefined,
-                  checkResult
-                );
-                return { type: 'success' };
-              } else {
-                // 檢測不合格：標記為暫停
-                await dispenseMedication(
-                  record.id,
-                  displayName || '未知',
-                  '暫停',
-                  '檢測項條件不符',
-                  patientIdNum,
-                  selectedDate,
-                  undefined,
-                  checkResult
-                );
-                return { type: 'paused' };
-              }
+              // 正常派藥（無檢測項要求）
+              await dispenseMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, selectedDate);
+              return { type: 'success' };
             }
-          } else {
-            // 正常派藥（無檢測項要求）
-            await dispenseMedication(record.id, displayName || '未知', undefined, undefined, patientIdNum, selectedDate);
-            return { type: 'success' };
           }
         })
       );
@@ -1968,7 +2000,7 @@ const MedicationWorkflow: React.FC = () => {
         setShowInspectionCheckModal(false);
         // 檢查是否為注射類藥物
         const prescription = prescriptions.find(p => p.id === selectedWorkflowRecord.prescription_id);
-        if (prescription?.administration_route === '注射') {
+        if (isInjectionRoute(prescription?.administration_route)) {
           // 是注射類，需要選擇注射位置
           setCurrentInjectionRecord(updatedRecord);
           setShowInjectionSiteModal(true);
@@ -2007,6 +2039,66 @@ const MedicationWorkflow: React.FC = () => {
       setShowDispenseConfirmModal(true);
     } catch (error) {
       console.error('處理注射位置失敗:', error);
+    }
+  };
+  // 處理注射給藥程序 Modal 完成（三簽署 + 注射位置）
+  const handleInjectionWorkflowComplete = async (payload: InjectionWorkflowPayload) => {
+    if (!currentInjectionRecord) return;
+    const patientIdNum = parseInt(selectedPatientId);
+    if (isNaN(patientIdNum)) {
+      console.error('無效的院友ID:', selectedPatientId);
+      return;
+    }
+    const recordId = currentInjectionRecord.id;
+    const scheduledDate = currentInjectionRecord.scheduled_date;
+    // 樂觀更新
+    setOptimisticWorkflowUpdates(prev => {
+      const next = new Map(prev);
+      next.set(recordId, {
+        ...prev.get(recordId),
+        preparation_status: 'completed',
+        verification_status: 'completed',
+        dispensing_status: 'completed',
+      });
+      return next;
+    });
+    try {
+      const injectionNotes = `注射位置: ${payload.site}`;
+      // 依序寫入三簽署人
+      await prepareMedication(recordId, payload.preparationStaff, undefined, undefined, patientIdNum, scheduledDate);
+      await verifyMedication(recordId, payload.verificationStaff, undefined, undefined, patientIdNum, scheduledDate);
+      await dispenseMedication(recordId, payload.dispensingStaff, undefined, undefined, patientIdNum, scheduledDate, injectionNotes);
+      // 更新本地狀態
+      setAllWorkflowRecords(prev =>
+        prev.map(r => r.id === recordId
+          ? {
+              ...r,
+              preparation_status: 'completed', preparation_staff: payload.preparationStaff,
+              verification_status: 'completed', verification_staff: payload.verificationStaff,
+              dispensing_status: 'completed', dispensing_staff: payload.dispensingStaff,
+              notes: injectionNotes,
+            }
+          : r
+        )
+      );
+      updateLocalWorkflowRecords([recordId], 'preparation', 'completed');
+      updateLocalWorkflowRecords([recordId], 'verification', 'completed');
+      updateLocalWorkflowRecords([recordId], 'dispensing', 'completed');
+      setOptimisticWorkflowUpdates(prev => {
+        const next = new Map(prev);
+        next.delete(recordId);
+        return next;
+      });
+    } catch (error) {
+      console.error('注射給藥程序寫入失敗:', error);
+      setOptimisticWorkflowUpdates(prev => {
+        const next = new Map(prev);
+        next.delete(recordId);
+        return next;
+      });
+    } finally {
+      setShowInjectionWorkflowModal(false);
+      setCurrentInjectionRecord(null);
     }
   };
   // 處理派藥確認對話框的結果
@@ -2509,10 +2601,11 @@ const MedicationWorkflow: React.FC = () => {
                       });
                       const canDispense = dayWorkflowRecords.some(r => {
                         const prescription = prescriptions.find(p => p.id === r.prescription_id);
-                        return r.dispensing_status === 'pending' &&
-                               r.verification_status === 'completed' &&
-                               prescription?.administration_route !== '注射' &&
-                               !(prescription?.inspection_rules && prescription.inspection_rules.length > 0);
+                        if (!prescription || r.dispensing_status !== 'pending') return false;
+                        // 即時備藥（含注射）：執/核在此頁隱藏，dispensing_status===pending 即可
+                        if (prescription.preparation_method === 'immediate') return true;
+                        // 一般藥物：需核藥完成
+                        return r.verification_status === 'completed';
                       });
                       const canFullProcess = dayWorkflowRecords.some(r => {
                         const prescription = prescriptions.find(p => p.id === r.prescription_id);
@@ -2595,9 +2688,9 @@ const MedicationWorkflow: React.FC = () => {
                                         const val = e.target.value;
                                         setBatchCutoffTime(val);
                                         // 保存到 DB
-                                        if (selectedPatientId && currentUser) {
+                                        if (selectedPatientId && currentUserId) {
                                           const patientId = parseInt(selectedPatientId, 10);
-                                          updatePatientBatchCutoffTime(currentUser.id, patientId, val).catch((err) => {
+                                          updatePatientBatchCutoffTime(currentUserId, patientId, val).catch((err) => {
                                             console.error('保存截止時間失敗:', err);
                                           });
                                         }
@@ -2774,7 +2867,10 @@ const MedicationWorkflow: React.FC = () => {
                     });
                     // PRN 或無時間點時，fallback 顯示單行
                     const effectiveSlots = timeSlots.length > 0 ? timeSlots : ['按需'];
-                    const rowSpanCount = effectiveSlots.length;
+                    // 注射處方：每個時段下方加一列「注射位置」子列
+                    const isInjectionRx = isInjectionRoute(prescription.administration_route);
+                    const rowsPerSlot = isInjectionRx ? 2 : 1;
+                    const rowSpanCount = effectiveSlots.length * rowsPerSlot;
                     // 處方間底部分隔線樣式
                     const prescriptionBorderStyle: React.CSSProperties = { borderBottom: '2px solid #d1d5db' };
                     // 標準化時間格式
@@ -2784,15 +2880,17 @@ const MedicationWorkflow: React.FC = () => {
                       <React.Fragment key={prescription.id}>
                         {effectiveSlots.map((timeSlot, tsIndex) => {
                           const isFirstRow = tsIndex === 0;
-                          const isLastRow = tsIndex === rowSpanCount - 1;
+                          const isLastRow = tsIndex === effectiveSlots.length - 1;
                           const slotRowBg = tsIndex % 2 === 0 ? '#ffffff' : '#eaf0f7';
                           const slotBorderBottom = isLastRow
                             ? '2px solid #d1d5db'
                             : '1px solid #f1f5f9';
+                          // 注射處方：主列與注射子列之間用細線，注射子列承接時段分隔線
+                          const mainRowBorder = isInjectionRx ? '1px solid #f1f5f9' : slotBorderBottom;
 
                           return (
+                            <React.Fragment key={`${prescription.id}-${tsIndex}`}>
                             <tr
-                              key={`${prescription.id}-${tsIndex}`}
                               className="mw-row cursor-pointer"
                               style={{ backgroundColor: slotRowBg }}
                               onDoubleClick={isFirstRow ? () => {
@@ -2913,7 +3011,7 @@ const MedicationWorkflow: React.FC = () => {
                               {/* ── 服用時間欄 ── */}
                               <td
                                 className="px-2 text-xs font-medium text-gray-700 text-center whitespace-nowrap"
-                                style={{ borderBottom: slotBorderBottom, backgroundColor: slotRowBg }}
+                                style={{ borderBottom: mainRowBorder, backgroundColor: slotRowBg }}
                               >
                                 {timeSlot}
                               </td>
@@ -2930,7 +3028,7 @@ const MedicationWorkflow: React.FC = () => {
                                     key={date}
                                     className="px-1 py-1"
                                     style={{
-                                      borderBottom: slotBorderBottom,
+                                      borderBottom: mainRowBorder,
                                       backgroundColor: isSelectedDate ? '#eff6ff' : slotRowBg,
                                     }}
                                   >
@@ -2959,6 +3057,43 @@ const MedicationWorkflow: React.FC = () => {
                                 );
                               })}
                             </tr>
+                            {/* ── 注射位置子列（比照 HTML 藥紙檢測列結構） ── */}
+                            {isInjectionRx && (
+                              <tr className="mw-row" style={{ backgroundColor: slotRowBg }}>
+                                <td
+                                  className="px-2 text-xs font-medium text-orange-700 text-center whitespace-nowrap"
+                                  style={{ borderBottom: slotBorderBottom, backgroundColor: slotRowBg }}
+                                >
+                                  注射位置
+                                </td>
+                                {weekDates.map((date) => {
+                                  const isSelectedDate = date === selectedDate;
+                                  const workflowRecord = recordsWithOptimisticUpdates.find(r =>
+                                    r.prescription_id === prescription.id &&
+                                    r.scheduled_date === date &&
+                                    normalizeTime(r.scheduled_time) === normalizeTime(timeSlot)
+                                  );
+                                  let site = '';
+                                  if (workflowRecord?.notes) {
+                                    const m = String(workflowRecord.notes).match(/注射位置[：:]\s*([^|]+)/);
+                                    if (m) site = m[1].trim();
+                                  }
+                                  return (
+                                    <td
+                                      key={date}
+                                      className="px-1 text-center text-xs text-orange-700"
+                                      style={{
+                                        borderBottom: slotBorderBottom,
+                                        backgroundColor: isSelectedDate ? '#eff6ff' : slotRowBg,
+                                      }}
+                                    >
+                                      {site || '\u00A0'}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            )}
+                            </React.Fragment>
                           );
                         })}
                       </React.Fragment>
@@ -3069,6 +3204,18 @@ const MedicationWorkflow: React.FC = () => {
           onSiteSelected={handleInjectionSiteSelected}
         />
       )}
+      {/* 注射給藥程序模態框（三簽署 + 注射位置） */}
+      {showInjectionWorkflowModal && currentInjectionRecord && (
+        <InjectionWorkflowModal
+          isOpen={showInjectionWorkflowModal}
+          onClose={() => {
+            setShowInjectionWorkflowModal(false);
+            setCurrentInjectionRecord(null);
+          }}
+          workflowRecord={currentInjectionRecord}
+          onComplete={handleInjectionWorkflowComplete}
+        />
+      )}
       {/* 工作流程記錄去重模態框 */}
       {showDeduplicateModal && (
         <WorkflowDeduplicateModal
@@ -3109,16 +3256,18 @@ const MedicationWorkflow: React.FC = () => {
               // 其他狀態（如 pending_change）：跳過
               return false;
             }
-            // 排除注射類藥物
-            if (prescription.administration_route === '注射') {
-              return false;
-            }
             // 包含所有待派藥的記錄（包括有檢測項要求的）
             // 重點: 只要服藥日期(actual_date)是選定日期,就包含進來(即使scheduled_date更早)
             const actualDate = r.actual_date || r.scheduled_date;
-            return actualDate === selectedDate &&
-                   r.dispensing_status === 'pending' &&
-                   r.verification_status === 'completed';
+            if (actualDate !== selectedDate || r.dispensing_status !== 'pending') {
+              return false;
+            }
+            // 即時備藥（含注射）：執/核在此頁隱藏，允許直接納入批量派藥
+            if (prescription.preparation_method === 'immediate') {
+              return true;
+            }
+            // 一般藥物：需核藥完成
+            return r.verification_status === 'completed';
           })}
           prescriptions={prescriptions}
           patients={patients}

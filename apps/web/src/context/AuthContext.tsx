@@ -73,6 +73,9 @@ interface AuthContextType {
   // 密碼管理
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ error: any }>;
   verifyPassword: (password: string) => Promise<{ error: any }>;
+
+  // 驗證其他員工身份（不改變當前登入狀態，用於注射第 2/3 簽署人身份確認）
+  verifyStaffIdentity: (username: string, password: string) => Promise<{ user: UserProfile | null; error: any }>;
   
   // 刷新權限
   refreshPermissions: () => Promise<void>;
@@ -437,6 +440,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: '用戶未登入' };
   };
 
+  // 驗證其他員工身份（不改變當前登入狀態 / localStorage）
+  // 用於注射藥物第 2/3 簽署人需「特別登入」確認身份
+  const verifyStaffIdentity = async (
+    username: string,
+    password: string
+  ): Promise<{ user: UserProfile | null; error: any }> => {
+    try {
+      const result = await callAuthApi('login', { username, password });
+      if (result.success && result.user) {
+        return { user: result.user as UserProfile, error: null };
+      }
+      return { user: null, error: result.error || '帳號或密碼錯誤' };
+    } catch (error) {
+      console.error('verifyStaffIdentity error:', error);
+      return { user: null, error: '身份驗證失敗，請稍後再試' };
+    }
+  };
+
   // 刷新權限
   const refreshPermissions = useCallback(async () => {
     if (customToken) {
@@ -524,6 +545,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       canManageUsers,
       changePassword,
       verifyPassword,
+      verifyStaffIdentity,
       refreshPermissions,
     }}>
       {children}

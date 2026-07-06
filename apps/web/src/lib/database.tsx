@@ -2402,6 +2402,58 @@ export const deleteMedicationWorkflowRecord = async (recordId: string): Promise<
   if (error) throw error;
   return;
 };
+
+// 注射區域前綴 → 區域名稱對照（與 InjectionSiteModal 一致）
+const INJECTION_AREA_LABELS: Record<string, string> = {
+  A: '左上臂區',
+  B: '右上臂區',
+  C: '腹部左區',
+  D: '腹部右區',
+  E: '左大腿區',
+  F: '右大腿區',
+};
+
+export interface RecentInjectionSite {
+  scheduled_date: string;
+  scheduled_time: string;
+  site: string;        // 例如 C3
+  areaLabel: string;   // 例如 腹部左區
+}
+
+// 取得某院友最近 N 次已完成派藥的注射位置（跨所有注射藥物，用於全身輪替提醒）
+export const getRecentInjectionSites = async (
+  patientId: number,
+  beforeDate: string,
+  limit = 2
+): Promise<RecentInjectionSite[]> => {
+  const { data, error } = await supabase
+    .from('medication_workflow_records')
+    .select('scheduled_date, scheduled_time, notes')
+    .eq('patient_id', patientId)
+    .eq('dispensing_status', 'completed')
+    .lt('scheduled_date', beforeDate)
+    .not('notes', 'is', null)
+    .order('scheduled_date', { ascending: false })
+    .order('scheduled_time', { ascending: false });
+  if (error) throw error;
+
+  const results: RecentInjectionSite[] = [];
+  for (const row of data || []) {
+    const match = String(row.notes ?? '').match(/注射位置[：:]\s*([^|]+)/);
+    if (!match) continue;
+    const site = match[1].trim();
+    if (!site) continue;
+    const prefix = site.charAt(0).toUpperCase();
+    results.push({
+      scheduled_date: row.scheduled_date,
+      scheduled_time: row.scheduled_time,
+      site,
+      areaLabel: INJECTION_AREA_LABELS[prefix] ?? '',
+    });
+    if (results.length >= limit) break;
+  }
+  return results;
+};
 export const getAnnualHealthCheckups = async (): Promise<any[]> => {
   const { data, error } = await supabase.from('annual_health_checkups').select('*').order('created_at', { ascending: false });
   if (error) throw error;

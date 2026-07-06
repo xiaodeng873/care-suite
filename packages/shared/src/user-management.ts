@@ -128,6 +128,24 @@ export const NURSING_POSITIONS: NursingPositionType[] = [
   '護理員',
 ];
 
+/**
+ * 有資格簽署注射藥物（執/核/派）的護理職位。
+ * 護理員不可簽署注射藥物。
+ */
+export const INJECTION_QUALIFIED_POSITIONS: NursingPositionType[] = [
+  '註冊護士',
+  '登記護士',
+  '保健員',
+];
+
+/** 判斷用戶是否具備簽署注射藥物的資格（護理職位須為註冊/登記護士或保健員）。 */
+export const isInjectionQualified = (
+  profile: Pick<UserProfile, 'nursing_position'> | null | undefined
+): boolean => {
+  if (!profile || !profile.nursing_position) return false;
+  return (INJECTION_QUALIFIED_POSITIONS as string[]).includes(profile.nursing_position);
+};
+
 /** 專職部門職位列表 */
 export const ALLIED_HEALTH_POSITIONS: AlliedHealthPositionType[] = [
   '物理治療師',

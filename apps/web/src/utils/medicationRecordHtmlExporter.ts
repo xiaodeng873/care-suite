@@ -206,6 +206,7 @@ const TABLE_HEADER_MM = 9;            // colhead(5mm) + dayhead(4mm)
 const ROW_SIGN_MM = 6;                // 簽署列（mr-sign-row）實際列高
 const ROW_SUMMARY_MM = 6;             // 彙總列（mr-summary td）實際列高
 const ROW_INSP_MM = 6;                // 檢測值列（mr-insp-body-row）實際列高
+const ROW_INJECT_MM = 6;              // 注射位置列（mr-inject-body-row）實際列高
 const MIN_BLOCK_MM = 16;              // 單時段處方左欄多行內容（途徑最多4行）保守高度下限
 const FILLER_BLOCK_MM = MIN_SLOT_ROWS * ROW_SIGN_MM; // 一個空白處方區塊（4列）高度
 const FOOTER_FIXED_MM = 4;            // 頁碼標籤高度（8pt字體≈2.82mm + 瀏覽器行高差異安全邊距）
@@ -253,7 +254,8 @@ const getBlockHeightMm = (block: PrescriptionBlock): number => {
   const inspCount = prescriptionHasInspection(block.prescription)
     ? new Set((block.prescription.inspection_rules as any[]).map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean)).size
     : 0;
-  const rowsPerSlot = 1 + inspCount;
+  const injectRows = prescriptionIsInjection(block.prescription) ? 1 : 0;
+  const rowsPerSlot = 1 + inspCount + injectRows;
   const { am, pm } = splitAmPm(block.timeSlots);
   // AM 區：實際列數（含檢測行）不足 2 列才補白；PM 區：只在合計 < MIN_SLOT_ROWS（4）時補白
   const amActualRows = am.length * rowsPerSlot;
@@ -311,6 +313,10 @@ const INSPECTION_ACTION_LABELS: Record<string, string> = { block_dispensing: '�
 
 const prescriptionHasInspection = (prescription: MedicationPrescription): boolean =>
   Array.isArray(prescription.inspection_rules) && prescription.inspection_rules.length > 0;
+
+// 判斷處方是否為注射（皮下／肌肉／舊版「注射」）——注射藥紙需在每時段下方加「注射位置」列
+const prescriptionIsInjection = (prescription: MedicationPrescription): boolean =>
+  /注射/.test(String(prescription.administration_route ?? ''));
 
 const formatInspectionRequirement = (prescription: MedicationPrescription): string => {
   if (!prescriptionHasInspection(prescription)) return '';
@@ -636,7 +642,9 @@ const renderPrescriptionBlock = (
     ? [...new Set((prescription.inspection_rules as any[])
         .map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean))]
     : [];
-  const rowsPerSlot = 1 + inspectionTypes.length;
+  // 注射處方：於每時段下方加一行「注射位置」
+  const isInjection = prescriptionIsInjection(prescription);
+  const rowsPerSlot = 1 + inspectionTypes.length + (isInjection ? 1 : 0);
 
   // AM/PM 分區：上午（≤12:00）先、下午（>12:00）後。
   // 規則：AM 區含檢測行共計最少 2 列；整體合計最少 MIN_SLOT_ROWS（4）列。
@@ -668,6 +676,9 @@ const renderPrescriptionBlock = (
     for (const inspType of inspectionTypes) {
       rows.push(renderBodyInspectionRow(block, slot, inspType, selectedMonth, dayCount, workflowRecords));
     }
+    if (isInjection) {
+      rows.push(renderBodyInjectionRow(block, slot, selectedMonth, dayCount, workflowRecords));
+    }
   }
   for (let i = 0; i < amPadRows; i++) {
     rows.push(`<tr class="mr-sign-row">${leftFor()}<td class="c-time">&nbsp;</td>${padDayCells}</tr>`);
@@ -678,6 +689,9 @@ const renderPrescriptionBlock = (
     rows.push(`<tr class="mr-sign-row">${leftFor()}<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>${signatureDayCells(prescription, slot, selectedMonth, dayCount, workflowRecords, staffMapping, boundary)}</tr>`);
     for (const inspType of inspectionTypes) {
       rows.push(renderBodyInspectionRow(block, slot, inspType, selectedMonth, dayCount, workflowRecords));
+    }
+    if (isInjection) {
+      rows.push(renderBodyInjectionRow(block, slot, selectedMonth, dayCount, workflowRecords));
     }
   }
   for (let i = 0; i < pmPadRows; i++) {
@@ -730,6 +744,34 @@ const renderBodyInspectionRow = (
     dayCells += `<td class="${cellClass}">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
   }
   return `<tr class="mr-insp-body-row"><td class="c-time mr-insp-type">${escapeHtml(vitalSignType)}</td>${dayCells}</tr>`;
+};
+
+// 處方區注射位置子列：顯示在對應時段正下方，各日格顯示該日注射站點（如 C3）。
+// 結構與檢測值列（renderBodyInspectionRow）完全相同：在時間欄插入「注射位置」標籤列。
+const renderBodyInjectionRow = (
+  block: PrescriptionBlock,
+  slot: string,
+  selectedMonth: string,
+  dayCount: number,
+  workflowRecords: WorkflowRecord[]
+): string => {
+  const { prescription } = block;
+  let dayCells = '';
+  for (let day = 1; day <= dayCount; day += 1) {
+    const dateStr = toDateString(selectedMonth, day);
+    let content = '';
+    const inRange = slot && block.timeSlots.includes(slot) && isDateInPrescriptionRange(dateStr, slot, prescription);
+    if (inRange) {
+      const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
+      if (record && record.notes) {
+        const match = String(record.notes).match(/注射位置[：:]\s*([^|]+)/);
+        if (match) content = match[1].trim();
+      }
+    }
+    const cellClass = `c-day${!inRange ? ' mr-inactive' : ''}`;
+    dayCells += `<td class="${cellClass}">${content ? escapeHtml(content) : '&nbsp;'}</td>`;
+  }
+  return `<tr class="mr-inject-body-row"><td class="c-time mr-insp-type">注射位置</td>${dayCells}</tr>`;
 };
 
 // 計算處方邊界標記格：▶ = 開始前 N 格，◄ = 結束後 N 格（N = 此處方所有日內時段數）。
@@ -1243,6 +1285,8 @@ td.mr-filler-nobt { border-top: none !important; }
 .mr-insp-body-row td { height: ${ROW_INSP_MM}mm; }
 .mr-insp-type { font-size: 7.2pt; font-weight: bold; color: #1d4ed8; }
 td.mr-insp-fail { color: #dc2626; font-weight: bold; }
+.mr-inject-body-row td { height: ${ROW_INJECT_MM}mm; white-space: nowrap; }
+.mr-inject-body-row td.mr-insp-type { color: #b45309; font-size: 6.5pt; }
 .mr-pagelabel { text-align: right; font-size: 8pt; color: #475569; margin-top: 0; padding: 0 1mm; line-height: 1; }
 /* 打孔區：頁頂預留 20mm，避免打孔機破壞表頭內容；顯示兩個定位圓圈（ISO 838：80mm 間距，居中）*/
 .mr-punch-zone {

@@ -1,7 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { X, Clock, CheckCircle, Pill, AlertTriangle, ChevronDown, ChevronUp, Activity } from 'lucide-react';
 import InspectionCheckModal from './InspectionCheckModal';
+import InjectionWorkflowModal, { InjectionWorkflowPayload } from './InjectionWorkflowModal';
 import PatientInfoCard from './PatientInfoCard';
+
+// 判斷注射途徑
+const isInjectionRoute = (route?: string | null): boolean => /注射/.test(String(route ?? ''));
 
 interface TimeSlotSummary {
   time: string;
@@ -19,7 +23,7 @@ interface BatchDispenseConfirmModalProps {
   patients: any[];
   selectedPatientId: string;
   selectedDate: string;
-  onConfirm: (selectedTimeSlots: string[], recordsToProcess: any[], inspectionResults?: Map<string, any>) => Promise<void>;
+  onConfirm: (selectedTimeSlots: string[], recordsToProcess: any[], inspectionResults?: Map<string, any>, injectionResults?: Map<string, InjectionWorkflowPayload>) => Promise<void>;
   onClose: () => void;
 }
 
@@ -40,6 +44,13 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
   const [inspectionResults, setInspectionResults] = useState<Map<string, any>>(new Map());
   const [recordsToProcess, setRecordsToProcess] = useState<any[]>([]);
   const [expandedTimeSlots, setExpandedTimeSlots] = useState<Set<string>>(new Set());
+
+  // 注射逐筆序列狀態
+  const [showInjectionModal, setShowInjectionModal] = useState(false);
+  const [currentInjectionRecords, setCurrentInjectionRecords] = useState<any[]>([]);
+  const [currentInjectionIndex, setCurrentInjectionIndex] = useState(0);
+  const [injectionResults, setInjectionResults] = useState<Map<string, InjectionWorkflowPayload>>(new Map());
+  const [pendingInspectionResults, setPendingInspectionResults] = useState<Map<string, any>>(new Map());
 
   const currentPatient = useMemo(() => {
     return patients.find(p => p.院友id === parseInt(selectedPatientId));
@@ -189,36 +200,65 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
       selectedTimeSlots.has(r.scheduled_time)
     );
 
-    // 找出需要檢測的記錄
+    // 找出需要檢測的記錄（排除注射，注射另行以注射給藥程序處理）
     const recordsNeedingInspection = selectedRecords.filter(record => {
       const prescription = prescriptions.find(p => p.id === record.prescription_id);
+      if (isInjectionRoute(prescription?.administration_route)) return false;
       return prescription?.inspection_rules && prescription.inspection_rules.length > 0;
     });
 
 
     // 保存要處理的所有記錄
     setRecordsToProcess(selectedRecords);
+    setInspectionResults(new Map());
+    setInjectionResults(new Map());
 
     if (recordsNeedingInspection.length > 0) {
       // 有檢測項要求，逐個打開檢測模態框
 
       setCurrentInspectionRecords(recordsNeedingInspection);
       setCurrentInspectionIndex(0);
-      setInspectionResults(new Map()); // 重置檢測結果
       setShowInspectionModal(true);
     } else {
-      // 沒有檢測項要求，直接派藥
-      setIsProcessing(true);
-      try {
-        await onConfirm(Array.from(selectedTimeSlots), selectedRecords, new Map());
+      // 沒有檢測項要求，進入注射序列或直接派藥
+      startInjectionSequenceOrProceed(selectedRecords, new Map());
+    }
+  };
 
-        onClose();
-      } catch (error) {
-        console.error('❌ 批量派藥失敗:', error);
-        alert(`派藥失敗: ${error instanceof Error ? error.message : '未知錯誤'}`);
-      } finally {
-        setIsProcessing(false);
-      }
+  // 檢測序列完成後：若有注射記錄則逐筆開注射給藥程序，否則直接派藥
+  const startInjectionSequenceOrProceed = (
+    records: any[],
+    inspResults: Map<string, any>
+  ) => {
+    const injectionRecords = records.filter(record => {
+      const prescription = prescriptions.find(p => p.id === record.prescription_id);
+      return isInjectionRoute(prescription?.administration_route);
+    });
+    if (injectionRecords.length > 0) {
+      setPendingInspectionResults(inspResults);
+      setCurrentInjectionRecords(injectionRecords);
+      setCurrentInjectionIndex(0);
+      setInjectionResults(new Map());
+      setShowInjectionModal(true);
+    } else {
+      proceedWithDispensing(inspResults, new Map());
+    }
+  };
+
+  // 注射給藥程序完成（逐筆）
+  const handleInjectionComplete = (payload: InjectionWorkflowPayload) => {
+    const currentRecord = currentInjectionRecords[currentInjectionIndex];
+    const newInj = new Map(injectionResults);
+    newInj.set(currentRecord.id, payload);
+    setInjectionResults(newInj);
+
+    if (currentInjectionIndex < currentInjectionRecords.length - 1) {
+      setCurrentInjectionIndex(currentInjectionIndex + 1);
+    } else {
+      setShowInjectionModal(false);
+      setTimeout(() => {
+        proceedWithDispensing(pendingInspectionResults, newInj);
+      }, 150);
     }
   };
 
@@ -267,20 +307,18 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
       setShowInspectionModal(false);
       // 使用 setTimeout 確保狀態更新和模態框關閉後再執行
       setTimeout(() => {
-        proceedWithDispensing(newResults);
+        startInjectionSequenceOrProceed(recordsToProcess, newResults);
       }, 150);
     }
   };
 
-  const proceedWithDispensing = async (finalResults: Map<string, any>) => {
+  const proceedWithDispensing = async (
+    finalResults: Map<string, any>,
+    finalInjectionResults: Map<string, InjectionWorkflowPayload>
+  ) => {
     setIsProcessing(true);
     try {
-
-
-      finalResults.forEach((result, recordId) => {
-
-      });
-      await onConfirm(Array.from(selectedTimeSlots), recordsToProcess, finalResults);
+      await onConfirm(Array.from(selectedTimeSlots), recordsToProcess, finalResults, finalInjectionResults);
       onClose();
     } catch (error) {
       console.error('批量派藥失敗:', error);
@@ -488,6 +526,22 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
             current: currentInspectionIndex + 1,
             total: currentInspectionRecords.length
           }}
+        />
+      )}
+
+      {/* 注射給藥程序模態框（逐筆） */}
+      {showInjectionModal && currentInjectionRecords[currentInjectionIndex] && (
+        <InjectionWorkflowModal
+          isOpen={showInjectionModal}
+          workflowRecord={currentInjectionRecords[currentInjectionIndex]}
+          onClose={() => {
+            // 取消注射序列＝取消整批（尚未派藥）
+            setShowInjectionModal(false);
+            setCurrentInjectionRecords([]);
+            setCurrentInjectionIndex(0);
+            setInjectionResults(new Map());
+          }}
+          onComplete={handleInjectionComplete}
         />
       )}
     </>
