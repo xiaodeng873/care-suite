@@ -25,6 +25,7 @@ import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import StationModal from '../components/StationModal';
 import BedModal from '../components/BedModal';
+import RoomModal from '../components/RoomModal';
 import BedAssignmentModal from '../components/BedAssignmentModal';
 import BedSwapModal from '../components/BedSwapModal';
 import PatientTooltip from '../components/PatientTooltip';
@@ -47,6 +48,7 @@ const StationBedManagement: React.FC = () => {
   } = usePatients();
   const [showStationModal, setShowStationModal] = useState(false);
   const [showBedModal, setShowBedModal] = useState(false);
+  const [showRoomModal, setShowRoomModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showStationManagementModal, setShowStationManagementModal] = useState(false);
@@ -625,10 +627,10 @@ const StationBedManagement: React.FC = () => {
                     )}
                   </div>
                   <button
-                    onClick={() => { setSelectedStation(station); setSelectedRoom(null); setSelectedBed(null); setShowBedModal(true); }}
+                    onClick={() => { setSelectedStation(station); setSelectedRoom(null); setShowRoomModal(true); }}
                     className="btn-secondary flex items-center justify-center gap-1.5 whitespace-nowrap"
                   >
-                    <Plus className="h-4 w-4" /> 新增床位
+                    <Plus className="h-4 w-4" /> 新增房間
                   </button>
                 </div>
                 {roomGroups.length > 0 ? (
@@ -664,7 +666,7 @@ const StationBedManagement: React.FC = () => {
                             <div className="flex flex-wrap items-center gap-2">
                               <Bed className={`h-5 w-5 ${bed.is_occupied ? 'text-green-600' : 'text-blue-600'}`} />
                               <div>
-                                <h3 className="font-medium text-gray-900">{bed.bed_number}</h3>
+                                <h3 className="font-medium text-gray-900">{room.room_number}-{bed.bed_no || bed.bed_number}</h3>
                                 {bed.bed_name && bed.bed_name !== bed.bed_number && (
                                   <p className="text-sm text-gray-600">{bed.bed_name}</p>
                                 )}
@@ -792,17 +794,16 @@ const StationBedManagement: React.FC = () => {
                   <div className="text-center py-8">
                     <Bed className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">此居住區暫無床位</h3>
-                    <p className="text-gray-600 mb-4">為此居住區新增房間與床位</p>
+                    <p className="text-gray-600 mb-4">先為此居住區新增房間，再於房間內新增床位</p>
                     <button
                       onClick={() => {
                         setSelectedStation(station);
                         setSelectedRoom(null);
-                        setSelectedBed(null);
-                        setShowBedModal(true);
+                        setShowRoomModal(true);
                       }}
                       className="btn-primary"
                     >
-                      新增床位
+                      新增房間
                     </button>
                   </div>
                 )}
@@ -831,6 +832,17 @@ const StationBedManagement: React.FC = () => {
             setSelectedBed(null);
             setSelectedStation(null);
             setSelectedRoom(null);
+          }}
+        />
+      )}
+      {showRoomModal && (
+        <RoomModal
+          room={selectedRoom}
+          preselectedStation={selectedStation}
+          onClose={() => {
+            setShowRoomModal(false);
+            setSelectedRoom(null);
+            setSelectedStation(null);
           }}
         />
       )}
