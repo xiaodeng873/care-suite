@@ -39,12 +39,23 @@ export interface Station {
   id: string;
   name: string;
   description?: string;
+  code?: string;
+  created_at: string;
+  updated_at: string;
+}
+export interface Room {
+  id: string;
+  station_id: string;
+  room_number: string;
+  description?: string;
   created_at: string;
   updated_at: string;
 }
 export interface Bed {
   id: string;
   station_id: string;
+  room_id?: string;
+  bed_no?: string;
   bed_number: string;
   bed_name?: string;
   is_occupied: boolean;
@@ -977,6 +988,25 @@ export const updateBed = async (bed: Bed): Promise<Bed> => {
 };
 export const deleteBed = async (bedId: string): Promise<void> => {
   const { error } = await supabase.from('beds').delete().eq('id', bedId);
+  if (error) throw error;
+};
+export const getRooms = async (): Promise<Room[]> => {
+  const { data, error } = await supabase.from('rooms').select('*').order('room_number', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+export const createRoom = async (room: Omit<Room, 'id' | 'created_at' | 'updated_at'>): Promise<Room> => {
+  const { data, error } = await supabase.from('rooms').insert([room]).select().single();
+  if (error) throw error;
+  return data;
+};
+export const updateRoom = async (room: Pick<Room, 'id'> & Partial<Room>): Promise<Room> => {
+  const { data, error } = await supabase.from('rooms').update(room).eq('id', room.id).select().single();
+  if (error) throw error;
+  return data;
+};
+export const deleteRoom = async (roomId: string): Promise<void> => {
+  const { error } = await supabase.from('rooms').delete().eq('id', roomId);
   if (error) throw error;
 };
 // 根據床位 ID 查詢在住院友

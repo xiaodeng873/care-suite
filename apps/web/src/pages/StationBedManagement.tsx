@@ -17,7 +17,8 @@ import {
   Settings,
   Download,
   QrCode,
-  Printer
+  Printer,
+  DoorOpen
 } from 'lucide-react';
 import * as QRCode from 'qrcode';
 import { usePatients } from '../context/PatientContext';
@@ -36,6 +37,7 @@ import { fuzzyMatch, matchChineseName , matchBedNumber } from '../utils/searchUt
 const StationBedManagement: React.FC = () => {
   const { 
     stations, 
+    rooms,
     beds, 
     allPatients: patients, 
     loading, 
@@ -50,6 +52,7 @@ const StationBedManagement: React.FC = () => {
   const [showStationManagementModal, setShowStationManagementModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedStation, setSelectedStation] = useState<any>(null);
+  const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [selectedBed, setSelectedBed] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStationFilter, setSelectedStationFilter] = useState('');
@@ -592,21 +595,61 @@ const StationBedManagement: React.FC = () => {
       {/* 床位列表 */}
       <div className="space-y-6 mt-6">
         {stations.map(station => {
-          const stationBeds = filteredBeds.filter(bed => bed.station_id === station.id).sort((a, b) =>
-            a.bed_number.localeCompare(b.bed_number, 'zh-Hant', { numeric: true })
-          );
+          const stationBeds = filteredBeds.filter(bed => bed.station_id === station.id);
+          // 依房間分組（房號自然排序；房內床位依床號自然排序）
+          const stationRooms = rooms
+            .filter((r: any) => r.station_id === station.id)
+            .sort((a: any, b: any) => a.room_number.localeCompare(b.room_number, 'zh-Hant', { numeric: true }));
+          const roomGroups = stationRooms
+            .map((room: any) => ({
+              room,
+              roomBeds: stationBeds
+                .filter(b => b.room_id === room.id)
+                .sort((a, b) => (a.bed_no || a.bed_number).localeCompare(b.bed_no || b.bed_number, 'zh-Hant', { numeric: true })),
+            }))
+            .filter((g: any) => g.roomBeds.length > 0 || !hasActiveFilters());
           return (stationBeds.length === 0 && hasActiveFilters()) ? null : (
             <div key={station.id} className="card">
               <div className="p-6">
-                <div className="mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-2">{station.name}</h2>
-                  {station.description && (
-                    <p className="text-sm text-gray-600">{station.description}</p>
-                  )}
+                <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg font-semibold text-gray-900">{station.name}</h2>
+                      {station.code && (
+                        <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-semibold">代號 {station.code}</span>
+                      )}
+                      <span className="text-xs text-gray-500">{stationRooms.length} 房 · {stationBeds.length} 床</span>
+                    </div>
+                    {station.description && (
+                      <p className="text-sm text-gray-600 mt-1">{station.description}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => { setSelectedStation(station); setSelectedRoom(null); setSelectedBed(null); setShowBedModal(true); }}
+                    className="btn-secondary flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  >
+                    <Plus className="h-4 w-4" /> 新增床位
+                  </button>
                 </div>
-                {stationBeds.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {stationBeds.map(bed => {
+                {roomGroups.length > 0 ? (
+                  <div className="space-y-4">
+                    {roomGroups.map(({ room, roomBeds }: any) => (
+                      <div key={room.id} className="border border-gray-200 rounded-xl bg-gray-50 p-4">
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <DoorOpen className="h-5 w-5 text-indigo-600" />
+                            <h3 className="font-semibold text-gray-900">{room.room_number} 房</h3>
+                            <span className="text-xs text-gray-500">({roomBeds.length} 床)</span>
+                          </div>
+                          <button
+                            onClick={() => { setSelectedStation(station); setSelectedRoom(room); setSelectedBed(null); setShowBedModal(true); }}
+                            className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                          >
+                            <Plus className="h-3.5 w-3.5" /> 新增床位
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {roomBeds.map((bed: any) => {
                       const patient = getPatientInBed(bed.id);
                       return (
                         <div
@@ -740,16 +783,20 @@ const StationBedManagement: React.FC = () => {
                           </div>
                         </div>
                       );
-                    })}
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="text-center py-8">
                     <Bed className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">此居住區暫無床位</h3>
-                    <p className="text-gray-600 mb-4">為此居住區新增床位</p>
+                    <p className="text-gray-600 mb-4">為此居住區新增房間與床位</p>
                     <button
                       onClick={() => {
                         setSelectedStation(station);
+                        setSelectedRoom(null);
                         setSelectedBed(null);
                         setShowBedModal(true);
                       }}
@@ -778,10 +825,12 @@ const StationBedManagement: React.FC = () => {
         <BedModal
           bed={selectedBed}
           preselectedStation={selectedStation}
+          preselectedRoom={selectedRoom}
           onClose={() => {
             setShowBedModal(false);
             setSelectedBed(null);
             setSelectedStation(null);
+            setSelectedRoom(null);
           }}
         />
       )}

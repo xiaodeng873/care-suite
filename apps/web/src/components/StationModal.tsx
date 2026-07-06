@@ -12,6 +12,7 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
 
   const [formData, setFormData] = useState({
     name: station?.name || '',
+    code: station?.code || '',
     description: station?.description || ''
   });
 
@@ -32,13 +33,17 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
     }
 
     try {
+      const payload = {
+        ...formData,
+        code: formData.code.trim().toUpperCase() || undefined,
+      };
       if (station) {
         await updateStation({
           ...station,
-          ...formData
+          ...payload
         });
       } else {
-        await addStation(formData);
+        await addStation(payload);
       }
       
       onClose();
@@ -80,6 +85,20 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
               placeholder="例如：A站、B站、C站"
               required
             />
+          </div>
+
+          <div>
+            <label className="form-label">居住區代號</label>
+            <input
+              type="text"
+              name="code"
+              value={formData.code}
+              onChange={handleChange}
+              className="form-input uppercase"
+              placeholder="例如：A、B、C（用於合成床號顯示，如 C202-1）"
+              maxLength={4}
+            />
+            <p className="text-xs text-gray-500 mt-1">床號顯示會以「代號＋房號－床號」合成，例如 C202-1。修改代號會自動更新該區所有床位顯示。</p>
           </div>
 
           <div>

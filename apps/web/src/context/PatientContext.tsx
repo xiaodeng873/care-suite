@@ -22,7 +22,7 @@ import {
 // Re-export types from database module
 export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, ResponsibleUnit, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote, CarePlan, CarePlanProblem, CarePlanNursingNeed, CarePlanWithDetails, ProblemLibrary, NursingNeedItem, PlanType, ProblemCategory, OutcomeReview, CaseConferenceProfessional, MedicationPrescription, PatientTubeCareRecord, TubeCareType, OxygenAction } from '../lib/database';
 // Re-export Station types for backward compatibility
-export type { Station, Bed } from './facility';
+export type { Station, Room, Bed } from './facility';
 // Re-export Schedule types for backward compatibility (from merged context)
 export type { ScheduleWithDetails } from './merged/WorkflowContext';
 // Re-export Prescription types for backward compatibility (from merged context)
@@ -34,6 +34,7 @@ interface PatientContextType {
   patients: db.Patient[];
   allPatients: db.Patient[];
   stations: db.Station[];
+  rooms: db.Room[];
   beds: db.Bed[];
   schedules: ScheduleWithDetails[];
   prescriptions: db.MedicationPrescription[];
@@ -98,6 +99,9 @@ interface PatientContextType {
   addStation: (station: Omit<db.Station, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateStation: (station: db.Station) => Promise<void>;
   deleteStation: (id: string) => Promise<void>;
+  addRoom: (room: Omit<db.Room, 'id' | 'created_at' | 'updated_at'>) => Promise<db.Room>;
+  updateRoom: (room: Pick<db.Room, 'id'> & Partial<db.Room>) => Promise<void>;
+  deleteRoom: (id: string) => Promise<void>;
   addBed: (bed: Omit<db.Bed, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateBed: (bed: db.Bed) => Promise<void>;
   deleteBed: (id: string) => Promise<void>;
@@ -260,10 +264,14 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   // 從 SeniorCareontext 獲取居住區和床位數據（委託模式，向後兼容）
   const {
     stations,
+    rooms,
     beds,
     addStation,
     updateStation,
     deleteStation,
+    addRoom,
+    updateRoom,
+    deleteRoom,
     addBed,
     updateBed,
     deleteBed,
@@ -782,6 +790,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       patients,
       allPatients: allPatientsData,
       stations,
+      rooms,
       beds,
       schedules,
       prescriptions,
@@ -810,6 +819,9 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       addStation,
       updateStation,
       deleteStation,
+      addRoom,
+      updateRoom,
+      deleteRoom,
       addBed,
       updateBed,
       deleteBed,

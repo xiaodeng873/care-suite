@@ -11,5 +11,5 @@ export {
   useStationData
 } from './StationContext';
 
-export type { Station, Bed } from './StationContext';
+export type { Station, Room, Bed } from './StationContext';
 export { default as SeniorCareontext } from './StationContext';

@@ -10,11 +10,12 @@ import * as db from '../../lib/database';
 import { useAuth } from '../AuthContext';
 
 // Re-export types for convenience
-export type { Station, Bed } from '../../lib/database';
+export type { Station, Room, Bed } from '../../lib/database';
 
 interface SeniorCareontextType {
   // 狀態
   stations: db.Station[];
+  rooms: db.Room[];
   beds: db.Bed[];
   loading: boolean;
   
@@ -22,6 +23,11 @@ interface SeniorCareontextType {
   addStation: (station: Omit<db.Station, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateStation: (station: db.Station) => Promise<void>;
   deleteStation: (id: string) => Promise<void>;
+  
+  // 房間操作
+  addRoom: (room: Omit<db.Room, 'id' | 'created_at' | 'updated_at'>) => Promise<db.Room>;
+  updateRoom: (room: Pick<db.Room, 'id'> & Partial<db.Room>) => Promise<void>;
+  deleteRoom: (id: string) => Promise<void>;
   
   // 床位操作
   addBed: (bed: Omit<db.Bed, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -46,6 +52,7 @@ interface StationProviderProps {
 export const StationProvider: React.FC<StationProviderProps> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const [stations, setStations] = useState<db.Station[]>([]);
+  const [rooms, setRooms] = useState<db.Room[]>([]);
   const [beds, setBeds] = useState<db.Bed[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,11 +61,13 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     if (!isAuthenticated()) return;
     setLoading(true);
     try {
-      const [stationsData, bedsData] = await Promise.all([
+      const [stationsData, roomsData, bedsData] = await Promise.all([
         db.getStations(),
+        db.getRooms(),
         db.getBeds()
       ]);
       setStations(stationsData);
+      setRooms(roomsData);
       setBeds(bedsData);
     } catch (error) {
       console.error('Error fetching station data:', error);
@@ -87,6 +96,11 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     try {
       const updatedStation = await db.updateStation(station);
       setStations(prev => prev.map(s => s.id === station.id ? updatedStation : s));
+      // 代號變更會經由觸發器級聯更新該站床位的合成 bed_number，刷新床位以取得最新值
+      if (station.code !== undefined) {
+        const bedsData = await db.getBeds();
+        setBeds(bedsData);
+      }
     } catch (error) {
       console.error('Error updating station:', error);
       throw error;
@@ -97,12 +111,36 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     try {
       await db.deleteStation(id);
       setStations(prev => prev.filter(s => s.id !== id));
-      // 同時刪除該居住區下的所有床位
+      // 同時刪除該居住區下的所有房間與床位
+      setRooms(prev => prev.filter(r => r.station_id !== id));
       setBeds(prev => prev.filter(b => b.station_id !== id));
     } catch (error) {
       console.error('Error deleting station:', error);
       throw error;
     }
+  }, []);
+
+  // 房間 CRUD 操作
+  const addRoom = useCallback(async (room: Omit<db.Room, 'id' | 'created_at' | 'updated_at'>) => {
+    const newRoom = await db.createRoom(room);
+    setRooms(prev => [...prev, newRoom]);
+    return newRoom;
+  }, []);
+
+  const updateRoom = useCallback(async (room: Pick<db.Room, 'id'> & Partial<db.Room>) => {
+    const updatedRoom = await db.updateRoom(room);
+    setRooms(prev => prev.map(r => r.id === room.id ? updatedRoom : r));
+    // 房號變更會經由觸發器級聯更新床位合成 bed_number，刷新床位以取得最新值
+    if (room.room_number !== undefined) {
+      const bedsData = await db.getBeds();
+      setBeds(bedsData);
+    }
+  }, []);
+
+  const deleteRoom = useCallback(async (id: string) => {
+    await db.deleteRoom(id);
+    setRooms(prev => prev.filter(r => r.id !== id));
+    setBeds(prev => prev.filter(b => b.room_id !== id));
   }, []);
 
   // 床位 CRUD 操作
@@ -170,11 +208,15 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
 
   const value: SeniorCareontextType = {
     stations,
+    rooms,
     beds,
     loading,
     addStation,
     updateStation,
     deleteStation,
+    addRoom,
+    updateRoom,
+    deleteRoom,
     addBed,
     updateBed,
     deleteBed,
