@@ -2438,6 +2438,9 @@ const MedicationWorkflow: React.FC = () => {
                       <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto landscape:w-28">
                         途徑/次數
                       </th>
+                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '60px', minWidth: '52px'}}>
+                        服用時間
+                      </th>
                     {weekDates.map((date) => {
                       const d = new Date(date);
                       const month = d.getMonth() + 1;
@@ -2581,7 +2584,7 @@ const MedicationWorkflow: React.FC = () => {
                     })}
                   </tr>
                 </thead>
-                <tbody className="mw-tbody divide-y divide-gray-200">
+                <tbody className="mw-tbody">
                   {filteredPrescriptions.map((prescription, index) => {
                     // 獲取處方當前的時間點
                     const currentTimeSlots = prescription.medication_time_slots || [];
@@ -2589,7 +2592,7 @@ const MedicationWorkflow: React.FC = () => {
                     const weekTimeSlotsFromRecords = allWorkflowRecords
                       .filter(r => r.prescription_id === prescription.id)
                       .map(r => r.scheduled_time?.trim().substring(0, 5))
-                      .filter((time, index, self) => time && self.indexOf(time) === index);
+                      .filter((time, idx2, self) => time && self.indexOf(time) === idx2);
                     // 合併時間點：當前時間點 + 當週有記錄的舊時間點
                     const allTimeSlots = new Set([
                       ...currentTimeSlots,
@@ -2602,188 +2605,196 @@ const MedicationWorkflow: React.FC = () => {
                       };
                       return parseTime(a) - parseTime(b);
                     });
+                    // PRN 或無時間點時，fallback 顯示單行
+                    const effectiveSlots = timeSlots.length > 0 ? timeSlots : ['按需'];
+                    const rowSpanCount = effectiveSlots.length;
+                    // 處方間底部分隔線樣式
+                    const prescriptionBorderStyle: React.CSSProperties = { borderBottom: '2px solid #d1d5db' };
+                    // 標準化時間格式
+                    const normalizeTime = (time: string) => time ? time.trim().substring(0, 5) : '';
+
                     return (
-                      <tr 
-                        key={prescription.id}
-                        className={`mw-row cursor-pointer ${
-                          index % 2 === 0 ? 'mw-row-odd' : 'mw-row-even'
-                        }`}
-                        onDoubleClick={() => {
-                          setSelectedPrescription(prescription);
-                          setShowModal(true);
-                        }}
-                        title="雙擊編輯處方"
-                      >
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {index + 1}
-                        </td>
-                        <td
-                          className="px-4 py-4"
-                          data-prescription-id={prescription.id}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="space-y-1.5">
-                            {/* 藥物名稱及劑型 */}
-                            <div className="font-medium text-gray-900">
-                              {prescription.medication_name}
-                            </div>
-                            {prescription.dosage_form && (
-                              <div className="text-xs text-gray-500">{prescription.dosage_form}</div>
-                            )}
-                            {/* 其餘詳情 */}
-                            <div className="text-xs space-y-0.5 text-gray-600 mt-2 pt-2 border-t border-gray-200">
-                              {/* 檢測項要求（完整格式對齊 HTML 藥紙 formatInspectionRequirement） */}
-                              {prescription.inspection_rules && prescription.inspection_rules.length > 0 && (
-                                <div className="text-orange-600 font-medium">
-                                  {`服藥前檢測：${prescription.inspection_rules.map((r: any) => {
-                                    const OPERATOR_LABELS: Record<string, string> = { gt: '>', lt: '<', gte: '≥', lte: '≤' };
-                                    const ACTION_LABELS: Record<string, string> = { block_dispensing: '停服' };
-                                    const condition = `${r.vital_sign_type ?? ''}${OPERATOR_LABELS[r.condition_operator] ?? ''}${r.condition_value ?? ''}`;
-                                    const action = ACTION_LABELS[r.action_if_met ?? ''] ?? '';
-                                    return action ? `${condition} ${action}` : condition;
-                                  }).join('、')}`}
-                                </div>
-                              )}
-                              {/* 藥物來源 */}
-                              {prescription.medication_source && (
-                                <div>來源：{prescription.medication_source}</div>
-                              )}
-                              {/* 不可碎藥警告 */}
-                              {prescription.cannot_crush && (
-                                <div className="text-red-600 font-medium">⚠️ 不可碎藥</div>
-                              )}
-                              {/* 即時備藥 */}
-                              {prescription.preparation_method === 'immediate' && (
-                                <div className="text-blue-600 font-medium">⚡ 即時備藥</div>
-                              )}
-                              {/* 備註 */}
-                              {prescription.notes && (
-                                <div className="text-gray-700 mt-1">{prescription.notes}</div>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-2 py-4 text-xs text-gray-900 w-auto landscape:w-28">
-                          {/* 途徑/次數欄 — 對應 HTML 藥紙 routeInfo 欄位 */}
-                          <div className="space-y-0.5">
-                            {/* 給藥途徑 */}
-                            {prescription.administration_route && (
-                              <div>{prescription.administration_route}</div>
-                            )}
-                            {/* 服藥頻率（對應 getFrequencyDescription） */}
-                            <div>
-                              {(() => {
-                                const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
-                                const perDay = (medication_time_slots?.length) || daily_frequency || frequency_value || 1;
-                                switch (frequency_type) {
-                                  case 'every_x_days': {
-                                    const gap = Number(frequency_value) || 1;
-                                    return `${gap === 1 ? '隔日' : `隔${gap}日`}${perDay}次`;
-                                  }
-                                  case 'every_x_months': return `隔${frequency_value}月${perDay}次`;
-                                  case 'weekly_days': {
-                                    const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
-                                    const days = specific_weekdays?.map((d: number) => dayNames[d === 7 ? 0 : d]).join('、') ?? '';
-                                    return `逢${days}${perDay}次`;
-                                  }
-                                  case 'odd_even_days':
-                                    return is_odd_even_day === 'odd' ? `單日${perDay}次` : is_odd_even_day === 'even' ? `雙日${perDay}次` : `單雙日${perDay}次`;
-                                  case 'hourly': return `每${frequency_value}小時1次`;
-                                  case 'daily':
-                                  default: return `每日${perDay}次`;
-                                }
-                              })()}
-                            </div>
-                            {/* 進食時間（對應 getMealTimingLabel） */}
-                            {prescription.meal_timing && (
-                              <div>{prescription.meal_timing}</div>
-                            )}
-                            {/* 劑量（對應 getDosageText） */}
-                            {(() => {
-                              if (prescription.special_dosage_instruction) {
-                                return <div>{prescription.special_dosage_instruction}</div>;
-                              }
-                              if (prescription.dosage_amount) {
-                                const amt = String(prescription.dosage_amount);
-                                const unit = prescription.dosage_unit ?? '';
-                                const dosage = /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + unit : amt;
-                                return <div>每次{dosage}</div>;
-                              }
-                              return null;
-                            })()}
-                            {/* 需要時 PRN */}
-                            {prescription.is_prn && (
-                              <div className="text-red-600 font-medium">需要時</div>
-                            )}
-                          </div>
-                        </td>
-                        {weekDates.map((date) => {
-                          const isSelectedDate = date === selectedDate;
+                      <React.Fragment key={prescription.id}>
+                        {effectiveSlots.map((timeSlot, tsIndex) => {
+                          const isFirstRow = tsIndex === 0;
+                          const isLastRow = tsIndex === rowSpanCount - 1;
+                          const slotRowBg = tsIndex % 2 === 0 ? '#ffffff' : '#eaf0f7';
+                          const slotBorderBottom = isLastRow
+                            ? '2px solid #d1d5db'
+                            : '1px solid #f1f5f9';
+
                           return (
-                          <td key={date} className={`px-1 py-2 ${
-                            isSelectedDate ? 'bg-blue-50' : ''
-                          }`}>
-                            <div className="space-y-1">
-                              {timeSlots.map((timeSlot: string) => {
-                                // 標準化時間格式進行比對
-                                const normalizeTime = (time: string) => {
-                                  if (!time) return '';
-                                  // 移除所有空格和秒數，只保留 HH:MM
-                                  return time.trim().substring(0, 5);
-                                };
-                                // 查找對應的工作流程記錄（使用已應用樂觀更新的記錄）
+                            <tr
+                              key={`${prescription.id}-${tsIndex}`}
+                              className="mw-row cursor-pointer"
+                              style={{ backgroundColor: slotRowBg }}
+                              onDoubleClick={isFirstRow ? () => {
+                                setSelectedPrescription(prescription);
+                                setShowModal(true);
+                              } : undefined}
+                              title={isFirstRow ? '雙擊編輯處方' : undefined}
+                            >
+                              {/* ── rowspan 欄：行號 ── */}
+                              {isFirstRow && (
+                                <td
+                                  rowSpan={rowSpanCount}
+                                  className="px-4 whitespace-nowrap text-sm text-gray-900"
+                                  style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
+                                >
+                                  {index + 1}
+                                </td>
+                              )}
+                              {/* ── rowspan 欄：藥物名稱及劑型 ── */}
+                              {isFirstRow && (
+                                <td
+                                  rowSpan={rowSpanCount}
+                                  className="px-4 py-3"
+                                  data-prescription-id={prescription.id}
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
+                                >
+                                  <div className="space-y-1.5">
+                                    <div className="font-medium text-gray-900">
+                                      {prescription.medication_name}
+                                    </div>
+                                    {prescription.dosage_form && (
+                                      <div className="text-xs text-gray-500">{prescription.dosage_form}</div>
+                                    )}
+                                    <div className="text-xs space-y-0.5 text-gray-600 mt-2 pt-2 border-t border-gray-200">
+                                      {prescription.inspection_rules && prescription.inspection_rules.length > 0 && (
+                                        <div className="text-orange-600 font-medium">
+                                          {`服藥前檢測：${prescription.inspection_rules.map((r: any) => {
+                                            const OPERATOR_LABELS: Record<string, string> = { gt: '>', lt: '<', gte: '≥', lte: '≤' };
+                                            const ACTION_LABELS: Record<string, string> = { block_dispensing: '停服' };
+                                            const condition = `${r.vital_sign_type ?? ''}${OPERATOR_LABELS[r.condition_operator] ?? ''}${r.condition_value ?? ''}`;
+                                            const action = ACTION_LABELS[r.action_if_met ?? ''] ?? '';
+                                            return action ? `${condition} ${action}` : condition;
+                                          }).join('、')}`}
+                                        </div>
+                                      )}
+                                      {prescription.medication_source && (
+                                        <div>來源：{prescription.medication_source}</div>
+                                      )}
+                                      {prescription.cannot_crush && (
+                                        <div className="text-red-600 font-medium">⚠️ 不可碎藥</div>
+                                      )}
+                                      {prescription.preparation_method === 'immediate' && (
+                                        <div className="text-blue-600 font-medium">⚡ 即時備藥</div>
+                                      )}
+                                      {prescription.notes && (
+                                        <div className="text-gray-700 mt-1">{prescription.notes}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                              )}
+                              {/* ── rowspan 欄：途徑/次數 ── */}
+                              {isFirstRow && (
+                                <td
+                                  rowSpan={rowSpanCount}
+                                  className="px-2 py-3 text-xs text-gray-900 w-auto landscape:w-28"
+                                  style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
+                                >
+                                  <div className="space-y-0.5">
+                                    {prescription.administration_route && (
+                                      <div>{prescription.administration_route}</div>
+                                    )}
+                                    <div>
+                                      {(() => {
+                                        const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
+                                        const perDay = (medication_time_slots?.length) || daily_frequency || frequency_value || 1;
+                                        switch (frequency_type) {
+                                          case 'every_x_days': {
+                                            const gap = Number(frequency_value) || 1;
+                                            return `${gap === 1 ? '隔日' : `隔${gap}日`}${perDay}次`;
+                                          }
+                                          case 'every_x_months': return `隔${frequency_value}月${perDay}次`;
+                                          case 'weekly_days': {
+                                            const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+                                            const days = specific_weekdays?.map((d: number) => dayNames[d === 7 ? 0 : d]).join('、') ?? '';
+                                            return `逢${days}${perDay}次`;
+                                          }
+                                          case 'odd_even_days':
+                                            return is_odd_even_day === 'odd' ? `單日${perDay}次` : is_odd_even_day === 'even' ? `雙日${perDay}次` : `單雙日${perDay}次`;
+                                          case 'hourly': return `每${frequency_value}小時1次`;
+                                          case 'daily':
+                                          default: return `每日${perDay}次`;
+                                        }
+                                      })()}
+                                    </div>
+                                    {prescription.meal_timing && (
+                                      <div>{prescription.meal_timing}</div>
+                                    )}
+                                    {(() => {
+                                      if (prescription.special_dosage_instruction) {
+                                        return <div>{prescription.special_dosage_instruction}</div>;
+                                      }
+                                      if (prescription.dosage_amount) {
+                                        const amt = String(prescription.dosage_amount);
+                                        const unit = prescription.dosage_unit ?? '';
+                                        const dosage = /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + unit : amt;
+                                        return <div>每次{dosage}</div>;
+                                      }
+                                      return null;
+                                    })()}
+                                    {prescription.is_prn && (
+                                      <div className="text-red-600 font-medium">需要時</div>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
+                              {/* ── 服用時間欄 ── */}
+                              <td
+                                className="px-2 text-xs font-medium text-gray-700 text-center whitespace-nowrap"
+                                style={{ borderBottom: slotBorderBottom, backgroundColor: slotRowBg }}
+                              >
+                                {timeSlot}
+                              </td>
+                              {/* ── 日期欄 ── */}
+                              {weekDates.map((date) => {
+                                const isSelectedDate = date === selectedDate;
                                 const workflowRecord = recordsWithOptimisticUpdates.find(r =>
                                   r.prescription_id === prescription.id &&
                                   r.scheduled_date === date &&
                                   normalizeTime(r.scheduled_time) === normalizeTime(timeSlot)
                                 );
-
                                 return (
-                                  <div key={timeSlot} className="border border-gray-200 rounded-lg p-1 bg-white">
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-1">
-                                      <div className="text-xs font-medium text-gray-900">{timeSlot}</div>
-                                      {prescription.meal_timing && (
-                                        <div className="text-xs text-gray-500">{prescription.meal_timing}</div>
-                                      )}
-                                    </div>
+                                  <td
+                                    key={date}
+                                    className="px-1 py-1"
+                                    style={{
+                                      borderBottom: slotBorderBottom,
+                                      backgroundColor: isSelectedDate ? '#eff6ff' : slotRowBg,
+                                    }}
+                                  >
                                     {workflowRecord ? (
-                                      <div>
-                                        <WorkflowCell
-                                          record={workflowRecord}
-                                          step={workflowStep}
-                                          onStepClick={handleStepClick}
-                                          selectedDate={selectedDate}
-                                        />
-                                      </div>
+                                      <WorkflowCell
+                                        record={workflowRecord}
+                                        step={workflowStep}
+                                        onStepClick={handleStepClick}
+                                        selectedDate={selectedDate}
+                                      />
                                     ) : (
-                                      <div className="text-center text-xs text-gray-400">
+                                      <div className="text-center text-xs text-gray-400 py-1">
                                         {(() => {
-                                          const selectedDateObj = new Date(date);
-                                          const startDate = new Date(prescription.start_date);
-                                          // 檢查是否在開始日期之前
-                                          if (selectedDateObj < startDate) {
-                                            return '無處方';
-                                          }
-                                          // 檢查是否在結束日期之後
+                                          const d = new Date(date);
+                                          const start = new Date(prescription.start_date);
+                                          if (d < start) return '無處方';
                                           if (prescription.end_date) {
-                                            const endDate = new Date(prescription.end_date);
-                                            if (selectedDateObj > endDate) {
-                                              return '無處方';
-                                            }
+                                            const end = new Date(prescription.end_date);
+                                            if (d > end) return '無處方';
                                           }
-                                          // 在處方有效期內但沒有工作流程記錄
                                           return '無記錄';
                                         })()}
                                       </div>
                                     )}
-                                  </div>
+                                  </td>
                                 );
                               })}
-                            </div>
-                          </td>
+                            </tr>
                           );
                         })}
-                      </tr>
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
