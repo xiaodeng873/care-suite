@@ -307,3 +307,49 @@ export function compareStationNames(a: string | null | undefined, b: string | nu
   // 3. 首字相同，比較整個字符串（使用自然排序）
   return nameA.localeCompare(nameB, 'zh-Hant', { numeric: true, sensitivity: 'base' });
 }
+
+/**
+ * 藥物搜尋相關性評分（越高越相關；-1 代表完全不配對）
+ * 排名優先級（高→低）：
+ *   完全相等 > 前綴 > 詞首前綴(以空格/符號分隔的任一詞以搜索詞開頭) > 連續子字串(越前越高) > 逐字模糊(subsequence)
+ * 這確保輸入 "para" 時，"Paracetamol..." 這類前綴命中會排在最前，
+ * 而 subsequence 命中（如 p…a…r…a 散落在其他藥名）沉到最底，不再淹沒真正結果。
+ */
+export function drugMatchScore(target: string | null | undefined, search: string): number {
+  if (!target) return -1;
+  if (!search) return 0;
+  const t = target.toLowerCase();
+  const s = search.toLowerCase();
+
+  if (t === s) return 1000;
+  if (t.startsWith(s)) return 900;
+
+  // 詞首前綴：任一以空格或常見符號分隔的詞以搜索詞開頭
+  const words = t.split(/[\s\-/(),.+]+/).filter(Boolean);
+  if (words.some(w => w.startsWith(s))) return 800;
+
+  const idx = t.indexOf(s);
+  if (idx >= 0) return 700 - Math.min(idx, 200); // 連續子字串，越靠前越高
+
+  if (fuzzyMatch(target, search)) return 100; // 逐字模糊（最低優先）
+
+  return -1;
+}
+
+/**
+ * 藥物多欄位相關性評分（取各欄位最高分；drug_name 為主）
+ */
+export function drugSearchScore(
+  drug: { drug_name?: string | null; drug_code?: string | null; drug_type?: string | null; administration_route?: string | null; unit?: string | null; notes?: string | null },
+  search: string
+): number {
+  if (!search) return 0;
+  return Math.max(
+    drugMatchScore(drug.drug_name, search),
+    drugMatchScore(drug.drug_code, search),
+    drugMatchScore(drug.drug_type, search),
+    drugMatchScore(drug.administration_route, search),
+    drugMatchScore(drug.unit, search),
+    drugMatchScore(drug.notes, search)
+  );
+}

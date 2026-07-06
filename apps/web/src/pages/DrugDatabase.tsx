@@ -18,7 +18,7 @@ import {
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import DrugModal from '../components/DrugModal';
-import { fuzzyMatch } from '../utils/searchUtils';
+import { fuzzyMatch, drugSearchScore } from '../utils/searchUtils';
 
 type SortField = 'drug_name' | 'drug_code' | 'drug_type' | 'administration_route' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -86,18 +86,12 @@ const DrugDatabase: React.FC = () => {
       return false;
     }
     
-    // 然後應用搜索條件
-    let matchesSearch = true;
+    // 然後應用搜索條件（相關性評分 >= 0 即命中）
     if (searchTerm) {
-      matchesSearch = fuzzyMatch(drug.drug_name, searchTerm) ||
-                         fuzzyMatch(drug.drug_code, searchTerm) ||
-                         fuzzyMatch(drug.drug_type, searchTerm) ||
-                         fuzzyMatch(drug.administration_route, searchTerm) ||
-                         fuzzyMatch(drug.unit, searchTerm) ||
-                         fuzzyMatch(drug.notes, searchTerm);
+      return drugSearchScore(drug, searchTerm) >= 0;
     }
-    
-    return matchesSearch;
+
+    return true;
     });
   }, [drugDatabase, advancedFilters, deferredSearch]);
 
@@ -125,6 +119,11 @@ const DrugDatabase: React.FC = () => {
   };
 
   const sortedDrugs = [...filteredDrugs].sort((a, b) => {
+    // 有搜尋詞時，優先依相關性排序（前綴/子字串命中排最前），確保輸入 "para" 時 Paracetamol 置頂
+    if (deferredSearch) {
+      const scoreDiff = drugSearchScore(b, deferredSearch) - drugSearchScore(a, deferredSearch);
+      if (scoreDiff !== 0) return scoreDiff;
+    }
     let valueA: string | number = '';
     let valueB: string | number = '';
     

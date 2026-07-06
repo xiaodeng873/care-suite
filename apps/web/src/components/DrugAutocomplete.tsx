@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Pill, Search, Plus } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
-import { fuzzyMatch } from '../utils/searchUtils';
+import { drugSearchScore } from '../utils/searchUtils';
 import DrugModal from './DrugModal';
 
 interface DrugAutocompleteProps {
@@ -27,16 +27,19 @@ const DrugAutocomplete: React.FC<DrugAutocompleteProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // 過濾藥物列表
-  const filteredDrugs = (drugDatabase || []).filter(drug => {
-    if (!searchTerm) return true;
-    return (
-      fuzzyMatch(drug.drug_name, searchTerm) ||
-      fuzzyMatch(drug.drug_code, searchTerm) ||
-      fuzzyMatch(drug.drug_type, searchTerm) ||
-      fuzzyMatch(drug.administration_route, searchTerm)
-    );
-  });
+  // 過濾並依相關性排序藥物列表（前綴/子字串命中優先，subsequence 沉底）
+  const filteredDrugs = useMemo(() => {
+    const list = drugDatabase || [];
+    if (!searchTerm) return list;
+    return list
+      .map(drug => ({ drug, score: drugSearchScore(drug, searchTerm) }))
+      .filter(x => x.score >= 0)
+      .sort((a, b) =>
+        b.score - a.score ||
+        (a.drug.drug_name || '').localeCompare(b.drug.drug_name || '', 'en', { numeric: true, sensitivity: 'base' })
+      )
+      .map(x => x.drug);
+  }, [drugDatabase, searchTerm]);
 
   // 處理點擊外部關閉
   useEffect(() => {
