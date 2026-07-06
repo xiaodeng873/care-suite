@@ -161,7 +161,7 @@ const InjectionWorkflowModal: React.FC<InjectionWorkflowModalProps> = ({
         setConfirmError('職位不符（須註冊/登記護士或保健員）');
         return;
       }
-      // 不可與其他格簽署者相同（排除當前欄位本身，允許「重簽為同一人」）
+      // 不可與其他格簽署者相同（排除當前欄位本身）
       const existingIds = Object.entries(signatures)
         .filter(([k, v]) => k !== confirmStep && Boolean(v))
         .map(([, v]) => (v as Signer).id);
@@ -249,9 +249,9 @@ const InjectionWorkflowModal: React.FC<InjectionWorkflowModalProps> = ({
                     <div className="text-xs text-gray-800 break-all">{signed.name}</div>
                     <button
                       onClick={() => openConfirm(key)}
-                      className="mt-1 text-[11px] text-gray-400 hover:text-blue-500"
+                      className="mt-1 text-[11px] text-blue-400 hover:text-blue-600 underline"
                     >
-                      重簽
+                      另填
                     </button>
                   </>
                 ) : (
