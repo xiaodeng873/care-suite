@@ -2403,10 +2403,10 @@ const MedicationWorkflow: React.FC = () => {
     <div className="-m-4 lg:-m-6">
       {/* 頁面標題與控制區 */}
       <div className="sticky top-16 bg-white z-[25] py-2 px-4 lg:px-6 border-b border-gray-200">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          {/* 左側：eMAR 標題 + 院友資訊卡（取代舊標題文字） */}
-          <div className="flex-shrink-0 min-w-0" style={{ maxWidth: '380px' }}>
-            <div className="text-xs font-semibold text-blue-600 tracking-widest uppercase mb-1">eMAR</div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          {/* 左側：eMAR + 院友資訊卡 同一行 */}
+          <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
+            <span className="text-xs font-semibold text-blue-600 tracking-widest uppercase flex-shrink-0">eMAR</span>
             <PatientInfoCard
               patient={selectedPatient ?? null}
               defaultExpanded={false}
