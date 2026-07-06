@@ -79,6 +79,92 @@
 .dark th { background-color: #1e293b !important; color: #94a3b8 !important; border-color: #334155 !important; }
 .dark td { border-color: #334155 !important; }
 
+/* ===================================================
+   藥物工作流程主表格：清晰的行/欄對比（不需 hover）
+   斑馬紋 + 直向欄分隔線，light 與 dark 皆適用
+=================================================== */
+.mw-table { border-collapse: separate; border-spacing: 0; }
+.mw-table th,
+.mw-table td {
+  border-right: 1px solid #e5e7eb;
+}
+.mw-table th:last-child,
+.mw-table td:last-child { border-right: none; }
+
+/* 斑馬紋（明顯，不靠 hover） */
+.mw-row-odd  { background-color: #ffffff; }
+.mw-row-even { background-color: #eaf0f7; }
+.mw-table .mw-row:hover { background-color: #dbeafe !important; }
+
+/* Dark 版本 */
+.dark .mw-table th,
+.dark .mw-table td { border-right-color: #334155 !important; }
+.dark .mw-row-odd  { background-color: #1e293b !important; }
+.dark .mw-row-even { background-color: #131c2e !important; }
+.dark .mw-table .mw-row:hover { background-color: #33415580 !important; }
+
+/* ===================================================
+   自訂 component 類別的 Dark 覆蓋
+   （App.css 用 @apply bg-white 編譯成實際屬性，
+     .dark .bg-white 無法命中，故需針對類別本身覆蓋）
+=================================================== */
+.dark .card {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+.dark .btn-secondary {
+  background-color: #334155 !important;
+  color: #e2e8f0 !important;
+  border-color: #475569 !important;
+}
+.dark .btn-secondary:hover { background-color: #475569 !important; }
+.dark .form-input {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+.dark .form-label { color: #cbd5e1 !important; }
+
+/* 常見「白色卡片/框」補漏：漸層背景、圓角容器 */
+.dark .bg-gradient-to-r,
+.dark .bg-gradient-to-l,
+.dark .bg-gradient-to-t,
+.dark .bg-gradient-to-b,
+.dark .bg-gradient-to-br,
+.dark .bg-gradient-to-bl,
+.dark .bg-gradient-to-tr,
+.dark .bg-gradient-to-tl {
+  --tw-gradient-from: #1e293b var(--tw-gradient-from-position);
+  --tw-gradient-to: #0f172a var(--tw-gradient-to-position);
+}
+/* from-white / to-white 系漸層改深色 */
+.dark .from-white { --tw-gradient-from: #1e293b var(--tw-gradient-from-position) !important; }
+.dark .to-white   { --tw-gradient-to: #1e293b var(--tw-gradient-to-position) !important; }
+.dark .via-white  { --tw-gradient-via: #1e293b var(--tw-gradient-via-position) !important; }
+.dark .from-gray-50 { --tw-gradient-from: #0f172a var(--tw-gradient-from-position) !important; }
+.dark .to-gray-50   { --tw-gradient-to: #0f172a var(--tw-gradient-to-position) !important; }
+.dark .from-gray-100 { --tw-gradient-from: #1e293b var(--tw-gradient-from-position) !important; }
+.dark .to-gray-100   { --tw-gradient-to: #1e293b var(--tw-gradient-to-position) !important; }
+
+/* bg-white/xx 半透明變體 */
+.dark .bg-white\/50,
+.dark .bg-white\/60,
+.dark .bg-white\/70,
+.dark .bg-white\/80,
+.dark .bg-white\/90,
+.dark .bg-white\/95 { background-color: rgba(30, 41, 59, 0.85) !important; }
+
+/* border-white/xx 半透明邊框 */
+.dark .border-white\/40,
+.dark .border-white\/50,
+.dark .border-white\/60 { border-color: rgba(148, 163, 184, 0.25) !important; }
+
+/* backdrop 卡片、ring 邊框 */
+.dark .ring-1,
+.dark .ring-gray-200,
+.dark .ring-gray-300 { --tw-ring-color: #334155 !important; }
+.dark .ring-white { --tw-ring-color: #1e293b !important; }
+
 /* ─── Semantic colour backgrounds (light → dark equivalents) ─── */
 
 /* Blue */

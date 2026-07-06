@@ -2480,7 +2480,7 @@ const MedicationWorkflow: React.FC = () => {
                     ref={tableContainerRef}
                     className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-400px)]"
                   >
-                <table className="w-full min-w-[768px]">
+                <table className="w-full min-w-[768px] mw-table">
                   <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -2635,7 +2635,7 @@ const MedicationWorkflow: React.FC = () => {
                     })}
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="mw-tbody divide-y divide-gray-200">
                   {filteredPrescriptions.map((prescription, index) => {
                     // 獲取處方當前的時間點
                     const currentTimeSlots = prescription.medication_time_slots || [];
@@ -2659,8 +2659,8 @@ const MedicationWorkflow: React.FC = () => {
                     return (
                       <tr 
                         key={prescription.id}
-                        className={`hover:bg-gray-50 cursor-pointer ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                        className={`mw-row cursor-pointer ${
+                          index % 2 === 0 ? 'mw-row-odd' : 'mw-row-even'
                         }`}
                         onDoubleClick={() => {
                           setSelectedPrescription(prescription);
