@@ -26,7 +26,7 @@ const routeNames: Record<string, string> = {
   '/wound-old': '傷口評估',
   '/prescriptions': '處方管理',
   '/drug-database': '藥物資料庫',
-  '/medication-workflow': '藥物工作流程',
+  '/medication-workflow': 'eMAR',
   '/hospital-outreach': '醫院外展',
   '/annual-health-checkup': '年度體檢',
   '/incident-reports': '意外事故報告',
@@ -141,7 +141,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       category: 'medication',
       items: [
         { name: '處方管理', href: '/prescriptions', icon: Pill, feature: 'prescription_management' },
-        { name: '藥物工作流程', href: '/medication-workflow', icon: CheckSquare, feature: 'medication_workflow' },
+        { name: 'eMAR', href: '/medication-workflow', icon: CheckSquare, feature: 'medication_workflow' },
         { name: '藥物資料庫', href: '/drug-database', icon: Database, feature: 'drug_database' },
       ]
     },

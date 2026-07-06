@@ -39,7 +39,7 @@ const routeNames: Record<string, string> = {
   '/wound-old': '傷口評估',
   '/prescriptions': '處方管理',
   '/drug-database': '藥物資料庫',
-  '/medication-workflow': '藥物工作流程',
+  '/medication-workflow': 'eMAR',
   '/hospital-outreach': '醫院外展',
   '/annual-health-checkup': '年度體檢',
   '/incident-reports': '意外事故報告',

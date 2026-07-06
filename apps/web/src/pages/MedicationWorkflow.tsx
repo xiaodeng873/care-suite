@@ -2397,17 +2397,35 @@ const MedicationWorkflow: React.FC = () => {
     }
   };
   if (loading) {
-    return <LoadingScreen pageName="藥物工作流程" />;
+    return <LoadingScreen pageName="eMAR" />;
   }
   return (
     <div className="-m-4 lg:-m-6">
       {/* 頁面標題與控制區 */}
       <div className="sticky top-16 bg-white z-[25] py-2 px-4 lg:px-6 border-b border-gray-200">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          {/* 左側：標題 */}
-          <div className="flex-shrink-0">
-            <h1 className="text-2xl font-bold text-gray-900">藥物工作流程</h1>
-            <p className="text-sm text-gray-600 mt-1">管理院友的執藥、核藥、派藥流程</p>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          {/* 左側：eMAR 標題 + 院友資訊卡（取代舊標題文字） */}
+          <div className="flex-shrink-0 min-w-0" style={{ maxWidth: '380px' }}>
+            <div className="text-xs font-semibold text-blue-600 tracking-widest uppercase mb-1">eMAR</div>
+            <PatientInfoCard
+              patient={selectedPatient ?? null}
+              defaultExpanded={false}
+              onOptimisticUpdate={(patientId, needsCrushing) => {
+                setOptimisticCrushState(prev => {
+                  const next = new Map(prev);
+                  next.set(patientId, needsCrushing);
+                  return next;
+                });
+              }}
+              onToggleCrushMedication={async (patientId, needsCrushing) => {
+                await refreshData();
+                setOptimisticCrushState(prev => {
+                  const next = new Map(prev);
+                  next.delete(patientId);
+                  return next;
+                });
+              }}
+            />
           </div>
           {/* 右側：院友選擇、掃描按鈕、日期選擇 */}
           <div className="flex flex-col lg:flex-row lg:flex-wrap items-stretch lg:items-end gap-3 flex-1 max-w-4xl w-full">
@@ -2497,33 +2515,6 @@ const MedicationWorkflow: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
-      {/* 院友資訊卡 - 可摺疊 */}
-      <div className="bg-white z-[5] border-b border-gray-200 px-4 lg:px-6">
-        <div className="py-2">
-          <PatientInfoCard
-            patient={selectedPatient ?? null}
-            defaultExpanded={false}
-            onOptimisticUpdate={(patientId, needsCrushing) => {
-              // 立即更新 UI（樂觀更新）
-              setOptimisticCrushState(prev => {
-                const next = new Map(prev);
-                next.set(patientId, needsCrushing);
-                return next;
-              });
-            }}
-            onToggleCrushMedication={async (patientId, needsCrushing) => {
-              // 資料庫更新成功後刷新數據
-              await refreshData();
-              // 清除樂觀更新狀態
-              setOptimisticCrushState(prev => {
-                const next = new Map(prev);
-                next.delete(patientId);
-                return next;
-              });
-            }}
-          />
         </div>
       </div>
       {/* 工作流程表格 */}
@@ -3117,7 +3108,7 @@ const MedicationWorkflow: React.FC = () => {
                 {selectedPatient ? '此院友暫無在服處方' : '請選擇院友'}
               </h3>
               <p className="text-gray-600">
-                {selectedPatient ? '請先在處方管理中為此院友新增處方' : '選擇院友後即可查看其藥物工作流程'}
+                {selectedPatient ? '請先在處方管理中為此院友新增處方' : '選擇院友後即可查看其 eMAR'}
               </p>
             </div>
           )}
@@ -3127,7 +3118,7 @@ const MedicationWorkflow: React.FC = () => {
           <div className="text-center">
             <User className="h-24 w-24 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">請選擇院友</h3>
-            <p className="text-gray-600 mb-6">選擇院友後即可查看其藥物工作流程</p>
+            <p className="text-gray-600 mb-6">選擇院友後即可查看其 eMAR</p>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <Zap className="h-5 w-5 text-blue-600" />

@@ -238,7 +238,7 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
               </div>
               <div>
                 <h2 className="text-xl font-bold text-gray-900">
-                  藥物工作流程重複記錄檢測
+                  eMAR 重複記錄檢測
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
                   {duplicateGroups.length === 0
@@ -296,7 +296,7 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">沒有重複記錄</h3>
               <p className="text-gray-600">
-                藥物工作流程記錄中沒有檢測到重複項目
+                eMAR 記錄中沒有檢測到重複項目
               </p>
             </div>
           ) : (
