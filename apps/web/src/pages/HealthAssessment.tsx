@@ -43,6 +43,7 @@ import { exportBloodSugarToExcel, type BloodSugarExportData } from '../utils/blo
 import PatientTooltip from '../components/PatientTooltip';
 import { syncTaskStatus } from '../lib/database';
 import type { HealthRecord } from '../lib/database';
+import { isVirtualDataEnabled } from '../utils/toolsSettings';
 type SortField = '記錄日期' | '記錄時間' | '院友姓名' | '監測類型' | '數值';
 type SortDirection = 'asc' | 'desc';
 interface AdvancedFilters {
@@ -90,6 +91,7 @@ const HealthAssessment: React.FC = () => {
   const [showGlucoseModal, setShowGlucoseModal] = useState(false);
   const [showBloodPressureModal, setShowBloodPressureModal] = useState(false);
   const [showGenerateTemperatureModal, setShowGenerateTemperatureModal] = useState(false);
+  const [virtualDataEnabled, setVirtualDataEnabled] = useState(isVirtualDataEnabled());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
@@ -739,16 +741,18 @@ const HealthAssessment: React.FC = () => {
                         <Recycle className="h-4 w-4" />
                         <span>回收筒</span>
                       </button>
-                      <button
-                        onClick={() => {
-                          setShowGenerateTemperatureModal(true);
-                          setShowMoreMenu(false);
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 last:rounded-b-lg flex flex-wrap items-center gap-2"
-                      >
-                        <Thermometer className="h-4 w-4" />
-                        <span>一鍵生成體溫</span>
-                      </button>
+                      {virtualDataEnabled && (
+                        <button
+                          onClick={() => {
+                            setShowGenerateTemperatureModal(true);
+                            setShowMoreMenu(false);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 last:rounded-b-lg flex flex-wrap items-center gap-2"
+                        >
+                          <Thermometer className="h-4 w-4" />
+                          <span>一鍵生成體溫</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </>

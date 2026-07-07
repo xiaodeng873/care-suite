@@ -9,6 +9,7 @@ import type { VitalSignType, HealthRecord } from '../lib/database';
 import VitalSignScanner from './VitalSignScanner';
 import type { VitalSignScanResult } from '../utils/vitalSignOcrParser';
 import { generateVitalSuggestion } from '../utils/healthRecordGenerator';
+import { isVirtualDataEnabled } from '../utils/toolsSettings';
 
 const ALL_VITAL_TYPES: { type: VitalSignType; label: string; unit: string; color: string }[] = [
   { type: '血壓',   label: '血壓',   unit: 'mmHg',   color: 'bg-red-500' },
@@ -498,8 +499,8 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
               <button type="submit" disabled={isSubmitting} className="btn-primary flex-1">{isSubmitting ? '儲存中...' : record ? '更新記錄' : '儲存記錄'}</button>
               <button type="button" onClick={onClose} className="btn-secondary flex-1">取消</button>
             </div>
-            {/* 智能數據生成器 - 只在新增模式下顯示 */}
-            {!record && (
+            {/* 智能數據生成器 - 只在新增模式下顯示，且虛擬數據功能啟用時 */}
+            {!record && isVirtualDataEnabled() && (
               <div className="mt-2 border-t pt-4">
                 <button
                   type="button"

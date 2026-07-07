@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode, Building2, Pill, SunMedium, Moon } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode, Building2, Pill, SunMedium, Moon, Wrench } from 'lucide-react';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { UserQRCodeModal } from '../components/UserQRCodeModal';
 import FacilitySettingsPanel from '../components/FacilitySettingsPanel';
@@ -8,6 +8,12 @@ import MedicationSettingsPanel from '../components/MedicationSettingsPanel';
 import { fuzzyMatch } from '../utils/searchUtils';
 import { useAuth, supabase } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import {
+  getToolsSettings,
+  saveToolsSettings,
+  DEFAULT_TOOLS_SETTINGS,
+  type ToolsSettings,
+} from '../utils/toolsSettings';
 import { getSupabaseUrl, getSupabaseAnonKey } from '../config/supabase.config';
 import {
   UserProfile,
@@ -807,7 +813,7 @@ const Settings: React.FC = () => {
   const { theme, setTheme } = useTheme();
   
   // 設定分類
-  const [activeCategory, setActiveCategory] = useState<'users' | 'facility' | 'medication' | 'general'>('users');
+  const [activeCategory, setActiveCategory] = useState<'users' | 'facility' | 'medication' | 'general' | 'tools'>('users');
 
   // 用戶列表狀態
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -816,6 +822,16 @@ const Settings: React.FC = () => {
   const deferredSearch = useDebounce(searchTerm, 200);
   const [filterDepartment, setFilterDepartment] = useState<string>('');
   const [filterRole, setFilterRole] = useState<string>('');
+  
+  // 輔助工具設定狀態
+  const [toolsSettings, setToolsSettings] = useState<ToolsSettings>(DEFAULT_TOOLS_SETTINGS);
+  const [toolsSaving, setToolsSaving] = useState(false);
+  const [toolsMessage, setToolsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // 初始化輔助工具設定
+  useEffect(() => {
+    setToolsSettings(getToolsSettings());
+  }, []);
   
   // Modal 狀態
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -1178,6 +1194,17 @@ const Settings: React.FC = () => {
             <SettingsIcon className="h-4 w-4" />
             基本設定
           </button>
+          <button
+            onClick={() => setActiveCategory('tools')}
+            className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${
+              activeCategory === 'tools'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Wrench className="h-4 w-4" />
+            輔助工具
+          </button>
         </nav>
       </div>
 
@@ -1224,6 +1251,94 @@ const Settings: React.FC = () => {
                 <Moon className="h-4 w-4" />
                 Dark
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 輔助工具區塊 */}
+      {activeCategory === 'tools' && (
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-6">輔助工具</h2>
+          <p className="text-sm text-gray-600 dark:text-slate-400 mb-6">
+            管理系統中的輔助功能開關，如虛擬數據和快速簽署功能
+          </p>
+
+          {toolsMessage && (
+            <div
+              className={`text-sm rounded-lg px-4 py-2 mb-6 ${
+                toolsMessage.type === 'success'
+                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                  : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+              }`}
+            >
+              {toolsMessage.text}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {/* 虛擬數據開關 */}
+            <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-slate-700">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900 dark:text-slate-100">虛擬數據</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  開啟後，系統將啟用數據生成器、一鍵體溫、監測預填、巡房預填等功能
+                </p>
+              </div>
+              <div className="ml-4">
+                <button
+                  onClick={() => {
+                    const updated = { ...toolsSettings, virtualDataEnabled: !toolsSettings.virtualDataEnabled };
+                    setToolsSettings(updated);
+                    saveToolsSettings(updated);
+                    setToolsMessage({ type: 'success', text: '虛擬數據設定已更新' });
+                    setTimeout(() => setToolsMessage(null), 3000);
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    toolsSettings.virtualDataEnabled
+                      ? 'bg-blue-600 dark:bg-blue-500'
+                      : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      toolsSettings.virtualDataEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            {/* 快速簽署開關 */}
+            <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-slate-700">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900 dark:text-slate-100">快速簽署</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  開啟後，系統將啟用一鍵執藥、一鍵核藥、一鍵派藥等快速簽署功能
+                </p>
+              </div>
+              <div className="ml-4">
+                <button
+                  onClick={() => {
+                    const updated = { ...toolsSettings, quickSignEnabled: !toolsSettings.quickSignEnabled };
+                    setToolsSettings(updated);
+                    saveToolsSettings(updated);
+                    setToolsMessage({ type: 'success', text: '快速簽署設定已更新' });
+                    setTimeout(() => setToolsMessage(null), 3000);
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    toolsSettings.quickSignEnabled
+                      ? 'bg-blue-600 dark:bg-blue-500'
+                      : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      toolsSettings.quickSignEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
         </div>

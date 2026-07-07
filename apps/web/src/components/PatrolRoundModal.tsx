@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Clock, User, Trash2, Calendar } from 'lucide-react';
 import type { Patient, PatrolRound } from '../lib/database';
 import { addRandomOffset } from '../utils/careRecordHelper';
+import { isVirtualDataEnabled } from '../utils/toolsSettings';
 import DeleteConfirmModal from './DeleteConfirmModal';
 
 interface PatrolRoundModalProps {
@@ -36,7 +37,7 @@ const PatrolRoundModal: React.FC<PatrolRoundModalProps> = ({
       setRecorder(existingRecord.recorder || '');
       setCoSigner(existingRecord.co_signer || '');
     } else {
-      const randomTime = addRandomOffset(timeSlot);
+      const randomTime = isVirtualDataEnabled() ? addRandomOffset(timeSlot) : timeSlot;
       setPatrolTime(randomTime);
       setRecorder(staffName);
       setCoSigner('');

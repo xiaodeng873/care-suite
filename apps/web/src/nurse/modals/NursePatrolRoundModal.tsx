@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Clock, User, Trash2 } from 'lucide-react';
 import type { Bed, Patient, PatrolRound } from '../../lib/database';
 import { addRandomOffset } from '../../utils/careRecordHelper';
+import { isVirtualDataEnabled } from '../../utils/toolsSettings';
 import { t2s, s2t } from '../utils/chinese';
 
 interface NursePatrolRoundModalProps {
@@ -29,7 +30,7 @@ const NursePatrolRoundModal: React.FC<NursePatrolRoundModalProps> = ({
       setPatrolTime(existingRecord.patrol_time || '');
       setRecorder(existingRecord.recorder || '');
     } else {
-      setPatrolTime(addRandomOffset(timeSlot));
+      setPatrolTime(isVirtualDataEnabled() ? addRandomOffset(timeSlot) : timeSlot);
       setRecorder(staffName);
     }
   }, [existingRecord, timeSlot, staffName]);

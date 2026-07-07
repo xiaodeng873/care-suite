@@ -50,6 +50,7 @@ import {
   hasOverdueWorkflowOnDate,
   calculateOverdueCountByDate
 } from '../utils/workflowStatusHelper';
+import { isQuickSignEnabled } from '../utils/toolsSettings';
 
 // 判斷是否為注射途徑（涵蓋皮下注射／肌肉注射／舊版「注射」）
 const isInjectionRoute = (route?: string | null): boolean => /注射/.test(String(route ?? ''));
@@ -448,6 +449,8 @@ const MedicationWorkflow: React.FC = () => {
     verification_status?: string;
     dispensing_status?: string;
   }>>(new Map());
+  // 快速簽署功能開關狀態
+  const [quickSignEnabled, setQuickSignEnabled] = useState(isQuickSignEnabled());
   // 防抖控制：使用 ref 追蹤生成狀態，防止併發
   const isGeneratingRef = React.useRef(false);
   const dateMenuRef = useRef<HTMLDivElement>(null);
@@ -459,6 +462,16 @@ const MedicationWorkflow: React.FC = () => {
   const [startTime, setStartTime] = useState(0);
   const [dragVelocity, setDragVelocity] = useState(0);
   const [dragDistance, setDragDistance] = useState(0);
+  // 監聽快速簽署設定變化
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'toolsSettings') {
+        setQuickSignEnabled(isQuickSignEnabled());
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
   // QR 掃描處理函數 - 只接受院友二維碼，直接打開一鍵派藥確認框
   const handleQRScanSuccess = async (qrCodeId: string) => {
     try {
@@ -2693,7 +2706,7 @@ const MedicationWorkflow: React.FC = () => {
                                   </div>
                                 )}
                                 <div className="py-1">
-                                  {workflowStep === 'preparation' && (
+                                  {workflowStep === 'preparation' && quickSignEnabled && (
                                     <>
                                       <button
                                         onClick={(e) => {
@@ -2748,7 +2761,7 @@ const MedicationWorkflow: React.FC = () => {
                                       </button>
                                     </>
                                   )}
-                                  {workflowStep === 'verification' && (
+                                  {workflowStep === 'verification' && quickSignEnabled && (
                                     <>
                                       <button
                                         onClick={(e) => {
@@ -2803,7 +2816,7 @@ const MedicationWorkflow: React.FC = () => {
                                       </button>
                                     </>
                                   )}
-                                  {workflowStep === 'dispensing' && (
+                                  {workflowStep === 'dispensing' && quickSignEnabled && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();

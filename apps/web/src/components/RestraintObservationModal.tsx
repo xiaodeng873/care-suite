@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, Clock, User, AlertTriangle, CheckCircle, PauseCircle, Trash2, Info, Shield, Calendar } from 'lucide-react';
 import type { Patient, RestraintObservationRecord, PatientRestraintAssessment } from '../lib/database';
 import { addRandomOffset } from '../utils/careRecordHelper';
+import { isVirtualDataEnabled } from '../utils/toolsSettings';
 import DeleteConfirmModal from './DeleteConfirmModal';
 
 interface RestraintObservationModalProps {
@@ -114,7 +115,7 @@ const RestraintObservationModal: React.FC<RestraintObservationModalProps> = ({
         : [];
       setSelectedRestraints(restraintList);
     } else {
-      const randomTime = addRandomOffset(timeSlot);
+      const randomTime = isVirtualDataEnabled() ? addRandomOffset(timeSlot) : timeSlot;
       setObservationTime(randomTime);
       setObservationStatus('N');
       setRecorder(staffName);
