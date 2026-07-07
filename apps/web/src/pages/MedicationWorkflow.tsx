@@ -1066,6 +1066,22 @@ const MedicationWorkflow: React.FC = () => {
     }
     const record = allWorkflowRecords.find(r => r.id === recordId);
     if (!record) return;
+    // 無時間點 PRN：一筆為一次臨時給藥（三簽一次完成），撤銷任一步驟＝整筆刪除，
+    // 使時間列連同每日計數一併移除。
+    const prescription = prescriptions.find(p => p.id === record.prescription_id);
+    if (prescription && isPrnNoSlot(prescription)) {
+      try {
+        const { error } = await supabase
+          .from('medication_workflow_records')
+          .delete()
+          .eq('id', recordId);
+        if (error) throw error;
+        setAllWorkflowRecords(prev => prev.filter(r => r.id !== recordId));
+      } catch (error) {
+        console.error('撤銷需要時給藥（刪除記錄）失敗:', error);
+      }
+      return;
+    }
     try {
       await revertPrescriptionWorkflowStep(recordId, step as any, patientIdNum, record.scheduled_date);
       // 直接更新 allWorkflowRecords（因為 Context 可能不包含這個記錄）
@@ -2193,7 +2209,11 @@ const MedicationWorkflow: React.FC = () => {
     // 每日上限＝處方的每日服用次數；到頂則提示，不開 Modal
     const dailyLimit = Number(prescription.daily_frequency) || 1;
     const dayCount = recordsWithOptimisticUpdates.filter(r =>
-      r.prescription_id === prescription.id && r.scheduled_date === date
+      r.prescription_id === prescription.id &&
+      r.scheduled_date === date &&
+      !(r.preparation_status === 'pending' &&
+        r.verification_status === 'pending' &&
+        r.dispensing_status === 'pending')
     ).length;
     if (dayCount >= dailyLimit) {
       alert(`「${prescription.medication_name}」已達每日服用次數上限（${dailyLimit} 次），無法再新增需要時給藥。`);
@@ -3020,10 +3040,14 @@ const MedicationWorkflow: React.FC = () => {
                       : (timeSlots.length > 0 ? timeSlots : ['按需']);
                     // PRN 每日可服次數上限（跟處方每日服用次數，不預設）
                     const prnDailyLimit = Number(prescription.daily_frequency) || 1;
-                    // 計算某日該 PRN 處方已派/已建立的記錄數
+                    // 計算某日該 PRN 處方已派/已建立的記錄數（排除全 pending 殘留，避免虛計上限）
                     const prnDayCount = (date: string) =>
                       recordsWithOptimisticUpdates.filter(r =>
-                        r.prescription_id === prescription.id && r.scheduled_date === date
+                        r.prescription_id === prescription.id &&
+                        r.scheduled_date === date &&
+                        !(r.preparation_status === 'pending' &&
+                          r.verification_status === 'pending' &&
+                          r.dispensing_status === 'pending')
                       ).length;
                     // 注射處方：每個時段下方加一列「注射位置」子列
                     const isInjectionRx = isInjectionRoute(prescription.administration_route);
