@@ -412,11 +412,6 @@ INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALU
 
 -- 設定類別
 INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALUES
-  -- 系統設定
-  ('settings', 'system_settings', '系統設定', 'view', '/settings'),
-  ('settings', 'system_settings', '系統設定', 'create', '/settings'),
-  ('settings', 'system_settings', '系統設定', 'edit', '/settings'),
-  ('settings', 'system_settings', '系統設定', 'delete', '/settings'),
   -- 用戶管理
   ('settings', 'user_management', '用戶管理', 'view', '/settings'),
   ('settings', 'user_management', '用戶管理', 'create', '/settings'),
