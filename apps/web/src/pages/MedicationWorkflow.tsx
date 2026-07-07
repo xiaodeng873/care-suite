@@ -808,34 +808,6 @@ const MedicationWorkflow: React.FC = () => {
       });
     }
   }, [prescriptionWorkflowRecords, selectedPatientId]);
-  // 當處方時間點被刪除時，同步移除本地 allWorkflowRecords 中的全 pending 孤立記錄
-  useEffect(() => {
-    if (!selectedPatientId || prescriptions.length === 0) return;
-    // 建立當前有效的 prescriptionId:timeSlot 組合集合
-    const validSlots = new Set<string>();
-    for (const p of prescriptions) {
-      const slots: string[] = (p.medication_time_slots as string[]) || [];
-      for (const slot of slots) {
-        validSlots.add(`${p.id}:${slot.substring(0, 5)}`);
-      }
-    }
-    setAllWorkflowRecords(prev => {
-      const filtered = prev.filter(r => {
-        // 保留其他院友的記錄
-        if (r.patient_id.toString() !== selectedPatientId) return true;
-        // 保留任何已簽記錄（非全 pending）
-        const isFullyPending =
-          r.preparation_status === 'pending' &&
-          r.verification_status === 'pending' &&
-          r.dispensing_status === 'pending';
-        if (!isFullyPending) return true;
-        // 移除全 pending 且 time slot 已從處方刪除的記錄
-        const timeSlot = r.scheduled_time?.trim().substring(0, 5) ?? '';
-        return validSlots.has(`${r.prescription_id}:${timeSlot}`);
-      });
-      return filtered.length === prev.length ? prev : filtered;
-    });
-  }, [prescriptions, selectedPatientId]);
   // 處理點擊外部關閉日期選單
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -2880,12 +2852,19 @@ const MedicationWorkflow: React.FC = () => {
                   {filteredPrescriptions.map((prescription, index) => {
                     // 獲取處方當前的時間點
                     const currentTimeSlots = prescription.medication_time_slots || [];
-                    // 獲取當前週次內該處方的所有工作流程記錄的時間點
+                    // 只保留「該週有已簽記錄」的舊時間點（任一狀態非 pending 即為已簽）。
+                    // 原則：過去已簽的時間點永遠保留（歷史不變），純 pending 的舊時間點會響應處方增減而消失。
+                    // 此判斷以「當前這一週的記錄」為準，故每翻一頁（每週）獨立評估，任何週次皆自動正確。
                     const weekTimeSlotsFromRecords = allWorkflowRecords
-                      .filter(r => r.prescription_id === prescription.id)
+                      .filter(r =>
+                        r.prescription_id === prescription.id &&
+                        (r.preparation_status !== 'pending' ||
+                          r.verification_status !== 'pending' ||
+                          r.dispensing_status !== 'pending')
+                      )
                       .map(r => r.scheduled_time?.trim().substring(0, 5))
                       .filter((time, idx2, self) => time && self.indexOf(time) === idx2);
-                    // 合併時間點：當前時間點 + 當週有記錄的舊時間點
+                    // 合併時間點：當前處方時間點 + 當週有已簽記錄的舊時間點
                     const allTimeSlots = new Set([
                       ...currentTimeSlots,
                       ...weekTimeSlotsFromRecords
