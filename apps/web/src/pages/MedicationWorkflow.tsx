@@ -2406,7 +2406,7 @@ const MedicationWorkflow: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* 左側：eMAR + 院友資訊卡 同一行 */}
           <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
-            <span className="text-xs font-semibold text-blue-600 tracking-widest uppercase flex-shrink-0">eMAR</span>
+            
             <PatientInfoCard
               patient={selectedPatient ?? null}
               defaultExpanded={false}
