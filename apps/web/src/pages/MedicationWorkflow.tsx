@@ -808,6 +808,34 @@ const MedicationWorkflow: React.FC = () => {
       });
     }
   }, [prescriptionWorkflowRecords, selectedPatientId]);
+  // 當處方時間點被刪除時，同步移除本地 allWorkflowRecords 中的全 pending 孤立記錄
+  useEffect(() => {
+    if (!selectedPatientId || prescriptions.length === 0) return;
+    // 建立當前有效的 prescriptionId:timeSlot 組合集合
+    const validSlots = new Set<string>();
+    for (const p of prescriptions) {
+      const slots: string[] = (p.medication_time_slots as string[]) || [];
+      for (const slot of slots) {
+        validSlots.add(`${p.id}:${slot.substring(0, 5)}`);
+      }
+    }
+    setAllWorkflowRecords(prev => {
+      const filtered = prev.filter(r => {
+        // 保留其他院友的記錄
+        if (r.patient_id.toString() !== selectedPatientId) return true;
+        // 保留任何已簽記錄（非全 pending）
+        const isFullyPending =
+          r.preparation_status === 'pending' &&
+          r.verification_status === 'pending' &&
+          r.dispensing_status === 'pending';
+        if (!isFullyPending) return true;
+        // 移除全 pending 且 time slot 已從處方刪除的記錄
+        const timeSlot = r.scheduled_time?.trim().substring(0, 5) ?? '';
+        return validSlots.has(`${r.prescription_id}:${timeSlot}`);
+      });
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  }, [prescriptions, selectedPatientId]);
   // 處理點擊外部關閉日期選單
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
