@@ -122,9 +122,6 @@ const PatientInfoCard: React.FC<PatientInfoCardProps> = ({
           <div className="flex items-center gap-3 flex-wrap min-w-0">
             <span className="font-medium text-blue-600 whitespace-nowrap">床號: {patient.床號}</span>
             <span className="font-bold text-gray-900">{patient.中文姓名}</span>
-            {patient.英文姓名 && (
-              <span className="text-gray-500 text-sm">{patient.英文姓名}</span>
-            )}
             <span className="text-gray-600 text-sm">{patient.性別} | {calculateAge(patient.出生日期)}</span>
             
             {/* 碎藥需求開關 */}
