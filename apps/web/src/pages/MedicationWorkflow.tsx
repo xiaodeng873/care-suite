@@ -40,6 +40,7 @@ import InjectionSiteModal from '../components/InjectionSiteModal';
 import RevertConfirmModal from '../components/RevertConfirmModal';
 import WorkflowDeduplicateModal from '../components/WorkflowDeduplicateModal';
 import InjectionWorkflowModal, { InjectionWorkflowPayload } from '../components/InjectionWorkflowModal';
+import PrnWorkflowModal, { PrnWorkflowPayload } from '../components/PrnWorkflowModal';
 import { Portal } from '../components/Portal';
 import { generateDailyWorkflowRecords, generateBatchWorkflowRecords, generateWorkflowRecordsClient } from '../utils/workflowGenerator';
 import { diagnoseWorkflowDisplayIssue } from '../utils/diagnoseTool';
@@ -54,6 +55,10 @@ import { isQuickSignEnabled } from '../utils/toolsSettings';
 
 // 判斷是否為注射途徑（涵蓋皮下注射／肌肉注射／舊版「注射」）
 const isInjectionRoute = (route?: string | null): boolean => /注射/.test(String(route ?? ''));
+
+// 判斷是否為「無安排時間點」的需要時(PRN)處方
+const isPrnNoSlot = (p: any): boolean =>
+  !!p?.is_prn && (!Array.isArray(p?.medication_time_slots) || p.medication_time_slots.length === 0);
 
 interface WorkflowCellProps {
   record: any;
@@ -385,6 +390,7 @@ const MedicationWorkflow: React.FC = () => {
     prescriptions,
     prescriptionWorkflowRecords,
     fetchPrescriptionWorkflowRecords,
+    createPrescriptionWorkflowRecord,
     prepareMedication,
     revertPrescriptionWorkflowStep,
     verifyMedication,
@@ -417,6 +423,10 @@ const MedicationWorkflow: React.FC = () => {
   const [showInspectionCheckModal, setShowInspectionCheckModal] = useState(false);
   const [showInjectionSiteModal, setShowInjectionSiteModal] = useState(false);
   const [showInjectionWorkflowModal, setShowInjectionWorkflowModal] = useState(false);
+  // 需要時(PRN)給藥程序 Modal 狀態
+  const [showPrnWorkflowModal, setShowPrnWorkflowModal] = useState(false);
+  const [prnModalContext, setPrnModalContext] = useState<{ prescription_id: string; patient_id: number; scheduled_date: string } | null>(null);
+  const [prnModalDefaultTime, setPrnModalDefaultTime] = useState('');
   const [showQRScannerModal, setShowQRScannerModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
@@ -943,6 +953,8 @@ const MedicationWorkflow: React.FC = () => {
           const endDate = new Date(p.end_date);
           if (endDate < weekStart) return false;
         }
+        // 無時間點的需要時(PRN)處方：不要求當周已有記錄（讓「按需要」加號列可用）
+        if (isPrnNoSlot(p)) return true;
         // 必須在當周有工作流程記錄
         return weekPrescriptionIds.has(p.id);
       }
@@ -954,13 +966,26 @@ const MedicationWorkflow: React.FC = () => {
       return false;
     });
   }, [prescriptions, selectedPatientId, weekDates, weekPrescriptionIds]);
-  // 依步驟過濾處方：即時備藥只在「派藥」頁顯示；「執藥」「核藥」頁排除即時備藥
-  const filteredPrescriptions = activePrescriptions.filter(p => {
-    if (workflowStep !== 'dispensing' && p.preparation_method === 'immediate') {
-      return false;
-    }
-    return true;
-  });
+  // 依步驟過濾處方：
+  //  - 即時備藥只在「派藥」頁顯示；「執藥」「核藥」頁排除即時備藥
+  //  - 無時間點的需要時(PRN)處方只在「派藥」頁顯示（執/核頁連唯讀都不顯示）
+  //  - 排序：恆常處方維持原順序在上，無時間點 PRN 自動置底並按藥物名稱排序
+  const filteredPrescriptions = useMemo(() => {
+    const list = activePrescriptions.filter(p => {
+      if (workflowStep !== 'dispensing' && p.preparation_method === 'immediate') {
+        return false;
+      }
+      if (isPrnNoSlot(p) && workflowStep !== 'dispensing') {
+        return false;
+      }
+      return true;
+    });
+    const regular = list.filter(p => !isPrnNoSlot(p));
+    const prnBottom = list
+      .filter(p => isPrnNoSlot(p))
+      .sort((a, b) => String(a.medication_name || '').localeCompare(String(b.medication_name || ''), 'zh-Hant'));
+    return [...regular, ...prnBottom];
+  }, [activePrescriptions, workflowStep]);
   // 計算每個日期的逾期未完成流程狀態（用於紅點提示，使用樂觀更新記錄）
   const dateOverdueStatus = useMemo(() => {
     return calculateOverdueCountByDate(recordsWithOptimisticUpdates, weekDates);
@@ -2062,6 +2087,36 @@ const MedicationWorkflow: React.FC = () => {
       console.error('無效的院友ID:', selectedPatientId);
       return;
     }
+    // PRN + 注射：無既有記錄，於完成時建立一筆完成記錄
+    if (currentInjectionRecord.__isPrnNew) {
+      const iso = new Date().toISOString();
+      const injectionNotes = `注射位置: ${payload.site}`;
+      try {
+        await createPrescriptionWorkflowRecord({
+          prescription_id: currentInjectionRecord.prescription_id,
+          patient_id: patientIdNum,
+          scheduled_date: currentInjectionRecord.scheduled_date,
+          scheduled_time: currentInjectionRecord.scheduled_time,
+          preparation_status: 'completed',
+          verification_status: 'completed',
+          dispensing_status: 'completed',
+          preparation_staff: payload.preparationStaff,
+          verification_staff: payload.verificationStaff,
+          dispensing_staff: payload.dispensingStaff,
+          preparation_time: iso,
+          verification_time: iso,
+          dispensing_time: iso,
+          notes: injectionNotes,
+        } as any);
+        await reloadWeekWorkflowRecords();
+      } catch (error) {
+        console.error('需要時注射給藥建立失敗:', error);
+      } finally {
+        setShowInjectionWorkflowModal(false);
+        setCurrentInjectionRecord(null);
+      }
+      return;
+    }
     const recordId = currentInjectionRecord.id;
     const scheduledDate = currentInjectionRecord.scheduled_date;
     // 樂觀更新
@@ -2112,6 +2167,74 @@ const MedicationWorkflow: React.FC = () => {
     } finally {
       setShowInjectionWorkflowModal(false);
       setCurrentInjectionRecord(null);
+    }
+  };
+  // 重新載入當週工作流程記錄（PRN 給藥建立後刷新用）
+  const reloadWeekWorkflowRecords = async () => {
+    if (!selectedPatientId || weekDates.length < 7) return;
+    const patientIdNum = parseInt(selectedPatientId);
+    if (isNaN(patientIdNum)) return;
+    const { data, error } = await supabase
+      .from('medication_workflow_records')
+      .select('*')
+      .eq('patient_id', patientIdNum)
+      .gte('scheduled_date', weekDates[0])
+      .lte('scheduled_date', weekDates[6])
+      .order('scheduled_date')
+      .order('scheduled_time');
+    if (!error && data) {
+      setAllWorkflowRecords(data);
+    }
+  };
+  // 開啟「需要時給藥程序」：普通 PRN 用專屬 Modal；PRN+注射 用注射 Modal
+  const openPrnDose = (prescription: any, date: string) => {
+    const patientIdNum = parseInt(selectedPatientId);
+    if (isNaN(patientIdNum)) return;
+    const now = new Date();
+    const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    if (isInjectionRoute(prescription.administration_route)) {
+      // 邊緣情況：按需要 + 注射類 → 用注射給藥程序 Model
+      setCurrentInjectionRecord({
+        __isPrnNew: true,
+        id: null,
+        prescription_id: prescription.id,
+        patient_id: patientIdNum,
+        scheduled_date: date,
+        scheduled_time: hhmm,
+      });
+      setShowInjectionWorkflowModal(true);
+    } else {
+      setPrnModalContext({ prescription_id: prescription.id, patient_id: patientIdNum, scheduled_date: date });
+      setPrnModalDefaultTime(hhmm);
+      setShowPrnWorkflowModal(true);
+    }
+  };
+  // 完成普通 PRN 給藥（單人可完成三簽，建立一筆完成記錄）
+  const handlePrnWorkflowComplete = async (payload: PrnWorkflowPayload) => {
+    if (!prnModalContext) return;
+    const iso = new Date().toISOString();
+    try {
+      await createPrescriptionWorkflowRecord({
+        prescription_id: prnModalContext.prescription_id,
+        patient_id: prnModalContext.patient_id,
+        scheduled_date: prnModalContext.scheduled_date,
+        scheduled_time: payload.administrationTime,
+        preparation_status: 'completed',
+        verification_status: 'completed',
+        dispensing_status: 'completed',
+        preparation_staff: payload.preparationStaff,
+        verification_staff: payload.verificationStaff,
+        dispensing_staff: payload.dispensingStaff,
+        preparation_time: iso,
+        verification_time: iso,
+        dispensing_time: iso,
+      } as any);
+      await reloadWeekWorkflowRecords();
+    } catch (error) {
+      console.error('需要時給藥建立失敗:', error);
+    } finally {
+      setShowPrnWorkflowModal(false);
+      setPrnModalContext(null);
     }
   };
   // 處理派藥確認對話框的結果
@@ -2571,13 +2694,13 @@ const MedicationWorkflow: React.FC = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         行號
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '150px'}}>
                         藥物名稱及劑型
                       </th>
-                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto landscape:w-28">
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '76px'}}>
                         途徑/次數
                       </th>
-                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '60px', minWidth: '52px'}}>
+                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '92px', minWidth: '88px'}}>
                         服用時間
                       </th>
                     {weekDates.map((date) => {
@@ -2877,11 +3000,28 @@ const MedicationWorkflow: React.FC = () => {
                       return parseTime(a) - parseTime(b);
                     });
                     // PRN 或無時間點時，fallback 顯示單行
-                    const effectiveSlots = timeSlots.length > 0 ? timeSlots : ['按需'];
+                    const prnNoSlot = isPrnNoSlot(prescription);
+                    // 無時間點 PRN：已派實際時間成為時間列 + 最底「按需要」加號列
+                    const PRN_ADD_ROW = '__PRN_ADD__';
+                    const effectiveSlots = prnNoSlot
+                      ? [...timeSlots, PRN_ADD_ROW]
+                      : (timeSlots.length > 0 ? timeSlots : ['按需']);
+                    // PRN 每日可服次數上限（跟處方）
+                    const prnDailyLimit = Number(prescription.daily_frequency)
+                      || Number(prescription.frequency_value)
+                      || 1;
+                    // 計算某日該 PRN 處方已派/已建立的記錄數
+                    const prnDayCount = (date: string) =>
+                      recordsWithOptimisticUpdates.filter(r =>
+                        r.prescription_id === prescription.id && r.scheduled_date === date
+                      ).length;
                     // 注射處方：每個時段下方加一列「注射位置」子列
                     const isInjectionRx = isInjectionRoute(prescription.administration_route);
                     const rowsPerSlot = isInjectionRx ? 2 : 1;
-                    const rowSpanCount = effectiveSlots.length * rowsPerSlot;
+                    // PRN 加號列固定為單列（無注射子列）；其餘列依 rowsPerSlot
+                    const rowSpanCount = prnNoSlot
+                      ? (timeSlots.length * rowsPerSlot + 1)
+                      : effectiveSlots.length * rowsPerSlot;
                     // 處方間底部分隔線樣式
                     const prescriptionBorderStyle: React.CSSProperties = { borderBottom: '2px solid #d1d5db' };
                     // 標準化時間格式
@@ -2924,7 +3064,7 @@ const MedicationWorkflow: React.FC = () => {
                               {isFirstRow && (
                                 <td
                                   rowSpan={rowSpanCount}
-                                  className="px-4 py-3"
+                                  className="px-3 py-3"
                                   data-prescription-id={prescription.id}
                                   onClick={(e) => e.stopPropagation()}
                                   style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
@@ -3024,16 +3164,42 @@ const MedicationWorkflow: React.FC = () => {
                                 className="px-2 text-xs font-medium text-gray-700 text-center whitespace-nowrap"
                                 style={{ borderBottom: mainRowBorder, backgroundColor: slotRowBg }}
                               >
-                                {timeSlot}
+                                {timeSlot === PRN_ADD_ROW ? '按需要' : timeSlot}
                               </td>
                               {/* ── 日期欄 ── */}
                               {weekDates.map((date) => {
                                 const isSelectedDate = date === selectedDate;
-                                const workflowRecord = recordsWithOptimisticUpdates.find(r =>
+                                const isAddRow = timeSlot === PRN_ADD_ROW;
+                                const workflowRecord = isAddRow ? undefined : recordsWithOptimisticUpdates.find(r =>
                                   r.prescription_id === prescription.id &&
                                   r.scheduled_date === date &&
                                   normalizeTime(r.scheduled_time) === normalizeTime(timeSlot)
                                 );
+                                // PRN 空格互動：該日未達每日上限才可點擊；加號列任何日皆可點，時間列僅該日已有記錄時可點
+                                const renderPrnEmptyCell = () => {
+                                  const d = new Date(date);
+                                  const start = new Date(prescription.start_date);
+                                  if (d < start) return <div className="text-center text-xs text-gray-400 py-1">無處方</div>;
+                                  if (prescription.end_date) {
+                                    const end = new Date(prescription.end_date);
+                                    if (d > end) return <div className="text-center text-xs text-gray-400 py-1">無處方</div>;
+                                  }
+                                  const dayCount = prnDayCount(date);
+                                  const underLimit = dayCount < prnDailyLimit;
+                                  const clickable = underLimit && (isAddRow || dayCount >= 1);
+                                  if (!clickable) {
+                                    return <div className="text-center text-xs text-gray-300 py-1">·</div>;
+                                  }
+                                  return (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); openPrnDose(prescription, date); }}
+                                      className="w-full text-center text-xs text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded py-1"
+                                      title="需要時給藥"
+                                    >
+                                      無記錄
+                                    </button>
+                                  );
+                                };
                                 return (
                                   <td
                                     key={date}
@@ -3050,6 +3216,8 @@ const MedicationWorkflow: React.FC = () => {
                                         onStepClick={handleStepClick}
                                         selectedDate={selectedDate}
                                       />
+                                    ) : prnNoSlot ? (
+                                      renderPrnEmptyCell()
                                     ) : (
                                       <div className="text-center text-xs text-gray-400 py-1">
                                         {(() => {
@@ -3069,7 +3237,7 @@ const MedicationWorkflow: React.FC = () => {
                               })}
                             </tr>
                             {/* ── 注射位置子列（比照 HTML 藥紙檢測列結構） ── */}
-                            {isInjectionRx && (
+                            {isInjectionRx && timeSlot !== PRN_ADD_ROW && (
                               <tr className="mw-row" style={{ backgroundColor: slotRowBg }}>
                                 <td
                                   className="px-2 text-xs font-medium text-orange-700 text-center whitespace-nowrap"
@@ -3225,6 +3393,19 @@ const MedicationWorkflow: React.FC = () => {
           }}
           workflowRecord={currentInjectionRecord}
           onComplete={handleInjectionWorkflowComplete}
+        />
+      )}
+      {/* 需要時(PRN)給藥程序模態框（單人可完成三簽） */}
+      {showPrnWorkflowModal && prnModalContext && (
+        <PrnWorkflowModal
+          isOpen={showPrnWorkflowModal}
+          onClose={() => {
+            setShowPrnWorkflowModal(false);
+            setPrnModalContext(null);
+          }}
+          prnContext={prnModalContext}
+          defaultTime={prnModalDefaultTime}
+          onComplete={handlePrnWorkflowComplete}
         />
       )}
       {/* 工作流程記錄去重模態框 */}
