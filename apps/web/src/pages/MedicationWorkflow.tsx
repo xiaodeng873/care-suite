@@ -2190,6 +2190,15 @@ const MedicationWorkflow: React.FC = () => {
   const openPrnDose = (prescription: any, date: string) => {
     const patientIdNum = parseInt(selectedPatientId);
     if (isNaN(patientIdNum)) return;
+    // 每日上限＝處方的每日服用次數；到頂則提示，不開 Modal
+    const dailyLimit = Number(prescription.daily_frequency) || 1;
+    const dayCount = recordsWithOptimisticUpdates.filter(r =>
+      r.prescription_id === prescription.id && r.scheduled_date === date
+    ).length;
+    if (dayCount >= dailyLimit) {
+      alert(`「${prescription.medication_name}」已達每日服用次數上限（${dailyLimit} 次），無法再新增需要時給藥。`);
+      return;
+    }
     const now = new Date();
     const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     if (isInjectionRoute(prescription.administration_route)) {
@@ -2694,6 +2703,9 @@ const MedicationWorkflow: React.FC = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         行號
                       </th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '110px'}}>
+                        開始 / 處方日期
+                      </th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '150px'}}>
                         藥物名稱及劑型
                       </th>
@@ -3006,10 +3018,8 @@ const MedicationWorkflow: React.FC = () => {
                     const effectiveSlots = prnNoSlot
                       ? [...timeSlots, PRN_ADD_ROW]
                       : (timeSlots.length > 0 ? timeSlots : ['按需']);
-                    // PRN 每日可服次數上限（跟處方）
-                    const prnDailyLimit = Number(prescription.daily_frequency)
-                      || Number(prescription.frequency_value)
-                      || 1;
+                    // PRN 每日可服次數上限（跟處方每日服用次數，不預設）
+                    const prnDailyLimit = Number(prescription.daily_frequency) || 1;
                     // 計算某日該 PRN 處方已派/已建立的記錄數
                     const prnDayCount = (date: string) =>
                       recordsWithOptimisticUpdates.filter(r =>
@@ -3058,6 +3068,17 @@ const MedicationWorkflow: React.FC = () => {
                                   style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
                                 >
                                   {index + 1}
+                                </td>
+                              )}
+                              {/* ── rowspan 欄：開始 / 處方日期（與 HTML 藥紙相同） ── */}
+                              {isFirstRow && (
+                                <td
+                                  rowSpan={rowSpanCount}
+                                  className="px-3 whitespace-nowrap text-xs text-gray-700"
+                                  style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
+                                >
+                                  <div>開始日期：{prescription.start_date ? new Date(prescription.start_date).toLocaleDateString('zh-TW') : ''}</div>
+                                  <div>處方日期：{prescription.prescription_date ? new Date(prescription.prescription_date).toLocaleDateString('zh-TW') : ''}</div>
                                 </td>
                               )}
                               {/* ── rowspan 欄：藥物名稱及劑型 ── */}
@@ -3175,7 +3196,8 @@ const MedicationWorkflow: React.FC = () => {
                                   r.scheduled_date === date &&
                                   normalizeTime(r.scheduled_time) === normalizeTime(timeSlot)
                                 );
-                                // PRN 空格互動：該日未達每日上限才可點擊；加號列任何日皆可點，時間列僅該日已有記錄時可點
+                                // PRN 空格互動：加號列任何日皆可點；時間列僅該日已有記錄時可點。
+                                // 是否達每日上限的判斷交由 openPrnDose：到頂會出提示。
                                 const renderPrnEmptyCell = () => {
                                   const d = new Date(date);
                                   const start = new Date(prescription.start_date);
@@ -3185,16 +3207,20 @@ const MedicationWorkflow: React.FC = () => {
                                     if (d > end) return <div className="text-center text-xs text-gray-400 py-1">無處方</div>;
                                   }
                                   const dayCount = prnDayCount(date);
-                                  const underLimit = dayCount < prnDailyLimit;
-                                  const clickable = underLimit && (isAddRow || dayCount >= 1);
+                                  const clickable = isAddRow || dayCount >= 1;
                                   if (!clickable) {
                                     return <div className="text-center text-xs text-gray-300 py-1">·</div>;
                                   }
+                                  const atLimit = dayCount >= prnDailyLimit;
                                   return (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); openPrnDose(prescription, date); }}
-                                      className="w-full text-center text-xs text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded py-1"
-                                      title="需要時給藥"
+                                      className={`w-full text-center text-xs rounded py-1 ${
+                                        atLimit
+                                          ? 'text-gray-400 hover:bg-gray-100'
+                                          : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'
+                                      }`}
+                                      title={atLimit ? '已達每日上限' : '需要時給藥'}
                                     >
                                       無記錄
                                     </button>
