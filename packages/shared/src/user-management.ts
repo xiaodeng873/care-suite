@@ -247,8 +247,12 @@ export const PERMISSION_STRUCTURE: Record<PermissionCategory, FeatureDefinition[
     { key: 'template_management', name_zh: '範本管理', route: '/templates' },
   ],
   settings: [
-    { key: 'system_settings', name_zh: '系統設定', route: '/settings' },
     { key: 'user_management', name_zh: '用戶管理', route: '/settings' },
+    { key: 'facility_settings', name_zh: '院舍設定', route: '/settings' },
+    { key: 'medication_settings', name_zh: '藥物設定', route: '/settings' },
+    { key: 'general_settings', name_zh: '基本設定', route: '/settings' },
+    { key: 'system_settings', name_zh: '系統設定', route: '/settings' },
+    { key: 'tools_settings', name_zh: '輔助工具', route: '/settings' },
   ],
 };
 

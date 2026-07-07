@@ -809,11 +809,33 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
 // =====================================================
 
 const Settings: React.FC = () => {
-  const { canManageUsers, isDeveloper, isAdmin, customToken, user, session } = useAuth();
+  const { canManageUsers, isDeveloper, isAdmin, customToken, user, session, hasPermission } = useAuth();
   const { theme, setTheme } = useTheme();
   
   // 設定分類
   const [activeCategory, setActiveCategory] = useState<'users' | 'facility' | 'medication' | 'general' | 'tools'>('users');
+
+  // 權限檢查函數
+  const canAccessTab = useCallback((tabName: string): boolean => {
+    // 開發者可以訪問所有 tab
+    if (isDeveloper) return true;
+    
+    // 根據 tab 名稱檢查權限
+    switch (tabName) {
+      case 'users':
+        return hasPermission('settings', 'user_management', 'view') || canManageUsers();
+      case 'facility':
+        return hasPermission('settings', 'facility_settings', 'view');
+      case 'medication':
+        return hasPermission('settings', 'medication_settings', 'view');
+      case 'general':
+        return hasPermission('settings', 'general_settings', 'view');
+      case 'tools':
+        return hasPermission('settings', 'tools_settings', 'view');
+      default:
+        return false;
+    }
+  }, [isDeveloper, hasPermission, canManageUsers]);
 
   // 用戶列表狀態
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -832,6 +854,13 @@ const Settings: React.FC = () => {
   useEffect(() => {
     setToolsSettings(getToolsSettings());
   }, []);
+  
+  // 檢查 activeCategory 權限，無權限時改回 users
+  useEffect(() => {
+    if (!canAccessTab(activeCategory)) {
+      setActiveCategory('users');
+    }
+  }, [activeCategory, canAccessTab]);
   
   // Modal 狀態
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -1150,6 +1179,7 @@ const Settings: React.FC = () => {
       {/* 分類導覽 */}
       <div className="mb-6 border-b border-gray-200">
         <nav className="flex gap-1">
+          {canAccessTab('users') && (
           <button
             onClick={() => setActiveCategory('users')}
             className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${
@@ -1161,6 +1191,8 @@ const Settings: React.FC = () => {
             <Users className="h-4 w-4" />
             用戶管理
           </button>
+          )}
+          {canAccessTab('facility') && (
           <button
             onClick={() => setActiveCategory('facility')}
             className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${
@@ -1172,6 +1204,8 @@ const Settings: React.FC = () => {
             <Building2 className="h-4 w-4" />
             院舍設定
           </button>
+          )}
+          {canAccessTab('medication') && (
           <button
             onClick={() => setActiveCategory('medication')}
             className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${
@@ -1183,6 +1217,8 @@ const Settings: React.FC = () => {
             <Pill className="h-4 w-4" />
             藥物設定
           </button>
+          )}
+          {canAccessTab('general') && (
           <button
             onClick={() => setActiveCategory('general')}
             className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${
@@ -1194,6 +1230,8 @@ const Settings: React.FC = () => {
             <SettingsIcon className="h-4 w-4" />
             基本設定
           </button>
+          )}
+          {canAccessTab('tools') && (
           <button
             onClick={() => setActiveCategory('tools')}
             className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${
@@ -1205,6 +1243,7 @@ const Settings: React.FC = () => {
             <Wrench className="h-4 w-4" />
             輔助工具
           </button>
+          )}
         </nav>
       </div>
 
@@ -1281,10 +1320,7 @@ const Settings: React.FC = () => {
             <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-slate-700">
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-900 dark:text-slate-100">虛擬數據</p>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  開啟後，系統將啟用數據生成器、一鍵體溫、監測預填、巡房預填等功能
-                </p>
-              </div>
+                </div>
               <div className="ml-4">
                 <button
                   onClick={() => {

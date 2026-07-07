@@ -421,7 +421,27 @@ INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALU
   ('settings', 'user_management', '用戶管理', 'view', '/settings'),
   ('settings', 'user_management', '用戶管理', 'create', '/settings'),
   ('settings', 'user_management', '用戶管理', 'edit', '/settings'),
-  ('settings', 'user_management', '用戶管理', 'delete', '/settings');
+  ('settings', 'user_management', '用戶管理', 'delete', '/settings'),
+  -- 院舍設定
+  ('settings', 'facility_settings', '院舍設定', 'view', '/settings'),
+  ('settings', 'facility_settings', '院舍設定', 'create', '/settings'),
+  ('settings', 'facility_settings', '院舍設定', 'edit', '/settings'),
+  ('settings', 'facility_settings', '院舍設定', 'delete', '/settings'),
+  -- 藥物設定
+  ('settings', 'medication_settings', '藥物設定', 'view', '/settings'),
+  ('settings', 'medication_settings', '藥物設定', 'create', '/settings'),
+  ('settings', 'medication_settings', '藥物設定', 'edit', '/settings'),
+  ('settings', 'medication_settings', '藥物設定', 'delete', '/settings'),
+  -- 基本設定
+  ('settings', 'general_settings', '基本設定', 'view', '/settings'),
+  ('settings', 'general_settings', '基本設定', 'create', '/settings'),
+  ('settings', 'general_settings', '基本設定', 'edit', '/settings'),
+  ('settings', 'general_settings', '基本設定', 'delete', '/settings'),
+  -- 輔助工具
+  ('settings', 'tools_settings', '輔助工具', 'view', '/settings'),
+  ('settings', 'tools_settings', '輔助工具', 'create', '/settings'),
+  ('settings', 'tools_settings', '輔助工具', 'edit', '/settings'),
+  ('settings', 'tools_settings', '輔助工具', 'delete', '/settings');
 
 -- 10. 建立輔助函數
 -- =====================================================
