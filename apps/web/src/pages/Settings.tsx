@@ -529,9 +529,11 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<PermissionCategory>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     setSelectedPermissions(new Set(currentPermissions));
+    setMessage(null);
     // 預設展開所有類別
     setExpandedCategories(new Set(Object.keys(PERMISSION_STRUCTURE) as PermissionCategory[]));
   }, [currentPermissions, isOpen]);
@@ -616,10 +618,16 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
 
   const handleSubmit = async () => {
     setSaving(true);
+    setMessage(null);
     try {
       await onSave(Array.from(selectedPermissions));
-      onClose();
+      setMessage({ type: 'success', text: `已成功保存 ${user?.name_zh} 的權限` });
+      setTimeout(() => {
+        onClose();
+      }, 1500);
     } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : '未知錯誤';
+      setMessage({ type: 'error', text: errorMsg });
       console.error('Save permissions error:', err);
     } finally {
       setSaving(false);
@@ -640,6 +648,11 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
           <div>
             <h2 className="text-xl font-semibold text-gray-900">權限設定</h2>
             <p className="text-sm text-gray-500">用戶：{user.name_zh}</p>
+            {message && (
+              <div className={`text-sm mt-2 p-2 rounded ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {message.text}
+              </div>
+            )}
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-6 w-6" />
@@ -1013,42 +1026,74 @@ const Settings: React.FC = () => {
 
   // 儲存權限
   const handleSavePermissions = async (permissionKeys: string[]) => {
-    if (!selectedUser) return;
-
-    // 先刪除舊權限
-    await supabase
-      .from('user_permissions')
-      .delete()
-      .eq('user_id', selectedUser.id);
-
-    // 獲取權限 ID 對照
-    const { data: allPermissions } = await supabase
-      .from('permissions')
-      .select('id, category, feature, action');
-
-    if (!allPermissions) return;
-
-    // 建立權限對照表
-    const permissionMap = new Map<string, string>();
-    for (const p of allPermissions) {
-      const key = `${p.category}:${p.feature}:${p.action}`;
-      permissionMap.set(key, p.id);
+    if (!selectedUser) {
+      throw new Error('未選擇用戶');
     }
 
-    // 插入新權限
-    const inserts = permissionKeys
-      .map(key => {
-        const permissionId = permissionMap.get(key);
-        if (!permissionId) return null;
-        return {
-          user_id: selectedUser.id,
-          permission_id: permissionId,
-        };
-      })
-      .filter(Boolean);
+    try {
+      // 先刪除舊權限
+      const { error: deleteError } = await supabase
+        .from('user_permissions')
+        .delete()
+        .eq('user_id', selectedUser.id);
 
-    if (inserts.length > 0) {
-      await supabase.from('user_permissions').insert(inserts);
+      if (deleteError) {
+        console.error('Delete permissions error:', deleteError);
+        throw new Error(`刪除舊權限失敗: ${deleteError.message}`);
+      }
+
+      // 獲取權限 ID 對照
+      const { data: allPermissions, error: fetchError } = await supabase
+        .from('permissions')
+        .select('id, category, feature, action');
+
+      if (fetchError) {
+        console.error('Fetch permissions error:', fetchError);
+        throw new Error(`獲取權限失敗: ${fetchError.message}`);
+      }
+
+      if (!allPermissions) {
+        throw new Error('無法獲取權限列表');
+      }
+
+      // 建立權限對照表
+      const permissionMap = new Map<string, string>();
+      for (const p of allPermissions) {
+        const key = `${p.category}:${p.feature}:${p.action}`;
+        permissionMap.set(key, p.id);
+      }
+
+      // 插入新權限
+      const inserts = permissionKeys
+        .map(key => {
+          const permissionId = permissionMap.get(key);
+          if (!permissionId) {
+            console.warn(`找不到權限: ${key}`);
+            return null;
+          }
+          return {
+            user_id: selectedUser.id,
+            permission_id: permissionId,
+          };
+        })
+        .filter(Boolean);
+
+      if (inserts.length > 0) {
+        const { error: insertError } = await supabase
+          .from('user_permissions')
+          .insert(inserts);
+
+        if (insertError) {
+          console.error('Insert permissions error:', insertError);
+          throw new Error(`保存權限失敗: ${insertError.message}`);
+        }
+      }
+
+      // 重新加載該用戶的權限
+      await fetchUsers();
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : '未知錯誤';
+      throw new Error(errorMsg);
     }
   };
 
