@@ -229,6 +229,29 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
       if (prescription.status === 'inactive' && !prescription.end_date) {
         throw new Error('停用處方必須設定結束日期');
       }
+
+      // 找出被移除的時間點，刪除其全 pending 的 workflow records
+      const oldPrescription = prescriptions.find(p => p.id === prescription.id);
+      const oldSlots: string[] = Array.isArray(oldPrescription?.medication_time_slots)
+        ? (oldPrescription!.medication_time_slots as string[])
+        : [];
+      const newSlots: string[] = Array.isArray(prescription.medication_time_slots)
+        ? prescription.medication_time_slots
+        : [];
+      const removedSlots = oldSlots.filter(s => !newSlots.includes(s));
+
+      if (removedSlots.length > 0) {
+        // 刪除被移除時間點的所有全 pending 記錄（未執、未核、未派）
+        await supabase
+          .from('medication_workflow_records')
+          .delete()
+          .eq('prescription_id', prescription.id)
+          .in('scheduled_time', removedSlots)
+          .eq('preparation_status', 'pending')
+          .eq('verification_status', 'pending')
+          .eq('dispensing_status', 'pending');
+      }
+
       const updated = await db.updatePrescription(prescription);
       await refreshPrescriptionData();
       // Plan A: 處方轉為 active（啟用/編輯）後，背景回溯生成工作流程記錄
@@ -237,7 +260,7 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
       console.error('Error updating prescription:', error);
       throw error;
     }
-  }, [refreshPrescriptionData]);
+  }, [refreshPrescriptionData, prescriptions]);
   
   const deletePrescription = useCallback(async (id: number) => {
     try {
