@@ -740,6 +740,12 @@ export interface MedicationPrescription {
   preparation_method: PreparationMethodType;
   status: PrescriptionStatusType;
   medication_source: string;
+  // 藥物來源專科（醫管局專科，選填）
+  medication_source_specialty?: string;
+  // 藥物數量（供推算預計結束日期）
+  medication_quantity?: string;
+  // 預計結束日期（推算值，僅在無明確 end_date 時計算）
+  estimated_end_date?: string;
   // 檢測規則（可能為空陣列）
   inspection_rules?: MedicationInspectionRule[];
   created_at: string;
@@ -895,6 +901,61 @@ export const updatePrescription = async (prescription: Partial<MedicationPrescri
 };
 export const deletePrescription = async (id: string | number): Promise<void> => {
   const { error } = await supabase.from('new_medication_prescriptions').delete().eq('id', id);
+  if (error) throw error;
+};
+
+// ========== 處方日誌（Prescription Activity Log）==========
+export type PrescriptionActivityActionType =
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'status_change'
+  | 'replace'
+  | 'batch_date_update'
+  | 'restore';
+
+export interface PrescriptionFieldChange {
+  field: string;
+  label: string;
+  old: string;
+  new: string;
+}
+
+export interface PrescriptionActivityLogEntry {
+  id: string;
+  patient_id: number;
+  prescription_id: string | null;
+  medication_name: string | null;
+  action_type: PrescriptionActivityActionType;
+  from_status: string | null;
+  to_status: string | null;
+  field_changes: PrescriptionFieldChange[];
+  snapshot_before: any | null;
+  snapshot_after: any | null;
+  actor_user_id: string | null;
+  actor_username: string | null;
+  actor_name: string | null;
+  actor_role: string | null;
+  actor_department: string | null;
+  restored_from_log_id: string | null;
+  group_id: string | null;
+  created_at: string;
+}
+
+export const getPrescriptionActivityLog = async (patientId: number): Promise<PrescriptionActivityLogEntry[]> => {
+  const { data, error } = await supabase
+    .from('prescription_activity_log')
+    .select('*')
+    .eq('patient_id', patientId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as PrescriptionActivityLogEntry[];
+};
+
+export const createPrescriptionActivityLogEntry = async (
+  entry: Omit<PrescriptionActivityLogEntry, 'id' | 'created_at'>
+): Promise<void> => {
+  const { error } = await supabase.from('prescription_activity_log').insert([entry]);
   if (error) throw error;
 };
 // 其他基礎函式

@@ -5,6 +5,7 @@ import {
   saveMedicationSettings,
   resetMedicationSettings,
   DEFAULT_MEDICATION_SETTINGS,
+  INSTITUTION_GROUPS,
   type MedicationSettingsData,
 } from '../utils/medicationSettings';
 
@@ -16,7 +17,12 @@ const STRING_FIELDS: { key: StringKey; label: string; section: '服用資訊' | 
   { key: '服用單位', label: '服用單位（份量）', section: '服用資訊' },
   { key: '特殊用法', label: '特殊用法', section: '服用資訊' },
   { key: '服用時段', label: '服用時段', section: '服用資訊' },
-  { key: '藥物來源', label: '藥物來源', section: '服用資訊' },
+];
+
+// 藥物來源機構分組（各自為一個可編輯清單）+ 專科
+const SOURCE_FIELDS: { key: StringKey; label: string }[] = [
+  ...INSTITUTION_GROUPS.map(g => ({ key: g.key as StringKey, label: g.label })),
+  { key: '專科' as StringKey, label: '醫管局專科' },
 ];
 
 const MedicationSettingsPanel: React.FC = () => {
@@ -188,6 +194,18 @@ const MedicationSettingsPanel: React.FC = () => {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {STRING_FIELDS.map(({ key, label }) => renderStringList(key, label))}
+        </div>
+      </div>
+
+      {/* 藥物來源（機構 + 專科） */}
+      <div>
+        <h3 className="text-base font-medium text-gray-700 mb-3 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+          藥物來源
+        </h3>
+        <p className="text-xs text-gray-400 mb-3">機構依「醫管局 / 衛生署 / 其他」分組；系統以此判定是否須輸入藥物數量。專科為選填。</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {SOURCE_FIELDS.map(({ key, label }) => renderStringList(key, label))}
         </div>
       </div>
 

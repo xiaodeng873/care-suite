@@ -7,6 +7,7 @@ import { Hop as Home, Users, Calendar, Heart, SquareCheck as CheckSquare, Triang
 import { Link } from 'react-router-dom';
 import { isTaskOverdue, isTaskPendingToday, isTaskDueSoon, getTaskStatus, isDocumentTask, isMonitoringTask, isNursingTask, isRestraintAssessmentOverdue, isRestraintAssessmentDueSoon, isHealthAssessmentOverdue, isHealthAssessmentDueSoon, isTubeCareOverdue, isTubeCareDueSoon, calculateNextDueDate, isTaskScheduledForDate, formatFrequencyDescription, findFirstMissingDate } from '../utils/taskScheduler';
 import { getPatientsWithOverdueWorkflow } from '../utils/workflowStatusHelper';
+import { computeEstimatedEndDate, daysUntil } from '../utils/estimatedEndDate';
 import HealthRecordModal from '../components/HealthRecordModal';
 import MealGuidanceModal from '../components/MealGuidanceModal';
 import FollowUpModal from '../components/FollowUpModal';
@@ -448,6 +449,51 @@ const Dashboard: React.FC = () => {
       }).filter(item => item.count > 0);
   }, [patients, prescriptions]);
   const patientsMap = useMemo(() => new Map(patients.map(p => [p.院友id, p])), [patients]);
+
+  // 藥物庫存不足：長期藥物（無明確結束日期但有預計結束日期），於預計結束日期前 4 週提醒續藥。
+  // 依 處方日期 + 藥物來源(機構+專科) + 預計結束日期 歸組；預計結束日期過去即消失。
+  const lowStockGroups = useMemo(() => {
+    const today = new Date();
+    const activePatientIds = new Set(patients.filter(p => p.在住狀態 === '在住').map(p => p.院友id));
+    const groupsMap = new Map<string, {
+      patient: any;
+      source: string;
+      specialty: string;
+      prescriptionDate: string;
+      estimatedEndDate: string;
+      remainingDays: number;
+      count: number;
+    }>();
+    (prescriptions || []).forEach((pr: any) => {
+      if (pr.status !== 'active') return;
+      if (pr.end_date) return;                       // 只處理長期藥物
+      if (!activePatientIds.has(pr.patient_id)) return;
+      const estEnd = pr.estimated_end_date || computeEstimatedEndDate(pr);
+      if (!estEnd) return;
+      const remaining = daysUntil(estEnd, today);
+      if (remaining < 0 || remaining > 28) return;   // 未到 4 週或已過期則不提醒
+      const source = pr.medication_source || '（未填來源）';
+      const specialty = pr.medication_source_specialty || '';
+      const key = `${pr.patient_id}|${pr.prescription_date}|${source}|${specialty}|${estEnd}`;
+      const existing = groupsMap.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        const patient = patientsMap.get(pr.patient_id);
+        if (!patient) return;
+        groupsMap.set(key, {
+          patient,
+          source,
+          specialty,
+          prescriptionDate: pr.prescription_date,
+          estimatedEndDate: estEnd,
+          remainingDays: remaining,
+          count: 1,
+        });
+      }
+    });
+    return Array.from(groupsMap.values()).sort((a, b) => a.remainingDays - b.remainingDays);
+  }, [prescriptions, patients, patientsMap]);
   const recentSchedules = useMemo(() => schedules.filter(s => new Date(s.到診日期) >= new Date(new Date().toDateString())).sort((a, b) => new Date(a.到診日期).getTime() - new Date(b.到診日期).getTime()).slice(0, 5), [schedules]);
   const upcomingFollowUps = useMemo(() => followUpAppointments.filter(a => { if (new Date(a.覆診日期) < new Date()) return false; const patient = patientsMap.get(a.院友id); return patient && patient.在住狀態 === '在住'; }).sort((a, b) => new Date(a.覆診日期).getTime() - new Date(b.覆診日期).getTime()).slice(0, 10), [followUpAppointments, patientsMap]);
   const monitoringTasks = useMemo(() => patientHealthTasks.filter(task => isMonitoringTask(task.health_record_type)), [patientHealthTasks]);
@@ -964,7 +1010,7 @@ const Dashboard: React.FC = () => {
           />
         </div>
         <div className="col-span-1"><CarePlanDueReminderCard carePlans={carePlans} patients={patients} /></div>
-        <div className="col-span-1"><MedicationRemindersCard overdueWorkflows={overdueWorkflows} pendingPrescriptions={pendingPrescriptions} /></div>
+        <div className="col-span-1"><MedicationRemindersCard overdueWorkflows={overdueWorkflows} pendingPrescriptions={pendingPrescriptions} lowStockGroups={lowStockGroups} /></div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
         <div className="card p-6 lg:p-4 lg:col-span-2">

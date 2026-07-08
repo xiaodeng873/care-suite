@@ -2,10 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useSearchParams } from 'react-router-dom';
-import { Pill, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, Clock, AlertTriangle, CheckCircle, ArrowRight, X, ChevronUp, ChevronDown, Settings, FileText, Activity, ChevronRight, ChevronLeft, Heart, Shield } from 'lucide-react';
+import { Pill, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, Clock, AlertTriangle, CheckCircle, ArrowRight, X, ChevronUp, ChevronDown, Settings, FileText, Activity, ChevronRight, ChevronLeft, Heart, Shield, History } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PrescriptionModal from '../components/PrescriptionModal';
 import PrescriptionTransferModal from '../components/PrescriptionTransferModal';
+import PrescriptionActivityLogModal from '../components/PrescriptionActivityLogModal';
 import BatchPrescriptionDateUpdateModal from '../components/BatchPrescriptionDateUpdateModal';
 import PrescriptionEndDateModal from '../components/PrescriptionEndDateModal';
 import PatientTooltip from '../components/PatientTooltip';
@@ -106,6 +107,7 @@ const PrescriptionManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'active' | 'pending_change' | 'inactive'>('active');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [showBatchUpdateModal, setShowBatchUpdateModal] = useState(false);
+  const [showActivityLog, setShowActivityLog] = useState(false);
   const [showMedicationRecordExportModal, setShowMedicationRecordExportModal] = useState(false);
 
   // 添加途徑過濾狀態
@@ -511,6 +513,15 @@ const PrescriptionManagement: React.FC = () => {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
+              onClick={() => setShowActivityLog(true)}
+              disabled={!currentPatient}
+              className="btn-secondary flex flex-wrap items-center gap-2 disabled:opacity-50"
+              title="檢視此院友的處方變動時間線"
+            >
+              <History className="h-4 w-4" />
+              <span>處方日誌</span>
+            </button>
+            <button
               onClick={() => setShowMedicationRecordExportModal(true)}
               className="btn-secondary flex flex-wrap items-center gap-2"
             >
@@ -869,6 +880,13 @@ const PrescriptionManagement: React.FC = () => {
           currentPatient={currentPatient}
           selectedPrescriptionIds={selectedRows}
           allPrescriptions={prescriptions}
+        />
+      )}
+
+      {showActivityLog && currentPatient && (
+        <PrescriptionActivityLogModal
+          patient={currentPatient.patient}
+          onClose={() => setShowActivityLog(false)}
         />
       )}
 

@@ -149,8 +149,20 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
         }
       }
 
+      // 是否為「取代」流程：新處方轉在服 + 現有在服處方轉停用，需綁定為同一組
+      const isReplace =
+        finalTargetStatus === 'active' &&
+        !!comparisonResult?.existingPrescription &&
+        selectedAction === 'replace';
+      const replaceGroupId = isReplace
+        ? (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}`)
+        : undefined;
+      const replaceMeta = isReplace
+        ? { actionType: 'replace', groupId: replaceGroupId }
+        : undefined;
+
       // 更新處方
-      await updatePrescription(updateData);
+      await updatePrescription(updateData, replaceMeta);
 
       // 如果是轉為在服處方且有衝突，處理現有處方
       if (finalTargetStatus === 'active' && comparisonResult?.existingPrescription) {
@@ -162,7 +174,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
             end_date: getHongKongDate(),
             end_time: getHongKongTime()
           };
-          await updatePrescription(replaceData);
+          await updatePrescription(replaceData, replaceMeta);
         }
         // 如果選擇保留兩者，不需要額外操作
       }

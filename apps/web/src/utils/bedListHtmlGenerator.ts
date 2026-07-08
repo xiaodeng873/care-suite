@@ -317,9 +317,9 @@ body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-se
   border-top-color:#e5e7eb;
 }
 .br-e.br-alt { filter:brightness(.97); }
-.bnum-e { font-size:8.5px; color:#9ca3af; flex-shrink:0; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.bempty-tag { font-size:8px; font-weight:600; color:#9ca3af; background:#fff; border:1px solid #d1d5db; border-radius:3px; padding:0 4px; margin-left:auto; letter-spacing:.3px; }
-.bnum { font-size:10px; color:#6b7280; flex-shrink:0; white-space:nowrap; font-variant-numeric:tabular-nums; font-weight:600; }
+.bnum-e { font-size:12px; color:#9ca3af; flex-shrink:0; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.bempty-tag { font-size:12px; font-weight:600; color:#9ca3af; background:#fff; border:1px solid #d1d5db; border-radius:3px; padding:0 4px; margin-left:auto; letter-spacing:.3px; }
+.bnum { font-size:12px; color:#6b7280; flex-shrink:0; white-space:nowrap; font-variant-numeric:tabular-nums; font-weight:600; }
 .binf { font-size:10px; color:#dc2626; font-weight:600; flex-shrink:0; white-space:nowrap; }
 .bname { flex:1; font-size:13.5px; font-weight:600; color:#111827; text-align:right; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-left:3px; }
 .bname-e { flex:1; }

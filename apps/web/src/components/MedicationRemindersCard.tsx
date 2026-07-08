@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Pill, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
+import { Clock, Pill, ChevronDown, ChevronUp, ArrowRight, PackageX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Patient {
@@ -21,24 +21,38 @@ interface PendingPrescription {
   count: number;
 }
 
+export interface LowStockGroup {
+  patient: Patient;
+  source: string;
+  specialty: string;
+  prescriptionDate: string;
+  estimatedEndDate: string;
+  remainingDays: number;
+  count: number;
+}
+
 interface MedicationRemindersCardProps {
   overdueWorkflows: OverdueWorkflow[];
   pendingPrescriptions: PendingPrescription[];
+  lowStockGroups?: LowStockGroup[];
 }
 
 const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
   overdueWorkflows,
   pendingPrescriptions,
+  lowStockGroups = [],
 }) => {
   const navigate = useNavigate();
   const [showAllOverdue, setShowAllOverdue] = useState(false);
   const [showAllPending, setShowAllPending] = useState(false);
+  const [showAllLowStock, setShowAllLowStock] = useState(false);
   const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
 
-  if (overdueWorkflows.length === 0 && pendingPrescriptions.length === 0) return null;
+  if (overdueWorkflows.length === 0 && pendingPrescriptions.length === 0 && lowStockGroups.length === 0) return null;
 
   const displayOverdue = showAllOverdue ? overdueWorkflows : overdueWorkflows.slice(0, 2);
   const displayPending = showAllPending ? pendingPrescriptions : pendingPrescriptions.slice(0, 2);
+  const displayLowStock = showAllLowStock ? lowStockGroups : lowStockGroups.slice(0, 3);
 
   const togglePatientExpand = (patientId: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -61,6 +75,8 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
             {overdueWorkflows.length > 0 && `${overdueWorkflows.length} 位逾期執核`}
             {overdueWorkflows.length > 0 && pendingPrescriptions.length > 0 && ' · '}
             {pendingPrescriptions.length > 0 && `${pendingPrescriptions.length} 位待變更處方`}
+            {(overdueWorkflows.length > 0 || pendingPrescriptions.length > 0) && lowStockGroups.length > 0 && ' · '}
+            {lowStockGroups.length > 0 && `${lowStockGroups.length} 組藥物庫存不足`}
           </p>
         </div>
       </div>
@@ -167,6 +183,46 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
                 className="w-full p-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 flex items-center justify-center gap-2"
               >
                 {showAllPending ? <><ChevronUp className="h-4 w-4" /><span>收起</span></> : <><ChevronDown className="h-4 w-4" /><span>展開另外 {pendingPrescriptions.length - 2} 位</span></>}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 藥物庫存不足（須安排續藥） */}
+      {lowStockGroups.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <PackageX className="h-4 w-4 text-rose-600" />
+            <span className="text-sm font-medium text-rose-800">藥物庫存不足（須安排續藥）</span>
+          </div>
+          <div className="space-y-2">
+            {displayLowStock.map((g, idx) => (
+              <div
+                key={`${g.patient.院友id}-${g.prescriptionDate}-${g.source}-${g.specialty}-${g.estimatedEndDate}-${idx}`}
+                className="p-3 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100 cursor-pointer"
+                onClick={() => navigate(`/prescriptions?patient=${g.patient.院友id}`)}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="font-medium text-rose-900">
+                      {g.patient.床號} {(g.patient.中文姓氏 || g.patient.中文名字) ? `${g.patient.中文姓氏 ?? ''}${g.patient.中文名字 ?? ''}` : (g.patient.中文姓名 ?? '')}
+                    </div>
+                    <div className="text-sm text-rose-700">
+                      {g.source}{g.specialty ? `·${g.specialty}` : ''} 的處方尚餘 {g.remainingDays} 天服完，如已安排續藥請忽略
+                    </div>
+                    <div className="text-xs text-rose-500 mt-0.5">預計結束：{g.estimatedEndDate} · 處方日：{g.prescriptionDate}</div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-rose-600" />
+                </div>
+              </div>
+            ))}
+            {lowStockGroups.length > 3 && (
+              <button
+                onClick={() => setShowAllLowStock(!showAllLowStock)}
+                className="w-full p-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 flex items-center justify-center gap-2"
+              >
+                {showAllLowStock ? <><ChevronUp className="h-4 w-4" /><span>收起</span></> : <><ChevronDown className="h-4 w-4" /><span>展開另外 {lowStockGroups.length - 3} 組</span></>}
               </button>
             )}
           </div>

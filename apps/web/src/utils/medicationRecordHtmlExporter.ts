@@ -578,7 +578,8 @@ const renderBodyTable = (
 
   const body = page.blocks
     .map((block) => {
-      const blockRows = renderPrescriptionBlock(block, selectedMonth, dayCount, workflowRecords, staffMapping);
+      const admissionDateIso = toIsoDate(page.patient.入住日期);
+      const blockRows = renderPrescriptionBlock(block, selectedMonth, dayCount, workflowRecords, staffMapping, admissionDateIso);
       return `<tbody class="mr-prescription-body">${blockRows}</tbody>`;
     })
     .join('');
@@ -611,15 +612,22 @@ const renderPrescriptionBlock = (
   selectedMonth: string,
   dayCount: number,
   workflowRecords: WorkflowRecord[],
-  staffMapping: StaffCodeMapping
+  staffMapping: StaffCodeMapping,
+  admissionDateIso = ''
 ): string => {
   const { prescription, timeSlots } = block;
 
-  const dateInfo = `<div>開始日期：${escapeHtml(formatDate(prescription.start_date))}</div>`
+  // 開始日期：若與入住日相同，表示為不詳（入住前已在服，確切日期不明）
+  const startDateLabel =
+    admissionDateIso && toIsoDate(prescription.start_date) === admissionDateIso
+      ? '不詳'
+      : formatDate(prescription.start_date);
+  const dateInfo = `<div>開始日期：${escapeHtml(startDateLabel)}</div>`
     + `<div>處方日期：${escapeHtml(formatDate(prescription.prescription_date))}</div>`;
   const inspectionRequirement = formatInspectionRequirement(prescription);
   const mealTimingLabel = getMealTimingLabel(prescription);
   const nameInfo = `<div class="mr-med-name">${escapeHtml(prescription.medication_name ?? '')}</div>`
+    + (prescription.end_date ? `<div class="mr-med-short">短期藥物</div>` : '')
     + (prescription.dosage_form ? `<div class="mr-med-form">${escapeHtml(String(prescription.dosage_form))}</div>` : '')
     + (inspectionRequirement ? `<div class="mr-med-test">${escapeHtml(inspectionRequirement)}</div>` : '')
     + (prescription.medication_source ? `<div class="mr-med-source">來源：${escapeHtml(String(prescription.medication_source))}</div>` : '')
@@ -1121,6 +1129,15 @@ const formatDate = (value: unknown): string => {
   return date.toLocaleDateString('zh-TW');
 };
 
+// 將任意日期字串正規化為 YYYY-MM-DD（用於入住日比對）
+const toIsoDate = (value: unknown): string => {
+  if (!value) return '';
+  const s = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+};
+
 const toDateString = (selectedMonth: string, day: number): string => `${selectedMonth}-${String(day).padStart(2, '0')}`;
 
 const getDaysInMonth = (selectedMonth: string): number => {
@@ -1215,6 +1232,7 @@ body {
   vertical-align: top;
 }
 .mr-med-name { font-weight: bold; font-size: 10pt; }
+.mr-med-short { display: inline-block; font-size: 7pt; font-weight: bold; color: #92400e; background: #fef3c7; border: 0.3mm solid #fbbf24; border-radius: 1.5px; padding: 0 2px; margin-top: 0.5mm; }
 .mr-med-test { font-size: 7.2pt; color: #b45309; margin-top: 0.4mm; }
 .mr-med-source { font-size: 7.2pt; color: #475569; margin-top: 0.4mm; }
 

@@ -13,6 +13,14 @@ import * as db from '../../lib/database';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
 import { generateWorkflowRecordsClient } from '../../utils/workflowGenerator';
+import { diffPrescriptions } from '../../utils/prescriptionActivityLog';
+
+// 處方日誌：高階操作可傳入的 meta（覆寫 action_type、綁定 group、標記還原來源）
+export interface PrescriptionLogMeta {
+  actionType?: db.PrescriptionActivityActionType;
+  groupId?: string;
+  restoredFromLogId?: string;
+}
 
 // 回溯生成範圍：由處方開始日到今天 + 14 天
 const WORKFLOW_HORIZON_DAYS = 14;
@@ -96,9 +104,9 @@ interface PrescriptionContextType {
   loading: boolean;
   
   // 處方 CRUD
-  addPrescription: (prescription: any) => Promise<void>;
-  updatePrescription: (prescription: any) => Promise<void>;
-  deletePrescription: (id: number) => Promise<void>;
+  addPrescription: (prescription: any, logMeta?: PrescriptionLogMeta) => Promise<void>;
+  updatePrescription: (prescription: any, logMeta?: PrescriptionLogMeta) => Promise<void>;
+  deletePrescription: (id: number | string, logMeta?: PrescriptionLogMeta) => Promise<void>;
   
   // 藥品資料庫 CRUD
   addDrug: (drug: Omit<any, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -149,7 +157,7 @@ interface PrescriptionProviderProps {
 }
 
 export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
-  const { displayName, isAuthenticated } = useAuth();
+  const { displayName, isAuthenticated, userProfile, user, role } = useAuth();
   
   // 狀態定義
   const [prescriptions, setPrescriptions] = useState<db.MedicationPrescription[]>([]);
@@ -157,6 +165,36 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
   const [prescriptionWorkflowRecords, setPrescriptionWorkflowRecords] = useState<PrescriptionWorkflowRecord[]>([]);
   const [prescriptionTimeSlotDefinitions, setPrescriptionTimeSlotDefinitions] = useState<PrescriptionTimeSlotDefinition[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // ========== 處方日誌輔助 ==========
+  // 建立操作者身份快照（去正規化，日後修改用戶資料不影響歷史）
+  const buildActor = useCallback(() => {
+    const position =
+      userProfile?.nursing_position ||
+      userProfile?.allied_health_position ||
+      userProfile?.hygiene_position ||
+      userProfile?.other_position ||
+      userProfile?.department ||
+      null;
+    return {
+      actor_user_id: (userProfile as any)?.id || (user as any)?.id || null,
+      actor_username: userProfile?.username || (user as any)?.email || null,
+      actor_name: userProfile?.name_zh || displayName || null,
+      actor_role: role || null,
+      actor_department: position,
+    };
+  }, [userProfile, user, role, displayName]);
+
+  // 寫入日誌（失敗只警告，不阻擋主處方操作）
+  const logPrescriptionActivity = useCallback(async (
+    entry: Omit<db.PrescriptionActivityLogEntry, 'id' | 'created_at' | 'actor_user_id' | 'actor_username' | 'actor_name' | 'actor_role' | 'actor_department'>
+  ) => {
+    try {
+      await db.createPrescriptionActivityLogEntry({ ...buildActor(), ...entry });
+    } catch (err) {
+      console.warn('寫入處方日誌失敗（不影響主操作）:', err);
+    }
+  }, [buildActor]);
   
   // ========== 刷新數據 ==========
   const refreshPrescriptionData = useCallback(async () => {
@@ -212,9 +250,22 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
   };
   
   // ========== 處方 CRUD ==========
-  const addPrescription = useCallback(async (prescription: any) => {
+  const addPrescription = useCallback(async (prescription: any, logMeta?: PrescriptionLogMeta) => {
     try {
       const created = await db.createPrescription(prescription);
+      await logPrescriptionActivity({
+        patient_id: Number(created.patient_id),
+        prescription_id: created.id,
+        medication_name: created.medication_name,
+        action_type: logMeta?.actionType || 'create',
+        from_status: null,
+        to_status: created.status,
+        field_changes: [],
+        snapshot_before: null,
+        snapshot_after: created,
+        restored_from_log_id: logMeta?.restoredFromLogId || null,
+        group_id: logMeta?.groupId || null,
+      });
       await refreshPrescriptionData();
       // Plan A: 建立處方後，背景回溯生成工作流程記錄（由開始日起），避免翻頁時才慢慢生成
       backfillWorkflowForPrescription(created);
@@ -222,9 +273,9 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
       console.error('Error adding prescription:', error);
       throw error;
     }
-  }, [refreshPrescriptionData]);
+  }, [refreshPrescriptionData, logPrescriptionActivity]);
   
-  const updatePrescription = useCallback(async (prescription: any) => {
+  const updatePrescription = useCallback(async (prescription: any, logMeta?: PrescriptionLogMeta) => {
     try {
       if (prescription.status === 'inactive' && !prescription.end_date) {
         throw new Error('停用處方必須設定結束日期');
@@ -253,6 +304,26 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
       }
 
       const updated = await db.updatePrescription(prescription);
+
+      // 寫入處方日誌
+      const fieldChanges = diffPrescriptions(oldPrescription, updated);
+      const statusChanged = !!oldPrescription && oldPrescription.status !== updated.status;
+      const resolvedActionType: db.PrescriptionActivityActionType =
+        logMeta?.actionType || (statusChanged ? 'status_change' : 'update');
+      await logPrescriptionActivity({
+        patient_id: Number(updated.patient_id),
+        prescription_id: updated.id,
+        medication_name: updated.medication_name,
+        action_type: resolvedActionType,
+        from_status: oldPrescription?.status || null,
+        to_status: updated.status,
+        field_changes: fieldChanges,
+        snapshot_before: oldPrescription || null,
+        snapshot_after: updated,
+        restored_from_log_id: logMeta?.restoredFromLogId || null,
+        group_id: logMeta?.groupId || null,
+      });
+
       await refreshPrescriptionData();
       // Plan A: 處方轉為 active（啟用/編輯）後，背景回溯生成工作流程記錄
       backfillWorkflowForPrescription(updated);
@@ -260,17 +331,33 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
       console.error('Error updating prescription:', error);
       throw error;
     }
-  }, [refreshPrescriptionData, prescriptions]);
+  }, [refreshPrescriptionData, prescriptions, logPrescriptionActivity]);
   
-  const deletePrescription = useCallback(async (id: number) => {
+  const deletePrescription = useCallback(async (id: number | string, logMeta?: PrescriptionLogMeta) => {
     try {
+      const oldPrescription = prescriptions.find(p => String(p.id) === String(id));
       await db.deletePrescription(id);
+      if (oldPrescription) {
+        await logPrescriptionActivity({
+          patient_id: Number(oldPrescription.patient_id),
+          prescription_id: String(oldPrescription.id),
+          medication_name: oldPrescription.medication_name,
+          action_type: logMeta?.actionType || 'delete',
+          from_status: oldPrescription.status,
+          to_status: null,
+          field_changes: [],
+          snapshot_before: oldPrescription,
+          snapshot_after: null,
+          restored_from_log_id: logMeta?.restoredFromLogId || null,
+          group_id: logMeta?.groupId || null,
+        });
+      }
       await refreshPrescriptionData();
     } catch (error) {
       console.error('Error deleting prescription:', error);
       throw error;
     }
-  }, [refreshPrescriptionData]);
+  }, [refreshPrescriptionData, prescriptions, logPrescriptionActivity]);
   
   // ========== 藥品資料庫 CRUD ==========
   const addDrug = useCallback(async (drug: Omit<any, 'id' | 'created_at' | 'updated_at'>) => {

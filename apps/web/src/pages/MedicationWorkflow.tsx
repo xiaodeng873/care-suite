@@ -3118,6 +3118,9 @@ const MedicationWorkflow: React.FC = () => {
                                     <div className="font-medium text-gray-900">
                                       {prescription.medication_name}
                                     </div>
+                                    {prescription.end_date && (
+                                      <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">短期藥物</span>
+                                    )}
                                     {prescription.dosage_form && (
                                       <div className="text-xs text-gray-500">{prescription.dosage_form}</div>
                                     )}

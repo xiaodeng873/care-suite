@@ -98,6 +98,10 @@ ${prescriptionsByPatient.map(group =>
       let errorCount = 0;
       const errors: string[] = [];
 
+      // 同一次批次操作綁定同一 group_id，供處方日誌一併還原
+      const batchGroupId =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}`;
+
       // 批量更新處方日期
       for (const prescription of selectedPrescriptions) {
         try {
@@ -111,7 +115,7 @@ ${prescriptionsByPatient.map(group =>
             updateData.medication_source = newMedicationSource;
           }
 
-          await updatePrescription(updateData);
+          await updatePrescription(updateData, { actionType: 'batch_date_update', groupId: batchGroupId });
           successCount++;
         } catch (error) {
           console.error(`更新處方 ${prescription.id} 失敗:`, error);

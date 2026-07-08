@@ -114,9 +114,9 @@ interface PatientContextType {
   addPatientToSchedule: (scheduleId: number, patientId: number, symptoms: string, notes: string, reasons: string[]) => Promise<void>;
   updateScheduleDetail: (detail: any) => Promise<void>;
   deleteScheduleDetail: (detailId: number) => Promise<void>;
-  addPrescription: (prescription: any) => Promise<void>;
-  updatePrescription: (prescription: db.Prescription) => Promise<void>;
-  deletePrescription: (id: number) => Promise<void>;
+  addPrescription: (prescription: any, logMeta?: { actionType?: string; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
+  updatePrescription: (prescription: any, logMeta?: { actionType?: string; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
+  deletePrescription: (id: number | string, logMeta?: { actionType?: string; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
   addHealthRecord: (record: Omit<db.HealthRecord, '記錄id'>) => Promise<db.HealthRecord>;
   addHealthRecordsForSession: (records: Omit<db.HealthRecord, '記錄id' | '建立時間'>[]) => Promise<db.HealthRecord[]>;
   updateHealthRecord: (record: db.HealthRecord) => Promise<void>;

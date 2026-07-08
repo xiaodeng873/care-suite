@@ -17,6 +17,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
 import { queryKeys } from '../../lib/queryClient';
 import { generateWorkflowRecordsClient } from '../../utils/workflowGenerator';
+import { diffPrescriptions } from '../../utils/prescriptionActivityLog';
 
 // 回溯生成範圍：由處方開始日到今天 + 30 天
 const WORKFLOW_HORIZON_DAYS = 30;
@@ -156,9 +157,9 @@ interface WorkflowContextType {
   prescriptionWorkflowRecords: PrescriptionWorkflowRecord[];
   prescriptionTimeSlotDefinitions: PrescriptionTimeSlotDefinition[];
   prescriptionLoading: boolean;
-  addPrescription: (prescription: any) => Promise<void>;
-  updatePrescription: (prescription: any) => Promise<void>;
-  deletePrescription: (id: number) => Promise<void>;
+  addPrescription: (prescription: any, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
+  updatePrescription: (prescription: any, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
+  deletePrescription: (id: number | string, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
   addDrug: (drug: Omit<any, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateDrug: (drug: any) => Promise<void>;
   deleteDrug: (id: string) => Promise<void>;
@@ -194,8 +195,36 @@ interface WorkflowProviderProps {
 }
 
 export function WorkflowProvider({ children }: WorkflowProviderProps) {
-  const { displayName, isAuthenticated } = useAuth();
+  const { displayName, isAuthenticated, userProfile, user, role } = useAuth();
   const queryClient = useQueryClient();
+
+  // ========== 處方日誌輔助 ==========
+  const buildActor = useCallback(() => {
+    const position =
+      (userProfile as any)?.nursing_position ||
+      (userProfile as any)?.allied_health_position ||
+      (userProfile as any)?.hygiene_position ||
+      (userProfile as any)?.other_position ||
+      (userProfile as any)?.department ||
+      null;
+    return {
+      actor_user_id: (userProfile as any)?.id || (user as any)?.id || null,
+      actor_username: (userProfile as any)?.username || (user as any)?.email || null,
+      actor_name: (userProfile as any)?.name_zh || displayName || null,
+      actor_role: role || null,
+      actor_department: position,
+    };
+  }, [userProfile, user, role, displayName]);
+
+  const logPrescriptionActivity = useCallback(async (
+    entry: Omit<db.PrescriptionActivityLogEntry, 'id' | 'created_at' | 'actor_user_id' | 'actor_username' | 'actor_name' | 'actor_role' | 'actor_department'>
+  ) => {
+    try {
+      await db.createPrescriptionActivityLogEntry({ ...buildActor(), ...entry });
+    } catch (err) {
+      console.warn('寫入處方日誌失敗（不影響主操作）:', err);
+    }
+  }, [buildActor]);
   
   // ===== React Query Hooks =====
   const schedulesQuery = useSchedules();
@@ -347,9 +376,22 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
     ]);
   }, [queryClient]);
 
-  const addPrescription = useCallback(async (prescription: any) => {
+  const addPrescription = useCallback(async (prescription: any, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => {
     try {
       const created = await db.createPrescription(prescription);
+      await logPrescriptionActivity({
+        patient_id: Number(created.patient_id),
+        prescription_id: created.id,
+        medication_name: created.medication_name,
+        action_type: logMeta?.actionType || 'create',
+        from_status: null,
+        to_status: created.status,
+        field_changes: [],
+        snapshot_before: null,
+        snapshot_after: created,
+        restored_from_log_id: logMeta?.restoredFromLogId || null,
+        group_id: logMeta?.groupId || null,
+      });
       await refreshPrescriptionData();
       // Plan A: 建立處方後，背景回溯生成工作流程記錄（由開始日起），避免翻頁時才慢慢生成
       backfillWorkflowForPrescription(created);
@@ -357,14 +399,34 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
       console.error('Error adding prescription:', error);
       throw error;
     }
-  }, [refreshPrescriptionData]);
+  }, [refreshPrescriptionData, logPrescriptionActivity]);
 
-  const updatePrescription = useCallback(async (prescription: any) => {
+  const updatePrescription = useCallback(async (prescription: any, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => {
     try {
       if (prescription.status === 'inactive' && !prescription.end_date) {
         throw new Error('停用處方必須設定結束日期');
       }
+      // 在 update 前先取出舊值（React Query cache）
+      const allPrescriptions: db.MedicationPrescription[] = queryClient.getQueryData(queryKeys.workflow.prescriptions.all) || [];
+      const oldPrescription = allPrescriptions.find((p: any) => p.id === prescription.id);
       const updated = await db.updatePrescription(prescription);
+      const fieldChanges = diffPrescriptions(oldPrescription, updated);
+      const statusChanged = !!oldPrescription && oldPrescription.status !== updated.status;
+      const resolvedActionType: db.PrescriptionActivityActionType =
+        logMeta?.actionType || (statusChanged ? 'status_change' : 'update');
+      await logPrescriptionActivity({
+        patient_id: Number(updated.patient_id),
+        prescription_id: updated.id,
+        medication_name: updated.medication_name,
+        action_type: resolvedActionType,
+        from_status: oldPrescription?.status || null,
+        to_status: updated.status,
+        field_changes: fieldChanges,
+        snapshot_before: oldPrescription || null,
+        snapshot_after: updated,
+        restored_from_log_id: logMeta?.restoredFromLogId || null,
+        group_id: logMeta?.groupId || null,
+      });
       await refreshPrescriptionData();
       // Plan A: 處方轉為 active（啟用/編輯）後，背景回溯生成工作流程記錄
       backfillWorkflowForPrescription(updated);
@@ -372,17 +434,34 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
       console.error('Error updating prescription:', error);
       throw error;
     }
-  }, [refreshPrescriptionData]);
+  }, [refreshPrescriptionData, queryClient, logPrescriptionActivity]);
 
-  const deletePrescription = useCallback(async (id: number) => {
+  const deletePrescription = useCallback(async (id: number | string, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => {
     try {
+      const allPrescriptions: db.MedicationPrescription[] = queryClient.getQueryData(queryKeys.workflow.prescriptions.all) || [];
+      const oldPrescription = allPrescriptions.find((p: any) => String(p.id) === String(id));
       await db.deletePrescription(id);
+      if (oldPrescription) {
+        await logPrescriptionActivity({
+          patient_id: Number(oldPrescription.patient_id),
+          prescription_id: String(oldPrescription.id),
+          medication_name: oldPrescription.medication_name,
+          action_type: logMeta?.actionType || 'delete',
+          from_status: oldPrescription.status,
+          to_status: null,
+          field_changes: [],
+          snapshot_before: oldPrescription,
+          snapshot_after: null,
+          restored_from_log_id: logMeta?.restoredFromLogId || null,
+          group_id: logMeta?.groupId || null,
+        });
+      }
       await refreshPrescriptionData();
     } catch (error) {
       console.error('Error deleting prescription:', error);
       throw error;
     }
-  }, [refreshPrescriptionData]);
+  }, [refreshPrescriptionData, queryClient, logPrescriptionActivity]);
 
   const addDrug = useCallback(async (drug: Omit<any, 'id' | 'created_at' | 'updated_at'>) => {
     await addDrugMutation.mutateAsync(drug);
