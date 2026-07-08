@@ -30,7 +30,6 @@ import BedAssignmentModal from '../components/BedAssignmentModal';
 import BedSwapModal from '../components/BedSwapModal';
 import PatientTooltip from '../components/PatientTooltip';
 import StationManagementModal from '../components/StationManagementModal';
-import { exportBedLayoutToExcel } from '../utils/bedLayoutExcelGenerator';
 import { printBedList } from '../utils/bedListHtmlGenerator';
 import { getFacilitySettings } from '../utils/facilitySettings';
 import { supabase } from '../lib/supabase';
@@ -52,14 +51,12 @@ const StationBedManagement: React.FC = () => {
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showStationManagementModal, setShowStationManagementModal] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
   const [selectedStation, setSelectedStation] = useState<any>(null);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [selectedBed, setSelectedBed] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStationFilter, setSelectedStationFilter] = useState('');
   const [occupancyFilter, setOccupancyFilter] = useState('all');
-  const [selectedStationsForExport, setSelectedStationsForExport] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
   const [showPrintStationModal, setShowPrintStationModal] = useState(false);
   const [selectedStationForPrint, setSelectedStationForPrint] = useState<string>('');
@@ -248,18 +245,6 @@ const StationBedManagement: React.FC = () => {
   };
   const hasActiveFilters = () => {
     return searchTerm || selectedStationFilter || occupancyFilter !== 'all';
-  };
-  const handleExportBedLayout = () => {
-    setShowExportModal(true);
-  };
-  const handleStationSelectionForExport = (stationId: string, checked: boolean) => {
-    const newSelection = new Set(selectedStationsForExport);
-    if (checked) {
-      newSelection.add(stationId);
-    } else {
-      newSelection.delete(stationId);
-    }
-    setSelectedStationsForExport(newSelection);
   };
   const handlePrintBedList = async (stationId: string) => {
     const station = stations.find(s => s.id === stationId);
@@ -450,26 +435,7 @@ const StationBedManagement: React.FC = () => {
     });
   };
 
-  const handleConfirmExport = async () => {
-    if (selectedStationsForExport.size === 0) {
-      alert('請至少選擇一個居住區');
-      return;
-    }
-    try {
-      setIsExporting(true);
-      const selectedStationsList = Array.from(selectedStationsForExport).map(stationId =>
-        stations.find(s => s.id === stationId)
-      ).filter(Boolean);
-      await exportBedLayoutToExcel(selectedStationsList, beds, patients);
-      setShowExportModal(false);
-      setSelectedStationsForExport(new Set());
-    } catch (error) {
-      console.error('匯出床位表失敗:', error);
-      alert('匯出床位表失敗，請重試');
-    } finally {
-      setIsExporting(false);
-    }
-  };
+
   return (
     <div className="space-y-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -488,13 +454,6 @@ const StationBedManagement: React.FC = () => {
           >
             <ArrowRightLeft className="h-4 w-4" />
             <span>床位互換</span>
-          </button>
-                    <button
-            onClick={handleExportBedLayout}
-            className="btn-secondary flex flex-wrap items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            <span>匯出床位表</span>
           </button>
           <button
             onClick={() => setShowPrintStationModal(true)}
@@ -862,111 +821,7 @@ const StationBedManagement: React.FC = () => {
           onClose={() => setShowStationManagementModal(false)}
         />
       )}
-      {/* 匯出床位表模態框 */}
-      {showExportModal && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowExportModal(false);
-              setSelectedStationsForExport(new Set());
-            }
-          }}
-        >
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-100">
-                  <Download className="h-6 w-6 text-blue-600" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900">匯出床位表</h3>
-              </div>
-              <button
-                onClick={() => {
-                  setShowExportModal(false);
-                  setSelectedStationsForExport(new Set());
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600">
-                請選擇要匯出床位表的居住區，每個居住區將生成獨立的工作表：
-              </p>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {stations.map(station => {
-                  const stats = getStationStats(station.id);
-                  return (
-                    <label
-                      key={station.id}
-                      className="flex flex-wrap items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedStationsForExport.has(station.id)}
-                        onChange={(e) => handleStationSelectionForExport(station.id, e.target.checked)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Building2 className="h-5 w-5 text-blue-600" />
-                        <div>
-                          <span className="font-medium text-gray-900">{station.name}</span>
-                          <div className="text-sm text-gray-500">
-                            {stats.totalBeds} 床位 ({stats.occupiedBeds} 已佔用, {stats.availableBeds} 可用)
-                          </div>
-                        </div>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-              {stations.length === 0 && (
-                <div className="text-center py-8">
-                  <Building2 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p className="text-gray-500">暫無居住區可匯出</p>
-                </div>
-              )}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-800">
-                  <strong>注意：</strong>系統將使用範本管理中的「床位表」範本來生成床位表。
-                  如果沒有上傳範本，將使用預設格式。
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 pt-4">
-              <button
-                onClick={handleConfirmExport}
-                disabled={selectedStationsForExport.size === 0 || isExporting}
-                className="btn-primary flex-1 flex flex-wrap items-center justify-center gap-2"
-              >
-                {isExporting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>匯出中...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4" />
-                    <span>匯出 ({selectedStationsForExport.size})</span>
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  setShowExportModal(false);
-                  setSelectedStationsForExport(new Set());
-                }}
-                className="btn-secondary flex-1"
-                disabled={isExporting}
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
       {/* 列印床位表：選擇居住區 */}
       {showPrintStationModal && (
         <div

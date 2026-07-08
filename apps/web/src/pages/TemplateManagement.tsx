@@ -170,7 +170,6 @@ const TemplateManagement: React.FC = () => {
           return await extractAnnualHealthCheckupTemplateFormat(file);
         case 'personal-hygiene-record':
         case 'admission-layout':
-        case 'bed-layout':
           return await extractPrintFormTemplateFormat(file);
         default:
           throw new Error(`不支援的範本類型: ${type}`);

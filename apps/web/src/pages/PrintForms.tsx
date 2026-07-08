@@ -141,7 +141,6 @@ const PrintForms: React.FC = () => {
         t.type === 'diaper-change-record' ||
         t.type === 'personal-hygiene-record' ||
         t.type === 'admission-layout' ||
-        t.type === 'bed-layout' ||
         t.type === 'restraint-observation'
       );
       setTemplates(printFormTemplates);
@@ -327,11 +326,6 @@ const PrintForms: React.FC = () => {
       alert('請先選擇一個範本');
       return;
     }
-    // 床位表不需要選擇院友
-    if (selectedTemplate.type === 'bed-layout') {
-      await handleBedLayoutExport();
-      return;
-    }
     // 約束觀察表需要檢查是否有選擇院友
     if (selectedRows.size === 0) {
       alert('請先選擇要匯出的院友');
@@ -346,19 +340,6 @@ const PrintForms: React.FC = () => {
       await handleRestraintObservationExport();
     } else {
       await handleDirectExport();
-    }
-  };
-  const handleBedLayoutExport = async () => {
-    try {
-      setIsExporting(true);
-      const { exportBedLayoutToExcel } = await import('../utils/bedLayoutExcelGenerator');
-      // 導出所有居住區的床位表
-      await exportBedLayoutToExcel(stations, beds, patients);
-    } catch (error) {
-      console.error('匯出床位表失敗:', error);
-      alert('匯出床位表失敗，請重試');
-    } finally {
-      setIsExporting(false);
     }
   };
   const handleRestraintObservationExport = async () => {
@@ -522,8 +503,7 @@ const PrintForms: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">列印表格</h1>
           <div className="flex flex-wrap items-center gap-2">
-            {((selectedRows.size > 0 && selectedTemplate && selectedTemplate.type !== 'station-bed-layout') ||
-              (selectedTemplate?.type === 'bed-layout')) && (
+            {(selectedRows.size > 0 && selectedTemplate && selectedTemplate.type !== 'station-bed-layout') && (
               <button
                 onClick={handleExportSelected}
                 disabled={isExporting}
@@ -538,7 +518,6 @@ const PrintForms: React.FC = () => {
                   <>
                     <Download className="h-4 w-4" />
                     <span>
-                      {selectedTemplate?.type === 'bed-layout' && '生成床位表'}
                       {selectedTemplate?.type === 'restraint-observation' && `生成觀察表 (${selectedRows.size})`}
                       {selectedTemplate?.type !== 'station-bed-layout' && selectedTemplate?.type !== 'restraint-observation' && `生成表格 (${selectedRows.size})`}
                     </span>
@@ -579,9 +558,8 @@ const PrintForms: React.FC = () => {
                   {template.type === 'diaper-change-record' && '換片記錄'}
                   {template.type === 'personal-hygiene-record' && '個人衛生記錄'}
                   {template.type === 'admission-layout' && '入住排版'}
-                  {template.type === 'bed-layout' && '床位表'}
                   {template.type === 'restraint-observation' && '約束物品觀察表'}
-                  {!['diaper-change-record', 'personal-hygiene-record', 'admission-layout', 'bed-layout', 'restraint-observation'].includes(template.type) && template.name}
+                  {!['diaper-change-record', 'personal-hygiene-record', 'admission-layout', 'restraint-observation'].includes(template.type) && template.name}
                 </option>
               ))}
             </select>

@@ -139,7 +139,11 @@ export function generateBedListHtml(input: BedListInput): string {
     }
     const lbl = typeLabel(bed.patient.admissionType);
     const cls = badgeClass(bed.patient.admissionType);
-    return `<div class="br${alt}"><span class="bnum">${stripCodePrefix(bed.bed_number)}</span>${cls ? `<span class="${cls}">${lbl}</span>` : ''}<span class="bname">${bed.patient.name}</span></div>`;
+    // 感染控制項目顯示（放在姓名左邊）
+    const infectionCtrlHtml = bed.patient.infectionControl && bed.patient.infectionControl.length > 0
+      ? `<span class="binf">${bed.patient.infectionControl.join('/')}</span>`
+      : '';
+    return `<div class="br${alt}"><span class="bnum">${stripCodePrefix(bed.bed_number)}</span>${cls ? `<span class="${cls}">${lbl}</span>` : ''}${infectionCtrlHtml}<span class="bname">${bed.patient.name}</span></div>`;
   };
 
   /* ── 6. 渲染房間卡片 ── */
@@ -315,8 +319,9 @@ body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-se
 .br-e.br-alt { filter:brightness(.97); }
 .bnum-e { font-size:8.5px; color:#9ca3af; flex-shrink:0; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .bempty-tag { font-size:8px; font-weight:600; color:#9ca3af; background:#fff; border:1px solid #d1d5db; border-radius:3px; padding:0 4px; margin-left:auto; letter-spacing:.3px; }
-.bnum { font-size:8.5px; color:#6b7280; flex-shrink:0; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.bname { flex:1; font-size:12px; font-weight:500; color:#111827; text-align:right; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.bnum { font-size:10px; color:#6b7280; flex-shrink:0; white-space:nowrap; font-variant-numeric:tabular-nums; font-weight:600; }
+.binf { font-size:10px; color:#dc2626; font-weight:600; flex-shrink:0; white-space:nowrap; }
+.bname { flex:1; font-size:13.5px; font-weight:600; color:#111827; text-align:right; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-left:3px; }
 .bname-e { flex:1; }
 
 /* 入住類型小標籤 */
