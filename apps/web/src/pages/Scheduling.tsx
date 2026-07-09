@@ -19,7 +19,9 @@ const Scheduling: React.FC = () => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<db.ScheduleWithDetails | null>(null);
+  const [scheduleToDelete, setScheduleToDelete] = useState<db.ScheduleWithDetails | null>(null);
   const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
@@ -106,9 +108,16 @@ const Scheduling: React.FC = () => {
     setSelectedSchedule(schedule);
     setShowScheduleModal(true);
   };
-  const handleDelete = (id: number) => {
-    if (confirm('確定要刪除此排程嗎？')) {
-      deleteSchedule(id);
+  const handleDelete = (schedule: db.ScheduleWithDetails) => {
+    // 如果排程內有院友，顯示確認 modal 列出院友
+    if (schedule.院友列表 && schedule.院友列表.length > 0) {
+      setScheduleToDelete(schedule);
+      setShowDeleteConfirmModal(true);
+    } else {
+      // 空排程直接確認刪除
+      if (confirm('確定要刪除此排程嗎？')) {
+        deleteSchedule(schedule.排程id);
+      }
     }
   };
   const handleAddPatients = (scheduleId: number) => {
@@ -396,7 +405,7 @@ const Scheduling: React.FC = () => {
                       <span>編輯</span>
                     </button>
                     <button
-                      onClick={() => handleDelete(schedule.排程id)}
+                      onClick={() => handleDelete(schedule)}
                       className="btn-danger flex items-center space-x-1"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -522,6 +531,55 @@ const Scheduling: React.FC = () => {
           onUpdate={refreshData}
           onDelete={deleteSchedule}
         />
+      )}
+      {/* 刪除確認 Modal（非空排程） */}
+      {showDeleteConfirmModal && scheduleToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setShowDeleteConfirmModal(false)}>
+          <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <AlertCircle className="h-6 w-6 text-red-500" />
+              <h2 className="text-lg font-semibold text-gray-900">謹慎刪除排程</h2>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              此排程（{scheduleToDelete.到診日期}）目前有 {scheduleToDelete.院友列表.length} 位院友。刪除排程將同時移除這些院友記錄。此日期可能還有其他居住區的院友排程。
+            </p>
+            <div className="max-h-48 overflow-y-auto mb-4 border rounded p-3 bg-gray-50">
+              <p className="text-xs font-semibold text-gray-700 mb-2">院友列表：</p>
+              <ul className="space-y-1">
+                {scheduleToDelete.院友列表.map((detail: any) => {
+                  const patient = patientMap.get(detail.院友id);
+                  return (
+                    <li key={detail.細項id} className="text-sm text-gray-700">
+                      {patient?.床號} {patient?.中文姓名}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <button
+                onClick={() => {
+                  deleteSchedule(scheduleToDelete.排程id);
+                  setShowDeleteConfirmModal(false);
+                  setScheduleToDelete(null);
+                }}
+                className="btn-danger flex-1 flex items-center justify-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                確認刪除
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirmModal(false);
+                  setScheduleToDelete(null);
+                }}
+                className="btn-secondary flex-1"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {showDetailModal && selectedSchedule && (
         <ScheduleDetailModal

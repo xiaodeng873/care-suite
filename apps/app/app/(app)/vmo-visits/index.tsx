@@ -205,10 +205,22 @@ export default function VmoVisitsScreen() {
                       <Text style={{ fontSize: 13, fontWeight: '600', color: tone.accent }}>加院友</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      onPress={() => Alert.alert('確認刪除', `確定刪除 ${schedule.到診日期} 的排程？`, [
-                        { text: '取消', style: 'cancel' },
-                        { text: '刪除', style: 'destructive', onPress: () => deleteSchedule.mutate(schedule.排程id) },
-                      ])}
+                      onPress={() => {
+                        const patientList = count > 0
+                          ? schedule.院友列表.map((d: any) => {
+                              const p = residents.find(r => r.院友id === d.院友id);
+                              return `${p?.床號} ${p?.中文姓名}`;
+                            }).join(', ')
+                          : '（空排程）';
+                        Alert.alert(
+                          '謹慎刪除排程',
+                          `此排程（${schedule.到診日期}）內有院友：${patientList}\n\n刪除排程將同時移除這些院友記錄。此日期可能還有其他居住區的院友排程。確定要刪除嗎？`,
+                          [
+                            { text: '取消', style: 'cancel' },
+                            { text: '刪除', style: 'destructive', onPress: () => deleteSchedule.mutate(schedule.排程id) },
+                          ]
+                        );
+                      }}
                       style={{ padding: 6 }}
                     >
                       <Ionicons name="trash-outline" size={18} color="#ef4444" />
