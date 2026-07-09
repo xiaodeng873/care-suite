@@ -177,6 +177,7 @@ export function ScheduleProvider({ children }: ScheduleProviderProps) {
       await refreshScheduleData();
     } catch (error) {
       console.error('Error adding schedule:', error);
+      throw error;
     }
   }, [refreshScheduleData]);
   

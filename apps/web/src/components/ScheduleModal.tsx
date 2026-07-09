@@ -30,22 +30,30 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ schedule, onClose }) => {
     }
   }, [schedule]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (schedule) {
-      // 只傳送資料庫中實際存在的欄位
-      updateSchedule({
-        排程id: schedule.排程id,
-        到診日期: formData.到診日期
-      });
-    } else {
-      addSchedule({
-        到診日期: formData.到診日期
-      });
+    try {
+      if (schedule) {
+        // 只傳送資料庫中實際存在的欄位
+        await updateSchedule({
+          排程id: schedule.排程id,
+          到診日期: formData.到診日期
+        });
+      } else {
+        await addSchedule({
+          到診日期: formData.到診日期
+        });
+      }
+      onClose();
+    } catch (err: any) {
+      const isUniqueViolation = err?.code === '23505' || err?.message?.includes('unique') || err?.message?.includes('duplicate');
+      if (isUniqueViolation) {
+        alert(`${formData.到診日期} 已有排程，請直接在現有排程加入院友。`);
+      } else {
+        alert(`儲存失敗：${err?.message ?? '請重試'}`);
+      }
     }
-
-    onClose();
   };
 
   return (

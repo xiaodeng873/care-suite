@@ -190,13 +190,9 @@ const Scheduling: React.FC = () => {
       });
       matchesSearch = dateMatch || patientMatch;
     }
-    // 站別過濾：當導覽列有過濾時，排除沒有任何可見院友的排程（空排程不過濾，避免新增後消失）
-    if (isFiltered && schedule.院友列表.length > 0 && !schedule.院友列表.some(item => patientMap.has(item.院友id))) {
-      return false;
-    }
     return matchesSearch;
     });
-  }, [schedules, patientMap, deferredSearch, dateFilter, reasonFilter, isFiltered]);
+  }, [schedules, patientMap, deferredSearch, dateFilter, reasonFilter]);
   // 獲取所有看診原因選項
   const getAllReasons = () => {
     const reasons = new Set<string>();

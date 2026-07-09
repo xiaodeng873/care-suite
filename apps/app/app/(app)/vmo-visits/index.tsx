@@ -96,7 +96,14 @@ export default function VmoVisitsScreen() {
       await createSchedule.mutateAsync({ 到診日期: newDate });
       setShowCreateModal(false);
       setNewDate(new Date().toISOString().split('T')[0]);
-    } catch (e: any) { Alert.alert('儲存失敗', e?.message ?? '請重試'); }
+    } catch (e: any) {
+      const isUniqueViolation = (e?.code === '23505') || (e?.message?.toLowerCase?.().includes('unique')) || (e?.message?.toLowerCase?.().includes('duplicate'));
+      if (isUniqueViolation) {
+        Alert.alert('日期重複', `${newDate} 已有排程，請在現有排程加入院友。`);
+      } else {
+        Alert.alert('儲存失敗', e?.message ?? '請重試');
+      }
+    }
   }
 
   function toggleReason(id: number) {
