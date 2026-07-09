@@ -831,7 +831,7 @@ const Settings: React.FC = () => {
   // 權限檢查函數
   const canAccessTab = useCallback((tabName: string): boolean => {
     // 開發者可以訪問所有 tab
-    if (isDeveloper) return true;
+    if (isDeveloper()) return true;
     
     // 根據 tab 名稱檢查權限
     switch (tabName) {
