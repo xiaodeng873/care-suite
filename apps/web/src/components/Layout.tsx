@@ -27,7 +27,7 @@ const routeNames: Record<string, string> = {
   '/prescriptions': '處方管理',
   '/drug-database': '藥物資料庫',
   '/medication-workflow': 'eMAR',
-  '/hospital-outreach': '醫院外展',
+  '/hospital-outreach': 'CGAT',
   '/annual-health-checkup': '年度體檢',
   '/incident-reports': '意外事故報告',
   '/diagnosis-records': '診斷記錄',
@@ -150,7 +150,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       category: 'treatment',
       items: [
         { name: 'VMO排程', href: '/scheduling', icon: Stethoscope, feature: 'vmo_schedule' },
-        { name: '醫院外展', href: '/hospital-outreach', icon: Hospital, feature: 'hospital_outreach' },
+        { name: 'CGAT', href: '/hospital-outreach', icon: Hospital, feature: 'hospital_outreach' },
         { name: '復康服務', href: '/rehabilitation', icon: BicepsFlexed, feature: 'rehabilitation' },
       ]
     },

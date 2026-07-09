@@ -9,6 +9,7 @@ import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
 import { PatientProvider, usePatients } from './context/PatientContext';
+import { CgatProvider } from './context/CgatContext';
 import { StationProvider } from './context/facility';
 import { StationFilterProvider } from './context/StationFilterContext';
 // 使用合併的 Context（減少 Provider 嵌套層級，提升性能）
@@ -40,7 +41,7 @@ const routeNames: Record<string, string> = {
   '/prescriptions': '處方管理',
   '/drug-database': '藥物資料庫',
   '/medication-workflow': 'eMAR',
-  '/hospital-outreach': '醫院外展',
+  '/hospital-outreach': 'CGAT',
   '/annual-health-checkup': '年度體檢',
   '/incident-reports': '意外事故報告',
   '/diagnosis-records': '診斷記錄',
@@ -87,7 +88,7 @@ const WoundManagementNew = lazy(() => import('./pages/WoundManagementNew'));
 const PrescriptionManagement = lazy(() => import('./pages/PrescriptionManagement'));
 const DrugDatabase = lazy(() => import('./pages/DrugDatabase'));
 const MedicationWorkflow = lazy(() => import('./pages/MedicationWorkflow'));
-const HospitalOutreach = lazy(() => import('./pages/HospitalOutreach'));
+const HospitalOutreach = lazy(() => import('./pages/Cgat'));
 const AnnualHealthCheckup = lazy(() => import('./pages/AnnualHealthCheckup'));
 const IncidentReports = lazy(() => import('./pages/IncidentReports'));
 const DiagnosisRecords = lazy(() => import('./pages/DiagnosisRecords'));
@@ -328,7 +329,9 @@ function App() {
               <WorkflowProvider>
                 <RecordsProvider>
                   <PatientProvider>
-                    <AppContent />
+                    <CgatProvider>
+                      <AppContent />
+                    </CgatProvider>
                   </PatientProvider>
                 </RecordsProvider>
               </WorkflowProvider>

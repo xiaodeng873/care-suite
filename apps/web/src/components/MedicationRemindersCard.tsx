@@ -189,12 +189,12 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
         </div>
       )}
 
-      {/* 藥物庫存不足（須安排續藥） */}
+      {/*藥物庫存見底） */}
       {lowStockGroups.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-2">
             <PackageX className="h-4 w-4 text-rose-600" />
-            <span className="text-sm font-medium text-rose-800">藥物庫存不足（須安排續藥）</span>
+            <span className="text-sm font-medium text-rose-800">藥物庫存見底</span>
           </div>
           <div className="space-y-2">
             {displayLowStock.map((g, idx) => (
@@ -209,9 +209,9 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
                       {g.patient.床號} {(g.patient.中文姓氏 || g.patient.中文名字) ? `${g.patient.中文姓氏 ?? ''}${g.patient.中文名字 ?? ''}` : (g.patient.中文姓名 ?? '')}
                     </div>
                     <div className="text-sm text-rose-700">
-                      {g.source}{g.specialty ? `·${g.specialty}` : ''} 的處方尚餘 {g.remainingDays} 天服完，如已安排續藥請忽略
+                      {g.source}{g.specialty ? `${g.specialty}` : ''}的藥物尚餘 {g.remainingDays} 天服完
                     </div>
-                    <div className="text-xs text-rose-500 mt-0.5">預計結束：{g.estimatedEndDate} · 處方日：{g.prescriptionDate}</div>
+                    <div className="text-xs text-rose-500 mt-0.5"> 預計結束：{g.estimatedEndDate}</div>
                   </div>
                   <ArrowRight className="h-4 w-4 text-rose-600" />
                 </div>

@@ -1,5 +1,7 @@
 // 藥物設定：管理處方 modal 中各下拉選單的可設定清單
-// 儲存於 localStorage；鍵名固定，方便未來遷移至 Supabase。
+// 同時儲存於 DB (facility_settings.medication_settings) 和 localStorage（快取）。
+
+import { supabase } from '../lib/supabase';
 
 export interface MedicationSettingsData {
   劑型: string[];
@@ -109,6 +111,48 @@ export function saveMedicationSettings(settings: MedicationSettingsData): void {
 export function resetMedicationSettings(): MedicationSettingsData {
   localStorage.removeItem(STORAGE_KEY);
   return { ...DEFAULT_MEDICATION_SETTINGS };
+}
+
+// ── DB 讀寫（facility_settings.medication_settings jsonb，id=1）───────────────
+
+/**
+ * 從 DB 讀取藥物設定。失敗時退回 localStorage 快取，再退回預設值。
+ */
+export async function getMedicationSettingsFromDB(): Promise<MedicationSettingsData> {
+  try {
+    const { data, error } = await supabase
+      .from('facility_settings')
+      .select('medication_settings')
+      .eq('id', 1)
+      .maybeSingle();
+    if (!error && data?.medication_settings) {
+      const merged: MedicationSettingsData = {
+        ...DEFAULT_MEDICATION_SETTINGS,
+        ...(data.medication_settings as Partial<MedicationSettingsData>),
+      };
+      // 同步更新 localStorage 快取
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      return merged;
+    }
+  } catch (e) {
+    console.warn('讀取 DB 藥物設定失敗，退回 localStorage:', e);
+  }
+  return getMedicationSettings();
+}
+
+/**
+ * 儲存藥物設定至 DB（facility_settings id=1）並同步 localStorage 快取。
+ */
+export async function saveMedicationSettingsToDB(settings: MedicationSettingsData): Promise<void> {
+  const { error } = await supabase
+    .from('facility_settings')
+    .upsert(
+      { id: 1, medication_settings: settings, updated_at: new Date().toISOString() },
+      { onConflict: 'id' }
+    );
+  if (error) throw new Error(`儲存藥物設定失敗：${error.message}`);
+  // 同步 localStorage 快取
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }
 
 // 依所選機構判定所屬類別（HA=醫管局 / DH=衛生署 / other=其他）。未知來源視為 other。

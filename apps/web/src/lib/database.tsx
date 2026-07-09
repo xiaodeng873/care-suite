@@ -904,6 +904,67 @@ export const deletePrescription = async (id: string | number): Promise<void> => 
   if (error) throw error;
 };
 
+// ========== CGAT 記錄（社區老人評估小組，取代舊醫院外展）==========
+export interface CgatRecord {
+  id: string;
+  patient_id: number;
+  // 個案類型
+  case_type?: '新症' | '舊症';
+  is_cgas: boolean;
+  is_eol: boolean;
+  // 藥物配發
+  medication_end_date?: string;
+  pharmacy_arrangement?: '個別取藥' | '集體取藥';
+  is_urgent_medication: boolean;
+  // 侯診原因
+  reason_renew: boolean;
+  reason_discharge: boolean;
+  reason_sign_letter: boolean;
+  reason_referral_letter: boolean;
+  reason_view_report: boolean;
+  report_bld: boolean;
+  report_xray: boolean;
+  report_ct: boolean;
+  report_usg: boolean;
+  report_other?: string;
+  // 覆診安排
+  followup_date?: string;
+  medication_pickup_arrangement?: '家人前往' | '院舍代勞' | '每次詢問';
+  // 費用結算
+  fee_exempted: boolean;
+  consultation_fee: number;
+  medication_fee_per_item: number;
+  prescription_count?: number;
+  treatment_weeks?: number;
+  total_fee?: number;
+  remarks?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const getCgatRecords = async (patientId?: number): Promise<CgatRecord[]> => {
+  let query = supabase.from('cgat_records').select('*').order('created_at', { ascending: false });
+  if (patientId) query = query.eq('patient_id', patientId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+};
+export const createCgatRecord = async (record: Omit<CgatRecord, 'id' | 'created_at' | 'updated_at'>): Promise<CgatRecord> => {
+  const { data, error } = await supabase.from('cgat_records').insert([record]).select().single();
+  if (error) throw error;
+  return data;
+};
+export const updateCgatRecord = async (record: Partial<CgatRecord> & { id: string }): Promise<CgatRecord> => {
+  const { id, ...updateData } = record;
+  const { data, error } = await supabase.from('cgat_records').update(updateData).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+export const deleteCgatRecord = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('cgat_records').delete().eq('id', id);
+  if (error) throw error;
+};
+
 // ========== 處方日誌（Prescription Activity Log）==========
 export type PrescriptionActivityActionType =
   | 'create'

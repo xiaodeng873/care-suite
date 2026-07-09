@@ -14,6 +14,8 @@ interface PatientAutocompleteProps {
   showResidencyFilter?: boolean;
   defaultResidencyStatus?: string;
   showStationFilter?: boolean;
+  /** 忽略全域站別過濾（如 CGAT 頁特例，列出所有院友） */
+  ignoreStationFilter?: boolean;
 }
 
 const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
@@ -24,13 +26,15 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
   showResidencyFilter = false,
   defaultResidencyStatus = "在住",
   showStationFilter = false,
+  ignoreStationFilter = false,
 }) => {
-  const { patients } = usePatients();
+  const { patients: filteredPatientsCtx, allPatients } = usePatients();
+  const patients = ignoreStationFilter ? allPatients : filteredPatientsCtx;
   const { stations } = useStation();
   const { selectedStationIds } = useStationFilter();
 
-  // 只列出全域過濾器已選的站別；若全選則列出全部
-  const visibleStations = stations.filter(s => selectedStationIds.includes(s.id));
+  // 只列出全域過濾器已選的站別；若全選則列出全部（CGAT 忽略過濾時列出全部）
+  const visibleStations = ignoreStationFilter ? stations : stations.filter(s => selectedStationIds.includes(s.id));
   // 有 ≥2 個可用站別時自動顯示站別篩選（也可由 prop 強制開啟）
   const shouldShowStationFilter = showStationFilter || visibleStations.length > 1;
   const [isOpen, setIsOpen] = useState(false);

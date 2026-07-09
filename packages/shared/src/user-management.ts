@@ -225,7 +225,7 @@ export const PERMISSION_STRUCTURE: Record<PermissionCategory, FeatureDefinition[
   ],
   treatment: [
     { key: 'vmo_schedule', name_zh: 'VMO排程', route: '/scheduling' },
-    { key: 'hospital_outreach', name_zh: '醫院外展', route: '/hospital-outreach' },
+    { key: 'hospital_outreach', name_zh: 'CGAT', route: '/hospital-outreach' },
     { key: 'rehabilitation', name_zh: '復康服務', route: '/rehabilitation' },
   ],
   periodic: [
