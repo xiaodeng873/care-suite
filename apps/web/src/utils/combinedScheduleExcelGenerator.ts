@@ -40,8 +40,44 @@ interface ScheduleWithDetails {
   到診日期: string;
   院友列表: ScheduleItem[];
 }
+// 居住區分組類型
+export interface StationGroup {
+  label: string;  // 居住區名稱（顯示用）
+  items: ScheduleItem[];
+}
+
+// 把 ScheduleItem[] 轉為 WaitingListExportData[]
+function toWaitingListData(items: ScheduleItem[], visitDate: string): WaitingListExportData[] {
+  return items
+    .map((item) => {
+      if (!item.patient) return null;
+      return {
+        床號: item.patient.床號 || '',
+        中文姓氏: item.patient.中文姓氏 || '',
+        中文名字: item.patient.中文名字 || '',
+        英文姓氏: item.patient.英文姓氏 || '',
+        英文名字: item.patient.英文名字 || '',
+        中文姓名: `${item.patient.中文姓氏 || ''}${item.patient.中文名字 || ''}`,
+        英文姓名: getFormattedEnglishName(item.patient.英文姓氏, item.patient.英文名字) || item.patient.英文姓名 || '',
+        性別: item.patient.性別 || '',
+        身份證號碼: item.patient.身份證號碼 || '',
+        出生日期: item.patient.出生日期 ? new Date(item.patient.出生日期).toLocaleDateString('zh-TW') : '',
+        看診原因: item.reasons?.map(r => r.原因名稱) || [],
+        症狀說明: item.症狀說明 || '',
+        藥物敏感: item.patient.藥物敏感 || [],
+        不良藥物反應: item.patient.不良藥物反應 || [],
+        備註: item.備註 || '',
+        到診日期: visitDate,
+      } as WaitingListExportData;
+    })
+    .filter((item): item is WaitingListExportData => item !== null);
+}
+
 // 合併匯出排程的候診表和處方箋
-export const exportCombinedScheduleToExcel = async (schedule: ScheduleWithDetails): Promise<void> => {
+export const exportCombinedScheduleToExcel = async (
+  schedule: ScheduleWithDetails,
+  options?: { stationGroups?: StationGroup[]; filenameSuffix?: string }
+): Promise<void> => {
   try {
     console.log('傳入的 schedule:', JSON.stringify(schedule, null, 2));
     // 從 Supabase 獲取範本
@@ -50,6 +86,25 @@ export const exportCombinedScheduleToExcel = async (schedule: ScheduleWithDetail
     const prescriptionTemplate = templatesData.find(t => t.type === 'prescription');
     // 創建工作簿
     const workbook = new ExcelJS.Workbook();
+    const stationGroups = options?.stationGroups;
+
+    // ── 候診記錄表：多居住區 → 各自獨立 sheet；單一或無分組 → 舊有單 sheet ──
+    if (stationGroups && stationGroups.length > 0) {
+      let totalCount = 0;
+      for (const group of stationGroups) {
+        const groupData = toWaitingListData(group.items, schedule.到診日期);
+        if (groupData.length === 0) continue;
+        totalCount += groupData.length;
+        const sheetName = `候診_${group.label}`.slice(0, 31); // Excel sheet 名 ≤31 字元
+        const ws = workbook.addWorksheet(sheetName);
+        if (waitingListTemplate?.extracted_format) {
+          applyWaitingListTemplateFormat(ws, waitingListTemplate.extracted_format, groupData, schedule.到診日期);
+        } else {
+          await createSimpleWaitingListWorksheet(ws, groupData, schedule.到診日期);
+        }
+      }
+      if (totalCount === 0) throw new Error('無有效的院友資料可匯出到候診記錄表');
+    } else {
     // 準備候診記錄表資料
     const waitingListData: WaitingListExportData[] = schedule.院友列表
       .map((item: ScheduleItem) => {
@@ -96,8 +151,13 @@ export const exportCombinedScheduleToExcel = async (schedule: ScheduleWithDetail
     } else {
       await createSimpleWaitingListWorksheet(waitingListWorksheet, waitingListData, schedule.到診日期);
     }
-    // 準備處方箋資料（只包含有勾選「申訴不適」的院友）
-    const prescriptionPatients = schedule.院友列表.filter((item: ScheduleItem) => {
+    } // end else (no stationGroups)
+
+    // ── 處方箋：不受居住區分組影響，使用全部可見院友 ──
+    const allItems: ScheduleItem[] = stationGroups && stationGroups.length > 0
+      ? stationGroups.flatMap(g => g.items)
+      : (schedule.院友列表 as ScheduleItem[]);
+    const prescriptionPatients = allItems.filter((item: ScheduleItem) => {
       const hasComplaint = item.reasons?.some(reason => reason.原因名稱 === '申訴不適');
       console.log(`檢查院友 ${item.細項id} 是否需要處方箋:`, hasComplaint, JSON.stringify(item.reasons, null, 2));
       return hasComplaint;
@@ -146,18 +206,23 @@ export const exportCombinedScheduleToExcel = async (schedule: ScheduleWithDetail
         }
         prescriptionCount++;
       }
-    } else {
-    }
+    } // end if prescriptionPatients
     // 決定檔案名稱
-    const filename = `到診資料_${new Date(schedule.到診日期).toISOString().split('T')[0]}.xlsx`;
+    const datePart = new Date(schedule.到診日期).toISOString().split('T')[0];
+    const suffix = options?.filenameSuffix ? `_${options.filenameSuffix}` : '';
+    const filename = `到診資料_${datePart}${suffix}.xlsx`;
     // 儲存檔案
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     saveAs(blob, filename);
     // 顯示完成訊息
-    const message = prescriptionCount > 0 
-      ? `匯出完成！\n✅ 候診記錄表：${waitingListData.length} 位院友\n✅ 處方箋：${prescriptionCount} 位院友（申訴不適）\n📁 檔案：${filename}`
-      : `匯出完成！\n✅ 候診記錄表：${waitingListData.length} 位院友\n⚠️ 無院友需要處方箋（無「申訴不適」）\n📁 檔案：${filename}`;
+    const totalCount = allItems.filter(i => i.patient).length;
+    const sheetDesc = stationGroups && stationGroups.length > 1
+      ? `（${stationGroups.length} 個居住區分頁）`
+      : '';
+    const message = prescriptionCount > 0
+      ? `匯出完成！\n✅ 候診記錄表：${totalCount} 位院友${sheetDesc}\n✅ 處方箋：${prescriptionCount} 位院友（申訴不適）\n📁 檔案：${filename}`
+      : `匯出完成！\n✅ 候診記錄表：${totalCount} 位院友${sheetDesc}\n⚠️ 無院友需要處方箋（無「申訴不適」）\n📁 檔案：${filename}`;
     alert(message);
   } catch (error) {
     console.error('合併匯出失敗:', error);

@@ -287,6 +287,8 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
               <div className="space-y-4">
                 {patientItems.map((item) => {
                   const patient = patients.find(p => p.院友id === item.院友id);
+                  // 站別過濾：其他居住區的院友找不到，直接跳過不顯示
+                  if (!patient) return null;
                   return (
                     <div key={item.細項id} className="card p-4">
                       <div className="flex items-start gap-4">

@@ -3,7 +3,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { Calendar, Plus, Edit3, Trash2, Download, Users, Settings, User, Search, Filter, X, AlertCircle } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
-import { exportCombinedScheduleToExcel } from '../utils/combinedScheduleExcelGenerator';
+import { exportCombinedScheduleToExcel, type StationGroup } from '../utils/combinedScheduleExcelGenerator';
 import ScheduleModal from '../components/ScheduleModal';
 import PatientSelectModal from '../components/PatientSelectModal';
 import ScheduleDetailModal from '../components/ScheduleDetailModal';
@@ -13,15 +13,16 @@ import { checkAnnualHealthCheckupDue, checkRestraintAssessmentDue, DueItem } fro
 import { supabase } from '../lib/supabase';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 import { useStationFilter } from '../context/StationFilterContext';
+import type { ScheduleWithDetails } from '../context/PatientContext';
 const Scheduling: React.FC = () => {
-  const { schedules, deleteSchedule, patients, loading, refreshData } = usePatients();
-  const { isFiltered } = useStationFilter();
+  const { schedules, deleteSchedule, patients, stations, loading, refreshData } = usePatients();
+  const { isFiltered, selectedStationIds } = useStationFilter();
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState<db.ScheduleWithDetails | null>(null);
-  const [scheduleToDelete, setScheduleToDelete] = useState<db.ScheduleWithDetails | null>(null);
+  const [selectedSchedule, setSelectedSchedule] = useState<ScheduleWithDetails | null>(null);
+  const [scheduleToDelete, setScheduleToDelete] = useState<ScheduleWithDetails | null>(null);
   const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
@@ -29,9 +30,15 @@ const Scheduling: React.FC = () => {
   const [reasonFilter, setReasonFilter] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [dueItems, setDueItems] = useState<DueItem[]>([]);
+  // 創建居住區 ID → 名稱的映射
+  const stationMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (stations || []).forEach(s => map.set(s.id, s.name));
+    return map;
+  }, [stations]);
   // 創建院友ID到院友資料的映射
   const patientMap = useMemo(() => {
-    const map = new Map<number, db.Patient>();
+    const map = new Map<number, any>();
     if (!patients || patients.length === 0) {
       console.warn('患者資料尚未載入，patientMap 為空');
       return map;
@@ -104,11 +111,11 @@ const Scheduling: React.FC = () => {
   if (loading) {
     return <LoadingScreen pageName="VMO排程" />;
   }
-  const handleEdit = (schedule: db.ScheduleWithDetails) => {
+  const handleEdit = (schedule: ScheduleWithDetails) => {
     setSelectedSchedule(schedule);
     setShowScheduleModal(true);
   };
-  const handleDelete = (schedule: db.ScheduleWithDetails) => {
+  const handleDelete = (schedule: ScheduleWithDetails) => {
     // 如果排程內有院友，顯示確認 modal 列出院友
     if (schedule.院友列表 && schedule.院友列表.length > 0) {
       setScheduleToDelete(schedule);
@@ -124,47 +131,59 @@ const Scheduling: React.FC = () => {
     setSelectedScheduleId(scheduleId);
     setShowPatientModal(true);
   };
-  const handleViewDetails = (schedule: db.ScheduleWithDetails) => {
+  const handleViewDetails = (schedule: ScheduleWithDetails) => {
     setSelectedSchedule(schedule);
     setShowDetailModal(true);
   };
-  const handleDownloadForm = (schedule: db.ScheduleWithDetails) => {
+  const handleDownloadForm = (schedule: ScheduleWithDetails) => {
     handleExportScheduleToExcel(schedule);
   };
-  const handleExportScheduleToExcel = async (schedule: db.ScheduleWithDetails) => {
+  const handleExportScheduleToExcel = async (schedule: ScheduleWithDetails) => {
     try {
       // 驗證排程資料是否有效
       if (!schedule || !schedule.院友列表 || schedule.院友列表.length === 0) {
         alert('此排程沒有可匯出的院友資料');
         return;
       }
-      // 過濾有效的院友資料
-      const validPatientItems = schedule.院友列表
-        .map(item => {
+      // 過濾有效的院友資料（patientMap 已包含站別預先過濾）
+      const validPatientItems: any[] = schedule.院友列表
+        .map((item: any) => {
           const patient = patientMap.get(item.院友id);
           if (!patient || !patient.床號) {
             console.warn(`院友 ID ${item.院友id} 資料不完整或缺少床號，跳過匯出`);
             return null;
           }
-          return {
-            ...item,
-            院友主表: patient,
-            patient: patient
-          };
+          return { ...item, 院友主表: patient, patient: patient };
         })
-        .filter((item): item is NonNullable<typeof item> => item !== null);
-      // 檢查是否有有效資料
+        .filter((item: any) => item !== null);
       if (validPatientItems.length === 0) {
         alert('此排程沒有有效的院友資料可以匯出');
         return;
       }
-      // 建構有效的排程物件
-      const validSchedule = {
-        ...schedule,
-        院友列表: validPatientItems
-      };
-      // 調用匯出函數
-      await exportCombinedScheduleToExcel(validSchedule);
+
+      // ── 居住區分組 ──
+      // 按 station_id 分組（patientMap 已從站別過濾，所以此處只會含等於勾選居住區的院友）
+      const groupMap = new Map<string, { label: string; items: any[] }>();
+      for (const item of validPatientItems) {
+        const sid = (item.patient as any).station_id || '__none__';
+        const label = sid === '__none__' ? '未分配居住區' : (stationMap.get(sid) || sid);
+        if (!groupMap.has(sid)) groupMap.set(sid, { label, items: [] });
+        groupMap.get(sid)!.items.push(item);
+      }
+      const stationGroups = Array.from(groupMap.values()) as StationGroup[];
+
+      // 檔案名後綴：指定居住區時加名稱，全部時加「全部居住區」
+      let filenameSuffix: string;
+      if (isFiltered && selectedStationIds.length === 1) {
+        filenameSuffix = stationMap.get(selectedStationIds[0]) || '已篩選';
+      } else if (isFiltered && selectedStationIds.length > 1) {
+        filenameSuffix = '多居住區';
+      } else {
+        filenameSuffix = '全部居住區';
+      }
+
+      const validSchedule = { ...schedule, 院友列表: validPatientItems } as any;
+      await exportCombinedScheduleToExcel(validSchedule, { stationGroups, filenameSuffix });
     } catch (error) {
       console.error('匯出失敗:', error);
       alert('匯出失敗，請檢查資料是否完整後重試');
