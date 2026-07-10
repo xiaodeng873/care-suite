@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useDeferredValue } from 'react';
 import {
   Plus,
   Search,
   Filter,
   ChevronDown,
-  ChevronRight,
+  ChevronUp,
   Calendar,
   Clock,
   AlertTriangle,
@@ -12,61 +12,35 @@ import {
   Edit3,
   Trash2,
   Eye,
-  Activity,
   User,
   X,
-  Download,
-  TrendingUp,
-  History,
-  Target,
-  FileText
+  FileText,
 } from 'lucide-react';
-import { usePatients, type Wound, type WoundWithAssessments, type PatientWithWounds, type WoundAssessment } from '../context/PatientContext';
+import { usePatients, type Wound, type WoundWithAssessments, type WoundAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientTooltip from '../components/PatientTooltip';
 import WoundModal from '../components/WoundModal';
 import SingleWoundAssessmentModal from '../components/SingleWoundAssessmentModal';
-import { fuzzyMatch } from '../utils/searchUtils';
+import { fuzzyMatch, matchBedNumber, matchChineseName } from '../utils/searchUtils';
 
-// 計算傷口存在天數
-const calculateDaysSinceDiscovery = (discoveryDate: string, healedDate?: string): number => {
-  const start = new Date(discoveryDate);
-  const end = healedDate ? new Date(healedDate) : new Date();
-  return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-};
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const formatDate = (dateStr: string) =>
+  new Date(dateStr).toLocaleDateString('zh-TW');
+
+const daysSince = (dateStr: string): number =>
+  Math.ceil((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
 
 // 計算評估頻率是否正常（每週至少一次）
 const isAssessmentFrequencyNormal = (wound: WoundWithAssessments): boolean => {
   if (wound.status !== 'active') return true;
   if (wound.assessments.length === 0) {
-    // 沒有評估記錄，檢查發現日期是否超過7天
-    const daysSinceDiscovery = calculateDaysSinceDiscovery(wound.discovery_date);
-    return daysSinceDiscovery <= 7;
+    return daysSince(wound.discovery_date) <= 7;
   }
-  // 檢查最近一次評估是否在7天內
-  const lastAssessment = wound.assessments[0];
-  const daysSinceLastAssessment = calculateDaysSinceDiscovery(lastAssessment.assessment_date);
-  return daysSinceLastAssessment <= 7;
+  return daysSince(wound.assessments[0].assessment_date) <= 7;
 };
 
-// 格式化天數顯示
-const formatDaysDisplay = (days: number): string => {
-  if (days === 0) return '今天';
-  if (days === 1) return '1天';
-  if (days < 7) return `${days}天`;
-  const weeks = Math.floor(days / 7);
-  const remainingDays = days % 7;
-  if (remainingDays === 0) return `${weeks}週`;
-  return `${weeks}週${remainingDays}天`;
-};
-
-interface AdvancedFilters {
-  床號: string;
-  中文姓名: string;
-  傷口狀態: string;
-  傷口類型: string;
-  評估狀態: string;
-}
+// ── labels ───────────────────────────────────────────────────────────────────
 
 const WOUND_TYPE_LABELS: Record<string, string> = {
   pressure_ulcer: '壓瘡',
@@ -75,146 +49,230 @@ const WOUND_TYPE_LABELS: Record<string, string> = {
   diabetic: '糖尿病傷口',
   venous: '靜脈性潰瘍',
   arterial: '動脈性潰瘍',
-  other: '其他'
+  other: '其他',
 };
 
 const WOUND_ORIGIN_LABELS: Record<string, string> = {
   facility: '本院發現',
   admission: '入院時已有',
-  hospital_referral: '醫院轉介'
+  hospital_referral: '醫院轉介',
 };
 
 const WOUND_STATUS_LABELS: Record<string, string> = {
   active: '進行中',
   healed: '已痊癒',
-  transferred: '已轉移'
+  transferred: '已轉移',
 };
 
 const RESPONSIBLE_UNIT_LABELS: Record<string, string> = {
   community_health: '社康',
   cgat: 'CGAT',
   facility_staff: '本院職員',
-  other: '其他'
+  other: '其他',
 };
+
+const ASSESSMENT_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  untreated: { label: '未處理', color: 'bg-gray-100 text-gray-800' },
+  treating:  { label: '治療中', color: 'bg-yellow-100 text-yellow-800' },
+  improving: { label: '改善中', color: 'bg-blue-100 text-blue-800' },
+  healed:    { label: '已痊癒', color: 'bg-green-100 text-green-800' },
+};
+
+// ── types ─────────────────────────────────────────────────────────────────────
+
+type SortField = 'patient_name' | 'discovery_date';
+type SortDirection = 'asc' | 'desc';
+
+interface WoundFilters {
+  searchTerm: string;
+  在住狀態: string;
+  傷口狀態: string;
+  傷口來源: string;
+  換症單位: string;
+  評估狀態: string;
+  床號: string;
+  中文姓名: string;
+}
+
+const DEFAULT_FILTERS: WoundFilters = {
+  searchTerm: '',
+  在住狀態: '在住',
+  傷口狀態: 'active',
+  傷口來源: '',
+  換症單位: '',
+  評估狀態: '',
+  床號: '',
+  中文姓名: '',
+};
+
+// ── component ─────────────────────────────────────────────────────────────────
 
 const WoundManagementNew: React.FC = () => {
   const { patientsWithWounds, patients, deleteWound, refreshWoundData, loading } = usePatients();
-  
-  const [searchTerm, setSearchTerm] = useState('');
+
+  // ── table state ──
+  const [sortField, setSortField]           = useState<SortField>('discovery_date');
+  const [sortDirection, setSortDirection]   = useState<SortDirection>('desc');
+  const [selectedRows, setSelectedRows]     = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage]       = useState(1);
+  const [pageSize, setPageSize]             = useState(50);
   const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
-  const [expandedWounds, setExpandedWounds] = useState<Set<string>>(new Set());
+  const [expandedWounds, setExpandedWounds]     = useState<Set<string>>(new Set());
+
+  // ── filter state ──
+  const [filters, setFilters]                   = useState<WoundFilters>(DEFAULT_FILTERS);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
-    床號: '',
-    中文姓名: '',
-    傷口狀態: 'active',
-    傷口類型: '',
-    評估狀態: ''
-  });
+  const deferredFilters                         = useDeferredValue(filters);
 
-  // Modal states
-  const [showWoundModal, setShowWoundModal] = useState(false);
-  const [selectedWound, setSelectedWound] = useState<Wound | null>(null);
-  const [selectedPatientId, setSelectedPatientId] = useState<number | undefined>();
+  // ── modal state ──
+  const [showWoundModal, setShowWoundModal]         = useState(false);
+  const [selectedWound, setSelectedWound]           = useState<Wound | null>(null);
+  const [selectedPatientId, setSelectedPatientId]   = useState<number | undefined>();
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
-  const [assessmentWound, setAssessmentWound] = useState<Wound | null>(null);
+  const [assessmentWound, setAssessmentWound]       = useState<Wound | null>(null);
   const [selectedAssessment, setSelectedAssessment] = useState<WoundAssessment | null>(null);
-  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [deletingIds, setDeletingIds]               = useState<Set<string>>(new Set());
 
-  // 篩選病人
-  const filteredPatientsWithWounds = useMemo(() => {
-    return patientsWithWounds.filter(p => {
-      // 搜索條件
-      if (searchTerm) {
-        const matchesSearch = 
-          fuzzyMatch(p.patient_name, searchTerm) ||
-          fuzzyMatch(p.bed_number, searchTerm);
-        if (!matchesSearch) return false;
+  // reset page on filter/sort change
+  React.useEffect(() => { setCurrentPage(1); }, [filters, sortField, sortDirection]);
+
+  // ── data pipeline ─────────────────────────────────────────────────────────
+
+  /** flat list of wounds after all filters */
+  const filteredWounds = useMemo(() => {
+    const result: WoundWithAssessments[] = [];
+    for (const pd of patientsWithWounds) {
+      const patient = patients.find(p => p.院友id === pd.patient_id);
+
+      if (deferredFilters.在住狀態 && deferredFilters.在住狀態 !== '全部') {
+        if (patient?.在住狀態 !== deferredFilters.在住狀態) continue;
       }
+      if (deferredFilters.床號 && !matchBedNumber(pd.bed_number, deferredFilters.床號)) continue;
+      if (deferredFilters.中文姓名 && !matchChineseName(
+        patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, deferredFilters.中文姓名
+      )) continue;
 
-      // 進階篩選
-      if (advancedFilters.床號 && !fuzzyMatch(p.bed_number, advancedFilters.床號)) {
-        return false;
-      }
-      if (advancedFilters.中文姓名 && !fuzzyMatch(p.patient_name, advancedFilters.中文姓名)) {
-        return false;
-      }
+      for (const wound of pd.wounds) {
+        if (deferredFilters.傷口狀態 && wound.status !== deferredFilters.傷口狀態) continue;
+        if (deferredFilters.傷口來源 && wound.wound_origin !== deferredFilters.傷口來源) continue;
+        if (deferredFilters.換症單位 && wound.responsible_unit !== deferredFilters.換症單位) continue;
+        if (deferredFilters.評估狀態 === 'overdue' && !wound.is_overdue) continue;
 
-      // 傷口狀態篩選
-      if (advancedFilters.傷口狀態 && advancedFilters.傷口狀態 !== '全部') {
-        const hasMatchingWound = p.wounds.some(w => w.status === advancedFilters.傷口狀態);
-        if (!hasMatchingWound) return false;
-      }
-
-      // 傷口類型篩選
-      if (advancedFilters.傷口類型) {
-        const hasMatchingType = p.wounds.some(w => w.wound_type === advancedFilters.傷口類型);
-        if (!hasMatchingType) return false;
-      }
-
-      // 評估狀態篩選
-      if (advancedFilters.評估狀態 === 'overdue') {
-        if (p.overdue_assessment_count === 0) return false;
-      }
-
-      return true;
-    });
-  }, [patientsWithWounds, searchTerm, advancedFilters]);
-
-  // 統計資料
-  const stats = useMemo(() => {
-    let totalWounds = 0;
-    let activeWounds = 0;
-    let healedWounds = 0;
-    let overdueAssessments = 0;
-    let dueTodayOrTomorrow = 0;
-    let totalAssessments = 0;
-    let patientsWithActiveWounds = 0;
-
-    patientsWithWounds.forEach(p => {
-      totalWounds += p.wounds.length;
-      activeWounds += p.active_wound_count;
-      healedWounds += p.healed_wound_count;
-      overdueAssessments += p.overdue_assessment_count;
-      if (p.active_wound_count > 0) {
-        patientsWithActiveWounds++;
-      }
-      p.wounds.forEach(w => {
-        totalAssessments += w.assessment_count;
-        if (w.status === 'active' && w.days_until_due !== undefined) {
-          if (w.days_until_due >= 0 && w.days_until_due <= 1) {
-            dueTodayOrTomorrow++;
-          }
+        if (deferredFilters.searchTerm) {
+          const s = deferredFilters.searchTerm;
+          if (
+            !fuzzyMatch(pd.patient_name, s) &&
+            !matchBedNumber(pd.bed_number, s) &&
+            !fuzzyMatch(wound.wound_code, s) &&
+            !fuzzyMatch(wound.wound_name, s)
+          ) continue;
         }
-      });
-    });
-
-    return { totalWounds, activeWounds, healedWounds, overdueAssessments, dueTodayOrTomorrow, totalAssessments, patientsWithActiveWounds };
-  }, [patientsWithWounds]);
-
-  const togglePatient = (patientId: number) => {
-    setExpandedPatients(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(patientId)) {
-        newSet.delete(patientId);
-      } else {
-        newSet.add(patientId);
+        result.push(wound);
       }
-      return newSet;
+    }
+    return result;
+  }, [patientsWithWounds, patients, deferredFilters]);
+
+  const sortedWounds = useMemo(() => {
+    const pdMap = new Map(patientsWithWounds.map(pd => [pd.patient_id, pd]));
+    return [...filteredWounds].sort((a, b) => {
+      let valA: string | number = '';
+      let valB: string | number = '';
+      if (sortField === 'patient_name') {
+        valA = pdMap.get(a.patient_id)?.patient_name ?? '';
+        valB = pdMap.get(b.patient_id)?.patient_name ?? '';
+      } else {
+        valA = new Date(a.discovery_date).getTime();
+        valB = new Date(b.discovery_date).getTime();
+      }
+      if (typeof valA === 'string') valA = (valA as string).toLowerCase();
+      if (typeof valB === 'string') valB = (valB as string).toLowerCase();
+      const cmp = valA < valB ? -1 : valA > valB ? 1 : 0;
+      return sortDirection === 'asc' ? cmp : -cmp;
     });
+  }, [filteredWounds, patientsWithWounds, sortField, sortDirection]);
+
+  /** grouped by patient, preserving sortedWounds order */
+  const groupedByPatient = useMemo(() => {
+    const seen = new Set<number>();
+    const groups: { patientId: number; wounds: WoundWithAssessments[] }[] = [];
+    for (const w of sortedWounds) {
+      if (!seen.has(w.patient_id)) {
+        seen.add(w.patient_id);
+        groups.push({ patientId: w.patient_id, wounds: [w] });
+      } else {
+        groups.find(g => g.patientId === w.patient_id)!.wounds.push(w);
+      }
+    }
+    return groups;
+  }, [sortedWounds]);
+
+  const totalItems  = groupedByPatient.length;
+  const totalPages  = Math.max(1, Math.ceil(totalItems / pageSize));
+  const startIndex  = (currentPage - 1) * pageSize;
+  const endIndex    = startIndex + pageSize;
+
+  const paginatedGroups = useMemo(
+    () => groupedByPatient.slice(startIndex, endIndex),
+    [groupedByPatient, startIndex, endIndex]
+  );
+  const paginatedWounds = useMemo(
+    () => paginatedGroups.flatMap(g => g.wounds),
+    [paginatedGroups]
+  );
+
+  // ── filter helpers ──
+
+  const hasNonDefaultFilters = useMemo(() =>
+    filters.在住狀態  !== DEFAULT_FILTERS.在住狀態  ||
+    filters.傷口狀態  !== DEFAULT_FILTERS.傷口狀態  ||
+    filters.傷口來源  !== DEFAULT_FILTERS.傷口來源  ||
+    filters.換症單位  !== DEFAULT_FILTERS.換症單位  ||
+    filters.評估狀態  !== DEFAULT_FILTERS.評估狀態  ||
+    filters.床號      !== DEFAULT_FILTERS.床號      ||
+    filters.中文姓名  !== DEFAULT_FILTERS.中文姓名,
+    [filters]
+  );
+
+  const updateFilter = <K extends keyof WoundFilters>(key: K, value: WoundFilters[K]) =>
+    setFilters(prev => ({ ...prev, [key]: value }));
+
+  const clearFilters = () => setFilters(DEFAULT_FILTERS);
+
+  // ── sort ──
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
   };
 
-  const toggleWound = (woundId: string) => {
-    setExpandedWounds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(woundId)) {
-        newSet.delete(woundId);
-      } else {
-        newSet.add(woundId);
-      }
-      return newSet;
-    });
-  };
+  // ── selection ──
+
+  const handleSelectRow = (id: string) =>
+    setSelectedRows(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const handleSelectAll = () =>
+    setSelectedRows(selectedRows.size === paginatedWounds.length
+      ? new Set()
+      : new Set(paginatedWounds.map(w => w.id))
+    );
+
+  const handleInvertSelection = () =>
+    setSelectedRows(new Set(paginatedWounds.filter(w => !selectedRows.has(w.id)).map(w => w.id)));
+
+  // ── expand ──
+
+  const togglePatient = (id: number) =>
+    setExpandedPatients(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const toggleWound = (id: string) =>
+    setExpandedWounds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  // ── crud ──
 
   const handleAddWound = (patientId?: number) => {
     setSelectedWound(null);
@@ -229,22 +287,29 @@ const WoundManagementNew: React.FC = () => {
 
   const handleDeleteWound = async (wound: Wound) => {
     const patient = patients.find(p => p.院友id === wound.patient_id);
-    if (!confirm(`確定要刪除 ${patient?.中文姓名} 的傷口 ${wound.wound_code} 嗎？\n這將同時刪除所有相關的評估記錄。`)) {
-      return;
-    }
-
+    if (!confirm(`確定要刪除 ${patient?.中文姓名} 的傷口 ${wound.wound_code} 嗎？\n這將同時刪除所有相關的評估記錄。`)) return;
     try {
       setDeletingIds(prev => new Set(prev).add(wound.id));
       await deleteWound(wound.id);
-    } catch (error) {
-      console.error('Error deleting wound:', error);
+    } catch {
       alert('刪除傷口失敗');
     } finally {
-      setDeletingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(wound.id);
-        return newSet;
-      });
+      setDeletingIds(prev => { const n = new Set(prev); n.delete(wound.id); return n; });
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedRows.size === 0) return;
+    if (!confirm(`確定要刪除 ${selectedRows.size} 個傷口嗎？此操作無法復原。`)) return;
+    const ids = Array.from(selectedRows);
+    setDeletingIds(new Set(ids));
+    try {
+      for (const id of ids) await deleteWound(id);
+      setSelectedRows(new Set());
+    } catch {
+      alert('批量刪除失敗，請重試');
+    } finally {
+      setDeletingIds(new Set());
     }
   };
 
@@ -260,632 +325,676 @@ const WoundManagementNew: React.FC = () => {
     setShowAssessmentModal(true);
   };
 
-  const clearFilters = () => {
-    setSearchTerm('');
-    setAdvancedFilters({
-      床號: '',
-      中文姓名: '',
-      傷口狀態: 'active',
-      傷口類型: '',
-      評估狀態: ''
-    });
-  };
+  // ── pagination ──
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">進行中</span>;
-      case 'healed':
-        return <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">已痊癒</span>;
-      case 'transferred':
-        return <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">已轉移</span>;
-      default:
-        return null;
+  const handlePageChange     = (p: number) => setCurrentPage(p);
+  const handlePageSizeChange = (s: number) => { setPageSize(s); setCurrentPage(1); };
+
+  const generatePageNumbers = () => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      const start = Math.max(1, currentPage - 2);
+      const end   = Math.min(totalPages, start + maxVisible - 1);
+      for (let i = start; i <= end; i++) pages.push(i);
     }
+    return pages;
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('zh-TW');
+  // ── sub-components ────────────────────────────────────────────────────────
+
+  const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode }> = ({ field, children }) => (
+    <th
+      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center space-x-1">
+        <span>{children}</span>
+        {sortField === field && (
+          sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+        )}
+      </div>
+    </th>
+  );
+
+  const WoundStatusBadge: React.FC<{ status: string }> = ({ status }) => {
+    const cfg: Record<string, string> = {
+      active:      'bg-yellow-100 text-yellow-800',
+      healed:      'bg-green-100 text-green-800',
+      transferred: 'bg-gray-100 text-gray-800',
+    };
+    return (
+      <span className={`inline-flex px-2 py-0.5 text-xs rounded-full font-medium ${cfg[status] ?? 'bg-gray-100 text-gray-800'}`}>
+        {WOUND_STATUS_LABELS[status] ?? status}
+      </span>
+    );
   };
 
-  if (loading) {
-    return <LoadingScreen pageName="傷口管理" />;
-  }
+  const AssessmentStatusCell: React.FC<{ wound: WoundWithAssessments }> = ({ wound }) => {
+    if (wound.status !== 'active') return <span className="text-xs text-gray-400">—</span>;
+    if (wound.is_overdue) {
+      const overdueDays = wound.next_assessment_due ? daysSince(wound.next_assessment_due) : null;
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800 font-medium">
+          <AlertTriangle className="h-3 w-3" />
+          逾期{overdueDays ? ` ${overdueDays}天` : ''}
+        </span>
+      );
+    }
+    if (wound.days_until_due !== undefined && wound.days_until_due <= 2) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800">
+          <Clock className="h-3 w-3" />
+          {wound.days_until_due === 0 ? '今天到期' : `${wound.days_until_due}天後`}
+        </span>
+      );
+    }
+    if (!isAssessmentFrequencyNormal(wound)) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-800">
+          <AlertTriangle className="h-3 w-3" />
+          待評估
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">
+        <CheckCircle className="h-3 w-3" />
+        正常{wound.days_until_due !== undefined ? `（${wound.days_until_due}天後）` : ''}
+      </span>
+    );
+  };
+
+  // ── loading guard ──────────────────────────────────────────────────────────
+
+  if (loading) return <LoadingScreen pageName="傷口管理" />;
+
+  // ── render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
+
+      {/* ── z-30: 標題列 ── */}
+      <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">傷口管理</h1>
-          <p className="text-gray-600 mt-1">管理院友傷口記錄和評估</p>
+          <button
+            onClick={() => handleAddWound()}
+            className="btn-primary flex flex-wrap items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>新增傷口</span>
+          </button>
         </div>
-        <button
-          onClick={() => handleAddWound()}
-          className="flex flex-wrap items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-5 w-5" />
-          <span>新增傷口</span>
-        </button>
       </div>
 
-      {/* 搜尋和篩選 */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="搜尋院友..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+      {/* ── z-20: 搜尋 + 進階篩選 ── */}
+      <div className="sticky top-16 bg-white z-20 shadow-sm">
+        <div className="card p-4">
+          <div className="space-y-4">
 
-          <div className="flex gap-2">
-            <select
-              value={advancedFilters.傷口狀態}
-              onChange={(e) => setAdvancedFilters(prev => ({ ...prev, 傷口狀態: e.target.value }))}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="全部">全部狀態</option>
-              <option value="active">進行中</option>
-              <option value="healed">已痊癒</option>
-            </select>
+            {/* 搜尋列 */}
+            <div className="flex flex-col lg:flex-row gap-2 lg:items-center">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="搜索床號、姓名、傷口代號或名稱..."
+                  value={filters.searchTerm}
+                  onChange={e => updateFilter('searchTerm', e.target.value)}
+                  className="form-input pl-10"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setShowAdvancedFilters(v => !v)}
+                  className={`btn-secondary flex flex-wrap items-center gap-2 ${showAdvancedFilters ? 'bg-blue-50 text-blue-700' : ''} ${hasNonDefaultFilters ? 'border-blue-300' : ''}`}
+                >
+                  <Filter className="h-4 w-4" />
+                  <span>進階篩選</span>
+                  {hasNonDefaultFilters && (
+                    <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">已套用</span>
+                  )}
+                </button>
+                {(filters.searchTerm || hasNonDefaultFilters) && (
+                  <button
+                    onClick={clearFilters}
+                    className="btn-secondary flex flex-wrap items-center gap-2 text-red-600 hover:text-red-700"
+                  >
+                    <X className="h-4 w-4" />
+                    <span>清除</span>
+                  </button>
+                )}
+              </div>
+            </div>
 
-            <button
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className={`flex flex-wrap items-center gap-2 px-3 py-2 border rounded-lg transition-colors ${
-                showAdvancedFilters ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <Filter className="h-4 w-4" />
-              <span>進階篩選</span>
-            </button>
-
-            {(searchTerm || Object.values(advancedFilters).some(v => v && v !== 'active')) && (
-              <button
-                onClick={clearFilters}
-                className="flex items-center space-x-1 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                <X className="h-4 w-4" />
-                <span>清除</span>
-              </button>
+            {/* 進階篩選展開 */}
+            {showAdvancedFilters && (
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="text-sm font-medium text-gray-900 mb-3">進階篩選</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="form-label">床號</label>
+                    <input type="text" value={filters.床號} onChange={e => updateFilter('床號', e.target.value)} className="form-input" placeholder="搜索床號..." />
+                  </div>
+                  <div>
+                    <label className="form-label">中文姓名</label>
+                    <input type="text" value={filters.中文姓名} onChange={e => updateFilter('中文姓名', e.target.value)} className="form-input" placeholder="搜索姓名..." />
+                  </div>
+                  <div>
+                    <label className="form-label">在住狀態</label>
+                    <select value={filters.在住狀態} onChange={e => updateFilter('在住狀態', e.target.value)} className="form-input">
+                      <option value="在住">在住</option>
+                      <option value="待入住">待入住</option>
+                      <option value="已退住">已退住</option>
+                      <option value="全部">全部</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">傷口狀態</label>
+                    <select value={filters.傷口狀態} onChange={e => updateFilter('傷口狀態', e.target.value)} className="form-input">
+                      <option value="">全部</option>
+                      <option value="active">進行中</option>
+                      <option value="healed">已痊癒</option>
+                      <option value="transferred">已轉移</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">傷口來源</label>
+                    <select value={filters.傷口來源} onChange={e => updateFilter('傷口來源', e.target.value)} className="form-input">
+                      <option value="">全部</option>
+                      <option value="facility">本院發現</option>
+                      <option value="admission">入院時已有</option>
+                      <option value="hospital_referral">醫院轉介</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">換症單位</label>
+                    <select value={filters.換症單位} onChange={e => updateFilter('換症單位', e.target.value)} className="form-input">
+                      <option value="">全部</option>
+                      <option value="community_health">社康</option>
+                      <option value="cgat">CGAT</option>
+                      <option value="facility_staff">本院職員</option>
+                      <option value="other">其他</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">評估狀態</label>
+                    <select value={filters.評估狀態} onChange={e => updateFilter('評估狀態', e.target.value)} className="form-input">
+                      <option value="">全部</option>
+                      <option value="overdue">逾期評估</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             )}
+
+            {/* 結果計數 */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
+              <span>
+                顯示 {startIndex + 1}–{Math.min(endIndex, totalItems)} / {totalItems} 位院友（共 {filteredWounds.length} 個傷口）
+              </span>
+              {(filters.searchTerm || hasNonDefaultFilters) && (
+                <span className="text-blue-600">已套用篩選條件</span>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* 進階篩選面板 */}
-        {showAdvancedFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">床號</label>
-              <input
-                type="text"
-                value={advancedFilters.床號}
-                onChange={(e) => setAdvancedFilters(prev => ({ ...prev, 床號: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                placeholder="篩選床號..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
-              <input
-                type="text"
-                value={advancedFilters.中文姓名}
-                onChange={(e) => setAdvancedFilters(prev => ({ ...prev, 中文姓名: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                placeholder="篩選姓名..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">傷口類型</label>
-              <select
-                value={advancedFilters.傷口類型}
-                onChange={(e) => setAdvancedFilters(prev => ({ ...prev, 傷口類型: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              >
-                <option value="">全部類型</option>
-                {Object.entries(WOUND_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">評估狀態</label>
-              <select
-                value={advancedFilters.評估狀態}
-                onChange={(e) => setAdvancedFilters(prev => ({ ...prev, 評估狀態: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              >
-                <option value="">全部</option>
-                <option value="overdue">逾期評估</option>
-              </select>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* 主表格：一院友對多傷口 */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          <div className="flex flex-wrap items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-gray-600" />
-            <h2 className="text-lg font-medium text-gray-900">傷口清單</h2>
-            <span className="text-sm text-gray-500">（點擊展開查看傷口詳情）</span>
+      {/* ── z-10: 選取控制列 ── */}
+      {totalItems > 0 && (
+        <div className="sticky top-44 bg-white z-10 shadow-sm">
+          <div className="card p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-4">
+                <button onClick={handleSelectAll} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                  {selectedRows.size === paginatedWounds.length ? '取消全選' : '全選'}
+                </button>
+                <button onClick={handleInvertSelection} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                  反選
+                </button>
+                {selectedRows.size > 0 && (
+                  <button
+                    onClick={handleBatchDelete}
+                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                    disabled={deletingIds.size > 0}
+                  >
+                    刪除選定傷口 ({selectedRows.size})
+                  </button>
+                )}
+              </div>
+              <div className="text-sm text-gray-600">
+                已選擇 {selectedRows.size} / {filteredWounds.length} 個傷口
+              </div>
+            </div>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[768px] divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8"></th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">院友</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">傷口數量</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">評估狀態</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredPatientsWithWounds.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                    <div className="flex flex-col items-center space-y-2">
-                      <Activity className="h-8 w-8 text-gray-400" />
-                      <p>沒有找到符合條件的傷口記錄</p>
-                      <button
-                        onClick={() => handleAddWound()}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        + 新增第一個傷口
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredPatientsWithWounds.map(patientData => {
-                  const patient = patients.find(p => p.院友id === patientData.patient_id);
-                  const isExpanded = expandedPatients.has(patientData.patient_id);
-                  
-                  // 篩選傷口
-                  let displayWounds = patientData.wounds;
-                  if (advancedFilters.傷口狀態 && advancedFilters.傷口狀態 !== '全部') {
-                    displayWounds = displayWounds.filter(w => w.status === advancedFilters.傷口狀態);
-                  }
-                  if (advancedFilters.傷口類型) {
-                    displayWounds = displayWounds.filter(w => w.wound_type === advancedFilters.傷口類型);
-                  }
+      )}
 
-                  // 計算評估狀態
-                  const activeWounds = displayWounds.filter(w => w.status === 'active');
-                  const overdueCount = displayWounds.filter(w => w.is_overdue).length;
-                  const normalCount = activeWounds.filter(w => !w.is_overdue && isAssessmentFrequencyNormal(w)).length;
+      {/* ── 主表格 ── */}
+      <div className="card overflow-hidden">
+        {paginatedWounds.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[960px] divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  {/* col 1: checkbox */}
+                  <th className="px-4 py-3 text-left w-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.size === paginatedWounds.length && paginatedWounds.length > 0}
+                      onChange={handleSelectAll}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                  </th>
+                  {/* col 2 */}
+                  <SortableHeader field="patient_name">院友</SortableHeader>
+                  {/* col 3 */}
+                  <SortableHeader field="discovery_date">發現日期</SortableHeader>
+                  {/* col 4-9 */}
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">傷口名稱</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">傷口來源</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">傷口狀態</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">換症單位</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">評估狀態</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {paginatedGroups.map(group => {
+                  const pd      = patientsWithWounds.find(p => p.patient_id === group.patientId);
+                  const patient = patients.find(p => p.院友id === group.patientId);
+                  const isExpanded  = expandedPatients.has(group.patientId);
+                  const overdueCount = group.wounds.filter(w => w.is_overdue).length;
+                  const activeCount  = group.wounds.filter(w => w.status === 'active').length;
+                  const healedCount  = group.wounds.filter(w => w.status === 'healed').length;
 
                   return (
-                    <React.Fragment key={patientData.patient_id}>
-                      {/* 病人行 */}
+                    <React.Fragment key={group.patientId}>
+
+                      {/* ── L1: 院友標題列 ── */}
                       <tr
-                        className={`hover:bg-gray-50 cursor-pointer ${isExpanded ? 'bg-blue-50' : ''}`}
-                        onClick={() => togglePatient(patientData.patient_id)}
+                        className="bg-blue-50 hover:bg-blue-100 cursor-pointer select-none"
+                        onClick={() => togglePatient(group.patientId)}
                       >
-                        <td className="px-4 py-4">
-                          {isExpanded ? (
-                            <ChevronDown className="h-5 w-5 text-blue-600" />
-                          ) : (
-                            <ChevronRight className="h-5 w-5 text-gray-400" />
-                          )}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="flex flex-wrap items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0">
-                              {patient?.院友相片 ? (
-                                <img
-                                  src={patient.院友相片}
-                                  alt={patient.中文姓名}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <User className="h-5 w-5 text-blue-600" />
-                              )}
-                            </div>
-                            <div>
-                              {patient ? (
-                                <PatientTooltip patient={patient}>
-                                  <span className="text-sm font-medium text-gray-900 cursor-help hover:text-blue-600">
-                                    {patientData.patient_name}
-                                  </span>
-                                </PatientTooltip>
-                              ) : (
-                                <span className="text-sm font-medium text-gray-900">
-                                  {patientData.patient_name}
-                                </span>
-                              )}
-                              <div className="text-sm text-gray-500">{patientData.bed_number}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                              {displayWounds.length} 個傷口
-                            </span>
-                            {patientData.active_wound_count > 0 && (
-                              <span className="text-xs text-yellow-600">
-                                ({patientData.active_wound_count} 進行中)
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex flex-wrap gap-1">
-                            {displayWounds.map(wound => {
-                              const unitLabel = wound.responsible_unit 
-                                ? (wound.responsible_unit === 'other' 
-                                    ? wound.responsible_unit_other || '其他' 
-                                    : RESPONSIBLE_UNIT_LABELS[wound.responsible_unit])
-                                : '未設定';
-                              return (
-                                <span
-                                  key={wound.id}
-                                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                                  title={`${wound.wound_code}: ${unitLabel}`}
-                                >
-                                  {wound.wound_code}: {unitLabel}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="flex flex-col space-y-1">
-                            {overdueCount > 0 && (
-                              <span className="inline-flex items-center text-xs text-red-600 font-medium">
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                {overdueCount} 個逾期
-                              </span>
-                            )}
-                            {normalCount > 0 && (
-                              <span className="inline-flex items-center text-xs text-green-600">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                {normalCount} 個正常
-                              </span>
-                            )}
-                            {activeWounds.length === 0 && displayWounds.length > 0 && (
-                              <span className="text-xs text-gray-500">全部已痊癒</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <button
-                            onClick={(e) => {
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={group.wounds.every(w => selectedRows.has(w.id))}
+                            onChange={e => {
                               e.stopPropagation();
-                              handleAddWound(patientData.patient_id);
+                              setSelectedRows(prev => {
+                                const next = new Set(prev);
+                                if (group.wounds.every(w => prev.has(w.id))) {
+                                  group.wounds.forEach(w => next.delete(w.id));
+                                } else {
+                                  group.wounds.forEach(w => next.add(w.id));
+                                }
+                                return next;
+                              });
                             }}
-                            className="inline-flex items-center px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            新增傷口
-                          </button>
+                            onClick={e => e.stopPropagation()}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap" colSpan={8}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 bg-blue-200 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0">
+                              {patient?.院友相片 ? (
+                                <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
+                              ) : (
+                                <User className="h-5 w-5 text-blue-700" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {patient ? (
+                                  <PatientTooltip patient={patient}>
+                                    <span className="font-semibold text-gray-900 text-sm cursor-help hover:text-blue-700">
+                                      {pd?.patient_name ?? patient.中文姓名}
+                                    </span>
+                                  </PatientTooltip>
+                                ) : (
+                                  <span className="font-semibold text-gray-900 text-sm">{pd?.patient_name}</span>
+                                )}
+                                <span className="text-xs text-gray-500">{pd?.bed_number}</span>
+                                <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">{group.wounds.length} 個傷口</span>
+                                {overdueCount > 0 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{overdueCount} 逾期</span>}
+                                {activeCount  > 0 && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{activeCount} 進行中</span>}
+                                {healedCount  > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{healedCount} 已痊癒</span>}
+                              </div>
+                            </div>
+                            <div className="flex-shrink-0 text-blue-600">
+                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </div>
+                          </div>
                         </td>
                       </tr>
 
-                      {/* 展開的傷口列表 */}
-                      {isExpanded && displayWounds.map(wound => {
+                      {/* ── L2: 傷口列 ── */}
+                      {isExpanded && group.wounds.map(wound => {
                         const isWoundExpanded = expandedWounds.has(wound.id);
-                        const daysSinceDiscovery = calculateDaysSinceDiscovery(wound.discovery_date, wound.healed_date);
-                        
+                        const unitLabel = wound.responsible_unit === 'other'
+                          ? (wound.responsible_unit_other || '其他')
+                          : (RESPONSIBLE_UNIT_LABELS[wound.responsible_unit] ?? '—');
+
                         return (
                           <React.Fragment key={wound.id}>
-                            {/* 傷口行 */}
-                            <tr className={`border-l-4 ${
-                              wound.status === 'healed' 
-                                ? 'bg-green-50 border-green-400' 
-                                : wound.is_overdue 
-                                ? 'bg-red-50 border-red-400'
-                                : 'bg-yellow-50 border-yellow-400'
-                            }`}>
-                              <td className="px-4 py-3">
+                            <tr
+                              className={`hover:bg-gray-50 ${selectedRows.has(wound.id) ? 'bg-blue-50' : ''}`}
+                              onDoubleClick={() => handleEditWound(wound)}
+                            >
+                              {/* col 1: checkbox */}
+                              <td className="px-4 py-4 pl-8">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRows.has(wound.id)}
+                                  onChange={() => handleSelectRow(wound.id)}
+                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                />
+                              </td>
+
+                              {/* col 2: ↳ + expand */}
+                              <td className="px-4 py-4 whitespace-nowrap">
                                 <button
                                   onClick={() => toggleWound(wound.id)}
-                                  className="ml-4"
+                                  className="flex items-center gap-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                  title={isWoundExpanded ? '收合評估' : '展開評估'}
                                 >
-                                  {isWoundExpanded ? (
-                                    <ChevronDown className="h-4 w-4 text-gray-600" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4 text-gray-400" />
-                                  )}
+                                  <span className="text-xs font-mono">↳</span>
+                                  {isWoundExpanded
+                                    ? <ChevronUp className="h-3.5 w-3.5" />
+                                    : <ChevronDown className="h-3.5 w-3.5" />}
                                 </button>
                               </td>
-                              <td colSpan={5} className="px-4 py-3">
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 flex-wrap gap-2">
-                                  <div className="flex items-center flex-wrap gap-3">
-                                    {/* 傷口編號和名稱 */}
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="font-bold text-gray-900 text-base">{wound.wound_code}</span>
-                                      {wound.wound_name && (
-                                        <span className="text-gray-600">({wound.wound_name})</span>
-                                      )}
-                                    </div>
-                                    
-                                    {/* 狀態徽章 */}
-                                    {getStatusBadge(wound.status)}
-                                    
-                                    {/* 傷口類型和來源 */}
-                                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                                      <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded">
-                                        {WOUND_TYPE_LABELS[wound.wound_type]}
-                                      </span>
-                                      <span className="text-gray-400">|</span>
-                                      <span className="text-gray-500">
-                                        {WOUND_ORIGIN_LABELS[wound.wound_origin]}
-                                      </span>
-                                    </div>
-                                    
-                                    {/* 日期資訊 */}
-                                    <div className="flex flex-wrap items-center gap-3 text-xs">
-                                      <span className="text-gray-500 flex items-center">
-                                        <Calendar className="h-3 w-3 mr-1" />
-                                        發現: {formatDate(wound.discovery_date)}
-                                      </span>
-                                      <span className="text-blue-600 font-medium">
-                                        存在 {formatDaysDisplay(daysSinceDiscovery)}
-                                      </span>
-                                    </div>
-                                    
-                                    {/* 評估資訊 */}
-                                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                                      <span className="flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
-                                        <FileText className="h-3 w-3 mr-1" />
-                                        {wound.assessment_count} 次評估
-                                      </span>
-                                    </div>
-                                    
-                                    {/* 下次評估或痊癒日期 */}
-                                    {wound.status === 'active' && wound.next_assessment_due && (
-                                      <span className={`text-xs flex items-center px-2 py-0.5 rounded ${
-                                        wound.is_overdue 
-                                          ? 'bg-red-100 text-red-700 font-medium animate-pulse' 
-                                          : wound.days_until_due !== undefined && wound.days_until_due <= 2
-                                          ? 'bg-amber-100 text-amber-700'
-                                          : 'bg-gray-100 text-gray-600'
-                                      }`}>
-                                        <Clock className="h-3 w-3 mr-1" />
-                                        下次評估: {formatDate(wound.next_assessment_due)}
-                                        {wound.is_overdue && ' ⚠️ 逾期'}
-                                        {!wound.is_overdue && wound.days_until_due !== undefined && wound.days_until_due <= 2 && ` (${wound.days_until_due === 0 ? '今天' : wound.days_until_due === 1 ? '明天' : '後天'})`}
-                                      </span>
-                                    )}
-                                    {wound.healed_date && (
-                                      <span className="text-xs text-green-600 flex items-center font-medium">
-                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                        痊癒日期: {formatDate(wound.healed_date)}
-                                      </span>
-                                    )}
+
+                              {/* col 3: 發現日期 */}
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <div className="flex items-center gap-1.5">
+                                  <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                                  {formatDate(wound.discovery_date)}
+                                </div>
+                              </td>
+
+                              {/* col 4: 傷口名稱 */}
+                              <td className="px-4 py-4">
+                                <div className="text-sm font-semibold text-gray-900">{wound.wound_code}</div>
+                                {wound.wound_name && (
+                                  <div className="text-xs text-gray-500 mt-0.5 max-w-[160px] truncate" title={wound.wound_name}>
+                                    {wound.wound_name}
                                   </div>
-                                  
-                                  {/* 操作按鈕 */}
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    {wound.status === 'active' && (
-                                      <button
-                                        onClick={() => handleAddAssessment(wound)}
-                                        className={`inline-flex items-center px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                                          wound.is_overdue
-                                            ? 'bg-red-600 text-white hover:bg-red-700'
-                                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                                        }`}
-                                      >
-                                        <Plus className="h-4 w-4 mr-1" />
-                                        <span>新增評估</span>
-                                      </button>
-                                    )}
-                                    <button
-                                      onClick={() => handleEditWound(wound)}
-                                      className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"
-                                      title="編輯傷口"
-                                    >
-                                      <Edit3 className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteWound(wound)}
-                                      className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded"
-                                      title="刪除傷口"
-                                      disabled={deletingIds.has(wound.id)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
+                                )}
+                                <div className="text-xs text-gray-400 mt-0.5">
+                                  {WOUND_TYPE_LABELS[wound.wound_type] ?? wound.wound_type}
+                                </div>
+                              </td>
+
+                              {/* col 5: 傷口來源 */}
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <span className="inline-flex px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700">
+                                  {WOUND_ORIGIN_LABELS[wound.wound_origin] ?? wound.wound_origin}
+                                </span>
+                              </td>
+
+                              {/* col 6: 傷口狀態 */}
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <WoundStatusBadge status={wound.status} />
+                              </td>
+
+                              {/* col 7: 換症單位 */}
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <span className="inline-flex px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">
+                                  {unitLabel}
+                                </span>
+                              </td>
+
+                              {/* col 8: 評估狀態 */}
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <AssessmentStatusCell wound={wound} />
+                                {wound.assessment_count > 0 && (
+                                  <div className="text-xs text-gray-400 mt-0.5">
+                                    共 {wound.assessment_count} 次
                                   </div>
+                                )}
+                              </td>
+
+                              {/* col 9: 操作 */}
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  {wound.status === 'active' && (
+                                    <button
+                                      onClick={() => handleAddAssessment(wound)}
+                                      className="inline-flex items-center px-2 py-1 text-xs text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+                                      title="新增評估"
+                                    >
+                                      <Plus className="h-3 w-3 mr-0.5" />評估
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleEditWound(wound)}
+                                    className="text-gray-400 hover:text-blue-600 transition-colors"
+                                    title="編輯"
+                                    disabled={deletingIds.has(wound.id)}
+                                  >
+                                    <Edit3 className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteWound(wound)}
+                                    className="text-gray-400 hover:text-red-600 transition-colors"
+                                    title="刪除"
+                                    disabled={deletingIds.has(wound.id)}
+                                  >
+                                    {deletingIds.has(wound.id)
+                                      ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600" />
+                                      : <Trash2 className="h-4 w-4" />}
+                                  </button>
                                 </div>
                               </td>
                             </tr>
 
-                            {/* 評估記錄列表 - 時間軸視圖 */}
+                            {/* ── L3: 評估紀錄列 ── */}
                             {isWoundExpanded && (
-                              <tr className="bg-white border-l-4 border-gray-200">
-                                <td></td>
-                                <td colSpan={5} className="px-8 py-4">
-                                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-                                    <div className="text-sm font-medium text-gray-700 flex items-center">
-                                      <History className="h-4 w-4 mr-2 text-gray-500" />
-                                      評估歷程 ({wound.assessment_count} 次評估)
-                                    </div>
-                                    {wound.status === 'active' && wound.assessments.length > 0 && (
-                                      <div className="text-xs text-gray-500">
-                                        平均評估間隔: {Math.round(calculateDaysSinceDiscovery(wound.discovery_date) / Math.max(wound.assessment_count, 1))} 天
+                              <>
+                                {wound.assessments.length === 0 ? (
+                                  <tr className="bg-gray-50">
+                                    <td />
+                                    <td colSpan={8} className="px-6 py-3 pl-12 text-sm text-gray-500">
+                                      <div className="flex items-center gap-2">
+                                        <FileText className="h-4 w-4 text-gray-400" />
+                                        尚無評估記錄
+                                        {wound.status === 'active' && (
+                                          <button
+                                            onClick={() => handleAddAssessment(wound)}
+                                            className="text-blue-600 hover:underline ml-2"
+                                          >
+                                            + 進行首次評估
+                                          </button>
+                                        )}
                                       </div>
-                                    )}
-                                  </div>
-                                  {wound.assessments.length === 0 ? (
-                                    <div className="bg-gray-50 rounded-lg p-4 text-center">
-                                      <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                                      <p className="text-gray-500 text-sm">尚無評估記錄</p>
-                                      {wound.status === 'active' && (
-                                        <button
-                                          onClick={() => handleAddAssessment(wound)}
-                                          className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
-                                        >
-                                          + 進行首次評估
-                                        </button>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div className="relative">
-                                      {/* 時間軸線 */}
-                                      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-                                      <div className="space-y-3">
-                                        {wound.assessments.map((assessment, idx) => {
-                                          const isLatest = idx === 0;
-                                          const assessmentStatusLabels: Record<string, { label: string; color: string }> = {
-                                            untreated: { label: '未處理', color: 'bg-gray-100 text-gray-800' },
-                                            treating: { label: '治療中', color: 'bg-yellow-100 text-yellow-800' },
-                                            improving: { label: '改善中', color: 'bg-blue-100 text-blue-800' },
-                                            healed: { label: '已痊癒', color: 'bg-green-100 text-green-800' }
-                                          };
-                                          const statusInfo = assessment.wound_status ? assessmentStatusLabels[assessment.wound_status] : null;
-                                          
-                                          return (
-                                            <div
-                                              key={assessment.id}
-                                              className={`relative pl-8 ${isLatest ? '' : ''}`}
-                                            >
-                                              {/* 時間軸圓點 */}
-                                              <div className={`absolute left-2 top-3 w-4 h-4 rounded-full border-2 ${
-                                                isLatest 
-                                                  ? 'bg-blue-600 border-blue-600' 
-                                                  : 'bg-white border-gray-300'
-                                              }`}>
-                                                {isLatest && (
-                                                  <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
-                                                )}
-                                              </div>
-                                              
-                                              <div 
-                                                className={`p-3 rounded-lg border cursor-pointer ${
-                                                  isLatest 
-                                                    ? 'bg-blue-50 border-blue-200' 
-                                                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                                                }`}
-                                                onDoubleClick={() => handleViewAssessment(wound, assessment)}
-                                              >
-                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 flex-wrap gap-2">
-                                                  <div className="flex items-center flex-wrap gap-3">
-                                                    {/* 日期和最新標記 */}
-                                                    <span className="text-sm font-medium text-gray-900 flex items-center">
-                                                      <Calendar className="h-3.5 w-3.5 mr-1 text-gray-400" />
-                                                      {formatDate(assessment.assessment_date)}
-                                                    </span>
-                                                    {isLatest && (
-                                                      <span className="px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full font-medium">
-                                                        最新
-                                                      </span>
-                                                    )}
-                                                    
-                                                    {/* 狀態 */}
-                                                    {statusInfo && (
-                                                      <span className={`px-2 py-0.5 text-xs rounded-full ${statusInfo.color}`}>
-                                                        {statusInfo.label}
-                                                      </span>
-                                                    )}
-                                                    
-                                                    {/* 階段 */}
-                                                    {assessment.stage && (
-                                                      <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full">
-                                                        {assessment.stage}
-                                                      </span>
-                                                    )}
-                                                    
-                                                    {/* 尺寸 */}
-                                                    {assessment.area_length && assessment.area_width && (
-                                                      <span className="text-xs text-gray-600 flex items-center">
-                                                        📐 {assessment.area_length}×{assessment.area_width}
-                                                        {assessment.area_depth && `×${assessment.area_depth}`} cm
-                                                      </span>
-                                                    )}
-                                                    
-                                                    {/* 感染標記 */}
-                                                    {assessment.infection === '有' && (
-                                                      <span className="px-2 py-0.5 bg-red-100 text-red-800 text-xs rounded-full font-medium">
-                                                        🔴 感染
-                                                      </span>
-                                                    )}
-                                                    {assessment.infection === '懷疑' && (
-                                                      <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded-full">
-                                                        🟡 疑似感染
-                                                      </span>
-                                                    )}
-                                                    
-                                                    {/* 評估者 */}
-                                                    {assessment.assessor && (
-                                                      <span className="text-xs text-gray-500 flex items-center">
-                                                        <User className="h-3 w-3 mr-1" />
-                                                        {assessment.assessor}
-                                                      </span>
-                                                    )}
-                                                  </div>
-                                                  
-                                                  <button
-                                                    onClick={() => handleViewAssessment(wound, assessment)}
-                                                    className="inline-flex items-center px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"
-                                                  >
-                                                    <Eye className="h-4 w-4 mr-1" />
-                                                    查看/編輯
-                                                  </button>
-                                                </div>
-                                                
-                                                {/* 備註預覽 */}
-                                                {assessment.remarks && (
-                                                  <div className="mt-2 text-xs text-gray-600 italic truncate">
-                                                    📝 {assessment.remarks}
-                                                  </div>
-                                                )}
-                                              </div>
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  wound.assessments.map((assessment, idx) => {
+                                    const isLatest   = idx === 0;
+                                    const statusInfo = assessment.wound_status
+                                      ? ASSESSMENT_STATUS_CONFIG[assessment.wound_status]
+                                      : null;
+                                    return (
+                                      <tr
+                                        key={assessment.id}
+                                        className={`${isLatest ? 'bg-blue-50/50' : 'bg-gray-50'} hover:bg-gray-100 cursor-pointer`}
+                                        onDoubleClick={() => handleViewAssessment(wound, assessment)}
+                                      >
+                                        <td />
+                                        <td colSpan={8} className="px-6 py-2 pl-16">
+                                          <div className="flex items-center justify-between gap-3">
+                                            <div className="flex flex-wrap items-center gap-3 text-sm">
+                                              <span className="text-xs text-gray-400 font-mono">↳↳</span>
+                                              <span className="flex items-center gap-1 text-gray-700 font-medium">
+                                                <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                                                {formatDate(assessment.assessment_date)}
+                                              </span>
+                                              {isLatest && (
+                                                <span className="px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full">最新</span>
+                                              )}
+                                              {statusInfo && (
+                                                <span className={`px-2 py-0.5 text-xs rounded-full ${statusInfo.color}`}>
+                                                  {statusInfo.label}
+                                                </span>
+                                              )}
+                                              {assessment.stage && (
+                                                <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full">
+                                                  {assessment.stage}
+                                                </span>
+                                              )}
+                                              {assessment.area_length && assessment.area_width && (
+                                                <span className="text-xs text-gray-600">
+                                                  {assessment.area_length}×{assessment.area_width}
+                                                  {assessment.area_depth ? `×${assessment.area_depth}` : ''} cm
+                                                </span>
+                                              )}
+                                              {assessment.infection === '有' && (
+                                                <span className="px-2 py-0.5 bg-red-100 text-red-800 text-xs rounded-full font-medium">感染</span>
+                                              )}
+                                              {assessment.assessor && (
+                                                <span className="text-xs text-gray-400 flex items-center gap-1">
+                                                  <User className="h-3 w-3" />{assessment.assessor}
+                                                </span>
+                                              )}
+                                              {assessment.remarks && (
+                                                <span className="text-xs text-gray-500 italic truncate max-w-[200px]" title={assessment.remarks}>
+                                                  {assessment.remarks}
+                                                </span>
+                                              )}
                                             </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  )}
-                                </td>
-                              </tr>
+                                            <button
+                                              onClick={() => handleViewAssessment(wound, assessment)}
+                                              className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                            >
+                                              <Eye className="h-3.5 w-3.5" />查看/編輯
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                                {/* 新增評估快捷列 */}
+                                {wound.status === 'active' && wound.assessments.length > 0 && (
+                                  <tr className="bg-gray-50">
+                                    <td />
+                                    <td colSpan={8} className="px-6 py-2 pl-16">
+                                      <button
+                                        onClick={() => handleAddAssessment(wound)}
+                                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                                      >
+                                        <Plus className="h-3 w-3" />新增評估記錄
+                                      </button>
+                                    </td>
+                                  </tr>
+                                )}
+                              </>
                             )}
                           </React.Fragment>
                         );
                       })}
                     </React.Fragment>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <FileText className="h-24 w-24 mx-auto mb-4 text-gray-300" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {filters.searchTerm || hasNonDefaultFilters ? '找不到符合條件的傷口' : '暫無傷口記錄'}
+            </h3>
+            <p className="text-gray-600 mb-4">
+              {filters.searchTerm || hasNonDefaultFilters ? '請嘗試調整搜索條件' : '開始為院友建立傷口記錄'}
+            </p>
+            {!filters.searchTerm && !hasNonDefaultFilters ? (
+              <button onClick={() => handleAddWound()} className="btn-primary">新增傷口</button>
+            ) : (
+              <button onClick={clearFilters} className="btn-secondary">清除所有篩選</button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Modals */}
+      {/* ── 分頁 (sticky bottom) ── */}
+      {totalItems > 0 && (
+        <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-gray-700">每頁顯示:</span>
+              <select
+                value={pageSize}
+                onChange={e => handlePageSizeChange(Number(e.target.value))}
+                className="form-input text-sm w-20"
+              >
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+                <option value={999999}>全部</option>
+              </select>
+              <span className="text-sm text-gray-700">筆記錄</span>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  上一頁
+                </button>
+                {generatePageNumbers().map(page => (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`px-3 py-1 text-sm border rounded-md ${
+                      currentPage === page
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  下一頁
+                </button>
+              </div>
+            )}
+            <div className="text-sm text-gray-700">
+              第 {currentPage} 頁，共 {totalPages} 頁
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modals ── */}
       {showWoundModal && (
         <WoundModal
           wound={selectedWound}
           patientId={selectedPatientId}
-          onClose={() => {
-            setShowWoundModal(false);
-            setSelectedWound(null);
-            setSelectedPatientId(undefined);
-          }}
+          onClose={() => { setShowWoundModal(false); setSelectedWound(null); setSelectedPatientId(undefined); }}
           onSave={() => refreshWoundData()}
         />
       )}
-
       {showAssessmentModal && assessmentWound && (
         <SingleWoundAssessmentModal
           wound={assessmentWound}
           assessment={selectedAssessment}
-          onClose={() => {
-            setShowAssessmentModal(false);
-            setAssessmentWound(null);
-            setSelectedAssessment(null);
-          }}
+          onClose={() => { setShowAssessmentModal(false); setAssessmentWound(null); setSelectedAssessment(null); }}
           onSave={() => refreshWoundData()}
         />
       )}
@@ -894,3 +1003,4 @@ const WoundManagementNew: React.FC = () => {
 };
 
 export default WoundManagementNew;
+

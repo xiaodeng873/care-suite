@@ -46,7 +46,7 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
   onClose,
   onSave
 }) => {
-  const { addWoundAssessmentForWound, updateWoundAssessment, patients, healWound } = usePatients();
+  const { addWoundAssessmentForWound, updateWoundAssessment, patients, healWound, updateWound } = usePatients();
   const { displayName } = useAuth();
 
   const getHongKongDate = () => {
@@ -163,9 +163,13 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
         await addWoundAssessmentForWound(assessmentData as any);
       }
 
-      // 如果評估狀態為痊癒，同時更新傷口狀態
+      // 根據評估狀態同步更新傷口主表狀態
       if (formData.wound_status === 'healed') {
+        // 評估標記為痊癒 → 傷口標記為已痊癒
         await healWound(wound.id, formData.assessment_date);
+      } else if (wound.status === 'healed') {
+        // 評估狀態已從「痊癒」改為其他（如治療中、改善中）→ 將傷口重新設為進行中
+        await updateWound({ id: wound.id, status: 'active', healed_date: undefined });
       }
 
       onSave?.();
