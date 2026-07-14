@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>院友候補診記錄表 - 樂善堂</title>
+    <style>
+        /* A4 紙張規格：橫向 (Landscape)，極小邊距 */
+        @page {
+            size: A4 landscape;
+            margin: 8mm; 
+        }
+
+        body {
+            font-family: "PMingLiU", "MingLiU", "新細明體", serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.3;
+            /* 解決問題 1：強制瀏覽器在列印與預覽時渲染背景顏色 */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* 物理鎖定 A4 橫向大外框 */
+        .a4-wrapper {
+            width: 100%;
+            height: 194mm; /* A4 橫向高度 210mm 減去邊距 */
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 標題區 */
+        .title-section {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .title-section h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: normal;
+        }
+        .title-section h2 {
+            margin: 2px 0;
+            font-size: 20px;
+            font-weight: normal;
+        }
+        .title-section h3 {
+            margin: 4px 0 0 0;
+            font-size: 20px;
+            font-weight: bold;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        /* 頂部資訊表格 */
+        .info-layout {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-bottom: 8px;
+        }
+        .info-layout td {
+            border: none;
+            padding: 4px 0;
+            vertical-align: bottom;
+            white-space: nowrap; 
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        /* DB Mapping 底線輸入框 */
+        .db-line-input {
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 15px;
+            outline: none;
+            width: 100%;
+            display: block;
+            box-sizing: border-box;
+            padding: 0 4px;
+        }
+
+        /* 主數據表格 - 嚴格比例鎖定 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            border: 1.5px solid black;
+            flex-grow: 1; /* 自動撐滿剩餘高度 */
+        }
+        .data-table th, .data-table td {
+            border: 1px solid black;
+            text-align: center;
+            vertical-align: middle;
+            padding: 2px;
+            font-size: 13px;
+        }
+        .data-table th {
+            font-weight: bold;
+            background-color: #fff;
+            height: 45px;
+        }
+
+        /* 解決問題 1：將背景色直接套用在 td 上，並加上 !important */
+        .row-even td { background-color: #F2F2F2 !important; }
+        .row-odd td { background-color: #fff !important; }
+
+        /* DB Mapping 組件：透明多行輸入區 */
+        .db-textarea {
+            width: 100%;
+            height: 100%;
+            min-height: 35px;
+            border: none;
+            background: transparent !important; /* 加上 !important 避免被瀏覽器內建樣式覆蓋 */
+            font-family: inherit;
+            font-size: 13px;
+            outline: none;
+            resize: none;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        /* 底部備註 */
+        .footer-notes {
+            margin-top: 10px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="a4-wrapper">
+    <!-- 標題 -->
+    <div class="title-section">
+        <h1>九龍樂善堂</h1>
+        <h2>「院舍外展醫生到診服務」</h2>
+        <h3>院友候補診記錄表</h3>
+    </div>
+
+    <!-- 解決問題 2：將所有頂部資訊整合進單一表格中，確保右邊界完美對齊 -->
+    <table class="info-layout">
+        <colgroup>
+            <col style="width: 80px;">  <!-- 左邊欄位標題 (例如：地點：) -->
+            <col style="width: auto;">  <!-- 左邊輸入框與內容 -->
+            <col style="width: 140px;"> <!-- 右邊欄位標題 (容納最長7個字的「簽署約束同意書：」) -->
+            <col style="width: 80px;">  <!-- 右邊輸入框寬度 -->
+            <col style="width: 40px;">  <!-- 右邊單位「(份)」的寬度 -->
+        </colgroup>
+        <tbody>
+            <!-- 第一行 -->
+            <tr>
+                <td>醫生姓名：</td>
+                <td><input type="text"></td>
+                <td colspan="3"></td> <!-- 右側保持空白 -->
+            </tr>
+            <!-- 第二行 -->
+            <tr>
+                <td>地點：</td>
+                <td><input type="text"></td>
+                <td style="text-align: right;">看病人數：</td>
+                <!-- 合併最後兩欄，讓看病人數的線條尾端與下方的 (份) 字樣右對齊 -->
+                <td colspan="1"><input type="text" class="db-line-input"></td>
+                <td>(人)</td>
+            </tr>
+            <!-- 第三行 -->
+            <tr>
+                <td colspan="2">院舍名稱：善頤(福群)護老院</td>
+                <td style="text-align: right;">年度體檢：</td>
+                <td><input type="text" class="db-line-input"></td>
+                <td>(份)</td>
+            </tr>
+            <!-- 第四行 -->
+            <tr>
+                <td colspan="2">院舍地址：九龍旺角博文街36號1字樓、2字樓及地下部分</td>
+                <td style="text-align: right;">簽署約束同意書：</td>
+                <td><input type="text" class="db-line-input"></td>
+                <td>(份)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 主數據表格 -->
+    <table class="data-table">
+        <!-- 依據 Excel 源碼計算的 12 欄精確比例 -->
+        <colgroup>
+            <col style="width: 3%;">  <!-- 空白/序號 -->
+            <col style="width: 5%;">  <!-- 床號 -->
+            <col style="width: 8%;">  <!-- 姓名 -->
+            <col style="width: 15%;"> <!-- 英文姓名 -->
+            <col style="width: 9%;">  <!-- HKID -->
+            <col style="width: 5%;">  <!-- 性別 -->
+            <col style="width: 9%;">  <!-- 出生日期 -->
+            <col style="width: 15%;"> <!-- 申請不適 -->
+            <col style="width: 7%;">  <!-- 藥物敏感 -->
+            <col style="width: 7%;">  <!-- 年度體檢 -->
+            <col style="width: 7%;">  <!-- 約束物品同意書 -->
+            <col style="width: 10%;"> <!-- 備註 -->
+        </colgroup>
+        <thead>
+            <tr>
+                <th></th>
+                <th>床號</th>
+                <th>姓名</th>
+                <th>英文姓名</th>
+                <th>HKID No.</th>
+                <th>性別</th>
+                <th>出生日期</th>
+                <th>申請不適</th>
+                <th>藥物敏感</th>
+                <th>年度體檢</th>
+                <th>約束物品<br>同意書</th>
+                <th>備註</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 生成 10 行記錄，套用斑馬紋 -->
+            <script>
+                for (let i = 1; i <= 10; i++) {
+                    let rowClass = (i % 2 === 0) ? 'row-even' : 'row-odd';
+                    document.write(`<tr class="${rowClass}">`);
+                    document.write(`<td><b>${i}</b></td>`);
+                    for (let j = 0; j < 11; j++) {
+                        document.write(`<td><textarea class="db-textarea"></textarea></td>`);
+                    }
+                    document.write('</tr>');
+                }
+            </script>
+        </tbody>
+    </table>
+
+    <!-- 底部註釋 -->
+    <div class="footer-notes">
+        <div>備註：請於醫生到診前 1 天將此記錄表，傳真 2361 1982 到外展醫療服務團隊。</div>
+        <div>*院舍已確保以上報名候補院友/院友監護人同意接受樂善堂外展醫生診治及查閱相關醫療紀錄</div>
+    </div>
+
+</div>
+
+</body>
+</html>

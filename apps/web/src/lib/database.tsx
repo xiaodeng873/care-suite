@@ -385,6 +385,9 @@ export interface Wound {
   status: WoundStatus;
   healed_date?: string;
   next_assessment_due?: string;
+  assessment_frequency_unit?: 'daily' | 'weekly';  // 預設 daily
+  assessment_frequency_value?: number;             // daily: 1-7天，weekly: 不用
+  assessment_specific_days_of_week?: number[];     // weekly 時用：1=週一...6=週六,7=週日（同任務模型）
   remarks?: string;
   created_at: string;
   updated_at: string;
@@ -2040,6 +2043,27 @@ export const healWound = async (woundId: string, healedDate?: string): Promise<W
     throw err;
   }
 };
+// 從評估日期 + 傷口頻率設定計算下次評估日期（沿用任務管理頻率模型）
+export const computeNextAssessmentDue = (
+  baseDate: string,
+  wound: Pick<Wound, 'assessment_frequency_unit' | 'assessment_frequency_value' | 'assessment_specific_days_of_week'>
+): string => {
+  const unit = wound.assessment_frequency_unit ?? 'daily';
+  const value = wound.assessment_frequency_value ?? 7;
+  if (unit === 'weekly' && wound.assessment_specific_days_of_week?.length) {
+    // 同任務計算器：7=週日→ JS getDay() 0
+    const targetDays = wound.assessment_specific_days_of_week.map(d => d === 7 ? 0 : d);
+    for (let i = 1; i <= 7; i++) {
+      const check = new Date(baseDate);
+      check.setDate(check.getDate() + i);
+      if (targetDays.includes(check.getDay())) return check.toISOString().split('T')[0];
+    }
+  }
+  const next = new Date(baseDate);
+  next.setDate(next.getDate() + value);
+  return next.toISOString().split('T')[0];
+};
+
 // 取得需要評估的傷口（逾期或即將到期）
 export const getWoundsNeedingAssessment = async (): Promise<Wound[]> => {
   try {
@@ -2156,24 +2180,7 @@ export const createWoundAssessmentForWound = async (
     .select()
     .single();
   if (assessmentError) throw assessmentError;
-  // 更新傷口的下次評估日期
-  if (wound_id) {
-    const nextDueDate = new Date(assessment_date);
-    nextDueDate.setDate(nextDueDate.getDate() + 7);
-    const woundUpdate: any = {
-      next_assessment_due: nextDueDate.toISOString().split('T')[0]
-    };
-    // 如果評估狀態為痊癒，更新傷口狀態
-    if (wound_status === 'healed') {
-      woundUpdate.status = 'healed';
-      woundUpdate.healed_date = assessment_date;
-      woundUpdate.next_assessment_due = null;
-    }
-    await supabase
-      .from('wounds')
-      .update(woundUpdate)
-      .eq('id', wound_id);
-  }
+  // 傷口主表狀態（status / healed_date / next_assessment_due）將在 SingleWoundAssessmentModal 中統一更新
   return assessmentRecord;
 };
 // 舊版創建傷口評估（保持向後兼容）

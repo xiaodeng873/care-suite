@@ -90,7 +90,7 @@ function pickLatestPerPatient<T extends { patient_id: number; created_at?: strin
   return Array.from(latestPerPatient.values());
 }
 const Dashboard: React.FC = () => {
-  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData } = usePatients();
+  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, patientsWithWounds, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData } = usePatients();
   const [showHealthRecordModal, setShowHealthRecordModal] = useState(false);
   const [selectedHealthRecordInitialData, setSelectedHealthRecordInitialData] = useState<any>({});
   const [showDocumentTaskModal, setShowDocumentTaskModal] = useState(false);
@@ -754,18 +754,46 @@ const Dashboard: React.FC = () => {
   const { setDashboardReady } = useDashboardReady();
   
   const urgentAnnualCheckups = [...overdueAnnualCheckups, ...dueSoonAnnualCheckups];
+
+  // 傷口評估待辦：逾期或 3 天內到期
+  const urgentWoundAssessments = useMemo(() => {
+    const today = new Date();
+    const result: Array<{ wound: any; patientId: number; patientName: string; bedNumber: string }> = [];
+    (patientsWithWounds || []).forEach(pd => {
+      const patient = patients.find(p => p.院友id === pd.patient_id);
+      if (!patient || patient.在住狀態 !== '在住') return;
+      (pd.wounds || []).forEach(wound => {
+        if (!wound.next_assessment_due || wound.status !== 'active') return;
+        const dueDate = new Date(wound.next_assessment_due);
+        const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        if (wound.is_overdue || (daysDiff >= 0 && daysDiff <= 3)) {
+          result.push({ wound, patientId: pd.patient_id, patientName: pd.patient_name, bedNumber: pd.bed_number });
+        }
+      });
+    });
+    return result.sort((a, b) => new Date(a.wound.next_assessment_due).getTime() - new Date(b.wound.next_assessment_due).getTime());
+  }, [patientsWithWounds, patients]);
+
   const filteredUrgentDocumentTasks = urgentDocumentTasks.filter(task => task.health_record_type !== '年度體檢');
+  // 過濾年度體檢：只保留有有效患者的記錄
+  const validAnnualCheckups = urgentAnnualCheckups.filter(checkup => 
+    checkup.patient_id && patientsMap.has(checkup.patient_id)
+  );
   const combinedUrgentTasks = [
     ...filteredUrgentDocumentTasks.map(task => ({ type: 'document', data: task })),
     ...urgentNursingTasks.map(task => ({ type: 'nursing', data: task })),
     ...urgentRestraintAssessments.map(assessment => ({ type: 'restraint', data: assessment })),
     ...urgentTubeCare.map(record => ({ type: 'tube-care', data: record })),
     ...urgentHealthAssessments.map(assessment => ({ type: 'health-assessment', data: assessment })),
-    ...urgentAnnualCheckups.map(checkup => ({ type: 'annual-checkup', data: checkup }))
+    ...validAnnualCheckups.map(checkup => ({ type: 'annual-checkup', data: checkup })),
+    ...urgentWoundAssessments.slice(0, 8).map(item => ({ type: 'wound', data: item }))
   ].sort((a, b) => {
-    const dateA = (a.type === 'document' || a.type === 'nursing') ? new Date(a.data.next_due_at) : new Date(a.data.next_due_date || '');
-    const dateB = (b.type === 'document' || b.type === 'nursing') ? new Date(b.data.next_due_at) : new Date(b.data.next_due_date || '');
-    return dateA.getTime() - dateB.getTime();
+    const getDate = (x: typeof combinedUrgentTasks[number]) => {
+      if (x.type === 'document' || x.type === 'nursing') return new Date(x.data.next_due_at);
+      if (x.type === 'wound') return new Date(x.data.wound.next_assessment_due || '');
+      return new Date(x.data.next_due_date || '');
+    };
+    return getDate(a).getTime() - getDate(b).getTime();
   });
   
   // 當所有必要數據都已加載且 DOM 渲染完成後，通知 App.tsx
@@ -1484,7 +1512,10 @@ const Dashboard: React.FC = () => {
                         </span>
                       </div>
                     );
-                  } else {
+                  } else if (item.type === 'wound') {
+                    // 傷口評估在下方獨立渲染區塊處理，此處跳過避免重複渲染
+                    return null;
+                  } else if (item.type === 'annual-checkup') {
                     const checkup = item.data;
                     const isOverdue = isAnnualCheckupOverdue(checkup);
                     const isDueSoon = isAnnualCheckupDueSoon(checkup);
@@ -1515,6 +1546,42 @@ const Dashboard: React.FC = () => {
                     );
                   }
                }
+             })}
+             {/* 傷口評估待辦 */}
+             {urgentWoundAssessments.slice(0, 8).map(wItem => {
+               const patient = patients.find(p => p.院友id === wItem.patientId);
+               const wound = wItem.wound;
+               const isOverdue = wound.is_overdue;
+               return (
+                 <a href="/wound" key={`wound-${wound.id}`} className="block" onClick={e => { e.preventDefault(); window.location.href = '/wound'; }}>
+                   <div className={`flex flex-wrap items-center gap-3 p-3 rounded-lg transition-colors border ${
+                     isOverdue ? 'bg-red-50 hover:bg-red-100 border-red-200' : 'bg-orange-50 hover:bg-orange-100 border-orange-200'
+                   }`}>
+                     <div className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center ${
+                       isOverdue ? 'bg-red-100' : 'bg-orange-100'
+                     }`}>
+                       {patient?.院友相片
+                         ? <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
+                         : <Activity className={`h-5 w-5 ${isOverdue ? 'text-red-600' : 'text-orange-600'}`} />}
+                     </div>
+                     <div className="flex-1 min-w-0">
+                       <div className="flex flex-wrap items-center gap-2">
+                         <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : wItem.patientName}</p>
+                         <span className="text-xs text-gray-500">({wItem.bedNumber})</span>
+                       </div>
+                       <div className="flex flex-wrap items-center gap-2 mt-1">
+                         <Activity className={`h-4 w-4 ${isOverdue ? 'text-red-500' : 'text-orange-500'}`} />
+                         <p className="text-sm text-gray-600">傷口評估 — {wound.wound_code}</p>
+                         {wound.wound_name && <span className="text-xs text-gray-400">{wound.wound_name}</span>}
+                       </div>
+                       <p className="text-xs text-gray-500">到期: {wound.next_assessment_due ? new Date(wound.next_assessment_due).toLocaleDateString('zh-TW') : '未設定'}</p>
+                     </div>
+                     <span className={`status-badge ${isOverdue ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800'}`}>
+                       {isOverdue ? '逾期' : '即將到期'}
+                     </span>
+                   </div>
+                 </a>
+               );
              })}
           </div>
         </div>

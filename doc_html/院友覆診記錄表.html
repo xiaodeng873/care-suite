@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>院友覆診記錄表 - 善頤(福群)</title>
+    <style>
+        /* A4 紙張規格設定 */
+        @page {
+            size: A4;
+            margin: 5mm 0.25in;
+        }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0; padding: 0;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.2;
+        }
+
+        .container { width: 100%; box-sizing: border-box; }
+
+        /* 標題區域極致上推 */
+        .title-section { text-align: center; margin-bottom: 10px; }
+        .title-section h1 { margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+        .title-section h2 { 
+            margin: 5px 0 0 0; 
+            font-size: 20px; 
+            font-weight: bold; 
+            display: inline-block;
+            border-bottom: 1.5px solid black;
+            padding-bottom: 2px;
+        }
+
+        /* 院友資訊區域 - 專業隱形表格 */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            table-layout: fixed;
+        }
+        .info-table td {
+            border: none;
+            padding: 2px 0;
+            vertical-align: bottom;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        /* DB Mapping 底線輸入框 */
+        .db-line-input {
+            width: 100%;
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+            padding: 0 0 1px 5px;
+            box-sizing: border-box;
+        }
+
+        /* 主表格設定 - 嚴格復刻一比一框線 */
+        table.main-table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid black; }
+        table.main-table th, table.main-table td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0; }
+        
+        /* 表頭高度與字體 */
+        table.main-table th { font-size: 14px; font-weight: bold; height: 22px; background-color: #fff; }
+        
+        /* 欄寬精確分配 (總計100%) */
+        .col-date   { width: 9%; }
+        .col-time   { width: 7%; }
+        .col-hosp   { width: 15%; }
+        .col-spec   { width: 12%; }
+        .col-treat  { width: 20%; }
+        .col-remark { width: auto; }
+
+        /* 數據行高度精算 (25行不超頁) */
+        .data-row { height: 32px; }
+        
+        /* DB Mapping 透明輸入格 */
+        .db-text-cell {
+            width: 100%; height: 100%; border: none; background: transparent;
+            font-family: inherit; font-size: 13px; text-align: center;
+            outline: none; display: block; box-sizing: border-box;
+        }
+        .left-align { text-align: left; padding-left: 4px; }
+
+        /* 頁尾頁碼置中 */
+        .footer {
+            margin-top: 5px;
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            height: 30px;
+        }
+        .page-num {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            font-weight: bold;
+            bottom: 0;
+        }
+        .doc-code { font-size: 10px; font-weight: bold; align-self: flex-end; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 標題 -->
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>院友覆診記錄表</h2>
+    </div>
+
+    <!-- 院友資訊欄位 -->
+    <table class="info-table">
+        <colgroup>
+            <col style="width: 85px;">  <!-- 院友姓名標籤 -->
+            <col style="width: auto;">  <!-- 院友姓名輸入 -->
+            <col style="width: 60px;">  <!-- 床號標籤 -->
+            <col style="width: 100px;"> <!-- 床號輸入 -->
+            <col style="width: 95px;">  <!-- 性別年齡標籤 -->
+            <col style="width: 150px;"> <!-- 性別年齡輸入 -->
+        </colgroup>
+        <tr>
+            <td>院友姓名：</td>
+            <td><input type="text" class="db-line-input"></td>
+            <td style="padding-left: 10px;">床號：</td>
+            <td><input type="text" class="db-line-input"></td>
+            <td style="padding-left: 1px;">性別/年齡：</td>
+            <td><input type="text" class="db-line-input"></td>
+        </tr>
+    </table>
+
+    <!-- 主表格 -->
+    <table class="main-table">
+        <colgroup>
+            <col class="col-date"> <!-- 是次日期 -->
+            <col class="col-time"> <!-- 是次時間 -->
+            <col class="col-hosp"> <!-- 醫院 -->
+            <col class="col-spec"> <!-- 專科 -->
+            <col class="col-treat"> <!-- 治療 -->
+            <col class="col-date"> <!-- 下次日期 -->
+            <col class="col-time"> <!-- 下次時間 -->
+            <col class="col-remark"> <!-- 備註 -->
+        </colgroup>
+        <thead>
+            <tr>
+                <th colspan="2">是次覆診</th>
+                <th rowspan="2">醫院/診所</th>
+                <th rowspan="2">專科</th>
+                <th rowspan="2">治療</th>
+                <th colspan="2">下次覆診</th>
+                <th rowspan="2">備註</th>
+            </tr>
+            <tr>
+                <th>日期</th>
+                <th>時間</th>
+                <th>日期</th>
+                <th>時間</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 生成 25 行數據 -->
+            <script>
+                for (let i = 0; i < 28; i++) {
+                    document.write('<tr class="data-row">');
+                    document.write('<td><input class="db-text-cell"></td>'); // 是次日期
+                    document.write('<td><input class="db-text-cell"></td>'); // 是次時間
+                    document.write('<td><input class="db-text-cell left-align"></td>'); // 醫院
+                    document.write('<td><input class="db-text-cell left-align"></td>'); // 專科
+                    document.write('<td><input class="db-text-cell left-align"></td>'); // 治療
+                    document.write('<td><input class="db-text-cell"></td>'); // 下次日期
+                    document.write('<td><input class="db-text-cell"></td>'); // 下次時間
+                    document.write('<td><input class="db-text-cell left-align"></td>'); // 備註
+                    document.write('</tr>');
+                }
+            </script>
+        </tbody>
+    </table>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">9</div>
+        <div class="doc-code">B3 FK (11.2020)</div>
+    </div>
+</div>
+
+</body>
+</html>

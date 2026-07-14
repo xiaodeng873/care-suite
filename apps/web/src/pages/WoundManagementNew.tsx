@@ -33,11 +33,19 @@ const daysSince = (dateStr: string): number =>
 
 // 計算評估頻率是否正常（每週至少一次）
 const isAssessmentFrequencyNormal = (wound: WoundWithAssessments): boolean => {
-  if (wound.status !== 'active') return true;
   if (wound.assessments.length === 0) {
     return daysSince(wound.discovery_date) <= 7;
   }
   return daysSince(wound.assessments[0].assessment_date) <= 7;
+};
+
+// 從評估紀錄推導傷口有效狀態：以「最新」一筆評估為準
+const getEffectiveWoundStatus = (wound: WoundWithAssessments): 'healed' | 'treating' | 'untreated' => {
+  const latest = wound.assessments[0]; // 已按日期降序排列，第 0 筆最新
+  if (!latest) return 'untreated';
+  if (latest.wound_status === 'healed') return 'healed';
+  if (latest.wound_status === 'untreated') return 'untreated';
+  return 'treating'; // treating + improving 均顯示為治療中
 };
 
 // ── labels ───────────────────────────────────────────────────────────────────
@@ -58,10 +66,16 @@ const WOUND_ORIGIN_LABELS: Record<string, string> = {
   hospital_referral: '醫院轉介',
 };
 
-const WOUND_STATUS_LABELS: Record<string, string> = {
-  active: '進行中',
-  healed: '已痊癒',
-  transferred: '已轉移',
+const EFFECTIVE_STATUS_LABELS: Record<string, string> = {
+  untreated: '未處理',
+  treating:  '治療中',
+  healed:    '已痊癒',
+};
+
+const EFFECTIVE_STATUS_COLORS: Record<string, string> = {
+  untreated: 'bg-gray-100 text-gray-700',
+  treating:  'bg-yellow-100 text-yellow-800',
+  healed:    'bg-green-100 text-green-800',
 };
 
 const RESPONSIBLE_UNIT_LABELS: Record<string, string> = {
@@ -97,7 +111,7 @@ interface WoundFilters {
 const DEFAULT_FILTERS: WoundFilters = {
   searchTerm: '',
   在住狀態: '在住',
-  傷口狀態: 'active',
+  傷口狀態: '',
   傷口來源: '',
   換症單位: '',
   評估狀態: '',
@@ -108,7 +122,7 @@ const DEFAULT_FILTERS: WoundFilters = {
 // ── component ─────────────────────────────────────────────────────────────────
 
 const WoundManagementNew: React.FC = () => {
-  const { patientsWithWounds, patients, deleteWound, refreshWoundData, loading } = usePatients();
+  const { patientsWithWounds, patients, deleteWound, deleteWoundAssessment, updateWound, refreshWoundData, loading } = usePatients();
 
   // ── table state ──
   const [sortField, setSortField]           = useState<SortField>('discovery_date');
@@ -153,7 +167,7 @@ const WoundManagementNew: React.FC = () => {
       )) continue;
 
       for (const wound of pd.wounds) {
-        if (deferredFilters.傷口狀態 && wound.status !== deferredFilters.傷口狀態) continue;
+        if (deferredFilters.傷口狀態 && getEffectiveWoundStatus(wound) !== deferredFilters.傷口狀態) continue;
         if (deferredFilters.傷口來源 && wound.wound_origin !== deferredFilters.傷口來源) continue;
         if (deferredFilters.換症單位 && wound.responsible_unit !== deferredFilters.換症單位) continue;
         if (deferredFilters.評估狀態 === 'overdue' && !wound.is_overdue) continue;
@@ -325,6 +339,30 @@ const WoundManagementNew: React.FC = () => {
     setShowAssessmentModal(true);
   };
 
+  const handleDeleteAssessment = async (wound: WoundWithAssessments, assessmentId: string) => {
+    if (!confirm('確定要刪除此評估記錄？此操作無法復原。')) return;
+    // 先計算删除後的剩餘評估，由最新一筆决定傷口狀態
+    const remainingAssessments = wound.assessments.filter(a => a.id !== assessmentId);
+    const sortedRemaining = [...remainingAssessments].sort((a, b) =>
+      new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime()
+    );
+    const latestStatus = sortedRemaining[0]?.wound_status;
+    const newIsHealed = latestStatus === 'healed';
+    try {
+      setDeletingIds(prev => new Set(prev).add(assessmentId));
+      await deleteWoundAssessment(assessmentId);
+      await updateWound({
+        id: wound.id,
+        status: newIsHealed ? 'healed' : 'active',
+        healed_date: newIsHealed ? wound.healed_date ?? null as any : null as any,
+      });
+    } catch {
+      alert('刪除評估失敗，請重試');
+    } finally {
+      setDeletingIds(prev => { const n = new Set(prev); n.delete(assessmentId); return n; });
+    }
+  };
+
   // ── pagination ──
 
   const handlePageChange     = (p: number) => setCurrentPage(p);
@@ -359,21 +397,17 @@ const WoundManagementNew: React.FC = () => {
     </th>
   );
 
-  const WoundStatusBadge: React.FC<{ status: string }> = ({ status }) => {
-    const cfg: Record<string, string> = {
-      active:      'bg-yellow-100 text-yellow-800',
-      healed:      'bg-green-100 text-green-800',
-      transferred: 'bg-gray-100 text-gray-800',
-    };
+  const WoundStatusBadge: React.FC<{ wound: WoundWithAssessments }> = ({ wound }) => {
+    const eff = getEffectiveWoundStatus(wound);
     return (
-      <span className={`inline-flex px-2 py-0.5 text-xs rounded-full font-medium ${cfg[status] ?? 'bg-gray-100 text-gray-800'}`}>
-        {WOUND_STATUS_LABELS[status] ?? status}
+      <span className={`inline-flex px-2 py-0.5 text-xs rounded-full font-medium ${EFFECTIVE_STATUS_COLORS[eff] ?? 'bg-gray-100 text-gray-700'}`}>
+        {EFFECTIVE_STATUS_LABELS[eff] ?? eff}
       </span>
     );
   };
 
   const AssessmentStatusCell: React.FC<{ wound: WoundWithAssessments }> = ({ wound }) => {
-    if (wound.status !== 'active') return <span className="text-xs text-gray-400">—</span>;
+    if (getEffectiveWoundStatus(wound) === 'healed') return <span className="text-xs text-gray-400">—</span>;
     if (wound.is_overdue) {
       const overdueDays = wound.next_assessment_due ? daysSince(wound.next_assessment_due) : null;
       return (
@@ -496,9 +530,9 @@ const WoundManagementNew: React.FC = () => {
                     <label className="form-label">傷口狀態</label>
                     <select value={filters.傷口狀態} onChange={e => updateFilter('傷口狀態', e.target.value)} className="form-input">
                       <option value="">全部</option>
-                      <option value="active">進行中</option>
+                      <option value="untreated">未處理</option>
+                      <option value="treating">治療中</option>
                       <option value="healed">已痊癒</option>
-                      <option value="transferred">已轉移</option>
                     </select>
                   </div>
                   <div>
@@ -608,9 +642,10 @@ const WoundManagementNew: React.FC = () => {
                   const pd      = patientsWithWounds.find(p => p.patient_id === group.patientId);
                   const patient = patients.find(p => p.院友id === group.patientId);
                   const isExpanded  = expandedPatients.has(group.patientId);
-                  const overdueCount = group.wounds.filter(w => w.is_overdue).length;
-                  const activeCount  = group.wounds.filter(w => w.status === 'active').length;
-                  const healedCount  = group.wounds.filter(w => w.status === 'healed').length;
+                  const overdueCount   = group.wounds.filter(w => w.is_overdue && getEffectiveWoundStatus(w) !== 'healed').length;
+                  const treatingCount  = group.wounds.filter(w => getEffectiveWoundStatus(w) === 'treating').length;
+                  const untreatedCount = group.wounds.filter(w => getEffectiveWoundStatus(w) === 'untreated').length;
+                  const healedCount    = group.wounds.filter(w => getEffectiveWoundStatus(w) === 'healed').length;
 
                   return (
                     <React.Fragment key={group.patientId}>
@@ -662,9 +697,10 @@ const WoundManagementNew: React.FC = () => {
                                 )}
                                 <span className="text-xs text-gray-500">{pd?.bed_number}</span>
                                 <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">{group.wounds.length} 個傷口</span>
-                                {overdueCount > 0 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{overdueCount} 逾期</span>}
-                                {activeCount  > 0 && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{activeCount} 進行中</span>}
-                                {healedCount  > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{healedCount} 已痊癒</span>}
+                                {overdueCount   > 0 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{overdueCount} 逾期</span>}
+                                {treatingCount  > 0 && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{treatingCount} 治療中</span>}
+                                {untreatedCount > 0 && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{untreatedCount} 未處理</span>}
+                                {healedCount    > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{healedCount} 已痊癒</span>}
                               </div>
                             </div>
                             <div className="flex-shrink-0 text-blue-600">
@@ -741,7 +777,7 @@ const WoundManagementNew: React.FC = () => {
 
                               {/* col 6: 傷口狀態 */}
                               <td className="px-4 py-4 whitespace-nowrap">
-                                <WoundStatusBadge status={wound.status} />
+                                <WoundStatusBadge wound={wound} />
                               </td>
 
                               {/* col 7: 換症單位 */}
@@ -764,15 +800,14 @@ const WoundManagementNew: React.FC = () => {
                               {/* col 9: 操作 */}
                               <td className="px-4 py-4 whitespace-nowrap">
                                 <div className="flex items-center gap-2">
-                                  {wound.status === 'active' && (
-                                    <button
-                                      onClick={() => handleAddAssessment(wound)}
-                                      className="inline-flex items-center px-2 py-1 text-xs text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
-                                      title="新增評估"
-                                    >
-                                      <Plus className="h-3 w-3 mr-0.5" />評估
-                                    </button>
-                                  )}
+                                  <button
+                                    onClick={() => handleAddAssessment(wound)}
+                                    className="inline-flex items-center px-2 py-1 text-xs text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+                                    title="新增評估"
+                                    disabled={deletingIds.has(wound.id)}
+                                  >
+                                    <Plus className="h-3 w-3 mr-0.5" />評估
+                                  </button>
                                   <button
                                     onClick={() => handleEditWound(wound)}
                                     className="text-gray-400 hover:text-blue-600 transition-colors"
@@ -805,14 +840,12 @@ const WoundManagementNew: React.FC = () => {
                                       <div className="flex items-center gap-2">
                                         <FileText className="h-4 w-4 text-gray-400" />
                                         尚無評估記錄
-                                        {wound.status === 'active' && (
-                                          <button
+                                        <button
                                             onClick={() => handleAddAssessment(wound)}
                                             className="text-blue-600 hover:underline ml-2"
                                           >
                                             + 進行首次評估
                                           </button>
-                                        )}
                                       </div>
                                     </td>
                                   </tr>
@@ -870,12 +903,24 @@ const WoundManagementNew: React.FC = () => {
                                                 </span>
                                               )}
                                             </div>
-                                            <button
-                                              onClick={() => handleViewAssessment(wound, assessment)}
-                                              className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                            >
-                                              <Eye className="h-3.5 w-3.5" />查看/編輯
-                                            </button>
+                                            <div className="flex-shrink-0 flex items-center gap-1">
+                                              <button
+                                                onClick={() => handleViewAssessment(wound, assessment)}
+                                                className="inline-flex items-center gap-1 px-3 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                              >
+                                                <Eye className="h-3.5 w-3.5" />查看/編輯
+                                              </button>
+                                              <button
+                                                onClick={() => handleDeleteAssessment(wound, assessment.id)}
+                                                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:bg-red-50 rounded transition-colors"
+                                                title="刪除評估"
+                                                disabled={deletingIds.has(assessment.id)}
+                                              >
+                                                {deletingIds.has(assessment.id)
+                                                  ? <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-red-500" />
+                                                  : <Trash2 className="h-3.5 w-3.5" />}
+                                              </button>
+                                            </div>
                                           </div>
                                         </td>
                                       </tr>
@@ -883,7 +928,7 @@ const WoundManagementNew: React.FC = () => {
                                   })
                                 )}
                                 {/* 新增評估快捷列 */}
-                                {wound.status === 'active' && wound.assessments.length > 0 && (
+                                {wound.assessments.length > 0 && (
                                   <tr className="bg-gray-50">
                                     <td />
                                     <td colSpan={8} className="px-6 py-2 pl-16">

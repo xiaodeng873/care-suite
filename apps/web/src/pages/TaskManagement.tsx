@@ -652,9 +652,6 @@ const TaskManagement: React.FC = () => {
                       <option value="血糖控制">血糖控制</option>
                       <option value="體重控制">體重控制</option>
                     </optgroup>
-                    <optgroup label="護理任務">
-                      <option value="傷口換症">傷口換症</option>
-                    </optgroup>
                     <optgroup label="文件任務">
                       <option value="藥物自存同意書">藥物自存同意書</option>
                       <option value="晚晴計劃">晚晴計劃</option>

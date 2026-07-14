@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Pill, ChevronDown, ChevronUp, ArrowRight, PackageX } from 'lucide-react';
+import { Clock, Pill, ChevronDown, ChevronUp, ArrowRight, PackageX, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Patient {
@@ -8,6 +8,7 @@ interface Patient {
   床號: string;
   中文姓氏?: string;
   中文名字?: string;
+  院友相片?: string;
 }
 
 interface OverdueWorkflow {
@@ -99,12 +100,21 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
                     onClick={() => navigate(`/medication-workflow?patientId=${item.patient.院友id}`)}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="font-medium text-amber-900">
-                          {item.patient.床號} {item.patient.中文姓氏}{item.patient.中文名字}
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {item.patient.院友相片 ? (
+                            <img src={item.patient.院友相片} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="h-5 w-5 text-amber-600" />
+                          )}
                         </div>
-                        <div className="text-sm text-amber-700">
-                          {item.overdueCount} 個逾期流程 · {dateEntries.length} 個日期
+                        <div className="flex-1">
+                          <div className="font-medium text-amber-900">
+                            {item.patient.中文姓氏}{item.patient.中文名字} <span className="text-xs text-amber-600">({item.patient.床號})</span>
+                          </div>
+                          <div className="text-sm text-amber-700">
+                            {item.overdueCount} 個逾期流程 · {dateEntries.length} 個日期
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
@@ -166,9 +176,16 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 flex-1">
-                    <div>
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {item.patient.院友相片 ? (
+                        <img src={item.patient.院友相片} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="h-5 w-5 text-blue-600" />
+                      )}
+                    </div>
+                    <div className="flex-1">
                       <div className="font-medium text-blue-900">
-                        {item.patient.床號} {item.patient.中文姓氏}{item.patient.中文名字}
+                        {item.patient.中文姓氏}{item.patient.中文名字} <span className="text-xs text-blue-600">({item.patient.床號})</span>
                       </div>
                       <div className="text-sm text-blue-700">{item.count} 個待變更處方</div>
                     </div>
@@ -204,14 +221,23 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
                 onClick={() => navigate(`/prescriptions?patient=${g.patient.院友id}`)}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="font-medium text-rose-900">
-                      {g.patient.床號} {(g.patient.中文姓氏 || g.patient.中文名字) ? `${g.patient.中文姓氏 ?? ''}${g.patient.中文名字 ?? ''}` : (g.patient.中文姓名 ?? '')}
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {g.patient.院友相片 ? (
+                        <img src={g.patient.院友相片} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="h-5 w-5 text-rose-600" />
+                      )}
                     </div>
-                    <div className="text-sm text-rose-700">
-                      {g.source}{g.specialty ? `${g.specialty}` : ''}的藥物尚餘 {g.remainingDays} 天服完
+                    <div className="flex-1">
+                      <div className="font-medium text-rose-900">
+                        {(g.patient.中文姓氏 || g.patient.中文名字) ? `${g.patient.中文姓氏 ?? ''}${g.patient.中文名字 ?? ''}` : (g.patient.中文姓名 ?? '')} <span className="text-xs text-rose-600">({g.patient.床號})</span>
+                      </div>
+                      <div className="text-sm text-rose-700">
+                        {g.source}{g.specialty ? `${g.specialty}` : ''}的藥物尚餘 {g.remainingDays} 天服完
+                      </div>
+                      <div className="text-xs text-rose-500 mt-0.5">預計結束：{g.estimatedEndDate}</div>
                     </div>
-                    <div className="text-xs text-rose-500 mt-0.5"> 預計結束：{g.estimatedEndDate}</div>
                   </div>
                   <ArrowRight className="h-4 w-4 text-rose-600" />
                 </div>

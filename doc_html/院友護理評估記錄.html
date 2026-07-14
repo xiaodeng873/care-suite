@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>善頤(福群)護老院 - 院友護理評估記錄</title>
+    <style>
+        body {
+            background-color: #525659;
+            display: flex;
+            justify-content: center;
+            font-family: "DFKai-SB", "BiauKai", "標楷體", "MingLiU", serif;
+            font-size: 14px;
+            color: #000000;
+            margin: 0;
+            padding: 10px 0;
+        }
+
+        .a4-page {
+            background-color: #ffffff;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 8mm 15mm 12mm 15mm;
+            box-sizing: border-box;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse; 
+            margin-bottom: 0px;
+            table-layout: fixed; 
+        }
+        
+        td {
+            border: 1px solid #000000; 
+            padding: 5px 6px;
+            vertical-align: top;
+            text-align: left;
+            line-height: 1.4;
+        }
+
+        .info-table-top td {
+            border-bottom: none; 
+        }
+
+        .label-text {
+            font-weight: bold; 
+            white-space: nowrap;
+        }
+        
+        .bold-text {
+            font-weight: bold;
+        }
+
+        /* 原生 Checkbox 映射 */
+        .db-checkbox {
+            width: 14px;
+            height: 14px;
+            margin-right: 3px;
+            vertical-align: middle;
+            cursor: pointer;
+        }
+
+        .option-span {
+            display: inline-block;
+            margin-right: 12px;
+            white-space: nowrap;
+            font-weight: normal !important; 
+        }
+
+        /* 【原生底線項目專用】僅限原來有底線的地方出現黑線 */
+        .db-line-input {
+            border: none;
+            border-bottom: 1px solid #000000;
+            background: transparent;
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            font-size: 14px;
+            color: #000000;
+            padding: 0 0 0 4px;
+            margin: 0;
+            box-sizing: border-box;
+            height: 20px;
+            vertical-align: bottom;
+        }
+
+        /* 【原生無底線項目專用】純白透明，供文字映射，絕不加黑線 */
+        .db-text-cell {
+            border: none;
+            background: transparent;
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            font-size: 14px;
+            color: #000000;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            outline: none;
+        }
+
+        .grid-row-align {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            align-items: end;
+            width: 100%;
+        }
+
+        .sub-option {
+            font-weight: normal !important;
+            white-space: nowrap;
+        }
+
+        @media print {
+            body { background-color: #ffffff; padding: 0; }
+            .a4-page { width: 100%; box-shadow: none; padding: 0; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="a4-page">
+        
+        <!-- 大標題區塊 -->
+        <div style="text-align: center; margin-bottom: 10px;">
+            <div style="font-size: 24px; font-weight: bold; letter-spacing: 2px;">善頤(福群)護老院</div>
+            <div style="font-size: 20px; font-weight: bold; letter-spacing: 4px; margin-top: 3px;">院友護理評估記錄</div>
+        </div>
+
+<!-- 第一行：三分欄佈局 -->
+<table class="info-table-top" style="table-layout: fixed; width: 100%;">
+    <colgroup>
+        <col style="width: 32%;">
+        <col style="width: 33%;">
+        <col style="width: 35%;">
+    </colgroup>
+    <tr>
+        <td style="height: 26px; vertical-align: middle;">
+            <span class="label-text">姓名：(中)</span>
+            <input type="text" name="name_ch" style="border: none; background: transparent; font-family: inherit; font-size: 14px; width: 120px; outline: none;">
+        </td>
+        <td style="height: 26px; vertical-align: middle;">
+            <span class="label-text">(英)</span>
+            <input type="text" name="name_en" style="border: none; background: transparent; font-family: inherit; font-size: 14px; width: 150px; outline: none;">
+        </td>
+        <td style="height: 26px; vertical-align: middle;">
+            <span class="label-text">身份證號碼：</span>
+            <input type="text" name="id_card" style="border: none; background: transparent; font-family: inherit; font-size: 14px; width: 130px; outline: none;">
+        </td>
+    </tr>
+</table>
+
+<!-- 第二行：四分欄佈局（高度嚴格與上方三分欄對齊為 26px，性別絕對不折行） -->
+<table style="margin-bottom: 8px; table-layout: fixed; width: 100%;">
+    <colgroup>
+        <col style="width: 25%;">
+        <col style="width: 26%;">
+        <col style="width: 24%;">
+        <col style="width: 25%;">
+    </colgroup>
+    <tr>
+        <td style="height: 26px; white-space: nowrap;">
+            <span class="label-text">性別：</span>
+            <span class="sub-option" style="white-space: nowrap;">
+                <input type="checkbox" name="gender_male" class="db-checkbox">男 / 
+                <input type="checkbox" name="gender_female" class="db-checkbox">女
+            </span>
+        </td>
+        <td style="height: 26px; vertical-align: middle;">
+            <span class="label-text">出生日期：</span>
+            <input type="text" name="birth_date" style="border: none; background: transparent; font-family: inherit; font-size: 14px; width: 90px; outline: none;">
+        </td>
+        <td style="height: 26px; vertical-align: middle;">
+            <span class="label-text">入住日期：</span>
+            <input type="text" name="admission_date" style="border: none; background: transparent; font-family: inherit; font-size: 14px; width: 80px; outline: none;">
+        </td>
+        <td style="height: 26px;">
+            <span class="label-text">床號：</span>
+            <input type="text" name="bed_no" style="border: none; background: transparent; font-family: inherit; font-size: 14px; width: 80px; outline: none;">
+        </td>
+    </tr>
+</table>  
+     <!-- 填表提示 -->
+        <div style="font-size: 13px; margin-bottom: 5px;">
+            (請在適當的 □ 內加 ☑ &nbsp;&nbsp;&nbsp;&nbsp; * 請刪去不適用者)
+        </div>
+
+        <!-- 主體評估內容表格 -->
+        <table>
+            <colgroup>
+                <col style="width: 100%;">
+            </colgroup>
+            
+            <!-- 一般情況 -->
+            <tr>
+                <td style="padding: 5px 8px;">
+                    <div class="grid-row-align">
+                        <div>
+                            <span class="label-text" style="display: inline-block; width: 85px;">一般情況：</span>
+                            <span class="option-span"><input type="checkbox" name="general_good" class="db-checkbox"> 滿意</span>
+                            <span class="option-span"><input type="checkbox" name="general_normal" class="db-checkbox"> 一般</span>
+                            <span class="option-span"><input type="checkbox" name="general_weak" class="db-checkbox"> 衰弱</span>
+                            <span class="option-span"><input type="checkbox" name="general_other_cb" class="db-checkbox"> 其他：</span>
+                        </div>
+                        <input type="text" name="general_other_text" class="db-line-input">
+                    </div>
+                </td>
+            </tr>
+
+            <!-- 精神狀況與情緒方面 -->
+            <tr>
+                <td style="padding: 5px 8px;">
+                    <div class="grid-row-align" style="margin-bottom: 5px;">
+                        <div>
+                            <span class="label-text" style="display: inline-block; width: 85px;">精神狀況：</span>
+                            <span class="option-span"><input type="checkbox" name="mental_normal" class="db-checkbox"> 正常</span>
+                            <span class="option-span"><input type="checkbox" name="mental_confuse" class="db-checkbox"> 混亂</span>
+                            <span class="option-span"><input type="checkbox" name="mental_dementia" class="db-checkbox"> 癡呆</span>
+                            <span class="option-span"><input type="checkbox" name="mental_other_cb" class="db-checkbox"> 其他：</span>
+                        </div>
+                        <input type="text" name="mental_other_text" class="db-line-input">
+                    </div>
+                    <div class="grid-row-align">
+                        <div>
+                            <span class="label-text" style="display: inline-block; width: 85px;">情緒方面：</span>
+                            <span class="option-span"><input type="checkbox" name="mood_normal" class="db-checkbox"> 正常</span>
+                            <span class="option-span"><input type="checkbox" name="mood_anxious" class="db-checkbox"> 憂慮</span>
+                            <span class="option-span"><input type="checkbox" name="mood_irritable" class="db-checkbox"> 煩躁</span>
+                            <span class="option-span"><input type="checkbox" name="mood_depressed" class="db-checkbox"> 憂鬱</span>
+                            <span class="option-span"><input type="checkbox" name="mood_other_cb" class="db-checkbox"> 其他：</span>
+                        </div>
+                        <input type="text" name="mood_other_text" class="db-line-input">
+                    </div>
+                </td>
+            </tr>
+
+            <!-- 體格 -->
+            <tr>
+                <td style="padding: 5px 8px;">
+                    <div class="grid-row-align">
+                        <div>
+                            <span class="label-text" style="display: inline-block; width: 85px;">體格：</span>
+                            <span class="option-span"><input type="checkbox" name="body_normal" class="db-checkbox"> 正常</span>
+                            <span class="option-span"><input type="checkbox" name="body_thin" class="db-checkbox"> 瘦削</span>
+                            <span class="option-span"><input type="checkbox" name="body_fat" class="db-checkbox"> 過肥</span>
+                            <span class="option-span"><input type="checkbox" name="body_other_cb" class="db-checkbox"> 其他：</span>
+                        </div>
+                        <input type="text" name="body_other_text" class="db-line-input">
+                    </div>
+                </td>
+            </tr>
+
+            <!-- 皮膚 (原稿傷口位置等有明確局部底線) -->
+            <tr>
+                <td style="padding: 5px 8px;">
+                    <div class="label-text" style="margin-bottom: 3px;">皮膚：</div>
+                    <div style="padding-left: 15px;">
+                        <div style="margin-bottom: 5px;">
+                            <span class="option-span"><input type="checkbox" name="skin_normal" class="db-checkbox"> 正常</span>
+                            <span class="option-span"><input type="checkbox" name="skin_pale" class="db-checkbox"> 蒼白</span>
+                            <span class="option-span"><input type="checkbox" name="skin_dry" class="db-checkbox"> 脫水</span>
+                            <span class="option-span"><input type="checkbox" name="skin_edema" class="db-checkbox"> 水腫</span>
+                            <span class="option-span"><input type="checkbox" name="skin_pigment" class="db-checkbox"> 異常色素</span>
+                            <span class="option-span"><input type="checkbox" name="skin_rash" class="db-checkbox"> 疹</span>
+                        </div>
+                        <table style="width: 100%; border: none; table-layout: fixed;">
+                            <colgroup>
+                                <col style="width: 50%;">
+                                <col style="width: 50%;">
+                            </colgroup>
+                            <tr>
+                                <td style="border: none; padding: 2px 10px 2px 0;">
+                                    <div class="grid-row-align">
+                                        <div><span class="sub-option"><input type="checkbox" name="skin_eschar_cb" class="db-checkbox"> 痂(位置)</span></div>
+                                        <input type="text" name="skin_eschar_loc" class="db-line-input">
+                                    </div>
+                                </td>
+                                <td style="border: none; padding: 2px 0 2px 10px;">
+                                    <div class="grid-row-align">
+                                        <div><span class="sub-option"><input type="checkbox" name="skin_wound_cb" class="db-checkbox"> 傷口(位置)</span></div>
+                                        <input type="text" name="skin_wound_loc" class="db-line-input">
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="border: none; padding: 2px 10px 2px 0;">
+                                    <div class="grid-row-align">
+                                        <div><span class="sub-option"><input type="checkbox" name="skin_ulcer_cb" class="db-checkbox"> 褥瘡(位置)</span></div>
+                                        <input type="text" name="skin_ulcer_loc" class="db-line-input">
+                                    </div>
+                                </td>
+                                <td style="border: none; padding: 2px 0 2px 10px;">
+                                    <div class="grid-row-align">
+                                        <div><span class="sub-option"><input type="checkbox" name="skin_other_cb" class="db-checkbox"> 其他：</span></div>
+                                        <input type="text" name="skin_other_text" class="db-line-input">
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+
+            <!-- 視力 / 聽覺（❌ 原設計無填寫線，純勾選項目） -->
+            <tr>
+                <td style="padding: 5px 8px;">
+                    <div style="margin-bottom: 5px;">
+                        <span class="label-text" style="display: inline-block; width: 85px;">視力：</span>
+                        <span class="option-span"><input type="checkbox" name="vision_normal" class="db-checkbox"> 正常</span>
+                        <span class="option-span"><input type="checkbox" name="vision_weak" class="db-checkbox"> 弱視 (<input type="checkbox" name="vision_weak_l" class="db-checkbox">左/<input type="checkbox" name="vision_weak_r" class="db-checkbox">右)</span>
+                        <span class="option-span"><input type="checkbox" name="vision_glasses" class="db-checkbox"> 戴眼鏡</span>
+                        <span class="option-span"><input type="checkbox" name="vision_blind" class="db-checkbox"> 盲 (<input type="checkbox" name="vision_blind_l" class="db-checkbox">左/<input type="checkbox" name="vision_blind_r" class="db-checkbox">右)</span>
+                    </div>
+                    <div>
+                        <span class="label-text" style="display: inline-block; width: 85px;">聽覺：</span>
+                        <span class="option-span"><input type="checkbox" name="hearing_normal" class="db-checkbox"> 正常</span>
+                        <span class="option-span"><input type="checkbox" name="hearing_weak" class="db-checkbox"> 弱聽 (<input type="checkbox" name="hearing_weak_l" class="db-checkbox">左/<input type="checkbox" name="hearing_weak_r" class="db-checkbox">右)</span>
+                        <span class="option-span"><input type="checkbox" name="hearing_aid" class="db-checkbox"> 戴助聽器</span>
+                        <span class="option-span"><input type="checkbox" name="hearing_lost" class="db-checkbox"> 失聽 (<input type="checkbox" name="hearing_lost_l" class="db-checkbox">左/<input type="checkbox" name="hearing_lost_r" class="db-checkbox">右)</span>
+                    </div>
+                </td>
+            </tr>
+
+            <!-- 表達能力 -->
+            <tr>
+                <td style="padding: 5px 8px;">
+                    <div class="grid-row-align">
+                        <div>
+                            <span class="label-text" style="display: inline-block; width: 85px;">表達能力：</span>
+                            <span class="option-span"><input type="checkbox" name="express_clear" class="db-checkbox"> 清楚</span>
+                            <span class="option-span"><input type="checkbox" name="express_vague" class="db-checkbox"> 含糊</span>
+                            <span class="option-span"><input type="checkbox" name="express_difficulty" class="db-checkbox"> 言語困難</span>
+                            <span class="option-span"><input type="checkbox" name="express_mute" class="db-checkbox"> 啞</span>
+                            <span class="option-span"><input type="checkbox" name="express_dialect" class="db-checkbox"> 使用方言</span>
+                        </div>
+                        <input type="text" name="express_other_text" class="db-line-input">
+                    </div>
+                </td>
+            </tr>
+
+           <!-- 飲食方面 / 膳食要求 / 牙齒狀況 儲存格 -->
+<td style="padding: 5px 8px;">
+    <!-- 飲食方面 -->
+    <div style="display: flex; align-items: center; width: 100%; margin-bottom: 5px; white-space: nowrap;">
+        <span class="label-text" style="width: 85px; flex-shrink: 0;">飲食方面：</span>
+        <span class="option-span"><input type="checkbox" name="eat_normal" class="db-checkbox"> 正常</span>
+        <span class="option-span"><input type="checkbox" name="eat_anorexia" class="db-checkbox"> 厭食</span>
+        <span class="option-span"><input type="checkbox" name="eat_swallow" class="db-checkbox"> 吞嚥困難</span>
+        <span class="option-span"><input type="checkbox" name="eat_choke" class="db-checkbox"> 哽塞</span>
+        
+        <!-- 「其他：」與底線一體化，縮短底線（width: 140px）以遷就總行長，強制不換行 -->
+        <div style="display: flex; align-items: center; white-space: nowrap; flex-shrink: 0;">
+            <input type="checkbox" name="eat_other_cb" class="db-checkbox"><span>其他：</span>
+            <input type="text" name="eat_other_text" style="border: none; border-bottom: 1px solid #000000; background: transparent; font-family: inherit; font-size: 14px; width: 140px; outline: none; height: 18px;">
+        </div>
+    </div>
+
+    <!-- 膳食要求（精準控制外邊距，縮短底線至 140px，肉眼看去絕對在同一行） -->
+    <div style="display: flex; align-items: center; width: 100%; margin-bottom: 5px; white-space: nowrap;">
+        <span class="label-text" style="width: 85px; flex-shrink: 0;">膳食要求：</span>
+        <span class="option-span" style="margin-right: 12px;"><input type="checkbox" name="diet_normal" class="db-checkbox"> 正常</span>
+        <span class="option-span" style="margin-right: 12px;"><input type="checkbox" name="diet_low_sugar" class="db-checkbox"> 低糖</span>
+        <span class="option-span" style="margin-right: 12px;"><input type="checkbox" name="diet_low_salt" class="db-checkbox"> 低鹽</span>
+        <span class="option-span" style="margin-right: 12px;"><input type="checkbox" name="diet_soft" class="db-checkbox"> 爛飯/碎餐</span>
+        
+        <!-- 「其他：」與底線一體化鎖死，絕不分開 -->
+        <div style="display: flex; align-items: center; white-space: nowrap; flex-shrink: 0;">
+            <input type="checkbox" name="diet_other_cb" class="db-checkbox"><span>其他：</span>
+            <input type="text" name="diet_other_text" style="border: none; border-bottom: 1px solid #000000; background: transparent; font-family: inherit; font-size: 14px; width: 140px; outline: none; height: 18px;">
+        </div>
+    </div>
+
+    <!-- 牙齒狀況 -->
+    <div style="display: flex; align-items: center; white-space: nowrap;">
+        <span class="label-text" style="width: 85px; flex-shrink: 0;">牙齒狀況：</span>
+        <span class="option-span"><input type="checkbox" name="teeth_enough" class="db-checkbox"> 足夠</span>
+        <span class="option-span"><input type="checkbox" name="teeth_bad" class="db-checkbox"> 欠佳</span>
+        <span class="option-span">
+            <input type="checkbox" name="teeth_denture" class="db-checkbox"> 配戴假牙：
+            上顎 (<input type="checkbox" name="denture_up_fixed" class="db-checkbox">固定/ <input type="checkbox" name="denture_up_active" class="db-checkbox">活動)&nbsp;&nbsp;            下顎 (<input type="checkbox" name="denture_down_fixed" class="db-checkbox">固定/ <input type="checkbox" name="denture_down_active" class="db-checkbox">活動)
+        </span>
+    </div>
+</td>
+
+            <!-- 小便 / 大便 -->
+            <tr>
+                <td style="padding: 5px 8px;">
+                    <div class="grid-row-align" style="margin-bottom: 5px;">
+                        <div>
+                            <span class="label-text" style="display: inline-block; width: 85px;">小便：</span>
+                            <span class="option-span"><input type="checkbox" name="urine_normal" class="db-checkbox"> 正常</span>
+                            <span class="option-span"><input type="checkbox" name="urine_incont" class="db-checkbox"> 失禁(次數) <input type="text" name="urine_incont_count" class="db-line-input" style="width: 120px;"></span>
+                            <span class="option-span"><input type="checkbox" name="urine_other_cb" class="db-checkbox"> 其他：</span>
+                        </div>
+                        <input type="text" name="urine_other_text" class="db-line-input">
+                    </div>
+                    <div style="margin-bottom: 4px;">
+                        <span class="label-text" style="display: inline-block; width: 85px;">大便：</span>
+                        <span class="option-span"><input type="checkbox" name="stool_normal" class="db-checkbox"> 正常</span>
+                        <span class="option-span"><input type="checkbox" name="stool_incont" class="db-checkbox"> 失禁(次數) <input type="text" name="stool_incont_count" class="db-line-input" style="width: 120px;"></span>
+                        <span class="option-span"><input type="checkbox" name="stool_constip" class="db-checkbox"> 便秘(每 <input type="text" name="stool_constip_days" class="db-line-input" style="width: 45px; text-align:center;"> 天一次)</span>
+                    </div>
+                    <div class="grid-row-align">
+                        <div>
+                            <span style="display: inline-block; width: 85px;"></span>
+                            <span class="option-span">其他：</span>
+                        </div>
+                        <input type="text" name="stool_other_text" class="db-line-input">
+                    </div>
+                </td>
+            </tr>
+
+            <!-- 活動能力 -->
+            <tr>
+                <td style="padding: 5px 8px;">
+                    <div class="grid-row-align" style="margin-bottom: 5px;">
+                        <div>
+                            <span class="label-text" style="display: inline-block; width: 85px;">活動能力：</span>
+                            <span class="option-span"><input type="checkbox" name="move_normal" class="db-checkbox"> 正常</span>
+                            <span class="option-span">
+                                <input type="checkbox" name="move_aid" class="db-checkbox"> 需輔助器 (<input type="checkbox" name="aid_stick" class="db-checkbox">杖、<input type="checkbox" name="aid_frame" class="db-checkbox">圍身架、<input type="checkbox" name="aid_fork" class="db-checkbox">三/四腳叉、<input type="checkbox" name="aid_wheelchair" class="db-checkbox">輪椅、其他：
+                            </span>
+                        </div>
+                        <input type="text" name="move_aid_other" class="db-line-input">
+                    </div>
+                    <div class="grid-row-align">
+                        <div>
+                            <span style="display: inline-block; width: 85px;"></span>
+                            <span class="option-span">
+                                <input type="checkbox" name="move_pain" class="db-checkbox"> 有痛楚 (<input type="checkbox" name="pain_move" class="db-checkbox">移動時、<input type="checkbox" name="pain_intermit" class="db-checkbox">間歇性、<input type="checkbox" name="pain_weather" class="db-checkbox">氣候性、其他：
+                            </span>
+                        </div>
+                        <input type="text" name="move_pain_other" class="db-line-input">
+                    </div>
+                </td>
+            </tr>
+
+            <!-- 傷殘情況 -->
+            <tr>
+                <td style="padding: 5px 8px;">
+                    <div class="label-text" style="margin-bottom: 4px;">傷殘情況：</div>
+                    <div style="padding-left: 15px; width: 100%;">
+                        <table style="width: 100%; border: none; table-layout: fixed;">
+                            <colgroup>
+                                <col style="width: 50%;">
+                                <col style="width: 50%;">
+                            </colgroup>
+                            <tr>
+                                <td style="border: none; padding: 2px 0;">
+                                    <span class="sub-option"><input type="checkbox" name="dis_paralysis" class="db-checkbox"> 癱瘓 (<input type="checkbox" name="paralysis_l" class="db-checkbox">左/ <input type="checkbox" name="paralysis_r" class="db-checkbox">右)</span>
+                                </td>
+                                <td style="border: none; padding: 2px 0;">
+                                    <span class="sub-option"><input type="checkbox" name="dis_weak" class="db-checkbox"> 軟弱 (<input type="checkbox" name="weak_l" class="db-checkbox">左/ <input type="checkbox" name="weak_r" class="db-checkbox">右、<input type="checkbox" name="weak_up" class="db-checkbox">上/ <input type="checkbox" name="weak_down" class="db-checkbox">下肢)</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="border: none; padding: 2px 0;">
+                                    <span class="sub-option"><input type="checkbox" name="dis_atrophy" class="db-checkbox"> 萎縮 (<input type="checkbox" name="atrophy_l" class="db-checkbox">左/ <input type="checkbox" name="atrophy_r" class="db-checkbox">右、<input type="checkbox" name="atrophy_up" class="db-checkbox">上/ <input type="checkbox" name="atrophy_down" class="db-checkbox">下肢)</span>
+                                </td>
+                                <td style="border: none; padding: 2px 0;">
+                                    <span class="sub-option"><input type="checkbox" name="dis_deform" class="db-checkbox"> 變形 (<input type="checkbox" name="deform_l" class="db-checkbox">左/ <input type="checkbox" name="deform_r" class="db-checkbox">右、<input type="checkbox" name="deform_up" class="db-checkbox">上/ <input type="checkbox" name="deform_down" class="db-checkbox">下肢)</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="border: none; padding: 2px 0; width: 100%; white-space: nowrap;">
+                                    <span class="sub-option" style="display: inline-block; vertical-align: bottom;"><input type="checkbox" name="dis_amput" class="db-checkbox"> 截肢 (<input type="checkbox" name="amput_l" class="db-checkbox">左/ <input type="checkbox" name="amput_r" class="db-checkbox">右、<input type="checkbox" name="amput_up" class="db-checkbox">上/ <input type="checkbox" name="amput_down" class="db-checkbox">下肢)</span>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="sub-option" style="display: inline-block; vertical-align: bottom; margin-left: 15px;"><input type="checkbox" name="dis_other_cb" class="db-checkbox"> 其他：</span>
+                                    <input type="text" name="dis_other_text" class="db-line-input" style="width: calc(100% - 425px); margin-left: 2px;">
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+
+          <!-- 自我照顧能力 儲存格 -->
+<td style="padding: 5px 8px; vertical-align: middle;">
+    <div style="width: 100%; line-height: 1.6; white-space: nowrap;">
+        <!-- 第一行：自助與依靠別人 -->
+        <div style="display: inline-block; white-space: nowrap; margin-right: 20px;">
+            <span class="label-text">自我照顧能力：</span>
+            <span class="option-span"><input type="checkbox" name="care_self" class="db-checkbox"> 自助</span>
+            <span class="option-span"><input type="checkbox" name="care_depend" class="db-checkbox"> 完全依靠別人</span>
+        </div>
+        <div>
+</div>
+        <!-- 緊接在後（絕不隔空行，一體相連）：需協助及其內部「其他：」 -->
+        <div style="display: inline-block; white-space: nowrap;">
+            <input type="checkbox" name="care_assist" class="db-checkbox"> <span>需協助 (</span>
+            <span class="option-span" style="margin-right: 5px;"><input type="checkbox" name="assist_feed" class="db-checkbox">餵食、</span>
+            <span class="option-span" style="margin-right: 5px;"><input type="checkbox" name="assist_bed" class="db-checkbox">上落床、</span>
+            <span class="option-span" style="margin-right: 5px;"><input type="checkbox" name="assist_bath" class="db-checkbox">沐浴、</span>
+            <span class="option-span" style="margin-right: 5px;"><input type="checkbox" name="assist_cloth" class="db-checkbox">穿衣、</span>
+            <span class="option-span" style="margin-right: 5px;"><input type="checkbox" name="assist_toilet" class="db-checkbox">如廁、</span>
+            
+            <!-- 「其他：」與末尾底線一體化鎖死，調整底線寬度（width: 130px）確保不換行，最後閉合括號 -->
+            <span style="display: inline-flex; align-items: center; white-space: nowrap; vertical-align: middle;">
+                <input type="checkbox" name="assist_other_cb" class="db-checkbox"><span>其他：</span>
+                <input type="text" name="care_assist_other" style="border: none; border-bottom: 1px solid #000000; background: transparent; font-family: inherit; font-size: 14px; width: 100px; outline: none; height: 18px;">
+                <span>)</span>
+            </span>
+        </div>
+    </div>
+</td>
+
+        <!-- 同樣利用結構硬性均分底線格寬度，強制壓在同一行，絕對無法換行 -->
+<table style="width: 100%; border: none; table-layout: fixed; margin-top: 20px; margin-bottom: 10px;">
+    <colgroup>
+        <col style="width: 85px;">  <!-- 標題 1 -->
+        <col style="width: 90px;"> <!-- 底線 1 (等長) -->
+        <col style="width: 70px;">  <!-- 標題 2 -->
+        <col style="width: 90px;"> <!-- 底線 2 (等長) -->
+        <col style="width: 70px;">  <!-- 標題 3 -->
+        <col style="width: 90px;"> <!-- 底線 3 (等長) -->
+        <col style="width: 85px;">  <!-- 標題 4 -->
+        <col style="width: 90px;"> <!-- 底線 4 (等長) -->
+    </colgroup>
+    <tr>
+        <td style="border: none; padding: 0; white-space: nowrap; vertical-align: bottom;"><span class="bold-text">評估員姓名：</span></td>
+        <td style="border: none; padding: 0; border-bottom: 1px solid #000000; vertical-align: bottom;">
+            <input type="text" name="assessor_name" style="border: none; background: transparent; font-family: inherit; font-size: 14px; width: 100%; outline: none; padding-bottom: 2px;">
+        </td>
+        <td style="border: none; padding: 0; text-align: right; white-space: nowrap; vertical-align: bottom;"><span class="bold-text">簽署：</span></td>
+        <td style="border: none; padding: 0; border-bottom: 1px solid #000000; vertical-align: bottom;">
+            <input type="text" name="assessor_sign" style="border: none; background: transparent; font-family: inherit; font-size: 14px; width: 100%; outline: none; padding-bottom: 2px;">
+        </td>
+        <td style="border: none; padding: 0; text-align: right; white-space: nowrap; vertical-align: bottom;"><span class="bold-text">職級：</span></td>
+        <td style="border: none; padding: 0; border-bottom: 1px solid #000000; vertical-align: bottom;">
+            <input type="text" name="assessor_rank" style="border: none; background: transparent; font-family: inherit; font-size: 14px; width: 100%; outline: none; padding-bottom: 2px;">
+        </td>
+        <td style="border: none; padding: 0; text-align: right; white-space: nowrap; vertical-align: bottom;"><span class="bold-text">評估日期：</span></td>
+        <td style="border: none; padding: 0; border-bottom: 1px solid #000000; vertical-align: bottom;">
+            <input type="text" name="assess_date" style="border: none; background: transparent; font-family: inherit; font-size: 14px; width: 100%; outline: none; padding-bottom: 2px;">
+        </td>
+    </tr>
+</table>
+
+        <!-- 頁尾固定格式 -->
+        <div style="margin-top: 25px; font-size: 13px; position: relative; height: 25px; display: block;">
+            <div style="position: absolute; left: 50%; transform: translateX(-50%); bottom: 0; font-weight: bold; font-size: 16px;">4</div>
+            <div style="position: absolute; right: 0; bottom: 0;">B1 FK (11.2020)</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

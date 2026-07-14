@@ -35,9 +35,8 @@ const DRESSING_OPTIONS = ['Gauze', 'Adhesive Pad', 'Parafin Gauze', 'Alginate', 
 
 const WOUND_STATUS_OPTIONS: { value: WoundAssessmentStatus; label: string; color: string }[] = [
   { value: 'untreated', label: '未處理', color: 'bg-gray-100 text-gray-800' },
-  { value: 'treating', label: '治療中', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'improving', label: '改善中', color: 'bg-blue-100 text-blue-800' },
-  { value: 'healed', label: '已痊癒', color: 'bg-green-100 text-green-800' }
+  { value: 'treating',  label: '治療中', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'healed',    label: '已痊癒', color: 'bg-green-100 text-green-800' }
 ];
 
 const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
@@ -46,7 +45,7 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
   onClose,
   onSave
 }) => {
-  const { addWoundAssessmentForWound, updateWoundAssessment, patients, healWound, updateWound } = usePatients();
+  const { addWoundAssessmentForWound, updateWoundAssessment, patients, updateWound } = usePatients();
   const { displayName } = useAuth();
 
   const getHongKongDate = () => {
@@ -163,14 +162,54 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
         await addWoundAssessmentForWound(assessmentData as any);
       }
 
-      // 根據評估狀態同步更新傷口主表狀態
-      if (formData.wound_status === 'healed') {
-        // 評估標記為痊癒 → 傷口標記為已痊癒
-        await healWound(wound.id, formData.assessment_date);
-      } else if (wound.status === 'healed') {
-        // 評估狀態已從「痊癒」改為其他（如治療中、改善中）→ 將傷口重新設為進行中
-        await updateWound({ id: wound.id, status: 'active', healed_date: undefined });
+      // 根據更新後的最新評估狀態同步傷口主表
+      const existingAssessments: Array<{ id?: string; wound_status?: string; assessment_date: string }> =
+        (wound as any).assessments ?? [];
+      // 建立「儲存後」的評估列表：編輯則替换、新增則前置
+      const updatedList = assessment?.id
+        ? existingAssessments.map(a => a.id === assessment!.id
+            ? { ...a, wound_status: formData.wound_status, assessment_date: formData.assessment_date }
+            : a)
+        : [{ wound_status: formData.wound_status, assessment_date: formData.assessment_date }, ...existingAssessments];
+      // 不依賴插入順序，導出正確的最新評估
+      const sorted = [...updatedList].sort((a, b) =>
+        new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime()
+      );
+      const latestStatus = sorted[0]?.wound_status;
+      const newWoundStatus: 'healed' | 'active' = latestStatus === 'healed' ? 'healed' : 'active';
+      // 計算下次評估日期（沿用任務管理頻率模型）
+      let nextAssessmentDue: string | null = null;
+      if (newWoundStatus === 'active') {
+        const castWound = wound as any;
+        const baseDate = formData.assessment_date;
+        const unit = castWound.assessment_frequency_unit ?? 'daily';
+        const value = castWound.assessment_frequency_value ?? 7;
+        if (unit === 'weekly' && castWound.assessment_specific_days_of_week?.length > 0) {
+          // 同 taskScheduler: 7=週日→ JS getDay() 0
+          const targetDays = (castWound.assessment_specific_days_of_week as number[]).map(d => d === 7 ? 0 : d);
+          for (let i = 1; i <= 7; i++) {
+            const check = new Date(baseDate);
+            check.setDate(check.getDate() + i);
+            if (targetDays.includes(check.getDay())) {
+              nextAssessmentDue = check.toISOString().split('T')[0];
+              break;
+            }
+          }
+        }
+        if (!nextAssessmentDue) {
+          const next = new Date(baseDate);
+          next.setDate(next.getDate() + value);
+          nextAssessmentDue = next.toISOString().split('T')[0];
+        }
       }
+      await updateWound({
+        id: wound.id,
+        status: newWoundStatus,
+        healed_date: newWoundStatus === 'healed'
+          ? (formData.wound_status === 'healed' ? formData.assessment_date : wound.healed_date ?? null as any)
+          : null as any,
+        next_assessment_due: nextAssessmentDue as any,
+      });
 
       onSave?.();
       onClose();
@@ -262,7 +301,12 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
                   <button
                     key={status.value}
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, wound_status: status.value }))}
+                    onClick={() => {
+                      if (status.value === 'healed' && formData.wound_status !== 'healed') {
+                        if (!window.confirm('確定將此評估標記為「已痊癒」？\n傷口狀態將同步更新為已痊癒（可在列表中新增「未處理」或「治療中」評估來還原）。')) return;
+                      }
+                      setFormData(prev => ({ ...prev, wound_status: status.value }));
+                    }}
                     className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                       formData.wound_status === status.value
                         ? `${status.color} ring-2 ring-offset-1 ring-blue-500`

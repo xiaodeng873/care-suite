@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>院友體溫記錄 - 善頤(福群)</title>
+    <style>
+        @page { size: A4; margin: 5mm 0.2in; }
+        body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; padding: 0; background-color: #fff; color: #000; line-height: 1.1; }
+        .container { width: 100%; box-sizing: border-box; }
+        .title-section { text-align: center; margin-bottom: 12px; }
+        .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
+        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
+        .info-table td { border: none; padding: 2px 0; vertical-align: bottom; font-size: 16px; font-weight: bold; white-space: nowrap; }
+        .db-line-input { width: 90%; border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 16px; outline: none; padding: 0 0 1px 5px; box-sizing: border-box; }
+        table.main-table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid black; }
+        table.main-table th, table.main-table td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0; }
+        table.main-table th { font-size: 11px; font-weight: bold; background-color: #fff; height: 38px; line-height: 1.1; }
+        .data-row { height: 30px; }
+        .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 11px; text-align: center; outline: none; display: block; box-sizing: border-box; }
+        .set-divider { border-right: 3px solid black !important; }
+        .footer { margin-top: 8px; display: flex; justify-content: flex-end; position: relative; height: 30px; }
+        .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>院友體溫記錄</h2>
+    </div>
+    <table class="info-table">
+        <colgroup><col style="width: 25%;"><col style="width: 18%;"><col style="width: 18%;"><col style="width: 18%;"><col style="width: 21%;"></colgroup>
+        <tr>
+            <td>院友姓名：<input type="text" class="db-line-input" style="width: 60%;"></td>
+            <td>床號：<input type="text" class="db-line-input" style="width: 60%;"></td>
+            <td>性別：<input type="text" class="db-line-input" style="width: 60%;"></td>
+            <td>年齡：<input type="text" class="db-line-input" style="width: 60%;"></td>
+            <td>頁數：<input type="text" class="db-line-input" style="width: 70%;"></td>
+        </tr>
+    </table>
+    <table class="main-table">
+        <colgroup>
+            <col style="width: 7%;"><col style="width: 5%;"><col style="width: 6%;"><col style="width: 9%;"><col style="width: 6.3%;">
+            <col style="width: 7%;"><col style="width: 5%;"><col style="width: 6%;"><col style="width: 9%;"><col style="width: 6.3%;">
+            <col style="width: 7%;"><col style="width: 5%;"><col style="width: 6%;"><col style="width: 9%;"><col style="width: 6.3%;">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>日期</th><th>時間</th><th>體溫C°</th><th>備註</th><th class="set-divider">記錄職員</th>
+                <th>日期</th><th>時間</th><th>體溫C°</th><th>備註</th><th class="set-divider">記錄職員</th>
+                <th>日期</th><th>時間</th><th>體溫C°</th><th>備註</th><th>記錄職員</th>
+            </tr>
+        </thead>
+        <tbody>
+            <script>
+                for (let i = 0; i < 33; i++) {
+                    document.write('<tr class="data-row">');
+                    document.write('<td><input class="db-text-cell"></td><td><input class="db-text-cell"></td><td><input class="db-text-cell"></td><td><input class="db-text-cell"></td><td class="set-divider"><input class="db-text-cell"></td>');
+                    document.write('<td><input class="db-text-cell"></td><td><input class="db-text-cell"></td><td><input class="db-text-cell"></td><td><input class="db-text-cell"></td><td class="set-divider"><input class="db-text-cell"></td>');
+                    document.write('<td><input class="db-text-cell"></td><td><input class="db-text-cell"></td><td><input class="db-text-cell"></td><td><input class="db-text-cell"></td><td><input class="db-text-cell"></td>');
+                    document.write('</tr>');
+                }
+            </script>
+        </tbody>
+    </table>
+    <div class="footer">
+        <div class="page-num">5</div>
+        <div class="doc-code">B26 FK (09.2016)</div>
+    </div>
+</div>
+</body>
+</html>

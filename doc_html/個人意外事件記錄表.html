@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>個人意外事件記錄表 - 善頤(福群)</title>
+    <style>
+        /* A4 紙張與出血位設定 */
+        @page {
+            size: A4;
+            margin: 5mm 12mm; /* 極小化上邊距，左右標準出血 */
+        }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            color: #000;
+        }
+
+        .container { width: 100%; box-sizing: border-box; }
+
+        /* 頂部標題區 - 移除Logo後的設計 */
+        .header-section {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 5px;
+        }
+
+        .station-box {
+            border: 1.5px solid black;
+            width: 70px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-right: 20px;
+        }
+
+        .title-box {
+            flex-grow: 1;
+            text-align: center;
+            margin-right: 90px; /* 為了讓標題視覺中心與頁面中心對齊 */
+        }
+
+        .title-box h1 { margin: 0; font-size: 26px; letter-spacing: 2px; }
+        .title-box h2 { margin: 2px 0 0 0; font-size: 22px; }
+
+        /* 院友資訊列 */
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .db-line-input {
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            padding: 0 5px;
+            font-size: 15px;
+        }
+
+        /* 表格設定 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            border: 1.5px solid black;
+        }
+
+        th, td {
+            border: 1px solid black;
+            text-align: center;
+            vertical-align: middle;
+            padding: 0;
+            height: 52px; /* 精算 15 行的高度 */
+        }
+
+        th {
+            background-color: #fff;
+            font-size: 16px;
+            height: 40px;
+        }
+
+        /* 欄位寬度分配 */
+        .col-no   { width: 45px; font-weight: bold; font-size: 16px; }
+        .col-date { width: 110px; }
+        .col-time { width: 90px; }
+        .col-evt  { width: auto; }
+        .col-treat { width: 220px; }
+        .col-hosp { width: 55px; font-size: 13px; line-height: 1.2; }
+        .col-sign { width: 75px; }
+
+        /* DB組件 */
+        .db-text-cell {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: 14px;
+            text-align: center;
+            outline: none;
+            resize: none;
+            display: block;
+        }
+
+        .db-checkbox {
+            width: 15px;
+            height: 15px;
+            cursor: pointer;
+            margin: 2px 0;
+        }
+
+        .hosp-header-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        /* 頁尾 */
+        .footer {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            height: 30px;
+            font-weight: bold;
+        }
+
+        .page-num {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 22px;
+            bottom: 0;
+        }
+
+        .doc-code {
+            font-size: 11px;
+            align-self: flex-end;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 標頭 -->
+    <div class="header-section">
+        <div class="station-box">站</div>
+        <div class="title-box">
+            <h1>善頤(福群)護老院</h1>
+            <h2>個人意外事件記錄表</h2>
+        </div>
+    </div>
+
+    <!-- 院友基本資料 -->
+    <div class="info-bar">
+        <span>院友姓名：<input type="text" class="db-line-input" style="width: 180px;"></span>
+        <span>床號：<input type="text" class="db-line-input" style="width: 100px;"></span>
+        <span>性別：<input type="text" class="db-line-input" style="width: 80px;"></span>
+        <span>年齡：<input type="text" class="db-line-input" style="width: 80px;"></span>
+    </div>
+
+    <!-- 主表格 -->
+    <table>
+        <thead>
+            <tr>
+                <th class="col-no"></th>
+                <th class="col-date">日期</th>
+                <th class="col-time">時間</th>
+                <th class="col-evt">事件</th>
+                <th class="col-treat">傷勢及治療</th>
+                <th class="col-hosp">
+                    <div class="hosp-header-box">
+                        <span>送院</span>
+                        <span>☑ ☒</span>
+                    </div>
+                </th>
+                <th class="col-sign">簽署</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 迴圈生成 15 行 -->
+            <script>
+                for (let i = 1; i <= 15; i++) {
+                    document.write(`
+                    <tr>
+                        <td class="col-no">${i}</td>
+                        <td><input type="text" class="db-text-cell"></td>
+                        <td><input type="text" class="db-text-cell"></td>
+                        <td><textarea class="db-text-cell"></textarea></td>
+                        <td><textarea class="db-text-cell"></textarea></td>
+                        <td><input type="checkbox" class="db-checkbox"></td>
+                        <td><input type="text" class="db-text-cell"></td>
+                    </tr>
+                    `);
+                }
+            </script>
+        </tbody>
+    </table>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">12</div>
+        <div class="doc-code">A11D FK (11.2020)</div>
+    </div>
+</div>
+
+</body>
+</html>

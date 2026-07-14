@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>使用約束措施的評估及同意書 (第1頁)</title>
+    <style>
+        /* A4 紙張與邊距嚴格定義 */
+        @page {
+            size: A4;
+            margin: 5mm 12mm 10mm 12mm; /* 頂部極致壓縮，留出底部空間 */
+        }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.3;
+        }
+
+        .a4-container {
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* 頂部小字與標題 */
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+        
+        /* 2. 修正：安老院名稱精確置中 */
+        .inst-name-box {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .title-section {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .title-section h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: bold;
+            display: inline-block;
+            padding-bottom: 2px;
+        }
+        .title-section p {
+            margin: 4px 0 0 0;
+            font-size: 15px;
+        }
+
+        /* 隱形表格：用於鎖定文字與填寫線，絕不跑偏換行 */
+        .layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed; /* 強制鎖定欄寬 */
+        }
+        .layout-table td {
+            border: none;
+            padding: 2px 0;
+            vertical-align: bottom;
+            white-space: nowrap; /* 嚴格禁止換行 */
+            font-size: 15px;
+        }
+
+        /* DB Mapping 輸入框 (帶底線) */
+        .db-input {
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 15px;
+            outline: none;
+            width: 100%;
+            display: block;
+            box-sizing: border-box;
+            padding: 0 4px;
+        }
+
+        /* DB Mapping Checkbox */
+        .db-checkbox {
+            width: 14px;
+            height: 14px;
+            vertical-align: middle;
+            margin-right: 3px;
+            cursor: pointer;
+        }
+
+        /* 原則框 */
+        .principle-box {
+            font-size: 12.5px;
+            line-height: 1.4;
+            text-align: justify;
+            margin: 8px 0;
+            padding: 0 2px;
+        }
+
+        /* 雙線大框 */
+        .double-border-box {
+            border: 3px double black;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .section-block {
+            border-bottom: 3px double black;
+            padding: 4px 6px;
+        }
+        .section-block:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        .section-title span.underline {
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .small-note {
+            font-weight: normal;
+            font-size: 13px;
+        }
+
+        /* (一) 內部選項排版 */
+        .risk-group { margin-bottom: 6px; }
+        .risk-title { font-weight: bold; font-size: 15px; margin-bottom: 2px; display: flex; align-items: center; }
+        
+        /* 表格樣式 (二、三) */
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            border: 1.5px solid black;
+            margin-top: 5px;
+        }
+        table.data-table th, table.data-table td {
+            border: 1px solid black;
+            padding: 3px;
+            font-size: 14px;
+            vertical-align: middle;
+        }
+        table.data-table th { font-weight: normal; text-align: center; }
+        
+        /* 引入第2頁的表格欄寬比例 */
+        .col-type { width: 18%; }
+        .col-cond { width: 28%; }
+        .col-time { width: 54%; }
+
+        /* 底部置中頁碼 */
+        .footer-wrap {
+            margin-top: 8px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="a4-container">
+    <!-- 頂部資訊 -->
+    <div class="header-top">
+        <div>《安老院實務守則》2024 年 6 月（修訂版）</div>
+        <div style="text-decoration: underline;">附件 12.4</div>
+    </div>
+
+    <!-- 2. 機構名稱置中 -->
+    <div class="inst-name-box">
+        <div style="display:inline-block; width: 350px;"><input type="text" class="db-input" style="text-align: center;"></div>（安老院名稱）
+    </div>
+
+    <!-- 標題 -->
+    <div class="title-section">
+        <h1>使用約束措施的評估及同意書</h1>
+        <p>（須最少每 6 個月或因住客情況轉變評估一次）</p>
+    </div>
+
+    <!-- 3. 個人資料 - 隱形表格鎖定 (使用固定 px 取代 auto 以防止底線越界) -->
+    <table class="layout-table" style="margin-bottom: 8px;">
+        <colgroup>
+            <col style="width: 80px;">  <!-- 住客姓名 -->
+            <col style="width: 160px;"> <!-- input -->
+            <col style="width: 95px;">  <!-- 性別/年齡 -->
+            <col style="width: 120px;"> <!-- input -->
+            <col style="width: 100px;"> <!-- 身份證/上次評估 -->
+            <col style="width: auto;">  <!-- input -->
+        </colgroup>
+        <tr>
+            <td>住客姓名</td>
+            <td><input type="text" class="db-input"></td>
+            <td style="text-align:center;">性別／年齡</td>
+            <td><input type="text" class="db-input"></td>
+            <td style="text-align:right; padding-right:5px;">身份證號碼</td>
+            <td><input type="text" class="db-input"></td>
+        </tr>
+        <tr>
+            <td>房／床號</td>
+            <td><input type="text" class="db-input"></td>
+            <!-- 空白佔位格，物理阻隔床號底線延伸 -->
+            <td></td><td></td>
+            <td style="text-align:right; padding-right:5px;">上次評估日期</td>
+            <td><input type="text" class="db-input"></td>
+        </tr>
+    </table>
+
+    <!-- 原則段落 -->
+    <div class="principle-box">
+        〔 原則：約束措施是指為限制住客活動以避免其對自己及／或其他人造成傷害而使用的方法，安老院應採取盡量避免使用約束的措施，只有在沒有其他限制程度較低的方法可供使用（即在嘗試其他折衷辦法失敗後）或在緊急情況下，當該住客及／或其他住客的安全、健康或福祉受威脅時，才可考慮使用約束措施。使用約束措施亦須先取得相關人士的同意。〕
+    </div>
+
+    <!-- 雙線大框開始 -->
+    <div class="double-border-box">
+        
+        <!-- 4. (一) 住客情況/風險因素 (全面採用隱形表格物理鎖定) -->
+        <div class="section-block">
+            <div class="section-title">（一）<span class="underline">住客情況／風險因素</span> <span class="small-note">（請在合適的方格內加上「✓」號，可作多項選擇）</span></div>
+            
+            <div class="risk-group">
+                <div class="risk-title"><input type="checkbox" class="db-checkbox">精神及／或行為異常的情況</div>
+                <table class="layout-table" style="width: calc(100% - 20px); margin-left: 20px;">
+                    <colgroup>
+                        <col style="width: 190px;">
+                        <col style="width: 100px;">
+                        <col style="width: 200px;">
+                        <col style="width: auto;">
+                    </colgroup>
+                    <tr>
+                        <td><input type="checkbox" class="db-checkbox">情緒問題／神志昏亂</td>
+                        <td><input type="checkbox" class="db-checkbox">遊走</td>
+                        <td><input type="checkbox" class="db-checkbox">傷害自己的行為，請註明：</td>
+                        <td><input type="text" class="db-input"></td>
+                    </tr>
+                </table>
+                <table class="layout-table" style="width: calc(100% - 20px); margin-left: 20px;">
+                    <colgroup>
+                        <col style="width: 240px;">
+                        <col style="width: auto;">
+                    </colgroup>
+                    <tr>
+                        <td><input type="checkbox" class="db-checkbox">傷害／騷擾他人的行為，請註明：</td>
+                        <td><input type="text" class="db-input"></td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="risk-group">
+                <div class="risk-title"><input type="checkbox" class="db-checkbox">未能保持正確坐姿</div>
+                <table class="layout-table" style="width: calc(100% - 20px); margin-left: 20px;">
+                    <colgroup>
+                        <col style="width: 180px;">
+                        <col style="width: 80px;">
+                        <col style="width: 100px;">
+                        <col style="width: 130px;">
+                        <col style="width: auto;">
+                    </colgroup>
+                    <tr>
+                        <td><input type="checkbox" class="db-checkbox">背部及腰肢肌肉無力</td>
+                        <td><input type="checkbox" class="db-checkbox">癱瘓</td>
+                        <td><input type="checkbox" class="db-checkbox">關節退化</td>
+                        <td><input type="checkbox" class="db-checkbox">其他，請註明：</td>
+                        <td><input type="text" class="db-input"></td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="risk-group">
+                <div class="risk-title"><input type="checkbox" class="db-checkbox">有跌倒風險</div>
+                <table class="layout-table" style="width: calc(100% - 20px); margin-left: 20px;">
+                    <colgroup>
+                        <col style="width: 220px;">
+                        <col style="width: 250px;">
+                        <col style="width: auto;">
+                    </colgroup>
+                    <tr>
+                        <td><input type="checkbox" class="db-checkbox">步履失平衡</td>
+                        <td><input type="checkbox" class="db-checkbox">住院期間曾經跌倒</td>
+                        <td><input type="checkbox" class="db-checkbox">視／聽力衰退</td>
+                    </tr>
+                </table>
+                <table class="layout-table" style="width: calc(100% - 20px); margin-left: 20px;">
+                    <colgroup>
+                        <col style="width: 220px;">
+                        <col style="width: 220px;">
+                        <col style="width: auto;">
+                    </colgroup>
+                    <tr>
+                        <td><input type="checkbox" class="db-checkbox">受藥物影響</td>
+                        <td><input type="checkbox" class="db-checkbox">其他跌倒的風險，請註明：</td>
+                        <td><input type="text" class="db-input"></td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="risk-group">
+                <div class="risk-title"><input type="checkbox" class="db-checkbox">曾除去治療用之醫療器材及／或維護身體的用品</div>
+                <table class="layout-table" style="width: calc(100% - 20px); margin-left: 20px;">
+                    <colgroup>
+                        <col style="width: 180px;">
+                        <col style="width: 200px;">
+                        <col style="width: 150px;">
+                        <col style="width: auto;">
+                    </colgroup>
+                    <tr>
+                        <td><input type="checkbox" class="db-checkbox">餵食管</td>
+                        <td><input type="checkbox" class="db-checkbox">氧氣喉管或面罩</td>
+                        <td><input type="checkbox" class="db-checkbox">尿片或衣服</td>
+                        <td><input type="checkbox" class="db-checkbox">其他造口護理裝置</td>
+                    </tr>
+                </table>
+                <table class="layout-table" style="width: calc(100% - 20px); margin-left: 20px;">
+                    <colgroup>
+                        <col style="width: 180px;">
+                        <col style="width: 130px;">
+                        <col style="width: auto;">
+                    </colgroup>
+                    <tr>
+                        <td><input type="checkbox" class="db-checkbox">導尿管</td>
+                        <td><input type="checkbox" class="db-checkbox">其他，請註明：</td>
+                        <td><input type="text" class="db-input"></td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- 其他請註明：使用隱形表格鎖死寬度 -->
+            <table class="layout-table" style="margin-bottom: 0;">
+                <colgroup>
+                    <col style="width: 135px;">
+                    <col style="width: auto;">
+                </colgroup>
+                <tr>
+                    <td style="font-weight: bold; font-size: 15px;"><input type="checkbox" class="db-checkbox">其他，請註明：</td>
+                    <td><input type="text" class="db-input"></td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- 以下為未動過之代碼 (SSOT) =============================== -->
+        
+        <!-- (二) 折衷辦法 -->
+        <div class="section-block">
+            <div class="section-title">（二）<span class="underline">折衷辦法</span></div>
+            <table class="data-table">
+                <colgroup>
+                    <col style="width: 58%;">
+                    <col style="width: 12%;">
+                    <col style="width: 7%;">
+                    <col style="width: 7%;">
+                    <col style="width: auto;">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th rowspan="2" style="text-align: left; padding-left: 5px;">約束措施以外的折衷辦法<br>（請在合適的方格內加上「✓」號，可作多項選擇）</th>
+                        <th rowspan="2">評估日期</th>
+                        <th colspan="2">評估結果</th>
+                        <th rowspan="2">備註</th>
+                    </tr>
+                    <tr>
+                        <th>有效</th>
+                        <th>無效</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><input type="checkbox" class="db-checkbox">延醫診治，找出影響情緒或神志昏亂的原因並處理</td><td><input type="text" class="db-input" style="border:none;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td><input type="text" class="db-input" style="border:none;"></td></tr>
+                    <tr><td><input type="checkbox" class="db-checkbox">與註冊醫生／註冊中醫／表列中醫商討療程或調校藥物</td><td><input type="text" class="db-input" style="border:none;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td><input type="text" class="db-input" style="border:none;"></td></tr>
+                    <tr><td><input type="checkbox" class="db-checkbox">尋求物理治療師／職業治療師／臨床心理學家／社工的介入</td><td><input type="text" class="db-input" style="border:none;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td><input type="text" class="db-input" style="border:none;"></td></tr>
+                    <tr><td><input type="checkbox" class="db-checkbox">改善家具：使用更合適的座椅、座墊或其他配件</td><td><input type="text" class="db-input" style="border:none;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td><input type="text" class="db-input" style="border:none;"></td></tr>
+                    <tr><td><input type="checkbox" class="db-checkbox">改善環境：令住客對環境感安全、舒適及熟悉</td><td><input type="text" class="db-input" style="border:none;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td><input type="text" class="db-input" style="border:none;"></td></tr>
+                    <tr><td><input type="checkbox" class="db-checkbox">提供消閒及分散注意力的活動</td><td><input type="text" class="db-input" style="border:none;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td><input type="text" class="db-input" style="border:none;"></td></tr>
+                    <tr><td><input type="checkbox" class="db-checkbox">多與住客傾談，建立融洽互信的關係</td><td><input type="text" class="db-input" style="border:none;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td><input type="text" class="db-input" style="border:none;"></td></tr>
+                    <tr><td><input type="checkbox" class="db-checkbox">安老院員工定期觀察及巡視</td><td><input type="text" class="db-input" style="border:none;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td><input type="text" class="db-input" style="border:none;"></td></tr>
+                    <tr><td><input type="checkbox" class="db-checkbox">調節日常護理程序以配合住客的特殊需要</td><td><input type="text" class="db-input" style="border:none;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td><input type="text" class="db-input" style="border:none;"></td></tr>
+                    <tr><td><input type="checkbox" class="db-checkbox">請家人／親友探望協助</td><td><input type="text" class="db-input" style="border:none;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td><input type="text" class="db-input" style="border:none;"></td></tr>
+                    <tr><td style="display:flex; align-items:flex-end; border:none;"><input type="checkbox" class="db-checkbox">其他，請註明：<div style="flex-grow:1;"><input type="text" class="db-input" style="border-bottom:1px solid black;"></div></td><td><input type="text" class="db-input" style="border:none;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td style="text-align:center;"><input type="checkbox" class="db-checkbox" style="margin:0;"></td><td><input type="text" class="db-input" style="border:none;"></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- (三) 約束物品建議 -->
+        <div class="section-block" style="padding-bottom: 0; border-bottom: none;">
+            <div class="section-title">（三）<span class="underline">約束物品建議</span> <span class="small-note">（請在合適的方格內加上「✓」號，可作多項選擇）</span></div>
+            <table class="data-table" style="border-bottom: none; border-left: none; border-right: none;">
+                <colgroup>
+                    <col class="col-type">
+                    <col class="col-cond">
+                    <col class="col-time">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th style="font-weight: normal;">約束物品種類</th>
+                        <th style="font-weight: normal;">使用約束物品情況</th>
+                        <th style="font-weight: normal;">使用約束物品的時段</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><input type="checkbox" class="db-checkbox">約束衣</td>
+                        <td><input type="checkbox" class="db-checkbox">坐在椅上&nbsp;&nbsp;<input type="checkbox" class="db-checkbox">躺在床上<br><input type="checkbox" class="db-checkbox">坐在椅上及躺在床上</td>
+                        <td>
+                            <input type="checkbox" class="db-checkbox">日間 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">全日<br>
+                            <input type="checkbox" class="db-checkbox">晚上 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">其他：<input type="text" style="width:60px; border:none; border-bottom:1px solid black; outline:none;">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><input type="checkbox" class="db-checkbox">約束腰帶</td>
+                        <td><input type="checkbox" class="db-checkbox">坐在椅上&nbsp;&nbsp;<input type="checkbox" class="db-checkbox">躺在床上<br><input type="checkbox" class="db-checkbox">坐在椅上及躺在床上</td>
+                        <td>
+                            <input type="checkbox" class="db-checkbox">日間 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">全日<br>
+                            <input type="checkbox" class="db-checkbox">晚上 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">其他：<input type="text" style="width:60px; border:none; border-bottom:1px solid black; outline:none;">
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div> <!-- 雙線大框結束 -->
+
+    <!-- 頁尾 -->
+    <div class="footer-wrap">
+        附件 12.4 - 1
+    </div>
+</div>
+
+</body>
+</html>

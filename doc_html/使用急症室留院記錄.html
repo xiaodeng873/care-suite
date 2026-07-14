@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>使用急症室 / 留院記錄 - 善頤(福群)</title>
+    <style>
+        /* 1. A4 橫向規格與頁面平衡 */
+        @page {
+            size: A4 landscape;
+            margin: 5mm 10mm;
+        }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            color: #000;
+        }
+
+        .container {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* 2. 標題區域 (完全取消 Logo, 上推) */
+        .header-top {
+            text-align: center;
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .header-top h1 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+
+        .header-top h2 {
+            margin: 5px 0 0 0;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .page-num-top {
+            position: absolute;
+            right: 40px;
+            bottom: 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        /* 3. 院友資訊列 */
+        .info-row {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .info-item {
+            margin-right: 30px;
+        }
+
+        .db-line-input {
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 16px;
+            padding: 0 5px;
+            min-width: 150px;
+            outline: none;
+        }
+
+        /* 4. 表格核心結構 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed; /* 嚴格控制列寬 */
+            border: 1.5px solid black;
+        }
+
+        th, td {
+            border: 1px solid black;
+            text-align: center;
+            vertical-align: middle;
+            padding: 0;
+            height: 35px; /* 行高精算 */
+        }
+
+        th {
+            font-size: 15px;
+            font-weight: bold;
+            background-color: #fff;
+        }
+
+        /* 欄位寬度比例 */
+        .col-date   { width: 85px; }
+        .col-er     { width: auto; }
+        .col-stay   { width: auto; }
+        .col-ward   { width: 100px; }
+        .col-adm    { width: 85px; }
+        .col-dis    { width: 85px; }
+        .col-cond   { width: 130px; }
+        .col-remark { width: 130px; }
+
+        /* DB Mapping 組件 */
+        .db-text-cell {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: 14px;
+            text-align: center;
+            outline: none;
+            display: block;
+        }
+
+        /* 病房/床號斜線結構 */
+        .slash-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+        .slash-cell span {
+            font-size: 18px;
+            padding: 0 5px;
+        }
+
+        /* 5. 頁尾 */
+        .footer {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            height: 30px;
+        }
+
+        .page-num-bottom {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .doc-code {
+            font-size: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 標題 -->
+    <div class="header-top">
+        <h1>善頤(福群)護老院</h1>
+        <h2>使用急症室 / 留院記錄</h2>
+        <div class="page-num-top">頁數 ________</div>
+    </div>
+
+    <!-- 院友資訊 -->
+    <div class="info-row">
+        <div class="info-item">院友姓名：<input type="text" class="db-line-input" style="width: 220px;"></div>
+        <div class="info-item">房/床號：<input type="text" class="db-line-input" style="width: 150px;"></div>
+        <div class="info-item">性別/年齡：<input type="text" class="db-line-input" style="width: 150px;"></div>
+    </div>
+
+    <!-- 主表格 -->
+    <table>
+        <colgroup>
+            <col class="col-date">   <!-- 日期 -->
+            <col style="width: 120px;"> <!-- ER 醫院 -->
+            <col style="width: 140px;"> <!-- ER 原因 -->
+            <col style="width: 120px;"> <!-- 留院 醫院 -->
+            <col class="col-ward">   <!-- 留院 病房/床號 -->
+            <col class="col-adm">    <!-- 留院 入院日期 -->
+            <col class="col-dis">    <!-- 留院 出院日期 -->
+            <col class="col-cond">   <!-- 留院 病況 -->
+            <col class="col-remark"> <!-- 備註 -->
+        </colgroup>
+        <thead>
+            <tr>
+                <th rowspan="2">日期</th>
+                <th colspan="2">使用急症室</th>
+                <th colspan="5">留院</th>
+                <th rowspan="2">備註</th>
+            </tr>
+            <tr style="height: 30px;">
+                <th>醫院</th>
+                <th>原因</th>
+                <th>醫院</th>
+                <th>病房/床號</th>
+                <th>入院日期</th>
+                <th>出院日期</th>
+                <th>病況</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 生成 12 行記錄以確保不超頁 -->
+            <script>
+                for (let i = 0; i < 12; i++) {
+                    document.write('<tr>');
+                    document.write('<td><input type="text" class="db-text-cell"></td>'); // 日期
+                    document.write('<td><input type="text" class="db-text-cell"></td>'); // ER 醫院
+                    document.write('<td><input type="text" class="db-text-cell"></td>'); // ER 原因
+                    document.write('<td><input type="text" class="db-text-cell"></td>'); // 留院 醫院
+                    document.write('<td><div class="slash-cell"><input type="text" class="db-text-cell"><span>/</span><input type="text" class="db-text-cell"></div></td>'); // 病房/床號
+                    document.write('<td><input type="text" class="db-text-cell"></td>'); // 入院日期
+                    document.write('<td><input type="text" class="db-text-cell"></td>'); // 出院日期
+                    document.write('<td><input type="text" class="db-text-cell"></td>'); // 病況
+                    document.write('<td><input type="text" class="db-text-cell"></td>'); // 備註
+                    document.write('</tr>');
+                }
+            </script>
+        </tbody>
+    </table>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num-bottom">8</div>
+        <div class="doc-code">B5 FK (11.2020)</div>
+    </div>
+</div>
+
+</body>
+</html>

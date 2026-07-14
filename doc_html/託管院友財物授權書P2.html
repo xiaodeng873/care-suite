@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>託管院友財物授權書(後頁) - 善頤(福群)</title>
+    <style>
+        /* A4 紙張與出血位設定 */
+        @page {
+            size: A4;
+            margin: 0; /* 由容器控制 margin 確保底置精確 */
+        }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            color: #000;
+        }
+
+        /* A4 容器定義，確保底置元素相對於此 */
+        .a4-container {
+            width: 210mm;
+            height: 297mm;
+            padding: 8mm 15mm 15mm 15mm;
+            box-sizing: border-box;
+            position: relative; /* 關鍵：供頁尾絕對定位 */
+            overflow: hidden;
+        }
+
+        .section-header {
+            font-weight: bold;
+            text-decoration: underline;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        /* 條款列表 */
+        .terms-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            table-layout: fixed;
+        }
+        .terms-table td {
+            vertical-align: top;
+            padding: 2px 0;
+            font-size: 15px;
+            text-align: justify;
+            line-height: 1.4;
+        }
+        .term-num { width: 35px; font-weight: bold; }
+
+        /* 聲明 */
+        .statement-section {
+            margin: 10px 0 20px 0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* 專業隱形佈局表格 */
+        .layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-bottom: 10px;
+        }
+        .layout-table td {
+            border: none;
+            padding: 0;
+            vertical-align: bottom;
+            white-space: nowrap; /* 確保文字不隨意換行 */
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        /* 要求：物理高度 15-17mm (16mm ≒ 60px) */
+        .sig-row {
+            height: 16mm; 
+        }
+
+        /* DB Mapping 輸入框 */
+        .db-input {
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 16px;
+            width: 95%;
+            outline: none;
+            text-align: center;
+        }
+
+        /* 模擬手寫/簽名底線 (無 input 版) */
+        .underline-div {
+            border-bottom: 1px solid black;
+            height: 20px;
+            width: 95%;
+        }
+
+        .footer-notes {
+            font-size: 13.5px;
+            line-height: 1.4;
+            margin-top: 10px;
+        }
+
+        /* --- 絕對底置區域 --- */
+        .fixed-footer {
+            position: absolute;
+            bottom: 10mm;
+            left: 15mm;
+            right: 15mm;
+            height: 30px;
+        }
+
+        .page-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 22px;
+            font-weight: bold;
+            bottom: 0;
+        }
+
+        .doc-id-right {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="a4-container">
+    <!-- 條款及細則 -->
+    <div class="section-header">條款及細則 :</div>
+    <table class="terms-table">
+        <tr><td class="term-num">(1)</td><td>本授權書之正本將留在本院存檔。</td></tr>
+        <tr><td class="term-num">(2)</td><td>本院有權將本授權書，一切有關託管財物之提存記錄，呈交善頤護老及其母公司及相關聯公司之職員或社會福利署督察查核。</td></tr>
+        <tr><td class="term-num">(3)</td><td>對存放本院的上述財物的任何損失、損毀或丟棄，或因上述財物損失或損毀所引致的任何損失、損害、費用及開支，不論上述各項是否因本院及本院僱員、代理人、承辦商或其他居住於本院之院友或其家屬的任何行為或不作為、疏忽或故意責所造成，本院、善頤護老及其母公司及相關聯公司概不負責。</td></tr>
+        <tr><td class="term-num">(4)</td><td>本院不會為院友就其存放於本院之財物投保。在本院存放財物的風險全部由院友及委託人自行承擔。</td></tr>
+        <tr><td class="term-num">(5)</td><td>在合理及保障院友財物前提下，本院有絕對決定權在任何時間拒絕將院友財物提取及／或轉移至院友及委託人以外的第三方，而毋須作出解釋。</td></tr>
+        <tr><td class="term-num">(6)</td><td>本院保留可以在任何時間終止託管院友之財物並退回該等財物予院友或委託人或拒絕院友或委託人要求本院託管財物之權利。</td></tr>
+    </table>
+
+    <!-- 聲明 -->
+    <div class="section-header">聲 明 :</div>
+    <div class="statement-section">
+        <div>院友及委託人確認已閱讀、明白及同意接受本授權書之以上條款及細則。</div>
+        <div>院友及委託人謹此聲明，以上要求本院託管之所有財物均為院友全權擁有，而非屬於任何其他第三者。</div>
+        <div style="font-size: 14px; margin-top: 5px;">* 請刪去不適用者</div>
+    </div>
+
+    <!-- 簽署區一 (委託人 & 院友) -->
+    <table class="layout-table">
+        <colgroup>
+            <col style="width: 100px;"> <!-- 標籤 -->
+            <col style="width: auto;">  <!-- 底線 -->
+            <col style="width: 40px;">  <!-- 間距 -->
+            <col style="width: 100px;"> <!-- 標籤 -->
+            <col style="width: auto;">  <!-- 底線 -->
+        </colgroup>
+        <tr class="sig-row">
+            <td>委託人簽名：</td>
+            <td><div class="underline-div"></div></td>
+            <td></td>
+            <td>院友簽名：</td>
+            <td><div class="underline-div"></div></td>
+        </tr>
+        <tr class="sig-row">
+            <td>&nbsp;&nbsp;&nbsp;&nbsp;日期：</td>
+            <td><input type="text" class="db-input" name="proxy_date"></td>
+            <td></td>
+            <td>&nbsp;&nbsp;&nbsp;&nbsp;日期：</td>
+            <td><input type="text" class="db-input" name="resident_date"></td>
+        </tr>
+    </table>
+
+    <div style="height: 10px;"></div>
+
+    <!-- 簽署區二 (本院負責人 & 見證人) -->
+    <table class="layout-table">
+        <colgroup>
+            <col style="width: 110px;"> <!-- 標籤 -->
+            <col style="width: auto;">  <!-- 底線 -->
+            <col style="width: 30px;">  <!-- 間距 -->
+            <col style="width: 110px;"> <!-- 標籤 -->
+            <col style="width: auto;">  <!-- 底線 -->
+        </colgroup>
+        <tr>
+            <td style="font-size: 16px; padding-bottom: 5px;">本院負責人</td>
+            <td></td><td></td>
+            <td style="font-size: 16px; padding-bottom: 5px;">見證人</td>
+            <td></td>
+        </tr>
+        <tr class="sig-row">
+            <td>姓名及職位：</td>
+            <td><input type="text" class="db-input" name="pic_name_pos"></td>
+            <td></td>
+            <td>&nbsp;&nbsp;&nbsp;&nbsp;姓名：</td>
+            <td><input type="text" class="db-input" name="witness_name"></td>
+        </tr>
+        <tr class="sig-row">
+            <td>&nbsp;&nbsp;&nbsp;&nbsp;簽名：</td>
+            <td><div class="underline-div"></div></td>
+            <td></td>
+            <td>&nbsp;&nbsp;&nbsp;&nbsp;簽名：</td>
+            <td><div class="underline-div"></div></td>
+        </tr>
+        <tr class="sig-row">
+            <td>&nbsp;&nbsp;&nbsp;&nbsp;日期：</td>
+            <td><input type="text" class="db-input" name="pic_date"></td>
+            <td></td>
+            <td>&nbsp;&nbsp;&nbsp;&nbsp;日期：</td>
+            <td><input type="text" class="db-input" name="witness_date"></td>
+        </tr>
+    </table>
+
+    <!-- 底部註釋 -->
+    <div class="footer-notes">
+        <div style="display: flex;">
+            <span style="font-weight: bold; min-width: 60px;">註一：</span>
+            <span>「監護人」是經監護委員會所委任並賦予法律地位人士。監護委員會是根據《精神健康條例》第 136 章第 IVB 部訂定的功能及授予的權力而獨立運作的法定團體。</span>
+        </div>
+        <div style="display: flex; margin-top: 4px;">
+            <span style="font-weight: bold; min-width: 60px;">註二：</span>
+            <span>「保證人」是住客的非親屬並無賦予法律地位人士，他／她自願為住客處理各項事項，包括入住及遷離安老院的申請，商討護理計劃及支付院費等。</span>
+        </div>
+    </div>
+
+    <!-- 絕對底置頁尾 -->
+    <div class="fixed-footer">
+        <div class="page-center">19</div>
+        <div class="doc-id-right">A23 FK (5.2026)</div>
+    </div>
+</div>
+
+</body>
+</html>

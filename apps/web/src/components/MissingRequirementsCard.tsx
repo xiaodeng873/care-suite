@@ -251,7 +251,7 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
           >
             {/* 院友信息行 */}
             <div className="flex flex-wrap items-center gap-3 mb-2">
-              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center overflow-hidden flex-shrink-0">
                 {group.patient.院友相片 ? (
                   <img src={group.patient.院友相片} alt="" className="w-full h-full object-cover" />
                 ) : (
@@ -260,16 +260,13 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
               </div>
               <div className="flex-1">
                 <span className="font-medium text-red-800">
-                  {group.patient.床號} {group.patient.中文姓氏}{group.patient.中文名字}
-                </span>
-                <span className="ml-2 text-xs text-red-600">
-                  ({group.items.length} 項欠缺)
+                  {group.patient.中文姓氏}{group.patient.中文名字} <span className="text-xs text-red-600">({group.patient.床號})</span>
                 </span>
               </div>
             </div>
 
             {/* 欠缺項目列表 */}
-            <div className="flex flex-wrap gap-1.5 pl-11">
+            <div className="flex flex-wrap gap-1.5 pl-14">
               {group.items.map((item, idx) => (
                 <div key={`${item.type}-${idx}`} className="flex space-x-1">
                   {renderActionButton(group.patient, item)}

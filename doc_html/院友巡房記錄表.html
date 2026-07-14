@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>巡房記錄表 - 善頤(福群)</title>
+    <style>
+        /* A4 紙張與微調邊距（緊縮上下至 4mm，騰出最大垂直空間） */
+        @page { 
+            size: A4; 
+            margin: 4mm 0.2in; 
+        }
+        
+        body { 
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #fff; 
+            color: #000; 
+            line-height: 1.1; 
+        }
+
+        /* 單頁 A4 物理容器：設定 relative 供頁碼絕對定位 */
+        .page {
+            width: 100%;
+            height: 288mm; 
+            box-sizing: border-box;
+            position: relative; 
+            display: flex;
+            flex-direction: column;
+            page-break-after: always;
+        }
+        
+        /* 最後一頁取消強制分頁 */
+        .page:last-child {
+            page-break-after: avoid;
+        }
+
+        /* 頂部標題與資訊區 */
+        .header-section {
+            width: 100%;
+            height: 24mm; 
+            box-sizing: border-box;
+        }
+        .title-section { 
+            text-align: center; 
+            margin-bottom: 2px; 
+        }
+        .title-section h1 { 
+            margin: 0; 
+            font-size: 24px; 
+            font-weight: bold; 
+            letter-spacing: 2px; 
+        }
+        .title-section h2 { 
+            margin: 1px 0 0 0; 
+            font-size: 18px; 
+            font-weight: bold; 
+            display: inline-block; 
+            padding-bottom: 1px; 
+        }
+
+        /* 資訊輸入表格 */
+        .info-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            table-layout: fixed; 
+            margin-top: 4px;
+        }
+        .info-table td { 
+            border: none; 
+            padding: 2px 0; 
+            vertical-align: bottom; 
+            font-size: 16px; 
+            font-weight: bold; 
+            white-space: nowrap; 
+        }
+        .db-line-input { 
+            border: none; 
+            border-bottom: 1.5px solid black; 
+            background: transparent; 
+            font-family: inherit; 
+            font-size: 16px; 
+            font-weight: bold;
+            outline: none; 
+            padding: 0 0 1px 5px; 
+            box-sizing: border-box; 
+        }
+
+        /* 【核心調整】極致拉高網格高度至 259mm，完全填滿頁面 */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 3mm;
+            height: 259mm; 
+            box-sizing: border-box;
+            margin-top: 2px;
+        }
+
+        /* 日卡片外框：高度拉伸至 62.5mm */
+        .card {
+            border: 1.5px solid black;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            height: 100%; 
+        }
+        
+        /* 空白預留卡片 */
+        .card-empty {
+            border: none;
+            box-sizing: border-box;
+        }
+
+        /* 卡片日期標題 */
+        .card-title {
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            background-color: #fff;
+            border-bottom: 1.5px solid black;
+            height: 5.2mm;
+            line-height: 5.2mm;
+            box-sizing: border-box;
+        }
+
+        /* 卡片內部小表格 */
+        .card-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            height: calc(100% - 5.2mm);
+            border: none;
+        }
+        .card-table th, .card-table td {
+            border: 1px solid black;
+            text-align: center;
+            padding: 0;
+            font-size: 10px;
+            box-sizing: border-box;
+        }
+        .card-table th {
+            height: 4.5mm;
+            font-size: 9px;
+            font-weight: bold;
+            background: #fff;
+            border-bottom: 1.5px solid black;
+        }
+        
+        /* 【書寫高度加高】12 列單一列高加高至 4.4mm */
+        .card-table td {
+            height: 4.3mm;
+        }
+
+        /* 消除重複邊框 */
+        .card-table th:first-child, .card-table td:first-child {
+            border-left: none;
+        }
+        .card-table th:last-child, .card-table td:last-child {
+            border-right: none;
+        }
+        .card-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* 輸入框單元格 */
+        .db-text-cell { 
+            width: 100%; 
+            height: 100%; 
+            border: none; 
+            background: transparent; 
+            font-family: inherit; 
+            font-size: 10px; 
+            text-align: center; 
+            outline: none; 
+            display: block; 
+            box-sizing: border-box; 
+            padding: 0;
+        }
+
+        /* 【頁碼下移】採用絕對定位強制貼齊紙張列印的最底端 */
+        .footer { 
+            position: absolute;
+            bottom: -2px; 
+            left: 0;
+            right: 0;
+            height: 5mm;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            box-sizing: border-box;
+        }
+        .page-num { 
+            font-size: 16px; 
+            font-weight: bold; 
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    // ==========================================
+    // 在此設定本月總天數 (例如 28, 29, 30 或 31)
+    // ==========================================
+    const totalDays = 31; 
+
+    /**
+     * 動態生成單頁 16 日卡片表格
+     * @param {number} startDay 起始天數 (1 或 17)
+     * @param {number} endDay 總天數
+     */
+    function generatePage(startDay, endDay) {
+        document.write('<div class="page">');
+        
+        // 頂部標題與資料填寫
+        document.write(`
+            <div class="header-section">
+                <div class="title-section">
+                    <h1>善頤(福群)護老院</h1>
+                    <h2>院友巡房記錄表</h2>
+                </div>
+                <table class="info-table">
+                    <colgroup>
+                        <col style="width: 60%;">
+                        <col style="width: 40%;">
+                    </colgroup>
+                    <tr>
+                        <td>房 / 床號：<input type="text" class="db-line-input" style="width: 280px; display: inline-block;"></td>
+                        <td style="text-align: right; padding-right: 20px;">月份：<input type="text" class="db-line-input" style="width: 180px; display: inline-block;"></td>
+                    </tr>
+                </table>
+            </div>
+        `);
+        
+        // 網格系統
+        document.write('<div class="grid-container">');
+        
+        // 每一頁固定輸出 16 個格子
+        for (let i = 0; i < 16; i++) {
+            let dayNum = startDay + i;
+            
+            if (dayNum <= endDay) {
+                document.write(`
+                    <div class="card">
+                        <div class="card-title">${dayNum} 日</div>
+                        <table class="card-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 33.3%;">時間</th>
+                                    <th style="width: 33.3%;">簽署</th>
+                                    <th style="width: 33.3%;">加簽</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `);
+                
+                // 生成 12 列
+                for (let r = 0; r < 12; r++) {
+                    document.write(`
+                                <tr>
+                                    <td><input class="db-text-cell"></td>
+                                    <td><input class="db-text-cell"></td>
+                                    <td><input class="db-text-cell"></td>
+                                </tr>
+                    `);
+                }
+                
+                document.write(`
+                            </tbody>
+                        </table>
+                    </div>
+                `);
+            } else {
+                // 超過天數的空白預留格
+                document.write('<div class="card-empty"></div>');
+            }
+        }
+        
+        document.write('</div>'); // 結束 grid-container
+        
+        // 頁碼區
+        let pageNum = startDay === 1 ? '1' : '2';
+        document.write(`
+            <div class="footer">
+                <div class="page-num">第 ${pageNum} 頁</div>
+            </div>
+        `);
+        
+        document.write('</div>'); // 結束 page
+    }
+
+    // 呼叫生成函式
+    generatePage(1, totalDays);
+    generatePage(17, totalDays);
+</script>
+
+</body>
+</html>

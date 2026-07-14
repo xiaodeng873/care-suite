@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>個人衛生、清潔及大便記錄 - 善頤(福群)</title>
+    <style>
+        @page { size: A4; margin: 5mm 0.2in; }
+        body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; padding: 0; background-color: #fff; color: #000; line-height: 1.1; }
+        .container { width: 100%; box-sizing: border-box; }
+        .title-section { text-align: center; margin-bottom: 12px; }
+        .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; padding-bottom: 2px; }
+        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
+        .info-table td { border: none; padding: 2px 0; vertical-align: bottom; font-size: 16px; font-weight: bold; white-space: nowrap; }
+        .db-line-input { width: 90%; border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 16px; outline: none; padding: 0 0 1px 5px; box-sizing: border-box; }
+        
+        table.main-table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid black; }
+        table.main-table th, table.main-table td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0; }
+        
+        /* 提高表頭高度以容納垂直文字 */
+        table.main-table th { font-size: 11px; font-weight: bold; background-color: #fff; height: 110px; line-height: 1.1; }
+        
+        /* 表頭直排文字樣式 */
+        .vertical-th {
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            white-space: nowrap;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 10px 0;
+            line-height: 1.0;
+        }
+
+        /* 調整行高，確保 31 行在 A4 紙張內不溢出 */
+        .data-row { height: 29px; }
+        .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 12px; text-align: center; outline: none; display: block; box-sizing: border-box; }
+        
+        /* 底部說明文字樣式 */
+        .legend-section {
+            margin-top: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            line-height: 1.4;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 標題區 -->
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>個人衛生、清潔及大便記錄</h2>
+    </div>
+    <br>
+    <!-- 院友資訊區 -->
+    <table class="info-table">
+        <colgroup>
+            <col style="width: 30%;">
+            <col style="width: 22%;">
+            <col style="width: 22%;">
+            <col style="width: 26%;">
+        </colgroup>
+        <tr>
+            <td>院友姓名：<input type="text" class="db-line-input" style="width: 65%;"></td>
+            <td>年齡：<input type="text" class="db-line-input" style="width: 65%;"></td>
+            <td>性別：<input type="text" class="db-line-input" style="width: 65%;"></td>
+            <td>床號：<input type="text" class="db-line-input" style="width: 65%;"></td>
+        </tr>
+    </table>
+
+    <!-- 主數據表格 (19 欄) -->
+    <table class="main-table">
+        <colgroup>
+            <col style="width: 3.5%;"> <!-- 日期 -->
+            <!-- 16 個個人衛生與大便指標欄位 (16 * 4.4% = 70.4%) -->
+            <col style="width: 4.4%;"><col style="width: 4.4%;"><col style="width: 4.4%;"><col style="width: 4.4%;">
+            <col style="width: 4.4%;"><col style="width: 4.4%;"><col style="width: 4.4%;"><col style="width: 4.4%;">
+            <col style="width: 4.4%;"><col style="width: 4.4%;"><col style="width: 4.4%;"><col style="width: 4.4%;">
+            <col style="width: 4.4%;"><col style="width: 4.4%;"><col style="width: 4.4%;"><col style="width: 4.4%;">
+            <!-- 備註與簽名寬度 -->
+            <col style="width: 14.1%;"> <!-- 備註 -->
+            <col style="width: 12%;">   <!-- 職員簽名 -->
+        </colgroup>
+        <thead>
+            <tr>
+                <th style="font-size: 14px; font-weight: bold; padding: 4px;">日期</th>
+                <th class="vertical-th">沖涼洗頭</th>
+                <th class="vertical-th">洗面</th>
+                <th class="vertical-th">刷牙漱口</th>
+                <th class="vertical-th">洗口浸假牙</th>
+                <th class="vertical-th">剪髮</th>
+                <th class="vertical-th">剃鬚</th>
+                <th class="vertical-th">剪指甲</th>
+                <th class="vertical-th">換被套</th>
+                <th class="vertical-th">換床單枕袋</th>
+                <th class="vertical-th">洗杯</th>
+                <th class="vertical-th">整理床頭櫃</th>
+                <th class="vertical-th">整理衣箱</th>
+                <th class="vertical-th">#大便次數</th>
+                <th class="vertical-th">*大便量</th>
+                <th class="vertical-th">∨大便性質</th>
+                <th class="vertical-th">+大便藥</th>
+                <th style="font-size: 10px; padding: 4px; line-height: 1.2;">備註<br>(如大便有血、<br>潺或黑糞)</th>
+                <th style="font-size: 11px; padding: 4px; line-height: 1.2;">職員<br>簽名</th>
+            </tr>
+        </thead>
+        <tbody>
+            <script>
+                // 動態生成 1 至 31 號的數據列
+                for (let i = 1; i <= 31; i++) {
+                    document.write('<tr class="data-row">');
+                    // 日期序號
+                    document.write(`<td><b>${i}</b></td>`);
+                    // 16 個數據單元格
+                    for (let j = 0; j < 16; j++) {
+                        document.write('<td><input class="db-text-cell"></td>');
+                    }
+                    // 備註欄
+                    document.write('<td><input class="db-text-cell"></td>');
+                    // 職員簽名欄
+                    document.write('<td><input class="db-text-cell"></td>');
+                    document.write('</tr>');
+                }
+            </script>
+        </tbody>
+    </table>
+
+    <!-- 底部說明文字區 -->
+    <div class="legend-section">
+        <div>#大便次數：以 "正" 字表示; &gt;大便性質：硬=H &nbsp;軟=S &nbsp;稀/水狀=W</div>
+        <div>*大便量：大量"+++"; 中量以"++"; 少量以"+" 表示。</div>
+        <div>+按醫囑給予口服大便藥以「★」記錄；按醫囑給予栓劑以「▲」記錄。</div>
+    </div>
+</div>
+</body>
+</html>

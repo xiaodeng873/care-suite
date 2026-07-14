@@ -57,7 +57,10 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
     wound_origin: wound?.wound_origin || ('facility' as WoundOrigin),
     responsible_unit: wound?.responsible_unit || ('facility_staff' as ResponsibleUnit),
     responsible_unit_other: wound?.responsible_unit_other || '',
-    remarks: wound?.remarks || ''
+    remarks: wound?.remarks || '',
+    assessment_frequency_unit: (wound?.assessment_frequency_unit ?? 'daily') as 'daily' | 'weekly',
+    assessment_frequency_value: wound?.assessment_frequency_value ?? 7,
+    assessment_specific_days_of_week: wound?.assessment_specific_days_of_week ?? [] as number[],
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -109,11 +112,27 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
     setIsLoading(true);
 
     try {
-      // 計算下次評估日期：發現日期 + 7 天
-      const calculateNextAssessmentDue = (discoveryDate: string): string => {
-        const date = new Date(discoveryDate);
-        date.setDate(date.getDate() + 7);
-        return date.toISOString().split('T')[0];
+      // 計算首次評估日期（沿用 taskScheduler 邏輯）
+      const computeInitialNextDue = (baseDate: string): string => {
+        if (formData.assessment_frequency_unit === 'weekly' && formData.assessment_specific_days_of_week.length > 0) {
+          const targetDays = formData.assessment_specific_days_of_week.map(d => d === 7 ? 0 : d);
+          for (let i = 1; i <= 7; i++) {
+            const check = new Date(baseDate);
+            check.setDate(check.getDate() + i);
+            if (targetDays.includes(check.getDay())) return check.toISOString().split('T')[0];
+          }
+        }
+        const interval = formData.assessment_frequency_unit === 'daily' ? (formData.assessment_frequency_value || 7) : 7;
+        const next = new Date(baseDate);
+        next.setDate(next.getDate() + interval);
+        return next.toISOString().split('T')[0];
+      };
+
+      // 頻率設定欄位
+      const freqFields = {
+        assessment_frequency_unit: formData.assessment_frequency_unit,
+        assessment_frequency_value: formData.assessment_frequency_unit === 'daily' ? formData.assessment_frequency_value : undefined,
+        assessment_specific_days_of_week: formData.assessment_frequency_unit === 'weekly' ? formData.assessment_specific_days_of_week : [],
       };
 
       const woundData = {
@@ -129,13 +148,14 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
         responsible_unit_other: formData.responsible_unit === 'other' ? formData.responsible_unit_other : undefined,
         remarks: formData.remarks || undefined,
         status: 'active' as const,
-        // 自動設定下次評估日期為發現日期 + 7 天
-        next_assessment_due: calculateNextAssessmentDue(formData.discovery_date)
+        ...freqFields,
+        // 不跑過 7 天的首次評估日期
+        next_assessment_due: computeInitialNextDue(formData.discovery_date)
       };
 
       let savedWound: Wound | null = null;
       if (wound?.id) {
-        // 編輯時不更新 next_assessment_due（由評估記錄控制）
+        // 編輯：更新頻率設定，保留 next_assessment_due（由評估流程控制）
         const { next_assessment_due, ...updateData } = woundData;
         savedWound = await updateWound({ id: wound.id, ...updateData });
       } else {
@@ -392,6 +412,64 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
             </div>
           </div>
 
+          {/* 評估頻率設定（沿用任務管理頻率模型） */}
+          <div className="border rounded-lg p-4">
+            <h3 className="text-sm font-medium text-gray-900 mb-4">評估頻率（最多每 7 天一次）</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="form-label">頻率單位</label>
+                <select
+                  value={formData.assessment_frequency_unit}
+                  onChange={e => setFormData(prev => ({ ...prev, assessment_frequency_unit: e.target.value as 'daily' | 'weekly', assessment_specific_days_of_week: [] }))}
+                  className="form-input"
+                >
+                  <option value="daily">每天</option>
+                  <option value="weekly">每週（指定星期）</option>
+                </select>
+              </div>
+              {formData.assessment_frequency_unit === 'daily' && (
+                <div>
+                  <label className="form-label">間隔天數（1–7）</label>
+                  <input
+                    type="number" min={1} max={7}
+                    value={formData.assessment_frequency_value}
+                    onChange={e => setFormData(prev => ({ ...prev, assessment_frequency_value: Math.max(1, Math.min(7, Number(e.target.value))) }))}
+                    className="form-input"
+                  />
+                </div>
+              )}
+            </div>
+            {formData.assessment_frequency_unit === 'weekly' && (
+              <div className="mt-4">
+                <label className="form-label">指定星期幾（每週必须評估）</label>
+                <div className="grid grid-cols-7 gap-2 mt-2">
+                  {['週一','週二','週三','週四','週五','週六','週日'].map((label, idx) => {
+                    const dayNum = idx + 1; // 1=週一...6=週六,7=週日
+                    return (
+                      <label key={dayNum} className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.assessment_specific_days_of_week.includes(dayNum)}
+                          onChange={e => setFormData(prev => ({
+                            ...prev,
+                            assessment_specific_days_of_week: e.target.checked
+                              ? [...prev.assessment_specific_days_of_week, dayNum].sort()
+                              : prev.assessment_specific_days_of_week.filter(d => d !== dayNum)
+                          }))}
+                          className="form-checkbox"
+                        />
+                        <span className="text-sm">{label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {formData.assessment_specific_days_of_week.length === 0 && (
+                  <p className="mt-1 text-xs text-red-500">請至少選擇一個星期</p>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* 備註 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -410,8 +488,7 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
           {/* 提示信息 */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-800">
-              <strong>提示：</strong>新增傷口後，系統會自動設定下次評估日期為發現日期 + 7 天。
-              您可以在傷口詳情頁面進行首次評估。
+              <strong>提示：</strong>可自訂評估頻率（預設 7 天，可改為更頻繁或指定星期）。首次評估日期將依設定自動計算。
             </p>
           </div>
 

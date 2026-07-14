@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>藥物處方單 - 樂善堂 (原件嚴格復刻版)</title>
+    <style>
+        /* A4 紙張與邊距嚴格定義 */
+        @page {
+            size: A4 portrait;
+            margin: 5mm; 
+        }
+
+        body {
+            /* 醫療公文專用字體 */
+            font-family: "PMingLiU", "MingLiU", "新細明體", serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            color: #000;
+        }
+
+        /* 物理鎖定 A4 大外框 (模擬原件外框) */
+        .a4-wrapper {
+            width: 100%;
+            height: 300mm; /* A4高度減去上下margin */
+            border: 2px solid black;
+            box-sizing: border-box;
+            padding: 2px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 頂部編號 */
+        .form-code {
+            text-align: right;
+            font-size: 11px;
+            font-family: sans-serif;
+            margin-bottom: 2px;
+        }
+
+        /* 主佈局表格：完全繼承 Excel 的 12 欄矩陣 */
+        .master-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            height: 100%;
+        }
+
+        /* 單元格基礎設定 */
+        .master-table td {
+            padding: 2px 3px;
+            vertical-align: middle;
+            font-size: 12.5px;
+            white-space: nowrap; /* 嚴格防止換行 */
+            border: none;
+        }
+
+        /* 標題列樣式 */
+        .title-main { font-size: 18px; font-weight: bold; text-align: center; border-bottom: 1px solid black; padding-bottom: 4px; }
+        .title-sub { font-size: 14px; font-weight: bold; padding: 4px 0; border-bottom: 2px solid black; }
+
+        /* 原件特有框線類別 */
+        .border-b-thick { border-bottom: 2px solid black !important; }
+        .border-b { border-bottom: 1px solid black !important; }
+        .border-r { border-right: 1px solid black !important; }
+        .border-t { border-top: 1px solid black !important; }
+
+        /* ================= 要求 1 & 2 核心修正區 ================= */
+        .db-input-line {
+            border: none;
+            /* 要求 1: 底線變更幼 (0.5px) */
+            border-bottom: 0.5px solid #000; 
+            background: transparent;
+            font-family: inherit;
+            font-size: 12.5px;
+            outline: none;
+            box-sizing: border-box;
+            /* 要求 2: 強制向右延伸填滿剩餘空間 */
+            flex-grow: 1; 
+            min-width: 10px;
+            display: block;
+        }
+        
+        .db-input-inline {
+            border: none;
+            /* 要求 1: 底線變更幼 (0.5px) */
+            border-bottom: 0.5px solid #000; 
+            background: transparent;
+            font-family: inherit;
+            font-size: 12.5px;
+            outline: none;
+            text-align: center;
+        }
+        
+        /* 將文字與底線包裝在一起，確保底線能一直延伸到碰到下一個字符 */
+        .flex-cell {
+            display: flex;
+            align-items: flex-end;
+            width: 100%;
+        }
+        /* ========================================================= */
+
+        .db-checkbox { width: 13px; height: 13px; vertical-align: middle; cursor: pointer; margin: 0; }
+        .db-radio { width: 13px; height: 13px; vertical-align: middle; cursor: pointer; margin: 0; }
+        
+        .db-textarea {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: 12.5px;
+            resize: none;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="a4-wrapper">
+    <div class="form-code">表格VMP-2(Ver:2022-11-22)</div>
+
+    <table class="master-table">
+        <!-- 嚴格依據 Excel 比例計算的 12 欄 colgroup，絕無改動 -->
+        <colgroup>
+            <col style="width: 3.35%;">  
+            <col style="width: 5.26%;">  
+            <col style="width: 12.32%;"> 
+            <col style="width: 7.18%;">  
+            <col style="width: 11.00%;"> 
+            <col style="width: 8.85%;">  
+            <col style="width: 3.35%;">  
+            <col style="width: 11.48%;"> 
+            <col style="width: 3.35%;">  
+            <col style="width: 11.00%;"> 
+            <col style="width: 11.00%;"> 
+            <col style="width: 11.84%;"> 
+        </colgroup>
+
+        <tbody>
+            <!-- 標題列 -->
+            <tr>
+                <td colspan="12" class="title-main">九龍樂善堂 - 院舍外展醫生到診服務：藥物處方單</td>
+            </tr>
+            <tr>
+                <td colspan="12" class="title-sub">94 善頤 (福群) 護老院 23811038 / 23815181 九龍旺角博文街36號1字樓、 2字樓及地下部分</td>
+            </tr>
+
+            <!-- 基本資料 -->
+            <tr style="font-weight: bold; font-size: 14px;">
+                <td colspan="2">病人姓名：</td>
+                <td colspan="2"><div class="flex-cell"><input type="text" class="db-input-line"></div></td>
+                <td style="text-align: right;">性別：</td>
+                <td><div class="flex-cell"><input type="text" class="db-input-line"></div></td>
+                <td></td>
+                <td style="text-align: right;">身份證號碼：</td>
+                <td colspan="2"><div class="flex-cell"><input type="text" class="db-input-line"></div></td>
+                <td style="text-align: right;">出生年份：</td>
+                <td><div class="flex-cell"><input type="text" class="db-input-line"></div></td>
+            </tr>
+
+            <!-- 藥物敏感與備註 -->
+            <tr style="height: 25px;">
+                <td colspan="6" class="border-r" style="font-weight: bold; padding-top: 5px;">藥物敏感(Allergy)：[必填]</td>
+                <td colspan="6" rowspan="3" style="font-size: 9px; line-height: 1.3; padding-left: 8px; white-space: normal; vertical-align: top;">
+                    • 此處方只供到診註冊醫生於院舍外展醫療服務下填寫/簽發。<br>
+                    • 任何以商品名標示的藥物，如醫生無特別指示，藥房將決定以同一成分不同品牌替代而不作另行通知。<br>
+                    • 如因藥物包裝或劑型限制(例如樽裝藥水因衛生問題不能再分裝)而未能配發醫生指示之藥物總數量，藥房可自行決定並配發合理的藥物總數量。<br>
+                    • 如處方需要更改，我們的藥劑師會與主診醫生於電話(語音或APP)確認變動後，註明於交給院舍的處方副本。<br>
+                    • 如醫生只寫藥名及用法，藥房會根據與醫生最新協議的藥物名冊內列出的藥物進行打單。<br>
+                    <span style="font-weight: bold; font-size: 11px; font-family: sans-serif;">Fax : 2361-6933&nbsp;&nbsp;&nbsp;Whatsapp : 9730-0960&nbsp;&nbsp;&nbsp;Tel : 2361-1308</span>
+                </td>
+            </tr>
+            <tr style="height: 25px;">
+                <td colspan="6" class="border-r border-b"><div class="flex-cell"><input type="text" class="db-input-line" style="border:none;"></div></td>
+            </tr>
+            <tr style="height: 25px;">
+                <td colspan="6" class="border-r" style="font-weight: bold; padding-top: 5px;">藥物不良反應(Adverse Drug Reaction / Alert)：[如有]</td>
+            </tr>
+            <tr style="height: 25px;">
+                <td colspan="6" class="border-r border-b-thick"><div class="flex-cell"><input type="text" class="db-input-line" style="border:none;"></div></td>
+                <td colspan="6" class="border-b-thick"></td>
+            </tr>
+
+            <!-- 診斷 -->
+            <tr style="height: 25px;">
+                <td colspan="12" style="font-weight: bold; text-decoration: underline; padding-top: 5px;">診斷 (Diagnoses)</td>
+            </tr>
+            <tr style="height: 40px;">
+                <td colspan="12" class="border-b-thick"><textarea class="db-textarea"></textarea></td>
+            </tr>
+
+            <!-- ================= 藥物清單 ================= -->
+            <tr>
+                <td colspan="6" class="border-r" style="font-weight: bold; text-decoration: underline; padding-top: 4px;">Oral</td>
+                <td colspan="6" style="padding-top: 4px;"></td>
+            </tr>
+
+            <!-- Row 1 -->
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Acetylcysteine 200mg/sac</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Lactéol fort (<input type="text" class="db-input-inline" style="width: 30px;">cap)</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            <!-- Row 2 -->
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Ambroxol 30mg/tab</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Lactobacillus Reuteri Tab</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            <!-- Row 3 -->
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Ampiclox 250mg+250mg (<input type="text" class="db-input-inline" style="width:30px;">cap)</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Lasix tab (<input type="text" class="db-input-inline" style="width:30px;">mg)</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            
+            <!-- Row 4 & 5 (Loperamide Nested Rowspan) -->
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Augmentin tab (<input type="text" class="db-input-inline" style="width:30px;">mg)</span><input type="text" class="db-input-line"></div></td>
+                <td rowspan="2" class="border-b border-t border-r" style="text-align:center; border-left:1px solid black;"><input type="checkbox" class="db-checkbox"></td>
+                <td rowspan="2" class="border-b border-t border-r" style="white-space:normal; font-size:11.5px;">Loperamide<br>2mg/tab</td>
+                <td class="border-t border-r" style="text-align:center;"><input type="radio" class="db-radio" name="lope"></td>
+                <td colspan="3" class="border-t border-r" style="white-space:normal; font-size:10.5px; padding-bottom:2px;">
+                    <div class="flex-cell" style="white-space:normal; line-height: 1.2;">
+                        PRN: 2 tabs initially, then 1 tab after each loose stool (Max<input type="text" class="db-input-inline" style="width:30px;">tabs/day),supply<input type="text" class="db-input-inline" style="width:30px;">days
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Bromhexine 8mg/tab</span><input type="text" class="db-input-line"></div></td>
+                <td class="border-t border-b border-r" style="text-align:center;"><input type="radio" class="db-radio" name="lope"></td>
+                <td colspan="3" class="border-t border-b border-r"><div class="flex-cell"><input type="text" class="db-input-line" style="border-bottom:none;"></div></td>
+            </tr>
+
+            <!-- Row 6 -->
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Buscopan 10mg/tab</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Loratadine 10mg/tab</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            <!-- Row 7 -->
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">CeleCOXIB cap (<input type="text" class="db-input-inline" style="width:30px;">mg)</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Lysozyme 60mg/tab</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            <!-- Row 8 -->
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">CetiriZINE 10mg/tab</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Merision 6mg/tab</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+
+            <!-- Row 9 & 10 (Metronidazole Nested Rowspan) -->
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Chlorpheniramine 4mg/tab</span><input type="text" class="db-input-line"></div></td>
+                <td rowspan="2" class="border-b border-t border-r" style="text-align:center; border-left:1px solid black;"><input type="checkbox" class="db-checkbox"></td>
+                <td rowspan="2" class="border-b border-t border-r" style="white-space:normal; font-size:11.5px;">Metronidazole<br>200mg/tab</td>
+                <td class="border-t border-r" style="text-align:center;"><input type="radio" class="db-radio" name="metro"></td>
+                <td colspan="3" class="border-t border-r" style="font-size:11px;">
+                    <div class="flex-cell">
+                        <span style="text-decoration:underline; font-weight:bold;">LA:</span> to wound (<input type="text" class="db-input-inline" style="width:30px;">tabs) daily for <input type="text" class="db-input-inline" style="width:30px;">days
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Ciprofloxacin tab (<input type="text" class="db-input-inline" style="width:30px;">mg)</span><input type="text" class="db-input-line"></div></td>
+                <td class="border-t border-b border-r" style="text-align:center;"><input type="radio" class="db-radio" name="metro"></td>
+                <td colspan="3" class="border-t border-b border-r">
+                    <div class="flex-cell"><span style="font-weight:bold;">PO:</span><input type="text" class="db-input-line" style="border-bottom: none;"></div>
+                </td>
+            </tr>
+
+            <!-- Row 11-17 -->
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Dequalinium 0.25mg/loz</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Mylanta chewable tab</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">DexTROMETHORPHAN 15mg/tab</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Pantoprazole 20mg/tab</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">DiphenhydrAMINE 25mg/cap</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Paracetamol 500mg/tab</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Famotidine tab (<input type="text" class="db-input-inline" style="width:30px;">mg)</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Pregabalin cap (<input type="text" class="db-input-inline" style="width:30px;">mg)</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">GASteel 40mg/tab</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Salbutamol 2mg/tab</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">GraVOL 50mg/tab</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Senokot 7.5mg/tab</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Ibuprofen tab (<input type="text" class="db-input-inline" style="width:30px;">mg)</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Theophylline SR (<input type="text" class="db-input-inline" style="width:30px;">mg)</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+
+            <!-- Oral (Liquid) 標題 -->
+            <tr>
+                <td colspan="6" class="border-r border-t" style="font-weight: bold; text-decoration: underline; padding-top: 4px;">Oral (Liquid)</td>
+                <td colspan="6" class="border-t"></td>
+            </tr>
+            
+            <!-- Liquid & Right Column matches -->
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Benadryl Exp.</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">DM-Cocillana cpd. syrup</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Cocillana cpd. syrup</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Lactulose liquid</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Dextromethorphan 15mg/5ml syrup</span><input type="text" class="db-input-line"></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">MES syrup</span><input type="text" class="db-input-line"></div></td>
+            </tr>
+
+            <!-- External Preparations -->
+            <tr>
+                <td colspan="6" class="border-r border-t" style="font-weight: bold; text-decoration: underline; padding-top: 4px;">External Preparations</td>
+                <td colspan="6" class="border-t"></td>
+            </tr>
+            <tr>
+                <td colspan="6" class="border-r" style="font-size: 10px; color: #555;">(Qty can be multiples of 7.5g if pack size not specified)</td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Fucidin 2% cream [15g]</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">tube)</span></div></td>
+            </tr>
+            
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Aciclovir 5% cream [5g]</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">tube)</span></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Gentamicin sulphate 0.3% cream</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">g)</span></div></td>
+            </tr>
+
+            <!-- Hirudoid Nested -->
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Aqueous cream</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">g)</span></div></td>
+                <td rowspan="2" class="border-b border-t border-r" style="text-align:center; border-left:1px solid black;"><input type="checkbox" class="db-checkbox"></td>
+                <td rowspan="2" class="border-b border-t border-r">Hirudoid</td>
+                <td class="border-t border-r" style="text-align:center;"><input type="radio" class="db-radio" name="hiru"></td>
+                <td colspan="3" class="border-t">
+                    <div class="flex-cell"><span class="med-name">Gel (250U/g) [20g]</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">tube)</span></div>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Bisacodyl 10mg supp PR</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">supp)</span></div></td>
+                <td class="border-t border-b border-r" style="text-align:center;"><input type="radio" class="db-radio" name="hiru"></td>
+                <td colspan="3" class="border-t border-b">
+                    <div class="flex-cell"><span class="med-name">FORTE (400U/g) cream [15g]</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">tube)</span></div>
+                </td>
+            </tr>
+
+            <!-- Last external rows -->
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Chlorpheniramine 0.5%eye drops [10ml]</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">Bot)</span></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5">Hydrocortisone 1%</td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Clotrimazole 1% cream [20g]</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">tube)</span></div></td>
+                <td></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">+ Miconazole 2% cream [15g]</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">tube)</span></div></td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Diclofenac 1% gel [25g]</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">tube)</span></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Hypromellose 0.3% eye drops [10ml]</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">Bot)</span></div></td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Eurax 10% cream</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">g)</span></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Mometasone 0.1% cream [15g]</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">tube)</span></div></td>
+            </tr>
+            <tr>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5" class="border-r"><div class="flex-cell"><span class="med-name">Fluocinolone 0.025% cream [15g]</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">tube)</span></div></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Olopatadine 0.1% eye drops [5ml]</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">Bot)</span></div></td>
+            </tr>
+            <tr>
+                <td colspan="6" class="border-r"></td>
+                <td style="text-align:center;"><input type="checkbox" class="db-checkbox"></td>
+                <td colspan="5"><div class="flex-cell"><span class="med-name">Zinc oxide cream</span><input type="text" class="db-input-line"><span style="white-space:nowrap;">(<input type="text" class="db-input-inline" style="width:30px;">g)</span></div></td>
+            </tr>
+            
+            <!-- 底部簽名區 -->
+            <tr>
+                <td colspan="6" rowspan="3" class="border-t border-r" style="vertical-align: top; padding: 2px;">
+                    <div style="font-weight:bold; text-decoration:underline;">其他藥物處方 (如有)/備註 (Other Prescriptions [if any]/Remarks]</div>
+                    <textarea class="db-textarea"></textarea>
+                </td>
+                <td colspan="6" class="border-t" style="padding: 4px 6px;">
+                    <br><div class="flex-cell" style="font-weight:bold; font-size:14px;">醫生簽名：<input type="text" class="db-input-line" style="border-bottom: 1px solid black;"></div><br><br>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="6" style="padding: 4px 6px;">
+                    <div class="flex-cell" style="font-weight:bold; font-size:14px;">醫生姓名/蓋印：<input type="text" class="db-input-line" style="border-bottom: 1px solid black;"></div><br>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="6" style="padding: 4px 6px; vertical-align: bottom;">
+                    <div class="flex-cell" style="font-weight:bold; font-size:14px; margin-bottom: 4px;">日期：<input type="text" class="db-input-line" style="border-bottom: 1px solid black;"></div>
+                    <div style="font-size: 8.5px; font-weight: bold;">[Address: Portion of 1/F, No.50Junction Rd, Kowloon City, Kln.]</div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>

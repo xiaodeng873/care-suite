@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>私人物品記錄表 - 善頤(福群)</title>
+    <style>
+        /* A4 紙張規格與出血位設定 */
+        @page {
+            size: A4;
+            margin: 5mm 12mm; /* 頂部極窄 5mm，左右 12mm 出血位 */
+        }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.25;
+        }
+
+        .a4-container {
+            width: 100%; /* 依靠 @page margin 鎖定 186mm (210-12-12) */
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* 標題區域極致置頂 */
+        .title-section {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .title-section h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .title-section h2 {
+            margin: 2px 0 0 0;
+            font-size: 20px;
+            font-weight: bold;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        /* 專業隱形表格佈局 - 確保不穿透、不超頁 */
+        .info-layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed; /* 強制鎖定欄寬 */
+            margin-bottom: 10px;
+        }
+        .info-layout-table td {
+            border: none;
+            padding: 2px 0;
+            vertical-align: bottom;
+            font-size: 15px;
+            font-weight: bold;
+            white-space: nowrap; /* 標籤不換行 */
+        }
+
+        .db-line-input {
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 16px;
+            padding: 0 5px;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* 主表格 - 嚴格保持 40px 高度 */
+        table.belongings-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            border: 1.5px solid black;
+            margin-bottom: 12px;
+        }
+        table.belongings-table th, 
+        table.belongings-table td {
+            border: 1px solid black;
+            height: 40px;
+            padding: 0 8px;
+            vertical-align: middle;
+            font-size: 16px;
+        }
+        table.belongings-table th {
+            font-weight: bold;
+            text-align: center;
+        }
+        .col-item { width: 45%; }
+        .col-qty  { width: 12%; }
+        .col-note { width: 43%; }
+
+        .db-checkbox {
+            width: 15px;
+            height: 15px;
+            vertical-align: middle;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        .db-text-cell {
+            width: 100%;
+            height: 24px;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+            display: block;
+        }
+
+        .text-section {
+            font-size: 16px;
+            text-align: justify;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        .bold-label { font-weight: bold; text-decoration: underline; }
+
+        /* 簽署區域 */
+        .sig-block { margin-top: 5px; }
+        .sig-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .sig-table td { border: none; padding: 4px 0; font-size: 16px; font-weight: bold; vertical-align: bottom; }
+
+        .footer-wrap {
+            width: 100%;
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            position: relative;
+        }
+        .page-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .doc-code {
+            font-size: 11px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="a4-container">
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>私人物品記錄表</h2>
+    </div>
+
+    <div style="font-weight: bold; font-size: 15px; margin-bottom: 5px;">個人資料：</div>
+    <!-- 使用專業隱形表格解決穿透與寬度問題 -->
+    <table class="info-layout-table">
+        <colgroup>
+            <col style="width: 35%;">
+            <col style="width: 35%;">
+            <col style="width: 30%;">
+        </colgroup>
+        <tr>
+            <td>院友姓名 ：<div style="display:inline-block; width: 60%;"><input type="text" class="db-line-input"></div></td>
+            <td>身份證號碼 ：<div style="display:inline-block; width: 60%;"><input type="text" class="db-line-input"></div></td>
+            <td>房 / 床號 ：<div style="display:inline-block; width: 55%;"><input type="text" class="db-line-input"></div></td>
+        </tr>
+        <tr>
+            <td style="line-height: 1.1;">*監護人/保證人/<br>家人/親屬姓名 ：<div style="display:inline-block; width: 55%;"><input type="text" class="db-line-input"></div></td>
+            <td>身份證號碼 ：<div style="display:inline-block; width: 60%;"><input type="text" class="db-line-input"></div></td>
+            <td>與院友關係 ：<div style="display:inline-block; width: 55%;"><input type="text" class="db-line-input"></div></td>
+        </tr>
+    </table>
+
+    <br>
+    <table class="belongings-table">
+        <thead>
+            <tr>
+                <th class="col-item">物品</th>
+                <th class="col-qty">數量</th>
+                <th class="col-note">備註</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><input type="checkbox" class="db-checkbox">假牙</td>
+                <td><input type="text" class="db-text-cell" style="text-align: center;"></td>
+                <td><input type="text" class="db-text-cell"></td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" class="db-checkbox">助聽器</td>
+                <td><input type="text" class="db-text-cell" style="text-align: center;"></td>
+                <td><input type="text" class="db-text-cell"></td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" class="db-checkbox">眼鏡</td>
+                <td><input type="text" class="db-text-cell" style="text-align: center;"></td>
+                <td><input type="text" class="db-text-cell"></td>
+            </tr>
+            <script>
+                for(let i=1; i<=4; i++){
+                    document.write(`
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="db-checkbox">其他 ${i}：(註明：<div style="display:inline-block; width:100px;"><input type="text" class="db-line-input" style="border-bottom-color: #ccc; font-size:14px;"></div>)
+                        </td>
+                        <td><input type="text" class="db-text-cell" style="text-align: center;"></td>
+                        <td><input type="text" class="db-text-cell"></td>
+                    </tr>
+                    `);
+                }
+            </script>
+        </tbody>
+    </table>
+
+    <div class="text-section">
+        <span class="bold-label">備註：</span><br>
+        (1) 上述物品屬院友自行存放之物品，院友須自行妥善保管，本院不會對上述物品的任何損失、損毀、丟棄或遺失賠償或負上責任。
+    </div>
+
+    <div class="text-section">
+        <span class="bold-label">聲明：</span><br>
+        *院友/監護人/保證人/家人/親屬確認已閱讀、明白及同意接受本記錄之條款及細則。
+    </div>
+    <div class="sig-block">
+        <table class="sig-table">
+            <tr>
+                <td width="50%">*監護人/保證人/家人/親屬簽署：</td>
+                <td width="50%">*監護人/保證人/家人/親屬姓名：</td>
+            </tr>
+        </table>
+<br>       
+ <table class="sig-table">
+            <tr>
+                <td width="50%"><div style="display:inline-block; width: 70%; border-bottom: 1px solid black;"></div></td>
+                <td width="50%"><div style="display:inline-block; width: 70%; border-bottom: 1px solid black;"><input type="text" class="db-text-cell"></div></td>
+            </tr>
+        </table>
+        <br><br>
+        <div class="sig-table" style="display: block;">
+            院友簽署：<div style="display:inline-block; width: 30%; border-bottom: 1px solid black;">&nbsp;</div>
+        </div>
+        <br><br>
+        <div class="sig-table" style="display: block;">
+            日期：<div style="display:inline-block; width: 25%; border-bottom: 1px solid black;"><input type="text" class="db-text-cell"></div>
+        </div>
+        <div style="font-weight: bold; font-size: 16px; margin: 15px 0 10px 0;">本院見證人</div>
+        <table class="sig-table">
+            <tr>
+                <td width="50%">姓名及職位：<div style="display:inline-block; width: 60%; border-bottom: 1px solid black;"><input type="text" class="db-text-cell"></div></td>
+                <td width="50%">簽署：<div style="display:inline-block; width: 60%; border-bottom: 1px solid black;">&nbsp;</div></td>
+            </tr>
+        </table>
+        <br>
+        <div class="sig-table" style="display: block;">
+            日期：<div style="display:inline-block; width: 25%; border-bottom: 1px solid black;"><input type="text" class="db-text-cell"></div>
+        </div>
+    </div>
+
+    <div style="font-size: 13px; margin-top: 10px;">* 請刪去不適用者</div>
+
+    <div class="footer-wrap">
+        <div class="page-center">18</div>
+        <div class="doc-code">A23A FK (08.2023)</div>
+    </div>
+</div>
+
+</body>
+</html>

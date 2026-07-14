@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>善頤(福群)護老院 - 院友個人及健康記錄 (原生精準版)</title>
+    <style>
+        /* 1. 嚴格鎖定 A4 紙張幾何規格 */
+        body {
+            background-color: #525659;
+            display: flex;
+            justify-content: center;
+            font-family: "DFKai-SB", "BiauKai", "標楷體", "MingLiU", serif;
+            font-size: 14px;
+            color: #000000;
+            margin: 0;
+            padding: 0; 
+        }
+
+        .a4-page {
+            background-color: #ffffff;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 10mm 15mm 15mm 15mm; 
+            box-sizing: border-box;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        /* 標頭佈局：左側放站方塊，中間標題置中 */
+        .header-section {
+            display: flex;
+            align-items: flex-start;
+            width: 100%;
+            margin-bottom: 5px;
+            position: relative;
+        }
+
+        /* "站" 方塊 */
+        .station-box-new {
+            border: 1.5px solid black;
+            width: 70px;
+            height: 53px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: bold;
+            margin-right: 6px;
+            flex-shrink: 0; /* 防止方塊被擠壓 */
+        }
+        
+        .title-box {
+            text-align: center;
+            flex-grow: 1;
+            /* 為了抵消左側 51px (45+6) 的位移，讓文字真正置中 */
+            margin-right: 51px; 
+        }
+        
+        .title-box h1 {
+            font-size: 24px;
+            margin: 0;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        
+        .title-box h2 {
+            font-size: 18px;
+            margin: 6px 0 0 0;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .instruction-note {
+            text-align: left; 
+            font-size: 13px;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-weight: normal; 
+        }
+
+        /* 3. 印刷級表格控制 */
+        table {
+            width: 100%;
+            border-collapse: collapse; 
+            margin-bottom: 12px;
+            table-layout: fixed; 
+        }
+        
+        td {
+            border: 1px solid #000000; 
+            padding: 5px 6px;
+            vertical-align: middle;
+            text-align: left;
+            height: 30px; 
+        }
+
+        .profile-table td {
+            height: 15px; 
+            padding: 3px 6px; 
+        }
+
+        .social-table td {
+            height: 22.5px;
+            padding: 4px 6px; 
+        }
+
+        .label-text {
+            font-weight: bold; 
+            white-space: nowrap;
+        }
+        
+        .bold-text {
+            font-weight: bold;
+        }
+
+        .no-vertical-line td:first-child {
+            border-right: none;
+        }
+        .no-vertical-line td:nth-child(2) {
+            border-left: none;
+        }
+
+        .section-heading-noborder {
+            font-size: 15px;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 5px;
+        }
+
+        /* DB 布林值映射原生 Checkbox */
+        .db-checkbox {
+            width: 14px;
+            height: 14px;
+            margin-right: 3px;
+            vertical-align: middle;
+            cursor: pointer;
+        }
+
+        .option-span {
+            display: inline-block;
+            margin-right: 15px;
+            white-space: nowrap;
+            font-weight: normal !important; 
+        }
+
+        /* DB 文字映射容器 */
+        .db-text-cell {
+            border: none;
+            background: transparent;
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            font-size: 14px;
+            color: #000000;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            outline: none;
+        }
+
+        /* 有底線項目使用的輸入框 */
+        .db-line-input {
+            border: none;
+            border-bottom: 1px solid #000000;
+            background: transparent;
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            font-size: 14px;
+            padding: 0 0 0 4px;
+            vertical-align: bottom;
+        }
+
+        .flex-row-fill {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            width: 100%;
+        }
+
+        .footer-section {
+            margin-top: 20px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        @media print {
+            body { background-color: #ffffff; padding: 0; }
+            .a4-page { width: 100%; box-shadow: none; padding: 0; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="a4-page">
+        
+        <div class="header-section">
+            <div class="station-box-new"><input type="text" name="station_code" class="db-text-cell">站</div>
+            <div class="title-box">
+                <h1>善頤(福群)護老院</h1>
+                <h2>院友個人及健康記錄(2頁)</h2>
+            </div>
+        </div>
+
+        <div class="instruction-note">(請在適當位置 ☒ )</div>
+
+        <!-- 表格一：個人基本資料 -->
+        <table class="profile-table">
+            <colgroup>
+                <col style="width: 15%;">
+                <col style="width: 23%;">
+                <col style="width: 16%;">
+                <col style="width: 21%;">
+                <col style="width: 25%;">
+            </colgroup>
+            <tr>
+                <td class="label-text" style="border-right: none;">姓名:(中文)</td>
+                <td colspan="2" style="border-left: none; border-right: none;"><input type="text" name="p_name_ch" class="db-text-cell"></td>
+                <td class="label-text" style="border-left: none; border-right: none;">(英文)</td>
+                <td style="border-left: none;"><input type="text" name="p_name_en" class="db-text-cell"></td>
+            </tr>
+            <tr>
+                <td class="label-text">性別:</td>
+                <td>
+                    <span class="option-span"><input type="checkbox" name="p_sex_m" class="db-checkbox">男</span>
+                    <span class="option-span"><input type="checkbox" name="p_sex_f" class="db-checkbox">女</span>
+                </td>
+                <td class="label-text">出生日期:</td>
+                <td colspan="2"><input type="text" name="p_birth" class="db-text-cell"></td>
+            </tr>
+            <tr>
+                <td class="label-text">身份證號碼:</td>
+                <td><input type="text" name="p_id_no" class="db-text-cell"></td>
+                <td class="label-text">入住本院日期:</td>
+                <td colspan="2"><input type="text" name="p_admission_date" class="db-text-cell"></td>
+            </tr>
+            <tr>
+                <td class="label-text">通訊電話:</td>
+                <td><input type="text" name="p_phone" class="db-text-cell"></td>
+                <td class="label-text">退院日期:</td>
+                <td style="border-right: none;"><input type="text" name="p_leave_date" class="db-text-cell"></td>
+                <td style="border-left: none;">
+                    <span class="option-span"><input type="checkbox" name="leave_reason_transfer" class="db-checkbox">轉院</span>
+                    <span class="option-span"><input type="checkbox" name="leave_reason_death" class="db-checkbox">死亡</span>
+                </td>
+            </tr>
+            <tr style="height: 45px;"> 
+                <td class="label-text" style="vertical-align: top; padding-top: 4px;">通訊地址:</td>
+                <td colspan="4" style="vertical-align: top;"><textarea name="p_address" class="db-text-cell" style="resize:none; font-size:14px; line-height:1.4; font-family:inherit;"></textarea></td>
+            </tr>
+        </table>
+
+        <!-- 表格二：緊急聯絡人 -->
+        <table>
+            <colgroup>
+                <col style="width: 33.33%;">
+                <col style="width: 33.33%;">
+                <col style="width: 33.33%;">
+            </colgroup>
+            <tr style="text-align: center;">
+                <td>
+                    <div class="bold-text">聯絡人(一)</div>
+                    <div style="margin-top: 5px;"><input type="checkbox" name="c1_is_emergency" class="db-checkbox"> 緊急情況時之聯絡人</div>
+                </td>
+                <td>
+                    <div class="bold-text">聯絡人(二)(如適用)</div>
+                    <div style="margin-top: 5px;"><input type="checkbox" name="c2_is_emergency" class="db-checkbox"> 緊急情況時之聯絡人</div>
+                </td>
+                <td>
+                    <div class="bold-text">聯絡人(三)(如適用)</div>
+                    <div style="margin-top: 5px;"><input type="checkbox" name="c3_is_emergency" class="db-checkbox"> 緊急情況時之聯絡人</div>
+                </td>
+            </tr>
+            <tr style="height: 65px; vertical-align: top;">
+                <td>
+                    <div class="bold-text">聯絡人姓名及身份證號碼:</div>
+                    <textarea name="c1_name_id" class="db-text-cell" style="resize:none; margin-top:5px; height:40px; font-family:inherit;"></textarea>
+                </td>
+                <td>
+                    <div class="bold-text">聯絡人姓名及身份證號碼:</div>
+                    <textarea name="c2_name_id" class="db-text-cell" style="resize:none; margin-top:5px; height:40px; font-family:inherit;"></textarea>
+                </td>
+                <td>
+                    <div class="bold-text">聯絡人姓名及身份證號碼:</div>
+                    <textarea name="c3_name_id" class="db-text-cell" style="resize:none; margin-top:5px; height:40px; font-family:inherit;"></textarea>
+                </td>
+            </tr>
+            <tr style="height: 40px; vertical-align: middle;">
+                <td>
+                    <div style="display: flex; align-items: center; width:100%; height:100%;">
+                        <span class="bold-text" style="white-space: nowrap;">關係:</span>
+                        <input type="text" name="c1_relation" class="db-text-cell" style="margin-left: 5px;">
+                    </div>
+                </td>
+                <td>
+                    <div style="display: flex; align-items: center; width:100%; height:100%;">
+                        <span class="bold-text" style="white-space: nowrap;">關係:</span>
+                        <input type="text" name="c2_relation" class="db-text-cell" style="margin-left: 5px;">
+                    </div>
+                </td>
+                <td>
+                    <div style="display: flex; align-items: center; width:100%; height:100%;">
+                        <span class="bold-text" style="white-space: nowrap;">關係:</span>
+                        <input type="text" name="c3_relation" class="db-text-cell" style="margin-left: 5px;">
+                    </div>
+                </td>
+            </tr>
+            <tr style="height: 65px; vertical-align: top;">
+                <td>
+                    <div class="bold-text">聯絡方法(電話/地址):</div>
+                    <textarea name="c1_contact_detail" class="db-text-cell" style="resize:none; margin-top:5px; height:40px; font-family:inherit;"></textarea>
+                </td>
+                <td>
+                    <div class="bold-text">聯絡方法(電話/地址):</div>
+                    <textarea name="c2_contact_detail" class="db-text-cell" style="resize:none; margin-top:5px; height:40px; font-family:inherit;"></textarea>
+                </td>
+                <td>
+                    <div class="bold-text">聯絡方法(電話/地址):</div>
+                    <textarea name="c3_contact_detail" class="db-text-cell" style="resize:none; margin-top:5px; height:40px; font-family:inherit;"></textarea>
+                </td>
+            </tr>
+            <tr style="height: 45px; vertical-align: middle;">
+                <td><div style="display: flex; align-items: center; width:100%; height:100%;"><span class="bold-text" style="white-space: nowrap;">備註:</span><input type="text" name="c1_remark" class="db-text-cell" style="margin-left: 5px;"></div></td>
+                <td><div style="display: flex; align-items: center; width:100%; height:100%;"><span class="bold-text" style="white-space: nowrap;">備註:</span><input type="text" name="c2_remark" class="db-text-cell" style="margin-left: 5px;"></div></td>
+                <td><div style="display: flex; align-items: center; width:100%; height:100%;"><span class="bold-text" style="white-space: nowrap;">備註:</span><input type="text" name="c3_remark" class="db-text-cell" style="margin-left: 5px;"></div></td>
+            </tr>
+        </table>
+
+        <div class="section-heading-noborder">社交狀況</div>
+
+        <!-- 表格三：社交狀況 -->
+        <table class="no-vertical-line social-table">
+            <colgroup>
+                <col style="width: 18%;">
+                <col style="width: 82%;">
+            </colgroup>
+            <tr>
+                <td class="label-text">教育程度:</td>
+                <td>
+                    <span class="option-span"><input type="checkbox" name="edu_none" class="db-checkbox">未受教育</span>
+                    <span class="option-span"><input type="checkbox" name="edu_read" class="db-checkbox">未受教育,但可閱報</span>
+                    <span class="option-span"><input type="checkbox" name="edu_primary" class="db-checkbox">小學</span>
+                    <span class="option-span"><input type="checkbox" name="edu_secondary" class="db-checkbox">中學</span>
+                    <span class="option-span"><input type="checkbox" name="edu_university" class="db-checkbox">大學</span>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-text">所用語言:</td>
+                <td>
+                    <div class="flex-row-fill">
+                        <span class="option-span"><input type="checkbox" name="lang_canton" class="db-checkbox">廣東話</span>
+                        <span class="option-span"><input type="checkbox" name="lang_chiu" class="db-checkbox">潮州話</span>
+                        <span class="option-span"><input type="checkbox" name="lang_fukien" class="db-checkbox">福建話</span>
+                        <span class="option-span"><input type="checkbox" name="lang_hakka" class="db-checkbox">客家話</span>
+                        <span class="option-span"><input type="checkbox" name="lang_shanghai" class="db-checkbox">上海話</span>
+                        <span class="option-span"><input type="checkbox" name="lang_mandarin" class="db-checkbox">國語(普通話)</span>
+                        <span class="option-span" style="flex-grow: 1; display: flex; align-items: flex-end; margin-right: 0;">
+                            <input type="checkbox" name="lang_other_cb" class="db-checkbox">其他:<input type="text" name="lang_other_text" class="db-line-input" style="flex-grow: 1; margin-left: 5px;">
+                        </span>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-text">從前主要職業:</td>
+                <td><input type="text" name="prev_occupation" class="db-text-cell"></td>
+            </tr>
+            <tr>
+                <td class="label-text">宗教信仰:</td>
+                <td>
+                    <div class="flex-row-fill">
+                        <span class="option-span"><input type="checkbox" name="rel_catholic" class="db-checkbox">天主教</span>
+                        <span class="option-span"><input type="checkbox" name="rel_christian" class="db-checkbox">基督教</span>
+                        <span class="option-span"><input type="checkbox" name="rel_buddhism" class="db-checkbox">佛教</span>
+                        <span class="option-span"><input type="checkbox" name="rel_islam" class="db-checkbox">回教</span>
+                        <span class="option-span" style="flex-grow: 1; display: flex; align-items: flex-end; margin-right: 0;">
+                            <input type="checkbox" name="rel_other_cb" class="db-checkbox">其他:<input type="text" name="rel_other_text" class="db-line-input" style="flex-grow: 1; margin-left: 5px;">
+                        </span>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-text">婚姻狀況:</td>
+                <td>
+                    <span class="option-span"><input type="checkbox" name="marry_single" class="db-checkbox">單身</span>
+                    <span class="option-span"><input type="checkbox" name="marry_married" class="db-checkbox">已婚</span>
+                    <span class="option-span"><input type="checkbox" name="marry_separated" class="db-checkbox">分居</span>
+                    <span class="option-span"><input type="checkbox" name="marry_divorced" class="db-checkbox">離婚</span>
+                    <span class="option-span"><input type="checkbox" name="marry_widowed" class="db-checkbox">鳏寡</span>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-text" style="vertical-align: top; padding-top: 6px;">經濟狀況:</td>
+                <td style="padding-top: 6px; padding-bottom: 6px; line-height: 1.5;">
+                    <div>
+                        <span class="option-span"><input type="checkbox" name="econ_independent" class="db-checkbox">經濟獨立</span>
+                        <span class="option-span"><input type="checkbox" name="econ_family" class="db-checkbox">家人供養</span>
+                        <span class="option-span"><input type="checkbox" name="econ_allowance" class="db-checkbox">高齡津貼 *(普通/高額)</span>
+                    </div>
+                    <div class="flex-row-fill" style="margin: 4px 0;">
+                        <input type="checkbox" name="econ_cssa" class="db-checkbox">綜合援助,綜援號碼:<input type="text" name="cssa_no" class="db-line-input" style="flex-grow: 1; margin-left: 5px;">
+                    </div>
+                    <div><span class="option-span"><input type="checkbox" name="econ_disability" class="db-checkbox">傷殘津貼 *(高/低)</span></div>
+                </td>
+            </tr>
+            
+            <tr>
+                <td class="label-text" style="vertical-align: top; padding-top: 6px;">
+                    <div>嗜好:</div>
+                    <div style="margin-top: 10px;">興趣/愛好:</div>
+                </td>
+                <td style="vertical-align: top; padding-top: 6px;">
+                    <div class="flex-row-fill">
+                        <span class="option-span"><input type="checkbox" name="hobby_smoke" class="db-checkbox">吸煙</span>
+                        <span class="option-span"><input type="checkbox" name="hobby_drink" class="db-checkbox">嗜酒</span>
+                        <span class="option-span"><input type="checkbox" name="hobby_gamble" class="db-checkbox">賭博</span>
+                        <span class="option-span" style="flex-grow: 1; display: flex; align-items: flex-end; margin-right: 0;">
+                            <input type="checkbox" name="hobby_other_cb" class="db-checkbox">其他:<input type="text" name="hobby_other_text" class="db-line-input" style="flex-grow: 1; margin-left: 5px;">
+                        </span>
+                    </div>
+                    <div class="flex-row-fill" style="margin-top: 10px;">
+                        <input type="text" name="interests_free_text" class="db-line-input" style="flex-grow: 1;">
+                    </div>
+                </td>
+            </tr>
+
+            <tr>
+                <td class="label-text" style="vertical-align: top; padding-top: 6px;">出外參加社交網絡:</td>
+                <td style="line-height: 1.5; padding-top: 6px; padding-bottom: 6px;">
+                    <div>
+                        <span class="option-span"><input type="checkbox" name="social_center" class="db-checkbox">社區中心</span>
+                        <span class="option-span"><input type="checkbox" name="social_church" class="db-checkbox">教會</span>
+                        <span class="option-span"><input type="checkbox" name="social_na" class="db-checkbox">不適用</span>
+                    </div>
+                    <div class="flex-row-fill" style="margin-top: 4px;">
+                        <input type="checkbox" name="social_other_cb" class="db-checkbox">其他:<input type="text" name="social_other_text" class="db-line-input" style="flex-grow: 1; margin-left: 5px;">
+                    </div>
+                </td>
+            </tr>
+            
+            <tr>
+                <td class="label-text" style="vertical-align: top; padding-top: 6px;">親友探訪:</td>
+                <td style="line-height: 1.6; padding-top: 6px; padding-bottom: 6px;">
+                    <div class="flex-row-fill" style="margin-bottom: 6px;">
+                        <span>(一)</span> <input type="text" name="visit1_name" class="db-line-input" style="width: 80px; margin: 0 5px;"> 
+                        <span>關係:</span> <input type="text" name="visit1_relation" class="db-line-input" style="width: 80px; margin: 0 5px;"> 
+                        <span>探訪習慣:</span> <input type="text" name="visit1_habit" class="db-line-input" style="flex-grow: 1; margin-left: 5px;">
+                    </div>
+                    <div class="flex-row-fill" style="margin-bottom: 6px;">
+                        <span>(二)</span> <input type="text" name="visit2_name" class="db-line-input" style="width: 80px; margin: 0 5px;"> 
+                        <span>關係:</span> <input type="text" name="visit2_relation" class="db-line-input" style="width: 80px; margin: 0 5px;"> 
+                        <span>探訪習慣:</span> <input type="text" name="visit2_habit" class="db-line-input" style="flex-grow: 1; margin-left: 5px;">
+                    </div>
+                    <div>
+                        <input type="checkbox" name="visit_na" class="db-checkbox"><span class="option-span">不適用</span>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- 5. 頁尾固定格式 -->
+        <div class="footer-section">
+            <div>* 請刪去不適用者</div>
+            <div style="font-weight: bold; font-size: 15px; position: absolute; left: 50%; transform: translateX(-50%);">1</div>
+            <div>B38 FK (11.2020)</div>
+        </div>
+
+    </div>
+
+</body>
+</html>

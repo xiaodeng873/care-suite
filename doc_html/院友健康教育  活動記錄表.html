@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>院友健康教育 / 活動記錄表 - 善頤(福群)</title>
+    <style>
+        /* A4 紙張規格：左右 0.25 吋出血位 */
+        @page {
+            size: A4;
+            margin: 5mm 0.25in;
+        }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0; padding: 0;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.1;
+        }
+
+        .container { width: 100%; box-sizing: border-box; }
+
+        /* 標題區域極致置頂 */
+        .title-section { text-align: center; margin-bottom: 5px; }
+        .title-section h1 { margin: 0; font-size: 22px; font-weight: bold; }
+        .title-section h2 { margin: 0; font-size: 18px; font-weight: bold; }
+
+        /* 基本資料列 */
+        .user-info { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: bold; font-size: 14px; }
+        .db-line-input { border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 14px; padding: 0 5px; }
+
+        /* 表格設定 */
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid black; }
+        th, td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0; }
+        
+        /* 表頭文字樣式 */
+        th { font-size: 10px; font-weight: bold; background-color: #fff; }
+        
+        /* 直排文字處理 - 縮小字體以適應窄欄 */
+        .vertical-text {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            height: 95px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            margin: 0 auto;
+            letter-spacing: 0px;
+        }
+
+        /* DB Mapping 組件 */
+        .db-checkbox { width: 13px; height: 13px; cursor: pointer; margin: 0; }
+        .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 11px; text-align: center; outline: none; }
+        
+        /* 文字輸入區域 (其他與備註) */
+        .db-textarea {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: 10px;
+            resize: none;
+            overflow: hidden;
+            display: block;
+            padding: 2px;
+            box-sizing: border-box;
+            line-height: 1.2;
+        }
+
+        /* 註釋說明區 */
+        .notes-section { font-size: 11px; margin-top: 8px; line-height: 1.3; }
+        .note-item { display: flex; margin-bottom: 1px; }
+        .note-label { font-weight: bold; min-width: 25px; }
+
+        /* 頁尾頁碼置中 */
+        .footer { margin-top: 5px; display: flex; justify-content: flex-end; position: relative; height: 25px; font-weight: bold; }
+        .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 18px; bottom: 0; }
+        .doc-code { font-size: 10px; align-self: flex-end; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>院友健康教育 / 活動記錄表</h2>
+    </div>
+<br>
+    <div class="user-info">
+        <div>院友姓名：<input type="text" class="db-line-input" style="width: 140px;"></div>
+        <div>床號：<input type="text" class="db-line-input" style="width: 80px;"></div>
+        <div>身份證號碼：<input type="text" class="db-line-input" style="width: 160px;"></div>
+    </div>
+<br>
+    <table>
+        <!-- 嚴格定義 19 個列寬 (日期1 + 勾選16 + 其他1 + 備註1) -->
+        <colgroup>
+            <col style="width: 55px;"> <!-- 日期 -->
+            <!-- 14 個小組活動勾選位 (A-G 等) -->
+            <col style="width: 30px;" span="14"> 
+            <!-- 2 個單獨勾選位 (運動、講座) -->
+            <col style="width: 30px;" span="2">
+            <!-- 其他 -->
+            <col style="width: 45px;">
+            <!-- 備註 (自動剩餘空間) -->
+            <col style="width: auto;">
+        </colgroup>
+
+        <thead>
+            <tr>
+                <th rowspan="2">#請在適用<br>地方√<br><br>日期/時期</th>
+                <th colspan="3">集體活動</th>
+                <th colspan="4">戶外集體活動</th>
+                <th colspan="2">小組活動<br>(請註明人數)</th>
+                <th colspan="5">個人活動</th>
+                <!-- 下面這四個是 rowspan 2 的大項 -->
+                <th rowspan="2"><div class="vertical-text">運動</div></th>
+                <th rowspan="2"><div class="vertical-text">健康教育講座</div></th>
+                <th rowspan="2"><div class="vertical-text">其他</div></th>
+                <th rowspan="2">備註 /<br>註明活動<br>名稱及次數</th>
+            </tr>
+            <tr>
+                <!-- 小項直排標題 -->
+                <th><div class="vertical-text">生日會</div></th>
+                <th><div class="vertical-text">節日慶祝</div></th>
+                <th><div class="vertical-text">表演節目</div></th>
+                <th><div class="vertical-text">旅行</div></th>
+                <th><div class="vertical-text">參觀</div></th>
+                <th><div class="vertical-text">購物／飲茶</div></th>
+                <th><div class="vertical-text">遊戲</div></th>
+                <th><div class="vertical-text">(A)興趣小組</div></th>
+                <th><div class="vertical-text">(B)學習小組</div></th>
+                <th><div class="vertical-text">(C)自理活動訓練</div></th>
+                <th><div class="vertical-text">(D)個別興趣</div></th>
+                <th><div class="vertical-text">(E)個別輔導</div></th>
+                <th><div class="vertical-text">(F)個人治療訓練</div></th>
+                <th><div class="vertical-text">(G)團體探訪</div></th>
+            </tr>
+        </thead>
+        <tbody>
+            <script>
+                for (let i = 0; i < 20; i++) {
+                    document.write('<tr style="height: 34px;">');
+                    // 1. 日期
+                    document.write('<td><input type="text" class="db-text-cell"></td>'); 
+                    // 2. 勾選欄位 (14個小項 + 運動 + 講座 = 16 欄)
+                    for (let j = 0; j < 16; j++) {
+                        document.write('<td><input type="checkbox" class="db-checkbox"></td>');
+                    }
+                    // 3. 其他 (Textarea)
+                    document.write('<td><textarea class="db-textarea"></textarea></td>');
+                    // 4. 備註 (Textarea)
+                    document.write('<td><textarea class="db-textarea"></textarea></td>');
+                    document.write('</tr>');
+                }
+            </script>
+        </tbody>
+    </table>
+
+    <div class="notes-section">
+        <div class="note-item"><span class="note-label">註釋 :</span><span>(A) 興趣小組：集合 2-8 位院友一同參與一類興趣活動，如象棋、編織、縫紉、栽種、唱歌、閱報等... ...</span></div>
+        <div class="note-item"><span class="note-label">(B)</span><span>學習小組：2-8 位院友一同學習、如寫字、識字、現實認知等... ...</span></div>
+        <div class="note-item"><span class="note-label">(C)</span><span>自理活動訓練：由員工有目標地安排給院友做一些有別於日常自理習慣的訓練；在員工看護及鼓勵下讓院友練習如進食、梳洗、穿衣服、如廁、沖涼、摺衣服、執拾床舖等... ...</span></div>
+        <div class="note-item"><span class="note-label">(D)</span><span>個別興趣：院友獨自進行的活動，如書法、聽歌、閱讀等... ...</span></div>
+        <div class="note-item"><span class="note-label">(E)</span><span>個別輔導：員工與院友單對單傾談</span></div>
+        <div class="note-item"><span class="note-label">(F)</span><span>個人治療訓練：包括醫護人員指導的訓練，個人感官刺激訓練等......</span></div>
+        <div class="note-item"><span class="note-label">(G)</span><span>團體探訪：團體包括教會、義工等，與院友個別傾談</span></div>
+    </div>
+
+    <div class="footer">
+        <div class="page-num">13</div>
+        <div class="doc-code">A19D FK (11.2020)</div>
+    </div>
+</div>
+
+</body>
+</html>

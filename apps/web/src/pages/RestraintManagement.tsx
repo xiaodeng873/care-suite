@@ -28,6 +28,7 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compar
 import PatientTooltip from '../components/PatientTooltip';
 import { exportRestraintConsentsToExcel } from '../utils/restraintConsentExcelGenerator';
 import { exportRestraintObservationsToExcel } from '../utils/restraintObservationChartExcelGenerator';
+import { printRestraintConsentForms } from '../utils/restraintConsentPrintGenerator';
 
 type SortField = '院友姓名' | 'doctor_signature_date' | 'next_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -452,70 +453,23 @@ const RestraintManagement: React.FC = () => {
     }
   };
 
-  const handleExportSelectedCSV = () => {
+  const handlePrintSelectedConsent = () => {
     const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
-    
     if (selectedAssessments.length === 0) {
-      alert('請先選擇要匯出的記錄');
+      alert('請先選擇要列印的記錄');
       return;
     }
-
-    const exportData = selectedAssessments.map(assessment => {
-      const patient = patients.find(p => p.院友id === assessment.patient_id);
-      
-      // 處理折衷辦法
-      const alternativesList = assessment.alternatives && typeof assessment.alternatives === 'object'
-        ? Object.entries(assessment.alternatives)
-            .filter(([key, value]) => !key.includes('說明') && value)
-            .map(([key]) => key)
-            .join(', ')
-        : '';
-      
-      // 處理約束物品建議
-      const restraintsList = assessment.suggested_restraints && typeof assessment.suggested_restraints === 'object'
-        ? Object.entries(assessment.suggested_restraints)
-            .filter(([key, config]: [string, any]) => config.checked)
-            .map(([key, config]: [string, any]) => {
-              let text = key;
-              if (config.condition) text += `(${config.condition})`;
-              if (config.time) text += `[${config.time}]`;
-              return text;
-            })
-            .join(', ')
-        : '';
-      
-      return {
-        床號: patient?.床號 || '',
-        中文姓名: patient ? `${patient.中文姓氏}${patient.中文名字}` : '',
-        性別: patient?.性別 || '',
-        年齡: patient?.出生日期 ? `${Math.floor((Date.now() - new Date(patient.出生日期).getTime()) / (365.25 * 24 * 60 * 60 * 1000))}歲` : '',
-        身份證號碼: patient?.身份證號碼 || '',
-        醫生簽署日期: assessment.doctor_signature_date ? new Date(assessment.doctor_signature_date).toLocaleDateString('zh-TW') : '未簽署',
-        下次到期日期: assessment.next_due_date ? new Date(assessment.next_due_date).toLocaleDateString('zh-TW') : '-',
-        折衷辦法: alternativesList || '無',
-        約束物品建議: restraintsList || '無',
-        其他備註: assessment.other_restraint_notes || '',
-        建立日期: new Date(assessment.created_at).toLocaleDateString('zh-TW')
-      };
-    });
-
-    const headers = ['床號', '中文姓名', '性別', '年齡', '身份證號碼', '醫生簽署日期', '下次到期日期', '折衷辦法', '約束物品建議', '其他備註', '建立日期'];
-    const csvContent = [
-      `"約束物品評估記錄"`,
-      `"生成日期: ${new Date().toLocaleDateString('zh-TW')}"`,
-      `"總記錄數: ${exportData.length}"`,
-      '',
-      headers.join(','),
-      ...exportData.map(row => headers.map(header => `"${row[header as keyof typeof row]}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `約束物品評估記錄_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const items = selectedAssessments
+      .map(assessment => {
+        const patient = patients.find(p => p.院友id === assessment.patient_id);
+        return patient ? { assessment, patient } : null;
+      })
+      .filter((x): x is { assessment: PatientRestraintAssessment; patient: NonNullable<typeof x>['patient'] } => x !== null);
+    if (items.length === 0) {
+      alert('找不到對應院友資料');
+      return;
+    }
+    printRestraintConsentForms(items);
   };
 
   const getStatusBadge = (assessment: PatientRestraintAssessment) => {
@@ -617,11 +571,11 @@ const RestraintManagement: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  onClick={handleExportSelectedCSV}
+                  onClick={handlePrintSelectedConsent}
                   className="btn-secondary flex flex-wrap items-center gap-2"
                 >
-                  <Download className="h-4 w-4" />
-                  <span>匯出CSV</span>
+                  <FileText className="h-4 w-4" />
+                  <span>列印同意書</span>
                 </button>
               </div>
             )}

@@ -276,7 +276,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
             <div>
               <label className="form-label">任務分類 *</label>
               <div className="flex gap-2 mb-3">
-                {([['monitoring', '監測任務'], ['care', '護理任務'], ['document', '文件任務']] as [TaskCategory, string][]).map(([cat, label]) => (
+                {([['monitoring', '監測任務'], ['document', '文件任務']] as [TaskCategory, string][]).map(([cat, label]) => (
                   <button key={cat} type="button"
                     onClick={() => {
                       setTaskCategory(cat);
@@ -343,8 +343,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
                       <option value="傷口換症">傷口換症</option>
                     </>)}
                     {taskCategory === 'document' && (<>
-                      <option value="約束物品同意書">約束物品同意書</option>
-                      <option value="年度體檢">年度體檢</option>
                       <option value="藥物自存同意書">藥物自存同意書</option>
                       <option value="晚晴計劃">晚晴計劃</option>
                     </>)}

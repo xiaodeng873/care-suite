@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>領回託管財物證明書 - 善頤(福群)</title>
+    <style>
+        /* A4 紙張與邊距嚴格定義 */
+        @page {
+            size: A4;
+            margin: 0; 
+        }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            color: #000;
+        }
+
+        /* A4 容器：物理長度鎖定 297mm */
+        .a4-container {
+            width: 210mm;
+            height: 297mm;
+            padding: 10mm 15mm 0 15mm; /* 底部 padding 由絕對定位控制 */
+            box-sizing: border-box;
+            position: relative; 
+            overflow: hidden;
+        }
+
+        /* 標題絕對置中 */
+        .title-section {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .title-section h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .title-section h2 {
+            margin: 8px 0 0 0;
+            font-size: 22px;
+            font-weight: bold;
+            display: inline-block;
+            border-bottom: 2px solid black;
+            padding-bottom: 2px;
+        }
+
+        /* 隱形表格：段落資料 */
+        .layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-bottom: 5px;
+        }
+        .layout-table td {
+            border: none;
+            padding: 4px 0;
+            vertical-align: bottom;
+            white-space: nowrap; /* 嚴格禁止換行 */
+            font-size: 17px;
+        }
+
+        .db-line-input {
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 17px;
+            outline: none;
+            text-align: center;
+            width: 100%;
+            display: block;
+        }
+
+        /* 財物清單 1-8 */
+        .items-list {
+            margin: 15px 0 20px 40px;
+            width: 60%;
+        }
+        .item-row {
+            display: flex;
+            align-items: flex-end;
+            margin-bottom: 10px;
+            font-size: 17px;
+        }
+        .item-num { min-width: 30px; font-weight: bold; }
+        .item-underline { flex-grow: 1; border-bottom: 1px solid black; height: 30px; }
+
+        /* 簽署區隱形表格：16mm 物理行高 */
+        .sig-invisible-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .sig-label-cell {
+            text-align: right;
+            white-space: nowrap;
+            padding-right: 12px;
+            font-size: 17px;
+            font-weight: bold;
+            width: 62%; 
+        }
+        .sig-line-cell {
+            border-bottom: 1px solid black;
+            width: 38%;
+        }
+        /* 物理高度要求：16mm */
+        .sig-row {
+            height: 15mm;
+        }
+
+        /* --- 絕對底置區域 (包含註釋與頁碼) --- */
+        .fixed-bottom-area {
+            position: absolute;
+            bottom: -0.5mm; /* 距離底邊 10mm */
+            left: 15mm;
+            right: 15mm;
+            box-sizing: border-box;
+        }
+
+        .footer-notes {
+            font-size: 15px;
+            line-height: 1.5;
+            margin-bottom: 10px; /* 與頁碼的距離 */
+        }
+
+        .footer-codes-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            position: relative;
+            height: 30px;
+            font-weight: bold;
+        }
+
+        .page-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 22px;
+            bottom: 0;
+        }
+        .doc-id-right {
+            font-size: 11px;
+        }
+        .ref-code-left {
+            font-size: 13px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="a4-container">
+    <!-- 標題：絕對置中 -->
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>領回託管財物證明書</h2>
+    </div>
+
+    <!-- 段落資料：隱形表格鎖定 -->
+    <table class="layout-table">
+        <colgroup>
+            <col style="width: 95px;">
+            <col style="width: 300px;">
+            <col style="width: 105px;">
+            <col style="width: 240px;">
+            <col style="width: auto;">
+        </colgroup>
+        <tr>
+            <td>本人(姓名)</td>
+            <td><input type="text" class="db-line-input"></td>
+            <td style="text-align: center;">(身份證號碼</td>
+            <td><input type="text" class="db-line-input"></td>
+            <td>) 為*貴院院</td>
+        </tr>
+    </table>
+
+    <table class="layout-table">
+        <colgroup>
+            <col style="width: 215px;">
+            <col style="width: 280px;">
+            <col style="width: auto;">
+        </colgroup>
+        <tr>
+            <td>友 / 貴院院友(院友姓名)</td>
+            <td><input type="text" class="db-line-input"></td>
+            <td>的*監護人/ 保證人/ 家人/ 親屬，於(日期)</td>
+        </tr>
+    </table>
+
+    <table class="layout-table" style="margin-bottom: 10px;">
+        <colgroup>
+            <col style="width: 300px;">
+            <col style="width: auto;">
+        </colgroup>
+        <tr>
+            <td><input type="text" class="db-line-input"></td>
+            <td>與貴院核對記錄後，現已領回及妥收*本人 / 該院友日前寄</td>
+        </tr>
+    </table>
+
+    <div style="font-size: 17px;">存於貴院之下列物品：</div>
+
+    <!-- 財物清單 -->
+    <div class="items-list">
+        <script>
+            for(let i=1; i<=8; i++) {
+                document.write(`
+                <div class="item-row">
+                    <span class="item-num">${i})</span>
+                    <div class="item-underline">
+                        <input type="text" style="width:100%; border:none; background:transparent; outline:none; font-family:inherit; font-size:17px;">
+                    </div>
+                </div>
+                `);
+            }
+        </script>
+    </div>
+
+    <!-- 簽署區：隱形表格，16mm行高 -->
+    <table class="sig-invisible-table">
+        <tr class="sig-row">
+            <td class="sig-label-cell">*院友/ 監護人/ 保證人/ 家人/ 親屬簽署或指模 :</td>
+            <td class="sig-line-cell"></td>
+        </tr>
+        <tr class="sig-row">
+            <td class="sig-label-cell">*院友/ 監護人/ 保證人/ 家人/ 親屬姓名 :</td>
+            <td class="sig-line-cell"><input type="text" style="border:none; background:transparent; width:100%; height:100%; font-family:inherit; font-size:17px; outline:none;"></td>
+        </tr>
+        <tr style="height: 5mm;"><td></td><td></td></tr> <!-- 微調間隔 -->
+        <tr class="sig-row">
+            <td class="sig-label-cell">負責職員簽署 :</td>
+            <td class="sig-line-cell"></td>
+        </tr>
+        <tr class="sig-row">
+            <td class="sig-label-cell">負責職員姓名及職位 :</td>
+            <td class="sig-line-cell"><input type="text" style="border:none; background:transparent; width:100%; height:100%; font-family:inherit; font-size:17px; outline:none;"></td>
+        </tr>
+        <tr class="sig-row">
+            <td class="sig-label-cell">見證職員簽署 :</td>
+            <td class="sig-line-cell"></td>
+        </tr>
+        <tr class="sig-row">
+            <td class="sig-label-cell">見證職員姓名及職位 :</td>
+            <td class="sig-line-cell"><input type="text" style="border:none; background:transparent; width:100%; height:100%; font-family:inherit; font-size:17px; outline:none;"></td>
+        </tr>
+        <tr class="sig-row">
+            <td class="sig-label-cell">日期 :</td>
+            <td class="sig-line-cell"><input type="text" style="border:none; background:transparent; width:100%; height:100%; font-family:inherit; font-size:17px; outline:none;"></td>
+        </tr>
+    </table>
+        <div class="footer-notes">
+            <div>* 請刪去不適用者</div>
+            <div style="margin-top: 5px;">註：如院友認知能力不足，應由監護人/保證人/家人/親屬簽署此證明書。</div>
+        </div>
+    <!-- 絕對底置區域：將註釋文字也放入底置容器，解決重疊問題 -->
+    <div class="fixed-bottom-area">
+      
+        <div class="footer-codes-row">
+            <div class="ref-code-left">(Ref. SWD 782/95 IV dd.08/04/2008)</div>
+            <div class="page-center">20</div>
+            <div class="doc-id-right">A23B FK (11.2020)</div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
