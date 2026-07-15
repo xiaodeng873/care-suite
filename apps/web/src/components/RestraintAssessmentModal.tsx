@@ -27,7 +27,15 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
     risk_factors: assessment?.risk_factors || (renewFrom?.risk_factors ?? {}),
     alternatives: assessment?.alternatives || (renewFrom?.alternatives ?? {}),
     suggested_restraints: assessment?.suggested_restraints || (renewFrom?.suggested_restraints ?? {}),
-    other_restraint_notes: assessment?.other_restraint_notes || renewFrom?.other_restraint_notes || ''
+    other_restraint_notes: assessment?.other_restraint_notes || renewFrom?.other_restraint_notes || '',
+    usage_record: assessment?.usage_record || {
+      start_date: assessment?.doctor_signature_date || renewFrom?.doctor_signature_date || '',
+      end_date: '',
+      doctor: '',
+      reasons: {} as Record<string, boolean | string>,
+      types: {} as Record<string, boolean | string>,
+      observations: { '血液循環': true, '呼吸狀況': true, '精神狀況': true, '皮膚狀況': true, '姿勢舒適': true } as Record<string, boolean | string>,
+    },
   });
 
   // 計算下次到期日期（醫生簽署日期 + 6個月）
@@ -45,7 +53,11 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
       const calculatedDueDate = calculateNextDueDate(formData.doctor_signature_date);
       setFormData(prev => ({
         ...prev,
-        next_due_date: calculatedDueDate
+        next_due_date: calculatedDueDate,
+        // 開始日期預填醫生簽署日期（僅當尚未填寫時）
+        usage_record: prev.usage_record?.start_date
+          ? prev.usage_record
+          : { ...prev.usage_record, start_date: formData.doctor_signature_date },
       }));
     }
   }, [formData.doctor_signature_date]);
@@ -301,7 +313,8 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
         risk_factors: formData.risk_factors,
         alternatives: formData.alternatives,
         suggested_restraints: formData.suggested_restraints,
-        other_restraint_notes: formData.other_restraint_notes || null
+        other_restraint_notes: formData.other_restraint_notes || null,
+        usage_record: formData.usage_record || null,
       };
 
       if (assessment) {
@@ -802,6 +815,130 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* 約束物品使用紀錄 */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+              <FileText className="h-5 w-5 mr-2 text-green-600" />
+              約束物品使用紀錄
+            </h3>
+            <div className="border rounded-lg p-4 bg-gray-50 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="form-label">開始日期</label>
+                  <input
+                    type="date"
+                    value={formData.usage_record?.start_date || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, usage_record: { ...prev.usage_record, start_date: e.target.value } }))}
+                    className="form-input"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">結束日期</label>
+                  <input
+                    type="date"
+                    value={formData.usage_record?.end_date || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, usage_record: { ...prev.usage_record, end_date: e.target.value } }))}
+                    className="form-input"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="form-label">處方醫生</label>
+                <input
+                  type="text"
+                  value={formData.usage_record?.doctor || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, usage_record: { ...prev.usage_record, doctor: e.target.value } }))}
+                  className="form-input"
+                  placeholder="請輸入處方醫生姓名"
+                />
+              </div>
+              {/* 原因 */}
+              <div>
+                <label className="form-label font-medium">原因（可多選）</label>
+                <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
+                  {['自身安全', '維持治療', '防止跌倒', '免傷害他人'].map(r => (
+                    <label key={r} className="flex items-center gap-2">
+                      <input type="checkbox"
+                        checked={!!formData.usage_record?.reasons?.[r]}
+                        onChange={(e) => setFormData(prev => ({ ...prev, usage_record: { ...prev.usage_record, reasons: { ...prev.usage_record?.reasons, [r]: e.target.checked } } }))}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                      <span className="text-sm">{r}</span>
+                    </label>
+                  ))}
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox"
+                      checked={!!formData.usage_record?.reasons?.['其他']}
+                      onChange={(e) => setFormData(prev => ({ ...prev, usage_record: { ...prev.usage_record, reasons: { ...prev.usage_record?.reasons, '其他': e.target.checked } } }))}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                    <span className="text-sm">其他:</span>
+                  </label>
+                  {formData.usage_record?.reasons?.['其他'] && (
+                    <input type="text"
+                      value={(formData.usage_record?.reasons?.['其他_text'] as string) || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, usage_record: { ...prev.usage_record, reasons: { ...prev.usage_record?.reasons, '其他_text': e.target.value } } }))}
+                      className="form-input text-sm" placeholder="請說明..." />
+                  )}
+                </div>
+              </div>
+              {/* 種類 */}
+              <div>
+                <label className="form-label font-medium">種類（可多選）</label>
+                <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
+                  {['約束衣', '約束腰帶', '手腕帶', '約束手套', '防滑褲帶', '枱板'].map(t => (
+                    <label key={t} className="flex items-center gap-2">
+                      <input type="checkbox"
+                        checked={!!formData.usage_record?.types?.[t]}
+                        onChange={(e) => setFormData(prev => ({ ...prev, usage_record: { ...prev.usage_record, types: { ...prev.usage_record?.types, [t]: e.target.checked } } }))}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                      <span className="text-sm">{t}</span>
+                    </label>
+                  ))}
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox"
+                      checked={!!formData.usage_record?.types?.['其他']}
+                      onChange={(e) => setFormData(prev => ({ ...prev, usage_record: { ...prev.usage_record, types: { ...prev.usage_record?.types, '其他': e.target.checked } } }))}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                    <span className="text-sm">其他:</span>
+                  </label>
+                  {formData.usage_record?.types?.['其他'] && (
+                    <input type="text"
+                      value={(formData.usage_record?.types?.['其他_text'] as string) || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, usage_record: { ...prev.usage_record, types: { ...prev.usage_record?.types, '其他_text': e.target.value } } }))}
+                      className="form-input text-sm" placeholder="請說明..." />
+                  )}
+                </div>
+              </div>
+              {/* 需要觀察事項 */}
+              <div>
+                <label className="form-label font-medium">需要觀察事項（可多選）</label>
+                <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
+                  {['血液循環', '呼吸狀況', '精神狀況', '皮膚狀況', '姿勢舒適'].map(o => (
+                    <label key={o} className="flex items-center gap-2">
+                      <input type="checkbox"
+                        checked={!!formData.usage_record?.observations?.[o]}
+                        onChange={(e) => setFormData(prev => ({ ...prev, usage_record: { ...prev.usage_record, observations: { ...prev.usage_record?.observations, [o]: e.target.checked } } }))}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                      <span className="text-sm">{o}</span>
+                    </label>
+                  ))}
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox"
+                      checked={!!formData.usage_record?.observations?.['其他']}
+                      onChange={(e) => setFormData(prev => ({ ...prev, usage_record: { ...prev.usage_record, observations: { ...prev.usage_record?.observations, '其他': e.target.checked } } }))}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                    <span className="text-sm">其他:</span>
+                  </label>
+                  {formData.usage_record?.observations?.['其他'] && (
+                    <input type="text"
+                      value={(formData.usage_record?.observations?.['其他_text'] as string) || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, usage_record: { ...prev.usage_record, observations: { ...prev.usage_record?.observations, '其他_text': e.target.value } } }))}
+                      className="form-input text-sm" placeholder="請說明..." />
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 

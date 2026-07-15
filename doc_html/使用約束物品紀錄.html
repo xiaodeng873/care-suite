@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <title>使用約束物品紀錄 - 善頤(福群)</title>
     <style>
-        /* A4 紙張與 0.25 吋出血位設定 */
         @page {
             size: A4;
-            margin: 5mm 0.25in;
+            margin: 5mm 0.25in 15mm 0.25in;
         }
 
         body {
@@ -19,133 +18,170 @@
             line-height: 1.1;
         }
 
+        .print-wrapper {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .page-header { display: table-header-group; }
+        .page-footer { display: table-footer-group; }
+
         .container { width: 100%; box-sizing: border-box; }
 
-        /* 標題區域極致壓縮 */
         .title-section { text-align: center; margin-bottom: 5px; }
-        .title-section h1 { margin: 0; font-size: 20px; font-weight: bold; }
-        .title-section h2 { margin: 0; font-size: 16px; font-weight: bold; }
+        .title-section h1 { margin: 0; font-size: 30px; font-weight: bold; }
+        .title-section h2 { margin: 0; font-size: 24px; font-weight: bold; }
 
-        /* 基本資料列 */
-        .user-info { display: flex; justify-content: space-between; margin-bottom: 3px; font-weight: bold; font-size: 13px; }
-        .db-line-input { border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; padding: 0 2px; }
+        .user-info { display: flex; justify-content: space-between; margin-bottom: 3px; font-weight: bold; font-size: 14px; }
+        
+        /* 解決跨頁底線消失問題，改用 span */
+        .db-line-input { 
+            display: inline-block;
+            border: none; 
+            border-bottom: 1px solid black; 
+            background: transparent; 
+            font-family: inherit; 
+            padding: 0 2px; 
+            vertical-align: bottom;
+            min-height: 14px;
+        }
 
-        /* 說明文字縮小 */
-        .instructions { font-size: 10.5px; margin-bottom: 4px; border-top: 0.5px solid #ccc; padding-top: 2px; }
+        .instructions { font-size: 12px; margin-bottom: 4px; border-top: 0.5px solid #ccc; padding-top: 2px; text-align: left; }
         .instructions ul { margin: 0; padding-left: 15px; list-style-type: disc; }
 
-        /* 表格設定 - 嚴格控制高度 */
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.2px solid black; }
-        th, td { border: 1px solid black; vertical-align: top; padding: 1px 2px; }
+        .main-table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.2px solid black; }
+        .main-table th, .main-table td { border: 1px solid black; vertical-align: top; padding: 1px 2px; }
         
-        th { height: 18px; text-align: center; vertical-align: middle; font-weight: bold; font-size: 12px; }
+        .main-table th { height: 20px; text-align: center; vertical-align: middle; font-weight: bold; font-size: 14px; }
 
-        /* 欄寬分配 */
         .col-date { width: 62px; }
         .col-reason { width: 125px; }
         .col-type { width: 135px; }
         .col-doctor { width: 80px; }
         .col-obs { width: auto; }
 
-        /* Checkbox 清單緊湊排版 */
-        .opt-item { display: flex; align-items: center; margin-bottom: 0px; white-space: nowrap; font-size: 10.5px; height: 18px; }
-        .db-checkbox { width: 11px; height: 11px; margin-right: 2px; cursor: pointer; }
+        /* 關鍵修正：縮減內部項目高度，讓外層 record-row 的 height 屬性能夠被生效 */
+        .opt-item { 
+            display: flex; 
+            align-items: center; 
+            margin: 0; 
+            white-space: nowrap; 
+            font-size: 13px; 
+            height: 13px; /* 縮減高度 */
+            line-height: 1;
+        }
+        .db-checkbox { width: 10px; height: 10px; margin-right: 2px; cursor: pointer; }
         
-        /* 表格內透明輸入格 */
         .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 10.5px; outline: none; }
 
-        /* 紀錄列固定高度 (30mm) */
-        .record-row { height: 30mm; overflow: hidden; }
+        /* 紀錄列高度：現在設定 25mm 就能生效，因為內部總高已降至約 13x7=91px (24mm) 以下 */
+        .record-row { height: 30mm; }
+        .record-row td { page-break-inside: avoid; break-inside: avoid; }
 
-        /* 頁尾頁碼置中 */
-        .footer { margin-top: 5px; display: flex; justify-content: flex-end; position: relative; height: 20px; font-weight: bold; }
-        .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 18px; bottom: 0; }
-        .doc-code { font-size: 9px; align-self: flex-end; }
+        .footer-content { margin-top: 5px; display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; width: 100%; }
+        .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 18px; bottom: 5px; }
+        .doc-code { font-size: 9px; align-self: flex-end; padding-bottom: 5px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <!-- 標題 -->
-    <div class="title-section">
-        <h1>善頤(福群)護老院</h1>
-        <h2>使用約束物品紀錄</h2>
-    </div>
+<table class="print-wrapper">
+    <thead class="page-header">
+        <tr>
+            <td>
+                <div class="container">
+                    <div class="title-section">
+                        <h1>善頤(福群)護老院</h1>
+                        <h2>使用約束物品紀錄</h2>
+                    </div>
+                    <br>
+                    <div class="user-info">
+                        <div>姓名：<span class="db-line-input" style="width: 130px;"></span></div>
+                        <div>床號：<span class="db-line-input" style="width: 80px;"></span></div>
+                        <div>身份證號碼：<span class="db-line-input" style="width: 150px;"></span></div>
+                    </div>
+                    <div class="instructions">
+                        <ul>
+                            <li>原因：自身安全、維持治療、防止跌倒、免傷害他人等等</li>
+                            <li>種類：約束衣、手/足約束帶、約束手套、防滑褲帶、枱板、床欄等等</li>
+                            <li>觀察事項：血液循環、呼吸狀況、精神狀況、皮膚狀況、姿勢舒適等等</li>
+                        </ul>
+                    </div>
+                    <table class="main-table" style="border-bottom: none;">
+                        <thead>
+                            <tr>
+                                <th class="col-date">開始日期</th>
+                                <th class="col-date">結束日期</th>
+                                <th class="col-reason">原因</th>
+                                <th class="col-type">種類</th>
+                                <th class="col-doctor">處方醫生</th>
+                                <th class="col-obs">需要觀察事項</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </thead>
 
-    <!-- 基本資料 -->
-    <div class="user-info">
-        <div>姓名：<input type="text" class="db-line-input" style="width: 130px;"></div>
-        <div>床號：<input type="text" class="db-line-input" style="width: 80px;"></div>
-        <div>身份證號碼：<input type="text" class="db-line-input" style="width: 150px;"></div>
-    </div>
+    <tbody>
+        <tr>
+            <td>
+                <table class="main-table" style="border-top: none;">
+                    <script>
+                        // 這裡支援 DB 筆數增減，保底 7 筆
+                        const dbData = window.importedData || []; 
+                        const minRows = 7;
+                        const totalRowsToRender = Math.max(dbData.length, minRows);
 
-    <!-- 說明事項 -->
-    <div class="instructions">
-        <ul>
-            <li>原因：自身安全、維持治療、防止跌倒、免傷害他人等等</li>
-            <li>種類：約束衣、手/足約束帶、約束手套、防滑褲帶、枱板、床欄等等</li>
-            <li>觀察事項：血液循環、呼吸狀況、精神狀況、皮膚狀況、姿勢舒適等等</li>
-        </ul>
-    </div>
+                        const reasonList = ["自身安全", "維持治療", "防止跌倒", "免傷害他人", "其他:"];
+                        const typeList = ["約束衣", "約束腰帶", "手腕帶", "約束手套", "防滑褲帶", "枱板", "其他:"];
+                        const obsList = ["血液循環", "呼吸狀況", "精神狀況", "皮膚狀況", "姿勢舒適", "其他:"];
 
-    <!-- 主表格 -->
-    <table>
-        <thead>
-            <tr>
-                <th class="col-date">開始日期</th>
-                <th class="col-date">結束日期</th>
-                <th class="col-reason">原因</th>
-                <th class="col-type">種類</th>
-                <th class="col-doctor">處方醫生</th>
-                <th class="col-obs">需要觀察事項</th>
-            </tr>
-        </thead>
-        <tbody>
-            <script>
-                const reasonList = ["自身安全", "維持治療", "防止跌倒", "免傷害他人", "其他:"];
-                const typeList = ["約束衣", "約束腰帶", "手腕帶", "約束手套", "防滑褲帶", "枱板", "其他:"];
-                const obsList = ["血液循環", "呼吸狀況", "精神狀況", "皮膚狀況", "姿勢舒適", "其他:"];
+                        for(let i=0; i < totalRowsToRender; i++) {
+                            const rowData = dbData[i] || {}; 
+                            document.write('<tr class="record-row">');
+                            document.write('<td class="col-date"><input type="text" class="db-text-cell" value="' + (rowData.startDate || '') + '"></td>');
+                            document.write('<td class="col-date"><input type="text" class="db-text-cell" value="' + (rowData.endDate || '') + '"></td>');
+                            
+                            document.write('<td class="col-reason">');
+                            reasonList.forEach(item => {
+                                document.write(`<div class="opt-item"><input type="checkbox" class="db-checkbox">${item}${item.includes(':') ? '<input type="text" class="db-line-input" style="width:55px; min-height:10px;">' : ''}</div>`);
+                            });
+                            document.write('</td>');
 
-                for(let i=0; i<7; i++) {
-                    document.write('<tr class="record-row">');
-                    document.write('<td><input type="text" class="db-text-cell" ></td>');
-                    document.write('<td><input type="text" class="db-text-cell" ></td>');
-                    
-                    // 原因
-                    document.write('<td>');
-                    reasonList.forEach(item => {
-                        document.write(`<div class="opt-item"><input type="checkbox" class="db-checkbox">${item}${item.includes(':') ? '<input type="text" class="db-line-input" style="width:55px;">' : ''}</div>`);
-                    });
-                    document.write('</td>');
+                            document.write('<td class="col-type">');
+                            typeList.forEach(item => {
+                                document.write(`<div class="opt-item"><input type="checkbox" class="db-checkbox">${item}${item.includes(':') ? '<input type="text" class="db-line-input" style="width:55px; min-height:10px;">' : ''}</div>`);
+                            });
+                            document.write('</td>');
 
-                    // 種類
-                    document.write('<td>');
-                    typeList.forEach(item => {
-                        document.write(`<div class="opt-item"><input type="checkbox" class="db-checkbox">${item}${item.includes(':') ? '<input type="text" class="db-line-input" style="width:55px;">' : ''}</div>`);
-                    });
-                    document.write('</td>');
+                            document.write('<td class="col-doctor"><input type="text" class="db-text-cell" value="' + (rowData.doctor || '') + '"></td>');
 
-                    // 醫生
-                    document.write('<td><input type="text" class="db-text-cell"></td>');
+                            document.write('<td class="col-obs">');
+                            obsList.forEach(item => {
+                                document.write(`<div class="opt-item"><input type="checkbox" class="db-checkbox">${item}${item.includes(':') ? '<input type="text" class="db-line-input" style="width:55px; min-height:10px;">' : ''}</div>`);
+                            });
+                            document.write('</td>');
+                            document.write('</tr>');
+                        }
+                    </script>
+                </table>
+            </td>
+        </tr>
+    </tbody>
 
-                    // 觀察事項
-                    document.write('<td>');
-                    obsList.forEach(item => {
-                        document.write(`<div class="opt-item"><input type="checkbox" class="db-checkbox">${item}${item.includes(':') ? '<input type="text" class="db-line-input" style="width:55px;">' : ''}</div>`);
-                    });
-                    document.write('</td>');
-                    document.write('</tr>');
-                }
-            </script>
-        </tbody>
-    </table>
-
-    <!-- 頁尾 -->
-    <div class="footer">
-        <div class="page-num">11</div>
-        <div class="doc-code">B10D FK (2.2025)</div>
-    </div>
-</div>
+    <tfoot class="page-footer">
+        <tr>
+            <td>
+                <div class="footer-content">
+                    <div class="page-num">11</div>
+                    <div class="doc-code">B10D FK (2.2025)</div>
+                </div>
+            </td>
+        </tr>
+    </tfoot>
+</table>
 
 </body>
 </html>

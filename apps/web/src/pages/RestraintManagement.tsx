@@ -29,6 +29,7 @@ import PatientTooltip from '../components/PatientTooltip';
 import { exportRestraintConsentsToExcel } from '../utils/restraintConsentExcelGenerator';
 import { exportRestraintObservationsToExcel } from '../utils/restraintObservationChartExcelGenerator';
 import { printRestraintConsentForms } from '../utils/restraintConsentPrintGenerator';
+import { printRestraintUsageRecords } from '../utils/restraintUsageRecordPrintGenerator';
 
 type SortField = '院友姓名' | 'doctor_signature_date' | 'next_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -453,6 +454,28 @@ const RestraintManagement: React.FC = () => {
     }
   };
 
+  const handlePrintUsageRecord = () => {
+    const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
+    if (selectedAssessments.length === 0) {
+      alert('請先選擇要列印的記錄');
+      return;
+    }
+    // 取所有涉及的側友id（去重）
+    const patientIds = [...new Set(selectedAssessments.map(a => a.patient_id))];
+    const items = patientIds.map(pid => {
+      const patient = patients.find(p => p.院友id === pid);
+      if (!patient) return null;
+      // 取該院友所有歷史評估記錄（不限於選中的）
+      const allForPatient = patientRestraintAssessments.filter(a => a.patient_id === pid);
+      return { patient, assessments: allForPatient };
+    }).filter((x): x is NonNullable<typeof x> => x !== null);
+    if (items.length === 0) {
+      alert('找不到對應院友資料');
+      return;
+    }
+    printRestraintUsageRecords(items);
+  };
+
   const handlePrintSelectedConsent = () => {
     const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
     if (selectedAssessments.length === 0) {
@@ -576,6 +599,13 @@ const RestraintManagement: React.FC = () => {
                 >
                   <FileText className="h-4 w-4" />
                   <span>列印同意書</span>
+                </button>
+                <button
+                  onClick={handlePrintUsageRecord}
+                  className="btn-secondary flex flex-wrap items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>列印使用紀錄</span>
                 </button>
               </div>
             )}

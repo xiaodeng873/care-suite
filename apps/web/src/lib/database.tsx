@@ -212,6 +212,7 @@ export interface PatientRestraintAssessment {
   suggested_restraints: any;
   other_restraint_notes?: string;
   is_terminated?: boolean;
+  usage_record?: any;  // 約束物品使用紀錄 { start_date, end_date, doctor, reasons, types, observations }
   created_at: string;
   updated_at: string;
 }
