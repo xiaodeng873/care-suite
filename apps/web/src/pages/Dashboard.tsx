@@ -436,7 +436,7 @@ const Dashboard: React.FC = () => {
     return patients.filter(patient => !carePlans.some(plan => plan.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '個人護理計劃' }));
   }, [patients, carePlans]);
   const overdueWorkflows = useMemo(() => {
-    const result = getPatientsWithOverdueWorkflow(prescriptionWorkflowRecords, patients);
+    const result = getPatientsWithOverdueWorkflow(prescriptionWorkflowRecords, patients, prescriptions);
     return result.map(({ patient, overdueCount, overdueDates }) => {
       const dates: { [date: string]: number } = {};
       overdueDates.forEach(date => {
@@ -445,7 +445,7 @@ const Dashboard: React.FC = () => {
       });
       return { patient, overdueCount, dates };
     });
-  }, [prescriptionWorkflowRecords, patients]);
+  }, [prescriptionWorkflowRecords, patients, prescriptions]);
   const pendingPrescriptions = useMemo(() => {
     return patients.filter(p => p.在住狀態 === '在住').map(patient => {
         const count = prescriptions.filter(pr => pr.patient_id === patient.院友id && pr.status === 'pending_change').length;
@@ -1517,8 +1517,39 @@ const Dashboard: React.FC = () => {
                       </div>
                     );
                   } else if (item.type === 'wound') {
-                    // 傷口評估在下方獨立渲染區塊處理，此處跳過避免重複渲染
-                    return null;
+                    const wItem = item.data;
+                    const wound = wItem.wound;
+                    const isOverdue = wound.is_overdue;
+                    return (
+                      <a href="/wound" key={`wound-${wound.id}`} className="block" onClick={e => { e.preventDefault(); setSelectedWoundForAssessment(wound); setShowWoundAssessmentModal(true); }}>
+                        <div className={`flex flex-wrap items-center gap-3 p-3 rounded-lg transition-colors border ${
+                          isOverdue ? 'bg-red-50 hover:bg-red-100 border-red-200' : 'bg-orange-50 hover:bg-orange-100 border-orange-200'
+                        }`}>
+                          <div className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center ${
+                            isOverdue ? 'bg-red-100' : 'bg-orange-100'
+                          }`}>
+                            {patient?.院友相片
+                              ? <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
+                              : <Activity className={`h-5 w-5 ${isOverdue ? 'text-red-600' : 'text-orange-600'}`} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : wItem.patientName}</p>
+                              <span className="text-xs text-gray-500">({wItem.bedNumber})</span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              <Activity className={`h-4 w-4 ${isOverdue ? 'text-red-500' : 'text-orange-500'}`} />
+                              <p className="text-sm text-gray-600">傷口評估 — {wound.wound_code}</p>
+                              {wound.wound_name && <span className="text-xs text-gray-400">{wound.wound_name}</span>}
+                            </div>
+                            <p className="text-xs text-gray-500">到期: {wound.next_assessment_due ? new Date(wound.next_assessment_due).toLocaleDateString('zh-TW') : '未設定'}</p>
+                          </div>
+                          <span className={`status-badge ${isOverdue ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800'}`}>
+                            {isOverdue ? '逾期' : '即將到期'}
+                          </span>
+                        </div>
+                      </a>
+                    );
                   } else if (item.type === 'annual-checkup') {
                     const checkup = item.data;
                     const isOverdue = isAnnualCheckupOverdue(checkup);
@@ -1551,43 +1582,7 @@ const Dashboard: React.FC = () => {
                   }
                }
              })}
-             {/* 傷口評估待辦 */}
-             {urgentWoundAssessments.slice(0, 8).map(wItem => {
-               const patient = patients.find(p => p.院友id === wItem.patientId);
-               const wound = wItem.wound;
-               const isOverdue = wound.is_overdue;
-               return (
-                 <a href="/wound" key={`wound-${wound.id}`} className="block" onClick={e => { e.preventDefault(); setSelectedWoundForAssessment(wound); setShowWoundAssessmentModal(true); }}>
-                   <div className={`flex flex-wrap items-center gap-3 p-3 rounded-lg transition-colors border ${
-                     isOverdue ? 'bg-red-50 hover:bg-red-100 border-red-200' : 'bg-orange-50 hover:bg-orange-100 border-orange-200'
-                   }`}>
-                     <div className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center ${
-                       isOverdue ? 'bg-red-100' : 'bg-orange-100'
-                     }`}>
-                       {patient?.院友相片
-                         ? <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
-                         : <Activity className={`h-5 w-5 ${isOverdue ? 'text-red-600' : 'text-orange-600'}`} />}
-                     </div>
-                     <div className="flex-1 min-w-0">
-                       <div className="flex flex-wrap items-center gap-2">
-                         <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : wItem.patientName}</p>
-                         <span className="text-xs text-gray-500">({wItem.bedNumber})</span>
-                       </div>
-                       <div className="flex flex-wrap items-center gap-2 mt-1">
-                         <Activity className={`h-4 w-4 ${isOverdue ? 'text-red-500' : 'text-orange-500'}`} />
-                         <p className="text-sm text-gray-600">傷口評估 — {wound.wound_code}</p>
-                         {wound.wound_name && <span className="text-xs text-gray-400">{wound.wound_name}</span>}
-                       </div>
-                       <p className="text-xs text-gray-500">到期: {wound.next_assessment_due ? new Date(wound.next_assessment_due).toLocaleDateString('zh-TW') : '未設定'}</p>
-                     </div>
-                     <span className={`status-badge ${isOverdue ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800'}`}>
-                       {isOverdue ? '逾期' : '即將到期'}
-                     </span>
-                   </div>
-                 </a>
-               );
-             })}
-          </div>
+</div>
         </div>
         <div className="card p-6 lg:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">

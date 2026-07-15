@@ -343,16 +343,30 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
     try {
       const validPatientId = (patientId !== undefined && patientId !== null && !isNaN(patientId) && patientId > 0) ? patientId : null;
       const validScheduledDate = (scheduledDate && typeof scheduledDate === 'string' && scheduledDate.trim() !== '' && scheduledDate !== 'undefined') ? scheduledDate.trim() : null;
-      let query = supabase.from('medication_workflow_records').select('*');
-      if (validPatientId !== null) {
-        query = query.eq('patient_id', validPatientId);
-      }
-      if (validScheduledDate !== null) {
-        query = query.eq('scheduled_date', validScheduledDate);
-      }
-      const { data: queryData, error: queryError } = await query.order('scheduled_time');
-      if (queryError) {
-        throw new Error(`查詢工作流程記錄失敗: ${queryError.message}`);
+      // 分頁載入，避免 Supabase 預設 1000 筆上限截斷資料
+      // （否則按 scheduled_time 排序時，晚時段如 20:00 的記錄會被切掉，導致提醒卡片遺漏院友）
+      const PAGE_SIZE = 1000;
+      let page = 0;
+      let queryData: any[] = [];
+      while (true) {
+        let query = supabase.from('medication_workflow_records').select('*');
+        if (validPatientId !== null) {
+          query = query.eq('patient_id', validPatientId);
+        }
+        if (validScheduledDate !== null) {
+          query = query.eq('scheduled_date', validScheduledDate);
+        }
+        const { data: pageData, error: queryError } = await query
+          .order('scheduled_date')
+          .order('scheduled_time')
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+        if (queryError) {
+          throw new Error(`查詢工作流程記錄失敗: ${queryError.message}`);
+        }
+        if (!pageData || pageData.length === 0) break;
+        queryData = queryData.concat(pageData);
+        if (pageData.length < PAGE_SIZE) break;
+        page++;
       }
       if (!skipStateUpdate) {
         setPrescriptionWorkflowRecords(queryData || []);

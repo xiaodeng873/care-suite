@@ -49,6 +49,14 @@ export const isWorkflowOverdue = (record: WorkflowRecord): boolean => {
 };
 
 /**
+ * 判斷處方是否為「無安排時間點」的需要時(PRN)處方。
+ * 這類藥物只在有需要時臨時給藥，沒有排程 → 不應計入逾期提醒（卡片/紅點）。
+ * 有安排時間點的 PRN（等同定服）則不屬此類，照常計入。
+ */
+export const isPrnNoSlotPrescription = (p: any): boolean =>
+  !!p?.is_prn && (!Array.isArray(p?.medication_time_slots) || p.medication_time_slots.length === 0);
+
+/**
  * 檢查特定日期是否有逾期未完成的流程
  * @param records 所有工作流程記錄
  * @param targetDate 目標日期（格式：YYYY-MM-DD）
@@ -66,17 +74,34 @@ export const hasOverdueWorkflowOnDate = (
  * 計算每個日期的逾期未完成流程數量
  * @param records 所有工作流程記錄
  * @param dates 日期列表
+ * @param prescriptions 可選：處方列表。提供時會排除「無時間點 PRN」的記錄，使紅點與提醒卡片一致
  * @returns 日期到逾期數量的映射
  */
 export const calculateOverdueCountByDate = (
   records: WorkflowRecord[],
-  dates: string[]
+  dates: string[],
+  prescriptions?: any[]
 ): Map<string, number> => {
   const countMap = new Map<string, number>();
+  const prescriptionMap = prescriptions
+    ? new Map(prescriptions.map(p => [p.id, p]))
+    : null;
 
   dates.forEach(date => {
     const recordsOnDate = records.filter(r => r.scheduled_date === date);
-    const overdueCount = recordsOnDate.filter(isWorkflowOverdue).length;
+    const overdueCount = recordsOnDate.filter(r => {
+      if (!isWorkflowOverdue(r)) return false;
+      if (prescriptionMap) {
+        const p = prescriptionMap.get(r.prescription_id);
+        // 孤立記錄（對應處方已刪除）：無法顯示，不計逾期
+        if (!p) return false;
+        // 變更中的處方：不在工作流程頁顯示，不計逾期
+        if (p.status === 'pending_change') return false;
+        // 排除「無時間點 PRN」處方的記錄（需要時才派，不算逾期）
+        if (isPrnNoSlotPrescription(p)) return false;
+      }
+      return true;
+    }).length;
     countMap.set(date, overdueCount);
   });
 
@@ -204,18 +229,15 @@ export const getPatientsWithOverdueWorkflow = (
         return; // 跳過這條孤兒記錄
       }
 
-      // 處方存在但狀態是 pending_change（處方變更中，不應計入逾期）
-      if (prescription.status === 'pending_change') {
+      // 處方存在但狀態是 pending_change 或 inactive（停用/變更中，不應計入逾期）
+      if (prescription.status === 'pending_change' || prescription.status === 'inactive') {
         inactiveRecordCount++;
-        console.warn('⚠️ 發現pending_change處方的工作流程記錄（已排除）:', {
-          記錄ID: record.id,
-          處方ID: record.prescription_id,
-          處方狀態: prescription.status,
-          藥物名稱: prescription.medication_name,
-          院友ID: record.patient_id,
-          日期: record.scheduled_date
-        });
-        return; // 跳過 pending_change 狀態的處方記錄
+        return; // 跳過停用或變更中的處方記錄
+      }
+
+      // 無時間點的需要時(PRN)處方：需要時才派發，不算逾期，排除於提醒
+      if (isPrnNoSlotPrescription(prescription)) {
+        return;
       }
     }
 

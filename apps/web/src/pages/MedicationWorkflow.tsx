@@ -414,6 +414,11 @@ const MedicationWorkflow: React.FC = () => {
   // 從 URL 查詢參數獲取初始值
   const urlPatientId = searchParams.get('patientId');
   const urlDate = searchParams.get('date');
+  const urlStep = searchParams.get('step');
+  const validSteps = ['preparation', 'verification', 'dispensing'] as const;
+  const initialStep = (validSteps as readonly string[]).includes(urlStep || '')
+    ? (urlStep as 'preparation' | 'verification' | 'dispensing')
+    : 'preparation';
   // 狀態管理
   const [selectedDate, setSelectedDate] = useState(urlDate || getTodayLocalDate());
   const [selectedPatientId, setSelectedPatientId] = useState<string>(urlPatientId || '');
@@ -447,7 +452,7 @@ const MedicationWorkflow: React.FC = () => {
   const [loadingCutoffTime, setLoadingCutoffTime] = useState(true);
   const [currentInjectionRecord, setCurrentInjectionRecord] = useState<any>(null);
   const [allWorkflowRecords, setAllWorkflowRecords] = useState<any[]>([]);
-  const [workflowStep, setWorkflowStep] = useState<'preparation' | 'verification' | 'dispensing'>('preparation');
+  const [workflowStep, setWorkflowStep] = useState<'preparation' | 'verification' | 'dispensing'>(initialStep);
   const [autoGenerationChecked, setAutoGenerationChecked] = useState(false);
   const [showDeduplicateModal, setShowDeduplicateModal] = useState(false);
   const [selectedDateForMenu, setSelectedDateForMenu] = useState<string | null>(null);
@@ -988,8 +993,8 @@ const MedicationWorkflow: React.FC = () => {
   }, [activePrescriptions, workflowStep]);
   // 計算每個日期的逾期未完成流程狀態（用於紅點提示，使用樂觀更新記錄）
   const dateOverdueStatus = useMemo(() => {
-    return calculateOverdueCountByDate(recordsWithOptimisticUpdates, weekDates);
-  }, [recordsWithOptimisticUpdates, weekDates]);
+    return calculateOverdueCountByDate(recordsWithOptimisticUpdates, weekDates, prescriptions);
+  }, [recordsWithOptimisticUpdates, weekDates, prescriptions]);
   // 計算藥物數量統計
   const medicationStats = useMemo(() => {
     const timeSlotStats: { [timeSlot: string]: { [dosageForm: string]: { count: number; totalAmount: number; unit: string } } } = {};

@@ -7,6 +7,7 @@ import OCRPrescriptionBlock from './OCRPrescriptionBlock';
 import { mapOCRDataToPrescriptionForm, getConfidenceColor, getConfidenceIcon } from '../utils/ocrFieldMapper';
 import { getMedicationSettings, INSTITUTION_GROUPS, getInstitutionCategory } from '../utils/medicationSettings';
 import { computeEstimatedEndDate } from '../utils/estimatedEndDate';
+import { supabase } from '../lib/supabase';
 
 interface PrescriptionModalProps {
   prescription?: any;
@@ -410,6 +411,32 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     if (formData.status === 'inactive' && !formData.end_date) {
       setValidationError('停用處方必須設定結束日期');
       return;
+    }
+
+    // 停用攔截：若是現有處方且狀態從非停用改為停用，檢查是否有逾期未完成的執核派記錄
+    if (formData.status === 'inactive' && prescription?.id && prescription?.status !== 'inactive') {
+      const { data: pendingRecords, error: checkError } = await supabase
+        .from('medication_workflow_records')
+        .select('scheduled_date, scheduled_time')
+        .eq('prescription_id', prescription.id)
+        .eq('dispensing_status', 'pending');
+
+      if (!checkError && pendingRecords && pendingRecords.length > 0) {
+        const now = new Date();
+        const overdueRecords = pendingRecords.filter(r => {
+          const dt = new Date(`${r.scheduled_date}T${r.scheduled_time}`);
+          return dt < now;
+        });
+        if (overdueRecords.length > 0) {
+          const overdueDates = [...new Set(overdueRecords.map(r => r.scheduled_date))]
+            .sort()
+            .join('\n');
+          setValidationError(
+            `無法停用：以下日期有未完成的執核派記錄，請先在 eMAR 補齊後再停用：\n${overdueDates}`
+          );
+          return;
+        }
+      }
     }
 
     // 驗證：機構屬醫管局/衛生署 且 單位為粒/膠囊 時，藥物數量必填

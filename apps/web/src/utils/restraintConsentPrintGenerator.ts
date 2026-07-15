@@ -678,6 +678,47 @@ table.main-table th, table.main-table td {
 </div><!-- end page-2 -->
 
 </div><!-- end pw -->
+
+<script>
+/* 自動微調：偵測 P1 是否超出單頁可列印高度，若超出則按比例縮放（置中，避免靠左），
+   使其剛好容納於一張 A4 內，不會溢出到第 2 頁。 */
+(function () {
+  function fitAll() {
+    var pages = document.querySelectorAll('.page-1');
+    if (!pages.length) return;
+    // 單張 A4 可列印內容高度 = 297mm - 上邊距 5mm - 下邊距 10mm = 282mm
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;width:1px;height:282mm;';
+    document.body.appendChild(probe);
+    var avail = probe.offsetHeight;
+    probe.remove();
+    pages.forEach(function (page) {
+      var inner = page.querySelector('.a4-container');
+      if (!inner) return;
+      // 先重置，確保重複呼叫時量到的是原始高度
+      inner.style.transform = '';
+      inner.style.transformOrigin = '';
+      page.style.height = '';
+      page.style.overflow = '';
+      var h = inner.getBoundingClientRect().height;
+      if (h > avail) {
+        var k = avail / h;
+        inner.style.transformOrigin = 'top center';
+        inner.style.transform = 'scale(' + k + ')';
+        page.style.height = (h * k) + 'px';
+        page.style.overflow = 'hidden';
+      }
+    });
+  }
+  // 供父視窗在列印前再呼叫一次，確保字型載入後量測正確
+  window.__fitRestraintP1 = fitAll;
+  var run = function () {
+    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(fitAll);
+  };
+  if (document.readyState === 'complete') run();
+  else window.addEventListener('load', run);
+})();
+</script>
 </body>
 </html>`;
 };
@@ -706,7 +747,10 @@ export const printRestraintConsentForm = (
   doc.write(html);
   doc.close();
   iframe.contentWindow?.focus();
-  setTimeout(() => { iframe.contentWindow?.print(); }, 400);
+  setTimeout(() => {
+    try { (iframe.contentWindow as any)?.__fitRestraintP1?.(); } catch { /* noop */ }
+    iframe.contentWindow?.print();
+  }, 400);
 };
 
 /**
@@ -752,5 +796,8 @@ export const printRestraintConsentForms = (
   doc.write(combined);
   doc.close();
   iframe.contentWindow?.focus();
-  setTimeout(() => { iframe.contentWindow?.print(); }, 400);
+  setTimeout(() => {
+    try { (iframe.contentWindow as any)?.__fitRestraintP1?.(); } catch { /* noop */ }
+    iframe.contentWindow?.print();
+  }, 400);
 };

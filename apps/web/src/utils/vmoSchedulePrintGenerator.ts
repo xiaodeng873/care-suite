@@ -122,7 +122,7 @@ body { font-family:"PMingLiU","MingLiU","新細明體",serif; margin:0; padding:
 .a4-wrapper { width:277mm; box-sizing:border-box; display:flex; flex-direction:column; background:#fff; }
 .title-section { text-align:center; margin-bottom:8px; }
 .title-section h1,.title-section h2 { margin:0; font-size:20px; font-weight:normal; }
-.title-section h3 { margin:4px 0 0; font-size:20px; font-weight:bold; text-decoration:underline; }
+.title-section h3 { margin:4px 0 0; font-size:20px; font-weight:bold; }
 .date-line { text-align:center; font-size:14px; font-weight:bold; margin-bottom:6px; }
 .info-layout { width:100%; border-collapse:collapse; table-layout:fixed; margin-bottom:8px; }
 .info-layout td { border:none; padding:3px 0; vertical-align:bottom; white-space:nowrap; font-size:14px; font-weight:bold; }

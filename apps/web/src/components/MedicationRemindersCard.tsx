@@ -97,7 +97,7 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
                 <div key={item.patient.院友id} className="bg-amber-50 border border-amber-200 rounded-lg">
                   <div
                     className="p-3 hover:bg-amber-100 cursor-pointer"
-                    onClick={() => navigate(`/medication-workflow?patientId=${item.patient.院友id}`)}
+                    onClick={() => navigate(`/medication-workflow?patientId=${item.patient.院友id}&step=dispensing`)}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 flex-1">
@@ -135,7 +135,7 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
                         {dateEntries.map(([date, count]) => (
                           <button
                             key={date}
-                            onClick={(e) => { e.stopPropagation(); navigate(`/medication-workflow?patientId=${item.patient.院友id}&date=${date}`); }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/medication-workflow?patientId=${item.patient.院友id}&date=${date}&step=dispensing`); }}
                             className="text-left px-3 py-2 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded text-sm text-amber-900"
                           >
                             <div className="font-medium">{date}</div>

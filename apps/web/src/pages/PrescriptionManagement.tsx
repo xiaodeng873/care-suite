@@ -12,6 +12,7 @@ import PrescriptionEndDateModal from '../components/PrescriptionEndDateModal';
 import PatientTooltip from '../components/PatientTooltip';
 import MedicationRecordExportModal from '../components/MedicationRecordExportModal';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import { supabase } from '../lib/supabase';
 
 type PrescriptionStatus = 'active' | 'pending_change' | 'inactive';
 
@@ -354,7 +355,33 @@ const PrescriptionManagement: React.FC = () => {
     setShowTransferModal(true);
   };
 
-  const handleStatusChange = (prescription: any, targetStatus: 'active' | 'pending_change' | 'inactive') => {
+  const handleStatusChange = async (prescription: any, targetStatus: 'active' | 'pending_change' | 'inactive') => {
+    // 停用前：直接查詢 DB 確認是否有逾期未完成的執核派記錄
+    if (targetStatus === 'inactive') {
+      const { data: pendingRecords, error } = await supabase
+        .from('medication_workflow_records')
+        .select('scheduled_date, scheduled_time')
+        .eq('prescription_id', prescription.id)
+        .eq('dispensing_status', 'pending');
+
+      if (!error && pendingRecords && pendingRecords.length > 0) {
+        const now = new Date();
+        const overdueRecords = pendingRecords.filter(r => {
+          const scheduledDateTime = new Date(`${r.scheduled_date}T${r.scheduled_time}`);
+          return scheduledDateTime < now;
+        });
+        if (overdueRecords.length > 0) {
+          const overdueDates = [...new Set(overdueRecords.map(r => r.scheduled_date))]
+            .sort()
+            .join('\n');
+          alert(
+            `無法停用處方「${prescription.medication_name}」\n\n以下日期有未完成的執核派記錄，請先在 eMAR 補齊後再停用：\n\n${overdueDates}`
+          );
+          return;
+        }
+      }
+    }
+
     // 檢查是否需要處理結束日期
     const needsEndDate = targetStatus === 'inactive' && !prescription.end_date;
     const needsEndDateRemoval = (targetStatus === 'active' || targetStatus === 'pending_change') && prescription.end_date;
