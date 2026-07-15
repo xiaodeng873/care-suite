@@ -23,9 +23,9 @@ const WOUND_TYPES: { value: WoundType; label: string }[] = [
 ];
 
 const WOUND_ORIGINS: { value: WoundOrigin; label: string }[] = [
-  { value: 'facility', label: '本院發現' },
-  { value: 'admission', label: '入院時已有' },
-  { value: 'hospital_referral', label: '醫院轉介' }
+  { value: 'facility', label: '本院發生' },
+  { value: 'admission', label: '入住前發生' },
+  { value: 'hospital_referral', label: '醫院發生' }
 ];
 
 const RESPONSIBLE_UNITS: { value: ResponsibleUnit; label: string }[] = [
@@ -99,6 +99,11 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
       return;
     }
 
+    if (!formData.wound_name?.trim()) {
+      setError('請填寫傷口位置描述');
+      return;
+    }
+
     if (!formData.discovery_date) {
       setError('請填寫發現日期');
       return;
@@ -128,7 +133,7 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
         return next.toISOString().split('T')[0];
       };
 
-      // 頻率設定欄位
+      // 頻率設定欄位（已可寫入 DB）
       const freqFields = {
         assessment_frequency_unit: formData.assessment_frequency_unit,
         assessment_frequency_value: formData.assessment_frequency_unit === 'daily' ? formData.assessment_frequency_value : undefined,
@@ -155,8 +160,30 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
 
       let savedWound: Wound | null = null;
       if (wound?.id) {
-        // 編輯：更新頻率設定，保留 next_assessment_due（由評估流程控制）
-        const { next_assessment_due, ...updateData } = woundData;
+        // 編輯：如果頻率改變，需要重新計算下次評估日期
+        const freqChanged = 
+          wound.assessment_frequency_unit !== formData.assessment_frequency_unit ||
+          wound.assessment_frequency_value !== formData.assessment_frequency_value ||
+          JSON.stringify(wound.assessment_specific_days_of_week ?? []) !== JSON.stringify(formData.assessment_specific_days_of_week);
+        
+        let updateData: any;
+        if (freqChanged) {
+          // 頻率改變 → 以「最新評估日期」為基準重算（若無評估則用發現日期）
+          const assessments = (wound as any).assessments as Array<{ assessment_date: string }> | undefined;
+          const latestAssessmentDate = assessments && assessments.length > 0
+            ? assessments
+                .map(a => a.assessment_date)
+                .filter(Boolean)
+                .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]
+            : null;
+          const baseDate = latestAssessmentDate ?? formData.discovery_date;
+          updateData = { ...woundData, next_assessment_due: computeInitialNextDue(baseDate) };
+        } else {
+          // 頻率未改變 → 保留舊的 next_assessment_due
+          const { next_assessment_due, ...rest } = woundData;
+          updateData = rest;
+        }
+        
         savedWound = await updateWound({ id: wound.id, ...updateData });
       } else {
         savedWound = await addWound(woundData);
@@ -238,20 +265,9 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                傷口編號
-              </label>
-              <input
-                type="text"
-                name="wound_code"
-                value={formData.wound_code}
-                onChange={handleChange}
-                className="form-input w-full bg-gray-50"
-                placeholder="自動生成"
-                readOnly
-              />
-              <p className="mt-1 text-xs text-gray-500">系統自動生成</p>
+            {/* 傷口編號：隱藏顯示，但付底實際存在 DB */}
+            <div className="hidden">
+              <input type="text" name="wound_code" value={formData.wound_code} readOnly />
             </div>
           </div>
 
@@ -274,7 +290,7 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                傷口名稱/描述
+                傷口位置描述 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -282,7 +298,8 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
                 value={formData.wound_name}
                 onChange={handleChange}
                 className="form-input w-full"
-                placeholder="例如：左腳踝壓瘡"
+                placeholder="例如：左腳踝壓瘫"
+                required
               />
             </div>
           </div>
@@ -380,34 +397,7 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
                 onLocationChange={handleLocationChange}
               />
               <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ 
-                    ...prev, 
-                    wound_location: { ...prev.wound_location, side: 'front' } 
-                  }))}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    formData.wound_location.side === 'front'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  前面
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ 
-                    ...prev, 
-                    wound_location: { ...prev.wound_location, side: 'back' } 
-                  }))}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    formData.wound_location.side === 'back'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  後面
-                </button>
+      
               </div>
             </div>
           </div>

@@ -14,7 +14,8 @@ import {
   Eye,
   User,
   X,
-  FileText,
+  Copy,
+  Printer,
 } from 'lucide-react';
 import { usePatients, type Wound, type WoundWithAssessments, type WoundAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -22,6 +23,7 @@ import PatientTooltip from '../components/PatientTooltip';
 import WoundModal from '../components/WoundModal';
 import SingleWoundAssessmentModal from '../components/SingleWoundAssessmentModal';
 import { fuzzyMatch, matchBedNumber, matchChineseName } from '../utils/searchUtils';
+import { printWoundAssessment, saveWoundAssessmentHtml } from '../utils/woundAssessmentPrintGenerator';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -61,9 +63,9 @@ const WOUND_TYPE_LABELS: Record<string, string> = {
 };
 
 const WOUND_ORIGIN_LABELS: Record<string, string> = {
-  facility: '本院發現',
-  admission: '入院時已有',
-  hospital_referral: '醫院轉介',
+  facility: '本院發生',
+  admission: '入住前發生',
+  hospital_referral: '醫院發生',
 };
 
 const EFFECTIVE_STATUS_LABELS: Record<string, string> = {
@@ -122,7 +124,7 @@ const DEFAULT_FILTERS: WoundFilters = {
 // ── component ─────────────────────────────────────────────────────────────────
 
 const WoundManagementNew: React.FC = () => {
-  const { patientsWithWounds, patients, deleteWound, deleteWoundAssessment, updateWound, refreshWoundData, loading } = usePatients();
+  const { patientsWithWounds, patients, stations, deleteWound, deleteWoundAssessment, updateWound, refreshWoundData, loading } = usePatients();
 
   // ── table state ──
   const [sortField, setSortField]           = useState<SortField>('discovery_date');
@@ -333,6 +335,50 @@ const WoundManagementNew: React.FC = () => {
     setShowAssessmentModal(true);
   };
 
+  const handlePrintWound = async (wound: WoundWithAssessments) => {
+    const patient = patients.find(p => p.院友id === wound.patient_id);
+    if (!patient) { alert('找不到院友資料'); return; }
+    const stationCode = stations.find(s => s.id === patient.station_id)?.code ?? '';
+    try {
+      await printWoundAssessment(wound, wound.assessments, patient, stationCode);
+    } catch (e) {
+      console.error('Print failed:', e);
+      alert('列印失敗，請重試');
+    }
+  };
+
+  const handleCloneAssessment = (wound: WoundWithAssessments) => {
+    const latest = wound.assessments[0]; // 已按日期降序，第 0 筆最新
+    if (!latest) {
+      // 沒有評估記錄時直接開新增番
+      handleAddAssessment(wound);
+      return;
+    }
+    // 將最新評估複輸，id 置 '' 讓 modal 判斷為新增，不帶入相片，日期置空由 modal 自動填今日
+    const cloned = {
+      ...latest,
+      id: '' as any,                    // 空字串 = falsy => modal 進入新增流程
+      assessment_date: '',             // modal 自動填今日
+      wound_photos: [] as any,         // 不帶入上次相片
+      created_at: undefined as any,
+      updated_at: undefined as any,
+    };
+    setAssessmentWound(wound);
+    setSelectedAssessment(cloned);
+    setShowAssessmentModal(true);
+  };
+
+  const handleSaveWound = async (wound: WoundWithAssessments) => {
+    const patient = patients.find(p => p.院友id === wound.patient_id);
+    if (!patient) { alert('找不到院友資料'); return; }
+    try {
+      await saveWoundAssessmentHtml(wound, wound.assessments, patient);
+    } catch (e) {
+      console.error('Save failed:', e);
+      alert('下載失敗，請重試');
+    }
+  };
+
   const handleViewAssessment = (wound: Wound, assessment: WoundAssessment) => {
     setAssessmentWound(wound);
     setSelectedAssessment(assessment);
@@ -539,9 +585,9 @@ const WoundManagementNew: React.FC = () => {
                     <label className="form-label">傷口來源</label>
                     <select value={filters.傷口來源} onChange={e => updateFilter('傷口來源', e.target.value)} className="form-input">
                       <option value="">全部</option>
-                      <option value="facility">本院發現</option>
-                      <option value="admission">入院時已有</option>
-                      <option value="hospital_referral">醫院轉介</option>
+                      <option value="facility">本院發生</option>
+                      <option value="admission">入住前發生</option>
+                      <option value="hospital_referral">醫院發生</option>
                     </select>
                   </div>
                   <div>
@@ -807,6 +853,22 @@ const WoundManagementNew: React.FC = () => {
                                     disabled={deletingIds.has(wound.id)}
                                   >
                                     <Plus className="h-3 w-3 mr-0.5" />評估
+                                  </button>
+                                  <button
+                                    onClick={() => handleCloneAssessment(wound)}
+                                    className="text-gray-400 hover:text-purple-600 transition-colors"
+                                    title="另存（從上次評估從入新評估）"
+                                    disabled={deletingIds.has(wound.id)}
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handlePrintWound(wound)}
+                                    className="text-gray-400 hover:text-green-600 transition-colors"
+                                    title="列印評估記錄表"
+                                    disabled={deletingIds.has(wound.id)}
+                                  >
+                                    <Printer className="h-4 w-4" />
                                   </button>
                                   <button
                                     onClick={() => handleEditWound(wound)}

@@ -130,12 +130,6 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
     onPhotosChange(photos.filter(photo => photo.id !== photoId));
   };
 
-  const updatePhotoDescription = (photoId: string, description: string) => {
-    onPhotosChange(photos.map(photo => 
-      photo.id === photoId ? { ...photo, description } : photo
-    ));
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -238,14 +232,6 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
               </div>
               
               <div className="p-2 space-y-2">
-                <input
-                  type="text"
-                  value={photo.description || ''}
-                  onChange={(e) => updatePhotoDescription(photo.id, e.target.value)}
-                  placeholder="相片描述..."
-                  className="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-xs text-gray-500">
                     {new Date(photo.uploadDate).toLocaleDateString('zh-TW')}
@@ -320,17 +306,6 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
               />
               
               <div className="space-y-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">相片描述</label>
-                  <input
-                    type="text"
-                    value={previewPhoto.description || ''}
-                    onChange={(e) => updatePhotoDescription(previewPhoto.id, e.target.value)}
-                    placeholder="輸入相片描述..."
-                    className="form-input w-full"
-                  />
-                </div>
-                
                 <div className="text-sm text-gray-600">
                   <p><strong>檔案名稱：</strong>{previewPhoto.filename}</p>
                   <p><strong>上傳時間：</strong>{new Date(previewPhoto.uploadDate).toLocaleString('zh-TW')}</p>

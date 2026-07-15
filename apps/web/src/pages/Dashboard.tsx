@@ -27,6 +27,7 @@ import VaccinationRecordModal from '../components/VaccinationRecordModal';
 import TaskHistoryModal from '../components/TaskHistoryModal';
 import MonitoringTaskWorksheetModal from '../components/MonitoringTaskWorksheetModal';
 import BatchHealthRecordOCRModal from '../components/BatchHealthRecordOCRModal';
+import SingleWoundAssessmentModal from '../components/SingleWoundAssessmentModal';
 import { syncTaskStatus, SYNC_CUTOFF_DATE_STR, supabase } from '../lib/database';
 import { getMissingMonitoringVitals } from '../utils/monitoringCoverage';
 interface Patient {
@@ -90,7 +91,7 @@ function pickLatestPerPatient<T extends { patient_id: number; created_at?: strin
   return Array.from(latestPerPatient.values());
 }
 const Dashboard: React.FC = () => {
-  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, patientsWithWounds, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData } = usePatients();
+  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, patientsWithWounds, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData, refreshWoundData } = usePatients();
   const [showHealthRecordModal, setShowHealthRecordModal] = useState(false);
   const [selectedHealthRecordInitialData, setSelectedHealthRecordInitialData] = useState<any>({});
   const [showDocumentTaskModal, setShowDocumentTaskModal] = useState(false);
@@ -125,6 +126,9 @@ const Dashboard: React.FC = () => {
   const [selectedPatientForVaccination, setSelectedPatientForVaccination] = useState<any>(null);
   const [showWorksheetModal, setShowWorksheetModal] = useState(false);
   const [showOCRModal, setShowOCRModal] = useState(false);
+  // 傷口評估 Modal 狀態
+  const [showWoundAssessmentModal, setShowWoundAssessmentModal] = useState(false);
+  const [selectedWoundForAssessment, setSelectedWoundForAssessment] = useState<any | null>(null);
   // 歷史日曆 Modal 狀態
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedHistoryTask, setSelectedHistoryTask] = useState<{ task: HealthTask; patient: Patient; initialDate?: Date | null; groupTasks?: HealthTask[] } | null>(null);
@@ -1553,7 +1557,7 @@ const Dashboard: React.FC = () => {
                const wound = wItem.wound;
                const isOverdue = wound.is_overdue;
                return (
-                 <a href="/wound" key={`wound-${wound.id}`} className="block" onClick={e => { e.preventDefault(); window.location.href = '/wound'; }}>
+                 <a href="/wound" key={`wound-${wound.id}`} className="block" onClick={e => { e.preventDefault(); setSelectedWoundForAssessment(wound); setShowWoundAssessmentModal(true); }}>
                    <div className={`flex flex-wrap items-center gap-3 p-3 rounded-lg transition-colors border ${
                      isOverdue ? 'bg-red-50 hover:bg-red-100 border-red-200' : 'bg-orange-50 hover:bg-orange-100 border-orange-200'
                    }`}>
@@ -1671,6 +1675,14 @@ const Dashboard: React.FC = () => {
       )}
       {showOCRModal && (
         <BatchHealthRecordOCRModal onClose={() => setShowOCRModal(false)} />
+      )}
+      {showWoundAssessmentModal && selectedWoundForAssessment && (
+        <SingleWoundAssessmentModal
+          wound={selectedWoundForAssessment}
+          prefillFrom={selectedWoundForAssessment.assessments?.[0] ?? null}
+          onClose={() => { setShowWoundAssessmentModal(false); setSelectedWoundForAssessment(null); }}
+          onSave={() => { setShowWoundAssessmentModal(false); setSelectedWoundForAssessment(null); refreshWoundData(); }}
+        />
       )}
     </div>
   );

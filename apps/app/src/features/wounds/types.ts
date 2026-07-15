@@ -73,9 +73,9 @@ export const WOUND_STATUS_LABEL: Record<WoundStatus, string> = {
 };
 
 export const WOUND_ORIGIN_LABEL: Record<WoundOrigin, string> = {
-  facility: '本院發現',
-  admission: '入院時已有',
-  hospital_referral: '醫院轉介',
+  facility: '本院發生',
+  admission: '入住前發生',
+  hospital_referral: '醫院發生',
 };
 
 export const RESPONSIBLE_UNIT_LABEL: Record<string, string> = {

@@ -62,18 +62,18 @@ const HumanBodyDiagram: React.FC<HumanBodyDiagramProps> = ({
         </h4>
       </div>
 
-      <div className="relative bg-gray-50 rounded-lg p-2 sm:p-6 flex justify-center">
-        {/* 使用 aspect-ratio 保持正方形比例，響應式寬度 */}
+      <div className="relative bg-gray-50 rounded-lg p-2 sm:p-4 flex justify-center">
+        {/* 橫向圖：aspect-ratio 跟圖片比例對應 */}
         <div
           ref={containerRef}
-          className="relative cursor-crosshair border border-gray-300 rounded-lg bg-white shadow-sm w-full max-w-[600px]"
-          style={{ aspectRatio: '1 / 1' }}
+          className="relative cursor-crosshair border border-gray-300 rounded-lg bg-white shadow-sm w-full"
+          style={{ aspectRatio: '16 / 9' }}
           onClick={handleClick}
           onTouchStart={handleTouch}
         >
-          {/* Background image - 放大1倍 */}
+          {/* Background image - 橫向 human-body-diagram2 */}
           <img
-            src="/human-body-diagram.png"
+            src="/human-body-diagram2.png"
             alt="人體圖"
             className="w-full h-full object-contain rounded-lg"
             style={{

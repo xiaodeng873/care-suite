@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, User, Ruler, Droplets, Thermometer, AlertCircle, Camera, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Calendar, User, Ruler, Droplets, Thermometer, AlertCircle, Camera, Check, ChevronDown } from 'lucide-react';
 import { usePatients, type Wound, type WoundAssessment, type WoundAssessmentStatus } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import WoundPhotoUpload from './WoundPhotoUpload';
@@ -15,6 +15,7 @@ interface WoundPhoto {
 interface SingleWoundAssessmentModalProps {
   wound: Wound;
   assessment?: WoundAssessment | null;
+  prefillFrom?: WoundAssessment | null;
   onClose: () => void;
   onSave?: () => void;
 }
@@ -23,13 +24,14 @@ const STAGES = ['階段1', '階段2', '階段3', '階段4', '無法評估'];
 const ODOR_OPTIONS = ['無', '有', '惡臭'];
 const GRANULATION_OPTIONS = ['無', '紅色', '粉紅色'];
 const NECROSIS_OPTIONS = ['無', '黑色', '啡色', '黃色'];
-const INFECTION_OPTIONS = ['無', '懷疑', '有'];
+// 感染症狀：多選，「無」與其餘互斥
+const INFECTION_SIGNS = ['無', '紅', '腫', '熱', '痛'];
 const TEMPERATURE_OPTIONS = ['正常', '上升'];
 const EXUDATE_AMOUNT_OPTIONS = ['無', '少', '中', '多'];
-const EXUDATE_COLOR_OPTIONS = ['紅色', '黃色', '綠色', '透明'];
-const EXUDATE_TYPE_OPTIONS = ['血', '膿', '血清'];
-const SKIN_CONDITION_OPTIONS = ['健康及柔軟', '腫脹', '僵硬'];
-const SKIN_COLOR_OPTIONS = ['紅色', '紅白色', '黑色'];
+const EXUDATE_COLOR_OPTIONS = ['紅', '黃', '透明'];
+const EXUDATE_TYPE_OPTIONS = ['血', '膜', '血清'];
+const SKIN_COLOR_OPTIONS = ['紅', '紅白', '黑'];
+const SKIN_TEXTURE_OPTIONS = ['腫脹', '僵硬'];
 const CLEANSER_OPTIONS = ['Normal Saline', 'Hibitine', 'Betadine', '其他'];
 const DRESSING_OPTIONS = ['Gauze', 'Adhesive Pad', 'Parafin Gauze', 'Alginate', 'HydroGel', 'Duoderm', 'Omifix', 'Tegaderm'];
 
@@ -39,9 +41,68 @@ const WOUND_STATUS_OPTIONS: { value: WoundAssessmentStatus; label: string; color
   { value: 'healed',    label: '已痊癒', color: 'bg-green-100 text-green-800' }
 ];
 
+/** 可多選下拉選單 */
+const MultiSelectDropdown: React.FC<{
+  options: string[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+  exclusiveOption?: string;
+  placeholder?: string;
+}> = ({ options, selected, onChange, exclusiveOption, placeholder = '選擇...' }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+  const toggle = (opt: string) => {
+    if (exclusiveOption && opt === exclusiveOption) {
+      onChange(selected.includes(opt) ? [] : [opt]);
+    } else {
+      const next = selected.includes(opt)
+        ? selected.filter(s => s !== opt)
+        : [...selected.filter(s => s !== exclusiveOption), opt];
+      onChange(next);
+    }
+  };
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="form-input w-full text-left flex items-center justify-between gap-2"
+      >
+        <span className={`truncate ${selected.length ? '' : 'text-gray-400'}`}>
+          {selected.length ? selected.join('、') : placeholder}
+        </span>
+        <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+          {options.map(opt => (
+            <label key={opt} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selected.includes(opt)}
+                onChange={() => toggle(opt)}
+                className="rounded border-gray-300 text-blue-600"
+              />
+              <span className="text-sm">{opt}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
   wound,
   assessment,
+  prefillFrom,
   onClose,
   onSave
 }) => {
@@ -54,31 +115,35 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
     return hongKongTime.toISOString().split('T')[0];
   };
 
+  // 編輯用 assessment；新增時可用 prefillFrom 預填上次評估（相片與日期除外）
+  const source = assessment ?? prefillFrom ?? null;
+
   const [formData, setFormData] = useState({
     assessment_date: assessment?.assessment_date || getHongKongDate(),
-    assessor: assessment?.assessor || displayName || '',
-    area_length: assessment?.area_length || undefined as number | undefined,
-    area_width: assessment?.area_width || undefined as number | undefined,
-    area_depth: assessment?.area_depth || undefined as number | undefined,
-    stage: assessment?.stage || '',
-    wound_status: (assessment?.wound_status || 'treating') as WoundAssessmentStatus,
-    exudate_present: assessment?.exudate_present || false,
-    exudate_amount: assessment?.exudate_amount || '',
-    exudate_color: assessment?.exudate_color || '',
-    exudate_type: assessment?.exudate_type || '',
-    odor: assessment?.odor || '無',
-    granulation: assessment?.granulation || '無',
-    necrosis: assessment?.necrosis || '無',
-    infection: assessment?.infection || '無',
-    temperature: assessment?.temperature || '正常',
-    surrounding_skin_condition: assessment?.surrounding_skin_condition || '',
-    surrounding_skin_color: assessment?.surrounding_skin_color || '',
-    cleanser: assessment?.cleanser || 'Normal Saline',
-    cleanser_other: assessment?.cleanser_other || '',
-    dressings: assessment?.dressings || [] as string[],
-    dressing_other: assessment?.dressing_other || '',
+    assessor: source?.assessor || displayName || '',
+    area_length: source?.area_length || undefined as number | undefined,
+    area_width: source?.area_width || undefined as number | undefined,
+    area_depth: source?.area_depth || undefined as number | undefined,
+    stage: source?.stage || '',
+    wound_status: (source?.wound_status || 'treating') as WoundAssessmentStatus,
+    exudate_present: source?.exudate_present || false,
+    exudate_amount: source?.exudate_amount || '',
+    exudate_color: source?.exudate_color || '',
+    exudate_type: source?.exudate_type || '',
+    odor: source?.odor || '無',
+    granulation: source?.granulation || '無',
+    necrosis: source?.necrosis || '無',
+    infection_signs: (source?.infection_signs?.length ? source.infection_signs : (source?.infection ? [source.infection] : ['無'])) as string[],
+    temperature: source?.temperature || '正常',
+    surrounding_skin_health: source?.surrounding_skin_condition === 'healthy',
+    surrounding_skin_color: source?.surrounding_skin_color || '',
+    surrounding_skin_texture: source?.surrounding_skin_texture || '',
+    cleanser: source?.cleanser || 'Normal Saline',
+    cleanser_other: source?.cleanser_other || '',
+    dressings: source?.dressings || [] as string[],
+    dressing_other: source?.dressing_other || '',
     wound_photos: (assessment?.wound_photos || []) as unknown as WoundPhoto[],
-    remarks: assessment?.remarks || ''
+    remarks: source?.remarks || ''
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -97,15 +162,6 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
-  };
-
-  const handleDressingChange = (dressing: string, checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      dressings: checked
-        ? [...prev.dressings, dressing]
-        : prev.dressings.filter(d => d !== dressing)
-    }));
   };
 
   const handlePhotosChange = (photos: WoundPhoto[]) => {
@@ -141,10 +197,12 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
         odor: formData.odor,
         granulation: formData.granulation,
         necrosis: formData.necrosis,
-        infection: formData.infection,
+        infection_signs: formData.infection_signs,
+        infection: formData.infection_signs.join(','), // 舊字串尌容
         temperature: formData.temperature,
-        surrounding_skin_condition: formData.surrounding_skin_condition || undefined,
+        surrounding_skin_condition: formData.surrounding_skin_health ? 'healthy' : '',
         surrounding_skin_color: formData.surrounding_skin_color || undefined,
+        surrounding_skin_texture: formData.surrounding_skin_texture || undefined,
         cleanser: formData.cleanser,
         cleanser_other: formData.cleanser === '其他' ? formData.cleanser_other : undefined,
         dressings: formData.dressings,
@@ -428,57 +486,68 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">感染</label>
-              <select
-                name="infection"
-                value={formData.infection}
-                onChange={handleChange}
-                className="form-input w-full"
-              >
-                {INFECTION_OPTIONS.map(i => <option key={i} value={i}>{i}</option>)}
-              </select>
+            <div className="col-span-2 md:col-span-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">感染症狀（可多選）</label>
+                <MultiSelectDropdown
+                  options={INFECTION_SIGNS}
+                  selected={formData.infection_signs}
+                  exclusiveOption="無"
+                  onChange={(vals) => setFormData(prev => ({ ...prev, infection_signs: vals }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Thermometer className="inline h-4 w-4 mr-1" />
+                  體溫
+                </label>
+                <select
+                  name="temperature"
+                  value={formData.temperature}
+                  onChange={handleChange}
+                  className="form-input w-full"
+                >
+                  {TEMPERATURE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <Thermometer className="inline h-4 w-4 mr-1" />
-                體溫
-              </label>
-              <select
-                name="temperature"
-                value={formData.temperature}
-                onChange={handleChange}
-                className="form-input w-full"
-              >
-                {TEMPERATURE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">周邊皮膚狀況</label>
-              <select
-                name="surrounding_skin_condition"
-                value={formData.surrounding_skin_condition}
-                onChange={handleChange}
-                className="form-input w-full"
-              >
-                <option value="">選擇...</option>
-                {SKIN_CONDITION_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">周邊皮膚顏色</label>
-              <select
-                name="surrounding_skin_color"
-                value={formData.surrounding_skin_color}
-                onChange={handleChange}
-                className="form-input w-full"
-              >
-                <option value="">選擇...</option>
-                {SKIN_COLOR_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+            <div className="col-span-2 md:col-span-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">周邊皮膚健康柔軟</label>
+                <select
+                  value={formData.surrounding_skin_health ? 'yes' : 'no'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, surrounding_skin_health: e.target.value === 'yes' }))}
+                  className="form-input w-full"
+                >
+                  <option value="no">否</option>
+                  <option value="yes">是</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">周邊皮膚顏色</label>
+                <select
+                  name="surrounding_skin_color"
+                  value={formData.surrounding_skin_color}
+                  onChange={handleChange}
+                  className="form-input w-full"
+                >
+                  <option value="">選擇...</option>
+                  {SKIN_COLOR_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">周邊皮膚質感</label>
+                <select
+                  name="surrounding_skin_texture"
+                  value={formData.surrounding_skin_texture}
+                  onChange={handleChange}
+                  className="form-input w-full"
+                >
+                  <option value="">選擇...</option>
+                  {SKIN_TEXTURE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -565,20 +634,12 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">敷料</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {DRESSING_OPTIONS.map(d => (
-                  <label key={d} className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.dressings.includes(d)}
-                      onChange={(e) => handleDressingChange(d, e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                    <span className="text-sm text-gray-700">{d}</span>
-                  </label>
-                ))}
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">敷料（可多選）</label>
+              <MultiSelectDropdown
+                options={DRESSING_OPTIONS}
+                selected={formData.dressings}
+                onChange={(vals) => setFormData(prev => ({ ...prev, dressings: vals }))}
+              />
               <input
                 type="text"
                 name="dressing_other"

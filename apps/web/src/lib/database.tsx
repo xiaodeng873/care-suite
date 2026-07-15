@@ -416,10 +416,12 @@ export interface WoundAssessment {
   odor?: string;
   granulation?: string;
   necrosis?: string;
-  infection?: string;
+  infection?: string;          // 舊字串尌容
+  infection_signs?: string[];   // 新：多選 ['\u7121'] | ['\u7d05','\u816b',...]
   temperature?: string;
   surrounding_skin_condition?: string;
   surrounding_skin_color?: string;
+  surrounding_skin_texture?: string;  // 新： 腫脹 | 僵硬
   cleanser?: string;
   cleanser_other?: string;
   dressings?: string[];
@@ -1882,20 +1884,35 @@ export const getPatientsWithWounds = async (): Promise<PatientWithWounds[]> => {
       .eq('在住狀態', '在住');
     if (patientsError) throw patientsError;
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     // 組合數據
     const result: PatientWithWounds[] = (patients || []).map(patient => {
       const patientWounds = (wounds || []).filter(w => w.patient_id === patient.院友id);
       const woundsWithAssessments: WoundWithAssessments[] = patientWounds.map(wound => {
         const woundAssessments = (assessments || []).filter(a => a.wound_id === wound.id);
-        const dueDate = wound.next_assessment_due ? new Date(wound.next_assessment_due) : null;
+        // 動態計算下次評估日期：以「最新評估日期」為基準（無評估則用發現日期），
+        // 依「當前頻率設定」重算，確保頻率改變後狀態立即更新，不受舊存值影響
+        const latestAssessmentDate = woundAssessments.length > 0
+          ? woundAssessments
+              .map(a => a.assessment_date)
+              .filter(Boolean)
+              .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]
+          : null;
+        const baseDate = latestAssessmentDate ?? wound.discovery_date;
+        const computedNextDue = wound.status === 'active' && baseDate
+          ? computeNextAssessmentDue(baseDate, wound)
+          : null;
+        const dueDate = computedNextDue ? new Date(computedNextDue) : null;
+        if (dueDate) dueDate.setHours(0, 0, 0, 0);
         return {
           ...wound,
+          next_assessment_due: computedNextDue ?? wound.next_assessment_due,
           assessments: woundAssessments,
           latest_assessment: woundAssessments[0],
           assessment_count: woundAssessments.length,
           is_overdue: wound.status === 'active' && dueDate ? dueDate < today : false,
           days_until_due: dueDate && wound.status === 'active'
-            ? Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            ? Math.round((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
             : undefined
         };
       });
@@ -2146,6 +2163,9 @@ export const createWoundAssessmentForWound = async (
     wound_photos,
     remarks
   } = assessment;
+  // 新欄位（類型推斷趣避）
+  const infection_signs = (assessment as any).infection_signs as string[] | undefined;
+  const surrounding_skin_texture = (assessment as any).surrounding_skin_texture as string | undefined;
   // 插入評估記錄
   const { data: assessmentRecord, error: assessmentError } = await supabase
     .from('wound_assessments')
@@ -2167,9 +2187,11 @@ export const createWoundAssessmentForWound = async (
       granulation,
       necrosis,
       infection,
+      infection_signs,
       temperature,
       surrounding_skin_condition,
       surrounding_skin_color,
+      surrounding_skin_texture,
       cleanser,
       cleanser_other,
       dressings: dressings || [],
@@ -2210,15 +2232,37 @@ export const createWoundAssessment = async (assessment: Omit<WoundAssessment, 'i
   return assessmentRecord;
 };
 export const updateWoundAssessment = async (assessment: WoundAssessment): Promise<WoundAssessment> => {
-  const { id, created_at, updated_at, wound_details, ...assessmentData } = assessment as any;
+  const { id, created_at, updated_at, wound_details, ...rest } = assessment as any;
   const { data, error } = await supabase.from('wound_assessments').update({
-    patient_id: assessmentData.patient_id,
-    assessment_date: assessmentData.assessment_date,
-    next_assessment_date: assessmentData.next_assessment_date,
-    assessor: assessmentData.assessor,
-    wound_details: wound_details || [],
-    status: assessmentData.status,
-    archived_at: assessmentData.archived_at
+    patient_id:                rest.patient_id,
+    assessment_date:           rest.assessment_date,
+    assessor:                  rest.assessor,
+    area_length:               rest.area_length,
+    area_width:                rest.area_width,
+    area_depth:                rest.area_depth,
+    stage:                     rest.stage,
+    wound_status:              rest.wound_status,
+    exudate_present:           rest.exudate_present,
+    exudate_amount:            rest.exudate_amount,
+    exudate_color:             rest.exudate_color,
+    exudate_type:              rest.exudate_type,
+    odor:                      rest.odor,
+    granulation:               rest.granulation,
+    necrosis:                  rest.necrosis,
+    infection:                 rest.infection,
+    infection_signs:           rest.infection_signs,
+    temperature:               rest.temperature,
+    surrounding_skin_condition: rest.surrounding_skin_condition,
+    surrounding_skin_color:    rest.surrounding_skin_color,
+    surrounding_skin_texture:  rest.surrounding_skin_texture,
+    cleanser:                  rest.cleanser,
+    cleanser_other:            rest.cleanser_other,
+    dressings:                 rest.dressings || [],
+    dressing_other:            rest.dressing_other,
+    wound_photos:              rest.wound_photos || [],
+    remarks:                   rest.remarks,
+    status:                    rest.status,
+    archived_at:               rest.archived_at,
   }).eq('id', id).select().single();
   if (error) throw error;
   return data;
