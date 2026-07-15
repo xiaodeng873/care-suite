@@ -1,11 +1,21 @@
 import React, { useState, useMemo } from 'react';
-import { X, Clock, CheckCircle, Pill, AlertTriangle, ChevronDown, ChevronUp, Activity } from 'lucide-react';
+import { X, Clock, CheckCircle, Pill, AlertTriangle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 import InspectionCheckModal from './InspectionCheckModal';
 import InjectionWorkflowModal, { InjectionWorkflowPayload } from './InjectionWorkflowModal';
 import PatientInfoCard from './PatientInfoCard';
 
 // 判斷注射途徑
 const isInjectionRoute = (route?: string | null): boolean => /注射/.test(String(route ?? ''));
+
+// 派藥分類：口服 / 外用 / 注射（注射涵蓋皮下/肌肉；其餘非口服歸外用）
+type RouteCategory = '口服' | '外用' | '注射';
+const ROUTE_CATEGORIES: RouteCategory[] = ['口服', '外用', '注射'];
+const getRouteCategory = (route?: string | null): RouteCategory => {
+  const r = String(route ?? '');
+  if (/注射/.test(r)) return '注射';
+  if (r === '口服') return '口服';
+  return '外用';
+};
 
 interface TimeSlotSummary {
   time: string;
@@ -25,6 +35,7 @@ interface BatchDispenseConfirmModalProps {
   selectedDate: string;
   onConfirm: (selectedTimeSlots: string[], recordsToProcess: any[], inspectionResults?: Map<string, any>, injectionResults?: Map<string, InjectionWorkflowPayload>) => Promise<void>;
   onClose: () => void;
+  onNavigatePatient?: (direction: 'prev' | 'next') => void;
 }
 
 const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
@@ -35,8 +46,14 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
   selectedDate,
   onConfirm,
   onClose,
+  onNavigatePatient,
 }) => {
-  const [selectedTimeSlots, setSelectedTimeSlots] = useState<Set<string>>(new Set());
+  // 每個分類各自獨立的已選時間點
+  const [selectedByTab, setSelectedByTab] = useState<Record<RouteCategory, Set<string>>>({
+    口服: new Set(),
+    外用: new Set(),
+    注射: new Set(),
+  });
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInspectionModal, setShowInspectionModal] = useState(false);
   const [currentInspectionRecords, setCurrentInspectionRecords] = useState<any[]>([]);
@@ -44,6 +61,20 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
   const [inspectionResults, setInspectionResults] = useState<Map<string, any>>(new Map());
   const [recordsToProcess, setRecordsToProcess] = useState<any[]>([]);
   const [expandedTimeSlots, setExpandedTimeSlots] = useState<Set<string>>(new Set());
+
+  // 目前分類 Tab（口服 / 外用 / 注射）
+  const [activeTab, setActiveTab] = useState<RouteCategory>('口服');
+
+  // 當前分類的已選時間點
+  const selectedTimeSlots = selectedByTab[activeTab];
+  const setCurrentSelected = (next: Set<string>) => {
+    setSelectedByTab(prev => ({ ...prev, [activeTab]: next }));
+  };
+
+  // 切換院友時清空所有分類已選（每位院友重新選）
+  React.useEffect(() => {
+    setSelectedByTab({ 口服: new Set(), 外用: new Set(), 注射: new Set() });
+  }, [selectedPatientId]);
 
   // 注射逐筆序列狀態
   const [showInjectionModal, setShowInjectionModal] = useState(false);
@@ -93,10 +124,40 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
     return time;
   };
 
-  const timeSlotSummaries = useMemo(() => {
+  // 取得記錄所屬的分類
+  const getRecordCategory = (record: any): RouteCategory => {
+    const prescription = prescriptions.find(p => p.id === record.prescription_id);
+    return getRouteCategory(prescription?.administration_route);
+  };
+
+  // 各分類的派藥記錄筆數（用於 Tab 標籤）
+  const categoryCounts = useMemo(() => {
+    const counts: Record<RouteCategory, number> = { 口服: 0, 外用: 0, 注射: 0 };
+    activeWorkflowRecords.forEach(record => {
+      counts[getRecordCategory(record)]++;
+    });
+    return counts;
+  }, [activeWorkflowRecords, prescriptions]);
+
+  // 當前 Tab 的派藥記錄
+  const tabWorkflowRecords = useMemo(() => {
+    return activeWorkflowRecords.filter(record => getRecordCategory(record) === activeTab);
+  }, [activeWorkflowRecords, prescriptions, activeTab]);
+
+  // 預設停在第一個有記錄的分類（口服 → 外用 → 注射）
+  React.useEffect(() => {
+    if (categoryCounts[activeTab] === 0) {
+      const firstNonEmpty = ROUTE_CATEGORIES.find(c => categoryCounts[c] > 0);
+      if (firstNonEmpty) setActiveTab(firstNonEmpty);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryCounts]);
+
+  // 依一組記錄建立各時段摘要
+  const buildSummaries = (records: any[]) => {
     const summaryMap = new Map<string, TimeSlotSummary>();
 
-    activeWorkflowRecords.forEach(record => {
+    records.forEach(record => {
       const time = record.scheduled_time;
       const prescription = prescriptions.find(p => p.id === record.prescription_id);
 
@@ -136,7 +197,19 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
         ...s,
         uniquePrescriptionCount: s.uniquePrescriptions.size
       }));
+  };
+
+  // 全部時段摘要（跨分類，用於全選 / 已選統計 / 派藥）
+  const timeSlotSummaries = useMemo(() => {
+    return buildSummaries(activeWorkflowRecords);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWorkflowRecords, prescriptions]);
+
+  // 當前分類 Tab 的時段摘要（用於卡片顯示，數量/總量只算該分類）
+  const visibleTimeSlotSummaries = useMemo(() => {
+    return buildSummaries(tabWorkflowRecords);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabWorkflowRecords, prescriptions]);
 
   const handleTimeSlotToggle = (time: string) => {
     const newSelected = new Set(selectedTimeSlots);
@@ -145,14 +218,15 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
     } else {
       newSelected.add(time);
     }
-    setSelectedTimeSlots(newSelected);
+    setCurrentSelected(newSelected);
   };
 
   const handleSelectAll = () => {
-    if (selectedTimeSlots.size === timeSlotSummaries.length) {
-      setSelectedTimeSlots(new Set());
+    // 只針對當前分類的時段全選 / 取消
+    if (selectedTimeSlots.size === visibleTimeSlotSummaries.length) {
+      setCurrentSelected(new Set());
     } else {
-      setSelectedTimeSlots(new Set(timeSlotSummaries.map(s => s.time)));
+      setCurrentSelected(new Set(visibleTimeSlotSummaries.map(s => s.time)));
     }
   };
 
@@ -168,7 +242,7 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
   };
 
   const getPrescriptionDetails = (time: string) => {
-    const records = activeWorkflowRecords.filter(r => r.scheduled_time === time);
+    const records = tabWorkflowRecords.filter(r => r.scheduled_time === time);
     return records.map(record => {
       const prescription = prescriptions.find(p => p.id === record.prescription_id);
       if (!prescription) return null;
@@ -195,8 +269,8 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
   const handleConfirm = async () => {
     if (selectedTimeSlots.size === 0) return;
 
-    // 找出所有選定時間點的記錄
-    const selectedRecords = activeWorkflowRecords.filter(r =>
+    // 只處理「當前分類」在選定時間點的記錄
+    const selectedRecords = tabWorkflowRecords.filter(r =>
       selectedTimeSlots.has(r.scheduled_time)
     );
 
@@ -319,7 +393,8 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
     setIsProcessing(true);
     try {
       await onConfirm(Array.from(selectedTimeSlots), recordsToProcess, finalResults, finalInjectionResults);
-      onClose();
+      // 派完當前分類：清掉該分類已選、保持 modal 開啟；已派記錄會自動從清單移除
+      setCurrentSelected(new Set());
     } catch (error) {
       console.error('批量派藥失敗:', error);
     } finally {
@@ -328,10 +403,10 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
   };
 
   const selectedRecordsCount = useMemo(() => {
-    return timeSlotSummaries
+    return visibleTimeSlotSummaries
       .filter(s => selectedTimeSlots.has(s.time))
       .reduce((sum, s) => sum + s.records.length, 0);
-  }, [timeSlotSummaries, selectedTimeSlots]);
+  }, [visibleTimeSlotSummaries, selectedTimeSlots]);
 
   // 格式化藥物總量顯示
   const formatMedicationSummary = (medicationSummary: { [unit: string]: number }) => {
@@ -366,12 +441,34 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
             </div>
           </div>
 
-          {/* 院友資訊區 - 使用可摺疊的 PatientInfoCard */}
+          {/* 院友資訊區 - 左右跳頁箭頭 + 可摺疊的 PatientInfoCard */}
           <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
-            <PatientInfoCard
-              patient={currentPatient}
-              defaultExpanded={false}
-            />
+            <div className="flex items-center gap-2">
+              {onNavigatePatient && (
+                <button
+                  onClick={() => onNavigatePatient('prev')}
+                  className="flex-shrink-0 p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                  title="上一位院友（依床號）"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              )}
+              <div className="flex-1 min-w-0">
+                <PatientInfoCard
+                  patient={currentPatient}
+                  defaultExpanded={false}
+                />
+              </div>
+              {onNavigatePatient && (
+                <button
+                  onClick={() => onNavigatePatient('next')}
+                  className="flex-shrink-0 p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                  title="下一位院友（依床號）"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* 時間點列表 */}
@@ -383,23 +480,49 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
               </div>
             ) : (
               <div className="space-y-4">
+                {/* 分類 Tab（左） + 全選/已選（右）：桌面同一行，直向手機分兩行 */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-                  <button
-                    onClick={handleSelectAll}
-                    className="text-sm text-blue-700 hover:text-blue-800 font-medium"
-                  >
-                    {selectedTimeSlots.size === timeSlotSummaries.length ? '取消全選時間點' : '全選時間點'}
-                  </button>
-                  {selectedTimeSlots.size > 0 && (
-                    <div className="text-sm font-medium text-gray-700">
-                      已選擇 <span className="text-blue-700 font-bold">{selectedTimeSlots.size}</span> 個時間點，
-                      共 <span className="text-blue-700 font-bold">{selectedRecordsCount}</span> 筆派藥記錄
-                    </div>
-                  )}
+                  {/* 分類 Tab */}
+                  <div className="flex gap-1 bg-white/70 rounded-lg p-1 self-start sm:self-auto">
+                    {ROUTE_CATEGORIES.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setActiveTab(cat)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                          activeTab === cat
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                        }`}
+                      >
+                        {cat} ({categoryCounts[cat]})
+                      </button>
+                    ))}
+                  </div>
+                  {/* 全選時間點 + 已選時間點 */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                    <button
+                      onClick={handleSelectAll}
+                      className="text-sm text-blue-700 hover:text-blue-800 font-medium text-left"
+                    >
+                      {selectedTimeSlots.size === visibleTimeSlotSummaries.length && visibleTimeSlotSummaries.length > 0 ? '取消全選時間點' : '全選時間點'}
+                    </button>
+                    {selectedTimeSlots.size > 0 && (
+                      <div className="text-sm font-medium text-gray-700">
+                        已選擇 <span className="text-blue-700 font-bold">{selectedTimeSlots.size}</span> 個時間點，
+                        共 <span className="text-blue-700 font-bold">{selectedRecordsCount}</span> 筆派藥記錄
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                {visibleTimeSlotSummaries.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Pill className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500">此分類暫無派藥記錄</p>
+                  </div>
+                ) : (
                 <div className="space-y-3">
-                  {timeSlotSummaries.map((summary) => {
+                  {visibleTimeSlotSummaries.map((summary) => {
                     const isSelected = selectedTimeSlots.has(summary.time);
                     return (
                       <button
@@ -476,6 +599,7 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
                     );
                   })}
                 </div>
+                )}
               </div>
             )}
           </div>
@@ -503,7 +627,7 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
               ) : (
                 <>
                   <CheckCircle className="h-5 w-5" />
-                  <span>確認派藥 ({selectedTimeSlots.size} 個時間點)</span>
+                  <span>確認派藥‧{activeTab} ({selectedTimeSlots.size} 個時間點)</span>
                 </>
               )}
             </button>

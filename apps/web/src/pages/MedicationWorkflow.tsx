@@ -3525,6 +3525,10 @@ const MedicationWorkflow: React.FC = () => {
           selectedDate={selectedDate}
           onConfirm={handleBatchDispenseConfirm}
           onClose={() => setShowBatchDispenseModal(false)}
+          onNavigatePatient={(direction) => {
+            if (direction === 'prev') goToPreviousPatient();
+            else goToNextPatient();
+          }}
         />
       )}
 
