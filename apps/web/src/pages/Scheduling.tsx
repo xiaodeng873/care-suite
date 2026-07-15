@@ -4,6 +4,7 @@ import { Calendar, Plus, Edit3, Trash2, Download, Users, Settings, User, Search,
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { exportCombinedScheduleToExcel, type StationGroup } from '../utils/combinedScheduleExcelGenerator';
+import { printVmoWaitingList, printVmoPrescriptions, type VmoPatientItem } from '../utils/vmoSchedulePrintGenerator';
 import ScheduleModal from '../components/ScheduleModal';
 import PatientSelectModal from '../components/PatientSelectModal';
 import ScheduleDetailModal from '../components/ScheduleDetailModal';
@@ -137,6 +138,33 @@ const Scheduling: React.FC = () => {
   };
   const handleDownloadForm = (schedule: ScheduleWithDetails) => {
     handleExportScheduleToExcel(schedule);
+  };
+
+  /** 共用：從排程取得有效院友列表（同 handleExportScheduleToExcel 的驗證邏輯） */
+  const getValidItems = (schedule: ScheduleWithDetails): VmoPatientItem[] => {
+    if (!schedule?.院友列表?.length) return [];
+    return schedule.院友列表
+      .map((item: any) => {
+        const patient = patientMap.get(item.院友id);
+        if (!patient?.床號) return null;
+        return { ...item, patient } as VmoPatientItem;
+      })
+      .filter((x): x is VmoPatientItem => x !== null);
+  };
+
+  const handlePrintWaitingList = (schedule: ScheduleWithDetails) => {
+    const items = getValidItems(schedule);
+    if (!items.length) { alert('此排程沒有可列印的院友資料'); return; }
+    const label = isFiltered && selectedStationIds.length === 1
+      ? stationMap.get(selectedStationIds[0])
+      : undefined;
+    printVmoWaitingList(items, schedule.到診日期, label);
+  };
+
+  const handlePrintPrescriptions = (schedule: ScheduleWithDetails) => {
+    const items = getValidItems(schedule);
+    if (!items.length) { alert('此排程沒有可列印的院友資料'); return; }
+    printVmoPrescriptions(items);
   };
   const handleExportScheduleToExcel = async (schedule: ScheduleWithDetails) => {
     try {
@@ -415,6 +443,20 @@ const Scheduling: React.FC = () => {
                     >
                       <Download className="h-4 w-4" />
                       <span>下載表格</span>
+                    </button>
+                    <button
+                      onClick={() => handlePrintWaitingList(schedule)}
+                      className="btn-secondary flex items-center space-x-1"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>列印候診表</span>
+                    </button>
+                    <button
+                      onClick={() => handlePrintPrescriptions(schedule)}
+                      className="btn-secondary flex items-center space-x-1"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>列印處方單</span>
                     </button>
                     <button
                       onClick={() => handleEdit(schedule)}
