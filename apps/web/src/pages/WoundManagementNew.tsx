@@ -16,6 +16,7 @@ import {
   X,
   Copy,
   Printer,
+  FileText,
 } from 'lucide-react';
 import { usePatients, type Wound, type WoundWithAssessments, type WoundAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
