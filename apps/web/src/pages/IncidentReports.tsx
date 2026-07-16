@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -16,12 +16,14 @@ import {
   ChevronDown,
   X,
   Download,
-  FileText
+  FileText,
+  Printer
 } from 'lucide-react';
 import { usePatients, type IncidentReport } from '../context/PatientContext';
 import IncidentReportModal from '../components/IncidentReportModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { generateIncidentReportWord } from '../utils/incidentReportWordGenerator';
+import { generateIncidentReportPrintHTML } from '../utils/printIncidentReport';
 import { getTemplatesMetadata, downloadTemplateFile } from '../lib/database';
 
 type SortField = '院友姓名' | 'incident_date' | 'incident_type' | 'location' | 'created_at';
@@ -60,6 +62,7 @@ const IncidentReports: React.FC = () => {
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [exportingIds, setExportingIds] = useState<Set<string>>(new Set());
+  const printIframeRef = useRef<HTMLIFrameElement>(null);
 
   React.useEffect(() => {
     setCurrentPage(1);
@@ -320,6 +323,55 @@ const IncidentReports: React.FC = () => {
     setSelectedRows(newSelected);
   };
 
+  const handleBatchPrint = () => {
+    if (selectedRows.size === 0) {
+      alert('請先選擇要列印的記錄');
+      return;
+    }
+
+    try {
+      // 獲取選中的報告及其患者信息
+      const selectedReports: Array<{ patient: any; report: IncidentReport }> = [];
+      selectedRows.forEach(reportId => {
+        const report = incidentReports.find(r => r.id === reportId);
+        if (report) {
+          const patient = patients.find(p => p.院友id === report.patient_id);
+          if (patient) {
+            selectedReports.push({ patient, report });
+          }
+        }
+      });
+
+      if (selectedReports.length === 0) {
+        alert('無法找到選中的記錄');
+        return;
+      }
+
+      // 生成列印 HTML
+      const html = generateIncidentReportPrintHTML(selectedReports);
+
+      // 使用隱藏的 iframe 進行列印，不開新視窗
+      if (printIframeRef.current) {
+        // 使用 document.open() 和 write() 方式而不是 srcDoc，避免 sandbox 限制
+        const doc = printIframeRef.current.contentDocument || printIframeRef.current.contentWindow?.document;
+        if (doc) {
+          doc.open();
+          doc.write(html);
+          doc.close();
+          // 延遲 500ms 確保頁面載入完成後再列印
+          setTimeout(() => {
+            if (printIframeRef.current?.contentWindow) {
+              printIframeRef.current.contentWindow.print();
+            }
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.error('列印失敗:', error);
+      alert(`列印失敗：${error instanceof Error ? error.message : '未知錯誤'}`);
+    }
+  };
+
   const handleBatchDelete = async () => {
     if (selectedRows.size === 0) {
       alert('請先選擇要刪除的記錄');
@@ -556,13 +608,22 @@ const IncidentReports: React.FC = () => {
                   反選
                 </button>
                 {selectedRows.size > 0 && (
-                  <button
-                    onClick={handleBatchDelete}
-                    className="text-sm text-red-600 hover:text-red-700 font-medium"
-                    disabled={deletingIds.size > 0}
-                  >
-                    刪除選定記錄 ({selectedRows.size})
-                  </button>
+                  <>
+                    <button
+                      onClick={handleBatchPrint}
+                      className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                    >
+                      <Printer className="h-4 w-4" />
+                      列印選定記錄 ({selectedRows.size})
+                    </button>
+                    <button
+                      onClick={handleBatchDelete}
+                      className="text-sm text-red-600 hover:text-red-700 font-medium"
+                      disabled={deletingIds.size > 0}
+                    >
+                      刪除選定記錄 ({selectedRows.size})
+                    </button>
+                  </>
                 )}
               </div>
               <div className="text-sm text-gray-600">
@@ -821,6 +882,13 @@ const IncidentReports: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 隱藏的列印 iframe */}
+      <iframe
+        ref={printIframeRef}
+        style={{ display: 'none' }}
+        title="print-iframe"
+      />
 
       {showModal && (
         <IncidentReportModal

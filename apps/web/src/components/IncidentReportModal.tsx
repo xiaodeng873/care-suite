@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { X, AlertTriangle, Calendar, User, FileText, Activity, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, AlertTriangle, Calendar, User, FileText, Activity, Download, Plus, Trash2 } from 'lucide-react';
 import { usePatients, type IncidentReport } from '../context/PatientContext';
+import { useRecords } from '../context/merged/RecordsContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { generateIncidentReportWord } from '../utils/incidentReportWordGenerator';
-import { getTemplatesMetadata } from '../lib/database';
+import { getTemplatesMetadata, getIncidentPresetOptions, createIncidentPresetOption, deleteIncidentPresetOption, type IncidentPresetOption } from '../lib/database';
 
 interface IncidentReportModalProps {
   report?: IncidentReport;
@@ -12,6 +13,7 @@ interface IncidentReportModalProps {
 
 const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClose }) => {
   const { patients, addIncidentReport, updateIncidentReport } = usePatients();
+  const { patrolRounds } = useRecords();
 
   const getHongKongDate = () => {
     const now = new Date();
@@ -32,6 +34,8 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
     physical_discomfort: report?.physical_discomfort || {},
     unsafe_behavior: report?.unsafe_behavior || {},
     environmental_factors: report?.environmental_factors || {},
+    witness_found_by: report?.witness_found_by || { type: '', details: '' },
+    injury_location: report?.injury_location || '',
     incident_details: report?.incident_details || '',
     treatment_date: report?.treatment_date || '',
     treatment_time: report?.treatment_time || '',
@@ -46,6 +50,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
     ambulance_arrival_time: report?.ambulance_arrival_time || '',
     ambulance_departure_time: report?.ambulance_departure_time || '',
     hospital_destination: report?.hospital_destination || '',
+    last_patrol_time: report?.last_patrol_time || '',
     family_notification_date: report?.family_notification_date || '',
     family_notification_time: report?.family_notification_time || '',
     family_name: report?.family_name || '',
@@ -142,7 +147,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
     });
   };
 
-  const handleLimbMovementChange = (field: string, value: any) => {
+  const handleLimbMovementChange = (field: string, value: unknown) => {
     setFormData(prev => ({
       ...prev,
       limb_movement: {
@@ -171,6 +176,324 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
 
   const [isExporting, setIsExporting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [showPatrolTimePopover, setShowPatrolTimePopover] = useState(false);
+  const [recentPatrolTimes, setRecentPatrolTimes] = useState<Array<{ time: string; date: string }>>([]);
+  
+  // 預設選項相關狀態
+  const [immediateImprovementOptions, setImmediateImprovementOptions] = useState<IncidentPresetOption[]>([]);
+  const [preventionMethodsOptions, setPreventionMethodsOptions] = useState<IncidentPresetOption[]>([]);
+  const [showImmediateOptionsModal, setShowImmediateOptionsModal] = useState(false);
+  const [showPreventionOptionsModal, setShowPreventionOptionsModal] = useState(false);
+  const [selectedImmediateOptions, setSelectedImmediateOptions] = useState<Set<string>>(new Set());
+  const [selectedPreventionOptions, setSelectedPreventionOptions] = useState<Set<string>>(new Set());
+  const [newImmediateActionText, setNewImmediateActionText] = useState('');
+  const [newPreventionMethodText, setNewPreventionMethodText] = useState('');
+
+  // 日期時間格式化函數 - 中文格式 "年月日時分"
+  const formatDateTimeChinese = (date: string, time?: string) => {
+    let result = '';
+    if (date) {
+      const [year, month, day] = date.split('-');
+      result = `${year}年${parseInt(month)}月${parseInt(day)}日`;
+    }
+    if (time) {
+      const [hour, minute] = time.split(':');
+      result += `${parseInt(hour)}時${parseInt(minute)}分`;
+    }
+    return result;
+  };
+
+  // 載入預設選項
+  useEffect(() => {
+    const loadPresetOptions = async () => {
+      try {
+        const [immediateOptions, preventionOptions] = await Promise.all([
+          getIncidentPresetOptions('immediate_improvement_actions'),
+          getIncidentPresetOptions('prevention_methods')
+        ]);
+        setImmediateImprovementOptions(immediateOptions);
+        setPreventionMethodsOptions(preventionOptions);
+      } catch (error) {
+        console.error('載入預設選項失敗:', error);
+        alert(`預設選項載入失敗：${error instanceof Error ? error.message : '請確保 Supabase 表格已創建'}`);
+      }
+    };
+    
+    loadPresetOptions();
+  }, []);
+
+  // 當彈出表格顯示時，獲取最近的巡房時間
+  useEffect(() => {
+    if (showPatrolTimePopover && formData.patient_id && formData.incident_date && patrolRounds.length > 0) {
+      const patientId = parseInt(formData.patient_id);
+      const incidentDate = formData.incident_date;
+
+      // 篩選該院友在意外發生日期之前的巡房記錄
+      const recentPatrols = patrolRounds
+        .filter(pr => pr.patient_id === patientId && pr.patrol_date <= incidentDate)
+        .sort((a, b) => {
+          // 先按日期倒序，再按時間倒序，找最近的
+          const dateCompare = new Date(b.patrol_date).getTime() - new Date(a.patrol_date).getTime();
+          if (dateCompare !== 0) return dateCompare;
+          return (b.patrol_time || '').localeCompare(a.patrol_time || '');
+        })
+        .slice(0, 5) // 只顯示最近 5 筆
+        .map(pr => ({
+          time: pr.patrol_time || '',
+          date: pr.patrol_date
+        }));
+
+      setRecentPatrolTimes(recentPatrols);
+    }
+  }, [showPatrolTimePopover, formData.patient_id, formData.incident_date, patrolRounds]);
+
+  // 生成意外經過摘要
+  const generateIncidentSummary = () => {
+    const patient = patients.find(p => p.院友id === parseInt(formData.patient_id));
+    if (!patient) {
+      alert('請先選擇院友');
+      return;
+    }
+
+    // 日期時間格式化
+    const incidentDateFormatted = formatDateTimeChinese(formData.incident_date, formData.incident_time);
+    
+    let summary = '';
+
+    // 基本信息
+    summary += `院友${patient.中文姓名}於${incidentDateFormatted}，在${formData.location || ''}${formData.patient_activity || ''}時`;
+
+    // 身體不適（如有且不是"不適用"）
+    const discomfortReasons = Object.entries(formData.physical_discomfort || {})
+      .filter(([key, val]) => val === true && key !== '不適用')
+      .map(([key]) => key);
+    if (discomfortReasons.length > 0) {
+      summary += `，院友${discomfortReasons.join('、')}`;
+    }
+
+    // 不安全行為（如有且不是"不適用"）
+    const unsafeBehaviors = Object.entries(formData.unsafe_behavior || {})
+      .filter(([key, val]) => val === true && key !== '不適用')
+      .map(([key]) => key === '其他' ? (formData.unsafe_behavior['其他說明'] || '其他') : key);
+    if (unsafeBehaviors.length > 0) {
+      summary += `及${unsafeBehaviors.join('、')}`;
+    }
+
+    // 環境/個人因素（如有且不是"不適用"）
+    const envFactors = Object.entries(formData.environmental_factors || {})
+      .filter(([key, val]) => val === true && key !== '不適用')
+      .map(([key]) => key === '其他' ? (formData.environmental_factors['其他說明'] || '其他') : key);
+    if (envFactors.length > 0) {
+      summary += `，加上${envFactors.join('、')}`;
+    }
+
+    // 事故性質
+    summary += `，導致${formData.incident_type}${formData.other_incident_type ? '（' + formData.other_incident_type + '）' : ''}`;
+
+    // 最後巡房時間
+    if (formData.last_patrol_time) {
+      summary += `，最後巡房時間${formData.last_patrol_time}`;
+    }
+
+    // 目擊者/發現者（若未填寫名字則不顯示）
+    if (formData.witness_found_by?.type && formData.witness_found_by?.details) {
+      const typeAction = formData.witness_found_by.type === 'witness' ? '目擊' : '發現';
+      summary += `，由${formData.witness_found_by.details}${typeAction}`;
+    }
+
+    // 著地部位
+    if (formData.injury_location) {
+      summary += `，院友${formData.injury_location}著地`;
+    }
+
+    // 清醒程度
+    if (formData.consciousness_level) {
+      summary += `，院友當時${formData.consciousness_level}`;
+    }
+
+    // 四肢活動
+    if (formData.limb_movement?.status) {
+      const limbStatus = formData.limb_movement.status === '正常'
+        ? '正常'
+        : `不正常（${(formData.limb_movement.abnormal_limbs || []).join('、')}）${formData.limb_movement.details ? '（' + formData.limb_movement.details + '）' : ''}`;
+      summary += `，四肢活動${limbStatus}`;
+    }
+
+    // 受傷情況
+    const injuries = Object.entries(formData.injury_situation || {})
+      .filter(([, val]) => val === true)
+      .map(([key]) => {
+        if (key === '其他') {
+          return formData.injury_situation['其他'] ? `其他（${formData.injury_situation['其他']}）` : '其他';
+        }
+        const locationKey = `${key}位置`;
+        if (formData.injury_situation[locationKey]) {
+          return `${key}（${formData.injury_situation[locationKey]}）`;
+        }
+        return key;
+      });
+    if (injuries.length > 0) {
+      summary += `，${injuries.join('、')}`;
+    }
+
+    // 院友申訴
+    if (formData.patient_complaint) {
+      summary += `，申訴${formData.patient_complaint}`;
+    } else {
+      summary += `，沒有申訴`;
+    }
+
+    // 血壓、脈搏、呼吸、體溫、血含氧量
+    const vitalSigns = formData.vital_signs || {};
+    if (vitalSigns.blood_pressure_systolic && vitalSigns.blood_pressure_diastolic) {
+      summary += `，院友當時血壓${vitalSigns.blood_pressure_systolic}/${vitalSigns.blood_pressure_diastolic}mmHg`;
+    }
+    if (vitalSigns.pulse) {
+      summary += `，${vitalSigns.pulse}/min`;
+    }
+    if (vitalSigns.respiration) {
+      summary += `，${vitalSigns.respiration}/min`;
+    }
+    if (vitalSigns.temperature) {
+      summary += `，${vitalSigns.temperature}°C`;
+    }
+    if (vitalSigns.oxygen_saturation) {
+      summary += `，${vitalSigns.oxygen_saturation}%`;
+    }
+
+    // 即時處理
+    const treatments = Object.entries(formData.immediate_treatment || {})
+      .filter(([key, val]) => val === true && key !== '不適用')
+      .map(([key]) => key === '其他' ? (formData.immediate_treatment['其他說明'] || '其他') : key);
+    if (treatments.length > 0) {
+      summary += `，職員即時為院友${treatments.join('、')}`;
+    }
+
+    // 家屬通知信息
+    if (formData.notifying_staff_position || formData.notifying_staff_name || formData.family_notification_date || formData.family_notification_time) {
+      summary += `，並由${formData.notifying_staff_position || ''}${formData.notifying_staff_name || ''}於${formatDateTimeChinese(formData.family_notification_date, formData.family_notification_time)}通知${formData.family_relationship || ''}${formData.family_name || ''}`;
+    }
+
+    // 就診安排
+    if (formData.medical_arrangement) {
+      let medicalArrangementText = formData.medical_arrangement;
+      
+      // 根據實際選項值轉換為摘要文案
+      if (formData.medical_arrangement === '急症室') {
+        medicalArrangementText = '前往急症室';
+      } else if (formData.medical_arrangement === '門診') {
+        medicalArrangementText = '前往門診';
+      } else if (formData.medical_arrangement === '醫生到診') {
+        medicalArrangementText = '等待醫生到診';
+      } else if (formData.medical_arrangement === '沒有送院') {
+        medicalArrangementText = '保持觀察，無需送院';
+      }
+      
+      summary += `，商議後決定${medicalArrangementText}`;
+    }
+
+    // 醫院診治情況
+    if (formData.hospital_treatment && Object.keys(formData.hospital_treatment).length > 0) {
+      const hospitalTreatments = Object.entries(formData.hospital_treatment)
+        .filter(([, val]) => val === true)
+        .map(([key]) => key);
+      if (hospitalTreatments.length > 0) {
+        summary += `，院友需要${hospitalTreatments.join('、')}`;
+      }
+    }
+
+    summary += '。';
+
+    // 直接插入到 incident_details，不顯示預覽框
+    setFormData(prev => ({
+      ...prev,
+      incident_details: summary
+    }));
+    
+   
+  };
+
+  // 插入選中的即時改善行動選項到 textarea
+  const insertSelectedImmediateActions = () => {
+    const selectedTexts = immediateImprovementOptions
+      .filter(opt => selectedImmediateOptions.has(opt.id))
+      .map(opt => opt.option_text);
+    
+    if (selectedTexts.length === 0) return;
+    
+    const newText = selectedTexts.join('；');
+    setFormData(prev => ({
+      ...prev,
+      immediate_improvement_actions: prev.immediate_improvement_actions 
+        ? `${prev.immediate_improvement_actions}；${newText}`
+        : newText
+    }));
+    
+    setSelectedImmediateOptions(new Set());
+    setShowImmediateOptionsModal(false);
+  };
+
+  // 插入選中的預防方法選項到 textarea
+  const insertSelectedPreventionMethods = () => {
+    const selectedTexts = preventionMethodsOptions
+      .filter(opt => selectedPreventionOptions.has(opt.id))
+      .map(opt => opt.option_text);
+    
+    if (selectedTexts.length === 0) return;
+    
+    const newText = selectedTexts.join('；');
+    setFormData(prev => ({
+      ...prev,
+      prevention_methods: prev.prevention_methods 
+        ? `${prev.prevention_methods}；${newText}`
+        : newText
+    }));
+    
+    setSelectedPreventionOptions(new Set());
+    setShowPreventionOptionsModal(false);
+  };
+
+  // 添加新的即時改善行動選項
+  const addNewImmediateAction = async () => {
+    if (!newImmediateActionText.trim()) {
+      alert('請輸入新的即時改善行動');
+      return;
+    }
+
+    const newOption = await createIncidentPresetOption('immediate_improvement_actions', newImmediateActionText);
+    if (newOption) {
+      setImmediateImprovementOptions(prev => [...prev, newOption]);
+      setNewImmediateActionText('');
+    }
+  };
+
+  // 添加新的預防方法選項
+  const addNewPreventionMethod = async () => {
+    if (!newPreventionMethodText.trim()) {
+      alert('請輸入新的預防方法');
+      return;
+    }
+
+    const newOption = await createIncidentPresetOption('prevention_methods', newPreventionMethodText);
+    if (newOption) {
+      setPreventionMethodsOptions(prev => [...prev, newOption]);
+      setNewPreventionMethodText('');
+    }
+  };
+
+  // 刪除預設選項
+  const deletePresetOption = async (id: string, optionType: 'immediate_improvement_actions' | 'prevention_methods') => {
+    if (!window.confirm('確定要刪除此選項嗎？')) return;
+
+    const success = await deleteIncidentPresetOption(id);
+    if (success) {
+      if (optionType === 'immediate_improvement_actions') {
+        setImmediateImprovementOptions(prev => prev.filter(opt => opt.id !== id));
+      } else {
+        setPreventionMethodsOptions(prev => prev.filter(opt => opt.id !== id));
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,6 +550,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
         family_notification_date: formData.family_notification_date || null,
         family_notification_time: formData.family_notification_time || null,
         return_time: formData.return_time || null,
+        last_patrol_time: formData.last_patrol_time || null,
         director_review_date: formData.director_review_date || null
       };
 
@@ -548,6 +872,115 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
                   />
                 )}
               </div>
+
+              {/* 目擊者/發現者、受傷部位、最後巡房時間（三欄均分） */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* 目擊者/發現者 */}
+                <div>
+                  <label className="form-label">目擊者/發現者</label>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          witness_found_by: {
+                            type: formData.witness_found_by?.type === 'witness' ? '' : 'witness',
+                            details: ''
+                          }
+                        }))}
+                        className={`flex-1 px-3 py-2 rounded text-sm font-medium transition-colors ${
+                          formData.witness_found_by?.type === 'witness'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        目擊者
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          witness_found_by: {
+                            type: formData.witness_found_by?.type === 'found_by' ? '' : 'found_by',
+                            details: ''
+                          }
+                        }))}
+                        className={`flex-1 px-3 py-2 rounded text-sm font-medium transition-colors ${
+                          formData.witness_found_by?.type === 'found_by'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        發現者
+                      </button>
+                    </div>
+                    {(formData.witness_found_by?.type === 'witness' || formData.witness_found_by?.type === 'found_by') && (
+                      <textarea
+                        value={formData.witness_found_by?.details || ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          witness_found_by: {
+                            ...prev.witness_found_by,
+                            details: e.target.value
+                          }
+                        }))}
+                        className="form-input text-sm"
+                        rows={1}
+                        placeholder="請詳細描述..."
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* 著地部位 */}
+                <div>
+                  <label className="form-label">著地部位</label>
+                  <textarea
+                    value={formData.injury_location || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, injury_location: e.target.value }))}
+                    className="form-input text-sm"
+                    rows={1}
+                    placeholder="請詳細描述著地部位..."
+                  />
+                </div>
+
+                {/* 最後巡房時間 */}
+                <div>
+                  <label className="form-label">最後巡房時間</label>
+                  <div className="relative">
+                    <input
+                      type="time"
+                      value={formData.last_patrol_time || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, last_patrol_time: e.target.value }))}
+                      onFocus={() => setShowPatrolTimePopover(true)}
+                      className="form-input text-sm"
+                    />
+                    {showPatrolTimePopover && recentPatrolTimes.length > 0 && (
+                      <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-300 rounded shadow-lg z-10">
+                        <div className="p-2 bg-gray-100 border-b text-xs font-semibold text-gray-700">
+                          最近巡房時間
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {recentPatrolTimes.map((pt, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, last_patrol_time: pt.time }));
+                                setShowPatrolTimePopover(false);
+                              }}
+                              className="w-full text-left px-2 py-2 text-sm hover:bg-blue-100 border-b"
+                            >
+                              {pt.time} (日期: {pt.date})
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -557,16 +990,23 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
               <FileText className="h-5 w-5 mr-2 text-orange-600" />
               詳情
             </h3>
-            <div>
+            <div className="flex justify-between items-center mb-2">
               <label className="form-label">詳細經過說明</label>
-              <textarea
-                value={formData.incident_details}
-                onChange={(e) => setFormData(prev => ({ ...prev, incident_details: e.target.value }))}
-                className="form-input"
-                rows={4}
-                placeholder="請詳細描述意外發生的經過..."
-              />
+              <button
+                type="button"
+                onClick={generateIncidentSummary}
+                className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                生成意外經過摘要
+              </button>
             </div>
+            <textarea
+              value={formData.incident_details}
+              onChange={(e) => setFormData(prev => ({ ...prev, incident_details: e.target.value }))}
+              className="form-input"
+              rows={4}
+              placeholder="請詳細描述意外發生的經過..."
+            />
           </div>
 
           {/* 意外發生後處理 */}
@@ -1109,7 +1549,16 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
               </div>
 
               <div>
-                <label className="form-label">3. 院方的即時改善行動</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="form-label">3. 院方的即時改善行動</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowImmediateOptionsModal(true)}
+                    className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  >
+                    選擇預設選項
+                  </button>
+                </div>
                 <textarea
                   value={formData.immediate_improvement_actions}
                   onChange={(e) => setFormData(prev => ({ ...prev, immediate_improvement_actions: e.target.value }))}
@@ -1120,7 +1569,16 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
               </div>
 
               <div>
-                <label className="form-label">4. 院方預防意外再次發生的方法</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="form-label">4. 院方預防意外再次發生的方法</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPreventionOptionsModal(true)}
+                    className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  >
+                    選擇預設選項
+                  </button>
+                </div>
                 <textarea
                   value={formData.prevention_methods}
                   onChange={(e) => setFormData(prev => ({ ...prev, prevention_methods: e.target.value }))}
@@ -1258,6 +1716,200 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
             </button>
           </div>
         </form>
+
+        {/* 即時改善行動預設選項模態框 */}
+        {showImmediateOptionsModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-96 overflow-y-auto">
+              <div className="sticky top-0 flex justify-between items-center p-4 border-b bg-white">
+                <h3 className="text-lg font-medium">院方的即時改善行動</h3>
+                <button onClick={() => setShowImmediateOptionsModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="p-4 space-y-3">
+                {/* 預設選項清單 */}
+                <div className="space-y-2 mb-4 border-b pb-4">
+                  <h4 className="font-medium text-sm text-gray-700">預設選項</h4>
+                  {immediateImprovementOptions.length === 0 ? (
+                    <p className="text-sm text-gray-500">沒有預設選項</p>
+                  ) : (
+                    immediateImprovementOptions.map(option => (
+                      <div key={option.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded">
+                        <input
+                          type="checkbox"
+                          checked={selectedImmediateOptions.has(option.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedImmediateOptions);
+                            if (e.target.checked) {
+                              newSelected.add(option.id);
+                            } else {
+                              newSelected.delete(option.id);
+                            }
+                            setSelectedImmediateOptions(newSelected);
+                          }}
+                          className="h-4 w-4 mt-1 text-blue-600"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-700 break-words">{option.option_text}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deletePresetOption(option.id, 'immediate_improvement_actions')}
+                          className="text-red-500 hover:text-red-700 flex-shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* 新增選項 */}
+                <div className="space-y-2 border-t pt-4">
+                  <h4 className="font-medium text-sm text-gray-700">新增選項</h4>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newImmediateActionText}
+                      onChange={(e) => setNewImmediateActionText(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          addNewImmediateAction();
+                        }
+                      }}
+                      className="form-input text-sm flex-1"
+                      placeholder="輸入新選項..."
+                    />
+                    <button
+                      type="button"
+                      onClick={addNewImmediateAction}
+                      className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center gap-1"
+                    >
+                      <Plus className="h-4 w-4" />
+                      新增
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 flex gap-2 p-4 border-t bg-white">
+                <button
+                  type="button"
+                  onClick={insertSelectedImmediateActions}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  插入選中的選項
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowImmediateOptionsModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+                >
+                  關閉
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 預防方法預設選項模態框 */}
+        {showPreventionOptionsModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-96 overflow-y-auto">
+              <div className="sticky top-0 flex justify-between items-center p-4 border-b bg-white">
+                <h3 className="text-lg font-medium">院方預防意外再次發生的方法</h3>
+                <button onClick={() => setShowPreventionOptionsModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="p-4 space-y-3">
+                {/* 預設選項清單 */}
+                <div className="space-y-2 mb-4 border-b pb-4">
+                  <h4 className="font-medium text-sm text-gray-700">預設選項</h4>
+                  {preventionMethodsOptions.length === 0 ? (
+                    <p className="text-sm text-gray-500">沒有預設選項</p>
+                  ) : (
+                    preventionMethodsOptions.map(option => (
+                      <div key={option.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded">
+                        <input
+                          type="checkbox"
+                          checked={selectedPreventionOptions.has(option.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedPreventionOptions);
+                            if (e.target.checked) {
+                              newSelected.add(option.id);
+                            } else {
+                              newSelected.delete(option.id);
+                            }
+                            setSelectedPreventionOptions(newSelected);
+                          }}
+                          className="h-4 w-4 mt-1 text-blue-600"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-700 break-words">{option.option_text}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deletePresetOption(option.id, 'prevention_methods')}
+                          className="text-red-500 hover:text-red-700 flex-shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* 新增選項 */}
+                <div className="space-y-2 border-t pt-4">
+                  <h4 className="font-medium text-sm text-gray-700">新增選項</h4>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newPreventionMethodText}
+                      onChange={(e) => setNewPreventionMethodText(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          addNewPreventionMethod();
+                        }
+                      }}
+                      className="form-input text-sm flex-1"
+                      placeholder="輸入新選項..."
+                    />
+                    <button
+                      type="button"
+                      onClick={addNewPreventionMethod}
+                      className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center gap-1"
+                    >
+                      <Plus className="h-4 w-4" />
+                      新增
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 flex gap-2 p-4 border-t bg-white">
+                <button
+                  type="button"
+                  onClick={insertSelectedPreventionMethods}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  插入選中的選項
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPreventionOptionsModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+                >
+                  關閉
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

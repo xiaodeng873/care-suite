@@ -488,6 +488,8 @@ export interface IncidentReport {
   physical_discomfort?: any;
   unsafe_behavior?: any;
   environmental_factors?: any;
+  witness_found_by?: any;
+  injury_location?: string;
   incident_details?: string;
   treatment_date?: string;
   treatment_time?: string;
@@ -502,6 +504,7 @@ export interface IncidentReport {
   ambulance_arrival_time?: string;
   ambulance_departure_time?: string;
   hospital_destination?: string;
+  last_patrol_time?: string;
   family_notification_date?: string;
   family_notification_time?: string;
   family_name?: string;
@@ -3536,5 +3539,108 @@ export const checkFirstMonthPlanRequired = async (patientId: number, admissionDa
   const hasFirstMonthPlan = (data?.length || 0) > 0;
   const isWithinDeadline = new Date() <= deadline;
   return !hasFirstMonthPlan && isWithinDeadline;
+};
+
+// 意外事件報告預設選項介面
+export interface IncidentPresetOption {
+  id: string;
+  option_type: 'immediate_improvement_actions' | 'prevention_methods';
+  option_text: string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// 獲取預設選項
+// 獲取預設選項
+export const getIncidentPresetOptions = async (optionType: 'immediate_improvement_actions' | 'prevention_methods'): Promise<IncidentPresetOption[]> => {
+  console.log('Querying preset options for type:', optionType);
+  console.log('Current user:', { session: true });
+  
+  const { data, error } = await supabase
+    .from('incident_preset_options')
+    .select('*')
+    .eq('option_type', optionType)
+    .order('display_order', { ascending: true });
+  
+  console.log(`Query result for ${optionType}:`, { data, error: error ? { code: error.code, message: error.message, details: error.details, status: error.status } : null });
+  
+  if (error) {
+    const errorMsg = `[${error.code || 'UNKNOWN'}] ${error.message} (status: ${error.status}). Details: ${error.details || 'N/A'}`;
+    console.error('getIncidentPresetOptions error:', errorMsg);
+    throw new Error(errorMsg);
+  }
+  
+  console.log(`Successfully loaded ${data?.length || 0} options for ${optionType}`);
+  return data || [];
+};
+
+// 建立新預設選項
+export const createIncidentPresetOption = async (optionType: 'immediate_improvement_actions' | 'prevention_methods', optionText: string, displayOrder?: number): Promise<IncidentPresetOption | null> => {
+  try {
+    console.log('Creating preset option:', { optionType, optionText, displayOrder });
+    
+    const { data, error } = await supabase
+      .from('incident_preset_options')
+      .insert({
+        option_type: optionType,
+        option_text: optionText,
+        display_order: displayOrder || 999
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      const errorMsg = `[${error.code || 'UNKNOWN'}] ${error.message} (status: ${error.status}). Details: ${error.details || 'N/A'}`;
+      console.error('createIncidentPresetOption error:', errorMsg);
+      throw new Error(errorMsg);
+    }
+    
+    console.log('Successfully created preset option:', data);
+    return data;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('createIncidentPresetOption error caught:', errorMsg);
+    alert(`添加失敗：${errorMsg}`);
+    return null;
+  }
+};
+
+// 刪除預設選項
+export const deleteIncidentPresetOption = async (id: string): Promise<boolean> => {
+  try {
+    console.log('Deleting preset option:', id);
+    
+    const { error } = await supabase
+      .from('incident_preset_options')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      const errorMsg = `[${error.code || 'UNKNOWN'}] ${error.message} (status: ${error.status}). Details: ${error.details || 'N/A'}`;
+      console.error('deleteIncidentPresetOption error:', errorMsg);
+      throw new Error(errorMsg);
+    }
+    console.log('Successfully deleted preset option:', id);
+    return true;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('deleteIncidentPresetOption error caught:', errorMsg);
+    alert(`刪除失敗：${errorMsg}`);
+    return false;
+  }
+};
+
+// 更新預設選項順序
+export const updateIncidentPresetOptionOrder = async (id: string, displayOrder: number): Promise<IncidentPresetOption> => {
+  const { data, error } = await supabase
+    .from('incident_preset_options')
+    .update({ display_order: displayOrder })
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
 };
 export default null;
