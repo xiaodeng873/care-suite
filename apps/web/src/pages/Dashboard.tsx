@@ -239,11 +239,13 @@ const Dashboard: React.FC = () => {
         id: task.id,
         health_record_type: task.health_record_type,
         next_due_at: task.next_due_at,
-        specific_times: task.specific_times
+        specific_times: task.specific_times,
+        notes: task.notes
       },
       任務清單: (groupTasks && groupTasks.length > 0 ? groupTasks : [task]).map(t => ({
         id: t.id,
         health_record_type: t.health_record_type,
+        notes: t.notes,
       })),
       預設日期: targetDate,
       預設時間: selectedTime

@@ -32,8 +32,8 @@ interface HealthRecordModalProps {
   recordGroup?: HealthRecord[];
   initialData?: {
     patient?: { 院友id: number; 中文姓名?: string; 床號?: string };
-    task?: { id: string; health_record_type: string; next_due_at: string; specific_times?: string[] };
-    任務清單?: { id: string; health_record_type: string }[];
+    task?: { id: string; health_record_type: string; next_due_at: string; specific_times?: string[]; notes?: string | null };
+    任務清單?: { id: string; health_record_type: string; notes?: string | null }[];
     預設監測類型?: VitalSignType;
     預設記錄類型?: string;
     預設日期?: string;
@@ -42,6 +42,13 @@ interface HealthRecordModalProps {
   onClose: () => void;
   onTaskCompleted?: (taskId: string, recordDateTime: Date) => void;
 }
+
+// 將多段備註文字（以「；」分隔）合併並去重
+const mergeNoteText = (...parts: (string | null | undefined)[]): string => {
+  const seen = new Set<string>();
+  parts.forEach(p => (p ?? '').split('；').map(s => s.trim()).filter(Boolean).forEach(s => seen.add(s)));
+  return Array.from(seen).join('；');
+};
 
 const legacyTypeMap: Record<string, VitalSignType[]> = {
   '生命表徵': ['血壓', '脈搏', '體溫', '血含氧量', '呼吸'],
@@ -121,6 +128,15 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
       }
     });
     return m;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 合併批次內所有任務自身的備註（去重），儲存時與輸入框備註一併寫入每筆記錄
+  const taskNotesCombined = useMemo(() => {
+    const list: (string | null | undefined)[] = [];
+    initialData?.任務清單?.forEach(t => list.push(t.notes));
+    if (initialData?.task?.notes) list.push(initialData.task.notes);
+    return mergeNoteText(...list);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -298,7 +314,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
     const base = {
       院友id: parseInt(formData.院友id),
       記錄日期: formData.記錄日期,
-      備註: formData.備註 || undefined,
+      備註: mergeNoteText(taskNotesCombined, formData.備註) || undefined,
       記錄人員: formData.記錄人員 || undefined,
     };
     const typesToProcess = formData.isAbsent ? activeTypes : activeTypes.filter(t => vitalEntries[t]?.primary.trim());

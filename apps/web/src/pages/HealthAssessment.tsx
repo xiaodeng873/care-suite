@@ -261,7 +261,13 @@ const HealthAssessment: React.FC = () => {
       const g = map.get(key)!;
       g.byType[r.監測類型] = r;
       g.ids.push(r.記錄id);
-      if (r.備註) g.備註 = g.備註 ? `${g.備註}；${r.備註}` : r.備註;
+      if (r.備註) {
+        const merged = new Set([
+          ...(g.備註 ? g.備註.split('；') : []),
+          ...r.備註.split('；'),
+        ].map(s => s.trim()).filter(Boolean));
+        g.備註 = Array.from(merged).join('；');
+      }
     });
     return Array.from(map.values());
   })();
@@ -685,7 +691,7 @@ const HealthAssessment: React.FC = () => {
                         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
                       >
                         <Activity className="h-4 w-4 text-blue-600" />
-                        <span>血壓記錄</span>
+                        <span>生命表徵觀察記錄</span>
                       </button>
                     </div>
                   </div>

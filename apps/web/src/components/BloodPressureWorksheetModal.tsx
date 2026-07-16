@@ -87,7 +87,7 @@ const BloodPressureWorksheetModal: React.FC<BloodPressureWorksheetModalProps> = 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      console.error('生成血壓記錄表失敗:', err);
+      console.error('生成生命表徵觀察記錄表失敗:', err);
       setError('生成失敗，請檢查網絡連線後重試');
     } finally {
       setIsGenerating(false);
@@ -102,7 +102,7 @@ const BloodPressureWorksheetModal: React.FC<BloodPressureWorksheetModalProps> = 
             <div className="p-2 rounded-lg bg-blue-100">
               <Activity className="h-5 w-5 text-blue-600" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">血壓記錄表</h2>
+            <h2 className="text-xl font-semibold text-gray-900">生命表徵觀察記錄表</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-6 w-6" />

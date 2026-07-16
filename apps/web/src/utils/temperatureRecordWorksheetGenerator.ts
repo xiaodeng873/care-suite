@@ -8,15 +8,17 @@ import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 院友體溫記錄表（A4 直印）
-// 嚴格複刻紙本表格：5 組「日期 / 體溫 C°」欄位 × 30 列，含院舍抬頭與頁尾編號。
-// 映射關係：每位在住院友的「健康監測記錄（監測類型 = 體溫）」依日期/時間排序，
-// 以欄為主（column-major）由左組到右組、由上而下填入日期與數值。
+// 完全複刻 doc_html/院友體溫記錄.html 的版面、CSS 與欄位結構：
+// 每頁 3 組「日期 / 時間 / 體溫°C / 備註 / 記錄職員」× 33 列。
+// 欄位映射（doc_html 標籤 → 健康監測記錄資料庫欄位）：
+//   日期 → 記錄日期；時間 → 記錄時間；體溫°C → 數值；備註 → 備註；記錄職員 → 記錄人員。
+// 右上角新增院舍 logo，與大標題（h1/h2）頂部對齊。
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ROWS_PER_PAGE = 32; // 每頁資料列數（不計表頭）
-const PAIRS_PER_PAGE = 5; // 每頁「日期/體溫」組數
-const CELLS_PER_PAGE = ROWS_PER_PAGE * PAIRS_PER_PAGE; // 每頁可容納的記錄數 = 160
-const FOOTER_LABEL = '更新 B26 FK (09/2016)';
+const ROWS_PER_PAGE = 33; // 每組資料列數（不計表頭），與 doc_html 一致
+const SETS_PER_PAGE = 3; // 每頁「日期/時間/體溫/備註/記錄職員」組數
+const CELLS_PER_PAGE = ROWS_PER_PAGE * SETS_PER_PAGE; // 每頁可容納的記錄數 = 99
+const DOC_CODE = 'B4C FK (3.2025)';
 
 interface PatientRow {
   院友id: number;
@@ -31,11 +33,16 @@ interface TempRecord {
   記錄日期: string;
   記錄時間: string | null;
   數值: number | null;
+  備註: string | null;
+  記錄人員: string | null;
 }
 
 interface TempCell {
   date: string;
+  time: string;
   value: string;
+  note: string;
+  recorder: string;
 }
 
 let activeFacility: FacilitySettings = DEFAULT_FACILITY_SETTINGS;
@@ -61,19 +68,18 @@ const calculateAge = (birthDate: string | null): string => {
   return age > 0 ? String(age) : '';
 };
 
-const formatGenderAge = (patient: PatientRow): string => {
-  const gender = patient.性別 ?? '';
-  const age = calculateAge(patient.出生日期);
-  if (!gender && !age) return '';
-  return age ? `${gender} / ${age}` : gender;
-};
-
 // 日期顯示為 YY/M/D（含兩位年份，與紙本手寫風格一致、欄位較窄）
 const formatShortDate = (dateStr: string): string => {
   const date = new Date(dateStr);
   if (Number.isNaN(date.getTime())) return dateStr;
   const yy = String(date.getFullYear() % 100).padStart(2, '0');
   return `${yy}/${date.getMonth() + 1}/${date.getDate()}`;
+};
+
+// 時間顯示為 HH:MM（截取前 5 字元）
+const formatTime = (timeStr: string | null): string => {
+  if (!timeStr) return '';
+  return timeStr.slice(0, 5);
 };
 
 const formatTemperature = (value: number | null): string => {
@@ -103,7 +109,7 @@ const fetchInResidencePatients = async (patientIds?: number[]): Promise<PatientR
 const fetchTemperatureRecords = async (startDate: string, endDate: string): Promise<TempRecord[]> => {
   const { data, error } = await supabase
     .from('健康監測記錄')
-    .select('院友id, 記錄日期, 記錄時間, 數值')
+    .select('院友id, 記錄日期, 記錄時間, 數值, 備註, 記錄人員')
     .eq('監測類型', '體溫')
     .gte('記錄日期', startDate)
     .lte('記錄日期', endDate)
@@ -116,12 +122,23 @@ const fetchTemperatureRecords = async (startDate: string, endDate: string): Prom
   return (data ?? []) as TempRecord[];
 };
 
-// 將院友的體溫記錄切成多頁（每頁最多 150 筆）
-const chunkRecordsIntoPages = (records: TempRecord[]): TempCell[][] => {
-  const cells: TempCell[] = records.map(r => ({
-    date: formatShortDate(r.記錄日期),
-    value: formatTemperature(r.數值),
+// 將一位院友的體溫記錄轉為儲存格（依日期/時間排序）
+const buildCells = (records: TempRecord[]): TempCell[] => {
+  const sorted = [...records].sort((a, b) =>
+    new Date(`${a.記錄日期} ${a.記錄時間 ?? '00:00'}`).getTime()
+    - new Date(`${b.記錄日期} ${b.記錄時間 ?? '00:00'}`).getTime()
+  );
+  return sorted.map(record => ({
+    date: formatShortDate(record.記錄日期),
+    time: formatTime(record.記錄時間),
+    value: formatTemperature(record.數值),
+    note: record.備註 ?? '',
+    recorder: record.記錄人員 ?? '',
   }));
+};
+
+// 將院友的儲存格切成多頁
+const chunkCellsIntoPages = (cells: TempCell[]): TempCell[][] => {
   const pages: TempCell[][] = [];
   if (cells.length === 0) {
     // 沒有記錄的院友仍輸出一張空白表
@@ -134,16 +151,16 @@ const chunkRecordsIntoPages = (records: TempRecord[]): TempCell[][] => {
   return pages;
 };
 
-// 將一頁的記錄以「欄為主」排成 30 列 × 5 組
+// 將一頁的記錄以「欄為主」排成 33 列 × 3 組
 const buildGrid = (cells: TempCell[]): (TempCell | null)[][] => {
   const grid: (TempCell | null)[][] = Array.from({ length: ROWS_PER_PAGE }, () =>
-    Array.from({ length: PAIRS_PER_PAGE }, () => null as TempCell | null)
+    Array.from({ length: SETS_PER_PAGE }, () => null as TempCell | null)
   );
   cells.forEach((cell, index) => {
-    const pair = Math.floor(index / ROWS_PER_PAGE); // 0..4
-    const row = index % ROWS_PER_PAGE; // 0..29
-    if (pair < PAIRS_PER_PAGE) {
-      grid[row][pair] = cell;
+    const set = Math.floor(index / ROWS_PER_PAGE); // 0..2
+    const row = index % ROWS_PER_PAGE; // 0..32
+    if (set < SETS_PER_PAGE) {
+      grid[row][set] = cell;
     }
   });
   return grid;
@@ -155,44 +172,56 @@ const renderHeader = (): string => {
   const nameEn = activeFacility.facilityNameEn?.trim() || '';
   const logoAlt = nameEn ? `${nameZh} ${nameEn}` : nameZh;
   return `
-    <div class="tr-header">
-      <div class="tr-side-spacer"></div>
-      <div class="tr-title-block">
-        <div class="tr-org">${escapeHtml(nameZh)}</div>
-        <div class="tr-doc">院友體溫記錄</div>
+    <div class="title-section">
+      <div class="header-spacer"></div>
+      <div class="header-center">
+        <h1>${escapeHtml(nameZh)}</h1>
+        <h2>院友體溫記錄</h2>
       </div>
-      <div class="tr-logo-block">
-        <img class="tr-logo" src="${escapeAttr(logo)}" alt="${escapeAttr(logoAlt)}">
-        ${nameEn ? `<div class="tr-logo-text">${escapeHtml(nameEn)}</div>` : ''}
-      </div>
+      <div class="header-right"><img class="logo-img" src="${escapeAttr(logo)}" alt="${escapeAttr(logoAlt)}"></div>
     </div>
   `;
 };
 
 const renderInfoRow = (patient: PatientRow, pageLabel: string): string => `
-  <div class="tr-info">
-    <div class="tr-info-item"><span class="tr-info-label">姓名：</span><span class="tr-info-value">${escapeHtml(patient.中文姓名 ?? '')}</span></div>
-    <div class="tr-info-item"><span class="tr-info-label">床號：</span><span class="tr-info-value">${escapeHtml(patient.床號 ?? '')}</span></div>
-    <div class="tr-info-item"><span class="tr-info-label">性別/年齡：</span><span class="tr-info-value">${escapeHtml(formatGenderAge(patient))}</span></div>
-    <div class="tr-info-item"><span class="tr-info-label">頁數：</span><span class="tr-info-value">${escapeHtml(pageLabel)}</span></div>
-  </div>
+  <table class="info-table">
+    <colgroup><col style="width: 25%;"><col style="width: 18%;"><col style="width: 18%;"><col style="width: 18%;"><col style="width: 21%;"></colgroup>
+    <tr>
+      <td>院友姓名：<input type="text" class="db-line-input" style="width: 60%;" value="${escapeAttr(patient.中文姓名 ?? '')}" readonly></td>
+      <td>床號：<input type="text" class="db-line-input" style="width: 60%;" value="${escapeAttr(patient.床號 ?? '')}" readonly></td>
+      <td>性別：<input type="text" class="db-line-input" style="width: 60%;" value="${escapeAttr(patient.性別 ?? '')}" readonly></td>
+      <td>年齡：<input type="text" class="db-line-input" style="width: 60%;" value="${escapeAttr(calculateAge(patient.出生日期))}" readonly></td>
+      <td>頁數：<input type="text" class="db-line-input" style="width: 70%;" value="${escapeAttr(pageLabel)}" readonly></td>
+    </tr>
+  </table>
 `;
 
 const renderTable = (cells: TempCell[]): string => {
   const grid = buildGrid(cells);
-  const headerCells = Array.from({ length: PAIRS_PER_PAGE }, () =>
-    '<th class="tr-th-date">日期</th><th class="tr-th-temp">體溫 C°</th>'
+  const colgroup = Array.from({ length: SETS_PER_PAGE }, () =>
+    '<col style="width: 7%;"><col style="width: 5%;"><col style="width: 6%;"><col style="width: 9%;"><col style="width: 6.3%;">'
   ).join('');
+  const headerCells = Array.from({ length: SETS_PER_PAGE }, (_, setIdx) => {
+    const isLastSet = setIdx === SETS_PER_PAGE - 1;
+    const dividerAttr = isLastSet ? '' : ' class="set-divider"';
+    return `<th>日期</th><th>時間</th><th>體溫°C</th><th>備註</th><th${dividerAttr}>記錄職員</th>`;
+  }).join('');
   const bodyRows = grid.map(row => {
-    const tds = row.map(cell => {
+    const tds = row.map((cell, setIdx) => {
+      const isLastSet = setIdx === SETS_PER_PAGE - 1;
+      const dividerAttr = isLastSet ? '' : ' class="set-divider"';
       const dateText = cell ? escapeHtml(cell.date) : '';
+      const timeText = cell ? escapeHtml(cell.time) : '';
       const valueText = cell ? escapeHtml(cell.value) : '';
-      return `<td class="tr-td-date">${dateText}</td><td class="tr-td-temp">${valueText}</td>`;
+      const noteText = cell ? escapeHtml(cell.note) : '';
+      const recorderText = cell ? escapeHtml(cell.recorder) : '';
+      return `<td><input class="db-text-cell" value="${dateText}" readonly></td><td><input class="db-text-cell" value="${timeText}" readonly></td><td><input class="db-text-cell" value="${valueText}" readonly></td><td><input class="db-text-cell" value="${noteText}" readonly></td><td${dividerAttr}><input class="db-text-cell" value="${recorderText}" readonly></td>`;
     }).join('');
-    return `<tr>${tds}</tr>`;
+    return `<tr class="data-row">${tds}</tr>`;
   }).join('');
   return `
-    <table class="tr-table">
+    <table class="main-table">
+      <colgroup>${colgroup}</colgroup>
       <thead><tr>${headerCells}</tr></thead>
       <tbody>${bodyRows}</tbody>
     </table>
@@ -200,127 +229,48 @@ const renderTable = (cells: TempCell[]): string => {
 };
 
 const renderPage = (patient: PatientRow, cells: TempCell[], pageLabel: string): string => `
-  <section class="tr-page">
+  <div class="container">
     ${renderHeader()}
     ${renderInfoRow(patient, pageLabel)}
     ${renderTable(cells)}
-    <div class="tr-footer">${escapeHtml(FOOTER_LABEL)}</div>
-  </section>
+    <div class="footer">
+      <div class="page-num">5</div>
+      <div class="doc-code">${escapeHtml(DOC_CODE)}</div>
+    </div>
+  </div>
 `;
 
 const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
 <title>院友體溫記錄</title>
 <style>
-  @page { size: A4 portrait; margin: 10mm; }
+  @page { size: A4; margin: 5mm 0.2in; }
   * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: "標楷體", "DFKai-SB", "BiauKai", "KaiTi", "TW-Kai", "AR PL UKai TW", serif;
-    color: #000;
-  }
-  .tr-page {
-    width: 190mm;
-    min-height: 277mm;
-    margin: 0 auto;
-    padding: 0;
-    page-break-after: always;
-    display: flex;
-    flex-direction: column;
-  }
-  .tr-page:last-child { page-break-after: auto; }
-
-  /* 抬頭 */
-  .tr-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 4mm;
-  }
-  .tr-side-spacer {
-    width: 34mm;
-    flex-shrink: 0;
-  }
-  .tr-title-block {
-    flex: 1;
-    text-align: center;
-  }
-  .tr-org { font-size: 24pt; font-weight: 700; letter-spacing: 2px; }
-  .tr-doc { font-size: 20pt; font-weight: 700; margin-top: 1mm; }
-  .tr-logo-block {
-    width: 34mm;
-    text-align: center;
-    flex-shrink: 0;
-  }
-  .tr-logo { max-width: 30mm; max-height: 16mm; object-fit: contain; }
-  .tr-logo-text { font-size: 8pt; font-weight: 700; margin-top: 0.5mm; }
-
-  /* 院友資訊列 */
-  .tr-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 4mm;
-    margin-bottom: 2.5mm;
-    padding: 0 1mm;
-    font-size: 11pt;
-  }
-  .tr-info-item {
-    display: flex;
-    align-items: baseline;
-    white-space: nowrap;
-    flex: 1;
-  }
-  .tr-info-label { font-weight: 600; flex-shrink: 0; }
-  .tr-info-value {
-    flex: 1;
-    border-bottom: 0.3mm solid #000;
-    min-width: 14mm;
-    padding: 0 1mm;
-    min-height: 5mm;
-    text-align: center;
-  }
-
-  /* 表格 */
-  .tr-table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-  }
-  .tr-table th, .tr-table td {
-    border: 0.3mm solid #000;
-    text-align: center;
-    vertical-align: middle;
-    font-size: 10.5pt;
-  }
-  /* 每一對「日期+體溫」之間加粗分隔線（體溫欄為每對最右欄） */
-  .tr-th-temp, .tr-td-temp {
-    border-right: 0.7mm solid #000;
-  }
-  /* 表格最左緣加粗，與右側分隔線對稱 */
-  .tr-th-date:first-child, .tr-td-date:first-child {
-    border-left: 0.7mm solid #000;
-  }
-  .tr-table th {
-    height: 7mm;
-    font-weight: 700;
-    background: #fff;
-  }
-  .tr-table td {
-    height: 7.2mm;
-  }
-  .tr-th-date, .tr-td-date { width: 11%; }
-  .tr-th-temp, .tr-td-temp { width: 9%; }
-
-  /* 頁尾 */
-  .tr-footer {
-    margin-top: auto;
-    padding-top: 2mm;
-    text-align: right;
-    font-size: 9pt;
-  }
+  body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; padding: 0; background-color: #fff; color: #000; line-height: 1.1; }
+  .container { width: 100%; box-sizing: border-box; page-break-after: always; }
+  .container:last-of-type { page-break-after: auto; }
+  .title-section { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+  .header-spacer { width: 18%; }
+  .header-center { flex: 1; text-align: center; }
+  .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
+  .logo-img { max-height: 50px; max-width: 100%; object-fit: contain; }
+  .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+  .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
+  .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
+  .info-table td { border: none; padding: 2px 0; vertical-align: bottom; font-size: 16px; font-weight: bold; white-space: nowrap; }
+  .db-line-input { width: 90%; border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 16px; outline: none; padding: 0 0 1px 5px; box-sizing: border-box; }
+  table.main-table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid black; }
+  table.main-table th, table.main-table td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0; }
+  table.main-table th { font-size: 11px; font-weight: bold; background-color: #fff; height: 38px; line-height: 1.1; }
+  .data-row { height: 30px; }
+  .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 11px; text-align: center; outline: none; display: block; box-sizing: border-box; }
+  .set-divider { border-right: 3px solid black !important; }
+  .footer { margin-top: 8px; display: flex; justify-content: flex-end; position: relative; height: 30px; }
+  .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
+  .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
+  @media print { .no-print { display: none !important; } }
 </style>
 </head>
 <body>
@@ -382,13 +332,15 @@ export const generateTemperatureRecordWorksheet = async (
   const pagesHtml: string[] = [];
   patients.forEach(patient => {
     const patientRecords = recordsByPatient.get(patient.院友id) ?? [];
-    const pages = chunkRecordsIntoPages(patientRecords);
-    pages.forEach((cells, index) => {
+    const cells = buildCells(patientRecords);
+    const pages = chunkCellsIntoPages(cells);
+    pages.forEach((pageCells, index) => {
       const pageLabel = pages.length > 1 ? `${index + 1} / ${pages.length}` : '1';
-      pagesHtml.push(renderPage(patient, cells, pageLabel));
+      pagesHtml.push(renderPage(patient, pageCells, pageLabel));
     });
   });
 
   const html = buildHtml(pagesHtml);
   openPrintWindow(html);
 };
+

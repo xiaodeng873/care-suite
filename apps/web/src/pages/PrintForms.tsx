@@ -24,12 +24,15 @@ import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 import {
-  getTemplatesMetadata
+  getTemplatesMetadata,
+  getHygieneRecordsInDateRange,
+  type HygieneRecord
 } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { exportPrintFormsToExcel } from '../utils/printFormExcelGenerator';
 import { printDiaperRecordForm } from '../utils/diaperRecordPrintFormHtml';
 import { exportDiaperChangeToExcel } from '../utils/diaperChangeExcelGenerator';
+import { printHygieneRecordForm, type HygieneMonthData } from '../utils/hygieneRecordPrintFormHtml';
 type SortField = '床號' | '中文姓名' | '護理等級' | '入住類型' | '在住狀態';
 type SortDirection = 'asc' | 'desc';
 interface AdvancedFilters {
@@ -77,6 +80,11 @@ const PrintForms: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [showYearMonthModal, setShowYearMonthModal] = useState(false);
   const [showPersonalHygieneMonthModal, setShowPersonalHygieneMonthModal] = useState(false);
+  const [showHygieneHtmlPrintModal, setShowHygieneHtmlPrintModal] = useState(false);
+  const [hygienePrintMonths, setHygienePrintMonths] = useState<string[]>(() => {
+    const now = new Date();
+    return [`${now.getFullYear()}年${(now.getMonth() + 1).toString().padStart(2, '0')}月`];
+  });
   const [showObservationDateRangeModal, setShowObservationDateRangeModal] = useState(false);
   const [observationDateRange, setObservationDateRange] = useState(getCurrentMonthDateRange);
   const [personalHygieneMonths, setPersonalHygieneMonths] = useState(() => {
@@ -439,8 +447,56 @@ const PrintForms: React.FC = () => {
       const { exportPersonalHygieneToExcel } = await import('../utils/personalHygieneExcelGenerator');
       await exportPersonalHygieneToExcel(selectedPatients, selectedTemplate, personalHygieneMonths);
     } catch (error) {
-      console.error('匯出個人衛生記錄失敗:', error);
-      alert('匯出個人衛生記錄失敗，請重試');
+      console.error('匯出個人衛生、清潔及大便記錄失敗:', error);
+      alert('匯出個人衛生、清潔及大便記錄失敗，請重試');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  const handleAddHygienePrintMonth = () => {
+    setHygienePrintMonths(prev => {
+      if (prev.length >= 2) return prev;
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+      const nextYear = currentMonth === 12 ? now.getFullYear() + 1 : now.getFullYear();
+      return [...prev, `${nextYear}年${nextMonth.toString().padStart(2, '0')}月`];
+    });
+  };
+  const handleRemoveHygienePrintMonth = (index: number) => {
+    setHygienePrintMonths(prev => prev.filter((_, i) => i !== index));
+  };
+  const handleHygienePrintMonthChange = (index: number, value: string) => {
+    setHygienePrintMonths(prev => prev.map((m, i) => (i === index ? value : m)));
+  };
+  const handleHygieneHtmlPrintConfirm = async () => {
+    const selectedPatients = sortedPatients.filter(p => selectedRows.has(p.院友id));
+    try {
+      setIsExporting(true);
+      const monthsData: HygieneMonthData[] = [];
+      for (const monthStr of hygienePrintMonths) {
+        const match = monthStr.match(/^(\d{4})年(\d{2})月$/);
+        if (!match) continue;
+        const year = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10);
+        const monthPad = match[2];
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const startDate = `${year}-${monthPad}-01`;
+        const endDate = `${year}-${monthPad}-${daysInMonth.toString().padStart(2, '0')}`;
+        const records: HygieneRecord[] = await getHygieneRecordsInDateRange(startDate, endDate);
+        const recordsByPatient = new Map<number, HygieneRecord[]>();
+        records.forEach(r => {
+          const list = recordsByPatient.get(r.patient_id) || [];
+          list.push(r);
+          recordsByPatient.set(r.patient_id, list);
+        });
+        monthsData.push({ year, month, recordsByPatient });
+      }
+      setShowHygieneHtmlPrintModal(false);
+      await printHygieneRecordForm(selectedPatients, monthsData);
+    } catch (error) {
+      console.error('列印個人衛生、清潔及大便記錄失敗:', error);
+      alert('列印個人衛生、清潔及大便記錄失敗，請重試');
     } finally {
       setIsExporting(false);
     }
@@ -525,6 +581,16 @@ const PrintForms: React.FC = () => {
                 )}
               </button>
             )}
+            {(selectedRows.size > 0 && selectedTemplate?.type === 'personal-hygiene-record') && (
+              <button
+                onClick={() => setShowHygieneHtmlPrintModal(true)}
+                disabled={isExporting}
+                className="btn-secondary flex flex-wrap items-center gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                <span>列印 HTML 版</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -556,7 +622,7 @@ const PrintForms: React.FC = () => {
               {templates.map(template => (
                 <option key={template.id} value={template.id}>
                   {template.type === 'diaper-change-record' && '換片記錄'}
-                  {template.type === 'personal-hygiene-record' && '個人衛生記錄'}
+                  {template.type === 'personal-hygiene-record' && '個人衛生、清潔及大便記錄'}
                   {template.type === 'admission-layout' && '入住排版'}
                   {template.type === 'restraint-observation' && '約束物品觀察表'}
                   {!['diaper-change-record', 'personal-hygiene-record', 'admission-layout', 'restraint-observation'].includes(template.type) && template.name}
@@ -609,7 +675,7 @@ const PrintForms: React.FC = () => {
           <div className="text-center py-8">
             <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">暫無列印表格範本</h3>
-            <p className="text-gray-600 mb-4">請先在範本管理中上傳換片記錄、個人衛生記錄或入住排版範本</p>
+            <p className="text-gray-600 mb-4">請先在範本管理中上傳換片記錄、個人衛生、清潔及大便記錄或入住排版範本</p>
             <Link
               to="/templates"
               className="btn-primary flex flex-wrap items-center gap-2 inline-flex"
@@ -1060,7 +1126,7 @@ const PrintForms: React.FC = () => {
           </div>
         </div>
       )}
-      {/* 個人衛生記錄月份選擇模態框 */}
+      {/* 個人衛生、清潔及大便記錄月份選擇模態框 */}
       {showPersonalHygieneMonthModal && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -1080,7 +1146,7 @@ const PrintForms: React.FC = () => {
             </div>
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                請選擇要在個人衛生記錄表中顯示的兩個月份（通常為相連月份）：
+                請選擇要在個人衛生、清潔及大便記錄表中顯示的兩個月份（通常為相連月份）：
               </p>
               <div>
                 <label className="form-label">第一個月份 (格式: XXXX年XX月)</label>
@@ -1121,6 +1187,85 @@ const PrintForms: React.FC = () => {
               <button
                 onClick={() => setShowPersonalHygieneMonthModal(false)}
                 className="btn-secondary flex-1"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 個人衛生、清潔及大便記錄 HTML 列印月份選擇模態框 */}
+      {showHygieneHtmlPrintModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowHygieneHtmlPrintModal(false);
+          }}
+        >
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">列印個人衛生、清潔及大便記錄</h3>
+              <button
+                onClick={() => setShowHygieneHtmlPrintModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                請選擇要列印的月份（最少 1 個，最多 2 個），每個月份各自生成一頁，日子行數會依該月天數自動調整：
+              </p>
+              {hygienePrintMonths.map((monthStr, index) => (
+                <div key={index}>
+                  <div className="flex items-center justify-between">
+                    <label className="form-label">第 {index + 1} 個月份 (格式: XXXX年XX月)</label>
+                    {hygienePrintMonths.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveHygienePrintMonth(index)}
+                        className="text-xs text-red-500 hover:text-red-700"
+                      >
+                        移除
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={monthStr}
+                    onChange={(e) => handleHygienePrintMonthChange(index, e.target.value)}
+                    className="form-input"
+                    placeholder="例如: 2024年01月"
+                    pattern="\d{4}年\d{2}月"
+                  />
+                </div>
+              ))}
+              {hygienePrintMonths.length < 2 && (
+                <button
+                  type="button"
+                  onClick={handleAddHygienePrintMonth}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  + 新增第二個月份
+                </button>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <button
+                onClick={handleHygieneHtmlPrintConfirm}
+                disabled={
+                  isExporting ||
+                  hygienePrintMonths.length === 0 ||
+                  hygienePrintMonths.some(m => !m.match(/^\d{4}年\d{2}月$/))
+                }
+                className="btn-primary flex-1"
+              >
+                {isExporting ? '生成中...' : '列印'}
+              </button>
+              <button
+                onClick={() => setShowHygieneHtmlPrintModal(false)}
+                className="btn-secondary flex-1"
+                disabled={isExporting}
               >
                 取消
               </button>
@@ -1217,7 +1362,7 @@ const PrintForms: React.FC = () => {
         <div className="space-y-3 text-sm text-gray-600">
           <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">1</span>
-            <p>在「範本管理」中上傳您的列印表格範本，分別選擇「換片記錄」、「個人衛生記錄」或「入住排版」類型</p>
+            <p>在「範本管理」中上傳您的列印表格範本，分別選擇「換片記錄」、「個人衛生、清潔及大便記錄」或「入住排版」類型</p>
           </div>
           <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">2</span>
