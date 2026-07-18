@@ -82,6 +82,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
     // drinking_quantity: '', // 每天飲酒罐數
     daily_activities: {
       // max_activity: '',
+      is_bedridden: false, // 長期臥床
       limb_movement_left: [], // 改為陣列支援複選
       limb_movement_right: [], // 改為陣列支援複選
       eating: '',
@@ -161,6 +162,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
         drinking_quantity: assessment.drinking_quantity || '',
         daily_activities: assessment.daily_activities || {
           max_activity: '',
+          is_bedridden: false,
           limb_movement_left: [],
           limb_movement_right: [],
           eating: '',
@@ -233,6 +235,16 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
         [field]: checked
           ? [...prev.daily_activities[field], value]
           : prev.daily_activities[field].filter(item => item !== value)
+      }
+    }));
+  };
+
+  const updateBedridden = (checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      daily_activities: {
+        ...prev.daily_activities,
+        is_bedridden: checked
       }
     }));
   };
@@ -537,6 +549,15 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
               {/* a. 肢體活動 */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">a. 肢體活動</label>
+                <label className="flex flex-wrap items-center gap-2 p-2 border rounded cursor-pointer hover:bg-white transition-colors mb-3 w-fit">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.daily_activities.is_bedridden}
+                    onChange={(e) => updateBedridden(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span className="text-sm font-medium text-gray-700">長期臥床</span>
+                </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs text-gray-600 mb-1">左側</label>

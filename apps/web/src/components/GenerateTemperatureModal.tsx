@@ -75,6 +75,11 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
       .map(p => p.院友id);
   }, [filteredPatients, isAbsent, hasTemperatureToday]);
 
+  // 當天有缺席狀態在身的院友：只有「寫入空值 + 無法量度原因」一種處理，checkbox 不容取消
+  const forcedIds = useMemo(() => {
+    return new Set(filteredPatients.filter(p => isAbsent.get(p.院友id)).map(p => p.院友id));
+  }, [filteredPatients, isAbsent]);
+
   const [selectedIds, setSelectedIds] = useState<Set<number> | null>(null);
   // 日期或篩選變更時重置勾選
   const handleDateChange = (date: string) => {
@@ -85,10 +90,16 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
     setStationFilter(station);
     setSelectedIds(null);
   };
-  // 首次/篩選變更時，依預設勾選合資格者
-  const effectiveSelected = selectedIds ?? new Set<number>(eligibleIds);
+  // 首次/篩選變更時，依預設勾選合資格者；缺席院友一律強制納入且不可移除
+  const effectiveSelected = useMemo(() => {
+    const base = selectedIds ?? new Set<number>(eligibleIds);
+    const merged = new Set(base);
+    forcedIds.forEach(id => merged.add(id));
+    return merged;
+  }, [selectedIds, eligibleIds, forcedIds]);
 
   const toggleOne = (id: number) => {
+    if (forcedIds.has(id)) return; // 缺席院友不容取消勾選
     setSelectedIds(() => {
       const next = new Set(effectiveSelected);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -130,15 +141,20 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
         }
       });
 
-      const records: Omit<HealthRecord, '記錄id' | '建立時間'>[] = ids.map(id => ({
-        院友id: id,
-        任務id: taskByPatient.get(id),
-        記錄日期: targetDate,
-        記錄時間: TARGET_TIME,
-        監測類型: '體溫',
-        數值: generateRandomTemperature(),
-        記錄人員: displayName || undefined,
-      }));
+      // 與主頁監測任務卡片一致：缺席院友寫入空值 + 備註註明無法量度原因，而非略過不寫入
+      const records: Omit<HealthRecord, '記錄id' | '建立時間'>[] = ids.map(id => {
+        const absent = isAbsent.get(id);
+        return {
+          院友id: id,
+          任務id: taskByPatient.get(id),
+          記錄日期: targetDate,
+          記錄時間: TARGET_TIME,
+          監測類型: '體溫',
+          數值: absent ? 0 : generateRandomTemperature(),
+          備註: absent ? '無法量度原因: 入院' : undefined,
+          記錄人員: displayName || undefined,
+        };
+      });
 
       await addHealthRecordsForSession(records);
 
@@ -156,7 +172,13 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
       if (refreshHealthTaskData) await refreshHealthTaskData();
       if (refreshData) await refreshData();
 
-      setSuccess(`已為 ${ids.length} 位院友生成 ${TARGET_TIME} 體溫記錄`);
+      const absentCount = records.filter(r => r.備註?.includes('無法量度')).length;
+      const measuredCount = ids.length - absentCount;
+      setSuccess(
+        absentCount > 0
+          ? `已為 ${measuredCount} 位院友生成 ${TARGET_TIME} 體溫記錄，另 ${absentCount} 位缺席院友記為無法量度`
+          : `已為 ${ids.length} 位院友生成 ${TARGET_TIME} 體溫記錄`
+      );
       setTimeout(() => onClose(), 1200);
     } catch (err) {
       console.error('生成體溫記錄失敗:', err);
@@ -229,22 +251,25 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
                 filteredPatients.map(p => {
                   const absent = isAbsent.get(p.院友id);
                   const measured = hasTemperatureToday.has(p.院友id);
+                  const locked = forcedIds.has(p.院友id);
                   return (
                     <button
                       key={p.院友id}
                       type="button"
                       onClick={() => toggleOne(p.院友id)}
-                      className="w-full px-4 py-2 text-left text-sm flex items-center gap-3 hover:bg-gray-50"
+                      disabled={locked}
+                      title={locked ? '缺席院友將自動記錄為無法量度，不可取消勾選' : undefined}
+                      className={`w-full px-4 py-2 text-left text-sm flex items-center gap-3 ${locked ? 'cursor-not-allowed bg-purple-50/50' : 'hover:bg-gray-50'}`}
                     >
                       {effectiveSelected.has(p.院友id) ? (
-                        <CheckSquare className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                        <CheckSquare className={`h-4 w-4 flex-shrink-0 ${locked ? 'text-purple-500' : 'text-orange-600'}`} />
                       ) : (
                         <Square className="h-4 w-4 text-gray-400 flex-shrink-0" />
                       )}
                       <span className="font-mono text-gray-500 w-12">{p.床號}</span>
                       <span className="text-gray-900 flex-1">{p.中文姓名}</span>
                       {absent && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">缺席</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">缺席．將記為無法量度</span>
                       )}
                       {measured && (
                         <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">已量度</span>
@@ -259,7 +284,7 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
                 {allSelected ? '取消全選' : '全選'}
               </button>
             )}
-            <p className="mt-2 text-xs text-gray-500">預設已勾選「在住、非缺席、當天尚無體溫」之院友。</p>
+            <p className="mt-2 text-xs text-gray-500">預設已勾選「在住、當天尚無體溫」之院友；缺席院友一律強制勾選，將寫入空值並於備註註明無法量度原因（不可取消）。</p>
           </div>
 
           {error && (

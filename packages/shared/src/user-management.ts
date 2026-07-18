@@ -234,6 +234,7 @@ export const PERMISSION_STRUCTURE: Record<PermissionCategory, FeatureDefinition[
     { key: 'care_plan', name_zh: '個人照顧計劃', route: '/care-plan' },
     { key: 'restraint', name_zh: '約束物品', route: '/restraint' },
     { key: 'wound_management', name_zh: '傷口管理', route: '/wound' },
+    { key: 'activity_records', name_zh: '活動記錄', route: '/activity-records' },
   ],
   daily: [
     { key: 'follow_up', name_zh: '覆診管理', route: '/follow-up' },

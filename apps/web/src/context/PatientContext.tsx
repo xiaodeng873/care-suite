@@ -17,10 +17,10 @@ import {
 } from './merged/WorkflowContext';
 import {
   useRecords, useCarePlan, useCareRecords, useAssessment, useIncident, useMeal, usePatientLog,
-  useHealthTask, useAdmission, useServiceReason, useDailySystemTask
+  useHealthTask, useAdmission, useServiceReason, useDailySystemTask, useActivityRecord
 } from './merged/RecordsContext';
 // Re-export types from database module
-export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, ResponsibleUnit, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote, CarePlan, CarePlanProblem, CarePlanNursingNeed, CarePlanWithDetails, ProblemLibrary, NursingNeedItem, PlanType, ProblemCategory, OutcomeReview, CaseConferenceProfessional, MedicationPrescription, PatientTubeCareRecord, TubeCareType, OxygenAction } from '../lib/database';
+export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, ResponsibleUnit, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote, CarePlan, CarePlanProblem, CarePlanNursingNeed, CarePlanWithDetails, ProblemLibrary, NursingNeedItem, PlanType, ProblemCategory, OutcomeReview, CaseConferenceProfessional, MedicationPrescription, PatientTubeCareRecord, TubeCareType, OxygenAction, PatientActivityRecord } from '../lib/database';
 // Re-export Station types for backward compatibility
 export type { Station, Room, Bed } from './facility';
 // Re-export Schedule types for backward compatibility (from merged context)
@@ -54,6 +54,7 @@ interface PatientContextType {
   patientAdmissionRecords: db.PatientAdmissionRecord[];
   hospitalEpisodes: any[];
   annualHealthCheckups: any[];
+  activityRecords: db.PatientActivityRecord[];
   incidentReports: db.IncidentReport[];
   diagnosisRecords: db.DiagnosisRecord[];
   vaccinationRecords: db.VaccinationRecord[];
@@ -141,6 +142,10 @@ interface PatientContextType {
   addPatientTubeCareRecord: (record: Omit<db.PatientTubeCareRecord, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updatePatientTubeCareRecord: (record: db.PatientTubeCareRecord) => Promise<void>;
   deletePatientTubeCareRecord: (id: string) => Promise<void>;
+  addActivityRecords: (records: Array<Omit<db.PatientActivityRecord, 'id' | 'created_at' | 'updated_at'>>) => Promise<db.PatientActivityRecord[]>;
+  updateActivityRecord: (id: string, updates: Partial<Omit<db.PatientActivityRecord, 'id' | 'created_at' | 'updated_at'>>) => Promise<void>;
+  deleteActivityRecord: (id: string) => Promise<void>;
+  refreshActivityRecordData: () => Promise<void>;
   addHealthAssessment: (assessment: Omit<db.HealthAssessment, 'id' | 'created_at' | 'updated_at' | 'status' | 'archived_at'>) => Promise<void>;
   updateHealthAssessment: (assessment: db.HealthAssessment) => Promise<void>;
   deleteHealthAssessment: (id: string) => Promise<void>;
@@ -504,6 +509,15 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     refreshAdmissionData,
   } = useAdmission();
   
+  // 從 RecordsContext 獲取活動記錄數據（委託模式，向後兼容）
+  const {
+    activityRecords,
+    addActivityRecords,
+    updateActivityRecord,
+    deleteActivityRecord,
+    refreshActivityRecordData,
+  } = useActivityRecord();
+  
   // 從 ServiceReasonContext 獲取服務原因數據（委託模式，向後兼容）
   const {
     serviceReasons,
@@ -808,6 +822,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       patientAdmissionRecords,
       hospitalEpisodes,
       annualHealthCheckups,
+      activityRecords,
       dailySystemTasks,
       loading,
       prescriptionWorkflowRecords,
@@ -919,6 +934,10 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       addHospitalEpisode,
       updateHospitalEpisode,
       deleteHospitalEpisode,
+      addActivityRecords,
+      updateActivityRecord,
+      deleteActivityRecord,
+      refreshActivityRecordData,
       addPrescription,
       updatePrescription,
       deletePrescription,

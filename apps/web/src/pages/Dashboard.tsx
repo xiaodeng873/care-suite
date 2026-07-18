@@ -22,6 +22,8 @@ import OverdueWorkflowCard from '../components/OverdueWorkflowCard';
 import PendingPrescriptionCard from '../components/PendingPrescriptionCard';
 import MedicationRemindersCard from '../components/MedicationRemindersCard';
 import CarePlanDueReminderCard from '../components/CarePlanDueReminderCard';
+import ActivityRecordReminderCard from '../components/ActivityRecordReminderCard';
+import ActivityRecordModal from '../components/ActivityRecordModal';
 import PatientModal from '../components/PatientModal';
 import VaccinationRecordModal from '../components/VaccinationRecordModal';
 import TaskHistoryModal from '../components/TaskHistoryModal';
@@ -91,7 +93,9 @@ function pickLatestPerPatient<T extends { patient_id: number; created_at?: strin
   return Array.from(latestPerPatient.values());
 }
 const Dashboard: React.FC = () => {
-  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, patientsWithWounds, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData, refreshWoundData } = usePatients();
+  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, patientsWithWounds, activityRecords, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData, refreshWoundData } = usePatients();
+  const [showActivityRecordModal, setShowActivityRecordModal] = useState(false);
+  const [activityRecordPatientId, setActivityRecordPatientId] = useState<number | undefined>(undefined);
   const [showHealthRecordModal, setShowHealthRecordModal] = useState(false);
   const [selectedHealthRecordInitialData, setSelectedHealthRecordInitialData] = useState<any>({});
   const [showDocumentTaskModal, setShowDocumentTaskModal] = useState(false);
@@ -874,6 +878,10 @@ const Dashboard: React.FC = () => {
     // Navigate to individual care plan page with the patient selected
     window.location.href = `/individual-care-plan?patient_id=${patient.院友id}`;
   };
+  const handleAddActivityRecord = (patient: any) => {
+    setActivityRecordPatientId(patient.院友id);
+    setShowActivityRecordModal(true);
+  };
   const handleTaskCompleted = async (taskId: string, recordDateTime: Date) => {
     // 1. 立即關閉模態框
     setShowHealthRecordModal(false);
@@ -1045,6 +1053,13 @@ const Dashboard: React.FC = () => {
         </div>
         <div className="col-span-1"><CarePlanDueReminderCard carePlans={carePlans} patients={patients} /></div>
         <div className="col-span-1"><MedicationRemindersCard overdueWorkflows={overdueWorkflows} pendingPrescriptions={pendingPrescriptions} lowStockGroups={lowStockGroups} /></div>
+        <div className="col-span-1">
+          <ActivityRecordReminderCard
+            patients={patients}
+            activityRecords={activityRecords}
+            onAddActivityRecord={handleAddActivityRecord}
+          />
+        </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
         <div className="card p-6 lg:p-4 lg:col-span-2">
@@ -1662,6 +1677,12 @@ const Dashboard: React.FC = () => {
       {showRestraintAssessmentModal && <RestraintAssessmentModal onClose={() => { setShowRestraintAssessmentModal(false); setSelectedRestraintAssessment(null); setRenewFromRestraintAssessment(null); }} assessment={selectedRestraintAssessment ?? undefined} renewFrom={renewFromRestraintAssessment} onUpdate={refreshData} />}
       {showTubeCareModal && <TubeCareModal onClose={() => { setShowTubeCareModal(false); setSelectedTubeCareRecord(null); setRenewFromTubeCare(null); }} record={selectedTubeCareRecord ?? undefined} renewFrom={renewFromTubeCare} onUpdate={refreshData} />}
       {showHealthAssessmentModal && selectedHealthAssessment && <HealthAssessmentModal isOpen={showHealthAssessmentModal} onClose={() => { setShowHealthAssessmentModal(false); setSelectedHealthAssessment(null); }} assessment={selectedHealthAssessment} onUpdate={refreshData} />}
+      {showActivityRecordModal && (
+        <ActivityRecordModal
+          onClose={() => { setShowActivityRecordModal(false); setActivityRecordPatientId(undefined); }}
+          defaultPatientId={activityRecordPatientId}
+        />
+      )}
       {showAnnualCheckupModal && <AnnualHealthCheckupModal checkup={selectedAnnualCheckup} renewFrom={renewFromAnnualCheckup} onClose={() => { setShowAnnualCheckupModal(false); setSelectedAnnualCheckup(null); setRenewFromAnnualCheckup(null); setPrefilledAnnualCheckupPatientId(null); }} onSave={refreshData} prefilledPatientId={prefilledAnnualCheckupPatientId} />}
       {showPatientModal && <PatientModal patient={selectedPatientForEdit} onClose={() => { setShowPatientModal(false); setSelectedPatientForEdit(null); refreshData(); }} />}
       {showVaccinationModal && <VaccinationRecordModal patientId={selectedPatientForVaccination?.院友id} onClose={() => { setShowVaccinationModal(false); setSelectedPatientForVaccination(null); }} />}

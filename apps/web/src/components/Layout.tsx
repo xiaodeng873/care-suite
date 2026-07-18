@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2 } from 'lucide-react';
+import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
@@ -39,6 +39,7 @@ const routeNames: Record<string, string> = {
   '/health': '監測記錄',
   '/health-assessments': '健康評估',
   '/individual-care-plan': '個人照顧計劃',
+  '/activity-records': '活動記錄',
   '/reports': '報表查詢',
   '/settings': '系統設定',
   '/rehabilitation': '復康服務'
@@ -164,6 +165,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
         { name: '約束物品', href: '/restraint', icon: Shield, feature: 'restraint' },
         { name: '喉管護理', href: '/tube-care', icon: Stethoscope, feature: 'tube_care' },
         { name: '傷口管理', href: '/wound', icon: Scissors, feature: 'wound_management' },
+        { name: '活動記錄', href: '/activity-records', icon: PartyPopper, feature: 'activity_records' },
       ]
     },
     {

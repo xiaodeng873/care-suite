@@ -125,6 +125,14 @@ interface RecordsContextType {
   recordPatientAdmissionEvent: (eventData: { patient_id: number; event_type: db.AdmissionEventType; event_date: string; hospital_name?: string; hospital_ward?: string; hospital_bed_number?: string; remarks?: string }) => Promise<void>;
   refreshAdmissionData: () => Promise<void>;
   
+  // ===== 活動記錄 =====
+  activityRecords: db.PatientActivityRecord[];
+  activityRecordLoading: boolean;
+  addActivityRecords: (records: Array<Omit<db.PatientActivityRecord, 'id' | 'created_at' | 'updated_at'>>) => Promise<db.PatientActivityRecord[]>;
+  updateActivityRecord: (id: string, updates: Partial<Omit<db.PatientActivityRecord, 'id' | 'created_at' | 'updated_at'>>) => Promise<void>;
+  deleteActivityRecord: (id: string) => Promise<void>;
+  refreshActivityRecordData: () => Promise<void>;
+  
   // ===== 服務原因 =====
   serviceReasons: db.ServiceReason[];
   refreshServiceReasonData: () => Promise<void>;
@@ -193,6 +201,10 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
   const [patientAdmissionRecords, setPatientAdmissionRecords] = useState<db.PatientAdmissionRecord[]>([]);
   const [hospitalEpisodes, setHospitalEpisodes] = useState<any[]>([]);
   const [admissionLoading, setAdmissionLoading] = useState(false);
+  
+  // ===== 活動記錄狀態 =====
+  const [activityRecords, setActivityRecords] = useState<db.PatientActivityRecord[]>([]);
+  const [activityRecordLoading, setActivityRecordLoading] = useState(false);
   
   // ===== 服務原因狀態 =====
   const [serviceReasons, setServiceReasons] = useState<db.ServiceReason[]>([]);
@@ -430,6 +442,36 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
   const deleteHospitalEpisode = useCallback(async (id: string) => { await db.deleteHospitalEpisode(id); await refreshAdmissionData(); }, [refreshAdmissionData]);
   const recordPatientAdmissionEvent = useCallback(async (eventData: any) => { await db.recordPatientAdmissionEvent(eventData); await refreshAdmissionData(); }, [refreshAdmissionData]);
 
+  // ===== 活動記錄函數 =====
+  const refreshActivityRecordData = useCallback(async () => {
+    if (!isAuthenticated()) return;
+    setActivityRecordLoading(true);
+    try {
+      const data = await db.getPatientActivityRecords();
+      setActivityRecords(data || []);
+    } catch (error) { console.error('刷新活動記錄數據失敗:', error); }
+    finally { setActivityRecordLoading(false); }
+  }, [isAuthenticated]);
+
+  const addActivityRecords = useCallback(async (records: Array<Omit<db.PatientActivityRecord, 'id' | 'created_at' | 'updated_at'>>) => {
+    const saved = await db.upsertPatientActivityRecords(records);
+    setActivityRecords(prev => {
+      const map = new Map(prev.map(r => [r.id, r]));
+      saved.forEach(r => map.set(r.id, r));
+      return Array.from(map.values());
+    });
+    return saved;
+  }, []);
+  const updateActivityRecord = useCallback(async (id: string, updates: Partial<Omit<db.PatientActivityRecord, 'id' | 'created_at' | 'updated_at'>>) => {
+    const updated = await db.updatePatientActivityRecord(id, updates);
+    if (updated) setActivityRecords(prev => prev.map(r => r.id === id ? updated : r));
+  }, []);
+  const deleteActivityRecord = useCallback(async (id: string) => {
+    setActivityRecords(prev => prev.filter(r => r.id !== id));
+    try { await db.deletePatientActivityRecord(id); }
+    catch (error) { await refreshActivityRecordData(); throw error; }
+  }, [refreshActivityRecordData]);
+
   // ===== 服務原因函數 =====
   const refreshServiceReasonData = useCallback(async () => {
     if (!isAuthenticated()) return;
@@ -472,20 +514,22 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
       refreshPatientLogData(),      // 院友日誌（較少使用）
       refreshAdmissionData(),       // 入院記錄（較少使用）
       refreshDailySystemTaskData(), // 系統任務（較少使用）
+      refreshActivityRecordData(),  // 活動記錄（較少使用）
     ]);
   }, [isAuthenticated, refreshServiceReasonData, refreshCarePlanData, refreshCareRecordsData, refreshIncidentData, 
-      refreshPatientLogData, refreshAdmissionData, refreshDailySystemTaskData]);
+      refreshPatientLogData, refreshAdmissionData, refreshDailySystemTaskData, refreshActivityRecordData]);
 
   const refreshAllRecordsData = useCallback(async () => {
     if (!isAuthenticated()) return;
     await Promise.all([
       refreshCarePlanData(), refreshCareRecordsData(), refreshAssessmentData(),
       refreshIncidentData(), refreshMealData(), refreshPatientLogData(),
-      refreshHealthTaskData(), refreshAdmissionData(), refreshServiceReasonData(), refreshDailySystemTaskData()
+      refreshHealthTaskData(), refreshAdmissionData(), refreshServiceReasonData(), refreshDailySystemTaskData(),
+      refreshActivityRecordData()
     ]);
   }, [isAuthenticated, refreshCarePlanData, refreshCareRecordsData, refreshAssessmentData,
       refreshIncidentData, refreshMealData, refreshPatientLogData, refreshHealthTaskData,
-      refreshAdmissionData, refreshServiceReasonData, refreshDailySystemTaskData]);
+      refreshAdmissionData, refreshServiceReasonData, refreshDailySystemTaskData, refreshActivityRecordData]);
 
   // ===== 初始載入 =====
   useEffect(() => {
@@ -505,7 +549,7 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
 
 
   // ===== 統一 loading 狀態 =====
-  const loading = carePlanLoading || careRecordsLoading || assessmentLoading || incidentLoading || mealLoading || patientLogLoading || healthTaskLoading || admissionLoading;
+  const loading = carePlanLoading || careRecordsLoading || assessmentLoading || incidentLoading || mealLoading || patientLogLoading || healthTaskLoading || admissionLoading || activityRecordLoading;
 
   // ===== Context 值 =====
   const value: RecordsContextType = {
@@ -545,6 +589,9 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
     patientAdmissionRecords, hospitalEpisodes, admissionLoading,
     addPatientAdmissionRecord, updatePatientAdmissionRecord, deletePatientAdmissionRecord,
     addHospitalEpisode, updateHospitalEpisode, deleteHospitalEpisode, recordPatientAdmissionEvent, refreshAdmissionData,
+    
+    // 活動記錄
+    activityRecords, activityRecordLoading, addActivityRecords, updateActivityRecord, deleteActivityRecord, refreshActivityRecordData,
     
     // 服務原因
     serviceReasons, refreshServiceReasonData,
@@ -646,6 +693,16 @@ export function useAdmission() {
   };
 }
 export function useAdmissionData() { const { patientAdmissionRecords, hospitalEpisodes } = useRecords(); return { patientAdmissionRecords, hospitalEpisodes }; }
+
+export function useActivityRecord() {
+  const ctx = useRecords();
+  return {
+    activityRecords: ctx.activityRecords, loading: ctx.activityRecordLoading,
+    addActivityRecords: ctx.addActivityRecords, updateActivityRecord: ctx.updateActivityRecord,
+    deleteActivityRecord: ctx.deleteActivityRecord, refreshActivityRecordData: ctx.refreshActivityRecordData,
+  };
+}
+export function useActivityRecordData() { const { activityRecords } = useRecords(); return { activityRecords }; }
 
 export function useServiceReason() { const ctx = useRecords(); return { serviceReasons: ctx.serviceReasons, refreshServiceReasonData: ctx.refreshServiceReasonData }; }
 export function useServiceReasonData() { const { serviceReasons } = useRecords(); return { serviceReasons }; }

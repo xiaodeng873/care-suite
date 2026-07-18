@@ -638,6 +638,43 @@ export interface HygieneRecord {
   updated_at: string;
 }
 // ============================================
+// 院友活動記錄類型定義
+// ============================================
+export interface PatientActivityRecord {
+  id: string;
+  patient_id: number;
+  record_date: string;
+  // 集體活動
+  has_birthday_party: boolean;
+  has_festival_celebration: boolean;
+  has_performance: boolean;
+  // 戶外集體活動
+  has_outing: boolean;
+  has_visit: boolean;
+  has_shopping_dimsum: boolean;
+  has_games: boolean;
+  // 小組活動
+  has_interest_group: boolean;
+  has_learning_group: boolean;
+  // 個人活動
+  has_self_care_training: boolean;
+  has_individual_interest: boolean;
+  has_individual_counseling: boolean;
+  has_individual_therapy: boolean;
+  has_group_visit: boolean;
+  // 運動 / 健康教育講座
+  has_exercise: boolean;
+  has_health_talk: boolean;
+  // 其他欄位
+  other_activity?: string;
+  notes?: string;
+  is_absent: boolean;
+  absence_reason?: string;
+  recorder?: string;
+  created_at: string;
+  updated_at: string;
+}
+// ============================================
 // 攝入項目類型定義
 // ============================================
 export type IntakeCategory = 'meal' | 'beverage' | 'other' | 'tube_feeding';
@@ -2912,6 +2949,37 @@ export const updateHygieneRecord = async (id: string, updates: Partial<Omit<Hygi
 };
 export const deleteHygieneRecord = async (recordId: string): Promise<void> => {
   const { error } = await supabase.from('hygiene_records').delete().eq('id', recordId);
+  if (error) throw error;
+};
+// Patient Activity Records（院友活動記錄）
+export const getPatientActivityRecords = async (): Promise<PatientActivityRecord[]> => {
+  const { data, error } = await supabase.from('patient_activity_records').select('*').order('record_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+export const getPatientActivityRecordsInDateRange = async (startDate: string, endDate: string): Promise<PatientActivityRecord[]> => {
+  const { data, error } = await supabase.from('patient_activity_records').select('*').gte('record_date', startDate).lte('record_date', endDate).order('record_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+// 批量新增/更新（同一日期，多位院友）：以 (patient_id, record_date) upsert，避免違反唯一鍵
+export const upsertPatientActivityRecords = async (
+  records: Array<Omit<PatientActivityRecord, 'id' | 'created_at' | 'updated_at'>>
+): Promise<PatientActivityRecord[]> => {
+  const { data, error } = await supabase
+    .from('patient_activity_records')
+    .upsert(records, { onConflict: 'patient_id,record_date' })
+    .select();
+  if (error) throw error;
+  return data || [];
+};
+export const updatePatientActivityRecord = async (id: string, updates: Partial<Omit<PatientActivityRecord, 'id' | 'created_at' | 'updated_at'>>): Promise<PatientActivityRecord | null> => {
+  const { data, error } = await supabase.from('patient_activity_records').update(updates).eq('id', id).select();
+  if (error) throw error;
+  return data && data.length > 0 ? data[0] : null;
+};
+export const deletePatientActivityRecord = async (recordId: string): Promise<void> => {
+  const { error } = await supabase.from('patient_activity_records').delete().eq('id', recordId);
   if (error) throw error;
 };
 // Intake/Output Records (新設計 - 與 mobile 端同步)
