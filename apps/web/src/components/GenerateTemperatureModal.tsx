@@ -271,7 +271,7 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
                       {absent && (
                         <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">缺席．將記為無法量度</span>
                       )}
-                      {measured && (
+                      {measured && !absent && (
                         <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">已量度</span>
                       )}
                     </button>
