@@ -131,12 +131,16 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 合併批次內所有任務自身的備註（去重），儲存時與輸入框備註一併寫入每筆記錄
-  const taskNotesCombined = useMemo(() => {
-    const list: (string | null | undefined)[] = [];
-    initialData?.任務清單?.forEach(t => list.push(t.notes));
-    if (initialData?.task?.notes) list.push(initialData.task.notes);
-    return mergeNoteText(...list);
+  // 各監測類型對應其自身任務的備註（多任務整合時，各類型只繼承自己任務的備註，不會混入其他類型的備註）
+  const taskNoteByType = useMemo(() => {
+    const m: Partial<Record<VitalSignType, string | null | undefined>> = {};
+    initialData?.任務清單?.forEach(t => {
+      if (isVitalSignType(t.health_record_type)) m[t.health_record_type] = t.notes;
+    });
+    if (initialData?.task && isVitalSignType(initialData.task.health_record_type) && m[initialData.task.health_record_type] === undefined) {
+      m[initialData.task.health_record_type] = initialData.task.notes;
+    }
+    return m;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -314,7 +318,6 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
     const base = {
       院友id: parseInt(formData.院友id),
       記錄日期: formData.記錄日期,
-      備註: mergeNoteText(taskNotesCombined, formData.備註) || undefined,
       記錄人員: formData.記錄人員 || undefined,
     };
     const typesToProcess = formData.isAbsent ? activeTypes : activeTypes.filter(t => vitalEntries[t]?.primary.trim());
@@ -323,6 +326,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
       任務id: typeToTaskId[type] ?? initialData?.task?.id ?? record?.任務id ?? undefined,
       記錄時間: type === '體重' ? '00:00' : formData.記錄時間,
       監測類型: type,
+      備註: mergeNoteText(taskNoteByType[type], formData.備註) || undefined,
       數值: formData.isAbsent ? 0 : parseFloat(vitalEntries[type].primary),
       數值_副: type === '血壓'
         ? (formData.isAbsent ? 0 : parseFloat(vitalEntries[type]?.secondary || '0'))

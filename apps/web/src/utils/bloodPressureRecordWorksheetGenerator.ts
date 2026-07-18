@@ -294,6 +294,7 @@ const renderTable = (cells: (VitalCell | null)[]): string => {
     const respText = cell ? escapeHtml(cell.resp) : '';
     const spo2Text = cell ? escapeHtml(cell.spo2) : '';
     const remarkText = cell ? escapeHtml(cell.remark) : '';
+    const remarkClass = remarkText.length > 18 ? 'db-text-cell db-text-cell-remark db-text-cell-remark-sm' : 'db-text-cell db-text-cell-remark';
     return `<tr class="data-row">
       <td><input class="db-text-cell" value="${datetimeText}" readonly></td>
       <td><input class="db-text-cell" value="${tempText}" readonly></td>
@@ -301,7 +302,7 @@ const renderTable = (cells: (VitalCell | null)[]): string => {
       <td><input class="db-text-cell" value="${pulseText}" readonly></td>
       <td><input class="db-text-cell" value="${respText}" readonly></td>
       <td><input class="db-text-cell" value="${spo2Text}" readonly></td>
-      <td><input class="db-text-cell db-text-cell-left" value="${remarkText}" readonly></td>
+      <td><div class="${remarkClass}">${remarkText}</div></td>
     </tr>`;
   }).join('');
   return `
@@ -358,7 +359,8 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   .col-remark   { width: auto; }
   .data-row { height: 30px; }
   .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 14px; text-align: center; outline: none; display: block; box-sizing: border-box; }
-  .db-text-cell-left { text-align: left; padding-left: 5px; }
+  .db-text-cell-remark { width: 100%; height: 100%; padding: 2px 5px; font-size: 12px; text-align: left; white-space: pre-wrap; word-wrap: break-word; overflow: hidden; display: flex; align-items: center; line-height: 1.3; }
+  .db-text-cell-remark-sm { font-size: 10px; }
   .footer { margin-top: 8px; display: flex; justify-content: flex-end; position: relative; height: 30px; }
   .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
   .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }

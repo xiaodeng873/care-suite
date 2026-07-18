@@ -215,7 +215,8 @@ const renderTable = (cells: GlucoseCell[]): string => {
       const valueText = cell ? escapeHtml(cell.value) : '';
       const noteText = cell ? escapeHtml(cell.note) : '';
       const recorderText = cell ? escapeHtml(cell.recorder) : '';
-      return `<td><input class="db-text-cell" value="${dateText}" readonly></td><td><input class="db-text-cell" value="${timeText}" readonly></td><td><input class="db-text-cell" value="${valueText}" readonly></td><td><input class="db-text-cell" value="${noteText}" readonly></td><td${dividerAttr}><input class="db-text-cell" value="${recorderText}" readonly></td>`;
+      const noteClass = noteText.length > 15 ? 'db-text-cell db-text-cell-note db-text-cell-note-sm' : 'db-text-cell db-text-cell-note';
+      return `<td><input class="db-text-cell" value="${dateText}" readonly></td><td><input class="db-text-cell" value="${timeText}" readonly></td><td><input class="db-text-cell" value="${valueText}" readonly></td><td><div class="${noteClass}">${noteText}</div></td><td${dividerAttr}><input class="db-text-cell" value="${recorderText}" readonly></td>`;
     }).join('');
     return `<tr class="data-row">${tds}</tr>`;
   }).join('');
@@ -266,6 +267,8 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   table.main-table th { font-size: 13px; font-weight: bold; background-color: #fff; height: 38px; line-height: 1.1; }
   .data-row { height: 30px; }
   .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 13px; text-align: center; outline: none; display: block; box-sizing: border-box; }
+  .db-text-cell-note { width: 100%; height: 100%; padding: 2px 5px; font-size: 11px; text-align: left; white-space: pre-wrap; word-wrap: break-word; overflow: hidden; display: flex; align-items: center; line-height: 1.2; }
+  .db-text-cell-note-sm { font-size: 9px; }
   .set-divider { border-right: 3px solid black !important; }
   .footer { margin-top: 8px; display: flex; justify-content: flex-end; position: relative; height: 30px; }
   .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }

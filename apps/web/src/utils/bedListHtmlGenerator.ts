@@ -135,7 +135,7 @@ export function generateBedListHtml(input: BedListInput): string {
   const renderBedRow = (bed: BedListBed, idx: number): string => {
     const alt = idx % 2 === 1 ? ' br-alt' : '';
     if (!bed.patient) {
-      return `<div class="br br-e${alt}"><span class="bnum-e">${stripCodePrefix(bed.bed_number)}</span><span class="bempty-tag">空床</span></div>`;
+      return `<div class="br br-e${alt}"><span class="bnum-e">${stripCodePrefix(bed.bed_number)}</span><span class="bempty-tag">未入住</span></div>`;
     }
     const lbl = typeLabel(bed.patient.admissionType);
     const cls = badgeClass(bed.patient.admissionType);
@@ -183,7 +183,7 @@ export function generateBedListHtml(input: BedListInput): string {
       <div class="sg-title">床位統計</div>
       ${mkRow('總床位', totalBeds)}
       ${mkRow('已入住', occupiedN)}
-      ${mkRow('空床', emptyN)}
+      ${mkRow('未入住', emptyN)}
     </div>
     <div class="sg-block">
       <div class="sg-title">入住類型</div>
