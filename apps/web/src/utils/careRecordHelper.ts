@@ -26,7 +26,7 @@ export const parseDiaperSlotStartTime = (slot: string): string => {
 };
 
 /**
- * 護理記錄一天從 07:00 開始，00:00–06:xx 屬於下一個日曆日。
+ * 床頭記錄一天從 07:00 開始，00:00–06:xx 屬於下一個日曆日。
  * 回傳該時段實際發生的日期字串（YYYY-MM-DD）。
  */
 export const getActualSlotDate = (dateString: string, timeString: string): string => {
@@ -176,7 +176,7 @@ export const filterPatientsWithTubes = (
   const patientIdsWithTubes = new Set<number>();
 
   healthTasks.forEach(task => {
-    if (task.health_record_type === '鼻胃飼管更換' || task.health_record_type === '尿導管更換') {
+    if (task.health_record_type === '鼻胃飼管更換' || task.health_record_type === '導尿管更換') {
       patientIdsWithTubes.add(task.patient_id);
     }
   });

@@ -213,7 +213,7 @@ export const PERMISSION_STRUCTURE: Record<PermissionCategory, FeatureDefinition[
   ],
   records: [
     { key: 'health_monitoring', name_zh: '監測記錄', route: '/health' },
-    { key: 'care_records', name_zh: '護理記錄', route: '/care-records' },
+    { key: 'care_records', name_zh: '床頭記錄', route: '/care-records' },
     { key: 'patient_logs', name_zh: '院友日誌', route: '/patient-logs' },
     { key: 'diagnosis_records', name_zh: '診斷記錄', route: '/diagnosis-records' },
     { key: 'vaccination_records', name_zh: '疫苗記錄', route: '/vaccination-records' },
@@ -229,11 +229,12 @@ export const PERMISSION_STRUCTURE: Record<PermissionCategory, FeatureDefinition[
     { key: 'rehabilitation', name_zh: '復康服務', route: '/rehabilitation' },
   ],
   periodic: [
-    { key: 'annual_checkup', name_zh: '年度體檢', route: '/annual-checkup' },
+    { key: 'annual_checkup', name_zh: '年度體檢', route: '/annual-health-checkup' },
     { key: 'health_assessment', name_zh: '健康評估', route: '/health-assessments' },
     { key: 'care_plan', name_zh: '個人照顧計劃', route: '/care-plan' },
     { key: 'restraint', name_zh: '約束物品', route: '/restraint' },
     { key: 'wound_management', name_zh: '傷口管理', route: '/wound' },
+    { key: 'tube_care', name_zh: '喉管護理', route: '/tube-care' },
     { key: 'activity_records', name_zh: '活動記錄', route: '/activity-records' },
   ],
   daily: [

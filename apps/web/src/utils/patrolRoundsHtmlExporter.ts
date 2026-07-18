@@ -12,7 +12,7 @@ export interface PatrolRoundRecord {
 
 export interface PatrolRoundsExportOptions {
   facilityName?: string;
-  logoBase64?: string;
+  logoBase64?: string; // kept for API compatibility; doc_html template has no logo
   bedNumber: string;
   startDate: string;  // 'YYYY-MM-DD'
   endDate: string;    // 'YYYY-MM-DD'
@@ -21,145 +21,67 @@ export interface PatrolRoundsExportOptions {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CARDS_PER_PAGE = 16; // 8 columns × 2 rows
+const CARDS_PER_PAGE = 16; // 4 columns × 4 rows
 
+// 以 doc_html/院友巡房記錄表.html 為模板，並固定:
+//   --row-height: 3.14mm
+//   --footer-bottom: 2mm
 const PAGE_CSS = `
-*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after { box-sizing: border-box; }
 
-@page { size: A4 landscape; margin: 6mm 5mm; }
+@page { size: A4; margin: 4mm 0.2in; }
 
 html, body {
-  font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
-  font-size: 8pt;
-  color: #111827;
-  background: #fff;
+  font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+  margin: 0; padding: 0;
+  background: #fff; color: #000; line-height: 1.1;
 }
 
-@media screen {
-  body { background: #dde3ec; padding: 16mm; }
-  .page { box-shadow: 0 6px 24px rgba(0,0,0,.18); margin-bottom: 16mm; }
-}
-
-@media print {
-  body { background: #fff; padding: 0; }
-  .page { page-break-after: always; }
-  .page:last-child { page-break-after: auto; }
-}
-
-/* ── Page shell ── */
 .page {
-  width: 287mm;
-  min-height: 190mm;
-  background: #fff;
-  padding: 6mm 5mm 5mm;
+  width: 100%;
+  height: 288mm;
+  box-sizing: border-box;
+  position: relative;
   display: flex;
   flex-direction: column;
+  page-break-after: always;
 }
+.page:last-child { page-break-after: avoid; }
 
-/* ── Header ── */
-.hdr {
+.header-section { width: 100%; height: 24mm; box-sizing: border-box; }
+.title-section { text-align: center; margin-bottom: 2px; }
+.title-section h1 { margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+.title-section h2 { margin: 1px 0 0 0; font-size: 18px; font-weight: bold; display: inline-block; padding-bottom: 1px; }
+
+.info-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 4px; }
+.info-table td { border: none; padding: 2px 0; vertical-align: bottom; font-size: 16px; font-weight: bold; white-space: nowrap; }
+.db-line-input { border: none; border-bottom: 1.5px solid black; background: transparent; font-family: inherit; font-size: 16px; font-weight: bold; outline: none; padding: 0 0 1px 5px; box-sizing: border-box; }
+
+.grid-container {
   display: grid;
-  grid-template-columns: 14mm 1fr 28mm;
-  column-gap: 4mm;
-  align-items: center;
-  padding-bottom: 2mm;
-  border-bottom: 1.5px solid #1d4ed8;
-  margin-bottom: 2.5mm;
-}
-.logo {
-  width: 12mm; height: 12mm;
-  object-fit: contain;
-}
-.logo-ph {
-  width: 12mm; height: 12mm;
-  border: 1pt solid #94a3b8;
-  background: #f1f5f9;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 5.5pt; color: #64748b; text-align: center;
-  line-height: 1.3;
-}
-.hdr-title { text-align: center; }
-.facility {
-  font-size: 13pt; font-weight: 900;
-  color: #1e3a5f; letter-spacing: .3pt;
-}
-.doc-title {
-  margin-top: 1pt;
-  font-size: 8pt; font-weight: 700;
-  color: #047857;
-}
-.hdr-meta { text-align: right; }
-.bed-label { font-size: 6pt; color: #6b7280; letter-spacing: .5pt; }
-.bed-no { font-size: 15pt; font-weight: 900; color: #1e3a5f; line-height: 1; }
-
-/* ── Card grid ── */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  grid-auto-rows: 1fr;
-  gap: 2mm;
-  flex: 1;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 3mm;
+  height: 250mm;
+  box-sizing: border-box;
+  margin-top: 2px;
 }
 
-/* ── Day card ── */
-.card {
-  border: .5pt solid #cbd5e1;
-  border-radius: 2pt;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.card-date {
-  background: #1d4ed8;
-  color: #fff;
-  font-size: 7.5pt; font-weight: 700;
-  text-align: center;
-  padding: 1mm 0;
-  letter-spacing: .2pt;
-}
-.card-empty .card-date { background: #e5e7eb; color: #9ca3af; }
+.card { border: 1.5px solid black; box-sizing: border-box; display: flex; flex-direction: column; background: #fff; height: 100%; }
+.card-empty { border: none; box-sizing: border-box; }
+.card-title { text-align: center; font-size: 11px; font-weight: bold; background-color: #fff; border-bottom: 1.5px solid black; height: 3.33mm; line-height: 3.33mm; box-sizing: border-box; }
+.card-table { width: 100%; border-collapse: collapse; table-layout: fixed; height: calc(100% - 3.33mm); border: none; }
+.card-table th, .card-table td { border: 1px solid black; text-align: center; padding: 0; font-size: 10px; box-sizing: border-box; }
+.card-table th { height: 2.88mm; font-size: 9px; font-weight: bold; background: #fff; border-bottom: 1.5px solid black; }
+.card-table td { height: 2.9mm; }
+.card-table th:first-child, .card-table td:first-child { border-left: none; }
+.card-table th:last-child, .card-table td:last-child { border-right: none; }
+.card-table tr:last-child td { border-bottom: none; }
 
-.card table {
-  width: 100%; border-collapse: collapse;
-  table-layout: fixed;
-  font-size: 6.5pt; line-height: 1.15;
-  flex: 1;
-}
-.card table th {
-  background: #eff6ff;
-  color: #1e40af;
-  font-weight: 700; font-size: 6pt;
-  border: .3pt solid #bfdbfe;
-  padding: .6mm .4mm;
-  text-align: center;
-}
-.card table td {
-  border: .3pt solid #e2e8f0;
-  padding: .5mm .4mm;
-  vertical-align: middle;
-}
-.card table td.slot {
-  text-align: center;
-  font-weight: 700;
-  color: #374151;
-  background: #f8fafc;
-  width: 15%;
-}
-.card table td.val { width: 28.3%; }
-.card table tr:nth-child(even) td { background: #f9fafb; }
-.card table tr:nth-child(even) td.slot { background: #f1f5f9; }
+.db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 10px; text-align: center; outline: none; display: block; box-sizing: border-box; padding: 0; }
 
-/* ── Footer ── */
-.footer {
-  margin-top: 3mm;
-  padding-top: 2.5mm;
-  border-top: 1pt solid #e5e7eb;
-  display: flex;
-  justify-content: center;
-  font-size: 7.5pt;
-  font-weight: 600;
-  color: #374151;
-}
+.footer { position: absolute; bottom: 2mm; left: 0; right: 0; height: 5mm; display: flex; justify-content: center; align-items: center; box-sizing: border-box; }
+.page-num { font-size: 16px; font-weight: bold; }
 `.trim();
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -190,20 +112,25 @@ function buildCard(date: string, roundMap: Map<string, PatrolRoundRecord>): stri
   const rows = TIME_SLOTS.map(ts => {
     const r = roundMap.get(ts);
     return `<tr>
-      <td class="slot">${esc(ts)}</td>
-      <td class="val">${esc(r?.patrol_time ?? '')}</td>
-      <td class="val">${esc(r?.recorder ?? '')}</td>
-      <td class="val">${esc(r?.co_signer ?? '')}</td>
+      <td><input class="db-text-cell" value="${esc(ts)}" readonly></td>
+      <td><input class="db-text-cell" value="${esc(r?.recorder ?? '')}" readonly></td>
+      <td><input class="db-text-cell" value="${esc(r?.co_signer ?? '')}" readonly></td>
     </tr>`;
   }).join('');
 
+  const dayNum = new Date(`${date}T00:00:00`).getDate();
+
   return `<div class="card">
-    <div class="card-date">${esc(date)}</div>
-    <table>
-      <thead><tr><th>時段</th><th>實際時間</th><th>記錄者</th><th>加簽</th></tr></thead>
+    <div class="card-title">${dayNum} 日</div>
+    <table class="card-table">
+      <thead><tr><th style="width: 18%;">時間</th><th style="width: 41%;">簽署</th><th style="width: 41%;">加簽</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;
+}
+
+function buildEmptyCard(): string {
+  return '<div class="card-empty"></div>';
 }
 
 function buildPage(
@@ -211,45 +138,41 @@ function buildPage(
   totalPages: number,
   dates: string[],
   facilityName: string,
-  logoBase64: string,
   bedNumber: string,
+  monthStr: string,
   dataIndex: Map<string, Map<string, PatrolRoundRecord>>
 ): string {
-  const cards = dates.map(d =>
-    buildCard(d, dataIndex.get(d) ?? new Map())
-  ).join('\n');
-
-  const logoHtml = logoBase64
-    ? `<img class="logo" src="${esc(logoBase64)}" alt="logo">`
-    : `<div class="logo-ph">院舍<br>Logo</div>`;
+  const cards = dates.map(d => buildCard(d, dataIndex.get(d) ?? new Map())).join('');
+  const emptyCards = Array.from({ length: CARDS_PER_PAGE - dates.length }, buildEmptyCard).join('');
 
   return `<div class="page">
-  <div class="hdr">
-    <div>${logoHtml}</div>
-    <div class="hdr-title">
-      <div class="facility">${esc(facilityName)}</div>
-      <div class="doc-title">巡房記錄</div>
+  <div class="header-section">
+    <div class="title-section">
+      <h1>${esc(facilityName)}</h1>
+      <h2>院友巡房記錄表</h2>
     </div>
-    <div class="hdr-meta">
-      <div class="bed-label">床號 BED</div>
-      <div class="bed-no">${esc(bedNumber)}</div>
-    </div>
+    <table class="info-table">
+      <colgroup>
+        <col style="width: 60%;">
+        <col style="width: 40%;">
+      </colgroup>
+      <tr>
+        <td>房 / 床號：<input type="text" class="db-line-input" style="width: 280px; display: inline-block;" value="${esc(bedNumber)}" readonly></td>
+        <td style="text-align: right; padding-right: 20px;">月份：<input type="text" class="db-line-input" style="width: 180px; display: inline-block;" value="${esc(monthStr)}" readonly></td>
+      </tr>
+    </table>
   </div>
-  <div class="grid">${cards}</div>
-  <div class="footer">第 ${pageIndex} / ${totalPages} 頁</div>
+  <div class="grid-container">${cards}${emptyCards}</div>
+  <div class="footer"><div class="page-num">第 ${pageIndex} / ${totalPages} 頁</div></div>
 </div>`;
 }
 
-function buildDocument(
-  pages: string[],
-  facilityName: string
-): string {
+function buildDocument(pages: string[], facilityName: string): string {
   return `<!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-HK">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=1120,initial-scale=1">
-<title>${esc(facilityName)} 巡房記錄</title>
+<meta charset="UTF-8">
+<title>${esc(facilityName)} 巡房記錄表</title>
 <style>${PAGE_CSS}</style>
 </head>
 <body>
@@ -258,13 +181,11 @@ ${pages.join('\n')}
 </html>`;
 }
 
-// ─── Print via iframe ─────────────────────────────────────────────────────────
-
 function printViaIframe(html: string): void {
   const iframe = document.createElement('iframe');
   Object.assign(iframe.style, {
     position: 'fixed', left: '-10000px', top: '0',
-    width: '1123px', height: '794px', border: '0',
+    width: '794px', height: '1123px', border: '0',
   });
   iframe.setAttribute('aria-hidden', 'true');
   document.body.appendChild(iframe);
@@ -288,7 +209,6 @@ function printViaIframe(html: string): void {
 export async function exportPatrolRoundsRangeHtml(options: PatrolRoundsExportOptions): Promise<void> {
   const {
     facilityName = '善頤(福群)護老院',
-    logoBase64 = '',
     bedNumber,
     startDate,
     endDate,
@@ -308,9 +228,21 @@ export async function exportPatrolRoundsRangeHtml(options: PatrolRoundsExportOpt
   const pages = chunk(allDates, CARDS_PER_PAGE);
   const totalPages = pages.length;
 
+  const firstDate = new Date(`${allDates[0]}T00:00:00`);
+  const monthStr = `${firstDate.getFullYear()}年${firstDate.getMonth() + 1}月`;
+
   const pageHtmls = pages.map((dates, i) =>
-    buildPage(i + 1, totalPages, dates, facilityName, logoBase64, bedNumber, dataIndex)
+    buildPage(i + 1, totalPages, dates, facilityName, bedNumber, monthStr, dataIndex)
   );
 
   printViaIframe(buildDocument(pageHtmls, facilityName));
+}
+
+export async function exportPatrolRoundsHtml(
+  bedNumber: string,
+  startDate: string,
+  endDate: string,
+  rounds: PatrolRoundRecord[]
+): Promise<void> {
+  return exportPatrolRoundsRangeHtml({ bedNumber, startDate, endDate, rounds });
 }

@@ -91,7 +91,7 @@ const CareRecords: React.FC = () => {
     admissionRecords,
     hospitalEpisodes
   } = usePatients();
-  // 本地狀態管理護理記錄數據
+  // 本地狀態管理床頭記錄數據
   const [loading, setLoading] = useState(false);
   const [patrolRounds, setPatrolRounds] = useState<PatrolRound[]>([]);
   const [diaperChangeRecords, setDiaperChangeRecords] = useState<DiaperChangeRecord[]>([]);
@@ -216,7 +216,7 @@ const CareRecords: React.FC = () => {
     prevWeek.setDate(prevWeek.getDate() - 7);
     setWeekStartDate(prevWeek);
   };
-  // 加載當前週的護理記錄數據
+  // 加載當前週的床頭記錄數據
   const loadCareRecordsForWeek = async (startDate: string, endDate: string, silent = false) => {
     // silent 模式下不顯示全螢幕 loading，避免畫面閃爍
     if (!silent) {
@@ -240,7 +240,7 @@ const CareRecords: React.FC = () => {
         r.record_date >= startDate && r.record_date <= endDate
       ));
     } catch (error) {
-      console.error('載入護理記錄失敗:', error);
+      console.error('載入床頭記錄失敗:', error);
     } finally {
       if (!silent) {
         setLoading(false);
@@ -1417,7 +1417,7 @@ const CareRecords: React.FC = () => {
     );
   };
   if (loading) {
-    return <LoadingScreen pageName="護理記錄" />;
+    return <LoadingScreen pageName="床頭記錄" />;
   }
   return (
     <div className="space-y-6">
@@ -1426,7 +1426,7 @@ const CareRecords: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900 flex flex-wrap items-center gap-2">
             <ClipboardCheck className="h-7 w-7 text-blue-600" />
-            <span>護理記錄</span>
+            <span>床頭記錄</span>
           </h1>
           <div className="flex flex-wrap items-center gap-2">
             <button

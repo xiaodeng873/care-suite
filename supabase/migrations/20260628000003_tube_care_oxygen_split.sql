@@ -22,4 +22,4 @@ ALTER TABLE patient_tube_care_records
 
 ALTER TABLE patient_tube_care_records
   ADD CONSTRAINT patient_tube_care_records_care_type_check
-  CHECK (care_type IN ('尿導管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換', '造口袋更換'));
+  CHECK (care_type IN ('導尿管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換', '造口袋更換'));

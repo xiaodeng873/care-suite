@@ -159,6 +159,7 @@ export interface MealGuidance {
   meal_combination: MealCombinationType;
   special_diets: SpecialDietType[];
   needs_thickener: boolean;
+  needs_feeding?: boolean;
   thickener_amount?: string;
   egg_quantity?: number;
   remarks?: string;
@@ -168,7 +169,7 @@ export interface MealGuidance {
   updated_at: string;
 }
 /** 所有任務類型（VitalSignType 為其子集，監測任務用）*/
-export type HealthTaskType = VitalSignType | '約束物品同意書' | '年度體檢' | '尿導管更換' | '鼻胃飼管更換' | '傷口換症' | '藥物自存同意書' | '晚晴計劃' | '氧氣喉管清洗/更換';
+export type HealthTaskType = VitalSignType | '約束物品同意書' | '年度體檢' | '導尿管更換' | '鼻胃飼管更換' | '傷口換症' | '藥物自存同意書' | '晚晴計劃' | '氧氣喉管清洗/更換';
 export type FrequencyUnit = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type MonitoringTaskNotes = '注射前' | '服藥前' | '定期' | '特別關顧' | '社康';
 export interface PatientHealthTask {
@@ -216,7 +217,7 @@ export interface PatientRestraintAssessment {
   created_at: string;
   updated_at: string;
 }
-export type TubeCareType = '尿導管更換' | '鼻胃飼管更換' | '氧氣喉管清洗/更換' | '造口袋更換';
+export type TubeCareType = '導尿管更換' | '鼻胃飼管更換' | '氧氣喉管清洗/更換' | '造口袋更換';
 export type OxygenAction = '清洗' | '更換';
 export interface PatientTubeCareRecord {
   id: string;

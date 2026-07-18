@@ -32,7 +32,7 @@ const routeNames: Record<string, string> = {
   '/incident-reports': '意外事故報告',
   '/diagnosis-records': '診斷記錄',
   '/vaccination-records': '疫苗記錄',
-  '/care-records': '護理記錄',
+  '/care-records': '床頭記錄',
   '/patients': '院友列表',
   '/patient-contacts': '院友聯絡人',
   '/templates': '範本管理',
@@ -131,7 +131,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       category: 'records',
       items: [
         { name: '監測記錄', href: '/health', icon: Activity, feature: 'health_monitoring' },
-        { name: '護理記錄', href: '/care-records', icon: ClipboardCheck, feature: 'care_records' },
+        { name: '床頭記錄', href: '/care-records', icon: ClipboardCheck, feature: 'care_records' },
         { name: '院友日誌', href: '/patient-logs', icon: BookOpen, feature: 'patient_logs' },
         { name: '診斷記錄', href: '/diagnosis-records', icon: FileText, feature: 'diagnosis_records' },
         { name: '疫苗記錄', href: '/vaccination-records', icon: Syringe, feature: 'vaccination_records' },

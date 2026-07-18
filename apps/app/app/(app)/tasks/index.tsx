@@ -16,13 +16,13 @@ import { formatTaskFrequency } from '@/features/tasks/formatTaskFrequency';
 
 const TASK_COLORS: Record<string, string> = {
   '生命表徵': '#3b82f6', '血糖控制': '#f59e0b', '體重控制': '#8b5cf6',
-  '年度體檢': '#22c55e', '傷口換症': '#ef4444', '尿導管更換': '#06b6d4',
+  '年度體檢': '#22c55e', '傷口換症': '#ef4444', '導尿管更換': '#06b6d4',
 };
 
 // 完全對應 web TaskManagement 的分組選單
 const TASK_GROUPS: { label: string; types: string[] }[] = [
   { label: '監測任務', types: ['生命表徵', '血糖控制', '體重控制'] },
-  { label: '護理任務', types: ['尿導管更換', '鼻胃飼管更換', '傷口換症', '氧氣喉管清洗/更換'] },
+  { label: '護理任務', types: ['導尿管更換', '鼻胃飼管更換', '傷口換症', '氧氣喉管清洗/更換'] },
   { label: '文件任務', types: ['約束物品同意書', '年度體檢', '藥物自存同意書', '晴晴計劃'] },
 ];
 

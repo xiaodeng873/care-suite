@@ -12,7 +12,7 @@ interface TubeCareModalProps {
   defaultCareType?: PatientTubeCareRecord['care_type'];
 }
 
-const CARE_TYPES: PatientTubeCareRecord['care_type'][] = ['尿導管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換', '造口袋更換'];
+const CARE_TYPES: PatientTubeCareRecord['care_type'][] = ['導尿管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換', '造口袋更換'];
 const TUBE_MATERIALS = ['Latex', 'Silicon'];
 const TUBE_SIZES = ['Fr. 8', 'Fr. 10', 'Fr. 12', 'Fr. 14', 'Fr. 16', 'Fr. 18'];
 const OXYGEN_ACTIONS: PatientTubeCareRecord['oxygen_action'][] = ['清洗', '更換'];
@@ -35,7 +35,7 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
 
   const [formData, setFormData] = useState({
     patient_id: (record?.patient_id ?? renewFrom?.patient_id ?? '') as string | number,
-    care_type: (record?.care_type ?? defaultCareType ?? seed?.care_type ?? '尿導管更換') as PatientTubeCareRecord['care_type'],
+    care_type: (record?.care_type ?? defaultCareType ?? seed?.care_type ?? '導尿管更換') as PatientTubeCareRecord['care_type'],
     execution_date: record?.execution_date ?? getHongKongDate(),
     next_due_date: record?.next_due_date ?? '',
     tube_material: record?.tube_material ?? renewFrom?.tube_material ?? '',
@@ -186,7 +186,7 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
             />
           </div>
 
-          {/* 尿導管 / 鼻胃飼管設定 */}
+          {/* 導尿管 / 鼻胃飼管設定 */}
           {!isOxygen && !isStoma && (
             <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <h4 className="text-sm font-medium text-blue-900">喉管設定</h4>

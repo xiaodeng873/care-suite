@@ -380,7 +380,7 @@ const StationBedManagement: React.FC = () => {
 
     // ── 醫療項目 ──
     const ngTubeIds = new Set(taskRows.filter(r => r.health_record_type === '鼻胃飼更換').map(r => r.patient_id));
-    const catheterIds = new Set(taskRows.filter(r => r.health_record_type === '尿導管更換').map(r => r.patient_id));
+    const catheterIds = new Set(taskRows.filter(r => r.health_record_type === '導尿管更換').map(r => r.patient_id));
     const woundPids = new Set<number>();
     const pressurePids = new Set<number>();
     woundRows.forEach(wa => {

@@ -3,8 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <title>巡房記錄表 - 善頤(福群)</title>
-    <style>
-        /* A4 紙張與微調邊距（緊縮上下至 4mm，騰出最大垂直空間） */
+    <style id="dynamic-styles">
+        /* 定義可調變量 */
+        :root {
+            --footer-bottom: 2mm;
+            --row-height: 4.3mm;
+        }
+
+        /* A4 紙張與微調邊距 */
         @page { 
             size: A4; 
             margin: 4mm 0.2in; 
@@ -19,7 +25,7 @@
             line-height: 1.1; 
         }
 
-        /* 單頁 A4 物理容器：設定 relative 供頁碼絕對定位 */
+        /* 單頁 A4 物理容器 */
         .page {
             width: 100%;
             height: 288mm; 
@@ -30,7 +36,6 @@
             page-break-after: always;
         }
         
-        /* 最後一頁取消強制分頁 */
         .page:last-child {
             page-break-after: avoid;
         }
@@ -59,7 +64,6 @@
             padding-bottom: 1px; 
         }
 
-        /* 資訊輸入表格 */
         .info-table { 
             width: 100%; 
             border-collapse: collapse; 
@@ -86,7 +90,7 @@
             box-sizing: border-box; 
         }
 
-        /* 【核心調整】極致拉高網格高度至 259mm，完全填滿頁面 */
+        /* 網格高度 */
         .grid-container {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -97,7 +101,6 @@
             margin-top: 2px;
         }
 
-        /* 日卡片外框：高度拉伸至 62.5mm */
         .card {
             border: 1.5px solid black;
             box-sizing: border-box;
@@ -107,13 +110,11 @@
             height: 100%; 
         }
         
-        /* 空白預留卡片 */
         .card-empty {
             border: none;
             box-sizing: border-box;
         }
 
-        /* 卡片日期標題 */
         .card-title {
             text-align: center;
             font-size: 11px;
@@ -125,7 +126,6 @@
             box-sizing: border-box;
         }
 
-        /* 卡片內部小表格 */
         .card-table {
             width: 100%;
             border-collapse: collapse;
@@ -148,41 +148,25 @@
             border-bottom: 1.5px solid black;
         }
         
-        /* 【書寫高度加高】12 列單一列高加高至 4.4mm */
+        /* 使用變量控制行高 */
         .card-table td {
-            height: 4.3mm;
+            height: var(--row-height);
         }
 
-        /* 消除重複邊框 */
-        .card-table th:first-child, .card-table td:first-child {
-            border-left: none;
-        }
-        .card-table th:last-child, .card-table td:last-child {
-            border-right: none;
-        }
-        .card-table tr:last-child td {
-            border-bottom: none;
-        }
+        .card-table th:first-child, .card-table td:first-child { border-left: none; }
+        .card-table th:last-child, .card-table td:last-child { border-right: none; }
+        .card-table tr:last-child td { border-bottom: none; }
 
-        /* 輸入框單元格 */
         .db-text-cell { 
-            width: 100%; 
-            height: 100%; 
-            border: none; 
-            background: transparent; 
-            font-family: inherit; 
-            font-size: 10px; 
-            text-align: center; 
-            outline: none; 
-            display: block; 
-            box-sizing: border-box; 
-            padding: 0;
+            width: 100%; height: 100%; border: none; background: transparent; 
+            font-family: inherit; font-size: 10px; text-align: center; 
+            outline: none; display: block; box-sizing: border-box; padding: 0;
         }
 
-        /* 【頁碼下移】採用絕對定位強制貼齊紙張列印的最底端 */
+        /* 使用變量控制頁碼位置 */
         .footer { 
             position: absolute;
-            bottom: -2px; 
+            bottom: var(--footer-bottom); 
             left: 0;
             right: 0;
             height: 5mm;
@@ -195,25 +179,55 @@
             font-size: 16px; 
             font-weight: bold; 
         }
+
+        /* 控制面板樣式 - 僅顯示於螢幕，不列印 */
+        #control-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 9999;
+            font-family: sans-serif;
+            font-size: 14px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            width: 250px;
+        }
+        #control-panel h3 { margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid #666; padding-bottom: 5px; }
+        .ctrl-group { margin-bottom: 10px; }
+        .ctrl-group label { display: block; margin-bottom: 5px; }
+        .ctrl-group input { width: 100%; }
+        .ctrl-val { float: right; color: #0f0; }
+
+        @media print {
+            #control-panel { display: none !important; }
+        }
     </style>
 </head>
 <body>
 
+<!-- 控制面板 -->
+<div id="control-panel">
+    <h3>頁面微調控制</h3>
+    <div class="ctrl-group">
+        <label>頁碼距離底部: <span id="val-footer" class="ctrl-val">2mm</span></label>
+        <input type="range" id="input-footer" min="-30" max="15" step="0.5" value="2">
+        <small>(正數向上移，負數向下移)</small>
+    </div>
+    <div class="ctrl-group">
+        <label>表格單列行高: <span id="val-row" class="ctrl-val">4.3mm</span></label>
+        <input type="range" id="input-row" min="3.5" max="5.5" step="0.1" value="4.3">
+    </div>
+    <button onclick="window.print()" style="width:100%; padding: 5px; cursor:pointer;">開啟列印對話框</button>
+</div>
+
 <script>
-    // ==========================================
-    // 在此設定本月總天數 (例如 28, 29, 30 或 31)
-    // ==========================================
     const totalDays = 31; 
 
-    /**
-     * 動態生成單頁 16 日卡片表格
-     * @param {number} startDay 起始天數 (1 或 17)
-     * @param {number} endDay 總天數
-     */
     function generatePage(startDay, endDay) {
         document.write('<div class="page">');
-        
-        // 頂部標題與資料填寫
         document.write(`
             <div class="header-section">
                 <div class="title-section">
@@ -233,13 +247,9 @@
             </div>
         `);
         
-        // 網格系統
         document.write('<div class="grid-container">');
-        
-        // 每一頁固定輸出 16 個格子
         for (let i = 0; i < 16; i++) {
             let dayNum = startDay + i;
-            
             if (dayNum <= endDay) {
                 document.write(`
                     <div class="card">
@@ -254,8 +264,6 @@
                             </thead>
                             <tbody>
                 `);
-                
-                // 生成 12 列
                 for (let r = 0; r < 12; r++) {
                     document.write(`
                                 <tr>
@@ -265,34 +273,44 @@
                                 </tr>
                     `);
                 }
-                
-                document.write(`
-                            </tbody>
-                        </table>
-                    </div>
-                `);
+                document.write(`</tbody></table></div>`);
             } else {
-                // 超過天數的空白預留格
                 document.write('<div class="card-empty"></div>');
             }
         }
-        
-        document.write('</div>'); // 結束 grid-container
-        
-        // 頁碼區
+        document.write('</div>'); 
+
         let pageNum = startDay === 1 ? '1' : '2';
         document.write(`
             <div class="footer">
                 <div class="page-num">第 ${pageNum} 頁</div>
             </div>
         `);
-        
-        document.write('</div>'); // 結束 page
+        document.write('</div>'); 
     }
 
-    // 呼叫生成函式
+    // 生成兩頁
     generatePage(1, totalDays);
     generatePage(17, totalDays);
+
+    // 控制面板交互邏輯
+    const root = document.documentElement;
+    const inputFooter = document.getElementById('input-footer');
+    const inputRow = document.getElementById('input-row');
+    const valFooter = document.getElementById('val-footer');
+    const valRow = document.getElementById('val-row');
+
+    inputFooter.addEventListener('input', (e) => {
+        const v = e.target.value + 'mm';
+        root.style.setProperty('--footer-bottom', v);
+        valFooter.textContent = v;
+    });
+
+    inputRow.addEventListener('input', (e) => {
+        const v = e.target.value + 'mm';
+        root.style.setProperty('--row-height', v);
+        valRow.textContent = v;
+    });
 </script>
 
 </body>

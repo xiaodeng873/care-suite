@@ -1,7 +1,7 @@
 /*
   # 建立喉管護理記錄表 patient_tube_care_records
 
-  將「尿導管更換」「鼻胃飼管更換」「氧氣喉管清洗/更換」三類從任務管理
+  將「導尿管更換」「鼻胃飼管更換」「氧氣喉管清洗/更換」三類從任務管理
   (patient_health_tasks) 抽離為獨立表，每次執行 INSERT 一列以保留歷史。
 
   1. 新增表格 patient_tube_care_records
@@ -10,10 +10,10 @@
      - care_type (text) 三類之一
      - execution_date (date) 執行日期
      - next_due_date (date) 下次到期日（依類型自動計算）
-     - tube_material (text) 尿導管/鼻胃飼管：Latex / Silicon
-     - tube_size (text) 尿導管/鼻胃飼管：Fr.8-18
+     - tube_material (text) 導尿管/鼻胃飼管：Latex / Silicon
+     - tube_size (text) 導尿管/鼻胃飼管：Fr.8-18
      - oxygen_action (text) 氧氣：清洗 / 更換
-     - cycle_days (integer) 間隔天數（氧氣動作間隔；尿導管/鼻胃飼管亦可存 +14/+28）
+     - cycle_days (integer) 間隔天數（氧氣動作間隔；導尿管/鼻胃飼管亦可存 +14/+28）
      - notes (text)
      - created_at / updated_at (timestamptz)
 
@@ -32,7 +32,7 @@
 CREATE TABLE IF NOT EXISTS patient_tube_care_records (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id integer NOT NULL,
-  care_type text NOT NULL CHECK (care_type IN ('尿導管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換')),
+  care_type text NOT NULL CHECK (care_type IN ('導尿管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換')),
   execution_date date NOT NULL,
   next_due_date date,
   tube_material text,
@@ -76,13 +76,13 @@ SELECT DISTINCT ON (patient_id, health_record_type)
   tube_size,
   notes
 FROM patient_health_tasks
-WHERE health_record_type IN ('尿導管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換')
+WHERE health_record_type IN ('導尿管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換')
   AND patient_id IS NOT NULL
 ORDER BY patient_id, health_record_type, created_at DESC;
 
 -- 刪除任務管理中該三類記錄
 DELETE FROM patient_health_tasks
-WHERE health_record_type IN ('尿導管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換');
+WHERE health_record_type IN ('導尿管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換');
 
 -- 啟用 RLS
 ALTER TABLE patient_tube_care_records ENABLE ROW LEVEL SECURITY;

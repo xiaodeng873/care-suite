@@ -696,7 +696,7 @@ const Dashboard: React.FC = () => {
     };
     const execTime = (r: any) => (r?.execution_date ? new Date(r.execution_date).getTime() : -Infinity);
 
-    // 非氧氣（尿導管/鼻胃飼管/造口袋）：每位院友每類最新一筆
+    // 非氧氣（導尿管/鼻胃飼管/造口袋）：每位院友每類最新一筆
     const latestByStream = new Map<string, any>();
     const oxygenByPatient = new Map<number, any[]>();
     (patientTubeCareRecords || []).forEach((r: any) => {
@@ -997,7 +997,7 @@ const Dashboard: React.FC = () => {
       case '體重控制': return <Scale className="h-4 w-4" />;
       case '約束物品同意書': return <FileText className="h-4 w-4" />;
       case '年度體檢': return <Stethoscope className="h-4 w-4" />;
-      case '尿導管更換': return <FileText className="h-4 w-4" />;
+      case '導尿管更換': return <FileText className="h-4 w-4" />;
       case '鼻胃飼管更換': return <FileText className="h-4 w-4" />;
       case '傷口換症': return <FileText className="h-4 w-4" />;
       case '晚晴計劃': return <Heart className="h-4 w-4" />;

@@ -8,6 +8,8 @@
  */
 import type { Patient, PatientActivityRecord } from '../lib/database';
 import { ACTIVITY_BOOLEAN_FIELDS } from './activityRecordStatus';
+import { getFacilitySettings } from './facilitySettings';
+import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 
 const FACILITY_NAME = '善頤(福群)護老院';
 const ROWS_PER_PAGE = 20;
@@ -43,21 +45,21 @@ const generateDataRows = (records: PatientActivityRecord[]): string => {
   return records.map(record => {
     let cells = `<td><input class="db-text-cell" value="${formatDateShort(record.record_date)}" readonly></td>`;
     ACTIVITY_BOOLEAN_FIELDS.forEach(field => {
-      const checked = !record.is_absent && !!(record as any)[field];
+      const checked = !record.is_absent && !!(record as Record<ActivityBooleanField, boolean>)[field];
       cells += `<td><input type="checkbox" class="db-checkbox" ${checked ? 'checked' : ''} disabled></td>`;
     });
     const otherText = record.is_absent ? '' : escapeHtml(record.other_activity || '');
     cells += `<td><textarea class="db-textarea" readonly>${otherText}</textarea></td>`;
     const notesText = record.is_absent
-      ? `(缺席) ${escapeHtml(record.absence_reason || '')}${record.notes ? ' ' + escapeHtml(record.notes) : ''}`
+      ? `無法參加: ${escapeHtml(record.absence_reason || '住院/外出')}${record.notes ? ' / ' + escapeHtml(record.notes) : ''}`
       : escapeHtml(record.notes || '');
     cells += `<td><textarea class="db-textarea" readonly>${notesText}</textarea></td>`;
     return `<tr style="height: 34px;">${cells}</tr>`;
   }).join('');
 };
 
-// 產生單一院友、單一頁的整頁 HTML（完全複刻 doc_html 樣式與結構）
-const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageIndex: number, totalPages: number): string => {
+// 產生單一頁的整頁 HTML（完全複刻 doc_html 樣式與結構）
+const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageIndex: number, totalPages: number, logoDataUri: string): string => {
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const bed = patient.床號 || '';
   const idNumber = patient.身份證號碼 || '';
@@ -65,8 +67,12 @@ const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageI
   return `
 <div class="container">
   <div class="title-section">
-    <h1>${FACILITY_NAME}</h1>
-    <h2>院友健康教育 / 活動記錄表</h2>
+    <div class="header-spacer"></div>
+    <div class="header-center">
+      <h1>${FACILITY_NAME}</h1>
+      <h2>院友健康教育 / 活動記錄表</h2>
+    </div>
+    <div class="header-right"><img class="logo-img" src="${logoDataUri}" alt="Logo"></div>
   </div>
   <br>
   <div class="user-info">
@@ -105,7 +111,8 @@ const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageI
   </table>
 
   <div class="notes-section">
-    <div class="note-item"><span class="note-label">註釋 :</span><span><br>(A) 興趣小組：集合 2-8 位院友一同參與一類興趣活動，如象棋、編織、縫紉、栽種、唱歌、閱報等... ...</span></div>
+    <div class="notes-heading">註釋：</div>
+    <div class="note-item"><span class="note-label">(A)</span><span>興趣小組：集合 2-8 位院友一同參與一類興趣活動，如象棋、編織、縫紉、栽種、唱歌、閱報等... ...</span></div>
     <div class="note-item"><span class="note-label">(B)</span><span>學習小組：2-8 位院友一同學習、如寫字、識字、現實認知等... ...</span></div>
     <div class="note-item"><span class="note-label">(C)</span><span>自理活動訓練：由員工有目標地安排給院友做一些有別於日常自理習慣的訓練；在員工看護及鼓勵下讓院友練習如進食、梳洗、穿衣服、如廁、沖涼、摺衣服、執拾床舖等... ...</span></div>
     <div class="note-item"><span class="note-label">(D)</span><span>個別興趣：院友獨自進行的活動，如書法、聽歌、閱讀等... ...</span></div>
@@ -123,15 +130,21 @@ const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageI
 
 export const generateActivityRecordPrintFormHtml = (
   patients: Patient[],
-  recordsByPatient: Map<number, PatientActivityRecord[]>
+  recordsByPatient: Map<number, PatientActivityRecord[]>,
+  logoDataUri: string
 ): string => {
-  const pages = patients.map(patient => {
+  // 先攤平所有頁面，讓頁碼跨院友連續遞增
+  const allPages: { patient: Patient; pageRecords: PatientActivityRecord[] }[] = [];
+  patients.forEach(patient => {
     const records = (recordsByPatient.get(patient.院友id) || [])
       .slice()
       .sort((a, b) => new Date(a.record_date).getTime() - new Date(b.record_date).getTime());
     const pageChunks = records.length > 0 ? chunk(records, ROWS_PER_PAGE) : [[]];
-    return pageChunks.map((pageRecords, idx) => pageBlock(patient, pageRecords, idx, pageChunks.length)).join('');
-  }).join('');
+    pageChunks.forEach(pageRecords => allPages.push({ patient, pageRecords }));
+  });
+
+  const totalPages = allPages.length;
+  const pages = allPages.map((page, idx) => pageBlock(page.patient, page.pageRecords, idx, totalPages, logoDataUri)).join('');
 
   return `<!DOCTYPE html>
 <html lang="zh-HK">
@@ -146,7 +159,11 @@ export const generateActivityRecordPrintFormHtml = (
   .no-print button { padding: 8px 20px; font-size: 12px; background: #2563eb; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
   .container { width: 100%; box-sizing: border-box; page-break-after: always; }
   .container:last-of-type { page-break-after: auto; }
-  .title-section { text-align: center; margin-bottom: 5px; }
+  .title-section { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 5px; }
+  .header-spacer { width: 18%; }
+  .header-center { flex: 1; text-align: center; }
+  .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
+  .logo-img { max-height: 50px; max-width: 100%; object-fit: contain; }
   .title-section h1 { margin: 0; font-size: 22px; font-weight: bold; }
   .title-section h2 { margin: 0; font-size: 18px; font-weight: bold; }
   .user-info { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: bold; font-size: 14px; }
@@ -159,11 +176,12 @@ export const generateActivityRecordPrintFormHtml = (
   .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 11px; text-align: center; outline: none; }
   .db-textarea { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 10px; resize: none; overflow: hidden; display: block; padding: 2px; box-sizing: border-box; line-height: 1.2; }
   .notes-section { font-size: 11px; margin-top: 8px; line-height: 1.3; }
+  .notes-heading { font-weight: bold; font-size: 11px; margin-bottom: 2px; }
   .note-item { display: flex; margin-bottom: 1px; }
   .note-label { font-weight: bold; min-width: 25px; }
-  .footer { margin-top: 5px; display: flex; justify-content: flex-end; position: relative; height: 25px; font-weight: bold; }
-  .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 18px; bottom: 0; }
-  .doc-code { font-size: 10px; align-self: flex-end; }
+  .footer { margin-top: 5px; display: flex; justify-content: space-between; align-items: flex-end; font-weight: bold; }
+  .page-num { flex: 1; text-align: center; font-size: 18px; }
+  .doc-code { font-size: 10px; }
   @media print {
     .no-print { display: none !important; }
   }
@@ -180,7 +198,9 @@ export const printActivityRecordForm = async (
   patients: Patient[],
   recordsByPatient: Map<number, PatientActivityRecord[]>
 ): Promise<void> => {
-  const html = generateActivityRecordPrintFormHtml(patients, recordsByPatient);
+  const settings = await getFacilitySettings();
+  const logoDataUri = settings.logoDataUri || MR_LOGO_DATA_URI;
+  const html = generateActivityRecordPrintFormHtml(patients, recordsByPatient, logoDataUri);
   const old = document.getElementById('activity-record-printform-iframe');
   if (old) old.remove();
   const iframe = document.createElement('iframe');

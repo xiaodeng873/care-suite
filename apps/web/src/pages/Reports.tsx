@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { BarChart3, Download, Calendar, Users, FileText, Activity, Utensils, Stethoscope, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { BarChart3, Calendar, FileText, Activity, Utensils, Stethoscope, AlertCircle } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import MonthlyReportTable from '../components/MonthlyReportTable';
 import PatientListModal from '../components/PatientListModal';
 import { formatFrequencyDescription } from '../utils/taskScheduler';
+import { supabase } from '../lib/supabase';
+import type { PatientCareTab } from '../lib/database';
 
 type ReportTab = 'daily' | 'monthly' | 'infection' | 'meal' | 'tube' | 'special' | 'drugSensitivity';
 type TimeFilter = 'today' | 'yesterday' | 'thisMonth' | 'lastMonth';
@@ -48,13 +50,31 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, bgColor, textColor, s
 };
 
 const Reports: React.FC = () => {
-  const { allPatients: patients, stations, healthAssessments, woundAssessments, incidentReports, patientHealthTasks, patientRestraintAssessments, prescriptions, healthRecords, mealGuidances, hospitalEpisodes, loading } = usePatients();
+  const { allPatients: patients, stations, healthAssessments, incidentReports, patientHealthTasks, patientRestraintAssessments, prescriptions, healthRecords, mealGuidances, hospitalEpisodes, diagnosisRecords, patientTubeCareRecords, patientsWithWounds, loading } = usePatients();
   const [activeTab, setActiveTab] = useState<ReportTab>('daily');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('today');
   const [stationFilter, setStationFilter] = useState<StationFilter>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalPatients, setModalPatients] = useState<string[]>([]);
+  const [patientCareTabs, setPatientCareTabs] = useState<PatientCareTab[]>([]);
+
+  // 載入所有啟用中的 care tabs，供「轉身」判斷
+  useEffect(() => {
+    const loadCareTabs = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('patient_care_tabs')
+          .select('*')
+          .eq('is_hidden', false);
+        if (error) throw error;
+        setPatientCareTabs(data || []);
+      } catch (error) {
+        console.error('載入 patient_care_tabs 失敗:', error);
+      }
+    };
+    loadCareTabs();
+  }, []);
 
   const showPatientList = (title: string, names: string[]) => {
     setModalTitle(title);
@@ -83,6 +103,56 @@ const Reports: React.FC = () => {
     if (stationFilter === 'all') return patients || [];
     return (patients || []).filter(p => p.station_id === stationFilter);
   }, [patients, stationFilter]);
+
+  /** Parse a TEXT column that may contain a JSON array, '、'-delimited string, or already be an array */
+  const parseTextToArray = (value: unknown): string[] => {
+    if (Array.isArray(value)) return value.map(String);
+    if (typeof value === 'string' && value) {
+      const trimmed = value.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed.map(String);
+        } catch { /* fall through */ }
+      }
+      return trimmed.split('、').filter(Boolean);
+    }
+    return [];
+  };
+
+  const matchesCognitiveDiagnosis = (diagnosisItem?: string): boolean => {
+    if (!diagnosisItem) return false;
+    const lower = diagnosisItem.toLowerCase();
+    const keywords = ['dementia', 'cognitive impairment', 'cognitive problem', 'mental retardation', 'retarded'];
+    return keywords.some(k => lower.includes(k));
+  };
+
+  const hasTubeCare = useCallback((patientId: number, careType: string): boolean => {
+    return (patientTubeCareRecords || []).some(record =>
+      record.patient_id === patientId && record.care_type === careType
+    );
+  }, [patientTubeCareRecords]);
+
+  const hasCareTab = (patientId: number, tabType: PatientCareTab['tab_type']): boolean => {
+    return patientCareTabs.some(tab => tab.patient_id === patientId && tab.tab_type === tabType);
+  };
+
+  const hasPressureUlcer = (patientId: number): boolean => {
+    const patientWounds = (patientsWithWounds || []).find(pw => pw.patient_id === patientId);
+    if (!patientWounds) return false;
+    return patientWounds.wounds.some(wound =>
+      wound.wound_type === 'pressure_ulcer' &&
+      wound.status === 'active' &&
+      wound.latest_assessment &&
+      wound.latest_assessment.wound_status !== 'healed'
+    );
+  };
+
+  const hasHealthTask = useCallback((patientId: number, taskType: string): boolean => {
+    return (patientHealthTasks || []).some(task =>
+      task.patient_id === patientId && task.health_record_type === taskType
+    );
+  }, [patientHealthTasks]);
 
   const dailyReportData = useMemo(() => {
     const targetDate = timeFilter === 'today' ? today : yesterday;
@@ -252,35 +322,31 @@ const Reports: React.FC = () => {
     });
 
     const ngTubePatients = activePatients.filter(p => {
-      return (patientHealthTasks || []).some(task =>
-        task.patient_id === p.院友id &&
-        task.health_record_type === '鼻胃飼管更換'
-      );
+      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
+      return assessment?.nutrition_diet?.status === '鼻胃管' ||
+        hasHealthTask(p.院友id, '鼻胃飼管更換') ||
+        hasTubeCare(p.院友id, '鼻胃飼管更換');
     });
 
     const catheterPatients = activePatients.filter(p => {
-      return (patientHealthTasks || []).some(task =>
-        task.patient_id === p.院友id &&
-        task.health_record_type === '尿導管更換'
-      );
+      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
+      return assessment?.bowel_bladder_control?.bladder === '導尿管' ||
+        hasHealthTask(p.院友id, '導尿管更換') ||
+        hasTubeCare(p.院友id, '導尿管更換');
     });
 
     const woundPatientIds = new Set<number>();
     const pressureUlcerPatientIds = new Set<number>();
-    (woundAssessments || []).forEach(assessment => {
-      const patient = activePatients.find(p => p.院友id === assessment.patient_id);
-      if (!patient) return;
-
-      assessment.wound_details?.forEach(detail => {
-        if (detail.wound_status === '未處理' || detail.wound_status === '治療中') {
-          woundPatientIds.add(assessment.patient_id);
-          if (detail.wound_type === '壓力性') {
-            pressureUlcerPatientIds.add(assessment.patient_id);
+    (patientsWithWounds || []).forEach(pw => {
+      pw.wounds.forEach(wound => {
+        if (wound.status === 'active' && wound.latest_assessment && wound.latest_assessment.wound_status !== 'healed') {
+          woundPatientIds.add(pw.patient_id);
+          if (wound.wound_type === 'pressure_ulcer') {
+            pressureUlcerPatientIds.add(pw.patient_id);
           }
         }
       });
     });
-
     const woundPatients = activePatients.filter(p => woundPatientIds.has(p.院友id));
     const pressureUlcerPatients = activePatients.filter(p => pressureUlcerPatientIds.has(p.院友id));
 
@@ -296,7 +362,9 @@ const Reports: React.FC = () => {
 
     const stomaPatients = activePatients.filter(p => {
       const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.bowel_bladder_control?.bowel === '腸造口' || assessment?.bowel_bladder_control?.bladder === '小便造口';
+      return assessment?.bowel_bladder_control?.bowel === '腸造口' ||
+        assessment?.bowel_bladder_control?.bladder === '小便造口' ||
+        hasTubeCare(p.院友id, '造口袋更換');
     });
 
     const infectionControlPatients = activePatients.filter(p =>
@@ -312,7 +380,7 @@ const Reports: React.FC = () => {
     });
 
     const medicationIncidentPatients = todayIncidents.filter(i => i.incident_type === '藥物');
-    const fallIncidentPatients = todayIncidents.filter(i => i.incident_nature === '跌倒');
+    const fallIncidentPatients = todayIncidents.filter(i => i.incident_type === '跌倒');
 
     const fullCare男Patients = activePatients.filter(p => p.護理等級 === '全護理' && p.性別 === '男');
     const fullCare女Patients = activePatients.filter(p => p.護理等級 === '全護理' && p.性別 === '女');
@@ -377,340 +445,8 @@ const Reports: React.FC = () => {
         療養級女: { count: convalescent女Patients.length, names: convalescent女Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
       },
     };
-  }, [filteredPatients, timeFilter, healthAssessments, woundAssessments, incidentReports, patientRestraintAssessments, patientHealthTasks, today, yesterday, thisMonthStart, thisMonthEnd, lastMonthStart, lastMonthEnd, patients]);
+  }, [filteredPatients, timeFilter, healthAssessments, patientsWithWounds, incidentReports, patientRestraintAssessments, hasHealthTask, hasTubeCare, hospitalEpisodes, today, yesterday, thisMonthStart, thisMonthEnd, lastMonthStart, lastMonthEnd, patients]);
 
-  const monthlyReportData = useMemo(() => {
-    const activePatients = filteredPatients.filter(p => p.在住狀態 === '在住');
-    const monthStart = timeFilter === 'today' ? thisMonthStart : lastMonthStart;
-    const monthEnd = timeFilter === 'today' ? thisMonthEnd : lastMonthEnd;
-
-    // 半護理
-    const semiCarePatients = activePatients.filter(p => p.護理等級 === '半護理');
-
-    // 全護理
-    const fullCarePatients = activePatients.filter(p => p.護理等級 === '全護理');
-
-    // 導尿管
-    const catheterPatients = activePatients.filter(p => {
-      return (patientHealthTasks || []).some(task =>
-        task.patient_id === p.院友id &&
-        task.health_record_type === '尿導管更換'
-      );
-    });
-
-    // 遊走
-    const wanderingPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.behavior_expression?.includes('遊走');
-    });
-
-    // 情緒問題 (抑鬱/激動)
-    const emotionalPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.emotional_expression === '抑鬱' || assessment?.emotional_expression === '激動';
-    });
-
-    // 長期卧床
-    const bedriddenPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.daily_activities?.mobility === '卧床';
-    });
-
-    // 長期使用輪椅
-    const wheelchairPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.daily_activities?.mobility === '輪椅';
-    });
-
-    // 一人協助
-    const onePersonAssistPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.daily_activities?.mobility === '一人協助';
-    });
-
-    // 二人協助
-    const twoPersonAssistPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.daily_activities?.mobility === '二人協助';
-    });
-
-    // 需餵食
-    const needFeedingPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.daily_activities?.eating === '需要幫助' || assessment?.daily_activities?.eating === '完全依賴';
-    });
-
-    // 鼻胃飼
-    const ngTubePatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.nutrition_diet?.status === '鼻胃管';
-    });
-
-    // 腹膜/血液透析
-    const dialysisPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.treatment_items?.includes('腹膜/血液透析');
-    });
-
-    // 造口
-    const stomaPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.bowel_bladder_control?.bowel === '腸造口' || assessment?.bowel_bladder_control?.bladder === '小便造口';
-    });
-
-    // 服藥9種或以上
-    const multiMedicationPatients = activePatients.filter(p => {
-      const activePrescriptions = (prescriptions || []).filter(rx =>
-        rx.patient_id === p.院友id && rx.status === 'active'
-      );
-      return activePrescriptions.length >= 9;
-    });
-
-    // 接受物理治療
-    const physioTherapyPatients = activePatients.filter(p => {
-      return (patientHealthTasks || []).some(task =>
-        task.patient_id === p.院友id &&
-        task.notes === '物理治療'
-      );
-    });
-
-    // 接受職業治療
-    const occupationalTherapyPatients = activePatients.filter(p => {
-      return (patientHealthTasks || []).some(task =>
-        task.patient_id === p.院友id &&
-        task.notes === '職業治療'
-      );
-    });
-
-    // 醫院服務使用人次（本月入院事件總次數，包含重複患者）
-    const hospitalServiceEpisodes = (hospitalEpisodes || []).filter(episode => {
-      const startDate = new Date(episode.episode_start_date);
-      return startDate >= thisMonthStart && startDate <= thisMonthEnd;
-    });
-
-    const hospitalServiceCount = hospitalServiceEpisodes.length;
-
-    const hospitalServicePatientNames = hospitalServiceEpisodes.map(episode => {
-      const patient = activePatients.find(p => p.院友id === episode.patient_id);
-      return patient ? `${patient.床號} ${patient.中文姓氏}${patient.中文名字}` : '';
-    }).filter(name => name !== '');
-
-    // 認知障礙
-    const cognitiveImpairmentPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.consciousness_cognition?.includes('認知障礙') || assessment?.consciousness_cognition?.includes('失智');
-    });
-
-    // 失禁 (全護理)
-    const incontinencePatients = fullCarePatients;
-
-    // 如廁訓練
-    const toiletTrainingPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.toilet_training === true;
-    });
-
-    // 壓瘡
-    const pressureUlcerPatientIds = new Set<number>();
-    (woundAssessments || []).forEach(assessment => {
-      assessment.wound_details?.forEach(detail => {
-        if ((detail.wound_status === '未處理' || detail.wound_status === '治療中') &&
-            detail.wound_type === '壓力性') {
-          pressureUlcerPatientIds.add(assessment.patient_id);
-        }
-      });
-    });
-    const pressureUlcerPatients = activePatients.filter(p => pressureUlcerPatientIds.has(p.院友id));
-
-    // 跌倒 (當月)
-    const monthlyFallIncidents = (incidentReports || []).filter(incident => {
-      const incidentDate = new Date(incident.incident_date);
-      return incident.incident_type === '跌倒' &&
-             incidentDate >= monthStart &&
-             incidentDate <= monthEnd;
-    });
-    const monthlyFallPatientIds = new Set(monthlyFallIncidents.map(i => i.patient_id));
-    const monthlyFallPatients = activePatients.filter(p => monthlyFallPatientIds.has(p.院友id));
-
-    // 體重下降5% (當月與上月比較)
-    const lastMonthDate = new Date(monthStart);
-    lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
-    const weightDecreasePatients = activePatients.filter(p => {
-      const currentMonthRecords = (healthRecords || []).filter(r =>
-        r.院友id === p.院友id &&
-        r.監測類型 === '體重' &&
-        r.數值 &&
-        new Date(r.記錄日期) >= monthStart &&
-        new Date(r.記錄日期) <= monthEnd
-      );
-      const lastMonthRecords = (healthRecords || []).filter(r =>
-        r.院友id === p.院友id &&
-        r.監測類型 === '體重' &&
-        r.數值 &&
-        new Date(r.記錄日期) >= lastMonthDate &&
-        new Date(r.記錄日期) < monthStart
-      );
-      if (currentMonthRecords.length === 0 || lastMonthRecords.length === 0) return false;
-      const currentWeight = currentMonthRecords[currentMonthRecords.length - 1].數值;
-      const lastWeight = lastMonthRecords[lastMonthRecords.length - 1].數值;
-      if (!currentWeight || !lastWeight) return false;
-      const decrease = ((lastWeight - currentWeight) / lastWeight) * 100;
-      return decrease >= 5;
-    });
-
-    // 使用約束物品
-    const restraintPatientIds = new Set((patientRestraintAssessments || []).map(r => r.patient_id));
-    const restraintPatients = activePatients.filter(p => restraintPatientIds.has(p.院友id));
-
-    // 轉身 (卧床)
-    const turningPatients = bedriddenPatients;
-
-    // 傳染病
-    const infectiousDiseasePatients = activePatients.filter(p =>
-      p.感染控制 && p.感染控制.length > 0
-    );
-
-    // 氧氣治療
-    const oxygenTherapyPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.treatment_items?.includes('氧氣治療');
-    });
-
-    // 皮下注射
-    const subcutaneousInjectionPatients = activePatients.filter(p => {
-      return (prescriptions || []).some(rx =>
-        rx.patient_id === p.院友id &&
-        rx.status === 'active' &&
-        (rx.administration_route === '皮下注射' || rx.administration_route?.includes('皮下'))
-      );
-    });
-
-    // 呼吸器
-    const respiratorPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.treatment_items?.includes('呼吸器');
-    });
-
-    // 善終（晚晴計劃）
-    const palliativeCarePatients = activePatients.filter(p => {
-      return (patientHealthTasks || []).some(task =>
-        task.patient_id === p.院友id &&
-        task.health_record_type === '晚晴計劃'
-      );
-    });
-
-    // 化療
-    const chemotherapyPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.treatment_items?.includes('化療');
-    });
-
-    // 放射治療
-    const radiotherapyPatients = activePatients.filter(p => {
-      const assessment = (healthAssessments || []).find(a => a.patient_id === p.院友id);
-      return assessment?.treatment_items?.includes('放射治療');
-    });
-
-    // 因情緒問題而轉介 - 從事故報告或備註中判斷
-    const emotionalReferralPatients = activePatients.filter(p => {
-      const hasEmotionalIssue = emotionalPatients.some(ep => ep.院友id === p.院友id);
-      const hasReferral = (incidentReports || []).some(incident =>
-        incident.patient_id === p.院友id &&
-        (incident.incident_details?.includes('轉介') || incident.incident_details?.includes('情緒'))
-      );
-      return hasEmotionalIssue && hasReferral;
-    });
-
-    // 錯發藥物（當月）
-    const medicationErrorIncidents = (incidentReports || []).filter(incident => {
-      const incidentDate = new Date(incident.incident_date);
-      return (incident.incident_type === '其他' &&
-              (incident.other_incident_type?.includes('藥物') ||
-               incident.other_incident_type?.includes('錯發') ||
-               incident.incident_details?.includes('藥物') ||
-               incident.incident_details?.includes('錯發'))) &&
-             incidentDate >= monthStart &&
-             incidentDate <= monthEnd;
-    });
-    const medicationErrorPatientIds = new Set(medicationErrorIncidents.map(i => i.patient_id));
-    const medicationErrorPatients = activePatients.filter(p => medicationErrorPatientIds.has(p.院友id));
-
-    // 哽塞（當月）
-    const chokingIncidents = (incidentReports || []).filter(incident => {
-      const incidentDate = new Date(incident.incident_date);
-      return (incident.other_incident_type?.includes('哽塞') ||
-              incident.other_incident_type?.includes('吞嚥') ||
-              incident.incident_details?.includes('哽塞') ||
-              incident.incident_details?.includes('吞嚥困難')) &&
-             incidentDate >= monthStart &&
-             incidentDate <= monthEnd;
-    });
-    const chokingPatientIds = new Set(chokingIncidents.map(i => i.patient_id));
-    const chokingPatients = activePatients.filter(p => chokingPatientIds.has(p.院友id));
-
-    // 脫水（當月）
-    const dehydrationIncidents = (incidentReports || []).filter(incident => {
-      const incidentDate = new Date(incident.incident_date);
-      return (incident.other_incident_type?.includes('脫水') ||
-              incident.incident_details?.includes('脫水')) &&
-             incidentDate >= monthStart &&
-             incidentDate <= monthEnd;
-    });
-    const dehydrationPatientIds = new Set(dehydrationIncidents.map(i => i.patient_id));
-    const dehydrationPatients = activePatients.filter(p => dehydrationPatientIds.has(p.院友id));
-
-    // 入住醫院（當前正在住院的患者）
-    const hospitalizedPatientIds = new Set<number>();
-    (hospitalEpisodes || []).forEach(episode => {
-      if (episode.status === 'active') {
-        hospitalizedPatientIds.add(episode.patient_id);
-      }
-    });
-    const hospitalizedPatients = activePatients.filter(p => hospitalizedPatientIds.has(p.院友id));
-
-    // 尿道炎 - 這需要從健康記錄或備註中判斷,暫時留空
-    const utiPatients: typeof activePatients = [];
-
-    const formatPatientName = (p: typeof activePatients[0]) => `${p.床號} ${p.中文姓氏}${p.中文名字}`;
-
-    return {
-      半護理: { count: semiCarePatients.length, names: semiCarePatients.map(formatPatientName) },
-      全護理: { count: fullCarePatients.length, names: fullCarePatients.map(formatPatientName) },
-      導尿管: { count: catheterPatients.length, names: catheterPatients.map(formatPatientName) },
-      遊走: { count: wanderingPatients.length, names: wanderingPatients.map(formatPatientName) },
-      情緒問題: { count: emotionalPatients.length, names: emotionalPatients.map(formatPatientName) },
-      因情緒問題而轉介: { count: emotionalReferralPatients.length, names: emotionalReferralPatients.map(formatPatientName) },
-      長期卧床: { count: bedriddenPatients.length, names: bedriddenPatients.map(formatPatientName) },
-      長期使用輪椅: { count: wheelchairPatients.length, names: wheelchairPatients.map(formatPatientName) },
-      一人協助: { count: onePersonAssistPatients.length, names: onePersonAssistPatients.map(formatPatientName) },
-      二人協助: { count: twoPersonAssistPatients.length, names: twoPersonAssistPatients.map(formatPatientName) },
-      需餵食: { count: needFeedingPatients.length, names: needFeedingPatients.map(formatPatientName) },
-      鼻胃飼: { count: ngTubePatients.length, names: ngTubePatients.map(formatPatientName) },
-      腹膜血液透析: { count: dialysisPatients.length, names: dialysisPatients.map(formatPatientName) },
-      造口: { count: stomaPatients.length, names: stomaPatients.map(formatPatientName) },
-      氧氣治療: { count: oxygenTherapyPatients.length, names: oxygenTherapyPatients.map(formatPatientName) },
-      皮下注射: { count: subcutaneousInjectionPatients.length, names: subcutaneousInjectionPatients.map(formatPatientName) },
-      呼吸器: { count: respiratorPatients.length, names: respiratorPatients.map(formatPatientName) },
-      善終: { count: palliativeCarePatients.length, names: palliativeCarePatients.map(formatPatientName) },
-      化療: { count: chemotherapyPatients.length, names: chemotherapyPatients.map(formatPatientName) },
-      放射治療: { count: radiotherapyPatients.length, names: radiotherapyPatients.map(formatPatientName) },
-      服藥9種或以上: { count: multiMedicationPatients.length, names: multiMedicationPatients.map(formatPatientName) },
-      入住醫院: { count: hospitalizedPatients.length, names: hospitalizedPatients.map(formatPatientName) },
-      認知障礙: { count: cognitiveImpairmentPatients.length, names: cognitiveImpairmentPatients.map(formatPatientName) },
-      錯發藥物: { count: medicationErrorPatients.length, names: medicationErrorPatients.map(formatPatientName) },
-      失禁: { count: incontinencePatients.length, names: incontinencePatients.map(formatPatientName) },
-      如廁訓練: { count: toiletTrainingPatients.length, names: toiletTrainingPatients.map(formatPatientName) },
-      壓瘡: { count: pressureUlcerPatients.length, names: pressureUlcerPatients.map(formatPatientName) },
-      跌倒: { count: monthlyFallPatients.length, names: monthlyFallPatients.map(formatPatientName) },
-      體重下降5: { count: weightDecreasePatients.length, names: weightDecreasePatients.map(formatPatientName) },
-      哽塞: { count: chokingPatients.length, names: chokingPatients.map(formatPatientName) },
-      脫水: { count: dehydrationPatients.length, names: dehydrationPatients.map(formatPatientName) },
-      使用約束物品: { count: restraintPatients.length, names: restraintPatients.map(formatPatientName) },
-      轉身: { count: turningPatients.length, names: turningPatients.map(formatPatientName) },
-      傳染病: { count: infectiousDiseasePatients.length, names: infectiousDiseasePatients.map(formatPatientName) },
-      尿道炎: { count: utiPatients.length, names: utiPatients.map(formatPatientName) },
-    };
-  }, [filteredPatients, timeFilter, healthAssessments, woundAssessments, incidentReports, patientRestraintAssessments, patientHealthTasks, prescriptions, healthRecords, hospitalEpisodes, thisMonthStart, thisMonthEnd, lastMonthStart, lastMonthEnd]);
 
   if (loading) {
     return <LoadingScreen pageName="報表查詢" />;
@@ -1028,25 +764,18 @@ const Reports: React.FC = () => {
         rx.patient_id === patient.院友id && rx.status === 'active'
       );
 
-      const hasCatheter = (patientHealthTasks || []).some(task =>
-        task.patient_id === patient.院友id &&
-        task.health_record_type === '尿導管更換'
-      );
+      const hasCatheter = assessment?.bowel_bladder_control?.bladder === '導尿管' ||
+        hasHealthTask(patient.院友id, '導尿管更換') ||
+        hasTubeCare(patient.院友id, '導尿管更換');
 
       const hasWandering = assessment?.behavior_expression?.includes('遊走');
-      const hasEmotionalIssue = assessment?.emotional_expression === '抑鬱' || assessment?.emotional_expression === '激動';
+
+      const emotionalExpressions = parseTextToArray(assessment?.emotional_expression);
+      const hasEmotionalIssue = emotionalExpressions.includes('抑鬱') || emotionalExpressions.includes('激動');
 
       const hasEmotionalReferral = hasEmotionalIssue && (incidentReports || []).some(incident =>
         incident.patient_id === patient.院友id &&
         (incident.incident_details?.includes('轉介') || incident.incident_details?.includes('情緒'))
-      );
-
-      const hasPressureUlcer = (woundAssessments || []).some(wa =>
-        wa.patient_id === patient.院友id &&
-        wa.wound_details?.some(detail =>
-          (detail.wound_status === '未處理' || detail.wound_status === '治療中') &&
-          detail.wound_type === '壓力性'
-        )
       );
 
       const monthStart = timeFilter === 'today' ? thisMonthStart : lastMonthStart;
@@ -1122,13 +851,19 @@ const Reports: React.FC = () => {
         episode.patient_id === patient.院友id && episode.status === 'active'
       );
 
-      const hasRestraint = (patientRestraintAssessments || []).some(r =>
-        r.patient_id === patient.院友id
-      );
-
       const hasPalliativeCare = (patientHealthTasks || []).some(task =>
         task.patient_id === patient.院友id &&
         task.health_record_type === '晚晴計劃'
+      );
+
+      const consciousness = parseTextToArray(assessment?.consciousness_cognition);
+      const hasCognitiveImpairment = consciousness.includes('認知障礙') || consciousness.includes('失智') ||
+        (diagnosisRecords || []).some(d =>
+          d.patient_id === patient.院友id && matchesCognitiveDiagnosis(d.diagnosis_item)
+        );
+
+      const hasFeeding = (mealGuidances || []).some(mg =>
+        mg.patient_id === patient.院友id && mg.needs_feeding === true
       );
 
       return {
@@ -1141,14 +876,14 @@ const Reports: React.FC = () => {
         遊走: hasWandering ? 1 : 0,
         情緒問題: hasEmotionalIssue ? 1 : 0,
         因情緒問題而轉介: hasEmotionalReferral ? 1 : 0,
-        長期卧床: assessment?.daily_activities?.mobility === '卧床' ? 1 : 0,
-        長期使用輪椅: assessment?.daily_activities?.mobility === '輪椅' ? 1 : 0,
+        長期卧床: assessment?.daily_activities?.is_bedridden ? 1 : 0,
+        長期使用輪椅: assessment?.daily_activities?.is_wheelchair ? 1 : 0,
         一人協助: assessment?.daily_activities?.mobility === '一人協助' ? 1 : 0,
         二人協助: assessment?.daily_activities?.mobility === '二人協助' ? 1 : 0,
-        需餵食: (assessment?.daily_activities?.eating === '需要幫助' || assessment?.daily_activities?.eating === '完全依賴') ? 1 : 0,
-        鼻胃飼: assessment?.nutrition_diet?.status === '鼻胃管' ? 1 : 0,
+        需餵食: hasFeeding ? 1 : 0,
+        鼻胃飼: (assessment?.nutrition_diet?.status === '鼻胃管' || hasHealthTask(patient.院友id, '鼻胃飼管更換') || hasTubeCare(patient.院友id, '鼻胃飼管更換')) ? 1 : 0,
         腹膜血液透析: assessment?.treatment_items?.includes('腹膜/血液透析') ? 1 : 0,
-        造口: (assessment?.bowel_bladder_control?.bowel === '腸造口' || assessment?.bowel_bladder_control?.bladder === '小便造口') ? 1 : 0,
+        造口: (assessment?.bowel_bladder_control?.bowel === '腸造口' || assessment?.bowel_bladder_control?.bladder === '小便造口' || hasTubeCare(patient.院友id, '造口袋更換')) ? 1 : 0,
         氧氣治療: assessment?.treatment_items?.includes('氧氣治療') ? 1 : 0,
         皮下注射: activePrescriptions.some(rx => rx.administration_route === '皮下注射' || rx.administration_route?.includes('皮下')) ? 1 : 0,
         呼吸器: assessment?.treatment_items?.includes('呼吸器') ? 1 : 0,
@@ -1157,16 +892,16 @@ const Reports: React.FC = () => {
         放射治療: assessment?.treatment_items?.includes('放射治療') ? 1 : 0,
         服藥9種或以上: activePrescriptions.length >= 9 ? 1 : 0,
         入住醫院: isHospitalized ? 1 : 0,
-        認知障礙: (assessment?.consciousness_cognition?.includes('認知障礙') || assessment?.consciousness_cognition?.includes('失智')) ? 1 : 0,
+        認知障礙: hasCognitiveImpairment ? 1 : 0,
         錯發藥物: hasMedicationError ? 1 : 0,
         失禁: patient.護理等級 === '全護理' ? 1 : 0,
-        如廁訓練: assessment?.toilet_training === true ? 1 : 0,
-        壓瘡: hasPressureUlcer ? 1 : 0,
+        如廁訓練: assessment?.bowel_bladder_control?.toilet_training ? 1 : 0,
+        壓瘡: hasPressureUlcer(patient.院友id) ? 1 : 0,
         跌倒: hasFall ? 1 : 0,
         體重下降5: hasWeightDecrease ? 1 : 0,
         哽塞: hasChoking ? 1 : 0,
         脫水: hasDehydration ? 1 : 0,
-        轉身: assessment?.daily_activities?.mobility === '卧床' ? 1 : 0,
+        轉身: hasCareTab(patient.院友id, 'position') ? 1 : 0,
         傳染病: (patient.感染控制 && patient.感染控制.length > 0) ? 1 : 0,
         尿道炎: 0,
       };
@@ -1425,7 +1160,7 @@ const Reports: React.FC = () => {
 
   const renderTubeReport = () => {
     const activePatients = filteredPatients.filter(p => p.在住狀態 === '在住');
-    const tubeTypes = ['鼻胃飼管更換', '尿導管更換'];
+    const tubeTypes = ['鼻胃飼管更換', '導尿管更換'];
 
     const tubeTasks = (patientHealthTasks || []).filter(task =>
       tubeTypes.includes(task.health_record_type) &&
@@ -1723,3 +1458,4 @@ const Reports: React.FC = () => {
 };
 
 export default Reports;
+

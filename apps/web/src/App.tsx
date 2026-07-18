@@ -46,7 +46,7 @@ const routeNames: Record<string, string> = {
   '/incident-reports': '意外事故報告',
   '/diagnosis-records': '診斷記錄',
   '/vaccination-records': '疫苗記錄',
-  '/care-records': '護理記錄',
+  '/care-records': '床頭記錄',
   '/patients': '院友列表',
   '/patient-contacts': '院友聯絡人',
   '/templates': '範本管理',

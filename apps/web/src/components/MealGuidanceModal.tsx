@@ -23,6 +23,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
     meal_combination: guidance?.meal_combination || '正飯+正餸' as MealCombinationType,
     special_diets: guidance?.special_diets || [] as SpecialDietType[],
     needs_thickener: guidance?.needs_thickener || false,
+    needs_feeding: guidance?.needs_feeding || false,
     thickener_amount: guidance?.thickener_amount || '',
     egg_quantity: guidance?.egg_quantity?.toString() || '',
     remarks: guidance?.remarks || '',
@@ -106,6 +107,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
             meal_combination: existingGuidance.meal_combination,
             special_diets: existingGuidance.special_diets || [],
             needs_thickener: existingGuidance.needs_thickener || false,
+            needs_feeding: existingGuidance.needs_feeding || false,
             thickener_amount: existingGuidance.thickener_amount || '',
             egg_quantity: existingGuidance.egg_quantity?.toString() || '',
             remarks: existingGuidance.remarks || '',
@@ -137,6 +139,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
         meal_combination: formData.meal_combination,
         special_diets: formData.special_diets,
         needs_thickener: formData.needs_thickener,
+        needs_feeding: formData.needs_feeding,
         thickener_amount: formData.needs_thickener ? formData.thickener_amount : null,
         egg_quantity: formData.special_diets.includes('雞蛋') ? parseInt(formData.egg_quantity) : null,
         remarks: formData.remarks || null,
@@ -304,7 +307,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
             )}
           </div>
 
-          {/* 凝固粉設定 */}
+          {/* 凝固粉與喂食設定 */}
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
               <input
@@ -318,6 +321,20 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
               <label htmlFor="needs_thickener" className="text-sm font-medium text-gray-700 flex items-center">
                 <Droplets className="h-4 w-4 mr-1" />
                 需要使用凝固粉
+              </label>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="checkbox"
+                id="needs_feeding"
+                name="needs_feeding"
+                checked={formData.needs_feeding}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="needs_feeding" className="text-sm font-medium text-gray-700 flex items-center">
+                需喂食
               </label>
             </div>
 
@@ -415,6 +432,13 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
                   <span className="font-medium text-blue-600">
                     {formData.thickener_amount || '待填寫分量'}
                   </span>
+                </div>
+              )}
+              
+              {formData.needs_feeding && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-gray-600">需喂食:</span>
+                  <span className="font-medium text-blue-600">是</span>
                 </div>
               )}
               

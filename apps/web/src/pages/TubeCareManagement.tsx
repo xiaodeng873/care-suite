@@ -40,7 +40,7 @@ interface AdvancedFilters {
 }
 
 const CARE_TYPE_OPTIONS: PatientTubeCareRecord['care_type'][] = [
-  '尿導管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換', '造口袋更換',
+  '導尿管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換', '造口袋更換',
 ];
 
 const formatDate = (d?: string | null) => {

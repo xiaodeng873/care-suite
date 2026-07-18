@@ -24,7 +24,7 @@ const isVitalSignType = (t: string | undefined | null): t is VitalSignType =>
 
 const getTaskCategory = (type?: HealthTaskType | null): TaskCategory => {
   if (!type || isVitalSignType(type)) return 'monitoring';
-  if (['尿導管更換', '鼻胃飼管更換', '傷口換症', '氧氣喉管清洗/更換'].includes(type)) return 'care';
+  if (['導尿管更換', '鼻胃飼管更換', '傷口換症', '氧氣喉管清洗/更換'].includes(type)) return 'care';
   return 'document';
 };
 
@@ -457,7 +457,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
             )}
           </div>
 
-          {taskCategory === 'care' && (formData.health_record_type === '尿導管更換' || formData.health_record_type === '鼻胃飼管更換') && (
+          {taskCategory === 'care' && (formData.health_record_type === '導尿管更換' || formData.health_record_type === '鼻胃飼管更換') && (
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">喉管設定</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -9,7 +9,7 @@ export async function loadPatientCareTabs(patientId: number): Promise<PatientCar
     .eq('is_hidden', false);
 
   if (error) {
-    console.error('載入院友護理記錄選項卡失敗:', error);
+    console.error('載入院友床頭記錄選項卡失敗:', error);
     return [];
   }
 
@@ -65,7 +65,7 @@ export async function initializePatientCareTabs(
 
   const hasTube = healthTasks.some(
     t => t.patient_id === patient.院友id &&
-    (t.health_record_type === '鼻胃飼管更換' || t.health_record_type === '尿導管更換')
+    (t.health_record_type === '鼻胃飼管更換' || t.health_record_type === '導尿管更換')
   ) || latestHealthAssessment?.treatment_items?.some(
     (item: string) => item === '導尿管' || item === '鼻胃喉'
   );
@@ -94,7 +94,7 @@ export async function initializePatientCareTabs(
     .select();
 
   if (error) {
-    console.error('初始化院友護理記錄選項卡失敗:', error);
+    console.error('初始化院友床頭記錄選項卡失敗:', error);
     return [];
   }
 

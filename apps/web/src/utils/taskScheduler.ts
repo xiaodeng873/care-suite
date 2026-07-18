@@ -15,7 +15,7 @@ export function isMonitoringTask(taskType: string): boolean {
 }
 // 判斷是否為護理任務
 export function isNursingTask(taskType: string): boolean {
-  // 尿導管更換、鼻胃飼管更換 已移至「喉管護理」獨立管理；此處只保留 傷口換症
+  // 導尿管更換、鼻胃飼管更換 已移至「喉管護理」獨立管理；此處只保留 傷口換症
   return taskType === '傷口換症';
 }
 // 判斷是否為晚晴計劃任務
@@ -593,7 +593,7 @@ export function calculateTubeCareNextDueDate(params: {
     // 造口袋：固定預設間隔 7 天，可自由調整
     days = cycle_days ?? 7;
   } else {
-    // 尿導管 / 鼻胃飼管：Latex +14、Silicon +28；若有自訂 cycle_days 則優先
+    // 導尿管 / 鼻胃飼管：Latex +14、Silicon +28；若有自訂 cycle_days 則優先
     if (typeof cycle_days === 'number' && cycle_days > 0) {
       days = cycle_days;
     } else if (tube_material === 'Silicon') {
