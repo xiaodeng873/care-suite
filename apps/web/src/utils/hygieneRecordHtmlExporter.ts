@@ -5,6 +5,7 @@
  */
 
 import type { HygieneRecord, Patient } from '../lib/database';
+import { DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
 // 衛生項目配置 - 按圖片中的順序，對應 HygieneRecord 資料庫欄位
 const HYGIENE_ITEMS = [
@@ -373,7 +374,7 @@ export const exportHygieneRecordHtml = (
   records: HygieneRecord[],
   year: number,
   month: number,
-  facilityName: string = '善頤(福群)護老院'
+  facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
 ): void => {
   const html = generateHygieneRecordHtml({
     patient,
@@ -424,7 +425,7 @@ export const exportHygieneRecordRangeHtml = (
   records: HygieneRecord[],
   startDate: string,
   endDate: string,
-  facilityName: string = '善頤(福群)護老院'
+  facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
 ): void => {
   import('./printUtils').then(({ printCombinedHtml }) => {
     const pages: string[] = [];

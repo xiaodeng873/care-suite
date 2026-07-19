@@ -16,6 +16,8 @@ export interface FollowUpBagCoverData {
     英文名字?: string;
   };
 }
+
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 interface CoverRecord {
   姓名: string;
   覆診日期: string;
@@ -95,16 +97,17 @@ const prepareRecords = (appointments: FollowUpBagCoverData[]): CoverRecord[] => 
   });
   return records;
 };
-export const generateFollowUpBagCover = (appointments: FollowUpBagCoverData[]) => {
+export const generateFollowUpBagCover = async (appointments: FollowUpBagCoverData[]): Promise<void> => {
   if (appointments.length === 0) {
     alert('沒有選擇任何覆診記錄');
     return;
   }
+  const settings = await getFacilitySettings();
   const records = prepareRecords(appointments);
-  const html = generateHTML(records);
+  const html = generateHTML(records, settings.facilityNameZh);
   openPrintWindow(html);
 };
-const generateHTML = (records: CoverRecord[]): string => {
+const generateHTML = (records: CoverRecord[], facilityName: string): string => {
   // 每頁4筆記錄
   const recordsPerPage = 4;
   const totalPages = Math.ceil(records.length / recordsPerPage);
@@ -112,7 +115,7 @@ const generateHTML = (records: CoverRecord[]): string => {
     return `
       <div class="cover-card">
         <div class="cover-header">
-          <h2>善頤(福群)護老院</h2>
+          <h2>${facilityName}</h2>
           <h3>院友覆診資料</h3>
         </div>
         <div class="cover-content">

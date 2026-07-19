@@ -418,7 +418,7 @@ const FollowUpManagement: React.FC = () => {
     handleExportFollowUpList(selectedAppointments);
   };
 
-  const handleExportWorksheet = () => {
+  const handleExportWorksheet = async () => {
     const selectedAppointments = paginatedAppointments.filter(a => selectedRows.has(a.覆診id));
     
     if (selectedAppointments.length === 0) {
@@ -448,10 +448,10 @@ const FollowUpManagement: React.FC = () => {
       };
     });
 
-    generateFollowUpRecordWorksheet(worksheetData);
+    await generateFollowUpRecordWorksheet(worksheetData);
   };
 
-  const handleExportBagCover = () => {
+  const handleExportBagCover = async () => {
     const selectedAppointments = paginatedAppointments.filter(a => selectedRows.has(a.覆診id));
     
     if (selectedAppointments.length === 0) {
@@ -481,7 +481,7 @@ const FollowUpManagement: React.FC = () => {
       };
     });
 
-    generateFollowUpBagCover(bagCoverData);
+    await generateFollowUpBagCover(bagCoverData);
   };
 
   const handleExportFollowUpList = async (appointments: FollowUpAppointment[]) => {

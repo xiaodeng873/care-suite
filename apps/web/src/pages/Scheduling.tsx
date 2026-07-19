@@ -152,19 +152,19 @@ const Scheduling: React.FC = () => {
       .filter((x): x is VmoPatientItem => x !== null);
   };
 
-  const handlePrintWaitingList = (schedule: ScheduleWithDetails) => {
+  const handlePrintWaitingList = async (schedule: ScheduleWithDetails) => {
     const items = getValidItems(schedule);
     if (!items.length) { alert('此排程沒有可列印的院友資料'); return; }
     const label = isFiltered && selectedStationIds.length === 1
       ? stationMap.get(selectedStationIds[0])
       : undefined;
-    printVmoWaitingList(items, schedule.到診日期, label);
+    await printVmoWaitingList(items, schedule.到診日期, label);
   };
 
-  const handlePrintPrescriptions = (schedule: ScheduleWithDetails) => {
+  const handlePrintPrescriptions = async (schedule: ScheduleWithDetails) => {
     const items = getValidItems(schedule);
     if (!items.length) { alert('此排程沒有可列印的院友資料'); return; }
-    printVmoPrescriptions(items);
+    await printVmoPrescriptions(items);
   };
   const handleExportScheduleToExcel = async (schedule: ScheduleWithDetails) => {
     try {

@@ -4,6 +4,7 @@
  */
 
 import type { DiaperChangeRecord, Patient } from '../lib/database';
+import { DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
 // 時段定義 (每天6個時段)
 const TIME_SLOTS = [
@@ -358,7 +359,7 @@ export const exportDiaperRecordHtml = (
   patient: Patient,
   records: DiaperChangeRecord[],
   startDate: string,
-  facilityName: string = '善頤(福群)護老院'
+  facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
 ): void => {
   // 計算結束日期 (4天)
   const start = new Date(startDate);
@@ -414,7 +415,7 @@ export const exportDiaperRecordRangeHtml = (
   records: DiaperChangeRecord[],
   startDate: string,
   endDate: string,
-  facilityName: string = '善頤(福群)護老院'
+  facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
 ): void => {
   import('./printUtils').then(({ printCombinedHtml, dateChunks, addDays }) => {
     const chunks = dateChunks(startDate, endDate, 4);

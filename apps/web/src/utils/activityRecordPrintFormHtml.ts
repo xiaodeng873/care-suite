@@ -11,7 +11,6 @@ import { ACTIVITY_BOOLEAN_FIELDS } from './activityRecordStatus';
 import { getFacilitySettings } from './facilitySettings';
 import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 
-const FACILITY_NAME = '善頤(福群)護老院';
 const ROWS_PER_PAGE = 20;
 const DOC_CODE = 'A19D FK (11.2020)';
 
@@ -59,7 +58,7 @@ const generateDataRows = (records: PatientActivityRecord[]): string => {
 };
 
 // 產生單一頁的整頁 HTML（完全複刻 doc_html 樣式與結構）
-const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageIndex: number, totalPages: number, logoDataUri: string): string => {
+const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageIndex: number, totalPages: number, logoDataUri: string, facilityName: string): string => {
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const bed = patient.床號 || '';
   const idNumber = patient.身份證號碼 || '';
@@ -69,7 +68,7 @@ const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageI
   <div class="title-section">
     <div class="header-spacer"></div>
     <div class="header-center">
-      <h1>${FACILITY_NAME}</h1>
+      <h1>${facilityName}</h1>
       <h2>院友健康教育 / 活動記錄表</h2>
     </div>
     <div class="header-right"><img class="logo-img" src="${logoDataUri}" alt="Logo"></div>
@@ -131,7 +130,8 @@ const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageI
 export const generateActivityRecordPrintFormHtml = (
   patients: Patient[],
   recordsByPatient: Map<number, PatientActivityRecord[]>,
-  logoDataUri: string
+  logoDataUri: string,
+  facilityName: string
 ): string => {
   // 先攤平所有頁面，讓頁碼跨院友連續遞增
   const allPages: { patient: Patient; pageRecords: PatientActivityRecord[] }[] = [];
@@ -144,7 +144,7 @@ export const generateActivityRecordPrintFormHtml = (
   });
 
   const totalPages = allPages.length;
-  const pages = allPages.map((page, idx) => pageBlock(page.patient, page.pageRecords, idx, totalPages, logoDataUri)).join('');
+  const pages = allPages.map((page, idx) => pageBlock(page.patient, page.pageRecords, idx, totalPages, logoDataUri, facilityName)).join('');
 
   return `<!DOCTYPE html>
 <html lang="zh-HK">
@@ -200,7 +200,7 @@ export const printActivityRecordForm = async (
 ): Promise<void> => {
   const settings = await getFacilitySettings();
   const logoDataUri = settings.logoDataUri || MR_LOGO_DATA_URI;
-  const html = generateActivityRecordPrintFormHtml(patients, recordsByPatient, logoDataUri);
+  const html = generateActivityRecordPrintFormHtml(patients, recordsByPatient, logoDataUri, settings.facilityNameZh);
   const old = document.getElementById('activity-record-printform-iframe');
   if (old) old.remove();
   const iframe = document.createElement('iframe');

@@ -876,7 +876,7 @@ const PatientRecords: React.FC = () => {
                         <div>
                           <PatientTooltip patient={patient}>
                             <span className="text-sm font-medium text-gray-900 cursor-help hover:text-blue-600 transition-colors">
-                              {patient.中文姓名}
+                              {patient.中文姓氏}{patient.中文名字}
                             </span>
                           </PatientTooltip>
                           <div className="text-sm text-gray-500">{patient.床號}</div>

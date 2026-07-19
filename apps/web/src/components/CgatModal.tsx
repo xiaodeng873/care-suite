@@ -4,8 +4,8 @@ import { usePatients } from '../context/PatientContext';
 import { useCgat } from '../context/CgatContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import CgatDoctorVisitPicker from './CgatDoctorVisitPicker';
-import CgatMedicationEndDateTable from './CgatMedicationEndDateTable';
 import { getFeeExemptEligibility, calcCgatFee } from '../utils/cgatFeeHelper';
+import CgatMedicationEndDateTable from './CgatMedicationEndDateTable';
 import type { CgatRecord } from '../lib/database';
 
 interface CgatModalProps {
@@ -42,8 +42,9 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
     report_ct: source?.report_ct ?? false,
     report_usg: source?.report_usg ?? false,
     report_other: source?.report_other ?? '',
-    // 覆診安排
-    followup_date: source?.followup_date ?? '',
+    // CGAT 到診安排
+    cgat_visit_date: source?.cgat_visit_date ?? '',
+    cgat_visit_unknown: source?.cgat_visit_unknown ?? false,
     medication_pickup_arrangement: source?.medication_pickup_arrangement ?? '每次詢問',
     // 費用結算
     fee_exempted: source?.fee_exempted ?? false,
@@ -64,12 +65,12 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
   // 合資格轄免收費人士判斷
   const eligibility = useMemo(() => getFeeExemptEligibility(patient), [patient]);
 
-  // 每日已用名額（依已選 followup_date 的 CGAT 記錄，排除當前編輯記錄）
+  // 每日已用名額（依已選 cgat_visit_date 的 CGAT 記錄，排除當前編輯記錄）
   const usedCountByDate = useMemo(() => {
     const map: Record<string, number> = {};
     for (const r of cgatRecords) {
       if (record && r.id === record.id) continue;
-      if (r.followup_date) map[r.followup_date] = (map[r.followup_date] || 0) + 1;
+      if (r.cgat_visit_date) map[r.cgat_visit_date] = (map[r.cgat_visit_date] || 0) + 1;
     }
     return map;
   }, [cgatRecords, record]);
@@ -92,9 +93,6 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
     if (form.case_type !== '新症' && form.case_type !== '舊症') return '請選擇個案類型（新症/舊症）';
     if (!form.is_cgas && !form.is_eol) return '請至少選擇一個 CGAS / EOL';
     if (form.pharmacy_arrangement !== '個別取藥' && form.pharmacy_arrangement !== '集體取藥') return '請選擇藥房安排（個別/集體取藥）';
-    if (form.followup_date && form.medication_end_date && form.followup_date > form.medication_end_date) {
-      return '預計覆診日期不可比藥完日期遲';
-    }
     return null;
   };
 
@@ -122,7 +120,8 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
         report_ct: form.report_ct,
         report_usg: form.report_usg,
         report_other: form.report_other || undefined,
-        followup_date: form.followup_date || undefined,
+        cgat_visit_date: form.cgat_visit_unknown ? undefined : (form.cgat_visit_date || undefined),
+        cgat_visit_unknown: form.cgat_visit_unknown,
         medication_pickup_arrangement: form.medication_pickup_arrangement as '家人前往' | '院舍代勞' | '每次詢問',
         fee_exempted: form.fee_exempted,
         consultation_fee: Number(form.consultation_fee) || 0,
@@ -222,11 +221,17 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
             <div className="space-y-3">
               <div>
                 <label className="form-label">藥完日期</label>
-                <CgatMedicationEndDateTable
-                  patientId={form.patient_id}
-                  selectedDate={form.medication_end_date}
-                  onSelect={(d) => set({ medication_end_date: d })}
-                />
+                <div className="flex gap-2">
+                  <input type="date" className="form-input flex-1" value={form.medication_end_date}
+                    onChange={(e) => set({ medication_end_date: e.target.value })} />
+                </div>
+                <div className="mt-2">
+                  <CgatMedicationEndDateTable
+                    patientId={form.patient_id}
+                    selectedDate={form.medication_end_date}
+                    onSelect={(d) => set({ medication_end_date: d })}
+                  />
+                </div>
                 {form.medication_end_date && (
                   <p className="text-xs text-gray-600 mt-1">已選藥完日期：<span className="font-medium text-blue-600">{form.medication_end_date}</span></p>
                 )}
@@ -285,23 +290,32 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
             )}
           </section>
 
-          {/* ⑤ 覆診安排 */}
+          {/* ⑤ CGAT 到診安排 */}
           <section>
-            {sectionTitle(<Calendar className="h-4 w-4 text-blue-600" />, '覆診安排')}
+            {sectionTitle(<Calendar className="h-4 w-4 text-blue-600" />, 'CGAT 到診安排')}
             <div className="space-y-3">
               <div>
-                <label className="form-label">預計覆診日期</label>
-                <div className="flex gap-2">
-                  <input type="date" className="form-input flex-1" value={form.followup_date}
-                    max={form.medication_end_date || undefined}
-                    onChange={(e) => set({ followup_date: e.target.value })} />
-                  <button type="button" onClick={() => setShowVisitPicker(true)} className="btn-secondary whitespace-nowrap">
-                    選 CGAT 到診日期
-                  </button>
+                <label className="form-label">CGAT 到診日期</label>
+                <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                  <div className="flex-1">
+                    <input type="date" className="form-input" value={form.cgat_visit_date}
+                      disabled={form.cgat_visit_unknown}
+                      onChange={(e) => set({ cgat_visit_date: e.target.value })} />
+                  </div>
+                  {!form.cgat_visit_unknown && (
+                    <button type="button" onClick={() => setShowVisitPicker(true)} className="btn-secondary whitespace-nowrap">
+                      選 CGAT 到診日期
+                    </button>
+                  )}
+                  <label className="flex items-center gap-2 pb-2 cursor-pointer">
+                    <input type="checkbox" checked={form.cgat_visit_unknown}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        set({ cgat_visit_unknown: checked, cgat_visit_date: checked ? '' : form.cgat_visit_date });
+                      }} />
+                    <span>未知</span>
+                  </label>
                 </div>
-                {form.followup_date && form.medication_end_date && form.followup_date > form.medication_end_date && (
-                  <p className="text-xs text-red-500 mt-1">預計覆診日期不可比藥完日期遲</p>
-                )}
               </div>
               <div>
                 <label className="form-label">取藥安排</label>
@@ -379,7 +393,7 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
       {showVisitPicker && (
         <CgatDoctorVisitPicker
           usedCountByDate={usedCountByDate}
-          onSelect={(d) => { set({ followup_date: d }); setShowVisitPicker(false); }}
+          onSelect={(d) => { set({ cgat_visit_date: d }); setShowVisitPicker(false); }}
           onClose={() => setShowVisitPicker(false)}
         />
       )}

@@ -13,8 +13,8 @@
  */
 
 import type { Patient } from '../lib/database';
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
-const FACILITY_NAME = '善頤(福群)護老院';
 const TITLE = '換片及大便記錄 (B83 FK 06.2026)';
 const DATES_PER_PAGE = 4;
 const TOTAL_PAGES = 4;
@@ -50,11 +50,11 @@ const dayBlock = (): string => {
 };
 
 
-const pageBlock = (name: string, bed: string, yearMonth: string): string => {
+const pageBlock = (name: string, bed: string, yearMonth: string, facilityName: string): string => {
   const days = Array(DATES_PER_PAGE).fill('').map(() => dayBlock()).join('<tr class="sep"><td colspan="31"></td></tr>') + '<tr class="sep"><td colspan="31"></td></tr>';
   return `
   <div class="page"><div class="inner">
-    <div class="inst">${FACILITY_NAME}</div>
+    <div class="inst">${facilityName}</div>
     <div class="title">${TITLE}</div>
     <div class="info">
       <div><span>院友姓名：</span><span class="ul">${name}</span></div>
@@ -65,11 +65,11 @@ const pageBlock = (name: string, bed: string, yearMonth: string): string => {
   </div></div>`;
 };
 
-export const generateDiaperRecordPrintFormHtml = (patients: Patient[], yearMonth: string): string => {
+export const generateDiaperRecordPrintFormHtml = (patients: Patient[], yearMonth: string, facilityName: string): string => {
   const pages = patients.map(p => {
     const name = p.中文姓名 || `${p.中文姓氏 || ''}${p.中文名字 || ''}`;
     const bed = p.床號 || '';
-    return Array(TOTAL_PAGES).fill('').map(() => pageBlock(name, bed, yearMonth)).join('');
+    return Array(TOTAL_PAGES).fill('').map(() => pageBlock(name, bed, yearMonth, facilityName)).join('');
   }).join('');
 
   return `<!DOCTYPE html>
@@ -102,8 +102,9 @@ ${pages}
 </body></html>`;
 };
 
-export const printDiaperRecordForm = (patients: Patient[], yearMonth: string): void => {
-  const html = generateDiaperRecordPrintFormHtml(patients, yearMonth);
+export const printDiaperRecordForm = async (patients: Patient[], yearMonth: string): Promise<void> => {
+  const settings = await getFacilitySettings();
+  const html = generateDiaperRecordPrintFormHtml(patients, yearMonth, settings.facilityNameZh);
   const old = document.getElementById('diaper-printform-iframe');
   if (old) old.remove();
   const iframe = document.createElement('iframe');

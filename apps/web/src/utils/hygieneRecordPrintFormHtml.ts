@@ -6,9 +6,11 @@
  * 支援 1~2 個月份，每個月份各自生成一頁，日子行數依該月實際天數（28~31）自動調整。
  */
 
-import type { Patient, HygieneRecord } from '../lib/database';import { getFacilitySettings } from './facilitySettings';
+import type { Patient, HygieneRecord } from '../lib/database';
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
-const FACILITY_NAME = '善頤(福群)護老院';
+
+const ROWS_PER_PAGE = 20;
 
 export interface HygieneMonthData {
   year: number;
@@ -100,7 +102,7 @@ const generateDataRows = (records: HygieneRecord[], year: number, month: number)
 };
 
 // 產生單一院友、單一月份的整頁 HTML（完全複刻 doc_html 樣式與結構）
-const pageBlock = (patient: Patient, monthData: HygieneMonthData, logoDataUri: string): string => {
+const pageBlock = (patient: Patient, monthData: HygieneMonthData, logoDataUri: string, facilityName: string): string => {
   const { year, month, recordsByPatient } = monthData;
   const records = recordsByPatient.get(patient.院友id) || [];
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
@@ -114,7 +116,7 @@ const pageBlock = (patient: Patient, monthData: HygieneMonthData, logoDataUri: s
   <div class="title-section">
     <div class="header-spacer"></div>
     <div class="header-center">
-      <h1>${FACILITY_NAME}</h1>
+      <h1>${facilityName}</h1>
       <h2>個人衛生、清潔及大便記錄</h2>
       <div class="month-label">${monthLabel}</div>
     </div>
@@ -182,10 +184,11 @@ const pageBlock = (patient: Patient, monthData: HygieneMonthData, logoDataUri: s
 export const generateHygieneRecordPrintFormHtml = (
   patients: Patient[],
   monthsData: HygieneMonthData[],
-  logoDataUri: string
+  logoDataUri: string,
+  facilityName: string
 ): string => {
   const pages = patients
-    .map(p => monthsData.map(m => pageBlock(p, m, logoDataUri)).join(''))
+    .map(p => monthsData.map(m => pageBlock(p, m, logoDataUri, facilityName)).join(''))
     .join('');
 
   return `<!DOCTYPE html>
@@ -234,7 +237,7 @@ ${pages}
 export const printHygieneRecordForm = async (patients: Patient[], monthsData: HygieneMonthData[]): Promise<void> => {
   const settings = await getFacilitySettings();
   const logoDataUri = settings.logoDataUri || MR_LOGO_DATA_URI;
-  const html = generateHygieneRecordPrintFormHtml(patients, monthsData, logoDataUri);
+  const html = generateHygieneRecordPrintFormHtml(patients, monthsData, logoDataUri, settings.facilityNameZh);
   const old = document.getElementById('hygiene-printform-iframe');
   if (old) old.remove();
   const iframe = document.createElement('iframe');

@@ -3,6 +3,8 @@
  * A4 橫向，6 區塊統計欄（護理統計2欄/醫療項目3欄），逐床縱向，每行高度按該行最多床決定
  */
 
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+
 export interface BedListBed {
   bed_number: string;
   patient?: {
@@ -63,7 +65,7 @@ function stripCodePrefix(s: string): string {
 export function generateBedListHtml(input: BedListInput): string {
   const {
     stationName,
-    facilityName = '善頤(福群)護老院',
+    facilityName = DEFAULT_FACILITY_SETTINGS.facilityNameZh,
     logoBase64,
     beds,
     printDate,
@@ -372,8 +374,12 @@ body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-se
 </html>`;
 }
 
-export function printBedList(input: BedListInput): void {
-  const html = generateBedListHtml(input);
+export async function printBedList(input: BedListInput): Promise<void> {
+  const settings = await getFacilitySettings();
+  const html = generateBedListHtml({
+    ...input,
+    facilityName: input.facilityName ?? settings.facilityNameZh,
+  });
   const old = document.getElementById('bed-list-printframe');
   if (old) old.remove();
   const iframe = document.createElement('iframe');

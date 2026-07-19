@@ -736,7 +736,7 @@ const WoundManagementNew: React.FC = () => {
                                 {patient ? (
                                   <PatientTooltip patient={patient}>
                                     <span className="font-semibold text-gray-900 text-sm cursor-help hover:text-blue-700">
-                                      {pd?.patient_name ?? patient.中文姓名}
+                                      {patient.中文姓氏}{patient.中文名字}
                                     </span>
                                   </PatientTooltip>
                                 ) : (

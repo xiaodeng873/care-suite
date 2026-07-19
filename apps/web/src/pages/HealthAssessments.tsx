@@ -911,9 +911,9 @@ const HealthAssessments: React.FC = () => {
                               <Edit3 className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 const p = patients.find(pt => pt.院友id === assessment.patient_id);
-                                if (p) printHealthAssessment(assessment, p);
+                                if (p) await printHealthAssessment(assessment, p);
                               }}
                               className="text-purple-600 hover:text-purple-900"
                               title="列印"

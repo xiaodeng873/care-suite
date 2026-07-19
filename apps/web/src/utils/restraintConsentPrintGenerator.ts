@@ -16,8 +16,15 @@
  */
 
 import type { Patient, PatientRestraintAssessment } from '../lib/database';
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
-const FACILITY_NAME = '善頤(福群)護老院';
+const calcAge = (birthDate: string | undefined): string => {
+  if (!birthDate) return '';
+  const age = Math.floor(
+    (Date.now() - new Date(birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+  );
+  return `${age}歲`;
+};
 
 // ── 輔助函數 ──────────────────────────────────────────────────────────────────
 
@@ -53,15 +60,6 @@ const timeToHour = (t: string | undefined | null): string => {
   if (period === 'A') return String(num);
   if (period === 'P') return String(num === 12 ? 12 : num + 12);
   return t;
-};
-
-/** 計算年齡（歲） */
-const calcAge = (birthDate: string | undefined): string => {
-  if (!birthDate) return '';
-  const age = Math.floor(
-    (Date.now() - new Date(birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-  );
-  return `${age}歲`;
 };
 
 /** 格式化日期為 YYYY/MM/DD */
@@ -114,7 +112,8 @@ const restraintRow = ({ label, config, isTableBoard = false, isOther = false }: 
 
 export const generateRestraintConsentPrintHtml = (
   assessment: PatientRestraintAssessment,
-  patient: Patient
+  patient: Patient,
+  facilityName: string
 ): string => {
   const r = assessment.risk_factors ?? {};
   const a = assessment.alternatives ?? {};
@@ -302,7 +301,7 @@ table.main-table th, table.main-table td {
   <!-- 機構名稱 -->
   <div class="inst-name-box">
     <div style="display:inline-block; width:350px;">
-      <input type="text" class="db-input" style="text-align:center;"${val(FACILITY_NAME)}>
+      <input type="text" class="db-input" style="text-align:center;"${val(facilityName)}>
     </div>（安老院名稱）
   </div>
 
@@ -727,11 +726,12 @@ table.main-table th, table.main-table td {
 
 const IFRAME_ID = 'restraint-consent-print-iframe';
 
-export const printRestraintConsentForm = (
+export const printRestraintConsentForm = async (
   assessment: PatientRestraintAssessment,
   patient: Patient
-): void => {
-  const html = generateRestraintConsentPrintHtml(assessment, patient);
+): Promise<void> => {
+  const settings = await getFacilitySettings();
+  const html = generateRestraintConsentPrintHtml(assessment, patient, settings.facilityNameZh);
 
   const old = document.getElementById(IFRAME_ID);
   if (old) old.remove();
@@ -756,10 +756,13 @@ export const printRestraintConsentForm = (
 /**
  * 列印多位院友的同意書（一次 iframe，各自換頁）
  */
-export const printRestraintConsentForms = (
+export const printRestraintConsentForms = async (
   items: Array<{ assessment: PatientRestraintAssessment; patient: Patient }>
-): void => {
+): Promise<void> => {
   if (items.length === 0) return;
+
+  const settings = await getFacilitySettings();
+  const facilityName = settings.facilityNameZh;
 
   if (items.length === 1) {
     printRestraintConsentForm(items[0].assessment, items[0].patient);
@@ -767,7 +770,7 @@ export const printRestraintConsentForms = (
   }
 
   // 合併多份：取第一份完整 HTML，後續各份取 body 內容插入
-  let combined = generateRestraintConsentPrintHtml(items[0].assessment, items[0].patient);
+  let combined = generateRestraintConsentPrintHtml(items[0].assessment, items[0].patient, facilityName);
 
   // 在 </style> 前注入換頁 CSS（若未含）
   if (!combined.includes('page-1')) {
@@ -775,7 +778,7 @@ export const printRestraintConsentForms = (
   }
 
   for (let i = 1; i < items.length; i++) {
-    const extra = generateRestraintConsentPrintHtml(items[i].assessment, items[i].patient);
+    const extra = generateRestraintConsentPrintHtml(items[i].assessment, items[i].patient, facilityName);
     const bodyMatch = extra.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     if (bodyMatch) {
       combined = combined.replace('</body>', bodyMatch[1] + '\n</body>');

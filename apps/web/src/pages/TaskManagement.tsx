@@ -24,7 +24,6 @@ import { usePatients, type PatientHealthTask, type HealthTaskType, type Frequenc
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import TaskModal from '../components/TaskModal';
 import { formatFrequencyDescription, getTaskStatus, isDocumentTask, isNursingTask } from '../utils/taskScheduler';
-import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { SYNC_CUTOFF_DATE_STR } from '../lib/database';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';

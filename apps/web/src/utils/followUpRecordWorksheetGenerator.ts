@@ -16,6 +16,8 @@ export interface FollowUpRecordData {
     英文名字?: string;
   };
 }
+
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 interface FollowUpRecord {
   日期: string;
   床號: string;
@@ -97,16 +99,17 @@ const prepareRecords = (appointments: FollowUpRecordData[]): FollowUpRecord[] =>
   });
   return records;
 };
-export const generateFollowUpRecordWorksheet = (appointments: FollowUpRecordData[]) => {
+export const generateFollowUpRecordWorksheet = async (appointments: FollowUpRecordData[]): Promise<void> => {
   if (appointments.length === 0) {
     alert('沒有選擇任何覆診記錄');
     return;
   }
+  const settings = await getFacilitySettings();
   const records = prepareRecords(appointments);
-  const html = generateHTML(records);
+  const html = generateHTML(records, settings.facilityNameZh);
   openPrintWindow(html);
 };
-const generateHTML = (records: FollowUpRecord[]): string => {
+const generateHTML = (records: FollowUpRecord[], facilityName: string): string => {
   // 計算每頁顯示的記錄數（假設每行約20px高度，A4橫向約600px可用高度）
   const recordsPerPage = 25; // 每頁約25條記錄
   const totalPages = Math.ceil(records.length / recordsPerPage);
@@ -156,7 +159,7 @@ const generateHTML = (records: FollowUpRecord[]): string => {
       pages.push(`
         <div class="page${!isLastPage ? ' page-break' : ''}">
           <div class="page-header">
-            <h1>善頤福群護老院 覆診記錄</h1>
+            <h1>${facilityName} 覆診記錄</h1>
             <div class="page-info">
               <span>生成日期: ${new Date().toLocaleDateString('zh-TW')}</span>
               <span>第 ${i + 1} 頁，共 ${totalPages} 頁</span>

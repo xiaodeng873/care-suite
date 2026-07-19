@@ -11,7 +11,7 @@ interface DoctorVisit {
 }
 
 interface CgatDoctorVisitPickerProps {
-  /** 已被選用的 followup 日期 → 用於計算每日已用名額 */
+  /** 已被選用的 CGAT 到診日期 → 用於計算每日已用名額 */
   usedCountByDate: Record<string, number>;
   onSelect: (visitDate: string) => void;
   onClose: () => void;
@@ -183,7 +183,7 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
               </tbody>
             </table>
           )}
-          <p className="text-xs text-gray-400 mt-3">點擊到診日期即回填預計覆診日期。</p>
+          <p className="text-xs text-gray-400 mt-3">點擊到診日期即回填 CGAT 到診日期。</p>
         </div>
       </div>
     </div>

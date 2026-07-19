@@ -1,4 +1,5 @@
 import { IncidentReport, Patient } from '../lib/database';
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
 // 生成意外經過摘要 (不含日期、時間、院友名，因其他欄位已有)
 const generateIncidentSummary = (patient: Patient, report: IncidentReport): string => {
@@ -81,7 +82,10 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-export const generateIncidentReportPrintHTML = (reports: Array<{ patient: Patient; report: IncidentReport }>): string => {
+export const generateIncidentReportPrintHTML = (
+  reports: Array<{ patient: Patient; report: IncidentReport }>,
+  facilityName: string
+): string => {
   // 按患者分組
   const grouped: GroupedReports = {};
   reports.forEach(({ patient, report }) => {
@@ -194,7 +198,7 @@ export const generateIncidentReportPrintHTML = (reports: Array<{ patient: Patien
         <div class="header-section">
           <div class="station-box">${escapeHtml(stationCode)}</div>
           <div class="title-box">
-            <h1>善頤(福群)護老院</h1>
+            <h1>${escapeHtml(facilityName)}</h1>
             <h2>個人意外事件記錄表</h2>
           </div>
         </div>
@@ -430,4 +434,37 @@ export const generateIncidentReportPrintHTML = (reports: Array<{ patient: Patien
   `;
 
   return html;
+};
+
+export const printIncidentReport = async (
+  reports: Array<{ patient: Patient; report: IncidentReport }>
+): Promise<void> => {
+  if (reports.length === 0) {
+    alert('沒有選擇要列印的記錄');
+    return;
+  }
+
+  const settings = await getFacilitySettings();
+  const facilityName = settings.facilityNameZh;
+  const html = generateIncidentReportPrintHTML(reports, facilityName);
+
+  // 使用隱藏的 iframe 進行列印，不開新視窗
+  const old = document.getElementById('incident-report-print-iframe');
+  if (old) old.remove();
+
+  const iframe = document.createElement('iframe');
+  iframe.id = 'incident-report-print-iframe';
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) return;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  setTimeout(() => {
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+  }, 500);
 };

@@ -434,10 +434,10 @@ const PrintForms: React.FC = () => {
       setIsExporting(false);
     }
   };
-  const handleYearMonthHtmlPrint = () => {
+  const handleYearMonthHtmlPrint = async () => {
     const selectedPatients = sortedPatients.filter(p => selectedRows.has(p.院友id));
     setShowYearMonthModal(false);
-    printDiaperRecordForm(selectedPatients, yearMonth);
+    await printDiaperRecordForm(selectedPatients, yearMonth);
   };
   const handlePersonalHygieneMonthConfirm = async () => {
     const selectedPatients = sortedPatients.filter(p => selectedRows.has(p.院友id));

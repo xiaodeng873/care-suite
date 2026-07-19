@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { User, Calendar, CreditCard, Phone } from 'lucide-react';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { getPatientContacts } from '../lib/database';
@@ -20,7 +21,9 @@ interface PatientTooltipProps {
 
 const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
   const [firstContact, setFirstContact] = useState<any>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchFirstContact = async () => {
@@ -51,65 +54,101 @@ const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) =>
     return age;
   };
 
+  const handleMouseEnter = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.top - 8,
+        left: rect.left + rect.width / 2 - 128,
+      });
+    }
+    setShowTooltip(true);
+  };
+
+  const tooltipContent = (
+    <div 
+      className="fixed z-[99999] w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-3"
+      style={{ top: position.top, left: position.left, transform: 'translateY(-100%)' }}
+    >
+      {/* 小箭頭 */}
+      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-200"></div>
+      
+      <div className="space-y-1.5 text-sm text-gray-700">
+        <div className="flex flex-wrap items-center gap-2">
+          <User className="h-4 w-4 text-blue-600 flex-shrink-0" />
+          <span className="text-gray-500 flex-shrink-0">中文姓名：</span>
+          <span className="font-medium text-gray-900">{patient.中文姓氏}{patient.中文名字}</span>
+        </div>
+
+        {(patient.英文姓氏 || patient.英文名字 || patient.英文姓名) && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-4 flex-shrink-0"></span>
+            <span className="text-gray-500 flex-shrink-0">英文姓名：</span>
+            <span className="text-gray-800">
+              {patient.英文姓氏 || patient.英文名字
+                ? getFormattedEnglishName(patient.英文姓氏, patient.英文名字)
+                : patient.英文姓名}
+            </span>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <CreditCard className="h-4 w-4 text-gray-500 flex-shrink-0" />
+          <span className="text-gray-500 flex-shrink-0">身份證號碼：</span>
+          <span className="text-gray-900">{patient.身份證號碼}</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
+          <span className="text-gray-500 flex-shrink-0">出生日期：</span>
+          <span className="text-gray-900">
+            {patient.出生日期
+              ? new Date(patient.出生日期).toLocaleDateString('zh-TW')
+              : '未知'}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="w-4 flex-shrink-0"></span>
+          <span className="text-gray-500 flex-shrink-0">年齡：</span>
+          <span className="text-gray-900">
+            {patient.出生日期 ? `${calculateAge(patient.出生日期)}歲` : '未知'}
+          </span>
+        </div>
+
+        {firstContact && (
+          <>
+            <div className="border-t border-gray-200 my-2"></div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Phone className="h-4 w-4 text-green-600 flex-shrink-0" />
+              <span className="text-gray-500 flex-shrink-0">第一聯絡人姓名：</span>
+              <span className="font-medium text-gray-900">
+                {firstContact.聯絡人姓名}
+                {firstContact.關係 && <span className="text-gray-500 ml-1">({firstContact.關係})</span>}
+              </span>
+            </div>
+            {firstContact.聯絡電話 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="w-4 flex-shrink-0"></span>
+                <span className="text-gray-500 flex-shrink-0">手提電話：</span>
+                <span className="text-gray-900">{firstContact.聯絡電話}</span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div 
-      className="relative inline-block"
-      onMouseEnter={() => setShowTooltip(true)}
+      ref={triggerRef}
+      className="inline-block"
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setShowTooltip(false)}
     >
       {children}
-      {showTooltip && (
-        <div className="absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-          {/* 小箭頭 */}
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-200"></div>
-          
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <User className="h-4 w-4 text-blue-600" />
-              <div>
-                <div className="font-medium text-gray-900">{patient.中文姓氏}{patient.中文名字}</div>
-                {(patient.英文姓氏 || patient.英文名字) ? (
-                  <div className="text-sm text-gray-600">{getFormattedEnglishName(patient.英文姓氏, patient.英文名字)}</div>
-                ) : null}
-                {patient.英文姓名 && !(patient.英文姓氏 || patient.英文名字) ? <div className="text-sm text-gray-600">{patient.英文姓名}</div> : null}
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-2">
-              <CreditCard className="h-4 w-4 text-gray-500" />
-              <div className="text-sm text-gray-700">{patient.身份證號碼}</div>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-2">
-              <Calendar className="h-4 w-4 text-gray-500" />
-              <div className="text-sm text-gray-700">
-                {patient.出生日期 
-                  ? `${calculateAge(patient.出生日期)}歲 (${new Date(patient.出生日期).toLocaleDateString('zh-TW')})`
-                  : '未知'}
-              </div>
-            </div>
-            
-            {firstContact && (
-              <>
-                <div className="border-t border-gray-200 my-2"></div>
-                <div className="text-xs text-gray-500 font-medium mb-1">第一聯絡人</div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Phone className="h-4 w-4 text-green-600" />
-                  <div className="text-sm">
-                    <div className="font-medium text-gray-900">
-                      {firstContact.聯絡人姓名}
-                      {firstContact.關係 && <span className="text-gray-500 ml-1">({firstContact.關係})</span>}
-                    </div>
-                    {firstContact.聯絡電話 && (
-                      <div className="text-xs text-gray-600">{firstContact.聯絡電話}</div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {showTooltip && createPortal(tooltipContent, document.body)}
     </div>
   );
 };

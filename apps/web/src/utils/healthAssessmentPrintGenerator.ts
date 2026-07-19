@@ -1,4 +1,5 @@
 import type { HealthAssessment } from '../lib/database';
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
 interface PatientInfo {
   床號?: string;
@@ -65,7 +66,8 @@ const visionCell = (level: string | undefined, aid: string | undefined, other: s
 
 export const generateHealthAssessmentHtml = (
   assessment: HealthAssessment,
-  patient: PatientInfo
+  patient: PatientInfo,
+  facilityName: string
 ): string => {
   const da = assessment.daily_activities || {};
   const nd = assessment.nutrition_diet || {};
@@ -290,7 +292,7 @@ export const generateHealthAssessmentHtml = (
   <div class="page">
     <!-- ===== 頁首 ===== -->
     <div class="header">
-      <div class="facility">善頤(福群)護老院</div>
+      <div class="facility">${escapeHtml(facilityName)}</div>
       <div class="title">健康評估記錄</div>
     </div>
 
@@ -472,18 +474,19 @@ export const generateHealthAssessmentHtml = (
 
     <!-- ===== 頁尾 ===== -->
     <div class="footer">
-      <span>善頤(福群)護老院 — 健康評估記錄</span>
+      <span>${escapeHtml(facilityName)} — 健康評估記錄</span>
     </div>
   </div>
 </body>
 </html>`;
 };
 
-export const printHealthAssessment = (
+export const printHealthAssessment = async (
   assessment: HealthAssessment,
   patient: PatientInfo
-): void => {
-  const html = generateHealthAssessmentHtml(assessment, patient);
+): Promise<void> => {
+  const settings = await getFacilitySettings();
+  const html = generateHealthAssessmentHtml(assessment, patient, settings.facilityNameZh);
 
   // 移除舊的 iframe
   const existingIframe = document.getElementById('health-assessment-print-iframe');

@@ -454,7 +454,7 @@ const RestraintManagement: React.FC = () => {
     }
   };
 
-  const handlePrintUsageRecord = () => {
+  const handlePrintUsageRecord = async () => {
     const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
     if (selectedAssessments.length === 0) {
       alert('請先選擇要列印的記錄');
@@ -473,10 +473,10 @@ const RestraintManagement: React.FC = () => {
       alert('找不到對應院友資料');
       return;
     }
-    printRestraintUsageRecords(items);
+    await printRestraintUsageRecords(items);
   };
 
-  const handlePrintSelectedConsent = () => {
+  const handlePrintSelectedConsent = async () => {
     const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
     if (selectedAssessments.length === 0) {
       alert('請先選擇要列印的記錄');
@@ -492,7 +492,7 @@ const RestraintManagement: React.FC = () => {
       alert('找不到對應院友資料');
       return;
     }
-    printRestraintConsentForms(items);
+    await printRestraintConsentForms(items);
   };
 
   const getStatusBadge = (assessment: PatientRestraintAssessment) => {

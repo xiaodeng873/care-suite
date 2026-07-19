@@ -4,6 +4,7 @@
  */
 
 import type { RestraintObservationRecord, PatientRestraintAssessment, Patient } from '../lib/database';
+import { DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
 // 觀察時段定義 (每2小時一次) - 顯示格式
 const OBSERVATION_TIME_SLOTS_DISPLAY = [
@@ -621,7 +622,7 @@ export const exportRestraintObservationHtml = (
   records: RestraintObservationRecord[],
   assessment: PatientRestraintAssessment | null,
   startDate: string,
-  facilityName: string = '善頤(福群)護老院'
+  facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
 ): void => {
   // 計算結束日期 (4天)
   const start = new Date(startDate);
@@ -679,7 +680,7 @@ export const exportRestraintObservationRangeHtml = (
   assessment: PatientRestraintAssessment | null,
   startDate: string,
   endDate: string,
-  facilityName: string = '善頤(福群)護老院'
+  facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
 ): void => {
   import('./printUtils').then(({ printCombinedHtml, dateChunks, addDays }) => {
     const chunks = dateChunks(startDate, endDate, 4);

@@ -12,7 +12,8 @@ import {
   ChevronUp,
   ChevronDown,
   X,
-  Copy
+  Copy,
+  Printer
 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { useCgat } from '../context/CgatContext';
@@ -21,9 +22,10 @@ import CgatModal from '../components/CgatModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFeeExemptEligibility } from '../utils/cgatFeeHelper';
+import { printCgatWorksheet } from '../utils/cgatWorksheetGenerator';
 import type { CgatRecord } from '../lib/database';
 
-type SortField = '院友姓名' | 'medication_end_date' | 'followup_date' | 'created_at';
+type SortField = '院友姓名' | 'medication_end_date' | 'cgat_visit_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 interface AdvancedFilters {
   床號: string;
@@ -76,14 +78,15 @@ const Cgat: React.FC = () => {
       return false;
     }
     if (advancedFilters.startDate || advancedFilters.endDate) {
-      const followupDate = record.followup_date ? new Date(record.followup_date) : null;
-      if (followupDate) {
-        if (advancedFilters.startDate && followupDate < new Date(advancedFilters.startDate)) {
-          return false;
-        }
-        if (advancedFilters.endDate && followupDate > new Date(advancedFilters.endDate)) {
-          return false;
-        }
+      if (!record.medication_end_date) {
+        return false;
+      }
+      const medicationEndDate = new Date(record.medication_end_date);
+      if (advancedFilters.startDate && medicationEndDate < new Date(advancedFilters.startDate)) {
+        return false;
+      }
+      if (advancedFilters.endDate && medicationEndDate > new Date(advancedFilters.endDate)) {
+        return false;
       }
     }
     let matchesSearch = true;
@@ -129,9 +132,9 @@ const Cgat: React.FC = () => {
         valueA = a.medication_end_date ? new Date(a.medication_end_date).getTime() : 0;
         valueB = b.medication_end_date ? new Date(b.medication_end_date).getTime() : 0;
         break;
-      case 'followup_date':
-        valueA = a.followup_date ? new Date(a.followup_date).getTime() : 0;
-        valueB = b.followup_date ? new Date(b.followup_date).getTime() : 0;
+      case 'cgat_visit_date':
+        valueA = a.cgat_visit_unknown ? Number.MAX_SAFE_INTEGER : (a.cgat_visit_date ? new Date(a.cgat_visit_date).getTime() : 0);
+        valueB = b.cgat_visit_unknown ? Number.MAX_SAFE_INTEGER : (b.cgat_visit_date ? new Date(b.cgat_visit_date).getTime() : 0);
         break;
       case 'created_at':
         valueA = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -349,6 +352,19 @@ const Cgat: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">CGAT</h1>
           <div className="flex flex-wrap items-center gap-2">
             <button
+              onClick={async () => {
+                if (selectedRows.size === 0) {
+                  alert('請先選擇要列印的 CGAT 記錄');
+                  return;
+                }
+                await printCgatWorksheet(sortedRecords, patients, Array.from(selectedRows));
+              }}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印診症名單</span>
+            </button>
+            <button
               onClick={() => {
                 setSelectedRecord(null);
                 setRenewFromRecord(null);
@@ -407,7 +423,7 @@ const Cgat: React.FC = () => {
               <div className="border-t border-gray-200 pt-4">
                 <h3 className="text-sm font-medium text-gray-900 mb-3">進階篩選</h3>
                 <div className="mb-4">
-                  <label className="form-label">覆診日期區間</label>
+                  <label className="form-label">藥完日期區間</label>
                   <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="date"
@@ -527,7 +543,7 @@ const Cgat: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">個案類型</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">侯診原因</th>
                   <SortableHeader field="medication_end_date">藥完日期</SortableHeader>
-                  <SortableHeader field="followup_date">覆診日期</SortableHeader>
+                  <SortableHeader field="cgat_visit_date">CGAT 到診日期</SortableHeader>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">藥房安排</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">取藥安排</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">費用結算</th>
@@ -613,10 +629,12 @@ const Cgat: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {record.followup_date ? (
+                        {record.cgat_visit_unknown ? (
+                          <span className="text-red-600">未知</span>
+                        ) : record.cgat_visit_date ? (
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-4 w-4 text-gray-400" />
-                            <span>{new Date(record.followup_date).toLocaleDateString('zh-TW')}</span>
+                            <span>{new Date(record.cgat_visit_date).toLocaleDateString('zh-TW')}</span>
                           </div>
                         ) : (
                           <span className="text-gray-500">-</span>

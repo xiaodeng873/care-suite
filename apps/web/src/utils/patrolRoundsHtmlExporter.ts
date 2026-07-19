@@ -1,4 +1,5 @@
 import { TIME_SLOTS } from './careRecordHelper';
+import { DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -208,7 +209,7 @@ function printViaIframe(html: string): void {
 
 export async function exportPatrolRoundsRangeHtml(options: PatrolRoundsExportOptions): Promise<void> {
   const {
-    facilityName = '善頤(福群)護老院',
+    facilityName = DEFAULT_FACILITY_SETTINGS.facilityNameZh,
     bedNumber,
     startDate,
     endDate,

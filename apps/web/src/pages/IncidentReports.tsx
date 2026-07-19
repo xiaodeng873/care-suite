@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -23,7 +23,7 @@ import { usePatients, type IncidentReport } from '../context/PatientContext';
 import IncidentReportModal from '../components/IncidentReportModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { generateIncidentReportWord } from '../utils/incidentReportWordGenerator';
-import { generateIncidentReportPrintHTML } from '../utils/printIncidentReport';
+import { printIncidentReport } from '../utils/printIncidentReport';
 import { getTemplatesMetadata, downloadTemplateFile } from '../lib/database';
 
 type SortField = '院友姓名' | 'incident_date' | 'incident_type' | 'location' | 'created_at';
@@ -62,7 +62,6 @@ const IncidentReports: React.FC = () => {
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [exportingIds, setExportingIds] = useState<Set<string>>(new Set());
-  const printIframeRef = useRef<HTMLIFrameElement>(null);
 
   React.useEffect(() => {
     setCurrentPage(1);
@@ -323,7 +322,7 @@ const IncidentReports: React.FC = () => {
     setSelectedRows(newSelected);
   };
 
-  const handleBatchPrint = () => {
+  const handleBatchPrint = async () => {
     if (selectedRows.size === 0) {
       alert('請先選擇要列印的記錄');
       return;
@@ -347,25 +346,7 @@ const IncidentReports: React.FC = () => {
         return;
       }
 
-      // 生成列印 HTML
-      const html = generateIncidentReportPrintHTML(selectedReports);
-
-      // 使用隱藏的 iframe 進行列印，不開新視窗
-      if (printIframeRef.current) {
-        // 使用 document.open() 和 write() 方式而不是 srcDoc，避免 sandbox 限制
-        const doc = printIframeRef.current.contentDocument || printIframeRef.current.contentWindow?.document;
-        if (doc) {
-          doc.open();
-          doc.write(html);
-          doc.close();
-          // 延遲 500ms 確保頁面載入完成後再列印
-          setTimeout(() => {
-            if (printIframeRef.current?.contentWindow) {
-              printIframeRef.current.contentWindow.print();
-            }
-          }, 500);
-        }
-      }
+      await printIncidentReport(selectedReports);
     } catch (error) {
       console.error('列印失敗:', error);
       alert(`列印失敗：${error instanceof Error ? error.message : '未知錯誤'}`);

@@ -12,6 +12,8 @@
 const FACILITY_ADDRESS = '九龍旺角博文街36號1字樓、2字樓及地下部分';
 const IFRAME_ID = 'vmo-schedule-print-iframe';
 
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+
 const esc = (s: string | undefined | null): string =>
   (s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -70,6 +72,7 @@ export const generateVmoWaitingListHtml = (
   items: VmoPatientItem[],
   scheduleDate: string,
   stationLabel?: string,
+  facilityName?: string,
 ): string => {
   const MIN_ROWS = 10;
   const sorted = [...items].sort((a, b) =>
@@ -149,7 +152,7 @@ body { font-family:"PMingLiU","MingLiU","新細明體",serif; margin:0; padding:
       <tr><td>地點：</td><td><input type="text" class="dbl"></td>
           <td style="text-align:right;">看病人數：</td>
           <td><input type="text" class="dbl" value="${items.length}" style="text-align:center;"></td><td>(人)</td></tr>
-      <tr><td colspan="2">院舎名稱：善頑(福群)護老院</td>
+      <tr><td colspan="2">院舎名稱：${esc(facilityName ?? DEFAULT_FACILITY_SETTINGS.facilityNameZh)}</td>
           <td style="text-align:right;">年度體檢：</td>
           <td><input type="text" class="dbl" value="${annualCount}" style="text-align:center;"></td><td>(份)</td></tr>
       <tr><td colspan="2">院舎地址：${esc(FACILITY_ADDRESS)}</td>
@@ -192,7 +195,7 @@ const rxRow = (l: string, r: string): string => `
   <td colspan="5"><div class="FC"><span>${r}</span><input type="text" class="DIL"></div></td>
 </tr>`;
 
-const singleRxHtml = (item: VmoPatientItem, isLast: boolean): string => {
+const singleRxHtml = (item: VmoPatientItem, isLast: boolean, facilityName?: string): string => {
   const p = item.patient;
   const name = `${p.中文姓氏 || ''}${p.中文名字 || ''}`;
   const allergy = p.藥物敏感?.length ? p.藥物敏感.join('、') : 'NKDA';
@@ -211,7 +214,7 @@ const singleRxHtml = (item: VmoPatientItem, isLast: boolean): string => {
   </colgroup>
   <tbody>
     <tr><td colspan="12" class="TM">九龍樂善堂 - 院舍外展醫生到診服務：藥物處方單</td></tr>
-    <tr><td colspan="12" class="TS">94 善頤 (福群) 護老院 23811038 / 23815181 九龍旺角博文街36號1字樓、 2字樓及地下部分</td></tr>
+    <tr><td colspan="12" class="TS">94 ${esc(facilityName ?? DEFAULT_FACILITY_SETTINGS.facilityNameZh)} 23811038 / 23815181 九龍旺角博文街36號1字樓、 2字樓及地下部分</td></tr>
     <tr style="font-weight:bold;font-size:14px;">
       <td colspan="2">病人姓名：</td>
       <td colspan="2"><div class="FC"><input type="text" class="DIL" value="${esc(name)}"></div></td>
@@ -372,8 +375,8 @@ const singleRxHtml = (item: VmoPatientItem, isLast: boolean): string => {
 </div>`;
 };
 
-export const generateVmoPrescriptionHtml = (items: VmoPatientItem[]): string => {
-  const forms = items.map((item, i) => singleRxHtml(item, i === items.length - 1)).join('\n');
+export const generateVmoPrescriptionHtml = (items: VmoPatientItem[], facilityName?: string): string => {
+  const forms = items.map((item, i) => singleRxHtml(item, i === items.length - 1, facilityName)).join('\n');
   return `<!DOCTYPE html>
 <html lang="zh-HK"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=1050">
@@ -407,13 +410,17 @@ body { font-family:"PMingLiU","MingLiU","新細明體",serif; margin:0; padding:
 // 3. 列印入口
 // ══════════════════════════════════════════════════════════════════════════
 
-export const printVmoWaitingList = (
+export const printVmoWaitingList = async (
   items: VmoPatientItem[],
   scheduleDate: string,
   stationLabel?: string,
-): void => { printHtml(generateVmoWaitingListHtml(items, scheduleDate, stationLabel)); };
+): Promise<void> => {
+  const settings = await getFacilitySettings();
+  printHtml(generateVmoWaitingListHtml(items, scheduleDate, stationLabel, settings.facilityNameZh));
+};
 
-export const printVmoPrescriptions = (items: VmoPatientItem[]): void => {
+export const printVmoPrescriptions = async (items: VmoPatientItem[]): Promise<void> => {
   if (items.length === 0) return;
-  printHtml(generateVmoPrescriptionHtml(items));
+  const settings = await getFacilitySettings();
+  printHtml(generateVmoPrescriptionHtml(items, settings.facilityNameZh));
 };

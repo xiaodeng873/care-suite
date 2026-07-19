@@ -31,7 +31,7 @@ import BedSwapModal from '../components/BedSwapModal';
 import PatientTooltip from '../components/PatientTooltip';
 import StationManagementModal from '../components/StationManagementModal';
 import { printBedList } from '../utils/bedListHtmlGenerator';
-import { getFacilitySettings } from '../utils/facilitySettings';
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from '../utils/facilitySettings';
 import { supabase } from '../lib/supabase';
 import { fuzzyMatch, matchChineseName , matchBedNumber } from '../utils/searchUtils';
 const StationBedManagement: React.FC = () => {
@@ -281,9 +281,9 @@ const StationBedManagement: React.FC = () => {
 
     if (stationPatientIds.length === 0) {
       const facilitySettings = await getFacilitySettings().catch(() => null);
-      printBedList({
+      await printBedList({
         stationName: station.name,
-        facilityName: facilitySettings?.facilityNameZh || '善頤(福群)護老院',
+        facilityName: facilitySettings?.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh,
         logoBase64: facilitySettings?.logoDataUri || undefined,
         beds: bedList,
       });
@@ -421,9 +421,9 @@ const StationBedManagement: React.FC = () => {
       死亡: deaths24h,
     };
 
-    printBedList({
+    await printBedList({
       stationName: station.name,
-      facilityName: facilitySettings?.facilityNameZh || '善頤(福群)護老院',
+      facilityName: facilitySettings?.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh,
       logoBase64: facilitySettings?.logoDataUri || undefined,
       beds: bedList,
       specialCare,

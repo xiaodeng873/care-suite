@@ -6,8 +6,8 @@
  */
 
 import type { Patient, PatientRestraintAssessment } from '../lib/database';
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
-const FACILITY_NAME = '善頤(福群)護老院';
 const MIN_ROWS = 7;
 const IFRAME_ID = 'restraint-usage-record-print-iframe';
 
@@ -63,7 +63,8 @@ const renderEmptyRow = (): string => `
 
 export const generateRestraintUsageRecordHtml = (
   assessments: PatientRestraintAssessment[],
-  patient: Patient
+  patient: Patient,
+  facilityName: string
 ): string => {
   const patientName = `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}` || patient.中文姓名;
 
@@ -137,7 +138,7 @@ body {
     <tr><td>
       <div class="container">
         <div class="title-section">
-          <h1>${esc(FACILITY_NAME)}</h1>
+          <h1>${esc(facilityName)}</h1>
           <h2>使用約束物品紀錄</h2>
         </div>
         <br>
@@ -195,13 +196,16 @@ body {
  * 列印一位或多位院友的約束物品使用紀錄
  * items: 每個元素對應一位院友及其所有歷史評估
  */
-export const printRestraintUsageRecords = (
+export const printRestraintUsageRecords = async (
   items: Array<{ assessments: PatientRestraintAssessment[]; patient: Patient }>
-): void => {
+): Promise<void> => {
   if (items.length === 0) return;
 
+  const settings = await getFacilitySettings();
+  const facilityName = settings.facilityNameZh;
+
   const htmlPages = items.map(({ assessments, patient }) =>
-    generateRestraintUsageRecordHtml(assessments, patient)
+    generateRestraintUsageRecordHtml(assessments, patient, facilityName)
   );
 
   // 合併多位院友：第一份 HTML 完整，後續只取 body 內容

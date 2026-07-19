@@ -242,6 +242,7 @@ const buildPage = (
   totalPages: number,
   logoDataUri: string | null,
   stationCode: string,
+  facilityName: string,
 ) => (diagramDataUri: string): string => {
   const name = `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`;
   const cols = Array.from({ length: COLS_PER_PAGE }, (_, i) => colA(slice, i));
@@ -269,7 +270,7 @@ const buildPage = (
       </div>
     </div>
     <div class="header-center">
-      <h1>善頤(福群)護老院</h1>
+      <h1>${esc(facilityName)}</h1>
       <h2>傷口評估記錄表</h2>
       <div class="bold" style="font-size:14px;margin-top:2px;">
         <span style="margin-right:6px;"><input type="checkbox"${timesPerWeek === 1 ? ' checked' : ''}>每星期 1 次</span> / 
@@ -313,7 +314,7 @@ export const generateWoundAssessmentHtml = async (
   );
   const totalPages = Math.max(1, Math.ceil(sorted.length / COLS_PER_PAGE));
   const pages = Array.from({ length: totalPages }, (_, i) =>
-    buildPage(wound, patient, sorted.slice(i * COLS_PER_PAGE, (i + 1) * COLS_PER_PAGE), i + 1, totalPages, settings.logoDataUri, stationCode)(diagramDataUri)
+    buildPage(wound, patient, sorted.slice(i * COLS_PER_PAGE, (i + 1) * COLS_PER_PAGE), i + 1, totalPages, settings.logoDataUri, stationCode, settings.facilityNameZh)(diagramDataUri)
   );
   return `<!DOCTYPE html>
 <html lang="zh-HK"><head>

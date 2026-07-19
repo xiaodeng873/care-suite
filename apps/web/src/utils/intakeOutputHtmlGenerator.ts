@@ -32,7 +32,7 @@ export interface IntakeOutputHtmlInput {
   rows?: IntakeOutputRowInput[];
 }
 
-// 臨床日時段（07:00 起，跨夜至 06:00）
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 const CLINICAL_SLOTS = [
   '07:00','08:00','09:00','10:00','11:00','12:00',
   '13:00','14:00','15:00','16:00','17:00','18:00',
@@ -45,7 +45,7 @@ const esc = (s: unknown): string =>
 
 export function generateIntakeOutputHtml(input: IntakeOutputHtmlInput): string {
   const {
-    facilityName = '善頤(福群)護老院',
+    facilityName = DEFAULT_FACILITY_SETTINGS.facilityNameZh,
     logoBase64,
     patientName,
     bedNumber,
@@ -338,8 +338,12 @@ body {
 </html>`;
 }
 
-export function printIntakeOutputForm(input: IntakeOutputHtmlInput): void {
-  const html = generateIntakeOutputHtml(input);
+export async function printIntakeOutputForm(input: IntakeOutputHtmlInput): Promise<void> {
+  const settings = await getFacilitySettings();
+  const html = generateIntakeOutputHtml({
+    ...input,
+    facilityName: input.facilityName ?? settings.facilityNameZh,
+  });
   const old = document.getElementById('io-printframe');
   if (old) old.remove();
   const iframe = document.createElement('iframe');
@@ -406,12 +410,14 @@ export interface IntakeOutputRecordWithDate extends IntakeOutputDbRecord {
   record_date: string;  // 'YYYY-MM-DD'
 }
 
-export const exportIntakeOutputRangeHtml = (
+export const exportIntakeOutputRangeHtml = async (
   baseInput: Omit<IntakeOutputHtmlInput, 'recordDate' | 'rows'>,
   allRecords: IntakeOutputRecordWithDate[],
   startDate: string,
   endDate: string
-): void => {
+): Promise<void> => {
+  const settings = await getFacilitySettings();
+  const facilityName = baseInput.facilityName ?? settings.facilityNameZh;
   import('./printUtils').then(({ printCombinedHtml, dateChunks }) => {
     const days = dateChunks(startDate, endDate, 1);
     const pages = days.map(dateStr => {
@@ -419,7 +425,7 @@ export const exportIntakeOutputRangeHtml = (
       const displayDate = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
       const dayRecords = allRecords.filter(r => r.record_date === dateStr);
       const rows = dayRecords.map(convertDbRecordToRow);
-      return generateIntakeOutputHtml({ ...baseInput, recordDate: displayDate, rows });
+      return generateIntakeOutputHtml({ ...baseInput, facilityName, recordDate: displayDate, rows });
     });
     // 出入量頁面用 .page 類別，需額外注入 page-break
     const combined = pages.map((p, i) =>

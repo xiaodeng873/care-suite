@@ -6,9 +6,10 @@ export interface FacilitySettings {
   logoDataUri: string | null;
 }
 
-// 預設值：沿用列印頁首原本硬編的院舍識別，作為未設定時的後備。
+// 預設值：與 DB 的 facility_name_zh 格式一致（半形括號、無空格），
+// 只在尚未設定或讀取失敗時作後備使用。
 export const DEFAULT_FACILITY_SETTINGS: FacilitySettings = {
-  facilityNameZh: '善頤 (福群) 護老院',
+  facilityNameZh: '善頤(福群)護老院',
   facilityNameEn: 'SeniorCare',
   logoDataUri: null,
 };

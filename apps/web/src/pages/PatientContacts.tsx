@@ -5,7 +5,6 @@ import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { getPatientContacts, deletePatientContact, PatientContact } from '../lib/database';
 import PatientContactModal from '../components/PatientContactModal';
-import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 

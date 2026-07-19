@@ -974,8 +974,9 @@ export interface CgatRecord {
   report_ct: boolean;
   report_usg: boolean;
   report_other?: string;
-  // 覆診安排
-  followup_date?: string;
+  // CGAT 到診安排
+  cgat_visit_date?: string;
+  cgat_visit_unknown?: boolean;
   medication_pickup_arrangement?: '家人前往' | '院舍代勞' | '每次詢問';
   // 費用結算
   fee_exempted: boolean;
