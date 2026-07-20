@@ -1,12 +1,9 @@
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
-import { X, FileDown, Calendar, Users, CheckSquare, Square, AlertCircle, Pill, Syringe, Package } from 'lucide-react';
+import { X, FileDown, Calendar, Users, CheckSquare, Square, AlertCircle, Pill, Syringe, Package, Building2 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
-import { getTemplatesMetadata } from '../lib/database';
-import { exportMedicationRecordToExcel, exportSelectedMedicationRecordToExcel, categorizePrescriptionsByRoute, exportBlankMedicationRecordToExcel, exportBatchBlankMedicationRecordToExcel } from '../utils/medicationRecordExcelGenerator';
-import { exportMedicationRecordToHtml } from '../utils/medicationRecordHtmlExporter';
-import { exportBlankMedicationRecordToHtml } from '../utils/medicationRecordHtmlExporter';
-import { exportPersonalMedicationListToExcel, exportSelectedPersonalMedicationListToExcel } from '../utils/personalMedicationListExcelGenerator';
-import { exportPersonalMedicationListToHtmlWindow } from '../utils/annualHealthCheckupFormGenerator';
+import { exportMedicationRecordToHtml, exportBlankMedicationRecordToHtml } from '../utils/medicationRecordHtmlExporter';
+import { exportMedicationListToHtml, classifyMedicationTerm } from '../utils/medicationListHtmlGenerator';
+import { useStationData } from '../context/facility/StationContext';
 import { supabase } from '../lib/supabase';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 
@@ -71,7 +68,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   const [includeWorkflowRecords, setIncludeWorkflowRecords] = useState(false);
   const [includeMedicationRecord, setIncludeMedicationRecord] = useState(true);
   const [includePersonalMedicationList, setIncludePersonalMedicationList] = useState(false);
-  const [outputFormat, setOutputFormat] = useState<'excel' | 'html'>('excel');
+  const [includeShortTerm, setIncludeShortTerm] = useState(true);
+  const [includeLongTerm, setIncludeLongTerm] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
@@ -83,6 +81,19 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   const [batchRouteFilter, setBatchRouteFilter] = useState<Set<string>>(new Set());
   const [prescriptionSortOrder, setPrescriptionSortOrder] = useState<PrescriptionSortOrder>('efficiency');
   const [includeBlankRows, setIncludeBlankRows] = useState(false);
+  // 個人藥物記錄日期範圍（不受月份局限）
+  const [listStartDate, setListStartDate] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [listEndDate, setListEndDate] = useState<string>(() => {
+    const now = new Date();
+    return now.toISOString().split('T')[0];
+  });
+  // 批量模式居住區過濾
+  const [selectedStationIds, setSelectedStationIds] = useState<Set<string>>(new Set());
+
+  const { stations } = useStationData();
 
   const activePatients = useMemo(() => {
     return patients.filter(p => p.在住狀態 === '在住')
@@ -90,9 +101,13 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   }, [patients]);
 
   const filteredPatients = useMemo(() => {
-    if (!deferredSearch) return activePatients;
+    let base = activePatients;
+    if (selectedStationIds.size > 0) {
+      base = base.filter(p => p.station_id && selectedStationIds.has(p.station_id));
+    }
+    if (!deferredSearch) return base;
 
-    return activePatients.filter(p => {
+    return base.filter(p => {
       return (
         matchChineseName(p.中文姓氏, p.中文名字, p.中文姓名, deferredSearch) ||
         matchEnglishName(p.英文姓氏, p.英文名字, p.英文姓名, deferredSearch) ||
@@ -100,7 +115,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         fuzzyMatch(p.身份證號碼, deferredSearch)
       );
     }).sort((a, b) => comparePatientsForSearch(a, b, deferredSearch));
-  }, [activePatients, deferredSearch]);
+  }, [activePatients, deferredSearch, selectedStationIds]);
 
   // 查詢在選定月份有工作流程記錄的處方
   useEffect(() => {
@@ -165,10 +180,13 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         if (includeWorkflowRecords && prescriptionsWithWorkflowRecords.has(p.id)) return true;
         return false;
       }
+      const term = classifyMedicationTerm(p);
+      if (term === 'short' && !includeShortTerm) return false;
+      if (term === 'long' && !includeLongTerm) return false;
       return true;
     });
     return sortPrescriptionsByOrder(filtered, prescriptionSortOrder);
-  }, [exportMode, currentPatient, allPrescriptions, includeInactive, includeWorkflowRecords, prescriptionsWithWorkflowRecords, prescriptionSortOrder]);
+  }, [exportMode, currentPatient, allPrescriptions, includeInactive, includeWorkflowRecords, prescriptionsWithWorkflowRecords, prescriptionSortOrder, includeShortTerm, includeLongTerm]);
 
   const batchRouteStats = useMemo(() => {
     const stats: RouteStats = { oral: 0, injection: 0, topical: 0, noRoute: 0 };
@@ -183,6 +201,9 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
             return;
           }
         }
+        const term = classifyMedicationTerm(prescription);
+        if (term === 'short' && !includeShortTerm) return;
+        if (term === 'long' && !includeLongTerm) return;
         if (!prescription.prescription_date) return;
         if (!isInDateRange(prescription.prescription_date, prescription.end_date || null, selectedMonth)) return;
 
@@ -201,22 +222,25 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
     });
 
     return stats;
-  }, [selectedPatientIds, prescriptions, includeInactive, selectedMonth]);
+  }, [selectedPatientIds, prescriptions, includeInactive, includeWorkflowRecords, prescriptionsWithWorkflowRecords, selectedMonth, includeShortTerm, includeLongTerm]);
 
   const currentPatientPrescriptionsToExport = useMemo(() => {
     if (exportMode !== 'current' || !currentPatient) return [];
 
     const isExportAll = currentPatientSelectedPrescriptions.size === 0;
-
-    if (isExportAll) {
-      return currentPatientAvailablePrescriptions;
-    } else {
-      return allPrescriptions.filter(p =>
-        currentPatientSelectedPrescriptions.has(p.id) &&
-        p.patient_id === currentPatient.patient.院友id
-      );
-    }
-  }, [exportMode, currentPatient, currentPatientSelectedPrescriptions, allPrescriptions, currentPatientAvailablePrescriptions]);
+    const base = isExportAll
+      ? currentPatientAvailablePrescriptions
+      : allPrescriptions.filter(p =>
+          currentPatientSelectedPrescriptions.has(p.id) &&
+          p.patient_id === currentPatient.patient.院友id
+        );
+    return base.filter(p => {
+      const term = classifyMedicationTerm(p);
+      if (term === 'short' && !includeShortTerm) return false;
+      if (term === 'long' && !includeLongTerm) return false;
+      return true;
+    });
+  }, [exportMode, currentPatient, currentPatientSelectedPrescriptions, allPrescriptions, currentPatientAvailablePrescriptions, includeShortTerm, includeLongTerm]);
 
   const currentRouteStats = useMemo((): RouteStats => {
     if (exportMode !== 'current') return { oral: 0, injection: 0, topical: 0, noRoute: 0 };
@@ -309,10 +333,6 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
     setIsExporting(true);
 
     try {
-      const templates = await getTemplatesMetadata();
-      const medicationTemplate = templates.find(t => t.type === 'medication-record');
-      const personalMedicationTemplate = templates.find(t => t.type === 'personal-medication-list');
-      
       // 空白藥紙模式的處理
       if (exportMode === 'currentBlank' && currentPatient) {
         const selectedRouteTypes: ('oral' | 'injection' | 'topical')[] = [];
@@ -326,24 +346,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           return;
         }
 
-        if (outputFormat === 'html') {
-          await exportBlankMedicationRecordToHtml([currentPatient.patient], selectedMonth, selectedRouteTypes);
-          onClose();
-          return;
-        }
-
-        if (!medicationTemplate) {
-          alert('找不到個人備藥及給藥記錄範本，請先在範本管理上傳範本');
-          setIsExporting(false);
-          return;
-        }
-
-        await exportBlankMedicationRecordToExcel(
-          currentPatient.patient,
-          medicationTemplate,
-          selectedMonth,
-          selectedRouteTypes
-        );
+        await exportBlankMedicationRecordToHtml([currentPatient.patient], selectedMonth, selectedRouteTypes);
 
         const routeNames = selectedRouteTypes.map(r => r === 'oral' ? '口服' : r === 'injection' ? '注射' : '外用').join('、');
         alert(`匯出成功！\n\n【空白藥紙】\n已為 ${currentPatient.patient.中文姓氏}${currentPatient.patient.中文名字} 匯出空白藥紙\n（包含 ${routeNames} 工作表）`);
@@ -365,24 +368,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
         const selectedPatientsForBlank = activePatients.filter(p => selectedPatientIds.has(p.院友id));
 
-        if (outputFormat === 'html') {
-          await exportBlankMedicationRecordToHtml(selectedPatientsForBlank, selectedMonth, selectedRouteTypes);
-          onClose();
-          return;
-        }
-
-        if (!medicationTemplate) {
-          alert('找不到個人備藥及給藥記錄範本，請先在範本管理上傳範本');
-          setIsExporting(false);
-          return;
-        }
-
-        await exportBatchBlankMedicationRecordToExcel(
-          selectedPatientsForBlank,
-          medicationTemplate,
-          selectedMonth,
-          selectedRouteTypes
-        );
+        await exportBlankMedicationRecordToHtml(selectedPatientsForBlank, selectedMonth, selectedRouteTypes);
 
         const routeNames = selectedRouteTypes.map(r => r === 'oral' ? '口服' : r === 'injection' ? '注射' : '外用').join('、');
         alert(`匯出成功！\n\n【空白藥紙】\n已為 ${selectedPatientsForBlank.length} 位院友匯出空白藥紙\n（每位院友包含 ${routeNames} 工作表）`);
@@ -390,87 +376,25 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         return;
       }
 
-      const isHtmlOutput = outputFormat === 'html';
       const shouldExportMedicationRecord = includeMedicationRecord;
       const shouldExportPersonalMedicationList = includePersonalMedicationList;
 
-      if (shouldExportMedicationRecord && !isHtmlOutput && !medicationTemplate) {
-        alert('找不到個人備藥及給藥記錄範本，請先在範本管理上傳範本');
-        setIsExporting(false);
-        return;
-      }
-
-      if (shouldExportPersonalMedicationList && !isHtmlOutput && !personalMedicationTemplate) {
-        alert('找不到個人藥物記錄範本，請先在範本管理上傳範本');
-        setIsExporting(false);
-        return;
-      }
-
-      let medicationRecordSuccess = false;
-      let personalMedicationListSuccess = false;
-      let medicationRecordMessage = '';
-      let personalMedicationListMessage = '';
-
       if (exportMode === 'current' && currentPatient) {
         if (shouldExportMedicationRecord) {
-          if (isHtmlOutput) {
-            await exportMedicationRecordToHtml([
-              {
-                ...currentPatient.patient,
-                prescriptions: currentPatientPrescriptionsToExport
-              }
-            ], selectedMonth, includeWorkflowRecords, includeBlankRows);
-          } else if (medicationTemplate) {
-            await exportSelectedMedicationRecordToExcel(
-              Array.from(currentPatientSelectedPrescriptions),
-              currentPatient.patient,
-              allPrescriptions,
-              medicationTemplate,
-              selectedMonth,
-              includeInactive,
-              includeWorkflowRecords
-            );
-          }
-
-          medicationRecordSuccess = true;
-          const totalPrescriptions = currentRouteStats.oral + currentRouteStats.injection + currentRouteStats.topical;
-          medicationRecordMessage = `【個人備藥及給藥記錄${isHtmlOutput ? ' HTML列印版' : ''}】\n`;
-          medicationRecordMessage += `共匯出 ${totalPrescriptions} 個處方\n\n`;
-          medicationRecordMessage += `途徑分布：\n`;
-          if (currentRouteStats.oral > 0) medicationRecordMessage += `  口服：${currentRouteStats.oral} 個\n`;
-          if (currentRouteStats.injection > 0) medicationRecordMessage += `  注射：${currentRouteStats.injection} 個\n`;
-          if (currentRouteStats.topical > 0) medicationRecordMessage += `  外用：${currentRouteStats.topical} 個\n`;
-
-          if (currentRouteStats.noRoute > 0) {
-            medicationRecordMessage += `\n⚠️ 注意：有 ${currentRouteStats.noRoute} 個處方因缺少途徑資訊而未被匯出`;
-          }
+          await exportMedicationRecordToHtml([
+            {
+              ...currentPatient.patient,
+              prescriptions: currentPatientPrescriptionsToExport
+            }
+          ], selectedMonth, includeWorkflowRecords, includeBlankRows);
         }
 
         if (shouldExportPersonalMedicationList) {
-          if (isHtmlOutput) {
-            exportPersonalMedicationListToHtmlWindow([{ patient: currentPatient.patient, prescriptions: currentPatientPrescriptionsToExport }]);
-          } else if (personalMedicationTemplate) {
-            await exportSelectedPersonalMedicationListToExcel(
-              Array.from(currentPatientSelectedPrescriptions),
-              currentPatient.patient,
-              allPrescriptions,
-              personalMedicationTemplate,
-              'start_date',
-              includeInactive
-            );
-          }
-          personalMedicationListSuccess = true;
-          const activePrescriptions = currentPatientPrescriptionsToExport.filter(p => p.status === 'active');
-          personalMedicationListMessage = `【個人藥物記錄${isHtmlOutput ? ' HTML版' : ''}】\n`;
-          personalMedicationListMessage += `共匯出 ${activePrescriptions.length} 個在服處方\n`;
-          personalMedicationListMessage += `排序方式：按開始使用藥物日期`;
+          exportMedicationListToHtml([{ ...currentPatient.patient, prescriptions: currentPatientPrescriptionsToExport }], {
+            startDate: listStartDate,
+            endDate: listEndDate,
+          });
         }
-
-        let successMessage = '匯出成功！\n\n';
-        if (medicationRecordSuccess) successMessage += medicationRecordMessage + '\n\n';
-        if (personalMedicationListSuccess) successMessage += personalMedicationListMessage;
-
-        if (!isHtmlOutput) alert(successMessage);
       } else {
         const selectedPatients = activePatients
           .filter(p => selectedPatientIds.has(p.院友id))
@@ -487,6 +411,10 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                   return false;
                 }
               }
+
+              const term = classifyMedicationTerm(prescription);
+              if (term === 'short' && !includeShortTerm) return false;
+              if (term === 'long' && !includeLongTerm) return false;
 
               if (!prescription.prescription_date) {
                 return false;
@@ -523,61 +451,40 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         }
 
         if (shouldExportMedicationRecord && selectedPatients.length > 0) {
-          if (isHtmlOutput) {
-            await exportMedicationRecordToHtml(selectedPatients, selectedMonth, includeWorkflowRecords, includeBlankRows);
-          } else if (medicationTemplate) {
-            await exportMedicationRecordToExcel(selectedPatients, medicationTemplate, selectedMonth, undefined, includeWorkflowRecords);
-          }
-
-          medicationRecordSuccess = true;
-          const totalPrescriptions = batchRouteStats.oral + batchRouteStats.injection + batchRouteStats.topical;
-          medicationRecordMessage = `【個人備藥及給藥記錄${isHtmlOutput ? ' HTML列印版' : ''}】\n`;
-          medicationRecordMessage += `共匯出 ${selectedPatients.length} 位院友的處方記錄\n`;
-          medicationRecordMessage += `總處方數：${totalPrescriptions} 個\n\n`;
-          medicationRecordMessage += `途徑分布：\n`;
-          if (batchRouteStats.oral > 0) medicationRecordMessage += `  口服：${batchRouteStats.oral} 個\n`;
-          if (batchRouteStats.injection > 0) medicationRecordMessage += `  注射：${batchRouteStats.injection} 個\n`;
-          if (batchRouteStats.topical > 0) medicationRecordMessage += `  外用：${batchRouteStats.topical} 個\n`;
-
-          if (batchRouteStats.noRoute > 0) {
-            medicationRecordMessage += `\n⚠️ 注意：有 ${batchRouteStats.noRoute} 個處方因缺少途徑資訊而未被匯出`;
-          }
+          await exportMedicationRecordToHtml(selectedPatients, selectedMonth, includeWorkflowRecords, includeBlankRows);
         }
 
         if (shouldExportPersonalMedicationList) {
-          if (isHtmlOutput) {
-            exportPersonalMedicationListToHtmlWindow(selectedPatients.map(patient => ({ patient, prescriptions: patient.prescriptions })));
-            personalMedicationListSuccess = true;
-            personalMedicationListMessage = `【個人藥物記錄 HTML版】\n共匯出 ${selectedPatients.length} 位院友`;
-          } else if (personalMedicationTemplate) {
-            const patientsForPersonalList = activePatients
-              .filter(p => selectedPatientIds.has(p.院友id))
-              .map(patient => {
-                const patientPrescriptions = prescriptions.filter(p =>
-                  p.patient_id === patient.院友id &&
-                  p.status === 'active'
-                );
-                return { ...patient, prescriptions: patientPrescriptions };
-              })
-              .filter(p => p.prescriptions.length > 0);
-            if (patientsForPersonalList.length > 0) {
-              await exportPersonalMedicationListToExcel(patientsForPersonalList, personalMedicationTemplate, 'start_date');
-              personalMedicationListSuccess = true;
-              const totalActivePrescriptions = patientsForPersonalList.reduce((sum, p) => sum + p.prescriptions.length, 0);
-              personalMedicationListMessage = `【個人藥物記錄】\n共匯出 ${patientsForPersonalList.length} 位院友\n總在服處方數：${totalActivePrescriptions} 個\n排序方式：按開始使用藥物日期`;
-            } else {
-              alert('所選院友沒有在服處方，無法匯出個人藥物記錄');
-              setIsExporting(false);
-              return;
-            }
+          const patientsForList = activePatients
+            .filter(p => selectedPatientIds.has(p.院友id))
+            .map(patient => {
+              const patientPrescriptions = prescriptions.filter(p => {
+                if (p.patient_id !== patient.院友id) return false;
+                if (p.status === 'pending_change') return false;
+                if (p.status === 'inactive') {
+                  if (!includeInactive && !(includeWorkflowRecords && prescriptionsWithWorkflowRecords.has(p.id))) {
+                    return false;
+                  }
+                }
+                const term = classifyMedicationTerm(p);
+                if (term === 'short' && !includeShortTerm) return false;
+                if (term === 'long' && !includeLongTerm) return false;
+                return true;
+              });
+              return { ...patient, prescriptions: patientPrescriptions };
+            })
+            .filter(p => p.prescriptions.length > 0);
+          if (patientsForList.length > 0) {
+            exportMedicationListToHtml(patientsForList, {
+              startDate: listStartDate,
+              endDate: listEndDate,
+            });
+          } else {
+            alert('所選院友沒有在服處方，無法匯出個人藥物記錄');
+            setIsExporting(false);
+            return;
           }
         }
-
-        let successMessage = '匯出成功！\n\n';
-        if (medicationRecordSuccess) successMessage += medicationRecordMessage + '\n\n';
-        if (personalMedicationListSuccess) successMessage += personalMedicationListMessage;
-
-        if (!isHtmlOutput) alert(successMessage);
       }
 
       onClose();
@@ -689,31 +596,6 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
             </div>
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-8 items-start">
-              <div className="col-span-2">
-                <label className="form-label mb-2">輸出格式</label>
-                <div className="flex flex-wrap gap-2">
-                  <label className={`px-3 py-2 border rounded-md cursor-pointer text-sm ${outputFormat === 'excel' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-700'}`}>
-                    <input
-                      type="radio"
-                      name="outputFormat"
-                      checked={outputFormat === 'excel'}
-                      onChange={() => setOutputFormat('excel')}
-                      className="sr-only"
-                    />
-                    Excel 檔案
-                  </label>
-                  <label className={`px-3 py-2 border rounded-md cursor-pointer text-sm ${outputFormat === 'html' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-700'}`}>
-                    <input
-                      type="radio"
-                      name="outputFormat"
-                      checked={outputFormat === 'html'}
-                      onChange={() => setOutputFormat('html')}
-                      className="sr-only"
-                    />
-                    HTML 列印版
-                  </label>
-                </div>
-              </div>
               {!isBlankMode && (
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -725,18 +607,64 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                   <span className="text-sm text-gray-700">匯出個人備藥及給藥記錄</span>
                 </label>
               )}
-              {!isBlankMode && (exportMode === 'batch' || isExportAll) && (
+              {!isBlankMode && (
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={includeInactive}
-                    onChange={(e) => setIncludeInactive(e.target.checked)}
+                    checked={includePersonalMedicationList}
+                    onChange={(e) => setIncludePersonalMedicationList(e.target.checked)}
                     className="form-checkbox h-5 w-5 text-blue-600 rounded"
                   />
-                  <span className="text-sm text-gray-700">
-                    {exportMode === 'batch' ? '匯出停用處方' : '包含停用處方'}
-                  </span>
+                  <span className="text-sm text-gray-700">匯出個人藥物記錄</span>
                 </label>
+              )}
+              {includePersonalMedicationList && !isBlankMode && (
+                <div className="col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-amber-50 border border-amber-200 rounded-md p-3">
+                  <div>
+                    <label className="form-label flex items-center gap-2 mb-1">
+                      <Calendar className="h-4 w-4" />
+                      <span>列印日期範圍（開始）</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={listStartDate}
+                      onChange={(e) => setListStartDate(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label flex items-center gap-2 mb-1">
+                      <Calendar className="h-4 w-4" />
+                      <span>列印日期範圍（結束）</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={listEndDate}
+                      onChange={(e) => setListEndDate(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
+                  <div className="col-span-1 sm:col-span-2 flex flex-wrap gap-4 items-center">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeShortTerm}
+                        onChange={(e) => setIncludeShortTerm(e.target.checked)}
+                        className="form-checkbox h-5 w-5 text-blue-600 rounded"
+                      />
+                      <span className="text-sm text-gray-700">短期藥</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeLongTerm}
+                        onChange={(e) => setIncludeLongTerm(e.target.checked)}
+                        className="form-checkbox h-5 w-5 text-blue-600 rounded"
+                      />
+                      <span className="text-sm text-gray-700">長期藥</span>
+                    </label>
+                  </div>
+                </div>
               )}
               {!isBlankMode && (
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -753,14 +681,14 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={includePersonalMedicationList}
-                    onChange={(e) => setIncludePersonalMedicationList(e.target.checked)}
+                    checked={includeInactive}
+                    onChange={(e) => setIncludeInactive(e.target.checked)}
                     className="form-checkbox h-5 w-5 text-blue-600 rounded"
                   />
-                  <span className="text-sm text-gray-700">匯出個人藥物記錄</span>
+                  <span className="text-sm text-gray-700">包含停用處方</span>
                 </label>
               )}
-              {!isBlankMode && outputFormat === 'html' && (
+              {!isBlankMode && (
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -768,7 +696,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                     onChange={(e) => setIncludeBlankRows(e.target.checked)}
                     className="form-checkbox h-5 w-5 text-blue-600 rounded"
                   />
-                  <span className="text-sm text-gray-700">處方空白列</span>
+                  <span className="text-sm text-gray-700">包含處方空白列</span>
                 </label>
               )}
               {!isBlankMode && (
@@ -1068,6 +996,51 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                 >
                   {selectedPatientIds.size === filteredPatients.length ? '取消全選' : '全選'}
                 </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="text-sm font-medium text-gray-600 flex items-center gap-1">
+                  <Building2 className="h-4 w-4" />
+                  居住區篩選：
+                </span>
+                {stations.length === 0 ? (
+                  <span className="text-sm text-gray-400">暫無居住區資料</span>
+                ) : (
+                  stations.map(station => {
+                    const isActive = selectedStationIds.size === 0 || selectedStationIds.has(station.id);
+                    return (
+                      <button
+                        key={station.id}
+                        type="button"
+                        onClick={() => {
+                          const newSet = new Set(selectedStationIds);
+                          if (newSet.has(station.id)) {
+                            newSet.delete(station.id);
+                          } else {
+                            newSet.add(station.id);
+                          }
+                          setSelectedStationIds(newSet);
+                        }}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors ${
+                          isActive
+                            ? 'bg-blue-50 border-blue-400 text-blue-700'
+                            : 'bg-white border-gray-300 text-gray-600'
+                        }`}
+                      >
+                        <span>{station.code || station.name}</span>
+                      </button>
+                    );
+                  })
+                )}
+                {selectedStationIds.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStationIds(new Set())}
+                    className="text-xs text-gray-500 hover:text-gray-700 underline"
+                  >
+                    清除篩選
+                  </button>
+                )}
               </div>
 
               <input

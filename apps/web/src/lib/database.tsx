@@ -793,6 +793,8 @@ export interface MedicationPrescription {
   medication_quantity?: string;
   // 預計結束日期（推算值，僅在無明確 end_date 時計算）
   estimated_end_date?: string;
+  // 首次登記時是否為長期藥物（true=長期，false=短期）。停服後不應改變此值
+  is_long_term?: boolean;
   // 檢測規則（可能為空陣列）
   inspection_rules?: MedicationInspectionRule[];
   created_at: string;

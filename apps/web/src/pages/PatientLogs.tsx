@@ -8,6 +8,7 @@ import {
   Search, 
   Filter,
   Download,
+  Printer,
   User,
   Calendar,
   MessageSquare,
@@ -21,6 +22,7 @@ import PatientLogModal from '../components/PatientLogModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
+import { printPatientLogNursingTreatment } from '../utils/patientLogNursingTreatmentGenerator';
 
 type SortField = '記錄日期' | '院友姓名' | '日誌類型' | '記錄人員' | '創建時間';
 type SortDirection = 'asc' | 'desc';
@@ -416,13 +418,28 @@ const PatientLogs: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">院友日誌</h1>
           <div className="flex flex-wrap items-center gap-2">
             {selectedRows.size > 0 && (
-              <button
-                onClick={handleExportSelected}
-                className="btn-secondary flex flex-wrap items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                <span>匯出選定記錄</span>
-              </button>
+              <>
+                <button
+                  onClick={handleExportSelected}
+                  className="btn-secondary flex flex-wrap items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>匯出選定記錄</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    await printPatientLogNursingTreatment(
+                      patientLogs,
+                      patients,
+                      Array.from(selectedRows)
+                    );
+                  }}
+                  className="btn-secondary flex flex-wrap items-center gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  <span>列印護理及治療記錄</span>
+                </button>
+              </>
             )}
             <button
               onClick={() => {

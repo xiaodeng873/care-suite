@@ -4,13 +4,9 @@
  * 安老院住客體格檢驗報告書
  */
 import { AnnualHealthCheckup, parseMentalStateAssessment } from './annualHealthCheckupHelper';
+import { generateMedicationListAttachment } from './medicationListHtmlGenerator';
 import { supabase } from '../lib/supabase';
 
-const formatDosage = (amount?: string, unit?: string): string => {
-  if (!amount) return '';
-  const amt = String(amount);
-  return /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + (unit ?? '') : amt;
-};
 interface Patient {
   院友id: number;
   床號: string;
@@ -69,56 +65,6 @@ export const getActivePrescriptions = async (patientId: number): Promise<Medicat
     return [];
   }
 };
-// 格式化頻次 - 返回 QD/BD/TDS/QID 或其他頻率（只顯示字母縮寫）
-const formatFrequencyDisplay = (prescription: MedicationPrescription): string => {
-  const dailyFreq = prescription.daily_frequency || 1;
-  // 頻率代碼映射 - 只顯示字母縮寫
-  const freqCodeMap: { [key: number]: string } = {
-    1: 'QD',
-    2: 'BD',
-    3: 'TDS',
-    4: 'QID'
-  };
-  let freqText = '';
-  // 根據 frequency_type 決定顯示
-  switch (prescription.frequency_type) {
-    case 'daily':
-      freqText = freqCodeMap[dailyFreq] || `${dailyFreq}次/日`;
-      break;
-    case 'every_x_days':
-      freqText = `Q${prescription.frequency_value || 1}D`;
-      break;
-    case 'every_x_months':
-      freqText = `Q${prescription.frequency_value || 1}M`;
-      break;
-    case 'weekly_days':
-      freqText = 'QW';
-      break;
-    case 'odd_even_days':
-      freqText = 'EOD';
-      break;
-    case 'hourly':
-      freqText = `Q${prescription.frequency_value || 1}H`;
-      break;
-    default:
-      freqText = freqCodeMap[dailyFreq] || `${dailyFreq}次/日`;
-  }
-  return freqText;
-};
-// 格式化處方列表 - 新格式: 藥名 劑型 給藥途徑 頻次 PRN (每次)N(單位)
-const formatPrescriptionList = (prescriptions: MedicationPrescription[]): string => {
-  if (!prescriptions || prescriptions.length === 0) return '';
-  return prescriptions.map(p => {
-    const parts = [p.medication_name];
-    if (p.dosage_form) parts.push(p.dosage_form);
-    if (p.administration_route) parts.push(p.administration_route);
-    const freq = formatFrequencyDisplay(p);
-    if (freq) parts.push(freq);
-    if (p.is_prn) parts.push('PRN');
-    if (p.dosage_amount) parts.push(`每次${formatDosage(p.dosage_amount, p.dosage_unit)}`);
-    return parts.join(' ');
-  }).join('\n');
-};
 // 勾選框 HTML
 const checkbox = (checked: boolean): string => {
   return checked
@@ -126,12 +72,23 @@ const checkbox = (checked: boolean): string => {
     : `<span style="display:inline-block;width:11px;height:11px;border:1px solid #000;vertical-align:middle;margin:0 3px;"></span>`;
 };
 // 生成 HTML
-export const generateMedicalExaminationFormHTML = (
+export const generateMedicalExaminationFormHTML = async (
   checkup: AnnualHealthCheckup,
   patient: Patient,
   prescriptions: MedicationPrescription[]
-): string => {
+): Promise<string> => {
   const mentalState = parseMentalStateAssessment(checkup.mental_state_assessment);
+  const adaptedPrescriptions = prescriptions.map(p => ({
+    ...p,
+    medication_time_slots: p.medication_time_slots && p.medication_time_slots.length > 0
+      ? p.medication_time_slots
+      : Array.from({ length: p.daily_frequency || 1 }, (_, i) => `${i + 1}`)
+  }));
+  const medicationAttachment = await generateMedicationListAttachment(patient, adaptedPrescriptions);
+  const medicationPages = medicationAttachment.pages.map((page, index) => {
+    const isLast = index === medicationAttachment.pages.length - 1;
+    return `<div class="page" style="page-break-after: ${isLast ? 'auto' : 'always'};"><div class="medication-attachment">${page}</div></div>`;
+  }).join('\n');
   return `
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -290,58 +247,11 @@ export const generateMedicalExaminationFormHTML = (
   </table>
   <p style="text-align:center; margin-top:3mm; font-size:9pt;">附件 12.1 - 1</p>
 </div>
-<!-- ===== 個人藥物記錄頁 ===== -->
-<div class="page">
-  <div class="header">
-    <span>《安老院實務守則》2024年6月（修訂版）</span>
-    <span>附件 12.1</span>
-  </div>
-  <div class="title">
-    <h1>Personal Medication Record</h1>
-    <h2>個人藥物記錄</h2>
-  </div>
-  <table style="margin-bottom:5mm;">
-    <tr>
-      <td style="width:25%; background:#f0f0f0; font-weight:bold; vertical-align:top;">Name 姓名</td>
-      <td style="width:25%; vertical-align:top;">${patient.中文姓名 || ''}</td>
-      <td style="width:25%; background:#f0f0f0; font-weight:bold; vertical-align:top;">Bed No. 床號</td>
-      <td style="width:25%; vertical-align:top;">${patient.床號 || ''}</td>
-    </tr>
-    <tr>
-      <td style="background:#f0f0f0; font-weight:bold; vertical-align:top;">HKID No. 身份證號碼</td>
-      <td style="vertical-align:top;">${patient.身份證號碼 || ''}</td>
-      <td style="background:#f0f0f0; font-weight:bold; vertical-align:top;">Date 日期</td>
-      <td style="vertical-align:top;">${new Date().toLocaleDateString('zh-TW')}</td>
-    </tr>
-  </table>
-  <table>
-    <tr style="background:#d9d9d9; font-weight:bold;">
-      <td style="width:5%; text-align:center; vertical-align:top;">#</td>
-      <td style="width:26%; vertical-align:top;">Medication Name<br/>藥物名稱</td>
-      <td style="width:10%; vertical-align:top;">Form<br/>劑型</td>
-      <td style="width:12%; vertical-align:top;">Route<br/>給藥途徑</td>
-      <td style="width:10%; vertical-align:top;">Frequency<br/>頻次</td>
-      <td style="width:8%; text-align:center; vertical-align:top;">PRN<br/>需要時</td>
-      <td style="width:17%; vertical-align:top;">Dosage<br/>劑量</td>
-    </tr>
-    ${prescriptions.length > 0 ? prescriptions.map((p, index) => `
-    <tr>
-      <td style="text-align:center; vertical-align:top;">${index + 1}</td>
-      <td style="vertical-align:top;">${p.medication_name || ''}</td>
-      <td style="vertical-align:top;">${p.dosage_form || ''}</td>
-      <td style="vertical-align:top;">${p.administration_route || ''}</td>
-      <td style="vertical-align:top;">${formatFrequencyDisplay(p)}</td>
-      <td style="text-align:center; vertical-align:top;">${p.is_prn ? '✓' : ''}</td>
-      <td style="vertical-align:top;">${p.dosage_amount ? `每次${formatDosage(p.dosage_amount, p.dosage_unit)}` : ''}</td>
-    </tr>
-    `).join('') : `
-    <tr>
-      <td colspan="7" style="text-align:center; padding:20px; color:#666; vertical-align:top;">暫無在服藥物記錄</td>
-    </tr>
-    `}
-  </table>
-  <p style="text-align:center; margin-top:5mm; font-size:9pt;">附件 12.1 - 1a</p>
-</div>
+<!-- ===== 個人藥物記錄頁 (藥物一覽表範式) ===== -->
+<style>
+${medicationAttachment.css}
+</style>
+${medicationPages}
 <!-- ===== 第2頁: Part III ===== -->
 <div class="page">
   <div class="header">
@@ -645,7 +555,7 @@ export const printMedicalExaminationForm = async (
     // 獲取活躍處方
     const prescriptions = await getActivePrescriptions(patient.院友id);
     // 生成 HTML
-    const html = generateMedicalExaminationFormHTML(checkup, patient, prescriptions);
+    const html = await generateMedicalExaminationFormHTML(checkup, patient, prescriptions);
     // 打開打印視窗
     openPrintWindow(html);
   } catch (error) {
@@ -654,7 +564,7 @@ export const printMedicalExaminationForm = async (
   }
 };
 
-// ===== 個人藥物記錄獨立 HTML 匯出（附件 12.1 - 1a）=====
+// ===== 個人藥物記錄獨立 HTML 匯出（改用藥物一覽表範式）=====
 
 interface PatientForPml {
   中文姓名?: string;
@@ -662,79 +572,46 @@ interface PatientForPml {
   中文名字?: string;
   床號?: string;
   身份證號碼?: string;
+  性別?: string;
+  出生日期?: string;
+  藥物敏感?: string[];
 }
 
-const generatePmlPage = (patient: PatientForPml, prescriptions: MedicationPrescription[]): string => {
-  const name = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
-  return `<div class="page">
-   <div class="title">
-    <h1>Personal Medication Record</h1>
-    <h2>個人藥物記錄</h2>
-  </div>
-  <table style="margin-bottom:5mm;">
-    <tr>
-      <td style="width:25%; background:#f0f0f0; font-weight:bold; vertical-align:top;">Name 姓名</td>
-      <td style="width:25%; vertical-align:top;">${name}</td>
-      <td style="width:25%; background:#f0f0f0; font-weight:bold; vertical-align:top;">Bed No. 床號</td>
-      <td style="width:25%; vertical-align:top;">${patient.床號 || ''}</td>
-    </tr>
-    <tr>
-      <td style="background:#f0f0f0; font-weight:bold; vertical-align:top;">HKID No. 身份證號碼</td>
-      <td style="vertical-align:top;">${patient.身份證號碼 || ''}</td>
-      <td style="background:#f0f0f0; font-weight:bold; vertical-align:top;">Date 日期</td>
-      <td style="vertical-align:top;">${new Date().toLocaleDateString('zh-TW')}</td>
-    </tr>
-  </table>
-  <table>
-    <tr style="background:#d9d9d9; font-weight:bold;">
-      <td style="width:5%; text-align:center; vertical-align:top;">#</td>
-      <td style="width:26%; vertical-align:top;">Medication Name<br/>藥物名稱</td>
-      <td style="width:10%; vertical-align:top;">Form<br/>劑型</td>
-      <td style="width:12%; vertical-align:top;">Route<br/>給藥途徑</td>
-      <td style="width:10%; vertical-align:top;">Frequency<br/>頻次</td>
-      <td style="width:8%; text-align:center; vertical-align:top;">PRN<br/>需要時</td>
-      <td style="width:17%; vertical-align:top;">Dosage<br/>劑量</td>
-    </tr>
-    ${prescriptions.length > 0 ? prescriptions.map((p, index) => `
-    <tr>
-      <td style="text-align:center; vertical-align:top;">${index + 1}</td>
-      <td style="vertical-align:top;">${p.medication_name || ''}</td>
-      <td style="vertical-align:top;">${p.dosage_form || ''}</td>
-      <td style="vertical-align:top;">${p.administration_route || ''}</td>
-      <td style="vertical-align:top;">${formatFrequencyDisplay(p)}</td>
-      <td style="text-align:center; vertical-align:top;">${p.is_prn ? '✓' : ''}</td>
-      <td style="vertical-align:top;">${p.dosage_amount ? `每次${formatDosage(p.dosage_amount, p.dosage_unit)}` : ''}</td>
-    </tr>`).join('') : `
-    <tr>
-      <td colspan="7" style="text-align:center; padding:20px; color:#666; vertical-align:top;">暫無在服藥物記錄</td>
-    </tr>`}
-  </table>
-  <p style="text-align:center; margin-top:5mm; font-size:9pt;"></p>
-</div>`;
-};
-
-export const generatePersonalMedicationListHtml = (
+export const generatePersonalMedicationListHtml = async (
   patients: Array<{ patient: PatientForPml; prescriptions: MedicationPrescription[] }>
-): string => {
-  const pages = patients.map(({ patient, prescriptions }) => generatePmlPage(patient, prescriptions)).join('\n');
+): Promise<string> => {
+  const cssParts: string[] = [];
+  const pageParts: string[] = [];
+  for (const { patient, prescriptions } of patients) {
+    const adapted = prescriptions.map(p => ({
+      ...p,
+      medication_time_slots: p.medication_time_slots && p.medication_time_slots.length > 0
+        ? p.medication_time_slots
+        : Array.from({ length: p.daily_frequency || 1 }, (_, i) => `${i + 1}`)
+    }));
+    const attachment = await generateMedicationListAttachment(patient, adapted);
+    if (!cssParts.includes(attachment.css)) {
+      cssParts.push(attachment.css);
+    }
+    pageParts.push(...attachment.pages);
+  }
+  const pages = pageParts.map((page, index) => {
+    const isLast = index === pageParts.length - 1;
+    return `<div class="print-page" style="page-break-after: ${isLast ? 'auto' : 'always'};"><div class="medication-attachment">${page}</div></div>`;
+  }).join('\n');
   return `<!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
-  <title>個人藥物記錄</title>
+  <title>院友服用藥物一覽表</title>
   <style>
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: "Times New Roman", "PMingLiU", "新細明體", serif; font-size: 10pt; line-height: 1.4; background: #fff; }
-    .page { width: 210mm; height: 297mm; padding: 8mm 15mm 8mm 15mm; position: relative; page-break-after: always; overflow: hidden; }
-    .page:last-child { page-break-after: auto; }
-    .header { display: flex; justify-content: space-between; font-size: 9pt; margin-bottom: 3mm; }
-    .title { text-align: center; margin-bottom: 4mm; }
-    .title h1 { font-size: 13pt; font-weight: bold; margin: 2px 0; }
-    .title h2 { font-size: 11pt; font-weight: bold; margin: 2px 0; }
-    table { width: 100%; border-collapse: collapse; }
-    td, th { border: 1px solid #000; padding: 4px 8px; vertical-align: bottom; font-size: 10pt; line-height: 1.4; }
-    @media print { .page { margin: 0; } }
+    .print-page { width: 100%; box-sizing: border-box; padding: 8mm 15mm 8mm 15mm; position: relative; page-break-after: always; overflow: hidden; }
+    .print-page:last-child { page-break-after: auto; }
+    ${cssParts.join('\n')}
+    @media print { .print-page { margin: 0; } }
   </style>
 </head>
 <body>
@@ -743,10 +620,14 @@ ${pages}
 </html>`;
 };
 
-export const exportPersonalMedicationListToHtmlWindow = (
+export const exportPersonalMedicationListToHtmlWindow = async (
   patients: Array<{ patient: PatientForPml; prescriptions: MedicationPrescription[] }>
-): void => {
-  const html = generatePersonalMedicationListHtml(patients);
+): Promise<void> => {
+  const html = await generatePersonalMedicationListHtml(patients);
+  if (!html) {
+    alert('沒有符合條件的藥物記錄');
+    return;
+  }
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
   iframe.style.position = 'fixed';

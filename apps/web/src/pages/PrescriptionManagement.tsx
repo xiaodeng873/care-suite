@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useSearchParams } from 'react-router-dom';
@@ -1033,6 +1033,19 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
 
   const currentTab = tabs.find(tab => tab.key === activeTab)!;
 
+  const clickTimer = useRef<number | null>(null);
+  const handleCardClick = () => {
+    if (clickTimer.current) {
+      clearTimeout(clickTimer.current);
+      clickTimer.current = null;
+      return;
+    }
+    clickTimer.current = window.setTimeout(() => {
+      onSelect();
+      clickTimer.current = null;
+    }, 250);
+  };
+
   const PrescriptionCard: React.FC<{ 
     prescription: any; 
     status: PrescriptionStatus;
@@ -1047,6 +1060,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
       className={`border rounded-lg p-4 ${getStatusColor(status)} hover:shadow-sm transition-all duration-200 cursor-pointer ${
         isSelected ? 'ring-2 ring-blue-500 border-blue-300' : ''
       }`}
+      onClick={handleCardClick}
       onDoubleClick={onEdit}
     >
       <div className="flex items-start gap-3 mb-2">
@@ -1164,7 +1178,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
             )}
           </div>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-1">
+        <div className="flex flex-shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
           {/* 操作按鈕 */}
           <button
             onClick={onTransfer}

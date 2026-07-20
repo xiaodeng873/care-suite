@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, FileText, Calendar, User, MessageSquare } from 'lucide-react';
+import { X, FileText, Calendar, User, MessageSquare, AlertTriangle } from 'lucide-react';
 import { usePatients, type PatientLog } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
@@ -37,6 +37,9 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
     recorder: log?.recorder || displayName || user?.email || ''
   });
 
+  const [hasChanges, setHasChanges] = useState(false);
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
+
   const logTypes = [
     '日常護理',
     '文件簽署',
@@ -50,18 +53,17 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    setHasChanges(true);
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSave = async (): Promise<boolean> => {
     if (!formData.patient_id || !formData.log_date || !formData.content.trim()) {
       alert('請填寫所有必填欄位');
-      return;
+      return false;
     }
 
     try {
@@ -82,11 +84,31 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
         await addPatientLog(logData);
       }
       
-      onClose();
+      return true;
     } catch (error) {
       console.error('儲存院友日誌失敗:', error);
       alert('儲存院友日誌失敗，請重試');
+      return false;
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const saved = await handleSave();
+    if (saved) onClose();
+  };
+
+  const handleCloseRequest = () => {
+    if (hasChanges) {
+      setShowConfirmClose(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const handleSaveAndClose = async () => {
+    const saved = await handleSave();
+    if (saved) onClose();
   };
 
   const getLogTypeColor = (type: string) => {
@@ -104,9 +126,10 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={handleCloseRequest}>
+        <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <div className={`p-2 rounded-lg ${getLogTypeColor(formData.log_type)} bg-opacity-10`}>
@@ -117,7 +140,7 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
               </h2>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleCloseRequest}
               className="text-gray-400 hover:text-gray-600"
             >
               <X className="h-6 w-6" />
@@ -135,7 +158,10 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
               </label>
               <PatientAutocomplete
                 value={formData.patient_id}
-                onChange={(patientId) => setFormData(prev => ({ ...prev, patient_id: patientId }))}
+                onChange={(patientId) => {
+                  setHasChanges(true);
+                  setFormData(prev => ({ ...prev, patient_id: patientId }));
+                }}
                 placeholder="搜索院友..."
                 showResidencyFilter={true}
                 defaultResidencyStatus="在住"
@@ -220,7 +246,7 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleCloseRequest}
               className="btn-secondary flex-1"
             >
               取消
@@ -229,6 +255,49 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
         </form>
       </div>
     </div>
+
+      {showConfirmClose && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[60]" onClick={() => setShowConfirmClose(false)}>
+          <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-amber-100">
+                <AlertTriangle className="h-6 w-6 text-amber-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">未儲存的變更</h3>
+            </div>
+            <p className="text-sm text-gray-700 mb-6">
+              您有未儲存的變更，關閉將遺失資料。請選擇儲存或不儲存。
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmClose(false)}
+                className="btn-secondary flex-1"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConfirmClose(false);
+                  onClose();
+                }}
+                className="btn-secondary flex-1"
+              >
+                不儲存
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAndClose}
+                className="btn-primary flex-1"
+              >
+                儲存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
