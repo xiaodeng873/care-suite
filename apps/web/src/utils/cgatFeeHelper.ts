@@ -2,7 +2,8 @@ import type { Patient } from '../lib/database';
 
 /**
  * 合資格轄免收費人士判斷（runtime，不存 DB）
- * - 入住類型 = 院舍卷 → 合資格
+ * - 入住類型 = 院舍卷級別0 → 合資格
+ * - 院舍卷級別1-7 → 不合資格（CGAT 收費等同自費）
  * - 社會福利.type = 綜合社會保障援助 → 合資格
  * - 公務員（本人 / 家屬）→ 合資格
  * - 社會福利.subtype = 長者生活津貼 且 年滿 75 歲 → 合資格
@@ -26,14 +27,14 @@ export function getFeeExemptEligibility(patient: Patient | undefined, today: Dat
   const reasons: string[] = [];
   if (!patient) return { eligible: false, reasons };
 
-  if (patient.入住類型 === '院舍卷') reasons.push('院舍卷');
+  if (patient.入住類型 === '院舍卷級別0') reasons.push('院舍卷級別0');
 
   const welfareType = patient.社會福利?.type;
   const welfareSubtype = patient.社會福利?.subtype;
   if (welfareType === '綜合社會保障援助') reasons.push('綜合社會保障援助');
 
-  if (patient.公務員 === '公務員本人') reasons.push('公務員本人');
-  if (patient.公務員 === '公務員家屬') reasons.push('公務員家屬');
+  if (patient.公務員 === '公務員/家屬') reasons.push('公務員/家屬');
+  if (patient.公務員 === '醫管局員工/家屬') reasons.push('醫管局員工/家屬');
 
   if (welfareSubtype === '長者生活津貼') {
     const age = calcAge(patient.出生日期, today);

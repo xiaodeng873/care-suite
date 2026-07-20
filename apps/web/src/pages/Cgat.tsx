@@ -19,11 +19,14 @@ import { usePatients } from '../context/PatientContext';
 import { useCgat } from '../context/CgatContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import CgatModal from '../components/CgatModal';
+import CgatMedicationProxyModal from '../components/CgatMedicationProxyModal';
+import CgatPrintWarningModal, { type CgatPrintWarningType } from '../components/CgatPrintWarningModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFeeExemptEligibility } from '../utils/cgatFeeHelper';
 import { printCgatWorksheet } from '../utils/cgatWorksheetGenerator';
-import type { CgatRecord } from '../lib/database';
+import { printCgatMedicationProxy } from '../utils/cgatMedicationProxyGenerator';
+import type { CgatRecord, Patient } from '../lib/database';
 
 type SortField = '院友姓名' | 'medication_end_date' | 'cgat_visit_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -39,6 +42,10 @@ const Cgat: React.FC = () => {
   const { allPatients: patients, loading } = usePatients();
   const { cgatRecords, deleteCgatRecord } = useCgat();
   const [showModal, setShowModal] = useState(false);
+  const [showProxyModal, setShowProxyModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [warningType, setWarningType] = useState<CgatPrintWarningType>('duplicate');
+  const [warningPatients, setWarningPatients] = useState<Patient[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<CgatRecord | null>(null);
   const [renewFromRecord, setRenewFromRecord] = useState<CgatRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -291,6 +298,47 @@ const Cgat: React.FC = () => {
       return next;
     });
   };
+
+  // 檢查選取的記錄中是否有重複院友
+  const findDuplicatePatients = (recordIds: string[]): Patient[] => {
+    const patientIdCounts = new Map<number, number>();
+    for (const id of recordIds) {
+      const record = cgatRecords.find(r => r.id === id);
+      if (record) {
+        patientIdCounts.set(record.patient_id, (patientIdCounts.get(record.patient_id) || 0) + 1);
+      }
+    }
+    const duplicatePatientIds = Array.from(patientIdCounts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([patientId]) => patientId);
+    return duplicatePatientIds
+      .map(id => patients.find(p => p.院友id === id))
+      .filter((p): p is Patient => !!p);
+  };
+
+  // 檢查選取的記錄中是否有個別取藥的院友（不得列入委託書）
+  const findIndividualPickupPatients = (recordIds: string[]): Patient[] => {
+    const seen = new Set<number>();
+    const result: Patient[] = [];
+    for (const id of recordIds) {
+      const record = cgatRecords.find(r => r.id === id);
+      if (record && record.pharmacy_arrangement === '個別取藥') {
+        const patient = patients.find(p => p.院友id === record.patient_id);
+        if (patient && !seen.has(patient.院友id)) {
+          seen.add(patient.院友id);
+          result.push(patient);
+        }
+      }
+    }
+    return result;
+  };
+
+  const openWarningModal = (type: CgatPrintWarningType, patients: Patient[]) => {
+    setWarningType(type);
+    setWarningPatients(patients);
+    setShowWarningModal(true);
+  };
+
   // ── CGAT 欄位顯示 ──
   const caseTypeText = (r: CgatRecord) => {
     const parts: string[] = [];
@@ -357,12 +405,40 @@ const Cgat: React.FC = () => {
                   alert('請先選擇要列印的 CGAT 記錄');
                   return;
                 }
+                const duplicates = findDuplicatePatients(Array.from(selectedRows));
+                if (duplicates.length > 0) {
+                  openWarningModal('duplicate', duplicates);
+                  return;
+                }
                 await printCgatWorksheet(sortedRecords, patients, Array.from(selectedRows));
               }}
               className="btn-secondary flex flex-wrap items-center gap-2"
             >
               <Printer className="h-4 w-4" />
               <span>列印診症名單</span>
+            </button>
+            <button
+              onClick={() => {
+                if (selectedRows.size === 0) {
+                  alert('請先選擇要列印的 CGAT 記錄');
+                  return;
+                }
+                const individualPickups = findIndividualPickupPatients(Array.from(selectedRows));
+                if (individualPickups.length > 0) {
+                  openWarningModal('individual_pickup', individualPickups);
+                  return;
+                }
+                const duplicates = findDuplicatePatients(Array.from(selectedRows));
+                if (duplicates.length > 0) {
+                  openWarningModal('duplicate', duplicates);
+                  return;
+                }
+                setShowProxyModal(true);
+              }}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印取藥委託書</span>
             </button>
             <button
               onClick={() => {
@@ -641,7 +717,13 @@ const Cgat: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{pharmacyText(record)}</td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{record.medication_pickup_arrangement || '—'}</td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {record.medication_pickup_arrangement === '每次詢問' ? (
+                          <span className="text-red-600">每次詢問</span>
+                        ) : (
+                          record.medication_pickup_arrangement || '—'
+                        )}
+                      </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{feeText(record)}</td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-shrink-0 gap-2">
@@ -780,6 +862,29 @@ const Cgat: React.FC = () => {
             setSelectedRecord(null);
             setRenewFromRecord(null);
           }}
+        />
+      )}
+      {showProxyModal && (
+        <CgatMedicationProxyModal
+          onClose={() => setShowProxyModal(false)}
+          onConfirm={async (proxyDate, responsiblePerson, prescriptionPaperCount) => {
+            setShowProxyModal(false);
+            await printCgatMedicationProxy(
+              sortedRecords,
+              patients,
+              Array.from(selectedRows),
+              proxyDate,
+              responsiblePerson,
+              prescriptionPaperCount
+            );
+          }}
+        />
+      )}
+      {showWarningModal && (
+        <CgatPrintWarningModal
+          type={warningType}
+          patients={warningPatients}
+          onClose={() => setShowWarningModal(false)}
         />
       )}
     </div>

@@ -146,9 +146,7 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b">
-                  <th className="py-2 px-2">到診日期</th>入住類型：院舍卷
-社會福利：—
-公務員：—
+                  <th className="py-2 px-2">到診日期</th>
                   <th className="py-2 px-2">醫生</th>
                   <th className="py-2 px-2 text-center">已用 / 名額</th>
                   <th className="py-2 px-2 text-right">操作</th>

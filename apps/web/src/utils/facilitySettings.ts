@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 export interface FacilitySettings {
   facilityNameZh: string;
   facilityNameEn: string;
+  facilityPhone: string;
   logoDataUri: string | null;
 }
 
@@ -11,6 +12,7 @@ export interface FacilitySettings {
 export const DEFAULT_FACILITY_SETTINGS: FacilitySettings = {
   facilityNameZh: '善頤(福群)護老院',
   facilityNameEn: 'SeniorCare',
+  facilityPhone: '',
   logoDataUri: null,
 };
 
@@ -19,11 +21,13 @@ let cachedSettings: FacilitySettings | null = null;
 function mapRow(row: {
   facility_name_zh?: string | null;
   facility_name_en?: string | null;
+  facility_phone?: string | null;
   logo_data_uri?: string | null;
 }): FacilitySettings {
   return {
     facilityNameZh: row.facility_name_zh?.trim() || DEFAULT_FACILITY_SETTINGS.facilityNameZh,
     facilityNameEn: row.facility_name_en?.trim() ?? '',
+    facilityPhone: row.facility_phone?.trim() ?? '',
     logoDataUri: row.logo_data_uri || null,
   };
 }
@@ -39,7 +43,7 @@ export async function getFacilitySettings(forceRefresh = false): Promise<Facilit
 
   const { data, error } = await supabase
     .from('facility_settings')
-    .select('facility_name_zh, facility_name_en, logo_data_uri')
+    .select('facility_name_zh, facility_name_en, facility_phone, logo_data_uri')
     .eq('id', 1)
     .maybeSingle();
 
@@ -70,6 +74,7 @@ export async function saveFacilitySettings(settings: FacilitySettings): Promise<
         id: 1,
         facility_name_zh: facilityNameZh,
         facility_name_en: settings.facilityNameEn.trim() || null,
+        facility_phone: settings.facilityPhone.trim() || null,
         logo_data_uri: settings.logoDataUri || null,
         updated_at: new Date().toISOString(),
       },
@@ -83,6 +88,7 @@ export async function saveFacilitySettings(settings: FacilitySettings): Promise<
   cachedSettings = {
     facilityNameZh,
     facilityNameEn: settings.facilityNameEn.trim(),
+    facilityPhone: settings.facilityPhone.trim(),
     logoDataUri: settings.logoDataUri || null,
   };
 }

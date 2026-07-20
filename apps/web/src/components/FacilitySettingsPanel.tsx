@@ -13,6 +13,7 @@ const MAX_LOGO_BYTES = 500 * 1024; // 500KB
 const FacilitySettingsPanel: React.FC = () => {
   const [facilityNameZh, setFacilityNameZh] = useState('');
   const [facilityNameEn, setFacilityNameEn] = useState('');
+  const [facilityPhone, setFacilityPhone] = useState('');
   const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -26,6 +27,7 @@ const FacilitySettingsPanel: React.FC = () => {
       if (!active) return;
       setFacilityNameZh(settings.facilityNameZh);
       setFacilityNameEn(settings.facilityNameEn);
+      setFacilityPhone(settings.facilityPhone);
       setLogoDataUri(settings.logoDataUri);
       setLoading(false);
     })();
@@ -68,6 +70,7 @@ const FacilitySettingsPanel: React.FC = () => {
       await saveFacilitySettings({
         facilityNameZh: facilityNameZh.trim(),
         facilityNameEn: facilityNameEn.trim(),
+        facilityPhone: facilityPhone.trim(),
         logoDataUri,
       });
       setMessage({ type: 'success', text: '院舍設定已儲存' });
@@ -127,6 +130,20 @@ const FacilitySettingsPanel: React.FC = () => {
             value={facilityNameEn}
             onChange={(e) => setFacilityNameEn(e.target.value)}
             placeholder={DEFAULT_FACILITY_SETTINGS.facilityNameEn}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* 院舍電話 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            院舍電話
+          </label>
+          <input
+            type="text"
+            value={facilityPhone}
+            onChange={(e) => setFacilityPhone(e.target.value)}
+            placeholder="請輸入院舍電話"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           />
         </div>

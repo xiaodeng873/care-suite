@@ -502,7 +502,8 @@ const PatientRecords: React.FC = () => {
     switch (type) {
       case '私位': return 'bg-purple-100 text-purple-800';
       case '買位': return 'bg-blue-100 text-blue-800';
-      case '院舍卷': return 'bg-green-100 text-green-800';
+      case '院舍卷級別0': return 'bg-green-100 text-green-800';
+      case '院舍卷級別1-7': return 'bg-green-100 text-green-800';
       case '暫住': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -705,7 +706,8 @@ const PatientRecords: React.FC = () => {
                       <option value="">所有類型</option>
                       <option value="私位">私位</option>
                       <option value="買位">買位</option>
-                      <option value="院舍卷">院舍卷</option>
+                      <option value="院舍卷級別0">院舍卷級別0</option>
+                      <option value="院舍卷級別1-7">院舍卷級別1-7</option>
                       <option value="暫住">暫住</option>
                     </select>
                   </div>
@@ -745,8 +747,8 @@ const PatientRecords: React.FC = () => {
                       className="form-input"
                     >
                       <option value="">所有類型</option>
-                      <option value="公務員本人">公務員本人</option>
-                      <option value="公務員家屬">公務員家屬</option>
+                      <option value="公務員/家屬">公務員/家屬</option>
+                      <option value="醫管局員工/家屬">醫管局員工/家屬</option>
                     </select>
                   </div>
                   

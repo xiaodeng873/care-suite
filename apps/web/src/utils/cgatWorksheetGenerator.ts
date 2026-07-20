@@ -165,6 +165,7 @@ function buildPage(
   patientMap: Map<number, Patient>,
   visitDate: string,
   facilityName: string,
+  facilityPhone: string,
   pageNum: number,
   totalPages: number
 ): string {
@@ -200,7 +201,7 @@ function buildPage(
                 <div class="adaptive-line"><span>院舍名稱：</span><div class="input-box"><textarea rows="1">${escapeHtml(facilityName)}</textarea></div></div>
               </td>
               <td style="width: 23%;">
-                <div class="adaptive-line"><span>院舍電話：</span><div class="input-box"><textarea rows="1"></textarea></div></div>
+                <div class="adaptive-line"><span>院舍電話：</span><div class="input-box"><textarea rows="1">${escapeHtml(facilityPhone)}</textarea></div></div>
               </td>
               <td style="width: 39%; padding-left: 10px;">
                 <div class="check-item">
@@ -284,7 +285,8 @@ function buildPage(
 export function generateCgatWorksheetHtml(
   records: CgatRecord[],
   patients: Patient[],
-  facilityName: string
+  facilityName: string,
+  facilityPhone: string
 ): string {
   const patientMap = new Map<number, Patient>();
   for (const p of patients) {
@@ -304,7 +306,7 @@ export function generateCgatWorksheetHtml(
   const totalPages = visitDates.length;
 
   const pages = visitDates.map((date, idx) =>
-    buildPage(grouped[date], patientMap, date, facilityName, idx + 1, totalPages)
+    buildPage(grouped[date], patientMap, date, facilityName, facilityPhone, idx + 1, totalPages)
   );
 
   return `<!DOCTYPE html>
@@ -471,7 +473,8 @@ export async function printCgatWorksheet(
   const { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } = await import('./facilitySettings');
   const settings = await getFacilitySettings();
   const facilityName = settings.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
+  const facilityPhone = settings.facilityPhone || DEFAULT_FACILITY_SETTINGS.facilityPhone;
 
-  const html = generateCgatWorksheetHtml(recordsWithDate, patients, facilityName);
+  const html = generateCgatWorksheetHtml(recordsWithDate, patients, facilityName, facilityPhone);
   printViaIframe(html);
 }

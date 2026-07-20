@@ -156,8 +156,9 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     return valid;
   };
 
+  const isVoucherAdmission = (admissionType: string) => admissionType === '院舍卷級別0' || admissionType === '院舍卷級別1-7';
   const hasAdmissionWelfareConflict = (admissionType: string, welfareType: string) => (
-    admissionType === '院舍卷' && welfareType === '綜合社會保障援助'
+    isVoucherAdmission(admissionType) && welfareType === '綜合社會保障援助'
   );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -449,7 +450,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     let finalFormData = { ...formData };
 
     if (hasAdmissionWelfareConflict(finalFormData.入住類型, finalFormData.社會福利?.type || '')) {
-      alert('入住類型「院舍卷」不可與社會福利「綜合社會保障援助」同時選擇');
+      alert('入住類型「院舍卷級別0」或「院舍卷級別1-7」不可與社會福利「綜合社會保障援助」同時選擇');
       return;
     }
 
@@ -849,7 +850,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                 <option value="">請選擇</option>
                 <option value="私位">私位</option>
                 <option value="買位">買位</option>
-                <option value="院舍卷" disabled={socialWelfareType === '綜合社會保障援助'}>院舍卷</option>
+                <option value="院舍卷級別0" disabled={socialWelfareType === '綜合社會保障援助'}>院舍卷級別0</option>
+                <option value="院舍卷級別1-7" disabled={socialWelfareType === '綜合社會保障援助'}>院舍卷級別1-7</option>
                 <option value="暫住">暫住</option>
               </select>
             </div>
@@ -862,7 +864,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                 className="form-input"
               >
                 <option value="">請選擇社會福利</option>
-                <option value="綜合社會保障援助" disabled={formData.入住類型 === '院舍卷'}>綜合社會保障援助</option>
+                <option value="綜合社會保障援助" disabled={isVoucherAdmission(formData.入住類型)}>綜合社會保障援助</option>
                 <option value="公共福利金計劃">公共福利金計劃</option>
               </select>
               
@@ -905,8 +907,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                 className="form-input"
               >
                 <option value="">請選擇</option>
-                <option value="公務員本人">公務員本人</option>
-                <option value="公務員家屬">公務員家屬</option>
+                <option value="公務員/家屬">公務員/家屬</option>
+                <option value="醫管局員工/家屬">醫管局員工/家屬</option>
               </select>
             </div>
           </div>

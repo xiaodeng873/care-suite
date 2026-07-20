@@ -160,7 +160,7 @@ const Reports: React.FC = () => {
 
     const 買位Patients = activePatients.filter(p => p.入住類型 === '買位');
     const 私位Patients = activePatients.filter(p => p.入住類型 === '私位');
-    const 院舍劵Patients = activePatients.filter(p => p.入住類型 === '院舍卷');
+    const 院舍劵Patients = activePatients.filter(p => p.入住類型 === '院舍卷級別0' || p.入住類型 === '院舍卷級別1-7');
     const 暫住Patients = activePatients.filter(p => p.入住類型 === '暫住');
 
     const admissionTypeStats = {
