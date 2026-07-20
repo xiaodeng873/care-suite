@@ -3,6 +3,7 @@ import { X, Save, User, Calendar, FileText, Activity, Brain, Eye, MessageSquare,
 import { usePatients, type HealthAssessment } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
+import { supabase } from '../lib/supabase';
 
 /** Parse a TEXT column that may contain a JSON array, '、'-delimited string, or already be an array */
 function parseTextToArray(value: unknown): string[] {
@@ -104,7 +105,9 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
     nutrition_diet: {
       condition: '',
       meal_type: '',
-      special_diet: ''
+      special_diet: '',
+      height: '',
+      weight: ''
     },
     vision_hearing: {
       left_eye: '',
@@ -153,6 +156,42 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
     }
   }, [formData.assessment_date]);
 
+  // 新增評估時，自動帶入該院友最近體重（若體重欄位仍空白）
+  useEffect(() => {
+    if (!selectedPatientId || assessment) return;
+    if (formData.nutrition_diet.weight) return;
+
+    const fetchLatestWeight = async () => {
+      const { data, error } = await supabase
+        .from('健康監測記錄')
+        .select('數值, 記錄日期, 記錄時間')
+        .eq('院友id', selectedPatientId)
+        .eq('監測類型', '體重')
+        .not('數值', 'is', null)
+        .order('記錄日期', { ascending: false })
+        .order('記錄時間', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) {
+        console.error('[HealthAssessmentModal] 查詢最近體重失敗:', error);
+        return;
+      }
+      if (!data) return;
+      const latestWeight = (data as any).數值;
+      if (latestWeight == null || latestWeight === 0) return;
+      setFormData(prev => ({
+        ...prev,
+        nutrition_diet: {
+          ...prev.nutrition_diet,
+          weight: String(latestWeight)
+        }
+      }));
+    };
+
+    fetchLatestWeight();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPatientId, assessment?.id]);
+
   useEffect(() => {
     if (assessment) {
       setSelectedPatientId(assessment.patient_id);
@@ -185,7 +224,9 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
         nutrition_diet: assessment.nutrition_diet || {
           condition: '',
           meal_type: '',
-          special_diet: ''
+          special_diet: '',
+          height: '',
+          weight: ''
         },
         vision_hearing: assessment.vision_hearing || {
           left_eye: '',
@@ -712,6 +753,30 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                       </select>
                     )}
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">c. 身高（米）</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.nutrition_diet.height}
+                    onChange={(e) => updateNutritionDiet('height', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="例如：1.65"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">d. 體重（公斤）</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.nutrition_diet.weight}
+                    onChange={(e) => updateNutritionDiet('weight', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="例如：55.5"
+                  />
                 </div>
               </div>
             </div>
