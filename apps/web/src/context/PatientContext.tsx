@@ -58,6 +58,7 @@ interface PatientContextType {
   incidentReports: db.IncidentReport[];
   diagnosisRecords: db.DiagnosisRecord[];
   vaccinationRecords: db.VaccinationRecord[];
+  infectionControlRecords: db.InfectionControlRecord[];
   patientNotes: db.PatientNote[];
   patrolRounds: db.PatrolRound[];
   diaperChangeRecords: db.DiaperChangeRecord[];
@@ -94,7 +95,7 @@ interface PatientContextType {
   addDrug: (drug: Omit<any, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateDrug: (drug: any) => Promise<void>;
   deleteDrug: (id: string) => Promise<void>;
-  addPatient: (patient: Omit<db.Patient, '院友id'>) => Promise<void>;
+  addPatient: (patient: Omit<db.Patient, '院友id'>) => Promise<db.Patient>;
   updatePatient: (patient: db.Patient) => Promise<void>;
   deletePatient: (id: number) => Promise<void>;
   addStation: (station: Omit<db.Station, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -175,6 +176,9 @@ interface PatientContextType {
   addVaccinationRecord: (record: Omit<db.VaccinationRecord, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateVaccinationRecord: (record: db.VaccinationRecord) => Promise<void>;
   deleteVaccinationRecord: (id: string) => Promise<void>;
+  addInfectionControlRecord: (record: Omit<db.InfectionControlRecord, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateInfectionControlRecord: (record: db.InfectionControlRecord) => Promise<void>;
+  deleteInfectionControlRecord: (id: string) => Promise<void>;
   addPatientNote: (note: Omit<db.PatientNote, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updatePatientNote: (note: db.PatientNote) => Promise<void>;
   deletePatientNote: (id: string) => Promise<void>;
@@ -554,6 +558,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   const DEBOUNCE_DELAY = 500; // 500ms 防抖延遲
   // 資料狀態
   const [allPatientsData, setAllPatientsData] = useState<db.Patient[]>([]);
+  const [infectionControlRecords, setInfectionControlRecords] = useState<db.InfectionControlRecord[]>([]);
   // stations 和 beds 現在從 SeniorCareontext 獲取
   // schedules 和 doctorVisitSchedule 現在從 ScheduleContext 獲取
   // carePlans, problemLibrary, nursingNeedItems 現在從 CarePlanContext 獲取
@@ -568,6 +573,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   // incidentReports 已遷移至 IncidentContext
   // diagnosisRecords 已遷移至 DiagnosisContext
   // vaccinationRecords 已遷移至 DiagnosisContext
+  // infectionControlRecords 由 PatientContext 管理
   // patientNotes, patrolRounds, diaperChangeRecords, restraintObservationRecords, positionChangeRecords 已遷移至 CareRecordsContext
   // patientAdmissionRecords, hospitalEpisodes 已遷移至 AdmissionContext
   // prescriptions, drugDatabase, prescriptionWorkflowRecords, prescriptionTimeSlotDefinitions 已遷移至 PrescriptionContext
@@ -636,10 +642,14 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   // 3. 數據刷新邏輯
   const refreshData = useCallback(async () => {
     try {
-      // PatientContext 現在只負責獲取 patients 數據
+      // PatientContext 現在主要負責 patients 與感染控制數據
       // 其他數據由各自的子 Context 管理，避免重複獲取
-      const patientsData = await db.getPatients();
+      const [patientsData, infectionData] = await Promise.all([
+        db.getPatients(),
+        db.getInfectionControlRecords(),
+      ]);
       setAllPatientsData(patientsData);
+      setInfectionControlRecords(infectionData);
       setLoading(false);
     } catch (error) {
       console.error('刷新數據失敗:', error);
@@ -693,7 +703,8 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       // patientAdmissionRecords, hospitalEpisodes 現在由 AdmissionContext 管理，無需在此清空
       // prescriptions, drugDatabase 現在由 PrescriptionContext 管理，無需在此清空
       // dailySystemTasks 現在由 DailySystemTaskContext 管理，無需在此清空
-      // carePlans, problemLibrary, nursingNeedItems 由 CarePlanContext 管理
+      // infectionControlRecords 由 PatientContext 管理，清空
+      setInfectionControlRecords([]);
       setLoading(false);
       setDataLoaded(false);
       return;
@@ -727,10 +738,50 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   refreshDataRef.current = refreshData;
   // refreshHealthData 已遷移至 HealthRecordContext
   // CRUD Functions defined here
+  const refreshInfectionControlData = useCallback(async () => {
+    try {
+      const data = await db.getInfectionControlRecords();
+      setInfectionControlRecords(data);
+    } catch (error) {
+      console.error('刷新感染控制數據失敗:', error);
+    }
+  }, []);
+
+  const addInfectionControlRecord = async (record: Omit<db.InfectionControlRecord, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      await db.createInfectionControlRecord(record);
+      await refreshInfectionControlData();
+    } catch (error) {
+      console.error('新增感染控制記錄失敗:', error);
+      throw error;
+    }
+  };
+
+  const updateInfectionControlRecord = async (record: db.InfectionControlRecord) => {
+    try {
+      await db.updateInfectionControlRecord(record);
+      await refreshInfectionControlData();
+    } catch (error) {
+      console.error('更新感染控制記錄失敗:', error);
+      throw error;
+    }
+  };
+
+  const deleteInfectionControlRecord = async (recordId: string) => {
+    try {
+      await db.deleteInfectionControlRecord(recordId);
+      await refreshInfectionControlData();
+    } catch (error) {
+      console.error('刪除感染控制記錄失敗:', error);
+      throw error;
+    }
+  };
+
   const addPatient = async (patient: Omit<db.Patient, '院友id'>) => {
     try {
-      await db.createPatient(patient);
+      const newPatient = await db.createPatient(patient);
       await refreshData();
+      return newPatient;
     } catch (error) {
       console.error('Error adding patient:', error);
       throw error;
@@ -907,6 +958,10 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       addVaccinationRecord,
       updateVaccinationRecord,
       deleteVaccinationRecord,
+      infectionControlRecords,
+      addInfectionControlRecord,
+      updateInfectionControlRecord,
+      deleteInfectionControlRecord,
       patientNotes,
       addPatientNote,
       updatePatientNote,

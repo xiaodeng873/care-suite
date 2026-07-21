@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { Guitar as Hospital, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, MapPin, Bed, FileText, ChevronUp, ChevronDown, X, Activity } from 'lucide-react';
+import { Guitar as Hospital, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, MapPin, Bed, FileText, ChevronUp, ChevronDown, X, Activity, Printer } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import HospitalEpisodeModal from '../components/HospitalEpisodeModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import { printERRecordForms } from '../utils/erRecordPrintGenerator';
 
 type SortField = '開始日期' | '院友姓名' | '主要醫院' | '狀態' | '創建時間';
 type SortDirection = 'asc' | 'desc';
@@ -284,6 +285,13 @@ const AdmissionRecords: React.FC = () => {
   const handleEdit = (episode: any) => {
     setSelectedEpisode(episode);
     setShowModal(true);
+  };
+
+  const handlePrintSelectedERRecords = () => {
+    if (selectedRows.size === 0) return;
+    const selectedEpisodes = hospitalEpisodes.filter((episode) => selectedRows.has(episode.id));
+    if (selectedEpisodes.length === 0) return;
+    printERRecordForms(selectedEpisodes, patients);
   };
 
   const handleDelete = async (id: string) => {
@@ -680,6 +688,15 @@ const AdmissionRecords: React.FC = () => {
               >
                 <Download className="h-4 w-4" />
                 <span>匯出選定記錄</span>
+              </button>
+            )}
+            {selectedRows.size > 0 && (
+              <button
+                onClick={handlePrintSelectedERRecords}
+                className="btn-secondary flex flex-wrap items-center gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                <span>列印出入院記錄</span>
               </button>
             )}
             <button

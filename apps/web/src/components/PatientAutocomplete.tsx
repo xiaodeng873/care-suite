@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect, useDeferredValue } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, User, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { useStation } from '../context/facility';
 import { useStationFilter } from '../context/StationFilterContext';
+import { useDebounce } from '../hooks/useDebounce';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 
@@ -39,36 +40,44 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
   const shouldShowStationFilter = showStationFilter || visibleStations.length > 1;
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const deferredSearch = useDeferredValue(searchTerm);
+  const debouncedSearch = useDebounce(searchTerm, 200);
   const [residencyStatus, setResidencyStatus] = useState(defaultResidencyStatus);
   const [stationFilter, setStationFilter] = useState<string>('all');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const MAX_RESULTS = 50;
 
   // 找到當前選中的院友
-  const selectedPatient = patients.find(p => p.院友id.toString() === value?.toString());
+  const selectedPatient = useMemo(
+    () => patients.find(p => p.院友id.toString() === value?.toString()),
+    [patients, value]
+  );
 
-  // 過濾院友列表
-  const filteredPatients = patients.filter(patient => {
-    // 居住區篩選
-    if (stationFilter !== 'all' && patient.station_id !== stationFilter) return false;
-    // 先根據在住狀態篩選
-    if (residencyStatus !== '全部' && patient.在住狀態 !== residencyStatus) {
-      return false;
-    }
+  // 過濾院友列表：使用 useMemo 避免每次 render 重新計算，並用 debounce 減少搜尋頻率
+  const filteredPatients = useMemo(() => {
+    const list = patients.filter(patient => {
+      // 居住區篩選
+      if (stationFilter !== 'all' && patient.station_id !== stationFilter) return false;
+      // 先根據在住狀態篩選
+      if (residencyStatus !== '全部' && patient.在住狀態 !== residencyStatus) {
+        return false;
+      }
 
-    // 再根據搜索條件篩選
-    if (!deferredSearch) return true;
+      // 再根據搜索條件篩選
+      if (!debouncedSearch) return true;
 
-    return (
-      matchBedNumber(patient.床號, deferredSearch) ||
-      matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch) ||
-      matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch) ||
-      fuzzyMatch(patient.身份證號碼, deferredSearch)
-    );
-  }).sort((a, b) => comparePatientsForSearch(a, b, deferredSearch));
+      return (
+        matchBedNumber(patient.床號, debouncedSearch) ||
+        matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, debouncedSearch) ||
+        matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, debouncedSearch) ||
+        fuzzyMatch(patient.身份證號碼, debouncedSearch)
+      );
+    }).sort((a, b) => comparePatientsForSearch(a, b, debouncedSearch));
+
+    return list.slice(0, MAX_RESULTS);
+  }, [patients, stationFilter, residencyStatus, debouncedSearch]);
 
   // 處理點擊外部關閉
   useEffect(() => {

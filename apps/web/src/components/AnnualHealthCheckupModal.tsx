@@ -28,13 +28,14 @@ interface AnnualHealthCheckupModalProps {
 export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, prefilledPatientId, renewFrom }: AnnualHealthCheckupModalProps) {
   const { 
     patients, 
-    diagnosisRecords, 
+    diagnosisRecords,
     updateAnnualHealthCheckup: contextUpdateAnnualHealthCheckup,
     addAnnualHealthCheckup: contextAddAnnualHealthCheckup
   } = usePatients();
   const [loading, setLoading] = useState(false);
   const [fetchingReadings, setFetchingReadings] = useState(false);
   const parsedMentalState = parseMentalStateAssessment(checkup?.mental_state_assessment || null);
+
   // 获取预填充患者的数据
   const prefilledPatient = prefilledPatientId && !checkup 
     ? patients.find(p => p.院友id === prefilledPatientId) 
@@ -54,8 +55,8 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
     serious_illness_details: checkup?.serious_illness_details || prefilledPatientDiagnosis || '',
     has_allergy: checkup?.has_allergy || !!(prefilledPatient?.藥物敏感?.length),
     allergy_details: checkup?.allergy_details || (prefilledPatient?.藥物敏感?.join(', ')) || '',
-    has_infectious_disease: checkup?.has_infectious_disease || !!(prefilledPatient?.感染控制?.length),
-    infectious_disease_details: checkup?.infectious_disease_details || (prefilledPatient?.感染控制?.join(', ')) || '',
+    has_infectious_disease: checkup?.has_infectious_disease || !!(getPatientInfections(prefilledPatient?.院友id).length),
+    infectious_disease_details: checkup?.infectious_disease_details || (getPatientInfections(prefilledPatient?.院友id).join(', ')) || '',
     needs_followup_treatment: checkup?.needs_followup_treatment || false,
     followup_treatment_details: checkup?.followup_treatment_details || '',
     has_swallowing_difficulty: checkup?.has_swallowing_difficulty || false,
@@ -228,8 +229,8 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
       serious_illness_details: patientDiagnosis || prev.serious_illness_details,
       has_allergy: !!(patient?.藥物敏感?.length),
       allergy_details: patient?.藥物敏感?.join(', ') || prev.allergy_details,
-      has_infectious_disease: !!(patient?.感染控制?.length),
-      infectious_disease_details: patient?.感染控制?.join(', ') || prev.infectious_disease_details,
+      has_infectious_disease: !!(getPatientInfections(selectedPatientId).length),
+      infectious_disease_details: getPatientInfections(selectedPatientId).join(', ') || prev.infectious_disease_details,
     }));
   };
   const handleFetchLatestReadings = async () => {

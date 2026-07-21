@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper } from 'lucide-react';
+import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
 import { usePatients } from '../context/PatientContext';
 import { useStationFilter } from '../context/StationFilterContext';
 import { LoadingScreen } from './PageLoadingScreen';
+import { ChangePasswordModal } from './ChangePasswordModal';
 import type { PermissionCategory } from '@care-suite/shared';
 
 // 路由名稱對照表
@@ -42,7 +43,8 @@ const routeNames: Record<string, string> = {
   '/activity-records': '活動記錄',
   '/reports': '報表查詢',
   '/settings': '系統設定',
-  '/rehabilitation': '復康服務'
+  '/rehabilitation': '復康服務',
+  '/infection-control': '感染控制'
 };
 
 interface LayoutProps {
@@ -78,6 +80,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const [showStationFilter, setShowStationFilter] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const { displayName, hasPermission, hasCategoryViewPermission, isDeveloper, userProfile, customLogout } = useAuth();
   const { isNavigating, navigatingTo, isInitialLoad, startNavigation, finishNavigation } = useNavigation();
   const { loading: patientLoading, stations } = usePatients();
@@ -177,6 +180,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
         { name: '任務管理', href: '/tasks', icon: Clock, feature: 'task_management' },
         { name: '餐膳指引', href: '/meal-guidance', icon: Utensils, feature: 'meal_guidance' },
         { name: '意外事件報告', href: '/incident-reports', icon: AlertTriangle, feature: 'incident_reports' },
+        { name: '感染控制', href: '/infection-control', icon: Shield, feature: 'infection_control' },
       ]
     },
     {
@@ -490,6 +494,16 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
                       </div>
                     )}
                     <button
+                      onClick={() => {
+                        setIsChangePasswordOpen(true);
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
+                    >
+                      <Key className="w-4 h-4" />
+                      <span>重設密碼</span>
+                    </button>
+                    <button
                       onClick={async () => {
                         // 同時處理兩種登出
                         if (userProfile) {
@@ -510,6 +524,12 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
           </div>
         </div>
       </header>
+
+      {/* 重設密碼 Modal */}
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
 
       {/* 移動版側邊選單 */}
       {mobileMenuOpen && (

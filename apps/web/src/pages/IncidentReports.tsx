@@ -865,11 +865,7 @@ const IncidentReports: React.FC = () => {
       )}
 
       {/* 隱藏的列印 iframe */}
-      <iframe
-        ref={printIframeRef}
-        style={{ display: 'none' }}
-        title="print-iframe"
-      />
+      {/* NOTE: printIncidentReport 會自己建立 iframe，所以這裡不需要再掛 ref */}
 
       {showModal && (
         <IncidentReportModal

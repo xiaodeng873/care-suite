@@ -1,15 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { CalendarCheck, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Clock, MapPin, Car, UserCheck, ChevronUp, ChevronDown, Copy, MessageSquare, X, FileText } from 'lucide-react';
+import { CalendarCheck, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Clock, MapPin, Car, UserCheck, ChevronUp, ChevronDown, Copy, MessageSquare, X, FileText, Printer } from 'lucide-react';
 import { usePatients, type FollowUpAppointment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import FollowUpModal from '../components/FollowUpModal';
+import PatientAutocomplete from '../components/PatientAutocomplete';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { exportFollowUpListToExcel, type FollowUpExportData } from '../utils/followUpListGenerator';
 import { generateFollowUpRecordWorksheet, type FollowUpRecordData } from '../utils/followUpRecordWorksheetGenerator';
 import { generateFollowUpBagCover, type FollowUpBagCoverData } from '../utils/followUpBagCoverGenerator';
+import { printFollowUpRecordForms } from '../utils/followUpRecordPrintGenerator';
 
 type SortField = '覆診日期' | '覆診時間' | '院友姓名' | '覆診地點' | '覆診專科' | '狀態' | '交通安排' | '陪診人員';
 type SortDirection = 'asc' | 'desc';
@@ -55,6 +57,8 @@ const FollowUpManagement: React.FC = () => {
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printPatientId, setPrintPatientId] = useState('');
 
   // Reset to first page when filters change
   React.useEffect(() => {
@@ -484,6 +488,32 @@ const FollowUpManagement: React.FC = () => {
     await generateFollowUpBagCover(bagCoverData);
   };
 
+  const handlePrintFollowUpRecords = async () => {
+    if (!printPatientId) {
+      alert('請選擇院友');
+      return;
+    }
+
+    const patientId = parseInt(printPatientId, 10);
+    const patient = patients.find(p => p.院友id === patientId);
+    if (!patient) {
+      alert('找不到選擇的院友');
+      return;
+    }
+
+    const filteredAppointments = followUpAppointments
+      .filter(appointment => appointment.院友id === patientId)
+      .sort((a, b) => new Date(a.覆診日期).getTime() - new Date(b.覆診日期).getTime());
+
+    if (filteredAppointments.length === 0) {
+      alert('該院友沒有覆診記錄');
+      return;
+    }
+
+    await printFollowUpRecordForms(filteredAppointments, patients);
+    setShowPrintModal(false);
+  };
+
   const handleExportFollowUpList = async (appointments: FollowUpAppointment[]) => {
     try {
       // 檢查數量限制
@@ -669,6 +699,14 @@ const FollowUpManagement: React.FC = () => {
                 </button>
               </div>
             )}
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+              title="列印個人覆診記錄表"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印個人覆診記錄表</span>
+            </button>
             <button
               onClick={() => {
                 setSelectedAppointment(undefined);
@@ -1210,6 +1248,69 @@ const FollowUpManagement: React.FC = () => {
             setSelectedAppointment(undefined);
           }}
         />
+      )}
+
+      {showPrintModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={() => setShowPrintModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <h2 className="text-xl font-semibold text-gray-900">列印個人覆診記錄表</h2>
+                <button
+                  onClick={() => setShowPrintModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="form-label">院友 *</label>
+                <PatientAutocomplete
+                  value={printPatientId}
+                  onChange={(patientId) => setPrintPatientId(patientId)}
+                  placeholder="搜索院友..."
+                  showResidencyFilter={true}
+                  defaultResidencyStatus="在住"
+                />
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                <p>將列出該院友所有覆診記錄，包括：</p>
+                <ul className="list-disc list-inside mt-1 space-y-1">
+                  <li>不論過去或未來的覆診日期</li>
+                  <li>不論狀態（尚未安排、已安排、已完成、改期、取消）</li>
+                </ul>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handlePrintFollowUpRecords}
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  <span>列印</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPrintModal(false)}
+                  className="btn-secondary flex-1"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

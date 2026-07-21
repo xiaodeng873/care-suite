@@ -387,21 +387,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // 修改密碼
   const changePassword = async (currentPassword: string, newPassword: string) => {
+    // Supabase Auth 用戶（開發者）
+    if (user) {
+      try {
+        // 先驗證現有密碼
+        const { error: verifyError } = await supabase.auth.signInWithPassword({
+          email: user.email!,
+          password: currentPassword,
+        });
+        if (verifyError) {
+          return { error: '現有密碼不正確' };
+        }
+
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) {
+          return { error: error.message || '密碼修改失敗' };
+        }
+        return { error: null };
+      } catch (error) {
+        console.error('Change password error:', error);
+        return { error: '密碼修改失敗，請稍後再試' };
+      }
+    }
+
+    // 自訂認證用戶（管理者/員工）
     if (!userProfile?.id) {
       return { error: '用戶未登入' };
     }
-    
+
     try {
       const result = await callAuthApi('change-password', {
         userId: userProfile.id,
         currentPassword,
         newPassword,
       }, customToken || undefined);
-      
+
       if (result.success) {
         return { error: null };
       }
-      
+
       return { error: result.error || '密碼修改失敗' };
     } catch (error) {
       console.error('Change password error:', error);

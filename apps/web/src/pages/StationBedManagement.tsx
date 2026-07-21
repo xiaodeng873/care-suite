@@ -40,6 +40,7 @@ const StationBedManagement: React.FC = () => {
     rooms,
     beds, 
     allPatients: patients, 
+    infectionControlRecords,
     loading, 
     deleteStation, 
     deleteBed,
@@ -265,6 +266,11 @@ const StationBedManagement: React.FC = () => {
 
     const bedList = stationBeds.map(bed => {
       const patient = patients.find(p => p.bed_id === bed.id && p.在住狀態 === '在住');
+      const patientInfections = patient
+        ? infectionControlRecords
+            .filter(r => r.patient_id === patient.院友id && !r.recovery_date)
+            .map(r => r.infection_type)
+        : null;
       return {
         bed_number: bed.bed_number,
         patient: patient
@@ -273,7 +279,7 @@ const StationBedManagement: React.FC = () => {
               gender: patient.性別,
               admissionType: patient.入住類型,
               careLevel: patient.護理等級,
-              infectionControl: patient.感染控制 ?? null,
+              infectionControl: patientInfections && patientInfections.length > 0 ? patientInfections : null,
             }
           : null,
       };
@@ -396,7 +402,11 @@ const StationBedManagement: React.FC = () => {
     const stomaPids = new Set(healthRows.filter(h =>
       h.bowel_bladder_control?.bowel === '腸造口' || h.bowel_bladder_control?.bladder === '小便造口'
     ).map(h => h.patient_id));
-    const infPids = new Set(stationPatients.filter(p => p.感染控制 && p.感染控制.length > 0).map(p => p.院友id));
+    const infPids = new Set(
+      infectionControlRecords
+        .filter(r => !r.recovery_date && stationPatientIds.includes(r.patient_id))
+        .map(r => r.patient_id)
+    );
     const restraintPids = new Set(restraintRows.map(r => r.patient_id));
     const cnt = (ids: Set<number>) => stationPatients.filter(p => ids.has(p.院友id)).length;
     const medical = {
@@ -701,15 +711,21 @@ const StationBedManagement: React.FC = () => {
                                     </p>
                                   </PatientTooltip>
                                   <p className="text-sm text-gray-600">{patient.性別} | {patient.入住類型 || '未設定'}</p>
-                                  {patient.感染控制 && Array.isArray(patient.感染控制) && patient.感染控制.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {patient.感染控制.map((item: string, index: number) => (
-                                        <span key={index} className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full border border-red-300">
-                                          🔴 {item}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
+                                  {(() => {
+                                    const activeInfections = infectionControlRecords.filter(
+                                      r => r.patient_id === patient.院友id && !r.recovery_date
+                                    );
+                                    if (activeInfections.length === 0) return null;
+                                    return (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {activeInfections.map((infection) => (
+                                          <span key={infection.id} className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full border border-red-300">
+                                            🔴 {infection.infection_type}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             ) : (

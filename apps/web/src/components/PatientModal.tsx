@@ -1,10 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, User, Upload, Camera, Trash2, LogOut, LogIn, Calendar } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { type PatientContact, createPatientContact, type VaccinationRecord } from '../lib/database';
 import { formatEnglishGivenName, formatEnglishSurname } from '../utils/nameFormatter';
 import SimpleStationBedSelector from './SimpleStationBedSelector';
 import OCRIDCardBlock from './OCRIDCardBlock';
-import PatientContactsTab from './PatientContactsTab';
+import PatientContactsSection from './PatientContactsSection';
+import PatientSocialStatusSection from './PatientSocialStatusSection';
+import PatientMedicalHistorySection from './PatientMedicalHistorySection';
+import PatientMedicalServicesSection from './PatientMedicalServicesSection';
+import { useAuth } from '../context/AuthContext';
+import PatientNursingAssessmentSection from './PatientNursingAssessmentSection';
 
 interface PatientModalProps {
   patient?: any;
@@ -12,8 +18,18 @@ interface PatientModalProps {
 }
 
 const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
-  const { addPatient, updatePatient, stations, beds, patients } = usePatients();
-  const [activeTab, setActiveTab] = useState<'basic' | 'contacts'>('basic');
+  const { addPatient, updatePatient, stations, beds, patients, vaccinationRecords: allVaccinationRecords, addVaccinationRecord, updateVaccinationRecord, deleteVaccinationRecord } = usePatients();
+  const [activeSubTab, setActiveSubTab] = useState<'basic' | 'contacts' | 'social' | 'medical' | 'services'>('basic');
+  const [activeMainTab, setActiveMainTab] = useState<'personal' | 'nursing'>('personal');
+  const { userProfile, user } = useAuth();
+  const currentUserName = userProfile?.name_zh || user?.user_metadata?.display_name || user?.email || '';
+  const currentUserRank =
+    userProfile?.nursing_position ||
+    userProfile?.allied_health_position ||
+    userProfile?.hygiene_position ||
+    userProfile?.other_position ||
+    userProfile?.department ||
+    '';
 
   // 獲取當天日期作為預設入住日期
   const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -31,7 +47,6 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     身份證號碼: patient?.身份證號碼 || '',
     藥物敏感: patient?.藥物敏感 || [],
     不良藥物反應: patient?.不良藥物反應 || [],
-    感染控制: patient?.感染控制 || [],
     出生日期: patient?.出生日期 || '',
     院友相片: patient?.院友相片 || '',
     入住日期: patient?.入住日期 || getTodayDate(), // 新增時預設為當天
@@ -43,12 +58,26 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     discharge_reason: patient?.discharge_reason || '',
     death_date: patient?.death_date || '',
     transfer_facility_name: patient?.transfer_facility_name || '',
+    // 院友個人及健康記錄擴充欄位
+    通訊電話: patient?.通訊電話 || '',
+    通訊地址: patient?.通訊地址 || '',
+    教育程度: patient?.教育程度 || '',
+    從前主要職業: patient?.從前主要職業 || '',
+    宗教信仰: patient?.宗教信仰 || '',
+    婚姻狀況: patient?.婚姻狀況 || '',
+    首次記錄職員姓名: patient?.首次記錄職員姓名 || '',
+    首次記錄職級: patient?.首次記錄職級 || '',
+    首次記錄簽署: patient?.首次記錄簽署 || '',
+    首次記錄日期: patient?.首次記錄日期 || '',
+    social_status_json: patient?.social_status_json || {},
+    medical_history_json: patient?.medical_history_json || {},
+    medical_services_json: patient?.medical_services_json || {},
+    nursing_assessment_json: patient?.nursing_assessment_json || {},
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(patient?.院友相片 || null);
   const [isUploading, setIsUploading] = useState(false);
   const [newAllergy, setNewAllergy] = useState('');
   const [newAdverseReaction, setNewAdverseReaction] = useState('');
-  const [newInfectionControl, setNewInfectionControl] = useState('');
   const [socialWelfareType, setSocialWelfareType] = useState(
     patient?.社會福利?.type === '公務員' ? '' : patient?.社會福利?.type || ''
   );
@@ -58,7 +87,33 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [dischargeDate, setDischargeDate] = useState('');
   const [ocrError, setOcrError] = useState<string>('');
+  const [vaccinationRecords, setVaccinationRecords] = useState<VaccinationRecord[]>([]);
+  const [initialVaccinationRecordIds, setInitialVaccinationRecordIds] = useState<Set<string>>(new Set());
+  const [pendingContacts, setPendingContacts] = useState<PatientContact[]>([]);
 
+  useEffect(() => {
+    if (patient?.院友id) {
+      const records = allVaccinationRecords.filter(r => r.patient_id === patient.院友id);
+      setVaccinationRecords(records);
+      setInitialVaccinationRecordIds(new Set(records.map(r => r.id)));
+    } else {
+      setVaccinationRecords([]);
+      setInitialVaccinationRecordIds(new Set());
+    }
+  }, [patient?.院友id, allVaccinationRecords]);
+
+  // 自動帶入現時登入者資料（若首次記錄職員姓名/職級為空）
+  useEffect(() => {
+    if (!currentUserName && !currentUserRank) return;
+    setFormData((prev) => {
+      if (prev.首次記錄職員姓名 && prev.首次記錄職級) return prev;
+      return {
+        ...prev,
+        首次記錄職員姓名: prev.首次記錄職員姓名 || currentUserName || '',
+        首次記錄職級: prev.首次記錄職級 || currentUserRank || '',
+      };
+    });
+  }, [currentUserName, currentUserRank]);
 
   const handleOCRComplete = (extractedData: any) => {
     setOcrError('');
@@ -222,23 +277,6 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     setFormData(prev => ({
       ...prev,
       不良藥物反應: prev.不良藥物反應.filter((_, i) => i !== index)
-    }));
-  };
-
-  const addInfectionControl = () => {
-    if (newInfectionControl.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        感染控制: [...prev.感染控制, newInfectionControl.trim()]
-      }));
-      setNewInfectionControl('');
-    }
-  };
-
-  const removeInfectionControl = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      感染控制: prev.感染控制.filter((_, i) => i !== index)
     }));
   };
 
@@ -508,13 +546,73 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
     };
 
     try {
+      const patientIdToUse = patient?.院友id;
+
       if (patient) {
         await updatePatient({
           院友id: patient.院友id,
           ...sanitizedFormData
         });
       } else {
-        await addPatient(sanitizedFormData);
+        const newPatient = await addPatient(sanitizedFormData);
+        const newPatientId = newPatient.院友id;
+
+        // 新增院友時同時寫入疫苗記錄
+        for (const record of vaccinationRecords) {
+          if (record.vaccination_date.trim() && record.vaccine_item.trim() && record.vaccination_unit.trim()) {
+            await addVaccinationRecord({
+              patient_id: newPatientId,
+              vaccination_date: record.vaccination_date,
+              vaccine_item: record.vaccine_item.trim(),
+              vaccination_unit: record.vaccination_unit.trim(),
+              remarks: record.remarks || '',
+            });
+          }
+        }
+
+        // 新增院友時同時寫入待新增聯絡人
+        for (const contact of pendingContacts) {
+          if (contact.聯絡人姓名.trim()) {
+            await createPatientContact({
+              院友id: newPatientId,
+              聯絡人姓名: contact.聯絡人姓名.trim(),
+              身份證號碼: contact.身份證號碼 || '',
+              關係: contact.關係 || '',
+              聯絡電話: contact.聯絡電話 || '',
+              電郵: contact.電郵 || '',
+              地址: contact.地址 || '',
+              備註: contact.備註 || '',
+              is_primary: contact.is_primary,
+            });
+          }
+        }
+      }
+
+      // 編輯模式：同步疫苗記錄
+      if (patient && patientIdToUse) {
+        const currentRecordIds = new Set(vaccinationRecords.map(r => r.id).filter(Boolean));
+        const recordsToDelete = Array.from(initialVaccinationRecordIds).filter(id => !currentRecordIds.has(id));
+
+        for (const recordId of recordsToDelete) {
+          await deleteVaccinationRecord(recordId);
+        }
+
+        for (const record of vaccinationRecords) {
+          if (!record.vaccination_date.trim() || !record.vaccine_item.trim() || !record.vaccination_unit.trim()) {
+            continue;
+          }
+          if (record.id && initialVaccinationRecordIds.has(record.id)) {
+            await updateVaccinationRecord(record);
+          } else {
+            await addVaccinationRecord({
+              patient_id: patientIdToUse,
+              vaccination_date: record.vaccination_date,
+              vaccine_item: record.vaccine_item.trim(),
+              vaccination_unit: record.vaccination_unit.trim(),
+              remarks: record.remarks || '',
+            });
+          }
+        }
       }
 
       onClose();
@@ -540,36 +638,63 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
             </button>
           </div>
           
-          {/* 標籤頁 */}
-          {patient && (
-            <div className="flex space-x-1 border-b border-gray-200">
-              <button
-                onClick={() => setActiveTab('basic')}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'basic'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                基本資料
-              </button>
-              <button
-                onClick={() => setActiveTab('contacts')}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'contacts'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                聯絡人
-              </button>
+          {/* 一級標籤頁 */}
+          <div className="flex space-x-1 border-b border-gray-200 mb-2">
+            <button
+              type="button"
+              onClick={() => setActiveMainTab('personal')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeMainTab === 'personal'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-blue-600'
+              }`}
+            >
+              個人及健康記錄
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveMainTab('nursing')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeMainTab === 'nursing'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-blue-600'
+              }`}
+            >
+              護理評估記錄
+            </button>
+          </div>
+          {/* 二級子標籤頁（僅在個人及健康記錄下顯示） */}
+          {activeMainTab === 'personal' && (
+            <div className="flex flex-wrap gap-1">
+              {[
+                { key: 'basic', label: '基本資料' },
+                { key: 'contacts', label: '聯絡人' },
+                { key: 'social', label: '社交狀況' },
+                { key: 'medical', label: '病歷' },
+                { key: 'services', label: '醫療與簽署' },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveSubTab(tab.key as any)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    activeSubTab === tab.key
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
           )}
         </div>
 
-        {/* 標籤頁內容 */}
-        {activeTab === 'basic' ? (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {activeMainTab === 'personal' && (
+            <>
+              {activeSubTab === 'basic' && (
+          <div className="space-y-4">
           {/* OCR 身份證識別區塊 */}
           <OCRIDCardBlock
             onOCRComplete={handleOCRComplete}
@@ -1066,134 +1191,82 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
             </div>
           </div>
 
-          <div>
-            <label className="form-label">藥物敏感</label>
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-2">
-                <input
-                  type="text"
-                  value={newAllergy}
-                  onChange={(e) => setNewAllergy(e.target.value)}
-                  className="form-input flex-1"
-                  placeholder="輸入藥物敏感項目"
-                  onKeyPress={(e) => e.key === 'Enter' && addAllergy()}
-                />
-                <button
-                  type="button"
-                  onClick={addAllergy}
-                  className="btn-secondary"
-                >
-                  新增
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {formData.藥物敏感.map((allergy, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-orange-100 text-orange-800"
-                  >
-                    {allergy}
-                    <button
-                      type="button"
-                      onClick={() => removeAllergy(index)}
-                      className="ml-2 text-orange-600 hover:text-orange-800"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-                {formData.藥物敏感.length === 0 && (
-                  <span className="text-sm text-gray-500">無藥物敏感</span>
-                )}
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label">通訊電話</label>
+              <input
+                type="tel"
+                name="通訊電話"
+                value={formData.通訊電話}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="輸入通訊電話"
+              />
+            </div>
+            <div>
+              <label className="form-label">通訊地址</label>
+              <textarea
+                name="通訊地址"
+                value={formData.通訊地址}
+                onChange={handleChange}
+                className="form-input"
+                rows={2}
+                placeholder="輸入通訊地址"
+              />
             </div>
           </div>
+          </div>
+          )}
 
-          <div>
-            <label className="form-label">不良藥物反應</label>
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-2">
-                <input
-                  type="text"
-                  value={newAdverseReaction}
-                  onChange={(e) => setNewAdverseReaction(e.target.value)}
-                  className="form-input flex-1"
-                  placeholder="輸入不良藥物反應項目"
-                  onKeyPress={(e) => e.key === 'Enter' && addAdverseReaction()}
-                />
-                <button
-                  type="button"
-                  onClick={addAdverseReaction}
-                  className="btn-secondary"
-                >
-                  新增
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {formData.不良藥物反應.map((reaction, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-red-100 text-red-800"
-                  >
-                    {reaction}
-                    <button
-                      type="button"
-                      onClick={() => removeAdverseReaction(index)}
-                      className="ml-2 text-red-600 hover:text-red-800"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-                {formData.不良藥物反應.length === 0 && (
-                  <span className="text-sm text-gray-500">無不良藥物反應</span>
-                )}
-              </div>
-            </div>
-          </div>
+          {activeSubTab === 'contacts' && (
+            <PatientContactsSection
+              patientId={patient?.院友id}
+              pendingContacts={pendingContacts}
+              onPendingContactsChange={setPendingContacts}
+            />
+          )}
 
-          <div>
-            <label className="form-label">感染控制</label>
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-2">
-                <input
-                  type="text"
-                  value={newInfectionControl}
-                  onChange={(e) => setNewInfectionControl(e.target.value)}
-                  className="form-input flex-1"
-                  placeholder="輸入感染控制項目"
-                  onKeyPress={(e) => e.key === 'Enter' && addInfectionControl()}
-                />
-                <button
-                  type="button"
-                  onClick={addInfectionControl}
-                  className="btn-secondary"
-                >
-                  新增
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {formData.感染控制.map((control, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800"
-                  >
-                    {control}
-                    <button
-                      type="button"
-                      onClick={() => removeInfectionControl(index)}
-                      className="ml-2 text-purple-600 hover:text-purple-800"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-                {formData.感染控制.length === 0 && (
-                  <span className="text-sm text-gray-500">無感染控制項目</span>
-                )}
-              </div>
-            </div>
-          </div>
+          {activeSubTab === 'social' && (
+            <PatientSocialStatusSection formData={formData} setFormData={setFormData} />
+          )}
+
+          {activeSubTab === 'medical' && (
+            <PatientMedicalHistorySection
+              formData={formData}
+              setFormData={setFormData}
+              newAllergy={newAllergy}
+              setNewAllergy={setNewAllergy}
+              addAllergy={addAllergy}
+              removeAllergy={removeAllergy}
+              newAdverseReaction={newAdverseReaction}
+              setNewAdverseReaction={setNewAdverseReaction}
+              addAdverseReaction={addAdverseReaction}
+              removeAdverseReaction={removeAdverseReaction}
+            />
+          )}
+
+          {activeSubTab === 'services' && (
+            <PatientMedicalServicesSection
+              formData={formData}
+              setFormData={setFormData}
+              patientId={patient?.院友id}
+              vaccinationRecords={vaccinationRecords}
+              onVaccinationRecordsChange={setVaccinationRecords}
+            />
+          )}
+          </>
+          )}
+
+          {activeMainTab === 'nursing' && (
+            <PatientNursingAssessmentSection
+              value={formData.nursing_assessment_json}
+              onChange={(nursing_assessment_json) =>
+                setFormData((prev) => ({ ...prev, nursing_assessment_json }))
+              }
+              currentUserName={currentUserName}
+              currentUserRank={currentUserRank}
+            />
+          )}
 
           <div className="flex flex-col sm:flex-row gap-2 pt-4">
             <button
@@ -1211,11 +1284,6 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
             </button>
           </div>
         </form>
-        ) : (
-          <div className="p-6">
-            <PatientContactsTab patientId={patient?.院友id} />
-          </div>
-        )}
 
         {/* 退住確認模態框 */}
         {showDischargeModal && (

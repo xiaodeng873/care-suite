@@ -5,6 +5,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import MonthlyReportTable from '../components/MonthlyReportTable';
 import PatientListModal from '../components/PatientListModal';
 import { formatFrequencyDescription } from '../utils/taskScheduler';
+import { getInfectionTypeColors } from '../utils/infectionTypeColors';
 import { supabase } from '../lib/supabase';
 import type { PatientCareTab } from '../lib/database';
 
@@ -50,7 +51,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, bgColor, textColor, s
 };
 
 const Reports: React.FC = () => {
-  const { allPatients: patients, stations, healthAssessments, incidentReports, patientHealthTasks, patientRestraintAssessments, prescriptions, healthRecords, mealGuidances, hospitalEpisodes, diagnosisRecords, patientTubeCareRecords, patientsWithWounds, loading } = usePatients();
+  const { allPatients: patients, stations, healthAssessments, incidentReports, patientHealthTasks, patientRestraintAssessments, prescriptions, healthRecords, mealGuidances, hospitalEpisodes, diagnosisRecords, patientTubeCareRecords, patientsWithWounds, infectionControlRecords, loading } = usePatients();
   const [activeTab, setActiveTab] = useState<ReportTab>('daily');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('today');
   const [stationFilter, setStationFilter] = useState<StationFilter>('all');
@@ -368,7 +369,7 @@ const Reports: React.FC = () => {
     });
 
     const infectionControlPatients = activePatients.filter(p =>
-      p.感染控制 && p.感染控制.length > 0
+      infectionControlRecords.some(r => r.patient_id === p.院友id && !r.recovery_date)
     );
 
     const restraintPatientIds = new Set((patientRestraintAssessments || []).map(r => r.patient_id));
@@ -445,7 +446,7 @@ const Reports: React.FC = () => {
         療養級女: { count: convalescent女Patients.length, names: convalescent女Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
       },
     };
-  }, [filteredPatients, timeFilter, healthAssessments, patientsWithWounds, incidentReports, patientRestraintAssessments, hasHealthTask, hasTubeCare, hospitalEpisodes, today, yesterday, thisMonthStart, thisMonthEnd, lastMonthStart, lastMonthEnd, patients]);
+  }, [filteredPatients, timeFilter, healthAssessments, patientsWithWounds, incidentReports, patientRestraintAssessments, hasHealthTask, hasTubeCare, hospitalEpisodes, infectionControlRecords, today, yesterday, thisMonthStart, thisMonthEnd, lastMonthStart, lastMonthEnd, patients]);
 
 
   if (loading) {
@@ -902,7 +903,7 @@ const Reports: React.FC = () => {
         哽塞: hasChoking ? 1 : 0,
         脫水: hasDehydration ? 1 : 0,
         轉身: hasCareTab(patient.院友id, 'position') ? 1 : 0,
-        傳染病: (patient.感染控制 && patient.感染控制.length > 0) ? 1 : 0,
+        傳染病: infectionControlRecords.some(r => r.patient_id === patient.院友id && !r.recovery_date) ? 1 : 0,
         尿道炎: 0,
       };
     });
@@ -945,16 +946,22 @@ const Reports: React.FC = () => {
 
   const renderInfectionReport = () => {
     const activePatients = filteredPatients.filter(p => p.在住狀態 === '在住');
-    const infectionPatients = activePatients.filter(p => p.感染控制 && Array.isArray(p.感染控制) && p.感染控制.length > 0);
+    const activeInfections = infectionControlRecords.filter(r => !r.recovery_date);
+    const infectionPatients = activePatients.filter(p =>
+      activeInfections.some(r => r.patient_id === p.院友id)
+    );
 
-    const infectionStats = {
-      MRSA: infectionPatients.filter(p => p.感染控制.includes('MRSA')),
-      CPE: infectionPatients.filter(p => p.感染控制.includes('CPE')),
-      VRE: infectionPatients.filter(p => p.感染控制.includes('VRE')),
-      其他: infectionPatients.filter(p =>
-        p.感染控制.some((item: string) => !['MRSA', 'CPE', 'VRE'].includes(item))
+    // 按感染性質動態分組，僅為實際存在的性質生成卡片
+    const infectionTypes = Array.from(
+      new Set(activeInfections.map(r => r.infection_type || '未分類'))
+    ).sort();
+
+    const infectionStats = infectionTypes.map(type => ({
+      type,
+      patients: activePatients.filter(p =>
+        activeInfections.some(r => r.patient_id === p.院友id && (r.infection_type || '未分類') === type)
       ),
-    };
+    }));
 
     return (
       <div className="space-y-6">
@@ -973,36 +980,25 @@ const Reports: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">感染控制統計</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <StatCard
-              title="MRSA"
-              value={infectionStats.MRSA.length}
-              bgColor="bg-red-50"
-              textColor="text-red-600"
-              patientNames={infectionStats.MRSA.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`)}
-            />
-            <StatCard
-              title="CPE"
-              value={infectionStats.CPE.length}
-              bgColor="bg-orange-50"
-              textColor="text-orange-600"
-              patientNames={infectionStats.CPE.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`)}
-            />
-            <StatCard
-              title="VRE"
-              value={infectionStats.VRE.length}
-              bgColor="bg-yellow-50"
-              textColor="text-yellow-600"
-              patientNames={infectionStats.VRE.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`)}
-            />
-            <StatCard
-              title="其他"
-              value={infectionStats.其他.length}
-              bgColor="bg-blue-50"
-              textColor="text-blue-600"
-              patientNames={infectionStats.其他.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`)}
-            />
-          </div>
+          {infectionStats.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">暫無感染控制記錄</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {infectionStats.map(({ type, patients }) => {
+                const colors = getInfectionTypeColors(type);
+                return (
+                  <StatCard
+                    key={type}
+                    title={type}
+                    value={patients.length}
+                    bgColor={colors.bgColor}
+                    textColor={colors.textColor}
+                    patientNames={patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`)}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -1011,23 +1007,28 @@ const Reports: React.FC = () => {
             {infectionPatients.length === 0 ? (
               <p className="text-gray-500 text-center py-8">暫無感染控制記錄</p>
             ) : (
-              infectionPatients.map(patient => (
-                <div key={patient.院友id} className="border border-red-200 rounded-lg p-4 bg-red-50">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-semibold text-lg text-red-800">{patient.床號} {patient.中文姓氏}{patient.中文名字}</h4>
-                      <p className="text-sm text-gray-700 mt-1">性別: {patient.性別} | 護理等級: {patient.護理等級 || '未設定'}</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {Array.isArray(patient.感染控制) && patient.感染控制.map((infection: string, idx: number) => (
-                          <span key={idx} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                            {infection}
-                          </span>
-                        ))}
+              infectionPatients.map(patient => {
+                const patientActiveInfections = infectionControlRecords.filter(
+                  r => r.patient_id === patient.院友id && !r.recovery_date
+                );
+                return (
+                  <div key={patient.院友id} className="border border-red-200 rounded-lg p-4 bg-red-50">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-semibold text-lg text-red-800">{patient.床號} {patient.中文姓氏}{patient.中文名字}</h4>
+                        <p className="text-sm text-gray-700 mt-1">性別: {patient.性別} | 護理等級: {patient.護理等級 || '未設定'}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {patientActiveInfections.map((infection) => (
+                            <span key={infection.id} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                              {infection.infection_type}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

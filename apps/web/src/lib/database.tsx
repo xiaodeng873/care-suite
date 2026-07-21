@@ -34,6 +34,22 @@ export interface Patient {
   transfer_facility_name?: string;
   needs_medication_crushing?: boolean;
   qr_code_id?: string; // 院友專屬二維碼 ID
+  // 院友個人及健康記錄（P1/P2）擴充欄位
+  通訊電話?: string;
+  通訊地址?: string;
+  教育程度?: string;
+  從前主要職業?: string;
+  宗教信仰?: string;
+  婚姻狀況?: string;
+  首次記錄職員姓名?: string;
+  首次記錄職級?: string;
+  首次記錄簽署?: string;
+  首次記錄日期?: string;
+  social_status_json?: Record<string, any>;
+  medical_history_json?: Record<string, any>;
+  vaccination_records_json?: Record<string, any>;
+  medical_services_json?: Record<string, any>;
+  nursing_assessment_json?: Record<string, any>;
 }
 export interface Station {
   id: string;
@@ -552,6 +568,16 @@ export interface VaccinationRecord {
   updated_at: string;
   created_by?: string;
 }
+export interface InfectionControlRecord {
+  id: string;
+  patient_id: number;
+  infection_type: string;
+  diagnosis_date: string;
+  recovery_date?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
 export interface PatrolRound {
   id: string;
   bed_id?: string;           // 床位 ID（巡房以床位為主；空床時 patient_id 為 null）
@@ -838,6 +864,7 @@ export interface PatientContact {
   id: string;
   院友id: number;
   聯絡人姓名: string;
+  身份證號碼?: string;
   關係?: string;
   聯絡電話?: string;
   電郵?: string;
@@ -2770,6 +2797,26 @@ export const updateVaccinationRecord = async (record: VaccinationRecord): Promis
 };
 export const deleteVaccinationRecord = async (recordId: string): Promise<void> => {
   const { error } = await supabase.from('vaccination_records').delete().eq('id', recordId);
+  if (error) throw error;
+};
+export const getInfectionControlRecords = async (): Promise<InfectionControlRecord[]> => {
+  const { data, error } = await supabase.from('infection_control_records').select('*').order('diagnosis_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+export const createInfectionControlRecord = async (record: Omit<InfectionControlRecord, 'id' | 'created_at' | 'updated_at'>): Promise<InfectionControlRecord> => {
+  const { data, error } = await supabase.from('infection_control_records').insert([record]).select().single();
+  if (error) throw error;
+  return data;
+};
+export const updateInfectionControlRecord = async (record: InfectionControlRecord): Promise<InfectionControlRecord> => {
+  const { id, created_at, updated_at, ...updateData } = record;
+  const { data, error } = await supabase.from('infection_control_records').update(updateData).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+export const deleteInfectionControlRecord = async (recordId: string): Promise<void> => {
+  const { error } = await supabase.from('infection_control_records').delete().eq('id', recordId);
   if (error) throw error;
 };
 export const getPatientNotes = async (options?: { incompleteOnly?: boolean; daysBack?: number }): Promise<PatientNote[]> => {
