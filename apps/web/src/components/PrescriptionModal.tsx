@@ -488,7 +488,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         preparation_method: formData.preparation_method,
         status: formData.status,
         notes: formData.notes,
-        is_long_term: prescription && prescription.id ? (prescription.is_long_term ?? !formData.end_date) : !formData.end_date,
+        is_long_term: prescription && prescription.id ? (prescription.is_long_term ?? !prescription.end_date) : !formData.end_date,
         inspection_rules: inspectionRules.filter(rule =>
           rule.vital_sign_type && rule.condition_operator && rule.condition_value
         )

@@ -15,6 +15,7 @@ import {
   type FacilitySettings,
 } from './facilitySettings';
 import { isPrescriptionScheduledOnDate } from './prescriptionSchedule';
+import { isPrescriptionExpired, isPrescriptionAboutToExpire } from './prescriptionExpiry';
 
 // 渲染為同步流程，故於各匯出入口（async）先取得院舍設定後存於模組層，供 renderHeaderRegion 讀取。
 let activeFacility: FacilitySettings = DEFAULT_FACILITY_SETTINGS;
@@ -626,8 +627,15 @@ const renderPrescriptionBlock = (
     + `<div>處方日期：${escapeHtml(formatDate(prescription.prescription_date))}</div>`;
   const inspectionRequirement = formatInspectionRequirement(prescription);
   const mealTimingLabel = getMealTimingLabel(prescription);
-  const nameInfo = `<div class="mr-med-name">${escapeHtml(prescription.medication_name ?? '')}</div>`
-    + (prescription.end_date ? `<div class="mr-med-short">短期藥物</div>` : '')
+  const termLabel = (() => {
+    if (prescription.is_long_term === false) return '短期藥物';
+    if (prescription.status === 'active' && prescription.end_date && prescription.is_long_term !== false) {
+      return isPrescriptionExpired(prescription) ? '已逾期' : `即將停用處方`;
+    }
+    if (prescription.status === 'inactive') return '停用處方';
+    return '';
+  })();
+  const nameInfo = `<div class="mr-med-name">${escapeHtml(prescription.medication_name ?? '')}${termLabel ? `<span class="mr-med-short">${termLabel}</span>` : ''}</div>`
     + (prescription.dosage_form ? `<div class="mr-med-form">${escapeHtml(String(prescription.dosage_form))}</div>` : '')
     + (inspectionRequirement ? `<div class="mr-med-test">${escapeHtml(inspectionRequirement)}</div>` : '')
     + (prescription.medication_source ? `<div class="mr-med-source">來源：${escapeHtml(String(prescription.medication_source))}</div>` : '')

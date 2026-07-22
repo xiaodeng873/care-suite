@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* 範本的 body{margin:0} 已被隔離到容器 class，外層 body 必須自行歸零，
+     否則瀏覽器預設 8px margin 會改變每份文件的版面位置並可能導致超頁 */
+  html, body { margin: 0; padding: 0; }
+  [class*="print-doc-"] + [class*="print-doc-"] { page-break-before: always; break-before: page; }
+</style>
+<style>
+        @page print-doc-0 {
+            size: A4;
+            margin: 10mm 15mm 15mm 15mm;
+        }
+        .print-doc-0{
+            font-family: "MingLiU", "PMingLiU", "Microsoft JhengHei", serif;
+            font-size: 14px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 0;
+            color: #000;
+        }
+
+        /* 跨頁標頭底部核心結構 */
+        .print-doc-0 .print-wrapper{
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .print-doc-0 .page-header{ display: table-header-group; }
+        .print-doc-0 .page-footer{ display: table-footer-group; }
+
+        .print-doc-0 .header-content{
+            display: flex;
+            justify-content: space-between;
+            padding-bottom: 10px;
+            font-size: 13px;
+        }
+        .print-doc-0 .footer-content{
+            text-align: center;
+            padding-top: 10px;
+            font-size: 12px;
+        }
+
+        /* 內容區塊保護 */
+        .print-doc-0 .section-block{
+            page-break-inside: avoid;
+            break-inside: avoid;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        /* 標題與名稱 */
+        .print-doc-0 .care-home-title{
+            text-align: center;
+            margin: 5px 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+        .print-doc-0 .title-area{ text-align: center; margin-bottom: 10px; }
+        .print-doc-0 .title-main{ font-size: 19px; font-weight: bold; }
+
+        /* 有框線表格 */
+        .print-doc-0 .bordered-table{
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+        }
+        .print-doc-0 .bordered-table th,.print-doc-0 .bordered-table td{
+            border: 1px solid black;
+            padding: 4px;
+        }
+        .print-doc-0 .bordered-table th{ text-align: center; }
+
+        /* 隱形佈局表格 */
+        .print-doc-0 table.layout-table{
+            width: 100%;在院友列表的新增院友旁邊, 加入一鍵iframe的列印按鈕"列印", 按下先彈出列印清單model, 選院友, checbox勾選文件, 文件分兩tab, 一是"入住文件", 二是"常用表格", 組合起來一次性列印指定院友已經mapping好的綜合文件, 入住文件按以下順序列出: 
+            1. 院友個人及健康記錄(有html generator)(預設勾選)
+            2. 院友護理評估記錄 (有html generator)(預設勾選)
+            3. 生命表徵觀察記錄表 (有html generator)(預設勾選)
+            4. 院友健康評估及記錄 (有html generator)(預設勾選)
+            5. 使用急症室留院記錄 (有html generator)(預設勾選)
+            6. 院友覆診記錄表 有html generator)(預設勾選)
+            7. 個人意外事件記錄表 (有html generator, 右上角加logo, 與大標題平頭)(預設勾選)
+            8. 院友健康教育  活動記錄表  (預設勾選)
+            9. 醫生診治記錄 (doc_html內, 右上角加logo, 與大標題平頭) (預設勾選)
+            10. 新院友入住導向計劃紀錄 (doc_html內) (預設勾選)
+            11. 發佈資料同意書 (doc_html內) (預設勾選)
+            12. 院友外出同意書 (doc_html內) (預設勾選)
+            13. 私人物品記錄表 (doc_html內) (預設勾選)
+            14. 託管院友財物授權書P1 (doc_html內) (預設勾選)
+            15. 託管院友財物授權書P2 (doc_html內) (預設勾選)
+            16. 領回託管財物證明書 (doc_html內) (預設勾選)
+            常用表格按以下順序:
+            1. 院友服用藥物一覽表（短期藥） (有html generator)
+            2. 院友服用藥物一覽表（長期藥） (有html generator)
+            3. 院友體溫記錄
+            4. 院友體重記錄
+            5. 院友血糖記錄
+            6. 護理及治療記錄
+            7. 傷口評估記錄表
+            8. 使用約束物品紀錄
+            9. 使用約束措施的評估及同意書
+            10. 要求院舍派發成藥確認書
+            11. 自行存放及使用藥物同意書
+            
+            所有文件的大標題的院舍名院是按院舍設定中的中文名稱, 不再有硬碼
+            border-collapse: collapse;
+            border: none;
+        }
+        .print-doc-0 table.layout-table td{ border: none; padding: 1px 0; vertical-align: bottom; }
+
+        /* 輸入框樣式 */
+        .print-doc-0 input[type="text"],.print-doc-0 textarea{
+            border: none;
+            border-bottom: 0.5px solid black;
+            width: 100%;
+            background: transparent;
+            font-family: inherit;
+            font-size: inherit;
+            resize: none;
+            outline: none;
+            padding: 0;
+            display: block;
+        }
+        .print-doc-0 .bordered-table textarea,.print-doc-0 .bordered-table input{ border-bottom: none !important; }
+
+        .print-doc-0 input[type="checkbox"]{ margin: 0 2px 0 5px; vertical-align: middle; }
+
+        .print-doc-0 .adaptive-line{ display: flex; align-items: flex-end; width: 100%; }
+        .print-doc-0 .adaptive-line span{ white-space: nowrap; }
+        .print-doc-0 .adaptive-line input{ flex: 1; margin-left: 5px; }
+    </style>
+<style>.print-doc-0 { page: print-doc-0; }</style>
+</head>
+<body>
+<div class="print-doc-0"><table class="print-wrapper">
+    <thead class="page-header">
+        <tr>
+            <td>
+                <div class="header-content">
+                    <span>《安老院實務守則》2024 年 6 月（修訂版）</span>
+                    <span>附件 12.3</span>
+                </div>
+            </td>
+        </tr>
+    </thead>
+
+    <tbody>
+        <tr>
+            <td>
+                <div class="care-home-title">
+                    <span></span>
+                    <input type="text" style="width: 250px; text-align: center;" placeholder="">
+                    <span>(安老院名稱）</span>
+                </div>
+
+                <div class="title-area">
+                    <div class="title-main">自行存放及使用藥物同意書</div>
+                </div>
+
+                <div class="section-block">
+                    <table class="bordered-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 20%;">住客姓名</th>
+                                <th style="width: 20%;">性別／年齡</th>
+                                <th style="width: 35%;">身份證號碼</th>
+                                <th style="width: 25%;">房及／或床號</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="height: 25px;"><textarea rows="1"></textarea></td>
+                                <td><textarea rows="1"></textarea></td>
+                                <td><textarea rows="1"></textarea></td>
+                                <td><textarea rows="1"></textarea></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="section-block">
+                    <strong>（一）要求自行存放及使用的藥物的資料</strong>
+                    <table class="bordered-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">藥物名稱</th>
+                                <th style="width: 20%;">藥物來源</th>
+                                <th style="width: 30%;">用藥目的</th>
+                                <th style="width: 25%;">使用方法</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="height: 16px;"><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+                            <tr style="height: 16px;"><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+                            <tr style="height: 16px;"><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- (二) 第二部分表格：修復底線樣式 -->
+                <div class="section-block">
+                    <strong>（二）住客及 *監護人／保證人／家人／親屬確認（*請刪去不適用者）</strong>
+                    <table class="bordered-table" style="text-align: left; margin-top: 5px;">
+                        <tr>
+                            <td colspan="3" style="padding: 8px; line-height: 1.8;">
+                                本人 <input type="text" style="display: inline-block; width: 180px; border-bottom: 0.5px solid black !important; vertical-align: bottom;"> （住客姓名）現要求自行存放及使用上述藥物，本人充分明白醫囑及會遵從醫囑準時及按劑量用藥，並會將藥物存放在安全和上鎖的櫃／盒內，避免讓其他住客誤取。
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 25%; height: 40px; vertical-align: top;">住客簽署</td>
+                            <td style="width: 50%; height: 40px; vertical-align: top;">
+                                見證 *<input type="checkbox">監護人／<input type="checkbox">保證人／<input type="checkbox">家人／<input type="checkbox">親屬姓名
+                            </td>
+                            <td style="width: 25%; height: 40px; vertical-align: top;">與住客關係</td>
+                        </tr>
+                        <tr>
+                            <td style="height: 40px; vertical-align: top;">日期</td>
+                            <td style="height: 40px; vertical-align: top;">
+                                見證 *<input type="checkbox">監護人／<input type="checkbox">保證人／<input type="checkbox">家人／<input type="checkbox">親屬簽署
+                            </td>
+                            <td style="height: 40px; vertical-align: top;">日期</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- (三) 安老院評估 -->
+                <div class="section-block">
+                    <strong>（三）安老院評估（請在適當格內加上「✓」號）</strong>
+                    <table class="bordered-table" style="text-align: left;">
+                        <thead>
+                            <tr>
+                                <th style="text-align: center;">評估</th>
+                                <th style="width: 40px; text-align: center;">是</th>
+                                <th style="width: 40px; text-align: center;">否</th>
+                                <th style="width: 180px; text-align: center;">備註</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>住客能夠充分明白醫囑</td><td style="text-align: center;"><input type="checkbox"></td><td style="text-align: center;"><input type="checkbox"></td><td><textarea rows="1"></textarea></td></tr>
+                            <tr><td>住客能夠遵從醫囑準時及按劑量用藥</td><td style="text-align: center;"><input type="checkbox"></td><td style="text-align: center;"><input type="checkbox"></td><td><textarea rows="1"></textarea></td></tr>
+                            <tr><td>住客能夠將藥物存放在安全和上鎖的櫃／盒內</td><td style="text-align: center;"><input type="checkbox"></td><td style="text-align: center;"><input type="checkbox"></td><td><textarea rows="1"></textarea></td></tr>
+                            <tr><td>鄰近的住客不會有機會誤取藥物</td><td style="text-align: center;"><input type="checkbox"></td><td style="text-align: center;"><input type="checkbox"></td><td><textarea rows="1"></textarea></td></tr>
+                            <tr><td>第（一）項所列的藥物適宜由住客自行存放及使用</td><td style="text-align: center;"><input type="checkbox"></td><td style="text-align: center;"><input type="checkbox"></td><td><textarea rows="1"></textarea></td></tr>
+                        </tbody>
+                    </table>
+
+                    <div style="margin: 10px 0;">
+                        經評估後，安老院 <input type="checkbox">同意／<input type="checkbox">不同意將第（一）項所列的藥物交由住客自行存放及使用。
+                    </div>
+
+                    <table class="layout-table" style="table-layout: fixed; margin-top: 10px;">
+                        <tr>
+                            <td style="padding-right: 20px;"><div class="adaptive-line"><span>*護士／保健員姓名</span><input type="text"></div></td>
+                            <td><div class="adaptive-line"><span>主管姓名</span><input type="text"></div></td>
+                        </tr>
+                        <tr style="height: 12px;"><td></td><td></td></tr>
+                        <tr>
+                            <td style="padding-right: 20px;"><div class="adaptive-line"><span>*護士／保健員簽署</span><input type="text"></div></td>
+                            <td><div class="adaptive-line"><span>主管簽署</span><input type="text"></div></td>
+                        </tr>
+                        <tr style="height: 12px;"><td></td><td></td></tr>
+                        <tr>
+                            <td style="padding-right: 20px;"><div class="adaptive-line"><span>評估日期</span><input type="text"></div></td>
+                            <td><div class="adaptive-line"><span>日期</span><input type="text"></div></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="section-block">
+                    <strong>（四）備註</strong>
+                    <div style="border: 1px solid black; padding: 8px; font-size: 13px; line-height: 1.5;">
+                        (1) 安老院須最少每 6 個月或因應下列任何一種情況而再作評估及更新／終止同意書：<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;(a) 鄰近的住客情況有轉變以致有機會誤取上述住客的藥物；<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;(b) 住客或監護人／保證人／家人／親屬提出不再讓住客自行存放及使用藥物；<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;(c) 住客的認知能力或處理藥物的能力轉差；或<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;(d) 第（一）項所列的藥物種類有變。<br>
+                        (2) 安老院應填寫有關藥物的交收紀錄，並由上述住客及監護人／保證人／家人／親屬簽名確認。
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+
+    <tfoot class="page-footer">
+        <tr>
+            <td>
+                <div class="footer-content">
+                    附件 12.3 - 1
+                </div>
+            </td>
+        </tr>
+    </tfoot>
+</table></div>
+</body>
+</html>

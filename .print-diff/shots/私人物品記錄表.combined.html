@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* 範本的 body{margin:0} 已被隔離到容器 class，外層 body 必須自行歸零，
+     否則瀏覽器預設 8px margin 會改變每份文件的版面位置並可能導致超頁 */
+  html, body { margin: 0; padding: 0; }
+  [class*="print-doc-"] + [class*="print-doc-"] { page-break-before: always; break-before: page; }
+</style>
+<style>
+        /* A4 紙張規格與出血位設定 */
+        @page print-doc-0 {
+            size: A4;
+            margin: 5mm 12mm; /* 頂部極窄 5mm，左右 12mm 出血位 */
+        }
+
+        .print-doc-0{
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.25;
+        }
+
+        .print-doc-0 .a4-container{
+            width: 100%; /* 依靠 @page margin 鎖定 186mm (210-12-12) */
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* 標題區域極致置頂 */
+        .print-doc-0 .title-section{
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .print-doc-0 .title-section h1{
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .print-doc-0 .title-section h2{
+            margin: 2px 0 0 0;
+            font-size: 20px;
+            font-weight: bold;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        /* 專業隱形表格佈局 - 確保不穿透、不超頁 */
+        .print-doc-0 .info-layout-table{
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed; /* 強制鎖定欄寬 */
+            margin-bottom: 10px;
+        }
+        .print-doc-0 .info-layout-table td{
+            border: none;
+            padding: 2px 0;
+            vertical-align: bottom;
+            font-size: 15px;
+            font-weight: bold;
+            white-space: nowrap; /* 標籤不換行 */
+        }
+
+        .print-doc-0 .db-line-input{
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 16px;
+            padding: 0 5px;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* 主表格 - 嚴格保持 40px 高度 */
+        .print-doc-0 table.belongings-table{
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            border: 1.5px solid black;
+            margin-bottom: 12px;
+        }
+        .print-doc-0 table.belongings-table th,.print-doc-0 table.belongings-table td{
+            border: 1px solid black;
+            height: 40px;
+            padding: 0 8px;
+            vertical-align: middle;
+            font-size: 16px;
+        }
+        .print-doc-0 table.belongings-table th{
+            font-weight: bold;
+            text-align: center;
+        }
+        .print-doc-0 .col-item{ width: 45%; }
+        .print-doc-0 .col-qty{ width: 12%; }
+        .print-doc-0 .col-note{ width: 43%; }
+
+        .print-doc-0 .db-checkbox{
+            width: 15px;
+            height: 15px;
+            vertical-align: middle;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        .print-doc-0 .db-text-cell{
+            width: 100%;
+            height: 24px;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+            display: block;
+        }
+
+        .print-doc-0 .text-section{
+            font-size: 16px;
+            text-align: justify;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        .print-doc-0 .bold-label{ font-weight: bold; text-decoration: underline; }
+
+        /* 簽署區域 */
+        .print-doc-0 .sig-block{ margin-top: 5px; }
+        .print-doc-0 .sig-table{ width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .print-doc-0 .sig-table td{ border: none; padding: 4px 0; font-size: 16px; font-weight: bold; vertical-align: bottom; }
+
+        .print-doc-0 .footer-wrap{
+            width: 100%;
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            position: relative;
+        }
+        .print-doc-0 .page-center{
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .print-doc-0 .doc-code{
+            font-size: 11px;
+            font-weight: bold;
+        }
+    </style>
+<style>.print-doc-0 { page: print-doc-0; }</style>
+</head>
+<body>
+<div class="print-doc-0"><div class="a4-container">
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>私人物品記錄表</h2>
+    </div>
+
+    <div style="font-weight: bold; font-size: 15px; margin-bottom: 5px;">個人資料：</div>
+    <!-- 使用專業隱形表格解決穿透與寬度問題 -->
+    <table class="info-layout-table">
+        <colgroup>
+            <col style="width: 35%;">
+            <col style="width: 35%;">
+            <col style="width: 30%;">
+        </colgroup>
+        <tr>
+            <td>院友姓名 ：<div style="display:inline-block; width: 60%;"><input type="text" class="db-line-input"></div></td>
+            <td>身份證號碼 ：<div style="display:inline-block; width: 60%;"><input type="text" class="db-line-input"></div></td>
+            <td>房 / 床號 ：<div style="display:inline-block; width: 55%;"><input type="text" class="db-line-input"></div></td>
+        </tr>
+        <tr>
+            <td style="line-height: 1.1;">*監護人/保證人/<br>家人/親屬姓名 ：<div style="display:inline-block; width: 55%;"><input type="text" class="db-line-input"></div></td>
+            <td>身份證號碼 ：<div style="display:inline-block; width: 60%;"><input type="text" class="db-line-input"></div></td>
+            <td>與院友關係 ：<div style="display:inline-block; width: 55%;"><input type="text" class="db-line-input"></div></td>
+        </tr>
+    </table>
+
+    <br>
+    <table class="belongings-table">
+        <thead>
+            <tr>
+                <th class="col-item">物品</th>
+                <th class="col-qty">數量</th>
+                <th class="col-note">備註</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><input type="checkbox" class="db-checkbox">假牙</td>
+                <td><input type="text" class="db-text-cell" style="text-align: center;"></td>
+                <td><input type="text" class="db-text-cell"></td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" class="db-checkbox">助聽器</td>
+                <td><input type="text" class="db-text-cell" style="text-align: center;"></td>
+                <td><input type="text" class="db-text-cell"></td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" class="db-checkbox">眼鏡</td>
+                <td><input type="text" class="db-text-cell" style="text-align: center;"></td>
+                <td><input type="text" class="db-text-cell"></td>
+            </tr>
+            <script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+
+                for(let i=1; i<=4; i++){
+                    document.write(`
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="db-checkbox">其他 ${i}：(註明：<div style="display:inline-block; width:100px;"><input type="text" class="db-line-input" style="border-bottom-color: #ccc; font-size:14px;"></div>)
+                        </td>
+                        <td><input type="text" class="db-text-cell" style="text-align: center;"></td>
+                        <td><input type="text" class="db-text-cell"></td>
+                    </tr>
+                    `);
+                }
+            
+})();</script>
+        </tbody>
+    </table>
+
+    <div class="text-section">
+        <span class="bold-label">備註：</span><br>
+        (1) 上述物品屬院友自行存放之物品，院友須自行妥善保管，本院不會對上述物品的任何損失、損毀、丟棄或遺失賠償或負上責任。
+    </div>
+
+    <div class="text-section">
+        <span class="bold-label">聲明：</span><br>
+        *院友/監護人/保證人/家人/親屬確認已閱讀、明白及同意接受本記錄之條款及細則。
+    </div>
+    <div class="sig-block">
+        <table class="sig-table">
+            <tr>
+                <td width="50%">*監護人/保證人/家人/親屬簽署：</td>
+                <td width="50%">*監護人/保證人/家人/親屬姓名：</td>
+            </tr>
+        </table>
+<br>       
+ <table class="sig-table">
+            <tr>
+                <td width="50%"><div style="display:inline-block; width: 70%; border-bottom: 1px solid black;"></div></td>
+                <td width="50%"><div style="display:inline-block; width: 70%; border-bottom: 1px solid black;"><input type="text" class="db-text-cell"></div></td>
+            </tr>
+        </table>
+        <br><br>
+        <div class="sig-table" style="display: block;">
+            院友簽署：<div style="display:inline-block; width: 30%; border-bottom: 1px solid black;">&nbsp;</div>
+        </div>
+        <br><br>
+        <div class="sig-table" style="display: block;">
+            日期：<div style="display:inline-block; width: 25%; border-bottom: 1px solid black;"><input type="text" class="db-text-cell"></div>
+        </div>
+        <div style="font-weight: bold; font-size: 16px; margin: 15px 0 10px 0;">本院見證人</div>
+        <table class="sig-table">
+            <tr>
+                <td width="50%">姓名及職位：<div style="display:inline-block; width: 60%; border-bottom: 1px solid black;"><input type="text" class="db-text-cell"></div></td>
+                <td width="50%">簽署：<div style="display:inline-block; width: 60%; border-bottom: 1px solid black;">&nbsp;</div></td>
+            </tr>
+        </table>
+        <br>
+        <div class="sig-table" style="display: block;">
+            日期：<div style="display:inline-block; width: 25%; border-bottom: 1px solid black;"><input type="text" class="db-text-cell"></div>
+        </div>
+    </div>
+
+    <div style="font-size: 13px; margin-top: 10px;">* 請刪去不適用者</div>
+
+    <div class="footer-wrap">
+        <div class="page-center">18</div>
+        <div class="doc-code">A23A FK (08.2023)</div>
+    </div>
+</div></div>
+</body>
+</html>

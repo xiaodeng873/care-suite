@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* 範本的 body{margin:0} 已被隔離到容器 class，外層 body 必須自行歸零，
+     否則瀏覽器預設 8px margin 會改變每份文件的版面位置並可能導致超頁 */
+  html, body { margin: 0; padding: 0; }
+  [class*="print-doc-"] + [class*="print-doc-"] { page-break-before: always; break-before: page; }
+</style>
+<style>
+        @page print-doc-0 {
+            size: A4;
+            margin: 5mm 8mm;
+        }
+        .print-doc-0{
+            font-family: "標楷體", "DFKai-SB", "BiauKai", serif;
+            margin: 0;
+            padding: 0;
+            font-size: 13px;
+            line-height: 1; 
+        }
+        .print-doc-0 .container{ width: 100%; }
+        .print-doc-0 table{
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed; 
+        }
+
+        /* =========================================
+           【列高控制區】
+           調整 padding 的第一個數值 (px) 可直接改變所有列的高度
+           ========================================= */
+        .print-doc-0 th,.print-doc-0 td{
+            border: 1px solid black;
+            padding: 3px 2px; 
+            vertical-align: middle;
+            word-break: keep-all;
+            overflow: hidden;
+        }
+
+        /* 標題佈局 */
+        .print-doc-0 .header-top{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px; }
+        .print-doc-0 .left-boxes{ display: flex; flex-direction: column; width: 160px; }
+        .print-doc-0 .date-box,.print-doc-0 .location-box{
+            border: 1.5px solid black;
+            padding: 1px 5px;
+            font-size: 17px;
+            text-align: center;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2px;
+        }
+
+        /* 標題文字置中 */
+        .print-doc-0 .title-section{ text-align: center; flex-grow: 1; }
+        .print-doc-0 .title-section h1{ margin: 0; font-size: 24px; letter-spacing: 2px; }
+        .print-doc-0 .title-section h2{ margin: 2px 0; font-size: 20px; text-decoration: underline; }
+
+        /* 注意事項：外層置中，內層靠左以實現開首對齊 */
+        .print-doc-0 .instructions{ font-size: 11px; text-align: center; margin-bottom: 3px; line-height: 1.2; }
+        .print-doc-0 .instructions-inner{ display: inline-block; text-align: left; }
+
+        /* =========================================
+           【欄位寬度控制區】
+           您可以調整以下 width 的數值來分配橫向空間
+           已依要求將日期欄加寬並從備註欄扣除
+           ========================================= */
+        .print-doc-0 .col-id{ width: 32px;  text-align: center; } /* 編號欄 */
+        .print-doc-0 .col-item{ width: 338px; }                     /* 用品欄 */
+        .print-doc-0 .col-qty{ width: 38px;  text-align: center; } /* 數量欄 */
+        .print-doc-0 .col-date{ width: 65px;  text-align: center; } /* 檢查日期欄 (為容納標籤而加寬) */
+        .print-doc-0 .col-remark{ width: 40px; }                     /* 備註欄 (扣除空間) */
+
+        .print-doc-0 .bg-grey{ background-color: #e0e0e0; }
+        .print-doc-0 .category-row td{ font-weight: bold; font-size: 12px; padding: 2px 5px; }
+
+        .print-doc-0 textarea{
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: inherit;
+            resize: none;
+            overflow: hidden;
+            display: block;
+            padding: 0;
+            margin: 0;
+        }
+
+        .print-doc-0 .header-textarea{
+            border-bottom: 0.5px solid black !important;
+            margin-top: 2px;
+            text-align: center;
+        }
+
+        .print-doc-0 input[type="checkbox"]{
+            margin: 0 1px;
+            cursor: pointer;
+            transform: scale(0.9);
+            vertical-align: middle;
+        }
+
+        .print-doc-0 .airway-row{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            font-size: 10px; /* 標籤文字稍微縮小以確保不換行 */
+            white-space: nowrap;
+        }
+    </style>
+<style>.print-doc-0 { page: print-doc-0; }</style>
+</head>
+<body>
+<div class="print-doc-0"><div class="container">
+    <table class="print-wrapper">
+        <thead class="page-header">
+            <tr>
+                <td colspan="8" style="border:none; padding:0;">
+                    <div class="header-top">
+                        <div class="left-boxes">
+                            <div class="date-box">
+                                <textarea rows="1" style="text-align:center">      年      月</textarea>
+                            </div>
+                            <div class="location-box">
+                                <div style="white-space:nowrap;">位置：</div>
+                                <textarea rows="1"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="title-section">
+                            <h1>善頤(福群)護老院</h1>
+                            <h2>急救用品檢查紀錄</h2>
+                        </div>
+
+                        <div style="width: 160px;"></div>
+                    </div>
+                    
+                    <div class="instructions">
+                        <div class="instructions-inner">
+                            # 必須檢查所有電子儀器運作正常，如有任何問題請與主管聯絡。<br>
+                            * 檢查物品到期日，並將「到期日」寫在「用品」格內。<br>
+                            ^ 氧氣樽請填寫剩餘氣量，如氣量過低，請準備後備氧氣樽備用。
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            <tr class="bg-grey">
+                <th class="col-id">編號</th>
+                <th class="col-item">用品</th>
+                <th class="col-qty">數量</th>
+                <th class="col-date">檢查日期<br><textarea class="header-textarea" rows="1"></textarea></th>
+                <th class="col-date">檢查日期<br><textarea class="header-textarea" rows="1"></textarea></th>
+                <th class="col-date">檢查日期<br><textarea class="header-textarea" rows="1"></textarea></th>
+                <th class="col-date">檢查日期<br><textarea class="header-textarea" rows="1"></textarea></th>
+                <th class="col-remark">備註</th>
+            </tr>
+        </thead>
+        <tbody>
+            <script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+
+                const items1 = [
+                    ["1.1", "電子血壓計", "1 個"], ["1.2", "血氧機", "1 個"], ["1.3", "探熱器(額探或耳探)", "1 個"],
+                    ["1.4", "血糖機", "1 個"], ["1.5*", "血糖試紙/採血針/酒精棉", "5 套"], ["1.6", "電筒", "1 個"],
+                    ["1.7", "木舌壓", "10 支"], ["1.8", "止血鉗", "1 把"], ["1.9", "剪刀", "1 把"]
+                ];
+                items1.forEach(data => {
+                    document.write(`<tr>
+                        <td class="col-id">${data[0]}</td><td class="col-item">${data[1]}</td><td class="col-qty">${data[2]}</td>
+                        <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                        <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                        <td class="col-remark"><textarea rows="1"></textarea></td>
+                    </tr>`);
+                });
+            
+})();</script>
+
+            <tr class="category-row bg-grey">
+                <td colspan="8">**須檢查抽痰機抽吸力、喉管、接駁器及運作是否正常</td>
+            </tr>
+
+            <tr>
+                <td class="col-id">2.1</td><td class="col-item">抽痰機</td><td class="col-qty">1 部</td>
+                <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                <td class="col-remark"><textarea rows="1"></textarea></td>
+            </tr>
+            <!-- 2.2* 抽痰喉：加入 10, 12, 14 標籤 -->
+            <tr>
+                <td class="col-id">2.2*</td><td class="col-item">抽痰喉(Fr 10, 12, 14)</td><td class="col-qty">各 3 條</td>
+                <script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+
+                    for(let k=0; k<4; k++) {
+                        document.write(`<td><div class="airway-row"><input type="checkbox">10<input type="checkbox">12<input type="checkbox">14</div></td>`);
+                    }
+                
+})();</script>
+                <td class="col-remark"><textarea rows="1"></textarea></td>
+            </tr>
+            <script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+
+                const items2_remain = [
+                    ["2.3", "抽痰盛水器(腰盤)", "1 個"], ["2.4", "蒸餾水", "1 支"], ["2.5", "乳膠手套", "5 對"], 
+                    ["2.6", "普通透明手套", "1 包"], ["2.7", "口罩", "5 個"], ["2.8", "護目鏡(face shield)", "2 個"], 
+                    ["2.9", "保護衣", "2 套"], ["2.10", "拖板", "1 個"], ["2.11", "後備拖板(如適用)", "1 個"]
+                ];
+                items2_remain.forEach(data => {
+                    document.write(`<tr>
+                        <td class="col-id">${data[0]}</td><td class="col-item">${data[1]}</td><td class="col-qty">${data[2]}</td>
+                        <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                        <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                        <td class="col-remark"><textarea rows="1"></textarea></td>
+                    </tr>`);
+                });
+            
+})();</script>
+
+            <script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+
+                const items3 = [
+                    ["3.1", "洗症包", "1 個"], ["3.2", "鹽水 + 消毒藥水", "各 2 包"], ["3.3*", "無菌紗布", "3 包"],
+                    ["3.4", "彈性繃帶", "2 卷"], ["3.5", "醫生膠布(Micropore)", "1 卷"], ["3.6", "三角巾", "1 條"],
+                    ["3.7", "白膠袋", "2 個"], ["3.8", "腰盤", "1 個"]
+                ];
+                items3.forEach(data => {
+                    document.write(`<tr>
+                        <td class="col-id">${data[0]}</td><td class="col-item">${data[1]}</td><td class="col-qty">${data[2]}</td>
+                        <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                        <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                        <td class="col-remark"><textarea rows="1"></textarea></td>
+                    </tr>`);
+                });
+            
+})();</script>
+
+            <tr>
+                <td class="col-id">4.1*</td><td class="col-item">氧氣罩/氧氣喉</td><td class="col-qty">各 2 個</td>
+                <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                <td class="col-remark"><textarea rows="1"></textarea></td>
+            </tr>
+            <!-- 4.2 氣道：加入 #2, #3, #4 標籤 -->
+            <tr>
+                <td class="col-id">4.2</td><td class="col-item">氣道(Airway) #2, 3, 4</td><td class="col-qty">各 1 條</td>
+                <script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+
+                    for(let k=0; k<4; k++) {
+                        document.write(`<td><div class="airway-row"><input type="checkbox">#2<input type="checkbox">#3<input type="checkbox">#4</div></td>`);
+                    }
+                
+})();</script>
+                <td class="col-remark"><textarea rows="1"></textarea></td>
+            </tr>
+            <tr>
+                <td class="col-id">4.3*</td><td class="col-item">即棄 AMBU BAG (BVM)</td><td class="col-qty">1 個</td>
+                <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                <td class="col-remark"><textarea rows="1"></textarea></td>
+            </tr>
+            <tr>
+                <td class="col-id">4.5^</td><td class="col-item">氧氣樽</td><td class="col-qty">1 支</td>
+                <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                <td class="col-remark"><textarea rows="1"></textarea></td>
+            </tr>
+            <tr>
+                <td class="col-id">4.6</td><td class="col-item">心外壓板</td><td class="col-qty">1 塊</td>
+                <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                <td class="col-date"><input type="checkbox"></td><td class="col-date"><input type="checkbox"></td>
+                <td class="col-remark"><textarea rows="1"></textarea></td>
+            </tr>
+
+            <!-- 簽名列 -->
+            <tr>
+                <td colspan="3" style="text-align: right; font-weight: bold; padding: 5px;">檢查職員簽名</td>
+                <td class="col-date"><textarea rows="1"></textarea></td>
+                <td class="col-date"><textarea rows="1"></textarea></td>
+                <td class="col-date"><textarea rows="1"></textarea></td>
+                <td class="col-date"><textarea rows="1"></textarea></td>
+                <td class="col-remark"></td>
+            </tr>
+        </tbody>
+    </table>
+</div></div>
+</body>
+</html>

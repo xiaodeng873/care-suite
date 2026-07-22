@@ -122,3 +122,8 @@ export const printDiaperRecordForm = async (patients: Patient[], yearMonth: stri
     };
   }
 };
+
+// 單一院友版：保留舊 diaperRecordHtmlExporter 的入口位置，但以 print form 取代
+export const printDiaperRecordFormForPatient = async (patient: Patient, yearMonth: string): Promise<void> => {
+  await printDiaperRecordForm([patient], yearMonth);
+};

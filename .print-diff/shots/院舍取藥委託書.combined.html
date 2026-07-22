@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* 範本的 body{margin:0} 已被隔離到容器 class，外層 body 必須自行歸零，
+     否則瀏覽器預設 8px margin 會改變每份文件的版面位置並可能導致超頁 */
+  html, body { margin: 0; padding: 0; }
+  [class*="print-doc-"] + [class*="print-doc-"] { page-break-before: always; break-before: page; }
+</style>
+<style>
+        @page print-doc-0 {
+            size: A4;
+            margin: 5mm 15mm; /* 頂部推移，留出極小邊距 */
+        }
+        .print-doc-0{
+            font-family: "MingLiU", "PMingLiU", "Microsoft JhengHei", serif;
+            font-size: 15px;
+            line-height: 1.45;
+            margin: 0;
+            padding: 0;
+            color: #000;
+        }
+        .print-doc-0 .container{
+            width: 100%;
+            position: relative;
+        }
+        
+        /* 右上角職員取方塊 */
+        .print-doc-0 .staff-box{
+            position: absolute;
+            right: 0;
+            top: 10px;
+            border: 1px solid black;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+
+        /* 標題區域 */
+        .print-doc-0 .header-area{
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .print-doc-0 .header-area h1{ margin: 0; font-size: 22px; font-weight: normal; letter-spacing: 2px; }
+        .print-doc-0 .header-area h2{ margin: 2px 0; font-size: 18px; font-weight: normal; }
+        .print-doc-0 .header-area h3{ margin: 2px 0; font-size: 20px; font-weight: bold; text-decoration: underline; }
+
+        /* 隱形表格 */
+        .print-doc-0 table.layout-table{
+            width: 100%;
+            border-collapse: collapse;
+            border: none;
+            margin-bottom: 5px;
+        }
+        .print-doc-0 table.layout-table td{
+            border: none;
+            padding: 3px 0;
+            vertical-align: bottom;
+            white-space: nowrap;
+        }
+
+        /* 有框線表格 (乙部) */
+        .print-doc-0 .bordered-table{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 5px 0;
+        }
+        .print-doc-0 .bordered-table th,.print-doc-0 .bordered-table td{
+            border: 1px solid black;
+            padding: 4px;
+            text-align: center;
+            height: 22px;
+        }
+
+        /* 輸入框底線 */
+        .print-doc-0 textarea,.print-doc-0 input[type="text"]{
+            border: none;
+            border-bottom: 0.5px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: inherit;
+            width: 100%;
+            resize: none;
+            outline: none;
+            padding: 0;
+            overflow: hidden;
+            display: block;
+        }
+        /* 表格內的輸入框不需要底線 */
+        .print-doc-0 .bordered-table textarea{
+            border-bottom: none !important;
+        }
+
+        .print-doc-0 .section-title{
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .print-doc-0 .footer-note{
+            font-size: 13px;
+            margin-top: 15px;
+        }
+        .print-doc-0 .date-bottom{
+            text-align: right;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+    </style>
+<style>.print-doc-0 { page: print-doc-0; }</style>
+</head>
+<body>
+<div class="print-doc-0"><div class="container">
+    <div class="staff-box">職員取</div>
+
+    <div class="header-area">
+        <h1>廣 華 醫 院</h1>
+        <h2>社區老人評估服務</h2>
+        <h3>院 舍 取 藥 委 託 書</h3>
+    </div>
+
+    <!-- 致函對象 -->
+    <table class="layout-table">
+        <tr>
+            <td style="width: 100%;">致：廣華醫院徐展堂門診大樓地下藥房</td>
+        </tr>
+    </table>
+
+    <!-- 第一段委託 -->
+    <table class="layout-table">
+        <tr>
+            <td style="width: 13%;">現委託本院職員</td>
+            <td style="width: 25%;"><textarea rows="1"></textarea></td>
+            <td style="width: 15%;">員工證號碼（適用者）</td>
+            <td style="width: 25%;"><textarea rows="1"></textarea></td>
+            <td style="width: 22%;">代本院院友</td>
+        </tr>
+    </table>
+    <table class="layout-table">
+        <tr>
+            <td style="width: 3%;">於</td>
+            <td style="width: 15%;"><textarea rows="1" style="text-align: center;"></textarea></td>
+            <td style="width: 3%;">年</td>
+            <td style="width: 10%;"><textarea rows="1" style="text-align: center;"></textarea></td>
+            <td style="width: 3%;">月</td>
+            <td style="width: 10%;"><textarea rows="1" style="text-align: center;"></textarea></td>
+            <td style="width: 20%;">日提取醫生處方之藥物。</td>
+            <td style="width: 36%;"></td>
+        </tr>
+    </table>
+
+    <table class="layout-table" style="margin-top: 15px;">
+        <tr>
+            <td style="width: 22%;">* 如需進一步有關資料，請致電</td>
+            <td style="width: 25%;"><textarea rows="1"></textarea></td>
+            <td style="width: 10%;">與本院護士</td>
+            <td style="width: 25%;"><textarea rows="1"></textarea></td>
+            <td style="width: 18%;">聯絡。</td>
+        </tr>
+    </table>
+
+    <!-- 蓋章與負責人 -->
+    <table class="layout-table" style="margin-top: 30px;">
+        <tr>
+            <td style="width: 45%;"></td>
+            <td style="width: 10%; text-align: right;">院舍蓋章：</td>
+            <td style="width: 45%; border-bottom: 0.5px solid black; height: 60px;"></td>
+        </tr>
+    </table>
+
+    <table class="layout-table" style="margin-top: 15px;">
+        <tr>
+            <td style="width: 45%;"></td>
+            <td style="width: 8%; text-align: right;">負責人：</td>
+            <td style="width: 32%;"><textarea rows="1"></textarea></td>
+            <td style="width: 15%; text-align: right;">（姓名及職位）</td>
+        </tr>
+    </table>
+
+    <table class="layout-table">
+        <tr>
+            <td style="width: 45%;"></td>
+            <td style="width: 40%;"><textarea rows="1" style="text-align: right;"></textarea></td>
+            <td style="width: 15%; text-align: right;">安老院／護老院</td>
+        </tr>
+    </table>
+
+    <table class="layout-table">
+        <tr>
+            <td style="width: 45%;"></td>
+            <td style="width: 15%; border-bottom: 0.5px solid black;"></td>
+            <td style="width: 5%; text-align: center;">年</td>
+            <td style="width: 10%; border-bottom: 0.5px solid black;"></td>
+            <td style="width: 5%; text-align: center;">月</td>
+            <td style="width: 10%; border-bottom: 0.5px solid black;"></td>
+            <td style="width: 10%; text-align: center;">日</td>
+        </tr>
+    </table>
+
+    <!-- (甲) 藥單數目 -->
+    <table class="layout-table" style="margin-top: 15px;">
+        <tr>
+            <td style="width: 15%;">（甲） 藥單數目：共</td>
+            <td style="width: 15%;"><textarea rows="1" style="text-align: center;"></textarea></td>
+            <td style="width: 12%;">份/病人，</td>
+            <td style="width: 15%;"><textarea rows="1" style="text-align: center;"></textarea></td>
+            <td style="width: 43%;">張藥單紙</td>
+        </tr>
+    </table>
+
+    <!-- (乙) 病人列表 -->
+    <div class="section-title">（乙） 只付診症費院友，請在下表填寫姓名及身份證號碼：</div>
+    <table class="bordered-table">
+        <thead>
+            <tr>
+                <th style="width: 18%;">病人姓名</th>
+                <th style="width: 18%;">身份證號碼</th>
+                <th style="width: 14%;">身份代號</th>
+                <th style="width: 18%;">病人姓名</th>
+                <th style="width: 18%;">身份證號碼</th>
+                <th style="width: 14%;">身份代號</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+            <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+            <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+            <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+            <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+        </tbody>
+    </table>
+
+    <!-- 身份代號說明：加入避免跨頁切斷容器 -->
+    <div style="break-inside: avoid; page-break-inside: avoid;">
+        <table class="layout-table" style="margin-top: 5px; font-size: 14px;">
+            <tr><td style="width: 100%; font-weight: bold;">身份代號：</td></tr>
+            <tr>
+                <td style="width: 100%;">
+                    <table class="layout-table">
+                        <tr><td style="width: 15%;">TPA</td><td style="width: 5%;">-</td><td style="width: 80%;">綜緩金 / 院舍卷 / OALA</td></tr>
+                        <tr><td style="width: 15%;">GOV</td><td style="width: 5%;">-</td><td style="width: 80%;">公務員/家屬</td></tr>
+                        <tr><td style="width: 15%;">HAS</td><td style="width: 5%;">-</td><td style="width: 80%;">醫管局員工/家屬</td></tr>
+                        <tr><td style="width: 15%;">WAIVER</td><td style="width: 5%;">-</td><td style="width: 80%;">醫務社工豁免紙</td></tr>
+                        <tr><td style="width: 15%;">其他有豁免</td><td style="width: 5%;">-</td><td style="width: 80%;"><textarea rows="1" style="display:inline-block; width:200px;"></textarea> (請註明)</td></tr>
+                        <tr><td style="width: 15%;">EP1</td><td style="width: 5%;">-</td><td style="width: 80%;">自費</td></tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- (丙) 豁免登記：加入避免跨頁切斷容器 -->
+    <div style="break-inside: avoid; page-break-inside: avoid;">
+        <table class="layout-table" style="margin-top: 20px;">
+            <tr>
+                <td style="width: 30%;">（丙） 茲證明上述病人已繳費或登記豁免：</td>
+                <td style="width: 35%; border-bottom: 0.5px solid black;"></td>
+                <td style="width: 35%;"></td>
+            </tr>
+            <tr>
+                <td style="width: 30%;"></td>
+                <td style="width: 35%; text-align: center; font-size: 13px;">（廣華醫院司庫部蓋印）</td>
+                <td style="width: 35%;"></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 注意事項 -->
+    <div class="footer-note">
+        * 注意：如病人在取藥前已經入院或死亡，則請及早通知社區老人評估組護士或藥劑部職員跟進藥單，否則已配發藥物，不能退款
+    </div>
+
+    <div class="date-bottom">April 2021</div>
+</div></div>
+</body>
+</html>

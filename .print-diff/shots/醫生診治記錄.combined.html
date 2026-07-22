@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* 範本的 body{margin:0} 已被隔離到容器 class，外層 body 必須自行歸零，
+     否則瀏覽器預設 8px margin 會改變每份文件的版面位置並可能導致超頁 */
+  html, body { margin: 0; padding: 0; }
+  [class*="print-doc-"] + [class*="print-doc-"] { page-break-before: always; break-before: page; }
+</style>
+<style>
+        @page print-doc-0 {
+            size: A4;
+            margin: 5mm 0.25in;
+        }
+
+        .print-doc-0{
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0; padding: 0;
+            background-color: #fff;
+            color: #000;
+        }
+
+        .print-doc-0 .container{ width: 100%; box-sizing: border-box; }
+
+        /* 標題區域極致上推 */
+        .print-doc-0 .title-section{ text-align: center; margin-bottom: 12px; }
+        .print-doc-0 .title-section h1{ margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+        .print-doc-0 .title-section h2{ 
+            margin: 5px 0 0 0; 
+            font-size: 20px; 
+            font-weight: bold; 
+            display: inline-block;
+            border-bottom: 1.5px solid black; /* 代替 text-decoration 以獲得更精準的控制 */
+            padding-bottom: 2px;
+        }
+
+        /* 院友資訊區域 - 專業隱形表格排版 */
+        .print-doc-0 .info-table{
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+            table-layout: fixed; /* 嚴格限制比例 */
+        }
+        .print-doc-0 .info-table td{
+            border: none; /* 隱形表格 */
+            padding: 4px 0;
+            vertical-align: bottom;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        /* 專業填寫線輸入框 */
+        .print-doc-0 .db-line-input{
+            width: 100%;
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+            padding: 0 0 2px 5px;
+            box-sizing: border-box;
+        }
+
+        /* 主表格設定 */
+        .print-doc-0 .main-table{ width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid black; }
+        .print-doc-0 .main-table th,.print-doc-0 .main-table td{ border: 1px solid black; text-align: center; vertical-align: middle; padding: 0; }
+        .print-doc-0 .main-table th{ font-size: 16px; font-weight: bold; height: 26px; }
+        
+        .print-doc-0 .col-date{ width: 11%; }
+        .print-doc-0 .col-symptom{ width: 33%; }
+        .print-doc-0 .col-treatment{ width: 44%; }
+        .print-doc-0 .col-sign{ width: 12%; }
+
+        /* 數據格 */
+        .print-doc-0 .data-row{ height: 25.2px; } /* 精算高度確保32行不超頁 */
+        .print-doc-0 .db-text-cell{
+            width: 100%; height: 100%; border: none; background: transparent;
+            font-family: inherit; font-size: 14px; text-align: left;
+            padding: 0 5px; box-sizing: border-box; outline: none; resize: none; display: block;
+        }
+        .print-doc-0 .center-input{ text-align: center; }
+
+        /* 頁尾頁碼 */
+        .print-doc-0 .footer{
+            margin-top: 8px;
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            height: 30px;
+        }
+        .print-doc-0 .page-num{
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 22px;
+            font-weight: bold;
+            bottom: 0;
+        }
+        .print-doc-0 .doc-code{ font-size: 11px; font-weight: bold; align-self: flex-end; }
+    </style>
+<style>.print-doc-0 { page: print-doc-0; }</style>
+</head>
+<body>
+<div class="print-doc-0"><div class="container">
+    <!-- 標題部 -->
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>醫生診治記錄</h2>
+    </div>
+
+    <!-- 院友資訊欄位 - 重製版 -->
+    <table class="info-table">
+        <colgroup>
+            <col style="width: 85px;">  <!-- 院友姓名標籤 -->
+            <col style="width: auto;">  <!-- 院友姓名輸入 -->
+            <col style="width: 60px;">  <!-- 床號標籤 -->
+            <col style="width: 100px;"> <!-- 床號輸入 -->
+            <col style="width: 100px;">  <!-- 性別年齡標籤 -->
+            <col style="width: 150px;"> <!-- 性別年齡輸入 -->
+        </colgroup>
+        <tr>
+            <td>院友姓名：</td>
+            <td><input type="text" class="db-line-input"></td>
+            <td style="padding-left: 10px;">床號：</td>
+            <td><input type="text" class="db-line-input"></td>
+            <td style="padding-left: 10px;">性別/年齡：</td>
+            <td><input type="text" class="db-line-input"></td>
+        </tr>
+    </table>
+
+    <table class="info-table">
+        <colgroup>
+            <col style="width: 55px;">  <!-- 診斷標籤 -->
+            <col style="width: auto;">  <!-- 診斷輸入 -->
+        </colgroup>
+        <tr>
+            <td>診斷：</td>
+            <td><input type="text" class="db-line-input"></td>
+        </tr>
+    </table>
+
+    <table class="info-table">
+        <colgroup>
+            <col style="width: 155px;"> <!-- 覆診標籤 -->
+            <col style="width: auto;">  <!-- 覆診輸入 -->
+        </colgroup>
+        <tr>
+            <td>覆診的醫院/診所：</td>
+            <td><input type="text" class="db-line-input"></td>
+        </tr>
+    </table>
+
+    <!-- 主表格 -->
+    <table class="main-table">
+        <thead>
+            <tr>
+                <th class="col-date">日期</th>
+                <th class="col-symptom">症狀</th>
+                <th class="col-treatment">治療</th>
+                <th class="col-sign">簽署</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 生成 23 行 -->
+            <script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+
+                for (let i = 0; i < 23; i++) {
+                    document.write('<tr class="data-row">');
+                    document.write('<td><input type="text" class="db-text-cell center-input"></td>');
+                    document.write('<td><textarea class="db-text-cell"></textarea></td>');
+                    document.write('<td><textarea class="db-text-cell"></textarea></td>');
+                    document.write('<td><input type="text" class="db-text-cell center-input"></td>');
+                    document.write('</tr>');
+                }
+            
+})();</script>
+        </tbody>
+    </table>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">14</div>
+        <div class="doc-code">B2 FK (11.2020)</div>
+    </div>
+</div></div>
+</body>
+</html>

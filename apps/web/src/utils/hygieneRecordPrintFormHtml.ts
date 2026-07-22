@@ -255,3 +255,39 @@ export const printHygieneRecordForm = async (patients: Patient[], monthsData: Hy
     };
   }
 };
+
+/**
+ * 依日期範圍為單一院友列印個人衛生記錄表。
+ * 會自動將範圍內的每個月份拆成一頁，並只帶入該院友的記錄。
+ */
+export const printHygieneRecordFormForDateRange = async (
+  patient: Patient,
+  records: HygieneRecord[],
+  startDate: string,
+  endDate: string
+): Promise<void> => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const monthsData: HygieneMonthData[] = [];
+
+  let y = start.getFullYear();
+  let m = start.getMonth() + 1;
+  const endY = end.getFullYear();
+  const endM = end.getMonth() + 1;
+
+  while (y < endY || (y === endY && m <= endM)) {
+    const monthStr = m.toString().padStart(2, '0');
+    const prefix = `${y}-${monthStr}-`;
+    const monthRecords = records.filter(r => r.record_date.startsWith(prefix));
+    const recordsByPatient = new Map<number, HygieneRecord[]>();
+    recordsByPatient.set(patient.院友id, monthRecords);
+    monthsData.push({ year: y, month: m, recordsByPatient });
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+  }
+
+  await printHygieneRecordForm([patient], monthsData);
+};

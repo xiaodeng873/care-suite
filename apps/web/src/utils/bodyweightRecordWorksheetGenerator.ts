@@ -313,22 +313,23 @@ const openPrintWindow = (html: string) => {
   }
 };
 
-/**
- * 產生院友體重記錄表並開啟列印視窗。
- * @param startDate 起始日期 (YYYY-MM-DD)
- * @param endDate 結束日期 (YYYY-MM-DD)
- */
-export const generateBodyweightRecordWorksheet = async (
+export const generateBodyweightRecordHtml = async (
   startDate: string,
   endDate: string,
-  patientIds?: number[]
-): Promise<void> => {
+  patientIds?: number[],
+  options?: { includeData?: boolean; blankHeader?: boolean }
+): Promise<string> => {
   activeFacility = await getFacilitySettings();
 
-  const [patients, records] = await Promise.all([
+  const includeData = options?.includeData !== false;
+  const [patientsRaw, records] = await Promise.all([
     fetchInResidencePatients(patientIds),
-    fetchWeightRecords(startDate, endDate),
+    includeData ? fetchWeightRecords(startDate, endDate) : Promise.resolve([]),
   ]);
+
+  const patients = options?.blankHeader
+    ? patientsRaw.map(p => ({ ...p, 中文姓名: '', 床號: '', 性別: '', 出生日期: '' }))
+    : patientsRaw;
 
   // 依院友分組記錄
   const recordsByPatient = new Map<number, WeightRecord[]>();
@@ -349,7 +350,20 @@ export const generateBodyweightRecordWorksheet = async (
     });
   });
 
-  const html = buildHtml(pagesHtml);
+  return buildHtml(pagesHtml);
+};
+
+/**
+ * 產生院友體重記錄表並開啟列印視窗。
+ * @param startDate 起始日期 (YYYY-MM-DD)
+ * @param endDate 結束日期 (YYYY-MM-DD)
+ */
+export const generateBodyweightRecordWorksheet = async (
+  startDate: string,
+  endDate: string,
+  patientIds?: number[]
+): Promise<void> => {
+  const html = await generateBodyweightRecordHtml(startDate, endDate, patientIds);
   openPrintWindow(html);
 };
 

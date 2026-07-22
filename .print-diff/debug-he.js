@@ -1,0 +1,23 @@
+const { chromium } = require('playwright-core');
+const path = require('path');
+const fs = require('fs');
+(async () => {
+  const b = await chromium.launch({ executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' });
+  const p = await (await b.newContext({ viewport: { width: 794, height: 1123 } })).newPage();
+  await p.emulateMedia({ media: 'print' });
+  const orig = 'file:///' + path.resolve('../doc_html/院友健康教育  活動記錄表.html').replace(/\\/g, '/');
+  await p.goto(orig);
+  await p.waitForTimeout(400);
+  console.log('orig scrollHeight', await p.evaluate(() => document.body.scrollHeight));
+  console.log('orig containers', await p.evaluate(() => document.querySelectorAll('.container').length));
+  console.log('orig rows', await p.evaluate(() => document.querySelectorAll('tbody tr').length));
+  fs.writeFileSync('shots/he.orig.pdf', await p.pdf({ preferCSSPageSize: true, printBackground: true }));
+  const scoped = 'file:///' + path.resolve('shots/院友健康教育  活動記錄表.combined.html').replace(/\\/g, '/');
+  await p.goto(scoped);
+  await p.waitForTimeout(400);
+  console.log('scoped scrollHeight', await p.evaluate(() => document.body.scrollHeight));
+  console.log('scoped containers', await p.evaluate(() => document.querySelectorAll('.container').length));
+  console.log('scoped rows', await p.evaluate(() => document.querySelectorAll('tbody tr').length));
+  fs.writeFileSync('shots/he.scoped.pdf', await p.pdf({ preferCSSPageSize: true, printBackground: true }));
+  await b.close();
+})();

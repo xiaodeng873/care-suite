@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* 範本的 body{margin:0} 已被隔離到容器 class，外層 body 必須自行歸零，
+     否則瀏覽器預設 8px margin 會改變每份文件的版面位置並可能導致超頁 */
+  html, body { margin: 0; padding: 0; }
+  [class*="print-doc-"] + [class*="print-doc-"] { page-break-before: always; break-before: page; }
+</style>
+<style>
+        @page print-doc-0 { size: A4; margin: 5mm 0.25in; }
+        .print-doc-0 *{ box-sizing: border-box; }
+        .print-doc-0{ font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; padding: 0; background-color: #fff; color: #000; line-height: 1.1; }
+        .print-doc-0 .container{ width: 100%; box-sizing: border-box; page-break-after: always; }
+        .print-doc-0 .container:last-of-type{ page-break-after: auto; }
+        .print-doc-0 .title-section{ display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 5px; }
+        .print-doc-0 .header-spacer{ width: 18%; }
+        .print-doc-0 .header-center{ flex: 1; text-align: center; }
+        .print-doc-0 .header-right{ width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
+        .print-doc-0 .logo-img{ max-height: 50px; max-width: 100%; object-fit: contain; }
+        .print-doc-0 .title-section h1{ margin: 0; font-size: 22px; font-weight: bold; }
+        .print-doc-0 .title-section h2{ margin: 0; font-size: 18px; font-weight: bold; }
+        .print-doc-0 .user-info{ display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: bold; font-size: 14px; }
+        .print-doc-0 .db-line-input{ border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 14px; padding: 0 5px; }
+        .print-doc-0 table{ width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid black; }
+        .print-doc-0 th,.print-doc-0 td{ border: 1px solid black; text-align: center; vertical-align: middle; padding: 0; }
+        .print-doc-0 th{ font-size: 10px; font-weight: bold; background-color: #fff; }
+        .print-doc-0 .vertical-text{ writing-mode: vertical-rl; text-orientation: mixed; height: 95px; display: flex; align-items: center; justify-content: center; line-height: 1; margin: 0 auto; letter-spacing: 0px; }
+        .print-doc-0 .db-checkbox{ width: 13px; height: 13px; cursor: pointer; margin: 0; }
+        .print-doc-0 .db-text-cell{ width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 11px; text-align: center; outline: none; }
+        .print-doc-0 .db-textarea{ width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 10px; resize: none; overflow: hidden; display: block; padding: 2px; box-sizing: border-box; line-height: 1.2; }
+        .print-doc-0 .notes-section{ font-size: 11px; margin-top: 8px; line-height: 1.3; }
+        .print-doc-0 .notes-heading{ font-weight: bold; font-size: 11px; margin-bottom: 2px; }
+        .print-doc-0 .note-item{ display: flex; margin-bottom: 1px; }
+        .print-doc-0 .note-label{ font-weight: bold; min-width: 25px; }
+        .print-doc-0 .footer{ margin-top: 5px; display: flex; justify-content: space-between; align-items: flex-end; font-weight: bold; }
+        .print-doc-0 .page-num{ flex: 1; text-align: center; font-size: 18px; }
+        .print-doc-0 .doc-code{ font-size: 10px; }
+    </style>
+<style>.print-doc-0 { page: print-doc-0; }</style>
+</head>
+<body>
+<div class="print-doc-0"><div class="container">
+    <div class="title-section">
+        <div class="header-spacer"></div>
+        <div class="header-center">
+            <h1>善頤(福群)護老院</h1>
+            <h2>院友健康教育 / 活動記錄表</h2>
+        </div>
+        <div class="header-right">
+            <!-- 院舍 LOGO：放在專案根目錄的 supabase/migrations/SClogolayer.png，與大標題平頂 -->
+            <img class="logo-img" src="../supabase/migrations/SClogolayer.png" alt="院舍Logo">
+        </div>
+    </div>
+    <br>
+    <div class="user-info">
+        <div>院友姓名：<input type="text" class="db-line-input" style="width: 140px;"></div>
+        <div>床號：<input type="text" class="db-line-input" style="width: 80px;"></div>
+        <div>身份證號碼：<input type="text" class="db-line-input" style="width: 160px;"></div>
+    </div>
+    <br>
+    <table>
+        <colgroup>
+            <col style="width: 55px;">
+            <col style="width: 30px;" span="14">
+            <col style="width: 30px;" span="2">
+            <col style="width: 45px;">
+            <col style="width: auto;">
+        </colgroup>
+        <thead>
+            <tr>
+                <th rowspan="2">#請在適用<br>地方√<br><br>日期/時期</th>
+                <th colspan="3">集體活動</th>
+                <th colspan="4">戶外集體活動</th>
+                <th colspan="2">小組活動<br>(請註明人數)</th>
+                <th colspan="5">個人活動</th>
+                <th rowspan="2"><div class="vertical-text">運動</div></th>
+                <th rowspan="2"><div class="vertical-text">健康教育講座</div></th>
+                <th rowspan="2"><div class="vertical-text">其他</div></th>
+                <th rowspan="2">備註 /<br>註明活動<br>名稱及次數</th>
+            </tr>
+            <tr>
+                <th><div class="vertical-text">生日會</div></th>
+                <th><div class="vertical-text">節日慶祝</div></th>
+                <th><div class="vertical-text">表演節目</div></th>
+                <th><div class="vertical-text">旅行</div></th>
+                <th><div class="vertical-text">參觀</div></th>
+                <th><div class="vertical-text">購物／飲茶</div></th>
+                <th><div class="vertical-text">遊戲</div></th>
+                <th><div class="vertical-text">(A)興趣小組</div></th>
+                <th><div class="vertical-text">(B)學習小組</div></th>
+                <th><div class="vertical-text">(C)自理活動訓練</div></th>
+                <th><div class="vertical-text">(D)個別興趣</div></th>
+                <th><div class="vertical-text">(E)個別輔導</div></th>
+                <th><div class="vertical-text">(F)個人治療訓練</div></th>
+                <th><div class="vertical-text">(G)團體探訪</div></th>
+            </tr>
+        </thead>
+        <tbody>
+            <script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+
+                for (let i = 0; i < 20; i++) {
+                    document.write('<tr style="height: 34px;">');
+                    document.write('<td><input type="text" class="db-text-cell"></td>');
+                    for (let j = 0; j < 16; j++) {
+                        document.write('<td><input type="checkbox" class="db-checkbox"></td>');
+                    }
+                    document.write('<td><textarea class="db-textarea"></textarea></td>');
+                    document.write('<td><textarea class="db-textarea"></textarea></td>');
+                    document.write('</tr>');
+                }
+            
+})();</script>
+        </tbody>
+    </table>
+
+    <div class="notes-section">
+        <div class="notes-heading">註釋：</div>
+        <div class="note-item"><span class="note-label">(A)</span><span>興趣小組：集合 2-8 位院友一同參與一類興趣活動，如象棋、編織、縫紉、栽種、唱歌、閱報等... ...</span></div>
+        <div class="note-item"><span class="note-label">(B)</span><span>學習小組：2-8 位院友一同學習、如寫字、識字、現實認知等... ...</span></div>
+        <div class="note-item"><span class="note-label">(C)</span><span>自理活動訓練：由員工有目標地安排給院友做一些有別於日常自理習慣的訓練；在員工看護及鼓勵下讓院友練習如進食、梳洗、穿衣服、如廁、沖涼、摺衣服、執拾床舖等... ...</span></div>
+        <div class="note-item"><span class="note-label">(D)</span><span>個別興趣：院友獨自進行的活動，如書法、聽歌、閱讀等... ...</span></div>
+        <div class="note-item"><span class="note-label">(E)</span><span>個別輔導：員工與院友單對單傾談</span></div>
+        <div class="note-item"><span class="note-label">(F)</span><span>個人治療訓練：包括醫護人員指導的訓練，個人感官刺激訓練等......</span></div>
+        <div class="note-item"><span class="note-label">(G)</span><span>團體探訪：團體包括教會、義工等，與院友個別傾談</span></div>
+    </div>
+
+    <div class="footer">
+        <div class="page-num">1</div>
+        <div class="doc-code">A19D FK (11.2020)</div>
+    </div>
+</div>
+
+<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+
+    // 多頁時自動遞增頁碼：複製 .container 後會自動計算
+    document.addEventListener('DOMContentLoaded', function () {
+        const containers = document.querySelectorAll('.container');
+        const total = containers.length;
+        containers.forEach(function (container, index) {
+            const pageNum = container.querySelector('.page-num');
+            if (pageNum) {
+                pageNum.textContent = (index + 1) + (total > 1 ? ' / ' + total : '');
+            }
+        });
+    });
+
+})();</script></div>
+</body>
+</html>

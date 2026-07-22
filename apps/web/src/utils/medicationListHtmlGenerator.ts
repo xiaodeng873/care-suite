@@ -26,6 +26,7 @@ interface MedicationPrescription {
   start_date?: string;
   end_date?: string;
   is_long_term?: boolean;
+  estimated_end_date?: string;
   notes?: string;
   special_instructions?: string;
   inspection_rules?: Array<{
@@ -183,8 +184,13 @@ function classifyMedicationTerm(p: MedicationPrescription): MedicationTermType {
   if (typeof p.is_long_term === 'boolean') {
     return p.is_long_term ? 'long' : 'short';
   }
-  // 向後兼容：舊記錄未設定 is_long_term 時，退而求其次用 end_date 判斷
-  return p.end_date ? 'short' : 'long';
+  // 向後兼容：舊記錄未設定 is_long_term 時，依 migration 邏輯推斷
+  // end_date 為 null 且 estimated_end_date 存在 → 長期；
+  // 否則有 end_date 但無 estimated_end_date → 短期；
+  // 兩者皆無則預設長期。
+  if (!p.end_date && p.estimated_end_date) return 'long';
+  if (p.end_date && !p.estimated_end_date) return 'short';
+  return 'long';
 }
 
 function isPrescriptionInDateRange(p: MedicationPrescription, startDate?: string, endDate?: string): boolean {

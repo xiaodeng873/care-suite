@@ -84,7 +84,8 @@ function escapeHtml(text: string): string {
 
 export const generateIncidentReportPrintHTML = (
   reports: Array<{ patient: Patient; report: IncidentReport }>,
-  facilityName: string
+  facilityName: string,
+  logoDataUri?: string | null
 ): string => {
   // 按患者分組
   const grouped: GroupedReports = {};
@@ -192,6 +193,10 @@ export const generateIncidentReportPrintHTML = (
       return rows.join('');
     };
 
+    const logoHtml = logoDataUri
+      ? `<img src="${escapeHtml(logoDataUri)}" style="position:absolute;right:10px;top:0;width:60px;height:60px;object-fit:contain;" alt="Logo">`
+      : '';
+
     const page = `
       <div class="page">
         <!-- 標頭 -->
@@ -201,6 +206,7 @@ export const generateIncidentReportPrintHTML = (
             <h1>${escapeHtml(facilityName)}</h1>
             <h2>個人意外事件記錄表</h2>
           </div>
+          ${logoHtml}
         </div>
 
         <!-- 院友基本資料 -->
@@ -302,6 +308,7 @@ export const generateIncidentReportPrintHTML = (
             display: flex;
             align-items: flex-start;
             margin-bottom: 5px;
+            position: relative;
         }
 
         .station-box {
@@ -446,7 +453,7 @@ export const printIncidentReport = async (
 
   const settings = await getFacilitySettings();
   const facilityName = settings.facilityNameZh;
-  const html = generateIncidentReportPrintHTML(reports, facilityName);
+  const html = generateIncidentReportPrintHTML(reports, facilityName, settings.logoDataUri);
 
   // 使用隱藏的 iframe 進行列印，不開新視窗
   const old = document.getElementById('incident-report-print-iframe');

@@ -63,18 +63,29 @@ interface ExportData {
   assessment: PatientRestraintAssessment | null;
   dateRange: { start: string; end: string };
   facilityName: string;
+  includeDayNumber?: boolean;
 }
 
-// 格式化日期為中文格式
-const formatDateChinese = (dateStr: string): string => {
+// 格式化日期為中文格式；includeDayNumber=false 時保留「日」字，但日子以可視空白區域佔位，供手寫
+const formatDateChinese = (dateStr: string, includeDayNumber: boolean = true): string => {
   const date = new Date(dateStr);
-  return `${date.getFullYear()}年${(date.getMonth() + 1).toString().padStart(2, '0')}月${date.getDate().toString().padStart(2, '0')}日`;
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return includeDayNumber
+    ? `${year}年${month}月${day}日`
+    : `${year}年${month}月<span class="blank-day"></span>日`;
 };
 
-// 格式化日期為短格式
-const formatDateShort = (dateStr: string): string => {
+// 格式化日期為短格式；includeDayNumber=false 時保留「日」字，但日子以可視空白區域佔位，供手寫
+const formatDateShort = (dateStr: string, includeDayNumber: boolean = true): string => {
   const date = new Date(dateStr);
-  return `${date.getFullYear()}年${(date.getMonth() + 1).toString().padStart(2, '0')}月${date.getDate().toString().padStart(2, '0')}日`;
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return includeDayNumber
+    ? `${year}年${month}月${day}日`
+    : `${year}年${month}月<span class="blank-day"></span>日`;
 };
 
 // 獲取使用的約束物品編號 - 從觀察記錄的 used_restraints 中提取
@@ -182,7 +193,8 @@ const extractRestraintConfig = (assessment: PatientRestraintAssessment | null): 
 // 生成觀察表格 HTML (單日)
 const generateDayObservationTable = (
   date: string,
-  records: RestraintObservationRecord[]
+  records: RestraintObservationRecord[],
+  includeDayNumber: boolean = true
 ): string => {
   // 過濾當日的記錄
   const dayRecords = records.filter(r => r.observation_date === date);
@@ -230,7 +242,7 @@ const generateDayObservationTable = (
     <div class="observation-table-container">
       <table class="data-table observation-table">
         <thead>
-          <tr><th colspan="6">日期：${formatDateShort(date)}</th></tr>
+          <tr><th colspan="6">日期：${formatDateShort(date, includeDayNumber)}</th></tr>
           <tr>
             <th class="time-slot">觀察時段</th>
             <th class="actual-time">實際觀察時間</th>
@@ -310,19 +322,25 @@ const generateConstraintTable = (config: {
 
 // 生成完整 HTML
 export const generateRestraintObservationHtml = (data: ExportData): string => {
-  const { patient, records, assessment, dateRange, facilityName } = data;
+  const { patient, records, assessment, dateRange, facilityName, includeDayNumber = true } = data;
   const config = extractRestraintConfig(assessment);
 
-  // 計算4天日期
+  // 計算最多4天日期，但不超過 dateRange.end
   const startDate = new Date(dateRange.start);
+  const endDate = new Date(dateRange.end);
   const dates: string[] = [];
   for (let i = 0; i < 4; i++) {
     const date = new Date(startDate);
     date.setDate(startDate.getDate() + i);
-    dates.push(date.toISOString().split('T')[0]);
+    const dateStr = date.toISOString().split('T')[0];
+    if (date > endDate) break;
+    dates.push(dateStr);
   }
 
-  const observationTables = dates.map(date => generateDayObservationTable(date, records)).join('');
+  const observationTables = dates.map(date => generateDayObservationTable(date, records, includeDayNumber)).join('');
+
+  const startDateLabel = formatDateChinese(dates[0], includeDayNumber);
+  const endDateLabel = formatDateChinese(dates[dates.length - 1], includeDayNumber);
 
   return `<!DOCTYPE html>
 <html lang="zh-TW">
@@ -539,6 +557,14 @@ body {
 .observation-table .remarks { width: 14%; }
 .observation-table .signature { width: 17%; }
 .observation-table .countersign { width: 17%; }
+.blank-day {
+  display: inline-block;
+  width: 60px;
+  min-height: 1em;
+  border-bottom: 1px solid #000;
+  margin: 0 6px;
+  vertical-align: bottom;
+}
 .footer-note {
   margin-top: 2.85px;
   padding-top: 2.85px;
@@ -570,7 +596,7 @@ body {
 </div>
 <div class="form-container">
 <header class="header-section">
-<h1 class="main-title">身體約束物品觀察記錄表 (${formatDateChinese(dates[0])} 至 ${formatDateChinese(dates[3])})</h1>
+<h1 class="main-title">身體約束物品觀察記錄表 (${startDateLabel} 至 ${endDateLabel})</h1>
 <p class="sub-title">(須最少每2小時檢查一次住客使用約束的情況)</p>
 </header>
 <section class="info-section">
@@ -616,12 +642,13 @@ ${observationTables}
 </html>`;
 };
 
-// 使用 iframe 列印
+// 使用 iframe 列印（單一院友、單一 4 天區塊）
 export const exportRestraintObservationHtml = (
   patient: Patient,
   records: RestraintObservationRecord[],
   assessment: PatientRestraintAssessment | null,
   startDate: string,
+  includeDayNumber: boolean = true,
   facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
 ): void => {
   // 計算結束日期 (4天)
@@ -635,7 +662,8 @@ export const exportRestraintObservationHtml = (
     records,
     assessment,
     dateRange: { start: startDate, end: endDate },
-    facilityName
+    facilityName,
+    includeDayNumber,
   });
 
   // 移除舊的 iframe（如果存在）
@@ -673,23 +701,57 @@ export const exportRestraintObservationHtml = (
   }
 };
 
-// ── 日期範圍版匯出（每4天一頁）──────────────────────────────────
+// ── 日期範圍版匯出（每4天一頁，單一院友）──────────────────────────────────
 export const exportRestraintObservationRangeHtml = (
   patient: Patient,
   records: RestraintObservationRecord[],
   assessment: PatientRestraintAssessment | null,
   startDate: string,
   endDate: string,
+  includeDayNumber: boolean = true,
   facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
 ): void => {
   import('./printUtils').then(({ printCombinedHtml, dateChunks, addDays }) => {
     const chunks = dateChunks(startDate, endDate, 4);
     const pages = chunks.map(chunkStart => {
       const chunkEnd = addDays(chunkStart, 3);
+      const actualChunkEnd = chunkEnd < endDate ? chunkEnd : endDate;
       return generateRestraintObservationHtml({
         patient, records, assessment,
-        dateRange: { start: chunkStart, end: chunkEnd },
+        dateRange: { start: chunkStart, end: actualChunkEnd },
         facilityName,
+        includeDayNumber,
+      });
+    });
+    printCombinedHtml(pages, 'restraint-print-iframe');
+  });
+};
+
+// ── 日期範圍版匯出（每4天一頁，多院友）──────────────────────────────────
+export const exportRestraintObservationsRangeHtml = (
+  items: {
+    patient: Patient;
+    records: RestraintObservationRecord[];
+    assessment: PatientRestraintAssessment | null;
+  }[],
+  startDate: string,
+  endDate: string,
+  includeDayNumber: boolean = true,
+  facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
+): void => {
+  import('./printUtils').then(({ printCombinedHtml, dateChunks, addDays }) => {
+    const chunks = dateChunks(startDate, endDate, 4);
+    const pages: string[] = [];
+    items.forEach(({ patient, records, assessment }) => {
+      chunks.forEach(chunkStart => {
+        const chunkEnd = addDays(chunkStart, 3);
+        const actualChunkEnd = chunkEnd < endDate ? chunkEnd : endDate;
+        pages.push(generateRestraintObservationHtml({
+          patient, records, assessment,
+          dateRange: { start: chunkStart, end: actualChunkEnd },
+          facilityName,
+          includeDayNumber,
+        }));
       });
     });
     printCombinedHtml(pages, 'restraint-print-iframe');

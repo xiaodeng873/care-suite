@@ -28,8 +28,10 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compar
 import PatientTooltip from '../components/PatientTooltip';
 import { exportRestraintConsentsToExcel } from '../utils/restraintConsentExcelGenerator';
 import { exportRestraintObservationsToExcel } from '../utils/restraintObservationChartExcelGenerator';
+import { exportRestraintObservationsRangeHtml } from '../utils/restraintObservationHtmlExporter';
 import { printRestraintConsentForms } from '../utils/restraintConsentPrintGenerator';
 import { printRestraintUsageRecords } from '../utils/restraintUsageRecordPrintGenerator';
+import * as db from '../lib/database';
 
 type SortField = '院友姓名' | 'doctor_signature_date' | 'next_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -71,10 +73,12 @@ const RestraintManagement: React.FC = () => {
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
   const [showObservationDateRangeModal, setShowObservationDateRangeModal] = useState(false);
+  const [showObservationDayMappingModal, setShowObservationDayMappingModal] = useState(false);
   const [observationDateRange, setObservationDateRange] = useState({
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 預設一週後
   });
+  const [observationIncludeDayNumber, setObservationIncludeDayNumber] = useState(true);
 
   // Reset to first page when filters change
   React.useEffect(() => {
@@ -451,6 +455,71 @@ const RestraintManagement: React.FC = () => {
     } catch (error) {
       console.error('匯出約束物品觀察表失敗:', error);
       alert('匯出失敗，請重試');
+    }
+  };
+
+  const handleConfirmObservationHtmlExport = async () => {
+    if (!observationDateRange.startDate || !observationDateRange.endDate) {
+      alert('請選擇完整的日期範圍');
+      return;
+    }
+
+    if (new Date(observationDateRange.startDate) > new Date(observationDateRange.endDate)) {
+      alert('開始日期不能晚於結束日期');
+      return;
+    }
+
+    // 開啟 modal 詢問是否映射日期中的「日子」
+    setObservationIncludeDayNumber(true);
+    setShowObservationDayMappingModal(true);
+  };
+
+  const handleObservationDayMappingConfirm = async () => {
+    setShowObservationDayMappingModal(false);
+
+    const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
+
+    try {
+      // 按床號排序選中的評估記錄
+      const sortedAssessments = selectedAssessments.sort((a, b) => {
+        const patientA = patients.find(p => p.院友id === a.patient_id);
+        const patientB = patients.find(p => p.院友id === b.patient_id);
+        const bedNumberA = patientA?.床號 || '';
+        const bedNumberB = patientB?.床號 || '';
+        return bedNumberA.localeCompare(bedNumberB, 'zh-Hant', { numeric: true });
+      });
+
+      // 拉取日期範圍內的所有觀察記錄
+      const records = await db.getRestraintObservationRecordsInDateRange(
+        observationDateRange.startDate,
+        observationDateRange.endDate
+      );
+
+      const items = sortedAssessments.map(assessment => {
+        const patient = patients.find(p => p.院友id === assessment.patient_id);
+        if (!patient) return null;
+        return {
+          patient,
+          assessment,
+          records: records.filter(r => r.patient_id === assessment.patient_id)
+        };
+      }).filter((item): item is NonNullable<typeof item> => item !== null);
+
+      if (items.length === 0) {
+        alert('找不到可列印的院友資料');
+        return;
+      }
+
+      exportRestraintObservationsRangeHtml(
+        items,
+        observationDateRange.startDate,
+        observationDateRange.endDate,
+        observationIncludeDayNumber
+      );
+      setShowObservationDateRangeModal(false);
+    } catch (error) {
+      console.error('HTML 列印約束物品觀察表失敗:', error);
+      alert('HTML 列印失敗，請重試');
     }
   };
 
@@ -1144,7 +1213,7 @@ const RestraintManagement: React.FC = () => {
 
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                請選擇約束物品觀察表的觀察期間，這將顯示在表格標題中。
+                請選擇約束物品觀察表的觀察期間。期間會顯示在 Excel 匯出標題及 HTML 列印標題中。
               </p>
               
               <div>
@@ -1189,10 +1258,94 @@ const RestraintManagement: React.FC = () => {
                 className="btn-primary flex-1"
                 disabled={!observationDateRange.startDate || !observationDateRange.endDate}
               >
-                確認匯出
+                確認匯出 Excel
+              </button>
+              <button
+                onClick={handleConfirmObservationHtmlExport}
+                className="btn-secondary flex-1"
+                disabled={!observationDateRange.startDate || !observationDateRange.endDate}
+              >
+                列印 HTML
               </button>
               <button
                 onClick={() => setShowObservationDateRangeModal(false)}
+                className="btn-secondary flex-1"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 約束物品觀察表日期日子映射選擇模態框 */}
+      {showObservationDayMappingModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowObservationDayMappingModal(false);
+          }}
+        >
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-100">
+                  <FileText className="h-6 w-6 text-green-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900">日期顯示設定</h3>
+              </div>
+              <button
+                onClick={() => setShowObservationDayMappingModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                請選擇 HTML 列印時日期是否要顯示「日子」（數字）。
+              </p>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="radio"
+                    name="includeDayNumber"
+                    checked={observationIncludeDayNumber}
+                    onChange={() => setObservationIncludeDayNumber(true)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900">顯示日子</div>
+                    <div className="text-sm text-gray-500">例：2026年07月21日</div>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="radio"
+                    name="includeDayNumber"
+                    checked={!observationIncludeDayNumber}
+                    onChange={() => setObservationIncludeDayNumber(false)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900">不顯示日子</div>
+                    <div className="text-sm text-gray-500">例：2026年07月 [    ] 日</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+              <button
+                onClick={handleObservationDayMappingConfirm}
+                className="btn-primary flex-1"
+              >
+                確認列印
+              </button>
+              <button
+                onClick={() => setShowObservationDayMappingModal(false)}
                 className="btn-secondary flex-1"
               >
                 取消

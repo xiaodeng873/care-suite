@@ -48,8 +48,8 @@ import {
   getVisibleTabTypes
 } from '../utils/careTabsHelper';
 import { exportRestraintObservationHtml, exportRestraintObservationRangeHtml } from '../utils/restraintObservationHtmlExporter';
-import { exportDiaperRecordHtml, exportDiaperRecordRangeHtml } from '../utils/diaperRecordHtmlExporter';
-import { exportHygieneRecordHtml, exportHygieneRecordRangeHtml } from '../utils/hygieneRecordHtmlExporter';
+import { printDiaperRecordFormForPatient } from '../utils/diaperRecordPrintFormHtml';
+import { printHygieneRecordFormForDateRange } from '../utils/hygieneRecordPrintFormHtml';
 import { exportIntakeOutputRangeHtml, convertDbRecordToRow } from '../utils/intakeOutputHtmlGenerator';
 import { exportPatrolRoundsHtml, exportPatrolRoundsRangeHtml } from '../utils/patrolRoundsHtmlExporter';
 import { getFacilitySettings } from '../utils/facilitySettings';
@@ -687,8 +687,6 @@ const CareRecords: React.FC = () => {
                 const recs = await db.getPatrolRoundsInDateRange(start, end);
                 const patientRecs = recs.filter(r => r.patient_id === selectedPatient.院友id);
                 await exportPatrolRoundsRangeHtml({
-                  facilityName: (await getFacilitySettings()).facilityName,
-                  logoBase64: undefined,
                   bedNumber: selectedPatient.床號,
                   startDate: start,
                   endDate: end,
@@ -804,10 +802,9 @@ const CareRecords: React.FC = () => {
             onClick={async () => {
               if (!selectedPatient) { alert('請先選擇院友'); return; }
               const start = diaperExportStart || weekDateStrings[0];
-              const end   = diaperExportEnd   || weekDateStrings[6];
               try {
-                const recs = await db.getDiaperChangeRecordsInDateRange(start, end);
-                exportDiaperRecordRangeHtml(selectedPatient, recs.filter(r => r.patient_id === selectedPatient.院友id), start, end);
+                const yearMonth = `${new Date(start).getFullYear()}年${(new Date(start).getMonth() + 1).toString().padStart(2, '0')}月`;
+                await printDiaperRecordFormForPatient(selectedPatient, yearMonth);
               } catch { alert('匯出失敗，請稍後再試'); }
             }}
             className="btn-primary flex items-center gap-2 px-4 py-2">
@@ -1395,7 +1392,12 @@ const CareRecords: React.FC = () => {
               const end   = hygieneExportEnd   || start;
               try {
                 const recs = await db.getHygieneRecordsInDateRange(start, end);
-                exportHygieneRecordRangeHtml(selectedPatient, recs.filter(r => r.patient_id === selectedPatient.院友id), start, end);
+                await printHygieneRecordFormForDateRange(
+                  selectedPatient,
+                  recs.filter(r => r.patient_id === selectedPatient.院友id),
+                  start,
+                  end
+                );
               } catch { alert('匯出失敗，請稍後再試'); }
             }}
             className="btn-primary flex items-center gap-2 px-4 py-2">

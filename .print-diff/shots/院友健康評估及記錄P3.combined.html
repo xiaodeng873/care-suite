@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* 範本的 body{margin:0} 已被隔離到容器 class，外層 body 必須自行歸零，
+     否則瀏覽器預設 8px margin 會改變每份文件的版面位置並可能導致超頁 */
+  html, body { margin: 0; padding: 0; }
+  [class*="print-doc-"] + [class*="print-doc-"] { page-break-before: always; break-before: page; }
+</style>
+<style>
+        /* A4 紙張規格：左右 0.25 吋出血位，頂部上移 */
+        @page print-doc-0 {
+            size: A4;
+            margin: 5mm 0.25in 5mm 0.25in;
+        }
+
+        .print-doc-0{
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0; padding: 0;
+            background-color: #fff;
+            width: 100%;
+            color: #000;
+        }
+
+        .print-doc-0 .container{ width: 100%; box-sizing: border-box; }
+
+        /* 章節標題 */
+        .print-doc-0 .section-title{ font-size: 15px; font-weight: bold; margin: 10px 0 2px 20px; }
+
+        /* 表格通用設定 */
+        .print-doc-0 table{ width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 0; }
+        .print-doc-0 th,.print-doc-0 td{ border: 1px solid black; text-align: center; vertical-align: middle; padding: 2px; height: 23px; font-size: 12px; }
+        
+        .print-doc-0 .bold{ font-weight: bold; }
+        
+        /* 標籤欄寬度 (對齊前幾項的總和 10mm + 25mm = 35mm) */
+        .print-doc-0 .label-col{ width: 35mm; text-align: center; font-weight: bold; }
+        .print-doc-0 .col-eval{ width: auto; }
+
+        /* 簽署欄文字靠左頂格 */
+        .print-doc-0 .sign-label{ text-align: left; vertical-align: top; padding: 4px; line-height: 1.3; }
+
+        /* 兩個表格之間的間隙 */
+        .print-doc-0 .table-gap{ height: 8px; }
+
+        /* DB組件 */
+        .print-doc-0 .db-text-cell{ width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 12px; text-align: center; outline: none; }
+
+        /* 頁尾頁碼與代碼 */
+        .print-doc-0 .footer{ display: flex; justify-content: flex-end; position: relative; height: 25px; font-weight: bold; margin-top: 10px; }
+        .print-doc-0 .page-num{ position: absolute; left: 50%; transform: translateX(-50%); font-size: 20px; bottom: 0; }
+        .print-doc-0 .doc-code{ font-size: 10px; align-self: flex-end; }
+    </style>
+<style>.print-doc-0 { page: print-doc-0; }</style>
+</head>
+<body>
+<div class="print-doc-0"><div class="container">
+
+    <!-- 7. 意識認知 -->
+    <div class="section-title">7. 意識認知</div>
+    <table>
+        <colgroup>
+            <col class="label-m"><col class="label-s"><col class="col-eval" span="6">
+        </colgroup>
+        <tr>
+            <th colspan="2">觀察日期</th>
+            <td><input type="text" class="db-text-cell" placeholder=""></td><td></td><td></td><td></td><td></td><td></td>
+        </tr>
+        <tr>
+            <th rowspan="5" class="label-m">認知</th>
+            <td class="label-s">時間<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        </tr>
+        <tr><td class="label-s">人物<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">地方<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">無認知能力<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">其他</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    </table>
+
+    <!-- 8. 大小便自制能力 -->
+    <div class="section-title">8. 大小便自制能力</div>
+    <table>
+        <colgroup>
+            <col class="label-m"><col class="label-s"><col class="col-eval" span="6">
+        </colgroup>
+        <tr>
+            <th colspan="2">觀察日期</th>
+            <td><input type="text" class="db-text-cell" placeholder=""></td><td></td><td></td><td></td><td></td><td></td>
+        </tr>
+        <tr>
+            <th colspan="2" class="label-s">需要用尿片</th>
+            <script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        </tr>
+        </tr>
+        <!-- 大便部分 -->
+        <tr>
+            <th rowspan="5" class="label-m">大便</th>
+            <td class="label-s">正常<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        </tr>
+        <tr><td class="label-s">便秘<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">失禁<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">腸造口<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">需要輔助器：</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <!-- 小便部分 -->
+        <tr>
+            <th rowspan="6" class="label-m">小便</th>
+            <td class="label-s">正常<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        </tr>
+        <tr><td class="label-s">間歇性失禁<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">完全失禁<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">造口<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">導尿管<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">需要輔助器：</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    </table>
+
+    <!-- 9. 情緒表現 -->
+    <div class="section-title">9. 情緒表現</div>
+    <table>
+        <colgroup>
+            <col class="label-s" style="width: 35mm;"><col class="col-eval" span="6">
+        </colgroup>
+        <tr>
+            <th>觀察日期</th>
+            <td><input type="text" class="db-text-cell" placeholder=""></td><td></td><td></td><td></td><td></td><td></td>
+        </tr>
+        <tr><td class="label-s">喜樂<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">平靜<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">冷漠<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">抑鬱<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">激動<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+        <tr><td class="label-s">其他<script>(function () {
+  var __realDoc = window.document;
+  var __scope = __realDoc.querySelector('.print-doc-0') || __realDoc.body;
+  var document = new Proxy(__realDoc, {
+    get: function (target, prop) {
+      if (prop === 'querySelector' || prop === 'querySelectorAll') {
+        return function (sel) { return __scope[prop](sel); };
+      }
+      if (prop === 'getElementById') {
+        return function (id) { return __scope.querySelector('#' + id); };
+      }
+      if (prop === 'body') return __scope;
+      var v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+  });
+for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');
+})();</script>
+    </table>
+
+        <!-- 10. 備註 -->
+    <div class="section-title">10. 備註</div>
+    <table>
+        <colgroup>
+            <col class="label-col">
+            <col class="col-eval" span="6">
+        </colgroup>
+        <tr style="height: 25px;">
+            <th>觀察日期</th>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <!-- 備註內容格：保持 6 欄垂直框線 -->
+        <tr style="height: 90px;">
+            <td></td> <!-- 左側標籤留白 -->
+            <td><input type="text" class="db-text-cell"></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+
+    <!-- 表格間的物理間隙 -->
+    <div class="table-gap"></div>
+
+    <!-- 評估者簽署欄：獨立表格，保持 6 欄垂直框線 -->
+    <table>
+        <colgroup>
+            <col class="label-col">
+            <col class="col-eval" span="6">
+        </colgroup>
+        <tr style="height: 55px;">
+            <td class="sign-label">評估者/記錄者<br>姓名,職位及簽署</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">7</div>
+        <div class="doc-code">B24 FK (11.2020)</div>
+    </div>
+</div></div>
+</body>
+</html>

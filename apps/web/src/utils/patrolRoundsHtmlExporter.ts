@@ -1,5 +1,5 @@
 import { TIME_SLOTS } from './careRecordHelper';
-import { DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+import { getFacilitySettings } from './facilitySettings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,7 +22,7 @@ export interface PatrolRoundsExportOptions {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CARDS_PER_PAGE = 16; // 4 columns × 4 rows
+const CARDS_PER_PAGE = 16; // 4 columns × 4 rows (portrait A4)
 
 // 以 doc_html/院友巡房記錄表.html 為模板，並固定:
 //   --row-height: 3.14mm
@@ -49,10 +49,18 @@ html, body {
 }
 .page:last-child { page-break-after: avoid; }
 
-.header-section { width: 100%; height: 24mm; box-sizing: border-box; }
-.title-section { text-align: center; margin-bottom: 2px; }
+.header-section { width: 100%; height: 24mm; box-sizing: border-box; position: relative; }
+.header-top {
+  position: relative;
+  width: 100%;
+  text-align: center;
+  padding-top: 2mm;
+}
+.title-section { display: inline-block; text-align: center; margin-bottom: 2px; }
 .title-section h1 { margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
 .title-section h2 { margin: 1px 0 0 0; font-size: 18px; font-weight: bold; display: inline-block; padding-bottom: 1px; }
+.logo-section { position: absolute; right: 0; top: 0; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; }
+.logo-section img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
 .info-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 4px; }
 .info-table td { border: none; padding: 2px 0; vertical-align: bottom; font-size: 16px; font-weight: bold; white-space: nowrap; }
@@ -80,9 +88,6 @@ html, body {
 .card-table tr:last-child td { border-bottom: none; }
 
 .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 10px; text-align: center; outline: none; display: block; box-sizing: border-box; padding: 0; }
-
-.footer { position: absolute; bottom: 2mm; left: 0; right: 0; height: 5mm; display: flex; justify-content: center; align-items: center; box-sizing: border-box; }
-.page-num { font-size: 16px; font-weight: bold; }
 `.trim();
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -112,8 +117,10 @@ function chunk<T>(arr: T[], size: number): T[][] {
 function buildCard(date: string, roundMap: Map<string, PatrolRoundRecord>): string {
   const rows = TIME_SLOTS.map(ts => {
     const r = roundMap.get(ts);
+    // 時間欄只顯示實際巡房時間；若無記錄則留空
+    const timeDisplay = r?.patrol_time ?? '';
     return `<tr>
-      <td><input class="db-text-cell" value="${esc(ts)}" readonly></td>
+      <td><input class="db-text-cell" value="${esc(timeDisplay)}" readonly></td>
       <td><input class="db-text-cell" value="${esc(r?.recorder ?? '')}" readonly></td>
       <td><input class="db-text-cell" value="${esc(r?.co_signer ?? '')}" readonly></td>
     </tr>`;
@@ -135,10 +142,9 @@ function buildEmptyCard(): string {
 }
 
 function buildPage(
-  pageIndex: number,
-  totalPages: number,
   dates: string[],
   facilityName: string,
+  logoDataUri: string | null,
   bedNumber: string,
   monthStr: string,
   dataIndex: Map<string, Map<string, PatrolRoundRecord>>
@@ -146,11 +152,18 @@ function buildPage(
   const cards = dates.map(d => buildCard(d, dataIndex.get(d) ?? new Map())).join('');
   const emptyCards = Array.from({ length: CARDS_PER_PAGE - dates.length }, buildEmptyCard).join('');
 
+  const logoHtml = logoDataUri
+    ? `<div class="logo-section"><img src="${esc(logoDataUri)}" alt="Logo"></div>`
+    : '<div class="logo-section"></div>';
+
   return `<div class="page">
   <div class="header-section">
-    <div class="title-section">
-      <h1>${esc(facilityName)}</h1>
-      <h2>院友巡房記錄表</h2>
+    <div class="header-top">
+      <div class="title-section">
+        <h1>${esc(facilityName)}</h1>
+        <h2>院友巡房記錄表</h2>
+      </div>
+      ${logoHtml}
     </div>
     <table class="info-table">
       <colgroup>
@@ -164,7 +177,6 @@ function buildPage(
     </table>
   </div>
   <div class="grid-container">${cards}${emptyCards}</div>
-  <div class="footer"><div class="page-num">第 ${pageIndex} / ${totalPages} 頁</div></div>
 </div>`;
 }
 
@@ -209,12 +221,15 @@ function printViaIframe(html: string): void {
 
 export async function exportPatrolRoundsRangeHtml(options: PatrolRoundsExportOptions): Promise<void> {
   const {
-    facilityName = DEFAULT_FACILITY_SETTINGS.facilityNameZh,
     bedNumber,
     startDate,
     endDate,
     rounds,
   } = options;
+
+  const settings = await getFacilitySettings();
+  const facilityName = options.facilityName ?? settings.facilityNameZh;
+  const logoDataUri = options.logoBase64 ?? settings.logoDataUri;
 
   const allDates = dateRange(startDate, endDate);
   if (allDates.length === 0) return;
@@ -227,13 +242,12 @@ export async function exportPatrolRoundsRangeHtml(options: PatrolRoundsExportOpt
   }
 
   const pages = chunk(allDates, CARDS_PER_PAGE);
-  const totalPages = pages.length;
 
   const firstDate = new Date(`${allDates[0]}T00:00:00`);
   const monthStr = `${firstDate.getFullYear()}年${firstDate.getMonth() + 1}月`;
 
-  const pageHtmls = pages.map((dates, i) =>
-    buildPage(i + 1, totalPages, dates, facilityName, bedNumber, monthStr, dataIndex)
+  const pageHtmls = pages.map((dates) =>
+    buildPage(dates, facilityName, logoDataUri, bedNumber, monthStr, dataIndex)
   );
 
   printViaIframe(buildDocument(pageHtmls, facilityName));

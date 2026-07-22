@@ -1,5 +1,6 @@
 import type { Patient } from '../lib/database';
 import { calcAge } from './cgatFeeHelper';
+import { getFacilitySettings } from './facilitySettings';
 
 export interface EpisodeEvent {
   id?: string;
@@ -153,7 +154,8 @@ const pageBlock = (
   patient: Patient,
   rows: ErRecordRow[],
   pageIndex: number,
-  totalPages: number
+  totalPages: number,
+  facilityName: string
 ): string => {
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const age = calcAge(patient.出生日期);
@@ -163,7 +165,7 @@ const pageBlock = (
 
   return `<div class="container">
   <div class="header-top">
-    <h1>善頤(福群)護老院</h1>
+    <h1>${escapeHtml(facilityName)}</h1>
     <h2>使用急症室 / 留院記錄</h2>
     <div class="page-num-top">頁數 ${pageNumberText}</div>
   </div>
@@ -336,14 +338,15 @@ ${bodyContent}
 </body>
 </html>`;
 
-export const generateERRecordFormHtml = (patient: Patient, episode: HospitalEpisode): string => {
+export const generateERRecordFormHtml = (patient: Patient, episode: HospitalEpisode, facilityName: string): string => {
   const row = generateRowForEpisode(episode);
-  return wrapHtml(pageBlock(patient, [row], 1, 1));
+  return wrapHtml(pageBlock(patient, [row], 1, 1, facilityName));
 };
 
 export const generateERRecordFormsHtml = (
   episodes: HospitalEpisode[],
-  patients: Patient[]
+  patients: Patient[],
+  facilityName: string
 ): string => {
   const ROWS_PER_PAGE = 12;
 
@@ -378,24 +381,26 @@ export const generateERRecordFormsHtml = (
     const totalPages = pageChunks.length || 1;
 
     pageChunks.forEach((pageRows, index) => {
-      pages.push(pageBlock(patient, pageRows, index + 1, totalPages));
+      pages.push(pageBlock(patient, pageRows, index + 1, totalPages, facilityName));
     });
   });
 
   return wrapHtml(pages.join('\n'));
 };
 
-export const printERRecordForm = (patient: Patient, episode: HospitalEpisode): void => {
+export const printERRecordForm = async (patient: Patient, episode: HospitalEpisode): Promise<void> => {
   if (!patient || !episode) return;
 
-  const html = generateERRecordFormHtml(patient, episode);
+  const settings = await getFacilitySettings();
+  const html = generateERRecordFormHtml(patient, episode, settings.facilityNameZh);
   printHtmlWithIframe(html, 'er-record-print-iframe');
 };
 
-export const printERRecordForms = (episodes: HospitalEpisode[], patients: Patient[]): void => {
+export const printERRecordForms = async (episodes: HospitalEpisode[], patients: Patient[]): Promise<void> => {
   if (!episodes.length || !patients.length) return;
 
-  const html = generateERRecordFormsHtml(episodes, patients);
+  const settings = await getFacilitySettings();
+  const html = generateERRecordFormsHtml(episodes, patients, settings.facilityNameZh);
   printHtmlWithIframe(html, 'er-record-print-iframe');
 };
 

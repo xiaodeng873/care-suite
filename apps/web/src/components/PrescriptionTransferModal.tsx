@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, ArrowRight, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PrescriptionEndDateModal from './PrescriptionEndDateModal';
+import { getHongKongNow } from '../utils/prescriptionExpiry';
 
 interface PrescriptionTransferModalProps {
   prescription: any;
@@ -20,6 +21,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
   const [pendingTransfer, setPendingTransfer] = useState<{
     targetStatus: 'active' | 'pending_change' | 'inactive';
     endDate?: string | null;
+    endTime?: string | null;
   } | null>(null);
 
   const patient = patients.find(p => p.院友id === prescription.patient_id);
@@ -126,27 +128,38 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
     }
   };
 
-  const handleTransfer = async (endDate?: string | null) => {
+  const handleTransfer = async (endDate?: string | null, endTime?: string | null) => {
     const finalTargetStatus = pendingTransfer?.targetStatus || targetStatus;
     const finalEndDate = endDate !== undefined ? endDate : (pendingTransfer?.endDate || null);
+    const finalEndTime = endTime
+      ? endTime.substring(0, 5)
+      : (pendingTransfer?.endTime ? pendingTransfer.endTime.substring(0, 5) : '23:59');
 
     try {
       // 準備更新資料：僅傳送需要變更的欄位，避免把整列回寫
       // 導致 NOT NULL 欄位（如 medication_source）被空字串轉成 null。
       const updateData: any = {
-        id: prescription.id,
-        status: finalTargetStatus
+        id: prescription.id
       };
 
-      // 根據目標狀態設定結束日期
-      if (finalTargetStatus === 'inactive') {
-        // 轉移到停用處方：必須有結束日期
+      if (finalEndDate) {
+        const selectedEndDateTime = new Date(`${finalEndDate}T${finalEndTime}:00.000Z`);
+        const now = getHongKongNow();
+        const shouldBeInactive = selectedEndDateTime <= now;
+
+        // 有結束日期時，以結束日期是否已屆決定狀態；未屆則維持在服，並標示為「即將停用處方」
+        updateData.status = shouldBeInactive ? 'inactive' : 'active';
         updateData.end_date = finalEndDate;
+        updateData.end_time = finalEndTime;
       } else {
-        // 轉移到在服/待變更處方：允許保留用戶輸入的結束日期
-        if (finalEndDate !== undefined) {
-          updateData.end_date = finalEndDate;
-        }
+        updateData.status = finalTargetStatus;
+        updateData.end_date = null;
+        updateData.end_time = null;
+      }
+
+      if (updateData.status === 'inactive' && !updateData.end_date) {
+        alert('錯誤：停用處方必須設定結束日期');
+        return;
       }
 
       // 是否為「取代」流程：新處方轉在服 + 現有在服處方轉停用，需綁定為同一組
@@ -202,13 +215,14 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
   };
 
   const handleInitiateTransfer = () => {
-    // 檢查是否需要設定結束日期
-    const needsEndDate = targetStatus === 'inactive' && !prescription.end_date;
-    const needsEndDateRemoval = (targetStatus === 'active' || targetStatus === 'pending_change') && prescription.end_date;
+    // 停用目標：一律需要設定結束日期與時間
+    // 在服/待變更目標：若已有結束日期，也顯示彈窗讓使用者編輯/移除
+    const needsEndDate = targetStatus === 'inactive';
+    const needsEndDateRemoval = (targetStatus === 'active') && prescription.end_date;
 
     if (needsEndDate || needsEndDateRemoval) {
       // 需要處理結束日期，顯示結束日期模態框
-      setPendingTransfer({ targetStatus, endDate: prescription.end_date });
+      setPendingTransfer({ targetStatus, endDate: prescription.end_date, endTime: prescription.end_time });
       setShowEndDateModal(true);
     } else {
       // 不需要處理結束日期，直接轉移
@@ -216,9 +230,9 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
     }
   };
 
-  const handleEndDateConfirm = (endDate: string | null) => {
+  const handleEndDateConfirm = (result: { endDate: string | null; endTime: string | null }) => {
     setShowEndDateModal(false);
-    handleTransfer(endDate);
+    handleTransfer(result.endDate, result.endTime);
   };
 
   const getStatusColor = (status: string) => {

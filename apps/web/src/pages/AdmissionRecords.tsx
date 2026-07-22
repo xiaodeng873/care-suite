@@ -287,11 +287,16 @@ const AdmissionRecords: React.FC = () => {
     setShowModal(true);
   };
 
-  const handlePrintSelectedERRecords = () => {
+  const handlePrintSelectedERRecords = async () => {
     if (selectedRows.size === 0) return;
     const selectedEpisodes = hospitalEpisodes.filter((episode) => selectedRows.has(episode.id));
     if (selectedEpisodes.length === 0) return;
-    printERRecordForms(selectedEpisodes, patients);
+    try {
+      await printERRecordForms(selectedEpisodes, patients);
+    } catch (error) {
+      console.error('列印出入院記錄失敗:', error);
+      alert('列印失敗，請稍後再試');
+    }
   };
 
   const handleDelete = async (id: string) => {

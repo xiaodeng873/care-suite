@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* 範本的 body{margin:0} 已被隔離到容器 class，外層 body 必須自行歸零，
+     否則瀏覽器預設 8px margin 會改變每份文件的版面位置並可能導致超頁 */
+  html, body { margin: 0; padding: 0; }
+  [class*="print-doc-"] + [class*="print-doc-"] { page-break-before: always; break-before: page; }
+</style>
+<style>
+        @page print-doc-0 { size: A4; margin: 5mm 0.25in; }
+        .print-doc-0{ font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; padding: 0; background-color: #fff; color: #000; line-height: 1.8; }
+        .print-doc-0 .container{ width: 100%; box-sizing: border-box; padding: 0 10mm; }
+        .print-doc-0 .title-section{ text-align: center; margin-bottom: 20px; }
+        .print-doc-0 .title-section h1{ margin: 0; font-size: 28px; font-weight: bold; letter-spacing: 3px; }
+        .print-doc-0 .title-section h2{ margin: 10px 0 0 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+
+        /* DB Mapping 組件 */
+        .print-doc-0 .db-checkbox{ width: 16px; height: 16px; vertical-align: middle; cursor: pointer; }
+        .print-doc-0 .db-line-input{ border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 18px; outline: none; padding: 0 5px; text-align: center; }
+        
+        .print-doc-0 .content-body{ font-size: 18px; text-align: justify; }
+        .print-doc-0 .institution-list{ margin: 15px auto; width: 85%; font-size: 18px; }
+        .print-doc-0 .inst-row{ display: flex; align-items: center; margin-bottom: 5px; }
+        .print-doc-0 .list-num{ min-width: 30px; font-weight: bold; }
+
+        .print-doc-0 .signature-section{ margin-top: 25px; font-size: 18px; }
+        .print-doc-0 .sig-row{ display: flex; align-items: flex-end; margin-bottom: 15px; }
+        .print-doc-0 .sig-label{ white-space: nowrap; font-weight: bold; }
+        .print-doc-0 .flex-fill{ flex-grow: 1; }
+
+        .print-doc-0 .witness-section{ margin-top: 40px; font-size: 18px; font-weight: bold; }
+        .print-doc-0 .flex-row{ display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .print-doc-0 .flex-item{ display: flex; align-items: flex-end; width: 48%; }
+
+        .print-doc-0 .footer{ position: absolute; bottom: 10mm; left: 0; right: 0; padding: 0 0.25in; display: flex; justify-content: flex-end; align-items: flex-end; }
+        .print-doc-0 .page-num{ position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; }
+        .print-doc-0 .doc-code{ font-size: 13px; font-weight: bold; }
+    </style>
+<style>.print-doc-0 { page: print-doc-0; }</style>
+</head>
+<body>
+<div class="print-doc-0"><div class="container">
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>發佈資料同意書</h2>
+    </div>
+
+    <div class="content-body">
+        本人，即下方簽署人，(身份證號碼：<input type="text" class="db-line-input" style="width: 200px;">) 是院友<br>
+        (姓名) <input type="text" class="db-line-input" style="width: 200px;"> (身份證號碼：<input type="text" class="db-line-input" style="width: 200px;">)<br>
+        之*監護人/保證人/家人/ 親屬(請列明關係 <input type="text" class="db-line-input" style="width: 150px;"> ) 完全明<br>
+        白並同意及授權 貴院在需要時，提供*本人/該院友有關的個人資料給下列機構<br>
+        而不被視作違反個人資料(私隱)條例：
+    </div>
+
+    <div class="institution-list">
+        <div class="inst-row"><span class="list-num">1.</span> <input type="checkbox" class="db-checkbox"> 醫管局及其轄下醫院/診所</div>
+        <div class="inst-row"><span class="list-num">2.</span> <input type="checkbox" class="db-checkbox"> 各公立醫院外展醫生/護士</div>
+        <div class="inst-row"><span class="list-num">3.</span> <input type="checkbox" class="db-checkbox"> 衛生署及其轄下診所</div>
+        <div class="inst-row"><span class="list-num">4.</span> <input type="checkbox" class="db-checkbox"> 醫管局/衛生署社康護士</div>
+        <div class="inst-row"><span class="list-num">5.</span> <input type="checkbox" class="db-checkbox"> 社會福利署及其轄下各部門</div>
+        <div class="inst-row"><span class="list-num">6.</span> <input type="checkbox" class="db-checkbox"> 其他 (請註明)：<input type="text" class="db-line-input" style="flex-grow: 1;"></div>
+    </div>
+
+    <div class="signature-section">
+        <div class="sig-row"><span class="sig-label">資料當事*院友/ 監護人/ 保證人/家人/ 親屬簽署：</span><div class="flex-fill" style="border-bottom:1px solid black;"></div></div>
+        <div class="sig-row"><span class="sig-label">資料當事*院友/ 監護人/ 保證人/家人/親屬姓名：</span><input type="text" class="db-line-input flex-fill"></div>
+        <div class="sig-row" style="justify-content: flex-end;"><span class="sig-label">日期：</span><input type="text" class="db-line-input" style="width: 180px;"></div>
+    </div>
+
+    <div style="font-size: 15px; margin-top: 10px;">*請刪去不適用者</div>
+
+    <div class="witness-section">
+        <div class="flex-row">
+            <div class="flex-item">見證人姓名：<input type="text" class="db-line-input flex-fill"></div>
+            <div class="flex-item">職級：<input type="text" class="db-line-input flex-fill"></div>
+        </div>
+        <div class="flex-row">
+            <div class="flex-item">簽署：<div class="flex-fill" style="border-bottom:1px solid black;"></div></div>
+            <div class="flex-item">日期：<input type="text" class="db-line-input flex-fill"></div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="page-num">16</div>
+        <div class="doc-code">A32A FK (01.2017)</div>
+    </div>
+</div></div>
+</body>
+</html>

@@ -45,6 +45,7 @@ import { Portal } from '../components/Portal';
 import { generateDailyWorkflowRecords, generateBatchWorkflowRecords, generateWorkflowRecordsClient } from '../utils/workflowGenerator';
 import { diagnoseWorkflowDisplayIssue } from '../utils/diagnoseTool';
 import { isPrescriptionScheduledOnDate } from '../utils/prescriptionSchedule';
+import { isPrescriptionExpired } from '../utils/prescriptionExpiry';
 import { supabase } from '../lib/supabase';
 import { getPatientByQrCodeId, getPatientWorkflowSettings, updatePatientBatchCutoffTime } from '../lib/database';
 import {
@@ -3120,12 +3121,21 @@ const MedicationWorkflow: React.FC = () => {
                                   style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
                                 >
                                   <div className="space-y-1.5">
-                                    <div className="font-medium text-gray-900">
-                                      {prescription.medication_name}
+                                    <div className="font-medium text-gray-900 flex flex-wrap items-center gap-2">
+                                      <span>{prescription.medication_name}</span>
+                                      {prescription.is_long_term === false && (
+                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">短期藥物</span>
+                                      )}
+                                      {prescription.status === 'active' && prescription.end_date && prescription.is_long_term !== false && !isPrescriptionExpired(prescription) && (
+                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-300">即將於停用處方</span>
+                                      )}
+                                      {prescription.status === 'active' && prescription.end_date && isPrescriptionExpired(prescription) && (
+                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-800 border border-red-300">已逾期</span>
+                                      )}
+                                      {prescription.status === 'inactive' && (
+                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 border border-gray-300">停用處方</span>
+                                      )}
                                     </div>
-                                    {prescription.end_date && (
-                                      <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">短期藥物</span>
-                                    )}
                                     {prescription.dosage_form && (
                                       <div className="text-xs text-gray-500">{prescription.dosage_form}</div>
                                     )}

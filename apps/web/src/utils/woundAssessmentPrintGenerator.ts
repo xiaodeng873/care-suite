@@ -258,7 +258,7 @@ const buildPage = (
 
   const logoHtml = logoDataUri
     ? `<img class="logo-img" src="${esc(logoDataUri)}" alt="Logo">`
-    : `<span style="font-size:13px;font-weight:bold;">善頤護老</span>`;
+    : `<span style="font-size:13px;font-weight:bold;">${esc(facilityName)}</span>`;
 
   return `<div class="container"${pageNum > 1 ? ' style="page-break-before:always;"' : ''}>
   <div class="header">

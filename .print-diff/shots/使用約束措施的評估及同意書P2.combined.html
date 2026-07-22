@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* 範本的 body{margin:0} 已被隔離到容器 class，外層 body 必須自行歸零，
+     否則瀏覽器預設 8px margin 會改變每份文件的版面位置並可能導致超頁 */
+  html, body { margin: 0; padding: 0; }
+  [class*="print-doc-"] + [class*="print-doc-"] { page-break-before: always; break-before: page; }
+</style>
+<style>
+        /* A4 紙張與邊距嚴格定義 */
+        @page print-doc-0 {
+            size: A4;
+            margin: 5mm 12mm 10mm 12mm; /* 頂部極致壓縮，留出底部空間 */
+        }
+
+        .print-doc-0{
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.3;
+        }
+
+        .print-doc-0 .a4-container{
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* 隱形表格：用於鎖定文字與填寫線，絕不跑偏換行 */
+        .print-doc-0 .layout-table{
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed; /* 強制鎖定欄寬 */
+        }
+        .print-doc-0 .layout-table td{
+            border: none;
+            padding: 2px 0;
+            vertical-align: bottom;
+            white-space: nowrap; /* 嚴格禁止換行 */
+            font-size: 14px;
+        }
+
+        /* DB Mapping 輸入框 (帶底線) */
+        .print-doc-0 .db-input{
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            width: 100%;
+            display: block;
+            box-sizing: border-box;
+            padding: 0 2px;
+        }
+
+        /* DB Mapping Checkbox */
+        .print-doc-0 .db-checkbox{
+            width: 14px;
+            height: 14px;
+            vertical-align: middle;
+            margin-right: 3px;
+            cursor: pointer;
+        }
+
+        /* 主表格 (接續上一頁) */
+        .print-doc-0 table.main-table{
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            border: 2px solid black; /* 頂部粗線代表接續 */
+            margin-bottom: 5px;
+        }
+        .print-doc-0 table.main-table th,.print-doc-0 table.main-table td{
+            border: 1px solid black;
+            padding: 2px 4px;
+            vertical-align: middle;
+            font-size: 13.5px;
+        }
+        .print-doc-0 .col-type{ width: 18%; }
+        .print-doc-0 .col-cond{ width: 28%; }
+        .print-doc-0 .col-time{ width: 54%; }
+
+        /* 雙線大框 (四至七項, 第八項) */
+        .print-doc-0 .double-border-box{
+            border: 3px double black;
+            margin-bottom: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .print-doc-0 .section-block{
+            border-bottom: 3px double black;
+            padding: 4px 6px;
+        }
+        .print-doc-0 .section-block:last-child{
+            border-bottom: none;
+        }
+
+        .print-doc-0 .section-title{
+            font-weight: bold;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .print-doc-0 .small-note{
+            font-weight: normal;
+            font-size: 12px;
+        }
+
+        /* 住客意願左右分欄 */
+        .print-doc-0 .split-box{
+            display: flex;
+            width: 100%;
+        }
+        .print-doc-0 .split-left{
+            width: 50%;
+            border-right: 1px solid black;
+            padding-right: 6px;
+            box-sizing: border-box;
+            text-align: justify;
+        }
+        .print-doc-0 .split-right{
+            width: 50%;
+            padding-left: 6px;
+            box-sizing: border-box;
+        }
+
+        /* 內部文字排版 */
+        .print-doc-0 .content-text{
+            font-size: 13.5px;
+            line-height: 1.4;
+            text-align: justify;
+        }
+
+        /* 底部置中頁碼 */
+        .print-doc-0 .footer-wrap{
+            margin-top: 5px;
+            text-align: center;
+            font-size: 14px;
+        }
+    </style>
+<style>.print-doc-0 { page: print-doc-0; }</style>
+</head>
+<body>
+<div class="print-doc-0"><div class="a4-container">
+    <!-- 主表格接續 -->
+    <table class="main-table">
+        <colgroup>
+            <col class="col-type">
+            <col class="col-cond">
+            <col class="col-time">
+        </colgroup>
+        <tbody>
+            <tr>
+                <td><input type="checkbox" class="db-checkbox">手腕帶</td>
+                <td><input type="checkbox" class="db-checkbox">坐在椅上&nbsp;&nbsp;<input type="checkbox" class="db-checkbox">躺在床上<br><input type="checkbox" class="db-checkbox">坐在椅上及躺在床上</td>
+                <td>
+                    <input type="checkbox" class="db-checkbox">日間 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">全日<br>
+                    <input type="checkbox" class="db-checkbox">晚上 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">其他：<input type="text" style="width:60px; border:none; border-bottom:1px solid black; outline:none;">
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" class="db-checkbox">約束手套／<br>&nbsp;&nbsp;&nbsp;連指手套</td>
+                <td><input type="checkbox" class="db-checkbox">坐在椅上&nbsp;&nbsp;<input type="checkbox" class="db-checkbox">躺在床上<br><input type="checkbox" class="db-checkbox">坐在椅上及躺在床上</td>
+                <td>
+                    <input type="checkbox" class="db-checkbox">日間 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">全日<br>
+                    <input type="checkbox" class="db-checkbox">晚上 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">其他：<input type="text" style="width:60px; border:none; border-bottom:1px solid black; outline:none;">
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" class="db-checkbox">防滑褲／<br>&nbsp;&nbsp;&nbsp;防滑褲帶</td>
+                <td><input type="checkbox" class="db-checkbox">坐在椅上&nbsp;&nbsp;<input type="checkbox" class="db-checkbox">躺在床上<br><input type="checkbox" class="db-checkbox">坐在椅上及躺在床上</td>
+                <td>
+                    <input type="checkbox" class="db-checkbox">日間 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">全日<br>
+                    <input type="checkbox" class="db-checkbox">晚上 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">其他：<input type="text" style="width:60px; border:none; border-bottom:1px solid black; outline:none;">
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" class="db-checkbox">枱板</td>
+                <td><input type="checkbox" class="db-checkbox">坐在椅／輪椅上</td>
+                <td>
+                    <input type="checkbox" class="db-checkbox">日間 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">全日<br>
+                    <input type="checkbox" class="db-checkbox">晚上 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">其他：<input type="text" style="width:60px; border:none; border-bottom:1px solid black; outline:none;">
+                </td>
+            </tr>
+            <tr>
+                <td><input type="checkbox" class="db-checkbox">其他：<br><input type="text" style="width:90%; border:none; border-bottom:1px solid black; outline:none;"></td>
+                <td><input type="checkbox" class="db-checkbox">坐在椅上&nbsp;&nbsp;<input type="checkbox" class="db-checkbox">躺在床上<br><input type="checkbox" class="db-checkbox">坐在椅上及躺在床上</td>
+                <td>
+                    <input type="checkbox" class="db-checkbox">日間 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">全日<br>
+                    <input type="checkbox" class="db-checkbox">晚上 (由 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時至 <input type="text" style="width:30px; border:none; border-bottom:1px solid black; outline:none; text-align:center;"> 時) &nbsp;<input type="checkbox" class="db-checkbox">其他：<input type="text" style="width:60px; border:none; border-bottom:1px solid black; outline:none;">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 下次評估日期與護士簽名 (隱形表格) -->
+    <table class="layout-table" style="margin-bottom: 8px;">
+        <colgroup>
+            <col style="width: 100px;"><col style="width: 180px;"><col style="width: auto;">
+        </colgroup>
+        <tr>
+            <td>下次評估日期</td>
+            <td><input type="text" class="db-input"></td>
+            <td></td>
+        </tr>
+    </table>
+    <table class="layout-table" style="margin-bottom: 12px;">
+        <colgroup>
+            <col style="width: 125px;"><col style="width: 220px;">
+            <col style="width: 140px;"><col style="width: 220px;">
+            <col style="width: 45px;"><col style="width: auto;">
+        </colgroup>
+        <tr>
+            <td>護士／保健員姓名</td>
+            <td><input type="text" class="db-input"></td>
+            <td style="text-align:right; padding-right:8px;">護士／保健員簽署</td>
+            <td><input type="text" class="db-input"></td>
+            <td style="text-align:right; padding-right:8px;">日期</td>
+            <td><input type="text" class="db-input"></td>
+        </tr>
+    </table>
+
+    <!-- 雙線大框：包含 (四), (五), (六), (七) -->
+    <div class="double-border-box">
+        
+        <!-- (四) 註冊醫生意見 -->
+        <div class="section-block">
+            <div class="section-title">（四）註冊醫生意見 <span class="small-note">(請在合適的方格內加上「✓」號)</span></div>
+            <div class="content-text" style="margin-bottom: 5px;">
+                <div style="margin-bottom: 2px;">&nbsp;&nbsp;&nbsp;&nbsp;<input type="checkbox" class="db-checkbox"> 同意上述住客按第（三）部分的建議使用約束物品</div>
+                <div>&nbsp;&nbsp;&nbsp;&nbsp;<input type="checkbox" class="db-checkbox"> 不同意上述住客使用約束物品</div>
+            </div>
+            <!-- 備註 -->
+            <table class="layout-table">
+                <colgroup><col style="width: 50px;"><col style="width: auto;"></colgroup>
+                <tr><td>&nbsp;&nbsp;&nbsp;&nbsp;備註：</td><td><input type="text" class="db-input"></td></tr>
+            </table>
+            <!-- 醫生簽署 -->
+            <table class="layout-table" style="margin-top: 5px;">
+                <colgroup>
+                    <col style="width: 70px;"><col style="width: 230px;">
+                    <col style="width: 80px;"><col style="width: 230px;">
+                    <col style="width: 45px;"><col style="width: auto;">
+                </colgroup>
+                <tr>
+                    <td>醫生姓名</td><td><input type="text" class="db-input"></td>
+                    <td style="text-align:right; padding-right:8px;">醫生簽署</td><td><input type="text" class="db-input"></td>
+                    <td style="text-align:right; padding-right:8px;">日期</td><td><input type="text" class="db-input"></td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- (五) 住客意願 -->
+        <div class="section-block">
+            <div class="section-title">（五）住客意願 <span class="small-note">(請在合適的方格內加上「✓」號，並在*處刪去不適用者)</span></div>
+            <div class="split-box">
+                <!-- 左側 -->
+                <div class="split-left">
+                    <!-- 隱形表格確保填寫線不跑偏 -->
+                    <table class="layout-table">
+                        <colgroup><col style="width: 35px;"><col style="width: auto;"><col style="width: 100px;"></colgroup>
+                        <tr><td>本人</td><td><input type="text" class="db-input"></td><td>(住客姓名) 經</td></tr>
+                    </table>
+                    <div class="content-text" style="margin-bottom: 5px;">
+                        *安老院員工／註冊醫生向本人清楚解釋需要使用約束物品的原因、使用約束物品的種類和時段、使用約束物品可能帶來的短期及長遠影響 (見下文「特別注意事項」)、以及院舍職員曾嘗試採用的折衷辦法及其成效後，本人現 <input type="checkbox" class="db-checkbox">同意／<input type="checkbox" class="db-checkbox">不同意 按第(三)部分的建議使用保護性約束物品。
+                    </div>
+                    <table class="layout-table">
+                        <colgroup><col style="width: 70px;"><col style="width: 110px;"><col style="width: 50px;"><col style="width: auto;"></colgroup>
+                        <tr>
+                            <td>住客簽署</td><td><input type="text" class="db-input"></td>
+                            <td style="text-align:right; padding-right:8px;">日期</td><td><input type="text" class="db-input"></td>
+                        </tr>
+                    </table>
+                </div>
+                <!-- 右側 -->
+                <div class="split-right">
+                    <div style="font-weight: bold; margin-bottom: 2px;">若住客未能明白使用約束措施事宜則只填寫此部分</div>
+                    <table class="layout-table">
+                        <colgroup><col style="width: 50px;"><col style="width: auto;"><col style="width: 100px;"></colgroup>
+                        <tr><td>本人乃</td><td><input type="text" class="db-input"></td><td>(住客姓名) 的</td></tr>
+                    </table>
+                    <div class="content-text" style="margin-bottom: 5px;">
+                        *監護人／保證人／家人／親屬／註冊醫生，現見證該住客因未能明白使用約束措施事宜而不能簽署同意書。
+                    </div>
+                    <table class="layout-table" style="margin-bottom: 2px;">
+                        <colgroup><col style="width: 80px;"><col style="width: auto;"><col style="width: 45px;"><col style="width: auto;"></colgroup>
+                        <tr>
+                            <td>見證人姓名</td><td><input type="text" class="db-input"></td>
+                            <td style="text-align:right; padding-right:8px;">關係</td><td><input type="text" class="db-input"></td>
+                        </tr>
+                    </table>
+                    <table class="layout-table">
+                        <colgroup><col style="width: 80px;"><col style="width: auto;"><col style="width: 45px;"><col style="width: auto;"></colgroup>
+                        <tr>
+                            <td>見證人簽署</td><td><input type="text" class="db-input"></td>
+                            <td style="text-align:right; padding-right:8px;">日期</td><td><input type="text" class="db-input"></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- (六) 監護人／保證人／家人／親屬意願 -->
+        <div class="section-block">
+            <div class="section-title">（六）監護人／保證人／家人／親屬意願 <span class="small-note">(請在合適的方格內加上「✓」號，並在*處刪去不適用者)</span></div>
+            <table class="layout-table">
+                <colgroup><col style="width: 25px;"><col style="width: 40px;"><col style="width: 150px;"><col style="width: 25px;"><col style="width: 200px;"><col style="width: auto;"></colgroup>
+                <tr>
+                    <td><input type="checkbox" class="db-checkbox"></td>
+                    <td>本人</td><td><input type="text" class="db-input"></td>
+                    <td style="text-align:center;">乃</td><td><input type="text" class="db-input"></td>
+                    <td>(住客姓名) 的 *監護人／保證人／家人／親屬，經</td>
+                </tr>
+            </table>
+            <div class="content-text" style="margin-bottom: 5px;">
+                *安老院員工／註冊醫生向本人清楚解釋上述住客需要使用約束物品的原因、使用約束物品的種類、使用約束物品的時段、使用約束物品可能帶來的短期及長遠影響 (見第 (八) 部分「特別注意事項」)、以及院舍職員曾嘗試採用的折衷辦法及其成效後，本人現 <input type="checkbox" class="db-checkbox">同意／<input type="checkbox" class="db-checkbox">不同意 上述住客按第 (三) 部分的建議使用保護性約束物品。
+            </div>
+            <table class="layout-table" style="margin-bottom: 4px;">
+                <colgroup><col style="width: 40px;"><col style="width: auto;"><col style="width: 90px;"><col style="width: auto;"><col style="width: 45px;"><col style="width: auto;"></colgroup>
+                <tr>
+                    <td>簽署</td><td><input type="text" class="db-input"></td>
+                    <td style="text-align:right; padding-right:8px;">與住客關係</td><td><input type="text" class="db-input"></td>
+                    <td style="text-align:right; padding-right:8px;">日期</td><td><input type="text" class="db-input"></td>
+                </tr>
+            </table>
+            <div style="font-size: 14px;">
+                <input type="checkbox" class="db-checkbox"> 上述住客沒有 *監護人／保證人／家人／親屬。
+            </div>
+        </div>
+
+        <!-- (七) 主管確認 -->
+        <div class="section-block">
+            <div class="section-title">（七）主管確認</div>
+            <table class="layout-table">
+                <colgroup><col style="width: 40px;"><col style="width: 150px;"><col style="width: 175px;"><col style="width: 70px;"><col style="width: 160px;"><col style="width: 45px;"><col style="width: auto;"></colgroup>
+                <tr>
+                    <td>本人</td><td><input type="text" class="db-input"></td>
+                    <td>確認上述資料均屬真確。</td>
+                    <td style="text-align:right; padding-right:8px;">主管簽署</td><td><input type="text" class="db-input"></td>
+                    <td style="text-align:right; padding-right:8px;">日期</td><td><input type="text" class="db-input"></td>
+                </tr>
+            </table>
+        </div>
+    </div> <!-- 雙線框結束 -->
+
+    <!-- (八) 特別注意事項 -->
+    <div class="double-border-box" style="padding: 4px 6px; margin-bottom: 0;">
+        <div class="section-title">（八）特別注意事項</div>
+        <div style="font-size: 13.5px; line-height: 1.25; margin-left: 15px; text-indent: -15px;">
+            1. 須最少每 2 小時檢查一次住客使用約束措施的情況。<br>
+            2. 約束物品會使住客長期處於坐或臥的狀態，減少了住客的活動和關節的活動能力，令肌肉萎縮。<br>
+            3. 骨骼可能會因為減少了負重而變得疏鬆和脆弱。<br>
+            4. 由於血液循環系統的功能下降，下肢可能會出現水腫。<br>
+            5. 受約束的住客可能會出現憤怒、羞辱、恐懼、無助、不安等負面情緒。<br>
+            6. 長期約束會令住客變得脾氣暴躁、焦慮，甚至有抑鬱的傾向。<br>
+            7. 受約束的住客身體會轉弱和精神變差，更容易引致跌倒及受傷。<br>
+            8. 有些住客十分抗拒被約束，並會嘗試掙脫約束物品，因此可能會造成自身傷害或跌倒。<br>
+            9. 由於活動能力受到限制，住客與人傾談和相處的機會亦逐漸減少，影響了他們的社交健康。
+        </div>
+    </div>
+
+    <!-- 頁尾 -->
+    <div class="footer-wrap">
+        附件 12.4 - 2
+    </div>
+</div></div>
+</body>
+</html>

@@ -307,22 +307,23 @@ const openPrintWindow = (html: string) => {
   }
 };
 
-/**
- * 產生院友體溫記錄表並開啟列印視窗。
- * @param startDate 起始日期 (YYYY-MM-DD)
- * @param endDate 結束日期 (YYYY-MM-DD)
- */
-export const generateTemperatureRecordWorksheet = async (
+export const generateTemperatureRecordHtml = async (
   startDate: string,
   endDate: string,
-  patientIds?: number[]
-): Promise<void> => {
+  patientIds?: number[],
+  options?: { includeData?: boolean; blankHeader?: boolean }
+): Promise<string> => {
   activeFacility = await getFacilitySettings();
 
-  const [patients, records] = await Promise.all([
+  const includeData = options?.includeData !== false;
+  const [patientsRaw, records] = await Promise.all([
     fetchInResidencePatients(patientIds),
-    fetchTemperatureRecords(startDate, endDate),
+    includeData ? fetchTemperatureRecords(startDate, endDate) : Promise.resolve([]),
   ]);
+
+  const patients = options?.blankHeader
+    ? patientsRaw.map(p => ({ ...p, 中文姓名: '', 床號: '', 性別: '', 出生日期: '' }))
+    : patientsRaw;
 
   // 依院友分組記錄
   const recordsByPatient = new Map<number, TempRecord[]>();
@@ -343,7 +344,20 @@ export const generateTemperatureRecordWorksheet = async (
     });
   });
 
-  const html = buildHtml(pagesHtml);
+  return buildHtml(pagesHtml);
+};
+
+/**
+ * 產生院友體溫記錄表並開啟列印視窗。
+ * @param startDate 起始日期 (YYYY-MM-DD)
+ * @param endDate 結束日期 (YYYY-MM-DD)
+ */
+export const generateTemperatureRecordWorksheet = async (
+  startDate: string,
+  endDate: string,
+  patientIds?: number[]
+): Promise<void> => {
+  const html = await generateTemperatureRecordHtml(startDate, endDate, patientIds);
   openPrintWindow(html);
 };
 

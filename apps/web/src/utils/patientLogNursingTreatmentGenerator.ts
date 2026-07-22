@@ -413,27 +413,24 @@ const buildPatientHtml = (
 </html>`;
 };
 
-export async function printPatientLogNursingTreatment(
+export async function generatePatientLogNursingTreatmentHtml(
   logs: PatientLog[],
   patients: Patient[],
   selectedIds: string[]
-): Promise<void> {
+): Promise<string> {
   if (selectedIds.length === 0) {
-    alert('請選擇要列印的日誌記錄');
-    return;
+    return '';
   }
 
   const selectedLogs = logs.filter((log) => selectedIds.includes(log.id));
   if (selectedLogs.length === 0) {
-    alert('找不到選取的記錄');
-    return;
+    return '';
   }
 
   const facilitySettings = await getFacilitySettings();
   const facilityName = facilitySettings.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
   const logoDataUri = facilitySettings.logoDataUri;
 
-  // 按院友分組，每位院友產生獨立表單
   const byPatient = new Map<number, PatientLog[]>();
   for (const log of selectedLogs) {
     const list = byPatient.get(log.patient_id) || [];
@@ -447,5 +444,32 @@ export async function printPatientLogNursingTreatment(
     pages.push(buildPatientHtml(patient, patientLogs, facilityName, logoDataUri));
   }
 
-  printCombinedHtml(pages, 'patient-log-nursing-treatment-iframe');
+  return `<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <title>護理及治療記錄</title>
+</head>
+<body>
+  ${pages.join('\n')}
+</body>
+</html>`;
+}
+
+export async function printPatientLogNursingTreatment(
+  logs: PatientLog[],
+  patients: Patient[],
+  selectedIds: string[]
+): Promise<void> {
+  if (selectedIds.length === 0) {
+    alert('請選擇要列印的日誌記錄');
+    return;
+  }
+
+  const html = await generatePatientLogNursingTreatmentHtml(logs, patients, selectedIds);
+  if (!html) {
+    alert('找不到選取的記錄');
+    return;
+  }
+  printCombinedHtml([html], 'patient-log-nursing-treatment-iframe');
 }

@@ -398,26 +398,27 @@ const openPrintWindow = (html: string) => {
   }
 };
 
-/**
- * 產生生命表徵觀察記錄表並開啟列印視窗。
- * @param startDate 起始日期 (YYYY-MM-DD)
- * @param endDate 結束日期 (YYYY-MM-DD)
- */
-export const generateBloodPressureRecordWorksheet = async (
+export const generateBloodPressureRecordHtml = async (
   startDate: string,
   endDate: string,
-  patientIds?: number[]
-): Promise<void> => {
+  patientIds?: number[],
+  options?: { includeData?: boolean; blankHeader?: boolean }
+): Promise<string> => {
   activeFacility = await getFacilitySettings();
 
-  const [patients, tempRecords, bpRecords, pulseRecords, respRecords, spo2Records] = await Promise.all([
+  const includeData = options?.includeData !== false;
+  const [patientsRaw, tempRecords, bpRecords, pulseRecords, respRecords, spo2Records] = await Promise.all([
     fetchInResidencePatients(patientIds),
-    fetchVitalRecords('體溫', startDate, endDate),
-    fetchVitalRecords('血壓', startDate, endDate),
-    fetchVitalRecords('脈搏', startDate, endDate),
-    fetchVitalRecords('呼吸', startDate, endDate),
-    fetchVitalRecords('血含氧量', startDate, endDate),
+    includeData ? fetchVitalRecords('體溫', startDate, endDate) : Promise.resolve([]),
+    includeData ? fetchVitalRecords('血壓', startDate, endDate) : Promise.resolve([]),
+    includeData ? fetchVitalRecords('脈搏', startDate, endDate) : Promise.resolve([]),
+    includeData ? fetchVitalRecords('呼吸', startDate, endDate) : Promise.resolve([]),
+    includeData ? fetchVitalRecords('血含氧量', startDate, endDate) : Promise.resolve([]),
   ]);
+
+  const patients = options?.blankHeader
+    ? patientsRaw.map(p => ({ ...p, 中文姓名: '', 床號: '', 性別: '', 出生日期: '' }))
+    : patientsRaw;
 
   const mergedByPatient = buildMergedRowsByPatient(tempRecords, bpRecords, pulseRecords, respRecords, spo2Records);
 
@@ -431,6 +432,19 @@ export const generateBloodPressureRecordWorksheet = async (
     });
   });
 
-  const html = buildHtml(pagesHtml);
+  return buildHtml(pagesHtml);
+};
+
+/**
+ * 產生生命表徵觀察記錄表並開啟列印視窗。
+ * @param startDate 起始日期 (YYYY-MM-DD)
+ * @param endDate 結束日期 (YYYY-MM-DD)
+ */
+export const generateBloodPressureRecordWorksheet = async (
+  startDate: string,
+  endDate: string,
+  patientIds?: number[]
+): Promise<void> => {
+  const html = await generateBloodPressureRecordHtml(startDate, endDate, patientIds);
   openPrintWindow(html);
 };

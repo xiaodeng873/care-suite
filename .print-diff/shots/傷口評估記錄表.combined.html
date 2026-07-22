@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* 範本的 body{margin:0} 已被隔離到容器 class，外層 body 必須自行歸零，
+     否則瀏覽器預設 8px margin 會改變每份文件的版面位置並可能導致超頁 */
+  html, body { margin: 0; padding: 0; }
+  [class*="print-doc-"] + [class*="print-doc-"] { page-break-before: always; break-before: page; }
+</style>
+<style>
+        /* A4 紙張設定：左右 0.25 吋出血位 */
+        @page print-doc-0 {
+            size: A4;
+            margin: 0.4in 0.25in;
+        }
+
+        .print-doc-0{
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0; padding: 0;
+            background-color: #fff;
+            width: 100%;
+        }
+
+        .print-doc-0 .container{ width: 100%; box-sizing: border-box; }
+
+        /* 標頭設定 - 左上角重製 */
+        .print-doc-0 .header{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        
+        .print-doc-0 .header-left-group{ display: flex; width: 35%; }
+        
+        /* "站" 方塊 */
+        .print-doc-0 .station-box-new{
+            border: 1.5px solid black;
+            width: 70px;
+            height: 53px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: bold;
+            margin-right: 6px;
+        }
+
+        /* "姓名/床號" 方塊 */
+        .print-doc-0 .identity-box-new{
+            border: 1.5px solid black;
+            flex-grow: 1;
+            height: 50px;
+            padding: 2px 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .print-doc-0 .header-center{ text-align: center; flex-grow: 1; padding: 0 10px; }
+        .print-doc-0 .header-center h1{ margin: 0; font-size: 30px; font-weight: bold; }
+        .print-doc-0 .header-center h2{ margin: 0; font-size: 24px; font-weight: bold; }
+
+        .print-doc-0 .header-right{ text-align: right; width: 22%; font-weight: bold; font-size: 10px; }
+
+        /* 表格設定 */
+        .print-doc-0 table{ width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .print-doc-0 th,.print-doc-0 td{ border: 1px solid black; text-align: center; vertical-align: middle; padding: 2px 1px; }
+
+        /* 欄寬極致分配 */
+        .print-doc-0 .col-m{ width: 9mm; font-size: 9px; line-height: 1.0; } 
+        .print-doc-0 .col-s{ width: 19mm; font-size: 9px; line-height: 1.0; } 
+        .print-doc-0 .col-e{ width: auto; } 
+
+        .print-doc-0 .bold{ font-weight: bold; }
+
+        /* DB Mapping 組件 */
+        .print-doc-0 .db-opt{
+            display: inline-block;
+            white-space: nowrap;
+            margin: 1px 1px;
+            font-size: 10.5px;
+        }
+        .print-doc-0 .db-checkbox{
+            display: inline-block;
+            width: 9px; height: 9px;
+            border: 1px solid black;
+            margin-right: 1px;
+            background: #fff;
+            vertical-align: middle;
+        }
+        .print-doc-0 .db-text-cell{ min-height: 18px; font-size: 11px; }
+        
+        /* 標頭與身份底線 */
+        .print-doc-0 .db-text-underline{
+            display: inline-block;
+            border-bottom: 1px solid black;
+            min-width: 30px;
+            height: 14px;
+            vertical-align: bottom;
+        }
+
+        /* 相片映射區 */
+        .print-doc-0 .db-photo-square{
+            width: 90%;
+            aspect-ratio: 1 / 1;
+            border: 1px dashed #ccc;
+            margin: 2px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 7px;
+            color: #aaa;
+            background-color: #fafafa;
+        }
+
+        /* 人體圖 */
+        .print-doc-0 .human-diagram-img{ width: 100%; display: block; margin-top: 10px; }
+
+        /* 底部置中頁碼 */
+        .print-doc-0 .footer-info{ 
+            margin-top: 8px; 
+            display: flex; 
+            justify-content: flex-end; 
+            align-items: flex-end;
+            position: relative; 
+            font-weight: bold; 
+            font-size: 9px;
+            height: 25px; 
+        }
+        .print-doc-0 .page-number{
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            bottom: 0;
+        }
+    </style>
+<style>.print-doc-0 { page: print-doc-0; }</style>
+</head>
+<body>
+<div class="print-doc-0"><div class="container">
+    <!-- 頂部標頭 - 重製版 -->
+    <div class="header">
+        <div class="header-left-group">
+            <div class="station-box-new">站</div>
+            <div class="identity-box-new">
+                <div>姓名：<span class="db-text-underline" style="min-width: 100px;"></span></div>
+                <div>床號：<span class="db-text-underline" style="min-width: 100px;"></span></div>
+            </div>
+        </div>
+        <div class="header-center">
+            <h1>善頤(福群)護老院</h1>
+            <h2>傷口評估記錄表</h2>
+            <div class="bold" style="font-size: 10px; margin-top: 3px;">
+                <span class="db-checkbox"></span>每星期 1 次 / 
+                <span class="db-checkbox"></span>每星期<span class="db-text-underline" style="min-width:25px;"></span>次
+            </div>
+        </div>
+        <div class="header-right">
+            <div style="font-size: 15px;">☯ 善頤護老</div>
+            <div>SeniorCare</div>
+        </div>
+    </div>
+
+    <table>
+        <colgroup>
+            <col class="col-m">
+            <col class="col-s">
+            <col class="col-e" span="6">
+        </colgroup>
+
+        <tr>
+            <th colspan="2" class="bold" style="font-size:11px;">評估日期</th>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+        </tr>
+        <tr>
+            <th colspan="2" class="bold" style="font-size:11px;">傷口編號及位置</th>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+        </tr>
+
+        <!-- 面積 -->
+        <tr>
+            <th rowspan="2" class="bold">面積<br>及<br>程度</th>
+            <th class="bold">長x闊x深</th>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+        </tr>
+        <tr>
+            <th class="bold">階段(Stage)</th>
+            <td><span class="db-opt"><span class="db-checkbox"></span>1</span> <span class="db-opt"><span class="db-checkbox"></span>2</span> <span class="db-opt"><span class="db-checkbox"></span>3</span> <span class="db-opt"><span class="db-checkbox"></span>4</span> <span class="db-opt"><span class="db-checkbox"></span>Unstagable</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>1</span> <span class="db-opt"><span class="db-checkbox"></span>2</span> <span class="db-opt"><span class="db-checkbox"></span>3</span> <span class="db-opt"><span class="db-checkbox"></span>4</span> <span class="db-opt"><span class="db-checkbox"></span>Unstagable</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>1</span> <span class="db-opt"><span class="db-checkbox"></span>2</span> <span class="db-opt"><span class="db-checkbox"></span>3</span> <span class="db-opt"><span class="db-checkbox"></span>4</span> <span class="db-opt"><span class="db-checkbox"></span>Unstagable</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>1</span> <span class="db-opt"><span class="db-checkbox"></span>2</span> <span class="db-opt"><span class="db-checkbox"></span>3</span> <span class="db-opt"><span class="db-checkbox"></span>4</span> <span class="db-opt"><span class="db-checkbox"></span>Unstagable</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>1</span> <span class="db-opt"><span class="db-checkbox"></span>2</span> <span class="db-opt"><span class="db-checkbox"></span>3</span> <span class="db-opt"><span class="db-checkbox"></span>4</span> <span class="db-opt"><span class="db-checkbox"></span>Unstagable</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>1</span> <span class="db-opt"><span class="db-checkbox"></span>2</span> <span class="db-opt"><span class="db-checkbox"></span>3</span> <span class="db-opt"><span class="db-checkbox"></span>4</span> <span class="db-opt"><span class="db-checkbox"></span>Unstagable</span></td>
+        </tr>
+
+        <!-- 滲出物 -->
+        <tr>
+            <th rowspan="3" class="bold">滲出物</th>
+            <th class="bold">滲出量</th>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>少</span><span class="db-opt"><span class="db-checkbox"></span>中</span><span class="db-opt"><span class="db-checkbox"></span>多</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>少</span><span class="db-opt"><span class="db-checkbox"></span>中</span><span class="db-opt"><span class="db-checkbox"></span>多</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>少</span><span class="db-opt"><span class="db-checkbox"></span>中</span><span class="db-opt"><span class="db-checkbox"></span>多</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>少</span><span class="db-opt"><span class="db-checkbox"></span>中</span><span class="db-opt"><span class="db-checkbox"></span>多</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>少</span><span class="db-opt"><span class="db-checkbox"></span>中</span><span class="db-opt"><span class="db-checkbox"></span>多</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>少</span><span class="db-opt"><span class="db-checkbox"></span>中</span><span class="db-opt"><span class="db-checkbox"></span>多</span></td>
+        </tr>
+        <tr>
+            <th class="bold">顏色</th>
+            <td><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>黃</span><span class="db-opt"><span class="db-checkbox"></span>透明</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>黃</span><span class="db-opt"><span class="db-checkbox"></span>透明</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>黃</span><span class="db-opt"><span class="db-checkbox"></span>透明</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>黃</span><span class="db-opt"><span class="db-checkbox"></span>透明</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>黃</span><span class="db-opt"><span class="db-checkbox"></span>透明</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>黃</span><span class="db-opt"><span class="db-checkbox"></span>透明</span></td>
+        </tr>
+        <tr>
+            <th class="bold">種類</th>
+            <td><span class="db-opt"><span class="db-checkbox"></span>血</span><span class="db-opt"><span class="db-checkbox"></span>膿</span><span class="db-opt"><span class="db-checkbox"></span>血清</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>血</span><span class="db-opt"><span class="db-checkbox"></span>膿</span><span class="db-opt"><span class="db-checkbox"></span>血清</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>血</span><span class="db-opt"><span class="db-checkbox"></span>膿</span><span class="db-opt"><span class="db-checkbox"></span>血清</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>血</span><span class="db-opt"><span class="db-checkbox"></span>膿</span><span class="db-opt"><span class="db-checkbox"></span>血清</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>血</span><span class="db-opt"><span class="db-checkbox"></span>膿</span><span class="db-opt"><span class="db-checkbox"></span>血清</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>血</span><span class="db-opt"><span class="db-checkbox"></span>膿</span><span class="db-opt"><span class="db-checkbox"></span>血清</span></td>
+        </tr>
+
+        <!-- 氣味/肉芽 -->
+        <tr>
+            <th colspan="2" class="bold">氣味</th>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>有</span><span class="db-opt"><span class="db-checkbox"></span>惡臭</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>有</span><span class="db-opt"><span class="db-checkbox"></span>惡臭</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>有</span><span class="db-opt"><span class="db-checkbox"></span>惡臭</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>有</span><span class="db-opt"><span class="db-checkbox"></span>惡臭</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>有</span><span class="db-opt"><span class="db-checkbox"></span>惡臭</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>有</span><span class="db-opt"><span class="db-checkbox"></span>惡臭</span></td>
+        </tr>
+        <tr>
+            <th colspan="2" class="bold">肉芽</th>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>粉紅</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>粉紅</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>粉紅</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>粉紅</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>粉紅</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>粉紅</span></td>
+        </tr>
+
+        <!-- 壞死 -->
+        <tr>
+            <th class="bold">壞死</th>
+            <th class="bold">腐肉</th>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>黑</span><span class="db-opt"><span class="db-checkbox"></span>啡</span><span class="db-opt"><span class="db-checkbox"></span>黃</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>黑</span><span class="db-opt"><span class="db-checkbox"></span>啡</span><span class="db-opt"><span class="db-checkbox"></span>黃</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>黑</span><span class="db-opt"><span class="db-checkbox"></span>啡</span><span class="db-opt"><span class="db-checkbox"></span>黃</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>黑</span><span class="db-opt"><span class="db-checkbox"></span>啡</span><span class="db-opt"><span class="db-checkbox"></span>黃</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>黑</span><span class="db-opt"><span class="db-checkbox"></span>啡</span><span class="db-opt"><span class="db-checkbox"></span>黃</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>黑</span><span class="db-opt"><span class="db-checkbox"></span>啡</span><span class="db-opt"><span class="db-checkbox"></span>黃</span></td>
+        </tr>
+
+        <!-- 感染 -->
+        <tr>
+            <th rowspan="2" class="bold">感染</th>
+            <th class="bold">症狀</th>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><br><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>腫</span><span class="db-opt"><span class="db-checkbox"></span>熱</span><span class="db-opt"><span class="db-checkbox"></span>痛</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><br><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>腫</span><span class="db-opt"><span class="db-checkbox"></span>熱</span><span class="db-opt"><span class="db-checkbox"></span>痛</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><br><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>腫</span><span class="db-opt"><span class="db-checkbox"></span>熱</span><span class="db-opt"><span class="db-checkbox"></span>痛</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><br><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>腫</span><span class="db-opt"><span class="db-checkbox"></span>熱</span><span class="db-opt"><span class="db-checkbox"></span>痛</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><br><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>腫</span><span class="db-opt"><span class="db-checkbox"></span>熱</span><span class="db-opt"><span class="db-checkbox"></span>痛</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><br><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>腫</span><span class="db-opt"><span class="db-checkbox"></span>熱</span><span class="db-opt"><span class="db-checkbox"></span>痛</span></td>
+        </tr>
+        <tr>
+            <th class="bold">體溫上升</th>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>有</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>有</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>有</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>有</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>有</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>無</span><span class="db-opt"><span class="db-checkbox"></span>有</span></td>
+        </tr>
+
+        <!-- 週邊皮膚 -->
+        <tr>
+            <th rowspan="3" class="bold">週邊<br>皮膚<br>狀況</th>
+            <th class="bold">健康柔軟</th>
+            <td><span class="db-checkbox"></span></td>
+            <td><span class="db-checkbox"></span></td>
+            <td><span class="db-checkbox"></span></td>
+            <td><span class="db-checkbox"></span></td>
+            <td><span class="db-checkbox"></span></td>
+            <td><span class="db-checkbox"></span></td>
+        </tr>
+        <tr>
+            <th class="bold">顏色</th>
+            <td><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>紅白</span><span class="db-opt"><span class="db-checkbox"></span>黑</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>紅白</span><span class="db-opt"><span class="db-checkbox"></span>黑</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>紅白</span><span class="db-opt"><span class="db-checkbox"></span>黑</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>紅白</span><span class="db-opt"><span class="db-checkbox"></span>黑</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>紅白</span><span class="db-opt"><span class="db-checkbox"></span>黑</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>紅</span><span class="db-opt"><span class="db-checkbox"></span>紅白</span><span class="db-opt"><span class="db-checkbox"></span>黑</span></td>
+        </tr>
+        <tr>
+            <th class="bold">質感</th>
+            <td><span class="db-opt"><span class="db-checkbox"></span>腫脹</span><span class="db-opt"><span class="db-checkbox"></span>僵硬</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>腫脹</span><span class="db-opt"><span class="db-checkbox"></span>僵硬</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>腫脹</span><span class="db-opt"><span class="db-checkbox"></span>僵硬</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>腫脹</span><span class="db-opt"><span class="db-checkbox"></span>僵硬</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>腫脹</span><span class="db-opt"><span class="db-checkbox"></span>僵硬</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>腫脹</span><span class="db-opt"><span class="db-checkbox"></span>僵硬</span></td>
+        </tr>
+
+        <!-- 現時洗劑 -->
+        <tr>
+            <th colspan="2" class="bold" style="font-size: 11px;">現時洗劑</th>
+            <td>
+                <span class="db-opt"><span class="db-checkbox"></span>NS</span>
+                <span class="db-opt"><span class="db-checkbox"></span>Hibitane</span><br>
+                <span class="db-opt"><span class="db-checkbox"></span>Betadine</span>
+                <span class="db-opt"><span class="db-checkbox"></span>其他</span>
+            </td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>NS</span> <span class="db-opt"><span class="db-checkbox"></span>Hibitane</span><br><span class="db-opt"><span class="db-checkbox"></span>Betadine</span> <span class="db-opt"><span class="db-checkbox"></span>其他</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>NS</span> <span class="db-opt"><span class="db-checkbox"></span>Hibitane</span><br><span class="db-opt"><span class="db-checkbox"></span>Betadine</span> <span class="db-opt"><span class="db-checkbox"></span>其他</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>NS</span> <span class="db-opt"><span class="db-checkbox"></span>Hibitane</span><br><span class="db-opt"><span class="db-checkbox"></span>Betadine</span> <span class="db-opt"><span class="db-checkbox"></span>其他</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>NS</span> <span class="db-opt"><span class="db-checkbox"></span>Hibitane</span><br><span class="db-opt"><span class="db-checkbox"></span>Betadine</span> <span class="db-opt"><span class="db-checkbox"></span>其他</span></td>
+            <td><span class="db-opt"><span class="db-checkbox"></span>NS</span> <span class="db-opt"><span class="db-checkbox"></span>Hibitane</span><br><span class="db-opt"><span class="db-checkbox"></span>Betadine</span> <span class="db-opt"><span class="db-checkbox"></span>其他</span></td>
+        </tr>
+
+        <tr>
+            <th colspan="2" class="bold" style="font-size:11px;">敷料/藥物(如有)</th>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+        </tr>
+        <tr style="height: 30px;">
+            <th colspan="2" class="bold" style="font-size:11px;">備註</th>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+        </tr>
+        <!-- 傷口相片 -->
+        <tr>
+            <th colspan="2" class="bold" style="font-size:11px;">傷口相片</th>
+            <td><div class="db-photo-square">PHOTO</div></td>
+            <td><div class="db-photo-square">PHOTO</div></td>
+            <td><div class="db-photo-square">PHOTO</div></td>
+            <td><div class="db-photo-square">PHOTO</div></td>
+            <td><div class="db-photo-square">PHOTO</div></td>
+            <td><div class="db-photo-square">PHOTO</div></td>
+        </tr>
+        <tr>
+            <th colspan="2" class="bold" style="font-size:11px;">下次評估日期</th>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+        </tr>
+        <tr>
+            <th colspan="2" class="bold" style="font-size:11px;">評估者簽署</th>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+            <td class="db-text-cell"></td><td class="db-text-cell"></td><td class="db-text-cell"></td>
+        </tr>
+    </table>
+
+    <div class="bold" style="margin-top: 4px; font-size: 9px;"># 請在上面適當位置圈出或 ✓。</div>
+
+    <!-- 人體圖 -->
+    <img src="input_file_2.png" alt="人體方位圖" class="human-diagram-img">
+
+    <!-- 頁碼置中 -->
+    <div class="footer-info">
+        <div class="page-number">10</div>
+        <div>B19 FK (11.2020)</div>
+    </div>
+</div></div>
+</body>
+</html>

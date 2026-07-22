@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { Users, Plus, Edit3, Trash2, Search, Filter, Download, User, Calendar, CreditCard, Heart, AlertTriangle, CheckCircle, ChevronUp, ChevronDown, X, LogOut, QrCode } from 'lucide-react';
+import { Users, Plus, Edit3, Trash2, Search, Filter, Download, User, Calendar, CreditCard, Heart, AlertTriangle, CheckCircle, ChevronUp, ChevronDown, X, LogOut, QrCode, Printer } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientModal from '../components/PatientModal';
 import DischargeModal from '../components/DischargeModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { PatientQRCodeModal } from '../components/PatientQRCodeModal';
+import PatientPrintModal from '../components/PatientPrintModal';
+import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { deletePatientSchedulesAfterDate } from '../lib/database';
 import type { Patient } from '../lib/database';
@@ -47,6 +49,7 @@ const PatientRecords: React.FC = () => {
   // QR Code Modal 狀態
   const [showQRCodeModal, setShowQRCodeModal] = useState(false);
   const [qrCodePatient, setQRCodePatient] = useState<Patient | null>(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
     床號: '',
     中文姓名: '',
@@ -552,6 +555,13 @@ const PatientRecords: React.FC = () => {
                 <span>匯出選定記錄</span>
               </button>
             )}
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印</span>
+            </button>
             <button
               onClick={() => {
                 setSelectedPatient(null);
@@ -1111,6 +1121,29 @@ const PatientRecords: React.FC = () => {
         }}
         patient={qrCodePatient}
       />
+
+      {/* 列印綜合文件 Modal */}
+      {showPrintModal && (
+        <PatientPrintModal
+          patients={patients}
+          onClose={() => setShowPrintModal(false)}
+          onPrint={async (selectedPatients, documentIds, startDate, endDate, contentMode) => {
+            setShowPrintModal(false);
+            try {
+              await generatePatientPrintBundle({
+                patients: selectedPatients,
+                documentIds,
+                startDate,
+                endDate,
+                contentMode,
+              });
+            } catch (error) {
+              console.error('列印失敗:', error);
+              alert('列印失敗，請稍後再試');
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

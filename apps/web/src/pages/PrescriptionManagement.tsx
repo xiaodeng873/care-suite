@@ -1,18 +1,17 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useSearchParams } from 'react-router-dom';
-import { Pill, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, Clock, AlertTriangle, CheckCircle, ArrowRight, X, ChevronUp, ChevronDown, Settings, FileText, Activity, ChevronRight, ChevronLeft, Heart, Shield, History } from 'lucide-react';
+import { Pill, Plus, Trash2, Search, Filter, Download, User, Calendar, AlertTriangle, CheckCircle, ArrowRight, X, ChevronUp, ChevronDown, Settings, FileText, Activity, ChevronRight, ChevronLeft, Heart, Shield, History } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PrescriptionModal from '../components/PrescriptionModal';
 import PrescriptionTransferModal from '../components/PrescriptionTransferModal';
 import PrescriptionActivityLogModal from '../components/PrescriptionActivityLogModal';
 import BatchPrescriptionDateUpdateModal from '../components/BatchPrescriptionDateUpdateModal';
-import PrescriptionEndDateModal from '../components/PrescriptionEndDateModal';
 import PatientTooltip from '../components/PatientTooltip';
 import MedicationRecordExportModal from '../components/MedicationRecordExportModal';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
-import { supabase } from '../lib/supabase';
+import { getHongKongNow, isPrescriptionExpired } from '../utils/prescriptionExpiry';
 
 type PrescriptionStatus = 'active' | 'pending_change' | 'inactive';
 
@@ -91,12 +90,7 @@ const PrescriptionManagement: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showModal, setShowModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [showEndDateModal, setShowEndDateModal] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
-  const [pendingStatusChange, setPendingStatusChange] = useState<{
-    prescription: any;
-    targetStatus: 'active' | 'pending_change' | 'inactive';
-  } | null>(null);
   const [currentPatientIndex, setCurrentPatientIndex] = useState(0);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const [patientFilters, setPatientFilters] = useState<PatientDropdownFilters>({
@@ -113,6 +107,39 @@ const PrescriptionManagement: React.FC = () => {
 
   // 添加途徑過濾狀態
   const [selectedRoute, setSelectedRoute] = useState<string>('全部');
+
+  // 自動將已到期的在服處方轉為停用（前端輪詢）
+  const isExpiringRef = useRef(false);
+  useEffect(() => {
+    const expireActive = async () => {
+      if (isExpiringRef.current) return;
+      isExpiringRef.current = true;
+      try {
+        const now = getHongKongNow();
+        const expired = (prescriptions || []).filter(p =>
+          p.status === 'active' && p.end_date && isPrescriptionExpired(p, now)
+        );
+        for (const p of expired) {
+          try {
+            await updatePrescription({
+              id: p.id,
+              status: 'inactive',
+              end_date: p.end_date,
+              end_time: p.end_time ? p.end_time.substring(0, 5) : '23:59',
+            });
+          } catch (err) {
+            console.warn('自動轉停處方失敗:', p.id, err);
+          }
+        }
+      } finally {
+        isExpiringRef.current = false;
+      }
+    };
+
+    expireActive();
+    const interval = setInterval(expireActive, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [prescriptions, updatePrescription]);
 
   // Group prescriptions by patient and filter out patients without prescriptions
   const patientPrescriptionSummaries = useMemo(() => {
@@ -356,80 +383,12 @@ const PrescriptionManagement: React.FC = () => {
   };
 
   const handleStatusChange = async (prescription: any, targetStatus: 'active' | 'pending_change' | 'inactive') => {
-    // 停用前：直接查詢 DB 確認是否有逾期未完成的執核派記錄
-    if (targetStatus === 'inactive') {
-      const { data: pendingRecords, error } = await supabase
-        .from('medication_workflow_records')
-        .select('scheduled_date, scheduled_time')
-        .eq('prescription_id', prescription.id)
-        .eq('dispensing_status', 'pending');
-
-      if (!error && pendingRecords && pendingRecords.length > 0) {
-        const now = new Date();
-        const overdueRecords = pendingRecords.filter(r => {
-          const scheduledDateTime = new Date(`${r.scheduled_date}T${r.scheduled_time}`);
-          return scheduledDateTime < now;
-        });
-        if (overdueRecords.length > 0) {
-          const overdueDates = [...new Set(overdueRecords.map(r => r.scheduled_date))]
-            .sort()
-            .join('\n');
-          alert(
-            `無法停用處方「${prescription.medication_name}」\n\n以下日期有未完成的執核派記錄，請先在 eMAR 補齊後再停用：\n\n${overdueDates}`
-          );
-          return;
-        }
-      }
-    }
-
-    // 檢查是否需要處理結束日期
-    const needsEndDate = targetStatus === 'inactive' && !prescription.end_date;
-    const needsEndDateRemoval = (targetStatus === 'active' || targetStatus === 'pending_change') && prescription.end_date;
-
-    if (needsEndDate || needsEndDateRemoval) {
-      // 需要處理結束日期
-      setPendingStatusChange({ prescription, targetStatus });
-      setShowEndDateModal(true);
-    } else {
-      // 直接更新狀態
-      updatePrescriptionStatus(prescription, targetStatus);
-    }
-  };
-
-  const updatePrescriptionStatus = async (prescription: any, targetStatus: 'active' | 'pending_change' | 'inactive', endDate?: string | null) => {
     try {
-      // 僅傳送需要變更的欄位，避免把整列回寫導致 NOT NULL 欄位（如 medication_source）被空字串轉成 null。
-      const updateData: any = {
-        id: prescription.id,
-        status: targetStatus
-      };
-
-      // 根據目標狀態設定結束日期
-      if (targetStatus === 'inactive') {
-        updateData.end_date = endDate || prescription.end_date;
-
-        // 驗證停用處方必須有結束日期
-        if (!updateData.end_date) {
-          alert('錯誤：停用處方必須設定結束日期');
-          return;
-        }
-      } else {
-        updateData.end_date = null;
-      }
-
-      await updatePrescription(updateData);
+      await updatePrescription({ id: prescription.id, status: targetStatus });
     } catch (error) {
       console.error('更新處方狀態失敗:', error);
       alert('更新處方狀態失敗，請重試');
     }
-  };
-
-  const handleEndDateConfirm = (endDate: string | null) => {
-    if (pendingStatusChange) {
-      updatePrescriptionStatus(pendingStatusChange.prescription, pendingStatusChange.targetStatus, endDate);
-    }
-    setShowEndDateModal(false);
-    setPendingStatusChange(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -916,19 +875,6 @@ const PrescriptionManagement: React.FC = () => {
           onClose={() => setShowActivityLog(false)}
         />
       )}
-
-      {showEndDateModal && pendingStatusChange && (
-        <PrescriptionEndDateModal
-          isOpen={showEndDateModal}
-          onClose={() => {
-            setShowEndDateModal(false);
-            setPendingStatusChange(null);
-          }}
-          prescription={pendingStatusChange.prescription}
-          targetStatus={pendingStatusChange.targetStatus}
-          onConfirm={handleEndDateConfirm}
-        />
-      )}
     </div>
   );
 };
@@ -1033,19 +979,6 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
 
   const currentTab = tabs.find(tab => tab.key === activeTab)!;
 
-  const clickTimer = useRef<number | null>(null);
-  const handleCardClick = () => {
-    if (clickTimer.current) {
-      clearTimeout(clickTimer.current);
-      clickTimer.current = null;
-      return;
-    }
-    clickTimer.current = window.setTimeout(() => {
-      onSelect();
-      clickTimer.current = null;
-    }, 250);
-  };
-
   const PrescriptionCard: React.FC<{ 
     prescription: any; 
     status: PrescriptionStatus;
@@ -1055,161 +988,215 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
     onTransfer: () => void;
     onStatusChange: (targetStatus: 'active' | 'pending_change' | 'inactive') => void;
     onDelete: () => void;
-  }> = ({ prescription, status, isSelected, onSelect, onEdit, onTransfer, onStatusChange, onDelete }) => (
-    <div 
-      className={`border rounded-lg p-4 ${getStatusColor(status)} hover:shadow-sm transition-all duration-200 cursor-pointer ${
-        isSelected ? 'ring-2 ring-blue-500 border-blue-300' : ''
-      }`}
-      onClick={handleCardClick}
-      onDoubleClick={onEdit}
-    >
-      <div className="flex items-start gap-3 mb-2">
-        <div className="pt-1">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={onSelect}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-1">
-            <h5 className="font-medium text-gray-900 text-lg truncate">{prescription.medication_name}</h5>
+  }> = ({ prescription, status, isSelected, onSelect, onEdit, onTransfer, onStatusChange, onDelete }) => {
+    const clickTimer = useRef<number | null>(null);
+    const handleCardClick = () => {
+      if (clickTimer.current) {
+        clearTimeout(clickTimer.current);
+        clickTimer.current = null;
+        return;
+      }
+      clickTimer.current = window.setTimeout(() => {
+        onSelect();
+        clickTimer.current = null;
+      }, 250);
+    };
+
+    return (
+      <div 
+        className={`border rounded-lg p-4 ${getStatusColor(status)} hover:shadow-sm transition-all duration-200 cursor-pointer ${
+          isSelected ? 'ring-2 ring-blue-500 border-blue-300' : ''
+        }`}
+        onClick={handleCardClick}
+        onDoubleClick={onEdit}
+      >
+        <div className="flex items-start gap-3 mb-2">
+          <div className="pt-1">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={onSelect}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
-          
-          {/* 將藥物來源和詳細資訊合併到同一行 */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-700 mb-1">
-            {prescription.medication_source && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">藥物來源:</span>
-                <span className="font-medium">{prescription.medication_source}</span>
-              </div>
-            )}
-            {prescription.dosage_amount && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">份量:</span>
-                <span className="font-medium">
-                  {String(prescription.dosage_amount || '').match(/^\d+(\.\d+)?$/)
-                    ? `${prescription.dosage_amount}${prescription.dosage_unit || ''}`
-                    : String(prescription.dosage_amount || '')}
-                </span>
-              </div>
-            )}
-            {prescription.dosage_form && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">劑型:</span>
-                <span className="font-medium">{prescription.dosage_form}</span>
-              </div>
-            )}
-            {prescription.administration_route && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">途徑:</span>
-                <span className="font-medium">{prescription.administration_route}</span>
-              </div>
-            )}
-            <div className="flex items-center space-x-1">
-              <span className="text-gray-500">頻率:</span>
-              <span className="font-medium">{getFrequencyDescription(prescription)}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-1">
+              <h5 className="font-medium text-gray-900 text-lg truncate flex items-center gap-2">
+                <span className="truncate">{prescription.medication_name}</span>
+                {prescription.is_long_term === false && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300 shrink-0">短期藥物</span>
+                )}
+                {prescription.status === 'active' && prescription.end_date && prescription.is_long_term !== false && !isPrescriptionExpired(prescription) && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 border border-orange-300 shrink-0">即將停用處方</span>
+                )}
+              </h5>
             </div>
-            <div className="flex items-center space-x-1">
-              <span className="text-gray-500">開始:</span>
-              <span className="font-medium">{new Date(prescription.start_date).toLocaleDateString('zh-TW')}</span>
-            </div>
-            {prescription.end_date && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">結束:</span>
-                <span className="font-medium">{new Date(prescription.end_date).toLocaleDateString('zh-TW')}</span>
-              </div>
-            )}
-            {prescription.prescription_date && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">處方日期:</span>
-                <span className="font-medium">{new Date(prescription.prescription_date).toLocaleDateString('zh-TW')}</span>
-              </div>
-            )}
-            {prescription.meal_timing && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">時段:</span>
-                <span className="font-medium">{prescription.meal_timing}</span>
-              </div>
-            )}
-            {prescription.preparation_method && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">備藥:</span>
-                <span className="font-medium">
-                  {prescription.preparation_method === 'immediate' ? '即時備藥' :
-                   prescription.preparation_method === 'advanced' ? '提前備藥' :
-                   prescription.preparation_method === 'custom' ? '自理' : prescription.preparation_method}
-                </span>
-              </div>
-            )}
-            {prescription.is_prn && (
-              <div className="text-orange-600 font-medium">需要時 (PRN)</div>
-            )}
-            {prescription.medication_time_slots && prescription.medication_time_slots.length > 0 && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">時間:</span>
-                <span className="font-medium">{prescription.medication_time_slots.join(', ')}</span>
-              </div>
-            )}
-            {prescription.notes && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">備註:</span>
-                <span className="font-medium text-gray-600">{prescription.notes}</span>
-              </div>
-            )}
-            {prescription.inspection_rules && prescription.inspection_rules.length > 0 && (
-              <div className="flex items-center space-x-1">
-                <span className="text-gray-500">檢測項:</span>
-                <div className="flex flex-wrap gap-1">
-                  {prescription.inspection_rules.map((rule: any, index: number) => (
-                    <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-800 border border-orange-200">
-                      {rule.vital_sign_type} {
-                        rule.condition_operator === 'gt' ? '>' :
-                        rule.condition_operator === 'lt' ? '<' :
-                        rule.condition_operator === 'gte' ? '≥' :
-                        rule.condition_operator === 'lte' ? '≤' : ''
-                      } {rule.condition_value}
-                    </span>
-                  ))}
+            
+            {/* 將藥物來源和詳細資訊合併到同一行 */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-700 mb-1">
+              {prescription.medication_source && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-gray-500">藥物來源:</span>
+                  <span className="font-medium">{prescription.medication_source}</span>
                 </div>
+              )}
+              {prescription.dosage_amount && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-gray-500">份量:</span>
+                  <span className="font-medium">
+                    {String(prescription.dosage_amount || '').match(/^\d+(\.\d+)?$/)
+                      ? `${prescription.dosage_amount}${prescription.dosage_unit || ''}`
+                      : String(prescription.dosage_amount || '')}
+                  </span>
+                </div>
+              )}
+              {prescription.dosage_form && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-gray-500">劑型:</span>
+                  <span className="font-medium">{prescription.dosage_form}</span>
+                </div>
+              )}
+              {prescription.administration_route && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-gray-500">途徑:</span>
+                  <span className="font-medium">{prescription.administration_route}</span>
+                </div>
+              )}
+              <div className="flex items-center space-x-1">
+                <span className="text-gray-500">頻率:</span>
+                <span className="font-medium">{getFrequencyDescription(prescription)}</span>
               </div>
-            )}
+              <div className="flex items-center space-x-1">
+                <span className="text-gray-500">開始:</span>
+                <span className="font-medium">{new Date(prescription.start_date).toLocaleDateString('zh-TW')}</span>
+              </div>
+              {prescription.end_date && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-gray-500">結束:</span>
+                  <span className="font-medium">{new Date(prescription.end_date).toLocaleDateString('zh-TW')}</span>
+                </div>
+              )}
+              {prescription.prescription_date && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-gray-500">處方日期:</span>
+                  <span className="font-medium">{new Date(prescription.prescription_date).toLocaleDateString('zh-TW')}</span>
+                </div>
+              )}
+              {prescription.meal_timing && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-gray-500">時段:</span>
+                  <span className="font-medium">{prescription.meal_timing}</span>
+                </div>
+              )}
+              {prescription.preparation_method && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-gray-500">備藥:</span>
+                  <span className="font-medium">
+                    {prescription.preparation_method === 'immediate' ? '即時備藥' :
+                     prescription.preparation_method === 'advanced' ? '提前備藥' :
+                     prescription.preparation_method === 'custom' ? '自理' : prescription.preparation_method}
+                  </span>
+                </div>
+              )}
+              {prescription.is_prn && (
+                <div className="text-orange-600 font-medium">需要時 (PRN)</div>
+              )}
+              {prescription.medication_time_slots && prescription.medication_time_slots.length > 0 && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-gray-500">時間:</span>
+                  <span className="font-medium">{prescription.medication_time_slots.join(', ')}</span>
+                </div>
+              )}
+              {prescription.notes && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-gray-500">備註:</span>
+                  <span className="font-medium text-gray-600">{prescription.notes}</span>
+                </div>
+              )}
+              {prescription.inspection_rules && prescription.inspection_rules.length > 0 && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-gray-500">檢測項:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {prescription.inspection_rules.map((rule: any, index: number) => (
+                      <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-800 border border-orange-200">
+                        {rule.vital_sign_type} {
+                          rule.condition_operator === 'gt' ? '>' :
+                          rule.condition_operator === 'lt' ? '<' :
+                          rule.condition_operator === 'gte' ? '≥' :
+                          rule.condition_operator === 'lte' ? '≤' : ''
+                        } {rule.condition_value}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
-          {/* 操作按鈕 */}
-          <button
-            onClick={onTransfer}
-            className="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50"
-            title="轉移處方"
-          >
-            <ArrowRight className="h-4 w-4" />
-          </button>
-          <button
-            onClick={onEdit}
-            className="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50"
-            title="編輯"
-          >
-            <Edit3 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50"
-            title="刪除"
-            disabled={deletingIds.has(prescription.id)}
-          >
-            {deletingIds.has(prescription.id) ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-            ) : (
-              <Trash2 className="h-4 w-4" />
+          <div className="flex flex-shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            {/* 狀態操作按鈕 */}
+            {status === 'pending_change' && (
+              <>
+                <button
+                  onClick={() => onStatusChange('active')}
+                  className="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50"
+                  title="轉在服"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onStatusChange('inactive')}
+                  className="text-gray-600 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-50"
+                  title="停用"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </>
             )}
-          </button>
+            {status === 'inactive' && (
+              <>
+                <button
+                  onClick={() => onStatusChange('active')}
+                  className="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50"
+                  title="轉在服"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onStatusChange('pending_change')}
+                  className="text-yellow-600 hover:text-yellow-800 p-2 rounded-lg hover:bg-yellow-50"
+                  title="轉待變更"
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                </button>
+              </>
+            )}
+            <div className="w-px h-5 bg-gray-300 mx-1" />
+            {/* 原有操作按鈕 */}
+            <button
+              onClick={onTransfer}
+              className="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50"
+              title="轉移處方"
+            >
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              onClick={onDelete}
+              className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50"
+              title="刪除"
+              disabled={deletingIds.has(prescription.id)}
+            >
+              {deletingIds.has(prescription.id) ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="card">
