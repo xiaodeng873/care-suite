@@ -29,11 +29,20 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
   const { 
     patients, 
     diagnosisRecords,
+    infectionControlRecords,
     updateAnnualHealthCheckup: contextUpdateAnnualHealthCheckup,
     addAnnualHealthCheckup: contextAddAnnualHealthCheckup
   } = usePatients();
   const [loading, setLoading] = useState(false);
   const [fetchingReadings, setFetchingReadings] = useState(false);
+  const getPatientInfections = (patientId?: number | null): string[] => {
+    if (!patientId) return [];
+    return infectionControlRecords
+      .filter(r => r.patient_id === patientId && !r.recovery_date)
+      .map(r => r.infection_type)
+      .filter((type): type is string => !!type);
+  };
+
   const parsedMentalState = parseMentalStateAssessment(checkup?.mental_state_assessment || null);
 
   // 获取预填充患者的数据
