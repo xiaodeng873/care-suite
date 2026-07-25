@@ -79,8 +79,10 @@ CREATE INDEX IF NOT EXISTS idx_patrol_rounds_scheduled_time
 
 ALTER TABLE patrol_rounds ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow authenticated users full access to patrol_rounds"
-  ON patrol_rounds
+DROP POLICY IF EXISTS "Allow authenticated users full access to patrol_rounds" ON patrol_rounds;
+
+
+CREATE POLICY "Allow authenticated users full access to patrol_rounds" ON patrol_rounds
   FOR ALL
   TO authenticated
   USING (true)
@@ -111,8 +113,10 @@ CREATE INDEX IF NOT EXISTS idx_diaper_change_records_time_slot
 
 ALTER TABLE diaper_change_records ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow authenticated users full access to diaper_change_records"
-  ON diaper_change_records
+DROP POLICY IF EXISTS "Allow authenticated users full access to diaper_change_records" ON diaper_change_records;
+
+
+CREATE POLICY "Allow authenticated users full access to diaper_change_records" ON diaper_change_records
   FOR ALL
   TO authenticated
   USING (true)
@@ -139,8 +143,10 @@ CREATE INDEX IF NOT EXISTS idx_restraint_observation_records_scheduled_time
 
 ALTER TABLE restraint_observation_records ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow authenticated users full access to restraint_observation_records"
-  ON restraint_observation_records
+DROP POLICY IF EXISTS "Allow authenticated users full access to restraint_observation_records" ON restraint_observation_records;
+
+
+CREATE POLICY "Allow authenticated users full access to restraint_observation_records" ON restraint_observation_records
   FOR ALL
   TO authenticated
   USING (true)
@@ -165,8 +171,10 @@ CREATE INDEX IF NOT EXISTS idx_position_change_records_scheduled_time
 
 ALTER TABLE position_change_records ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow authenticated users full access to position_change_records"
-  ON position_change_records
+DROP POLICY IF EXISTS "Allow authenticated users full access to position_change_records" ON position_change_records;
+
+
+CREATE POLICY "Allow authenticated users full access to position_change_records" ON position_change_records
   FOR ALL
   TO authenticated
   USING (true)
@@ -186,8 +194,9 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_trigger WHERE tgname = 'update_patrol_rounds_updated_at'
   ) THEN
-    CREATE TRIGGER update_patrol_rounds_updated_at
-      BEFORE UPDATE ON patrol_rounds
+    DROP TRIGGER IF EXISTS update_patrol_rounds_updated_at ON patrol_rounds;
+
+    CREATE TRIGGER update_patrol_rounds_updated_at BEFORE UPDATE ON patrol_rounds
       FOR EACH ROW
       EXECUTE FUNCTION update_updated_at_column();
   END IF;
@@ -195,8 +204,9 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_trigger WHERE tgname = 'update_diaper_change_records_updated_at'
   ) THEN
-    CREATE TRIGGER update_diaper_change_records_updated_at
-      BEFORE UPDATE ON diaper_change_records
+    DROP TRIGGER IF EXISTS update_diaper_change_records_updated_at ON diaper_change_records;
+
+    CREATE TRIGGER update_diaper_change_records_updated_at BEFORE UPDATE ON diaper_change_records
       FOR EACH ROW
       EXECUTE FUNCTION update_updated_at_column();
   END IF;
@@ -204,8 +214,9 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_trigger WHERE tgname = 'update_restraint_observation_records_updated_at'
   ) THEN
-    CREATE TRIGGER update_restraint_observation_records_updated_at
-      BEFORE UPDATE ON restraint_observation_records
+    DROP TRIGGER IF EXISTS update_restraint_observation_records_updated_at ON restraint_observation_records;
+
+    CREATE TRIGGER update_restraint_observation_records_updated_at BEFORE UPDATE ON restraint_observation_records
       FOR EACH ROW
       EXECUTE FUNCTION update_updated_at_column();
   END IF;
@@ -213,8 +224,9 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_trigger WHERE tgname = 'update_position_change_records_updated_at'
   ) THEN
-    CREATE TRIGGER update_position_change_records_updated_at
-      BEFORE UPDATE ON position_change_records
+    DROP TRIGGER IF EXISTS update_position_change_records_updated_at ON position_change_records;
+
+    CREATE TRIGGER update_position_change_records_updated_at BEFORE UPDATE ON position_change_records
       FOR EACH ROW
       EXECUTE FUNCTION update_updated_at_column();
   END IF;

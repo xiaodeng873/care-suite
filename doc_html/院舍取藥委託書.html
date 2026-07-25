@@ -9,7 +9,7 @@
             margin: 5mm 15mm; /* 頂部推移，留出極小邊距 */
         }
         body {
-            font-family: "MingLiU", "PMingLiU", "Microsoft JhengHei", serif;
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
             font-size: 15px;
             line-height: 1.45;
             margin: 0;
@@ -35,9 +35,15 @@
         .header-area {
             text-align: center;
             margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
         }
-        .header-area h1 { margin: 0; font-size: 22px; font-weight: normal; letter-spacing: 2px; }
-        .header-area h2 { margin: 2px 0; font-size: 18px; font-weight: normal; }
+        .header-area .header-spacer { width: 18%; }
+        .header-area .title-section { margin-bottom: 0; flex: 1; }
+        .header-area .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
+        .header-area h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .header-area h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
         .header-area h3 { margin: 2px 0; font-size: 20px; font-weight: bold; text-decoration: underline; }
 
         /* 隱形表格 */
@@ -100,6 +106,34 @@
             font-size: 12px;
             margin-top: 10px;
         }
+
+        /* 頁尾 */
+        .footer {
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            height: 30px;
+            font-weight: bold;
+        }
+        .page-num {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            bottom: 0;
+        }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
+
+        /* 標誌 */
+        .logo-box {
+            width: 80px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
     </style>
 </head>
 <body>
@@ -108,9 +142,17 @@
     <div class="staff-box">職員取</div>
 
     <div class="header-area">
-        <h1>廣 華 醫 院</h1>
-        <h2>社區老人評估服務</h2>
-        <h3>院 舍 取 藥 委 託 書</h3>
+        <div class="header-spacer"></div>
+        <div class="title-section">
+            <h1>廣 華 醫 院</h1>
+            <h2>社區老人評估服務</h2>
+            <h3>院 舍 取 藥 委 託 書</h3>
+        </div>
+        <div class="header-right">
+            <div class="logo-box">
+                <img class="logo-img" src="../supabase/migrations/SClogolayer.png" alt="院舍Logo">
+            </div>
+        </div>
     </div>
 
     <!-- 致函對象 -->
@@ -265,6 +307,12 @@
     </div>
 
     <div class="date-bottom">April 2021</div>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">1</div>
+        <div class="doc-code">—</div>
+    </div>
 </div>
 
 </body>

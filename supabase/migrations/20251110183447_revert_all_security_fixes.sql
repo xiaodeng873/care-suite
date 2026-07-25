@@ -49,8 +49,9 @@ DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 DROP POLICY IF EXISTS "允許已認證用戶讀取院友資料" ON public.院友主表;
 
 -- 創建允許所有操作的策略
-CREATE POLICY "允許已認證用戶管理院友資料"
-  ON public.院友主表
+DROP POLICY IF EXISTS "允許已認證用戶管理院友資料" ON public.院友主表;
+
+CREATE POLICY "允許已認證用戶管理院友資料" ON public.院友主表
   FOR ALL
   TO authenticated
   USING (true)

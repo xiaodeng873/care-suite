@@ -630,7 +630,9 @@ const renderPrescriptionBlock = (
   const termLabel = (() => {
     if (prescription.is_long_term === false) return '短期藥物';
     if (prescription.status === 'active' && prescription.end_date && prescription.is_long_term !== false) {
-      return isPrescriptionExpired(prescription) ? '已逾期' : `即將停用處方`;
+      return isPrescriptionExpired(prescription)
+        ? '已逾期'
+        : `即將停用處方<small class="mr-med-expiry">預計：${escapeHtml(String(prescription.end_date))}</small>`;
     }
     if (prescription.status === 'inactive') return '停用處方';
     return '';
@@ -1241,6 +1243,7 @@ body {
 }
 .mr-med-name { font-weight: bold; font-size: 10pt; }
 .mr-med-short { display: inline-block; font-size: 7pt; font-weight: bold; color: #92400e; background: #fef3c7; border: 0.3mm solid #fbbf24; border-radius: 1.5px; padding: 0 2px; margin-top: 0.5mm; }
+.mr-med-expiry { display: inline-block; font-size: 6.5pt; font-weight: normal; color: #92400e; margin-left: 1mm; opacity: 0.9; }
 .mr-med-test { font-size: 7.2pt; color: #b45309; margin-top: 0.4mm; }
 .mr-med-source { font-size: 7.2pt; color: #475569; margin-top: 0.4mm; }
 

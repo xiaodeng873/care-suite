@@ -22,18 +22,28 @@
 */
 
 -- 建立取藥安排類型枚舉
-CREATE TYPE medication_pickup_arrangement_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'medication_pickup_arrangement_type') THEN
+    CREATE TYPE medication_pickup_arrangement_type AS ENUM (
   '家人前往',
   '院舍代勞', 
   '每次詢問'
 );
+  END IF;
+END $$;;
 
 -- 建立外展藥物來源類型枚舉
-CREATE TYPE outreach_medication_source_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'outreach_medication_source_type') THEN
+    CREATE TYPE outreach_medication_source_type AS ENUM (
   'KWH/CGAS',
   'KCH/PGT',
   '出院病房配發'
 );
+  END IF;
+END $$;;
 
 -- 建立醫院外展記錄主表（當前記錄）
 CREATE TABLE IF NOT EXISTS hospital_outreach_records (
@@ -96,53 +106,67 @@ ALTER TABLE hospital_outreach_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE hospital_outreach_record_history ENABLE ROW LEVEL SECURITY;
 
 -- 建立 RLS 策略 - 醫院外展記錄主表
-CREATE POLICY "允許已認證用戶讀取醫院外展記錄"
-  ON hospital_outreach_records
+DROP POLICY IF EXISTS "允許已認證用戶讀取醫院外展記錄" ON hospital_outreach_records;
+
+CREATE POLICY "允許已認證用戶讀取醫院外展記錄" ON hospital_outreach_records
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "允許已認證用戶新增醫院外展記錄"
-  ON hospital_outreach_records
+DROP POLICY IF EXISTS "允許已認證用戶新增醫院外展記錄" ON hospital_outreach_records;
+
+
+CREATE POLICY "允許已認證用戶新增醫院外展記錄" ON hospital_outreach_records
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶更新醫院外展記錄"
-  ON hospital_outreach_records
+DROP POLICY IF EXISTS "允許已認證用戶更新醫院外展記錄" ON hospital_outreach_records;
+
+
+CREATE POLICY "允許已認證用戶更新醫院外展記錄" ON hospital_outreach_records
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶刪除醫院外展記錄"
-  ON hospital_outreach_records
+DROP POLICY IF EXISTS "允許已認證用戶刪除醫院外展記錄" ON hospital_outreach_records;
+
+
+CREATE POLICY "允許已認證用戶刪除醫院外展記錄" ON hospital_outreach_records
   FOR DELETE
   TO authenticated
   USING (true);
 
 -- 建立 RLS 策略 - 外展記錄歷史表
-CREATE POLICY "允許已認證用戶讀取外展記錄歷史"
-  ON hospital_outreach_record_history
+DROP POLICY IF EXISTS "允許已認證用戶讀取外展記錄歷史" ON hospital_outreach_record_history;
+
+CREATE POLICY "允許已認證用戶讀取外展記錄歷史" ON hospital_outreach_record_history
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "允許已認證用戶新增外展記錄歷史"
-  ON hospital_outreach_record_history
+DROP POLICY IF EXISTS "允許已認證用戶新增外展記錄歷史" ON hospital_outreach_record_history;
+
+
+CREATE POLICY "允許已認證用戶新增外展記錄歷史" ON hospital_outreach_record_history
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶更新外展記錄歷史"
-  ON hospital_outreach_record_history
+DROP POLICY IF EXISTS "允許已認證用戶更新外展記錄歷史" ON hospital_outreach_record_history;
+
+
+CREATE POLICY "允許已認證用戶更新外展記錄歷史" ON hospital_outreach_record_history
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶刪除外展記錄歷史"
-  ON hospital_outreach_record_history
+DROP POLICY IF EXISTS "允許已認證用戶刪除外展記錄歷史" ON hospital_outreach_record_history;
+
+
+CREATE POLICY "允許已認證用戶刪除外展記錄歷史" ON hospital_outreach_record_history
   FOR DELETE
   TO authenticated
   USING (true);
@@ -157,8 +181,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 建立觸發器
-CREATE TRIGGER update_hospital_outreach_records_updated_at
-  BEFORE UPDATE ON hospital_outreach_records
+DROP TRIGGER IF EXISTS update_hospital_outreach_records_updated_at ON hospital_outreach_records;
+
+CREATE TRIGGER update_hospital_outreach_records_updated_at BEFORE UPDATE ON hospital_outreach_records
   FOR EACH ROW
   EXECUTE FUNCTION update_hospital_outreach_records_updated_at();
 
@@ -201,8 +226,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 建立自動歸檔觸發器
-CREATE TRIGGER archive_old_outreach_record_trigger
-  BEFORE UPDATE ON hospital_outreach_records
+DROP TRIGGER IF EXISTS archive_old_outreach_record_trigger ON hospital_outreach_records;
+
+CREATE TRIGGER archive_old_outreach_record_trigger BEFORE UPDATE ON hospital_outreach_records
   FOR EACH ROW
   EXECUTE FUNCTION archive_old_outreach_record();
 

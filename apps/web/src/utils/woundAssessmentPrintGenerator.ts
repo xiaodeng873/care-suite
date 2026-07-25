@@ -202,14 +202,15 @@ const CSS = `
 body { font-family:"DFKai-SB","BiauKai","標楷體",serif; margin:0; padding:0; background:#fff; width:100%; }
 .container { width:100%; box-sizing:border-box; }
 .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
-.header-left { display:flex; width:35%; }
-.station-box { border:1.5px solid black; width:60px; height:46px; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:bold; margin-right:5px; }
+.header-left { display:flex; width:18%; }
+.station-box { display:none; }
 .identity-box { border:1.5px solid black; flex-grow:1; height:46px; padding:2px 6px; display:flex; flex-direction:column; justify-content:space-around; font-size:13px; font-weight:bold; }
 .header-center { text-align:center; flex-grow:1; padding:0 8px; }
 .header-center h1 { margin:0; font-size:26px; font-weight:bold; }
-.header-center h2 { margin:0; font-size:20px; font-weight:bold; }
-.header-right { display:flex; align-items:center; justify-content:flex-end; width:18%; }
-.logo-img { max-height:50px; max-width:100%; object-fit:contain; }
+.header-center h2 { margin: 4px 0 0 0; font-size:22px; font-weight:bold; display:inline-block; border-bottom:1.5px solid black; padding-bottom:2px; }
+.header-right { display:flex; align-items:flex-start; justify-content:flex-end; width:18%; }
+.logo-box { width:80px; height:60px; display:flex; align-items:center; justify-content:center; }
+.logo-img { max-width:100%; max-height:100%; object-fit:contain; }
 table { width:100%; border-collapse:collapse; table-layout:fixed; }
 /* 統一字體：左側表頭與評估值欄同大小（只 th 加粗） */
 th, td { border:1px solid black; text-align:center; vertical-align:middle; padding:0 2px; font-size:14px; line-height:1.05; }
@@ -230,8 +231,9 @@ th, td { border:1px solid black; text-align:center; vertical-align:middle; paddi
 .wound-marker::before,.wound-marker::after { content:''; position:absolute; width:100%; height:3px; background:#000 !important; top:50%; left:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 .wound-marker::before { transform:translateY(-50%) rotate(45deg); }
 .wound-marker::after { transform:translateY(-50%) rotate(-45deg); }
-.footer-info { margin-top:4px; display:flex; justify-content:flex-end; align-items:flex-end; position:relative; font-weight:bold; font-size:9px; height:20px; }
-.page-number { position:absolute; left:50%; transform:translateX(-50%); font-size:14px; bottom:0; }
+.footer-info { margin-top:4px; display:flex; justify-content:flex-end; align-items:flex-end; position:relative; font-weight:bold; height:30px; }
+.page-number { position:absolute; left:50%; transform:translateX(-50%); font-size:24px; font-weight:bold; bottom:0; }
+.doc-code { font-size:11px; font-weight:bold; align-self:flex-end; }
 `;
 
 const buildPage = (
@@ -257,8 +259,8 @@ const buildPage = (
     : Math.round(7 / (wound.assessment_frequency_value ?? 7));
 
   const logoHtml = logoDataUri
-    ? `<img class="logo-img" src="${esc(logoDataUri)}" alt="Logo">`
-    : `<span style="font-size:13px;font-weight:bold;">${esc(facilityName)}</span>`;
+    ? `<div class="logo-box"><img class="logo-img" src="${esc(logoDataUri)}" alt="Logo"></div>`
+    : `<div class="logo-box"><span style="font-size:13px;font-weight:bold;">${esc(facilityName)}</span></div>`;
 
   return `<div class="container"${pageNum > 1 ? ' style="page-break-before:always;"' : ''}>
   <div class="header">
@@ -294,7 +296,7 @@ const buildPage = (
   </div>` : ''}
   <div class="footer-info">
     <div class="page-number">10</div>
-    <div>B19 FK (11.2020)</div>
+    <div class="doc-code">B19 FK (11.2020)</div>
   </div>
 </div>`;
 };

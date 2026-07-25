@@ -52,30 +52,34 @@ CREATE INDEX IF NOT EXISTS idx_patient_notes_created_at ON patient_notes(created
 ALTER TABLE patient_notes ENABLE ROW LEVEL SECURITY;
 
 -- 創建 RLS 策略：已認證用戶可以查看所有便條
-CREATE POLICY "Authenticated users can view all notes"
-  ON patient_notes
+DROP POLICY IF EXISTS "Authenticated users can view all notes" ON patient_notes;
+
+CREATE POLICY "Authenticated users can view all notes" ON patient_notes
   FOR SELECT
   TO authenticated
   USING (true);
 
 -- 創建 RLS 策略：已認證用戶可以新增便條
-CREATE POLICY "Authenticated users can insert notes"
-  ON patient_notes
+DROP POLICY IF EXISTS "Authenticated users can insert notes" ON patient_notes;
+
+CREATE POLICY "Authenticated users can insert notes" ON patient_notes
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
 -- 創建 RLS 策略：已認證用戶可以更新便條
-CREATE POLICY "Authenticated users can update notes"
-  ON patient_notes
+DROP POLICY IF EXISTS "Authenticated users can update notes" ON patient_notes;
+
+CREATE POLICY "Authenticated users can update notes" ON patient_notes
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
 -- 創建 RLS 策略：已認證用戶可以刪除便條
-CREATE POLICY "Authenticated users can delete notes"
-  ON patient_notes
+DROP POLICY IF EXISTS "Authenticated users can delete notes" ON patient_notes;
+
+CREATE POLICY "Authenticated users can delete notes" ON patient_notes
   FOR DELETE
   TO authenticated
   USING (true);

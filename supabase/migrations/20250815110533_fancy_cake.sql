@@ -77,27 +77,34 @@ BEGIN
 END $$;
 
 -- 創建 RLS 策略
-CREATE POLICY "Allow authenticated users to read stations"
-  ON stations
+DROP POLICY IF EXISTS "Allow authenticated users to read stations" ON stations;
+
+CREATE POLICY "Allow authenticated users to read stations" ON stations
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "Allow authenticated users to manage stations"
-  ON stations
+DROP POLICY IF EXISTS "Allow authenticated users to manage stations" ON stations;
+
+
+CREATE POLICY "Allow authenticated users to manage stations" ON stations
   FOR ALL
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users to read beds"
-  ON beds
+DROP POLICY IF EXISTS "Allow authenticated users to read beds" ON beds;
+
+
+CREATE POLICY "Allow authenticated users to read beds" ON beds
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "Allow authenticated users to manage beds"
-  ON beds
+DROP POLICY IF EXISTS "Allow authenticated users to manage beds" ON beds;
+
+
+CREATE POLICY "Allow authenticated users to manage beds" ON beds
   FOR ALL
   TO authenticated
   USING (true)
@@ -128,13 +135,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_stations_updated_at
-  BEFORE UPDATE ON stations
+DROP TRIGGER IF EXISTS update_stations_updated_at ON stations;
+
+
+CREATE TRIGGER update_stations_updated_at BEFORE UPDATE ON stations
   FOR EACH ROW
   EXECUTE FUNCTION update_stations_updated_at();
 
-CREATE TRIGGER update_beds_updated_at
-  BEFORE UPDATE ON beds
+DROP TRIGGER IF EXISTS update_beds_updated_at ON beds;
+
+
+CREATE TRIGGER update_beds_updated_at BEFORE UPDATE ON beds
   FOR EACH ROW
   EXECUTE FUNCTION update_beds_updated_at();
 

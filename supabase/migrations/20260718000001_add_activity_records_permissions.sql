@@ -5,4 +5,5 @@ INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALU
   ('periodic', 'activity_records', '活動記錄', 'view', '/activity-records'),
   ('periodic', 'activity_records', '活動記錄', 'create', '/activity-records'),
   ('periodic', 'activity_records', '活動記錄', 'edit', '/activity-records'),
-  ('periodic', 'activity_records', '活動記錄', 'delete', '/activity-records');
+  ('periodic', 'activity_records', '活動記錄', 'delete', '/activity-records')
+ON CONFLICT (category, feature, action) DO NOTHING;

@@ -14,6 +14,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
 import { generateWorkflowRecordsClient } from '../../utils/workflowGenerator';
 import { diffPrescriptions } from '../../utils/prescriptionActivityLog';
+import { normalizeTime } from '../../utils/prescriptionExpiry';
 
 // 處方日誌：高階操作可傳入的 meta（覆寫 action_type、綁定 group、標記還原來源）
 export interface PrescriptionLogMeta {
@@ -36,6 +37,29 @@ const backfillWorkflowForPrescription = (created: any) => {
       .catch(err => console.warn('處方回溯生成工作流程失敗（背景）:', err));
   } catch (err) {
     console.warn('觸發處方回溯生成失敗:', err);
+  }
+};
+
+// 當處方設定結束日期/時間或停服時，刪除結束時間點之後的所有 workflow records（含已簽署）
+const cleanupWorkflowRecordsAfterEndTime = async (prescription: any) => {
+  if (!prescription?.end_date) return;
+  const endTime = normalizeTime(prescription.end_time) || '23:59';
+  const { error: dateError } = await supabase
+    .from('medication_workflow_records')
+    .delete()
+    .eq('prescription_id', prescription.id)
+    .gt('scheduled_date', prescription.end_date);
+  if (dateError) {
+    console.error('刪除結束日期後工作流程記錄失敗:', dateError);
+  }
+  const { error: timeError } = await supabase
+    .from('medication_workflow_records')
+    .delete()
+    .eq('prescription_id', prescription.id)
+    .eq('scheduled_date', prescription.end_date)
+    .gt('scheduled_time', endTime);
+  if (timeError) {
+    console.error('刪除結束日超時工作流程記錄失敗:', timeError);
   }
 };
 
@@ -277,12 +301,14 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
   
   const updatePrescription = useCallback(async (prescription: any, logMeta?: PrescriptionLogMeta) => {
     try {
-      if (prescription.status === 'inactive' && !prescription.end_date) {
+      // 找出被移除的時間點，刪除其全 pending 的 workflow records
+      const oldPrescription = prescriptions.find(p => p.id === prescription.id);
+
+      // 停用處方必須有結束日期（使用舊處方的結束日期亦可）
+      if (prescription.status === 'inactive' && !prescription.end_date && !oldPrescription?.end_date) {
         throw new Error('停用處方必須設定結束日期');
       }
 
-      // 找出被移除的時間點，刪除其全 pending 的 workflow records
-      const oldPrescription = prescriptions.find(p => p.id === prescription.id);
       const oldSlots: string[] = Array.isArray(oldPrescription?.medication_time_slots)
         ? (oldPrescription!.medication_time_slots as string[])
         : [];
@@ -304,6 +330,9 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
       }
 
       const updated = await db.updatePrescription(prescription);
+
+      // 若處方設有結束日期，清理結束時間點之後的所有 workflow records（含已簽署）
+      await cleanupWorkflowRecordsAfterEndTime(updated);
 
       // 寫入處方日誌
       const fieldChanges = diffPrescriptions(oldPrescription, updated);

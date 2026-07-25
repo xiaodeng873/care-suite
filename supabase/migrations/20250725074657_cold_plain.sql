@@ -20,7 +20,10 @@
 */
 
 -- 創建餐膳組合枚舉
-CREATE TYPE meal_combination_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'meal_combination_type') THEN
+    CREATE TYPE meal_combination_type AS ENUM (
   '正飯+正餸',
   '正飯+碎餸', 
   '正飯+糊餸',
@@ -29,14 +32,21 @@ CREATE TYPE meal_combination_type AS ENUM (
   '軟飯+糊餸',
   '糊飯+糊餸'
 );
+  END IF;
+END $$;;
 
 -- 創建特殊餐膳枚舉
-CREATE TYPE special_diet_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'special_diet_type') THEN
+    CREATE TYPE special_diet_type AS ENUM (
   '糖尿餐',
   '痛風餐', 
   '低鹽餐',
   '鼻胃飼'
 );
+  END IF;
+END $$;;
 
 -- 創建餐膳指引表格
 CREATE TABLE IF NOT EXISTS meal_guidance (
@@ -56,27 +66,34 @@ CREATE TABLE IF NOT EXISTS meal_guidance (
 ALTER TABLE meal_guidance ENABLE ROW LEVEL SECURITY;
 
 -- 創建政策
-CREATE POLICY "允許已認證用戶讀取餐膳指引"
-  ON meal_guidance
+DROP POLICY IF EXISTS "允許已認證用戶讀取餐膳指引" ON meal_guidance;
+
+CREATE POLICY "允許已認證用戶讀取餐膳指引" ON meal_guidance
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "允許已認證用戶新增餐膳指引"
-  ON meal_guidance
+DROP POLICY IF EXISTS "允許已認證用戶新增餐膳指引" ON meal_guidance;
+
+
+CREATE POLICY "允許已認證用戶新增餐膳指引" ON meal_guidance
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶更新餐膳指引"
-  ON meal_guidance
+DROP POLICY IF EXISTS "允許已認證用戶更新餐膳指引" ON meal_guidance;
+
+
+CREATE POLICY "允許已認證用戶更新餐膳指引" ON meal_guidance
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶刪除餐膳指引"
-  ON meal_guidance
+DROP POLICY IF EXISTS "允許已認證用戶刪除餐膳指引" ON meal_guidance;
+
+
+CREATE POLICY "允許已認證用戶刪除餐膳指引" ON meal_guidance
   FOR DELETE
   TO authenticated
   USING (true);
@@ -96,7 +113,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_meal_guidance_updated_at
-  BEFORE UPDATE ON meal_guidance
+DROP TRIGGER IF EXISTS update_meal_guidance_updated_at ON meal_guidance;
+
+
+CREATE TRIGGER update_meal_guidance_updated_at BEFORE UPDATE ON meal_guidance
   FOR EACH ROW
   EXECUTE FUNCTION update_meal_guidance_updated_at();

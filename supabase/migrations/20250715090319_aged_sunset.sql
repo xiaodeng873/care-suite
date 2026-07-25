@@ -19,7 +19,12 @@
 */
 
 -- 創建範本類型枚舉
-CREATE TYPE template_type AS ENUM ('waiting-list', 'prescription', 'medication-record', 'consent-form');
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'template_type') THEN
+    CREATE TYPE template_type AS ENUM ('waiting-list', 'prescription', 'medication-record', 'consent-form');
+  END IF;
+END $$;;
 
 -- 創建範本元數據表格
 CREATE TABLE IF NOT EXISTS templates_metadata (
@@ -43,27 +48,34 @@ CREATE INDEX IF NOT EXISTS idx_templates_metadata_upload_date ON templates_metad
 CREATE INDEX IF NOT EXISTS idx_templates_metadata_extracted_format ON templates_metadata USING gin(extracted_format);
 
 -- 新增已認證用戶的完整存取權限策略
-CREATE POLICY "允許已認證用戶讀取範本元數據"
-  ON templates_metadata
+DROP POLICY IF EXISTS "允許已認證用戶讀取範本元數據" ON templates_metadata;
+
+CREATE POLICY "允許已認證用戶讀取範本元數據" ON templates_metadata
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "允許已認證用戶新增範本元數據"
-  ON templates_metadata
+DROP POLICY IF EXISTS "允許已認證用戶新增範本元數據" ON templates_metadata;
+
+
+CREATE POLICY "允許已認證用戶新增範本元數據" ON templates_metadata
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶更新範本元數據"
-  ON templates_metadata
+DROP POLICY IF EXISTS "允許已認證用戶更新範本元數據" ON templates_metadata;
+
+
+CREATE POLICY "允許已認證用戶更新範本元數據" ON templates_metadata
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶刪除範本元數據"
-  ON templates_metadata
+DROP POLICY IF EXISTS "允許已認證用戶刪除範本元數據" ON templates_metadata;
+
+
+CREATE POLICY "允許已認證用戶刪除範本元數據" ON templates_metadata
   FOR DELETE
   TO authenticated
   USING (true);

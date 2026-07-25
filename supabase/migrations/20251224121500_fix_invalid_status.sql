@@ -6,5 +6,4 @@
 UPDATE wound_assessments
 SET status = 'active'
 WHERE status IS NULL
-   OR status = ''
-   OR status NOT IN ('active', 'archived');
+   OR status::text NOT IN ('active', 'archived');

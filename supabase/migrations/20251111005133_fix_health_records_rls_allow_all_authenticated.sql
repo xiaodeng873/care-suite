@@ -14,8 +14,9 @@ DROP POLICY IF EXISTS "只允許本人更新健康記錄" ON public.健康記錄
 DROP POLICY IF EXISTS "只允許本人刪除健康記錄" ON public.健康記錄主表;
 
 -- 創建新的策略：允許所有已認證用戶管理所有健康記錄
-CREATE POLICY "允許已認證用戶管理健康記錄"
-  ON public.健康記錄主表
+DROP POLICY IF EXISTS "允許已認證用戶管理健康記錄" ON public.健康記錄主表;
+
+CREATE POLICY "允許已認證用戶管理健康記錄" ON public.健康記錄主表
   FOR ALL
   TO authenticated
   USING (true)

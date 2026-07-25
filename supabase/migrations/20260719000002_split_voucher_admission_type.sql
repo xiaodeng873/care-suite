@@ -11,4 +11,4 @@ ALTER TYPE public.admission_type_enum ADD VALUE '院舍卷級別1-7';
 -- 更新現有資料（舊的 '院舍卷' 已自動改名，此處為保險）
 UPDATE public."院友主表"
 SET "入住類型" = '院舍卷級別0'
-WHERE "入住類型" = '院舍卷';
+WHERE "入住類型"::text = '院舍卷';

@@ -26,8 +26,8 @@
 
         /* 標題區域上推 */
         .title-section { text-align: center; margin-bottom: 25px; }
-        .title-section h1 { margin: 0; font-size: 28px; font-weight: bold; letter-spacing: 3px; }
-        .title-section h2 { margin: 10px 0 0 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+        .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; letter-spacing: 2px; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
 
         /* 正文與 DB Mapping 下劃線輸入框 */
         .content-body { font-size: 15px; text-align: justify; margin-bottom: 10px; }
@@ -104,18 +104,16 @@
             font-size: 15px;
             font-weight: bold;
         }
-        .witness-item { display: flex; align-items: flex-end; }
+        .witness-item { display: flex; align-items: flex-end; white-space: nowrap; }
 
         /* 頁尾 */
         .footer {
-            position: absolute;
-            bottom: 8mm;
-            left: 0;
-            right: 0;
-            padding: 0 0.25in;
+            margin-top: 8px;
             display: flex;
             justify-content: flex-end;
-            align-items: flex-end;
+            position: relative;
+            height: 30px;
+            font-weight: bold;
         }
         .page-num {
             position: absolute;
@@ -123,8 +121,9 @@
             transform: translateX(-50%);
             font-size: 24px;
             font-weight: bold;
+            bottom: 0;
         }
-        .doc-code { font-size: 13px; font-weight: bold; }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
     </style>
 </head>
 <body>

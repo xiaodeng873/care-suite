@@ -9,7 +9,7 @@
             margin: 5mm 8mm;
         }
         body {
-            font-family: "標楷體", "DFKai-SB", "BiauKai", serif;
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
             margin: 0;
             padding: 0;
             font-size: 13px;
@@ -51,8 +51,8 @@
 
         /* 標題文字置中 */
         .title-section { text-align: center; flex-grow: 1; }
-        .title-section h1 { margin: 0; font-size: 24px; letter-spacing: 2px; }
-        .title-section h2 { margin: 2px 0; font-size: 20px; text-decoration: underline; }
+        .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
 
         /* 注意事項：外層置中，內層靠左以實現開首對齊 */
         .instructions { font-size: 11px; text-align: center; margin-bottom: 3px; line-height: 1.2; }
@@ -106,6 +106,24 @@
             font-size: 10px; /* 標籤文字稍微縮小以確保不換行 */
             white-space: nowrap;
         }
+
+        /* 頁尾 */
+        .footer {
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            height: 30px;
+            font-weight: bold;
+        }
+        .page-num {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            bottom: 0;
+        }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
     </style>
 </head>
 <body>
@@ -269,6 +287,12 @@
             </tr>
         </tbody>
     </table>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">1</div>
+        <div class="doc-code">—</div>
+    </div>
 </div>
 
 </body>

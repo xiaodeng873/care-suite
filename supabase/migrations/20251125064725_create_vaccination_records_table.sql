@@ -51,8 +51,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_update_vaccination_records_updated_at
-  BEFORE UPDATE ON vaccination_records
+DROP TRIGGER IF EXISTS trigger_update_vaccination_records_updated_at ON vaccination_records;
+
+
+CREATE TRIGGER trigger_update_vaccination_records_updated_at BEFORE UPDATE ON vaccination_records
   FOR EACH ROW
   EXECUTE FUNCTION update_vaccination_records_updated_at();
 
@@ -60,30 +62,34 @@ CREATE TRIGGER trigger_update_vaccination_records_updated_at
 ALTER TABLE vaccination_records ENABLE ROW LEVEL SECURITY;
 
 -- 創建 RLS 策略：允許所有已認證用戶查看疫苗記錄
-CREATE POLICY "Allow authenticated users to view vaccination records"
-  ON vaccination_records
+DROP POLICY IF EXISTS "Allow authenticated users to view vaccination records" ON vaccination_records;
+
+CREATE POLICY "Allow authenticated users to view vaccination records" ON vaccination_records
   FOR SELECT
   TO authenticated
   USING (true);
 
 -- 創建 RLS 策略：允許所有已認證用戶新增疫苗記錄
-CREATE POLICY "Allow authenticated users to insert vaccination records"
-  ON vaccination_records
+DROP POLICY IF EXISTS "Allow authenticated users to insert vaccination records" ON vaccination_records;
+
+CREATE POLICY "Allow authenticated users to insert vaccination records" ON vaccination_records
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
 -- 創建 RLS 策略：允許所有已認證用戶更新疫苗記錄
-CREATE POLICY "Allow authenticated users to update vaccination records"
-  ON vaccination_records
+DROP POLICY IF EXISTS "Allow authenticated users to update vaccination records" ON vaccination_records;
+
+CREATE POLICY "Allow authenticated users to update vaccination records" ON vaccination_records
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
 -- 創建 RLS 策略：允許所有已認證用戶刪除疫苗記錄
-CREATE POLICY "Allow authenticated users to delete vaccination records"
-  ON vaccination_records
+DROP POLICY IF EXISTS "Allow authenticated users to delete vaccination records" ON vaccination_records;
+
+CREATE POLICY "Allow authenticated users to delete vaccination records" ON vaccination_records
   FOR DELETE
   TO authenticated
   USING (true);

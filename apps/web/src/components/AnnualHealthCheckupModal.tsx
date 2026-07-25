@@ -110,8 +110,8 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
         serious_illness_details: patientDiagnosis || '', // 每次都从患者记录引用
         has_allergy: !!(patient?.藥物敏感?.length),
         allergy_details: patient?.藥物敏感?.join(', ') || '', // 每次都从患者记录引用
-        has_infectious_disease: !!(patient?.感染控制?.length),
-        infectious_disease_details: patient?.感染控制?.join(', ') || '', // 每次都从患者记录引用
+        has_infectious_disease: checkup?.has_infectious_disease || false,
+        infectious_disease_details: checkup?.infectious_disease_details || '',
         needs_followup_treatment: !!(checkup.followup_treatment_details && checkup.followup_treatment_details.trim()),
         followup_treatment_details: checkup.followup_treatment_details || '',
         has_swallowing_difficulty: !!(checkup.swallowing_difficulty_details && checkup.swallowing_difficulty_details.trim()),
@@ -166,8 +166,8 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
         serious_illness_details: patientDiagnosis || '',
         has_allergy: !!(patient?.藥物敏感?.length),
         allergy_details: patient?.藥物敏感?.join(', ') || '',
-        has_infectious_disease: !!(patient?.感染控制?.length),
-        infectious_disease_details: patient?.感染控制?.join(', ') || '',
+        has_infectious_disease: renewFrom?.has_infectious_disease || false,
+        infectious_disease_details: renewFrom?.infectious_disease_details || '',
         needs_followup_treatment: !!(renewFrom.followup_treatment_details && renewFrom.followup_treatment_details.trim()),
         followup_treatment_details: renewFrom.followup_treatment_details || '',
         has_swallowing_difficulty: !!(renewFrom.swallowing_difficulty_details && renewFrom.swallowing_difficulty_details.trim()),

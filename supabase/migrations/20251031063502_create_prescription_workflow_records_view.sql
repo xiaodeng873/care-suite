@@ -98,19 +98,22 @@ $$ LANGUAGE plpgsql;
 
 -- 創建觸發器
 DROP TRIGGER IF EXISTS prescription_workflow_records_insert_trigger ON prescription_workflow_records;
-CREATE TRIGGER prescription_workflow_records_insert_trigger
-  INSTEAD OF INSERT ON prescription_workflow_records
+DROP TRIGGER IF EXISTS prescription_workflow_records_insert_trigger ON prescription_workflow_records;
+
+CREATE TRIGGER prescription_workflow_records_insert_trigger INSTEAD OF INSERT ON prescription_workflow_records
   FOR EACH ROW
   EXECUTE FUNCTION prescription_workflow_records_insert();
 
 DROP TRIGGER IF EXISTS prescription_workflow_records_update_trigger ON prescription_workflow_records;
-CREATE TRIGGER prescription_workflow_records_update_trigger
-  INSTEAD OF UPDATE ON prescription_workflow_records
+DROP TRIGGER IF EXISTS prescription_workflow_records_update_trigger ON prescription_workflow_records;
+
+CREATE TRIGGER prescription_workflow_records_update_trigger INSTEAD OF UPDATE ON prescription_workflow_records
   FOR EACH ROW
   EXECUTE FUNCTION prescription_workflow_records_update();
 
 DROP TRIGGER IF EXISTS prescription_workflow_records_delete_trigger ON prescription_workflow_records;
-CREATE TRIGGER prescription_workflow_records_delete_trigger
-  INSTEAD OF DELETE ON prescription_workflow_records
+DROP TRIGGER IF EXISTS prescription_workflow_records_delete_trigger ON prescription_workflow_records;
+
+CREATE TRIGGER prescription_workflow_records_delete_trigger INSTEAD OF DELETE ON prescription_workflow_records
   FOR EACH ROW
   EXECUTE FUNCTION prescription_workflow_records_delete();

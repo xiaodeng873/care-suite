@@ -16,10 +16,16 @@ ALTER TABLE patient_tube_care_records
   ADD COLUMN IF NOT EXISTS wash_cycle_days integer,
   ADD COLUMN IF NOT EXISTS replace_cycle_days integer;
 
--- 更新 care_type 檢查約束以加入「造口袋更換」
+-- 先移除舊約束，才能更新資料
 ALTER TABLE patient_tube_care_records
   DROP CONSTRAINT IF EXISTS patient_tube_care_records_care_type_check;
 
+-- 將舊資料中的「尿導管更換」統一為「導尿管更換」
+UPDATE patient_tube_care_records
+SET care_type = '導尿管更換'
+WHERE care_type = '尿導管更換';
+
+-- 更新 care_type 檢查約束以加入「造口袋更換」
 ALTER TABLE patient_tube_care_records
   ADD CONSTRAINT patient_tube_care_records_care_type_check
   CHECK (care_type IN ('導尿管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換', '造口袋更換'));

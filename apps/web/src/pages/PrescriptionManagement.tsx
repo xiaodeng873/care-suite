@@ -1134,45 +1134,6 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
             </div>
           </div>
           <div className="flex flex-shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            {/* 狀態操作按鈕 */}
-            {status === 'pending_change' && (
-              <>
-                <button
-                  onClick={() => onStatusChange('active')}
-                  className="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50"
-                  title="轉在服"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => onStatusChange('inactive')}
-                  className="text-gray-600 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-50"
-                  title="停用"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </>
-            )}
-            {status === 'inactive' && (
-              <>
-                <button
-                  onClick={() => onStatusChange('active')}
-                  className="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50"
-                  title="轉在服"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => onStatusChange('pending_change')}
-                  className="text-yellow-600 hover:text-yellow-800 p-2 rounded-lg hover:bg-yellow-50"
-                  title="轉待變更"
-                >
-                  <AlertTriangle className="h-4 w-4" />
-                </button>
-              </>
-            )}
-            <div className="w-px h-5 bg-gray-300 mx-1" />
-            {/* 原有操作按鈕 */}
             <button
               onClick={onTransfer}
               className="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50"

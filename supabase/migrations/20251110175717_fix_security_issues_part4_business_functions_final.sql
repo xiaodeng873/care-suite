@@ -57,8 +57,9 @@ $$;
 
 -- 重新創建觸發器
 DROP TRIGGER IF EXISTS trigger_sync_bed_occupied_status ON 院友主表;
-CREATE TRIGGER trigger_sync_bed_occupied_status
-AFTER INSERT OR UPDATE OF 床號, 在住狀態 ON 院友主表
+DROP TRIGGER IF EXISTS trigger_sync_bed_occupied_status ON 院友主表;
+
+CREATE TRIGGER trigger_sync_bed_occupied_status AFTER INSERT OR UPDATE OF 床號, 在住狀態 ON 院友主表
 FOR EACH ROW
 EXECUTE FUNCTION sync_bed_occupied_status();
 
@@ -102,8 +103,9 @@ $$;
 
 -- 重新創建觸發器
 DROP TRIGGER IF EXISTS set_preparation_method_trigger ON new_medication_prescriptions;
-CREATE TRIGGER set_preparation_method_trigger
-BEFORE INSERT OR UPDATE ON new_medication_prescriptions
+DROP TRIGGER IF EXISTS set_preparation_method_trigger ON new_medication_prescriptions;
+
+CREATE TRIGGER set_preparation_method_trigger BEFORE INSERT OR UPDATE ON new_medication_prescriptions
 FOR EACH ROW
 EXECUTE FUNCTION set_preparation_method_by_dosage_form();
 
@@ -158,8 +160,9 @@ $$;
 
 -- 重新創建觸發器
 DROP TRIGGER IF EXISTS archive_outreach_record_trigger ON hospital_outreach_records;
-CREATE TRIGGER archive_outreach_record_trigger
-BEFORE UPDATE ON hospital_outreach_records
+DROP TRIGGER IF EXISTS archive_outreach_record_trigger ON hospital_outreach_records;
+
+CREATE TRIGGER archive_outreach_record_trigger BEFORE UPDATE ON hospital_outreach_records
 FOR EACH ROW
 EXECUTE FUNCTION archive_old_outreach_record();
 
@@ -182,7 +185,8 @@ $$;
 
 -- 重新創建觸發器
 DROP TRIGGER IF EXISTS calculate_end_date_trigger ON hospital_outreach_records;
-CREATE TRIGGER calculate_end_date_trigger
-BEFORE INSERT OR UPDATE ON hospital_outreach_records
+DROP TRIGGER IF EXISTS calculate_end_date_trigger ON hospital_outreach_records;
+
+CREATE TRIGGER calculate_end_date_trigger BEFORE INSERT OR UPDATE ON hospital_outreach_records
 FOR EACH ROW
 EXECUTE FUNCTION calculate_end_date_from_duration();

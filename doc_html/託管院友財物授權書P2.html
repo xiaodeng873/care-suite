@@ -28,6 +28,13 @@
             overflow: hidden;
         }
 
+        .title-section { text-align: center; margin-bottom: 12px; }
+        .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .title-section h2 { 
+            margin: 4px 0 0 0; font-size: 22px; font-weight: bold; 
+            display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px;
+        }
+
         .section-header {
             font-weight: bold;
             text-decoration: underline;
@@ -105,35 +112,40 @@
         }
 
         /* --- 絕對底置區域 --- */
-        .fixed-footer {
-            position: absolute;
-            bottom: 10mm;
-            left: 15mm;
-            right: 15mm;
+        .footer {
+            margin-top: 8px;
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
             height: 30px;
+            font-weight: bold;
         }
 
         .page-center {
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 22px;
+            font-size: 24px;
             font-weight: bold;
             bottom: 0;
         }
 
         .doc-id-right {
-            position: absolute;
-            right: 0;
-            bottom: 0;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
+            align-self: flex-end;
         }
     </style>
 </head>
 <body>
 
 <div class="a4-container">
+    <!-- 標題 -->
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>託管院友財物授權書</h2>
+    </div>
+
     <!-- 條款及細則 -->
     <div class="section-header">條款及細則 :</div>
     <table class="terms-table">
@@ -230,8 +242,8 @@
         </div>
     </div>
 
-    <!-- 絕對底置頁尾 -->
-    <div class="fixed-footer">
+    <!-- 標準頁尾 -->
+    <div class="footer">
         <div class="page-center">19</div>
         <div class="doc-id-right">A23 FK (5.2026)</div>
     </div>

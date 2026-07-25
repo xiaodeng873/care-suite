@@ -80,27 +80,34 @@ CREATE INDEX IF NOT EXISTS idx_wound_assessments_dressings ON wound_assessments 
 ALTER TABLE wound_assessments ENABLE ROW LEVEL SECURITY;
 
 -- 建立 RLS 策略
-CREATE POLICY "允許已認證用戶讀取傷口評估"
-  ON wound_assessments
+DROP POLICY IF EXISTS "允許已認證用戶讀取傷口評估" ON wound_assessments;
+
+CREATE POLICY "允許已認證用戶讀取傷口評估" ON wound_assessments
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "允許已認證用戶新增傷口評估"
-  ON wound_assessments
+DROP POLICY IF EXISTS "允許已認證用戶新增傷口評估" ON wound_assessments;
+
+
+CREATE POLICY "允許已認證用戶新增傷口評估" ON wound_assessments
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶更新傷口評估"
-  ON wound_assessments
+DROP POLICY IF EXISTS "允許已認證用戶更新傷口評估" ON wound_assessments;
+
+
+CREATE POLICY "允許已認證用戶更新傷口評估" ON wound_assessments
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶刪除傷口評估"
-  ON wound_assessments
+DROP POLICY IF EXISTS "允許已認證用戶刪除傷口評估" ON wound_assessments;
+
+
+CREATE POLICY "允許已認證用戶刪除傷口評估" ON wound_assessments
   FOR DELETE
   TO authenticated
   USING (true);
@@ -115,7 +122,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 建立觸發器
-CREATE TRIGGER update_wound_assessments_updated_at
-  BEFORE UPDATE ON wound_assessments
+DROP TRIGGER IF EXISTS update_wound_assessments_updated_at ON wound_assessments;
+
+CREATE TRIGGER update_wound_assessments_updated_at BEFORE UPDATE ON wound_assessments
   FOR EACH ROW
   EXECUTE FUNCTION update_wound_assessments_updated_at();

@@ -275,11 +275,11 @@ function renderPage(
     ? `<div class="${termType === 'short' ? 'short-term-box' : 'long-term-box'}">${escapeHtml(headerLabel)}</div>`
     : '';
   const logoHtml = logoDataUri
-    ? `<img class="facility-logo" src="${escapeAttr(logoDataUri)}" alt="${escapeAttr(facilityNameZh)}">`
+    ? `<div class="logo-box"><img class="facility-logo" src="${escapeAttr(logoDataUri)}" alt="${escapeAttr(facilityNameZh)}"></div>`
     : '';
-  const newHeader = `<div class="header-section">
+  const newHeader = `<div class="header-section" style="position: relative;">
         ${labelHtml}
-        <div class="title-box">
+        <div class="title-box" style="margin-right: 0;">
             <h1>${escapeHtml(facilityNameZh)}</h1>
             <h2>院友服用藥物一覽表</h2>
         </div>
@@ -331,10 +331,10 @@ function renderPage(
     `<tbody>${rows}</tbody>`
   );
 
-  // 底部頁碼固定顯示總頁數
+  // 底部頁碼固定顯示 2
   html = html.replace(
     /<div class="page-num">\s*\d+\s*<\/div>/g,
-    `<div class="page-num">${totalPages}</div>`
+    `<div class="page-num">2</div>`
   );
 
   // Replace facility name in remaining title element if header replacement missed it
@@ -362,14 +362,15 @@ function assembleDocument(pages: string[], usedTemplates: string[]): string {
     .col-drug { width: 45% !important; }
     .col-notice { width: 11% !important; }
     /* 覆蓋：標題區加入院舍 LOGO */
-    .title-box { margin-right: 0 !important; }
-    .facility-logo {
-      height: 45px;
-      max-width: 120px;
-      margin-left: 20px;
-      align-self: flex-start;
-      object-fit: contain;
-    }
+    .title-box { margin-right: 0 !important; text-align: center; }
+    .title-box h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+    .title-box h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
+    .header-section { position: relative; }
+    .long-term-box, .short-term-box { position: absolute; left: 0; top: 0; margin-left: 0; border: 2px solid black; padding: 5px 15px; font-size: 22px; font-weight: bold; }
+    .logo-box { position: absolute; top: 0; right: 0; width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
+    .facility-logo { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .page-num { font-size: 24px !important; }
+    .doc-code { font-size: 11px !important; align-self: flex-end; }
     /* 覆蓋：藥物敏感「如有」輸入框加長，支援兩行小字 */
     .allergy-textarea {
       width: 160px !important;
@@ -423,9 +424,10 @@ export async function generateMedicationListHtml(
         usedTemplates.push(template);
       }
       const totalPages = Math.ceil(prescriptions.length / 24);
+      const label = termType === 'short' ? '短期藥' : '長期藥';
       for (let i = 0; i < totalPages; i++) {
         const pagePrescriptions = prescriptions.slice(i * 24, (i + 1) * 24);
-        pages.push(renderPage(template, patient, pagePrescriptions, termType, i + 1, totalPages, facilityNameZh, logoDataUri));
+        pages.push(renderPage(template, patient, pagePrescriptions, termType, i + 1, totalPages, facilityNameZh, logoDataUri, label));
       }
     };
 

@@ -327,6 +327,26 @@ const InfectionControl: React.FC = () => {
   const activeRecordCount = filteredRecords.filter(r => !r.recovery_date).length;
   const recoveredRecordCount = filteredRecords.filter(r => !!r.recovery_date).length;
 
+  // 按感染性質動態統計（只顯示實際存在的性質），計算活躍院友人數
+  const infectionTypeStats = useMemo(() => {
+    const activeRecords = filteredRecords.filter(r => !r.recovery_date);
+    const types = Array.from(new Set(activeRecords.map(r => (r.infection_type || '未分類').trim()))).sort();
+    return types.map(type => {
+      const patientIds = new Set<number>();
+      const names: string[] = [];
+      activeRecords
+        .filter(r => (r.infection_type || '未分類').trim() === type)
+        .forEach(r => {
+          if (!patientIds.has(r.patient_id)) {
+            patientIds.add(r.patient_id);
+            const p = allPatients.find(patient => patient.院友id === r.patient_id);
+            names.push(p ? `${p.床號} ${p.中文姓氏}${p.中文名字}` : `院友 #${r.patient_id}`);
+          }
+        });
+      return { type, count: patientIds.size, names };
+    });
+  }, [filteredRecords, allPatients]);
+
   return (
     <div className="space-y-6">
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
@@ -341,6 +361,39 @@ const InfectionControl: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* 感染統計卡片（動態，只顯示現存性質） */}
+      {infectionTypeStats.length > 0 && (
+        <div className="card p-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">感染控制統計</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {infectionTypeStats.map(({ type, count, names }) => {
+              const colors = getInfectionTypeColors(type);
+              return (
+                <div
+                  key={type}
+                  className={`${colors.bgColor} p-4 rounded-lg relative cursor-pointer group`}
+                >
+                  <p className="text-sm text-gray-600">{type}</p>
+                  <p className={`text-2xl font-bold ${colors.textColor}`}>{count}</p>
+                  <p className="text-xs text-gray-500">活躍院友</p>
+                  {names.length > 0 && (
+                    <div className="absolute z-50 hidden group-hover:block bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl -top-2 left-full ml-2 w-48 max-h-64 overflow-y-auto">
+                      <div className="font-semibold mb-2">院友名單:</div>
+                      <ul className="space-y-1">
+                        {names.map((name, idx) => (
+                          <li key={idx} className="text-gray-200">{name}</li>
+                        ))}
+                      </ul>
+                      <div className="absolute w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-r-8 border-r-gray-900 -left-2 top-4" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 搜索和篩選 */}
       <div className="sticky top-16 bg-white z-20 shadow-sm">

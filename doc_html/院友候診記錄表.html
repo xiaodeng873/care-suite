@@ -11,7 +11,7 @@
         }
 
         body {
-            font-family: "PMingLiU", "MingLiU", "新細明體", serif;
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
             margin: 0;
             padding: 0;
             background-color: #fff;
@@ -38,21 +38,28 @@
         }
         .title-section h1 {
             margin: 0;
-            font-size: 20px;
-            font-weight: normal;
+            font-size: 26px;
+            font-weight: bold;
+            letter-spacing: 2px;
         }
         .title-section h2 {
-            margin: 2px 0;
-            font-size: 20px;
-            font-weight: normal;
+            margin: 4px 0 0 0;
+            font-size: 22px;
+            font-weight: bold;
+            display: inline-block;
+            border-bottom: 1.5px solid black;
+            padding-bottom: 2px;
         }
         .title-section h3 {
             margin: 4px 0 0 0;
             font-size: 20px;
             font-weight: bold;
-            text-decoration: underline;
-            text-underline-offset: 3px;
         }
+
+        .header-area { display: flex; align-items: flex-start; justify-content: space-between; }
+        .header-area .header-spacer { width: 18%; }
+        .header-area .title-section { flex: 1; margin-bottom: 10px; }
+        .header-area .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
 
         /* 頂部資訊表格 */
         .info-layout {
@@ -130,16 +137,52 @@
             font-size: 14px;
             line-height: 1.5;
         }
+
+        /* 頁尾 */
+        .footer {
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            height: 30px;
+            font-weight: bold;
+        }
+        .page-num {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            bottom: 0;
+        }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
+
+        /* 標誌 */
+        .logo-box {
+            width: 80px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
     </style>
 </head>
 <body>
 
 <div class="a4-wrapper">
     <!-- 標題 -->
-    <div class="title-section">
-        <h1>九龍樂善堂</h1>
-        <h2>「院舍外展醫生到診服務」</h2>
-        <h3>院友候診記錄表</h3>
+    <div class="header-area">
+        <div class="header-spacer"></div>
+        <div class="title-section">
+            <h1>九龍樂善堂</h1>
+            <h2>「院舍外展醫生到診服務」</h2>
+            <h3>院友候診記錄表</h3>
+        </div>
+        <div class="header-right">
+            <div class="logo-box">
+                <img class="logo-img" src="../supabase/migrations/SClogolayer.png" alt="院舍Logo">
+            </div>
+        </div>
     </div>
 
     <!-- 解決問題 2：將所有頂部資訊整合進單一表格中，確保右邊界完美對齊 -->
@@ -237,6 +280,12 @@
     <div class="footer-notes">
         <div>備註：請於醫生到診前 1 天將此記錄表，傳真 2361 1982 到外展醫療服務團隊。</div>
         <div>*院舍已確保以上報名候補院友/院友監護人同意接受樂善堂外展醫生診治及查閱相關醫療紀錄</div>
+    </div>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">1</div>
+        <div class="doc-code">—</div>
     </div>
 
 </div>

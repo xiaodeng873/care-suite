@@ -31,11 +31,9 @@ export function generatePersonalHealthRecordHtml(ctx: DocumentGeneratorContext):
   const { patient } = ctx;
   const chineseName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const englishName = patient.英文姓名 || `${patient.英文姓氏 || ''}${patient.英文名字 || ''}`;
-  const stationCode = (patient.床號 || '').match(/^[A-Za-z]+/)?.[0] || '';
 
   // ── P1：基本資料 + 社交狀況 ──────────────────────────────────────────────
   const p1FieldValues: Record<string, string> = {
-    station_code: stationCode,
     p_name_ch: chineseName,
     p_name_en: englishName,
     p_birth: patient.出生日期 || '',

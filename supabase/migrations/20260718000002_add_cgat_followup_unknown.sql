@@ -5,8 +5,15 @@
   - 棄用 cgat_followup_before_end_date check constraint（藥完日期改由療程周數計算）
 */
 
-ALTER TABLE cgat_records
-  RENAME COLUMN followup_date TO cgat_visit_date;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'cgat_records' AND column_name = 'followup_date'
+  ) THEN
+    ALTER TABLE cgat_records RENAME COLUMN followup_date TO cgat_visit_date;
+  END IF;
+END $$;
 
 ALTER TABLE cgat_records
   ADD COLUMN IF NOT EXISTS cgat_visit_unknown boolean DEFAULT false;

@@ -18,7 +18,12 @@
 DO $$ 
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '性別類型') THEN
+    DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '性別類型') THEN
     CREATE TYPE 性別類型 AS ENUM ('男', '女');
+  END IF;
+END $$;;
   END IF;
 END $$;
 
@@ -110,39 +115,73 @@ ON CONFLICT (原因名稱) DO NOTHING;
 
 -- 設定 RLS 政策
 -- 允許已認證用戶讀取所有資料
+DROP POLICY IF EXISTS "允許已認證用戶讀取院友資料" ON 院友主表;
+
 CREATE POLICY "允許已認證用戶讀取院友資料" ON 院友主表
   FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶讀取處方資料" ON 處方主表;
+
 
 CREATE POLICY "允許已認證用戶讀取處方資料" ON 處方主表
   FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "允許已認證用戶讀取排程資料" ON 到診排程主表;
+
+
 CREATE POLICY "允許已認證用戶讀取排程資料" ON 到診排程主表
   FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶讀取看診院友細項" ON 看診院友細項;
+
 
 CREATE POLICY "允許已認證用戶讀取看診院友細項" ON 看診院友細項
   FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "允許已認證用戶讀取看診原因" ON 看診原因選項;
+
+
 CREATE POLICY "允許已認證用戶讀取看診原因" ON 看診原因選項
   FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶讀取看診原因關聯" ON 到診院友_看診原因;
+
 
 CREATE POLICY "允許已認證用戶讀取看診原因關聯" ON 到診院友_看診原因
   FOR SELECT TO authenticated USING (true);
 
 -- 允許已認證用戶修改資料
+DROP POLICY IF EXISTS "允許已認證用戶修改院友資料" ON 院友主表;
+
 CREATE POLICY "允許已認證用戶修改院友資料" ON 院友主表
   FOR ALL TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶修改處方資料" ON 處方主表;
+
 
 CREATE POLICY "允許已認證用戶修改處方資料" ON 處方主表
   FOR ALL TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "允許已認證用戶修改排程資料" ON 到診排程主表;
+
+
 CREATE POLICY "允許已認證用戶修改排程資料" ON 到診排程主表
   FOR ALL TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶修改看診院友細項" ON 看診院友細項;
+
 
 CREATE POLICY "允許已認證用戶修改看診院友細項" ON 看診院友細項
   FOR ALL TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "允許已認證用戶修改看診原因" ON 看診原因選項;
+
+
 CREATE POLICY "允許已認證用戶修改看診原因" ON 看診原因選項
   FOR ALL TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶修改看診原因關聯" ON 到診院友_看診原因;
+
 
 CREATE POLICY "允許已認證用戶修改看診原因關聯" ON 到診院友_看診原因
   FOR ALL TO authenticated USING (true);

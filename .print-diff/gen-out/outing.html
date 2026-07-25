@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>院友外出同意書 - 善頤(福群)</title>
+    <style>
+        /* A4 紙張規格設定 */
+        @page {
+            size: A4;
+            margin: 5mm 0.25in;
+        }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0; padding: 0;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.5;
+        }
+
+        .container { 
+            width: 100%; 
+            box-sizing: border-box; 
+            padding: 5mm 10mm;
+        }
+
+        /* 標題區域上推 */
+        .title-section { text-align: center; margin-bottom: 25px; }
+        .title-section h1 { margin: 0; font-size: 28px; font-weight: bold; letter-spacing: 3px; }
+        .title-section h2 { margin: 10px 0 0 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+
+        /* 正文與 DB Mapping 下劃線輸入框 */
+        .content-body { font-size: 15px; text-align: justify; margin-bottom: 10px; }
+        
+        .db-line-input {
+            display: inline-block;
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            font-size: 15px;
+            color: #000;
+            padding: 0 5px;
+            margin: 0;
+            outline: none;
+            text-align: center;
+            vertical-align: bottom;
+            line-height: 1.1;
+        }
+
+        /* DB Mapping Checkbox */
+        .db-checkbox {
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid black;
+            display: inline-block;
+            margin-right: 10px;
+            margin-top: 4px;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        /* 選項區塊 */
+        .option-block { margin: 15px 0; font-size: 15px; }
+        .option-row { display: flex; align-items: flex-start; margin-bottom: 15px; }
+
+        /* 聲明部分的特殊底線 - Level 2 */
+        .declaration {
+            text-decoration: underline;
+            text-underline-offset: 4px;
+            font-weight: bold;
+            display: inline;
+        }
+        
+        .level-2-indent {
+            margin-left: 35px; /* 聲明文字的二級縮進 */
+            margin-top: 2px;
+        }
+
+        .note-text { font-size: 14px; margin: 10px 0; }
+
+        /* 簽署表格區塊 */
+        .sig-table {
+            width: 100%;
+            margin-top: 5px;
+            border-collapse: collapse;
+        }
+        .sig-table td {
+            padding: 8px 0;
+            font-size: 15px;
+            vertical-align: bottom;
+        }
+        .label-right { text-align: right; width: 60%; padding-right: 10px !important; font-weight: bold; }
+        .input-line-fill { border-bottom: 1px solid black; width: 100%; height: 25px; display: flex; align-items: flex-end; }
+        .db-text-cell { border: none; background: transparent; width: 100%; font-family: inherit; font-size: 15px; outline: none; padding: 0 5px; }
+
+        /* 見證人區塊 */
+        .witness-grid {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: 40px;
+            row-gap: 25px;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        .witness-item { display: flex; align-items: flex-end; }
+
+        /* 頁尾 */
+        .footer {
+            position: absolute;
+            bottom: 8mm;
+            left: 0;
+            right: 0;
+            padding: 0 0.25in;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+        }
+        .page-num {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .doc-code { font-size: 13px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>院友外出同意書</h2>
+    </div>
+
+    <div class="content-body" style="line-height: 2;">
+        本人，即下方簽署人，〔 是院友(姓名) <input type="text" class="db-line-input" style="width: 250px;" value="測試院友"> 身份證號碼：<input type="text" class="db-line-input" style="width: 220px;" value="A123456(7)"><br>
+        之合法監護人/家屬* 〕
+    </div>
+
+    <div class="option-block">
+        <div class="option-row">
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="checkbox" class="db-checkbox">
+            <div style="flex-grow: 1;">
+                <div>*同意/不同意院友參加院舍安排之活動，包括：外出活動、飲茶或旅行等。</div>
+                <div class="level-2-indent">
+                    <span class="declaration">本院聲明：</span>院友外出活動期間，如有任何意外，一概與院舍及陪同之職員無關。
+                </div>
+            </div>
+        </div>
+
+        <div class="option-row">
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="checkbox" class="db-checkbox">
+            <div style="flex-grow: 1;">
+                <div>*同意/不同意院友自行外出。</div>
+                <div class="level-2-indent">
+                    <span class="declaration">本院聲明：</span>鑒於本護老院是一間「護理安老院」，實際上無權禁止任何長者離開院舍。雖然本院備有一切安全措施以防止神智不清、患有認知障礙的長者自行離開院舍，同時亦提供易於識別的衣服或姓名牌給該等長者穿戴，但不能確保該等長者不會自動溜走。若有這種不幸事件發生，本院將不負任何法律責任。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="note-text">*請刪去不適用者</div>
+
+    <table class="sig-table">
+        <tr>
+            <td class="label-right">院友合法監護人/家屬*簽署 :</td>
+            <td><div class="input-line-fill"></div></td>
+        </tr>
+        <tr>
+            <td class="label-right">身份證號碼 :</td>
+            <td><div class="input-line-fill"><input type="text" class="db-text-cell"></div></td>
+        </tr>
+        <tr>
+            <td class="label-right">簽署人與院友的關係 :</td>
+            <td><div class="input-line-fill"><input type="text" class="db-text-cell"></div></td>
+        </tr>
+        <tr>
+            <td class="label-right" style="vertical-align: top; padding-top: 15px;">簽署人地址 :</td>
+            <td>
+                <div class="input-line-fill" style="margin-bottom: 15px;"><input type="text" class="db-text-cell"></div>
+                <div class="input-line-fill"><input type="text" class="db-text-cell"></div>
+            </td>
+        </tr>
+        <tr>
+            <td class="label-right">簽署人電話 :</td>
+            <td><div class="input-line-fill"><input type="text" class="db-text-cell"></div></td>
+        </tr>
+        <tr>
+            <td class="label-right">日期 :</td>
+            <td><div class="input-line-fill"><input type="text" class="db-text-cell"></div></td>
+        </tr>
+    </table>
+
+    <div class="witness-grid">
+        <div class="witness-item">見證人簽署 : <div class="input-line-fill" style="flex-grow: 1;"></div></div>
+        <div class="witness-item">姓名 : <div class="input-line-fill" style="flex-grow: 1;"><input type="text" class="db-text-cell"></div></div>
+        <div class="witness-item">職級 : <div class="input-line-fill" style="flex-grow: 1;"><input type="text" class="db-text-cell"></div></div>
+        <div class="witness-item">日期 : <div class="input-line-fill" style="flex-grow: 1;"><input type="text" class="db-text-cell"></div></div>
+    </div>
+
+    <div class="footer">
+        <div class="page-num">17</div>
+        <div class="doc-code">A8 FK (11.2020)</div>
+    </div>
+</div>
+
+</body>
+</html>

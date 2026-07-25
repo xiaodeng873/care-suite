@@ -123,30 +123,34 @@ ON CONFLICT (patient_id) DO NOTHING;
 ALTER TABLE annual_health_checkups ENABLE ROW LEVEL SECURITY;
 
 -- RLS 政策：已驗證用戶可以讀取所有記錄
-CREATE POLICY "Authenticated users can view all annual health checkups"
-  ON annual_health_checkups
+DROP POLICY IF EXISTS "Authenticated users can view all annual health checkups" ON annual_health_checkups;
+
+CREATE POLICY "Authenticated users can view all annual health checkups" ON annual_health_checkups
   FOR SELECT
   TO authenticated
   USING (true);
 
 -- RLS 政策：已驗證用戶可以新增記錄
-CREATE POLICY "Authenticated users can insert annual health checkups"
-  ON annual_health_checkups
+DROP POLICY IF EXISTS "Authenticated users can insert annual health checkups" ON annual_health_checkups;
+
+CREATE POLICY "Authenticated users can insert annual health checkups" ON annual_health_checkups
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
 -- RLS 政策：已驗證用戶可以更新記錄
-CREATE POLICY "Authenticated users can update annual health checkups"
-  ON annual_health_checkups
+DROP POLICY IF EXISTS "Authenticated users can update annual health checkups" ON annual_health_checkups;
+
+CREATE POLICY "Authenticated users can update annual health checkups" ON annual_health_checkups
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
 -- RLS 政策：已驗證用戶可以刪除記錄
-CREATE POLICY "Authenticated users can delete annual health checkups"
-  ON annual_health_checkups
+DROP POLICY IF EXISTS "Authenticated users can delete annual health checkups" ON annual_health_checkups;
+
+CREATE POLICY "Authenticated users can delete annual health checkups" ON annual_health_checkups
   FOR DELETE
   TO authenticated
   USING (true);

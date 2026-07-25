@@ -23,7 +23,12 @@
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'residency_status') THEN
+    DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'residency_status') THEN
     CREATE TYPE residency_status AS ENUM ('在住', '已退住');
+  END IF;
+END $$;;
   END IF;
 END $$;
 
@@ -31,7 +36,12 @@ END $$;
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'nursing_level_type') THEN
+    DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'nursing_level_type') THEN
     CREATE TYPE nursing_level_type AS ENUM ('全護理', '半護理', '自理');
+  END IF;
+END $$;;
   END IF;
 END $$;
 
@@ -39,7 +49,12 @@ END $$;
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'admission_type_enum') THEN
+    DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'admission_type_enum') THEN
     CREATE TYPE admission_type_enum AS ENUM ('私位', '買位', '院舍卷', '暫住');
+  END IF;
+END $$;;
   END IF;
 END $$;
 

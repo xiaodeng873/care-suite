@@ -43,8 +43,18 @@
 */
 
 -- 建立列舉類型
-CREATE TYPE workflow_status_enum AS ENUM ('pending', 'completed', 'failed');
-CREATE TYPE dispensing_failure_reason_enum AS ENUM ('回家', '入院', '拒服', '略去', '藥物不足', '其他');
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'workflow_status_enum') THEN
+    CREATE TYPE workflow_status_enum AS ENUM ('pending', 'completed', 'failed');
+  END IF;
+END $$;;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'dispensing_failure_reason_enum') THEN
+    CREATE TYPE dispensing_failure_reason_enum AS ENUM ('回家', '入院', '拒服', '略去', '藥物不足', '其他');
+  END IF;
+END $$;;
 
 -- 建立藥物工作流程記錄表
 CREATE TABLE IF NOT EXISTS medication_workflow_records (
@@ -105,15 +115,18 @@ ALTER TABLE medication_workflow_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE medication_workflow_settings ENABLE ROW LEVEL SECURITY;
 
 -- 建立 RLS 政策
-CREATE POLICY "允許已認證用戶管理藥物工作流程記錄"
-  ON medication_workflow_records
+DROP POLICY IF EXISTS "允許已認證用戶管理藥物工作流程記錄" ON medication_workflow_records;
+
+CREATE POLICY "允許已認證用戶管理藥物工作流程記錄" ON medication_workflow_records
   FOR ALL
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶管理藥物工作流程設定"
-  ON medication_workflow_settings
+DROP POLICY IF EXISTS "允許已認證用戶管理藥物工作流程設定" ON medication_workflow_settings;
+
+
+CREATE POLICY "允許已認證用戶管理藥物工作流程設定" ON medication_workflow_settings
   FOR ALL
   TO authenticated
   USING (true)
@@ -137,12 +150,15 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 建立觸發器
-CREATE TRIGGER update_medication_workflow_records_updated_at
-  BEFORE UPDATE ON medication_workflow_records
+DROP TRIGGER IF EXISTS update_medication_workflow_records_updated_at ON medication_workflow_records;
+
+CREATE TRIGGER update_medication_workflow_records_updated_at BEFORE UPDATE ON medication_workflow_records
   FOR EACH ROW
   EXECUTE FUNCTION update_medication_workflow_records_updated_at();
 
-CREATE TRIGGER update_medication_workflow_settings_updated_at
-  BEFORE UPDATE ON medication_workflow_settings
+DROP TRIGGER IF EXISTS update_medication_workflow_settings_updated_at ON medication_workflow_settings;
+
+
+CREATE TRIGGER update_medication_workflow_settings_updated_at BEFORE UPDATE ON medication_workflow_settings
   FOR EACH ROW
   EXECUTE FUNCTION update_medication_workflow_settings_updated_at();

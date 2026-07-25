@@ -32,16 +32,17 @@
         }
         .title-section h1 {
             margin: 0;
-            font-size: 24px;
+            font-size: 26px;
             font-weight: bold;
             letter-spacing: 2px;
         }
         .title-section h2 {
-            margin: 2px 0 0 0;
-            font-size: 20px;
+            margin: 4px 0 0 0;
+            font-size: 22px;
             font-weight: bold;
-            text-decoration: underline;
-            text-underline-offset: 3px;
+            display: inline-block;
+            border-bottom: 1.5px solid black;
+            padding-bottom: 2px;
         }
 
         /* 專業隱形表格佈局 - 確保不穿透、不超頁 */
@@ -127,24 +128,25 @@
         .sig-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .sig-table td { border: none; padding: 4px 0; font-size: 16px; font-weight: bold; vertical-align: bottom; }
 
-        .footer-wrap {
-            width: 100%;
-            margin-top: 20px;
+        .footer {
             display: flex;
             justify-content: flex-end;
-            align-items: flex-end;
             position: relative;
+            height: 30px;
+            font-weight: bold;
         }
-        .page-center {
+        .page-num {
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 20px;
+            font-size: 24px;
             font-weight: bold;
+            bottom: 0;
         }
         .doc-code {
             font-size: 11px;
             font-weight: bold;
+            align-self: flex-end;
         }
     </style>
 </head>
@@ -263,8 +265,8 @@
 
     <div style="font-size: 13px; margin-top: 10px;">* 請刪去不適用者</div>
 
-    <div class="footer-wrap">
-        <div class="page-center">18</div>
+    <div class="footer">
+        <div class="page-num">18</div>
         <div class="doc-code">A23A FK (08.2023)</div>
     </div>
 </div>

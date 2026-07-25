@@ -30,7 +30,12 @@
 
 -- 創建事件類型枚舉
 DO $$ BEGIN
-  CREATE TYPE admission_event_type AS ENUM ('hospital_admission', 'hospital_discharge', 'transfer_out');
+  DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'admission_event_type') THEN
+    CREATE TYPE admission_event_type AS ENUM ('hospital_admission', 'hospital_discharge', 'transfer_out');
+  END IF;
+END $$;;
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
@@ -90,8 +95,9 @@ BEGIN
     SELECT 1 FROM pg_policies 
     WHERE tablename = 'patient_admission_records' AND policyname = 'Allow authenticated users to read patient admission records'
   ) THEN
-    CREATE POLICY "Allow authenticated users to read patient admission records"
-      ON patient_admission_records
+    DROP POLICY IF EXISTS "Allow authenticated users to read patient admission records" ON patient_admission_records;
+
+    CREATE POLICY "Allow authenticated users to read patient admission records" ON patient_admission_records
       FOR SELECT
       TO authenticated
       USING (true);
@@ -104,8 +110,9 @@ BEGIN
     SELECT 1 FROM pg_policies 
     WHERE tablename = 'patient_admission_records' AND policyname = 'Allow authenticated users to insert patient admission records'
   ) THEN
-    CREATE POLICY "Allow authenticated users to insert patient admission records"
-      ON patient_admission_records
+    DROP POLICY IF EXISTS "Allow authenticated users to insert patient admission records" ON patient_admission_records;
+
+    CREATE POLICY "Allow authenticated users to insert patient admission records" ON patient_admission_records
       FOR INSERT
       TO authenticated
       WITH CHECK (true);
@@ -118,8 +125,9 @@ BEGIN
     SELECT 1 FROM pg_policies 
     WHERE tablename = 'patient_admission_records' AND policyname = 'Allow authenticated users to update patient admission records'
   ) THEN
-    CREATE POLICY "Allow authenticated users to update patient admission records"
-      ON patient_admission_records
+    DROP POLICY IF EXISTS "Allow authenticated users to update patient admission records" ON patient_admission_records;
+
+    CREATE POLICY "Allow authenticated users to update patient admission records" ON patient_admission_records
       FOR UPDATE
       TO authenticated
       USING (true)
@@ -133,8 +141,9 @@ BEGIN
     SELECT 1 FROM pg_policies 
     WHERE tablename = 'patient_admission_records' AND policyname = 'Allow authenticated users to delete patient admission records'
   ) THEN
-    CREATE POLICY "Allow authenticated users to delete patient admission records"
-      ON patient_admission_records
+    DROP POLICY IF EXISTS "Allow authenticated users to delete patient admission records" ON patient_admission_records;
+
+    CREATE POLICY "Allow authenticated users to delete patient admission records" ON patient_admission_records
       FOR DELETE
       TO authenticated
       USING (true);
@@ -157,8 +166,9 @@ BEGIN
     SELECT 1 FROM information_schema.triggers
     WHERE trigger_name = 'update_patient_admission_records_updated_at'
   ) THEN
-    CREATE TRIGGER update_patient_admission_records_updated_at
-      BEFORE UPDATE ON patient_admission_records
+    DROP TRIGGER IF EXISTS update_patient_admission_records_updated_at ON patient_admission_records;
+
+    CREATE TRIGGER update_patient_admission_records_updated_at BEFORE UPDATE ON patient_admission_records
       FOR EACH ROW
       EXECUTE FUNCTION update_patient_admission_records_updated_at();
   END IF;

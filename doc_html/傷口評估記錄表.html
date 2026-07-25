@@ -22,22 +22,8 @@
         /* 標頭設定 - 左上角重製 */
         .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
         
-        .header-left-group { display: flex; width: 35%; }
+        .header-left-group { display: flex; width: 18%; }
         
-        /* "站" 方塊 */
-        .station-box-new {
-            border: 1.5px solid black;
-            width: 70px;
-            height: 53px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            font-weight: bold;
-            margin-right: 6px;
-        }
-
-        /* "姓名/床號" 方塊 */
         .identity-box-new {
             border: 1.5px solid black;
             flex-grow: 1;
@@ -51,10 +37,13 @@
         }
 
         .header-center { text-align: center; flex-grow: 1; padding: 0 10px; }
-        .header-center h1 { margin: 0; font-size: 30px; font-weight: bold; }
-        .header-center h2 { margin: 0; font-size: 24px; font-weight: bold; }
+        .header-center h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .header-center h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
 
         .header-right { text-align: right; width: 22%; font-weight: bold; font-size: 10px; }
+
+        .logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
+        .logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
         /* 表格設定 */
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -111,23 +100,23 @@
         .human-diagram-img { width: 100%; display: block; margin-top: 10px; }
 
         /* 底部置中頁碼 */
-        .footer-info { 
-            margin-top: 8px; 
-            display: flex; 
-            justify-content: flex-end; 
-            align-items: flex-end;
-            position: relative; 
-            font-weight: bold; 
-            font-size: 9px;
-            height: 25px; 
+        .footer {
+            margin-top: 8px;
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            height: 30px;
+            font-weight: bold;
         }
-        .page-number {
+        .page-num {
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 16px;
+            font-size: 24px;
+            font-weight: bold;
             bottom: 0;
         }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
     </style>
 </head>
 <body>
@@ -136,7 +125,6 @@
     <!-- 頂部標頭 - 重製版 -->
     <div class="header">
         <div class="header-left-group">
-            <div class="station-box-new">站</div>
             <div class="identity-box-new">
                 <div>姓名：<span class="db-text-underline" style="min-width: 100px;"></span></div>
                 <div>床號：<span class="db-text-underline" style="min-width: 100px;"></span></div>
@@ -151,8 +139,9 @@
             </div>
         </div>
         <div class="header-right">
-            <div style="font-size: 15px;">☯ 善頤護老</div>
-            <div>SeniorCare</div>
+            <div class="logo-box">
+                <div style="font-size: 15px; text-align: center;">☯ 善頤護老<br>SeniorCare</div>
+            </div>
         </div>
     </div>
 
@@ -358,9 +347,9 @@
     <img src="input_file_2.png" alt="人體方位圖" class="human-diagram-img">
 
     <!-- 頁碼置中 -->
-    <div class="footer-info">
-        <div class="page-number">10</div>
-        <div>B19 FK (11.2020)</div>
+    <div class="footer">
+        <div class="page-num">10</div>
+        <div class="doc-code">B19 FK (11.2020)</div>
     </div>
 </div>
 

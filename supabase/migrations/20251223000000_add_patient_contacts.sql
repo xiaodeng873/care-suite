@@ -59,8 +59,9 @@ $$ LANGUAGE plpgsql;
 
 -- 建立觸發器
 DROP TRIGGER IF EXISTS trigger_update_patient_contacts_updated_at ON patient_contacts;
-CREATE TRIGGER trigger_update_patient_contacts_updated_at
-  BEFORE UPDATE ON patient_contacts
+DROP TRIGGER IF EXISTS trigger_update_patient_contacts_updated_at ON patient_contacts;
+
+CREATE TRIGGER trigger_update_patient_contacts_updated_at BEFORE UPDATE ON patient_contacts
   FOR EACH ROW
   EXECUTE FUNCTION update_patient_contacts_updated_at();
 
@@ -69,24 +70,27 @@ ALTER TABLE patient_contacts ENABLE ROW LEVEL SECURITY;
 
 -- 建立 RLS 政策：允許已驗證用戶查詢所有聯絡人
 DROP POLICY IF EXISTS "Allow authenticated users to view patient contacts" ON patient_contacts;
-CREATE POLICY "Allow authenticated users to view patient contacts"
-  ON patient_contacts
+DROP POLICY IF EXISTS "Allow authenticated users to view patient contacts" ON patient_contacts;
+
+CREATE POLICY "Allow authenticated users to view patient contacts" ON patient_contacts
   FOR SELECT
   TO authenticated
   USING (true);
 
 -- 建立 RLS 政策：允許已驗證用戶新增聯絡人
 DROP POLICY IF EXISTS "Allow authenticated users to insert patient contacts" ON patient_contacts;
-CREATE POLICY "Allow authenticated users to insert patient contacts"
-  ON patient_contacts
+DROP POLICY IF EXISTS "Allow authenticated users to insert patient contacts" ON patient_contacts;
+
+CREATE POLICY "Allow authenticated users to insert patient contacts" ON patient_contacts
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
 -- 建立 RLS 政策：允許已驗證用戶更新聯絡人
 DROP POLICY IF EXISTS "Allow authenticated users to update patient contacts" ON patient_contacts;
-CREATE POLICY "Allow authenticated users to update patient contacts"
-  ON patient_contacts
+DROP POLICY IF EXISTS "Allow authenticated users to update patient contacts" ON patient_contacts;
+
+CREATE POLICY "Allow authenticated users to update patient contacts" ON patient_contacts
   FOR UPDATE
   TO authenticated
   USING (true)
@@ -94,8 +98,9 @@ CREATE POLICY "Allow authenticated users to update patient contacts"
 
 -- 建立 RLS 政策：允許已驗證用戶刪除聯絡人
 DROP POLICY IF EXISTS "Allow authenticated users to delete patient contacts" ON patient_contacts;
-CREATE POLICY "Allow authenticated users to delete patient contacts"
-  ON patient_contacts
+DROP POLICY IF EXISTS "Allow authenticated users to delete patient contacts" ON patient_contacts;
+
+CREATE POLICY "Allow authenticated users to delete patient contacts" ON patient_contacts
   FOR DELETE
   TO authenticated
   USING (true);

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { isPrescriptionValidAt } from '../utils/prescriptionExpiry';
 import { X, Clock, CheckCircle, Pill, AlertTriangle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 import InspectionCheckModal from './InspectionCheckModal';
 import InjectionWorkflowModal, { InjectionWorkflowPayload } from './InjectionWorkflowModal';
@@ -87,30 +88,13 @@ const BatchDispenseConfirmModal: React.FC<BatchDispenseConfirmModalProps> = ({
     return patients.find(p => p.院友id === parseInt(selectedPatientId));
   }, [patients, selectedPatientId]);
 
-  // 過濾只包含在服處方或有效期內的停用處方
+  // 過濾只包含處方在排程時點仍有效的記錄
   const activeWorkflowRecords = useMemo(() => {
     return workflowRecords.filter(record => {
       const prescription = prescriptions.find(p => p.id === record.prescription_id);
-
       if (!prescription) return false;
-
-      // 在服處方：正常包含
-      if (prescription.status === 'active') {
-        return true;
-      }
-
-      // 停用處方：需要檢查記錄日期是否在處方有效期內
-      if (prescription.status === 'inactive') {
-        const recordDate = new Date(record.scheduled_date);
-        const startDate = new Date(prescription.start_date);
-        const endDate = prescription.end_date ? new Date(prescription.end_date) : null;
-
-        // 如果記錄日期在處方有效期內，包含該記錄
-        return recordDate >= startDate && (!endDate || recordDate <= endDate);
-      }
-
-      // 其他狀態（如 pending_change）：跳過
-      return false;
+      if (prescription.status !== 'active' && prescription.status !== 'inactive') return false;
+      return isPrescriptionValidAt(prescription, record.scheduled_date, record.scheduled_time);
     });
   }, [workflowRecords, prescriptions]);
 

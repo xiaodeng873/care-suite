@@ -52,8 +52,8 @@ export function processDocHtmlTemplate(
     checkedBoxes?: string[];
   } = {}
 ): string {
-  const { addLogo = true, logoStyle = 'position:absolute;right:10px;top:10px;width:60px;height:60px;' } = options;
-  const { patient, facilityName, logoDataUri } = ctx;
+  const { addLogo = true } = options;
+  const { facilityName, logoDataUri } = ctx;
 
   let html = template;
 
@@ -70,26 +70,27 @@ export function processDocHtmlTemplate(
     html = html.replace(new RegExp(escaped, 'g'), escapeHtml(facilityName));
   });
 
-  // 2. 加入 logo（若範本沒有 logo）
+  // 2. 加入 logo（若範本沒有 logo）：統一使用無框長方形區域，logo 自適應框大小
   if (addLogo && logoDataUri) {
-    // 在標題區塊加入絕對定位 logo
-    const logoImg = `<img src="${escapeHtml(logoDataUri)}" style="${logoStyle} object-fit:contain;" alt="Logo">`;
+    const logoBox = `<div class="logo-box" style="position:absolute;right:0;top:0;width:80px;height:60px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;"><img src="${escapeHtml(logoDataUri)}" style="max-width:100%;max-height:100%;object-fit:contain;" alt="Logo"></div>`;
 
     // 嘗試在 title-section / header / title-box 等常見標題容器加入 logo
+    // 優先放進已有的 .header-right，若無則依次遞減
     const headerPatterns = [
-      /<div class="title-section">/i,
-      /<div class="header-top">/i,
-      /<div class="header-section">/i,
-      /<div class="title-box">/i,
+      /<div class="header-right"[^>]*>/i,
+      /<div class="header-top"[^>]*>/i,
+      /<div class="header-section"[^>]*>/i,
+      /<div class="title-section"[^>]*>/i,
+      /<div class="title-box"[^>]*>/i,
       /<div style="text-align: center;[^>]*">/i,
     ];
 
     let inserted = false;
     for (const pattern of headerPatterns) {
       if (pattern.test(html)) {
-        // 在匹配的 div 後面加入 position:relative 並插入 logo
+        // 在匹配的 div 後面加入 position:relative 並插入 logo 框
         html = html.replace(pattern, (match) => {
-          return `${match.replace('>', ' style="position:relative;">')}${logoImg}`;
+          return `${match.replace('>', ' style="position:relative;">')}${logoBox}`;
         });
         inserted = true;
         break;
@@ -98,7 +99,7 @@ export function processDocHtmlTemplate(
 
     // 若找不到標題容器，則在 body 開始處加入
     if (!inserted) {
-      html = html.replace(/<body>/i, `<body>${logoImg}`);
+      html = html.replace(/<body>/i, `<body>${logoBox}`);
     }
   }
 
@@ -110,6 +111,7 @@ export function processDocHtmlTemplate(
 
   // 3. 填入基本資料（空白文件模式則完全留空）
   if (ctx.contentMode !== 'blank') {
+  const { patient } = ctx;
   const name = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const englishName = patient.英文姓名 || `${patient.英文姓氏 || ''}${patient.英文名字 || ''}`;
   const hkid = patient.身份證號碼 || '';

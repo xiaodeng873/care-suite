@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>善頤(福群)護老院 - 院友護理評估記錄</title>
     <style>
+        @page { size: A4; margin: 5mm 0.25in; }
         body {
             background-color: #525659;
             display: flex;
@@ -112,7 +113,7 @@
 
         @media print {
             body { background-color: #ffffff; padding: 0; }
-            .a4-page { width: 100%; box-shadow: none; padding: 0; margin: 0; }
+            .a4-page { width: 100%; box-shadow: none; padding: 0; margin: 0; min-height: 0; box-sizing: border-box; }
         }
     </style>
 </head>
@@ -121,9 +122,13 @@
     <div class="a4-page">
         
         <!-- 大標題區塊 -->
-        <div style="text-align: center; margin-bottom: 10px;">
-            <div style="font-size: 24px; font-weight: bold; letter-spacing: 2px;">善頤(福群)護老院</div>
-            <div style="font-size: 20px; font-weight: bold; letter-spacing: 4px; margin-top: 3px;">院友護理評估記錄</div>
+        <div class="title-section" style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px;">
+            <div class="header-spacer" style="width: 18%;"></div>
+            <div class="header-center" style="flex: 1; text-align: center;">
+                <div style="font-size: 26px; font-weight: bold; letter-spacing: 2px;">善頤(福群)護老院</div>
+                <div style="font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; margin-top: 4px;">院友護理評估記錄</div>
+            </div>
+            <div class="header-right" style="width: 18%;"></div>
         </div>
 
 <!-- 第一行：三分欄佈局 -->
@@ -535,9 +540,9 @@
 </table>
 
         <!-- 頁尾固定格式 -->
-        <div style="margin-top: 25px; font-size: 13px; position: relative; height: 25px; display: block;">
-            <div style="position: absolute; left: 50%; transform: translateX(-50%); bottom: 0; font-weight: bold; font-size: 16px;">4</div>
-            <div style="position: absolute; right: 0; bottom: 0;">B1 FK (11.2020)</div>
+        <div style="margin-top: 8px; position: relative; height: 30px; display: flex; justify-content: flex-end; align-items: flex-end;">
+            <div style="position: absolute; left: 50%; transform: translateX(-50%); bottom: 0; font-weight: bold; font-size: 24px;">4</div>
+            <div style="font-size: 11px; font-weight: bold;">B1 FK (11.2020)</div>
         </div>
 
     </div>

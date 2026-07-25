@@ -23,23 +23,26 @@ DROP POLICY IF EXISTS "允許已認證用戶修改排程資料" ON "到診排程
 DROP POLICY IF EXISTS "允許已認證用戶刪除排程資料" ON "到診排程主表";
 
 -- 允許已認證用戶新增排程
-CREATE POLICY "允許已認證用戶新增排程資料"
-  ON "到診排程主表"
+DROP POLICY IF EXISTS "允許已認證用戶新增排程資料" ON "到診排程主表";
+
+CREATE POLICY "允許已認證用戶新增排程資料" ON "到診排程主表"
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
 -- 允許已認證用戶修改排程
-CREATE POLICY "允許已認證用戶修改排程資料"
-  ON "到診排程主表"
+DROP POLICY IF EXISTS "允許已認證用戶修改排程資料" ON "到診排程主表";
+
+CREATE POLICY "允許已認證用戶修改排程資料" ON "到診排程主表"
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
 -- 允許已認證用戶刪除排程
-CREATE POLICY "允許已認證用戶刪除排程資料"
-  ON "到診排程主表"
+DROP POLICY IF EXISTS "允許已認證用戶刪除排程資料" ON "到診排程主表";
+
+CREATE POLICY "允許已認證用戶刪除排程資料" ON "到診排程主表"
   FOR DELETE
   TO authenticated
   USING (true);

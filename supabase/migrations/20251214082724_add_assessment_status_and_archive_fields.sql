@@ -41,7 +41,12 @@
 DO $$ 
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'assessment_status') THEN
+    DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'assessment_status') THEN
     CREATE TYPE assessment_status AS ENUM ('active', 'archived');
+  END IF;
+END $$;;
   END IF;
 END $$;
 
@@ -91,12 +96,12 @@ END $$;
 
 -- 4. 創建唯一性約束（確保每個院友只有一筆 active 記錄）
 DROP INDEX IF EXISTS unique_active_health_assessment;
-CREATE UNIQUE INDEX unique_active_health_assessment 
+CREATE UNIQUE INDEX IF NOT EXISTS unique_active_health_assessment 
 ON health_assessments (patient_id) 
 WHERE status = 'active';
 
 DROP INDEX IF EXISTS unique_active_wound_assessment;
-CREATE UNIQUE INDEX unique_active_wound_assessment 
+CREATE UNIQUE INDEX IF NOT EXISTS unique_active_wound_assessment 
 ON wound_assessments (patient_id) 
 WHERE status = 'active';
 
@@ -195,15 +200,17 @@ $$;
 
 -- 10. 為 health_assessments 表創建觸發器
 DROP TRIGGER IF EXISTS auto_archive_health_assessments ON health_assessments;
-CREATE TRIGGER auto_archive_health_assessments
-  AFTER INSERT ON health_assessments
+DROP TRIGGER IF EXISTS auto_archive_health_assessments ON health_assessments;
+
+CREATE TRIGGER auto_archive_health_assessments AFTER INSERT ON health_assessments
   FOR EACH ROW
   EXECUTE FUNCTION trigger_archive_health_assessments();
 
 -- 11. 為 wound_assessments 表創建觸發器
 DROP TRIGGER IF EXISTS auto_archive_wound_assessments ON wound_assessments;
-CREATE TRIGGER auto_archive_wound_assessments
-  AFTER INSERT ON wound_assessments
+DROP TRIGGER IF EXISTS auto_archive_wound_assessments ON wound_assessments;
+
+CREATE TRIGGER auto_archive_wound_assessments AFTER INSERT ON wound_assessments
   FOR EACH ROW
   EXECUTE FUNCTION trigger_archive_wound_assessments();
 

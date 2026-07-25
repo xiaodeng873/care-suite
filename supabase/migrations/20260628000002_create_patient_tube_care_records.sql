@@ -59,8 +59,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_tube_care_updated_at ON patient_tube_care_records;
-CREATE TRIGGER trg_tube_care_updated_at
-  BEFORE UPDATE ON patient_tube_care_records
+DROP TRIGGER IF EXISTS trg_tube_care_updated_at ON patient_tube_care_records;
+
+CREATE TRIGGER trg_tube_care_updated_at BEFORE UPDATE ON patient_tube_care_records
   FOR EACH ROW EXECUTE FUNCTION set_tube_care_updated_at();
 
 -- 資料遷移：從 patient_health_tasks 複製三類記錄（每位院友每類最新一筆）
@@ -69,26 +70,27 @@ INSERT INTO patient_tube_care_records (
 )
 SELECT DISTINCT ON (patient_id, health_record_type)
   patient_id,
-  health_record_type,
+  health_record_type::text,
   COALESCE(last_completed_at::date, next_due_at::date, created_at::date),
   next_due_at::date,
   tube_type,
   tube_size,
   notes
 FROM patient_health_tasks
-WHERE health_record_type IN ('導尿管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換')
+WHERE health_record_type::text IN ('導尿管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換')
   AND patient_id IS NOT NULL
 ORDER BY patient_id, health_record_type, created_at DESC;
 
 -- 刪除任務管理中該三類記錄
 DELETE FROM patient_health_tasks
-WHERE health_record_type IN ('導尿管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換');
+WHERE health_record_type::text IN ('導尿管更換', '鼻胃飼管更換', '氧氣喉管清洗/更換');
 
 -- 啟用 RLS
 ALTER TABLE patient_tube_care_records ENABLE ROW LEVEL SECURITY;
 
 -- RLS 政策：anon 與 authenticated 全權限（比照院友主表 / 健康監測記錄）
 DROP POLICY IF EXISTS "Allow all access patient_tube_care_records" ON patient_tube_care_records;
-CREATE POLICY "Allow all access patient_tube_care_records"
-  ON patient_tube_care_records FOR ALL TO anon, authenticated
+DROP POLICY IF EXISTS "Allow all access patient_tube_care_records" ON patient_tube_care_records;
+
+CREATE POLICY "Allow all access patient_tube_care_records" ON patient_tube_care_records FOR ALL TO anon, authenticated
   USING (true) WITH CHECK (true);

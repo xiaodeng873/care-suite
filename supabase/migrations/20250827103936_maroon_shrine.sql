@@ -35,20 +35,25 @@ CREATE TABLE IF NOT EXISTS daily_system_tasks (
 ALTER TABLE daily_system_tasks ENABLE ROW LEVEL SECURITY;
 
 -- 建立 RLS 策略
-CREATE POLICY "允許已認證用戶讀取每日系統任務"
-  ON daily_system_tasks
+DROP POLICY IF EXISTS "允許已認證用戶讀取每日系統任務" ON daily_system_tasks;
+
+CREATE POLICY "允許已認證用戶讀取每日系統任務" ON daily_system_tasks
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "允許已認證用戶新增每日系統任務"
-  ON daily_system_tasks
+DROP POLICY IF EXISTS "允許已認證用戶新增每日系統任務" ON daily_system_tasks;
+
+
+CREATE POLICY "允許已認證用戶新增每日系統任務" ON daily_system_tasks
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶更新每日系統任務"
-  ON daily_system_tasks
+DROP POLICY IF EXISTS "允許已認證用戶更新每日系統任務" ON daily_system_tasks;
+
+
+CREATE POLICY "允許已認證用戶更新每日系統任務" ON daily_system_tasks
   FOR UPDATE
   TO authenticated
   USING (true)
@@ -63,8 +68,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_daily_system_tasks_updated_at
-  BEFORE UPDATE ON daily_system_tasks
+DROP TRIGGER IF EXISTS update_daily_system_tasks_updated_at ON daily_system_tasks;
+
+
+CREATE TRIGGER update_daily_system_tasks_updated_at BEFORE UPDATE ON daily_system_tasks
   FOR EACH ROW
   EXECUTE FUNCTION update_daily_system_tasks_updated_at();
 

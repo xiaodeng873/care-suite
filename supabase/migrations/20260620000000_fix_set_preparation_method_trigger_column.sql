@@ -41,7 +41,8 @@ $$;
 
 -- 重新建立觸發器，確保使用修正後的函數
 DROP TRIGGER IF EXISTS set_preparation_method_trigger ON new_medication_prescriptions;
-CREATE TRIGGER set_preparation_method_trigger
-BEFORE INSERT OR UPDATE ON new_medication_prescriptions
+DROP TRIGGER IF EXISTS set_preparation_method_trigger ON new_medication_prescriptions;
+
+CREATE TRIGGER set_preparation_method_trigger BEFORE INSERT OR UPDATE ON new_medication_prescriptions
 FOR EACH ROW
 EXECUTE FUNCTION set_preparation_method_by_dosage_form();

@@ -90,8 +90,9 @@ $$ LANGUAGE plpgsql;
 
 -- 創建觸發器
 DROP TRIGGER IF EXISTS trigger_set_preparation_method ON new_medication_prescriptions;
-CREATE TRIGGER trigger_set_preparation_method
-  BEFORE INSERT OR UPDATE OF dosage_form ON new_medication_prescriptions
+DROP TRIGGER IF EXISTS trigger_set_preparation_method ON new_medication_prescriptions;
+
+CREATE TRIGGER trigger_set_preparation_method BEFORE INSERT OR UPDATE OF dosage_form ON new_medication_prescriptions
   FOR EACH ROW
   EXECUTE FUNCTION set_preparation_method_by_dosage_form();
 

@@ -16,13 +16,28 @@
 */
 
 -- 住院事件狀態枚舉
-CREATE TYPE episode_status AS ENUM ('active', 'completed', 'transferred');
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'episode_status') THEN
+    CREATE TYPE episode_status AS ENUM ('active', 'completed', 'transferred');
+  END IF;
+END $$;;
 
 -- 事件類型枚舉
-CREATE TYPE episode_event_type AS ENUM ('admission', 'transfer', 'discharge');
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'episode_event_type') THEN
+    CREATE TYPE episode_event_type AS ENUM ('admission', 'transfer', 'discharge');
+  END IF;
+END $$;;
 
 -- 出院類型枚舉
-CREATE TYPE discharge_type AS ENUM ('home', 'transfer_out', 'deceased');
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'discharge_type') THEN
+    CREATE TYPE discharge_type AS ENUM ('home', 'transfer_out', 'deceased');
+  END IF;
+END $$;;
 
 -- 住院事件主表
 CREATE TABLE IF NOT EXISTS hospital_episodes (
@@ -82,52 +97,67 @@ ALTER TABLE hospital_episodes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE episode_events ENABLE ROW LEVEL SECURITY;
 
 -- RLS 政策
-CREATE POLICY "Allow authenticated users to read hospital episodes"
-  ON hospital_episodes
+DROP POLICY IF EXISTS "Allow authenticated users to read hospital episodes" ON hospital_episodes;
+
+CREATE POLICY "Allow authenticated users to read hospital episodes" ON hospital_episodes
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "Allow authenticated users to insert hospital episodes"
-  ON hospital_episodes
+DROP POLICY IF EXISTS "Allow authenticated users to insert hospital episodes" ON hospital_episodes;
+
+
+CREATE POLICY "Allow authenticated users to insert hospital episodes" ON hospital_episodes
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users to update hospital episodes"
-  ON hospital_episodes
+DROP POLICY IF EXISTS "Allow authenticated users to update hospital episodes" ON hospital_episodes;
+
+
+CREATE POLICY "Allow authenticated users to update hospital episodes" ON hospital_episodes
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users to delete hospital episodes"
-  ON hospital_episodes
+DROP POLICY IF EXISTS "Allow authenticated users to delete hospital episodes" ON hospital_episodes;
+
+
+CREATE POLICY "Allow authenticated users to delete hospital episodes" ON hospital_episodes
   FOR DELETE
   TO authenticated
   USING (true);
 
-CREATE POLICY "Allow authenticated users to read episode events"
-  ON episode_events
+DROP POLICY IF EXISTS "Allow authenticated users to read episode events" ON episode_events;
+
+
+CREATE POLICY "Allow authenticated users to read episode events" ON episode_events
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "Allow authenticated users to insert episode events"
-  ON episode_events
+DROP POLICY IF EXISTS "Allow authenticated users to insert episode events" ON episode_events;
+
+
+CREATE POLICY "Allow authenticated users to insert episode events" ON episode_events
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users to update episode events"
-  ON episode_events
+DROP POLICY IF EXISTS "Allow authenticated users to update episode events" ON episode_events;
+
+
+CREATE POLICY "Allow authenticated users to update episode events" ON episode_events
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users to delete episode events"
-  ON episode_events
+DROP POLICY IF EXISTS "Allow authenticated users to delete episode events" ON episode_events;
+
+
+CREATE POLICY "Allow authenticated users to delete episode events" ON episode_events
   FOR DELETE
   TO authenticated
   USING (true);
@@ -150,12 +180,15 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 觸發器
-CREATE TRIGGER update_hospital_episodes_updated_at
-  BEFORE UPDATE ON hospital_episodes
+DROP TRIGGER IF EXISTS update_hospital_episodes_updated_at ON hospital_episodes;
+
+CREATE TRIGGER update_hospital_episodes_updated_at BEFORE UPDATE ON hospital_episodes
   FOR EACH ROW
   EXECUTE FUNCTION update_hospital_episodes_updated_at();
 
-CREATE TRIGGER update_episode_events_updated_at
-  BEFORE UPDATE ON episode_events
+DROP TRIGGER IF EXISTS update_episode_events_updated_at ON episode_events;
+
+
+CREATE TRIGGER update_episode_events_updated_at BEFORE UPDATE ON episode_events
   FOR EACH ROW
   EXECUTE FUNCTION update_episode_events_updated_at();

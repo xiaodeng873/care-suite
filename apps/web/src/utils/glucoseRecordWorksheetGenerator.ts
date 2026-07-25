@@ -178,7 +178,7 @@ const renderHeader = (): string => {
         <h1>${escapeHtml(nameZh)}</h1>
         <h2>院友血糖記錄</h2>
       </div>
-      <div class="header-right"><img class="logo-img" src="${escapeAttr(logo)}" alt="${escapeAttr(logoAlt)}"></div>
+      <div class="header-right"><div class="logo-box"><img class="logo-img" src="${escapeAttr(logo)}" alt="${escapeAttr(logoAlt)}"></div></div>
     </div>
   `;
 };
@@ -215,8 +215,7 @@ const renderTable = (cells: GlucoseCell[]): string => {
       const valueText = cell ? escapeHtml(cell.value) : '';
       const noteText = cell ? escapeHtml(cell.note) : '';
       const recorderText = cell ? escapeHtml(cell.recorder) : '';
-      const noteClass = noteText.length > 15 ? 'db-text-cell db-text-cell-note db-text-cell-note-sm' : 'db-text-cell db-text-cell-note';
-      return `<td><input class="db-text-cell" value="${dateText}" readonly></td><td><input class="db-text-cell" value="${timeText}" readonly></td><td><input class="db-text-cell" value="${valueText}" readonly></td><td><div class="${noteClass}">${noteText}</div></td><td${dividerAttr}><input class="db-text-cell" value="${recorderText}" readonly></td>`;
+      return `<td><input class="db-text-cell" value="${dateText}" readonly></td><td><input class="db-text-cell" value="${timeText}" readonly></td><td><input class="db-text-cell" value="${valueText}" readonly></td><td><input class="db-text-cell" value="${noteText}" readonly style="text-align:left; padding-left:5px;"></td><td${dividerAttr}><input class="db-text-cell" value="${recorderText}" readonly></td>`;
     }).join('');
     return `<tr class="data-row">${tds}</tr>`;
   }).join('');
@@ -256,7 +255,8 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   .header-spacer { width: 18%; }
   .header-center { flex: 1; text-align: center; }
   .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
-  .logo-img { max-height: 50px; max-width: 100%; object-fit: contain; }
+  .logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
+  .logo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
   .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
   .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
@@ -267,8 +267,6 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   table.main-table th { font-size: 13px; font-weight: bold; background-color: #fff; height: 38px; line-height: 1.1; }
   .data-row { height: 30px; }
   .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 13px; text-align: center; outline: none; display: block; box-sizing: border-box; }
-  .db-text-cell-note { width: 100%; height: 100%; padding: 2px 5px; font-size: 11px; text-align: left; white-space: pre-wrap; word-wrap: break-word; overflow: hidden; display: flex; align-items: center; line-height: 1.2; }
-  .db-text-cell-note-sm { font-size: 9px; }
   .set-divider { border-right: 3px solid black !important; }
   .footer { margin-top: 8px; display: flex; justify-content: flex-end; position: relative; height: 30px; }
   .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }

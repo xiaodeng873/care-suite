@@ -113,7 +113,8 @@ const restraintRow = ({ label, config, isTableBoard = false, isOther = false }: 
 export const generateRestraintConsentPrintHtml = (
   assessment: PatientRestraintAssessment,
   patient: Patient,
-  facilityName: string
+  facilityName: string,
+  logoDataUri?: string | null
 ): string => {
   const r = assessment.risk_factors ?? {};
   const a = assessment.alternatives ?? {};
@@ -123,6 +124,10 @@ export const generateRestraintConsentPrintHtml = (
   const genderAge = `${patient.性別 ?? ''}／${calcAge(patient.出生日期)}`;
   const lastAssessDate = fmtDate(assessment.doctor_signature_date);
   const nextAssessDate = fmtDate(assessment.next_due_date);
+
+  const logoHtml = logoDataUri
+    ? `<div class="logo-box"><img class="logo-img" src="${esc(logoDataUri)}" alt="Logo"></div>`
+    : `<div class="logo-box"><span style="font-size:13px;font-weight:bold;">${esc(facilityName)}</span></div>`;
 
   // 折衷辦法的 11 個選項（對應 P1 (二) 表格的 11 行）
   const alternativeOptions = [
@@ -222,11 +227,20 @@ body {
 /* 頂部資訊 */
 .header-top { display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px; }
 .inst-name-box { text-align:center; font-size:16px; font-weight:bold; margin-bottom:5px; }
-.title-section { text-align:center; margin-bottom:10px; }
-.title-section h1 { margin:0; font-size:20px; font-weight:bold; display:inline-block; padding-bottom:2px; }
-.title-section p { margin:4px 0 0 0; font-size:15px; }
+.title-section { text-align:center; margin-bottom:10px; flex:1; }
+.title-section h1 { margin:0; font-size:26px; font-weight:bold; letter-spacing:2px; }
+.title-section h2 { margin:4px 0 0 0; font-size:22px; font-weight:bold; display:inline-block; border-bottom:1.5px solid black; padding-bottom:2px; }
+.form-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:5px; }
+.form-header .header-spacer { width:18%; }
+.form-header .title-section { margin-bottom:0; }
+.form-header .header-right { width:18%; display:flex; align-items:flex-start; justify-content:flex-end; }
+.logo-box { width:80px; height:60px; display:flex; align-items:center; justify-content:center; }
+.logo-img { max-width:100%; max-height:100%; object-fit:contain; }
 
-/* 隱形排版表格 */
+/* 頁尾 */
+.footer { margin-top:8px; display:flex; justify-content:flex-end; position:relative; height:30px; font-weight:bold; }
+.page-num { position:absolute; left:50%; transform:translateX(-50%); font-size:24px; font-weight:bold; bottom:0; }
+.doc-code { font-size:11px; font-weight:bold; align-self:flex-end; }
 .layout-table { width:100%; border-collapse:collapse; table-layout:fixed; }
 .layout-table td { border:none; padding:2px 0; vertical-align:bottom; white-space:nowrap; font-size:14px; }
 .layout-table td.allow-wrap { white-space: normal; }
@@ -275,10 +289,7 @@ table.main-table th, table.main-table td {
   border:1px solid black; padding:2px 4px; vertical-align:middle; font-size:13px;
 }
 
-/* 頁碼 */
-.footer-wrap { margin-top:8px; text-align:center; font-size:14px; font-weight:bold; }
-
-/* P2 特有 */
+/* P2 主表格 */
 .split-box { display:flex; width:100%; }
 .split-left { width:50%; border-right:1px solid black; padding-right:6px; box-sizing:border-box; text-align:justify; }
 .split-right { width:50%; padding-left:6px; box-sizing:border-box; }
@@ -306,9 +317,13 @@ table.main-table th, table.main-table td {
   </div>
 
   <!-- 標題 -->
-  <div class="title-section">
-    <h1>使用約束措施的評估及同意書</h1>
-    <p>（須最少每 6 個月或因住客情況轉變評估一次）</p>
+  <div class="form-header">
+    <div class="header-spacer"></div>
+    <div class="title-section">
+      <h1>使用約束措施的評估及同意書</h1>
+      <h2>（須最少每 6 個月或因住客情況轉變評估一次）</h2>
+    </div>
+    <div class="header-right">${logoHtml}</div>
   </div>
 
   <!-- 個人資料 -->
@@ -481,7 +496,10 @@ table.main-table th, table.main-table td {
   </div><!-- end 雙線大框 P1 -->
 
   <!-- 頁尾 -->
-  <div class="footer-wrap">附件 12.4 - 1</div>
+  <div class="footer">
+    <div class="page-num">1</div>
+    <div class="doc-code">附件 12.4</div>
+  </div>
 
 </div><!-- end a4-container P1 -->
 </div><!-- end page-1 -->
@@ -671,7 +689,10 @@ table.main-table th, table.main-table td {
   </div>
 
   <!-- 頁尾 -->
-  <div class="footer-wrap">附件 12.4 - 2</div>
+  <div class="footer">
+    <div class="page-num">2</div>
+    <div class="doc-code">附件 12.4</div>
+  </div>
 
 </div><!-- end a4-container P2 -->
 </div><!-- end page-2 -->
@@ -731,7 +752,7 @@ export const printRestraintConsentForm = async (
   patient: Patient
 ): Promise<void> => {
   const settings = await getFacilitySettings();
-  const html = generateRestraintConsentPrintHtml(assessment, patient, settings.facilityNameZh);
+  const html = generateRestraintConsentPrintHtml(assessment, patient, settings.facilityNameZh, settings.logoDataUri);
 
   const old = document.getElementById(IFRAME_ID);
   if (old) old.remove();
@@ -763,6 +784,7 @@ export const printRestraintConsentForms = async (
 
   const settings = await getFacilitySettings();
   const facilityName = settings.facilityNameZh;
+  const logoDataUri = settings.logoDataUri;
 
   if (items.length === 1) {
     printRestraintConsentForm(items[0].assessment, items[0].patient);
@@ -770,7 +792,7 @@ export const printRestraintConsentForms = async (
   }
 
   // 合併多份：取第一份完整 HTML，後續各份取 body 內容插入
-  let combined = generateRestraintConsentPrintHtml(items[0].assessment, items[0].patient, facilityName);
+  let combined = generateRestraintConsentPrintHtml(items[0].assessment, items[0].patient, facilityName, logoDataUri);
 
   // 在 </style> 前注入換頁 CSS（若未含）
   if (!combined.includes('page-1')) {
@@ -778,7 +800,7 @@ export const printRestraintConsentForms = async (
   }
 
   for (let i = 1; i < items.length; i++) {
-    const extra = generateRestraintConsentPrintHtml(items[i].assessment, items[i].patient, facilityName);
+    const extra = generateRestraintConsentPrintHtml(items[i].assessment, items[i].patient, facilityName, logoDataUri);
     const bodyMatch = extra.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     if (bodyMatch) {
       combined = combined.replace('</body>', bodyMatch[1] + '\n</body>');

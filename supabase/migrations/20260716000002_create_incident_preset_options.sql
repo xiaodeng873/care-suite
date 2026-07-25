@@ -15,20 +15,23 @@ CREATE TABLE IF NOT EXISTS incident_preset_options (
 ALTER TABLE incident_preset_options ENABLE ROW LEVEL SECURITY;
 
 -- Allow all users (anon + authenticated) to read
-CREATE POLICY "Allow all to read incident_preset_options"
-  ON incident_preset_options
+DROP POLICY IF EXISTS "Allow all to read incident_preset_options" ON incident_preset_options;
+
+CREATE POLICY "Allow all to read incident_preset_options" ON incident_preset_options
   FOR SELECT
   USING (true);
 
 -- Allow all users (anon + authenticated) to insert
-CREATE POLICY "Allow all to insert incident_preset_options"
-  ON incident_preset_options
+DROP POLICY IF EXISTS "Allow all to insert incident_preset_options" ON incident_preset_options;
+
+CREATE POLICY "Allow all to insert incident_preset_options" ON incident_preset_options
   FOR INSERT
   WITH CHECK (true);
 
 -- Allow all users (anon + authenticated) to delete
-CREATE POLICY "Allow all to delete incident_preset_options"
-  ON incident_preset_options
+DROP POLICY IF EXISTS "Allow all to delete incident_preset_options" ON incident_preset_options;
+
+CREATE POLICY "Allow all to delete incident_preset_options" ON incident_preset_options
   FOR DELETE
   USING (true);
 

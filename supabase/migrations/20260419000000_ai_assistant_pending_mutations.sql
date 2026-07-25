@@ -32,8 +32,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_cleanup_ai_mutations ON ai_assistant_pending_mutations;
-CREATE TRIGGER trg_cleanup_ai_mutations
-  AFTER INSERT ON ai_assistant_pending_mutations
+DROP TRIGGER IF EXISTS trg_cleanup_ai_mutations ON ai_assistant_pending_mutations;
+
+CREATE TRIGGER trg_cleanup_ai_mutations AFTER INSERT ON ai_assistant_pending_mutations
   FOR EACH STATEMENT
   EXECUTE FUNCTION cleanup_expired_ai_mutations();
 
@@ -112,8 +113,9 @@ $$;
 ALTER TABLE ai_assistant_pending_mutations ENABLE ROW LEVEL SECURITY;
 
 -- Service role 完全訪問
-CREATE POLICY "Service role full access on ai_mutations"
-  ON ai_assistant_pending_mutations
+DROP POLICY IF EXISTS "Service role full access on ai_mutations" ON ai_assistant_pending_mutations;
+
+CREATE POLICY "Service role full access on ai_mutations" ON ai_assistant_pending_mutations
   FOR ALL
   TO service_role
   USING (true)

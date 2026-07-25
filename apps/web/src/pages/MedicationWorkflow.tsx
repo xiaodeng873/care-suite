@@ -45,7 +45,7 @@ import { Portal } from '../components/Portal';
 import { generateDailyWorkflowRecords, generateBatchWorkflowRecords, generateWorkflowRecordsClient } from '../utils/workflowGenerator';
 import { diagnoseWorkflowDisplayIssue } from '../utils/diagnoseTool';
 import { isPrescriptionScheduledOnDate } from '../utils/prescriptionSchedule';
-import { isPrescriptionExpired } from '../utils/prescriptionExpiry';
+import { isPrescriptionExpired, isPrescriptionValidAt, normalizeTime, prescriptionOverlapsDateRange } from '../utils/prescriptionExpiry';
 import { supabase } from '../lib/supabase';
 import { getPatientByQrCodeId, getPatientWorkflowSettings, updatePatientBatchCutoffTime } from '../lib/database';
 import {
@@ -882,28 +882,19 @@ const MedicationWorkflow: React.FC = () => {
   }, [selectedPatientId, currentUserId]);
   
   // 獲取當前日期的工作流程記錄（用於一鍵操作等）
-  // 重要：包含在服處方(status='active')和有效期內的停用處方(status='inactive')的記錄
+  // 只包含在處方有效時點內的記錄：active/inactive 均可，但必須落在 start/end 區間內
   const currentDayWorkflowRecords = useMemo(() => {
-    // 使用已經應用了樂觀更新的記錄
     return recordsWithOptimisticUpdates.filter(r => {
       // 1. 必須是當天的記錄
       if (r.scheduled_date !== selectedDate) return false;
       // 2. 必須是選中院友的記錄
       if (r.patient_id.toString() !== selectedPatientId) return false;
-      // 3. 檢查處方狀態
+      // 3. 檢查處方是否存在及狀態
       const prescription = prescriptions.find(p => p.id === r.prescription_id);
       if (!prescription) return false;
-      // 在服處方：正常包含
-      if (prescription.status === 'active') return true;
-      // 停用處方：檢查記錄日期是否在處方有效期內
-      if (prescription.status === 'inactive') {
-        const recordDate = new Date(r.scheduled_date);
-        const startDate = new Date(prescription.start_date);
-        const endDate = prescription.end_date ? new Date(prescription.end_date) : null;
-        return recordDate >= startDate && (!endDate || recordDate <= endDate);
-      }
-      // 其他狀態（如 pending_change）：排除
-      return false;
+      if (prescription.status !== 'active' && prescription.status !== 'inactive') return false;
+      // 4. 只保留處方在排程時點仍有效的記錄
+      return isPrescriptionValidAt(prescription, r.scheduled_date, r.scheduled_time);
     });
   }, [recordsWithOptimisticUpdates, selectedDate, selectedPatientId, prescriptions]);
   // 獲取選中院友的在服處方（基於選取日期）
@@ -940,36 +931,25 @@ const MedicationWorkflow: React.FC = () => {
     });
     return ids;
   }, [allWorkflowRecords]);
-  // 過濾處方：顯示在服處方 + 停用但在當周有工作流程記錄的處方
+  // 過濾處方：只顯示有效期與當週有重疊的處方（active/inactive 皆可）
   const activePrescriptions = useMemo(() => {
     return prescriptions.filter(p => {
       // 1. 必須是當前選中的院友
       if (p.patient_id.toString() !== selectedPatientId) {
         return false;
       }
-      // 2. 如果是在服處方，檢查日期有效性
-      if (p.status === 'active') {
-        const weekStart = new Date(weekDates[0]);
-        const weekEnd = new Date(weekDates[6]);
-        const startDate = new Date(p.start_date);
-        // 處方必須在週結束日期之前或當天開始
-        if (startDate > weekEnd) return false;
-        // 如果有結束日期，處方必須在週開始日期之後或當天結束
-        if (p.end_date) {
-          const endDate = new Date(p.end_date);
-          if (endDate < weekStart) return false;
-        }
-        // 無時間點的需要時(PRN)處方：不要求當周已有記錄（讓「按需要」加號列可用）
-        if (isPrnNoSlot(p)) return true;
-        // 必須在當周有工作流程記錄
-        return weekPrescriptionIds.has(p.id);
+      // 2. 只接受 active / inactive
+      if (p.status !== 'active' && p.status !== 'inactive') {
+        return false;
       }
-      // 3. 如果是停用處方，檢查當周是否有相關工作流程記錄
-      if (p.status === 'inactive') {
-        return weekPrescriptionIds.has(p.id);
+      // 3. 處方有效期必須與當週有重疊
+      if (!prescriptionOverlapsDateRange(p, weekDates[0], weekDates[6])) {
+        return false;
       }
-      // 4. 其他狀態（pending_change等）暫不顯示
-      return false;
+      // 4. 無時間點的需要時(PRN)處方：不要求當周已有記錄（讓「按需要」加號列可用）
+      if (isPrnNoSlot(p)) return true;
+      // 5. 其他處方：當周必須有記錄
+      return weekPrescriptionIds.has(p.id);
     });
   }, [prescriptions, selectedPatientId, weekDates, weekPrescriptionIds]);
   // 依步驟過濾處方：
@@ -1047,6 +1027,18 @@ const MedicationWorkflow: React.FC = () => {
     }
     // 使用帶樂觀更新的記錄狀態來決定操作
     const stepStatus = getStepStatus(recordWithOptimistic, step);
+    // 阻擋已過停服時間點的記錄進行簽署
+    const prescription = prescriptions.find(p => p.id === record.prescription_id);
+    if (prescription && stepStatus === 'pending') {
+      if (!isPrescriptionValidAt(prescription, record.scheduled_date, record.scheduled_time)) {
+        const endTime = normalizeTime(prescription.end_time);
+        const endLabel = prescription.end_date
+          ? `${prescription.end_date} ${endTime}`
+          : '停服時間點';
+        alert(`處方已於 ${endLabel} 停服，不可簽署。`);
+        return;
+      }
+    }
     if (stepStatus === 'pending') {
       // 待處理狀態：直接執行操作
       if (step === 'preparation' || step === 'verification') {
@@ -1608,22 +1600,9 @@ const MedicationWorkflow: React.FC = () => {
     const eligibleRecords = dayRecords.filter(r => {
       const prescription = prescriptions.find(p => p.id === r.prescription_id);
       if (!prescription) return false;
-      // 檢查處方狀態：在服處方或有效期內的停用處方
-      if (prescription.status === 'active') {
-        // 在服處方：正常包含
-      } else if (prescription.status === 'inactive') {
-        // 停用處方：需要檢查記錄日期是否在處方有效期內
-        const recordDate = new Date(r.scheduled_date);
-        const startDate = new Date(prescription.start_date);
-        const endDate = prescription.end_date ? new Date(prescription.end_date) : null;
-        // 如果記錄日期不在處方有效期內，跳過
-        if (recordDate < startDate || (endDate && recordDate > endDate)) {
-          return false;
-        }
-      } else {
-        // 其他狀態（如 pending_change）：跳過
-        return false;
-      }
+      // 只處理 active/inactive 處方，且記錄必須落在處方有效時點內
+      if (prescription.status !== 'active' && prescription.status !== 'inactive') return false;
+      if (!isPrescriptionValidAt(prescription, r.scheduled_date, r.scheduled_time)) return false;
       // 即時備藥（含注射）：執/核在此頁隱藏，允許直接納入批量派藥（於確認時處理執核與注射位置）
       if (prescription.preparation_method === 'immediate') {
         return r.dispensing_status === 'pending';
@@ -1654,7 +1633,9 @@ const MedicationWorkflow: React.FC = () => {
       const cutoffMins = cutH * 60 + cutM;
       const pendingPreparationRecords = dayWorkflowRecords.filter(r => {
         const prescription = prescriptions.find(p => p.id === r.prescription_id);
+        if (!prescription) return false;
         if (!(r.preparation_status === 'pending' && prescription?.preparation_method !== 'immediate')) return false;
+        if (!isPrescriptionValidAt(prescription, r.scheduled_date, r.scheduled_time)) return false;
         if (timeFilter === 'all') return true;
         const t = (r.scheduled_time || '00:00').trim().substring(0, 5);
         const [th, tm] = t.split(':').map(Number);
@@ -1706,9 +1687,11 @@ const MedicationWorkflow: React.FC = () => {
       const cutoffMins = cutH * 60 + cutM;
       const pendingVerificationRecords = dayWorkflowRecords.filter(r => {
         const prescription = prescriptions.find(p => p.id === r.prescription_id);
+        if (!prescription) return false;
         if (!(r.verification_status === 'pending' &&
                r.preparation_status === 'completed' &&
-               prescription?.preparation_method !== 'immediate')) return false;
+               prescription.preparation_method !== 'immediate')) return false;
+        if (!isPrescriptionValidAt(prescription, r.scheduled_date, r.scheduled_time)) return false;
         if (timeFilter === 'all') return true;
         const t = (r.scheduled_time || '00:00').trim().substring(0, 5);
         const [th, tm] = t.split(':').map(Number);
@@ -1758,10 +1741,12 @@ const MedicationWorkflow: React.FC = () => {
       const dayWorkflowRecords = recordsWithOptimisticUpdates.filter(r => r.scheduled_date === targetDate);
       const eligibleRecords = dayWorkflowRecords.filter(r => {
         const prescription = prescriptions.find(p => p.id === r.prescription_id);
+        if (!prescription) return false;
         return r.dispensing_status === 'pending' &&
                r.verification_status === 'completed' &&
-               prescription?.administration_route !== '注射' &&
-               !(prescription?.inspection_rules && prescription.inspection_rules.length > 0);
+               prescription.administration_route !== '注射' &&
+               !(prescription.inspection_rules && prescription.inspection_rules.length > 0) &&
+               isPrescriptionValidAt(prescription, r.scheduled_date, r.scheduled_time);
       });
       if (eligibleRecords.length === 0) {
         return;
@@ -3127,7 +3112,10 @@ const MedicationWorkflow: React.FC = () => {
                                         <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">短期藥物</span>
                                       )}
                                       {prescription.status === 'active' && prescription.end_date && prescription.is_long_term !== false && !isPrescriptionExpired(prescription) && (
-                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-300">即將於停用處方</span>
+                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-300">
+                                          即將停用處方
+                                          <span className="ml-1 text-[10px] font-normal opacity-80">預計:{prescription.end_date}</span>
+                                        </span>
                                       )}
                                       {prescription.status === 'active' && prescription.end_date && isPrescriptionExpired(prescription) && (
                                         <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-800 border border-red-300">已逾期</span>

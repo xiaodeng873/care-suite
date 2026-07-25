@@ -6,6 +6,7 @@
     <title>善頤(福群)護老院 - 院友個人及健康記錄 (原生精準版)</title>
     <style>
         /* 1. 嚴格鎖定 A4 紙張幾何規格 */
+        @page { size: A4; margin: 5mm 0.25in; }
         body {
             background-color: #525659;
             display: flex;
@@ -21,13 +22,13 @@
             background-color: #ffffff;
             width: 210mm;
             min-height: 297mm;
-            padding: 10mm 15mm 15mm 15mm; 
+            padding: 10mm 15mm 10mm 15mm;
             box-sizing: border-box;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             position: relative;
         }
 
-        /* 標頭佈局：左側放站方塊，中間標題置中 */
+        /* 標頭佈局：標題置中 */
         .header-section {
             display: flex;
             align-items: flex-start;
@@ -36,39 +37,27 @@
             position: relative;
         }
 
-        /* "站" 方塊 */
-        .station-box-new {
-            border: 1.5px solid black;
-            width: 70px;
-            height: 53px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            font-weight: bold;
-            margin-right: 6px;
-            flex-shrink: 0; /* 防止方塊被擠壓 */
-        }
-        
         .title-box {
             text-align: center;
             flex-grow: 1;
-            /* 為了抵消左側 51px (45+6) 的位移，讓文字真正置中 */
-            margin-right: 51px; 
+            margin-right: 0; 
         }
         
         .title-box h1 {
-            font-size: 24px;
+            font-size: 26px;
             margin: 0;
             font-weight: bold;
             letter-spacing: 2px;
         }
         
         .title-box h2 {
-            font-size: 18px;
-            margin: 6px 0 0 0;
+            font-size: 22px;
+            margin: 4px 0 0 0;
             font-weight: bold;
             letter-spacing: 1px;
+            display: inline-block;
+            border-bottom: 1.5px solid black;
+            padding-bottom: 2px;
         }
 
         .instruction-note {
@@ -185,8 +174,8 @@
         }
 
         @media print {
-            body { background-color: #ffffff; padding: 0; }
-            .a4-page { width: 100%; box-shadow: none; padding: 0; margin: 0; }
+            body { background-color: #ffffff; padding: 0; display: block; zoom: 0.98; }
+            .a4-page { width: 100%; box-shadow: none; padding: 0; margin: 0; min-height: 0; page-break-after: always; display: block; }
         }
     </style>
 </head>
@@ -195,7 +184,6 @@
     <div class="a4-page">
         
         <div class="header-section">
-            <div class="station-box-new"><input type="text" name="station_code" class="db-text-cell">站</div>
             <div class="title-box">
                 <h1>善頤(福群)護老院</h1>
                 <h2>院友個人及健康記錄(2頁)</h2>
@@ -460,7 +448,7 @@
         <!-- 5. 頁尾固定格式 -->
         <div class="footer-section">
             <div>* 請刪去不適用者</div>
-            <div style="font-weight: bold; font-size: 15px; position: absolute; left: 50%; transform: translateX(-50%);">1</div>
+            <div style="font-weight: bold; font-size: 24px; position: absolute; left: 50%; transform: translateX(-50%);">1</div>
             <div>B38 FK (11.2020)</div>
         </div>
 

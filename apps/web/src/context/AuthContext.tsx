@@ -267,6 +267,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // 定期刷新自訂 token 會話，避免長時間未重新載入頁面而過期
+  useEffect(() => {
+    if (!customToken) return;
+
+    const refreshSession = async () => {
+      const isValid = await validateCustomToken(customToken);
+      if (!isValid) {
+        console.warn('Custom token refresh failed, logging out');
+        await customLogout();
+      }
+    };
+
+    // 每 15 分鐘刷新一次
+    const interval = setInterval(refreshSession, 15 * 60 * 1000);
+    // 頁面重新取得焦點時也刷新
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshSession();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [customToken]);
+
   // Supabase Auth 登入（開發者用）
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({

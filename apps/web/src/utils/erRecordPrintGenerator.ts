@@ -155,19 +155,26 @@ const pageBlock = (
   rows: ErRecordRow[],
   pageIndex: number,
   totalPages: number,
-  facilityName: string
+  facilityName: string,
+  logoDataUri?: string | null
 ): string => {
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const age = calcAge(patient.出生日期);
   const genderAge = patient.性別 ? `${patient.性別}${age !== null ? `/${age}歲` : ''}` : '';
   const bed = patient.床號 || '';
-  const pageNumberText = totalPages > 1 ? `${pageIndex} / ${totalPages}` : `${pageIndex}`;
+
+  const logoHtml = logoDataUri
+    ? `<div class="logo-box"><img class="logo-img" src="${escapeHtml(logoDataUri)}" alt="Logo"></div>`
+    : `<div class="logo-box"><span style="font-size:13px;font-weight:bold;">${escapeHtml(facilityName)}</span></div>`;
 
   return `<div class="container">
   <div class="header-top">
-    <h1>${escapeHtml(facilityName)}</h1>
-    <h2>使用急症室 / 留院記錄</h2>
-    <div class="page-num-top">頁數 ${pageNumberText}</div>
+    <div class="header-spacer"></div>
+    <div class="header-center">
+      <h1>${escapeHtml(facilityName)}</h1>
+      <h2>使用急症室 / 留院記錄</h2>
+    </div>
+    <div class="header-right">${logoHtml}</div>
   </div>
 
   <div class="info-row">
@@ -236,19 +243,20 @@ const baseCss = `
     page-break-after: auto;
   }
   .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
     text-align: center;
-    position: relative;
     margin-bottom: 10px;
   }
-  .header-top h1 { margin: 0; font-size: 24px; letter-spacing: 2px; }
-  .header-top h2 { margin: 5px 0 0 0; font-size: 20px; font-weight: bold; }
-  .page-num-top {
-    position: absolute;
-    right: 40px;
-    bottom: 0;
-    font-size: 16px;
-    font-weight: bold;
-  }
+  .header-top .header-spacer { width: 18%; }
+  .header-top .header-center { flex: 1; }
+  .header-top h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+  .header-top h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
+  .header-top .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
+  .logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
+  .logo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .page-num-top { display: none; }
   .info-row {
     display: flex;
     justify-content: flex-start;
@@ -320,10 +328,11 @@ const baseCss = `
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 22px;
+    font-size: 24px;
     font-weight: bold;
+    bottom: 0;
   }
-  .doc-code { font-size: 10px; font-weight: bold; }
+  .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
 `;
 
 const wrapHtml = (bodyContent: string): string => `<!DOCTYPE html>
@@ -338,15 +347,16 @@ ${bodyContent}
 </body>
 </html>`;
 
-export const generateERRecordFormHtml = (patient: Patient, episode: HospitalEpisode, facilityName: string): string => {
+export const generateERRecordFormHtml = (patient: Patient, episode: HospitalEpisode, facilityName: string, logoDataUri?: string | null): string => {
   const row = generateRowForEpisode(episode);
-  return wrapHtml(pageBlock(patient, [row], 1, 1, facilityName));
+  return wrapHtml(pageBlock(patient, [row], 1, 1, facilityName, logoDataUri));
 };
 
 export const generateERRecordFormsHtml = (
   episodes: HospitalEpisode[],
   patients: Patient[],
-  facilityName: string
+  facilityName: string,
+  logoDataUri?: string | null
 ): string => {
   const ROWS_PER_PAGE = 12;
 
@@ -381,7 +391,7 @@ export const generateERRecordFormsHtml = (
     const totalPages = pageChunks.length || 1;
 
     pageChunks.forEach((pageRows, index) => {
-      pages.push(pageBlock(patient, pageRows, index + 1, totalPages, facilityName));
+      pages.push(pageBlock(patient, pageRows, index + 1, totalPages, facilityName, logoDataUri));
     });
   });
 
@@ -392,7 +402,7 @@ export const printERRecordForm = async (patient: Patient, episode: HospitalEpiso
   if (!patient || !episode) return;
 
   const settings = await getFacilitySettings();
-  const html = generateERRecordFormHtml(patient, episode, settings.facilityNameZh);
+  const html = generateERRecordFormHtml(patient, episode, settings.facilityNameZh, settings.logoDataUri);
   printHtmlWithIframe(html, 'er-record-print-iframe');
 };
 
@@ -400,7 +410,7 @@ export const printERRecordForms = async (episodes: HospitalEpisode[], patients: 
   if (!episodes.length || !patients.length) return;
 
   const settings = await getFacilitySettings();
-  const html = generateERRecordFormsHtml(episodes, patients, settings.facilityNameZh);
+  const html = generateERRecordFormsHtml(episodes, patients, settings.facilityNameZh, settings.logoDataUri);
   printHtmlWithIframe(html, 'er-record-print-iframe');
 };
 

@@ -17,7 +17,7 @@ import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 // 右上角新增院舍 logo，與大標題（h1/h2）頂部對齊。
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ROWS_PER_PAGE = 33; // 每頁列數，與 doc_html 一致（單一寬表，無並排組別）
+const ROWS_PER_PAGE = 29; // 每頁列數，依 doc_html 行高精算，確保單頁不溢出且標題/表頭在每頁重複
 const DOC_CODE = 'B4C FK (3.2025)';
 
 type VitalType = '體溫' | '血壓' | '脈搏' | '呼吸' | '血含氧量';
@@ -265,7 +265,7 @@ const renderHeader = (): string => {
         <h1>${escapeHtml(nameZh)}</h1>
         <h2>生命表徵觀察記錄表</h2>
       </div>
-      <div class="header-right"><img class="logo-img" src="${escapeAttr(logo)}" alt="${escapeAttr(logoAlt)}"></div>
+      <div class="header-right"><div class="logo-box"><img class="logo-img" src="${escapeAttr(logo)}" alt="${escapeAttr(logoAlt)}"></div></div>
     </div>
   `;
 };
@@ -294,7 +294,6 @@ const renderTable = (cells: (VitalCell | null)[]): string => {
     const respText = cell ? escapeHtml(cell.resp) : '';
     const spo2Text = cell ? escapeHtml(cell.spo2) : '';
     const remarkText = cell ? escapeHtml(cell.remark) : '';
-    const remarkClass = remarkText.length > 18 ? 'db-text-cell db-text-cell-remark db-text-cell-remark-sm' : 'db-text-cell db-text-cell-remark';
     return `<tr class="data-row">
       <td><input class="db-text-cell" value="${datetimeText}" readonly></td>
       <td><input class="db-text-cell" value="${tempText}" readonly></td>
@@ -302,7 +301,7 @@ const renderTable = (cells: (VitalCell | null)[]): string => {
       <td><input class="db-text-cell" value="${pulseText}" readonly></td>
       <td><input class="db-text-cell" value="${respText}" readonly></td>
       <td><input class="db-text-cell" value="${spo2Text}" readonly></td>
-      <td><div class="${remarkClass}">${remarkText}</div></td>
+      <td><input class="db-text-cell" value="${remarkText}" readonly style="text-align:left; padding-left:5px;"></td>
     </tr>`;
   }).join('');
   return `
@@ -317,6 +316,7 @@ const renderTable = (cells: (VitalCell | null)[]): string => {
 const renderPage = (patient: PatientRow, cells: (VitalCell | null)[], pageLabel: string): string => `
   <div class="container">
     ${renderHeader()}
+    <br>
     ${renderInfoRow(patient, pageLabel)}
     ${renderTable(cells)}
     <div class="footer">
@@ -341,7 +341,8 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   .header-spacer { width: 18%; }
   .header-center { flex: 1; text-align: center; }
   .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
-  .logo-img { max-height: 50px; max-width: 100%; object-fit: contain; }
+  .logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
+  .logo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
   .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
   .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
@@ -359,8 +360,6 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   .col-remark   { width: auto; }
   .data-row { height: 30px; }
   .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 14px; text-align: center; outline: none; display: block; box-sizing: border-box; }
-  .db-text-cell-remark { width: 100%; height: 100%; padding: 2px 5px; font-size: 12px; text-align: left; white-space: pre-wrap; word-wrap: break-word; overflow: hidden; display: flex; align-items: center; line-height: 1.3; }
-  .db-text-cell-remark-sm { font-size: 10px; }
   .footer { margin-top: 8px; display: flex; justify-content: flex-end; position: relative; height: 30px; }
   .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
   .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }

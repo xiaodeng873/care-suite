@@ -37,4 +37,7 @@ END $$;
 
 -- Step 2：加 UNIQUE 約束
 ALTER TABLE "到診排程主表"
+  DROP CONSTRAINT IF EXISTS "到診排程主表_到診日期_unique";
+
+ALTER TABLE "到診排程主表"
   ADD CONSTRAINT "到診排程主表_到診日期_unique" UNIQUE ("到診日期");

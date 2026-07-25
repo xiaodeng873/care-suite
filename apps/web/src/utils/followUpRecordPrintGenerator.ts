@@ -115,7 +115,7 @@ const pageBlock = (
       <h1>${facilityName}</h1>
       <h2>院友覆診記錄表</h2>
     </div>
-    <div class="header-right"><img class="logo-img" src="${logoDataUri}" alt="Logo"></div>
+    <div class="header-right"><div class="logo-box"><img class="logo-img" src="${logoDataUri}" alt="Logo"></div></div>
   </div>
 
   <table class="info-table">
@@ -170,7 +170,7 @@ const pageBlock = (
   </table>
 
   <div class="footer">
-    <div class="page-num">${pageNumberText}</div>
+    <div class="page-num">9</div>
     <div class="doc-code">${DOC_CODE}</div>
   </div>
 </div>`;
@@ -200,14 +200,14 @@ const baseCss = `
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
   }
   .header-spacer { width: 18%; }
   .header-center { flex: 1; text-align: center; }
-  .header-center h1 { margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+  .header-center h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
   .header-center h2 {
-    margin: 5px 0 0 0;
-    font-size: 20px;
+    margin: 4px 0 0 0;
+    font-size: 22px;
     font-weight: bold;
     display: inline-block;
     border-bottom: 1.5px solid black;
@@ -219,7 +219,14 @@ const baseCss = `
     align-items: flex-start;
     justify-content: flex-end;
   }
-  .logo-img { max-height: 50px; max-width: 100%; object-fit: contain; }
+  .logo-box {
+    width: 80px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .logo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .info-table {
     width: 100%;
     border-collapse: collapse;
@@ -293,11 +300,11 @@ const baseCss = `
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 20px;
+    font-size: 24px;
     font-weight: bold;
     bottom: 0;
   }
-  .doc-code { font-size: 10px; font-weight: bold; align-self: flex-end; }
+  .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
 `;
 
 const wrapHtml = (bodyContent: string): string => `<!DOCTYPE html>

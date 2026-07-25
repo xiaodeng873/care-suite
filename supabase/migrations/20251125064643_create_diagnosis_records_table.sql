@@ -51,8 +51,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_update_diagnosis_records_updated_at
-  BEFORE UPDATE ON diagnosis_records
+DROP TRIGGER IF EXISTS trigger_update_diagnosis_records_updated_at ON diagnosis_records;
+
+
+CREATE TRIGGER trigger_update_diagnosis_records_updated_at BEFORE UPDATE ON diagnosis_records
   FOR EACH ROW
   EXECUTE FUNCTION update_diagnosis_records_updated_at();
 
@@ -60,30 +62,34 @@ CREATE TRIGGER trigger_update_diagnosis_records_updated_at
 ALTER TABLE diagnosis_records ENABLE ROW LEVEL SECURITY;
 
 -- 創建 RLS 策略：允許所有已認證用戶查看診斷記錄
-CREATE POLICY "Allow authenticated users to view diagnosis records"
-  ON diagnosis_records
+DROP POLICY IF EXISTS "Allow authenticated users to view diagnosis records" ON diagnosis_records;
+
+CREATE POLICY "Allow authenticated users to view diagnosis records" ON diagnosis_records
   FOR SELECT
   TO authenticated
   USING (true);
 
 -- 創建 RLS 策略：允許所有已認證用戶新增診斷記錄
-CREATE POLICY "Allow authenticated users to insert diagnosis records"
-  ON diagnosis_records
+DROP POLICY IF EXISTS "Allow authenticated users to insert diagnosis records" ON diagnosis_records;
+
+CREATE POLICY "Allow authenticated users to insert diagnosis records" ON diagnosis_records
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
 -- 創建 RLS 策略：允許所有已認證用戶更新診斷記錄
-CREATE POLICY "Allow authenticated users to update diagnosis records"
-  ON diagnosis_records
+DROP POLICY IF EXISTS "Allow authenticated users to update diagnosis records" ON diagnosis_records;
+
+CREATE POLICY "Allow authenticated users to update diagnosis records" ON diagnosis_records
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
 -- 創建 RLS 策略：允許所有已認證用戶刪除診斷記錄
-CREATE POLICY "Allow authenticated users to delete diagnosis records"
-  ON diagnosis_records
+DROP POLICY IF EXISTS "Allow authenticated users to delete diagnosis records" ON diagnosis_records;
+
+CREATE POLICY "Allow authenticated users to delete diagnosis records" ON diagnosis_records
   FOR DELETE
   TO authenticated
   USING (true);

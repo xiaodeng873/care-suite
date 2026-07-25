@@ -64,9 +64,13 @@ const renderEmptyRow = (): string => `
 export const generateRestraintUsageRecordHtml = (
   assessments: PatientRestraintAssessment[],
   patient: Patient,
-  facilityName: string
+  facilityName: string,
+  logoDataUri?: string | null
 ): string => {
   const patientName = `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}` || patient.中文姓名;
+  const logoHtml = logoDataUri
+    ? `<div class="logo-box"><img class="logo-img" src="${esc(logoDataUri)}" alt="Logo"></div>`
+    : `<div class="logo-box"><span style="font-size:13px;font-weight:bold;">${esc(facilityName)}</span></div>`;
 
   // 取所有有 usage_record 的評估，按 start_date 升序
   const usageRows = assessments
@@ -103,9 +107,14 @@ body {
 .page-header { display: table-header-group; }
 .page-footer { display: table-footer-group; }
 .container { width: 100%; box-sizing: border-box; }
-.title-section { text-align: center; margin-bottom: 5px; }
-.title-section h1 { margin: 0; font-size: 30px; font-weight: bold; }
-.title-section h2 { margin: 0; font-size: 24px; font-weight: bold; }
+.title-section { text-align: center; margin-bottom: 5px; flex: 1; }
+.title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+.title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
+.header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 5px; }
+.header-spacer { width: 18%; }
+.header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
+.logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
+.logo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .user-info { display: flex; justify-content: space-between; margin-bottom: 3px; font-weight: bold; font-size: 14px; }
 .db-line-input {
   display: inline-block; border: none; border-bottom: 1px solid black;
@@ -128,8 +137,8 @@ body {
 .record-row { height: 30mm; }
 .record-row td { page-break-inside: avoid; break-inside: avoid; }
 .footer-content { margin-top: 5px; display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; width: 100%; }
-.page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 18px; bottom: 5px; }
-.doc-code { font-size: 9px; align-self: flex-end; padding-bottom: 5px; }
+.page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
+.doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
 </style>
 </head>
 <body>
@@ -137,9 +146,13 @@ body {
   <thead class="page-header">
     <tr><td>
       <div class="container">
-        <div class="title-section">
-          <h1>${esc(facilityName)}</h1>
-          <h2>使用約束物品紀錄</h2>
+        <div class="header">
+          <div class="header-spacer"></div>
+          <div class="title-section">
+            <h1>${esc(facilityName)}</h1>
+            <h2>使用約束物品紀錄</h2>
+          </div>
+          <div class="header-right">${logoHtml}</div>
         </div>
         <br>
         <br>
@@ -203,9 +216,10 @@ export const printRestraintUsageRecords = async (
 
   const settings = await getFacilitySettings();
   const facilityName = settings.facilityNameZh;
+  const logoDataUri = settings.logoDataUri;
 
   const htmlPages = items.map(({ assessments, patient }) =>
-    generateRestraintUsageRecordHtml(assessments, patient, facilityName)
+    generateRestraintUsageRecordHtml(assessments, patient, facilityName, logoDataUri)
   );
 
   // 合併多位院友：第一份 HTML 完整，後續只取 body 內容

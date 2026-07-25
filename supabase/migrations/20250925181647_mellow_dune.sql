@@ -41,14 +41,25 @@ CREATE INDEX IF NOT EXISTS idx_doctor_visit_schedule_specialty ON doctor_visit_s
 CREATE INDEX IF NOT EXISTS idx_doctor_visit_schedule_created_at ON doctor_visit_schedule(created_at);
 
 -- 創建 RLS 政策
+DROP POLICY IF EXISTS "允許已認證用戶讀取醫生到診排程" ON doctor_visit_schedule;
+
 CREATE POLICY "允許已認證用戶讀取醫生到診排程" ON doctor_visit_schedule
   FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶新增醫生到診排程" ON doctor_visit_schedule;
+
 
 CREATE POLICY "允許已認證用戶新增醫生到診排程" ON doctor_visit_schedule
   FOR INSERT TO authenticated WITH CHECK (true);
 
+DROP POLICY IF EXISTS "允許已認證用戶更新醫生到診排程" ON doctor_visit_schedule;
+
+
 CREATE POLICY "允許已認證用戶更新醫生到診排程" ON doctor_visit_schedule
   FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶刪除醫生到診排程" ON doctor_visit_schedule;
+
 
 CREATE POLICY "允許已認證用戶刪除醫生到診排程" ON doctor_visit_schedule
   FOR DELETE TO authenticated USING (true);
@@ -63,7 +74,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 創建觸發器
-CREATE TRIGGER update_doctor_visit_schedule_updated_at
-  BEFORE UPDATE ON doctor_visit_schedule
+DROP TRIGGER IF EXISTS update_doctor_visit_schedule_updated_at ON doctor_visit_schedule;
+
+CREATE TRIGGER update_doctor_visit_schedule_updated_at BEFORE UPDATE ON doctor_visit_schedule
   FOR EACH ROW
   EXECUTE FUNCTION update_doctor_visit_schedule_updated_at();

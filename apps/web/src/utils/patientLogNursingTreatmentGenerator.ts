@@ -187,14 +187,23 @@ const buildPageHtml = (
   const logoHtml = logoDataUri
     ? `<img class="header-logo" src="${escapeHtml(logoDataUri)}" alt="logo">`
     : '';
+  const pageIndicatorHtml = `<div class="page-indicator">第 ${pageNumber} 頁</div>`;
 
   return `
   <div class="page">
     <div class="page-header">
       <div class="header-section">
-        <h1>${escapeHtml(facilityName)}</h1>
-        <h2>護理及治療記錄</h2>
-        ${logoHtml}
+        <div class="header-spacer"></div>
+        <div class="header-center">
+          <h1>${escapeHtml(facilityName)}</h1>
+          <h2>護理及治療記錄</h2>
+        </div>
+        <div class="header-right">
+          <div class="logo-box">
+            ${logoHtml}
+          </div>
+        </div>
+        ${pageIndicatorHtml}
       </div>
       <table class="info-table">
         <colgroup>
@@ -236,7 +245,7 @@ const buildPageHtml = (
       </table>
     </div>
     <div class="page-footer">
-      <span class="page-num">第 ${pageNumber} 頁</span>
+      <span class="page-num">6</span>
       <span class="doc-code">${DOC_CODE}</span>
     </div>
   </div>`;
@@ -300,34 +309,70 @@ const buildPatientHtml = (
     .page-footer {
       flex-shrink: 0;
       display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 8px;
+      justify-content: flex-end;
+      position: relative;
+      height: 30px;
       padding: 2px 0;
-      font-size: 10px;
+      font-weight: bold;
+    }
+    .page-footer .page-num {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      bottom: 0;
+    }
+    .page-footer .doc-code {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      font-size: 11px;
       font-weight: bold;
     }
     .header-section {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
       position: relative;
-      text-align: center;
-      margin-bottom: 5px;
     }
-    .header-section h1 { margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+    .header-center { flex: 1; text-align: center; }
+    .header-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
     .header-section h2 {
-      margin: 5px 0 0 0;
-      font-size: 20px;
+      margin: 4px 0 0 0;
+      font-size: 22px;
       font-weight: bold;
       display: inline-block;
       border-bottom: 1.5px solid black;
       padding-bottom: 2px;
     }
+    .header-spacer { width: 18%; }
+    .header-right {
+      width: 18%;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+    }
+    .logo-box {
+      width: 80px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
     .header-logo {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .page-indicator {
       position: absolute;
       right: 0;
-      top: 0;
-      height: 36px;
-      max-width: 120px;
-      object-fit: contain;
+      top: 40px;
+      font-size: 10px;
+      font-weight: bold;
+      text-align: right;
+      white-space: nowrap;
     }
     .info-table {
       width: 100%;
@@ -403,8 +448,6 @@ const buildPatientHtml = (
       top: 50%;
       border-top: 1px solid black;
     }
-    .page-num { font-size: 10px; font-weight: bold; }
-    .doc-code { font-size: 10px; font-weight: bold; }
   </style>
 </head>
 <body>

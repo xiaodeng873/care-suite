@@ -44,8 +44,10 @@ CREATE INDEX IF NOT EXISTS idx_patient_care_tabs_patient_visible
 
 ALTER TABLE patient_care_tabs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow authenticated users full access to patient_care_tabs"
-  ON patient_care_tabs
+DROP POLICY IF EXISTS "Allow authenticated users full access to patient_care_tabs" ON patient_care_tabs;
+
+
+CREATE POLICY "Allow authenticated users full access to patient_care_tabs" ON patient_care_tabs
   FOR ALL
   TO authenticated
   USING (true)
@@ -57,8 +59,9 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_trigger WHERE tgname = 'update_patient_care_tabs_updated_at'
   ) THEN
-    CREATE TRIGGER update_patient_care_tabs_updated_at
-      BEFORE UPDATE ON patient_care_tabs
+    DROP TRIGGER IF EXISTS update_patient_care_tabs_updated_at ON patient_care_tabs;
+
+    CREATE TRIGGER update_patient_care_tabs_updated_at BEFORE UPDATE ON patient_care_tabs
       FOR EACH ROW
       EXECUTE FUNCTION update_updated_at_column();
   END IF;

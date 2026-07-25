@@ -42,15 +42,18 @@
             margin-right: 80px; /* 補償左側方框位移 */
         }
 
-        .title-box h1 { margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+        .title-box h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
         .title-box h2 { 
-            margin: 5px 0 0 0; 
-            font-size: 20px; 
+            margin: 4px 0 0 0; 
+            font-size: 22px; 
             font-weight: bold; 
             display: inline-block;
             border-bottom: 1.5px solid black;
             padding-bottom: 2px;
         }
+
+        .logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
+        .logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
         /* 資訊欄位隱形表格 */
         .info-table {
@@ -133,6 +136,7 @@
             justify-content: flex-end;
             position: relative;
             height: 30px;
+            font-weight: bold;
         }
         .page-num {
             position: absolute;
@@ -142,18 +146,25 @@
             font-weight: bold;
             bottom: 0;
         }
-        .doc-code { font-size: 10px; align-self: flex-end; }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <!-- 頂部標題部 -->
-    <div class="header-section">
-        <div class="short-term-box">短期藥</div>
-        <div class="title-box">
+    <div class="header-section" style="align-items: flex-start;">
+        <div style="width: 18%; display: flex; align-items: flex-start; justify-content: flex-start;">
+            <div class="short-term-box">短期藥</div>
+        </div>
+        <div class="title-box" style="flex: 1; margin-right: 0;">
             <h1>善頤(福群)護老院</h1>
             <h2>院友服用藥物一覽表</h2>
+        </div>
+        <div style="width: 18%; display: flex; align-items: flex-start; justify-content: flex-end;">
+            <div class="logo-box">
+                <img class="logo-img" src="../supabase/migrations/SClogolayer.png" alt="院舍Logo">
+            </div>
         </div>
     </div>
 

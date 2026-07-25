@@ -48,8 +48,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_update_infection_control_records_updated_at
-  BEFORE UPDATE ON infection_control_records
+DROP TRIGGER IF EXISTS trigger_update_infection_control_records_updated_at ON infection_control_records;
+
+CREATE TRIGGER trigger_update_infection_control_records_updated_at BEFORE UPDATE ON infection_control_records
   FOR EACH ROW
   EXECUTE FUNCTION update_infection_control_records_updated_at();
 
@@ -57,30 +58,30 @@ CREATE TRIGGER trigger_update_infection_control_records_updated_at
 ALTER TABLE infection_control_records ENABLE ROW LEVEL SECURITY;
 
 -- 創建 RLS 策略：允許所有已認證用戶查看感染控制記錄
-CREATE POLICY "Allow authenticated users to view infection control records"
-  ON infection_control_records
+DROP POLICY IF EXISTS "Allow authenticated users to view infection control records" ON infection_control_records;
+CREATE POLICY "Allow authenticated users to view infection control records" ON infection_control_records
   FOR SELECT
   TO authenticated
   USING (true);
 
 -- 創建 RLS 策略：允許所有已認證用戶新增感染控制記錄
-CREATE POLICY "Allow authenticated users to insert infection control records"
-  ON infection_control_records
+DROP POLICY IF EXISTS "Allow authenticated users to insert infection control records" ON infection_control_records;
+CREATE POLICY "Allow authenticated users to insert infection control records" ON infection_control_records
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
 -- 創建 RLS 策略：允許所有已認證用戶更新感染控制記錄
-CREATE POLICY "Allow authenticated users to update infection control records"
-  ON infection_control_records
+DROP POLICY IF EXISTS "Allow authenticated users to update infection control records" ON infection_control_records;
+CREATE POLICY "Allow authenticated users to update infection control records" ON infection_control_records
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
 -- 創建 RLS 策略：允許所有已認證用戶刪除感染控制記錄
-CREATE POLICY "Allow authenticated users to delete infection control records"
-  ON infection_control_records
+DROP POLICY IF EXISTS "Allow authenticated users to delete infection control records" ON infection_control_records;
+CREATE POLICY "Allow authenticated users to delete infection control records" ON infection_control_records
   FOR DELETE
   TO authenticated
   USING (true);

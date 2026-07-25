@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { BarChart3, Calendar, FileText, Activity, Utensils, Stethoscope, AlertCircle } from 'lucide-react';
+import { BarChart3, Calendar, FileText, Activity, Utensils, Stethoscope, AlertCircle, Bot } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import MonthlyReportTable from '../components/MonthlyReportTable';
 import PatientListModal from '../components/PatientListModal';
+import { AiUsageStatsPanel } from '../components/AiUsageStatsPanel';
 import { formatFrequencyDescription } from '../utils/taskScheduler';
 import { getInfectionTypeColors } from '../utils/infectionTypeColors';
 import { supabase } from '../lib/supabase';
 import type { PatientCareTab } from '../lib/database';
 
-type ReportTab = 'daily' | 'monthly' | 'infection' | 'meal' | 'tube' | 'special' | 'drugSensitivity';
+type ReportTab = 'daily' | 'monthly' | 'infection' | 'meal' | 'tube' | 'special' | 'drugSensitivity' | 'aiUsage';
 type TimeFilter = 'today' | 'yesterday' | 'thisMonth' | 'lastMonth';
-type StationFilter = 'all' | string;
 
 interface StatCardProps {
   title: string;
@@ -51,10 +51,13 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, bgColor, textColor, s
 };
 
 const Reports: React.FC = () => {
-  const { allPatients: patients, stations, healthAssessments, incidentReports, patientHealthTasks, patientRestraintAssessments, prescriptions, healthRecords, mealGuidances, hospitalEpisodes, diagnosisRecords, patientTubeCareRecords, patientsWithWounds, infectionControlRecords, loading } = usePatients();
+  const { patients, stations, healthAssessments, incidentReports, patientHealthTasks, patientRestraintAssessments, prescriptions, healthRecords, mealGuidances, hospitalEpisodes, diagnosisRecords, patientTubeCareRecords, patientsWithWounds, infectionControlRecords, loading } = usePatients();
   const [activeTab, setActiveTab] = useState<ReportTab>('daily');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('today');
-  const [stationFilter, setStationFilter] = useState<StationFilter>('all');
+  const [reportDate, setReportDate] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  });
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalPatients, setModalPatients] = useState<string[]>([]);
@@ -100,10 +103,7 @@ const Reports: React.FC = () => {
 
   const { today, yesterday, thisMonthStart, thisMonthEnd, lastMonthStart, lastMonthEnd } = getDateRanges();
 
-  const filteredPatients = useMemo(() => {
-    if (stationFilter === 'all') return patients || [];
-    return (patients || []).filter(p => p.station_id === stationFilter);
-  }, [patients, stationFilter]);
+  const filteredPatients = useMemo(() => patients || [], [patients]);
 
   /** Parse a TEXT column that may contain a JSON array, '、'-delimited string, or already be an array */
   const parseTextToArray = (value: unknown): string[] => {
@@ -156,7 +156,7 @@ const Reports: React.FC = () => {
   }, [patientHealthTasks]);
 
   const dailyReportData = useMemo(() => {
-    const targetDate = timeFilter === 'today' ? today : yesterday;
+    const targetDate = reportDate;
     const activePatients = filteredPatients.filter(p => p.在住狀態 === '在住');
 
     const 買位Patients = activePatients.filter(p => p.入住類型 === '買位');
@@ -310,16 +310,14 @@ const Reports: React.FC = () => {
 
     const deathPatients = filteredPatients.filter(p => {
       if (!p.death_date || p.discharge_reason !== '死亡') return false;
-      const deathDate = new Date(p.death_date);
-      return deathDate >= targetDate && deathDate < new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
+      const deathDate = parseDateOnly(p.death_date);
+      return deathDate >= targetDate && deathDate < new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1);
     });
 
-    const monthStart = timeFilter === 'today' ? thisMonthStart : lastMonthStart;
-    const monthEnd = timeFilter === 'today' ? thisMonthEnd : lastMonthEnd;
-    const monthlyDeathPatients = (patients || []).filter(p => {
+    const monthlyDeathPatients = filteredPatients.filter(p => {
       if (!p.death_date || p.discharge_reason !== '死亡') return false;
-      const deathDate = new Date(p.death_date);
-      return deathDate >= monthStart && deathDate <= monthEnd;
+      const deathDate = parseDateOnly(p.death_date);
+      return deathDate.getFullYear() === targetDate.getFullYear() && deathDate.getMonth() === targetDate.getMonth();
     });
 
     const ngTubePatients = activePatients.filter(p => {
@@ -375,9 +373,10 @@ const Reports: React.FC = () => {
     const restraintPatientIds = new Set((patientRestraintAssessments || []).map(r => r.patient_id));
     const restraintPatients = activePatients.filter(p => restraintPatientIds.has(p.院友id));
 
+    const filteredPatientIds = new Set(filteredPatients.map(p => p.院友id));
     const todayIncidents = (incidentReports || []).filter(incident => {
       const incidentDate = new Date(incident.incident_date);
-      return incidentDate.toDateString() === targetDate.toDateString();
+      return incidentDate.toDateString() === targetDate.toDateString() && filteredPatientIds.has(incident.patient_id);
     });
 
     const medicationIncidentPatients = todayIncidents.filter(i => i.incident_type === '藥物');
@@ -446,7 +445,7 @@ const Reports: React.FC = () => {
         療養級女: { count: convalescent女Patients.length, names: convalescent女Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
       },
     };
-  }, [filteredPatients, timeFilter, healthAssessments, patientsWithWounds, incidentReports, patientRestraintAssessments, hasHealthTask, hasTubeCare, hospitalEpisodes, infectionControlRecords, today, yesterday, thisMonthStart, thisMonthEnd, lastMonthStart, lastMonthEnd, patients]);
+  }, [filteredPatients, reportDate, healthAssessments, patientsWithWounds, incidentReports, patientRestraintAssessments, hasHealthTask, hasTubeCare, hospitalEpisodes, infectionControlRecords]);
 
 
   if (loading) {
@@ -454,36 +453,37 @@ const Reports: React.FC = () => {
   }
 
   const renderDailyReport = () => {
-    const targetDate = timeFilter === 'today' ? today : yesterday;
+    const targetDate = reportDate;
     const displayDate = targetDate.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      if (value) {
+        const [year, month, day] = value.split('-').map(Number);
+        setReportDate(new Date(year, month - 1, day));
+      }
+    };
+
+    const formatInputDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
     return (
       <div className="space-y-6">
         <div className="flex flex-wrap gap-4 mb-4 print:hidden">
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setTimeFilter('today')}
-              className={`px-4 py-2 rounded-lg ${timeFilter === 'today' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-            >
-              當日
-            </button>
-            <button
-              onClick={() => setTimeFilter('yesterday')}
-              className={`px-4 py-2 rounded-lg ${timeFilter === 'yesterday' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-            >
-              昨日
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-sm text-gray-600">報告日期：</label>
+            <input
+              type="date"
+              value={formatInputDate(reportDate)}
+              max={formatInputDate(new Date())}
+              onChange={handleDateChange}
+              className="form-input"
+            />
           </div>
-          <select
-            value={stationFilter}
-            onChange={(e) => setStationFilter(e.target.value)}
-            className="form-input"
-          >
-            <option value="all">全部居住區</option>
-            {(stations || []).map(station => (
-              <option key={station.id} value={station.id}>{station.name}</option>
-            ))}
-          </select>
         </div>
 
         {/* 紙質表格風格的報表 */}
@@ -572,13 +572,13 @@ const Reports: React.FC = () => {
             </div>
             <div className="border-t-2 border-gray-300 my-3"></div>
 
-            {/* 本區過去 24 小時 */}
+            {/* 本區 {displayDate} */}
             <div>
-              <h3 className="text-base font-bold text-gray-900 mb-3">【本區過去 24 小時】</h3>
+              <h3 className="text-base font-bold text-gray-900 mb-3">【{displayDate}】</h3>
               <div className="space-y-3">
                 <div className="text-base leading-loose">
                   <span className="text-gray-700">
-                    1. 過去 24 小時新收院友: <span className="inline-block w-12 border-b-2 border-gray-400 text-center font-bold cursor-pointer hover:bg-yellow-100" title="點擊查看院友名單" onClick={() => showPatientList('新收院友', dailyReportData.newAdmissions.names)}>
+                    1. 當日新收院友: <span className="inline-block w-12 border-b-2 border-gray-400 text-center font-bold cursor-pointer hover:bg-yellow-100" title="點擊查看院友名單" onClick={() => showPatientList('新收院友', dailyReportData.newAdmissions.names)}>
                       {dailyReportData.newAdmissions.count}
                     </span> 人; 男 (<span className="inline-block w-12 border-b-2 border-gray-400 text-center font-bold">{dailyReportData.newAdmissions.男}</span> 人); 女 (<span className="inline-block w-12 border-b-2 border-gray-400 text-center font-bold">{dailyReportData.newAdmissions.女}</span> 人)
                   </span>
@@ -587,7 +587,7 @@ const Reports: React.FC = () => {
 
                 <div className="text-base leading-loose">
                   <span className="text-gray-700">
-                    2. 過去 24 小時死亡人數: <span className="inline-block w-12 border-b-2 border-gray-400 text-center font-bold cursor-pointer hover:bg-yellow-100" title="點擊查看院友名單" onClick={() => showPatientList('死亡院友', dailyReportData.death.names)}>
+                    2. 當日死亡人數: <span className="inline-block w-12 border-b-2 border-gray-400 text-center font-bold cursor-pointer hover:bg-yellow-100" title="點擊查看院友名單" onClick={() => showPatientList('死亡院友', dailyReportData.death.names)}>
                       {dailyReportData.death.total}
                     </span> 人; 男 (<span className="inline-block w-12 border-b-2 border-gray-400 text-center font-bold">{dailyReportData.death.男}</span> 人); 女 (<span className="inline-block w-12 border-b-2 border-gray-400 text-center font-bold">{dailyReportData.death.女}</span> 人)
                   </span>
@@ -926,16 +926,6 @@ const Reports: React.FC = () => {
                 上月
               </button>
             </div>
-            <select
-              value={stationFilter}
-              onChange={(e) => setStationFilter(e.target.value)}
-              className="form-input"
-            >
-              <option value="all">所有分區</option>
-              {stations?.map(station => (
-                <option key={station.id} value={station.id}>{station.name}</option>
-              ))}
-            </select>
           </div>
         </div>
 
@@ -965,19 +955,6 @@ const Reports: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-4 mb-4">
-          <select
-            value={stationFilter}
-            onChange={(e) => setStationFilter(e.target.value)}
-            className="form-input"
-          >
-            <option value="all">所有分區</option>
-            {stations?.map(station => (
-              <option key={station.id} value={station.id}>{station.name}</option>
-            ))}
-          </select>
-        </div>
-
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">感染控制統計</h3>
           {infectionStats.length === 0 ? (
@@ -1065,19 +1042,6 @@ const Reports: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-4 mb-4">
-          <select
-            value={stationFilter}
-            onChange={(e) => setStationFilter(e.target.value)}
-            className="form-input"
-          >
-            <option value="all">所有分區</option>
-            {stations?.map(station => (
-              <option key={station.id} value={station.id}>{station.name}</option>
-            ))}
-          </select>
-        </div>
-
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">廚房準備統計</h3>
 
@@ -1170,19 +1134,6 @@ const Reports: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-4 mb-4">
-          <select
-            value={stationFilter}
-            onChange={(e) => setStationFilter(e.target.value)}
-            className="form-input"
-          >
-            <option value="all">所有分區</option>
-            {stations?.map(station => (
-              <option key={station.id} value={station.id}>{station.name}</option>
-            ))}
-          </select>
-        </div>
-
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">喉管相關報表 (共 {tubeTasks.length} 項)</h3>
           <div className="space-y-4">
@@ -1250,19 +1201,6 @@ const Reports: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-4 mb-4">
-          <select
-            value={stationFilter}
-            onChange={(e) => setStationFilter(e.target.value)}
-            className="form-input"
-          >
-            <option value="all">所有分區</option>
-            {stations?.map(station => (
-              <option key={station.id} value={station.id}>{station.name}</option>
-            ))}
-          </select>
-        </div>
-
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">特別關顧名單 (共 {specialCarePatients.length} 人)</h3>
           <div className="space-y-4">
@@ -1318,19 +1256,6 @@ const Reports: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex flex-wrap gap-4 mb-4">
-          <select
-            value={stationFilter}
-            onChange={(e) => setStationFilter(e.target.value)}
-            className="form-input"
-          >
-            <option value="all">所有分區</option>
-            {stations?.map(station => (
-              <option key={station.id} value={station.id}>{station.name}</option>
-            ))}
-          </select>
-        </div>
-
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">藥物敏感報表 (共 {drugSensitivityPatients.length} 人)</h3>
           <div className="space-y-4">
@@ -1442,6 +1367,13 @@ const Reports: React.FC = () => {
             <AlertCircle className="h-4 w-4 inline mr-1" />
             藥物敏感報表
           </button>
+          <button
+            onClick={() => setActiveTab('aiUsage')}
+            className={`px-4 py-2 font-medium ${activeTab === 'aiUsage' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+          >
+            <Bot className="h-4 w-4 inline mr-1" />
+            AI 使用統計
+          </button>
         </div>
       </div>
 
@@ -1453,6 +1385,7 @@ const Reports: React.FC = () => {
         {activeTab === 'tube' && renderTubeReport()}
         {activeTab === 'special' && renderSpecialCareList()}
         {activeTab === 'drugSensitivity' && renderDrugSensitivityReport()}
+        {activeTab === 'aiUsage' && <AiUsageStatsPanel />}
       </div>
     </div>
   );

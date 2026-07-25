@@ -62,6 +62,9 @@ const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageI
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const bed = patient.床號 || '';
   const idNumber = patient.身份證號碼 || '';
+  const dataRows = generateDataRows(pageRecords);
+  const emptyRowCount = Math.max(ROWS_PER_PAGE - pageRecords.length, 0);
+  const emptyRows = Array(emptyRowCount).fill(`<tr style="height: 34px;">${'<td></td>'.repeat(19)}</tr>`).join('');
 
   return `
 <div class="container">
@@ -71,7 +74,7 @@ const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageI
       <h1>${facilityName}</h1>
       <h2>院友健康教育 / 活動記錄表</h2>
     </div>
-    <div class="header-right"><img class="logo-img" src="${logoDataUri}" alt="Logo"></div>
+    <div class="header-right"><div class="logo-box"><img class="logo-img" src="${logoDataUri}" alt="Logo"></div></div>
   </div>
   <br>
   <div class="user-info">
@@ -105,7 +108,8 @@ const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageI
       </tr>
     </thead>
     <tbody>
-      ${generateDataRows(pageRecords)}
+      ${dataRows}
+      ${emptyRows}
     </tbody>
   </table>
 
@@ -121,7 +125,7 @@ const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageI
   </div>
 
   <div class="footer">
-    <div class="page-num">${pageIndex + 1}${totalPages > 1 ? ` / ${totalPages}` : ''}</div>
+    <div class="page-num">13</div>
     <div class="doc-code">${DOC_CODE}</div>
   </div>
 </div>`;
@@ -163,9 +167,10 @@ export const generateActivityRecordPrintFormHtml = (
   .header-spacer { width: 18%; }
   .header-center { flex: 1; text-align: center; }
   .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
-  .logo-img { max-height: 50px; max-width: 100%; object-fit: contain; }
-  .title-section h1 { margin: 0; font-size: 22px; font-weight: bold; }
-  .title-section h2 { margin: 0; font-size: 18px; font-weight: bold; }
+  .logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
+  .logo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; }
+  .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
   .user-info { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: bold; font-size: 14px; }
   .db-line-input { border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 14px; padding: 0 5px; }
   table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid black; }
@@ -179,9 +184,9 @@ export const generateActivityRecordPrintFormHtml = (
   .notes-heading { font-weight: bold; font-size: 11px; margin-bottom: 2px; }
   .note-item { display: flex; margin-bottom: 1px; }
   .note-label { font-weight: bold; min-width: 25px; }
-  .footer { margin-top: 5px; display: flex; justify-content: space-between; align-items: flex-end; font-weight: bold; }
-  .page-num { flex: 1; text-align: center; font-size: 18px; }
-  .doc-code { font-size: 10px; }
+  .footer { margin-top: 5px; display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; }
+  .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; bottom: 0; }
+  .doc-code { font-size: 11px; align-self: flex-end; }
   @media print {
     .no-print { display: none !important; }
   }

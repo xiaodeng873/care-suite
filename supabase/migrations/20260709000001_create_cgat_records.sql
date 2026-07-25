@@ -63,26 +63,43 @@ CREATE TABLE IF NOT EXISTS cgat_records (
 );
 
 CREATE INDEX IF NOT EXISTS idx_cgat_records_patient_id ON cgat_records(patient_id);
-CREATE INDEX IF NOT EXISTS idx_cgat_records_followup_date ON cgat_records(followup_date);
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'cgat_records' AND column_name = 'followup_date'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_cgat_records_followup_date ON cgat_records(followup_date);
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_cgat_records_medication_end_date ON cgat_records(medication_end_date);
 
 ALTER TABLE cgat_records ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "允許已認證用戶讀取CGAT記錄"
-  ON cgat_records FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "允許已認證用戶讀取CGAT記錄" ON cgat_records;
 
-CREATE POLICY "允許已認證用戶新增CGAT記錄"
-  ON cgat_records FOR INSERT TO authenticated WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶更新CGAT記錄"
-  ON cgat_records FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "允許已認證用戶讀取CGAT記錄" ON cgat_records FOR SELECT TO authenticated USING (true);
 
-CREATE POLICY "允許已認證用戶刪除CGAT記錄"
-  ON cgat_records FOR DELETE TO authenticated USING (true);
+DROP POLICY IF EXISTS "允許已認證用戶新增CGAT記錄" ON cgat_records;
+
+
+CREATE POLICY "允許已認證用戶新增CGAT記錄" ON cgat_records FOR INSERT TO authenticated WITH CHECK (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶更新CGAT記錄" ON cgat_records;
+
+
+CREATE POLICY "允許已認證用戶更新CGAT記錄" ON cgat_records FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶刪除CGAT記錄" ON cgat_records;
+
+
+CREATE POLICY "允許已認證用戶刪除CGAT記錄" ON cgat_records FOR DELETE TO authenticated USING (true);
 
 -- 自訂認證（web 端走 anon role）需要此策略
-CREATE POLICY "Allow all access"
-  ON cgat_records FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all access" ON cgat_records;
+
+CREATE POLICY "Allow all access" ON cgat_records FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
 -- 自動更新 updated_at
 CREATE OR REPLACE FUNCTION update_cgat_records_updated_at()
@@ -94,6 +111,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS trg_cgat_records_updated_at ON cgat_records;
-CREATE TRIGGER trg_cgat_records_updated_at
-  BEFORE UPDATE ON cgat_records
+DROP TRIGGER IF EXISTS trg_cgat_records_updated_at ON cgat_records;
+
+CREATE TRIGGER trg_cgat_records_updated_at BEFORE UPDATE ON cgat_records
   FOR EACH ROW EXECUTE FUNCTION update_cgat_records_updated_at();

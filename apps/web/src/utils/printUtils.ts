@@ -48,9 +48,65 @@ const scopeDocumentHtml = (page: string, scopeClass: string): { styles: string; 
  * 合併多個 HTML 頁面並透過隱藏 iframe 列印。
  * 每個元素可以是完整 HTML 文件或純 body 片段；
  * 每份文件的樣式與內容會被隔離（見 scopeDocumentHtml），文件之間自動分頁。
+ *
+ * 若 `sequential` 為 true，會為每份文件各自開一個 iframe 並依序叫出列印對話框。
+ * 這是唯一能保證多份混和 orientation / margin 的文件與原範本完全一致的
+ * 客戶端做法，因為 Chrome 對同一份文件內大量具名 @page 的分頁有已知缺陷：
+ * 當一份文件內出現數十個不同名稱的 @page 時，自然溢出的內容會被無故裁掉。
  */
-export const printCombinedHtml = (pages: string[], iframeId: string): void => {
+export const printCombinedHtml = (pages: string[], iframeId: string, sequential = false): void => {
   if (pages.length === 0) return;
+
+  if (sequential) {
+    let index = 0;
+    const printNext = () => {
+      // 跳過空頁
+      while (index < pages.length && !pages[index].trim()) index++;
+      if (index >= pages.length) return;
+
+      const old = document.getElementById(iframeId);
+      if (old) old.remove();
+
+      const iframe = document.createElement('iframe');
+      iframe.id = iframeId;
+      iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow?.document;
+      if (!doc) return;
+      doc.open();
+      doc.write(pages[index]);
+      doc.close();
+
+      const win = iframe.contentWindow;
+      if (!win) return;
+
+      const current = index;
+      index++;
+
+      const cleanup = () => {
+        iframe.remove();
+        win.removeEventListener('afterprint', cleanup);
+        printNext();
+      };
+
+      // afterprint 會在使用者關閉列印對話框後觸發（不論按下列印或取消）
+      win.addEventListener('afterprint', cleanup);
+
+      // 保險：若 afterprint 未觸發，5 秒後強制繼續下一頁
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          iframe.remove();
+          printNext();
+        }
+      }, 5000);
+
+      setTimeout(() => { win.print(); }, 300);
+    };
+
+    printNext();
+    return;
+  }
 
   const parts = pages.map((page, i) => scopeDocumentHtml(page, `print-doc-${i}`));
 

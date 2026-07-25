@@ -85,8 +85,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_activity_records_updated_at ON patient_activity_records;
-CREATE TRIGGER trg_activity_records_updated_at
-  BEFORE UPDATE ON patient_activity_records
+DROP TRIGGER IF EXISTS trg_activity_records_updated_at ON patient_activity_records;
+
+CREATE TRIGGER trg_activity_records_updated_at BEFORE UPDATE ON patient_activity_records
   FOR EACH ROW EXECUTE FUNCTION set_activity_records_updated_at();
 
 -- 啟用 RLS
@@ -94,8 +95,9 @@ ALTER TABLE patient_activity_records ENABLE ROW LEVEL SECURITY;
 
 -- RLS 政策：anon 與 authenticated 全權限（比照院友主表 / 喉管護理記錄）
 DROP POLICY IF EXISTS "Allow all access patient_activity_records" ON patient_activity_records;
-CREATE POLICY "Allow all access patient_activity_records"
-  ON patient_activity_records FOR ALL TO anon, authenticated
+DROP POLICY IF EXISTS "Allow all access patient_activity_records" ON patient_activity_records;
+
+CREATE POLICY "Allow all access patient_activity_records" ON patient_activity_records FOR ALL TO anon, authenticated
   USING (true) WITH CHECK (true);
 
 COMMENT ON TABLE patient_activity_records IS '院友活動記錄表：對應院友健康教育/活動記錄表，每位院友每天一列，記錄當天參與的活動類別';

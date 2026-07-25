@@ -15,20 +15,23 @@ CREATE TABLE IF NOT EXISTS incident_preset_options (
 ALTER TABLE incident_preset_options ENABLE ROW LEVEL SECURITY;
 
 -- Allow all authenticated users to read
-CREATE POLICY "Allow authenticated to read incident_preset_options"
-  ON incident_preset_options
+DROP POLICY IF EXISTS "Allow authenticated to read incident_preset_options" ON incident_preset_options;
+
+CREATE POLICY "Allow authenticated to read incident_preset_options" ON incident_preset_options
   FOR SELECT
   USING (auth.role() = 'authenticated');
 
 -- Allow all authenticated users to insert
-CREATE POLICY "Allow authenticated to insert incident_preset_options"
-  ON incident_preset_options
+DROP POLICY IF EXISTS "Allow authenticated to insert incident_preset_options" ON incident_preset_options;
+
+CREATE POLICY "Allow authenticated to insert incident_preset_options" ON incident_preset_options
   FOR INSERT
   WITH CHECK (auth.role() = 'authenticated');
 
 -- Allow all authenticated users to delete
-CREATE POLICY "Allow authenticated to delete incident_preset_options"
-  ON incident_preset_options
+DROP POLICY IF EXISTS "Allow authenticated to delete incident_preset_options" ON incident_preset_options;
+
+CREATE POLICY "Allow authenticated to delete incident_preset_options" ON incident_preset_options
   FOR DELETE
   USING (auth.role() = 'authenticated');
 

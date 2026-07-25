@@ -85,41 +85,52 @@ ALTER TABLE user_ocr_prompts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ocr_recognition_logs ENABLE ROW LEVEL SECURITY;
 
 -- OCR prompt模板政策：所有認證用戶可讀取
-CREATE POLICY "Anyone can view prompt templates"
-  ON ocr_prompt_templates FOR SELECT
+DROP POLICY IF EXISTS "Anyone can view prompt templates" ON ocr_prompt_templates;
+
+CREATE POLICY "Anyone can view prompt templates" ON ocr_prompt_templates FOR SELECT
   TO authenticated
   USING (true);
 
 -- 用戶OCR prompt政策：用戶只能存取自己的prompt
-CREATE POLICY "Users can view own prompts"
-  ON user_ocr_prompts FOR SELECT
+DROP POLICY IF EXISTS "Users can view own prompts" ON user_ocr_prompts;
+
+CREATE POLICY "Users can view own prompts" ON user_ocr_prompts FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own prompts"
-  ON user_ocr_prompts FOR INSERT
+DROP POLICY IF EXISTS "Users can insert own prompts" ON user_ocr_prompts;
+
+
+CREATE POLICY "Users can insert own prompts" ON user_ocr_prompts FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own prompts"
-  ON user_ocr_prompts FOR UPDATE
+DROP POLICY IF EXISTS "Users can update own prompts" ON user_ocr_prompts;
+
+
+CREATE POLICY "Users can update own prompts" ON user_ocr_prompts FOR UPDATE
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete own prompts"
-  ON user_ocr_prompts FOR DELETE
+DROP POLICY IF EXISTS "Users can delete own prompts" ON user_ocr_prompts;
+
+
+CREATE POLICY "Users can delete own prompts" ON user_ocr_prompts FOR DELETE
   TO authenticated
   USING (auth.uid() = user_id);
 
 -- OCR識別記錄政策：用戶只能存取自己的記錄
-CREATE POLICY "Users can view own logs"
-  ON ocr_recognition_logs FOR SELECT
+DROP POLICY IF EXISTS "Users can view own logs" ON ocr_recognition_logs;
+
+CREATE POLICY "Users can view own logs" ON ocr_recognition_logs FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own logs"
-  ON ocr_recognition_logs FOR INSERT
+DROP POLICY IF EXISTS "Users can insert own logs" ON ocr_recognition_logs;
+
+
+CREATE POLICY "Users can insert own logs" ON ocr_recognition_logs FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 

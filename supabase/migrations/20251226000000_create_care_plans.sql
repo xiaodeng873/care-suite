@@ -20,9 +20,9 @@ CREATE TABLE IF NOT EXISTS problem_library (
 );
 
 -- 問題庫索引
-CREATE INDEX idx_problem_library_category ON problem_library(category);
-CREATE INDEX idx_problem_library_is_active ON problem_library(is_active);
-CREATE UNIQUE INDEX idx_problem_library_code ON problem_library(code);
+CREATE INDEX IF NOT EXISTS idx_problem_library_category ON problem_library(category);
+CREATE INDEX IF NOT EXISTS idx_problem_library_is_active ON problem_library(is_active);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_problem_library_code ON problem_library(code);
 
 -- ============================================
 -- 2. 護理需要項目表 (Nursing Need Items)
@@ -72,11 +72,11 @@ CREATE TABLE IF NOT EXISTS care_plans (
 );
 
 -- 計劃表索引
-CREATE INDEX idx_care_plans_patient_id ON care_plans(patient_id);
-CREATE INDEX idx_care_plans_status ON care_plans(status);
-CREATE INDEX idx_care_plans_plan_type ON care_plans(plan_type);
-CREATE INDEX idx_care_plans_parent_plan_id ON care_plans(parent_plan_id);
-CREATE INDEX idx_care_plans_plan_date ON care_plans(plan_date DESC);
+CREATE INDEX IF NOT EXISTS idx_care_plans_patient_id ON care_plans(patient_id);
+CREATE INDEX IF NOT EXISTS idx_care_plans_status ON care_plans(status);
+CREATE INDEX IF NOT EXISTS idx_care_plans_plan_type ON care_plans(plan_type);
+CREATE INDEX IF NOT EXISTS idx_care_plans_parent_plan_id ON care_plans(parent_plan_id);
+CREATE INDEX IF NOT EXISTS idx_care_plans_plan_date ON care_plans(plan_date DESC);
 
 -- ============================================
 -- 4. 照顧計劃護理需要表 (Care Plan Nursing Needs)
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS care_plan_nursing_needs (
 );
 
 -- 護理需要索引
-CREATE INDEX idx_care_plan_nursing_needs_care_plan_id ON care_plan_nursing_needs(care_plan_id);
+CREATE INDEX IF NOT EXISTS idx_care_plan_nursing_needs_care_plan_id ON care_plan_nursing_needs(care_plan_id);
 
 -- ============================================
 -- 5. 照顧計劃問題表 (Care Plan Problems)
@@ -117,9 +117,9 @@ CREATE TABLE IF NOT EXISTS care_plan_problems (
 );
 
 -- 問題明細索引
-CREATE INDEX idx_care_plan_problems_care_plan_id ON care_plan_problems(care_plan_id);
-CREATE INDEX idx_care_plan_problems_problem_library_id ON care_plan_problems(problem_library_id);
-CREATE INDEX idx_care_plan_problems_category ON care_plan_problems(problem_category);
+CREATE INDEX IF NOT EXISTS idx_care_plan_problems_care_plan_id ON care_plan_problems(care_plan_id);
+CREATE INDEX IF NOT EXISTS idx_care_plan_problems_problem_library_id ON care_plan_problems(problem_library_id);
+CREATE INDEX IF NOT EXISTS idx_care_plan_problems_category ON care_plan_problems(problem_category);
 
 -- ============================================
 -- 6. 觸發器：自動更新 updated_at
@@ -132,28 +132,38 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_care_plans_updated_at
-  BEFORE UPDATE ON care_plans
+DROP TRIGGER IF EXISTS trigger_care_plans_updated_at ON care_plans;
+
+
+CREATE TRIGGER trigger_care_plans_updated_at BEFORE UPDATE ON care_plans
   FOR EACH ROW
   EXECUTE FUNCTION update_care_plan_updated_at();
 
-CREATE TRIGGER trigger_problem_library_updated_at
-  BEFORE UPDATE ON problem_library
+DROP TRIGGER IF EXISTS trigger_problem_library_updated_at ON problem_library;
+
+
+CREATE TRIGGER trigger_problem_library_updated_at BEFORE UPDATE ON problem_library
   FOR EACH ROW
   EXECUTE FUNCTION update_care_plan_updated_at();
 
-CREATE TRIGGER trigger_nursing_need_items_updated_at
-  BEFORE UPDATE ON nursing_need_items
+DROP TRIGGER IF EXISTS trigger_nursing_need_items_updated_at ON nursing_need_items;
+
+
+CREATE TRIGGER trigger_nursing_need_items_updated_at BEFORE UPDATE ON nursing_need_items
   FOR EACH ROW
   EXECUTE FUNCTION update_care_plan_updated_at();
 
-CREATE TRIGGER trigger_care_plan_nursing_needs_updated_at
-  BEFORE UPDATE ON care_plan_nursing_needs
+DROP TRIGGER IF EXISTS trigger_care_plan_nursing_needs_updated_at ON care_plan_nursing_needs;
+
+
+CREATE TRIGGER trigger_care_plan_nursing_needs_updated_at BEFORE UPDATE ON care_plan_nursing_needs
   FOR EACH ROW
   EXECUTE FUNCTION update_care_plan_updated_at();
 
-CREATE TRIGGER trigger_care_plan_problems_updated_at
-  BEFORE UPDATE ON care_plan_problems
+DROP TRIGGER IF EXISTS trigger_care_plan_problems_updated_at ON care_plan_problems;
+
+
+CREATE TRIGGER trigger_care_plan_problems_updated_at BEFORE UPDATE ON care_plan_problems
   FOR EACH ROW
   EXECUTE FUNCTION update_care_plan_updated_at();
 
@@ -175,8 +185,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_calculate_review_due_date
-  BEFORE INSERT OR UPDATE OF plan_type, plan_date ON care_plans
+DROP TRIGGER IF EXISTS trigger_calculate_review_due_date ON care_plans;
+
+
+CREATE TRIGGER trigger_calculate_review_due_date BEFORE INSERT OR UPDATE OF plan_type, plan_date ON care_plans
   FOR EACH ROW
   EXECUTE FUNCTION calculate_review_due_date();
 
@@ -190,20 +202,29 @@ ALTER TABLE care_plan_nursing_needs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE care_plan_problems ENABLE ROW LEVEL SECURITY;
 
 -- 允許已認證用戶完整存取
-CREATE POLICY "Allow authenticated users full access to problem_library"
-  ON problem_library FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow authenticated users full access to problem_library" ON problem_library;
 
-CREATE POLICY "Allow authenticated users full access to nursing_need_items"
-  ON nursing_need_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated users full access to problem_library" ON problem_library FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users full access to care_plans"
-  ON care_plans FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow authenticated users full access to nursing_need_items" ON nursing_need_items;
 
-CREATE POLICY "Allow authenticated users full access to care_plan_nursing_needs"
-  ON care_plan_nursing_needs FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users full access to care_plan_problems"
-  ON care_plan_problems FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated users full access to nursing_need_items" ON nursing_need_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated users full access to care_plans" ON care_plans;
+
+
+CREATE POLICY "Allow authenticated users full access to care_plans" ON care_plans FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated users full access to care_plan_nursing_needs" ON care_plan_nursing_needs;
+
+
+CREATE POLICY "Allow authenticated users full access to care_plan_nursing_needs" ON care_plan_nursing_needs FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated users full access to care_plan_problems" ON care_plan_problems;
+
+
+CREATE POLICY "Allow authenticated users full access to care_plan_problems" ON care_plan_problems FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- ============================================
 -- 9. 插入預設問題庫範例資料

@@ -29,8 +29,9 @@ DROP POLICY IF EXISTS "允許已認證用戶管理院友資料" ON public.院友
 DROP POLICY IF EXISTS "允許已認證用戶讀取院友資料" ON public.院友主表;
 
 -- 重新創建完整訪問策略
-CREATE POLICY "允許已認證用戶管理院友資料"
-  ON public.院友主表
+DROP POLICY IF EXISTS "允許已認證用戶管理院友資料" ON public.院友主表;
+
+CREATE POLICY "允許已認證用戶管理院友資料" ON public.院友主表
   FOR ALL
   TO authenticated
   USING (true)
@@ -43,8 +44,10 @@ CREATE POLICY "允許已認證用戶管理院友資料"
 -- 檢查並修復 new_medication_prescriptions
 DROP POLICY IF EXISTS "允許已認證用戶管理處方" ON public.new_medication_prescriptions;
 
-CREATE POLICY "允許已認證用戶管理處方"
-  ON public.new_medication_prescriptions
+DROP POLICY IF EXISTS "允許已認證用戶管理處方" ON public.new_medication_prescriptions;
+
+
+CREATE POLICY "允許已認證用戶管理處方" ON public.new_medication_prescriptions
   FOR ALL
   TO authenticated
   USING (true)
@@ -53,8 +56,10 @@ CREATE POLICY "允許已認證用戶管理處方"
 -- 檢查並修復 medication_workflow_records
 DROP POLICY IF EXISTS "允許已認證用戶管理藥物工作流程記錄" ON public.medication_workflow_records;
 
-CREATE POLICY "允許已認證用戶管理藥物工作流程記錄"
-  ON public.medication_workflow_records
+DROP POLICY IF EXISTS "允許已認證用戶管理藥物工作流程記錄" ON public.medication_workflow_records;
+
+
+CREATE POLICY "允許已認證用戶管理藥物工作流程記錄" ON public.medication_workflow_records
   FOR ALL
   TO authenticated
   USING (true)

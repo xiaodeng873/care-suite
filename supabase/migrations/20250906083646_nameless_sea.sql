@@ -44,27 +44,34 @@ CREATE TABLE IF NOT EXISTS medication_drug_database (
 ALTER TABLE medication_drug_database ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
-CREATE POLICY "允許已認證用戶讀取藥物資料庫"
-  ON medication_drug_database
+DROP POLICY IF EXISTS "允許已認證用戶讀取藥物資料庫" ON medication_drug_database;
+
+CREATE POLICY "允許已認證用戶讀取藥物資料庫" ON medication_drug_database
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "允許已認證用戶新增藥物資料庫"
-  ON medication_drug_database
+DROP POLICY IF EXISTS "允許已認證用戶新增藥物資料庫" ON medication_drug_database;
+
+
+CREATE POLICY "允許已認證用戶新增藥物資料庫" ON medication_drug_database
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶更新藥物資料庫"
-  ON medication_drug_database
+DROP POLICY IF EXISTS "允許已認證用戶更新藥物資料庫" ON medication_drug_database;
+
+
+CREATE POLICY "允許已認證用戶更新藥物資料庫" ON medication_drug_database
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶刪除藥物資料庫"
-  ON medication_drug_database
+DROP POLICY IF EXISTS "允許已認證用戶刪除藥物資料庫" ON medication_drug_database;
+
+
+CREATE POLICY "允許已認證用戶刪除藥物資料庫" ON medication_drug_database
   FOR DELETE
   TO authenticated
   USING (true);
@@ -97,8 +104,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger
-CREATE TRIGGER update_medication_drug_database_updated_at
-  BEFORE UPDATE ON medication_drug_database
+DROP TRIGGER IF EXISTS update_medication_drug_database_updated_at ON medication_drug_database;
+
+CREATE TRIGGER update_medication_drug_database_updated_at BEFORE UPDATE ON medication_drug_database
   FOR EACH ROW
   EXECUTE FUNCTION update_medication_drug_database_updated_at();
 

@@ -104,7 +104,6 @@ export const generateIncidentReportPrintHTML = (
     const patient = reports.find(r => r.patient.院友id === parseInt(_patientIdStr))?.patient;
     if (!patient) return;
 
-    const stationCode = (patient.床號 || '').match(/^[A-Za-z]+/)?.[0] || '';
     const patientName = patient.中文姓名 || '';
     const bedNumber = patient.床號 || '';
     const gender = patient.性別 || '';
@@ -201,7 +200,6 @@ export const generateIncidentReportPrintHTML = (
       <div class="page">
         <!-- 標頭 -->
         <div class="header-section">
-          <div class="station-box">${escapeHtml(stationCode)}</div>
           <div class="title-box">
             <h1>${escapeHtml(facilityName)}</h1>
             <h2>個人意外事件記錄表</h2>
@@ -242,6 +240,7 @@ export const generateIncidentReportPrintHTML = (
 
         <!-- 頁尾 -->
         <div class="footer">
+          <div class="page-num">12</div>
           <div class="doc-code">A11D FK (11.2020)</div>
         </div>
       </div>
@@ -311,23 +310,11 @@ export const generateIncidentReportPrintHTML = (
             position: relative;
         }
 
-        .station-box {
-            border: 1.5px solid black;
-            width: 70px;
-            height: 45px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            font-weight: bold;
-            margin-right: 20px;
-            flex-shrink: 0;
-        }
+        .station-box { display: none; }
 
         .title-box {
             flex-grow: 1;
             text-align: center;
-            margin-right: 90px;
         }
 
         .title-box h1 { margin: 0; font-size: 26px; letter-spacing: 2px; }
@@ -426,6 +413,14 @@ export const generateIncidentReportPrintHTML = (
             position: relative;
             height: 30px;
             font-weight: bold;
+        }
+
+        .page-num {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 22px;
+            bottom: 0;
         }
 
         .doc-code {

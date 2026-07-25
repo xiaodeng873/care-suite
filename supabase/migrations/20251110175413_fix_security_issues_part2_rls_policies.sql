@@ -21,27 +21,34 @@ DROP POLICY IF EXISTS "Users can update own prompts" ON public.user_ocr_prompts;
 DROP POLICY IF EXISTS "Users can delete own prompts" ON public.user_ocr_prompts;
 
 -- 創建優化的新策略
-CREATE POLICY "Users can view own prompts"
-  ON public.user_ocr_prompts
+DROP POLICY IF EXISTS "Users can view own prompts" ON public.user_ocr_prompts;
+
+CREATE POLICY "Users can view own prompts" ON public.user_ocr_prompts
   FOR SELECT
   TO authenticated
   USING (user_id = (select auth.uid()));
 
-CREATE POLICY "Users can insert own prompts"
-  ON public.user_ocr_prompts
+DROP POLICY IF EXISTS "Users can insert own prompts" ON public.user_ocr_prompts;
+
+
+CREATE POLICY "Users can insert own prompts" ON public.user_ocr_prompts
   FOR INSERT
   TO authenticated
   WITH CHECK (user_id = (select auth.uid()));
 
-CREATE POLICY "Users can update own prompts"
-  ON public.user_ocr_prompts
+DROP POLICY IF EXISTS "Users can update own prompts" ON public.user_ocr_prompts;
+
+
+CREATE POLICY "Users can update own prompts" ON public.user_ocr_prompts
   FOR UPDATE
   TO authenticated
   USING (user_id = (select auth.uid()))
   WITH CHECK (user_id = (select auth.uid()));
 
-CREATE POLICY "Users can delete own prompts"
-  ON public.user_ocr_prompts
+DROP POLICY IF EXISTS "Users can delete own prompts" ON public.user_ocr_prompts;
+
+
+CREATE POLICY "Users can delete own prompts" ON public.user_ocr_prompts
   FOR DELETE
   TO authenticated
   USING (user_id = (select auth.uid()));
@@ -55,14 +62,17 @@ DROP POLICY IF EXISTS "Users can view own logs" ON public.ocr_recognition_logs;
 DROP POLICY IF EXISTS "Users can insert own logs" ON public.ocr_recognition_logs;
 
 -- 創建優化的新策略
-CREATE POLICY "Users can view own logs"
-  ON public.ocr_recognition_logs
+DROP POLICY IF EXISTS "Users can view own logs" ON public.ocr_recognition_logs;
+
+CREATE POLICY "Users can view own logs" ON public.ocr_recognition_logs
   FOR SELECT
   TO authenticated
   USING (user_id = (select auth.uid()));
 
-CREATE POLICY "Users can insert own logs"
-  ON public.ocr_recognition_logs
+DROP POLICY IF EXISTS "Users can insert own logs" ON public.ocr_recognition_logs;
+
+
+CREATE POLICY "Users can insert own logs" ON public.ocr_recognition_logs
   FOR INSERT
   TO authenticated
   WITH CHECK (user_id = (select auth.uid()));

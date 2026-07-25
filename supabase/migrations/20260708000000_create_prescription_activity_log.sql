@@ -51,14 +51,17 @@ CREATE INDEX IF NOT EXISTS idx_prescription_activity_log_group_id ON prescriptio
 ALTER TABLE prescription_activity_log ENABLE ROW LEVEL SECURITY;
 
 -- 只允許查詢與新增（審計日誌不可竄改：不提供 UPDATE / DELETE 政策）
-CREATE POLICY "Authenticated users can view prescription activity log"
-  ON prescription_activity_log
+DROP POLICY IF EXISTS "Authenticated users can view prescription activity log" ON prescription_activity_log;
+
+CREATE POLICY "Authenticated users can view prescription activity log" ON prescription_activity_log
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "Authenticated users can insert prescription activity log"
-  ON prescription_activity_log
+DROP POLICY IF EXISTS "Authenticated users can insert prescription activity log" ON prescription_activity_log;
+
+
+CREATE POLICY "Authenticated users can insert prescription activity log" ON prescription_activity_log
   FOR INSERT
   TO authenticated
   WITH CHECK (true);

@@ -6,7 +6,7 @@ export const DB_SCHEMA_SUMMARY = `
 你可以查詢或操作以下資料表（PostgreSQL）。所有欄位名稱及型態均為實際資料庫結構，請嚴格使用這些欄位名產生 SQL。
 
 ## 院友主表
-- **院友主表** (院友id integer [PK], 床號 varchar, 中文姓名 varchar, 英文姓名 varchar, 性別, 身份證號碼 varchar, 出生日期 date, 院友相片 text, 藥物敏感 jsonb, 不良藥物反應 jsonb, 感染控制 jsonb, 入住日期 date, 退住日期 date, 護理等級, 入住類型, 社會福利 jsonb, 在住狀態, 中文姓氏 text, 中文名字 text, 英文姓氏 text, 英文名字 text, station_id uuid, bed_id uuid, is_hospitalized boolean, discharge_reason text, death_date date, transfer_facility_name text, needs_medication_crushing boolean, qr_code_id text)
+- **院友主表** (院友id integer [PK], 床號 varchar, 中文姓名 varchar, 英文姓名 varchar, 性別, 身份證號碼 varchar, 出生日期 date, 院友相片 text, 藥物敏感 jsonb, 不良藥物反應 jsonb, 感染控制 jsonb, 入住日期 date, 退住日期 date, 護理等級, 入住類型, 社會福利 jsonb, 在住狀態, 中文姓氏 text, 中文名字 text, 英文姓氏 text, 英文名字 text, station_id uuid, bed_id uuid, is_hospitalized boolean, discharge_reason text, death_date date, transfer_facility_name text, needs_medication_crushing boolean, qr_code_id text, 通訊電話 varchar, 通訊地址 text, 教育程度 varchar, 從前主要職業 varchar, 宗教信仰 varchar, 婚姻狀況 varchar, 首次記錄職員姓名 varchar, 首次記錄職級 varchar, 首次記錄簽署 varchar, 首次記錄日期 date, social_status_json jsonb, medical_history_json jsonb, vaccination_records_json jsonb, medical_services_json jsonb, nursing_assessment_json jsonb)
 
 ## 院友聯絡人
 - **patient_contacts** (id uuid [PK], 院友id integer [FK→院友主表], 聯絡人姓名 varchar, 關係 varchar, 聯絡電話 varchar, 電郵 varchar, 地址 text, 備註 text, is_primary boolean, created_at, updated_at)
@@ -14,14 +14,21 @@ export const DB_SCHEMA_SUMMARY = `
 ## 院友入院記錄
 - **patient_admission_records** (id uuid [PK], patient_id integer, event_type, event_date date, event_time time, hospital_name text, hospital_ward text, hospital_bed_number text, remarks text, discharge_type, date_of_death date, time_of_death time, transfer_to_facility_name text, transfer_to_facility_address text, transfer_paths jsonb, created_at, updated_at)
 
+## 感染控制記錄
+- **infection_control_records** (id uuid [PK], patient_id integer [FK→院友主表], infection_type text, diagnosis_date date, recovery_date date, created_at, updated_at)
+  - 取代院友主表「感染控制」JSONB 陣列；查傳染病/感染控制請用此表
+
 ## 院友照護分頁
 - **patient_care_tabs** (id uuid [PK], patient_id integer, tab_type text, is_manually_added boolean, is_hidden boolean, created_at, updated_at, last_activated_at timestamptz)
 
-## 健康記錄主表
-- **健康記錄主表** (記錄id integer [PK], 院友id integer [FK→院友主表], 記錄日期 date, 記錄時間 time, 記錄類型, 血壓收縮壓 integer, 血壓舒張壓 integer, 脈搏 integer, 體溫 numeric, 血含氧量 integer, 呼吸頻率 integer, 血糖值 numeric, 體重 numeric, 備註 text, 記錄人員 varchar, task_id uuid)
+## 健康監測記錄（取代舊的 健康記錄主表）
+- **健康監測記錄** (記錄id uuid [PK], 院友id integer [FK→院友主表], 任務id uuid [FK→patient_health_tasks], 記錄日期 date, 記錄時間 time, 監測類型 health_task_type, 數值 decimal(6,2), 數值_副 decimal(6,2), 備註 text, 記錄人員 varchar(50), 建立時間 timestamptz)
+  - 監測類型合法值：'血壓'、'脈搏'、'體溫'、'血含氧量'、'呼吸'、'血糖值'、'體重'
+  - 血壓：數值 = 收縮壓，數值_副 = 舒張壓；其他類型的 數值_副 為 NULL
 
-## 已刪除健康記錄
-- **deleted_health_records** (id uuid [PK], original_record_id integer, 院友id integer, 記錄日期 date, 記錄時間 time, 記錄類型, 血壓收縮壓 integer, 血壓舒張壓 integer, 脈搏 integer, 體溫 numeric, 血含氧量 integer, 呼吸頻率 integer, 血糖值 numeric, 體重 numeric, 備註 text, 記錄人員 varchar, created_at, deleted_at, deleted_by varchar, deletion_reason varchar)
+## 健康監測會話視圖
+- **健康監測_會話視圖** (院友id, 院友姓名, 院友床號, 記錄日期, 記錄時間, 任務id, 測量值組 jsonb, 備註, 記錄人員, 建立時間, 記錄id_列表)
+  - 按 (院友, 日期, 時間, 任務) 合併同一時段的多筆 narrow rows
 
 ## 健康評估
 - **health_assessments** (id uuid [PK], patient_id integer, smoking_habit text, drinking_habit text, daily_activities jsonb, nutrition_diet jsonb, vision_hearing jsonb, communication_ability text, consciousness_cognition text, bowel_bladder_control jsonb, emotional_expression text, remarks text, assessment_date date, assessor text, next_due_date date, smoking_years_quit text, smoking_quantity text, drinking_years_quit text, drinking_quantity text, communication_other text, consciousness_other text, emotional_other text, treatment_items jsonb, toilet_training boolean, behavior_expression text, status, archived_at, created_at, updated_at)
@@ -135,7 +142,7 @@ export const DB_SCHEMA_SUMMARY = `
 ## 常用查詢提示
 - 查今天需要覆診的院友：SELECT r.*, p."中文姓名", p."床號" FROM "覆診安排主表" r JOIN "院友主表" p ON r."院友id" = p."院友id" WHERE r."覆診日期" = CURRENT_DATE
 - 查院友聯絡人：SELECT * FROM patient_contacts WHERE "院友id" = ?（注意：欄位名是中文「院友id」而非 patient_id）
-- 查健康記錄：SELECT * FROM "健康記錄主表" WHERE "院友id" = ? ORDER BY "記錄日期" DESC, "記錄時間" DESC（PK 是「記錄id」，血壓欄位是「血壓收縮壓」「血壓舒張壓」）
+- 查健康監測記錄：SELECT * FROM "健康監測記錄" WHERE "院友id" = ? AND "監測類型" = '血壓' ORDER BY "記錄日期" DESC, "記錄時間" DESC LIMIT 1（血壓：數值=收縮壓，數值_副=舒張壓）
 - 查診斷記錄：SELECT * FROM diagnosis_records WHERE patient_id = ?（欄位是 diagnosis_item、diagnosis_unit，不是 diagnosis、hospital）
 - 查疫苗記錄：SELECT * FROM vaccination_records WHERE patient_id = ?（欄位是 vaccine_item、vaccination_unit）
 - 查藥物資料庫：SELECT * FROM medication_drug_database（欄位是 drug_name，不是 drug_name_zh / drug_name_en）
@@ -152,14 +159,14 @@ export const DB_SCHEMA_SUMMARY = `
 - **年檢** / **年度體檢** / **annual checkup** / **annual medical** / **PE** / **physical exam** → 查 annual_health_checkups
 
 ### 生命表徵 / 健康量度
-- **VS** / **vital signs** / **生命表徵** / **度VS** → 查「健康記錄主表」WHERE "記錄類型" = '生命表徵'
-- **BP** / **血壓** / **度血壓** / **量血壓** → 查「健康記錄主表」的「血壓收縮壓」「血壓舒張壓」，WHERE "記錄類型" = '生命表徵'
-- **H'stix** / **Hstix** / **血糖** / **BSL** / **blood sugar** / **度糖** / **篤手指** → 查「健康記錄主表」WHERE "記錄類型" = '血糖控制'，欄位「血糖值」
-- **BT** / **body temp** / **體溫** / **度溫** / **探熱** → 查「健康記錄主表」的「體溫」，WHERE "記錄類型" = '生命表徵'
-- **SpO2** / **blood oxygen** / **血含氧量** / **血氧** / **氧飽和度** → 查「健康記錄主表」的「血含氧量」
-- **HR** / **heart rate** / **pulse** / **脈搏** / **心跳** → 查「健康記錄主表」的「脈搏」
-- **RR** / **respiratory rate** / **呼吸** / **呼吸頻率** → 查「健康記錄主表」的「呼吸頻率」
-- **BW** / **body weight** / **體重** / **磅重** / **度磅** → 查「健康記錄主表」WHERE "記錄類型" = '體重控制'，欄位「體重」
+- **VS** / **vital signs** / **生命表徵** / **度VS** → 查「健康監測記錄」（多種監測類型同時存在時，用 健康監測_會話視圖 合併顯示）
+- **BP** / **血壓** / **度血壓** / **量血壓** → 查「健康監測記錄」 WHERE "監測類型" = '血壓'；數值 = 收縮壓，數值_副 = 舒張壓
+- **H'stix** / **Hstix** / **血糖** / **BSL** / **blood sugar** / **度糖** / **篤手指** → 查「健康監測記錄」 WHERE "監測類型" = '血糖值'，欄位「數值」
+- **BT** / **body temp** / **體溫** / **度溫** / **探熱** → 查「健康監測記錄」 WHERE "監測類型" = '體溫'，欄位「數值」
+- **SpO2** / **blood oxygen** / **血含氧量** / **血氧** / **氧飽和度** → 查「健康監測記錄」 WHERE "監測類型" = '血含氧量'，欄位「數值」
+- **HR** / **heart rate** / **pulse** / **脈搏** / **心跳** → 查「健康監測記錄」 WHERE "監測類型" = '脈搏'，欄位「數值」
+- **RR** / **respiratory rate** / **呼吸** / **呼吸頻率** → 查「健康監測記錄」 WHERE "監測類型" = '呼吸'，欄位「數值」
+- **BW** / **body weight** / **體重** / **磅重** / **度磅** → 查「健康監測記錄」 WHERE "監測類型" = '體重'，欄位「數值」
 
 ### 藥物相關
 - **Rx** / **藥物** / **處方** / **開藥** / **藥單** / **medication** / **prescription** → 查 new_medication_prescriptions
@@ -212,7 +219,7 @@ export const DB_SCHEMA_SUMMARY = `
 - **院友主表.護理等級**：'半護理'、'全護理'
 - **院友主表.入住類型**：'私位'、'院舍卷'、'暫住'、'買位'
 - **覆診安排主表.狀態**：'尚未安排'、'已安排'、'已完成'、'取消'、'改期'
-- **健康記錄主表.記錄類型**：'生命表徵'、'血糖控制'、'體重控制'
+- **health_task_type**（用於 patient_health_tasks.health_record_type 及 健康監測記錄.監測類型）：'血壓'、'脈搏'、'體溫'、'血含氧量'、'呼吸'、'血糖值'、'體重'、'導尿管更換'、'鼻胃飼管更換'、'傷口換症'、'氧氣喉管清洗/更換'、'約束物品同意書'、'年度體檢'、'藥物自存同意書'、'晚晴計劃'
 `;
 export const SYSTEM_TABLES = [
   'user_profiles',

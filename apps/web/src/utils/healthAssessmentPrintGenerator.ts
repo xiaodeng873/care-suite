@@ -165,7 +165,7 @@ const generateP1 = (
     : parseTextToArray(da.limb_movement_right);
 
   const logoHtml = logoDataUri
-    ? `<img src="${escapeHtml(logoDataUri)}" class="facility-logo" alt="院舍標誌">`
+    ? `<div class="logo-box"><img src="${escapeHtml(logoDataUri)}" class="facility-logo" alt="院舍標誌"></div>`
     : '';
 
   return `
@@ -200,7 +200,7 @@ const generateP1 = (
             <col class="col-m"><col class="col-s"><col class="col-e" span="6">
           </colgroup>
 
-          <tr style="height: 22px;">
+          <tr style="height: 23px;">
             <th colspan="2">觀察日期</th>
             ${dateCells(assessment.assessment_date)}
           </tr>
@@ -247,7 +247,7 @@ const generateP1 = (
   `;
 };
 
-const generateP2 = (assessment: HealthAssessment): string => {
+const generateP2 = (assessment: HealthAssessment, facilityName: string, logoDataUri?: string | null): string => {
   const nd = assessment.nutrition_diet || {};
   const vh = assessment.vision_hearing || {};
   const condition = nd.condition || '';
@@ -264,9 +264,18 @@ const generateP2 = (assessment: HealthAssessment): string => {
     ? (weightNum / (heightNum * heightNum)).toFixed(1)
     : '';
 
+  const logoHtml = logoDataUri
+    ? `<div class="logo-box"><img src="${escapeHtml(logoDataUri)}" class="facility-logo" alt="院舍標誌"></div>`
+    : '';
+
   return `
     <div class="page-p2 print-page">
       <div class="container">
+        <div class="title-box">
+          <h1>${escapeHtml(facilityName)}</h1>
+          <h2>院友健康評估及記錄(3 頁)</h2>
+          ${logoHtml}
+        </div>
         <div class="section-title">4. 飲食營養</div>
         <table>
           <colgroup>
@@ -413,7 +422,7 @@ const generateP2 = (assessment: HealthAssessment): string => {
   `;
 };
 
-const generateP3 = (assessment: HealthAssessment): string => {
+const generateP3 = (assessment: HealthAssessment, facilityName: string, logoDataUri?: string | null): string => {
   const bb = assessment.bowel_bladder_control || {};
   const emotional = parseTextToArray(assessment.emotional_expression);
   const behavior = parseTextToArray(assessment.behavior_expression);
@@ -425,9 +434,18 @@ const generateP3 = (assessment: HealthAssessment): string => {
     return `<tr><td class="label-s">${option}</td>${checkboxCells(behavior.includes(option))}</tr>`;
   }).join('');
 
+  const logoHtml = logoDataUri
+    ? `<div class="logo-box"><img src="${escapeHtml(logoDataUri)}" class="facility-logo" alt="院舍標誌"></div>`
+    : '';
+
   return `
     <div class="page-p3 print-page">
       <div class="container">
+        <div class="title-box">
+          <h1>${escapeHtml(facilityName)}</h1>
+          <h2>院友健康評估及記錄(3 頁)</h2>
+          ${logoHtml}
+        </div>
         <div class="section-title">7. 大小便自制能力</div>
         <table>
           <colgroup>
@@ -568,25 +586,26 @@ export const generateHealthAssessmentHtml = (
       font-size: 13px;
     }
     .page-p1 .container { width: 100%; box-sizing: border-box; }
-    .page-p1 .title-box { position: relative; text-align: center; margin-top: -5px; margin-bottom: 5px; }
-    .page-p1 .title-box h1 { margin: 0; font-size: 22px; font-weight: bold; }
-    .page-p1 .title-box h2 { margin: 0; font-size: 18px; font-weight: bold; }
-    .page-p1 .facility-logo { position: absolute; top: 0; right: 0; max-height: 30px; max-width: 120px; }
+    .page-p1 .title-box { position: relative; text-align: center; margin-bottom: 14px; }
+    .page-p1 .title-box h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+    .page-p1 .title-box h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
+    .page-p1 .logo-box { position: absolute; top: 0; right: 0; width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
+    .page-p1 .facility-logo { max-width: 100%; max-height: 100%; object-fit: contain; }
     .page-p1 .info-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-weight: bold; }
     .page-p1 .db-line-input { border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 13px; }
     .page-p1 .habit-row { font-weight: bold; line-height: 1.2; margin-bottom: 4px; }
     .page-p1 .db-checkbox { width: 13px; height: 13px; vertical-align: middle; cursor: pointer; }
     .page-p1 .opt-span { margin-right: 8px; white-space: nowrap; font-size: 12px; }
     .page-p1 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    .page-p1 th, .page-p1 td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0px 1px; height: 19.5px; font-size: 11.5px; }
+    .page-p1 th, .page-p1 td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0px 1px; height: 22px; font-size: 11.5px; }
     .page-p1 .col-m { width: 8.5mm; font-weight: bold; line-height: 1.0; font-size: 11px; }
     .page-p1 .col-s { width: 26mm; font-weight: bold; text-align: left; padding-left: 2px; }
     .page-p1 .col-e { width: auto; }
     .page-p1 .db-text-cell { width: 100%; border: none; background: transparent; font-family: inherit; text-align: center; outline: none; font-size: 11px; }
     .page-p1 .side-opt { display: inline-flex; align-items: center; margin: 0 1px; font-size: 10px; font-weight: normal; }
-    .page-p1 .footer { margin-top: 5px; display: flex; justify-content: flex-end; position: relative; height: 20px; font-weight: bold; }
-    .page-p1 .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16px; bottom: 0; }
-    .page-p1 .doc-code { font-size: 10px; }
+    .page-p1 .footer { margin-top: 5px; display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; }
+    .page-p1 .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
+    .page-p1 .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
     .page-p1 tr { page-break-inside: avoid; }
 
     /* ── P2 ── */
@@ -598,6 +617,11 @@ export const generateHealthAssessmentHtml = (
       color: #000;
     }
     .page-p2 .container { width: 100%; box-sizing: border-box; }
+    .page-p2 .title-box { position: relative; text-align: center; margin-bottom: 10px; }
+    .page-p2 .title-box h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+    .page-p2 .title-box h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
+    .page-p2 .logo-box { position: absolute; top: 0; right: 0; width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
+    .page-p2 .facility-logo { max-width: 100%; max-height: 100%; object-fit: contain; }
     .page-p2 .section-title { font-size: 18px; font-weight: bold; margin: 8px 0 3px 20px; }
     .page-p2 table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 10px; }
     .page-p2 th, .page-p2 td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0px; height: 24px; font-size: 14px; }
@@ -607,9 +631,9 @@ export const generateHealthAssessmentHtml = (
     .page-p2 .col-eval { width: auto; }
     .page-p2 .col-eval-6 { width: auto; }
     .page-p2 .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 12px; text-align: center; outline: none; display: block; box-sizing: border-box; }
-    .page-p2 .footer { display: flex; justify-content: flex-end; position: relative; height: 25px; font-weight: bold; margin-top: 5px; }
-    .page-p2 .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 20px; bottom: 0; }
-    .page-p2 .doc-code { font-size: 10px; align-self: flex-end; }
+    .page-p2 .footer { display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; margin-top: 5px; }
+    .page-p2 .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
+    .page-p2 .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
 
     /* ── P3 ── */
     .page-p3 {
@@ -620,6 +644,11 @@ export const generateHealthAssessmentHtml = (
       color: #000;
     }
     .page-p3 .container { width: 100%; box-sizing: border-box; }
+    .page-p3 .title-box { position: relative; text-align: center; margin-bottom: 10px; }
+    .page-p3 .title-box h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+    .page-p3 .title-box h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
+    .page-p3 .logo-box { position: absolute; top: 0; right: 0; width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
+    .page-p3 .facility-logo { max-width: 100%; max-height: 100%; object-fit: contain; }
     .page-p3 .section-title { font-size: 15px; font-weight: bold; margin: 10px 0 2px 20px; }
     .page-p3 table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 0; }
     .page-p3 th, .page-p3 td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 2px; height: 23px; font-size: 12px; }
@@ -629,15 +658,15 @@ export const generateHealthAssessmentHtml = (
     .page-p3 .sign-label { text-align: left; vertical-align: top; padding: 4px; line-height: 1.3; }
     .page-p3 .table-gap { height: 8px; }
     .page-p3 .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 12px; text-align: center; outline: none; }
-    .page-p3 .footer { display: flex; justify-content: flex-end; position: relative; height: 25px; font-weight: bold; margin-top: 10px; }
-    .page-p3 .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 20px; bottom: 0; }
-    .page-p3 .doc-code { font-size: 10px; align-self: flex-end; }
+    .page-p3 .footer { display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; margin-top: 10px; }
+    .page-p3 .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
+    .page-p3 .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
   </style>
 </head>
 <body>
   ${generateP1(assessment, patient, facilityName, logoDataUri)}
-  ${generateP2(assessment)}
-  ${generateP3(assessment)}
+  ${generateP2(assessment, facilityName, logoDataUri)}
+  ${generateP3(assessment, facilityName, logoDataUri)}
 </body>
 </html>`;
 };

@@ -109,8 +109,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 創建觸發器
 DROP TRIGGER IF EXISTS trigger_auto_archive_healed_wound ON wound_assessments;
-CREATE TRIGGER trigger_auto_archive_healed_wound
-  BEFORE UPDATE ON wound_assessments
+DROP TRIGGER IF EXISTS trigger_auto_archive_healed_wound ON wound_assessments;
+
+CREATE TRIGGER trigger_auto_archive_healed_wound BEFORE UPDATE ON wound_assessments
   FOR EACH ROW
   EXECUTE FUNCTION auto_archive_healed_wound_assessment();
 

@@ -19,48 +19,59 @@ VALUES ('templates', 'templates', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Allow authenticated users to upload files to templates bucket
-CREATE POLICY "允許已認證用戶上傳範本檔案"
-ON storage.objects FOR INSERT
+DROP POLICY IF EXISTS "允許已認證用戶上傳範本檔案" ON storage.objects;
+
+CREATE POLICY "允許已認證用戶上傳範本檔案" ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (bucket_id = 'templates');
 
 -- Allow authenticated users to read files from templates bucket
-CREATE POLICY "允許已認證用戶讀取範本檔案"
-ON storage.objects FOR SELECT
+DROP POLICY IF EXISTS "允許已認證用戶讀取範本檔案" ON storage.objects;
+
+CREATE POLICY "允許已認證用戶讀取範本檔案" ON storage.objects FOR SELECT
 TO authenticated
 USING (bucket_id = 'templates');
 
 -- Allow authenticated users to delete files from templates bucket
-CREATE POLICY "允許已認證用戶刪除範本檔案"
-ON storage.objects FOR DELETE
+DROP POLICY IF EXISTS "允許已認證用戶刪除範本檔案" ON storage.objects;
+
+CREATE POLICY "允許已認證用戶刪除範本檔案" ON storage.objects FOR DELETE
 TO authenticated
 USING (bucket_id = 'templates');
 
 -- Allow authenticated users to update files in templates bucket
-CREATE POLICY "允許已認證用戶更新範本檔案"
-ON storage.objects FOR UPDATE
+DROP POLICY IF EXISTS "允許已認證用戶更新範本檔案" ON storage.objects;
+
+CREATE POLICY "允許已認證用戶更新範本檔案" ON storage.objects FOR UPDATE
 TO authenticated
 USING (bucket_id = 'templates')
 WITH CHECK (bucket_id = 'templates');
 
 -- Database policies for templates_metadata table
-CREATE POLICY "允許已認證用戶新增範本元數據"
-ON templates_metadata FOR INSERT
+DROP POLICY IF EXISTS "允許已認證用戶新增範本元數據" ON templates_metadata;
+
+CREATE POLICY "允許已認證用戶新增範本元數據" ON templates_metadata FOR INSERT
 TO authenticated
 WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶讀取範本元數據"
-ON templates_metadata FOR SELECT
+DROP POLICY IF EXISTS "允許已認證用戶讀取範本元數據" ON templates_metadata;
+
+
+CREATE POLICY "允許已認證用戶讀取範本元數據" ON templates_metadata FOR SELECT
 TO authenticated
 USING (true);
 
-CREATE POLICY "允許已認證用戶更新範本元數據"
-ON templates_metadata FOR UPDATE
+DROP POLICY IF EXISTS "允許已認證用戶更新範本元數據" ON templates_metadata;
+
+
+CREATE POLICY "允許已認證用戶更新範本元數據" ON templates_metadata FOR UPDATE
 TO authenticated
 USING (true)
 WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶刪除範本元數據"
-ON templates_metadata FOR DELETE
+DROP POLICY IF EXISTS "允許已認證用戶刪除範本元數據" ON templates_metadata;
+
+
+CREATE POLICY "允許已認證用戶刪除範本元數據" ON templates_metadata FOR DELETE
 TO authenticated
 USING (true);

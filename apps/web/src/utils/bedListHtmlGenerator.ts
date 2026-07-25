@@ -106,18 +106,26 @@ export function generateBedListHtml(input: BedListInput): string {
   const scM = care('自理', '男'),   scF = care('自理', '女');
 
   /* ── 3. 版面自適應（per-row height） ── */
-  const HDR_MM     = 6.5;
-  const BED_ROW_MM = 5.0;
-  const GAP        = 1.5;
+  const HDR_MM         = 6.5;
+  const BED_ROW_MM     = 5.0;
+  const BED_ROW_INF_MM = 8.0;  // 有感染控制項目時加高，讓 7px 小字可折 2 行
+  const GAP            = 1.5;
   // 表頭 ~20mm + 統計欄 ~16mm + 間距 2×2.2mm = ~40.4mm
-  const AVAIL_H    = 197 - 40;
+  const AVAIL_H        = 197 - 40;
+
+  function getBedRowHeight(bed: BedListBed): number {
+    return bed.patient?.infectionControl && bed.patient.infectionControl.length > 0 ? BED_ROW_INF_MM : BED_ROW_MM;
+  }
+  function getRoomHeight(roomBeds: BedListBed[]): number {
+    return HDR_MM + roomBeds.reduce((sum, b) => sum + getBedRowHeight(b), 0) + 0.5;
+  }
 
   function totalCardH(c: number): number {
     let sum = 0;
     for (let i = 0; i < rooms.length; i += c) {
       const rowRooms = rooms.slice(i, i + c);
-      const rowMax = Math.max(...rowRooms.map(([, bs]) => bs.length), 1);
-      sum += HDR_MM + rowMax * BED_ROW_MM + 0.5;
+      const rowMax = Math.max(...rowRooms.map(([, bs]) => getRoomHeight(bs)), HDR_MM + BED_ROW_MM + 0.5);
+      sum += rowMax;
     }
     const rowCount = Math.ceil(rooms.length / c);
     return sum + (rowCount - 1) * GAP;
@@ -136,16 +144,26 @@ export function generateBedListHtml(input: BedListInput): string {
   /* ── 5. 渲染床行 ── */
   const renderBedRow = (bed: BedListBed, idx: number): string => {
     const alt = idx % 2 === 1 ? ' br-alt' : '';
+    const rowH = getBedRowHeight(bed);
     if (!bed.patient) {
-      return `<div class="br br-e${alt}"><span class="bnum-e">${stripCodePrefix(bed.bed_number)}</span><span class="bempty-tag">未入住</span></div>`;
+      return `<div class="br br-e${alt}" style="height:${rowH.toFixed(1)}mm"><span class="bnum-e">${stripCodePrefix(bed.bed_number)}</span><span class="bempty-tag">未入住</span></div>`;
     }
     const lbl = typeLabel(bed.patient.admissionType);
     const cls = badgeClass(bed.patient.admissionType);
-    // 感染控制項目顯示（放在姓名左邊）
+    // 感染控制項目：獨立第二行，靠左，小字，可折 2 行
     const infectionCtrlHtml = bed.patient.infectionControl && bed.patient.infectionControl.length > 0
-      ? `<span class="binf">${bed.patient.infectionControl.join('/')}</span>`
+      ? `<div class="binf-line"><span class="binf">${bed.patient.infectionControl.join('/')}</span></div>`
       : '';
-    return `<div class="br${alt}"><span class="bnum">${stripCodePrefix(bed.bed_number)}</span>${cls ? `<span class="${cls}">${lbl}</span>` : ''}${infectionCtrlHtml}<span class="bname">${bed.patient.name}</span></div>`;
+    return `<div class="br${alt}" style="height:${rowH.toFixed(1)}mm">
+  <div class="br-left">
+    <span class="bnum">${stripCodePrefix(bed.bed_number)}</span>
+    ${cls ? `<span class="${cls}">${lbl}</span>` : ''}
+  </div>
+  <div class="br-right">
+    <div class="bname-line"><span class="bname">${bed.patient.name}</span></div>
+    ${infectionCtrlHtml}
+  </div>
+</div>`;
   };
 
   /* ── 6. 渲染房間卡片 ── */
@@ -158,11 +176,10 @@ export function generateBedListHtml(input: BedListInput): string {
   const cardRowsHtml: string[] = [];
   for (let i = 0; i < rooms.length; i += cols) {
     const rowRooms = rooms.slice(i, i + cols);
-    const rowMax   = Math.max(...rowRooms.map(([, bs]) => bs.length), 1);
-    const rowHmm   = HDR_MM + rowMax * BED_ROW_MM + 0.5;
+    const rowMax   = Math.max(...rowRooms.map(([, bs]) => getRoomHeight(bs)), HDR_MM + BED_ROW_MM + 0.5);
     const phantoms = Array(cols - rowRooms.length).fill('<div class="rc rc-ph"></div>').join('');
     cardRowsHtml.push(
-      `<div class="crow" style="height:${rowHmm.toFixed(1)}mm">${rowRooms.map(renderRoom).join('')}${phantoms}</div>`
+      `<div class="crow" style="height:${rowMax.toFixed(1)}mm">${rowRooms.map(renderRoom).join('')}${phantoms}</div>`
     );
   }
 
@@ -305,25 +322,20 @@ body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-se
 /* 床位列 */
 .rbed { flex:1; display:flex; flex-direction:column; overflow:hidden; }
 .rsp { flex:1; min-height:0; }
-.br { display:flex; align-items:center; gap:3px; padding:0 4px; border-top:1px solid #f1f5f9; height:${BED_ROW_MM}mm; flex-shrink:0; background:#fff; overflow:hidden; }
+.br { display:flex; align-items:stretch; gap:3px; padding:0 4px; border-top:1px solid #f1f5f9; flex-shrink:0; background:#fff; overflow:hidden; }
 .br:first-child { border-top:none; }
 .br-alt { background:#f9fafb; }
-.br-e {
-  background: repeating-linear-gradient(
-    -45deg,
-    #f8f8f8,
-    #f8f8f8 3px,
-    #eff0f1 3px,
-    #eff0f1 7px
-  );
-  border-top-color:#e5e7eb;
-}
+.br-e { align-items:center; background: repeating-linear-gradient(-45deg, #f8f8f8, #f8f8f8 3px, #eff0f1 3px, #eff0f1 7px); border-top-color:#e5e7eb; }
 .br-e.br-alt { filter:brightness(.97); }
+.br-left { display:flex; align-items:center; gap:3px; flex-shrink:0; }
+.br-right { flex:1; display:flex; flex-direction:column; justify-content:center; min-width:0; }
+.bname-line { display:flex; justify-content:flex-end; align-items:center; line-height:1.1; }
+.binf-line { display:flex; justify-content:flex-end; align-items:center; line-height:1.1; }
 .bnum-e { font-size:12px; color:#9ca3af; flex-shrink:0; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .bempty-tag { font-size:12px; font-weight:600; color:#9ca3af; background:#fff; border:1px solid #d1d5db; border-radius:3px; padding:0 4px; margin-left:auto; letter-spacing:.3px; }
 .bnum { font-size:12px; color:#6b7280; flex-shrink:0; white-space:nowrap; font-variant-numeric:tabular-nums; font-weight:600; }
-.binf { font-size:10px; color:#dc2626; font-weight:600; flex-shrink:0; white-space:nowrap; }
-.bname { flex:1; font-size:13.5px; font-weight:600; color:#111827; text-align:right; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-left:3px; }
+.binf { font-size:7px; color:#dc2626; font-weight:600; line-height:1.1; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.bname { font-size:13.5px; font-weight:600; color:#111827; text-align:right; white-space:nowrap; line-height:1.1; }
 .bname-e { flex:1; }
 
 /* 入住類型小標籤 */

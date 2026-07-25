@@ -51,9 +51,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_wounds_patient_wound_code ON wounds(patien
 ALTER TABLE wounds ENABLE ROW LEVEL SECURITY;
 
 -- 創建 RLS 策略
+DROP POLICY IF EXISTS "允許已認證用戶讀取傷口" ON wounds;
+
 CREATE POLICY "允許已認證用戶讀取傷口" ON wounds FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "允許已認證用戶新增傷口" ON wounds;
+
 CREATE POLICY "允許已認證用戶新增傷口" ON wounds FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "允許已認證用戶更新傷口" ON wounds;
+
 CREATE POLICY "允許已認證用戶更新傷口" ON wounds FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "允許已認證用戶刪除傷口" ON wounds;
+
 CREATE POLICY "允許已認證用戶刪除傷口" ON wounds FOR DELETE TO authenticated USING (true);
 
 -- ============================================
@@ -220,8 +228,9 @@ $$ language 'plpgsql';
 
 -- 為 wounds 表創建觸發器
 DROP TRIGGER IF EXISTS update_wounds_updated_at ON wounds;
-CREATE TRIGGER update_wounds_updated_at
-  BEFORE UPDATE ON wounds
+DROP TRIGGER IF EXISTS update_wounds_updated_at ON wounds;
+
+CREATE TRIGGER update_wounds_updated_at BEFORE UPDATE ON wounds
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
@@ -345,8 +354,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS set_wound_next_assessment ON wounds;
-CREATE TRIGGER set_wound_next_assessment
-  BEFORE INSERT OR UPDATE ON wounds
+DROP TRIGGER IF EXISTS set_wound_next_assessment ON wounds;
+
+CREATE TRIGGER set_wound_next_assessment BEFORE INSERT OR UPDATE ON wounds
   FOR EACH ROW
   EXECUTE FUNCTION set_next_assessment_due();
 
@@ -392,8 +402,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS update_wound_on_assessment ON wound_assessments;
-CREATE TRIGGER update_wound_on_assessment
-  AFTER INSERT OR UPDATE ON wound_assessments
+DROP TRIGGER IF EXISTS update_wound_on_assessment ON wound_assessments;
+
+CREATE TRIGGER update_wound_on_assessment AFTER INSERT OR UPDATE ON wound_assessments
   FOR EACH ROW
   WHEN (NEW.wound_id IS NOT NULL)
   EXECUTE FUNCTION update_wound_after_assessment();

@@ -22,7 +22,10 @@
 */
 
 -- Create log type enum
-CREATE TYPE log_type_enum AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'log_type_enum') THEN
+    CREATE TYPE log_type_enum AS ENUM (
   '日常護理',
   '文件簽署', 
   '入院/出院',
@@ -32,6 +35,8 @@ CREATE TYPE log_type_enum AS ENUM (
   '覆診',
   '其他'
 );
+  END IF;
+END $$;;
 
 -- Create patient logs table
 CREATE TABLE IF NOT EXISTS patient_logs (
@@ -70,27 +75,34 @@ END $$;
 ALTER TABLE patient_logs ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for patient_logs
-CREATE POLICY "Allow authenticated users to read patient logs"
-  ON patient_logs
+DROP POLICY IF EXISTS "Allow authenticated users to read patient logs" ON patient_logs;
+
+CREATE POLICY "Allow authenticated users to read patient logs" ON patient_logs
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "Allow authenticated users to insert patient logs"
-  ON patient_logs
+DROP POLICY IF EXISTS "Allow authenticated users to insert patient logs" ON patient_logs;
+
+
+CREATE POLICY "Allow authenticated users to insert patient logs" ON patient_logs
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users to update patient logs"
-  ON patient_logs
+DROP POLICY IF EXISTS "Allow authenticated users to update patient logs" ON patient_logs;
+
+
+CREATE POLICY "Allow authenticated users to update patient logs" ON patient_logs
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users to delete patient logs"
-  ON patient_logs
+DROP POLICY IF EXISTS "Allow authenticated users to delete patient logs" ON patient_logs;
+
+
+CREATE POLICY "Allow authenticated users to delete patient logs" ON patient_logs
   FOR DELETE
   TO authenticated
   USING (true);
@@ -110,7 +122,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_patient_logs_updated_at
-  BEFORE UPDATE ON patient_logs
+DROP TRIGGER IF EXISTS update_patient_logs_updated_at ON patient_logs;
+
+
+CREATE TRIGGER update_patient_logs_updated_at BEFORE UPDATE ON patient_logs
   FOR EACH ROW
   EXECUTE FUNCTION update_patient_logs_updated_at();

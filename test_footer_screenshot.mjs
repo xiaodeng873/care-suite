@@ -1,0 +1,11 @@
+import { chromium } from 'playwright-core';
+const htmlPath = 'C:/Users/Admin/Desktop/care-suite/test_footer_combined.html';
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage();
+await page.goto('file:///' + htmlPath.replace(/\\/g, '/'), { waitUntil: 'networkidle' });
+await page.emulateMedia({ media: 'print' });
+const totalHeight = await page.evaluate(() => document.body.scrollHeight);
+await page.setViewportSize({ width: 794, height: Math.min(totalHeight, 32000) });
+await page.screenshot({ path: 'C:/Users/Admin/Desktop/care-suite/test_footer_combined.png', fullPage: true });
+await browser.close();
+console.log('screenshot saved');

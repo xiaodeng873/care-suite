@@ -7,14 +7,22 @@
 -- =====================================================
 
 -- 用戶角色
-CREATE TYPE user_role AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+    CREATE TYPE user_role AS ENUM (
   'developer',  -- 開發者（最高權限，透過 Supabase Auth 登入）
   'admin',      -- 管理者（由開發者任命，可管理員工）
   'staff'       -- 員工（一般用戶）
 );
+  END IF;
+END $$;;
 
 -- 部門類型
-CREATE TYPE department_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'department_type') THEN
+    CREATE TYPE department_type AS ENUM (
   '行政',
   '社工',
   '護理',
@@ -22,17 +30,27 @@ CREATE TYPE department_type AS ENUM (
   '膳食',
   '衛生'
 );
+  END IF;
+END $$;;
 
 -- 護理部門職位
-CREATE TYPE nursing_position_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'nursing_position_type') THEN
+    CREATE TYPE nursing_position_type AS ENUM (
   '註冊護士',
   '登記護士',
   '保健員',
   '護理員'
 );
+  END IF;
+END $$;;
 
 -- 專職部門職位（物理治療、職業治療、言語治療）
-CREATE TYPE allied_health_position_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'allied_health_position_type') THEN
+    CREATE TYPE allied_health_position_type AS ENUM (
   '物理治療師',
   '物理治療師助理',
   '職業治療師',
@@ -40,28 +58,48 @@ CREATE TYPE allied_health_position_type AS ENUM (
   '言語治療師',
   '言語治療師助理'
 );
+  END IF;
+END $$;;
 
 -- 衛生部門職位
-CREATE TYPE hygiene_position_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'hygiene_position_type') THEN
+    CREATE TYPE hygiene_position_type AS ENUM (
   '助理員'
 );
+  END IF;
+END $$;;
 
 -- 僱傭類型
-CREATE TYPE employment_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'employment_type') THEN
+    CREATE TYPE employment_type AS ENUM (
   '正職',
   '兼職'
 );
+  END IF;
+END $$;;
 
 -- 權限操作類型
-CREATE TYPE permission_action_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'permission_action_type') THEN
+    CREATE TYPE permission_action_type AS ENUM (
   'view',    -- 查看
   'create',  -- 新增
   'edit',    -- 編輯
   'delete'   -- 刪除
 );
+  END IF;
+END $$;;
 
 -- 權限類別（對應導覽分類）
-CREATE TYPE permission_category_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'permission_category_type') THEN
+    CREATE TYPE permission_category_type AS ENUM (
   'patients',    -- 院友
   'records',     -- 記錄
   'medication',  -- 藥物
@@ -71,11 +109,13 @@ CREATE TYPE permission_category_type AS ENUM (
   'print',       -- 列印
   'settings'     -- 設定
 );
+  END IF;
+END $$;;
 
 -- 2. 建立用戶資料表
 -- =====================================================
 
-CREATE TABLE user_profiles (
+CREATE TABLE IF NOT EXISTS user_profiles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   
   -- 登入資訊
@@ -133,16 +173,16 @@ CREATE TABLE user_profiles (
 );
 
 -- 建立索引
-CREATE INDEX idx_user_profiles_username ON user_profiles(username);
-CREATE INDEX idx_user_profiles_department ON user_profiles(department);
-CREATE INDEX idx_user_profiles_role ON user_profiles(role);
-CREATE INDEX idx_user_profiles_is_active ON user_profiles(is_active);
-CREATE INDEX idx_user_profiles_auth_user_id ON user_profiles(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_username ON user_profiles(username);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_department ON user_profiles(department);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_role ON user_profiles(role);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_is_active ON user_profiles(is_active);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_auth_user_id ON user_profiles(auth_user_id);
 
 -- 3. 建立權限定義表
 -- =====================================================
 
-CREATE TABLE permissions (
+CREATE TABLE IF NOT EXISTS permissions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   category permission_category_type NOT NULL,  -- 權限類別
   feature text NOT NULL,                        -- 功能模組（如 patient_list, care_records）
@@ -155,13 +195,13 @@ CREATE TABLE permissions (
   UNIQUE(category, feature, action)
 );
 
-CREATE INDEX idx_permissions_category ON permissions(category);
-CREATE INDEX idx_permissions_feature ON permissions(feature);
+CREATE INDEX IF NOT EXISTS idx_permissions_category ON permissions(category);
+CREATE INDEX IF NOT EXISTS idx_permissions_feature ON permissions(feature);
 
 -- 4. 建立用戶權限關聯表
 -- =====================================================
 
-CREATE TABLE user_permissions (
+CREATE TABLE IF NOT EXISTS user_permissions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   permission_id uuid NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
@@ -171,13 +211,13 @@ CREATE TABLE user_permissions (
   UNIQUE(user_id, permission_id)
 );
 
-CREATE INDEX idx_user_permissions_user_id ON user_permissions(user_id);
-CREATE INDEX idx_user_permissions_permission_id ON user_permissions(permission_id);
+CREATE INDEX IF NOT EXISTS idx_user_permissions_user_id ON user_permissions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_permissions_permission_id ON user_permissions(permission_id);
 
 -- 5. 建立自訂登入會話表（用於非 Supabase Auth 用戶）
 -- =====================================================
 
-CREATE TABLE user_sessions (
+CREATE TABLE IF NOT EXISTS user_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   token text NOT NULL UNIQUE,
@@ -186,9 +226,9 @@ CREATE TABLE user_sessions (
   last_accessed_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
-CREATE INDEX idx_user_sessions_token ON user_sessions(token);
-CREATE INDEX idx_user_sessions_expires_at ON user_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(token);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
 
 -- 6. 啟用 RLS
 -- =====================================================
@@ -202,35 +242,61 @@ ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
 -- =====================================================
 
 -- user_profiles: 已認證用戶可讀取，管理者可管理
+DROP POLICY IF EXISTS "允許已認證用戶讀取用戶資料" ON user_profiles;
+
 CREATE POLICY "允許已認證用戶讀取用戶資料" ON user_profiles
   FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶新增用戶" ON user_profiles;
+
 
 CREATE POLICY "允許已認證用戶新增用戶" ON user_profiles
   FOR INSERT TO authenticated WITH CHECK (true);
 
+DROP POLICY IF EXISTS "允許已認證用戶更新用戶" ON user_profiles;
+
+
 CREATE POLICY "允許已認證用戶更新用戶" ON user_profiles
   FOR UPDATE TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶刪除用戶" ON user_profiles;
+
 
 CREATE POLICY "允許已認證用戶刪除用戶" ON user_profiles
   FOR DELETE TO authenticated USING (true);
 
 -- permissions: 所有已認證用戶可讀取
+DROP POLICY IF EXISTS "允許已認證用戶讀取權限" ON permissions;
+
 CREATE POLICY "允許已認證用戶讀取權限" ON permissions
   FOR SELECT TO authenticated USING (true);
 
 -- user_permissions: 已認證用戶可讀取和管理
+DROP POLICY IF EXISTS "允許已認證用戶讀取用戶權限" ON user_permissions;
+
 CREATE POLICY "允許已認證用戶讀取用戶權限" ON user_permissions
   FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "允許已認證用戶新增用戶權限" ON user_permissions;
+
+
 CREATE POLICY "允許已認證用戶新增用戶權限" ON user_permissions
   FOR INSERT TO authenticated WITH CHECK (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶刪除用戶權限" ON user_permissions;
+
 
 CREATE POLICY "允許已認證用戶刪除用戶權限" ON user_permissions
   FOR DELETE TO authenticated USING (true);
 
 -- user_sessions: 允許服務角色管理
+DROP POLICY IF EXISTS "允許服務角色管理會話" ON user_sessions;
+
 CREATE POLICY "允許服務角色管理會話" ON user_sessions
   FOR ALL TO service_role USING (true);
+
+DROP POLICY IF EXISTS "允許已認證用戶讀取會話" ON user_sessions;
+
 
 CREATE POLICY "允許已認證用戶讀取會話" ON user_sessions
   FOR SELECT TO authenticated USING (true);
@@ -246,8 +312,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_update_user_profiles_updated_at
-  BEFORE UPDATE ON user_profiles
+DROP TRIGGER IF EXISTS trigger_update_user_profiles_updated_at ON user_profiles;
+
+
+CREATE TRIGGER trigger_update_user_profiles_updated_at BEFORE UPDATE ON user_profiles
   FOR EACH ROW
   EXECUTE FUNCTION update_user_profiles_updated_at();
 
@@ -275,7 +343,7 @@ INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALU
   ('patients', 'reports', '報表查詢', 'view', '/reports'),
   ('patients', 'reports', '報表查詢', 'create', '/reports'),
   ('patients', 'reports', '報表查詢', 'edit', '/reports'),
-  ('patients', 'reports', '報表查詢', 'delete', '/reports');
+  ('patients', 'reports', '報表查詢', 'delete', '/reports') ON CONFLICT (category, feature, action) DO NOTHING;
 
 -- 記錄類別
 INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALUES
@@ -303,7 +371,7 @@ INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALU
   ('records', 'vaccination_records', '疫苗記錄', 'view', '/vaccination-records'),
   ('records', 'vaccination_records', '疫苗記錄', 'create', '/vaccination-records'),
   ('records', 'vaccination_records', '疫苗記錄', 'edit', '/vaccination-records'),
-  ('records', 'vaccination_records', '疫苗記錄', 'delete', '/vaccination-records');
+  ('records', 'vaccination_records', '疫苗記錄', 'delete', '/vaccination-records') ON CONFLICT (category, feature, action) DO NOTHING;
 
 -- 藥物類別
 INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALUES
@@ -321,7 +389,7 @@ INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALU
   ('medication', 'drug_database', '藥物資料庫', 'view', '/drugs'),
   ('medication', 'drug_database', '藥物資料庫', 'create', '/drugs'),
   ('medication', 'drug_database', '藥物資料庫', 'edit', '/drugs'),
-  ('medication', 'drug_database', '藥物資料庫', 'delete', '/drugs');
+  ('medication', 'drug_database', '藥物資料庫', 'delete', '/drugs') ON CONFLICT (category, feature, action) DO NOTHING;
 
 -- 治療類別
 INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALUES
@@ -339,7 +407,7 @@ INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALU
   ('treatment', 'rehabilitation', '復康服務', 'view', '/rehabilitation'),
   ('treatment', 'rehabilitation', '復康服務', 'create', '/rehabilitation'),
   ('treatment', 'rehabilitation', '復康服務', 'edit', '/rehabilitation'),
-  ('treatment', 'rehabilitation', '復康服務', 'delete', '/rehabilitation');
+  ('treatment', 'rehabilitation', '復康服務', 'delete', '/rehabilitation') ON CONFLICT (category, feature, action) DO NOTHING;
 
 -- 定期類別
 INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALUES
@@ -367,7 +435,7 @@ INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALU
   ('periodic', 'wound_management', '傷口管理', 'view', '/wound'),
   ('periodic', 'wound_management', '傷口管理', 'create', '/wound'),
   ('periodic', 'wound_management', '傷口管理', 'edit', '/wound'),
-  ('periodic', 'wound_management', '傷口管理', 'delete', '/wound');
+  ('periodic', 'wound_management', '傷口管理', 'delete', '/wound') ON CONFLICT (category, feature, action) DO NOTHING;
 
 -- 日常類別
 INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALUES
@@ -395,7 +463,7 @@ INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALU
   ('daily', 'incident_reports', '意外事件報告', 'view', '/incident-reports'),
   ('daily', 'incident_reports', '意外事件報告', 'create', '/incident-reports'),
   ('daily', 'incident_reports', '意外事件報告', 'edit', '/incident-reports'),
-  ('daily', 'incident_reports', '意外事件報告', 'delete', '/incident-reports');
+  ('daily', 'incident_reports', '意外事件報告', 'delete', '/incident-reports') ON CONFLICT (category, feature, action) DO NOTHING;
 
 -- 列印類別
 INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALUES
@@ -408,7 +476,7 @@ INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALU
   ('print', 'template_management', '範本管理', 'view', '/templates'),
   ('print', 'template_management', '範本管理', 'create', '/templates'),
   ('print', 'template_management', '範本管理', 'edit', '/templates'),
-  ('print', 'template_management', '範本管理', 'delete', '/templates');
+  ('print', 'template_management', '範本管理', 'delete', '/templates') ON CONFLICT (category, feature, action) DO NOTHING;
 
 -- 設定類別
 INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALUES
@@ -436,7 +504,7 @@ INSERT INTO permissions (category, feature, feature_name_zh, action, route) VALU
   ('settings', 'tools_settings', '輔助工具', 'view', '/settings'),
   ('settings', 'tools_settings', '輔助工具', 'create', '/settings'),
   ('settings', 'tools_settings', '輔助工具', 'edit', '/settings'),
-  ('settings', 'tools_settings', '輔助工具', 'delete', '/settings');
+  ('settings', 'tools_settings', '輔助工具', 'delete', '/settings') ON CONFLICT (category, feature, action) DO NOTHING;
 
 -- 10. 建立輔助函數
 -- =====================================================

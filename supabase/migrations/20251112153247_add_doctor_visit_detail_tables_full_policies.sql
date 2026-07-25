@@ -26,21 +26,27 @@ DROP POLICY IF EXISTS "允許已認證用戶新增看診原因關聯" ON "到診
 DROP POLICY IF EXISTS "允許已認證用戶修改看診原因關聯" ON "到診院友_看診原因";
 DROP POLICY IF EXISTS "允許已認證用戶刪除看診原因關聯" ON "到診院友_看診原因";
 
-CREATE POLICY "允許已認證用戶新增看診原因關聯"
-  ON "到診院友_看診原因"
+DROP POLICY IF EXISTS "允許已認證用戶新增看診原因關聯" ON "到診院友_看診原因";
+
+
+CREATE POLICY "允許已認證用戶新增看診原因關聯" ON "到診院友_看診原因"
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶修改看診原因關聯"
-  ON "到診院友_看診原因"
+DROP POLICY IF EXISTS "允許已認證用戶修改看診原因關聯" ON "到診院友_看診原因";
+
+
+CREATE POLICY "允許已認證用戶修改看診原因關聯" ON "到診院友_看診原因"
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶刪除看診原因關聯"
-  ON "到診院友_看診原因"
+DROP POLICY IF EXISTS "允許已認證用戶刪除看診原因關聯" ON "到診院友_看診原因";
+
+
+CREATE POLICY "允許已認證用戶刪除看診原因關聯" ON "到診院友_看診原因"
   FOR DELETE
   TO authenticated
   USING (true);
@@ -53,21 +59,27 @@ DROP POLICY IF EXISTS "允許已認證用戶新增看診院友細項" ON "看診
 DROP POLICY IF EXISTS "允許已認證用戶修改看診院友細項" ON "看診院友細項";
 DROP POLICY IF EXISTS "允許已認證用戶刪除看診院友細項" ON "看診院友細項";
 
-CREATE POLICY "允許已認證用戶新增看診院友細項"
-  ON "看診院友細項"
+DROP POLICY IF EXISTS "允許已認證用戶新增看診院友細項" ON "看診院友細項";
+
+
+CREATE POLICY "允許已認證用戶新增看診院友細項" ON "看診院友細項"
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶修改看診院友細項"
-  ON "看診院友細項"
+DROP POLICY IF EXISTS "允許已認證用戶修改看診院友細項" ON "看診院友細項";
+
+
+CREATE POLICY "允許已認證用戶修改看診院友細項" ON "看診院友細項"
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶刪除看診院友細項"
-  ON "看診院友細項"
+DROP POLICY IF EXISTS "允許已認證用戶刪除看診院友細項" ON "看診院友細項";
+
+
+CREATE POLICY "允許已認證用戶刪除看診院友細項" ON "看診院友細項"
   FOR DELETE
   TO authenticated
   USING (true);

@@ -111,10 +111,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const model = Deno.env.get("GEMINI_MODEL") ?? "gemini-1.5-flash";
-    // 自動判斷 API 版本：可用 GEMINI_API_VERSION 覆寫，否則一律走 v1 穩定端點
-    // （gemini-2.5 / 3.x flash 在 v1 與 v1beta 皆可用，v1 較穩定）
-    const apiVersion = Deno.env.get("GEMINI_API_VERSION") ?? "v1";
+    const model = Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-latest";
+    // 自動判斷 API 版本：可用 GEMINI_API_VERSION 覆寫，否則走 v1beta
+    const apiVersion = Deno.env.get("GEMINI_API_VERSION") ?? "v1beta";
     const geminiApiUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
 
     console.log(`[Stage 1] OK — model=${model}, apiVersion=${apiVersion}`);

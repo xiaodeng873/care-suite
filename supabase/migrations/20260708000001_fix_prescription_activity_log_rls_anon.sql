@@ -15,15 +15,17 @@
 */
 
 -- Add anon INSERT policy (custom auth users)
-CREATE POLICY "Anon users can insert prescription activity log"
-  ON prescription_activity_log
+DROP POLICY IF EXISTS "Anon users can insert prescription activity log" ON prescription_activity_log;
+
+CREATE POLICY "Anon users can insert prescription activity log" ON prescription_activity_log
   FOR INSERT
   TO anon
   WITH CHECK (true);
 
 -- Add anon SELECT policy (so custom auth users can read their own audit trail)
-CREATE POLICY "Anon users can view prescription activity log"
-  ON prescription_activity_log
+DROP POLICY IF EXISTS "Anon users can view prescription activity log" ON prescription_activity_log;
+
+CREATE POLICY "Anon users can view prescription activity log" ON prescription_activity_log
   FOR SELECT
   TO anon
   USING (true);

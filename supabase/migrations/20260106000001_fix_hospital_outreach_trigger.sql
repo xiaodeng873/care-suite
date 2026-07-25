@@ -60,7 +60,8 @@ END;
 $$;
 
 -- 重新創建歸檔觸發器
-CREATE TRIGGER archive_outreach_record_trigger
-  BEFORE UPDATE ON hospital_outreach_records
+DROP TRIGGER IF EXISTS archive_outreach_record_trigger ON hospital_outreach_records;
+
+CREATE TRIGGER archive_outreach_record_trigger BEFORE UPDATE ON hospital_outreach_records
   FOR EACH ROW
   EXECUTE FUNCTION archive_old_outreach_record();

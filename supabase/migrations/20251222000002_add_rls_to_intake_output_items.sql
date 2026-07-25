@@ -12,13 +12,15 @@ ALTER TABLE output_items ENABLE ROW LEVEL SECURITY;
 -- ============================================
 
 -- intake_items 策略
-CREATE POLICY "Enable all for authenticated users on intake_items" 
-ON intake_items
+DROP POLICY IF EXISTS "Enable all for authenticated users on intake_items" ON intake_items;
+
+CREATE POLICY "Enable all for authenticated users on intake_items" ON intake_items
 FOR ALL 
 USING (auth.role() = 'authenticated');
 
 -- output_items 策略
-CREATE POLICY "Enable all for authenticated users on output_items" 
-ON output_items
+DROP POLICY IF EXISTS "Enable all for authenticated users on output_items" ON output_items;
+
+CREATE POLICY "Enable all for authenticated users on output_items" ON output_items
 FOR ALL 
 USING (auth.role() = 'authenticated');

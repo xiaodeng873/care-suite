@@ -65,14 +65,17 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE tablename = 'rooms' AND policyname = 'Allow all access rooms'
   ) THEN
+    DROP POLICY IF EXISTS "Allow all access rooms" ON rooms;
+
     CREATE POLICY "Allow all access rooms" ON rooms
       FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
   END IF;
 END $$;
 
 DROP TRIGGER IF EXISTS update_rooms_updated_at ON rooms;
-CREATE TRIGGER update_rooms_updated_at
-  BEFORE UPDATE ON rooms
+DROP TRIGGER IF EXISTS update_rooms_updated_at ON rooms;
+
+CREATE TRIGGER update_rooms_updated_at BEFORE UPDATE ON rooms
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 COMMENT ON TABLE rooms IS '房間：介於居住區與床位之間，room_number 如 "202"';
@@ -139,8 +142,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_bed_compose_number ON beds;
-CREATE TRIGGER trg_bed_compose_number
-  BEFORE INSERT OR UPDATE ON beds
+DROP TRIGGER IF EXISTS trg_bed_compose_number ON beds;
+
+CREATE TRIGGER trg_bed_compose_number BEFORE INSERT OR UPDATE ON beds
   FOR EACH ROW EXECUTE FUNCTION fn_bed_compose_number();
 
 -- 4b. beds AFTER UPDATE：bed_number 變動時同步佔用院友的 院友主表.床號
@@ -157,8 +161,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_bed_sync_patient_bedno ON beds;
-CREATE TRIGGER trg_bed_sync_patient_bedno
-  AFTER UPDATE ON beds
+DROP TRIGGER IF EXISTS trg_bed_sync_patient_bedno ON beds;
+
+CREATE TRIGGER trg_bed_sync_patient_bedno AFTER UPDATE ON beds
   FOR EACH ROW EXECUTE FUNCTION fn_bed_sync_patient_bedno();
 
 -- 4c. rooms AFTER UPDATE room_number：級聯重算子床位 bed_number
@@ -174,8 +179,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_room_cascade_beds ON rooms;
-CREATE TRIGGER trg_room_cascade_beds
-  AFTER UPDATE ON rooms
+DROP TRIGGER IF EXISTS trg_room_cascade_beds ON rooms;
+
+CREATE TRIGGER trg_room_cascade_beds AFTER UPDATE ON rooms
   FOR EACH ROW EXECUTE FUNCTION fn_room_cascade_beds();
 
 -- 4d. stations AFTER UPDATE code：級聯重算該站所有床位 bed_number
@@ -191,6 +197,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_station_cascade_beds ON stations;
-CREATE TRIGGER trg_station_cascade_beds
-  AFTER UPDATE ON stations
+DROP TRIGGER IF EXISTS trg_station_cascade_beds ON stations;
+
+CREATE TRIGGER trg_station_cascade_beds AFTER UPDATE ON stations
   FOR EACH ROW EXECUTE FUNCTION fn_station_cascade_beds();

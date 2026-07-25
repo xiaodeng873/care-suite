@@ -114,27 +114,34 @@ CREATE TABLE IF NOT EXISTS incident_reports (
 ALTER TABLE incident_reports ENABLE ROW LEVEL SECURITY;
 
 -- 添加政策允許已驗證用戶進行所有操作
-CREATE POLICY "允許已驗證用戶查看意外報告"
-  ON incident_reports
+DROP POLICY IF EXISTS "允許已驗證用戶查看意外報告" ON incident_reports;
+
+CREATE POLICY "允許已驗證用戶查看意外報告" ON incident_reports
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "允許已驗證用戶新增意外報告"
-  ON incident_reports
+DROP POLICY IF EXISTS "允許已驗證用戶新增意外報告" ON incident_reports;
+
+
+CREATE POLICY "允許已驗證用戶新增意外報告" ON incident_reports
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "允許已驗證用戶更新意外報告"
-  ON incident_reports
+DROP POLICY IF EXISTS "允許已驗證用戶更新意外報告" ON incident_reports;
+
+
+CREATE POLICY "允許已驗證用戶更新意外報告" ON incident_reports
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已驗證用戶刪除意外報告"
-  ON incident_reports
+DROP POLICY IF EXISTS "允許已驗證用戶刪除意外報告" ON incident_reports;
+
+
+CREATE POLICY "允許已驗證用戶刪除意外報告" ON incident_reports
   FOR DELETE
   TO authenticated
   USING (true);
@@ -153,7 +160,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_incident_reports_timestamp
-  BEFORE UPDATE ON incident_reports
+DROP TRIGGER IF EXISTS update_incident_reports_timestamp ON incident_reports;
+
+
+CREATE TRIGGER update_incident_reports_timestamp BEFORE UPDATE ON incident_reports
   FOR EACH ROW
   EXECUTE FUNCTION update_incident_reports_updated_at();

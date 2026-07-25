@@ -17,7 +17,7 @@
 -- 7 個新 enum 值已在上一個 migration 提交，此處可直接使用。
 
 -- ─── Step 2: 建立 narrow 健康監測記錄 table ───────────────────
-CREATE TABLE 健康監測記錄 (
+CREATE TABLE IF NOT EXISTS 健康監測記錄 (
   記錄id   UUID             PRIMARY KEY DEFAULT gen_random_uuid(),
   院友id   INT              NOT NULL REFERENCES 院友主表(院友id) ON DELETE CASCADE,
   任務id   UUID             REFERENCES patient_health_tasks(id) ON DELETE SET NULL,
@@ -34,84 +34,94 @@ CREATE TABLE 健康監測記錄 (
   )
 );
 
-CREATE INDEX idx_健康監測記錄_院友id       ON 健康監測記錄(院友id);
-CREATE INDEX idx_健康監測記錄_日期         ON 健康監測記錄(記錄日期);
-CREATE INDEX idx_健康監測記錄_院友日期時間 ON 健康監測記錄(院友id, 記錄日期, 記錄時間);
-CREATE INDEX idx_健康監測記錄_監測類型     ON 健康監測記錄(監測類型);
-CREATE INDEX idx_健康監測記錄_任務id       ON 健康監測記錄(任務id);
+CREATE INDEX IF NOT EXISTS idx_健康監測記錄_院友id       ON 健康監測記錄(院友id);
+CREATE INDEX IF NOT EXISTS idx_健康監測記錄_日期         ON 健康監測記錄(記錄日期);
+CREATE INDEX IF NOT EXISTS idx_健康監測記錄_院友日期時間 ON 健康監測記錄(院友id, 記錄日期, 記錄時間);
+CREATE INDEX IF NOT EXISTS idx_健康監測記錄_監測類型     ON 健康監測記錄(監測類型);
+CREATE INDEX IF NOT EXISTS idx_健康監測記錄_任務id       ON 健康監測記錄(任務id);
 
 ALTER TABLE 健康監測記錄 ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "允許已認證用戶管理健康監測記錄"
-  ON 健康監測記錄 FOR ALL TO authenticated
+DROP POLICY IF EXISTS "允許已認證用戶管理健康監測記錄" ON 健康監測記錄;
+
+
+CREATE POLICY "允許已認證用戶管理健康監測記錄" ON 健康監測記錄 FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
 
 -- ─── Step 3: 遷移「健康記錄主表」歷史資料 ────────────────────
--- 3a 血壓（收縮壓 + 舒張壓 均有值）
-INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 數值_副, 備註, 記錄人員)
-SELECT 院友id, 記錄日期, 記錄時間, '血壓'::health_task_type,
-       血壓收縮壓, 血壓舒張壓, 備註, 記錄人員
-FROM   健康記錄主表
-WHERE  記錄類型::text = '生命表徵'
-  AND  血壓收縮壓 IS NOT NULL
-  AND  血壓舒張壓 IS NOT NULL;
+DO $$
+BEGIN
+  IF to_regclass('public.健康記錄主表') IS NOT NULL THEN
+  -- 3a 血壓（收縮壓 + 舒張壓 均有值）
+  INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 數值_副, 備註, 記錄人員)
+  SELECT 院友id, 記錄日期, 記錄時間, '血壓'::health_task_type,
+         血壓收縮壓, 血壓舒張壓, 備註, 記錄人員
+  FROM   健康記錄主表
+  WHERE  記錄類型::text = '生命表徵'
+    AND  血壓收縮壓 IS NOT NULL
+    AND  血壓舒張壓 IS NOT NULL;
 
--- 3b 血壓（僅收縮壓有值）
-INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
-SELECT 院友id, 記錄日期, 記錄時間, '血壓'::health_task_type,
-       血壓收縮壓, 備註, 記錄人員
-FROM   健康記錄主表
-WHERE  記錄類型::text = '生命表徵'
-  AND  血壓收縮壓 IS NOT NULL
-  AND  血壓舒張壓 IS NULL;
+  -- 3b 血壓（僅收縮壓有值）
+  INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
+  SELECT 院友id, 記錄日期, 記錄時間, '血壓'::health_task_type,
+         血壓收縮壓, 備註, 記錄人員
+  FROM   健康記錄主表
+  WHERE  記錄類型::text = '生命表徵'
+    AND  血壓收縮壓 IS NOT NULL
+    AND  血壓舒張壓 IS NULL;
 
--- 3c 脈搏
-INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
-SELECT 院友id, 記錄日期, 記錄時間, '脈搏'::health_task_type,
-       脈搏, 備註, 記錄人員
-FROM   健康記錄主表
-WHERE  記錄類型::text = '生命表徵'
-  AND  脈搏 IS NOT NULL;
+  -- 3c 脈搏
+  INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
+  SELECT 院友id, 記錄日期, 記錄時間, '脈搏'::health_task_type,
+         脈搏, 備註, 記錄人員
+  FROM   健康記錄主表
+  WHERE  記錄類型::text = '生命表徵'
+    AND  脈搏 IS NOT NULL;
 
--- 3d 體溫
-INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
-SELECT 院友id, 記錄日期, 記錄時間, '體溫'::health_task_type,
-       體溫, 備註, 記錄人員
-FROM   健康記錄主表
-WHERE  記錄類型::text = '生命表徵'
-  AND  體溫 IS NOT NULL;
+  -- 3d 體溫
+  INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
+  SELECT 院友id, 記錄日期, 記錄時間, '體溫'::health_task_type,
+         體溫, 備註, 記錄人員
+  FROM   健康記錄主表
+  WHERE  記錄類型::text = '生命表徵'
+    AND  體溫 IS NOT NULL;
 
--- 3e 血含氧量
-INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
-SELECT 院友id, 記錄日期, 記錄時間, '血含氧量'::health_task_type,
-       血含氧量, 備註, 記錄人員
-FROM   健康記錄主表
-WHERE  記錄類型::text = '生命表徵'
-  AND  血含氧量 IS NOT NULL;
+  -- 3e 血含氧量
+  INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
+  SELECT 院友id, 記錄日期, 記錄時間, '血含氧量'::health_task_type,
+         血含氧量, 備註, 記錄人員
+  FROM   健康記錄主表
+  WHERE  記錄類型::text = '生命表徵'
+    AND  血含氧量 IS NOT NULL;
 
--- 3f 呼吸
-INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
-SELECT 院友id, 記錄日期, 記錄時間, '呼吸'::health_task_type,
-       呼吸頻率, 備註, 記錄人員
-FROM   健康記錄主表
-WHERE  記錄類型::text = '生命表徵'
-  AND  呼吸頻率 IS NOT NULL;
+  -- 3f 呼吸
+  INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
+  SELECT 院友id, 記錄日期, 記錄時間, '呼吸'::health_task_type,
+         呼吸頻率, 備註, 記錄人員
+  FROM   健康記錄主表
+  WHERE  記錄類型::text = '生命表徵'
+    AND  呼吸頻率 IS NOT NULL;
 
--- 3g 血糖值
-INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
-SELECT 院友id, 記錄日期, 記錄時間, '血糖值'::health_task_type,
-       血糖值, 備註, 記錄人員
-FROM   健康記錄主表
-WHERE  記錄類型::text = '血糖控制'
-  AND  血糖值 IS NOT NULL;
+  -- 3g 血糖值
+  INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
+  SELECT 院友id, 記錄日期, 記錄時間, '血糖值'::health_task_type,
+         血糖值, 備註, 記錄人員
+  FROM   健康記錄主表
+  WHERE  記錄類型::text = '血糖控制'
+    AND  血糖值 IS NOT NULL;
 
--- 3h 體重
-INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
-SELECT 院友id, 記錄日期, 記錄時間, '體重'::health_task_type,
-       體重, 備註, 記錄人員
-FROM   健康記錄主表
-WHERE  記錄類型::text = '體重控制'
-  AND  體重 IS NOT NULL;
+  -- 3h 體重
+  INSERT INTO 健康監測記錄 (院友id, 記錄日期, 記錄時間, 監測類型, 數值, 備註, 記錄人員)
+  SELECT 院友id, 記錄日期, 記錄時間, '體重'::health_task_type,
+         體重, 備註, 記錄人員
+  FROM   健康記錄主表
+  WHERE  記錄類型::text = '體重控制'
+    AND  體重 IS NOT NULL;
+
+  ELSE
+    RAISE NOTICE '健康記錄主表不存在，跳過歷史資料遷移';
+  END IF;
+END $$;
 
 -- ─── Step 4: 遷移 patient_health_tasks ───────────────────────
 -- 4a 展開「生命表徵」任務為 5 種獨立監測任務
@@ -229,7 +239,10 @@ ALTER TABLE 健康監測記錄 DROP CONSTRAINT 監測類型_限定;
 
 ALTER TYPE health_task_type RENAME TO health_task_type_old;
 
-CREATE TYPE health_task_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'health_task_type') THEN
+    CREATE TYPE health_task_type AS ENUM (
   -- 生命表徵（7 種獨立類型，取代原有的生命表徵/血糖控制/體重控制）
   '血壓', '脈搏', '體溫', '血含氧量', '呼吸', '血糖值', '體重',
   -- 護理任務
@@ -237,6 +250,8 @@ CREATE TYPE health_task_type AS ENUM (
   -- 文件任務
   '約束物品同意書', '年度體檢', '藥物自存同意書', '晚晴計劃'
 );
+  END IF;
+END $$;;
 
 ALTER TABLE patient_health_tasks
   ALTER COLUMN health_record_type TYPE health_task_type

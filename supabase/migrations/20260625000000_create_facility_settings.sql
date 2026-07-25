@@ -14,14 +14,20 @@ ALTER TABLE facility_settings ENABLE ROW LEVEL SECURITY;
 
 -- 與專案其他資料表一致：前端以 anon key 連線，權限於 UI 層（用戶管理權限）控管。
 DROP POLICY IF EXISTS "允許讀取院舍設定" ON facility_settings;
+DROP POLICY IF EXISTS "允許讀取院舍設定" ON facility_settings;
+
 CREATE POLICY "允許讀取院舍設定" ON facility_settings
   FOR SELECT TO anon, authenticated USING (true);
 
 DROP POLICY IF EXISTS "允許新增院舍設定" ON facility_settings;
+DROP POLICY IF EXISTS "允許新增院舍設定" ON facility_settings;
+
 CREATE POLICY "允許新增院舍設定" ON facility_settings
   FOR INSERT TO anon, authenticated WITH CHECK (true);
 
 DROP POLICY IF EXISTS "允許更新院舍設定" ON facility_settings;
+DROP POLICY IF EXISTS "允許更新院舍設定" ON facility_settings;
+
 CREATE POLICY "允許更新院舍設定" ON facility_settings
   FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
 

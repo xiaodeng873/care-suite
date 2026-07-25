@@ -17,8 +17,8 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-// Session 有效期（24 小時）
-const SESSION_EXPIRY_HOURS = 24;
+// Session 有效期（10 年，近似永不過期）
+const SESSION_EXPIRY_HOURS = 24 * 365 * 10;
 
 interface LoginRequest {
   username: string;
@@ -358,10 +358,15 @@ async function handleValidateSession(token: string) {
     };
   }
 
-  // 更新最後訪問時間
+  // 每次驗證時自動延長 24 小時，避免使用者因長時間未重新載入頁面而被登出
+  const newExpiry = new Date();
+  newExpiry.setHours(newExpiry.getHours() + SESSION_EXPIRY_HOURS);
   await supabase
     .from("user_sessions")
-    .update({ last_accessed_at: new Date().toISOString() })
+    .update({
+      expires_at: newExpiry.toISOString(),
+      last_accessed_at: new Date().toISOString()
+    })
     .eq("id", session.id);
 
   // 獲取用戶權限

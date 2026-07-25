@@ -24,37 +24,60 @@
 */
 
 -- 建立服用頻率類型枚舉
-CREATE TYPE medication_frequency_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'medication_frequency_type') THEN
+    CREATE TYPE medication_frequency_type AS ENUM (
   'daily',
   'every_x_days', 
   'every_x_months',
   'weekly_days',
   'odd_even_days'
 );
+  END IF;
+END $$;;
 
 -- 建立單雙日服枚舉
-CREATE TYPE odd_even_day_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'odd_even_day_type') THEN
+    CREATE TYPE odd_even_day_type AS ENUM (
   'odd',
   'even', 
   'none'
 );
+  END IF;
+END $$;;
 
 -- 建立備藥方式枚舉
-CREATE TYPE preparation_method_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'preparation_method_type') THEN
+    CREATE TYPE preparation_method_type AS ENUM (
   'immediate',
   'advanced',
   'custom'
 );
+  END IF;
+END $$;;
 
 -- 建立處方狀態枚舉
-CREATE TYPE prescription_status_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'prescription_status_type') THEN
+    CREATE TYPE prescription_status_type AS ENUM (
   'active',
   'inactive',
   'pending_change'
 );
+  END IF;
+END $$;;
 
 -- 建立檢測項目枚舉
-CREATE TYPE vital_sign_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'vital_sign_type') THEN
+    CREATE TYPE vital_sign_type AS ENUM (
   '上壓',
   '下壓', 
   '脈搏',
@@ -63,22 +86,34 @@ CREATE TYPE vital_sign_type AS ENUM (
   '血含氧量',
   '體溫'
 );
+  END IF;
+END $$;;
 
 -- 建立條件操作符枚舉
-CREATE TYPE condition_operator_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'condition_operator_type') THEN
+    CREATE TYPE condition_operator_type AS ENUM (
   'gt',
   'lt',
   'gte',
   'lte'
 );
+  END IF;
+END $$;;
 
 -- 建立風險規則類型枚舉
-CREATE TYPE risk_rule_type AS ENUM (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'risk_rule_type') THEN
+    CREATE TYPE risk_rule_type AS ENUM (
   'drug_conflict',
   'timing_mismatch',
   'dosage_anomaly',
   'other'
 );
+  END IF;
+END $$;;
 
 -- 1. 服用時段定義表
 CREATE TABLE IF NOT EXISTS medication_time_slot_definitions (
@@ -182,36 +217,45 @@ ALTER TABLE medication_prescription_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE medication_time_slot_definitions ENABLE ROW LEVEL SECURITY;
 
 -- 建立 RLS 政策
-CREATE POLICY "允許已認證用戶管理藥物處方"
-  ON medication_prescriptions
+DROP POLICY IF EXISTS "允許已認證用戶管理藥物處方" ON medication_prescriptions;
+
+CREATE POLICY "允許已認證用戶管理藥物處方" ON medication_prescriptions
   FOR ALL
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶管理檢測規則"
-  ON medication_inspection_rules
+DROP POLICY IF EXISTS "允許已認證用戶管理檢測規則" ON medication_inspection_rules;
+
+
+CREATE POLICY "允許已認證用戶管理檢測規則" ON medication_inspection_rules
   FOR ALL
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶管理風險規則"
-  ON medication_risk_rules
+DROP POLICY IF EXISTS "允許已認證用戶管理風險規則" ON medication_risk_rules;
+
+
+CREATE POLICY "允許已認證用戶管理風險規則" ON medication_risk_rules
   FOR ALL
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶查看處方歷史"
-  ON medication_prescription_history
+DROP POLICY IF EXISTS "允許已認證用戶查看處方歷史" ON medication_prescription_history;
+
+
+CREATE POLICY "允許已認證用戶查看處方歷史" ON medication_prescription_history
   FOR ALL
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "允許已認證用戶管理時段定義"
-  ON medication_time_slot_definitions
+DROP POLICY IF EXISTS "允許已認證用戶管理時段定義" ON medication_time_slot_definitions;
+
+
+CREATE POLICY "允許已認證用戶管理時段定義" ON medication_time_slot_definitions
   FOR ALL
   TO authenticated
   USING (true)
@@ -235,13 +279,16 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 建立觸發器
-CREATE TRIGGER update_medication_prescriptions_updated_at
-  BEFORE UPDATE ON medication_prescriptions
+DROP TRIGGER IF EXISTS update_medication_prescriptions_updated_at ON medication_prescriptions;
+
+CREATE TRIGGER update_medication_prescriptions_updated_at BEFORE UPDATE ON medication_prescriptions
   FOR EACH ROW
   EXECUTE FUNCTION update_medication_prescriptions_updated_at();
 
-CREATE TRIGGER update_medication_time_slot_definitions_updated_at
-  BEFORE UPDATE ON medication_time_slot_definitions
+DROP TRIGGER IF EXISTS update_medication_time_slot_definitions_updated_at ON medication_time_slot_definitions;
+
+
+CREATE TRIGGER update_medication_time_slot_definitions_updated_at BEFORE UPDATE ON medication_time_slot_definitions
   FOR EACH ROW
   EXECUTE FUNCTION update_medication_time_slot_definitions_updated_at();
 

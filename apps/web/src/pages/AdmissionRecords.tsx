@@ -695,15 +695,20 @@ const AdmissionRecords: React.FC = () => {
                 <span>匯出選定記錄</span>
               </button>
             )}
-            {selectedRows.size > 0 && (
-              <button
-                onClick={handlePrintSelectedERRecords}
-                className="btn-secondary flex flex-wrap items-center gap-2"
-              >
-                <Printer className="h-4 w-4" />
-                <span>列印出入院記錄</span>
-              </button>
-            )}
+            <button
+              onClick={() => {
+                if (selectedRows.size === 0) {
+                  alert('請先勾選主表格中的記錄');
+                  return;
+                }
+                handlePrintSelectedERRecords();
+              }}
+              disabled={selectedRows.size === 0}
+              className="btn-secondary flex flex-wrap items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印出入院記錄</span>
+            </button>
             <button
               onClick={() => {
                 setSelectedEpisode(null);

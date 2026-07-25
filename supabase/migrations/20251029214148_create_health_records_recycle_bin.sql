@@ -24,7 +24,12 @@
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '記錄類型') THEN
+    DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '記錄類型') THEN
     CREATE TYPE 記錄類型 AS ENUM ('生命表徵', '血糖控制', '體重控制');
+  END IF;
+END $$;;
   END IF;
 END $$;
 
@@ -63,17 +68,29 @@ CREATE INDEX IF NOT EXISTS idx_deleted_health_records_record_date ON deleted_hea
 
 -- 设置 RLS 策略
 -- 允许已认证用户读取回收筒记录
+DROP POLICY IF EXISTS "允许已认证用户读取回收筒记录" ON deleted_health_records;
+DROP POLICY IF EXISTS "允许已认证用户读取回收筒记录" ON deleted_health_records;
+
 CREATE POLICY "允许已认证用户读取回收筒记录" ON deleted_health_records
   FOR SELECT TO authenticated USING (true);
 
 -- 允许已认证用户插入回收筒记录（删除操作）
+DROP POLICY IF EXISTS "允许已认证用户插入回收筒记录" ON deleted_health_records;
+DROP POLICY IF EXISTS "允许已认证用户插入回收筒记录" ON deleted_health_records;
+
 CREATE POLICY "允许已认证用户插入回收筒记录" ON deleted_health_records
   FOR INSERT TO authenticated WITH CHECK (true);
 
 -- 允许已认证用户删除回收筒记录（永久删除或恢复操作）
+DROP POLICY IF EXISTS "允许已认证用户删除回收筒记录" ON deleted_health_records;
+DROP POLICY IF EXISTS "允许已认证用户删除回收筒记录" ON deleted_health_records;
+
 CREATE POLICY "允许已认证用户删除回收筒记录" ON deleted_health_records
   FOR DELETE TO authenticated USING (true);
 
 -- 允许已认证用户更新回收筒记录
+DROP POLICY IF EXISTS "允许已认证用户更新回收筒记录" ON deleted_health_records;
+DROP POLICY IF EXISTS "允许已认证用户更新回收筒记录" ON deleted_health_records;
+
 CREATE POLICY "允许已认证用户更新回收筒记录" ON deleted_health_records
   FOR UPDATE TO authenticated USING (true) WITH CHECK (true);

@@ -9,7 +9,7 @@
         .container { width: 100%; box-sizing: border-box; }
         .title-section { text-align: center; margin-bottom: 12px; }
         .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
-        .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; padding-bottom: 2px; }
+        .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
         .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
         .info-table td { border: none; padding: 2px 0; vertical-align: bottom; font-size: 16px; font-weight: bold; white-space: nowrap; }
         .db-line-input { width: 90%; border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 16px; outline: none; padding: 0 0 1px 5px; box-sizing: border-box; }
@@ -45,6 +45,24 @@
             line-height: 1.4;
             text-align: left;
         }
+
+        /* 頁尾 */
+        .footer {
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            height: 30px;
+            font-weight: bold;
+        }
+        .page-num {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            bottom: 0;
+        }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
     </style>
 </head>
 <body>
@@ -133,6 +151,12 @@
         <div>#大便次數：以 "正" 字表示; &gt;大便性質：硬=H &nbsp;軟=S &nbsp;稀/水狀=W</div>
         <div>*大便量：大量"+++"; 中量以"++"; 少量以"+" 表示。</div>
         <div>+按醫囑給予口服大便藥以「★」記錄；按醫囑給予栓劑以「▲」記錄。</div>
+    </div>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">1</div>
+        <div class="doc-code">—</div>
     </div>
 </div>
 </body>

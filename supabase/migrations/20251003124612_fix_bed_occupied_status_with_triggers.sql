@@ -67,8 +67,9 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trigger_sync_bed_occupied_status ON 院友主表;
 
 -- 建立觸發器
-CREATE TRIGGER trigger_sync_bed_occupied_status
-AFTER INSERT OR UPDATE OR DELETE ON 院友主表
+DROP TRIGGER IF EXISTS trigger_sync_bed_occupied_status ON 院友主表;
+
+CREATE TRIGGER trigger_sync_bed_occupied_status AFTER INSERT OR UPDATE OR DELETE ON 院友主表
 FOR EACH ROW
 EXECUTE FUNCTION sync_bed_occupied_status();
 

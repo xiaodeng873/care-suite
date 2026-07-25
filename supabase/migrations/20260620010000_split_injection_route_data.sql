@@ -19,7 +19,7 @@
 BEGIN;
 
 -- 1) 處方表：先分流「皮下」，再分流「肌肉」（已改動的列不會被第二步重複處理）
-UPDATE medication_prescriptions
+UPDATE new_medication_prescriptions
 SET administration_route = '皮下注射',
     updated_at = now()
 WHERE administration_route = '注射'
@@ -29,7 +29,7 @@ WHERE administration_route = '注射'
         ~* '(^|[^[:alpha:]])(s[./]?c[./]?|subcut|subcutaneous)([^[:alpha:]]|$)'
   );
 
-UPDATE medication_prescriptions
+UPDATE new_medication_prescriptions
 SET administration_route = '肌肉注射',
     updated_at = now()
 WHERE administration_route = '注射'
@@ -67,7 +67,7 @@ DECLARE
   drug_remaining integer;
 BEGIN
   SELECT count(*) INTO rx_remaining
-  FROM medication_prescriptions WHERE administration_route = '注射';
+  FROM new_medication_prescriptions WHERE administration_route = '注射';
   SELECT count(*) INTO drug_remaining
   FROM medication_drug_database WHERE administration_route = '注射';
   RAISE NOTICE '仍保留為「注射」待人手分類：處方 % 筆、藥物主檔 % 筆', rx_remaining, drug_remaining;

@@ -52,6 +52,7 @@ Deno.serve(async (req: Request) => {
     let prescriptionQuery = supabase
       .from('new_medication_prescriptions')
       .select('*')
+      .eq('status', 'active')
       .lte('start_date', targetDate);
 
     if (patientId) {

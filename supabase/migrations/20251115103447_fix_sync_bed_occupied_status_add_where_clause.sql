@@ -61,8 +61,9 @@ END;
 $function$;
 
 -- 創建觸發器
-CREATE TRIGGER sync_bed_status_on_patient_change
-  AFTER INSERT OR UPDATE OR DELETE ON "院友主表"
+DROP TRIGGER IF EXISTS sync_bed_status_on_patient_change ON "院友主表";
+
+CREATE TRIGGER sync_bed_status_on_patient_change AFTER INSERT OR UPDATE OR DELETE ON "院友主表"
   FOR EACH ROW
   EXECUTE FUNCTION sync_bed_occupied_status_v2();
 

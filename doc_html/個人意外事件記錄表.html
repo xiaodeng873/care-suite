@@ -27,26 +27,15 @@
             margin-bottom: 5px;
         }
 
-        .station-box {
-            border: 1.5px solid black;
-            width: 70px;
-            height: 45px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            font-weight: bold;
-            margin-right: 20px;
-        }
+        .station-box { display: none; }
 
         .title-box {
             flex-grow: 1;
             text-align: center;
-            margin-right: 90px; /* 為了讓標題視覺中心與頁面中心對齊 */
         }
 
-        .title-box h1 { margin: 0; font-size: 26px; letter-spacing: 2px; }
-        .title-box h2 { margin: 2px 0 0 0; font-size: 22px; }
+        .title-box h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .title-box h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
 
         /* 院友資訊列 */
         .info-bar {
@@ -127,24 +116,25 @@
 
         /* 頁尾 */
         .footer {
-            margin-top: 10px;
+            margin-top: 8px;
             display: flex;
             justify-content: flex-end;
             position: relative;
             height: 30px;
-            font-weight: bold;
         }
 
         .page-num {
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 22px;
+            font-size: 24px;
+            font-weight: bold;
             bottom: 0;
         }
 
         .doc-code {
             font-size: 11px;
+            font-weight: bold;
             align-self: flex-end;
         }
     </style>
@@ -154,7 +144,6 @@
 <div class="container">
     <!-- 標頭 -->
     <div class="header-section">
-        <div class="station-box">站</div>
         <div class="title-box">
             <h1>善頤(福群)護老院</h1>
             <h2>個人意外事件記錄表</h2>

@@ -53,8 +53,9 @@ $$ LANGUAGE plpgsql;
 
 -- 創建觸發器
 DROP TRIGGER IF EXISTS trigger_calculate_end_date ON new_medication_prescriptions;
-CREATE TRIGGER trigger_calculate_end_date
-  BEFORE INSERT OR UPDATE OF duration_days, start_date ON new_medication_prescriptions
+DROP TRIGGER IF EXISTS trigger_calculate_end_date ON new_medication_prescriptions;
+
+CREATE TRIGGER trigger_calculate_end_date BEFORE INSERT OR UPDATE OF duration_days, start_date ON new_medication_prescriptions
   FOR EACH ROW
   EXECUTE FUNCTION calculate_end_date_from_duration();
 

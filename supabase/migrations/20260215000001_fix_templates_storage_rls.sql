@@ -42,8 +42,9 @@ DROP POLICY IF EXISTS "Allow authenticated users to delete templates wrvard_0" O
 DROP POLICY IF EXISTS "templates_all_access" ON storage.objects;
 
 -- 建立單一的全存取 policy（因為系統使用自訂認證，安全由 Edge Function 控制）
-CREATE POLICY "templates_all_access"
-ON storage.objects
+DROP POLICY IF EXISTS "templates_all_access" ON storage.objects;
+
+CREATE POLICY "templates_all_access" ON storage.objects
 FOR ALL
 TO anon, authenticated
 USING (bucket_id = 'templates')
@@ -64,8 +65,9 @@ BEGIN
     AND tablename = 'templates_metadata' 
     AND policyname = 'Allow all access'
   ) THEN
-    CREATE POLICY "Allow all access"
-    ON templates_metadata
+    DROP POLICY IF EXISTS "Allow all access" ON templates_metadata;
+
+    CREATE POLICY "Allow all access" ON templates_metadata
     FOR ALL
     TO anon, authenticated
     USING (true)

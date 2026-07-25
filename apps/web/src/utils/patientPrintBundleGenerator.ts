@@ -131,7 +131,6 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
           return mod.generateFollowUpRecordFormsHtml(filtered, [patient], ctx.logoDataUri || '', ctx.facilityName);
         };
       }
-      case 'restraint_usage':
       case 'restraint_usage_common': {
         const mod = await import('./restraintUsageRecordPrintGenerator');
         return async (ctx) => {
@@ -379,7 +378,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
       const docName = PRINT_DOCUMENTS.find(d => d.id === docId)?.name || docId;
 
       try {
-        const html = await generator({
+        let html = await generator({
           patient,
           startDate: startDate || patient.入住日期 || '',
           endDate,
@@ -387,6 +386,17 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
           logoDataUri,
           contentMode,
         });
+        // 「含既有輸入內容」模式：有內容則印內容，無內容則回退印基本資料
+        if (!html && contentMode === 'data') {
+          html = await generator({
+            patient,
+            startDate: startDate || patient.入住日期 || '',
+            endDate,
+            facilityName,
+            logoDataUri,
+            contentMode: 'basic',
+          });
+        }
         if (html) {
           pages.push(html);
         } else if (contentMode === 'data') {
@@ -404,9 +414,11 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     return;
   }
 
-  // 使用 printUtils 合併並列印
+  // 使用 printUtils 依序列印：多份混和 orientation / margin 的文件合併成一份
+  // 列印會觸發 Chrome 具名 @page 分頁缺陷，導致內容被裁；
+  // 因此採用逐份 iframe 列印，確保每份文件與原範本一致。
   const { printCombinedHtml } = await import('./printUtils');
-  printCombinedHtml(pages, 'patient-bundle-print-iframe');
+  printCombinedHtml(pages, 'patient-bundle-print-iframe', true);
 
   // 回報未能列印的文件
   const notices: string[] = [];

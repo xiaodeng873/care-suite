@@ -15,7 +15,12 @@
 DO $$ 
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '記錄類型') THEN
+    DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '記錄類型') THEN
     CREATE TYPE 記錄類型 AS ENUM ('生命表徵', '血糖控制', '體重控制');
+  END IF;
+END $$;;
   END IF;
 END $$;
 
@@ -49,9 +54,13 @@ CREATE INDEX IF NOT EXISTS idx_健康記錄_類型 ON 健康記錄主表(記錄�
 
 -- 設定 RLS 政策
 -- 允許已認證用戶讀取健康記錄
+DROP POLICY IF EXISTS "允許已認證用戶讀取健康記錄" ON 健康記錄主表;
+
 CREATE POLICY "允許已認證用戶讀取健康記錄" ON 健康記錄主表
   FOR SELECT TO authenticated USING (true);
 
 -- 允許已認證用戶修改健康記錄
+DROP POLICY IF EXISTS "允許已認證用戶修改健康記錄" ON 健康記錄主表;
+
 CREATE POLICY "允許已認證用戶修改健康記錄" ON 健康記錄主表
   FOR ALL TO authenticated USING (true);

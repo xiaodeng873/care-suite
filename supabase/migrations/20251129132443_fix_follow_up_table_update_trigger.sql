@@ -25,7 +25,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 重新創建觸發器使用新函數
-CREATE TRIGGER update_覆診安排主表_updated_at
-    BEFORE UPDATE ON 覆診安排主表
+DROP TRIGGER IF EXISTS update_覆診安排主表_updated_at ON 覆診安排主表;
+
+CREATE TRIGGER update_覆診安排主表_updated_at BEFORE UPDATE ON 覆診安排主表
     FOR EACH ROW
     EXECUTE FUNCTION update_覆診安排主表_updated_at();

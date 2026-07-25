@@ -15,7 +15,12 @@ DO $$
 BEGIN
   -- 檢查 episode_event_type 是否存在
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'episode_event_type') THEN
+    DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'episode_event_type') THEN
     CREATE TYPE episode_event_type AS ENUM ('admission', 'transfer', 'discharge');
+  END IF;
+END $$;;
   END IF;
   
   -- 新增 vacation_start 如果不存在
@@ -41,11 +46,16 @@ END $$;
 DO $$ 
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'vacation_end_type') THEN
+    DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'vacation_end_type') THEN
     CREATE TYPE vacation_end_type AS ENUM (
       'return_to_facility',  -- 渡假後返回護老院
       'home',                -- 渡假後回到原居住地
       'transfer_out',        -- 轉至其他機構
       'deceased'             -- 院友渡假期間離世
     );
+  END IF;
+END $$;;
   END IF;
 END $$;

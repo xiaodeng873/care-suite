@@ -1,3 +1,5 @@
+import { isPrescriptionValidAt } from './prescriptionExpiry';
+
 /**
  * 藥物工作流程狀態輔助函數
  * 用於檢查和計算工作流程的逾期和未完成狀態
@@ -17,7 +19,14 @@ interface WorkflowRecord {
 
 interface Prescription {
   id: string;
+  status?: string;
+  start_date?: string;
+  start_time?: string | null;
+  end_date?: string | null;
+  end_time?: string | null;
   preparation_method?: string;
+  is_prn?: boolean;
+  medication_time_slots?: string[];
   [key: string]: any;
 }
 
@@ -43,8 +52,10 @@ export const isWorkflowOverdue = (record: WorkflowRecord): boolean => {
   const isOverdue = scheduledDateTime < hkTime;
 
   // 調試日誌（僅在逾期時輸出）
-  if (isOverdue) 
- 
+  if (isOverdue) {
+    console.warn('[isWorkflowOverdue] 逾期記錄:', record);
+  }
+
   return isOverdue;
 };
 
@@ -97,6 +108,8 @@ export const calculateOverdueCountByDate = (
         if (!p) return false;
         // 變更中的處方：不在工作流程頁顯示，不計逾期
         if (p.status === 'pending_change') return false;
+        // 排除已過處方有效時點的記錄
+        if (!isPrescriptionValidAt(p, r.scheduled_date, r.scheduled_time)) return false;
         // 排除「無時間點 PRN」處方的記錄（需要時才派，不算逾期）
         if (isPrnNoSlotPrescription(p)) return false;
       }
@@ -229,10 +242,16 @@ export const getPatientsWithOverdueWorkflow = (
         return; // 跳過這條孤兒記錄
       }
 
-      // 處方存在但狀態是 pending_change 或 inactive（停用/變更中，不應計入逾期）
-      if (prescription.status === 'pending_change' || prescription.status === 'inactive') {
+      // 處方存在但狀態是 pending_change（變更中，不應計入逾期）
+      if (prescription.status === 'pending_change') {
         inactiveRecordCount++;
-        return; // 跳過停用或變更中的處方記錄
+        return; // 跳過變更中的處方記錄
+      }
+
+      // 排除已過處方有效時點的記錄（含停服時間點後的記錄）
+      if (!isPrescriptionValidAt(prescription, record.scheduled_date, record.scheduled_time)) {
+        inactiveRecordCount++;
+        return;
       }
 
       // 無時間點的需要時(PRN)處方：需要時才派發，不算逾期，排除於提醒

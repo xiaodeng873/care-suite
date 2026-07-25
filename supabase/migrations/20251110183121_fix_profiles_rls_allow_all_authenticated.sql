@@ -14,30 +14,34 @@ DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can delete own profile" ON public.profiles;
 
 -- 創建新的策略：允許所有已認證用戶讀取所有 profiles
-CREATE POLICY "Allow authenticated users to read all profiles"
-  ON public.profiles
+DROP POLICY IF EXISTS "Allow authenticated users to read all profiles" ON public.profiles;
+
+CREATE POLICY "Allow authenticated users to read all profiles" ON public.profiles
   FOR SELECT
   TO authenticated
   USING (true);
 
 -- 只允許用戶插入自己的 profile
-CREATE POLICY "Users can insert own profile"
-  ON public.profiles
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+
+CREATE POLICY "Users can insert own profile" ON public.profiles
   FOR INSERT
   TO authenticated
   WITH CHECK (user_id = (select auth.uid()));
 
 -- 只允許用戶更新自己的 profile
-CREATE POLICY "Users can update own profile"
-  ON public.profiles
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+
+CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE
   TO authenticated
   USING (user_id = (select auth.uid()))
   WITH CHECK (user_id = (select auth.uid()));
 
 -- 只允許用戶刪除自己的 profile
-CREATE POLICY "Users can delete own profile"
-  ON public.profiles
+DROP POLICY IF EXISTS "Users can delete own profile" ON public.profiles;
+
+CREATE POLICY "Users can delete own profile" ON public.profiles
   FOR DELETE
   TO authenticated
   USING (user_id = (select auth.uid()));

@@ -20,7 +20,6 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
   { id: 'health_assessment', name: '院友健康評估及記錄', category: '入住文件', defaultChecked: true },
   { id: 'er_record', name: '使用急症室留院記錄', category: '入住文件', defaultChecked: true },
   { id: 'follow_up_record', name: '院友覆診記錄表', category: '入住文件', defaultChecked: true },
-  { id: 'restraint_usage', name: '使用約束物品紀錄', category: '入住文件', defaultChecked: false },
   { id: 'incident_report', name: '個人意外事件記錄表', category: '入住文件', defaultChecked: true },
   { id: 'activity_record', name: '院友健康教育/活動記錄表', category: '入住文件', defaultChecked: true },
   { id: 'doctor_visit', name: '醫生診治記錄', category: '入住文件', defaultChecked: true },

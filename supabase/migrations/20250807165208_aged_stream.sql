@@ -50,8 +50,9 @@ BEGIN
     WHERE tablename = 'patient_restraint_assessments' 
     AND policyname = 'Allow authenticated users to read patient restraint assessments'
   ) THEN
-    CREATE POLICY "Allow authenticated users to read patient restraint assessments"
-      ON patient_restraint_assessments
+    DROP POLICY IF EXISTS "Allow authenticated users to read patient restraint assessments" ON patient_restraint_assessments;
+
+    CREATE POLICY "Allow authenticated users to read patient restraint assessments" ON patient_restraint_assessments
       FOR SELECT
       TO authenticated
       USING (true);
@@ -62,8 +63,9 @@ BEGIN
     WHERE tablename = 'patient_restraint_assessments' 
     AND policyname = 'Allow authenticated users to insert patient restraint assessments'
   ) THEN
-    CREATE POLICY "Allow authenticated users to insert patient restraint assessments"
-      ON patient_restraint_assessments
+    DROP POLICY IF EXISTS "Allow authenticated users to insert patient restraint assessments" ON patient_restraint_assessments;
+
+    CREATE POLICY "Allow authenticated users to insert patient restraint assessments" ON patient_restraint_assessments
       FOR INSERT
       TO authenticated
       WITH CHECK (true);
@@ -74,8 +76,9 @@ BEGIN
     WHERE tablename = 'patient_restraint_assessments' 
     AND policyname = 'Allow authenticated users to update patient restraint assessments'
   ) THEN
-    CREATE POLICY "Allow authenticated users to update patient restraint assessments"
-      ON patient_restraint_assessments
+    DROP POLICY IF EXISTS "Allow authenticated users to update patient restraint assessments" ON patient_restraint_assessments;
+
+    CREATE POLICY "Allow authenticated users to update patient restraint assessments" ON patient_restraint_assessments
       FOR UPDATE
       TO authenticated
       USING (true)
@@ -87,8 +90,9 @@ BEGIN
     WHERE tablename = 'patient_restraint_assessments' 
     AND policyname = 'Allow authenticated users to delete patient restraint assessments'
   ) THEN
-    CREATE POLICY "Allow authenticated users to delete patient restraint assessments"
-      ON patient_restraint_assessments
+    DROP POLICY IF EXISTS "Allow authenticated users to delete patient restraint assessments" ON patient_restraint_assessments;
+
+    CREATE POLICY "Allow authenticated users to delete patient restraint assessments" ON patient_restraint_assessments
       FOR DELETE
       TO authenticated
       USING (true);
@@ -124,8 +128,9 @@ BEGIN
     SELECT 1 FROM pg_trigger 
     WHERE tgname = 'update_patient_restraint_assessments_updated_at'
   ) THEN
-    CREATE TRIGGER update_patient_restraint_assessments_updated_at
-      BEFORE UPDATE ON patient_restraint_assessments
+    DROP TRIGGER IF EXISTS update_patient_restraint_assessments_updated_at ON patient_restraint_assessments;
+
+    CREATE TRIGGER update_patient_restraint_assessments_updated_at BEFORE UPDATE ON patient_restraint_assessments
       FOR EACH ROW
       EXECUTE FUNCTION update_patient_restraint_assessments_updated_at();
   END IF;

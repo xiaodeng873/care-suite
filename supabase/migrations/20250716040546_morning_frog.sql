@@ -25,7 +25,12 @@
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '覆診狀態') THEN
-        CREATE TYPE 覆診狀態 AS ENUM ('已安排', '已完成', '改期', '取消');
+        DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '覆診狀態') THEN
+    CREATE TYPE 覆診狀態 AS ENUM ('已安排', '已完成', '改期', '取消');
+  END IF;
+END $$;;
     END IF;
 END $$;
 
@@ -64,8 +69,9 @@ BEGIN
         AND tablename = '覆診安排主表' 
         AND policyname = '允許已認證用戶讀取覆診安排'
     ) THEN
-        CREATE POLICY "允許已認證用戶讀取覆診安排"
-          ON 覆診安排主表
+        DROP POLICY IF EXISTS "允許已認證用戶讀取覆診安排" ON 覆診安排主表;
+
+        CREATE POLICY "允許已認證用戶讀取覆診安排" ON 覆診安排主表
           FOR SELECT
           TO authenticated
           USING (true);
@@ -77,8 +83,9 @@ BEGIN
         AND tablename = '覆診安排主表' 
         AND policyname = '允許已認證用戶新增覆診安排'
     ) THEN
-        CREATE POLICY "允許已認證用戶新增覆診安排"
-          ON 覆診安排主表
+        DROP POLICY IF EXISTS "允許已認證用戶新增覆診安排" ON 覆診安排主表;
+
+        CREATE POLICY "允許已認證用戶新增覆診安排" ON 覆診安排主表
           FOR INSERT
           TO authenticated
           WITH CHECK (true);
@@ -90,8 +97,9 @@ BEGIN
         AND tablename = '覆診安排主表' 
         AND policyname = '允許已認證用戶更新覆診安排'
     ) THEN
-        CREATE POLICY "允許已認證用戶更新覆診安排"
-          ON 覆診安排主表
+        DROP POLICY IF EXISTS "允許已認證用戶更新覆診安排" ON 覆診安排主表;
+
+        CREATE POLICY "允許已認證用戶更新覆診安排" ON 覆診安排主表
           FOR UPDATE
           TO authenticated
           USING (true)
@@ -104,8 +112,9 @@ BEGIN
         AND tablename = '覆診安排主表' 
         AND policyname = '允許已認證用戶刪除覆診安排'
     ) THEN
-        CREATE POLICY "允許已認證用戶刪除覆診安排"
-          ON 覆診安排主表
+        DROP POLICY IF EXISTS "允許已認證用戶刪除覆診安排" ON 覆診安排主表;
+
+        CREATE POLICY "允許已認證用戶刪除覆診安排" ON 覆診安排主表
           FOR DELETE
           TO authenticated
           USING (true);
@@ -128,8 +137,9 @@ BEGIN
         SELECT 1 FROM pg_trigger 
         WHERE tgname = 'update_覆診安排主表_updated_at'
     ) THEN
-        CREATE TRIGGER update_覆診安排主表_updated_at
-            BEFORE UPDATE ON 覆診安排主表
+        DROP TRIGGER IF EXISTS update_覆診安排主表_updated_at ON 覆診安排主表;
+
+        CREATE TRIGGER update_覆診安排主表_updated_at BEFORE UPDATE ON 覆診安排主表
             FOR EACH ROW
             EXECUTE FUNCTION update_updated_at_column();
     END IF;

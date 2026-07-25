@@ -8,6 +8,8 @@
 
 DROP POLICY IF EXISTS "允許已認證用戶管理健康監測記錄" ON 健康監測記錄;
 
-CREATE POLICY "Allow all access 健康監測記錄"
-  ON 健康監測記錄 FOR ALL TO anon, authenticated
+DROP POLICY IF EXISTS "Allow all access 健康監測記錄" ON 健康監測記錄;
+
+
+CREATE POLICY "Allow all access 健康監測記錄" ON 健康監測記錄 FOR ALL TO anon, authenticated
   USING (true) WITH CHECK (true);

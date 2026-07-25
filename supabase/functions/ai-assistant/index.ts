@@ -36,67 +36,91 @@ function checkRateLimit(userId) {
   rateLimitMap.set(userId, recent);
   return true;
 }
+function isOutOfScopeQuestion(text: string): boolean {
+  if (!text || text.trim().length === 0) return false;
+  const t = text.trim().toLowerCase();
+  const stripped = t.replace(/[!\uFF01?\uFF1F.。\\s]+$/g, "");
+  // Greetings (Unicode escapes avoid source-encoding mismatches in Edge Runtime)
+  const greetings = [
+    "\u4f60\u597d", "\u60a8\u597d", "\u55e8", "hello", "hi",
+    "\u65e9\u5b89", "\u5348\u5b89", "\u665a\u5b89",
+    "\u8b1d\u8b1d", "\u591a\u8b1d", "\u611f\u8b1d",
+    "\u518d\u898b", "\u62dc\u62dc", "bye"
+  ];
+  if (greetings.includes(stripped)) return true;
+  // Weather
+  if (t.includes("\u5929\u6c23") || t.includes("weather") || t.includes("\u6eab\u5ea6") || t.includes("\u5e7e\u5ea6")) return true;
+  // News / politics / entertainment / small talk
+  if (t.includes("\u65b0\u805e") || t.includes("news") || t.includes("\u653f\u6cbb") || t.includes("\u6295\u8cc7") || t.includes("\u80a1\u7968") || t.includes("\u57fa\u91d1") || t.includes("\u96fb\u5f71") || t.includes("\u97f3\u6a02") || t.includes("\u7b11\u8a71") || t.includes("\u9592\u804a") || t.includes("\u804a\u5929") || t.includes("\u904a\u6232")) return true;
+  // Meta questions
+  if (t.includes("\u4f60\u662f\u8ab0") || t.includes("\u4f60\u6709\u4ec0\u9ebc\u7528") || t.includes("\u4f60\u6703\u505a\u4ec0\u9ebc") || t.includes("who are you") || t.includes("what can you do")) return true;
+  return false;
+}
 async function validateToken(token) {
+  console.log("[AI Assistant] Validating token, length:", token?.length);
   const supabase = getSupabaseClient();
+  const now = new Date().toISOString();
+
   // 1. 嘗試自訂 token 驗證（管理者/員工）— 查找未過期的 session
-  const { data: session, error } = await supabase.from("user_sessions").select("user_id, expires_at").eq("token", token).gt("expires_at", new Date().toISOString()).single();
-  if (!error && session) {
-    // 更新最後訪問時間
-    await supabase.from("user_sessions").update({
-      last_accessed_at: new Date().toISOString()
-    }).eq("token", token);
-    // 獲取用戶資料
-    const { data: user } = await supabase.from("user_profiles").select("id, role, name_zh, is_active").eq("id", session.user_id).eq("is_active", true).single();
-    if (user) {
-      const { data: permissions } = await supabase.rpc("get_user_permissions", {
-        p_user_id: user.id
-      });
-      return {
-        userId: user.id,
-        role: user.role,
-        name: user.name_zh,
-        permissions: permissions || []
-      };
-    }
+  const { data: session, error: sessionError } = await supabase.from("user_sessions").select("user_id, expires_at").eq("token", token).gt("expires_at", now).single();
+  if (sessionError) {
+    console.log("[AI Assistant] Active session lookup error or not found:", sessionError?.message);
   }
+  if (!sessionError && session) {
+    console.log("[AI Assistant] Active session found for user:", session.user_id);
+    await supabase.from("user_sessions").update({ last_accessed_at: new Date().toISOString() }).eq("token", token);
+    const { data: user, error: userError } = await supabase.from("user_profiles").select("id, role, name_zh, is_active").eq("id", session.user_id).eq("is_active", true).single();
+    if (userError || !user) {
+      console.log("[AI Assistant] User not found or inactive for active session:", session.user_id);
+      return null;
+    }
+    const { data: permissions } = await supabase.rpc("get_user_permissions", { p_user_id: user.id });
+    return { userId: user.id, role: user.role, auth_type: "project_user", name: user.name_zh, permissions: permissions || [] };
+  }
+
   // 1b. 自訂 token 存在但已過期 → 自動延長 24 小時
-  const { data: expiredSession } = await supabase.from("user_sessions").select("user_id, expires_at").eq("token", token).single();
+  console.log("[AI Assistant] No active session, checking for expired session to renew...");
+  const { data: expiredSession, error: expiredError } = await supabase.from("user_sessions").select("user_id, expires_at").eq("token", token).single();
+  if (expiredError) {
+    console.log("[AI Assistant] Expired session lookup error or not found:", expiredError?.message);
+  }
   if (expiredSession) {
-    // token 在 DB 中找到但已過期 → 自動續期
+    console.log("[AI Assistant] Found expired session for user:", expiredSession.user_id, "expires_at:", expiredSession.expires_at);
     const newExpiry = new Date();
     newExpiry.setHours(newExpiry.getHours() + 24);
-    await supabase.from("user_sessions").update({
+    const { error: updateError } = await supabase.from("user_sessions").update({
       expires_at: newExpiry.toISOString(),
       last_accessed_at: new Date().toISOString()
     }).eq("token", token);
-    const { data: user } = await supabase.from("user_profiles").select("id, role, name_zh, is_active").eq("id", expiredSession.user_id).eq("is_active", true).single();
-    if (user) {
-      const { data: permissions } = await supabase.rpc("get_user_permissions", {
-        p_user_id: user.id
-      });
-      return {
-        userId: user.id,
-        role: user.role,
-        name: user.name_zh,
-        permissions: permissions || []
-      };
+    if (updateError) {
+      console.error("[AI Assistant] Failed to renew session:", updateError);
+      return null;
     }
+    console.log("[AI Assistant] Session renewed, new expiry:", newExpiry.toISOString());
+    const { data: user, error: userError } = await supabase.from("user_profiles").select("id, role, name_zh, is_active").eq("id", expiredSession.user_id).eq("is_active", true).single();
+    if (userError || !user) {
+      console.log("[AI Assistant] User not found or inactive after renewal:", expiredSession.user_id);
+      return null;
+    }
+    const { data: permissions } = await supabase.rpc("get_user_permissions", { p_user_id: user.id });
+    return { userId: user.id, role: user.role, auth_type: "project_user", name: user.name_zh, permissions: permissions || [] };
   }
+
   // 2. 嘗試 Supabase Auth JWT 驗證（開發者）
+  console.log("[AI Assistant] No custom session found, trying Supabase Auth JWT...");
   try {
-    // 使用 service role client 直接驗證 JWT
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
-    if (!authError && authUser) {
-      return {
-        userId: authUser.id,
-        role: "developer",
-        name: authUser.user_metadata?.display_name || authUser.email || "Developer",
-        permissions: []
-      };
+    if (authError) {
+      console.log("[AI Assistant] Supabase Auth validation error:", authError.message);
     }
-  } catch  {
-  // JWT 驗證失敗
+    if (!authError && authUser) {
+      console.log("[AI Assistant] Supabase Auth user validated:", authUser.id);
+      return { userId: authUser.id, role: "developer", auth_type: "developer", name: authUser.user_metadata?.display_name || authUser.email || "Developer", permissions: [] };
+    }
+  } catch (err) {
+    console.error("[AI Assistant] Supabase Auth JWT validation exception:", err);
   }
+  console.log("[AI Assistant] Token validation failed for all methods");
   return null;
 }
 // =====================================================
@@ -108,6 +132,33 @@ function userHasPermission(userCtx, category, action) {
   // Admin has all CRUD
   if (userCtx.role === "admin") return true;
   return userCtx.permissions.some((p)=>p.category === category && p.action === action);
+}
+// =====================================================
+// Usage Logging
+// =====================================================
+async function logUsage(logEntry) {
+  try {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.from("ai_assistant_usage_logs").insert({
+      user_id: logEntry.userId,
+      auth_type: logEntry.authType,
+      user_role: logEntry.userRole,
+      user_name: logEntry.userName,
+      request_type: logEntry.requestType,
+      message_text: logEntry.messageText,
+      response_type: logEntry.responseType,
+      model: logEntry.model,
+      tokens_used: logEntry.tokensUsed,
+      duration_ms: logEntry.durationMs,
+      ip_address: logEntry.ipAddress,
+      user_agent: logEntry.userAgent
+    });
+    if (error) {
+      console.error("Failed to log AI usage:", error);
+    }
+  } catch (err) {
+    console.error("Usage logging error:", err);
+  }
 }
 // =====================================================
 // Gemini API Call with Retry
@@ -122,10 +173,10 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 1000) {
   }
   throw new Error("重試次數過多，請求失敗 (429 Rate Limit)");
 }
-async function callGemini(systemPrompt, userMessage, conversationHistory, imageBase64, imageMimeType) {
+async function callGemini(systemPrompt, userMessage, conversationHistory, imageBase64, imageMimeType, maxOutputTokens = 2048) {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) throw new Error("未設定 GEMINI_API_KEY");
-  const model = Deno.env.get("GEMINI_MODEL") || "gemini-2.0-flash";
+  const model = Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest";
   const apiVersion = Deno.env.get("GEMINI_API_VERSION") || "v1beta";
   const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
   // Build conversation parts
@@ -187,7 +238,7 @@ async function callGemini(systemPrompt, userMessage, conversationHistory, imageB
         temperature: 0.1,
         topK: 1,
         topP: 0.95,
-        maxOutputTokens: 8192
+        maxOutputTokens
       }
     })
   });
@@ -219,16 +270,45 @@ async function callGemini(systemPrompt, userMessage, conversationHistory, imageB
 // =====================================================
 function buildSystemPrompt(userCtx, hasImage = false) {
   const roleLabel = userCtx.role === "developer" ? "開發者" : userCtx.role === "admin" ? "管理者" : "員工";
+  const authLabel = userCtx.auth_type === "developer" ? "開發者帳戶" : "專案用戶帳戶";
   const permCategories = [
     ...new Set(userCtx.permissions.map((p)=>p.category))
   ];
   return `你是「AI 助護」，一個安老院舍護理管理系統的智能助手。
-你的用戶是「${userCtx.name}」，角色為「${roleLabel}」。
+你的用戶是「${userCtx.name}」，角色為「${roleLabel}」，登入類型為「${authLabel}」。
 
-## 你可以做的事情：
-1. 理解自然語言問題，查詢資料庫中的資料並回答
+## 你可以回答的主題範圍（醫療護理與安老院管理相關）：
+1. 理解自然語言問題，查詢資料庫中的院友資料、健康記錄、用藥、覆診、護理紀錄等並回答
 2. 根據用戶指示，生成 INSERT/UPDATE/DELETE SQL 操作（需用戶確認後才會執行）
-3. 回答系統使用相關的問題
+3. 回答本系統使用相關的問題
+
+## 你**絕對不能**回答的主題：
+- 與安老院護理、醫療、藥物、院友管理、健康記錄、本系統使用**完全無關**的問題
+- 一般閒聊、天氣、新聞、政治、投資、個人建議等非工作相關內容
+- 任何涉及系統外服務、外部網站、程式碼生成以外的技術問題
+
+**只有當問題完全與醫療護理、安老院管理、本系統使用無關時，你才回傳 refused。**
+對於範圍外問題，你必須**直接拒絕**並回傳以下 JSON：
+\`\`\`json
+{
+  "type": "refused",
+  "explanation": "抱歉，AI 助護只回答醫療護理、安老院管理或本系統使用相關的問題。"
+}
+\`\`\`
+
+**絕對不要回傳 refused 的例子**（這些都是允許的問題，要回答或生成 SQL）：
+- 「如何新增院友」→ 回答系統操作步驟
+- 「202-1 血壓」→ 生成 SELECT 查詢
+- 「怎樣查血壓」→ 回答查詢方法
+- 「如何停用處方」→ 生成 UPDATE SQL
+
+**必須回傳 refused 的例子**（與工作完全無關）：
+- 「今天天氣如何」、「你好」、「謝謝」、「有什麼新聞」
+
+## 回答隱私規則（極重要）
+- **院友id / 院友編號** 是內部系統識別碼，回答使用者時**絕對禁止**顯示。
+- 可以透露的對外資訊包括：床號、中文姓名、英文姓名、性別、年齡、在住狀態、護理等級、入住類型等。
+- 產生 SQL 查詢時仍可使用 "院友id" 進行 JOIN 或 WHERE，但最後回覆的 explanation、摘要與資料表格中，不可出現院友id / 院友編號。
 
 ## 理解用戶指令的規則（極重要）：
 用戶是安老院護理人員，會用簡短的行業語言下指令，你必須主動推斷，不要反問顯而易見的事情。
@@ -252,7 +332,7 @@ function buildSystemPrompt(userCtx, hasImage = false) {
 ### 操作指令範例解讀
 - 「改202-1的Amoxicillin為停用處方」→ 先查「院友主表」WHERE "床號" LIKE '%202-1' 取得院友id，再 UPDATE new_medication_prescriptions SET status = 'inactive', end_date = CURRENT_DATE WHERE patient_id = (該院友id) AND medication_name ILIKE '%Amoxicillin%' AND status = 'active'
 - 「幫206-1加一個覆診」→ 因為缺少覆診日期、地點等必要資訊，此時才需要詢問
-- 「233-3今天BP幾多」→ 先查床號找院友id，再查「健康記錄主表」
+- 「233-3今天BP幾多」→ 先查床號找院友id，再查「健康監測記錄」WHERE "監測類型" = '血壓'
 
 ## 你不能做的事情：
 1. 執行任何 DDL 操作（CREATE TABLE, ALTER TABLE, DROP TABLE 等）
@@ -264,7 +344,8 @@ function buildSystemPrompt(userCtx, hasImage = false) {
 ${permCategories.length > 0 ? permCategories.join(", ") : "（受限制）"}
 
 ## 回覆格式要求：
-你必須**始終**返回嚴格的 JSON 格式，不要包含任何其他文字。格式如下：
+你必須**始終**返回嚴格的 JSON 格式，不要包含任何其他文字。
+回答必須簡潔、直接，不要重複問題，不要添加多餘的問候或解釋。
 
 ### 查詢類型（SELECT）：
 \`\`\`json
@@ -274,7 +355,7 @@ ${permCategories.length > 0 ? permCategories.join(", ") : "（受限制）"}
   "sql_type": "SELECT",
   "params": [],
   "tables_involved": ["表名1", "表名2"],
-  "explanation": "用簡潔的中文解釋你在查詢什麼"
+  "explanation": "簡潔描述查詢意圖"
 }
 \`\`\`
 
@@ -294,7 +375,7 @@ ${permCategories.length > 0 ? permCategories.join(", ") : "（受限制）"}
 \`\`\`json
 {
   "type": "answer",
-  "explanation": "你的回答內容"
+  "explanation": "你的回答內容（簡潔、直接回答問題）"
 }
 \`\`\`
 
@@ -400,14 +481,160 @@ ${DB_SCHEMA_SUMMARY}
 // =====================================================
 // Execute Query Safely
 // =====================================================
+function substituteParams(sql, params = []) {
+  if (!params || params.length === 0) return sql;
+  let result = sql;
+  for (let i = 0; i < params.length; i++) {
+    const val = params[i];
+    let replacement;
+    if (val === null || val === undefined) {
+      replacement = "NULL";
+    } else if (typeof val === "number") {
+      replacement = String(val);
+    } else if (typeof val === "boolean") {
+      replacement = val ? "TRUE" : "FALSE";
+    } else {
+      replacement = `'${String(val).replace(/'/g, "''")}'`;
+    }
+    result = result.replace(new RegExp(`\\$${i + 1}`, "g"), replacement);
+  }
+  return result;
+}
+
+function normalizeSql(sql: string): string {
+  if (!sql) return sql;
+  return sql.trim().replace(/;\s*$/, "");
+}
+
+function sanitizeDataForResponse(data) {
+  if (!data) return data;
+  if (Array.isArray(data)) {
+    return data.map(sanitizeDataForResponse);
+  }
+  if (typeof data === "object" && data !== null) {
+    const sanitized = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (key === "院友id" || key === "patient_id") continue;
+      sanitized[key] = sanitizeDataForResponse(value);
+    }
+    return sanitized;
+  }
+  return data;
+}
+
+function getRowValue(row: Record<string, any>, names: string[]): string {
+  for (const name of names) {
+    if (row[name] !== undefined && row[name] !== null && row[name] !== "") {
+      return String(row[name]);
+    }
+  }
+  return "";
+}
+
+function generateQueryResultSummary(data: any[], originalExplanation: string = ""): string {
+  if (!data || data.length === 0) {
+    if (originalExplanation && (originalExplanation.includes("沒有") || originalExplanation.includes("空") || originalExplanation.includes("無") || originalExplanation.includes("0 筆"))) {
+      return originalExplanation;
+    }
+    return "查詢完成，沒有找到符合條件的資料。";
+  }
+
+  const firstRow = data[0];
+  const keys = Object.keys(firstRow);
+
+  const bed = getRowValue(firstRow, ["床號", "bed_number", "bed"]);
+  const name = getRowValue(firstRow, ["中文姓名", "姓名", "name", "patient_name"]);
+  const enName = getRowValue(firstRow, ["英文姓名", "english_name", "name_en"]);
+  const gender = getRowValue(firstRow, ["性別", "gender"]);
+  const status = getRowValue(firstRow, ["在住狀態", "residency_status", "status"]);
+
+  // Vital signs / health monitoring — handle before generic patient lookup
+  const isVitalSign = keys.some((k: string) => k.includes("血壓") || k.includes("收縮壓") || k.includes("舒張壓") || k.includes("脈搏") || k.includes("體溫") || k.includes("血糖") || k.includes("血氧") || k.includes("監測"));
+  if (isVitalSign && data.length === 1) {
+    const row = firstRow;
+    const date = getRowValue(row, ["監測日期", "記錄日期", "日期", "date"]);
+    const time = getRowValue(row, ["監測時間", "記錄時間", "時間", "time"]);
+    const type = getRowValue(row, ["監測類型", "類型", "type"]);
+    const sys = getRowValue(row, ["收縮壓", "systolic_bp"]);
+    const dia = getRowValue(row, ["舒張壓", "diastolic_bp"]);
+    const value = getRowValue(row, ["監測數值", "數值", "value", "測量值"]);
+    const unit = getRowValue(row, ["單位", "unit"]);
+    const pulse = getRowValue(row, ["脈搏", "心率", "pulse", "heart_rate"]);
+    const temp = getRowValue(row, ["體溫", "temperature"]);
+    const spo2 = getRowValue(row, ["血氧", "spo2"]);
+
+    const parts: string[] = [];
+    if (bed && name) parts.push(`床號 ${bed} ${name}院友`);
+    else if (name) parts.push(`${name}院友`);
+    else if (bed) parts.push(`床號 ${bed} 院友`);
+
+    const itemName = type || (sys && dia ? "血壓" : "監測值");
+    const dt = date && time ? `${date} ${time}` : date || time;
+    if (dt) parts.push(`${itemName}（${dt}）`);
+    else parts.push(`${itemName}`);
+
+    if (sys && dia) parts.push(`為 ${sys}/${dia} mmHg`);
+    else if (temp) parts.push(`為 ${temp}°C`);
+    else if (spo2) parts.push(`為 ${spo2}%`);
+    else if (pulse) parts.push(`為 ${pulse} 次/分`);
+    else if (value) parts.push(`為 ${value}${unit ? " " + unit : ""}`);
+
+    if (parts.length >= 2) return parts.join("") + "。";
+  }
+
+  // Single patient lookup
+  if (data.length === 1 && (name || bed)) {
+    const parts: string[] = [];
+    if (bed && name) {
+      parts.push(`床號 ${bed} 的院友是${name}`);
+    } else if (name) {
+      parts.push(`${name}院友`);
+    } else if (bed) {
+      parts.push(`床號 ${bed}`);
+    }
+    if (enName && parts.length > 0) {
+      parts[0] = parts[0] + `（${enName}）`;
+    }
+    if (gender) parts.push(`${gender}性`);
+    if (status) parts.push(`目前在住狀態為「${status}」`);
+    if (firstRow["年齡"] || firstRow["age"]) parts.push(`年齡 ${firstRow["年齡"] || firstRow["age"]} 歲`);
+    if (firstRow["護理等級"]) parts.push(`護理等級為「${firstRow["護理等級"]}」`);
+    if (firstRow["入住類型"]) parts.push(`入住類型為「${firstRow["入住類型"]}」`);
+    if (parts.length > 0) return parts.join("，") + "。";
+  }
+
+  // General: summarize first few rows
+  const maxRows = 3;
+  const rowSummaries: string[] = [];
+  for (let i = 0; i < Math.min(data.length, maxRows); i++) {
+    const row = data[i];
+    const rowName = getRowValue(row, ["中文姓名", "姓名", "name"]) || getRowValue(row, ["床號", "bed_number", "bed"]);
+    const label = rowName || `第 ${i + 1} 筆`;
+    const pairs = keys
+      .filter((k: string) => k !== "院友id" && k !== "patient_id")
+      .slice(0, 4)
+      .map((k: string) => `${k}: ${row[k]}`)
+      .join("、");
+    rowSummaries.push(`${label}：${pairs}`);
+  }
+
+  if (data.length === 1) {
+    return `查到 1 筆資料：${rowSummaries[0]}。`;
+  }
+  let summary = `查到 ${data.length} 筆資料：`;
+  summary += "\n" + rowSummaries.join("\n");
+  if (data.length > maxRows) summary += `\n...還有 ${data.length - maxRows} 筆。`;
+  return summary;
+}
+
 async function executeQuery(sql, params = []) {
   const supabase = getSupabaseClient();
   try {
     // Use rpc to execute raw SQL via a custom function, or use the REST API
     // Since we have service role, we can use supabase.rpc or direct query
     const { data, error } = await supabase.rpc("exec_sql_readonly", {
-      query_text: sql,
-      query_params: JSON.stringify(params)
+      query_text: substituteParams(normalizeSql(sql), params),
+      query_params: JSON.stringify([])
     });
     if (error) {
       // Fallback: try direct query for simple SELECT
@@ -777,7 +1004,7 @@ async function handleImageChat(message, imageBase64, imageMimeType, systemPrompt
   let summaryPrompt;
   const isIdCard = analysisResponse.document_type === "id_card";
   // Build patient context string for non-id_card types
-  const patientContext = matchedPatient ? `\n\n✅ 系統已自動識別此文件屬於院友：${matchedPatient.中文姓氏 || ""}${matchedPatient.中文名字 || matchedPatient.中文姓名 || "未知"}（床號：${matchedPatient.床號 || "無"}，院友ID：${matchedPatient.院友id}，在住狀態：${matchedPatient.在住狀態 || "未知"}）` : "";
+  const patientContext = matchedPatient ? `\n\n✅ 系統已自動識別此文件屬於院友：${matchedPatient.中文姓氏 || ""}${matchedPatient.中文名字 || matchedPatient.中文姓名 || "未知"}（床號：${matchedPatient.床號 || "無"}，在住狀態：${matchedPatient.在住狀態 || "未知"}）` : "";
   // Role/tone instruction — shared across all summary prompts
   const toneRule = `\n\n⚠️ 身份與語氣規則（必須遵守）：
 - 你是在向護理人員（護士/護理員）匯報，不是在對院友本人說話
@@ -883,7 +1110,7 @@ ${JSON.stringify(analysisResponse.extracted_data, null, 2)}
   }
   let summary = analysisResponse.explanation;
   try {
-    const summaryResponse = await callGemini("你是安老院舍管理系統的 AI 助護。你的用戶是院舍的護理人員（護士/護理員），不是院友本人。回覆時必須用第三人稱稱呼院友（例如「XX院友」），絕對不要用「您好」「您的個人檔案」等直接對院友說話的語氣。語氣要專業、簡潔，像在向同事匯報。請用繁體中文做自然語言回覆，不要返回 JSON。", summaryPrompt, []);
+    const summaryResponse = await callGemini("你是安老院舍管理系統的 AI 助護。你的用戶是院舍的護理人員（護士/護理員），不是院友本人。回覆時必須用第三人稱稱呼院友（例如「XX院友」），絕對不要用「您好」「您的個人檔案」等直接對院友說話的語氣。語氣要專業、簡潔，像在向同事匯報。請用繁體中文做自然語言回覆，不要返回 JSON。", summaryPrompt, [], null, null, 1024);
     if (summaryResponse.type === "answer") {
       summary = summaryResponse.explanation;
     }
@@ -899,7 +1126,6 @@ ${JSON.stringify(analysisResponse.extracted_data, null, 2)}
       documentType: analysisResponse.document_type,
       extractedData: analysisResponse.extracted_data,
       matchedPatient: matchedPatient ? {
-        院友id: matchedPatient.院友id,
         中文姓名: `${matchedPatient.中文姓氏 || ""}${matchedPatient.中文名字 || ""}` || matchedPatient.中文姓名,
         床號: matchedPatient.床號,
         在住狀態: matchedPatient.在住狀態
@@ -914,8 +1140,15 @@ ${JSON.stringify(analysisResponse.extracted_data, null, 2)}
 // Process LLM Response (shared logic for query/mutation)
 // =====================================================
 async function processLLMResponse(llmResponse, message, userCtx) {
-  // Handle plain answer / error
-  if (llmResponse.type === "answer" || llmResponse.type === "error") {
+  // Handle plain answer / error / refused
+  if (llmResponse.type === "refused" && message && !isOutOfScopeQuestion(message)) {
+    // Override LLM over-refusal: the guard didn't flag this as out-of-scope, so it should be answered
+    llmResponse = {
+      type: "answer",
+      explanation: "我可以協助處理這個問題。請更具體描述你想查詢或操作的內容，例如「查 202-1 血壓」或「新增院友 張三」。"
+    };
+  }
+  if (llmResponse.type === "answer" || llmResponse.type === "error" || llmResponse.type === "refused") {
     return jsonResponse({
       success: true,
       response: llmResponse
@@ -923,6 +1156,7 @@ async function processLLMResponse(llmResponse, message, userCtx) {
   }
   // Validate SQL safety
   if (llmResponse.sql) {
+    llmResponse.sql = normalizeSql(llmResponse.sql);
     if (containsBlockedKeywords(llmResponse.sql)) {
       return jsonResponse({
         success: true,
@@ -969,12 +1203,14 @@ async function processLLMResponse(llmResponse, message, userCtx) {
         }
       });
     }
+    const sanitizedData = sanitizeDataForResponse(data?.slice(0, 100)) || [];
+    const summary = generateQueryResultSummary(sanitizedData, llmResponse.explanation);
     return jsonResponse({
       success: true,
       response: {
         type: "query_result",
-        explanation: llmResponse.explanation,
-        data: data?.slice(0, 100) || [],
+        explanation: summary,
+        data: sanitizedData,
         rowCount: data?.length || 0
       }
     });
@@ -987,7 +1223,7 @@ async function processLLMResponse(llmResponse, message, userCtx) {
     const { error } = await supabase.from("ai_assistant_pending_mutations").insert({
       id: mutationId,
       user_id: userCtx.userId,
-      sql_statement: llmResponse.sql,
+      sql_statement: normalizeSql(llmResponse.sql),
       sql_params: llmResponse.params || [],
       explanation: llmResponse.explanation,
       tables_involved: tablesInvolved,
@@ -1010,7 +1246,7 @@ async function processLLMResponse(llmResponse, message, userCtx) {
         type: "mutation_preview",
         mutationId,
         explanation: llmResponse.explanation,
-        sql: llmResponse.sql,
+        sql: normalizeSql(llmResponse.sql),
         sqlType,
         tablesInvolved,
         expiresAt: expiresAt.toISOString()
@@ -1037,6 +1273,16 @@ Deno.serve(async (req)=>{
   }
   const url = new URL(req.url);
   const path = url.pathname.split("/").pop();
+  const startTime = Date.now();
+  let userCtx = null;
+  let responseType = "error";
+  let requestType = path === "chat" ? "chat" : path === "confirm-mutation" ? "confirm-mutation" : "unknown";
+  let model = Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest";
+  let durationMs = 0;
+  let ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "";
+  let userAgent = req.headers.get("user-agent") || "";
+  let messageText = "";
+
   try {
     // Extract auth token
     const authHeader = req.headers.get("Authorization") || "";
@@ -1048,7 +1294,7 @@ Deno.serve(async (req)=>{
       }, 401);
     }
     // Validate user
-    const userCtx = await validateToken(token);
+    userCtx = await validateToken(token);
     if (!userCtx) {
       return jsonResponse({
         success: false,
@@ -1062,18 +1308,83 @@ Deno.serve(async (req)=>{
         error: "請求過於頻繁，請稍後再試（每分鐘限 20 次）"
       }, 429);
     }
+
+    let result;
     if (path === "chat") {
-      return await handleChat(req, userCtx);
+      // Extract message text for logging (best effort before handler consumes body)
+      try {
+        const clonedReq = req.clone();
+        const body = await clonedReq.json();
+        messageText = body.message || "";
+        if (body.imageBase64) requestType = "image";
+      } catch {
+        // ignore clone/parse errors
+      }
+      result = await handleChat(req, userCtx);
     } else if (path === "confirm-mutation") {
-      return await handleConfirmMutation(req, userCtx);
+      requestType = "confirm-mutation";
+      result = await handleConfirmMutation(req, userCtx);
+    } else if (path === "stats") {
+      requestType = "stats";
+      result = await handleStats(req, userCtx);
     } else {
       return jsonResponse({
         success: false,
         error: "未知端點"
       }, 404);
     }
+
+    durationMs = Date.now() - startTime;
+
+    // Determine response type from result body
+    try {
+      const bodyText = await result.clone().text();
+      const body = JSON.parse(bodyText);
+      if (body?.response?.type) {
+        responseType = body.response.type;
+      } else if (body?.success === false) {
+        responseType = "error";
+      }
+    } catch {
+      responseType = "error";
+    }
+
+    // Log usage
+    await logUsage({
+      userId: userCtx.userId,
+      authType: userCtx.auth_type,
+      userRole: userCtx.role,
+      userName: userCtx.name,
+      requestType,
+      messageText: messageText.length > 2000 ? messageText.slice(0, 2000) : messageText,
+      responseType,
+      model,
+      tokensUsed: null,
+      durationMs,
+      ipAddress,
+      userAgent
+    });
+
+    return result;
   } catch (err) {
     console.error("AI Assistant error:", err);
+    durationMs = Date.now() - startTime;
+    if (userCtx) {
+      await logUsage({
+        userId: userCtx.userId,
+        authType: userCtx.auth_type,
+        userRole: userCtx.role,
+        userName: userCtx.name,
+        requestType,
+        messageText: messageText.length > 2000 ? messageText.slice(0, 2000) : messageText,
+        responseType: "error",
+        model,
+        tokensUsed: null,
+        durationMs,
+        ipAddress,
+        userAgent
+      });
+    }
     return jsonResponse({
       success: false,
       error: "伺服器內部錯誤，請稍後再試"
@@ -1096,6 +1407,16 @@ async function handleChat(req, userCtx) {
       success: false,
       error: "訊息過長，請限制在 2000 字以內"
     }, 400);
+  }
+  // Fast rule-based guard for obvious non-medical / non-work questions
+  if (message && isOutOfScopeQuestion(message)) {
+    return jsonResponse({
+      success: true,
+      response: {
+        type: "refused",
+        explanation: "抱歉，AI 助護只回答醫療護理、安老院管理或本系統使用相關的問題。"
+      }
+    });
   }
   // Validate image if provided
   if (imageBase64) {
@@ -1129,7 +1450,7 @@ async function handleChat(req, userCtx) {
   let llmResponse;
   try {
     llmResponse = await callGemini(systemPrompt, message, conversationHistory);
-  } catch (err) {
+  } catch (err: any) {
     console.error("Gemini call error:", err);
     return jsonResponse({
       success: true,
@@ -1139,8 +1460,15 @@ async function handleChat(req, userCtx) {
       }
     });
   }
-  // Handle plain answer / error
-  if (llmResponse.type === "answer" || llmResponse.type === "error") {
+  // Handle plain answer / error / refused
+  if (llmResponse.type === "refused" && message && !isOutOfScopeQuestion(message)) {
+    // Override LLM over-refusal: the guard didn't flag this as out-of-scope, so it should be answered
+    llmResponse = {
+      type: "answer",
+      explanation: "我可以協助處理這個問題。請更具體描述你想查詢或操作的內容，例如「查 202-1 血壓」或「新增院友 張三」。"
+    };
+  }
+  if (llmResponse.type === "answer" || llmResponse.type === "error" || llmResponse.type === "refused") {
     return jsonResponse({
       success: true,
       response: llmResponse
@@ -1148,6 +1476,7 @@ async function handleChat(req, userCtx) {
   }
   // Validate SQL safety
   if (llmResponse.sql) {
+    llmResponse.sql = normalizeSql(llmResponse.sql);
     if (containsBlockedKeywords(llmResponse.sql)) {
       return jsonResponse({
         success: true,
@@ -1195,33 +1524,15 @@ async function handleChat(req, userCtx) {
         }
       });
     }
-    // Call Gemini again to summarize results
-    let summary = llmResponse.explanation;
-    const rowCount = data?.length || 0;
-    try {
-      if (rowCount > 0) {
-        const summaryResponse = await callGemini("你是一個資料摘要助手。請用繁體中文簡潔地總結以下查詢結果，以便用戶理解。如果資料是表格形式，可以用簡單的列表呈現關鍵資訊。不要返回 JSON，直接用自然語言回答。", `用戶問題：${message}\n\n查詢結果（共 ${rowCount} 筆）：\n${JSON.stringify(data.slice(0, 50), null, 2)}${rowCount > 50 ? "\n...（更多結果已省略）" : ""}`, []);
-        if (summaryResponse.type === "answer") {
-          summary = summaryResponse.explanation;
-        }
-      } else {
-        const summaryResponse = await callGemini("你是一個資料摘要助手。用戶查詢資料庫後結果為空（0 筆資料）。請用繁體中文、自然且友善的語氣告訴用戶結果為空。根據用戶的問題給出有意義的回應，例如「今天沒有院友需要覆診」而非只是重複查詢描述。不要返回 JSON，直接用自然語言回答。", `用戶問題：${message}\n\n查詢結果：0 筆資料（無符合條件的記錄）`, []);
-        if (summaryResponse.type === "answer") {
-          summary = summaryResponse.explanation;
-        }
-      }
-    } catch  {
-      // Use default explanation if summary fails
-      if (rowCount === 0) {
-        summary = "查詢完成，沒有找到符合條件的資料。";
-      }
-    }
+    // Generate a direct answer from the returned data instead of echoing the LLM's pre-execution description
+    const sanitizedData = sanitizeDataForResponse(data?.slice(0, 100)) || [];
+    const summary = generateQueryResultSummary(sanitizedData, llmResponse.explanation);
     return jsonResponse({
       success: true,
       response: {
         type: "query_result",
         explanation: summary,
-        data: data?.slice(0, 100) || [],
+        data: sanitizedData,
         rowCount: data?.length || 0
       }
     });
@@ -1234,7 +1545,7 @@ async function handleChat(req, userCtx) {
     const { error } = await supabase.from("ai_assistant_pending_mutations").insert({
       id: mutationId,
       user_id: userCtx.userId,
-      sql_statement: llmResponse.sql,
+      sql_statement: normalizeSql(llmResponse.sql),
       sql_params: llmResponse.params || [],
       explanation: llmResponse.explanation,
       tables_involved: tablesInvolved,
@@ -1258,7 +1569,7 @@ async function handleChat(req, userCtx) {
         type: "mutation_preview",
         mutationId,
         explanation: llmResponse.explanation,
-        sql: llmResponse.sql,
+        sql: normalizeSql(llmResponse.sql),
         sqlType: sqlType,
         tablesInvolved,
         expiresAt: expiresAt.toISOString()
@@ -1317,8 +1628,8 @@ async function handleConfirmMutation(req, userCtx) {
   // Execute the mutation
   try {
     const { data, error } = await supabase.rpc("exec_sql_mutation", {
-      query_text: mutation.sql_statement,
-      query_params: JSON.stringify(mutation.sql_params || [])
+      query_text: substituteParams(normalizeSql(mutation.sql_statement), mutation.sql_params || []),
+      query_params: JSON.stringify([])
     });
     if (error) {
       console.error("Mutation execution error:", error);
@@ -1346,6 +1657,87 @@ async function handleConfirmMutation(req, userCtx) {
       error: `操作執行失敗：${err.message}`
     }, 500);
   }
+}
+// =====================================================
+// /stats Handler — AI 助護使用統計（僅 admin / developer 可存取）
+// =====================================================
+async function handleStats(req, userCtx) {
+  // Only developers and admins can view usage statistics
+  if (userCtx.role !== "developer" && userCtx.role !== "admin") {
+    return jsonResponse({
+      success: false,
+      error: "沒有權限查看使用統計"
+    }, 403);
+  }
+
+  const url = new URL(req.url);
+  const days = parseInt(url.searchParams.get("days") || "30", 10);
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 200);
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const supabase = getSupabaseClient();
+
+  // Total count in date range
+  const { count: totalCount, error: totalError } = await supabase
+    .from("ai_assistant_usage_logs")
+    .select("*", { count: "exact", head: true })
+    .gte("created_at", startDate.toISOString());
+
+  if (totalError) {
+    console.error("Stats total error:", totalError);
+    return jsonResponse({ success: false, error: "統計查詢失敗" }, 500);
+  }
+
+  // By auth_type
+  const { data: byAuthType, error: authTypeError } = await supabase.rpc("get_ai_usage_by_auth_type", {
+    p_start_date: startDate.toISOString()
+  });
+
+  // By role
+  const { data: byRole, error: roleError } = await supabase.rpc("get_ai_usage_by_role", {
+    p_start_date: startDate.toISOString()
+  });
+
+  // By response_type
+  const { data: byResponseType, error: responseTypeError } = await supabase.rpc("get_ai_usage_by_response_type", {
+    p_start_date: startDate.toISOString()
+  });
+
+  // Recent logs
+  const { data: recentLogs, error: logsError } = await supabase
+    .from("ai_assistant_usage_logs")
+    .select("id, user_id, auth_type, user_role, user_name, request_type, response_type, model, duration_ms, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (logsError) {
+    console.error("Stats recent logs error:", logsError);
+  }
+
+  // Daily trend (fallback if RPCs don't exist)
+  const { data: dailyTrend, error: dailyError } = await supabase
+    .from("ai_assistant_daily_stats")
+    .select("day, auth_type, response_type, count")
+    .gte("day", startDate.toISOString())
+    .order("day", { ascending: true });
+
+  if (dailyError) {
+    console.error("Stats daily trend error:", dailyError);
+  }
+
+  return jsonResponse({
+    success: true,
+    data: {
+      totalCount: totalCount || 0,
+      dateRange: { days, startDate: startDate.toISOString() },
+      byAuthType: byAuthType || [],
+      byRole: byRole || [],
+      byResponseType: byResponseType || [],
+      dailyTrend: dailyTrend || [],
+      recentLogs: recentLogs || []
+    }
+  });
 }
 // =====================================================
 // Helpers
