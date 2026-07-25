@@ -13,7 +13,6 @@ export interface PatrolRoundRecord {
 
 export interface PatrolRoundsExportOptions {
   facilityName?: string;
-  logoBase64?: string; // kept for API compatibility; doc_html template has no logo
   bedNumber: string;
   startDate: string;  // 'YYYY-MM-DD'
   endDate: string;    // 'YYYY-MM-DD'
@@ -40,7 +39,7 @@ html, body {
 
 .page {
   width: 100%;
-  height: 288mm;
+  min-height: 100vh;
   box-sizing: border-box;
   position: relative;
   display: flex;
@@ -59,8 +58,6 @@ html, body {
 .title-section { display: inline-block; text-align: center; margin-bottom: 2px; }
 .title-section h1 { margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
 .title-section h2 { margin: 1px 0 0 0; font-size: 18px; font-weight: bold; display: inline-block; padding-bottom: 1px; }
-.logo-section { position: absolute; right: 0; top: 0; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; }
-.logo-section img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
 .info-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 4px; }
 .info-table td { border: none; padding: 2px 0; vertical-align: bottom; font-size: 16px; font-weight: bold; white-space: nowrap; }
@@ -144,17 +141,12 @@ function buildEmptyCard(): string {
 function buildPage(
   dates: string[],
   facilityName: string,
-  logoDataUri: string | null,
   bedNumber: string,
   monthStr: string,
   dataIndex: Map<string, Map<string, PatrolRoundRecord>>
 ): string {
   const cards = dates.map(d => buildCard(d, dataIndex.get(d) ?? new Map())).join('');
   const emptyCards = Array.from({ length: CARDS_PER_PAGE - dates.length }, buildEmptyCard).join('');
-
-  const logoHtml = logoDataUri
-    ? `<div class="logo-section"><img src="${esc(logoDataUri)}" alt="Logo"></div>`
-    : '<div class="logo-section"></div>';
 
   return `<div class="page">
   <div class="header-section">
@@ -163,7 +155,6 @@ function buildPage(
         <h1>${esc(facilityName)}</h1>
         <h2>院友巡房記錄表</h2>
       </div>
-      ${logoHtml}
     </div>
     <table class="info-table">
       <colgroup>
@@ -229,7 +220,6 @@ export async function exportPatrolRoundsRangeHtml(options: PatrolRoundsExportOpt
 
   const settings = await getFacilitySettings();
   const facilityName = options.facilityName ?? settings.facilityNameZh;
-  const logoDataUri = options.logoBase64 ?? settings.logoDataUri;
 
   const allDates = dateRange(startDate, endDate);
   if (allDates.length === 0) return;
@@ -247,7 +237,7 @@ export async function exportPatrolRoundsRangeHtml(options: PatrolRoundsExportOpt
   const monthStr = `${firstDate.getFullYear()}年${firstDate.getMonth() + 1}月`;
 
   const pageHtmls = pages.map((dates) =>
-    buildPage(dates, facilityName, logoDataUri, bedNumber, monthStr, dataIndex)
+    buildPage(dates, facilityName, bedNumber, monthStr, dataIndex)
   );
 
   printViaIframe(buildDocument(pageHtmls, facilityName));

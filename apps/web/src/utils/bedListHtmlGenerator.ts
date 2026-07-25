@@ -19,7 +19,6 @@ export interface BedListBed {
 export interface BedListInput {
   stationName: string;
   facilityName?: string;
-  logoBase64?: string;
   beds: BedListBed[];
   printDate?: string;
   /** 特別關顧（男/女），從任務表預先計算 */
@@ -66,7 +65,6 @@ export function generateBedListHtml(input: BedListInput): string {
   const {
     stationName,
     facilityName = DEFAULT_FACILITY_SETTINGS.facilityNameZh,
-    logoBase64,
     beds,
     printDate,
     specialCare,
@@ -183,11 +181,6 @@ export function generateBedListHtml(input: BedListInput): string {
     );
   }
 
-  /* ── 8. Logo ── */
-  const logoHtml = logoBase64
-    ? `<img src="${logoBase64}" class="logo" alt="logo">`
-    : `<div class="logo-ph"></div>`;
-
   /* ── 9. 統計欄 HTML（6 區塊） ── */
   const dash = '—';
   const nv = (v?: number) => v != null ? String(v) : dash;
@@ -277,8 +270,6 @@ body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-se
 
 /* 表頭 */
 .hdr { display:flex; align-items:center; gap:3mm; padding-bottom:2.5mm; border-bottom:2px solid #1f2937; flex-shrink:0; }
-.logo { width:13mm; height:13mm; object-fit:contain; flex-shrink:0; }
-.logo-ph { width:13mm; height:13mm; border:1.5px dashed #ccc; border-radius:3px; flex-shrink:0; }
 .hdr-mid { flex:1; }
 .facility { font-size:15px; font-weight:bold; color:#1f2937; letter-spacing:.5px; }
 .tbl-title { font-size:10px; color:#6b7280; margin-top:1.5px; }
@@ -369,7 +360,6 @@ body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-se
 <div class="pw">
 <div class="page">
   <div class="hdr">
-    ${logoHtml}
     <div class="hdr-mid">
       <div class="facility">${facilityName}</div>
       <div class="tbl-title">${stationName} · 床位表</div>

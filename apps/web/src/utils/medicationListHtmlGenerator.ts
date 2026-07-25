@@ -1,7 +1,6 @@
 import shortTermTemplate from '../../../../doc_html/院友服用藥物一覽表（短期藥）.html?raw';
 import longTermTemplate from '../../../../doc_html/院友服用藥物一覽表（長期藥）.html?raw';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
-import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 
 interface MedicationPrescription {
   id?: string;
@@ -255,7 +254,6 @@ function renderPage(
   pageIndex: number,
   totalPages: number,
   facilityNameZh: string,
-  logoDataUri: string | null,
   headerLabel?: string | null
 ): string {
   const name = patient.中文姓名 || `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`;
@@ -270,12 +268,9 @@ function renderPage(
   html = html.replace(/<h1>善頤\(福群\)護老院<\/h1>/g, `<h1>${escapeHtml(facilityNameZh)}</h1>`);
   html = html.replace(/<title>院友服用藥物一覽表 - 善頤\(福群\)<\/title>/g, `<title>院友服用藥物一覽表 - ${escapeHtml(facilityNameZh)}</title>`);
 
-  // Replace header label box and add facility logo
+  // Replace header label box (no logo)
   const labelHtml = (headerLabel !== null && headerLabel !== undefined)
     ? `<div class="${termType === 'short' ? 'short-term-box' : 'long-term-box'}">${escapeHtml(headerLabel)}</div>`
-    : '';
-  const logoHtml = logoDataUri
-    ? `<div class="logo-box"><img class="facility-logo" src="${escapeAttr(logoDataUri)}" alt="${escapeAttr(facilityNameZh)}"></div>`
     : '';
   const newHeader = `<div class="header-section" style="position: relative;">
         ${labelHtml}
@@ -283,7 +278,6 @@ function renderPage(
             <h1>${escapeHtml(facilityNameZh)}</h1>
             <h2>院友服用藥物一覽表</h2>
         </div>
-        ${logoHtml}
     </div>`;
   html = html.replace(
     /<div class="header-section">[\s\S]*?<\/div>\s*<\/div>/,
@@ -303,10 +297,10 @@ function renderPage(
     /<td>性別\/年齡：<\/td>\s*<td><input type="text" class="db-line-input"><\/td>/,
     `<td>性別/年齡：</td><td><input type="text" class="db-line-input" value="${escapeHtml(formatGenderAge(patient))}"></td>`
   );
-  // 右上角「頁數」欄顯示當前頁碼
+  // 右上角「頁數」欄顯示固定靜態頁碼 2
   html = html.replace(
     /<td>頁數：<\/td>\s*<td><input type="text" class="db-line-input"><\/td>/,
-    `<td>頁數：</td><td><input type="text" class="db-line-input" value="${pageIndex}"></td>`
+    `<td>頁數：</td><td><input type="text" class="db-line-input" value="2"></td>`
   );
 
   // Replace allergy info
@@ -361,14 +355,12 @@ function assembleDocument(pages: string[], usedTemplates: string[]): string {
     /* 覆蓋：欄寬調整 */
     .col-drug { width: 45% !important; }
     .col-notice { width: 11% !important; }
-    /* 覆蓋：標題區加入院舍 LOGO */
+    /* 覆蓋：標題區 */
     .title-box { margin-right: 0 !important; text-align: center; }
     .title-box h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
     .title-box h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
     .header-section { position: relative; }
     .long-term-box, .short-term-box { position: absolute; left: 0; top: 0; margin-left: 0; border: 2px solid black; padding: 5px 15px; font-size: 22px; font-weight: bold; }
-    .logo-box { position: absolute; top: 0; right: 0; width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
-    .facility-logo { max-width: 100%; max-height: 100%; object-fit: contain; }
     .page-num { font-size: 24px !important; }
     .doc-code { font-size: 11px !important; align-self: flex-end; }
     /* 覆蓋：藥物敏感「如有」輸入框加長，支援兩行小字 */
@@ -381,7 +373,9 @@ function assembleDocument(pages: string[], usedTemplates: string[]): string {
       resize: none;
       overflow: hidden;
     }
-    .print-page { width: 100%; box-sizing: border-box; }
+    .print-page { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; min-height: 100vh; }
+    .print-page .container { display: flex; flex-direction: column; min-height: 100vh; }
+    .print-page .footer { margin-top: auto !important; }
     @media print {
       .print-page { page-break-after: always; }
       .print-page:last-child { page-break-after: auto; }
@@ -399,11 +393,12 @@ export async function generateMedicationListHtml(
   options: {
     startDate?: string;
     endDate?: string;
+    allowBlankPage?: boolean;
   } = {}
 ): Promise<string> {
   const facility = await getFacilitySettings();
   const facilityNameZh = facility.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
-  const logoDataUri = facility.logoDataUri || MR_LOGO_DATA_URI;
+  const allowBlankPage = options.allowBlankPage ?? false;
 
   const pages: string[] = [];
   const usedTemplates: string[] = [];
@@ -418,8 +413,17 @@ export async function generateMedicationListHtml(
     const longTerm = filtered.filter(p => classifyMedicationTerm(p) === 'long');
 
     const addPages = (prescriptions: MedicationPrescription[], termType: MedicationTermType) => {
-      if (prescriptions.length === 0) return;
       const template = termType === 'short' ? shortTermTemplate : longTermTemplate;
+      if (prescriptions.length === 0) {
+        if (allowBlankPage) {
+          if (!usedTemplates.includes(template)) {
+            usedTemplates.push(template);
+          }
+          const label = termType === 'short' ? '短期藥' : '長期藥';
+          pages.push(renderPage(template, patient, [], termType, 1, 1, facilityNameZh, label));
+        }
+        return;
+      }
       if (!usedTemplates.includes(template)) {
         usedTemplates.push(template);
       }
@@ -427,7 +431,7 @@ export async function generateMedicationListHtml(
       const label = termType === 'short' ? '短期藥' : '長期藥';
       for (let i = 0; i < totalPages; i++) {
         const pagePrescriptions = prescriptions.slice(i * 24, (i + 1) * 24);
-        pages.push(renderPage(template, patient, pagePrescriptions, termType, i + 1, totalPages, facilityNameZh, logoDataUri, label));
+        pages.push(renderPage(template, patient, pagePrescriptions, termType, i + 1, totalPages, facilityNameZh, label));
       }
     };
 
@@ -484,14 +488,6 @@ function scopeCssForAttachment(css: string): string {
 .medication-attachment .title-box { margin-right: 0 !important; }
 .medication-attachment .col-drug { width: 45% !important; }
 .medication-attachment .col-notice { width: 11% !important; }
-.medication-attachment .facility-logo {
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 45px;
-  max-width: 120px;
-  object-fit: contain;
-}
 .medication-attachment .allergy-textarea {
   width: 160px !important;
   min-height: 28px;
@@ -509,14 +505,13 @@ export async function generateMedicationListAttachment(
 ): Promise<{ css: string; pages: string[] }> {
   const facility = await getFacilitySettings();
   const facilityNameZh = facility.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
-  const logoDataUri = facility.logoDataUri || MR_LOGO_DATA_URI;
 
   const template = longTermTemplate;
   const totalPages = Math.max(1, Math.ceil(prescriptions.length / 24));
   const pages: string[] = [];
   for (let i = 0; i < totalPages; i++) {
     const pagePrescriptions = prescriptions.slice(i * 24, (i + 1) * 24);
-    pages.push(renderPage(template, patient, pagePrescriptions, 'long', i + 1, totalPages, facilityNameZh, logoDataUri, null));
+    pages.push(renderPage(template, patient, pagePrescriptions, 'long', i + 1, totalPages, facilityNameZh, null));
   }
 
   return { css: scopeCssForAttachment(extractTemplateCss(template)), pages };

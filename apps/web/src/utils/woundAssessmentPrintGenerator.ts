@@ -4,7 +4,6 @@
  * - human-body-diagram2.png + 紅點疊加傷口座標 (x%, y%)
  * - checkbox: <input type="checkbox" checked> (同約束物品表單)
  * - 相片: base64 inline, aspect-ratio 1/1 裁切
- * - Logo: facilitySettings.logoDataUri，與 h1 平頭
  */
 
 import type { Wound, WoundAssessment, Patient } from '../lib/database';
@@ -200,17 +199,16 @@ const CSS = `
 @page { size: A4; margin: 0.4in 0.25in; }
 @media print { html,body{background:#fff;} .no-print{display:none!important;} }
 body { font-family:"DFKai-SB","BiauKai","標楷體",serif; margin:0; padding:0; background:#fff; width:100%; }
-.container { width:100%; box-sizing:border-box; }
-.header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
-.header-left { display:flex; width:18%; }
+.container { width:100%; box-sizing:border-box; display:flex; flex-direction:column; min-height:100vh; }
+.header { display:flex; justify-content:center; align-items:flex-start; margin-bottom:6px; position:relative; }
+.header-left { position:absolute; left:0; top:0; width:18%; display:flex; }
 .station-box { display:none; }
-.identity-box { border:1.5px solid black; flex-grow:1; height:46px; padding:2px 6px; display:flex; flex-direction:column; justify-content:space-around; font-size:13px; font-weight:bold; }
+.identity-box { border:1.5px solid black; flex-grow:1; height:52px; padding:3px 8px; display:flex; flex-direction:column; justify-content:space-around; font-size:14px; font-weight:bold; }
+.id-row { display:flex; align-items:center; }
+.id-line { flex:1; border-bottom:1px solid black; min-height:14px; margin-left:2px; text-align:center; }
 .header-center { text-align:center; flex-grow:1; padding:0 8px; }
 .header-center h1 { margin:0; font-size:26px; font-weight:bold; }
 .header-center h2 { margin: 4px 0 0 0; font-size:22px; font-weight:bold; display:inline-block; border-bottom:1.5px solid black; padding-bottom:2px; }
-.header-right { display:flex; align-items:flex-start; justify-content:flex-end; width:18%; }
-.logo-box { width:80px; height:60px; display:flex; align-items:center; justify-content:center; }
-.logo-img { max-width:100%; max-height:100%; object-fit:contain; }
 table { width:100%; border-collapse:collapse; table-layout:fixed; }
 /* 統一字體：左側表頭與評估值欄同大小（只 th 加粗） */
 th, td { border:1px solid black; text-align:center; vertical-align:middle; padding:0 2px; font-size:14px; line-height:1.05; }
@@ -231,8 +229,8 @@ th, td { border:1px solid black; text-align:center; vertical-align:middle; paddi
 .wound-marker::before,.wound-marker::after { content:''; position:absolute; width:100%; height:3px; background:#000 !important; top:50%; left:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 .wound-marker::before { transform:translateY(-50%) rotate(45deg); }
 .wound-marker::after { transform:translateY(-50%) rotate(-45deg); }
-.footer-info { margin-top:4px; display:flex; justify-content:flex-end; align-items:flex-end; position:relative; font-weight:bold; height:30px; }
-.page-number { position:absolute; left:50%; transform:translateX(-50%); font-size:24px; font-weight:bold; bottom:0; }
+.footer { margin-top:auto; display:flex; justify-content:flex-end; align-items:flex-end; position:relative; height:30px; }
+.page-num { position:absolute; left:50%; transform:translateX(-50%); font-size:24px; font-weight:bold; bottom:0; }
 .doc-code { font-size:11px; font-weight:bold; align-self:flex-end; }
 `;
 
@@ -242,7 +240,6 @@ const buildPage = (
   slice: WoundAssessment[],
   pageNum: number,
   totalPages: number,
-  logoDataUri: string | null,
   stationCode: string,
   facilityName: string,
 ) => (diagramDataUri: string): string => {
@@ -258,17 +255,13 @@ const buildPage = (
     ? (wound.assessment_specific_days_of_week?.length || 1)
     : Math.round(7 / (wound.assessment_frequency_value ?? 7));
 
-  const logoHtml = logoDataUri
-    ? `<div class="logo-box"><img class="logo-img" src="${esc(logoDataUri)}" alt="Logo"></div>`
-    : `<div class="logo-box"><span style="font-size:13px;font-weight:bold;">${esc(facilityName)}</span></div>`;
-
   return `<div class="container"${pageNum > 1 ? ' style="page-break-before:always;"' : ''}>
   <div class="header">
     <div class="header-left">
       <div class="station-box" style="text-align:center;">${esc(stationCode)}站</div>
       <div class="identity-box">
-        <div>姓名：<span class="db-text-underline" style="min-width:90px; text-align:center;">${esc(name)}</span></div>
-        <div>床號：<span class="db-text-underline" style="min-width:90px; text-align:center;">${esc(patient.床號 ?? '')}</span></div>
+        <div class="id-row"><span class="id-label">姓名：</span><span class="id-line">${esc(name)}</span></div>
+        <div class="id-row"><span class="id-label">床號：</span><span class="id-line">${esc(patient.床號 ?? '')}</span></div>
       </div>
     </div>
     <div class="header-center">
@@ -279,7 +272,6 @@ const buildPage = (
         <span><input type="checkbox"${timesPerWeek !== 1 ? ' checked' : ''}>每星期 ${timesPerWeek} 次</span>
       </div>
     </div>
-    <div class="header-right">${logoHtml}</div>
   </div>
   <table>
     <colgroup>
@@ -294,8 +286,8 @@ const buildPage = (
     <img class="body-diagram-img" src="${diagramDataUri}" alt="人體方位圖">
     <div class="wound-marker" style="left:${loc.x}%;top:${loc.y}%;"></div>
   </div>` : ''}
-  <div class="footer-info">
-    <div class="page-number">10</div>
+  <div class="footer">
+    <div class="page-num">10</div>
     <div class="doc-code">B19 FK (11.2020)</div>
   </div>
 </div>`;
@@ -316,7 +308,7 @@ export const generateWoundAssessmentHtml = async (
   );
   const totalPages = Math.max(1, Math.ceil(sorted.length / COLS_PER_PAGE));
   const pages = Array.from({ length: totalPages }, (_, i) =>
-    buildPage(wound, patient, sorted.slice(i * COLS_PER_PAGE, (i + 1) * COLS_PER_PAGE), i + 1, totalPages, settings.logoDataUri, stationCode, settings.facilityNameZh)(diagramDataUri)
+    buildPage(wound, patient, sorted.slice(i * COLS_PER_PAGE, (i + 1) * COLS_PER_PAGE), i + 1, totalPages, stationCode, settings.facilityNameZh)(diagramDataUri)
   );
   return `<!DOCTYPE html>
 <html lang="zh-HK"><head>

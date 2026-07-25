@@ -8,7 +8,6 @@
 
 import type { Patient, HygieneRecord } from '../lib/database';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
-import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 
 const ROWS_PER_PAGE = 20;
 
@@ -102,7 +101,7 @@ const generateDataRows = (records: HygieneRecord[], year: number, month: number)
 };
 
 // 產生單一院友、單一月份的整頁 HTML（完全複刻 doc_html 樣式與結構）
-const pageBlock = (patient: Patient, monthData: HygieneMonthData, logoDataUri: string, facilityName: string): string => {
+const pageBlock = (patient: Patient, monthData: HygieneMonthData, facilityName: string): string => {
   const { year, month, recordsByPatient } = monthData;
   const records = recordsByPatient.get(patient.院友id) || [];
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
@@ -114,13 +113,9 @@ const pageBlock = (patient: Patient, monthData: HygieneMonthData, logoDataUri: s
   return `
 <div class="container">
   <div class="title-section">
-    <div class="header-spacer"></div>
-    <div class="header-center">
-      <h1>${facilityName}</h1>
-      <h2>個人衛生、清潔及大便記錄</h2>
-      <div class="month-label">${monthLabel}</div>
-    </div>
-    <div class="header-right"><img class="logo-img" src="${logoDataUri}" alt="Logo"></div>
+    <h1>${facilityName}</h1>
+    <h2>個人衛生、清潔及大便記錄</h2>
+    <div class="month-label">${monthLabel}</div>
   </div>
   <br>
   <table class="info-table">
@@ -178,17 +173,20 @@ const pageBlock = (patient: Patient, monthData: HygieneMonthData, logoDataUri: s
     <div>*大便量：大量"+++"; 中量以"++"; 少量以"+" 表示。</div>
     <div>+按醫囑給予口服大便藥以「★」記錄；按醫囑給予栓劑以「▲」記錄。</div>
   </div>
+  <div class="footer">
+    <div class="page-num">1</div>
+    <div class="doc-code"></div>
+  </div>
 </div>`;
 };
 
 export const generateHygieneRecordPrintFormHtml = (
   patients: Patient[],
   monthsData: HygieneMonthData[],
-  logoDataUri: string,
   facilityName: string
 ): string => {
   const pages = patients
-    .map(p => monthsData.map(m => pageBlock(p, m, logoDataUri, facilityName)).join(''))
+    .map(p => monthsData.map(m => pageBlock(p, m, facilityName)).join(''))
     .join('');
 
   return `<!DOCTYPE html>
@@ -202,15 +200,11 @@ export const generateHygieneRecordPrintFormHtml = (
   body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; padding: 0; background-color: #fff; color: #000; line-height: 1.1; }
   .no-print { text-align: center; margin: 10px; }
   .no-print button { padding: 8px 20px; font-size: 12px; background: #2563eb; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
-  .container { width: 100%; box-sizing: border-box; page-break-after: always; zoom: 0.9; }
+  .container { width: 100%; box-sizing: border-box; page-break-after: always; zoom: 0.9; display: flex; flex-direction: column; min-height: 287mm; }
   .container:last-of-type { page-break-after: auto; }
-  .title-section { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
-  .header-spacer { width: 18%; }
-  .header-center { flex: 1; text-align: center; }
-  .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
-  .logo-img { max-height: 50px; max-width: 100%; object-fit: contain; }
+  .title-section { text-align: center; margin-bottom: 12px; }
   .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
-  .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; padding-bottom: 2px; }
+  .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
   .month-label { margin-top: 2px; font-size: 14px; font-weight: bold; }
   .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
   .info-table td { border: none; padding: 2px 0; vertical-align: bottom; font-size: 16px; font-weight: bold; white-space: nowrap; }
@@ -222,6 +216,9 @@ export const generateHygieneRecordPrintFormHtml = (
   .data-row { height: 29px; }
   .db-text-cell { width: 100%; height: 32px; border: none; background: transparent; font-family: inherit; font-size: 12px; text-align: center; outline: none; display: block; box-sizing: border-box; }
   .legend-section { margin-top: 6px; font-size: 11px; font-weight: bold; line-height: 1.4; text-align: left; }
+  .footer { margin-top: auto; position: relative; height: 30px; display: flex; justify-content: flex-end; }
+  .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
+  .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
   @media print {
     .no-print { display: none !important; }
   }
@@ -236,8 +233,7 @@ ${pages}
 
 export const printHygieneRecordForm = async (patients: Patient[], monthsData: HygieneMonthData[]): Promise<void> => {
   const settings = await getFacilitySettings();
-  const logoDataUri = settings.logoDataUri || MR_LOGO_DATA_URI;
-  const html = generateHygieneRecordPrintFormHtml(patients, monthsData, logoDataUri, settings.facilityNameZh);
+  const html = generateHygieneRecordPrintFormHtml(patients, monthsData, settings.facilityNameZh);
   const old = document.getElementById('hygiene-printform-iframe');
   if (old) old.remove();
   const iframe = document.createElement('iframe');

@@ -21,9 +21,11 @@
             background-color: #ffffff;
             width: 210mm;
             min-height: 297mm;
-            padding: 15mm 15mm;
+            padding: 10mm 15mm;
             box-sizing: border-box;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
             position: relative;
         }
 
@@ -39,8 +41,8 @@
         .section-heading-noborder {
             font-size: 15px;
             font-weight: bold;
-            margin-top: 8px;
-            margin-bottom: 5px;
+            margin-top: 5px;
+            margin-bottom: 3px;
         }
 
         /* 原生 Checkbox 映射 */
@@ -90,11 +92,13 @@
         }
 
         .footer-section {
-            margin-top: 20px;
+            margin-top: auto;
             font-size: 13px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
+            height: 30px;
         }
 
         table {
@@ -105,7 +109,7 @@
         
         td {
             border: 1px solid #000000; 
-            padding: 2px 4px; 
+            padding: 1px 4px; 
             vertical-align: middle;
             text-align: left;
             line-height: 1.1;
@@ -117,7 +121,7 @@
 
         @media print {
             body { background-color: #ffffff; padding: 0; zoom: 0.98; }
-            .a4-page { width: 100%; box-shadow: none; padding: 0; min-height: 0; zoom: 0.98; }
+            .a4-page { width: 100%; box-shadow: none; padding: 0; min-height: 287mm; display: flex; flex-direction: column; zoom: 0.98; }
         }
     </style>
 </head>
@@ -234,45 +238,45 @@
                 <col style="width: 27.68%;">
             </colgroup>
             <tr>
-                <td class="no-top-border" style="vertical-align: top; height: 24px;"><input type="checkbox" name="hist_fracture" class="db-checkbox"> 骨折</td>
-                <td class="no-top-border" style="vertical-align: top; padding: 2px;">
+                <td class="no-top-border" style="vertical-align: top; height: 20px;"><input type="checkbox" name="hist_fracture" class="db-checkbox"> 骨折</td>
+                <td class="no-top-border" style="vertical-align: top; padding: 1px;">
                     <div>受傷日期：</div>
-                    <input type="text" name="frac1_date" class="db-text-cell" style="height: 12px;">
-                    <div style="margin-top: 2px;">位置：</div>
-                    <input type="text" name="frac1_loc" class="db-text-cell" style="height: 12px;">
+                    <input type="text" name="frac1_date" class="db-text-cell" style="height: 10px;">
+                    <div style="margin-top: 1px;">位置：</div>
+                    <input type="text" name="frac1_loc" class="db-text-cell" style="height: 10px;">
                 </td>
-                <td class="no-top-border" style="vertical-align: top; padding: 2px;">
+                <td class="no-top-border" style="vertical-align: top; padding: 1px;">
                     <div>受傷日期：</div>
-                    <input type="text" name="frac2_date" class="db-text-cell" style="height: 12px;">
-                    <div style="margin-top: 2px;">位置：</div>
-                    <input type="text" name="frac2_loc" class="db-text-cell" style="height: 12px;">
+                    <input type="text" name="frac2_date" class="db-text-cell" style="height: 10px;">
+                    <div style="margin-top: 1px;">位置：</div>
+                    <input type="text" name="frac2_loc" class="db-text-cell" style="height: 10px;">
                 </td>
-                <td class="no-top-border" style="vertical-align: top; padding: 2px;">
+                <td class="no-top-border" style="vertical-align: top; padding: 1px;">
                     <div>受傷日期：</div>
-                    <input type="text" name="frac3_date" class="db-text-cell" style="height: 12px;">
-                    <div style="margin-top: 2px;">位置：</div>
-                    <input type="text" name="frac3_loc" class="db-text-cell" style="height: 12px;">
+                    <input type="text" name="frac3_date" class="db-text-cell" style="height: 10px;">
+                    <div style="margin-top: 1px;">位置：</div>
+                    <input type="text" name="frac3_loc" class="db-text-cell" style="height: 10px;">
                 </td>
             </tr>
             <tr>
-                <td style="vertical-align: top; height: 24px;"><input type="checkbox" name="hist_surgery" class="db-checkbox"> 外科手術</td>
-                <td style="vertical-align: top; padding: 2px;">
+                <td style="vertical-align: top; height: 20px;"><input type="checkbox" name="hist_surgery" class="db-checkbox"> 外科手術</td>
+                <td style="vertical-align: top; padding: 1px;">
                     <div>手術日期：</div>
-                    <input type="text" name="surg1_date" class="db-text-cell" style="height: 12px;">
-                    <div style="margin-top: 2px;">位置：</div>
-                    <input type="text" name="surg1_loc" class="db-text-cell" style="height: 12px;">
+                    <input type="text" name="surg1_date" class="db-text-cell" style="height: 10px;">
+                    <div style="margin-top: 1px;">位置：</div>
+                    <input type="text" name="surg1_loc" class="db-text-cell" style="height: 10px;">
                 </td>
-                <td style="vertical-align: top; padding: 2px;">
+                <td style="vertical-align: top; padding: 1px;">
                     <div>手術日期：</div>
-                    <input type="text" name="surg2_date" class="db-text-cell" style="height: 12px;">
-                    <div style="margin-top: 2px;">位置：</div>
-                    <input type="text" name="surg2_loc" class="db-text-cell" style="height: 12px;">
+                    <input type="text" name="surg2_date" class="db-text-cell" style="height: 10px;">
+                    <div style="margin-top: 1px;">位置：</div>
+                    <input type="text" name="surg2_loc" class="db-text-cell" style="height: 10px;">
                 </td>
-                <td style="vertical-align: top; padding: 2px;">
+                <td style="vertical-align: top; padding: 1px;">
                     <div>手術日期：</div>
-                    <input type="text" name="surg3_date" class="db-text-cell" style="height: 12px;">
-                    <div style="margin-top: 2px;">位置：</div>
-                    <input type="text" name="surg3_loc" class="db-text-cell" style="height: 12px;">
+                    <input type="text" name="surg3_date" class="db-text-cell" style="height: 10px;">
+                    <div style="margin-top: 1px;">位置：</div>
+                    <input type="text" name="surg3_loc" class="db-text-cell" style="height: 10px;">
                 </td>
             </tr>
         </table>
@@ -283,9 +287,9 @@
                 <col style="width: 100%;">
             </colgroup>
             <tr>
-                <td colspan="5" class="no-top-border" style="vertical-align: top; height: 45px; padding: 6px;">
+                <td colspan="5" class="no-top-border" style="vertical-align: top; height: 30px; padding: 4px;">
                     <div><input type="checkbox" name="hist_allergy" class="db-checkbox"> 敏感歷史 (包括物件、食品、藥物)：</div>
-                    <textarea name="allergy_detail" class="db-text-cell" style="height: 25px; margin-top: 4px; resize:none; font-family:inherit;"></textarea>
+                    <textarea name="allergy_detail" class="db-text-cell" style="height: 20px; margin-top: 2px; resize:none; font-family:inherit;"></textarea>
                 </td>
             </tr>
         </table>
@@ -371,7 +375,7 @@
         </table>
 
  <!-- 使用無框線表格硬性劃分每項目的文字與底線佔比，底線寬度完全均分對稱 -->
-<table style="width: 100%; border: none; table-layout: fixed; margin-top: 25px; margin-bottom: 15px;">
+<table style="width: 100%; border: none; table-layout: fixed; margin-top: 15px; margin-bottom: 8px;">
     <colgroup>
         <col style="width: 125px;"> <!-- 標題 1 -->
         <col style="width: 80px;"> <!-- 底線 1 (等長) -->
@@ -414,19 +418,19 @@
                 <col style="width: 25%;">
                 <col style="width: 25%;">
             </colgroup>
-            <tr style="height: 26px;">
+            <tr style="height: 18px;">
                 <td class="bold-text">修訂日期：</td>
                 <td><input type="text" name="rev1_date" class="db-text-cell"></td>
                 <td><input type="text" name="rev2_date" class="db-text-cell"></td>
                 <td><input type="text" name="rev3_date" class="db-text-cell"></td>
             </tr>
-            <tr style="height: 26px;">
+            <tr style="height: 18px;">
                 <td class="bold-text">記錄職員姓名：</td>
                 <td><input type="text" name="rev1_staff_name" class="db-text-cell"></td>
                 <td><input type="text" name="rev2_staff_name" class="db-text-cell"></td>
                 <td><input type="text" name="rev3_staff_name" class="db-text-cell"></td>
             </tr>
-            <tr style="height: 26px;">
+            <tr style="height: 18px;">
                 <td class="bold-text">職員簽署及職級：</td>
                 <td><input type="text" name="rev1_staff_sign" class="db-text-cell"></td>
                 <td><input type="text" name="rev2_staff_sign" class="db-text-cell"></td>
@@ -435,10 +439,10 @@
         </table>
 
         <!-- 頁尾固定格式 -->
-        <div class="footer-section" style="margin-top: 8px; font-size: 13px; position: relative; height: 30px; display: block;">
+        <div class="footer-section" style="margin-top: auto; font-size: 13px; position: relative; height: 30px; display: flex; justify-content: space-between; align-items: center; font-weight: bold;">
             <div style="position: absolute; left: 0; bottom: 0;">* 請刪去不適用者</div>
             <div style="position: absolute; left: 50%; transform: translateX(-50%); bottom: 0; font-weight: bold; font-size: 24px;">1</div>
-            <div style="position: absolute; right: 0; bottom: 0;">B38 FK (11.2020)</div>
+            <div style="position: absolute; right: 0; bottom: 0; font-size: 11px; font-weight: bold;">B38 FK (11.2020)</div>
         </div>
 
     </div>

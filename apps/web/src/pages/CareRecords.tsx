@@ -1165,7 +1165,7 @@ const CareRecords: React.FC = () => {
                 const recsWithDate = recs.map(r => ({ ...r, ...r.intake_items, record_date: r.record_date }));
                 const guidance = mealGuidances.find(g => g.patient_id === patient.院友id);
                 exportIntakeOutputRangeHtml(
-                  { facilityName: settings?.facilityNameZh, logoBase64: settings?.logoDataUri ?? undefined,
+                  { facilityName: settings?.facilityNameZh,
                     patientName: name, bedNumber: String(patient.床號 ?? ''),
                     genderAge, targetIntakeMl: undefined,
                     mealCombination: guidance?.meal_combination,

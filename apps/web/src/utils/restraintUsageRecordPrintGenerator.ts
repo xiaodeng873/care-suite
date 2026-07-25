@@ -64,13 +64,9 @@ const renderEmptyRow = (): string => `
 export const generateRestraintUsageRecordHtml = (
   assessments: PatientRestraintAssessment[],
   patient: Patient,
-  facilityName: string,
-  logoDataUri?: string | null
+  facilityName: string
 ): string => {
   const patientName = `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}` || patient.中文姓名;
-  const logoHtml = logoDataUri
-    ? `<div class="logo-box"><img class="logo-img" src="${esc(logoDataUri)}" alt="Logo"></div>`
-    : `<div class="logo-box"><span style="font-size:13px;font-weight:bold;">${esc(facilityName)}</span></div>`;
 
   // 取所有有 usage_record 的評估，按 start_date 升序
   const usageRows = assessments
@@ -103,18 +99,17 @@ body {
   margin: 0; padding: 0; background: #fff; color: #000;
   font-size: 11px; line-height: 1.1;
 }
-.print-wrapper { width: 100%; border-collapse: collapse; }
-.page-header { display: table-header-group; }
-.page-footer { display: table-footer-group; }
-.container { width: 100%; box-sizing: border-box; }
-.title-section { text-align: center; margin-bottom: 5px; flex: 1; }
+.page {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.title-section { text-align: center; margin-bottom: 5px; }
 .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
 .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
-.header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 5px; }
-.header-spacer { width: 18%; }
-.header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
-.logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
-.logo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.header { display: flex; align-items: flex-start; justify-content: center; margin-bottom: 5px; }
 .user-info { display: flex; justify-content: space-between; margin-bottom: 3px; font-weight: bold; font-size: 14px; }
 .db-line-input {
   display: inline-block; border: none; border-bottom: 1px solid black;
@@ -136,69 +131,53 @@ body {
 .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 10.5px; outline: none; }
 .record-row { height: 30mm; }
 .record-row td { page-break-inside: avoid; break-inside: avoid; }
-.footer-content { margin-top: 5px; display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; width: 100%; }
+.footer { margin-top: auto; display: flex; justify-content: flex-end; position: relative; height: 30px; }
 .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
 .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
 </style>
 </head>
 <body>
-<table class="print-wrapper">
-  <thead class="page-header">
-    <tr><td>
-      <div class="container">
-        <div class="header">
-          <div class="header-spacer"></div>
-          <div class="title-section">
-            <h1>${esc(facilityName)}</h1>
-            <h2>使用約束物品紀錄</h2>
-          </div>
-          <div class="header-right">${logoHtml}</div>
-        </div>
-        <br>
-        <br>
-        <div class="user-info">
-          <div>姓名：<span class="db-line-input" style="width:130px;">${esc(patientName)}</span></div>
-          <div>床號：<span class="db-line-input" style="width:80px;">${esc(patient.床號)}</span></div>
-          <div>身份證號碼：<span class="db-line-input" style="width:150px;">${esc(patient.身份證號碼)}</span></div>
-        </div>
-        <div class="instructions">
-          <ul>
-            <li>原因：自身安全、維持治療、防止跌倒、免傷害他人等等</li>
-            <li>種類：約束衣、手/足約束帶、約束手套、防滑褲帶、枱板、床欄等等</li>
-            <li>觀察事項：血液循環、呼吸狀況、精神狀況、皮膚狀況、姿勢舒適等等</li>
-          </ul>
-        </div>
-        <table class="main-table" style="border-bottom:none;">
-          <thead>
-            <tr>
-              <th class="col-date">開始日期</th>
-              <th class="col-date">結束日期</th>
-              <th class="col-reason">原因</th>
-              <th class="col-type">種類</th>
-              <th class="col-doctor">處方醫生</th>
-              <th class="col-obs">需要觀察事項</th>
-            </tr>
-          </thead>
-        </table>
-      </div>
-    </td></tr>
-  </thead>
-  <tbody>
-    <tr><td>
-      <table class="main-table" style="border-top:none;">
-        ${rows}
-      </table>
-    </td></tr>
-  </tbody>
-  <tfoot class="page-footer">
-    <tr><td>
-      <div class="footer-content">
-        <div class="page-num">11</div>
-        <div class="doc-code">B10D FK (2.2025)</div>
-      </div>
-    </td></tr>
-  </tfoot>
-</table>
+<div class="page">
+  <div class="header">
+    <div class="title-section">
+      <h1>${esc(facilityName)}</h1>
+      <h2>使用約束物品紀錄</h2>
+    </div>
+  </div>
+  <br>
+  <br>
+  <div class="user-info">
+    <div>姓名：<span class="db-line-input" style="width:130px;">${esc(patientName)}</span></div>
+    <div>床號：<span class="db-line-input" style="width:80px;">${esc(patient.床號)}</span></div>
+    <div>身份證號碼：<span class="db-line-input" style="width:150px;">${esc(patient.身份證號碼)}</span></div>
+  </div>
+  <div class="instructions">
+    <ul>
+      <li>原因：自身安全、維持治療、防止跌倒、免傷害他人等等</li>
+      <li>種類：約束衣、手/足約束帶、約束手套、防滑褲帶、枱板、床欄等等</li>
+      <li>觀察事項：血液循環、呼吸狀況、精神狀況、皮膚狀況、姿勢舒適等等</li>
+    </ul>
+  </div>
+  <table class="main-table">
+    <thead>
+      <tr>
+        <th class="col-date">開始日期</th>
+        <th class="col-date">結束日期</th>
+        <th class="col-reason">原因</th>
+        <th class="col-type">種類</th>
+        <th class="col-doctor">處方醫生</th>
+        <th class="col-obs">需要觀察事項</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+    </tbody>
+  </table>
+  <div class="footer">
+    <div class="page-num">11</div>
+    <div class="doc-code">B10D FK (2.2025)</div>
+  </div>
+</div>
 </body>
 </html>`;
 };
@@ -216,10 +195,9 @@ export const printRestraintUsageRecords = async (
 
   const settings = await getFacilitySettings();
   const facilityName = settings.facilityNameZh;
-  const logoDataUri = settings.logoDataUri;
 
   const htmlPages = items.map(({ assessments, patient }) =>
-    generateRestraintUsageRecordHtml(assessments, patient, facilityName, logoDataUri)
+    generateRestraintUsageRecordHtml(assessments, patient, facilityName)
   );
 
   // 合併多位院友：第一份 HTML 完整，後續只取 body 內容

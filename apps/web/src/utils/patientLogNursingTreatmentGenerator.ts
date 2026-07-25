@@ -151,8 +151,7 @@ const buildPageHtml = (
   pageRows: PrintRow[],
   pageNumber: number,
   patient: Patient | undefined,
-  facilityName: string,
-  logoDataUri: string | null
+  facilityName: string
 ): string => {
   const fullRows = pageRows.length;
   const emptyRows = Math.max(MAX_ROWS_PER_PAGE - fullRows, 0);
@@ -184,24 +183,15 @@ const buildPageHtml = (
   const 性別年齡 = patient
     ? `${patient.性別 || ''}/${calculateAge(patient.出生日期)}`
     : '';
-  const logoHtml = logoDataUri
-    ? `<img class="header-logo" src="${escapeHtml(logoDataUri)}" alt="logo">`
-    : '';
   const pageIndicatorHtml = `<div class="page-indicator">第 ${pageNumber} 頁</div>`;
 
   return `
   <div class="page">
     <div class="page-header">
       <div class="header-section">
-        <div class="header-spacer"></div>
         <div class="header-center">
           <h1>${escapeHtml(facilityName)}</h1>
           <h2>護理及治療記錄</h2>
-        </div>
-        <div class="header-right">
-          <div class="logo-box">
-            ${logoHtml}
-          </div>
         </div>
         ${pageIndicatorHtml}
       </div>
@@ -244,9 +234,9 @@ const buildPageHtml = (
         </tbody>
       </table>
     </div>
-    <div class="page-footer">
-      <span class="page-num">6</span>
-      <span class="doc-code">${DOC_CODE}</span>
+    <div class="footer">
+      <div class="page-num">6</div>
+      <div class="doc-code">${DOC_CODE}</div>
     </div>
   </div>`;
 };
@@ -254,8 +244,7 @@ const buildPageHtml = (
 const buildPatientHtml = (
   patient: Patient | undefined,
   logs: PatientLog[],
-  facilityName: string,
-  logoDataUri: string | null
+  facilityName: string
 ): string => {
   const rows = buildRowsForPatient(logs);
   const pages = paginateRows(rows, MAX_ROWS_PER_PAGE);
@@ -264,7 +253,7 @@ const buildPatientHtml = (
   }
 
   const pageHtmls = pages.map((pageRows, idx) =>
-    buildPageHtml(pageRows, idx + 1, patient, facilityName, logoDataUri)
+    buildPageHtml(pageRows, idx + 1, patient, facilityName)
   );
 
   return `<!DOCTYPE html>
@@ -285,7 +274,7 @@ const buildPatientHtml = (
       line-height: 1.2;
     }
     .page {
-      height: ${PAGE_CONTENT_HEIGHT_MM}mm;
+      min-height: ${PAGE_CONTENT_HEIGHT_MM}mm;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
@@ -306,33 +295,32 @@ const buildPatientHtml = (
       justify-content: flex-start;
       overflow: hidden;
     }
-    .page-footer {
+    .footer {
       flex-shrink: 0;
       display: flex;
       justify-content: flex-end;
       position: relative;
       height: 30px;
       padding: 2px 0;
-      font-weight: bold;
+      margin-top: auto;
     }
-    .page-footer .page-num {
+    .footer .page-num {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
       font-size: 24px;
+      font-weight: bold;
       bottom: 0;
     }
-    .page-footer .doc-code {
-      position: absolute;
-      right: 0;
-      bottom: 0;
+    .footer .doc-code {
       font-size: 11px;
       font-weight: bold;
+      align-self: flex-end;
     }
     .header-section {
       display: flex;
       align-items: flex-start;
-      justify-content: space-between;
+      justify-content: center;
       margin-bottom: 12px;
       position: relative;
     }
@@ -345,25 +333,6 @@ const buildPatientHtml = (
       display: inline-block;
       border-bottom: 1.5px solid black;
       padding-bottom: 2px;
-    }
-    .header-spacer { width: 18%; }
-    .header-right {
-      width: 18%;
-      display: flex;
-      align-items: flex-start;
-      justify-content: flex-end;
-    }
-    .logo-box {
-      width: 80px;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .header-logo {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
     }
     .page-indicator {
       position: absolute;
@@ -472,7 +441,6 @@ export async function generatePatientLogNursingTreatmentHtml(
 
   const facilitySettings = await getFacilitySettings();
   const facilityName = facilitySettings.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
-  const logoDataUri = facilitySettings.logoDataUri;
 
   const byPatient = new Map<number, PatientLog[]>();
   for (const log of selectedLogs) {
@@ -484,7 +452,7 @@ export async function generatePatientLogNursingTreatmentHtml(
   const pages: string[] = [];
   for (const [patientId, patientLogs] of byPatient) {
     const patient = patients.find((p) => p.院友id === patientId);
-    pages.push(buildPatientHtml(patient, patientLogs, facilityName, logoDataUri));
+    pages.push(buildPatientHtml(patient, patientLogs, facilityName));
   }
 
   return `<!DOCTYPE html>

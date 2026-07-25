@@ -19,6 +19,9 @@
         .container {
             width: 100%;
             position: relative;
+            display: flex;
+            flex-direction: column;
+            min-height: 287mm;
         }
         
         /* 右上角職員取方塊 */
@@ -35,13 +38,8 @@
         .header-area {
             text-align: center;
             margin-bottom: 20px;
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
         }
-        .header-area .header-spacer { width: 18%; }
-        .header-area .title-section { margin-bottom: 0; flex: 1; }
-        .header-area .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
+        .header-area .title-section { margin-bottom: 0; }
         .header-area h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
         .header-area h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
         .header-area h3 { margin: 2px 0; font-size: 20px; font-weight: bold; text-decoration: underline; }
@@ -109,6 +107,7 @@
 
         /* 頁尾 */
         .footer {
+            margin-top: auto;
             display: flex;
             justify-content: flex-end;
             position: relative;
@@ -124,16 +123,6 @@
             bottom: 0;
         }
         .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
-
-        /* 標誌 */
-        .logo-box {
-            width: 80px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
     </style>
 </head>
 <body>
@@ -142,16 +131,10 @@
     <div class="staff-box">職員取</div>
 
     <div class="header-area">
-        <div class="header-spacer"></div>
         <div class="title-section">
             <h1>廣 華 醫 院</h1>
             <h2>社區老人評估服務</h2>
             <h3>院 舍 取 藥 委 託 書</h3>
-        </div>
-        <div class="header-right">
-            <div class="logo-box">
-                <img class="logo-img" src="../supabase/migrations/SClogolayer.png" alt="院舍Logo">
-            </div>
         </div>
     </div>
 

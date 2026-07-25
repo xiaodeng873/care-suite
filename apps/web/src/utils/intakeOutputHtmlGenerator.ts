@@ -21,7 +21,6 @@ export interface IntakeOutputRowInput {
 
 export interface IntakeOutputHtmlInput {
   facilityName?: string;
-  logoBase64?: string;
   patientName: string;
   bedNumber: string;
   genderAge: string;
@@ -46,7 +45,6 @@ const esc = (s: unknown): string =>
 export function generateIntakeOutputHtml(input: IntakeOutputHtmlInput): string {
   const {
     facilityName = DEFAULT_FACILITY_SETTINGS.facilityNameZh,
-    logoBase64,
     patientName,
     bedNumber,
     genderAge,
@@ -70,9 +68,6 @@ export function generateIntakeOutputHtml(input: IntakeOutputHtmlInput): string {
   }
   const balance = totalIntakeMl - totalOutputMl;
 
-  const logoHtml = logoBase64
-    ? `<img class="logo" src="${logoBase64}" alt="logo">`
-    : '<div class="logo-ph"></div>';
 
   // 渲染資料行
   const dataRows = CLINICAL_SLOTS.map(slot => {
@@ -132,6 +127,9 @@ body {
   width: 200mm;
   background: #fff;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 /* ── 表頭 ── */
@@ -143,8 +141,6 @@ body {
   border-bottom: 1.5px solid #1f2937;
   margin-bottom: 2mm;
 }
-.logo { width: 14mm; height: 14mm; object-fit: contain; flex-shrink: 0; }
-.logo-ph { width: 14mm; height: 14mm; border: 1px dashed #bbb; flex-shrink: 0; }
 .hdr-info { flex: 1; }
 .facility { font-size: 13pt; font-weight: bold; color: #1f2937; }
 .doc-title { font-size: 10pt; font-weight: bold; color: #0f766e; margin-top: 1mm; letter-spacing: .5pt; }
@@ -246,6 +242,9 @@ body {
   box-shadow: 0 2px 8px rgba(37,99,235,.4); z-index: 9999;
 }
 .print-btn:hover { background: #1d4ed8; }
+.footer { margin-top: auto; position: relative; height: 30px; display: flex; justify-content: flex-end; }
+.page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
+.doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
 </style>
 </head>
 <body>
@@ -254,7 +253,6 @@ body {
 <div class="page">
   <!-- 表頭 -->
   <div class="hdr">
-    ${logoHtml}
     <div class="hdr-info">
       <div class="facility">${esc(facilityName)}</div>
       <div class="doc-title">個人出入量記錄表</div>
@@ -331,6 +329,10 @@ body {
       <span class="totals-key">出入平衡(ml)</span>
       <span class="totals-val ${balance > 0 ? 'pos' : balance < 0 ? 'neg' : ''}">${totalIntakeMl || totalOutputMl ? balanceSign + balance : '—'}</span>
     </div>
+  </div>
+  <div class="footer">
+    <div class="page-num">1</div>
+    <div class="doc-code"></div>
   </div>
 </div>
 </div>

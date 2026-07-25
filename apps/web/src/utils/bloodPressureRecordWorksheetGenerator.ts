@@ -4,7 +4,6 @@ import {
   DEFAULT_FACILITY_SETTINGS,
   type FacilitySettings,
 } from './facilitySettings';
-import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 生命表徵觀察記錄表（A4 直印）
@@ -14,7 +13,6 @@ import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 // 合併規則：必須先有血壓、脈搏、血含氧量或呼吸其中一項記錄才會建立該列；體溫僅在「記錄日期 + 記錄時間」與該列完全相同時才附加。
 // 若某日期時間只有體溫記錄、沒有血壓/脈搏/血含氧量/呼吸任一記錄，該筆資料不會列出。
 // 備註欄彙整同一列中各監測類型的非空備註（去重後以「; 」join）。
-// 右上角新增院舍 logo，與大標題（h1/h2）頂部對齊。
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ROWS_PER_PAGE = 29; // 每頁列數，依 doc_html 行高精算，確保單頁不溢出且標題/表頭在每頁重複
@@ -84,12 +82,13 @@ const calculateAge = (birthDate: string | null): string => {
   return age > 0 ? String(age) : '';
 };
 
-// 日期顯示為 YY/M/D
+// 日期顯示為 YY/M/D（含兩位年份，與紙本手寫風格一致、欄位較窄）
 const formatShortDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) return dateStr;
-  const yy = String(date.getFullYear() % 100).padStart(2, '0');
-  return `${yy}/${date.getMonth() + 1}/${date.getDate()}`;
+  const match = /^\s*(\d{4})-(\d{1,2})-(\d{1,2})/.exec(dateStr);
+  if (!match) return dateStr;
+  const [, year, month, day] = match;
+  const yy = String(Number(year) % 100).padStart(2, '0');
+  return `${yy}/${month}/${day}`;
 };
 
 // 時間顯示為 HH:MM（截取前 5 字元）
@@ -128,7 +127,7 @@ const fetchInResidencePatients = async (patientIds?: number[]): Promise<PatientR
   return (data ?? []) as PatientRow[];
 };
 
-// 取得指定日期範圍內、指定監測類型的記錄
+// 取得指定日期範圍內、指定監測類型的記錄（分頁抓取以避開 Supabase 1000 列限制）
 const fetchVitalRecords = async (
   type: VitalType,
   startDate: string,
@@ -137,19 +136,35 @@ const fetchVitalRecords = async (
   const columns = type === '血壓'
     ? '院友id, 記錄日期, 記錄時間, 數值, 數值_副, 備註'
     : '院友id, 記錄日期, 記錄時間, 數值, 備註';
-  const { data, error } = await supabase
-    .from('健康監測記錄')
-    .select(columns)
-    .eq('監測類型', type)
-    .gte('記錄日期', startDate)
-    .lte('記錄日期', endDate)
-    .order('記錄日期', { ascending: true })
-    .order('記錄時間', { ascending: true });
-  if (error) {
-    console.error(`讀取${type}記錄失敗:`, error);
-    throw error;
+
+  const PAGE_SIZE = 1000;
+  const all: RawVitalRecord[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('健康監測記錄')
+      .select(columns)
+      .eq('監測類型', type)
+      .gte('記錄日期', startDate)
+      .lte('記錄日期', endDate)
+      .order('記錄日期', { ascending: true })
+      .order('記錄時間', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) {
+      console.error(`讀取${type}記錄失敗:`, error);
+      throw error;
+    }
+
+    const rows = (data ?? []) as RawVitalRecord[];
+    if (rows.length === 0) break;
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
   }
-  return (data ?? []) as RawVitalRecord[];
+
+  return all;
 };
 
 const mergeKey = (date: string, time: string | null): string => `${date}|${formatTime(time)}`;
@@ -254,18 +269,13 @@ const chunkCellsIntoPages = (cells: VitalCell[]): (VitalCell | null)[][] => {
 };
 
 const renderHeader = (): string => {
-  const logo = activeFacility.logoDataUri || MR_LOGO_DATA_URI;
   const nameZh = activeFacility.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
-  const nameEn = activeFacility.facilityNameEn?.trim() || '';
-  const logoAlt = nameEn ? `${nameZh} ${nameEn}` : nameZh;
   return `
     <div class="title-section">
-      <div class="header-spacer"></div>
       <div class="header-center">
         <h1>${escapeHtml(nameZh)}</h1>
         <h2>生命表徵觀察記錄表</h2>
       </div>
-      <div class="header-right"><div class="logo-box"><img class="logo-img" src="${escapeAttr(logo)}" alt="${escapeAttr(logoAlt)}"></div></div>
     </div>
   `;
 };
@@ -335,14 +345,10 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   @page { size: A4; margin: 5mm 0.25in; }
   * { box-sizing: border-box; }
   body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; padding: 0; background-color: #fff; color: #000; line-height: 1.2; }
-  .container { width: 100%; box-sizing: border-box; page-break-after: always; }
+  .container { width: 100%; box-sizing: border-box; page-break-after: always; display: flex; flex-direction: column; min-height: 287mm; }
   .container:last-of-type { page-break-after: auto; }
-  .title-section { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
-  .header-spacer { width: 18%; }
-  .header-center { flex: 1; text-align: center; }
-  .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
-  .logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
-  .logo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .title-section { text-align: center; margin-bottom: 12px; }
+  .header-center { text-align: center; }
   .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
   .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
   .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
@@ -360,7 +366,7 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   .col-remark   { width: auto; }
   .data-row { height: 30px; }
   .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 14px; text-align: center; outline: none; display: block; box-sizing: border-box; }
-  .footer { margin-top: 8px; display: flex; justify-content: flex-end; position: relative; height: 30px; }
+  .footer { margin-top: auto; display: flex; justify-content: flex-end; position: relative; height: 30px; }
   .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
   .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
   @media print { .no-print { display: none !important; } }

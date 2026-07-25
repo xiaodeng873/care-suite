@@ -4,18 +4,16 @@ import {
   DEFAULT_FACILITY_SETTINGS,
   type FacilitySettings,
 } from './facilitySettings';
-import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 院友體溫記錄表（A4 直印）
 // 完全複刻 doc_html/院友體溫記錄.html 的版面、CSS 與欄位結構：
-// 每頁 3 組「日期 / 時間 / 體溫°C / 備註 / 記錄職員」× 33 列。
+// 每頁 3 組「日期 / 時間 / 體溫°C / 備註 / 記錄職員」× 30 列。
 // 欄位映射（doc_html 標籤 → 健康監測記錄資料庫欄位）：
 //   日期 → 記錄日期；時間 → 記錄時間；體溫°C → 數值；備註 → 備註；記錄職員 → 記錄人員。
-// 右上角新增院舍 logo，與大標題（h1/h2）頂部對齊。
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ROWS_PER_PAGE = 33; // 每組資料列數（不計表頭），與 doc_html 一致
+const ROWS_PER_PAGE = 30; // 每組資料列數（不計表頭），與 doc_html 一致
 const SETS_PER_PAGE = 3; // 每頁「日期/時間/體溫/備註/記錄職員」組數
 const CELLS_PER_PAGE = ROWS_PER_PAGE * SETS_PER_PAGE; // 每頁可容納的記錄數 = 99
 const DOC_CODE = 'B26 FK (09.2016)';
@@ -70,10 +68,11 @@ const calculateAge = (birthDate: string | null): string => {
 
 // 日期顯示為 YY/M/D（含兩位年份，與紙本手寫風格一致、欄位較窄）
 const formatShortDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) return dateStr;
-  const yy = String(date.getFullYear() % 100).padStart(2, '0');
-  return `${yy}/${date.getMonth() + 1}/${date.getDate()}`;
+  const match = /^\s*(\d{4})-(\d{1,2})-(\d{1,2})/.exec(dateStr);
+  if (!match) return dateStr;
+  const [, year, month, day] = match;
+  const yy = String(Number(year) % 100).padStart(2, '0');
+  return `${yy}/${month}/${day}`;
 };
 
 // 時間顯示為 HH:MM（截取前 5 字元）
@@ -105,21 +104,36 @@ const fetchInResidencePatients = async (patientIds?: number[]): Promise<PatientR
   return (data ?? []) as PatientRow[];
 };
 
-// 取得指定日期範圍內的所有體溫記錄
+// 取得指定日期範圍內的所有體溫記錄（分頁抓取以避開 Supabase 1000 列限制）
 const fetchTemperatureRecords = async (startDate: string, endDate: string): Promise<TempRecord[]> => {
-  const { data, error } = await supabase
-    .from('健康監測記錄')
-    .select('院友id, 記錄日期, 記錄時間, 數值, 備註, 記錄人員')
-    .eq('監測類型', '體溫')
-    .gte('記錄日期', startDate)
-    .lte('記錄日期', endDate)
-    .order('記錄日期', { ascending: true })
-    .order('記錄時間', { ascending: true });
-  if (error) {
-    console.error('讀取體溫記錄失敗:', error);
-    throw error;
+  const PAGE_SIZE = 1000;
+  const all: TempRecord[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('健康監測記錄')
+      .select('院友id, 記錄日期, 記錄時間, 數值, 備註, 記錄人員')
+      .eq('監測類型', '體溫')
+      .gte('記錄日期', startDate)
+      .lte('記錄日期', endDate)
+      .order('記錄日期', { ascending: true })
+      .order('記錄時間', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) {
+      console.error('讀取體溫記錄失敗:', error);
+      throw error;
+    }
+
+    const rows = (data ?? []) as TempRecord[];
+    if (rows.length === 0) break;
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
   }
-  return (data ?? []) as TempRecord[];
+
+  return all;
 };
 
 // 將一位院友的體溫記錄轉為儲存格（依日期/時間排序）
@@ -167,18 +181,13 @@ const buildGrid = (cells: TempCell[]): (TempCell | null)[][] => {
 };
 
 const renderHeader = (): string => {
-  const logo = activeFacility.logoDataUri || MR_LOGO_DATA_URI;
   const nameZh = activeFacility.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
-  const nameEn = activeFacility.facilityNameEn?.trim() || '';
-  const logoAlt = nameEn ? `${nameZh} ${nameEn}` : nameZh;
   return `
     <div class="title-section">
-      <div class="header-spacer"></div>
       <div class="header-center">
         <h1>${escapeHtml(nameZh)}</h1>
         <h2>院友體溫記錄</h2>
       </div>
-      <div class="header-right"><div class="logo-box"><img class="logo-img" src="${escapeAttr(logo)}" alt="${escapeAttr(logoAlt)}"></div></div>
     </div>
   `;
 };
@@ -249,14 +258,10 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   @page { size: A4; margin: 5mm 0.2in; }
   * { box-sizing: border-box; }
   body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; padding: 0; background-color: #fff; color: #000; line-height: 1.1; }
-  .container { width: 100%; box-sizing: border-box; page-break-after: always; }
+  .container { width: 100%; box-sizing: border-box; page-break-after: always; display: flex; flex-direction: column; min-height: 287mm; }
   .container:last-of-type { page-break-after: auto; }
-  .title-section { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
-  .header-spacer { width: 18%; }
-  .header-center { flex: 1; text-align: center; }
-  .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
-  .logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
-  .logo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .title-section { text-align: center; margin-bottom: 12px; }
+  .header-center { text-align: center; }
   .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
   .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
   .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
@@ -268,7 +273,7 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
   .data-row { height: 30px; }
   .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 11px; text-align: center; outline: none; display: block; box-sizing: border-box; }
   .set-divider { border-right: 3px solid black !important; }
-  .footer { margin-top: 8px; display: flex; justify-content: flex-end; position: relative; height: 30px; }
+  .footer { margin-top: auto; display: flex; justify-content: flex-end; position: relative; height: 30px; }
   .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
   .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
   @media print { .no-print { display: none !important; } }

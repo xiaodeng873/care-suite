@@ -155,26 +155,19 @@ const pageBlock = (
   rows: ErRecordRow[],
   pageIndex: number,
   totalPages: number,
-  facilityName: string,
-  logoDataUri?: string | null
+  facilityName: string
 ): string => {
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const age = calcAge(patient.出生日期);
   const genderAge = patient.性別 ? `${patient.性別}${age !== null ? `/${age}歲` : ''}` : '';
   const bed = patient.床號 || '';
 
-  const logoHtml = logoDataUri
-    ? `<div class="logo-box"><img class="logo-img" src="${escapeHtml(logoDataUri)}" alt="Logo"></div>`
-    : `<div class="logo-box"><span style="font-size:13px;font-weight:bold;">${escapeHtml(facilityName)}</span></div>`;
-
   return `<div class="container">
   <div class="header-top">
-    <div class="header-spacer"></div>
     <div class="header-center">
       <h1>${escapeHtml(facilityName)}</h1>
       <h2>使用急症室 / 留院記錄</h2>
     </div>
-    <div class="header-right">${logoHtml}</div>
   </div>
 
   <div class="info-row">
@@ -238,6 +231,9 @@ const baseCss = `
     box-sizing: border-box;
     page-break-after: always;
     break-after: page;
+    display: flex;
+    flex-direction: column;
+    min-height: 195mm;
   }
   .container:last-of-type {
     page-break-after: auto;
@@ -245,17 +241,13 @@ const baseCss = `
   .header-top {
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
+    justify-content: center;
     text-align: center;
     margin-bottom: 10px;
   }
-  .header-top .header-spacer { width: 18%; }
   .header-top .header-center { flex: 1; }
   .header-top h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
   .header-top h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
-  .header-top .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
-  .logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
-  .logo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .page-num-top { display: none; }
   .info-row {
     display: flex;
@@ -318,7 +310,7 @@ const baseCss = `
   }
   .slash-cell span { font-size: 18px; padding: 0 5px; }
   .footer {
-    margin-top: 10px;
+    margin-top: auto;
     display: flex;
     justify-content: flex-end;
     position: relative;
@@ -347,16 +339,15 @@ ${bodyContent}
 </body>
 </html>`;
 
-export const generateERRecordFormHtml = (patient: Patient, episode: HospitalEpisode, facilityName: string, logoDataUri?: string | null): string => {
+export const generateERRecordFormHtml = (patient: Patient, episode: HospitalEpisode, facilityName: string): string => {
   const row = generateRowForEpisode(episode);
-  return wrapHtml(pageBlock(patient, [row], 1, 1, facilityName, logoDataUri));
+  return wrapHtml(pageBlock(patient, [row], 1, 1, facilityName));
 };
 
 export const generateERRecordFormsHtml = (
   episodes: HospitalEpisode[],
   patients: Patient[],
-  facilityName: string,
-  logoDataUri?: string | null
+  facilityName: string
 ): string => {
   const ROWS_PER_PAGE = 12;
 
@@ -391,7 +382,7 @@ export const generateERRecordFormsHtml = (
     const totalPages = pageChunks.length || 1;
 
     pageChunks.forEach((pageRows, index) => {
-      pages.push(pageBlock(patient, pageRows, index + 1, totalPages, facilityName, logoDataUri));
+      pages.push(pageBlock(patient, pageRows, index + 1, totalPages, facilityName));
     });
   });
 
@@ -402,7 +393,7 @@ export const printERRecordForm = async (patient: Patient, episode: HospitalEpiso
   if (!patient || !episode) return;
 
   const settings = await getFacilitySettings();
-  const html = generateERRecordFormHtml(patient, episode, settings.facilityNameZh, settings.logoDataUri);
+  const html = generateERRecordFormHtml(patient, episode, settings.facilityNameZh);
   printHtmlWithIframe(html, 'er-record-print-iframe');
 };
 
@@ -410,7 +401,7 @@ export const printERRecordForms = async (episodes: HospitalEpisode[], patients: 
   if (!episodes.length || !patients.length) return;
 
   const settings = await getFacilitySettings();
-  const html = generateERRecordFormsHtml(episodes, patients, settings.facilityNameZh, settings.logoDataUri);
+  const html = generateERRecordFormsHtml(episodes, patients, settings.facilityNameZh);
   printHtmlWithIframe(html, 'er-record-print-iframe');
 };
 

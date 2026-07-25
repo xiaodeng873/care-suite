@@ -290,7 +290,6 @@ const StationBedManagement: React.FC = () => {
       await printBedList({
         stationName: station.name,
         facilityName: facilitySettings?.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh,
-        logoBase64: facilitySettings?.logoDataUri || undefined,
         beds: bedList,
       });
       return;
@@ -434,7 +433,6 @@ const StationBedManagement: React.FC = () => {
     await printBedList({
       stationName: station.name,
       facilityName: facilitySettings?.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh,
-      logoBase64: facilitySettings?.logoDataUri || undefined,
       beds: bedList,
       specialCare,
       hospitalized,

@@ -62,6 +62,10 @@ const pageBlock = (name: string, bed: string, yearMonth: string, facilityName: s
       <div><span>月份/年份：</span><span class="ul">${yearMonth}</span></div>
     </div>
     <table class="rt"><tbody>${days}</tbody></table>
+    <div class="footer">
+      <div class="page-num"></div>
+      <div class="doc-code">B83 FK (06.2026)</div>
+    </div>
   </div></div>`;
 };
 
@@ -94,6 +98,9 @@ body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-ser
 .dc { width:34px; font-weight:bold; }
 .sig { width:40px; }
 .sep td { border:none; height:1.5mm; background:#d9d9d9; }
+.footer { margin-top:auto; display:flex; justify-content:flex-end; position:relative; height:30px; }
+.page-num { position:absolute; left:50%; transform:translateX(-50%); font-size:24px; font-weight:bold; bottom:0; }
+.doc-code { font-size:11px; font-weight:bold; align-self:flex-end; }
 @media print { body{background:#fff;} .no-print{display:none!important;} .page{box-shadow:none;margin:0;} }
 </style></head>
 <body>

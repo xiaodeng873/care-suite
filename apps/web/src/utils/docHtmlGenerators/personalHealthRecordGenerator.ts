@@ -72,7 +72,6 @@ export function generatePersonalHealthRecordHtml(ctx: DocumentGeneratorContext):
     checkedBoxes: p1Checked,
   });
   const p2 = processDocHtmlTemplate(personalHealthRecordP2, ctx, {
-    addLogo: false,
     fieldValues: p2FieldValues,
     checkedBoxes: p2Checked,
   });

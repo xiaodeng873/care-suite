@@ -1,4 +1,3 @@
-import { MR_LOGO_DATA_URI } from '../medicationRecordLogo';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';
 
 const DOC_CODE = 'A23B FK (11.2020)';
@@ -17,14 +16,11 @@ const escapeHtml = (text: string | number | undefined | null): string => {
 
 export async function generateFinancialReturnHtml(ctx: DocumentGeneratorContext): Promise<string> {
   let facilityName = ctx.facilityName || '';
-  let logoDataUri = ctx.logoDataUri || '';
   if (!facilityName) {
     const { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } = await import('../facilitySettings');
     const settings = await getFacilitySettings();
     facilityName = settings.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh || '';
-    logoDataUri = settings.logoDataUri || '';
   }
-  if (!logoDataUri) logoDataUri = MR_LOGO_DATA_URI;
 
   const { patient, contentMode } = ctx;
   const isBlank = contentMode === 'blank';
@@ -53,6 +49,9 @@ export async function generateFinancialReturnHtml(ctx: DocumentGeneratorContext)
   .container {
     width: 100%;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-height: 287mm;
     page-break-after: always;
   }
   .container:last-of-type { page-break-after: auto; }
@@ -140,13 +139,11 @@ export async function generateFinancialReturnHtml(ctx: DocumentGeneratorContext)
     margin-left: 5px;
   }
   .footer {
-    margin-top: 40px;
+    margin-top: auto;
     display: flex;
     justify-content: flex-end;
-    align-items: flex-end;
     position: relative;
     height: 30px;
-    padding: 0 5mm;
   }
   .ref-text {
     position: absolute;
@@ -165,6 +162,7 @@ export async function generateFinancialReturnHtml(ctx: DocumentGeneratorContext)
   .doc-code {
     font-size: 11px;
     font-weight: bold;
+    align-self: flex-end;
   }
 </style>
 </head>

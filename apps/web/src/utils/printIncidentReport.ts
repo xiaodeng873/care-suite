@@ -58,8 +58,10 @@ const generateIncidentSummary = (patient: Patient, report: IncidentReport): stri
     summary += `，${report.injury_location}著地`;
   }
 
-  // 結尾
-  summary += '。';
+  // 結尾：只有真正組合出內容時才補上句號
+  if (summary) {
+    summary += '。';
+  }
 
   return summary;
 };
@@ -84,8 +86,7 @@ function escapeHtml(text: string): string {
 
 export const generateIncidentReportPrintHTML = (
   reports: Array<{ patient: Patient; report: IncidentReport }>,
-  facilityName: string,
-  logoDataUri?: string | null
+  facilityName: string
 ): string => {
   // 按患者分組
   const grouped: GroupedReports = {};
@@ -118,10 +119,13 @@ export const generateIncidentReportPrintHTML = (
 
       for (let i = 0; i < minRows; i++) {
         const report = patientReports[i];
-        
-        if (report) {
+
+        // 判斷是否為真正的意外報告（而非空白頁的佔位）
+        const hasData = report && (report.incident_date || report.incident_time || report.location || report.patient_activity || report.incident_type || report.injury_location || report.medical_arrangement || report.reporter_signature);
+
+        if (hasData) {
           // 格式化日期和時間
-          const incidentDate = report.incident_date 
+          const incidentDate = report.incident_date
             ? new Date(report.incident_date).toLocaleDateString('zh-HK', { year: 'numeric', month: '2-digit', day: '2-digit' })
             : '';
           const incidentTime = report.incident_time || '';
@@ -130,8 +134,8 @@ export const generateIncidentReportPrintHTML = (
           const eventSummary = generateIncidentSummary(patient, report);
 
           // 傷勢及治療：合併 injury_situation + patient_complaint + immediate_treatment
-          const injurySituation = report.injury_situation 
-            ? (typeof report.injury_situation === 'object' 
+          const injurySituation = report.injury_situation
+            ? (typeof report.injury_situation === 'object'
                 ? Object.entries(report.injury_situation)
                     .filter(([_, v]) => v === true)
                     .map(([k]) => k)
@@ -151,11 +155,11 @@ export const generateIncidentReportPrintHTML = (
             .filter(t => t)
             .join('\n');
 
-          // 送院：檢查是否有送院信息
-          const hospitalised = report.medical_arrangement 
+          // 送院：☑ 表示已送院，☒ 表示未送院
+          const hospitalised = report.medical_arrangement
             ? report.medical_arrangement.includes('急症室') || report.medical_arrangement.includes('門診')
             : false;
-          const hospitalisedChecked = hospitalised ? '☒' : '☑';
+          const hospitalisedChecked = hospitalised ? '☑' : '☒';
 
           // 簽署：填報人姓名和職位
           const signature = [report.reporter_signature, report.reporter_position]
@@ -174,7 +178,7 @@ export const generateIncidentReportPrintHTML = (
             </tr>
           `);
         } else {
-          // 空行
+          // 空行（包括空白頁佔位或資料不完整的報告）
           rows.push(`
             <tr>
               <td class="col-no">${i + 1}</td>
@@ -192,10 +196,6 @@ export const generateIncidentReportPrintHTML = (
       return rows.join('');
     };
 
-    const logoHtml = logoDataUri
-      ? `<img src="${escapeHtml(logoDataUri)}" style="position:absolute;right:10px;top:0;width:60px;height:60px;object-fit:contain;" alt="Logo">`
-      : '';
-
     const page = `
       <div class="page">
         <!-- 標頭 -->
@@ -204,7 +204,6 @@ export const generateIncidentReportPrintHTML = (
             <h1>${escapeHtml(facilityName)}</h1>
             <h2>個人意外事件記錄表</h2>
           </div>
-          ${logoHtml}
         </div>
 
         <!-- 院友基本資料 -->
@@ -300,6 +299,9 @@ export const generateIncidentReportPrintHTML = (
             width: 100%;
             box-sizing: border-box;
             padding: 8mm;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
 
         /* 頂部標題區 */
@@ -308,6 +310,7 @@ export const generateIncidentReportPrintHTML = (
             align-items: flex-start;
             margin-bottom: 5px;
             position: relative;
+            justify-content: center;
         }
 
         .station-box { display: none; }
@@ -317,8 +320,8 @@ export const generateIncidentReportPrintHTML = (
             text-align: center;
         }
 
-        .title-box h1 { margin: 0; font-size: 26px; letter-spacing: 2px; }
-        .title-box h2 { margin: 2px 0 0 0; font-size: 22px; }
+        .title-box h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .title-box h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
 
         /* 院友資訊列 */
         .info-bar {
@@ -407,24 +410,25 @@ export const generateIncidentReportPrintHTML = (
 
         /* 頁尾 */
         .footer {
-            margin-top: 10px;
+            margin-top: auto;
             display: flex;
             justify-content: flex-end;
             position: relative;
             height: 30px;
-            font-weight: bold;
         }
 
         .page-num {
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 22px;
+            font-size: 24px;
+            font-weight: bold;
             bottom: 0;
         }
 
         .doc-code {
             font-size: 11px;
+            font-weight: bold;
             align-self: flex-end;
         }
     </style>
@@ -448,7 +452,7 @@ export const printIncidentReport = async (
 
   const settings = await getFacilitySettings();
   const facilityName = settings.facilityNameZh;
-  const html = generateIncidentReportPrintHTML(reports, facilityName, settings.logoDataUri);
+  const html = generateIncidentReportPrintHTML(reports, facilityName);
 
   // 使用隱藏的 iframe 進行列印，不開新視窗
   const old = document.getElementById('incident-report-print-iframe');

@@ -7,15 +7,9 @@
         @page { size: A4; margin: 5mm 0.25in; }
         * { box-sizing: border-box; }
         body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; padding: 0; background-color: #fff; color: #000; line-height: 1.1; }
-        .container { width: 100%; box-sizing: border-box; page-break-after: always; }
+        .container { width: 100%; box-sizing: border-box; page-break-after: always; display: flex; flex-direction: column; min-height: 287mm; }
         .container:last-of-type { page-break-after: auto; }
-        .title-section { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 5px; }
-        .header-spacer { width: 18%; }
-        .header-center { flex: 1; text-align: center; }
-        .header-right { width: 18%; display: flex; align-items: flex-start; justify-content: flex-end; }
-        .logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
-        .logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        .logo-img { max-height: 100%; max-width: 100%; object-fit: contain; }
+        .title-section { text-align: center; margin-bottom: 5px; }
         .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
         .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
         .user-info { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: bold; font-size: 14px; }
@@ -31,7 +25,7 @@
         .notes-heading { font-weight: bold; font-size: 11px; margin-bottom: 2px; }
         .note-item { display: flex; margin-bottom: 1px; }
         .note-label { font-weight: bold; min-width: 25px; }
-        .footer { margin-top: 8px; display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; }
+        .footer { margin-top: auto; display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; }
         .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
         .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
     </style>
@@ -40,17 +34,8 @@
 
 <div class="container">
     <div class="title-section">
-        <div class="header-spacer"></div>
-        <div class="header-center">
-            <h1>善頤(福群)護老院</h1>
-            <h2>院友健康教育 / 活動記錄表</h2>
-        </div>
-        <div class="header-right">
-            <!-- 院舍 LOGO：放在專案根目錄的 supabase/migrations/SClogolayer.png，與大標題平頂 -->
-            <div class="logo-box">
-                <img class="logo-img" src="../supabase/migrations/SClogolayer.png" alt="院舍Logo">
-            </div>
-        </div>
+        <h1>善頤(福群)護老院</h1>
+        <h2>院友健康教育 / 活動記錄表</h2>
     </div>
     <br>
     <div class="user-info">

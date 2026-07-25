@@ -37,23 +37,19 @@ export function setInputTagValue(tag: string, value: string): string {
 /**
  * 通用 doc_html 範本處理器：
  * 1. 替換硬編碼院舍名稱
- * 2. 加入右上角 logo（與大標題平頭）
- * 3. 抽取 body 內容
+ * 2. 填入基本資料
  */
 export function processDocHtmlTemplate(
   template: string,
   ctx: DocumentGeneratorContext,
   options: {
-    addLogo?: boolean;
-    logoStyle?: string;
     /** 依 input/textarea 的 name 精準填入值（空白文件模式會被跳過） */
     fieldValues?: Record<string, string>;
     /** 依 checkbox 的 name 勾選（空白文件模式會被跳過） */
     checkedBoxes?: string[];
   } = {}
 ): string {
-  const { addLogo = true } = options;
-  const { facilityName, logoDataUri } = ctx;
+  const { facilityName } = ctx;
 
   let html = template;
 
@@ -70,40 +66,7 @@ export function processDocHtmlTemplate(
     html = html.replace(new RegExp(escaped, 'g'), escapeHtml(facilityName));
   });
 
-  // 2. 加入 logo（若範本沒有 logo）：統一使用無框長方形區域，logo 自適應框大小
-  if (addLogo && logoDataUri) {
-    const logoBox = `<div class="logo-box" style="position:absolute;right:0;top:0;width:80px;height:60px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;"><img src="${escapeHtml(logoDataUri)}" style="max-width:100%;max-height:100%;object-fit:contain;" alt="Logo"></div>`;
-
-    // 嘗試在 title-section / header / title-box 等常見標題容器加入 logo
-    // 優先放進已有的 .header-right，若無則依次遞減
-    const headerPatterns = [
-      /<div class="header-right"[^>]*>/i,
-      /<div class="header-top"[^>]*>/i,
-      /<div class="header-section"[^>]*>/i,
-      /<div class="title-section"[^>]*>/i,
-      /<div class="title-box"[^>]*>/i,
-      /<div style="text-align: center;[^>]*">/i,
-    ];
-
-    let inserted = false;
-    for (const pattern of headerPatterns) {
-      if (pattern.test(html)) {
-        // 在匹配的 div 後面加入 position:relative 並插入 logo 框
-        html = html.replace(pattern, (match) => {
-          return `${match.replace('>', ' style="position:relative;">')}${logoBox}`;
-        });
-        inserted = true;
-        break;
-      }
-    }
-
-    // 若找不到標題容器，則在 body 開始處加入
-    if (!inserted) {
-      html = html.replace(/<body>/i, `<body>${logoBox}`);
-    }
-  }
-
-  // 1b. 範本預留的院舍名稱 placeholder（所有模式都填，屬表格身份一部分）
+  // 2. 範本預留的院舍名稱 placeholder（所有模式都填，屬表格身份一部分）
   html = html.replace(
     /<input[^>]*placeholder="安老院名稱"[^>]*>/gi,
     (tag) => setTagValue(tag, facilityName)

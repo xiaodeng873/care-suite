@@ -8,7 +8,6 @@ import {
   type StaffCodeMapping,
   type WorkflowRecord,
 } from './medicationWorkflowHelper';
-import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 import {
   getFacilitySettings,
   DEFAULT_FACILITY_SETTINGS,
@@ -510,18 +509,14 @@ const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRo
     ? `<img class="mr-photo" src="${escapeAttr(String(photo))}" alt="">`
     : '<div class="mr-photo mr-photo-empty">相片</div>';
 
-  const facilityLogo = activeFacility.logoDataUri || MR_LOGO_DATA_URI;
   const facilityNameZh = activeFacility.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
-  const facilityNameEn = activeFacility.facilityNameEn || DEFAULT_FACILITY_SETTINGS.facilityNameEn;
-  const logoAlt = `${facilityNameZh} ${facilityNameEn}`.trim();
 
   return '<header class="mr-header">'
     + '<table class="mr-header-table"><colgroup>'
-      + '<col class="mr-hc-logo"><col class="mr-hc-title"><col class="mr-hc-photo">'
+      + '<col class="mr-hc-title"><col class="mr-hc-photo">'
       + '<col class="mr-hc-info"><col class="mr-hc-info"><col class="mr-hc-react">'
     + '</colgroup><tbody>'
       + '<tr>'
-        + `<td class="mr-h-logo" rowspan="2"><img class="mr-logo" src="${escapeAttr(facilityLogo)}" alt="${escapeAttr(logoAlt)}"></td>`
         + `<td class="mr-h-title"><div class="mr-org">${escapeHtml(facilityNameZh)}</div><div class="mr-doc">個人備藥及給藥記錄</div></td>`
         + `<td class="mr-h-photo" rowspan="2">${photoHtml}</td>`
         + infoCell('院友姓名', name)
@@ -1197,12 +1192,9 @@ body {
 .mr-header { flex: 0 0 auto; margin-bottom: 1mm; }
 .mr-header-table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 0.8pt solid #2f3a45; }
 .mr-header-table td { border: 0.4pt solid #9aa7b4; padding: 1mm 1.5mm; vertical-align: middle; }
-.mr-hc-logo { width: 36mm; }
-.mr-hc-title { width: 58mm; }
+.mr-hc-title { width: 94mm; }
 .mr-hc-photo { width: 28mm; }
 .mr-hc-info { width: 36mm; }
-.mr-h-logo { text-align: center; background: #f1f5f9; }
-.mr-logo { width: 100%; max-width: 35mm; height: auto; object-fit: contain; display: block; margin: 0 auto; }
 .mr-h-title { text-align: center; }
 .mr-org { font-size: 15pt; font-weight: bold; color: #0f2740; line-height: 1.3; letter-spacing: 1pt; }
 .mr-doc { font-size: 11.5pt; font-weight: bold; color: #1f3a52; line-height: 1.2; letter-spacing: 2pt; margin-top: 0.8mm; }

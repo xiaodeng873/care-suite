@@ -1,7 +1,6 @@
 import type { Patient, FollowUpAppointment } from '../lib/database';
 import { calcAge } from './cgatFeeHelper';
 import { getFacilitySettings } from './facilitySettings';
-import { MR_LOGO_DATA_URI } from './medicationRecordLogo';
 
 const ROWS_PER_PAGE = 28;
 const DOC_CODE = 'B3 FK (11.2020)';
@@ -99,7 +98,6 @@ const pageBlock = (
   rows: FollowUpPrintRow[],
   pageIndex: number,
   totalPages: number,
-  logoDataUri: string,
   facilityName: string
 ): string => {
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
@@ -110,12 +108,10 @@ const pageBlock = (
 
   return `<div class="container">
   <div class="title-section">
-    <div class="header-spacer"></div>
     <div class="header-center">
       <h1>${facilityName}</h1>
       <h2>院友覆診記錄表</h2>
     </div>
-    <div class="header-right"><div class="logo-box"><img class="logo-img" src="${logoDataUri}" alt="Logo"></div></div>
   </div>
 
   <table class="info-table">
@@ -190,6 +186,9 @@ const baseCss = `
   .container {
     width: 100%;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-height: 287mm;
     page-break-after: always;
     break-after: page;
   }
@@ -199,10 +198,9 @@ const baseCss = `
   .title-section {
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
+    justify-content: center;
     margin-bottom: 12px;
   }
-  .header-spacer { width: 18%; }
   .header-center { flex: 1; text-align: center; }
   .header-center h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
   .header-center h2 {
@@ -213,20 +211,6 @@ const baseCss = `
     border-bottom: 1.5px solid black;
     padding-bottom: 2px;
   }
-  .header-right {
-    width: 18%;
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-end;
-  }
-  .logo-box {
-    width: 80px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .logo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .info-table {
     width: 100%;
     border-collapse: collapse;
@@ -290,7 +274,7 @@ const baseCss = `
   }
   .left-align { text-align: left; padding-left: 4px; }
   .footer {
-    margin-top: 5px;
+    margin-top: auto;
     display: flex;
     justify-content: flex-end;
     position: relative;
@@ -322,17 +306,15 @@ ${bodyContent}
 export const generateFollowUpRecordFormHtml = (
   patient: Patient,
   appointment: FollowUpAppointment,
-  logoDataUri: string,
   facilityName: string
 ): string => {
   const row = generateRow(appointment);
-  return wrapHtml(pageBlock(patient, [row], 1, 1, logoDataUri, facilityName));
+  return wrapHtml(pageBlock(patient, [row], 1, 1, facilityName));
 };
 
 export const generateFollowUpRecordFormsHtml = (
   appointments: FollowUpAppointment[],
   patients: Patient[],
-  logoDataUri: string,
   facilityName: string
 ): string => {
   // 依院友 ID 分組，同時保留原本勾選的出現順序
@@ -366,7 +348,7 @@ export const generateFollowUpRecordFormsHtml = (
     const totalPages = pageChunks.length;
 
     pageChunks.forEach((pageRows, index) => {
-      pages.push(pageBlock(patient, pageRows, index + 1, totalPages, logoDataUri, facilityName));
+      pages.push(pageBlock(patient, pageRows, index + 1, totalPages, facilityName));
     });
   });
 
@@ -380,8 +362,7 @@ export const printFollowUpRecordForm = async (
   if (!patient || !appointment) return;
 
   const settings = await getFacilitySettings();
-  const logoDataUri = settings.logoDataUri || MR_LOGO_DATA_URI;
-  const html = generateFollowUpRecordFormHtml(patient, appointment, logoDataUri, settings.facilityNameZh);
+  const html = generateFollowUpRecordFormHtml(patient, appointment, settings.facilityNameZh);
   printHtmlWithIframe(html, 'follow-up-record-print-iframe');
 };
 
@@ -392,8 +373,7 @@ export const printFollowUpRecordForms = async (
   if (!appointments.length || !patients.length) return;
 
   const settings = await getFacilitySettings();
-  const logoDataUri = settings.logoDataUri || MR_LOGO_DATA_URI;
-  const html = generateFollowUpRecordFormsHtml(appointments, patients, logoDataUri, settings.facilityNameZh);
+  const html = generateFollowUpRecordFormsHtml(appointments, patients, settings.facilityNameZh);
   printHtmlWithIframe(html, 'follow-up-record-print-iframe');
 };
 

@@ -183,102 +183,97 @@ function buildPage(
   const eolOld = records.filter(r => r.is_eol && r.case_type === '舊症').length;
 
   return `
-<table class="print-wrapper">
-  <thead class="page-header">
-    <tr>
-      <td>
-        <div class="header-content">
-          <div class="title-row">
-            <div class="main-title">廣華醫院 社區老人評估服務 - 診症名單</div>
-            <div class="contact-box">
-              CGAS 傳真 : 2171 4825 &nbsp;&nbsp;&nbsp; CGAS 電話 : 3517 5026
+<div class="page">
+  <table class="print-wrapper">
+    <thead class="page-header">
+      <tr>
+        <td>
+          <div class="header-content">
+            <div class="title-row">
+              <div class="main-title">廣華醫院 社區老人評估服務 - 診症名單</div>
+              <div class="contact-box">
+                CGAS 傳真 : 2171 4825 &nbsp;&nbsp;&nbsp; CGAS 電話 : 3517 5026
+              </div>
             </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+              <tr>
+                <td style="width: 38%;">
+                  <div class="adaptive-line"><span>院舍名稱：</span><div class="input-box"><textarea rows="1">${escapeHtml(facilityName)}</textarea></div></div>
+                </td>
+                <td style="width: 23%;">
+                  <div class="adaptive-line"><span>院舍電話：</span><div class="input-box"><textarea rows="1">${escapeHtml(facilityPhone)}</textarea></div></div>
+                </td>
+                <td style="width: 39%; padding-left: 10px;">
+                  <div class="check-item">
+                    <input type="checkbox"> CGAS Dr Visit &nbsp;&nbsp;&nbsp; <input type="checkbox"> CGAS Dr Tele-med
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2">
+                  <div class="adaptive-line">
+                    <span>診症日期：</span>
+                    <div class="input-box" style="width: 180px; flex:none;">
+                      <textarea rows="1">${escapeHtml(visitDate)}</textarea>
+                    </div>
+                    <span style="margin-left:5px;">上午 / 下午 (星期</span>
+                    <div class="input-box" style="width: 30px; flex:none;">
+                      <textarea rows="1" style="text-align:center;">${escapeHtml(getWeekdayLabel(visitDate))}</textarea>
+                    </div>
+                    <span>)</span>
+                  </div>
+                </td>
+                <td style="padding-left: 10px;">
+                  <div class="check-item" style="font-size: 14px;">
+                    CGAS 新症：<span style="display:inline-block; border-bottom: 0.5px solid black; width: 40px; margin: 0 4px; text-align:center; font-size:14px;">${cgasNew}</span>
+                    舊症：<span style="display:inline-block; border-bottom: 0.5px solid black; width: 40px; margin: 0 4px; text-align:center; font-size:14px;">${cgasOld}</span> &nbsp;
+                    EOL 新症：<span style="display:inline-block; border-bottom: 0.5px solid black; width: 40px; margin: 0 4px; text-align:center; font-size:14px;">${eolNew}</span>
+                    舊症：<span style="display:inline-block; border-bottom: 0.5px solid black; width: 40px; margin: 0 4px; text-align:center; font-size:14px;">${eolOld}</span>
+                  </div>
+                </td>
+              </tr>
+            </table>
           </div>
-
-          <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-            <tr>
-              <td style="width: 38%;">
-                <div class="adaptive-line"><span>院舍名稱：</span><div class="input-box"><textarea rows="1">${escapeHtml(facilityName)}</textarea></div></div>
-              </td>
-              <td style="width: 23%;">
-                <div class="adaptive-line"><span>院舍電話：</span><div class="input-box"><textarea rows="1">${escapeHtml(facilityPhone)}</textarea></div></div>
-              </td>
-              <td style="width: 39%; padding-left: 10px;">
-                <div class="check-item">
-                  <input type="checkbox"> CGAS Dr Visit &nbsp;&nbsp;&nbsp; <input type="checkbox"> CGAS Dr Tele-med
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td colspan="2">
-                <div class="adaptive-line">
-                  <span>診症日期：</span>
-                  <div class="input-box" style="width: 180px; flex:none;">
-                    <textarea rows="1">${escapeHtml(visitDate)}</textarea>
-                  </div>
-                  <span style="margin-left:5px;">上午 / 下午 (星期</span>
-                  <div class="input-box" style="width: 30px; flex:none;">
-                    <textarea rows="1" style="text-align:center;">${escapeHtml(getWeekdayLabel(visitDate))}</textarea>
-                  </div>
-                  <span>)</span>
-                </div>
-              </td>
-              <td style="padding-left: 10px;">
-                <div class="check-item" style="font-size: 14px;">
-                  CGAS 新症：<span style="display:inline-block; border-bottom: 0.5px solid black; width: 40px; margin: 0 4px; text-align:center; font-size:14px;">${cgasNew}</span>
-                  舊症：<span style="display:inline-block; border-bottom: 0.5px solid black; width: 40px; margin: 0 4px; text-align:center; font-size:14px;">${cgasOld}</span> &nbsp;
-                  EOL 新症：<span style="display:inline-block; border-bottom: 0.5px solid black; width: 40px; margin: 0 4px; text-align:center; font-size:14px;">${eolNew}</span>
-                  舊症：<span style="display:inline-block; border-bottom: 0.5px solid black; width: 40px; margin: 0 4px; text-align:center; font-size:14px;">${eolOld}</span>
-                </div>
-              </td>
-            </tr>
+          <br>
+          <table class="main-table">
+            <thead>
+              <tr>
+                <th style="width: 45px; text-align: center;">床號 No.</th>
+                <th style="width: 280px; text-align: left; padding-left: 10px;">姓名： &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * ID： xxx(x)</th>
+                <th style="width: 85px;">新症</th>
+                <th style="width: 70px;">舊症</th>
+                <th style="width: 110px;">配藥</th>
+                <th style="width: 45px;">出院</th>
+                <th style="width: 45px;">簽信</th>
+                <th style="width: 105px;">看報告</th>
+                <th style="width: 150px; text-align: left; padding-left: 10px;">備註：</th>
+              </tr>
+            </thead>
           </table>
-        </div>
-        <br>
-        <table class="main-table">
-          <thead>
-            <tr>
-              <th style="width: 45px; text-align: center;">床號 No.</th>
-              <th style="width: 280px; text-align: left; padding-left: 10px;">姓名： &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * ID： xxx(x)</th>
-              <th style="width: 85px;">新症</th>
-              <th style="width: 70px;">舊症</th>
-              <th style="width: 110px;">配藥</th>
-              <th style="width: 45px;">出院</th>
-              <th style="width: 45px;">簽信</th>
-              <th style="width: 105px;">看報告</th>
-              <th style="width: 150px; text-align: left; padding-left: 10px;">備註：</th>
-            </tr>
-          </thead>
-        </table>
-      </td>
-    </tr>
-  </thead>
+        </td>
+      </tr>
+    </thead>
 
-  <tbody>
-    <tr>
-      <td>
-        <table class="main-table" style="border-top: none;">
-          ${rows}
-        </table>
-      </td>
-    </tr>
-  </tbody>
-
-  <tfoot class="page-footer">
-    <tr>
-      <td>
-        <div class="footer-note">
-          * 請填上身份證英文字母及首 3 個數字<br>
-          ** 請在藥單右上角填上身份代號：<u>TPA</u>-綜援金/院舍券/OALA; <u>GOV</u>-公務員/家屬; <u>HAS</u>-醫管局員工/家屬; <u>WAIVE</u>-醫務社工豁免紙; 其他豁免-(請註明); <u>EP1</u>-自費
-        </div>
-        <div class="page-num-area">
-          第 <span style="border-bottom: 0.5px solid black; width: 60px; display: inline-block; vertical-align: bottom;"><textarea rows="1" style="text-align:center;">${pageNum}</textarea></span> / ${totalPages} 頁
-        </div>
-      </td>
-    </tr>
-  </tfoot>
-</table>
-<div class="page-break"></div>
+    <tbody>
+      <tr>
+        <td>
+          <table class="main-table" style="border-top: none;">
+            ${rows}
+          </table>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="footer-note">
+    * 請填上身份證英文字母及首 3 個數字<br>
+    ** 請在藥單右上角填上身份代號：<u>TPA</u>-綜援金/院舍券/OALA; <u>GOV</u>-公務員/家屬; <u>HAS</u>-醫管局員工/家屬; <u>WAIVE</u>-醫務社工豁免紙; 其他豁免-(請註明); <u>EP1</u>-自費
+  </div>
+  <div class="footer">
+    <div class="page-num">${pageNum}</div>
+    <div class="doc-code"></div>
+  </div>
+</div>
 `;
 }
 
@@ -331,8 +326,14 @@ export function generateCgatWorksheetHtml(
       width: 100%;
       border-collapse: collapse;
     }
+    .page {
+      display: flex;
+      flex-direction: column;
+      min-height: 287mm;
+      page-break-after: always;
+    }
+    .page:last-of-type { page-break-after: auto; }
     .page-header { display: table-header-group; }
-    .page-footer { display: table-footer-group; }
     .header-content { width: 100%; padding-bottom: 5px; }
     .title-row { display: flex; justify-content: space-between; align-items: center; }
     .main-title { font-size: 22px; font-weight: bold; }
@@ -394,10 +395,9 @@ export function generateCgatWorksheetHtml(
     .data-row { page-break-inside: avoid; break-inside: avoid; }
     .data-row td { height: 252px; }
     .footer-note { font-size: 12px; padding-top: 5px; line-height: 1.4; }
-    .page-num-area { text-align: center; margin-top: 8px; font-size: 16px; position: relative; }
-    .page-id { position: absolute; right: 0; bottom: 0; font-size: 11px; }
-    .page-break { page-break-after: always; }
-    .page-break:last-of-type { page-break-after: auto; }
+    .footer { margin-top: auto; position: relative; height: 30px; display: flex; justify-content: flex-end; }
+    .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
+    .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
   </style>
 </head>
 <body>

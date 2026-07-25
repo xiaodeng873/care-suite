@@ -29,7 +29,6 @@ export interface DocumentGeneratorContext {
   startDate: string;
   endDate: string;
   facilityName: string;
-  logoDataUri: string | null;
   contentMode: PrintContentMode;
 }
 
@@ -83,14 +82,14 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
         return async (ctx) => {
           const patient = ctxPatient(ctx);
           if (ctx.contentMode !== 'data') {
-            return mod.generateHealthAssessmentHtml({} as HealthAssessment, patient, ctx.facilityName, ctx.logoDataUri);
+            return mod.generateHealthAssessmentHtml({} as HealthAssessment, patient, ctx.facilityName);
           }
           const db = await import('../lib/database');
           const all = await db.getHealthAssessments('all');
           const mine = (all || []).filter(a => a.patient_id === ctx.patient.院友id);
           if (mine.length === 0) return '';
           mine.sort((a, b) => (b.assessment_date || '').localeCompare(a.assessment_date || ''));
-          return mod.generateHealthAssessmentHtml(mine[0], patient, ctx.facilityName, ctx.logoDataUri);
+          return mod.generateHealthAssessmentHtml(mine[0], patient, ctx.facilityName);
         };
       }
       case 'er_record': {
@@ -118,7 +117,7 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
           const patient = ctxPatient(ctx);
           if (ctx.contentMode !== 'data') {
             const blankAppointment = { 院友id: ctx.patient.院友id } as FollowUpAppointment;
-            return mod.generateFollowUpRecordFormsHtml([blankAppointment], [patient], ctx.logoDataUri || '', ctx.facilityName);
+            return mod.generateFollowUpRecordFormsHtml([blankAppointment], [patient], '', ctx.facilityName);
           }
           const db = await import('../lib/database');
           const appointments = await db.getFollowUps();
@@ -128,7 +127,7 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
             return (!ctx.startDate || d >= ctx.startDate) && (!ctx.endDate || d <= ctx.endDate);
           });
           if (filtered.length === 0) return '';
-          return mod.generateFollowUpRecordFormsHtml(filtered, [patient], ctx.logoDataUri || '', ctx.facilityName);
+          return mod.generateFollowUpRecordFormsHtml(filtered, [patient], '', ctx.facilityName);
         };
       }
       case 'restraint_usage_common': {
@@ -154,7 +153,7 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
         return async (ctx) => {
           const patient = ctxPatient(ctx);
           if (ctx.contentMode !== 'data') {
-            return mod.generateIncidentReportPrintHTML([{ patient, report: {} as IncidentReport }], ctx.facilityName, ctx.logoDataUri);
+            return mod.generateIncidentReportPrintHTML([{ patient, report: {} as IncidentReport }], ctx.facilityName);
           }
           const db = await import('../lib/database');
           const reports = await db.getIncidentReports();
@@ -164,7 +163,7 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
             return (!ctx.startDate || d >= ctx.startDate) && (!ctx.endDate || d <= ctx.endDate);
           });
           if (filtered.length === 0) return '';
-          return mod.generateIncidentReportPrintHTML(filtered.map(r => ({ patient, report: r })), ctx.facilityName, ctx.logoDataUri);
+          return mod.generateIncidentReportPrintHTML(filtered.map(r => ({ patient, report: r })), ctx.facilityName);
         };
       }
       case 'activity_record': {
@@ -172,7 +171,7 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
         return async (ctx) => {
           const patient = ctxPatient(ctx);
           if (ctx.contentMode !== 'data') {
-            return mod.generateActivityRecordPrintFormHtml([patient], new Map([[ctx.patient.院友id, []]]), ctx.logoDataUri || '', ctx.facilityName);
+            return mod.generateActivityRecordPrintFormHtml([patient], new Map([[ctx.patient.院友id, []]]), ctx.facilityName);
           }
           const db = await import('../lib/database');
           const records = await db.getPatientActivityRecords();
@@ -182,7 +181,7 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
             return (!ctx.startDate || d >= ctx.startDate) && (!ctx.endDate || d <= ctx.endDate);
           });
           if (filtered.length === 0) return '';
-          return mod.generateActivityRecordPrintFormHtml([patient], new Map([[ctx.patient.院友id, filtered]]), ctx.logoDataUri || '', ctx.facilityName);
+          return mod.generateActivityRecordPrintFormHtml([patient], new Map([[ctx.patient.院友id, filtered]]), ctx.facilityName);
         };
       }
       case 'doctor_visit': {
@@ -222,8 +221,7 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
         return async (ctx) => {
           const patient = ctxPatient(ctx);
           if (ctx.contentMode !== 'data') {
-            const blankPrescription = { is_long_term: false } as MedicationPrescription;
-            return mod.generateMedicationListHtml([{ ...patient, prescriptions: [blankPrescription] }], {});
+            return mod.generateMedicationListHtml([{ ...patient, prescriptions: [] }], { allowBlankPage: true });
           }
           const db = await import('../lib/database');
           const prescriptions = await db.getPrescriptions(ctx.patient.院友id);
@@ -237,8 +235,7 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
         return async (ctx) => {
           const patient = ctxPatient(ctx);
           if (ctx.contentMode !== 'data') {
-            const blankPrescription = { is_long_term: true } as MedicationPrescription;
-            return mod.generateMedicationListHtml([{ ...patient, prescriptions: [blankPrescription] }], {});
+            return mod.generateMedicationListHtml([{ ...patient, prescriptions: [] }], { allowBlankPage: true });
           }
           const db = await import('../lib/database');
           const prescriptions = await db.getPrescriptions(ctx.patient.院友id);
@@ -364,7 +361,19 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
 
   const settings = await getFacilitySettings();
   const facilityName = settings.facilityNameZh;
-  const logoDataUri = settings.logoDataUri;
+
+  const orderMap = new Map(PRINT_DOCUMENTS.map((d, i) => [d.id, i]));
+  const categoryWeight: Record<string, number> = { '入住文件': 0, '常用表格': 1 };
+  const sortedDocumentIds = [...documentIds].sort((a, b) => {
+    const ad = PRINT_DOCUMENTS.find(d => d.id === a);
+    const bd = PRINT_DOCUMENTS.find(d => d.id === b);
+    const aw = (ad && categoryWeight[ad.category]) ?? 0;
+    const bw = (bd && categoryWeight[bd.category]) ?? 0;
+    if (aw !== bw) return aw - bw;
+    const ai = orderMap.get(a) ?? Number.MAX_SAFE_INTEGER;
+    const bi = orderMap.get(b) ?? Number.MAX_SAFE_INTEGER;
+    return ai - bi;
+  });
 
   const pages: string[] = [];
   const skipped: string[] = [];
@@ -372,7 +381,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
 
   for (const patient of patients) {
     const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
-    for (const docId of documentIds) {
+    for (const docId of sortedDocumentIds) {
       const generator = await getGenerator(docId);
       if (!generator) continue;
       const docName = PRINT_DOCUMENTS.find(d => d.id === docId)?.name || docId;
@@ -383,7 +392,6 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
           startDate: startDate || patient.入住日期 || '',
           endDate,
           facilityName,
-          logoDataUri,
           contentMode,
         });
         // 「含既有輸入內容」模式：有內容則印內容，無內容則回退印基本資料
@@ -393,7 +401,6 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
             startDate: startDate || patient.入住日期 || '',
             endDate,
             facilityName,
-            logoDataUri,
             contentMode: 'basic',
           });
         }

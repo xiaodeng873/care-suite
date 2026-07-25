@@ -17,12 +17,12 @@
             width: 100%;
         }
 
-        .container { width: 100%; box-sizing: border-box; }
+        .container { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; min-height: 287mm; }
 
         /* 標頭設定 - 左上角重製 */
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .header { display: flex; justify-content: center; align-items: flex-start; position: relative; margin-bottom: 8px; }
         
-        .header-left-group { display: flex; width: 18%; }
+        .header-left-group { position: absolute; left: 0; top: 0; width: 18%; display: flex; }
         
         .identity-box-new {
             border: 1.5px solid black;
@@ -36,14 +36,9 @@
             font-weight: bold;
         }
 
-        .header-center { text-align: center; flex-grow: 1; padding: 0 10px; }
-        .header-center h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
-        .header-center h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
-
-        .header-right { text-align: right; width: 22%; font-weight: bold; font-size: 10px; }
-
-        .logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
-        .logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .title-section { text-align: center; flex-grow: 1; padding: 0 10px; }
+        .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
 
         /* 表格設定 */
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -101,7 +96,7 @@
 
         /* 底部置中頁碼 */
         .footer {
-            margin-top: 8px;
+            margin-top: auto;
             display: flex;
             justify-content: flex-end;
             position: relative;
@@ -130,17 +125,12 @@
                 <div>床號：<span class="db-text-underline" style="min-width: 100px;"></span></div>
             </div>
         </div>
-        <div class="header-center">
+        <div class="title-section">
             <h1>善頤(福群)護老院</h1>
             <h2>傷口評估記錄表</h2>
             <div class="bold" style="font-size: 10px; margin-top: 3px;">
                 <span class="db-checkbox"></span>每星期 1 次 / 
                 <span class="db-checkbox"></span>每星期<span class="db-text-underline" style="min-width:25px;"></span>次
-            </div>
-        </div>
-        <div class="header-right">
-            <div class="logo-box">
-                <div style="font-size: 15px; text-align: center;">☯ 善頤護老<br>SeniorCare</div>
             </div>
         </div>
     </div>

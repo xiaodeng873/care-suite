@@ -27,6 +27,8 @@
             box-sizing: border-box;
             position: relative; /* 關鍵：供頁尾絕對定位 */
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         /* 標題區域極致置頂 */
@@ -103,7 +105,7 @@
 
         /* --- 絕對底置區域 (Fixed Bottom) --- */
         .footer {
-            margin-top: 8px;
+            margin-top: auto;
             display: flex;
             justify-content: flex-end;
             position: relative;

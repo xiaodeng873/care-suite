@@ -10,15 +10,22 @@ interface BloodPressureWorksheetModalProps {
 const BloodPressureWorksheetModal: React.FC<BloodPressureWorksheetModalProps> = ({ onClose }) => {
   const { patients, stations } = usePatients();
 
+  const getHKDateParts = (date = new Date()) => {
+    const formatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Hong_Kong', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = formatter.formatToParts(date);
+    const get = (type: string) => parts.find(p => p.type === type)?.value;
+    return { year: get('year')!, month: get('month')!, day: get('day')! };
+  };
   const getHongKongDate = () => {
-    const now = new Date();
-    return new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const { year, month, day } = getHKDateParts();
+    return `${year}-${month}-${day}`;
   };
   const getDateBefore = (days: number) => {
-    const now = new Date();
-    const hk = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-    hk.setDate(hk.getDate() - days);
-    return hk.toISOString().split('T')[0];
+    const { year, month, day } = getHKDateParts();
+    const hkMidnight = new Date(`${year}-${month}-${day}T00:00:00+08:00`);
+    const target = new Date(hkMidnight.getTime() - days * 24 * 60 * 60 * 1000);
+    const targetParts = getHKDateParts(target);
+    return `${targetParts.year}-${targetParts.month}-${targetParts.day}`;
   };
 
   const [startDate, setStartDate] = useState(getDateBefore(29));

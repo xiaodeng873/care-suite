@@ -6,7 +6,7 @@
     <style>
         @page { size: A4; margin: 5mm 0.25in; }
         body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; padding: 0; background-color: #fff; color: #000; line-height: 1.8; }
-        .container { width: 100%; box-sizing: border-box; padding: 0 10mm; }
+        .container { width: 100%; box-sizing: border-box; padding: 0 10mm; display: flex; flex-direction: column; min-height: 287mm; }
         .title-section { text-align: center; margin-bottom: 20px; }
         .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
         .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; letter-spacing: 2px; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
@@ -29,7 +29,7 @@
         .flex-row { display: flex; justify-content: space-between; margin-bottom: 15px; }
         .flex-item { display: flex; align-items: flex-end; width: 48%; }
 
-        .footer { margin-top: 8px; display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; }
+        .footer { margin-top: auto; display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; }
         .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
         .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
     </style>

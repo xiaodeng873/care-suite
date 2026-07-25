@@ -23,21 +23,21 @@
             box-sizing: border-box;
         }
 
-        /* 2. 標題區域 (完全取消 Logo, 上推) */
-        .header-top {
+        /* 2. 標題區域 */
+        .title-section {
             text-align: center;
             position: relative;
             margin-bottom: 10px;
         }
 
-        .header-top h1 {
+        .title-section h1 {
             margin: 0;
             font-size: 26px;
             font-weight: bold;
             letter-spacing: 2px;
         }
 
-        .header-top h2 {
+        .title-section h2 {
             margin: 4px 0 0 0;
             font-size: 22px;
             font-weight: bold;
@@ -45,9 +45,6 @@
             border-bottom: 1.5px solid black;
             padding-bottom: 2px;
         }
-
-        .logo-box { width: 80px; height: 60px; display: flex; align-items: center; justify-content: center; }
-        .logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
         /* 3. 院友資訊列 */
         .info-row {
@@ -159,12 +156,9 @@
 
 <div class="container">
     <!-- 標題 -->
-    <div class="header-top">
+    <div class="title-section">
         <h1>善頤(福群)護老院</h1>
         <h2>使用急症室 / 留院記錄</h2>
-        <div class="logo-box" style="position: absolute; right: 0; top: 0;">
-            <img src="../supabase/migrations/SClogolayer.png" alt="院舍Logo">
-        </div>
     </div>
 
     <!-- 院友資訊 -->

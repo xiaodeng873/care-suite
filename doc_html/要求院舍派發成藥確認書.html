@@ -6,12 +6,12 @@
     <style>
         @page {
             size: A4;
-            margin: 15mm 15mm 20mm 15mm; /* 留出頁首頁尾空間 */
+            margin: 10mm; /* 壓縮邊距以確保一頁 A4 完成 */
         }
         body {
             font-family: "MingLiU", "PMingLiU", "Microsoft JhengHei", serif;
             font-size: 14px;
-            line-height: 1.5;
+            line-height: 1.45;
             margin: 0;
             padding: 0;
             color: #000;
@@ -35,38 +35,38 @@
         .header-content {
             display: flex;
             justify-content: space-between;
-            padding-bottom: 10px;
-            font-size: 13px;
+            padding-bottom: 12px;
+            font-size: 12px;
         }
 
         .footer-content {
             text-align: center;
-            padding-top: 10px;
-            font-size: 12px;
+            padding-top: 12px;
+            font-size: 11px;
         }
 
         /* 確保部分內容不會被截斷 */
         .section-block {
             page-break-inside: avoid;
             break-inside: avoid;
-            margin-bottom: 15px;
+            margin-bottom: 16px;
             display: block;
         }
 
         /* 樣式保持 */
-        .title-area { text-align: center; margin-bottom: 10px; }
-        .title-main { font-size: 19px; font-weight: bold; margin-top: 5px; }
+        .title-area { text-align: center; margin-bottom: 14px; }
+        .title-main { font-size: 18px; font-weight: bold; margin-top: 3px; }
 
         .bordered-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
         .bordered-table th, .bordered-table td {
             border: 1px solid black;
             padding: 5px;
             text-align: center;
-            height: 16px;
+            height: 26px;
         }
 
         table.layout-table {
@@ -74,7 +74,7 @@
             border-collapse: collapse;
             border: none;
         }
-        table.layout-table td { border: none; padding: 2px 0; vertical-align: bottom; }
+        table.layout-table td { border: none; padding: 3px 0; vertical-align: bottom; }
 
         input[type="text"], textarea {
             border: none;
@@ -152,7 +152,7 @@
                             </tr>
                         </tbody>
                     </table>
-                    <div style="margin-bottom: 10px;">填寫此確認書前，請先細閱第（五）項備註及在「*」處刪去不適用者。</div>
+                    <div style="margin-bottom: 5px;">填寫此確認書前，請先細閱第（五）項備註及在「*」處刪去不適用者。</div>
                 </div>
 
                 <!-- (一) 藥物表：會隨筆數向下推移 -->
@@ -168,7 +168,9 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- 此處 row 筆數可隨 DB 增加 -->
+                            <!-- 無內容時固定顯示 5 行，平均列高增加 20%（約 20px） -->
+                            <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+                            <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
                             <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
                             <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
                             <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
@@ -226,7 +228,7 @@
                         （醫生姓名）*<input type="checkbox">註冊醫生／<input type="checkbox">註冊中醫／<input type="checkbox">表列中醫的意見（所屬醫院／診所：<table class="layout-table" style="display: inline-table; width: 280px; vertical-align: bottom;"><tr><td><input type="text"></td></tr></table>）。有關醫生不反對上述住客使用／服用該等藥物。
                     </div>
                     
-                    <table class="layout-table" style="margin-top: 15px; table-layout: fixed;">
+                    <table class="layout-table" style="margin-top: 8px; table-layout: fixed;">
                         <tr>
                             <td style="width: 33.3%;"><div style="display: flex; align-items: flex-end;"><span style="white-space: nowrap;">主管姓名</span><input type="text" style="flex: 1; margin-left: 5px;"></div></td>
                             <td style="width: 33.3%; padding-left: 20px;"><div style="display: flex; align-items: flex-end;"><span style="white-space: nowrap;">簽署</span><input type="text" style="flex: 1; margin-left: 5px;"></div></td>
