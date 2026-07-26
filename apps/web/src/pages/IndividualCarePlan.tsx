@@ -9,6 +9,7 @@ import {
   Filter,
   Download,
   User,
+  Users,
   Calendar,
   ChevronUp,
   ChevronDown,
@@ -24,9 +25,11 @@ import { usePatients, type CarePlan, type PlanType } from '../context/PatientCon
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import CarePlanModal from '../components/CarePlanModal';
 import ProblemLibraryModal from '../components/ProblemLibraryModal';
+import CaseConferenceListModal from '../components/CaseConferenceListModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { useAuth } from '../context/AuthContext';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
+import { getCarePlanStatus, getCarePlanStatusColor, getCarePlanStatusLabel } from '../utils/carePlanStatus';
 
 type SortField = '院友姓名' | 'plan_date' | 'plan_type' | 'review_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -46,6 +49,7 @@ const IndividualCarePlan: React.FC = () => {
   const { displayName } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [showProblemLibraryModal, setShowProblemLibraryModal] = useState(false);
+  const [showConferenceModal, setShowConferenceModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<CarePlan | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
@@ -133,12 +137,10 @@ const IndividualCarePlan: React.FC = () => {
       return false;
     }
 
-    // 記錄狀態篩選
-    if (advancedFilters.記錄狀態) {
-      if (advancedFilters.記錄狀態 === '生效中' && plan.status !== 'active') {
-        return false;
-      }
-      if (advancedFilters.記錄狀態 === '歷史記錄' && plan.status !== 'archived') {
+    // 記錄狀態篩選（使用計算後狀態）
+    if (advancedFilters.記錄狀態 && advancedFilters.記錄狀態 !== '全部') {
+      const computedStatus = getCarePlanStatus(plan);
+      if (computedStatus !== advancedFilters.記錄狀態) {
         return false;
       }
     }
@@ -465,6 +467,52 @@ const IndividualCarePlan: React.FC = () => {
     return daysUntilDue > 0 && daysUntilDue <= 30;
   };
 
+  const renderReviewMeetingSummary = (plan: CarePlan, status: ReturnType<typeof getCarePlanStatus>) => {
+    const reviewStatus = planReviewStatus.get(plan.id);
+    const pending = reviewStatus ? reviewStatus.total - reviewStatus.reviewed : 0;
+
+    // 檢討狀態標籤
+    const reviewBadge = !reviewStatus || reviewStatus.total === 0 ? (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">無問題</span>
+    ) : pending > 0 ? (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 font-medium">{pending}個待檢討</span>
+    ) : (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">已檢討</span>
+    );
+
+    // 會議狀態標籤
+    const meetingBadge = plan.case_conference_date ? (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">會議已填</span>
+    ) : (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">會議未填</span>
+    );
+
+    if (status === '已完成') {
+      return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getCarePlanStatusColor(status)}`}>已完成</span>;
+    }
+    if (status === '待生效') {
+      return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getCarePlanStatusColor(status)}`}>待生效</span>;
+    }
+    if (status === '待檢討') {
+      // 「待處理」由檢討 + 會議兩個標籤並排表示
+      return (
+        <div className="flex flex-wrap gap-1">
+          {reviewBadge}
+          {meetingBadge}
+        </div>
+      );
+    }
+    // 生效中：保留狀態標籤，下方可輔以簡短提示
+    return (
+      <div className="flex flex-col gap-1">
+        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getCarePlanStatusColor(status)}`}>生效中</span>
+        {!plan.case_conference_date && (
+          <span className="text-xs text-gray-500">會議未填</span>
+        )}
+      </div>
+    );
+  };
+
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode }> = ({ field, children }) => (
     <th 
       className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
@@ -496,6 +544,13 @@ const IndividualCarePlan: React.FC = () => {
                 <span>匯出選定記錄</span>
               </button>
             )}
+            <button
+              onClick={() => setShowConferenceModal(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+            >
+              <Users className="h-4 w-4" />
+              <span>個案會議名單</span>
+            </button>
             <button
               onClick={() => setShowProblemLibraryModal(true)}
               className="btn-secondary flex flex-wrap items-center gap-2"
@@ -618,8 +673,10 @@ const IndividualCarePlan: React.FC = () => {
                   className="form-input"
                 >
                   <option value="生效中">生效中</option>
-                  <option value="歷史記錄">歷史記錄</option>
-                  <option value="">全部</option>
+                  <option value="待檢討">待處理</option>
+                  <option value="已完成">已完成</option>
+                  <option value="待生效">待生效</option>
+                  <option value="全部">全部</option>
                 </select>
               </div>
               <div>
@@ -689,15 +746,15 @@ const IndividualCarePlan: React.FC = () => {
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">言語治療</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">營養師</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">醫生</th>
-
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">建立日期</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">檢討/會議</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedGroups.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={17} className="px-4 py-12 text-center text-gray-500">
                     <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                     <p className="text-lg font-medium">暫無個人照顧計劃</p>
                     <p className="text-sm mt-1">點擊「新增計劃」開始建立</p>
@@ -708,7 +765,9 @@ const IndividualCarePlan: React.FC = () => {
                   const isExpanded = expandedPatients.has(group.patientId);
                   const displayPlans = isExpanded ? group.plans : group.plans.slice(0, 1);
                   
-                  return displayPlans.map((plan, planIndex) => (
+                  return displayPlans.map((plan, planIndex) => {
+                    const status = getCarePlanStatus(plan);
+                    return (
                     <tr 
                       key={plan.id}
                       className={`hover:bg-blue-50 ${deletingIds.has(plan.id) ? 'opacity-50' : ''} ${duplicatingId === plan.id ? 'bg-blue-50' : ''}`}
@@ -788,8 +847,8 @@ const IndividualCarePlan: React.FC = () => {
                       </td>
                       {/* 各專業問題數目欄位 */}
                       {['護理', '社工', '物理治療', '職業治療', '言語治療', '營養師', '醫生'].map(category => {
-                        const status = planReviewStatus.get(plan.id);
-                        const count = status?.problemsByCategory?.[category] || 0;
+                        const reviewStatus = planReviewStatus.get(plan.id);
+                        const count = reviewStatus?.problemsByCategory?.[category] || 0;
                         return (
                           <td key={category} className="px-4 py-3 text-sm text-center">
                             {count > 0 ? (
@@ -802,35 +861,10 @@ const IndividualCarePlan: React.FC = () => {
                           </td>
                         );
                       })}
-                      <td className="px-4 py-3 text-sm">
-                        {(() => {
-                          const status = planReviewStatus.get(plan.id);
-                          if (!status || status.total === 0) {
-                            return (
-                              <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600">
-                                無問題
-                              </span>
-                            );
-                          }
-                          
-                          const pending = status.total - status.reviewed;
-                          if (pending === 0) {
-                            return (
-                              <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 flex items-center space-x-1">
-                                <CheckCircle className="h-3 w-3" />
-                                <span>已檢討</span>
-                              </span>
-                            );
-                          } else {
-                            return (
-                              <span className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700">
-                                {pending}個待檢討
-                              </span>
-                            );
-                          }
-                        })()}
-                      </td>
                       <td className="px-4 py-3 text-sm text-gray-500">{plan.created_at ? new Date(plan.created_at).toLocaleDateString('zh-TW') : '-'}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {renderReviewMeetingSummary(plan, status)}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-wrap items-center gap-2">
                           <button
@@ -863,7 +897,8 @@ const IndividualCarePlan: React.FC = () => {
                         </div>
                       </td>
                     </tr>
-                  ));
+                    );
+                  });
                 })
               )}
             </tbody>
@@ -950,6 +985,16 @@ const IndividualCarePlan: React.FC = () => {
             setSelectedPlan(null);
             setIsDuplicateMode(false);
           }}
+        />
+      )}
+
+      {/* 個案會議名單 Modal */}
+      {showConferenceModal && (
+        <CaseConferenceListModal
+          isOpen={showConferenceModal}
+          onClose={() => setShowConferenceModal(false)}
+          carePlans={carePlans}
+          patients={patients}
         />
       )}
 

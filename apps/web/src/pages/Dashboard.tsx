@@ -32,6 +32,7 @@ import BatchHealthRecordOCRModal from '../components/BatchHealthRecordOCRModal';
 import SingleWoundAssessmentModal from '../components/SingleWoundAssessmentModal';
 import { syncTaskStatus, SYNC_CUTOFF_DATE_STR, supabase } from '../lib/database';
 import { getMissingMonitoringVitals } from '../utils/monitoringCoverage';
+import { hasInProgressCarePlan } from '../utils/carePlanStatus';
 interface Patient {
   院友id: string;
   中文姓名: string;
@@ -437,9 +438,11 @@ const Dashboard: React.FC = () => {
   const missingHealthAssessment = useMemo(() => {
     return patients.filter(patient => !healthAssessments.some(assessment => assessment.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '健康評估' }));
   }, [patients, healthAssessments]);
-  // 欠缺個人護理計劃的院友
+  // 欠缺個人護理計劃的院友（必須有一份生效中且未過期 ICP）
   const missingCarePlan = useMemo(() => {
-    return patients.filter(patient => !carePlans.some(plan => plan.patient_id === patient.院友id)).map(patient => ({ patient, missingInfo: '個人護理計劃' }));
+    return patients
+      .filter(patient => patient.在住狀態 === '在住' && !hasInProgressCarePlan(carePlans, Number(patient.院友id)))
+      .map(patient => ({ patient, missingInfo: '個人護理計劃' }));
   }, [patients, carePlans]);
   const overdueWorkflows = useMemo(() => {
     const result = getPatientsWithOverdueWorkflow(prescriptionWorkflowRecords, patients, prescriptions);

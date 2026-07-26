@@ -319,6 +319,7 @@ export interface CaseConferenceProfessional {
   assessor: string;
   assessment_date: string;
 }
+export type CarePlanStatus = '生效中' | '待檢討' | '已完成' | '待生效';
 export interface CarePlan {
   id: string;
   patient_id: number;
@@ -327,10 +328,11 @@ export interface CarePlan {
   plan_type: PlanType;
   plan_date: string;
   review_due_date?: string;
+  review_date?: string;                // 成效檢討完成日期（檢討日期）
   reviewed_at?: string;
   reviewed_by?: string;
   created_by?: string;
-  status: 'active' | 'archived';
+  status: CarePlanStatus;
   archived_at?: string;
   remarks?: string;
   // 個案會議欄位
@@ -3620,7 +3622,7 @@ export const duplicateCarePlan = async (
     plan_type: newPlanType,
     plan_date: newPlanDate,
     created_by: createdBy,
-    status: 'active',
+    status: '生效中',
     remarks: `由版本 ${sourcePlan.version_number} 復檢建立`
   };
   // 複製護理需要
@@ -3651,12 +3653,12 @@ export const duplicateCarePlan = async (
     .eq('id', sourcePlanId);
   return createCarePlan(newPlan, nursingNeeds, problems as any);
 };
-// 封存計劃
+// 封存計劃（視為已完成）
 export const archiveCarePlan = async (planId: string): Promise<void> => {
   const { error } = await supabase
     .from('care_plans')
     .update({ 
-      status: 'archived',
+      status: '已完成',
       archived_at: new Date().toISOString()
     })
     .eq('id', planId);
@@ -3670,6 +3672,133 @@ export const deleteCarePlan = async (planId: string): Promise<void> => {
     .eq('id', planId);
   if (error) throw error;
 };
+
+// 取得院友目前生效中的 ICP（未過期）
+export const getPatientActiveCarePlan = async (patientId: number): Promise<CarePlan | null> => {
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await supabase
+    .from('care_plans')
+    .select('*')
+    .eq('patient_id', patientId)
+    .eq('status', '生效中')
+    .lte('plan_date', today)
+    .gte('review_due_date', today)
+    .order('plan_date', { ascending: false })
+    .limit(1)
+    .single();
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+};
+
+// 取代生效中計劃：舊計劃提前到今天結束並變為待檢討，新增生效中計劃
+export const replaceActiveCarePlan = async (
+  sourcePlanId: string,
+  newPlanType: PlanType,
+  createdBy: string,
+  remarks?: string
+): Promise<CarePlan> => {
+  const sourcePlan = await getCarePlanWithDetails(sourcePlanId);
+  if (!sourcePlan) throw new Error('Source plan not found');
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // 把舊計劃提前到今天結束
+  const { error: updateError } = await supabase
+    .from('care_plans')
+    .update({
+      review_due_date: today,
+      status: '待檢討'
+    })
+    .eq('id', sourcePlanId);
+  if (updateError) throw updateError;
+
+  // 複製內容到新的生效中計劃
+  const newPlan = await duplicateCarePlanInternal(
+    sourcePlan,
+    newPlanType,
+    today,
+    createdBy,
+    remarks,
+    '生效中'
+  );
+  return newPlan;
+};
+
+// 加入待生效計劃：計劃日期緊接在生效中計劃的複檢到期日之後
+export const addPendingCarePlan = async (
+  sourcePlanId: string,
+  newPlanType: PlanType,
+  createdBy: string,
+  remarks?: string
+): Promise<CarePlan> => {
+  const sourcePlan = await getCarePlanWithDetails(sourcePlanId);
+  if (!sourcePlan) throw new Error('Source plan not found');
+  if (!sourcePlan.review_due_date) throw new Error('Active plan has no review due date');
+
+  const planDate = new Date(sourcePlan.review_due_date);
+  planDate.setDate(planDate.getDate() + 1);
+  const planDateStr = planDate.toISOString().split('T')[0];
+
+  const newPlan = await duplicateCarePlanInternal(
+    sourcePlan,
+    newPlanType,
+    planDateStr,
+    createdBy,
+    remarks,
+    '待生效'
+  );
+  return newPlan;
+};
+
+// 內部：複製計劃內容並建立新計劃（不觸發舊計劃狀態變更）
+const duplicateCarePlanInternal = async (
+  sourcePlan: CarePlanWithDetails,
+  newPlanType: PlanType,
+  newPlanDate: string,
+  createdBy: string,
+  remarks?: string,
+  status: CarePlanStatus = '生效中'
+): Promise<CarePlan> => {
+  const { data: existingPlans } = await supabase
+    .from('care_plans')
+    .select('version_number')
+    .eq('patient_id', sourcePlan.patient_id)
+    .order('version_number', { ascending: false })
+    .limit(1);
+  const newVersionNumber = (existingPlans?.[0]?.version_number || 0) + 1;
+
+  const plan: Omit<CarePlan, 'id' | 'created_at' | 'updated_at' | 'review_due_date'> = {
+    patient_id: sourcePlan.patient_id,
+    parent_plan_id: sourcePlan.id,
+    version_number: newVersionNumber,
+    plan_type: newPlanType,
+    plan_date: newPlanDate,
+    created_by: createdBy,
+    status,
+    remarks: remarks || `由版本 ${sourcePlan.version_number} 建立`
+  };
+
+  const nursingNeeds = sourcePlan.nursing_needs.map(nn => ({
+    nursing_need_item_id: nn.nursing_need_item_id,
+    has_need: nn.has_need,
+    remarks: nn.remarks
+  }));
+
+  const problems = sourcePlan.problems.map(p => ({
+    problem_library_id: p.problem_library_id,
+    problem_category: p.problem_category,
+    problem_description: p.problem_description,
+    expected_goals: p.expected_goals,
+    interventions: p.interventions,
+    outcome_review: undefined as undefined,
+    problem_assessor: p.problem_assessor,
+    outcome_assessor: undefined as undefined,
+    display_order: p.display_order
+  }));
+
+  return createCarePlan(plan, nursingNeeds, problems as any);
+};
+
 // 判斷院友是否需要首月計劃
 export const checkFirstMonthPlanRequired = async (patientId: number, admissionDate: string): Promise<boolean> => {
   const admission = new Date(admissionDate);

@@ -116,9 +116,9 @@ interface PatientContextType {
   addPatientToSchedule: (scheduleId: number, patientId: number, symptoms: string, notes: string, reasons: string[]) => Promise<void>;
   updateScheduleDetail: (detail: any) => Promise<void>;
   deleteScheduleDetail: (detailId: number) => Promise<void>;
-  addPrescription: (prescription: any, logMeta?: { actionType?: string; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
-  updatePrescription: (prescription: any, logMeta?: { actionType?: string; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
-  deletePrescription: (id: number | string, logMeta?: { actionType?: string; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
+  addPrescription: (prescription: any, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
+  updatePrescription: (prescription: any, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
+  deletePrescription: (id: number | string, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
   addHealthRecord: (record: Omit<db.HealthRecord, '記錄id'>) => Promise<db.HealthRecord>;
   addHealthRecordsForSession: (records: Omit<db.HealthRecord, '記錄id' | '建立時間'>[]) => Promise<db.HealthRecord[]>;
   updateHealthRecord: (record: db.HealthRecord) => Promise<db.HealthRecord>;
@@ -254,6 +254,9 @@ interface PatientContextType {
   ) => Promise<db.CarePlan>;
   deleteCarePlan: (planId: string) => Promise<void>;
   duplicateCarePlan: (sourcePlanId: string, newPlanType: db.PlanType, newPlanDate: string, createdBy: string) => Promise<db.CarePlan>;
+  getPatientActiveCarePlan: (patientId: number) => Promise<db.CarePlan | null>;
+  replaceActiveCarePlan: (sourcePlanId: string, newPlanType: db.PlanType, createdBy: string, remarks?: string) => Promise<db.CarePlan>;
+  addPendingCarePlan: (sourcePlanId: string, newPlanType: db.PlanType, createdBy: string, remarks?: string) => Promise<db.CarePlan>;
   getCarePlanWithDetails: (planId: string) => Promise<db.CarePlanWithDetails | null>;
   getCarePlanHistory: (planId: string) => Promise<db.CarePlan[]>;
   addProblemToLibrary: (problem: Omit<db.ProblemLibrary, 'id' | 'created_at' | 'updated_at'>) => Promise<db.ProblemLibrary>;
@@ -363,6 +366,9 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     updateCarePlan: updateCarePlanFn,
     deleteCarePlan: deleteCarePlanFn,
     duplicateCarePlan: duplicateCarePlanFn,
+    getPatientActiveCarePlan,
+    replaceActiveCarePlan: replaceActiveCarePlanFn,
+    addPendingCarePlan: addPendingCarePlanFn,
     getCarePlanWithDetails,
     getCarePlanHistory,
     addProblemToLibrary,
@@ -1048,6 +1054,9 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       updateCarePlan: updateCarePlanFn,
       deleteCarePlan: deleteCarePlanFn,
       duplicateCarePlan: duplicateCarePlanFn,
+      getPatientActiveCarePlan,
+      replaceActiveCarePlan: replaceActiveCarePlanFn,
+      addPendingCarePlan: addPendingCarePlanFn,
       getCarePlanWithDetails,
       getCarePlanHistory,
       addProblemToLibrary,

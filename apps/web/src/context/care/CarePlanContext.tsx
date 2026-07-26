@@ -37,6 +37,19 @@ interface CarePlanContextType {
     newPlanDate: string,
     createdBy: string
   ) => Promise<db.CarePlan>;
+  getPatientActiveCarePlan: (patientId: number) => Promise<db.CarePlan | null>;
+  replaceActiveCarePlan: (
+    sourcePlanId: string,
+    newPlanType: db.PlanType,
+    createdBy: string,
+    remarks?: string
+  ) => Promise<db.CarePlan>;
+  addPendingCarePlan: (
+    sourcePlanId: string,
+    newPlanType: db.PlanType,
+    createdBy: string,
+    remarks?: string
+  ) => Promise<db.CarePlan>;
   getCarePlanWithDetails: (planId: string) => Promise<db.CarePlanWithDetails | null>;
   getCarePlanHistory: (planId: string) => Promise<db.CarePlan[]>;
   
@@ -141,6 +154,32 @@ export function CarePlanProvider({ children }: CarePlanProviderProps) {
     await refreshCarePlanData();
     return newPlan;
   }, [refreshCarePlanData]);
+
+  const getPatientActiveCarePlan = useCallback(async (patientId: number): Promise<db.CarePlan | null> => {
+    return db.getPatientActiveCarePlan(patientId);
+  }, []);
+
+  const replaceActiveCarePlan = useCallback(async (
+    sourcePlanId: string,
+    newPlanType: db.PlanType,
+    createdBy: string,
+    remarks?: string
+  ): Promise<db.CarePlan> => {
+    const newPlan = await db.replaceActiveCarePlan(sourcePlanId, newPlanType, createdBy, remarks);
+    await refreshCarePlanData();
+    return newPlan;
+  }, [refreshCarePlanData]);
+
+  const addPendingCarePlan = useCallback(async (
+    sourcePlanId: string,
+    newPlanType: db.PlanType,
+    createdBy: string,
+    remarks?: string
+  ): Promise<db.CarePlan> => {
+    const newPlan = await db.addPendingCarePlan(sourcePlanId, newPlanType, createdBy, remarks);
+    await refreshCarePlanData();
+    return newPlan;
+  }, [refreshCarePlanData]);
   
   const getCarePlanWithDetails = useCallback(async (planId: string): Promise<db.CarePlanWithDetails | null> => {
     return db.getCarePlanWithDetails(planId);
@@ -202,6 +241,9 @@ export function CarePlanProvider({ children }: CarePlanProviderProps) {
     updateCarePlan,
     deleteCarePlan,
     duplicateCarePlan,
+    getPatientActiveCarePlan,
+    replaceActiveCarePlan,
+    addPendingCarePlan,
     getCarePlanWithDetails,
     getCarePlanHistory,
     

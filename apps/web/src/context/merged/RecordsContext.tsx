@@ -28,6 +28,9 @@ interface RecordsContextType {
   updateCarePlan: (planId: string, plan: Partial<db.CarePlan>, nursingNeeds?: { nursing_need_item_id: string; has_need: boolean; remarks?: string }[], problems?: Omit<db.CarePlanProblem, 'id' | 'care_plan_id' | 'created_at' | 'updated_at'>[]) => Promise<db.CarePlan>;
   deleteCarePlan: (planId: string) => Promise<void>;
   duplicateCarePlan: (sourcePlanId: string, newPlanType: db.PlanType, newPlanDate: string, createdBy: string) => Promise<db.CarePlan>;
+  getPatientActiveCarePlan: (patientId: number) => Promise<db.CarePlan | null>;
+  replaceActiveCarePlan: (sourcePlanId: string, newPlanType: db.PlanType, createdBy: string, remarks?: string) => Promise<db.CarePlan>;
+  addPendingCarePlan: (sourcePlanId: string, newPlanType: db.PlanType, createdBy: string, remarks?: string) => Promise<db.CarePlan>;
   getCarePlanWithDetails: (planId: string) => Promise<db.CarePlanWithDetails | null>;
   getCarePlanHistory: (planId: string) => Promise<db.CarePlan[]>;
   addProblemToLibrary: (problem: Omit<db.ProblemLibrary, 'id' | 'created_at' | 'updated_at'>) => Promise<db.ProblemLibrary>;
@@ -257,6 +260,18 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
 
   const duplicateCarePlan = useCallback(async (sourcePlanId: string, newPlanType: db.PlanType, newPlanDate: string, createdBy: string): Promise<db.CarePlan> => {
     const newPlan = await db.duplicateCarePlan(sourcePlanId, newPlanType, newPlanDate, createdBy);
+    await refreshCarePlanData();
+    return newPlan;
+  }, [refreshCarePlanData]);
+
+  const getPatientActiveCarePlan = useCallback(async (patientId: number): Promise<db.CarePlan | null> => db.getPatientActiveCarePlan(patientId), []);
+  const replaceActiveCarePlan = useCallback(async (sourcePlanId: string, newPlanType: db.PlanType, createdBy: string, remarks?: string): Promise<db.CarePlan> => {
+    const newPlan = await db.replaceActiveCarePlan(sourcePlanId, newPlanType, createdBy, remarks);
+    await refreshCarePlanData();
+    return newPlan;
+  }, [refreshCarePlanData]);
+  const addPendingCarePlan = useCallback(async (sourcePlanId: string, newPlanType: db.PlanType, createdBy: string, remarks?: string): Promise<db.CarePlan> => {
+    const newPlan = await db.addPendingCarePlan(sourcePlanId, newPlanType, createdBy, remarks);
     await refreshCarePlanData();
     return newPlan;
   }, [refreshCarePlanData]);
@@ -556,6 +571,7 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
     // 個人照顧計劃
     carePlans, problemLibrary, nursingNeedItems, carePlanLoading,
     addCarePlan, updateCarePlan, deleteCarePlan, duplicateCarePlan,
+    getPatientActiveCarePlan, replaceActiveCarePlan, addPendingCarePlan,
     getCarePlanWithDetails, getCarePlanHistory, addProblemToLibrary,
     updateProblemLibrary, deleteProblemLibrary, addNursingNeedItem, refreshCarePlanData,
     
@@ -625,6 +641,7 @@ export function useCarePlan() {
   return {
     carePlans: ctx.carePlans, problemLibrary: ctx.problemLibrary, nursingNeedItems: ctx.nursingNeedItems, loading: ctx.carePlanLoading,
     addCarePlan: ctx.addCarePlan, updateCarePlan: ctx.updateCarePlan, deleteCarePlan: ctx.deleteCarePlan, duplicateCarePlan: ctx.duplicateCarePlan,
+    getPatientActiveCarePlan: ctx.getPatientActiveCarePlan, replaceActiveCarePlan: ctx.replaceActiveCarePlan, addPendingCarePlan: ctx.addPendingCarePlan,
     getCarePlanWithDetails: ctx.getCarePlanWithDetails, getCarePlanHistory: ctx.getCarePlanHistory, addProblemToLibrary: ctx.addProblemToLibrary,
     updateProblemLibrary: ctx.updateProblemLibrary, deleteProblemLibrary: ctx.deleteProblemLibrary, addNursingNeedItem: ctx.addNursingNeedItem, refreshCarePlanData: ctx.refreshCarePlanData,
   };
