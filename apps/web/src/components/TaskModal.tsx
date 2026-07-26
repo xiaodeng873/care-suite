@@ -135,9 +135,45 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
     setFormData(prev => ({
       ...prev,
       specific_days_of_month: checked
-        ? [...prev.specific_days_of_month, day].sort()
+        ? [...prev.specific_days_of_month, day].sort((a, b) => a - b)
         : prev.specific_days_of_month.filter(d => d !== day),
     }));
+  };
+
+  const arraysEqual = (a?: number[], b?: number[]) => {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    if (a.length !== b.length) return false;
+    return a.slice().sort((x, y) => x - y).join(',') === b.slice().sort((x, y) => x - y).join(',');
+  };
+
+  const hasAnyFieldChanged = () => {
+    if (!task) return false;
+    const currentHealthRecordType = taskCategory === 'monitoring'
+      ? (selectedVitalTypes[0] ?? task.health_record_type)
+      : formData.health_record_type;
+    if (currentHealthRecordType !== task.health_record_type) return true;
+    if (formData.patient_id !== task.patient_id?.toString()) return true;
+    if (formData.frequency_unit !== task.frequency_unit) return true;
+    if (formData.frequency_value !== task.frequency_value) return true;
+    if (formData.specific_times !== (task.specific_times?.[0] || '')) return true;
+    if (formData.notes !== (task.notes || '')) return true;
+    if (formData.is_recurring !== task.is_recurring) return true;
+    if (formData.end_date !== (task.end_date || '')) return true;
+    if (formData.end_time !== (task.end_time || '')) return true;
+    if (formData.tube_type !== (task.tube_type || '')) return true;
+    if (formData.tube_size !== (task.tube_size || '')) return true;
+    const originalStartDate = task.start_date
+      ? new Date(task.start_date).toISOString().split('T')[0]
+      : getHongKongDate();
+    const originalStartTime = task.start_date
+      ? new Date(task.start_date).toTimeString().slice(0, 5)
+      : getHongKongTime();
+    if (formData.start_date !== originalStartDate) return true;
+    if (formData.start_time !== originalStartTime) return true;
+    if (!arraysEqual(formData.specific_days_of_week, task.specific_days_of_week || [])) return true;
+    if (!arraysEqual(formData.specific_days_of_month, task.specific_days_of_month || [])) return true;
+    return false;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,6 +186,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
     if (!formData.is_recurring) {
       if (!formData.end_date) { alert('非循環任務必須設定結束日期'); return; }
       if (!formData.end_time) { alert('非循環任務必須設定結束時間'); return; }
+    }
+    if (task && task.id && hasAnyFieldChanged()) {
+      const ok = window.confirm('任務內容已更改，建議同時更新開始日期和時間以重新計算下次到期日。\n\n按「確定」繼續儲存，按「取消」返回修改。');
+      if (!ok) return;
     }
     try {
       let baseDateTime: Date;
@@ -305,14 +345,19 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
                           onClick={() => {
                             if (task) return;
                             setSelectedVitalTypes(prev => {
+                              const selected = prev.includes(type);
                               let next = selected ? prev.filter(t => t !== type) : [...prev, type];
-                              // 血壓與脈搏自動綁定：選一個同時選另一個，取消一個同時取消另一個
-                              if (type === '血壓' || type === '脈搏') {
-                                const partner: VitalSignType = type === '血壓' ? '脈搏' : '血壓';
+                              // 血壓、脈搏、呼吸、血含氧量自動綁定：選一個同時選四個，取消一個同時取消四個
+                              const boundTypes: VitalSignType[] = ['血壓', '脈搏', '呼吸', '血含氧量'];
+                              if (boundTypes.includes(type)) {
                                 if (!selected) {
-                                  if (!next.includes(partner)) next = [...next, partner];
+                                  for (const boundType of boundTypes) {
+                                    if (!next.includes(boundType)) {
+                                      next = [...next, boundType];
+                                    }
+                                  }
                                 } else {
-                                  next = next.filter(t => t !== partner);
+                                  next = next.filter(t => !boundTypes.includes(t));
                                 }
                               }
                               return next;

@@ -1090,6 +1090,18 @@ export const getPrescriptionActivityLog = async (patientId: number): Promise<Pre
   return (data || []) as PrescriptionActivityLogEntry[];
 };
 
+export const getPrescriptionActivityLogByPrescriptionId = async (
+  prescriptionId: string
+): Promise<PrescriptionActivityLogEntry[]> => {
+  const { data, error } = await supabase
+    .from('prescription_activity_log')
+    .select('*')
+    .eq('prescription_id', prescriptionId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as PrescriptionActivityLogEntry[];
+};
+
 export const createPrescriptionActivityLogEntry = async (
   entry: Omit<PrescriptionActivityLogEntry, 'id' | 'created_at'>
 ): Promise<void> => {
@@ -1637,9 +1649,15 @@ export const createHealthRecordsForSession = async (
 };
 
 export const updateHealthRecord = async (record: HealthRecord): Promise<HealthRecord> => {
-  const { error } = await supabase.from('健康監測記錄').update(record).eq('記錄id', record.記錄id);
+  if (!record.記錄id) {
+    throw new Error('無法更新監測記錄：缺少記錄id');
+  }
+  const { data, error } = await supabase.from('健康監測記錄').update(record).eq('記錄id', record.記錄id).select();
   if (error) { console.error('Error updating health record:', error); throw error; }
-  return record;
+  if (!data || data.length === 0) {
+    throw new Error(`找不到要更新的監測記錄（記錄id: ${record.記錄id}），可能已被刪除或 ID 無效`);
+  }
+  return data[0] as HealthRecord;
 };
 export const getHealthRecordById = async (recordId: string): Promise<HealthRecord | null> => {
   const { data, error } = await supabase.from('健康監測記錄').select('*').eq('記錄id', recordId).maybeSingle();

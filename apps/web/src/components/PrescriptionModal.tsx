@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Pill, Calendar, Clock, User, AlertTriangle, Plus, Trash2, Sparkles } from 'lucide-react';
+import { X, Pill, Calendar, Clock, User, AlertTriangle, Plus, Trash2, Sparkles, History } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import DrugAutocomplete from './DrugAutocomplete';
@@ -8,6 +8,7 @@ import { mapOCRDataToPrescriptionForm, getConfidenceColor, getConfidenceIcon } f
 import { getMedicationSettings, INSTITUTION_GROUPS, getInstitutionCategory } from '../utils/medicationSettings';
 import { computeEstimatedEndDate } from '../utils/estimatedEndDate';
 import { supabase } from '../lib/supabase';
+import PrescriptionLogModal from './PrescriptionLogModal';
 
 interface PrescriptionModalProps {
   prescription?: any;
@@ -82,6 +83,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
   });
 
   const [startDateMode, setStartDateMode] = useState<'manual' | 'admission'>('manual');
+  const [showLogModal, setShowLogModal] = useState(false);
   const selectedPatient = patients.find((p: any) => String(p?.院友id) === String(formData.patient_id));
   const admissionDateIso = normalizeDateToISO(selectedPatient?.入住日期);
 
@@ -559,12 +561,24 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 {prescription ? '編輯處方' : '新增處方'}
               </h2>
             </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X className="h-6 w-6" />
-            </button>
+            <div className="flex items-center gap-2">
+              {prescription?.id && (
+                <button
+                  type="button"
+                  onClick={() => setShowLogModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200"
+                >
+                  <History className="h-4 w-4" />
+                  處方日誌
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1383,6 +1397,14 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
             </div>
           </div>
         </div>
+      )}
+      {/* 處方日誌 Modal */}
+      {showLogModal && prescription?.id && (
+        <PrescriptionLogModal
+          prescriptionId={prescription.id}
+          medicationName={prescription.medication_name}
+          onClose={() => setShowLogModal(false)}
+        />
       )}
     </div>
   );

@@ -111,7 +111,7 @@ interface MedicalContextType {
   healthRecordLoading: boolean;
   addHealthRecord: (record: Omit<db.HealthRecord, '記錄id'>) => Promise<db.HealthRecord>;
   addHealthRecordsForSession: (records: Omit<db.HealthRecord, '記錄id' | '建立時間'>[]) => Promise<db.HealthRecord[]>;
-  updateHealthRecord: (record: db.HealthRecord) => Promise<void>;
+  updateHealthRecord: (record: db.HealthRecord) => Promise<db.HealthRecord>;
   deleteHealthRecord: (id: string) => Promise<void>;
   fetchDeletedHealthRecords: () => Promise<void>;
   restoreHealthRecord: (deletedRecordId: string) => Promise<void>;
@@ -646,10 +646,11 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
     }
   }, []);
 
-  const updateHealthRecord = useCallback(async (record: db.HealthRecord): Promise<void> => {
+  const updateHealthRecord = useCallback(async (record: db.HealthRecord): Promise<db.HealthRecord> => {
     try {
-      await db.updateHealthRecord(record);
-      setHealthRecords(prev => prev.map(r => r.記錄id === record.記錄id ? record : r));
+      const updated = await db.updateHealthRecord(record);
+      setHealthRecords(prev => prev.map(r => r.記錄id === updated.記錄id ? updated : r));
+      return updated;
     } catch (error) {
       console.error('Error updating health record:', error);
       throw error;

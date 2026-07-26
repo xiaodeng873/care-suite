@@ -121,8 +121,8 @@ interface PatientContextType {
   deletePrescription: (id: number | string, logMeta?: { actionType?: string; groupId?: string; restoredFromLogId?: string }) => Promise<void>;
   addHealthRecord: (record: Omit<db.HealthRecord, '記錄id'>) => Promise<db.HealthRecord>;
   addHealthRecordsForSession: (records: Omit<db.HealthRecord, '記錄id' | '建立時間'>[]) => Promise<db.HealthRecord[]>;
-  updateHealthRecord: (record: db.HealthRecord) => Promise<void>;
-  deleteHealthRecord: (id: number) => Promise<void>;
+  updateHealthRecord: (record: db.HealthRecord) => Promise<db.HealthRecord>;
+  deleteHealthRecord: (id: string) => Promise<void>;
   addFollowUpAppointment: (appointment: Omit<db.FollowUpAppointment, '覆診id' | '創建時間' | '更新時間'>) => Promise<void>;
   updateFollowUpAppointment: (appointment: db.FollowUpAppointment, optimistic?: boolean) => Promise<void>;
   batchUpdateFollowUpStatus: (ids: string[], status: string) => Promise<void>;

@@ -83,7 +83,7 @@ const getInitialActiveTypes = (
 };
 
 const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGroup, initialData, onClose, onTaskCompleted }) => {
-  const { updateHealthRecord, addHealthRecordsForSession, patients, hospitalEpisodes, admissionRecords } = usePatients();
+  const { updateHealthRecord, addHealthRecordsForSession, deleteHealthRecord, patients, hospitalEpisodes, admissionRecords } = usePatients();
   const { displayName } = useAuth();
 
   const getHKNow = () => {
@@ -314,53 +314,89 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const buildRecords = () => {
+  const buildRecordForType = (type: VitalSignType): Omit<HealthRecord, '記錄id' | '建立時間'> => {
     const base = {
       院友id: parseInt(formData.院友id),
       記錄日期: formData.記錄日期,
       記錄人員: formData.記錄人員 || undefined,
     };
-    const typesToProcess = formData.isAbsent ? activeTypes : activeTypes.filter(t => vitalEntries[t]?.primary.trim());
-    return typesToProcess.map(type => ({
+    return {
       ...base,
       任務id: typeToTaskId[type] ?? initialData?.task?.id ?? record?.任務id ?? undefined,
       記錄時間: type === '體重' ? '00:00' : formData.記錄時間,
       監測類型: type,
       備註: mergeNoteText(taskNoteByType[type], formData.備註) || undefined,
-      數值: formData.isAbsent ? 0 : parseFloat(vitalEntries[type].primary),
+      數值: formData.isAbsent ? 0 : parseFloat(vitalEntries[type]?.primary || '0'),
       數值_副: type === '血壓'
         ? (formData.isAbsent ? 0 : parseFloat(vitalEntries[type]?.secondary || '0'))
         : undefined,
-    }));
+    };
+  };
+
+  const buildRecords = () => {
+    const typesToProcess = formData.isAbsent ? activeTypes : activeTypes.filter(t => vitalEntries[t]?.primary.trim());
+    return typesToProcess.map(buildRecordForType);
   };
 
   const doSave = async () => {
     setIsSubmitting(true);
     try {
       const records = buildRecords();
-      if (!formData.isAbsent && records.length === 0) { alert('請至少填寫一項監測數值'); return; }
+      console.log('[HealthRecordModal] built records:', records.map(r => ({ 院友id: r.院友id, 監測類型: r.監測類型, 數值: r.數值, 數值_副: r.數值_副, 記錄日期: r.記錄日期, 記錄時間: r.記錄時間, 備註: r.備註 })));
+      if (!record && !recordGroup && !formData.isAbsent && records.length === 0) { alert('請至少填寫一項監測數值'); return; }
+      let savedCount = 0;
       if (record) {
         const r = records[0];
-        if (r) await updateHealthRecord({ ...record, ...r } as HealthRecord);
+        if (r) {
+          console.log('[HealthRecordModal] updating single record id:', record.記錄id, 'payload:', r);
+          const updated = await updateHealthRecord({ ...record, ...r } as HealthRecord);
+          console.log('[HealthRecordModal] updated result:', { 記錄id: updated.記錄id, 監測類型: updated.監測類型, 數值: updated.數值, 數值_副: updated.數值_副 });
+          savedCount = 1;
+        }
       } else if (recordGroup) {
-        // 整列編輯：已有的種類 → update；新種類 → insert
+        // 整列編輯：已有的種類 → 清空則 delete，有值則 update；新種類 → insert
         const existingByType = new Map(recordGroup.map(r => [r.監測類型, r]));
         const toUpdate: HealthRecord[] = [];
         const toInsert: Omit<HealthRecord, '記錄id' | '建立時間'>[] = [];
-        for (const r of records) {
-          const existing = existingByType.get(r.監測類型 as VitalSignType);
+        const toDelete: HealthRecord[] = [];
+        for (const type of activeTypes) {
+          const existing = existingByType.get(type);
+          const hasValue = !!vitalEntries[type]?.primary.trim();
           if (existing) {
-            toUpdate.push({ ...existing, ...r } as HealthRecord);
-          } else {
-            toInsert.push(r as Omit<HealthRecord, '記錄id' | '建立時間'>);
+            if (!formData.isAbsent && !hasValue) {
+              toDelete.push(existing);
+            } else {
+              toUpdate.push({ ...existing, ...buildRecordForType(type) } as HealthRecord);
+            }
+          } else if (formData.isAbsent || hasValue) {
+            toInsert.push(buildRecordForType(type));
           }
         }
-        for (const r of toUpdate) await updateHealthRecord(r);
-        if (toInsert.length > 0) await addHealthRecordsForSession(toInsert);
+        console.log('[HealthRecordModal] group updates:', toUpdate.map(r => {
+          const original = recordGroup.find(g => g.記錄id === r.記錄id);
+          return { 記錄id: r.記錄id, 監測類型: r.監測類型, 原始數值: original?.數值, 原始數值_副: original?.數值_副, 新數值: r.數值, 新數值_副: r.數值_副 };
+        }));
+        console.log('[HealthRecordModal] group inserts:', toInsert.map(r => ({ 監測類型: r.監測類型, 數值: r.數值, 數值_副: r.數值_副 })));
+        console.log('[HealthRecordModal] group deletes:', toDelete.map(r => ({ 記錄id: r.記錄id, 監測類型: r.監測類型, 原始數值: r.數值 })));
+        for (const r of toUpdate) {
+          const updated = await updateHealthRecord(r);
+          console.log('[HealthRecordModal] updated result:', { 記錄id: updated.記錄id, 監測類型: updated.監測類型, 數值: updated.數值, 數值_副: updated.數值_副 });
+        }
+        if (toInsert.length > 0) {
+          const inserted = await addHealthRecordsForSession(toInsert);
+          console.log('[HealthRecordModal] inserted result:', inserted.map(r => ({ 記錄id: r.記錄id, 監測類型: r.監測類型, 數值: r.數值 })));
+        }
+        for (const r of toDelete) {
+          await deleteHealthRecord(r.記錄id);
+          console.log('[HealthRecordModal] deleted result:', { 記錄id: r.記錄id, 監測類型: r.監測類型 });
+        }
+        savedCount = toUpdate.length + toInsert.length + toDelete.length;
       } else {
+        console.log('[HealthRecordModal] inserting records:', records);
         await addHealthRecordsForSession(records as Omit<HealthRecord, '記錄id' | '建立時間'>[]);
+        savedCount = records.length;
       }
-      onClose();
+      console.log('[HealthRecordModal] saved count:', savedCount);
       // 完成所有相關任務（多任務整合時逐一更新各任務的下次到期）
       if (onTaskCompleted) {
         const dt = new Date(`${formData.記錄日期}T${formData.記錄時間}`);
@@ -368,8 +404,15 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
         (records as { 任務id?: string }[]).forEach(r => { if (r.任務id) completedTaskIds.add(r.任務id); });
         const fallback = initialData?.task?.id ?? record?.任務id;
         if (completedTaskIds.size === 0 && fallback) completedTaskIds.add(fallback);
-        completedTaskIds.forEach(id => onTaskCompleted(id, dt));
+        for (const id of completedTaskIds) {
+          try {
+            await onTaskCompleted(id, dt);
+          } catch (tcErr) {
+            console.error(`[HealthRecordModal] onTaskCompleted failed for task ${id}:`, tcErr);
+          }
+        }
       }
+      onClose();
     } catch (err) {
       console.error('儲存失敗:', err);
       alert(`儲存失敗: ${err instanceof Error ? err.message : '未知錯誤'}`);

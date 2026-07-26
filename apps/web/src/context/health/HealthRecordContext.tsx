@@ -19,7 +19,7 @@ interface HealthRecordContextType {
   
   // 健康記錄 CRUD
   addHealthRecord: (record: Omit<db.HealthRecord, '記錄id'>) => Promise<db.HealthRecord>;
-  updateHealthRecord: (record: db.HealthRecord) => Promise<void>;
+  updateHealthRecord: (record: db.HealthRecord) => Promise<db.HealthRecord>;
   deleteHealthRecord: (id: string) => Promise<void>;
   
   // 回收筒管理
@@ -107,10 +107,11 @@ export function HealthRecordProvider({ children }: HealthRecordProviderProps) {
     }
   }, []);
   
-  const updateHealthRecord = useCallback(async (record: db.HealthRecord): Promise<void> => {
+  const updateHealthRecord = useCallback(async (record: db.HealthRecord): Promise<db.HealthRecord> => {
     try {
-      await db.updateHealthRecord(record);
-      setHealthRecords(prev => prev.map(r => r.記錄id === record.記錄id ? record : r));
+      const updated = await db.updateHealthRecord(record);
+      setHealthRecords(prev => prev.map(r => r.記錄id === updated.記錄id ? updated : r));
+      return updated;
     } catch (error) {
       console.error('Error updating health record:', error);
       throw error;
