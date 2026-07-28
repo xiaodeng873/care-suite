@@ -53,13 +53,13 @@ DECLARE
   result jsonb;
   params_array jsonb;
 BEGIN
-  -- 安全檢查：只允許 SELECT
-  IF upper(trim(query_text)) NOT LIKE 'SELECT%' THEN
+  -- 安全檢查：只允許 SELECT 或以 WITH 開頭的 CTE 查詢
+  IF upper(trim(query_text)) !~ '^(SELECT|WITH)\M' THEN
     RAISE EXCEPTION 'Only SELECT queries are allowed in readonly mode';
   END IF;
   
-  -- 禁止危險關鍵字
-  IF upper(query_text) ~ '(DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|INSERT|UPDATE|DELETE)' THEN
+  -- 禁止危險關鍵字（使用詞邊界，避免誤判欄位/表名中的子字串）
+  IF upper(query_text) ~ '\m(DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|INSERT|UPDATE|DELETE)\M' THEN
     RAISE EXCEPTION 'Dangerous SQL keywords detected in readonly query';
   END IF;
 
