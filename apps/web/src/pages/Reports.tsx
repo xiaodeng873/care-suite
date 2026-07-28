@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { BarChart3, Calendar, FileText, Activity, Utensils, Stethoscope, AlertCircle, Bot } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { useStationFilter } from '../context/StationFilterContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import MonthlyReportTable from '../components/MonthlyReportTable';
 import PatientListModal from '../components/PatientListModal';
@@ -8,7 +9,7 @@ import { AiUsageStatsPanel } from '../components/AiUsageStatsPanel';
 import { formatFrequencyDescription } from '../utils/taskScheduler';
 import { getInfectionTypeColors } from '../utils/infectionTypeColors';
 import { supabase } from '../lib/supabase';
-import type { PatientCareTab } from '../lib/database';
+import type { Patient, PatientCareTab } from '../lib/database';
 import { formatDisplayDate, formatDisplayDateTime } from '../utils/dateFormat';
 
 
@@ -53,7 +54,8 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, bgColor, textColor, s
 };
 
 const Reports: React.FC = () => {
-  const { patients, stations, healthAssessments, incidentReports, patientHealthTasks, patientRestraintAssessments, prescriptions, healthRecords, mealGuidances, hospitalEpisodes, diagnosisRecords, patientTubeCareRecords, patientsWithWounds, infectionControlRecords, loading } = usePatients();
+  const { patients, allPatients, stations, healthAssessments, incidentReports, patientHealthTasks, patientRestraintAssessments, prescriptions, healthRecords, mealGuidances, hospitalEpisodes, diagnosisRecords, patientTubeCareRecords, patientsWithWounds, infectionControlRecords, loading } = usePatients();
+  const { selectedStationIds } = useStationFilter();
   const [activeTab, setActiveTab] = useState<ReportTab>('daily');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('today');
   const [reportDate, setReportDate] = useState<Date>(() => {
@@ -105,7 +107,18 @@ const Reports: React.FC = () => {
 
   const { today, yesterday, thisMonthStart, thisMonthEnd, lastMonthStart, lastMonthEnd } = getDateRanges();
 
-  const filteredPatients = useMemo(() => patients || [], [patients]);
+  const getReportStationId = (p: Patient): string | null | undefined => {
+    if (p.在住狀態 === '在住') return p.station_id;
+    return p.last_station_id || p.station_id;
+  };
+
+  const filteredPatients = useMemo(() => {
+    if (!selectedStationIds.length || !stations.length || selectedStationIds.length >= stations.length) return allPatients || [];
+    return (allPatients || []).filter(p => {
+      const stationId = getReportStationId(p);
+      return stationId && selectedStationIds.includes(stationId);
+    });
+  }, [allPatients, selectedStationIds, stations]);
 
   /** Parse a TEXT column that may contain a JSON array, '、'-delimited string, or already be an array */
   const parseTextToArray = (value: unknown): string[] => {
@@ -159,19 +172,6 @@ const Reports: React.FC = () => {
 
   const dailyReportData = useMemo(() => {
     const targetDate = reportDate;
-    const activePatients = filteredPatients.filter(p => p.在住狀態 === '在住');
-
-    const 買位Patients = activePatients.filter(p => p.入住類型 === '買位');
-    const 私位Patients = activePatients.filter(p => p.入住類型 === '私位');
-    const 院舍劵Patients = activePatients.filter(p => p.入住類型 === '院舍卷級別0' || p.入住類型 === '院舍卷級別1-7');
-    const 暫住Patients = activePatients.filter(p => p.入住類型 === '暫住');
-
-    const admissionTypeStats = {
-      買位: { count: 買位Patients.length, names: 買位Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-      私位: { count: 私位Patients.length, names: 私位Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-      院舍劵: { count: 院舍劵Patients.length, names: 院舍劵Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-      暫住: { count: 暫住Patients.length, names: 暫住Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-    };
 
     const parseDateOnly = (dateString: string): Date => {
       const date = new Date(dateString);
@@ -188,6 +188,33 @@ const Reports: React.FC = () => {
       const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
       const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
       return d1.getTime() > d2.getTime();
+    };
+
+    const activePatients = filteredPatients.filter(p => {
+      if (!p.入住日期) return false;
+      const admissionDate = parseDateOnly(p.入住日期);
+      if (isAfterDate(admissionDate, targetDate)) return false;
+      if (p.退住日期) {
+        const dischargeDate = parseDateOnly(p.退住日期);
+        if (!isAfterDate(dischargeDate, targetDate)) return false;
+      }
+      if (p.death_date) {
+        const deathDate = parseDateOnly(p.death_date);
+        if (!isAfterDate(deathDate, targetDate)) return false;
+      }
+      return true;
+    });
+
+    const 買位Patients = activePatients.filter(p => p.入住類型 === '買位');
+    const 私位Patients = activePatients.filter(p => p.入住類型 === '私位');
+    const 院舍劵Patients = activePatients.filter(p => p.入住類型 === '院舍卷級別0' || p.入住類型 === '院舍卷級別1-7');
+    const 暫住Patients = activePatients.filter(p => p.入住類型 === '暫住');
+
+    const admissionTypeStats = {
+      買位: { count: 買位Patients.length, names: 買位Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
+      私位: { count: 私位Patients.length, names: 私位Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
+      院舍劵: { count: 院舍劵Patients.length, names: 院舍劵Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
+      暫住: { count: 暫住Patients.length, names: 暫住Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
     };
 
     const getIsHospitalizedAtDate = (patientId: number, targetDate: Date): boolean => {

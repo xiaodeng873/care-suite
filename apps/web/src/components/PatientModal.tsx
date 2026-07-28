@@ -1345,6 +1345,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
                       ...prev,
                       退住日期: dischargeDate,
                       在住狀態: '已退住',
+                      last_station_id: prev.station_id || null,
+                      last_bed_id: prev.bed_id || null,
                       station_id: '',
                       bed_id: '',
                       床號: ''

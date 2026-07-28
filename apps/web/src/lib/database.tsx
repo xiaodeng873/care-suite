@@ -28,6 +28,8 @@ export interface Patient {
   在住狀態?: '在住' | '待入住' | '已退住';
   station_id?: string;
   bed_id?: string;
+  last_station_id?: string;
+  last_bed_id?: string;
   is_hospitalized?: boolean;
   discharge_reason?: '死亡' | '回家' | '留醫' | '轉往其他機構';
   death_date?: string;

@@ -31,11 +31,13 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ patient, onClose, onCon
       alert('請輸入轉往機構名稱');
       return;
     }
-    // 退住時清除床位資訊
+    // 退住時記錄最後居住區/床位，再清除現有床位資訊
     const updatedPatient = {
       ...patient,
       退住日期: dischargeDate,
       在住狀態: '已退住',
+      last_station_id: patient.station_id,
+      last_bed_id: patient.bed_id,
       station_id: null,
       bed_id: null,
       discharge_reason: dischargeReason,
