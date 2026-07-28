@@ -2793,6 +2793,11 @@ export const getDiagnosisRecords = async (): Promise<DiagnosisRecord[]> => {
   if (error) throw error;
   return data || [];
 };
+export const getDiagnosisRecordsByPatientId = async (patientId: number): Promise<DiagnosisRecord[]> => {
+  const { data, error } = await supabase.from('diagnosis_records').select('*').eq('patient_id', patientId).order('diagnosis_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
 export const createDiagnosisRecord = async (record: Omit<DiagnosisRecord, 'id' | 'created_at' | 'updated_at'>): Promise<DiagnosisRecord> => {
   const { data, error } = await supabase.from('diagnosis_records').insert([record]).select().single();
   if (error) throw error;
@@ -3476,6 +3481,30 @@ export const getCarePlanHistory = async (planId: string): Promise<CarePlan[]> =>
   if (error) throw error;
   return data || [];
 };
+
+// 取得前一版複檢計劃的複檢日期
+export const getPreviousCarePlanReviewDate = async (planId: string): Promise<string | null> => {
+  // 先取得當前計劃
+  const { data: currentPlan, error: currentError } = await supabase
+    .from('care_plans')
+    .select('*')
+    .eq('id', planId)
+    .single();
+  if (currentError) throw currentError;
+  if (!currentPlan) return null;
+
+  // 找出同一院友版本號較小的計劃，取最新 plan_date 作為上次複檢日期
+  const { data, error } = await supabase
+    .from('care_plans')
+    .select('plan_date, version_number')
+    .eq('patient_id', currentPlan.patient_id)
+    .lt('version_number', currentPlan.version_number)
+    .order('plan_date', { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  return data && data.length > 0 ? data[0].plan_date : null;
+};
+
 // 獲取單一計劃及其明細
 export const getCarePlanWithDetails = async (planId: string): Promise<CarePlanWithDetails | null> => {
   // 獲取計劃主表

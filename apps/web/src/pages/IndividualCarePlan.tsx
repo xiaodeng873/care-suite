@@ -19,7 +19,8 @@ import {
   Copy,
   History,
   AlertCircle,
-  BookOpen
+  BookOpen,
+  Printer,
 } from 'lucide-react';
 import { usePatients, type CarePlan, type PlanType } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -31,6 +32,7 @@ import { useAuth } from '../context/AuthContext';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { getCarePlanStatus, getCarePlanStatusColor, getCarePlanStatusLabel } from '../utils/carePlanStatus';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { printCarePlanById } from '../utils/carePlanPrintGenerator';
 
 
 type SortField = '院友姓名' | 'plan_date' | 'plan_type' | 'review_due_date' | 'created_at';
@@ -389,6 +391,20 @@ const IndividualCarePlan: React.FC = () => {
           return newSet;
         });
       }
+    }
+  };
+
+  const handlePrint = async (plan: CarePlan) => {
+    const patient = patients.find(p => p.院友id === plan.patient_id);
+    if (!patient) {
+      alert('找不到院友資料，無法列印');
+      return;
+    }
+    try {
+      await printCarePlanById(patient, plan.id, getCarePlanWithDetails);
+    } catch (error) {
+      console.error('列印個人照顧計劃失敗:', error);
+      alert('列印失敗，請重試');
     }
   };
 
@@ -875,6 +891,13 @@ const IndividualCarePlan: React.FC = () => {
                             title="編輯"
                           >
                             <Edit3 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handlePrint(plan)}
+                            className="text-purple-600 hover:text-purple-900"
+                            title="列印"
+                          >
+                            <Printer className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDuplicate(plan)}

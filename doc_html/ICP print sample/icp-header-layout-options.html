@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8" />
+  <title>ICP 表頭布局方案預覽</title>
+  <style>
+    @page icp {
+      size: A4 portrait;
+      margin: 12mm 10mm 10mm 10mm;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: "Microsoft JhengHei", "PingFang HK", "Heiti TC", sans-serif;
+      font-size: 9pt;
+      line-height: 1.25;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+
+    .page {
+      page: icp;
+      page-break-after: always;
+      break-after: page;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding-bottom: 8px;
+    }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+
+    .page-footer {
+      display: flex;
+      justify-content: flex-end;
+      font-size: 8pt;
+      border-top: 1px solid #000;
+      padding-top: 2px;
+      margin-top: auto;
+    }
+
+    .photo {
+      width: 36px;
+      height: 46px;
+      border: 1px solid #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7pt;
+      color: #666;
+      flex-shrink: 0;
+      background: #fff;
+    }
+
+    .label { font-weight: bold; }
+
+    /* ===== 方案 A：置中標題 + 單行資料列 ===== */
+    .header-a {
+      border-bottom: 1px solid #000;
+      padding-bottom: 4px;
+      margin-bottom: 4px;
+    }
+    .header-a-title {
+      text-align: center;
+      border-bottom: 1px solid #000;
+      padding-bottom: 3px;
+      margin-bottom: 3px;
+    }
+    .header-a h1 {
+      font-size: 22pt;
+      margin: 0;
+      line-height: 1.1;
+    }
+    .header-a h2 {
+      font-size: 18pt;
+      margin: 0;
+      line-height: 1.1;
+    }
+    .header-a-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-a-fields {
+      display: flex;
+      flex: 1;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-a-fields > div { white-space: nowrap; }
+
+    /* ===== 方案 B：標題 + 資料左右分欄 ===== */
+    .header-b {
+      border: 1px solid #000;
+      padding: 4px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .header-b-title h1 {
+      font-size: 22pt;
+      margin: 0;
+      line-height: 1.1;
+    }
+    .header-b-title h2 {
+      font-size: 18pt;
+      margin: 0;
+      line-height: 1.1;
+    }
+    .header-b-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: right;
+    }
+    .header-b-info-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    /* ===== 方案 C：三欄表頭 ===== */
+    .header-c {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 4px;
+    }
+    .header-c td {
+      border: 1px solid #000;
+      padding: 4px;
+      vertical-align: middle;
+    }
+    .header-c-title {
+      width: 35%;
+      text-align: center;
+    }
+    .header-c-title h1 {
+      font-size: 20pt;
+      margin: 0;
+      line-height: 1.1;
+    }
+    .header-c-title h2 {
+      font-size: 16pt;
+      margin: 0;
+      line-height: 1.1;
+    }
+    .header-c-photo {
+      width: 50px;
+      text-align: center;
+    }
+    .header-c-info {
+      width: 65%;
+    }
+    .header-c-info-row { margin-bottom: 1px; }
+
+    .section-title {
+      font-weight: bold;
+      font-size: 10pt;
+      margin-top: 4px;
+      margin-bottom: 1px;
+      border-left: 3px solid #000;
+      padding-left: 4px;
+    }
+    table.info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 2px;
+    }
+    .info-table td, .info-table th {
+      border: 1px solid #000;
+      padding: 1px 3px;
+      vertical-align: top;
+    }
+    .info-table td.label {
+      background: #f8f8f8;
+      font-weight: bold;
+      white-space: nowrap;
+      width: 1%;
+    }
+    .box {
+      border: 1px solid #000;
+      min-height: 14px;
+      padding: 1px 3px;
+      margin-bottom: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 方案 A：置中標題 + 單行資料列 -->
+  <div class="page">
+    <div class="header-a">
+      <div class="header-a-title">
+        <h1>仁愛護理之家</h1>
+        <h2>個人照顧計劃</h2>
+      </div>
+      <div class="header-a-info">
+        <div class="photo">院友相片</div>
+        <div class="header-a-fields">
+          <div><span class="label">院友姓名：</span>陳大文</div>
+          <div><span class="label">區域 / 床號：</span>A區 / 101</div>
+          <div><span class="label">性別 / 年齡：</span>男 / 82</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">方案 A 說明</div>
+    <div class="box">
+      置中 h1 院舍名稱 + h2「個人照顧計劃」置頂；下一行把相片放在左邊，院友姓名、區域/床號、性別/年齡並排在同一列，簡潔清晰。適合索引頁。
+    </div>
+
+    <div class="section-title">院友基本資料</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">中文姓名</td><td>陳大文</td>
+        <td class="label">英文姓名</td><td>CHAN Tai Man</td>
+      </tr>
+      <tr>
+        <td class="label">出生年月日</td><td>01/01/1944</td>
+        <td class="label">年齡</td><td>82 歲</td>
+      </tr>
+      <tr>
+        <td class="label">身份證號碼</td><td>A123456(7)</td>
+        <td class="label">區域 / 床號</td><td>A區 / 101</td>
+      </tr>
+      <tr>
+        <td class="label">性別</td><td>男</td>
+        <td class="label">入住日期</td><td>15/06/2019</td>
+      </tr>
+    </table>
+
+    <div class="page-footer"><span></span><span>方案 A</span></div>
+  </div>
+
+  <!-- 方案 B：標題 + 資料左右分欄 -->
+  <div class="page">
+    <div class="header-b">
+      <div class="header-b-title">
+        <h1>仁愛護理之家</h1>
+        <h2>個人照顧計劃</h2>
+      </div>
+      <div class="header-b-info">
+        <div class="header-b-info-fields">
+          <div><span class="label">院友姓名：</span>陳大文</div>
+          <div><span class="label">區域 / 床號：</span>A區 / 101</div>
+          <div><span class="label">性別 / 年齡：</span>男 / 82</div>
+        </div>
+        <div class="photo">院友相片</div>
+      </div>
+    </div>
+
+    <div class="section-title">方案 B 說明</div>
+    <div class="box">
+      左邊置 h1 院舍名稱 + h2 標題；右邊以相為終點，由上而下列出姓名、區域/床號、性別/年齡，整個表頭用一個框包起來，像卡片。適合所有頁面統一風格。
+    </div>
+
+    <div class="section-title">計劃周期</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">上次複檢日期</td><td>首次</td>
+        <td class="label">是次複檢日期</td><td>28/07/2026</td>
+        <td class="label">下次複檢日期</td><td>28/10/2026</td>
+      </tr>
+    </table>
+
+    <div class="page-footer"><span></span><span>方案 B</span></div>
+  </div>
+
+  <!-- 方案 C：三欄表頭 -->
+  <div class="page">
+    <table class="header-c">
+      <tr>
+        <td class="header-c-title">
+          <h1>仁愛護理之家</h1>
+          <h2>個人照顧計劃</h2>
+        </td>
+        <td class="header-c-photo">
+          <div class="photo">院友相片</div>
+        </td>
+        <td class="header-c-info">
+          <div class="header-c-info-row"><span class="label">院友姓名：</span>陳大文</div>
+          <div class="header-c-info-row"><span class="label">區域 / 床號：</span>A區 / 101</div>
+          <div class="header-c-info-row"><span class="label">性別 / 年齡：</span>男 / 82</div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="section-title">方案 C 說明</div>
+    <div class="box">
+      表頭以三欄表格呈現：左欄置中 h1/h2，中欄放相片，右欄列出院友資料。線條對齊，適合喜歡方框表格的風格。
+    </div>
+
+    <div class="section-title">體格檢驗</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">體重（公斤）</td><td>&nbsp;</td>
+        <td class="label">身高（米）</td><td>&nbsp;</td>
+        <td class="label">BMI</td><td>&nbsp;</td>
+      </tr>
+    </table>
+
+    <div class="page-footer"><span></span><span>方案 C</span></div>
+  </div>
+
+</body>
+</html>
