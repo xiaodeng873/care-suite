@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, Trash2, Eye, X, Plus } from 'lucide-react';
+import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
+
 
 interface WoundPhoto {
   id: string;
@@ -234,7 +236,7 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
               <div className="p-2 space-y-2">
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
                   <span className="text-xs text-gray-500">
-                    {new Date(photo.uploadDate).toLocaleDateString('zh-TW')}
+                    {formatDisplayDate(photo.uploadDate)}
                   </span>
                   
                   <div className="flex space-x-1">
@@ -308,7 +310,7 @@ const WoundPhotoUpload: React.FC<WoundPhotoUploadProps> = ({
               <div className="space-y-2">
                 <div className="text-sm text-gray-600">
                   <p><strong>檔案名稱：</strong>{previewPhoto.filename}</p>
-                  <p><strong>上傳時間：</strong>{new Date(previewPhoto.uploadDate).toLocaleString('zh-TW')}</p>
+                  <p><strong>上傳時間：</strong>{formatDisplayDateTime(previewPhoto.uploadDate)}</p>
                 </div>
               </div>
             </div>

@@ -16,6 +16,7 @@ import { extractDiaperChangeTemplateFormat } from '../utils/diaperChangeExcelGen
 import { extractMedicationRecordTemplateFormat } from '../utils/medicationRecordExcelGenerator';
 import { extractPersonalMedicationListTemplateFormat } from '../utils/personalMedicationListExcelGenerator';
 import { extractAnnualHealthCheckupTemplateFormat } from '../utils/annualHealthCheckupExcelGenerator';
+import { formatDisplayDateTime } from '../utils/dateFormat';
 type TemplateType = 'waiting-list' | 'prescription' | 'medication-record' | 'personal-medication-list' | 'consent-form' | 'vital-signs' | 'blood-sugar' | 'weight-control' | 'follow-up-list' | 'restraint-observation' | 'diaper-change-record' | 'personal-hygiene-record' | 'admission-layout' | 'annual-health-checkup' | 'incident-report';
 interface TemplateMetadata {
   id: number;
@@ -529,7 +530,7 @@ const TemplateManagement: React.FC = () => {
                       </div>
                       <div>
                         <span className="font-medium">上傳時間：</span>
-                        {new Date(template.upload_date).toLocaleString('zh-TW')}
+                        {formatDisplayDateTime(template.upload_date)}
                       </div>
                     </div>
                     {template.description && (

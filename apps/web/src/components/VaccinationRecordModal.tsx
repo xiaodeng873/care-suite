@@ -3,6 +3,8 @@ import { X, Syringe, Calendar, Building2, Plus, Trash2 } from 'lucide-react';
 import { usePatients, type VaccinationRecord } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import OCRDocumentBlock from './OCRDocumentBlock';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface VaccinationRecordModalProps {
   patientId?: number;
@@ -222,7 +224,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
                 {existingRecords.map((record, index) => (
                   <div key={index} className="flex flex-wrap items-center gap-4 text-sm">
                     <span className="text-gray-600">
-                      {new Date(record.vaccination_date).toLocaleDateString('zh-TW')}
+                      {formatDisplayDate(record.vaccination_date)}
                     </span>
                     <span className="text-gray-900 font-medium">{record.vaccine_item}</span>
                     <span className="text-gray-600">{record.vaccination_unit}</span>

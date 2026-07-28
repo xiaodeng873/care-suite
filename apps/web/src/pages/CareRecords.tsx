@@ -53,6 +53,8 @@ import { printHygieneRecordFormForDateRange } from '../utils/hygieneRecordPrintF
 import { exportIntakeOutputRangeHtml, convertDbRecordToRow } from '../utils/intakeOutputHtmlGenerator';
 import { exportPatrolRoundsHtml, exportPatrolRoundsRangeHtml } from '../utils/patrolRoundsHtmlExporter';
 import { getFacilitySettings } from '../utils/facilitySettings';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 type TabType = 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene';
 // 衛生記錄項目配置（16項：備註 + 11護理項目 + 4大便項目）
 type HygieneItemConfig = {
@@ -1528,7 +1530,7 @@ const CareRecords: React.FC = () => {
                         <div>{calculateAge(selectedPatient.出生日期)}歲</div>
                       )}
                       {selectedPatient.出生日期 && (
-                        <div>{new Date(selectedPatient.出生日期).toLocaleDateString('zh-TW')}</div>
+                        <div>{formatDisplayDate(selectedPatient.出生日期)}</div>
                       )}
                       <div>{selectedPatient.身份證號碼}</div>
                     </div>

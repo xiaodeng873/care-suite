@@ -1,3 +1,4 @@
+import { formatDisplayDate } from './dateFormat';
 import type { HealthAssessment } from '../lib/database';
 import { getFacilitySettings } from './facilitySettings';
 
@@ -38,19 +39,7 @@ function parseTextToArray(value: unknown): string[] {
   return [];
 }
 
-const formatDate = (dateStr?: string | null): string => {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return '';
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}/${m}/${day}`;
-  } catch {
-    return '';
-  }
-};
+const formatDate = (dateStr?: string | null): string => formatDisplayDate(dateStr);
 
 /** Six evaluation-date columns; only the first column is filled. */
 const checkboxCells = (checked: boolean): string => {

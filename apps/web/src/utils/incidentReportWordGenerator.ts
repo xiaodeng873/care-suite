@@ -1,6 +1,7 @@
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 import { saveAs } from 'file-saver';
+import { formatDisplayDate } from './dateFormat';
 interface Patient {
   院友id: string;
   中文姓名: string;
@@ -60,14 +61,10 @@ interface IncidentReport {
   submit_to_headquarters_flag?: boolean;
   submit_to_social_welfare_flag?: boolean;
 }
-// 格式化日期為 DD-MM-YYYY 格式
+// 格式化日期為 DD/MM/YYYY 格式
 const formatDateChinese = (dateStr?: string): string => {
   if (!dateStr) return '';
-  const date = new Date(dateStr);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}-${month}-${year}`;
+  return formatDisplayDate(dateStr);
 };
 // 格式化時間為 HH:MM 格式
 const formatTime = (timeStr?: string): string => {

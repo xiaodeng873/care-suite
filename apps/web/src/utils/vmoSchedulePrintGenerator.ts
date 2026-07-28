@@ -13,13 +13,15 @@ const FACILITY_ADDRESS = '九龍旺角博文街36號1字樓、2字樓及地下�
 const IFRAME_ID = 'vmo-schedule-print-iframe';
 
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 const esc = (s: string | undefined | null): string =>
   (s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const fmtDate = (d: string | undefined | null): string => {
   if (!d) return '';
-  try { return new Date(d).toLocaleDateString('zh-TW'); }
+  try { return formatDisplayDate(d); }
   catch { return d; }
 };
 

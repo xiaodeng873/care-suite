@@ -44,6 +44,8 @@ import PatientTooltip from '../components/PatientTooltip';
 import { syncTaskStatus } from '../lib/database';
 import type { HealthRecord } from '../lib/database';
 import { isVirtualDataEnabled } from '../utils/toolsSettings';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 type SortField = '記錄日期' | '記錄時間' | '院友姓名' | '監測類型' | '數值';
 type SortDirection = 'asc' | 'desc';
 interface AdvancedFilters {
@@ -190,7 +192,7 @@ const HealthAssessment: React.FC = () => {
                          fuzzyMatch(patient?.身份證號碼, deferredSearch) ||
                          matchBedNumber(patient?.床號, deferredSearch) ||
                          fuzzyMatch(record.備註, deferredSearch) ||
-                         fuzzyMatch(new Date(record.記錄日期).toLocaleDateString('zh-TW'), deferredSearch) ||
+                         fuzzyMatch(formatDisplayDate(record.記錄日期), deferredSearch) ||
                          false;
     }
     return matchesSearch;
@@ -1039,7 +1041,7 @@ const HealthAssessment: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>{new Date(group.記錄日期).toLocaleDateString('zh-TW')}</div>
+                        <div>{formatDisplayDate(group.記錄日期)}</div>
                         {group.記錄時間 && group.記錄時間 !== '00:00' && (
                           <div className="text-xs text-gray-500 flex items-center">
                             <Clock className="h-3 w-3 mr-1" />

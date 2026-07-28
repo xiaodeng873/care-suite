@@ -18,6 +18,7 @@ export interface FollowUpRecordData {
 }
 
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+import { formatDisplayDate } from './dateFormat';
 interface FollowUpRecord {
   日期: string;
   床號: string;
@@ -53,7 +54,7 @@ const formatTimeToHHMM = (timeStr: string): string => {
 };
 const formatDate = (dateStr: string): string => {
   const date = new Date(dateStr);
-  return date.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
+  return formatDisplayDate(date);
 };
 const formatChineseNameWithEnglishInitial = (
   中文姓氏: string,
@@ -161,7 +162,7 @@ const generateHTML = (records: FollowUpRecord[], facilityName: string): string =
           <div class="page-header">
             <h1>${facilityName} 覆診記錄</h1>
             <div class="page-info">
-              <span>生成日期: ${new Date().toLocaleDateString('zh-TW')}</span>
+              <span>生成日期: ${formatDisplayDate(new Date())}</span>
               <span>第 ${i + 1} 頁，共 ${totalPages} 頁</span>
             </div>
           </div>

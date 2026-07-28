@@ -9,6 +9,8 @@
 import type { Wound, WoundAssessment, Patient } from '../lib/database';
 import { computeNextAssessmentDue } from '../lib/database';
 import { getFacilitySettings } from './facilitySettings';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 const IFRAME_ID = 'wound-assessment-print-iframe';
 const COLS_PER_PAGE = 6;
@@ -19,7 +21,7 @@ const esc = (s: string | undefined | null): string =>
 const chk = (v: boolean): string => v ? ' checked' : '';
 
 const fmtDate = (d: string | null | undefined): string =>
-  d ? new Date(d).toLocaleDateString('zh-TW') : '';
+  d ? formatDisplayDate(d) : '';
 
 const colA = (arr: (WoundAssessment | null)[], i: number): WoundAssessment | null =>
   arr[i] ?? null;

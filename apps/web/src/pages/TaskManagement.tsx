@@ -27,6 +27,8 @@ import { formatFrequencyDescription, getTaskStatus, isDocumentTask, isNursingTas
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { SYNC_CUTOFF_DATE_STR } from '../lib/database';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 type SortField = 'patient_name' | 'health_record_type' | 'frequency' | 'next_due_at' | 'last_completed_at' | 'notes';
 type SortDirection = 'asc' | 'desc';
@@ -886,7 +888,7 @@ const TaskManagement: React.FC = () => {
                         {task.start_date ? (
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-4 w-4 text-gray-400" />
-                            <span>{new Date(task.start_date).toLocaleDateString('zh-TW')}</span>
+                            <span>{formatDisplayDate(task.start_date)}</span>
                           </div>
                         ) : <span className="text-gray-400">-</span>}
                       </td>

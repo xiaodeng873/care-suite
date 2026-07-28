@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle, Pill, Calendar, Clock, User, Trash2, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
+import { formatDisplayDateTime } from '../utils/dateFormat';
 interface WorkflowDuplicateGroup {
   key: string;
   prescription_id: string;
@@ -372,7 +373,7 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
                             </div>
                           </div>
                           <div className="text-xs text-gray-500">
-                            更新: {new Date(record.updated_at).toLocaleString('zh-TW')}
+                            更新: {formatDisplayDateTime(record.updated_at)}
                           </div>
                         </div>
                       </div>

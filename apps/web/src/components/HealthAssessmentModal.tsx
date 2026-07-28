@@ -4,6 +4,8 @@ import { usePatients, type HealthAssessment } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { supabase } from '../lib/supabase';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 /** Parse a TEXT column that may contain a JSON array, '、'-delimited string, or already be an array */
 function parseTextToArray(value: unknown): string[] {
@@ -514,7 +516,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                   <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-xs text-blue-800">
                       <Activity className="h-3 w-3 inline mr-1" />
-                      上次評估：{new Date(getLastAssessmentDate(healthAssessments, selectedPatientId)!).toLocaleDateString('zh-TW')}
+                      上次評估：{formatDisplayDate(getLastAssessmentDate(healthAssessments, selectedPatientId)!)}
                     </p>
                   </div>
                 )}
@@ -578,7 +580,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     <p className="text-xs">自動計算下次評估日期為6個月後</p>
                     {formData.assessment_date && formData.next_due_date && (
                       <p className="text-xs mt-1">
-                        📅 {new Date(formData.assessment_date).toLocaleDateString('zh-TW')} → {new Date(formData.next_due_date).toLocaleDateString('zh-TW')}
+                        📅 {formatDisplayDate(formData.assessment_date)} → {formatDisplayDate(formData.next_due_date)}
                       </p>
                     )}
                   </div>

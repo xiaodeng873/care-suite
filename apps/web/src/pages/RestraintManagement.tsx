@@ -32,6 +32,8 @@ import { exportRestraintObservationsRangeHtml } from '../utils/restraintObservat
 import { printRestraintConsentForms } from '../utils/restraintConsentPrintGenerator';
 import { printRestraintUsageRecords } from '../utils/restraintUsageRecordPrintGenerator';
 import * as db from '../lib/database';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 type SortField = '院友姓名' | 'doctor_signature_date' | 'next_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -986,7 +988,7 @@ const RestraintManagement: React.FC = () => {
                         {assessment.doctor_signature_date ? (
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-4 w-4 text-green-500" />
-                            <span>{new Date(assessment.doctor_signature_date).toLocaleDateString('zh-TW')}</span>
+                            <span>{formatDisplayDate(assessment.doctor_signature_date)}</span>
                           </div>
                         ) : (
                           <span className="text-gray-500">未簽署</span>
@@ -997,7 +999,7 @@ const RestraintManagement: React.FC = () => {
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <span className={isOverdue(assessment) ? 'text-red-600 font-medium' : isDueSoon(assessment) ? 'text-orange-600 font-medium' : ''}>
-                              {new Date(assessment.next_due_date).toLocaleDateString('zh-TW')}
+                              {formatDisplayDate(assessment.next_due_date)}
                             </span>
                           </div>
                         ) : (
@@ -1023,7 +1025,7 @@ const RestraintManagement: React.FC = () => {
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-4 w-4 text-gray-400" />
-                          <span>{new Date(assessment.created_at).toLocaleDateString('zh-TW')}</span>
+                          <span>{formatDisplayDate(assessment.created_at)}</span>
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
@@ -1247,7 +1249,7 @@ const RestraintManagement: React.FC = () => {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-sm text-blue-800">
                   <strong>預覽標題：</strong>
-                  身體約束物品觀察記錄表 ( {observationDateRange.startDate ? new Date(observationDateRange.startDate).toLocaleDateString('zh-TW').replace(/\//g, '年').replace(/年(\d+)月/, '年 $1月 ').replace(/月(\d+)$/, '月$1日') : 'XXXX年 XX月 XX日'} 至 {observationDateRange.endDate ? new Date(observationDateRange.endDate).toLocaleDateString('zh-TW').replace(/\//g, '年').replace(/年(\d+)月/, '年 $1月 ').replace(/月(\d+)$/, '月$1日') : 'XXXX年 XX月XX日'} )
+                  身體約束物品觀察記錄表 ( {observationDateRange.startDate ? formatDisplayDate(observationDateRange.startDate).replace(/\//g, '年').replace(/年(\d+)月/, '年 $1月 ').replace(/月(\d+)$/, '月$1日') : 'XXXX年 XX月 XX日'} 至 {observationDateRange.endDate ? formatDisplayDate(observationDateRange.endDate).replace(/\//g, '年').replace(/年(\d+)月/, '年 $1月 ').replace(/月(\d+)$/, '月$1日') : 'XXXX年 XX月XX日'} )
                 </p>
               </div>
             </div>

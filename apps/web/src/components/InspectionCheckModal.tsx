@@ -3,6 +3,8 @@ import { X, Activity, Droplets, Heart, Thermometer, Wind, Eye, AlertTriangle, Ch
 import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import HealthRecordModal from './HealthRecordModal';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface InspectionCheckModalProps {
   workflowRecord: any;
@@ -456,7 +458,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
                               數值: {value}
                             </div>
                             <div className="text-gray-600">
-                              {new Date(record.記錄日期).toLocaleDateString('zh-TW')} {record.記錄時間}
+                              {formatDisplayDate(record.記錄日期)} {record.記錄時間}
                             </div>
                           </div>
                         </div>

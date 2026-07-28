@@ -3,6 +3,7 @@ import { useAiUsageStats } from '../hooks/useAiUsageStats';
 import { LoadingScreen } from './PageLoadingScreen';
 import { Bot, RefreshCw } from 'lucide-react';
 
+import { formatDisplayDate, formatDisplayDateTime } from '../utils/dateFormat';
 interface AiUsageStatsPanelProps {
   days?: number;
 }
@@ -58,7 +59,7 @@ export const AiUsageStatsPanel: React.FC<AiUsageStatsPanelProps> = ({ days = 30 
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
-    return d.toLocaleDateString('zh-HK');
+    return formatDisplayDate(d);
   };
 
   const renderBar = (count: number, max: number) => {
@@ -197,7 +198,7 @@ export const AiUsageStatsPanel: React.FC<AiUsageStatsPanelProps> = ({ days = 30 
             <tbody>
               {stats.recentLogs.map(log => (
                 <tr key={log.id} className="border-b last:border-0">
-                  <td className="p-2">{new Date(log.created_at).toLocaleString('zh-HK')}</td>
+                  <td className="p-2">{formatDisplayDateTime(log.created_at)}</td>
                   <td className="p-2">{log.user_name || log.user_id}</td>
                   <td className="p-2">{AUTH_LABELS[log.auth_type] || log.auth_type}</td>
                   <td className="p-2">{ROLE_LABELS[log.user_role] || log.user_role}</td>

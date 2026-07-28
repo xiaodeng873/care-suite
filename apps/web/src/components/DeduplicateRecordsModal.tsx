@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X, AlertTriangle, User, Calendar, Clock, Activity, Droplets, Scale, Trash2 } from 'lucide-react';
 import { usePatients, DuplicateRecordGroup, HealthRecord, Patient } from '../context/PatientContext';
+import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
+
 
 interface DeduplicateRecordsModalProps {
   duplicateGroups: DuplicateRecordGroup[];
@@ -179,7 +181,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                             <div className="flex flex-wrap items-center gap-2">
                               <Calendar className="h-4 w-4 text-gray-400" />
                               <span className="text-sm text-gray-600">
-                                {new Date(group.keepRecord.記錄日期).toLocaleDateString('zh-TW')}
+                                {formatDisplayDate(group.keepRecord.記錄日期)}
                               </span>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
@@ -217,7 +219,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                           <div className="text-gray-600">
                             記錄 #{group.keepRecord.記錄id} (建立於{' '}
                             {group.keepRecord.created_at
-                              ? new Date(group.keepRecord.created_at).toLocaleString('zh-TW')
+                              ? formatDisplayDateTime(group.keepRecord.created_at)
                               : '未知時間'}
                             )
                           </div>
@@ -231,7 +233,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                             <div className="text-gray-600">
                               記錄 #{record.記錄id} (建立於{' '}
                               {record.created_at
-                                ? new Date(record.created_at).toLocaleString('zh-TW')
+                                ? formatDisplayDateTime(record.created_at)
                                 : '未知時間'}
                               )
                             </div>

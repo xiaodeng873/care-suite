@@ -1,5 +1,6 @@
 import { DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
+import { formatDisplayDate } from './dateFormat';
 export interface CaseConferenceProfessionalInput {
   category: string;
   assessor: string;
@@ -34,11 +35,7 @@ function formatDate(isoDate: string): string {
   if (!isoDate) return '-';
   const d = new Date(`${isoDate}T00:00:00`);
   if (Number.isNaN(d.getTime())) return isoDate;
-  return d.toLocaleDateString('zh-TW', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
+  return formatDisplayDate(d);
 }
 
 function renderProfessionals(professionals?: CaseConferenceProfessionalInput[]): string {
@@ -54,11 +51,7 @@ function renderProfessionals(professionals?: CaseConferenceProfessionalInput[]):
 
 export function generateCaseConferenceListHtml(input: CaseConferenceListInput): string {
   const { meetingDate, facilityName = DEFAULT_FACILITY_SETTINGS.facilityNameZh, groups } = input;
-  const printDate = new Date().toLocaleDateString('zh-TW', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
+  const printDate = formatDisplayDate(new Date());
 
   const renderRoomRows = (room: CaseConferenceRoomInput): string => {
     return room.plans

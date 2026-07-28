@@ -25,11 +25,13 @@ import WoundModal from '../components/WoundModal';
 import SingleWoundAssessmentModal from '../components/SingleWoundAssessmentModal';
 import { fuzzyMatch, matchBedNumber, matchChineseName } from '../utils/searchUtils';
 import { printWoundAssessment, saveWoundAssessmentHtml } from '../utils/woundAssessmentPrintGenerator';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString('zh-TW');
+  formatDisplayDate(dateStr);
 
 const daysSince = (dateStr: string): number =>
   Math.ceil((Date.now() - new Date(dateStr).getTime()) / 86_400_000);

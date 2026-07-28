@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Trash2, RotateCcw, Search, Calendar, User, Activity, AlertTriangle } from 'lucide-react';
 import { usePatients, DeletedHealthRecord, Patient } from '../context/PatientContext';
 import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
+
 
 interface RecycleBinModalProps {
   onClose: () => void;
@@ -309,7 +311,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600 mb-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <Calendar className="h-3 w-3 text-gray-400" />
-                            <span>記錄日期: {new Date(record.記錄日期).toLocaleDateString('zh-TW')}</span>
+                            <span>記錄日期: {formatDisplayDate(record.記錄日期)}</span>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
                             <Activity className="h-3 w-3 text-gray-400" />
@@ -325,7 +327,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                         <div className="text-xs text-gray-500 space-y-1">
                           <div>刪除原因: {record.deletion_reason}</div>
                           <div>
-                            刪除時間: {new Date(record.deleted_at).toLocaleString('zh-TW')}
+                            刪除時間: {formatDisplayDateTime(record.deleted_at)}
                           </div>
                           {record.deleted_by && <div>刪除人: {record.deleted_by}</div>}
                         </div>

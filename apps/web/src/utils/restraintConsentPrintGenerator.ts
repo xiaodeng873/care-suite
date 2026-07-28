@@ -17,6 +17,7 @@
 
 import type { Patient, PatientRestraintAssessment } from '../lib/database';
 import { getFacilitySettings } from './facilitySettings';
+import { formatDisplayDate } from './dateFormat';
 
 const calcAge = (birthDate: string | undefined): string => {
   if (!birthDate) return '';
@@ -62,10 +63,10 @@ const timeToHour = (t: string | undefined | null): string => {
   return t;
 };
 
-/** 格式化日期為 YYYY/MM/DD */
+/** 格式化日期為 DD/MM/YYYY */
 const fmtDate = (d: string | undefined | null): string => {
   if (!d) return '';
-  return d.replace(/-/g, '/');
+  return formatDisplayDate(d);
 };
 
 // ── 約束物品行 HTML ────────────────────────────────────────────────────────────

@@ -35,6 +35,8 @@ import {
 import { exportAnnualHealthCheckupsToExcel } from '../utils/annualHealthCheckupExcelGenerator';
 import { printMedicalExaminationForm } from '../utils/annualHealthCheckupFormGenerator';
 import { getTemplatesMetadata } from '../lib/database';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 type SortField = '院友姓名' | 'last_doctor_signature_date' | 'next_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 interface AdvancedFilters {
@@ -736,7 +738,7 @@ const AnnualHealthCheckup: React.FC = () => {
                         {checkup.last_doctor_signature_date ? (
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-4 w-4 text-green-500" />
-                            <span>{new Date(checkup.last_doctor_signature_date).toLocaleDateString('zh-TW')}</span>
+                            <span>{formatDisplayDate(checkup.last_doctor_signature_date)}</span>
                           </div>
                         ) : (
                           <span className="text-gray-500">未簽署</span>
@@ -747,7 +749,7 @@ const AnnualHealthCheckup: React.FC = () => {
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <span className={checkIsOverdue(checkup) ? 'text-red-600 font-medium' : checkIsDueSoon(checkup) ? 'text-orange-600 font-medium' : ''}>
-                              {new Date(checkup.next_due_date).toLocaleDateString('zh-TW')}
+                              {formatDisplayDate(checkup.next_due_date)}
                             </span>
                           </div>
                         ) : (
@@ -763,7 +765,7 @@ const AnnualHealthCheckup: React.FC = () => {
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-4 w-4 text-gray-400" />
-                          <span>{new Date(checkup.created_at).toLocaleDateString('zh-TW')}</span>
+                          <span>{formatDisplayDate(checkup.created_at)}</span>
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">

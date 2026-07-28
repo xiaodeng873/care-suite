@@ -2,6 +2,7 @@ import type { Patient } from '../lib/database';
 import { calcAge } from './cgatFeeHelper';
 import { getFacilitySettings } from './facilitySettings';
 
+import { formatDisplayDate } from './dateFormat';
 export interface EpisodeEvent {
   id?: string;
   event_type: 'admission' | 'transfer' | 'discharge' | 'vacation_start' | 'vacation_end';
@@ -43,7 +44,7 @@ const formatDate = (dateStr: string | undefined | null): string => {
   if (!dateStr) return '';
   const d = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString('zh-TW');
+  return formatDisplayDate(d);
 };
 
 const chunk = <T,>(arr: T[], size: number): T[][] => {

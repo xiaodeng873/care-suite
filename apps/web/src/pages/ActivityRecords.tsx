@@ -21,6 +21,7 @@ import ActivityRecordModal from '../components/ActivityRecordModal';
 import ActivityRecordPrintModal from '../components/ActivityRecordPrintModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
+import { formatDisplayDate } from '../utils/dateFormat';
 import {
   ACTIVITY_CATEGORY_GROUPS,
   getCurrentMonthCount,
@@ -36,9 +37,7 @@ interface AdvancedFilters {
 
 const formatDate = (d?: string | null) => {
   if (!d) return '—';
-  const date = new Date(d);
-  if (Number.isNaN(date.getTime())) return d;
-  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+  return formatDisplayDate(d, '—');
 };
 
 const CATEGORY_LABEL_MAP: Record<string, string> = ACTIVITY_CATEGORY_GROUPS.reduce((acc, group) => {

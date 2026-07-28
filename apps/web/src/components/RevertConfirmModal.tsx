@@ -1,6 +1,8 @@
 import React, { useEffect, useCallback } from 'react';
 import { X, AlertTriangle, Clock, User, Pill, CheckCircle, XCircle } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
+
 
 interface RevertConfirmModalProps {
   isOpen: boolean;
@@ -179,7 +181,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
               <div className="flex-1">
                 <div className="text-xs text-gray-500">排程時間</div>
                 <div className="font-medium text-gray-900">
-                  {new Date(workflowRecord.scheduled_date).toLocaleDateString('zh-TW')} {workflowRecord.scheduled_time}
+                  {formatDisplayDate(workflowRecord.scheduled_date)} {workflowRecord.scheduled_time}
                 </div>
               </div>
             </div>
@@ -191,7 +193,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
                   執行人員：{staff}
                 </div>
                 <div className="text-sm text-gray-700">
-                  執行時間：{new Date(time).toLocaleString('zh-TW')}
+                  執行時間：{formatDisplayDateTime(time)}
                 </div>
               </div>
             )}

@@ -16,6 +16,7 @@ import {
 import { isPrescriptionScheduledOnDate } from './prescriptionSchedule';
 import { isPrescriptionExpired, isPrescriptionAboutToExpire } from './prescriptionExpiry';
 
+import { formatDisplayDate } from './dateFormat';
 // 渲染為同步流程，故於各匯出入口（async）先取得院舍設定後存於模組層，供 renderHeaderRegion 讀取。
 let activeFacility: FacilitySettings = DEFAULT_FACILITY_SETTINGS;
 
@@ -1131,7 +1132,7 @@ const formatDate = (value: unknown): string => {
   if (!value) return '';
   const date = new Date(String(value));
   if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString('zh-TW');
+  return formatDisplayDate(date);
 };
 
 // 將任意日期字串正規化為 YYYY-MM-DD（用於入住日比對）

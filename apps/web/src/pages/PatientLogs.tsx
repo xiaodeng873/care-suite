@@ -23,6 +23,8 @@ import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { printPatientLogNursingTreatment } from '../utils/patientLogNursingTreatmentGenerator';
+import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
+
 
 type SortField = '記錄日期' | '院友姓名' | '日誌類型' | '記錄人員' | '創建時間';
 type SortDirection = 'asc' | 'desc';
@@ -117,7 +119,7 @@ const PatientLogs: React.FC = () => {
                          fuzzyMatch(log.log_type, searchTerm) ||
                          fuzzyMatch(log.content, searchTerm) ||
                          fuzzyMatch(log.recorder, searchTerm) ||
-                         new Date(log.log_date).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase());
+                         formatDisplayDate(log.log_date).includes(searchTerm.toLowerCase());
     }
     
     return matchesSearch;
@@ -354,18 +356,18 @@ const PatientLogs: React.FC = () => {
       return {
         床號: patient?.床號 || '',
         中文姓名: patient ? `${patient.中文姓氏}${patient.中文名字}` : '',
-        記錄日期: new Date(log.log_date).toLocaleDateString('zh-TW'),
+        記錄日期: formatDisplayDate(log.log_date),
         日誌類型: log.log_type,
         日誌內容: log.content,
         記錄人員: log.recorder,
-        創建時間: new Date(log.created_at).toLocaleString('zh-TW')
+        創建時間: formatDisplayDateTime(log.created_at)
       };
     });
 
     const headers = ['床號', '中文姓名', '記錄日期', '日誌類型', '日誌內容', '記錄人員', '創建時間'];
     const csvContent = [
       `"院友日誌記錄"`,
-      `"生成日期: ${new Date().toLocaleDateString('zh-TW')}"`,
+      `"生成日期: ${formatDisplayDate(new Date())}"`,
       `"總記錄數: ${exportData.length}"`,
       '',
       headers.join(','),
@@ -735,7 +737,7 @@ const PatientLogs: React.FC = () => {
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center">
                           <Calendar className="h-4 w-4 mr-1 text-gray-400" />
-                          {new Date(log.log_date).toLocaleDateString('zh-TW')}
+                          {formatDisplayDate(log.log_date)}
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
@@ -755,7 +757,7 @@ const PatientLogs: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {log.created_at ? new Date(log.created_at).toLocaleDateString('zh-TW') : '-'}
+                        {log.created_at ? formatDisplayDate(log.created_at) : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-shrink-0 gap-2">

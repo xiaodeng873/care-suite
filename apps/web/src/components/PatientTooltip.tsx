@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { User, Calendar, CreditCard, Phone } from 'lucide-react';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
-import { getPatientContacts } from '../lib/database';
+import { getPatientContacts, type PatientContact } from '../lib/database';
+import { openWhatsApp, isWhatsAppAvailable } from '../utils/whatsapp';
+import { formatDisplayDateWithAge } from '../utils/dateFormat';
 
 interface PatientTooltipProps {
   patient: {
@@ -19,11 +21,17 @@ interface PatientTooltipProps {
   children: React.ReactNode;
 }
 
+const HOVER_LEAVE_DELAY_MS = 150;
+
 const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
-  const [firstContact, setFirstContact] = useState<any>(null);
+  const [firstContact, setFirstContact] = useState<PatientContact | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const isTriggerHoveredRef = useRef(false);
+  const isTooltipHoveredRef = useRef(false);
+  const leaveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const fetchFirstContact = async () => {
@@ -41,20 +49,29 @@ const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) =>
     fetchFirstContact();
   }, [patient.院友id, showTooltip]);
 
-  const calculateAge = (birthDate: string) => {
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
+  const updateShowTooltip = () => {
+    if (isTriggerHoveredRef.current || isTooltipHoveredRef.current) {
+      setShowTooltip(true);
     }
-    
-    return age;
   };
 
-  const handleMouseEnter = () => {
+  const scheduleHideTooltip = () => {
+    if (leaveTimerRef.current) {
+      window.clearTimeout(leaveTimerRef.current);
+    }
+    leaveTimerRef.current = window.setTimeout(() => {
+      if (!isTriggerHoveredRef.current && !isTooltipHoveredRef.current) {
+        setShowTooltip(false);
+      }
+    }, HOVER_LEAVE_DELAY_MS);
+  };
+
+  const handleTriggerMouseEnter = () => {
+    if (leaveTimerRef.current) {
+      window.clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+    isTriggerHoveredRef.current = true;
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({
@@ -62,17 +79,81 @@ const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) =>
         left: rect.left + rect.width / 2 - 128,
       });
     }
-    setShowTooltip(true);
+    updateShowTooltip();
   };
 
+  const handleTriggerMouseLeave = () => {
+    isTriggerHoveredRef.current = false;
+    scheduleHideTooltip();
+  };
+
+  const handleTooltipMouseEnter = () => {
+    if (leaveTimerRef.current) {
+      window.clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+    isTooltipHoveredRef.current = true;
+    updateShowTooltip();
+  };
+
+  const handleTooltipMouseLeave = () => {
+    isTooltipHoveredRef.current = false;
+    scheduleHideTooltip();
+  };
+
+  // 點擊 tooltip 外部時關閉懸浮窗
+  useEffect(() => {
+    if (!showTooltip) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        triggerRef.current &&
+        !triggerRef.current.contains(target) &&
+        tooltipRef.current &&
+        !tooltipRef.current.contains(target)
+      ) {
+        setShowTooltip(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTooltip]);
+
+  // 清理定時器
+  useEffect(() => {
+    return () => {
+      if (leaveTimerRef.current) {
+        window.clearTimeout(leaveTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handlePhoneClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!firstContact?.聯絡電話 || !isWhatsAppAvailable(firstContact.聯絡電話)) return;
+    openWhatsApp(firstContact.聯絡電話);
+  };
+
+  const hasPhone = firstContact?.聯絡電話 && isWhatsAppAvailable(firstContact.聯絡電話);
+
   const tooltipContent = (
-    <div 
+    <div
+      ref={tooltipRef}
       className="fixed z-[99999] w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-3"
       style={{ top: position.top, left: position.left, transform: 'translateY(-100%)' }}
+      onMouseEnter={handleTooltipMouseEnter}
+      onMouseLeave={handleTooltipMouseLeave}
     >
+      {/* 鼠標橋接區：覆蓋 trigger 與 tooltip 之間的 8px 間隙，避免移動過程中觸發關閉 */}
+      <div className="absolute -bottom-2 left-0 right-0 h-2" aria-hidden="true" />
+
       {/* 小箭頭 */}
       <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-200"></div>
-      
+
       <div className="space-y-1.5 text-sm text-gray-700">
         <div className="flex flex-wrap items-center gap-2">
           <User className="h-4 w-4 text-blue-600 flex-shrink-0" />
@@ -103,16 +184,8 @@ const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) =>
           <span className="text-gray-500 flex-shrink-0">出生日期：</span>
           <span className="text-gray-900">
             {patient.出生日期
-              ? new Date(patient.出生日期).toLocaleDateString('zh-TW')
+              ? formatDisplayDateWithAge(patient.出生日期)
               : '未知'}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="w-4 flex-shrink-0"></span>
-          <span className="text-gray-500 flex-shrink-0">年齡：</span>
-          <span className="text-gray-900">
-            {patient.出生日期 ? `${calculateAge(patient.出生日期)}歲` : '未知'}
           </span>
         </div>
 
@@ -131,7 +204,17 @@ const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) =>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="w-4 flex-shrink-0"></span>
                 <span className="text-gray-500 flex-shrink-0">手提電話：</span>
-                <span className="text-gray-900">{firstContact.聯絡電話}</span>
+                {hasPhone ? (
+                  <button
+                    onClick={handlePhoneClick}
+                    className="inline-flex items-center gap-1 text-green-700 hover:text-green-800 hover:underline font-medium focus:outline-none"
+                    title="點擊開啟 WhatsApp 對話"
+                  >
+                    {firstContact.聯絡電話}
+                  </button>
+                ) : (
+                  <span className="text-gray-900">{firstContact.聯絡電話}</span>
+                )}
               </div>
             )}
           </>
@@ -141,11 +224,11 @@ const PatientTooltip: React.FC<PatientTooltipProps> = ({ patient, children }) =>
   );
 
   return (
-    <div 
+    <div
       ref={triggerRef}
       className="inline-block"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={() => setShowTooltip(false)}
+      onMouseEnter={handleTriggerMouseEnter}
+      onMouseLeave={handleTriggerMouseLeave}
     >
       {children}
       {showTooltip && createPortal(tooltipContent, document.body)}

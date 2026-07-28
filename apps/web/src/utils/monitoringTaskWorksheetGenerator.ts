@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { isTaskScheduledForDate } from './taskScheduler';
+import { formatDisplayDate } from './dateFormat';
 interface MonitoringTask {
   床號: string;
   姓名: string;
@@ -139,7 +140,7 @@ export const generateMonitoringTaskWorksheet = async (startDate: Date, patientId
       宵夜: tasks.宵夜.length
     });
     daysData.push({
-      date: targetDate.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' }),
+      date: formatDisplayDate(targetDate),
       weekday: getWeekdayName(targetDate),
       tasks
     });

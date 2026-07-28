@@ -1,6 +1,8 @@
 import React from 'react';
 import { X, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface WorkflowActionModalProps {
   isOpen: boolean;
@@ -84,7 +86,7 @@ const WorkflowActionModal: React.FC<WorkflowActionModalProps> = ({
               藥物: {prescription?.medication_name}
             </div>
             <div className="text-gray-600 mb-1">
-              日期: {new Date(workflowRecord.scheduled_date).toLocaleDateString('zh-TW')}
+              日期: {formatDisplayDate(workflowRecord.scheduled_date)}
             </div>
             <div className="text-gray-600">
               時間: {workflowRecord.scheduled_time}

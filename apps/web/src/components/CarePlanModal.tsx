@@ -36,6 +36,8 @@ import PatientAutocomplete from './PatientAutocomplete';
 import { fuzzyMatch } from '../utils/searchUtils';
 import { getCarePlanStatus, type CarePlanStatus as ComputedCarePlanStatus, getCarePlanStatusColor, getActiveCarePlan } from '../utils/carePlanStatus';
 import { getUserProfessionCategory, shouldDefaultToMyProfession } from '../utils/userProfession';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface CarePlanModalProps {
   plan?: CarePlan | null;
@@ -835,13 +837,13 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                                 <div>
                                   <span className="text-gray-500">上次復檢日期：</span>
                                   <span className="font-medium">
-                                    {lastPlan?.review_due_date ? new Date(lastPlan.review_due_date).toLocaleDateString('zh-TW') : '-'}
+                                    {lastPlan?.review_due_date ? formatDisplayDate(lastPlan.review_due_date) : '-'}
                                   </span>
                                 </div>
                                 <div>
                                   <span className="text-gray-500">入住日期：</span>
                                   <span className="font-medium">
-                                    {patient?.入住日期 ? new Date(patient.入住日期).toLocaleDateString('zh-TW') : '-'}
+                                    {patient?.入住日期 ? formatDisplayDate(patient.入住日期) : '-'}
                                   </span>
                                 </div>
                                 <div>
@@ -1088,7 +1090,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                             <div>
                               <span className="text-gray-600">入住日期：</span>
                               <span className="font-medium text-gray-900 ml-1">
-                                {patient.入住日期 ? new Date(patient.入住日期).toLocaleDateString('zh-TW') : '-'}
+                                {patient.入住日期 ? formatDisplayDate(patient.入住日期) : '-'}
                               </span>
                             </div>
                             <div>

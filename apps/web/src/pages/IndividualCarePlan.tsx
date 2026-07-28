@@ -30,6 +30,8 @@ import PatientTooltip from '../components/PatientTooltip';
 import { useAuth } from '../context/AuthContext';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { getCarePlanStatus, getCarePlanStatusColor, getCarePlanStatusLabel } from '../utils/carePlanStatus';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 type SortField = '院友姓名' | 'plan_date' | 'plan_type' | 'review_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -817,7 +819,7 @@ const IndividualCarePlan: React.FC = () => {
                             </PatientTooltip>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-500" rowSpan={displayPlans.length}>
-                            {group.patient.入住日期 ? new Date(group.patient.入住日期).toLocaleDateString('zh-TW') : '-'}
+                            {group.patient.入住日期 ? formatDisplayDate(group.patient.入住日期) : '-'}
                           </td>
                         </>
                       )}
@@ -829,7 +831,7 @@ const IndividualCarePlan: React.FC = () => {
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="flex flex-wrap items-center gap-2">
                           <Calendar className="h-4 w-4 text-gray-400" />
-                          <span>{new Date(plan.plan_date).toLocaleDateString('zh-TW')}</span>
+                          <span>{formatDisplayDate(plan.plan_date)}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm">
@@ -840,7 +842,7 @@ const IndividualCarePlan: React.FC = () => {
                           }`}>
                             {isOverdue(plan, group.patient.院友id) && <AlertCircle className="h-4 w-4" />}
                             {isDueSoon(plan, group.patient.院友id) && !isOverdue(plan, group.patient.院友id) && <Clock className="h-4 w-4" />}
-                            <span>{new Date(plan.review_due_date).toLocaleDateString('zh-TW')}</span>
+                            <span>{formatDisplayDate(plan.review_due_date)}</span>
                             {plan.reviewed_at && <CheckCircle className="h-4 w-4 text-green-500" />}
                           </div>
                         ) : '-'}
@@ -861,7 +863,7 @@ const IndividualCarePlan: React.FC = () => {
                           </td>
                         );
                       })}
-                      <td className="px-4 py-3 text-sm text-gray-500">{plan.created_at ? new Date(plan.created_at).toLocaleDateString('zh-TW') : '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{plan.created_at ? formatDisplayDate(plan.created_at) : '-'}</td>
                       <td className="px-4 py-3 text-sm">
                         {renderReviewMeetingSummary(plan, status)}
                       </td>

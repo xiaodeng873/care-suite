@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { X, LogOut, Calendar, Heart, Home, Hospital, Building2 } from 'lucide-react';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface DischargeModalProps {
   patient: any;
@@ -79,7 +81,7 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ patient, onClose, onCon
               <p className="text-sm text-gray-600">床號: {patient.床號}</p>
               {patient.入住日期 && (
                 <p className="text-sm text-gray-600">
-                  入住日期: {new Date(patient.入住日期).toLocaleDateString('zh-TW')}
+                  入住日期: {formatDisplayDate(patient.入住日期)}
                 </p>
               )}
             </div>

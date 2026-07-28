@@ -5,6 +5,7 @@
 
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
+import { formatDisplayDate } from './dateFormat';
 export interface BedListBed {
   bed_number: string;
   patient?: {
@@ -137,7 +138,7 @@ export function generateBedListHtml(input: BedListInput): string {
 
   /* ── 4. 列印日期 ── */
   const today = printDate
-    ?? new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    ?? formatDisplayDate(new Date());
 
   /* ── 5. 渲染床行 ── */
   const renderBedRow = (bed: BedListBed, idx: number): string => {

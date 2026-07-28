@@ -1,4 +1,5 @@
 import type { PatientLog, Patient } from '../lib/database';
+import { formatDisplayDate } from './dateFormat';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 import { printCombinedHtml } from './printUtils';
 
@@ -72,11 +73,7 @@ const calculateAge = (birthDate?: string): string => {
   return age > 0 ? String(age) : '';
 };
 
-const formatDate = (dateStr: string): string => {
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-};
+const formatDate = (dateStr: string): string => formatDisplayDate(dateStr);
 
 const splitTextIntoLines = (text: string, maxWidth: number): string[] => {
   if (!text) return [''];

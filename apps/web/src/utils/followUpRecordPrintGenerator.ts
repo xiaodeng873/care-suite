@@ -2,6 +2,7 @@ import type { Patient, FollowUpAppointment } from '../lib/database';
 import { calcAge } from './cgatFeeHelper';
 import { getFacilitySettings } from './facilitySettings';
 
+import { formatDisplayDate } from './dateFormat';
 const ROWS_PER_PAGE = 28;
 const DOC_CODE = 'B3 FK (11.2020)';
 
@@ -32,7 +33,7 @@ const formatDate = (dateStr: string | undefined | null): string => {
   if (!dateStr) return '';
   const d = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString('zh-TW');
+  return formatDisplayDate(d);
 };
 
 const formatTime = (timeStr: string | undefined | null): string => {

@@ -12,6 +12,8 @@ import PatientTooltip from '../components/PatientTooltip';
 import MedicationRecordExportModal from '../components/MedicationRecordExportModal';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { getHongKongNow, isPrescriptionExpired } from '../utils/prescriptionExpiry';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 type PrescriptionStatus = 'active' | 'pending_change' | 'inactive';
 
@@ -734,7 +736,7 @@ const PrescriptionManagement: React.FC = () => {
                       )}
                       
                       {currentPatient.patient.出生日期 && (
-                        <div>出生日期: <span className="font-medium text-gray-900">{new Date(currentPatient.patient.出生日期).toLocaleDateString('zh-TW')}</span></div>
+                        <div>出生日期: <span className="font-medium text-gray-900">{formatDisplayDate(currentPatient.patient.出生日期)}</span></div>
                       )}
                       
                       {(currentPatient.patient.英文姓氏 || currentPatient.patient.英文名字) && (
@@ -1069,18 +1071,18 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
               </div>
               <div className="flex items-center space-x-1">
                 <span className="text-gray-500">開始:</span>
-                <span className="font-medium">{new Date(prescription.start_date).toLocaleDateString('zh-TW')}</span>
+                <span className="font-medium">{formatDisplayDate(prescription.start_date)}</span>
               </div>
               {prescription.end_date && (
                 <div className="flex items-center space-x-1">
                   <span className="text-gray-500">結束:</span>
-                  <span className="font-medium">{new Date(prescription.end_date).toLocaleDateString('zh-TW')}</span>
+                  <span className="font-medium">{formatDisplayDate(prescription.end_date)}</span>
                 </div>
               )}
               {prescription.prescription_date && (
                 <div className="flex items-center space-x-1">
                   <span className="text-gray-500">處方日期:</span>
-                  <span className="font-medium">{new Date(prescription.prescription_date).toLocaleDateString('zh-TW')}</span>
+                  <span className="font-medium">{formatDisplayDate(prescription.prescription_date)}</span>
                 </div>
               )}
               {prescription.meal_timing && (

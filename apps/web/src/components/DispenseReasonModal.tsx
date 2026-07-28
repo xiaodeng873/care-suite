@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X, AlertTriangle, Home, Guitar as Hospital, XCircle, Pill, AlertCircleIcon } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface DispenseReasonModalProps {
   workflowRecord: any;
@@ -129,7 +131,7 @@ const DispenseReasonModal: React.FC<DispenseReasonModalProps> = ({
               {patient?.中文姓氏}{patient?.中文名字} ({patient?.床號})
             </div>
             <div className="text-gray-600 mt-1">
-              日期: {new Date(workflowRecord.scheduled_date).toLocaleDateString('zh-TW')}
+              日期: {formatDisplayDate(workflowRecord.scheduled_date)}
             </div>
             <div className="text-gray-600">
               時間: {workflowRecord.scheduled_time}

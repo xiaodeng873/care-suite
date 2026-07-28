@@ -4,6 +4,8 @@ import { usePatients } from '../context/PatientContext';
 import StationModal from './StationModal';
 import BedModal from './BedModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface StationManagementModalProps {
   onClose: () => void;
@@ -236,7 +238,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
                                   床位：{stats.totalBeds} ({stats.occupiedBeds} 已佔用, {stats.availableBeds} 可用)
                                 </span>
                                 <span className="text-xs text-gray-500">
-                                  建立：{new Date(station.created_at).toLocaleDateString('zh-TW')}
+                                  建立：{formatDisplayDate(station.created_at)}
                                 </span>
                               </div>
                             </div>

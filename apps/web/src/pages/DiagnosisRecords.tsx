@@ -17,6 +17,8 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import DiagnosisRecordModal from '../components/DiagnosisRecordModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 type SortField = '院友姓名' | 'diagnosis_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -629,7 +631,7 @@ const DiagnosisRecords: React.FC = () => {
                                   className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                 />
                                 <span className="text-xs text-gray-600 min-w-[80px]">
-                                  {new Date(record.diagnosis_date).toLocaleDateString('zh-TW')}
+                                  {formatDisplayDate(record.diagnosis_date)}
                                 </span>
                                 <span className="text-sm text-gray-900 font-medium flex-1">
                                   {record.diagnosis_item}
@@ -652,7 +654,7 @@ const DiagnosisRecords: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 align-top">
                         <span className="text-gray-600 text-sm">
-                          {new Date(group.records[0].created_at).toLocaleDateString('zh-TW')}
+                          {formatDisplayDate(group.records[0].created_at)}
                         </span>
                       </td>
                       <td className="px-4 py-3 align-top">

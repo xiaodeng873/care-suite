@@ -2,6 +2,7 @@
  * 出入量記錄表 HTML 列印產生器
  * A4 直向，24 小時（臨床日 07:00→06:00），1頁/天
  */
+import { formatDisplayDate } from './dateFormat';
 
 export interface IntakeOutputRowInput {
   time_slot: string;            // '07:00'
@@ -424,7 +425,7 @@ export const exportIntakeOutputRangeHtml = async (
     const days = dateChunks(startDate, endDate, 1);
     const pages = days.map(dateStr => {
       const d = new Date(dateStr);
-      const displayDate = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+      const displayDate = formatDisplayDate(d);
       const dayRecords = allRecords.filter(r => r.record_date === dateStr);
       const rows = dayRecords.map(convertDbRecordToRow);
       return generateIntakeOutputHtml({ ...baseInput, facilityName, recordDate: displayDate, rows });

@@ -53,6 +53,8 @@ import {
   calculateOverdueCountByDate
 } from '../utils/workflowStatusHelper';
 import { isQuickSignEnabled } from '../utils/toolsSettings';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 // 判斷是否為注射途徑（涵蓋皮下注射／肌肉注射／舊版「注射」）
 const isInjectionRoute = (route?: string | null): boolean => /注射/.test(String(route ?? ''));
@@ -3092,8 +3094,8 @@ const MedicationWorkflow: React.FC = () => {
                                   className="px-3 whitespace-nowrap text-xs text-gray-700"
                                   style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
                                 >
-                                  <div>開始日期：{prescription.start_date ? new Date(prescription.start_date).toLocaleDateString('zh-TW') : ''}</div>
-                                  <div>處方日期：{prescription.prescription_date ? new Date(prescription.prescription_date).toLocaleDateString('zh-TW') : ''}</div>
+                                  <div>開始日期：{prescription.start_date ? formatDisplayDate(prescription.start_date) : ''}</div>
+                                  <div>處方日期：{prescription.prescription_date ? formatDisplayDate(prescription.prescription_date) : ''}</div>
                                 </td>
                               )}
                               {/* ── rowspan 欄：藥物名稱及劑型 ── */}

@@ -3,6 +3,8 @@ import { X, FileText, Calendar, Building2, Plus, Trash2 } from 'lucide-react';
 import { usePatients, type DiagnosisRecord } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import OCRDocumentBlock from './OCRDocumentBlock';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface DiagnosisRecordModalProps {
   patientId?: number;
@@ -222,7 +224,7 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
                 {existingRecords.map((record, index) => (
                   <div key={index} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                     <span className="text-gray-600 whitespace-nowrap">
-                      {new Date(record.diagnosis_date).toLocaleDateString('zh-TW')}
+                      {formatDisplayDate(record.diagnosis_date)}
                     </span>
                     <span className="text-gray-900 font-medium min-w-0 break-words">{record.diagnosis_item}</span>
                     <span className="text-gray-600 min-w-0 break-words">{record.diagnosis_unit}</span>

@@ -3,6 +3,8 @@ import { X, Calendar, User, Ruler, Droplets, Thermometer, AlertCircle, Camera, C
 import { usePatients, type Wound, type WoundAssessment, type WoundAssessmentStatus } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import WoundPhotoUpload from './WoundPhotoUpload';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface WoundPhoto {
   id: string;
@@ -297,7 +299,7 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
               </h2>
               <div className="mt-1 text-sm text-gray-600">
                 {patient?.床號} - {patient?.中文姓名} | 
-                發現日期: {new Date(wound.discovery_date).toLocaleDateString('zh-TW')} | 
+                發現日期: {formatDisplayDate(wound.discovery_date)} | 
                 位置: {wound.wound_location.side === 'front' ? '前側' : '後側'}
               </div>
             </div>

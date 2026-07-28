@@ -7,7 +7,8 @@
  * 超頁時標題/院友資料列/表頭與頁尾(頁碼/文件編號)於每頁重複。
  */
 import type { Patient, PatientActivityRecord } from '../lib/database';
-import { ACTIVITY_BOOLEAN_FIELDS } from './activityRecordStatus';
+import { ACTIVITY_BOOLEAN_FIELDS, type ActivityBooleanField } from './activityRecordStatus';
+import { formatDisplayDate } from './dateFormat';
 import { getFacilitySettings } from './facilitySettings';
 
 const ROWS_PER_PAGE = 25;
@@ -27,11 +28,7 @@ const escapeHtml = (text: string): string => {
   return text.replace(/[&<>"']/g, m => map[m]);
 };
 
-const formatDateShort = (dateStr: string): string => {
-  const d = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-};
+const formatDateShort = (dateStr: string): string => formatDisplayDate(dateStr);
 
 const chunk = <T,>(arr: T[], size: number): T[][] => {
   const result: T[][] = [];

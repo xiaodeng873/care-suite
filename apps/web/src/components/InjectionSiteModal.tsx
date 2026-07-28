@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, MapPin, User, Calendar, Clock, Syringe } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface InjectionSiteModalProps {
   isOpen: boolean;
@@ -99,7 +101,7 @@ const InjectionSiteModal: React.FC<InjectionSiteModalProps> = ({
                 藥物: {prescription?.medication_name}
               </div>
               <div className="text-gray-600 mb-1">
-                日期: {new Date(workflowRecord.scheduled_date).toLocaleDateString('zh-TW')}
+                日期: {formatDisplayDate(workflowRecord.scheduled_date)}
               </div>
               <div className="text-gray-600">
                 時間: {workflowRecord.scheduled_time}

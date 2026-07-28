@@ -5,6 +5,8 @@ import PatientAutocomplete from './PatientAutocomplete';
 import PatientTooltip from './PatientTooltip';
 import { getReasonBadgeClass } from '../utils/reasonColors';
 import { supabase } from '../lib/supabase'; 
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface ScheduleDetailModalProps {
   schedule: db.ScheduleWithDetails;
@@ -231,7 +233,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
           <div className="flex flex-wrap items-center gap-3">
             <Calendar className="h-6 w-6 text-blue-600" />
             <h2 className="text-xl font-semibold text-gray-900">
-              VMO 排程詳情 - {new Date(schedule.到診日期).toLocaleDateString('zh-TW')}
+              VMO 排程詳情 - {formatDisplayDate(schedule.到診日期)}
             </h2>
           </div>
           <button

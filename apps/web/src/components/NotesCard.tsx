@@ -3,6 +3,7 @@ import { StickyNote, Plus, Check, Trash2, ChevronDown, ChevronUp, User, Calendar
 import { usePatients } from '../context/PatientContext';
 import NoteModal from './NoteModal';
 
+import { formatDisplayDate } from '../utils/dateFormat';
 const NotesCard: React.FC = () => {
   const { patients, patientNotes, completePatientNote, deletePatientNote } = usePatients();
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -41,7 +42,7 @@ const NotesCard: React.FC = () => {
     const diff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
     if (diff > 0 && diff < 7) return `${diff}天前`;
 
-    return date.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' });
+    return formatDisplayDate(date);
   };
 
   const getPatientInfo = (patientId?: number) => {

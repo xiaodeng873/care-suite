@@ -9,6 +9,8 @@ import { formatFrequencyDescription } from '../utils/taskScheduler';
 import { getInfectionTypeColors } from '../utils/infectionTypeColors';
 import { supabase } from '../lib/supabase';
 import type { PatientCareTab } from '../lib/database';
+import { formatDisplayDate, formatDisplayDateTime } from '../utils/dateFormat';
+
 
 type ReportTab = 'daily' | 'monthly' | 'infection' | 'meal' | 'tube' | 'special' | 'drugSensitivity' | 'aiUsage';
 type TimeFilter = 'today' | 'yesterday' | 'thisMonth' | 'lastMonth';
@@ -1153,12 +1155,12 @@ const Reports: React.FC = () => {
                       <div className="space-y-1 text-sm">
                         {task.last_completed_at && (
                           <p className="text-gray-700">
-                            上次完成: <span className="font-medium">{new Date(task.last_completed_at).toLocaleDateString('zh-TW')}</span>
+                            上次完成: <span className="font-medium">{formatDisplayDate(task.last_completed_at)}</span>
                           </p>
                         )}
                         {task.next_due_at && (
                           <p className="text-blue-600">
-                            下次到期: <span className="font-medium">{new Date(task.next_due_at).toLocaleDateString('zh-TW')}</span>
+                            下次到期: <span className="font-medium">{formatDisplayDate(task.next_due_at)}</span>
                           </p>
                         )}
                         {task.tube_type && (
@@ -1229,7 +1231,7 @@ const Reports: React.FC = () => {
                               )}
                               {task.next_due_at && (
                                 <p className="text-sm text-blue-600">
-                                  下次: {new Date(task.next_due_at).toLocaleString('zh-TW')}
+                                  下次: {formatDisplayDateTime(new Date(task.next_due_at))}
                                 </p>
                               )}
                             </div>

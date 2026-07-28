@@ -3,6 +3,8 @@ import { X, CalendarCheck, Clock, MapPin, User, Car, UserCheck, MessageSquare, C
 import { usePatients, type FollowUpAppointment } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import OCRDocumentBlock from './OCRDocumentBlock';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface FollowUpModalProps {
   appointment?: FollowUpAppointment;
@@ -100,7 +102,7 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
     if (formData.院友id && formData.覆診日期 && formData.覆診時間 && formData.覆診地點 && formData.覆診專科) {
       const patient = patients.find(p => p.院友id === parseInt(formData.院友id));
       if (patient) {
-        const message = `您好！這是善頤福群護老院C站的信息：${patient.中文姓氏}${patient.中文名字}將於${new Date(formData.覆診日期).toLocaleDateString('zh-TW')}的${formData.覆診時間.slice(0, 5)}，於${formData.覆診地點}有${formData.覆診專科}的醫療安排。請問需要輪椅的士代步/陪診員嗎？請盡快告知您的安排，謝謝！`;
+        const message = `您好！這是善頤福群護老院C站的信息：${patient.中文姓氏}${patient.中文名字}將於${formatDisplayDate(formData.覆診日期)}的${formData.覆診時間.slice(0, 5)}，於${formData.覆診地點}有${formData.覆診專科}的醫療安排。請問需要輪椅的士代步/陪診員嗎？請盡快告知您的安排，謝謝！`;
         setNotificationMessage(message);
       }
     } else {

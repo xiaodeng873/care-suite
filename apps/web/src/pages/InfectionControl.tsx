@@ -22,6 +22,8 @@ import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber } from '
 import { getInfectionTypeColors } from '../utils/infectionTypeColors';
 import PatientTooltip from '../components/PatientTooltip';
 import { type InfectionControlRecord } from '../lib/database';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 type SortField = '院友姓名' | 'diagnosis_date' | 'recovery_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -660,7 +662,7 @@ const InfectionControl: React.FC = () => {
                           <span>
                             {record.diagnosis_date === '1900-01-01'
                               ? '未知'
-                              : new Date(record.diagnosis_date).toLocaleDateString('zh-TW')}
+                              : formatDisplayDate(record.diagnosis_date)}
                           </span>
                         </div>
                       </td>
@@ -669,7 +671,7 @@ const InfectionControl: React.FC = () => {
                           <Calendar className="h-4 w-4 text-gray-400" />
                           <span className={record.recovery_date ? '' : 'text-gray-400'}>
                             {record.recovery_date
-                              ? new Date(record.recovery_date).toLocaleDateString('zh-TW')
+                              ? formatDisplayDate(record.recovery_date)
                               : '未康復'}
                           </span>
                         </div>
@@ -680,7 +682,7 @@ const InfectionControl: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(record.created_at).toLocaleDateString('zh-TW')}
+                        {formatDisplayDate(record.created_at)}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-shrink-0 gap-2">

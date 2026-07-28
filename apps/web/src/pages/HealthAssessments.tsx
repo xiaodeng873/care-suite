@@ -28,6 +28,8 @@ import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { isHealthAssessmentOverdue, isHealthAssessmentDueSoon } from '../utils/taskScheduler';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { printHealthAssessment } from '../utils/healthAssessmentPrintGenerator';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 type SortField = '院友姓名' | 'assessment_date' | 'assessor' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -487,22 +489,22 @@ const HealthAssessments: React.FC = () => {
       return {
         床號: patient?.床號 || '',
         中文姓名: patient ? `${patient.中文姓氏}${patient.中文名字}` : '',
-        評估日期: new Date(assessment.assessment_date).toLocaleDateString('zh-TW'),
-        下次評估日期: assessment.next_due_date ? new Date(assessment.next_due_date).toLocaleDateString('zh-TW') : '',
+        評估日期: formatDisplayDate(assessment.assessment_date),
+        下次評估日期: assessment.next_due_date ? formatDisplayDate(assessment.next_due_date) : '',
         評估人員: assessment.assessor || '',
         // 吸煙習慣: assessment.smoking_habit || '',
         // 飲酒習慣: assessment.drinking_habit || '',
         // 最高活動能力: assessment.daily_activities?.max_activity || '',
         // 情緒表現: assessment.emotional_expression || '',
         // 備註: assessment.remarks || '',
-        建立日期: new Date(assessment.created_at).toLocaleDateString('zh-TW')
+        建立日期: formatDisplayDate(assessment.created_at)
       };
     });
 
     const headers = ['床號', '中文姓名', '評估日期', '下次評估日期', '評估人員', '建立日期'];
     const csvContent = [
       `"健康評估記錄"`,
-      `"生成日期: ${new Date().toLocaleDateString('zh-TW')}"`,
+      `"生成日期: ${formatDisplayDate(new Date())}"`,
       `"總記錄數: ${exportData.length}"`,
       '',
       headers.join(','),
@@ -830,14 +832,14 @@ const HealthAssessments: React.FC = () => {
                               </PatientTooltip>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-500" rowSpan={displayAssessments.length} onClick={(e) => e.stopPropagation()}>
-                              {group.patient.入住日期 ? new Date(group.patient.入住日期).toLocaleDateString('zh-TW') : '-'}
+                              {group.patient.入住日期 ? formatDisplayDate(group.patient.入住日期) : '-'}
                             </td>
                           </>
                         )}
                         <td className="px-4 py-3 text-sm text-gray-900">
                           <div className="flex flex-wrap items-center gap-2">
                             <Calendar className="h-4 w-4 text-gray-400" />
-                            <span>{new Date(assessment.assessment_date).toLocaleDateString('zh-TW')}</span>
+                            <span>{formatDisplayDate(assessment.assessment_date)}</span>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-sm">
@@ -848,7 +850,7 @@ const HealthAssessments: React.FC = () => {
                             }`}>
                               {isHealthAssessmentOverdue(assessment) && <AlertTriangle className="h-4 w-4" />}
                               {isHealthAssessmentDueSoon(assessment) && !isHealthAssessmentOverdue(assessment) && <Clock className="h-4 w-4" />}
-                              <span>{new Date(assessment.next_due_date).toLocaleDateString('zh-TW')}</span>
+                              <span>{formatDisplayDate(assessment.next_due_date)}</span>
                             </div>
                           ) : '-'}
                         </td>
@@ -899,7 +901,7 @@ const HealthAssessments: React.FC = () => {
                           })()}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500" onClick={(e) => e.stopPropagation()}>
-                          {assessment.created_at ? new Date(assessment.created_at).toLocaleDateString('zh-TW') : '-'}
+                          {assessment.created_at ? formatDisplayDate(assessment.created_at) : '-'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                           <div className="flex flex-shrink-0 items-center gap-2">

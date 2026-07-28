@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X, CheckCircle, Hospital, Home, XCircle, AlertTriangle, Pause, AlertCircle, Syringe } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface DispenseConfirmModalProps {
   workflowRecord: any;
@@ -201,7 +203,7 @@ const DispenseConfirmModal: React.FC<DispenseConfirmModalProps> = ({
               <div>
                 <div className="text-gray-500 mb-1">派藥時間</div>
                 <div className="font-medium text-gray-900">
-                  {new Date(workflowRecord.scheduled_date).toLocaleDateString('zh-TW')} {workflowRecord.scheduled_time}
+                  {formatDisplayDate(workflowRecord.scheduled_date)} {workflowRecord.scheduled_time}
                 </div>
               </div>
               {prescription?.meal_timing && (

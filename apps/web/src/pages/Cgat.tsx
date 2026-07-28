@@ -27,6 +27,8 @@ import { getFeeExemptEligibility } from '../utils/cgatFeeHelper';
 import { printCgatWorksheet } from '../utils/cgatWorksheetGenerator';
 import { printCgatMedicationProxy } from '../utils/cgatMedicationProxyGenerator';
 import type { CgatRecord, Patient } from '../lib/database';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 type SortField = '院友姓名' | 'medication_end_date' | 'cgat_visit_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -698,7 +700,7 @@ const Cgat: React.FC = () => {
                         {record.medication_end_date ? (
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-4 w-4 text-gray-400" />
-                            <span>{new Date(record.medication_end_date).toLocaleDateString('zh-TW')}</span>
+                            <span>{formatDisplayDate(record.medication_end_date)}</span>
                           </div>
                         ) : (
                           <span className="text-gray-500">-</span>
@@ -710,7 +712,7 @@ const Cgat: React.FC = () => {
                         ) : record.cgat_visit_date ? (
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-4 w-4 text-gray-400" />
-                            <span>{new Date(record.cgat_visit_date).toLocaleDateString('zh-TW')}</span>
+                            <span>{formatDisplayDate(record.cgat_visit_date)}</span>
                           </div>
                         ) : (
                           <span className="text-gray-500">-</span>

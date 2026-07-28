@@ -6,6 +6,8 @@ import WoundAssessmentModal from '../components/WoundAssessmentModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 type SortField = '院友姓名' | 'assessment_date' | 'next_assessment_date' | 'stage' | 'infection' | 'assessor';
 type SortDirection = 'asc' | 'desc';
@@ -394,8 +396,8 @@ const WoundManagement: React.FC = () => {
       return {
         床號: patient?.床號 || '',
         中文姓名: patient ? `${patient.中文姓氏}${patient.中文名字}` : '',
-        評估日期: new Date(assessment.assessment_date).toLocaleDateString('zh-TW'),
-        下次評估日期: assessment.next_assessment_date ? new Date(assessment.next_assessment_date).toLocaleDateString('zh-TW') : '',
+        評估日期: formatDisplayDate(assessment.assessment_date),
+        下次評估日期: assessment.next_assessment_date ? formatDisplayDate(assessment.next_assessment_date) : '',
         評估者: assessment.assessor || '',
         傷口位置: `${assessment.wound_location.side === 'front' ? '前側' : '後側'} (${assessment.wound_location.x}, ${assessment.wound_location.y})`,
         面積: assessment.area_length && assessment.area_width ? `${assessment.area_length} x ${assessment.area_width}${assessment.area_depth ? ` x ${assessment.area_depth}` : ''} cm` : '',
@@ -412,14 +414,14 @@ const WoundManagement: React.FC = () => {
         洗劑: assessment.cleanser === '其他' ? assessment.cleanser_other : assessment.cleanser,
         敷料: assessment.dressings.length > 0 ? assessment.dressings.join(', ') + (assessment.dressing_other ? `, ${assessment.dressing_other}` : '') : '',
         備註: assessment.remarks || '',
-        建立日期: new Date(assessment.created_at).toLocaleDateString('zh-TW')
+        建立日期: formatDisplayDate(assessment.created_at)
       };
     });
 
     const headers = ['床號', '中文姓名', '評估日期', '下次評估日期', '評估者', '傷口位置', '面積', '階段', '相片數量', '滲出物', '氣味', '肉芽', '壞死', '感染', '體溫', '周邊皮膚狀況', '周邊皮膚顏色', '洗劑', '敷料', '備註', '建立日期'];
     const csvContent = [
       `"傷口評估記錄"`,
-      `"生成日期: ${new Date().toLocaleDateString('zh-TW')}"`,
+      `"生成日期: ${formatDisplayDate(new Date())}"`,
       `"總記錄數: ${exportData.length}"`,
       '',
       headers.join(','),
@@ -865,7 +867,7 @@ const WoundManagement: React.FC = () => {
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-4 w-4 text-gray-400" />
-                          <span>{new Date(assessment.assessment_date).toLocaleDateString('zh-TW')}</span>
+                          <span>{formatDisplayDate(assessment.assessment_date)}</span>
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -876,7 +878,7 @@ const WoundManagement: React.FC = () => {
                               isOverdue(assessment) ? 'text-red-600 font-medium' :
                               isDueSoon(assessment) ? 'text-orange-600 font-medium' : ''
                             }>
-                              {new Date(assessment.next_assessment_date).toLocaleDateString('zh-TW')}
+                              {formatDisplayDate(assessment.next_assessment_date)}
                             </span>
                           </div>
                         ) : (
@@ -938,7 +940,7 @@ const WoundManagement: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {assessment.created_at ? new Date(assessment.created_at).toLocaleDateString('zh-TW') : '-'}
+                        {assessment.created_at ? formatDisplayDate(assessment.created_at) : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-shrink-0 gap-2">

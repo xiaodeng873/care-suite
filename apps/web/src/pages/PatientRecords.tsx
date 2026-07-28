@@ -13,6 +13,8 @@ import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { deletePatientSchedulesAfterDate } from '../lib/database';
 import type { Patient } from '../lib/database';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 type SortField = '床號' | '中文姓名' | '性別' | '年齡' | '入住日期' | '退住日期' | '在住天數' | '護理等級' | '入住類型' | '在住狀態';
 type SortDirection = 'asc' | 'desc';
 
@@ -408,10 +410,10 @@ const PatientRecords: React.FC = () => {
       英文姓名: getFormattedEnglishName(patient.英文姓氏, patient.英文名字) || patient.英文姓名 || '',
       性別: patient.性別,
       身份證號碼: patient.身份證號碼,
-      出生日期: patient.出生日期 ? new Date(patient.出生日期).toLocaleDateString('zh-TW') : '',
+      出生日期: patient.出生日期 ? formatDisplayDate(patient.出生日期) : '',
       年齡: patient.出生日期 ? Math.floor((Date.now() - new Date(patient.出生日期).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : '',
-      入住日期: patient.入住日期 ? new Date(patient.入住日期).toLocaleDateString('zh-TW') : '',
-      退住日期: patient.退住日期 ? new Date(patient.退住日期).toLocaleDateString('zh-TW') : '',
+      入住日期: patient.入住日期 ? formatDisplayDate(patient.入住日期) : '',
+      退住日期: patient.退住日期 ? formatDisplayDate(patient.退住日期) : '',
       護理等級: patient.護理等級 || '',
       入住類型: patient.入住類型 || '',
       在住狀態: patient.在住狀態 || '',
@@ -424,7 +426,7 @@ const PatientRecords: React.FC = () => {
     const headers = ['床號', '中文姓名', '英文姓名', '性別', '身份證號碼', '出生日期', '年齡', '入住日期', '退住日期', '護理等級', '入住類型', '在住狀態', '社會福利', '公務員', '藥物敏感', '不良藥物反應'];
     const csvContent = [
       `"院友記錄"`,
-      `"生成日期: ${new Date().toLocaleDateString('zh-TW')}"`,
+      `"生成日期: ${formatDisplayDate(new Date())}"`,
       `"總記錄數: ${exportData.length}"`,
       '',
       headers.join(','),
@@ -911,7 +913,7 @@ const PatientRecords: React.FC = () => {
                       {patient.入住日期 ? (
                         <div className="flex items-center">
                           <Calendar className="h-4 w-4 mr-1 text-gray-400" />
-                          {new Date(patient.入住日期).toLocaleDateString('zh-TW')}
+                          {formatDisplayDate(patient.入住日期)}
                         </div>
                       ) : '-'}
                     </td>
@@ -920,7 +922,7 @@ const PatientRecords: React.FC = () => {
                         {patient.退住日期 ? (
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 mr-1 text-gray-400" />
-                            {new Date(patient.退住日期).toLocaleDateString('zh-TW')}
+                            {formatDisplayDate(patient.退住日期)}
                           </div>
                         ) : '-'}
                       </td>

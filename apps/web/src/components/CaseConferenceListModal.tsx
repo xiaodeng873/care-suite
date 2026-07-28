@@ -3,6 +3,7 @@ import { X, Users, Printer, Plus } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { getCarePlanStatus } from '../utils/carePlanStatus';
 import { generateCaseConferenceListHtml } from '../utils/caseConferenceListPrintGenerator';
+import { formatDisplayDate } from '../utils/dateFormat';
 import type { CarePlan, Patient } from '../lib/database';
 import type {
   CaseConferenceGroupInput,
@@ -307,7 +308,7 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
                           </td>
                           <td className="px-3 py-2 text-sm text-gray-900">
                             {plan.review_due_date
-                              ? new Date(`${plan.review_due_date}T00:00:00`).toLocaleDateString('zh-TW')
+                              ? formatDisplayDate(`${plan.review_due_date}T00:00:00`)
                               : '-'}
                           </td>
                         </tr>

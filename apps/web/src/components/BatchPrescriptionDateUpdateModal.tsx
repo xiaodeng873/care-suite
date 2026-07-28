@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { X, Calendar, AlertTriangle, CheckCircle, User, Pill, Clock } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface BatchPrescriptionDateUpdateModalProps {
   selectedPrescriptionIds: string[];
@@ -78,7 +80,7 @@ const BatchPrescriptionDateUpdateModal: React.FC<BatchPrescriptionDateUpdateModa
     const confirmMessage = `確定要將 ${selectedPrescriptions.length} 個處方的${updateFields.join('和')}更新嗎？
 
 更新內容：
-• 處方日期：${new Date(newPrescriptionDate).toLocaleDateString('zh-TW')}${newMedicationSource ? `\n• 藥物來源：${newMedicationSource}` : ''}
+• 處方日期：${formatDisplayDate(newPrescriptionDate)}${newMedicationSource ? `\n• 藥物來源：${newMedicationSource}` : ''}
 
 此操作將影響：
 ${prescriptionsByPatient.map(group => 
@@ -216,7 +218,7 @@ ${prescriptionsByPatient.map(group =>
                   <div className="font-medium mb-1">將更新為：</div>
                   <div className="space-y-1">
                     <div className="text-sm font-semibold text-blue-600">
-                      日期：{newPrescriptionDate ? new Date(newPrescriptionDate).toLocaleDateString('zh-TW') : '請選擇日期'}
+                      日期：{newPrescriptionDate ? formatDisplayDate(newPrescriptionDate) : '請選擇日期'}
                     </div>
                     {newMedicationSource && (
                       <div className="text-sm font-semibold text-green-600">
@@ -310,7 +312,7 @@ ${prescriptionsByPatient.map(group =>
                           <div className="text-right">
                             <div className="text-sm text-gray-600">當前處方日期</div>
                             <div className="font-medium text-gray-900">
-                              {new Date(prescription.prescription_date).toLocaleDateString('zh-TW')}
+                              {formatDisplayDate(prescription.prescription_date)}
                             </div>
                             {prescription.medication_source && (
                               <div className="text-xs text-gray-500 mt-1">
@@ -318,7 +320,7 @@ ${prescriptionsByPatient.map(group =>
                               </div>
                             )}
                             <div className="text-xs text-blue-600 mt-1">
-                              → 日期：{newPrescriptionDate ? new Date(newPrescriptionDate).toLocaleDateString('zh-TW') : '待設定'}
+                              → 日期：{newPrescriptionDate ? formatDisplayDate(newPrescriptionDate) : '待設定'}
                               {newMedicationSource && (
                                 <div>→ 來源：{newMedicationSource}</div>
                               )}

@@ -12,6 +12,8 @@ import { exportFollowUpListToExcel, type FollowUpExportData } from '../utils/fol
 import { generateFollowUpRecordWorksheet, type FollowUpRecordData } from '../utils/followUpRecordWorksheetGenerator';
 import { generateFollowUpBagCover, type FollowUpBagCoverData } from '../utils/followUpBagCoverGenerator';
 import { printFollowUpRecordForms } from '../utils/followUpRecordPrintGenerator';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 type SortField = '覆診日期' | '覆診時間' | '院友姓名' | '覆診地點' | '覆診專科' | '狀態' | '交通安排' | '陪診人員';
 type SortDirection = 'asc' | 'desc';
@@ -123,7 +125,7 @@ const FollowUpManagement: React.FC = () => {
                          fuzzyMatch(appointment.覆診地點, deferredSearch) ||
                          fuzzyMatch(appointment.覆診專科, deferredSearch) ||
                          fuzzyMatch(appointment.備註, deferredSearch) ||
-                         new Date(appointment.覆診日期).toLocaleDateString('zh-TW').includes(deferredSearch.toLowerCase());
+                         formatDisplayDate(appointment.覆診日期).includes(deferredSearch.toLowerCase());
     }
     
     return matchesSearch;
@@ -566,7 +568,7 @@ const FollowUpManagement: React.FC = () => {
       return {
         床號: patient?.床號 || '',
         中文姓名: patient ? `${patient.中文姓氏}${patient.中文名字}` : '',
-        覆診日期: new Date(appointment.覆診日期).toLocaleDateString('zh-TW'),
+        覆診日期: formatDisplayDate(appointment.覆診日期),
         出發時間: appointment.出發時間 || '',
         覆診時間: appointment.覆診時間 || '',
         覆診地點: appointment.覆診地點 || '',
@@ -581,7 +583,7 @@ const FollowUpManagement: React.FC = () => {
     const headers = ['床號', '中文姓名', '覆診日期', '出發時間', '覆診時間', '覆診地點', '覆診專科', '交通安排', '陪診人員', '狀態', '備註'];
     const csvContent = [
       `"院友覆診表"`,
-      `"生成日期: ${new Date().toLocaleDateString('zh-TW')}"`,
+      `"生成日期: ${formatDisplayDate(new Date())}"`,
       `"總記錄數: ${exportData.length}"`,
       '',
       headers.join(','),
@@ -603,7 +605,7 @@ const FollowUpManagement: React.FC = () => {
       return '';
     }
     
-    return `您好！這是善頤福群護老院C站的信息：${patient.中文姓氏}${patient.中文名字}將於${new Date(appointment.覆診日期).toLocaleDateString('zh-TW')}的${appointment.覆診時間.slice(0, 5)}，於${appointment.覆診地點}有${appointment.覆診專科}的醫療安排。請問需要輪椅的士代步/陪診員嗎？請盡快告知您的安排，謝謝！`;
+    return `您好！這是善頤福群護老院C站的信息：${patient.中文姓氏}${patient.中文名字}將於${formatDisplayDate(appointment.覆診日期)}的${appointment.覆診時間.slice(0, 5)}，於${appointment.覆診地點}有${appointment.覆診專科}的醫療安排。請問需要輪椅的士代步/陪診員嗎？請盡快告知您的安排，謝謝！`;
   };
 
   const copyNotificationMessage = (appointment: FollowUpAppointment) => {
@@ -1054,7 +1056,7 @@ const FollowUpManagement: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(appointment.覆診日期).toLocaleDateString('zh-TW')}
+                        {formatDisplayDate(appointment.覆診日期)}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="space-y-1">
@@ -1109,7 +1111,7 @@ const FollowUpManagement: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {appointment.創建時間 ? new Date(appointment.創建時間).toLocaleDateString('zh-TW') : '-'}
+                        {appointment.創建時間 ? formatDisplayDate(appointment.創建時間) : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-shrink-0 gap-2">

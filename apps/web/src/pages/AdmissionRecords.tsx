@@ -8,6 +8,8 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compar
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { printERRecordForms } from '../utils/erRecordPrintGenerator';
+import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
+
 
 type SortField = '開始日期' | '院友姓名' | '主要醫院' | '狀態' | '創建時間';
 type SortDirection = 'asc' | 'desc';
@@ -124,7 +126,7 @@ const AdmissionRecords: React.FC = () => {
                          fuzzyMatch(episode.primary_ward, searchTerm) ||
                          fuzzyMatch(episode.primary_bed_number, searchTerm) ||
                          fuzzyMatch(episode.remarks, searchTerm) ||
-                         fuzzyMatch(new Date(episode.episode_start_date).toLocaleDateString('zh-TW'), searchTerm);
+                         fuzzyMatch(formatDisplayDate(episode.episode_start_date), searchTerm);
     }
     
     return matchesSearch;
@@ -395,8 +397,8 @@ const AdmissionRecords: React.FC = () => {
       return {
         床號: patient?.床號 || '',
         中文姓名: patient ? `${patient.中文姓氏}${patient.中文名字}` : '',
-        住院開始日期: new Date(episode.episode_start_date).toLocaleDateString('zh-TW'),
-        住院結束日期: episode.episode_end_date ? new Date(episode.episode_end_date).toLocaleDateString('zh-TW') : '進行中',
+        住院開始日期: formatDisplayDate(episode.episode_start_date),
+        住院結束日期: episode.episode_end_date ? formatDisplayDate(episode.episode_end_date) : '進行中',
         住院天數: episode.total_days || '',
         狀態: dynamicStatus.label,
         主要醫院: episode.primary_hospital || '',
@@ -405,14 +407,14 @@ const AdmissionRecords: React.FC = () => {
         出院類型: episode.discharge_type ? getDischargeTypeLabel(episode.discharge_type) : '',
         出院目的地: episode.discharge_destination || '',
         備註: episode.remarks || '',
-        創建時間: new Date(episode.created_at).toLocaleString('zh-TW')
+        創建時間: formatDisplayDateTime(episode.created_at)
       };
     });
 
     const headers = ['床號', '中文姓名', '住院開始日期', '住院結束日期', '住院天數', '狀態', '主要醫院', '主要病房', '主要床號', '出院類型', '出院目的地', '備註', '創建時間'];
     const csvContent = [
       `"缺席事件記錄"`,
-      `"生成日期: ${new Date().toLocaleDateString('zh-TW')}"`,
+      `"生成日期: ${formatDisplayDate(new Date())}"`,
       `"總記錄數: ${exportData.length}"`,
       '',
       headers.join(','),
@@ -1035,14 +1037,14 @@ const AdmissionRecords: React.FC = () => {
                         <div>
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 mr-1 text-gray-400" />
-                            <span>{new Date(getAbsenceStartDate(episode)).toLocaleDateString('zh-TW')}</span>
+                            <span>{formatDisplayDate(getAbsenceStartDate(episode))}</span>
                           </div>
                           {(() => {
                             const endDate = getAbsenceEndDate(episode);
                             if (endDate) {
                               return (
                                 <div className="text-xs text-gray-500 mt-1">
-                                  至 {new Date(endDate).toLocaleDateString('zh-TW')}
+                                  至 {formatDisplayDate(endDate)}
                                 </div>
                               );
                             }
@@ -1171,7 +1173,7 @@ const AdmissionRecords: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {episode.created_at ? new Date(episode.created_at).toLocaleDateString('zh-TW') : '-'}
+                        {episode.created_at ? formatDisplayDate(episode.created_at) : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-wrap gap-2">

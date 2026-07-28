@@ -25,6 +25,8 @@ import PatientTooltip from '../components/PatientTooltip';
 import { generateIncidentReportWord } from '../utils/incidentReportWordGenerator';
 import { printIncidentReport } from '../utils/printIncidentReport';
 import { getTemplatesMetadata, downloadTemplateFile } from '../lib/database';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 type SortField = '院友姓名' | 'incident_date' | 'incident_type' | 'location' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -759,7 +761,7 @@ const IncidentReports: React.FC = () => {
                         <div className="text-xs text-gray-500">{report.reporter_position || ''}</div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="text-sm text-gray-500">{report.created_at ? new Date(report.created_at).toLocaleDateString('zh-TW') : '-'}</div>
+                        <div className="text-sm text-gray-500">{report.created_at ? formatDisplayDate(report.created_at) : '-'}</div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center justify-center gap-2">

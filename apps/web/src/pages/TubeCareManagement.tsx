@@ -23,6 +23,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import TubeCareModal from '../components/TubeCareModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
+import { formatDisplayDate } from '../utils/dateFormat';
 import { getTubeCareStatus } from '../utils/taskScheduler';
 
 type SortField = '院友姓名' | 'execution_date' | 'next_due_date' | 'created_at';
@@ -45,9 +46,7 @@ const CARE_TYPE_OPTIONS: PatientTubeCareRecord['care_type'][] = [
 
 const formatDate = (d?: string | null) => {
   if (!d) return '—';
-  const date = new Date(d);
-  if (Number.isNaN(date.getTime())) return d;
-  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+  return formatDisplayDate(d, '—');
 };
 
 const statusBadge = (record: PatientTubeCareRecord) => {

@@ -23,6 +23,8 @@ import MealGuidanceModal from '../components/MealGuidanceModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 type SortField = '院友姓名' | 'meal_combination' | 'guidance_date' | 'guidance_source' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -377,16 +379,16 @@ const MealGuidance: React.FC = () => {
         凝固粉分量: guidance.thickener_amount || '',
         雞蛋數目: guidance.egg_quantity || '',
         備註: guidance.remarks || '',
-        指引日期: guidance.guidance_date ? new Date(guidance.guidance_date).toLocaleDateString('zh-TW') : '',
+        指引日期: guidance.guidance_date ? formatDisplayDate(guidance.guidance_date) : '',
         指引出處: guidance.guidance_source || '',
-        建立日期: new Date(guidance.created_at).toLocaleDateString('zh-TW')
+        建立日期: formatDisplayDate(guidance.created_at)
       };
     });
 
     const headers = ['床號', '中文姓名', '餐膳組合', '特殊餐膳', '需要凝固粉', '凝固粉分量', '雞蛋數目', '備註', '指引日期', '指引出處', '建立日期'];
     const csvContent = [
       `"餐膳指引記錄"`,
-      `"生成日期: ${new Date().toLocaleDateString('zh-TW')}"`,
+      `"生成日期: ${formatDisplayDate(new Date())}"`,
       `"總記錄數: ${exportData.length}"`,
       '',
       headers.join(','),
@@ -959,7 +961,7 @@ const MealGuidance: React.FC = () => {
                         {guidance.guidance_date ? (
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-4 w-4 text-gray-400" />
-                            <span>{new Date(guidance.guidance_date).toLocaleDateString('zh-TW')}</span>
+                            <span>{formatDisplayDate(guidance.guidance_date)}</span>
                           </div>
                         ) : (
                           <span className="text-gray-500">-</span>
@@ -981,7 +983,7 @@ const MealGuidance: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {guidance.created_at ? new Date(guidance.created_at).toLocaleDateString('zh-TW') : '-'}
+                        {guidance.created_at ? formatDisplayDate(guidance.created_at) : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-wrap gap-2">

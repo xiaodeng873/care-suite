@@ -16,6 +16,8 @@ import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import StationModal from '../components/StationModal';
 import { fuzzyMatch, compareStationNames } from '../utils/searchUtils';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 const StationManagement: React.FC = () => {
   const { 
@@ -179,10 +181,10 @@ const StationManagement: React.FC = () => {
                       )}
                       <div className="flex flex-wrap items-center gap-4 mt-2">
                         <span className="text-sm text-gray-500">
-                          建立時間：{new Date(station.created_at).toLocaleDateString('zh-TW')}
+                          建立時間：{formatDisplayDate(station.created_at)}
                         </span>
                         <span className="text-sm text-gray-500">
-                          最後更新：{new Date(station.updated_at).toLocaleDateString('zh-TW')}
+                          最後更新：{formatDisplayDate(station.updated_at)}
                         </span>
                       </div>
                     </div>

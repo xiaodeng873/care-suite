@@ -33,6 +33,8 @@ import SingleWoundAssessmentModal from '../components/SingleWoundAssessmentModal
 import { syncTaskStatus, SYNC_CUTOFF_DATE_STR, supabase } from '../lib/database';
 import { getMissingMonitoringVitals } from '../utils/monitoringCoverage';
 import { hasInProgressCarePlan } from '../utils/carePlanStatus';
+import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
+
 interface Patient {
   院友id: string;
   中文姓名: string;
@@ -1033,7 +1035,7 @@ const Dashboard: React.FC = () => {
     <div className="space-y-6 lg:space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="text-sm text-gray-500">
-          最後更新: {new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Hong_Kong' })}
+          最後更新: {formatDisplayDateTime(new Date())}
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -1438,7 +1440,7 @@ const Dashboard: React.FC = () => {
                                 <p className="text-sm text-gray-600">{task.health_record_type}</p>
                             </div>
                              {task.notes && <p className="text-xs text-gray-500 mt-1">{task.notes}</p>}
-                            <p className="text-xs text-gray-500">到期: {new Date(task.next_due_at).toLocaleDateString('zh-TW')}</p>
+                            <p className="text-xs text-gray-500">到期: {formatDisplayDate(task.next_due_at)}</p>
                         </div>
                          <span className={`status-badge ${status === 'overdue' ? 'bg-red-100 text-red-800' : status === 'pending' ? 'bg-green-100 text-green-800' : status === 'due_soon' ? 'bg-orange-100 text-orange-800' : 'bg-purple-100 text-purple-800'}`}>
                             {status === 'overdue' ? '逾期' : status === 'pending' ? '未完成' : status === 'due_soon' ? '即將到期' : '排程中'}
@@ -1473,7 +1475,7 @@ const Dashboard: React.FC = () => {
                             <Stethoscope className="h-4 w-4 text-teal-600" />
                             <p className="text-sm text-gray-600">{detail}</p>
                           </div>
-                          <p className="text-xs text-gray-500">到期: {record.next_due_date ? new Date(record.next_due_date).toLocaleDateString('zh-TW') : '未設定'}</p>
+                          <p className="text-xs text-gray-500">到期: {record.next_due_date ? formatDisplayDate(record.next_due_date) : '未設定'}</p>
                         </div>
                         <span className={`status-badge ${isOverdue ? 'bg-red-100 text-red-800' : isDueSoon ? 'bg-orange-100 text-orange-800' : 'bg-teal-100 text-teal-800'}`}>
                           {isOverdue ? '逾期' : isDueSoon ? '即將到期' : '排程中'}
@@ -1501,7 +1503,7 @@ const Dashboard: React.FC = () => {
                             <Shield className="h-4 w-4 text-yellow-600" />
                             <p className="text-sm text-gray-600">約束物品評估</p>
                           </div>
-                          <p className="text-xs text-gray-500">到期: {assessment.next_due_date ? new Date(assessment.next_due_date).toLocaleDateString('zh-TW') : '未設定'}</p>
+                          <p className="text-xs text-gray-500">到期: {assessment.next_due_date ? formatDisplayDate(assessment.next_due_date) : '未設定'}</p>
                         </div>
                         <span className={`status-badge ${isOverdue ? 'bg-red-100 text-red-800' : isDueSoon ? 'bg-orange-100 text-orange-800' : 'bg-yellow-100 text-yellow-800'}`}>
                           {isOverdue ? '逾期' : isDueSoon ? '即將到期' : '排程中'}
@@ -1529,7 +1531,7 @@ const Dashboard: React.FC = () => {
                             <Stethoscope className="h-4 w-4 text-red-600" />
                             <p className="text-sm text-gray-600">健康評估</p>
                           </div>
-                          <p className="text-xs text-gray-500">到期: {assessment.next_due_date ? new Date(assessment.next_due_date).toLocaleDateString('zh-TW') : '未設定'}</p>
+                          <p className="text-xs text-gray-500">到期: {assessment.next_due_date ? formatDisplayDate(assessment.next_due_date) : '未設定'}</p>
                         </div>
                         <span className={`status-badge ${isOverdue ? 'bg-red-100 text-red-800' : isDueSoon ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'}`}>
                           {isOverdue ? '逾期' : isDueSoon ? '即將到期' : '排程中'}
@@ -1562,7 +1564,7 @@ const Dashboard: React.FC = () => {
                               <p className="text-sm text-gray-600">傷口評估 — {wound.wound_code}</p>
                               {wound.wound_name && <span className="text-xs text-gray-400">{wound.wound_name}</span>}
                             </div>
-                            <p className="text-xs text-gray-500">到期: {wound.next_assessment_due ? new Date(wound.next_assessment_due).toLocaleDateString('zh-TW') : '未設定'}</p>
+                            <p className="text-xs text-gray-500">到期: {wound.next_assessment_due ? formatDisplayDate(wound.next_assessment_due) : '未設定'}</p>
                           </div>
                           <span className={`status-badge ${isOverdue ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800'}`}>
                             {isOverdue ? '逾期' : '即將到期'}
@@ -1592,7 +1594,7 @@ const Dashboard: React.FC = () => {
                             <CalendarCheck className="h-4 w-4 text-blue-600" />
                             <p className="text-sm text-gray-600">年度體檢</p>
                           </div>
-                          <p className="text-xs text-gray-500">到期: {checkup.next_due_date ? new Date(checkup.next_due_date).toLocaleDateString('zh-TW') : '未設定'}</p>
+                          <p className="text-xs text-gray-500">到期: {checkup.next_due_date ? formatDisplayDate(checkup.next_due_date) : '未設定'}</p>
                         </div>
                         <span className={`status-badge ${isOverdue ? 'bg-red-100 text-red-800' : isDueSoon ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}`}>
                           {isOverdue ? '逾期' : isDueSoon ? '即將到期' : '排程中'}
@@ -1626,7 +1628,7 @@ const Dashboard: React.FC = () => {
                           <Calendar className="h-4 w-4 text-blue-600" />
                           <p className="text-sm text-gray-600">{appointment.覆診專科}</p>
                         </div>
-                        <p className="text-xs text-gray-500">{new Date(appointment.覆診日期).toLocaleDateString('zh-TW')} - {appointment.覆診地點}</p>
+                        <p className="text-xs text-gray-500">{formatDisplayDate(appointment.覆診日期)} - {appointment.覆診地點}</p>
                       </div>
                       <span className={`status-badge ${getStatusBadgeClass(appointment.狀態)}`}>{appointment.狀態}</span>
                    </div>

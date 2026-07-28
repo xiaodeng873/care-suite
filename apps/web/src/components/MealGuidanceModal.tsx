@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, Utensils, Calendar, FileText, Droplets } from 'lucide-react';
 import { usePatients, type Patient, type MealGuidance, type MealCombinationType, type SpecialDietType } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface MealGuidanceModalProps {
   guidance?: MealGuidance;
@@ -453,7 +455,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-gray-600">指引日期:</span>
                   <span className="font-medium">
-                    {new Date(formData.guidance_date).toLocaleDateString('zh-TW')}
+                    {formatDisplayDate(formData.guidance_date)}
                   </span>
                 </div>
               )}

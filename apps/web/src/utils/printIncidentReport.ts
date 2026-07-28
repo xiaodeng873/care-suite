@@ -1,6 +1,7 @@
 import { IncidentReport, Patient } from '../lib/database';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
+import { formatDisplayDate } from './dateFormat';
 // 生成意外經過摘要 (不含日期、時間、院友名，因其他欄位已有)
 const generateIncidentSummary = (patient: Patient, report: IncidentReport): string => {
   let summary = '';
@@ -126,7 +127,7 @@ export const generateIncidentReportPrintHTML = (
         if (hasData) {
           // 格式化日期和時間
           const incidentDate = report.incident_date
-            ? new Date(report.incident_date).toLocaleDateString('zh-HK', { year: 'numeric', month: '2-digit', day: '2-digit' })
+            ? formatDisplayDate(report.incident_date)
             : '';
           const incidentTime = report.incident_time || '';
 

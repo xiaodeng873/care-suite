@@ -15,6 +15,8 @@ import { supabase } from '../lib/supabase';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 import { useStationFilter } from '../context/StationFilterContext';
 import type { ScheduleWithDetails } from '../context/PatientContext';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 const Scheduling: React.FC = () => {
   const { schedules, deleteSchedule, patients, stations, loading, refreshData } = usePatients();
   const { isFiltered, selectedStationIds } = useStationFilter();
@@ -231,7 +233,7 @@ const Scheduling: React.FC = () => {
     }
     let matchesSearch = true;
     if (searchTerm) {
-      const dateMatch = new Date(schedule.到診日期).toLocaleDateString('zh-TW').includes(searchTerm.toLowerCase());
+      const dateMatch = formatDisplayDate(schedule.到診日期).includes(searchTerm.toLowerCase());
       const patientMatch = schedule.院友列表.some(item => {
         const patient = patientMap.get(item.院友id);
         return (
@@ -414,12 +416,7 @@ const Scheduling: React.FC = () => {
                     <Calendar className="h-6 w-6 text-blue-600" />
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
-                        {new Date(schedule.到診日期).toLocaleDateString('zh-TW', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          weekday: 'long'
-                        })}
+                        {formatDisplayDate(schedule.到診日期)}
                       </h3>
                       <p className="text-sm text-gray-600">
                         {isFiltered
@@ -517,7 +514,7 @@ const Scheduling: React.FC = () => {
                                   }
                                 </span>
                                 <span className="text-gray-400">|</span>
-                                <span>{patient.出生日期 ? new Date(patient.出生日期).toLocaleDateString('zh-TW') : '出生日期未知'}</span>
+                                <span>{patient.出生日期 ? formatDisplayDate(patient.出生日期) : '出生日期未知'}</span>
                               </div>
                               <div>
                                 <span className="font-mono">{patient.身份證號碼 || '身份證號碼未知'}</span>

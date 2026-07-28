@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar, Clock, Guitar as Hospital, MapPin, Bed, User, AlertTriangle, Heart, Building2, FileText, Activity } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
+import { formatDisplayDate } from '../utils/dateFormat';
+
 
 interface EpisodeEvent {
   id: string;
@@ -498,7 +500,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                         {(() => {
                           const admissionEvent = events.find(e => e.event_type === 'admission');
                           return admissionEvent 
-                            ? `${new Date(admissionEvent.event_date).toLocaleDateString('zh-TW')} ${admissionEvent.event_time || ''}`
+                            ? `${formatDisplayDate(admissionEvent.event_date)} ${admissionEvent.event_time || ''}`
                             : '待設定入院事件';
                         })()}
                       </span>
@@ -509,7 +511,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                         {(() => {
                           const dischargeEvent = events.find(e => e.event_type === 'discharge');
                           return dischargeEvent 
-                            ? `${new Date(dischargeEvent.event_date).toLocaleDateString('zh-TW')} ${dischargeEvent.event_time || ''}`
+                            ? `${formatDisplayDate(dischargeEvent.event_date)} ${dischargeEvent.event_time || ''}`
                             : '入院中';
                         })()}
                       </span>
