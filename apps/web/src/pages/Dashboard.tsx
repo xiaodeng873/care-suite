@@ -1005,7 +1005,7 @@ const Dashboard: React.FC = () => {
       case '導尿管更換': return <FileText className="h-4 w-4" />;
       case '鼻胃飼管更換': return <FileText className="h-4 w-4" />;
       case '傷口換症': return <FileText className="h-4 w-4" />;
-      case '晚晴計劃': return <Heart className="h-4 w-4" />;
+      case '預設醫療指示': return <Heart className="h-4 w-4" />;
       default: return <CheckSquare className="h-4 w-4" />;
     }
   };

@@ -883,7 +883,7 @@ const Reports: React.FC = () => {
 
       const hasPalliativeCare = (patientHealthTasks || []).some(task =>
         task.patient_id === patient.院友id &&
-        task.health_record_type === '晚晴計劃'
+        task.health_record_type === '預設醫療指示'
       );
 
       const consciousness = parseTextToArray(assessment?.consciousness_cognition);

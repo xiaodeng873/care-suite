@@ -2,7 +2,7 @@ import type { PatientHealthTask, FrequencyUnit } from '../lib/database';
 import { SYNC_CUTOFF_DATE_STR } from '../lib/database';
 // 判斷是否為文件任務
 export function isDocumentTask(taskType: string): boolean {
-  return taskType === '藥物自存同意書' || taskType === '晚晴計劃';
+  return taskType === '藥物自存同意書' || taskType === '預設醫療指示';
 }
 // 判斷是否為監測任務
 const MONITORING_TASK_TYPES = new Set([
@@ -18,9 +18,9 @@ export function isNursingTask(taskType: string): boolean {
   // 導尿管更換、鼻胃飼管更換 已移至「喉管護理」獨立管理；此處只保留 傷口換症
   return taskType === '傷口換症';
 }
-// 判斷是否為晚晴計劃任務
+// 判斷是否為預設醫療指示任務
 export function isEveningCarePlanTask(taskType: string): boolean {
-  return taskType === '晚晴計劃';
+  return taskType === '預設醫療指示';
 }
 // [核心修正+調試] 判斷某一天是否應該有任務
 export function isTaskScheduledForDate(task: any, date: Date): boolean {

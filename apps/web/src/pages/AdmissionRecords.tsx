@@ -29,7 +29,7 @@ interface AdvancedFilters {
 }
 
 const AdmissionRecords: React.FC = () => {
-  const { hospitalEpisodes, patients, deleteHospitalEpisode, loading } = usePatients();
+  const { hospitalEpisodes, patients, mealGuidances, deleteHospitalEpisode, loading } = usePatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -321,7 +321,7 @@ const AdmissionRecords: React.FC = () => {
     const selectedEpisodes = hospitalEpisodes.filter((episode) => selectedRows.has(episode.id));
     if (selectedEpisodes.length === 0) return;
     try {
-      await printPatientReferralForms(selectedEpisodes, patients);
+      await printPatientReferralForms(selectedEpisodes, patients, mealGuidances);
     } catch (error) {
       console.error('列印送診表失敗:', error);
       alert('列印失敗，請稍後再試');

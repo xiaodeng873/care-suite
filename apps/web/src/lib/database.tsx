@@ -169,7 +169,7 @@ export interface FollowUpAppointment {
   創建時間: string;
   更新時間: string;
 }
-export type MealCombinationType = '正飯+正餸' | '正飯+碎餸' | '正飯+糊餸' | '軟飯+正餸' | '軟飯+碎餸' | '軟飯+糊餸' | '糊飯+糊餸';
+export type MealCombinationType = '正飯+正餸' | '正飯+碎餸' | '正飯+糊餸' | '軟飯+正餸' | '軟飯+碎餸' | '軟飯+糊餸' | '糊飯+糊餸' | '不適用';
 export type SpecialDietType = '糖尿餐' | '痛風餐' | '低鹽餐' | '鼻胃飼' | '雞蛋';
 export interface MealGuidance {
   id: string;
@@ -180,6 +180,8 @@ export interface MealGuidance {
   needs_feeding?: boolean;
   thickener_amount?: string;
   egg_quantity?: number;
+  tube_feeding_brand?: string;
+  tube_feeding_daily_amount_ml?: number;
   remarks?: string;
   guidance_date?: string;
   guidance_source?: string;
@@ -187,7 +189,7 @@ export interface MealGuidance {
   updated_at: string;
 }
 /** 所有任務類型（VitalSignType 為其子集，監測任務用）*/
-export type HealthTaskType = VitalSignType | '約束物品同意書' | '年度體檢' | '導尿管更換' | '鼻胃飼管更換' | '傷口換症' | '藥物自存同意書' | '晚晴計劃' | '氧氣喉管清洗/更換';
+export type HealthTaskType = VitalSignType | '約束物品同意書' | '年度體檢' | '導尿管更換' | '鼻胃飼管更換' | '傷口換症' | '藥物自存同意書' | '預設醫療指示' | '氧氣喉管清洗/更換';
 export type FrequencyUnit = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type MonitoringTaskNotes = '注射前' | '服藥前' | '定期' | '特別關顧' | '社康';
 export interface PatientHealthTask {

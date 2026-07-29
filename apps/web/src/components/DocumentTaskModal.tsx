@@ -66,7 +66,7 @@ const DocumentTaskModal: React.FC<DocumentTaskModalProps> = ({
         date.setFullYear(date.getFullYear() + 1);
       } else if (task.health_record_type === '約束物品同意書') {
         date.setMonth(date.getMonth() + 6);
-      } else if (task.health_record_type === '晚晴計劃') {
+      } else if (task.health_record_type === '預設醫療指示') {
         date.setFullYear(date.getFullYear() + 1);
       } else if (task.health_record_type === '傷口換症') {
         date.setDate(date.getDate() + 7); // 預設每週
@@ -99,7 +99,7 @@ const DocumentTaskModal: React.FC<DocumentTaskModalProps> = ({
         return '傷口換症日期';
       case '藥物自存同意書':
         return '簽署日期';
-      case '晚晴計劃':
+      case '預設醫療指示':
         return '醫生簽署日期';
       default:
         return '醫生簽署日期';
@@ -161,7 +161,7 @@ const DocumentTaskModal: React.FC<DocumentTaskModalProps> = ({
       case '導尿管更換': return 'text-blue-600';
       case '鼻胃飼管更換': return 'text-green-600';
       case '傷口換症': return 'text-red-600';
-      case '晚晴計劃': return 'text-pink-600';
+      case '預設醫療指示': return 'text-pink-600';
       default: return 'text-purple-600';
     }
   };

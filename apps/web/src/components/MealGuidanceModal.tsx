@@ -28,6 +28,8 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
     needs_feeding: guidance?.needs_feeding || false,
     thickener_amount: guidance?.thickener_amount || '',
     egg_quantity: guidance?.egg_quantity?.toString() || '',
+    tube_feeding_brand: guidance?.tube_feeding_brand || '',
+    tube_feeding_daily_amount_ml: guidance?.tube_feeding_daily_amount_ml?.toString() || '',
     remarks: guidance?.remarks || '',
     guidance_date: guidance?.guidance_date || '',
     guidance_source: guidance?.guidance_source || ''
@@ -40,15 +42,16 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
     '軟飯+正餸',
     '軟飯+碎餸',
     '軟飯+糊餸',
-    '糊飯+糊餸'
+    '糊飯+糊餸',
+    '不適用'
   ];
 
   const specialDietOptions: SpecialDietType[] = [
     '糖尿餐',
     '痛風餐', 
     '低鹽餐',
-    '雞蛋',
-    '素食'
+    '鼻胃飼',
+    '雞蛋'
   ];
 
   const guidanceSourceOptions = [
@@ -112,6 +115,8 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
             needs_feeding: existingGuidance.needs_feeding || false,
             thickener_amount: existingGuidance.thickener_amount || '',
             egg_quantity: existingGuidance.egg_quantity?.toString() || '',
+            tube_feeding_brand: existingGuidance.tube_feeding_brand || '',
+            tube_feeding_daily_amount_ml: existingGuidance.tube_feeding_daily_amount_ml?.toString() || '',
             remarks: existingGuidance.remarks || '',
             guidance_date: existingGuidance.guidance_date || '',
             guidance_source: existingGuidance.guidance_source || ''
@@ -135,6 +140,17 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
       return;
     }
 
+    if (formData.special_diets.includes('鼻胃飼')) {
+      if (!formData.tube_feeding_brand.trim()) {
+        alert('特別餐選擇鼻胃飼時請輸入鼻胃管奶水品牌');
+        return;
+      }
+      if (!formData.tube_feeding_daily_amount_ml || parseInt(formData.tube_feeding_daily_amount_ml) < 1) {
+        alert('特別餐選擇鼻胃飼時請輸入有效的鼻胃管每天餐量（ml）');
+        return;
+      }
+    }
+
     try {
       const guidanceData = {
         patient_id: parseInt(formData.patient_id),
@@ -144,6 +160,8 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
         needs_feeding: formData.needs_feeding,
         thickener_amount: formData.needs_thickener ? formData.thickener_amount : null,
         egg_quantity: formData.special_diets.includes('雞蛋') ? parseInt(formData.egg_quantity) : null,
+        tube_feeding_brand: formData.special_diets.includes('鼻胃飼') ? formData.tube_feeding_brand : null,
+        tube_feeding_daily_amount_ml: formData.special_diets.includes('鼻胃飼') ? parseInt(formData.tube_feeding_daily_amount_ml) : null,
         remarks: formData.remarks || null,
         guidance_date: formData.guidance_date || null,
         guidance_source: formData.guidance_source || null
@@ -254,6 +272,37 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
           </div>
 
           {/* 特殊餐膳 */}
+
+          {/* 鼻胃飼資料 */}
+          {formData.special_diets.includes('鼻胃飼') && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div>
+                <label className="form-label">鼻胃管奶水品牌 *</label>
+                <input
+                  type="text"
+                  name="tube_feeding_brand"
+                  value={formData.tube_feeding_brand}
+                  onChange={handleChange}
+                  className="form-input"
+                  placeholder="例如：Ensure / Nutren"
+                  required={formData.special_diets.includes('鼻胃飼')}
+                />
+              </div>
+              <div>
+                <label className="form-label">鼻胃管每天餐量（ml） *</label>
+                <input
+                  type="number"
+                  name="tube_feeding_daily_amount_ml"
+                  value={formData.tube_feeding_daily_amount_ml}
+                  onChange={handleChange}
+                  className="form-input"
+                  placeholder="例如：1200"
+                  min="1"
+                  required={formData.special_diets.includes('鼻胃飼')}
+                />
+              </div>
+            </div>
+          )}
           <div>
             <label className="form-label">特殊餐膳 (可多選)</label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

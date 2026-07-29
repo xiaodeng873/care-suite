@@ -256,7 +256,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
       case '血糖控制': return <Droplets className="h-5 w-5" />;
       case '體重控制': return <Scale className="h-5 w-5" />;
       case '藥物自存同意書': return <FileText className="h-5 w-5" />;
-      case '晚晴計劃': return <FileText className="h-5 w-5" />;
+      case '預設醫療指示': return <FileText className="h-5 w-5" />;
       default: return <CheckSquare className="h-5 w-5" />;
     }
   };
@@ -267,7 +267,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
       case '血糖控制': return 'text-red-600';
       case '體重控制': return 'text-green-600';
       case '藥物自存同意書': return 'text-gray-600';
-      case '晚晴計劃': return 'text-pink-600';
+      case '預設醫療指示': return 'text-pink-600';
       default: return 'text-purple-600';
     }
   };
@@ -389,7 +389,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
                     </>)}
                     {taskCategory === 'document' && (<>
                       <option value="藥物自存同意書">藥物自存同意書</option>
-                      <option value="晚晴計劃">晚晴計劃</option>
+                      <option value="預設醫療指示">預設醫療指示</option>
                     </>)}
                   </select>
                 </div>
@@ -397,7 +397,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
             </div>
           </div>
 
-          {taskCategory === 'document' && (formData.health_record_type === '藥物自存同意書' || formData.health_record_type === '晚晴計劃') && (
+          {taskCategory === 'document' && (formData.health_record_type === '藥物自存同意書' || formData.health_record_type === '預設醫療指示') && (
             <div>
               <label className="form-label">
                 <Calendar className="h-4 w-4 inline mr-1" />
