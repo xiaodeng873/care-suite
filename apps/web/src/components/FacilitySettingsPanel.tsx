@@ -14,6 +14,9 @@ const FacilitySettingsPanel: React.FC = () => {
   const [facilityNameZh, setFacilityNameZh] = useState('');
   const [facilityNameEn, setFacilityNameEn] = useState('');
   const [facilityPhone, setFacilityPhone] = useState('');
+  const [facilityAddressZh, setFacilityAddressZh] = useState('');
+  const [facilityAddressEn, setFacilityAddressEn] = useState('');
+  const [facilityFax, setFacilityFax] = useState('');
   const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -27,7 +30,10 @@ const FacilitySettingsPanel: React.FC = () => {
       if (!active) return;
       setFacilityNameZh(settings.facilityNameZh);
       setFacilityNameEn(settings.facilityNameEn);
+      setFacilityAddressZh(settings.facilityAddressZh);
+      setFacilityAddressEn(settings.facilityAddressEn);
       setFacilityPhone(settings.facilityPhone);
+      setFacilityFax(settings.facilityFax);
       setLogoDataUri(settings.logoDataUri);
       setLoading(false);
     })();
@@ -64,13 +70,28 @@ const FacilitySettingsPanel: React.FC = () => {
       setMessage({ type: 'error', text: '院舍名稱為必填' });
       return;
     }
+    if (!facilityAddressZh.trim()) {
+      setMessage({ type: 'error', text: '院舍中文地址為必填' });
+      return;
+    }
+    if (!facilityPhone.trim()) {
+      setMessage({ type: 'error', text: '院舍電話為必填' });
+      return;
+    }
+    if (!facilityFax.trim()) {
+      setMessage({ type: 'error', text: '院舍傳真為必填' });
+      return;
+    }
     setSaving(true);
     setMessage(null);
     try {
       await saveFacilitySettings({
         facilityNameZh: facilityNameZh.trim(),
         facilityNameEn: facilityNameEn.trim(),
+        facilityAddressZh: facilityAddressZh.trim(),
+        facilityAddressEn: facilityAddressEn.trim(),
         facilityPhone: facilityPhone.trim(),
+        facilityFax: facilityFax.trim(),
         logoDataUri,
       });
       setMessage({ type: 'success', text: '院舍設定已儲存' });
@@ -134,16 +155,58 @@ const FacilitySettingsPanel: React.FC = () => {
           />
         </div>
 
+        {/* 院舍中文地址 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            院舍中文地址<span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={facilityAddressZh}
+            onChange={(e) => setFacilityAddressZh(e.target.value)}
+            placeholder="請輸入院舍中文地址"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* 院舍英文地址 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            院舍英文地址（選填）
+          </label>
+          <input
+            type="text"
+            value={facilityAddressEn}
+            onChange={(e) => setFacilityAddressEn(e.target.value)}
+            placeholder="請輸入院舍英文地址"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
         {/* 院舍電話 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            院舍電話
+            院舍電話<span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={facilityPhone}
             onChange={(e) => setFacilityPhone(e.target.value)}
             placeholder="請輸入院舍電話"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* 院舍傳真 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            院舍傳真<span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={facilityFax}
+            onChange={(e) => setFacilityFax(e.target.value)}
+            placeholder="請輸入院舍傳真"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           />
         </div>

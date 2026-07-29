@@ -30,7 +30,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
   defaultPatientId,
   defaultEventType = 'admission'
 }) => {
-  const { patients, addHospitalEpisode, updateHospitalEpisode, loading } = usePatients();
+  const { patients, allPatients, updatePatient, addHospitalEpisode, updateHospitalEpisode, loading } = usePatients();
 
   // 香港時區輔助函數
   const getHongKongDate = () => {
@@ -382,6 +382,19 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
         await updateHospitalEpisode({ ...submitData, id: episode.id });
       } else {
         await addHospitalEpisode(submitData);
+      }
+
+      // 若缺席事件標記為離世，自動回填院友主表的 death_date
+      if (cleanFormData.discharge_type === 'deceased' && cleanFormData.date_of_death && formData.patient_id) {
+        const patientId = parseInt(formData.patient_id, 10);
+        const patient = allPatients.find((p: any) => p.院友id === patientId);
+        if (patient && patient.death_date !== cleanFormData.date_of_death) {
+          try {
+            await updatePatient({ ...patient, death_date: cleanFormData.date_of_death });
+          } catch (backfillError) {
+            console.error('回填院友 death_date 失敗:', backfillError);
+          }
+        }
       }
 
       onClose();

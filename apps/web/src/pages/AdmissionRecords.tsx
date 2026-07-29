@@ -8,6 +8,7 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compar
 import PatientTooltip from '../components/PatientTooltip';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { printERRecordForms } from '../utils/erRecordPrintGenerator';
+import { printPatientReferralForms } from '../utils/patientReferralPrintGenerator';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
 
 
@@ -52,6 +53,20 @@ const AdmissionRecords: React.FC = () => {
     在住狀態: '在住'
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [showPrintDropdown, setShowPrintDropdown] = useState(false);
+  const printDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (printDropdownRef.current && !printDropdownRef.current.contains(event.target as Node)) {
+        setShowPrintDropdown(false);
+      }
+    };
+    if (showPrintDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showPrintDropdown]);
 
   // Reset to first page when filters change
   React.useEffect(() => {
@@ -297,6 +312,18 @@ const AdmissionRecords: React.FC = () => {
       await printERRecordForms(selectedEpisodes, patients);
     } catch (error) {
       console.error('列印出入院記錄失敗:', error);
+      alert('列印失敗，請稍後再試');
+    }
+  };
+
+  const handlePrintSelectedReferralForms = async () => {
+    if (selectedRows.size === 0) return;
+    const selectedEpisodes = hospitalEpisodes.filter((episode) => selectedRows.has(episode.id));
+    if (selectedEpisodes.length === 0) return;
+    try {
+      await printPatientReferralForms(selectedEpisodes, patients);
+    } catch (error) {
+      console.error('列印送診表失敗:', error);
       alert('列印失敗，請稍後再試');
     }
   };
@@ -697,20 +724,45 @@ const AdmissionRecords: React.FC = () => {
                 <span>匯出選定記錄</span>
               </button>
             )}
-            <button
-              onClick={() => {
-                if (selectedRows.size === 0) {
-                  alert('請先勾選主表格中的記錄');
-                  return;
-                }
-                handlePrintSelectedERRecords();
-              }}
-              disabled={selectedRows.size === 0}
-              className="btn-secondary flex flex-wrap items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Printer className="h-4 w-4" />
-              <span>列印出入院記錄</span>
-            </button>
+            <div className="relative" ref={printDropdownRef}>
+              <button
+                onClick={() => {
+                  if (selectedRows.size === 0) {
+                    alert('請先勾選主表格中的記錄');
+                    return;
+                  }
+                  setShowPrintDropdown(prev => !prev);
+                }}
+                disabled={selectedRows.size === 0}
+                className="btn-secondary flex flex-wrap items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Printer className="h-4 w-4" />
+                <span>列印</span>
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              {showPrintDropdown && (
+                <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                  <button
+                    onClick={() => {
+                      setShowPrintDropdown(false);
+                      handlePrintSelectedReferralForms();
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md"
+                  >
+                    送診表
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowPrintDropdown(false);
+                      handlePrintSelectedERRecords();
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-b-md"
+                  >
+                    出入院記錄
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               onClick={() => {
                 setSelectedEpisode(null);

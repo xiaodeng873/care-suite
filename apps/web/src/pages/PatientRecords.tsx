@@ -5,6 +5,7 @@ import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientModal from '../components/PatientModal';
 import DischargeModal from '../components/DischargeModal';
+import DischargeEpisodeWarningModal from '../components/DischargeEpisodeWarningModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { PatientQRCodeModal } from '../components/PatientQRCodeModal';
 import PatientPrintModal from '../components/PatientPrintModal';
@@ -35,10 +36,13 @@ interface AdvancedFilters {
 }
 
 const PatientRecords: React.FC = () => {
-  const { patients, loading, deletePatient, updatePatient } = usePatients();
+  const { patients, loading, deletePatient, updatePatient, hospitalEpisodes, updateHospitalEpisode } = usePatients();
   const [showModal, setShowModal] = useState(false);
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
+  const [showEpisodeWarningModal, setShowEpisodeWarningModal] = useState(false);
+  const [pendingDischargePatient, setPendingDischargePatient] = useState<any>(null);
+  const [pendingDischargeDate, setPendingDischargeDate] = useState<string>('');
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
@@ -294,7 +298,19 @@ const PatientRecords: React.FC = () => {
     setShowDischargeModal(true);
   };
 
-  const handleConfirmDischarge = async (updatedPatient: any, dischargeDate: string) => {
+  const getUnclosedHospitalEpisodes = (patientId: number) => {
+    return hospitalEpisodes.filter((ep: any) => {
+      if (ep.patient_id !== patientId) return false;
+      const events = ep.episode_events || [];
+      const hasVacationStart = events.some((e: any) => e.event_type === 'vacation_start');
+      const hasVacationEnd = events.some((e: any) => e.event_type === 'vacation_end');
+      const hasAdmissionOrTransfer = events.some((e: any) => e.event_type === 'admission' || e.event_type === 'transfer');
+      const hasDischarge = events.some((e: any) => e.event_type === 'discharge');
+      return (hasVacationStart && !hasVacationEnd) || (hasAdmissionOrTransfer && !hasDischarge);
+    });
+  };
+
+  const executeDischarge = async (updatedPatient: any, dischargeDate: string) => {
     try {
       // DischargeModal 已經包含了完整的退住資料(退住原因、死亡日期、轉往機構等)
       await updatePatient(updatedPatient);
@@ -306,12 +322,141 @@ const PatientRecords: React.FC = () => {
         console.error('取消 VMO 排程時發生錯誤:', scheduleError);
         // 不影響退住操作，只記錄錯誤
       }
+
+      // 自動閉合院友未結束嘅缺席事件
+      try {
+        await closeOpenHospitalEpisodes(
+          updatedPatient.院友id,
+          updatedPatient.discharge_reason,
+          dischargeDate,
+          updatedPatient.death_date,
+          updatedPatient.transfer_facility_name
+        );
+      } catch (episodeError) {
+        console.error('自動閉合缺席事件時發生錯誤:', episodeError);
+        // 不影響退住操作，只記錄錯誤
+      }
       
       setShowDischargeModal(false);
       setSelectedPatient(null);
+      setPendingDischargePatient(null);
+      setPendingDischargeDate('');
     } catch (error) {
       console.error('退住失敗:', error);
       alert('退住失敗，請重試');
+    }
+  };
+
+  const handleConfirmDischarge = async (updatedPatient: any, dischargeDate: string) => {
+    const unclosedEpisodes = getUnclosedHospitalEpisodes(updatedPatient.院友id);
+    if (unclosedEpisodes.length > 0) {
+      setPendingDischargePatient(updatedPatient);
+      setPendingDischargeDate(dischargeDate);
+      setShowEpisodeWarningModal(true);
+      return;
+    }
+    await executeDischarge(updatedPatient, dischargeDate);
+  };
+
+  const handleProceedDischarge = async () => {
+    if (!pendingDischargePatient || !pendingDischargeDate) return;
+    setShowEpisodeWarningModal(false);
+    await executeDischarge(pendingDischargePatient, pendingDischargeDate);
+  };
+
+  const closeOpenHospitalEpisodes = async (
+    patientId: number,
+    dischargeReason: '死亡' | '回家' | '留醫' | '轉往其他機構',
+    dischargeDate: string,
+    deathDate?: string | null,
+    transferFacilityName?: string | null
+  ) => {
+    if (dischargeReason === '留醫') return;
+
+    const closingDate = dischargeReason === '死亡' ? (deathDate || dischargeDate) : dischargeDate;
+
+    let dischargeType: string;
+    let dischargeDestination: string | null = null;
+    let dateOfDeath: string | null = null;
+
+    switch (dischargeReason) {
+      case '死亡':
+        dischargeType = 'deceased';
+        dateOfDeath = deathDate || dischargeDate;
+        break;
+      case '回家':
+        dischargeType = 'home';
+        break;
+      case '轉往其他機構':
+        dischargeType = 'transfer_out';
+        dischargeDestination = transferFacilityName || '';
+        break;
+      default:
+        return;
+    }
+
+    const patientEpisodes = hospitalEpisodes.filter((ep: any) => ep.patient_id === patientId);
+
+    for (const episode of patientEpisodes) {
+      const events = episode.episode_events || [];
+      const hasVacationStart = events.some((e: any) => e.event_type === 'vacation_start');
+      const hasVacationEnd = events.some((e: any) => e.event_type === 'vacation_end');
+      const hasAdmissionOrTransfer = events.some((e: any) => e.event_type === 'admission' || e.event_type === 'transfer');
+      const hasDischarge = events.some((e: any) => e.event_type === 'discharge');
+
+      const newEvents: any[] = [];
+
+      if (hasVacationStart && !hasVacationEnd) {
+        newEvents.push({
+          event_type: 'vacation_end',
+          event_date: closingDate,
+          event_time: '',
+          hospital_name: episode.primary_hospital || '',
+          hospital_ward: episode.primary_ward || '',
+          hospital_bed_number: episode.primary_bed_number || '',
+          remarks: '自動閉合：院友退住',
+          event_order: (events.length + newEvents.length + 1) * 10,
+          vacation_end_type: dischargeType,
+          vacation_destination: dischargeDestination
+        });
+      }
+
+      if (hasAdmissionOrTransfer && !hasDischarge) {
+        // 使用最後一個入院/轉院事件嘅醫院名稱（如可用）
+        const sortedEvents = [...events].sort((a: any, b: any) => {
+          const dateA = new Date(`${a.event_date} ${a.event_time || '00:00'}`).getTime();
+          const dateB = new Date(`${b.event_date} ${b.event_time || '00:00'}`).getTime();
+          return dateB - dateA;
+        });
+        const lastHospitalEvent = sortedEvents.find((e: any) => e.event_type === 'admission' || e.event_type === 'transfer');
+
+        newEvents.push({
+          event_type: 'discharge',
+          event_date: closingDate,
+          event_time: '',
+          hospital_name: lastHospitalEvent?.hospital_name || episode.primary_hospital || '',
+          hospital_ward: lastHospitalEvent?.hospital_ward || episode.primary_ward || '',
+          hospital_bed_number: lastHospitalEvent?.hospital_bed_number || episode.primary_bed_number || '',
+          remarks: '自動閉合：院友退住',
+          event_order: (events.length + newEvents.length + 1) * 10
+        });
+      }
+
+      if (newEvents.length === 0) continue;
+
+      const updatedEvents = [...events, ...newEvents];
+      const { episode_events, ...episodeData } = episode;
+
+      await updateHospitalEpisode({
+        ...episodeData,
+        events: updatedEvents,
+        episode_end_date: closingDate,
+        status: 'completed',
+        discharge_type: hasAdmissionOrTransfer && !hasDischarge ? dischargeType : (episode.discharge_type || null),
+        discharge_destination: hasAdmissionOrTransfer && !hasDischarge && dischargeType === 'transfer_out' ? dischargeDestination : (episode.discharge_destination || null),
+        vacation_end_type: hasVacationStart && !hasVacationEnd ? dischargeType : (episode.vacation_end_type || null),
+        date_of_death: dateOfDeath
+      });
     }
   };
 
@@ -1111,6 +1256,20 @@ const PatientRecords: React.FC = () => {
             setSelectedPatient(null);
           }}
           onConfirm={handleConfirmDischarge}
+        />
+      )}
+
+      {showEpisodeWarningModal && pendingDischargePatient && (
+        <DischargeEpisodeWarningModal
+          patient={pendingDischargePatient}
+          episodes={getUnclosedHospitalEpisodes(pendingDischargePatient.院友id)}
+          dischargeReason={pendingDischargePatient.discharge_reason}
+          onClose={() => {
+            setShowEpisodeWarningModal(false);
+            setPendingDischargePatient(null);
+            setPendingDischargeDate('');
+          }}
+          onProceed={handleProceedDischarge}
         />
       )}
 
