@@ -185,7 +185,7 @@ const generateP1 = (
             <col class="col-m"><col class="col-s"><col class="col-e" span="6">
           </colgroup>
 
-          <tr style="height: 22px;">
+          <tr style="height: 20.9px;">
             <th colspan="2">觀察日期</th>
             ${dateCells(assessment.assessment_date)}
           </tr>
@@ -572,7 +572,7 @@ export const generateHealthAssessmentHtml = (
     .page-p1 .db-checkbox { width: 13px; height: 13px; vertical-align: middle; cursor: pointer; }
     .page-p1 .opt-span { margin-right: 8px; white-space: nowrap; font-size: 12px; }
     .page-p1 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    .page-p1 th, .page-p1 td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0px 1px; height: 22px; font-size: 11px; }
+    .page-p1 th, .page-p1 td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0px 1px; height: 20.9px; font-size: 11px; }
     .page-p1 .col-m { width: 8.5mm; font-weight: bold; line-height: 1.0; font-size: 11px; }
     .page-p1 .col-s { width: 26mm; font-weight: bold; text-align: left; padding-left: 2px; }
     .page-p1 .col-e { width: auto; }

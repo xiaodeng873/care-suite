@@ -407,9 +407,10 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
               rounds: patientRounds,
             });
           }
+          // basic：含院友床號；blank：全空白
           return mod.generatePatrolRoundsRangeHtml({
             facilityName: ctx.facilityName,
-            bedNumber: getPrintBedNumber(patient),
+            bedNumber: ctx.contentMode === 'basic' ? getPrintBedNumber(patient) : '',
             startDate: ctx.startDate,
             endDate: ctx.endDate,
             rounds: [],
@@ -429,49 +430,58 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
             if (patientRecords.length === 0) return '';
             return mod.generateDiaperRecordFormForDateRange(patient, patientRecords, ctx.startDate, ctx.endDate, ctx.facilityName, true);
           }
-          return mod.generateDiaperRecordFormForDateRange(patient, [], ctx.startDate, ctx.endDate, ctx.facilityName, false);
+          // basic：含院友基本資料（showData=true 但無記錄）；blank：全空白
+          return mod.generateDiaperRecordFormForDateRange(patient, [], ctx.startDate, ctx.endDate, ctx.facilityName, ctx.contentMode === 'basic');
         };
       }
       case 'bedhead_intake_output': {
         const mod = await import('./intakeOutputHtmlGenerator');
         return async (ctx) => {
           const patient = ctxPatient(ctx);
+          const buildBaseInput = async (withPatientInfo: boolean) => {
+            if (!withPatientInfo) {
+              return {
+                facilityName: ctx.facilityName,
+                patientName: '',
+                bedNumber: '',
+                genderAge: '',
+                targetIntakeMl: undefined,
+                mealCombination: undefined,
+                specialDiets: [] as string[],
+              };
+            }
+            const db = await import('../lib/database');
+            const guidances = await db.getMealGuidances();
+            const guidance = guidances.find(g => g.patient_id === ctx.patient.院友id);
+            const name = `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`.trim() || patient.中文姓名 || '';
+            const genderAge = `${patient.性別 ?? ''}/${patient.出生日期 ? new Date().getFullYear() - new Date(patient.出生日期).getFullYear() : ''}`;
+            return {
+              facilityName: ctx.facilityName,
+              patientName: name,
+              bedNumber: getPrintBedNumber(patient),
+              genderAge,
+              targetIntakeMl: undefined,
+              mealCombination: guidance?.meal_combination,
+              specialDiets: guidance?.special_diets ?? [] as string[],
+            };
+          };
           if (ctx.contentMode === 'data') {
             const tabs = await loadPatientCareTabsForPatients([ctx.patient.院友id]);
             if (!patientHasCareTab(tabs, ctx.patient.院友id, 'intake_output')) return '';
             const db = await import('../lib/database');
             const records = await db.getIntakeOutputRecordsByPatient(ctx.patient.院友id, ctx.startDate, ctx.endDate);
             if (records.length === 0) return '';
-            const guidances = await db.getMealGuidances();
-            const guidance = guidances.find(g => g.patient_id === ctx.patient.院友id);
-            const name = `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`.trim() || patient.中文姓名 || '';
-            const genderAge = `${patient.性別 ?? ''}/${patient.出生日期 ? new Date().getFullYear() - new Date(patient.出生日期).getFullYear() : ''}`;
             return mod.generateIntakeOutputRangeHtml(
-              {
-                facilityName: ctx.facilityName,
-                patientName: name,
-                bedNumber: getPrintBedNumber(patient),
-                genderAge,
-                targetIntakeMl: undefined,
-                mealCombination: guidance?.meal_combination,
-                specialDiets: guidance?.special_diets ?? [],
-              },
+              await buildBaseInput(true),
               records as any,
               ctx.startDate,
               ctx.endDate,
               ctx.facilityName
             );
           }
+          // basic：含院友基本資料（含飲食指引）但無記錄；blank：全空白
           return mod.generateIntakeOutputRangeHtml(
-            {
-              facilityName: ctx.facilityName,
-              patientName: '',
-              bedNumber: '',
-              genderAge: '',
-              targetIntakeMl: undefined,
-              mealCombination: undefined,
-              specialDiets: [],
-            },
+            await buildBaseInput(ctx.contentMode === 'basic'),
             [],
             ctx.startDate,
             ctx.endDate,
@@ -570,8 +580,8 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
           contentMode,
         });
         // 「含既有輸入內容」模式：有內容則印內容，無內容則回退印基本資料
-        // 床頭記錄：data 模式下沒有該 tab 或沒有記錄時會回傳空字串，且不加入 skipped 提示
-        if (!html && contentMode === 'data') {
+        // 床頭記錄除外：data 模式下院友沒有該 tab 或沒有記錄時必須整份跳過，不回退
+        if (!html && contentMode === 'data' && !isBedhead) {
           html = await generator({
             patient,
             startDate: startDate || patient.入住日期 || '',
@@ -599,11 +609,9 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     return;
   }
 
-  // 使用 printUtils 依序列印：多份混和 orientation / margin 的文件合併成一份
-  // 列印會觸發 Chrome 具名 @page 分頁缺陷，導致內容被裁；
-  // 因此採用逐份 iframe 列印，確保每份文件與原範本一致。
-  const { printCombinedHtml } = await import('./printUtils');
-  printCombinedHtml(pages, 'patient-bundle-print-iframe', true);
+  // 使用 printGroupedHtml：依 @page 設定分組，同組合併到單一 iframe 列印
+  const { printGroupedHtml } = await import('./printUtils');
+  printGroupedHtml(pages, 'patient-bundle-print-iframe');
 
   // 回報未能列印的文件
   const notices: string[] = [];

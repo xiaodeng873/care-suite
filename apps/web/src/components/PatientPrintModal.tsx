@@ -96,20 +96,23 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
     return initial;
   });
   const [checkedDocuments, setCheckedDocuments] = useState<Set<string>>(() => {
+    // 不預設勾選任何文件；只有外部明確指定（initialSelectedDocumentIds）才帶入
     const initial = new Set<string>();
-    PRINT_DOCUMENTS.forEach(doc => {
-      if (doc.disabled) return;
-      if (initialSelectedDocumentIds) {
-        if (initialSelectedDocumentIds.includes(doc.id)) initial.add(doc.id);
-      } else if (doc.defaultChecked) {
-        initial.add(doc.id);
-      }
-    });
+    if (initialSelectedDocumentIds) {
+      PRINT_DOCUMENTS.forEach(doc => {
+        if (!doc.disabled && initialSelectedDocumentIds.includes(doc.id)) initial.add(doc.id);
+      });
+    }
     return initial;
   });
 
   const today = new Date().toISOString().split('T')[0];
-  const [startDate, setStartDate] = useState(initialStartDate ?? '');
+  const defaultStartDate = (() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.toISOString().split('T')[0];
+  })();
+  const [startDate, setStartDate] = useState(initialStartDate ?? defaultStartDate);
   const [endDate, setEndDate] = useState(initialEndDate ?? today);
   const [contentMode, setContentMode] = useState<PrintContentMode>('data');
 
@@ -138,6 +141,13 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
     } else {
       setSelectedPatientIds(new Set());
     }
+  };
+
+  // 同一時間只能列印一個 tab 的內容：切換 tab 時清空已勾選的文件
+  const handleTabChange = (tab: PrintDocumentCategory) => {
+    if (tab === activeTab) return;
+    setActiveTab(tab);
+    setCheckedDocuments(new Set());
   };
 
   const toggleDocument = (id: string) => {
@@ -201,7 +211,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
               onChange={e => setEndDate(e.target.value)}
               className="form-input text-sm"
             />
-            <span className="text-xs text-gray-500">（預設由入住日起至當日）</span>
+            <span className="text-xs text-gray-500">（預設最近一個月）</span>
           </div>
           <div className="flex items-center gap-4">
             <label className="text-sm font-medium text-gray-700 whitespace-nowrap">列印內容：</label>
@@ -265,7 +275,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
                 {TAB_ORDER.map(tab => (
                   <button
                     key={tab}
-                    onClick={() => setActiveTab(tab)}
+                    onClick={() => handleTabChange(tab)}
                     className={`px-6 py-3 text-sm font-medium border-b-2 ${
                       activeTab === tab
                         ? 'border-blue-600 text-blue-600'

@@ -261,7 +261,7 @@ export const generateIncidentReportPrintHTML = (
     <style>
         @page {
             size: 210mm 297mm;
-            margin: 5mm 12mm;
+            margin: 0;
         }
 
         @media print {
@@ -275,6 +275,7 @@ export const generateIncidentReportPrintHTML = (
             .page {
                 page-break-after: always;
                 break-after: page;
+                padding: 8mm;
             }
         }
 
@@ -288,6 +289,7 @@ export const generateIncidentReportPrintHTML = (
                 background: white;
                 box-shadow: 0 6px 24px rgba(0,0,0,0.22);
                 margin: 0 auto 20px;
+                min-height: 100vh;
             }
         }
 
@@ -304,7 +306,6 @@ export const generateIncidentReportPrintHTML = (
             padding: 8mm;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
         }
 
         /* 頂部標題區 */
@@ -377,13 +378,13 @@ export const generateIncidentReportPrintHTML = (
         }
 
         /* 欄位寬度分配 */
-        .col-no   { width: 45px; font-weight: bold; font-size: 16px; }
-        .col-date { width: 110px; }
-        .col-time { width: 90px; }
-        .col-evt  { width: 236px; }
-        .col-treat { width: 105px; }
-        .col-hosp { width: 55px; font-size: 13px; line-height: 1.2; }
-        .col-sign { width: 75px; }
+        .col-no   { width: 40px; font-weight: bold; font-size: 16px; }
+        .col-date { width: 100px; }
+        .col-time { width: 80px; }
+        .col-evt  { width: 210px; }
+        .col-treat { width: 95px; }
+        .col-hosp { width: 50px; font-size: 13px; line-height: 1.2; }
+        .col-sign { width: 65px; }
 
         /* DB組件 */
         .db-text-cell {
