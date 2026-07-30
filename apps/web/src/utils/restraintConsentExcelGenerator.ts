@@ -2,6 +2,7 @@ import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
 import { getTemplatesMetadata } from '../lib/database';
 import type { PatientRestraintAssessment } from '../context/PatientContext';
+import { getPrintBedNumber } from './bedTransferUtils';
 interface RestraintConsentExportData {
   id: string;
   patient_id: number;
@@ -15,6 +16,7 @@ interface RestraintConsentExportData {
   updated_at: string;
   院友: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     性別: string;
@@ -55,6 +57,7 @@ interface SheetConfig {
   template: ExtractedTemplate;
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     性別: string;
@@ -285,6 +288,7 @@ const applyRestraintConsentTemplateFormat = (
   template: ExtractedTemplate,
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     性別: string;
@@ -419,7 +423,7 @@ const applyRestraintConsentTemplateFormat = (
   worksheet.getCell('F80').value = `${patient.中文姓氏}${patient.中文名字}`;
   worksheet.getCell('O82').value = `${patient.中文姓氏}${patient.中文名字}`;
   worksheet.getCell('I91').value = `${patient.中文姓氏}${patient.中文名字}`;
-  worksheet.getCell('F5').value = patient.床號;
+  worksheet.getCell('F5').value = getPrintBedNumber(patient);
   // 性別/年齡組合
   if (patient.性別 && patient.出生日期) {
     const age = calculateAge(patient.出生日期);
@@ -753,6 +757,7 @@ export const exportRestraintConsentsToExcel = async (
         ...assessment,
         院友: {
           床號: patient?.床號 || '',
+          original_bed_number: patient?.original_bed_number,
           中文姓氏: patient?.中文姓氏 || '',
           中文名字: patient?.中文名字 || '',
           性別: patient?.性別 || '',
@@ -763,7 +768,7 @@ export const exportRestraintConsentsToExcel = async (
     });
     // 構建工作表配置
     const sheetsConfig: SheetConfig[] = exportData.map(data => ({
-      name: `${data.院友.床號}_${data.院友.中文姓氏}${data.院友.中文名字}_約束物品同意書`,
+      name: `${getPrintBedNumber(data.院友)}_${data.院友.中文姓氏}${data.院友.中文名字}_約束物品同意書`,
       template: extractedFormat,
       patient: data.院友,
       assessment: data
@@ -775,7 +780,7 @@ export const exportRestraintConsentsToExcel = async (
     // 決定檔案名稱
     const finalFilename = filename || 
       (sheetsConfig.length === 1 
-        ? `${sheetsConfig[0].patient.床號}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_約束物品同意書.xlsx`
+        ? `${getPrintBedNumber(sheetsConfig[0].patient)}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_約束物品同意書.xlsx`
         : `約束物品同意書(${sheetsConfig.length}名院友).xlsx`);
     // 創建工作簿並匯出
     const workbook = await createRestraintConsentWorkbook(sheetsConfig);
@@ -796,7 +801,7 @@ const exportRestraintConsentsToExcelSimple = async (
   assessments.forEach((assessment, index) => {
     const patient = patients.find(p => p.院友id === assessment.patient_id);
     if (!patient) return;
-    const sheetName = `${patient.床號}_${patient.中文姓氏}${patient.中文名字}_約束物品同意書`;
+    const sheetName = `${getPrintBedNumber(patient)}_${patient.中文姓氏}${patient.中文名字}_約束物品同意書`;
     const worksheet = workbook.addWorksheet(sheetName);
     // 設定欄寬
     worksheet.columns = [
@@ -826,7 +831,7 @@ const exportRestraintConsentsToExcelSimple = async (
     };
     // 院友資訊
     worksheet.getCell('A3').value = `院友姓名: ${patient.中文姓氏}${patient.中文名字}`;
-    worksheet.getCell('C3').value = `床號: ${patient.床號}`;
+    worksheet.getCell('C3').value = `床號: ${getPrintBedNumber(patient)}`;
     worksheet.getCell('E3').value = `性別: ${patient.性別}`;
     if (patient.出生日期) {
       const age = calculateAge(patient.出生日期);

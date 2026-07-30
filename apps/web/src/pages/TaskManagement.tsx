@@ -28,6 +28,7 @@ import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { SYNC_CUTOFF_DATE_STR } from '../lib/database';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
+import BedNumberImprint from '../components/BedNumberImprint';
 
 
 type SortField = 'patient_name' | 'health_record_type' | 'frequency' | 'next_due_at' | 'last_completed_at' | 'notes';
@@ -846,7 +847,7 @@ const TaskManagement: React.FC = () => {
                                 <span className="font-semibold text-gray-900 text-sm">
                                   {patient ? `${patient.中文姓氏}${patient.中文名字}` : '-'}
                                 </span>
-                                <span className="text-xs text-gray-500">{patient?.床號}</span>
+                                <span className="text-xs text-gray-500">{patient && <BedNumberImprint patient={patient} size="sm" className="text-xs text-gray-500" />}</span>
                                 <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">{group.tasks.length} 個任務</span>
                                 {overdueCount > 0 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{overdueCount} 逾期</span>}
                                 {pendingCount > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{pendingCount} 待完成</span>}

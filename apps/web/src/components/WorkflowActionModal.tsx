@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate } from '../utils/dateFormat';
 
 
@@ -80,7 +81,7 @@ const WorkflowActionModal: React.FC<WorkflowActionModalProps> = ({
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <div className="text-sm">
             <div className="font-medium text-gray-900 mb-1">
-              {patient?.中文姓氏}{patient?.中文名字} ({patient?.床號})
+              {patient?.中文姓氏}{patient?.中文名字} (<BedNumberImprint patient={patient as any} size="sm" />)
             </div>
             <div className="text-gray-600 mb-1">
               藥物: {prescription?.medication_name}

@@ -21,6 +21,7 @@ import { Link } from 'react-router-dom';
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 import {
@@ -924,7 +925,7 @@ const PrintForms: React.FC = () => {
                       />
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {patient.床號}
+                      <BedNumberImprint patient={patient as any} size="sm" />
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex flex-wrap items-center gap-3">

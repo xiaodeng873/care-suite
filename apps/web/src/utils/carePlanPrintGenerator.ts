@@ -1,5 +1,4 @@
 import { formatDisplayDate, calculateAge } from './dateFormat';
-import { getFacilitySettings } from './facilitySettings';
 import type {
   Patient,
   CarePlanWithDetails,
@@ -11,6 +10,7 @@ import {
   getDiagnosisRecordsByPatientId,
   getPreviousCarePlanReviewDate,
 } from '../lib/database';
+import { getPrintBedNumber } from './bedTransferUtils';
 
 /**
  * 個人照顧計劃 (ICP) A4 直向 HTML 列印產生器。
@@ -55,8 +55,9 @@ const formatEnglishName = (patient: Patient): string => {
 
 const formatBedInfo = (patient: Patient): string => {
   const parts: string[] = [];
-  if (patient.bed_id || patient.床號) {
-    parts.push(patient.床號 || patient.bed_id || '');
+  const printBed = getPrintBedNumber(patient);
+  if (patient.bed_id || printBed) {
+    parts.push(printBed || patient.bed_id || '');
   }
   return parts.join(' / ') || '-';
 };

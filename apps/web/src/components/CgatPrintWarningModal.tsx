@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, AlertTriangle } from 'lucide-react';
+import BedNumberImprint from './BedNumberImprint';
 import type { Patient } from '../lib/database';
 
 export type CgatPrintWarningType = 'duplicate' | 'individual_pickup';
@@ -42,7 +43,7 @@ const CgatPrintWarningModal: React.FC<CgatPrintWarningModalProps> = ({
           <ul className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
             {patients.map(patient => (
               <li key={patient.院友id} className="px-4 py-2 text-sm text-gray-900">
-                {patient.床號} - {patient.中文姓氏}{patient.中文名字}
+                <BedNumberImprint patient={patient} size="sm" className="text-gray-500" /> - {patient.中文姓氏}{patient.中文名字}
               </li>
             ))}
           </ul>

@@ -7,7 +7,15 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import * as db from '../../lib/database';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
+import type { BedTransferType } from '../../lib/database';
+import { buildActorForLog } from '../../utils/bedTransferUtils';
+import { buildBedTransferLogEntry, generateGroupId } from '../../utils/bedTransferLogUtils';
+
+// 為了避免 supabase-js 的 select 字符串類型解析器對新欄位（original_bed_id, bed_transfer_type 等）報錯，
+// 在 StationContext 內部查詢時使用鬆散類型。
+const rawSupabase = supabase as any;
 
 // Re-export types for convenience
 export type { Station, Room, Bed } from '../../lib/database';
@@ -35,9 +43,16 @@ interface SeniorCareontextType {
   deleteBed: (id: string) => Promise<void>;
   
   // 床位分配操作
-  assignPatientToBed: (patientId: number, bedId: string) => Promise<void>;
-  swapPatientBeds: (patientId1: number, patientId2: number) => Promise<void>;
+  assignPatientToBed: (patientId: number, bedId: string, transferType?: BedTransferType, opts?: { originalBedId?: string }) => Promise<void>;
+  swapPatientBeds: (patientId1: number, patientId2: number, transferType?: BedTransferType) => Promise<void>;
+  changeOriginalBed: (patientId: number, newOriginalBedId: string) => Promise<void>;
+  endTemporaryTransfer: (patientId: number) => Promise<void>;
+  cancelTemporaryTransfer: (patientId: number) => Promise<{ success: boolean; reason?: string }>;
+  cancelTemporarySwapPair: (patientId1: number, patientId2: number) => Promise<{ success: boolean; reason?: string }>;
   moveBedToStation: (bedId: string, newStationId: string) => Promise<void>;
+  getBedTransferLog: (patientId: number) => Promise<db.BedTransferLogEntry[]>;
+  getBedTransferLogByBedId: (bedId: string) => Promise<db.BedTransferLogEntry[]>;
+  createBedTransferLogEntry: (entry: Omit<db.BedTransferLogEntry, 'id' | 'created_at'>) => Promise<void>;
   
   // 刷新數據
   refreshStationData: () => Promise<void>;
@@ -50,7 +65,7 @@ interface StationProviderProps {
 }
 
 export const StationProvider: React.FC<StationProviderProps> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, userProfile } = useAuth();
   const [stations, setStations] = useState<db.Station[]>([]);
   const [rooms, setRooms] = useState<db.Room[]>([]);
   const [beds, setBeds] = useState<db.Bed[]>([]);
@@ -175,26 +190,233 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
   }, []);
 
   // 床位分配操作
-  const assignPatientToBed = useCallback(async (patientId: number, bedId: string) => {
+  const actor = buildActorForLog(user, userProfile);
+
+  const logTransfer = useCallback(async (payload: {
+    patientId: number;
+    patientName?: string | null;
+    actionType: db.BedTransferActionType;
+    fromBedId?: string | null;
+    toBedId?: string | null;
+    fromBedNumber?: string | null;
+    toBedNumber?: string | null;
+    transferSubtype?: string | null;
+    notes?: string | null;
+    groupId?: string | null;
+  }) => {
     try {
-      await db.assignPatientToBed(patientId, bedId);
+      const entry = buildBedTransferLogEntry({
+        patientId: payload.patientId,
+        patientName: payload.patientName,
+        actionType: payload.actionType,
+        fromBedId: payload.fromBedId,
+        toBedId: payload.toBedId,
+        fromBedNumber: payload.fromBedNumber,
+        toBedNumber: payload.toBedNumber,
+        transferSubtype: payload.transferSubtype,
+        notes: payload.notes,
+        groupId: payload.groupId,
+        actor,
+      });
+      await db.createBedTransferLogEntry(entry);
+    } catch (err) {
+      console.error('寫入床位調動日誌失敗:', err);
+    }
+  }, [actor]);
+
+  const assignPatientToBed = useCallback(async (
+    patientId: number,
+    bedId: string,
+    transferType: BedTransferType = 'routine',
+    opts?: { originalBedId?: string }
+  ) => {
+    try {
+      const { data: patient } = await rawSupabase
+        .from('院友主表')
+        .select('院友id, 中文姓名, bed_id, 床號, bed_transfer_type')
+        .eq('院友id', patientId)
+        .single();
+
+      const { data: bed } = await rawSupabase
+        .from('beds')
+        .select('id, bed_number')
+        .eq('id', bedId)
+        .single();
+
+      await db.assignPatientToBed(patientId, bedId, transferType, opts);
       await refreshStationData();
+
+      const actionType: db.BedTransferActionType = transferType === 'temporary' ? 'temporary_transfer' : 'routine_transfer';
+      await logTransfer({
+        patientId,
+        patientName: patient?.中文姓名 || null,
+        actionType,
+        fromBedId: patient?.bed_id || null,
+        toBedId: bed?.id || null,
+        fromBedNumber: patient?.床號 || null,
+        toBedNumber: bed?.bed_number || null,
+      });
     } catch (error) {
       console.error('Error assigning patient to bed:', error);
       throw error;
     }
-  }, [refreshStationData]);
+  }, [refreshStationData, logTransfer]);
 
-  const swapPatientBeds = useCallback(async (patientId1: number, patientId2: number) => {
+  const swapPatientBeds = useCallback(async (
+    patientId1: number,
+    patientId2: number,
+    transferType: BedTransferType = 'routine'
+  ) => {
     try {
-      await db.swapPatientBeds(patientId1, patientId2);
-      // 刷新床位數據以獲取最新狀態
+      const { data: patients } = await rawSupabase
+        .from('院友主表')
+        .select('院友id, 中文姓名, bed_id, 床號, original_bed_id, original_station_id, bed_transfer_type')
+        .in('院友id', [patientId1, patientId2]);
+      const p1 = patients?.find((p: any) => p.院友id === patientId1);
+      const p2 = patients?.find((p: any) => p.院友id === patientId2);
+
+      const { data: beds } = await rawSupabase
+        .from('beds')
+        .select('id, bed_number')
+        .in('id', [p1?.bed_id, p2?.bed_id].filter(Boolean) as string[]);
+      const bed1 = beds?.find((b: any) => b.id === p1?.bed_id);
+      const bed2 = beds?.find((b: any) => b.id === p2?.bed_id);
+
+      await db.swapPatientBeds(patientId1, patientId2, transferType);
       await refreshStationData();
+
+      const groupId = generateGroupId();
+      await logTransfer({
+        patientId: patientId1,
+        patientName: p1?.中文姓名 || null,
+        actionType: 'swap',
+        fromBedId: bed1?.id || null,
+        toBedId: bed2?.id || null,
+        fromBedNumber: bed1?.bed_number || null,
+        toBedNumber: bed2?.bed_number || null,
+        groupId,
+      });
+      await logTransfer({
+        patientId: patientId2,
+        patientName: p2?.中文姓名 || null,
+        actionType: 'swap',
+        fromBedId: bed2?.id || null,
+        toBedId: bed1?.id || null,
+        fromBedNumber: bed2?.bed_number || null,
+        toBedNumber: bed1?.bed_number || null,
+        groupId,
+      });
     } catch (error) {
       console.error('Error swapping patient beds:', error);
       throw error;
     }
-  }, [refreshStationData]);
+  }, [refreshStationData, logTransfer]);
+
+  const changeOriginalBed = useCallback(async (patientId: number, newOriginalBedId: string) => {
+    try {
+      const { data: patient } = await rawSupabase
+        .from('院友主表')
+        .select('院友id, 中文姓名, original_bed_id, 床號')
+        .eq('院友id', patientId)
+        .single();
+      const { data: oldBed } = await rawSupabase
+        .from('beds')
+        .select('id, bed_number')
+        .eq('id', patient?.original_bed_id || '')
+        .maybeSingle();
+      const { data: newBed } = await rawSupabase
+        .from('beds')
+        .select('id, bed_number')
+        .eq('id', newOriginalBedId)
+        .single();
+
+      await db.changeOriginalBed(patientId, newOriginalBedId);
+      await refreshStationData();
+
+      await logTransfer({
+        patientId,
+        patientName: patient?.中文姓名 || null,
+        actionType: 'original_bed_change',
+        fromBedId: oldBed?.id || null,
+        toBedId: newBed?.id || null,
+        fromBedNumber: oldBed?.bed_number || null,
+        toBedNumber: newBed?.bed_number || null,
+      });
+    } catch (error) {
+      console.error('Error changing original bed:', error);
+      throw error;
+    }
+  }, [refreshStationData, logTransfer]);
+
+  const endTemporaryTransfer = useCallback(async (patientId: number) => {
+    try {
+      const { data: patient } = await rawSupabase
+        .from('院友主表')
+        .select('院友id, 中文姓名, bed_id, 床號, original_bed_id')
+        .eq('院友id', patientId)
+        .single();
+      const { data: oldBed } = await rawSupabase
+        .from('beds')
+        .select('id, bed_number')
+        .eq('id', patient?.bed_id || '')
+        .maybeSingle();
+      const { data: rootBed } = await rawSupabase
+        .from('beds')
+        .select('id, bed_number')
+        .eq('id', patient?.original_bed_id || '')
+        .maybeSingle();
+
+      await db.endTemporaryTransfer(patientId);
+      await refreshStationData();
+
+      await logTransfer({
+        patientId,
+        patientName: patient?.中文姓名 || null,
+        actionType: 'return',
+        fromBedId: oldBed?.id || null,
+        toBedId: rootBed?.id || null,
+        fromBedNumber: oldBed?.bed_number || null,
+        toBedNumber: rootBed?.bed_number || null,
+      });
+    } catch (error) {
+      console.error('Error ending temporary transfer:', error);
+      throw error;
+    }
+  }, [refreshStationData, logTransfer]);
+
+  const cancelTemporaryTransfer = useCallback(async (patientId: number) => {
+    try {
+      const result = await db.cancelTemporaryTransfer(patientId, actor);
+      await refreshStationData();
+      return result;
+    } catch (error) {
+      console.error('Error cancelling temporary transfer:', error);
+      throw error;
+    }
+  }, [refreshStationData, actor]);
+
+  const cancelTemporarySwapPair = useCallback(async (patientId1: number, patientId2: number) => {
+    try {
+      const result = await db.cancelTemporarySwapPair(patientId1, patientId2, actor);
+      await refreshStationData();
+      return result;
+    } catch (error) {
+      console.error('Error cancelling temporary swap pair:', error);
+      throw error;
+    }
+  }, [refreshStationData, actor]);
+
+  const getBedTransferLog = useCallback(async (patientId: number) => {
+    return db.getBedTransferLog(patientId);
+  }, []);
+
+  const getBedTransferLogByBedId = useCallback(async (bedId: string) => {
+    return db.getBedTransferLogByBedId(bedId);
+  }, []);
+
+  const createBedTransferLogEntry = useCallback(async (entry: Omit<db.BedTransferLogEntry, 'id' | 'created_at'>) => {
+    await db.createBedTransferLogEntry(entry);
+  }, []);
 
   const moveBedToStation = useCallback(async (bedId: string, newStationId: string) => {
     try {
@@ -222,7 +444,14 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     deleteBed,
     assignPatientToBed,
     swapPatientBeds,
+    changeOriginalBed,
+    endTemporaryTransfer,
+    cancelTemporaryTransfer,
+    cancelTemporarySwapPair,
     moveBedToStation,
+    getBedTransferLog,
+    getBedTransferLogByBedId,
+    createBedTransferLogEntry,
     refreshStationData,
   };
 

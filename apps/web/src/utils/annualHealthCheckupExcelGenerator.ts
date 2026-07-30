@@ -1,5 +1,7 @@
 import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
+
+import { getPrintBedNumber } from './bedTransferUtils';
 import {
   applyPersonalMedicationListTemplate,
   extractPersonalMedicationListTemplateFormat
@@ -510,7 +512,7 @@ export const exportAnnualHealthCheckupsToExcel = async (
       applyP4Template(p4Sheet, templateFormat.p4, checkup);
       const p5Sheet = workbook.addWorksheet('P5');
       applyP5Template(p5Sheet, templateFormat.p5);
-      const filename = `${patient.床號}_${patient.中文姓氏}${patient.中文名字}_年度體檢報告書_${today}.xlsx`;
+      const filename = `${getPrintBedNumber(patient)}_${patient.中文姓氏}${patient.中文名字}_年度體檢報告書_${today}.xlsx`;
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

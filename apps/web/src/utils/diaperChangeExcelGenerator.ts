@@ -1,6 +1,7 @@
 import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
 import { getTemplatesMetadata } from '../lib/database';
+import { getPrintBedNumber } from './bedTransferUtils';
 interface DiaperChangeExportData {
   床號: string;
   中文姓氏: string;
@@ -47,6 +48,7 @@ interface SheetConfig {
   template: ExtractedTemplate;
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     性別: string;
@@ -320,7 +322,7 @@ const applyDiaperChangeTemplateFormat = (
   // D3: 院友中文姓名
   worksheet.getCell('D3').value = `${patient.中文姓氏}${patient.中文名字}`;
   // L3: 床號
-  worksheet.getCell('L3').value = patient.床號;
+  worksheet.getCell('L3').value = getPrintBedNumber(patient);
   // AB3: 月份/年份 (格式: XXXX年XX月)
   worksheet.getCell('AB3').value = yearMonth;
   // Step 8: Apply print settings and page breaks
@@ -457,10 +459,11 @@ export const exportDiaperChangeToExcel = async (
     const extractedFormat = template.extracted_format;
     // 構建工作表配置
     const sheetsConfig: SheetConfig[] = selectedPatients.map(patient => ({
-      name: `${patient.床號}${patient.中文姓氏}${patient.中文名字}`,
+      name: `${getPrintBedNumber(patient)}${patient.中文姓氏}${patient.中文名字}`,
       template: extractedFormat,
       patient: {
         床號: patient.床號,
+        original_bed_number: patient.original_bed_number,
         中文姓氏: patient.中文姓氏,
         中文名字: patient.中文名字,
         性別: patient.性別,
@@ -480,7 +483,7 @@ export const exportDiaperChangeToExcel = async (
     const templateBaseName = template.original_name.replace(/\.(xlsx|xls)$/i, '');
     const finalFilename = filename || 
       (sheetsConfig.length === 1 
-        ? `${sheetsConfig[0].patient.床號}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_${templateBaseName}_${yearMonth}.xlsx`
+        ? `${getPrintBedNumber(sheetsConfig[0].patient)}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_${templateBaseName}_${yearMonth}.xlsx`
         : `${templateBaseName}_${yearMonth}(${sheetsConfig.length}名院友).xlsx`);
     // 創建工作簿並匯出
     const workbook = await createDiaperChangeWorkbook(sheetsConfig);

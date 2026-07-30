@@ -3,6 +3,8 @@ import { calcAge } from './cgatFeeHelper';
 import { getFacilitySettings } from './facilitySettings';
 
 import { formatDisplayDate } from './dateFormat';
+import { getPrintBedNumber } from './bedTransferUtils';
+
 export interface EpisodeEvent {
   id?: string;
   event_type: 'admission' | 'transfer' | 'discharge' | 'vacation_start' | 'vacation_end';
@@ -161,7 +163,7 @@ const pageBlock = (
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const age = calcAge(patient.出生日期);
   const genderAge = patient.性別 ? `${patient.性別}${age !== null ? `/${age}歲` : ''}` : '';
-  const bed = patient.床號 || '';
+  const bed = getPrintBedNumber(patient);
 
   return `<div class="container">
   <div class="header-top">

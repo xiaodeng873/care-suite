@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { X, FileText, Calendar, User, CheckCircle } from 'lucide-react';
+import BedNumberImprint from './BedNumberImprint';
+import type { Patient as DatabasePatient } from '../lib/database';
 
 interface HealthTask {
   id: string;
@@ -199,7 +201,7 @@ const DocumentTaskModal: React.FC<DocumentTaskModalProps> = ({
             </div>
             <div>
               <p className="font-medium text-gray-900">{patient.中文姓名}</p>
-              <p className="text-sm text-gray-600">床號: {patient.床號}</p>
+              <p className="text-sm text-gray-600">床號: <BedNumberImprint patient={patient as unknown as DatabasePatient} size="sm" className="text-sm text-gray-600" /></p>
               <p className="text-sm text-gray-600">任務: {task.health_record_type}</p>
             </div>
           </div>

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { User, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Patient } from '../lib/database';
 import { supabase } from '../lib/supabase';
+import { usePatients } from '../context/PatientContext';
+import BedNumberImprint from './BedNumberImprint';
 
 interface PatientInfoCardProps {
   patient: Patient | null;
@@ -17,6 +19,7 @@ const PatientInfoCard: React.FC<PatientInfoCardProps> = ({
   defaultExpanded = true
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const { beds } = usePatients();
 
   if (!patient) {
     return (
@@ -120,7 +123,9 @@ const PatientInfoCard: React.FC<PatientInfoCardProps> = ({
           
           {/* 基本資訊 - 單行顯示 */}
           <div className="flex items-center gap-3 flex-wrap min-w-0">
-            <span className="font-medium text-blue-600 whitespace-nowrap">床號: {patient.床號}</span>
+            <span className="font-medium text-blue-600 inline-flex items-baseline gap-1">
+              床號: <BedNumberImprint patient={patient} beds={beds} size="sm" />
+            </span>
             <span className="font-bold text-gray-900">{patient.中文姓名}</span>
             <span className="text-gray-600 text-sm">{patient.性別} | {calculateAge(patient.出生日期)}</span>
             

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, AlertTriangle, User, Calendar, Clock, Activity, Droplets, Scale, Trash2 } from 'lucide-react';
 import { usePatients, DuplicateRecordGroup, HealthRecord, Patient } from '../context/PatientContext';
+import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
 
 
@@ -25,11 +26,6 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
   const getPatientName = (patientId: number) => {
     const patient = patients.find(p => p.院友id === patientId);
     return patient ? `${patient.中文姓氏}${patient.中文名字}` : '未知';
-  };
-
-  const getPatientBedNumber = (patientId: number) => {
-    const patient = patients.find(p => p.院友id === patientId);
-    return patient?.床號 || '-';
   };
 
   const formatRecordValues = (record: HealthRecord): string[] => {
@@ -176,7 +172,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                             <div className="flex flex-wrap items-center gap-2">
                               <User className="h-4 w-4 text-gray-400" />
                               <span className="font-medium text-gray-900">{patientName}</span>
-                              <span className="text-sm text-gray-500">({bedNumber})</span>
+                              <BedNumberImprint patient={patients.find(p => p.院友id === group.keepRecord.院友id) as any} size="sm" />
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                               <Calendar className="h-4 w-4 text-gray-400" />

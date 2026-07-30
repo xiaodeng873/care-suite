@@ -5,6 +5,7 @@ import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { getPatientContacts, deletePatientContact, PatientContact } from '../lib/database';
 import PatientContactModal from '../components/PatientContactModal';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 
@@ -350,7 +351,7 @@ const PatientContacts: React.FC = () => {
                               : <User className="h-4 w-4 text-blue-600" />}
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{patient.床號} · {patient.中文姓名}</div>
+                            <div className="text-sm font-medium text-gray-900"><BedNumberImprint patient={patient} size="sm" /> · {patient.中文姓名}</div>
                             <div className="text-xs text-gray-500">
                               {getFormattedEnglishName(patient.英文姓氏, patient.英文名字) || patient.英文姓名 || ''}
                             </div>

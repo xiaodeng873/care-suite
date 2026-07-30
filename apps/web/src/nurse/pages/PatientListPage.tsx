@@ -3,6 +3,7 @@ import { Search, ChevronRight, User } from 'lucide-react';
 import { usePatients } from '../../context/PatientContext';
 import type { Bed, Patient } from '../../lib/database';
 import { t2s } from '../utils/chinese';
+import BedNumberImprint from '../../components/BedNumberImprint';
 import { TIME_SLOTS, DIAPER_CHANGE_SLOTS, INTAKE_OUTPUT_SLOTS, parseDiaperSlotStartTime, isSlotOverdue, formatDate } from '../../utils/careRecordHelper';
 
 interface PatientListPageProps {
@@ -189,7 +190,7 @@ const PatientListPage: React.FC<PatientListPageProps> = ({ onSelectPatient }) =>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 truncate">{t2s(patient.中文姓名)}</p>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {patient.床號}
+                        <BedNumberImprint patient={patient} size="sm" className="text-xs text-gray-500" />
                         {station && ` · ${t2s(station.name)}`}
                       </p>
                     </div>

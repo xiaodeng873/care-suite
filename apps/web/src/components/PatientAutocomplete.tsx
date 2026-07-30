@@ -5,6 +5,7 @@ import { useStation } from '../context/facility';
 import { useStationFilter } from '../context/StationFilterContext';
 import { useDebounce } from '../hooks/useDebounce';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
+import BedNumberImprint from './BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 
 interface PatientAutocompleteProps {
@@ -29,7 +30,7 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
   showStationFilter = false,
   ignoreStationFilter = false,
 }) => {
-  const { patients: filteredPatientsCtx, allPatients } = usePatients();
+  const { patients: filteredPatientsCtx, allPatients, beds } = usePatients();
   const patients = ignoreStationFilter ? allPatients : filteredPatientsCtx;
   const { stations } = useStation();
   const { selectedStationIds } = useStationFilter();
@@ -257,9 +258,7 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                        {patient.床號}
-                      </span>
+                      <BedNumberImprint patient={patient} beds={beds} size="sm" />
                       <span className="font-medium text-gray-900">
                         {patient.中文姓氏}{patient.中文名字}
                       </span>

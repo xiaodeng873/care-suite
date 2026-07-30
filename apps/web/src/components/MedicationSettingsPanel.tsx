@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { GripVertical, Trash2, RotateCcw, Check, Loader2, Save } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { GripVertical, Trash2, RotateCcw, Loader2 } from 'lucide-react';
 import {
   getMedicationSettings,
   getMedicationSettingsFromDB,
@@ -30,7 +30,6 @@ const MedicationSettingsPanel: React.FC = () => {
   const [newValues, setNewValues] = useState<Record<string, string>>({});
   const [newFreq, setNewFreq] = useState('');
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const dragKey = useRef<string | null>(null);
   const dragIdx = useRef<number>(-1);
@@ -39,28 +38,31 @@ const MedicationSettingsPanel: React.FC = () => {
     getMedicationSettingsFromDB().then(s => setSettings(s)).catch(() => {});
   }, []);
 
-  const handleSave = async () => {
+  // 用戶操作（新增/刪除/重設/排序）後主動儲存，不在每次 state 變更自動儲存
+  const persistSettings = useCallback(async (nextSettings: MedicationSettingsData, successText = '藥物設定已儲存至資料庫') => {
+    setSettings(nextSettings);
     setSaving(true);
+    setMessage(null);
     try {
-      await saveMedicationSettingsToDB(settings);
-      setMessage({ type: 'success', text: '藥物設定已儲存至資料庫' });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      await saveMedicationSettingsToDB(nextSettings);
+      console.log('[MedicationSettingsPanel] saved to DB:', successText);
+      setMessage({ type: 'success', text: successText });
     } catch (e: any) {
+      console.error('[MedicationSettingsPanel] save failed:', e);
       setMessage({ type: 'error', text: e?.message ?? '儲存失敗' });
     } finally {
       setSaving(false);
     }
-  };
+  }, []);
 
   const handleReset = () => {
     if (!confirm('確定要重設所有藥物設定為預設值嗎？')) return;
     const defaults = resetMedicationSettings();
-    setSettings(defaults);
-    setMessage({ type: 'success', text: '已重設為預設值（尚未儲存）' });
+    persistSettings(defaults, '已重設為預設值並儲存至資料庫');
   };
 
   // ── drag helpers ─────────────────────────────────────────────────────────
+  const dragSettingsRef = useRef<MedicationSettingsData | null>(null);
   const onDragStart = (key: string, idx: number) => {
     dragKey.current = key;
     dragIdx.current = idx;
@@ -69,19 +71,30 @@ const MedicationSettingsPanel: React.FC = () => {
     e.preventDefault();
     if (dragKey.current !== key || dragIdx.current === idx) return;
     const from = dragIdx.current;
+    let nextSettings: MedicationSettingsData | null = null;
     setSettings(prev => {
       const arr = [...(prev[key as StringKey] as string[])];
       const [item] = arr.splice(from, 1);
       arr.splice(idx, 0, item);
-      return { ...prev, [key]: arr };
+      nextSettings = { ...prev, [key]: arr };
+      return nextSettings;
     });
+    if (nextSettings) dragSettingsRef.current = nextSettings;
     dragIdx.current = idx;
   };
-  const onDragEnd = () => { dragKey.current = null; dragIdx.current = -1; };
+  const onDragEnd = () => {
+    if (dragSettingsRef.current) {
+      persistSettings(dragSettingsRef.current, '排序已儲存至資料庫');
+      dragSettingsRef.current = null;
+    }
+    dragKey.current = null;
+    dragIdx.current = -1;
+  };
 
   // ── string list helpers ───────────────────────────────────────────────────
   const removeStringItem = (key: StringKey, idx: number) => {
-    setSettings(prev => ({ ...prev, [key]: (prev[key] as string[]).filter((_, i) => i !== idx) }));
+    const nextSettings = { ...settings, [key]: (settings[key] as string[]).filter((_, i) => i !== idx) };
+    persistSettings(nextSettings, '藥物設定已儲存至資料庫');
   };
   const addStringItem = (key: StringKey) => {
     const raw = (newValues[key] ?? '').trim();
@@ -90,22 +103,23 @@ const MedicationSettingsPanel: React.FC = () => {
     const toAdd = raw.split('\n').map(s => s.trim()).filter(Boolean);
     const dupes = toAdd.filter(v => list.includes(v));
     if (dupes.length) { setMessage({ type: 'error', text: `已存在：${dupes.join('、')}` }); return; }
-    setSettings(prev => ({ ...prev, [key]: [...(prev[key] as string[]), ...toAdd] }));
+    const nextSettings = { ...settings, [key]: [...list, ...toAdd] };
     setNewValues(prev => ({ ...prev, [key]: '' }));
-    setMessage(null);
+    persistSettings(nextSettings, '藥物設定已儲存至資料庫');
   };
 
   // ── number list helpers ───────────────────────────────────────────────────
   const removeFreqItem = (val: number) => {
-    setSettings(prev => ({ ...prev, 每日次數: prev.每日次數.filter(n => n !== val) }));
+    const nextSettings = { ...settings, 每日次數: settings.每日次數.filter(n => n !== val) };
+    persistSettings(nextSettings, '藥物設定已儲存至資料庫');
   };
   const addFreqItem = () => {
     const n = parseInt(newFreq);
     if (isNaN(n) || n < 1 || n > 24) { setMessage({ type: 'error', text: '請輸入 1–24 的整數' }); return; }
     if (settings.每日次數.includes(n)) { setMessage({ type: 'error', text: `「${n}」已存在` }); return; }
-    setSettings(prev => ({ ...prev, 每日次數: [...prev.每日次數, n].sort((a, b) => a - b) }));
+    const nextSettings = { ...settings, 每日次數: [...settings.每日次數, n].sort((a, b) => a - b) };
     setNewFreq('');
-    setMessage(null);
+    persistSettings(nextSettings, '藥物設定已儲存至資料庫');
   };
 
   const freqLabel = (n: number) => {
@@ -177,17 +191,17 @@ const MedicationSettingsPanel: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">藥物設定</h3>
-          <p className="text-sm text-gray-500 mt-0.5">管理處方管理中各下拉選單的可選項目。變更後需點擊「儲存設定」才生效。</p>
+          <p className="text-sm text-gray-500 mt-0.5">管理處方管理中各下拉選單的可選項目。變更後會自動儲存到資料庫。</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {saving && (
+            <span className="inline-flex items-center gap-1 text-sm text-blue-600">
+              <Loader2 className="h-4 w-4 animate-spin" /> 儲存中...
+            </span>
+          )}
           <button type="button" onClick={handleReset}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
             <RotateCcw className="h-4 w-4" />重設預設值
-          </button>
-          <button type="button" onClick={handleSave} disabled={saving}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-            儲存設定
           </button>
         </div>
       </div>

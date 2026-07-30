@@ -7,6 +7,7 @@ import PatientModal from '../components/PatientModal';
 import DischargeModal from '../components/DischargeModal';
 import DischargeEpisodeWarningModal from '../components/DischargeEpisodeWarningModal';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { PatientQRCodeModal } from '../components/PatientQRCodeModal';
 import PatientPrintModal from '../components/PatientPrintModal';
 import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
@@ -1038,7 +1039,7 @@ const PatientRecords: React.FC = () => {
                               {patient.中文姓氏}{patient.中文名字}
                             </span>
                           </PatientTooltip>
-                          <div className="text-sm text-gray-500">{patient.床號}</div>
+                          <div className="text-sm text-gray-500"><BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" /></div>
                         </div>
                       </div>
                     </td>

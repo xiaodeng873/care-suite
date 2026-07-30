@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Calendar, Plus, Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import BedNumberImprint from './BedNumberImprint';
 import { usePatients } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import PatientTooltip from './PatientTooltip';
@@ -313,7 +314,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
                                 <PatientTooltip patient={patient}>
                                   <div className="flex flex-wrap items-center gap-2">
                                     <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                                      {patient.床號}
+                                      <BedNumberImprint patient={patient as any} size="sm" />
                                     </span>
                                     <span className="font-medium text-gray-900">
                                       {patient.中文姓氏}{patient.中文名字}

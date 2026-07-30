@@ -1,6 +1,9 @@
 import type { Patient } from '../../lib/database';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';
 import { scopeCssText, scopeInlineScripts } from '../cssScope';
+import { getPrintBedNumber } from '../bedTransferUtils';
+
+
 
 const escapeHtml = (text: string | number | undefined | null): string => {
   if (text == null) return '';
@@ -78,7 +81,7 @@ export function processDocHtmlTemplate(
   const name = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const englishName = patient.英文姓名 || `${patient.英文姓氏 || ''}${patient.英文名字 || ''}`;
   const hkid = patient.身份證號碼 || '';
-  const bedNumber = patient.床號 || '';
+  const bedNumber = getPrintBedNumber(patient);
   const gender = patient.性別 || '';
   const birthDate = patient.出生日期 || '';
   const admissionDate = patient.入住日期 || '';

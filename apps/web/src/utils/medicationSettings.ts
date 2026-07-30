@@ -141,18 +141,57 @@ export async function getMedicationSettingsFromDB(): Promise<MedicationSettingsD
 }
 
 /**
- * 儲存藥物設定至 DB（facility_settings id=1）並同步 localStorage 快取。
+ * 儲存藥物設定至 DB（只更新 facility_settings.id=1 的 medication_settings 欄位，
+ * 不碰 facility_phone / facility_address 等院舍資料，避免 NOT NULL 衝突）。
+ * 若該列不存在才以預設值插入。
  */
 export async function saveMedicationSettingsToDB(settings: MedicationSettingsData): Promise<void> {
-  const { error } = await supabase
+  console.log('[medicationSettings] saveMedicationSettingsToDB called');
+  const now = new Date().toISOString();
+
+  // 1. 先嘗試只更新 medication_settings（不覆蓋其他院舍欄位）
+  const { data: updated, error: updateError } = await supabase
     .from('facility_settings')
-    .upsert(
-      { id: 1, medication_settings: settings, updated_at: new Date().toISOString() },
-      { onConflict: 'id' }
-    );
-  if (error) throw new Error(`儲存藥物設定失敗：${error.message}`);
-  // 同步 localStorage 快取
+    .update({ medication_settings: settings, updated_at: now })
+    .eq('id', 1)
+    .select();
+
+  console.log('[medicationSettings] update result:', { updated, updateError });
+
+  if (updateError) {
+    throw new Error(`儲存藥物設定失敗：${updateError.message}`);
+  }
+
+  if (updated && updated.length > 0) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    console.log('[medicationSettings] existing row updated, localStorage updated');
+    return;
+  }
+
+  // 2. 沒有 id=1 的列，才插入新列（帶上所有 NOT NULL 預設值）
+  const { data: inserted, error: insertError } = await supabase
+    .from('facility_settings')
+    .insert({
+      id: 1,
+      facility_name_zh: '善頤 (福群) 護老院',
+      facility_name_en: 'SeniorCare',
+      facility_phone: '',
+      facility_address_zh: '',
+      facility_address_en: '',
+      facility_fax: '',
+      medication_settings: settings,
+      updated_at: now,
+    })
+    .select();
+
+  console.log('[medicationSettings] insert result:', { inserted, insertError });
+
+  if (insertError) {
+    throw new Error(`儲存藥物設定失敗：${insertError.message}`);
+  }
+
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  console.log('[medicationSettings] new row inserted, localStorage updated');
 }
 
 // 依所選機構判定所屬類別（HA=醫管局 / DH=衛生署 / other=其他）。未知來源視為 other。

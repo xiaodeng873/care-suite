@@ -4,6 +4,9 @@
  */
 
 import type { Patient, PatientRestraintAssessment, ScheduleWithDetails } from '../lib/database';
+import { getPrintBedNumber } from './bedTransferUtils';
+
+
 
 export interface DueItem {
   patient: Patient;
@@ -97,7 +100,7 @@ export const checkAnnualHealthCheckupDue = (
     lastEventDate
   );
 
-  const displayText = `[${patient.床號}] ${patient.中文姓氏}${patient.中文名字} - 年度體檢即將到期 (到期日: ${formatDate(dueDate)}, 剩餘 ${daysUntilDue} 天)`;
+  const displayText = `[${getPrintBedNumber(patient)}] ${patient.中文姓氏}${patient.中文名字} - 年度體檢即將到期 (到期日: ${formatDate(dueDate)}, 剩餘 ${daysUntilDue} 天)`;
 
   return {
     patient,
@@ -157,7 +160,7 @@ export const checkRestraintAssessmentDue = (
   );
 
   const lastCheckDate = lastAssessment.doctor_signature_date || lastAssessment.created_at;
-  const displayText = `[${patient.床號}] ${patient.中文姓氏}${patient.中文名字} - 約束物品評估即將到期 (到期日: ${formatDate(dueDate)}, 剩餘 ${daysUntilDue} 天)`;
+  const displayText = `[${getPrintBedNumber(patient)}] ${patient.中文姓氏}${patient.中文名字} - 約束物品評估即將到期 (到期日: ${formatDate(dueDate)}, 剩餘 ${daysUntilDue} 天)`;
 
   return {
     patient,

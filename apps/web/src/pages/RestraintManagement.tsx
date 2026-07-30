@@ -26,6 +26,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import RestraintAssessmentModal from '../components/RestraintAssessmentModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { exportRestraintConsentsToExcel } from '../utils/restraintConsentExcelGenerator';
 import { exportRestraintObservationsToExcel } from '../utils/restraintObservationChartExcelGenerator';
 import { exportRestraintObservationsRangeHtml } from '../utils/restraintObservationHtmlExporter';
@@ -978,7 +979,7 @@ const RestraintManagement: React.FC = () => {
                                     </PatientTooltip>
                                   ) : '-'}
                                 </div>
-                                <div className="text-sm text-gray-500">{patient?.床號}</div>
+                                {patient && <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" />}
                               </div>
                             </div>
                           </td>

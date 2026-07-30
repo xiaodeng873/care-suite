@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle, Home, Guitar as Hospital, XCircle, Pill, AlertCircleIcon, Clock, CheckSquare, Users } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { formatDisplayDate } from '../utils/dateFormat';
+import BedNumberImprint from './BedNumberImprint';
 
 
 interface FailureReasonModalProps {
@@ -180,7 +181,7 @@ const FailureReasonModal: React.FC<FailureReasonModalProps> = ({
         <div className="mb-4 p-4 bg-gray-50 rounded-lg">
           <div className="text-sm">
             <div className="font-medium text-gray-900 mb-1">
-              {patient?.中文姓氏}{patient?.中文名字} ({patient?.床號})
+              {patient?.中文姓氏}{patient?.中文名字} ({patient && <BedNumberImprint patient={patient} size="sm" />})
             </div>
             <div className="text-gray-600 mb-1">
               藥物: {prescription?.medication_name}

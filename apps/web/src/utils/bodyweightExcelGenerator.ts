@@ -1,6 +1,7 @@
 import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
 import { getTemplatesMetadata } from '../lib/database';
+import { getPrintBedNumber } from './bedTransferUtils';
 interface BodyweightExportData {
   記錄id?: string;
   床號: string;
@@ -44,6 +45,7 @@ interface SheetConfig {
   template: ExtractedTemplate;
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     性別: string;
@@ -226,6 +228,7 @@ const applyBodyweightTemplateFormat = (
   template: ExtractedTemplate,
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓名: string;
     性別: string;
     出生日期: string;
@@ -324,7 +327,7 @@ const applyBodyweightTemplateFormat = (
   // Step 7: 填充院友表頭資料
   if (patient) {
     worksheet.getCell('B3').value = `${patient.中文姓氏}${patient.中文名字}` || '';
-    worksheet.getCell('D3').value = patient.床號 || '';
+    worksheet.getCell('D3').value = getPrintBedNumber(patient);
     worksheet.getCell('H3').value = patient.性別 || '';
     if (patient.出生日期) {
       const age = calculateAge(patient.出生日期);
@@ -469,10 +472,11 @@ export const exportBodyweightToExcel = async (
       const patient = patients.find(p => p.床號 === firstRecord.床號 && `${p.中文姓氏}${p.中文名字}` === `${firstRecord.中文姓氏}${firstRecord.中文名字}`);
       if (patient) {
         sheetsConfig.push({
-          name: `${firstRecord.床號}${firstRecord.中文姓氏}${firstRecord.中文名字}體重記錄表`,
+          name: `${getPrintBedNumber(patient)}${patient.中文姓氏}${patient.中文名字}體重記錄表`,
           template: extractedFormat,
           patient: {
             床號: patient.床號,
+            original_bed_number: patient.original_bed_number,
             中文姓氏: patient.中文姓氏,
             中文名字: patient.中文名字,
             性別: patient.性別,
@@ -492,7 +496,7 @@ export const exportBodyweightToExcel = async (
     // 決定檔案名稱
     const finalFilename = filename ||
       (sheetsConfig.length === 1
-        ? `${sheetsConfig[0].patient.床號}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_體重記錄表.xlsx`
+        ? `${getPrintBedNumber(sheetsConfig[0].patient)}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_體重記錄表.xlsx`
         : `體重記錄表(${sheetsConfig.length}名院友).xlsx`);
     // 創建工作簿並匯出
     const workbook = await createBodyweightWorkbook(sheetsConfig);
@@ -523,7 +527,7 @@ const exportBodyweightToExcelSimple = async (
     const firstRecord = recordGroup[0];
     const patient = patients.find(p => p.床號 === firstRecord.床號 && `${p.中文姓氏}${p.中文名字}` === `${firstRecord.中文姓氏}${firstRecord.中文名字}`);
     if (!patient) return;
-    const sheetName = `${firstRecord.床號}${firstRecord.中文姓氏}${firstRecord.中文名字}體重記錄表`;
+    const sheetName = `${getPrintBedNumber(patient)}${patient.中文姓氏}${patient.中文名字}體重記錄表`;
     const worksheet = workbook.addWorksheet(sheetName);
     // 設定欄寬
     worksheet.columns = [
@@ -553,7 +557,7 @@ const exportBodyweightToExcelSimple = async (
     };
     // 院友資訊
     worksheet.getCell('A3').value = `院友姓名: ${patient.中文姓氏}${patient.中文名字}`;
-    worksheet.getCell('C3').value = `床號: ${patient.床號}`;
+    worksheet.getCell('C3').value = `床號: ${getPrintBedNumber(patient)}`;
     worksheet.getCell('F3').value = `性別: ${patient.性別}`;
     if (patient.出生日期) {
       const age = calculateAge(patient.出生日期);

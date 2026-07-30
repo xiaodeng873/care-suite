@@ -3,6 +3,8 @@ import { calcAge } from './cgatFeeHelper';
 import { getFacilitySettings } from './facilitySettings';
 
 import { formatDisplayDate } from './dateFormat';
+import { getPrintBedNumber } from './bedTransferUtils';
+
 const ROWS_PER_PAGE = 28;
 const DOC_CODE = 'B3 FK (11.2020)';
 
@@ -104,7 +106,7 @@ const pageBlock = (
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const age = calcAge(patient.出生日期);
   const genderAge = patient.性別 ? `${patient.性別}${age !== null ? `/${age}歲` : ''}` : '';
-  const bed = patient.床號 || '';
+  const bed = getPrintBedNumber(patient);
   const pageNumberText = totalPages > 1 ? `${pageIndex} / ${totalPages}` : `${pageIndex}`;
 
   return `<div class="container">

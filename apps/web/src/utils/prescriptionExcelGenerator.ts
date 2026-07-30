@@ -2,8 +2,10 @@ import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
 import { getTemplatesMetadata } from '../lib/database';
 import { getFormattedEnglishName } from './nameFormatter';
+import { getPrintBedNumber } from './bedTransferUtils';
 export interface PrescriptionExportData {
   床號: string;
+  original_bed_number?: string;
   中文姓氏: string;
   中文名字: string;
   中文姓名?: string; // Legacy field for compatibility
@@ -327,7 +329,7 @@ export const exportPrescriptionsToExcel = async (
     Object.entries(groupedPrescriptions).forEach(([key, prescriptionGroup]) => {
       const patient = prescriptionGroup[0]; // 取第一筆作為院友資料
       sheetsConfig.push({
-        name: `${patient.床號}${patient.中文姓名}處方箋`,
+        name: `${getPrintBedNumber(patient)}${patient.中文姓名}處方箋`,
         template: extractedFormat,
         patient: patient
       });
@@ -339,7 +341,7 @@ export const exportPrescriptionsToExcel = async (
     // 決定檔案名稱
     const finalFilename = filename || 
       (sheetsConfig.length === 1 
-        ? `${sheetsConfig[0].patient.床號}_${sheetsConfig[0].patient.中文姓名}_處方箋.xlsx`
+        ? `${getPrintBedNumber(sheetsConfig[0].patient)}_${sheetsConfig[0].patient.中文姓名}_處方箋.xlsx`
         : `處方箋(${sheetsConfig.length}名院友).xlsx`);
     // 創建工作簿並匯出
     const workbook = await createPrescriptionWorkbook(sheetsConfig);
@@ -421,7 +423,7 @@ const exportPrescriptionsToExcelSimple = async (
     const rowIndex = headerRow + 1 + index;
     const row = worksheet.getOrCreateRow(rowIndex);
     const values = [
-      prescription.床號,
+      getPrintBedNumber(prescription),
       `${prescription.中文姓氏}${prescription.中文名字}`,
       prescription.處方日期,
       prescription.藥物名稱,

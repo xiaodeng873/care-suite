@@ -8,6 +8,7 @@ import { printVmoWaitingList, printVmoPrescriptions, type VmoPatientItem } from 
 import ScheduleModal from '../components/ScheduleModal';
 import PatientSelectModal from '../components/PatientSelectModal';
 import ScheduleDetailModal from '../components/ScheduleDetailModal';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { getReasonBadgeClass, getReasonIcon } from '../utils/reasonColors';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { checkAnnualHealthCheckupDue, checkRestraintAssessmentDue, DueItem } from '../utils/scheduleDueChecker';
@@ -497,7 +498,7 @@ const Scheduling: React.FC = () => {
                               {patient ? `${patient.中文姓氏}${patient.中文名字}` : '院友資料未找到'}
                             </h4>
                             <span className="text-sm text-gray-500">
-                              {patient?.床號 || '床號未知'}
+                              {patient ? <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" /> : '床號未知'}
                             </span>
                           </div>
                           <p className="text-sm text-gray-600">
@@ -608,7 +609,7 @@ const Scheduling: React.FC = () => {
                   const patient = patientMap.get(detail.院友id);
                   return (
                     <li key={detail.細項id} className="text-sm text-gray-700">
-                      {patient?.床號} {patient?.中文姓名}
+                      {patient && <BedNumberImprint patient={patient} size="sm" />} {patient?.中文姓名}
                     </li>
                   );
                 })}

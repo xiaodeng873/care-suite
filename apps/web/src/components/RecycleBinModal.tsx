@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Trash2, RotateCcw, Search, Calendar, User, Activity, AlertTriangle } from 'lucide-react';
 import { usePatients, DeletedHealthRecord, Patient } from '../context/PatientContext';
+import BedNumberImprint from './BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
 
@@ -282,7 +283,7 @@ const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
                             <div className="flex flex-wrap items-center gap-2">
                               <User className="h-4 w-4 text-gray-400" />
                               <span className="font-medium text-gray-900">{patientInfo.name}</span>
-                              <span className="text-sm text-gray-500">({patientInfo.bed})</span>
+                              <BedNumberImprint patient={patients.find(p => p.院友id === record.院友id) as any} size="sm" />
                             </div>
                             <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-800">
                               {record.監測類型}

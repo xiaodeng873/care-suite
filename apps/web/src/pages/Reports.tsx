@@ -6,6 +6,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import MonthlyReportTable from '../components/MonthlyReportTable';
 import PatientListModal from '../components/PatientListModal';
 import { AiUsageStatsPanel } from '../components/AiUsageStatsPanel';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { formatFrequencyDescription } from '../utils/taskScheduler';
 import { getInfectionTypeColors } from '../utils/infectionTypeColors';
 import { supabase } from '../lib/supabase';
@@ -13,6 +14,7 @@ import type { Patient, PatientCareTab } from '../lib/database';
 import { formatDisplayDate, formatDisplayDateTime } from '../utils/dateFormat';
 
 
+import { getPrintBedNumber } from '../utils/bedTransferUtils';
 type ReportTab = 'daily' | 'monthly' | 'infection' | 'meal' | 'tube' | 'special' | 'drugSensitivity' | 'aiUsage';
 type TimeFilter = 'today' | 'yesterday' | 'thisMonth' | 'lastMonth';
 
@@ -211,10 +213,10 @@ const Reports: React.FC = () => {
     const 暫住Patients = activePatients.filter(p => p.入住類型 === '暫住');
 
     const admissionTypeStats = {
-      買位: { count: 買位Patients.length, names: 買位Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-      私位: { count: 私位Patients.length, names: 私位Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-      院舍劵: { count: 院舍劵Patients.length, names: 院舍劵Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-      暫住: { count: 暫住Patients.length, names: 暫住Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
+      買位: { count: 買位Patients.length, names: 買位Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+      私位: { count: 私位Patients.length, names: 私位Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+      院舍劵: { count: 院舍劵Patients.length, names: 院舍劵Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+      暫住: { count: 暫住Patients.length, names: 暫住Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
     };
 
     const getIsHospitalizedAtDate = (patientId: number, targetDate: Date): boolean => {
@@ -317,12 +319,12 @@ const Reports: React.FC = () => {
       入住醫院女: 入住醫院女Patients.length,
       暫時回家男: 暫時回家男Patients.length,
       暫時回家女: 暫時回家女Patients.length,
-      住在本站男Names: 住在本站男Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`),
-      住在本站女Names: 住在本站女Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`),
-      入住醫院男Names: 入住醫院男Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`),
-      入住醫院女Names: 入住醫院女Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`),
-      暫時回家男Names: 暫時回家男Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`),
-      暫時回家女Names: 暫時回家女Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`),
+      住在本站男Names: 住在本站男Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`),
+      住在本站女Names: 住在本站女Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`),
+      入住醫院男Names: 入住醫院男Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`),
+      入住醫院女Names: 入住醫院女Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`),
+      暫時回家男Names: 暫時回家男Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`),
+      暫時回家女Names: 暫時回家女Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`),
     };
 
     const newAdmissionsPatients = filteredPatients.filter(p => {
@@ -425,53 +427,53 @@ const Reports: React.FC = () => {
         男: newAdmissionsPatients.filter(p => p.性別 === '男').length,
         女: newAdmissionsPatients.filter(p => p.性別 === '女').length,
         count: newAdmissionsPatients.length,
-        names: newAdmissionsPatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`)
+        names: newAdmissionsPatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`)
       },
       discharge: {
         男: dischargePatients.filter(p => p.性別 === '男').length,
         女: dischargePatients.filter(p => p.性別 === '女').length,
         total: dischargePatients.length,
-        names: dischargePatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`)
+        names: dischargePatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`)
       },
       death: {
         男: deathPatients.filter(p => p.性別 === '男').length,
         女: deathPatients.filter(p => p.性別 === '女').length,
         total: deathPatients.length,
-        names: deathPatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`)
+        names: deathPatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`)
       },
       monthlyDeaths: {
         count: monthlyDeathPatients.length,
-        names: monthlyDeathPatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`)
+        names: monthlyDeathPatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`)
       },
       medical: {
-        鼻胃飼: { count: ngTubePatients.length, names: ngTubePatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        導尿管: { count: catheterPatients.length, names: catheterPatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        傷口: { count: woundPatients.length, names: woundPatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        壓瘡: { count: pressureUlcerPatients.length, names: pressureUlcerPatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        腹膜血液透析: { count: dialysisPatients.length, names: dialysisPatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        氧氣治療: { count: oxygenPatients.length, names: oxygenPatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        造口: { count: stomaPatients.length, names: stomaPatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        感染控制: { count: infectionControlPatients.length, names: infectionControlPatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        使用約束物品: { count: restraintPatients.length, names: restraintPatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
+        鼻胃飼: { count: ngTubePatients.length, names: ngTubePatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        導尿管: { count: catheterPatients.length, names: catheterPatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        傷口: { count: woundPatients.length, names: woundPatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        壓瘡: { count: pressureUlcerPatients.length, names: pressureUlcerPatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        腹膜血液透析: { count: dialysisPatients.length, names: dialysisPatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        氧氣治療: { count: oxygenPatients.length, names: oxygenPatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        造口: { count: stomaPatients.length, names: stomaPatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        感染控制: { count: infectionControlPatients.length, names: infectionControlPatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        使用約束物品: { count: restraintPatients.length, names: restraintPatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
       },
       incidents: {
         藥物: { count: medicationIncidentPatients.length, names: medicationIncidentPatients.map(i => {
           const p = activePatients.find(patient => patient.院友id === i.patient_id);
-          return p ? `${p.床號} ${p.中文姓氏}${p.中文名字}` : '未知';
+          return p ? `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}` : '未知';
         })},
         跌倒: { count: fallIncidentPatients.length, names: fallIncidentPatients.map(i => {
           const p = activePatients.find(patient => patient.院友id === i.patient_id);
-          return p ? `${p.床號} ${p.中文姓氏}${p.中文名字}` : '未知';
+          return p ? `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}` : '未知';
         })},
-        死亡: { count: deathPatients.length, names: deathPatients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
+        死亡: { count: deathPatients.length, names: deathPatients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
       },
       careLevel: {
-        全護理男: { count: fullCare男Patients.length, names: fullCare男Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        全護理女: { count: fullCare女Patients.length, names: fullCare女Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        半護理男: { count: semiCare男Patients.length, names: semiCare男Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        半護理女: { count: semiCare女Patients.length, names: semiCare女Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        療養級男: { count: convalescent男Patients.length, names: convalescent男Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
-        療養級女: { count: convalescent女Patients.length, names: convalescent女Patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`) },
+        全護理男: { count: fullCare男Patients.length, names: fullCare男Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        全護理女: { count: fullCare女Patients.length, names: fullCare女Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        半護理男: { count: semiCare男Patients.length, names: semiCare男Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        半護理女: { count: semiCare女Patients.length, names: semiCare女Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        療養級男: { count: convalescent男Patients.length, names: convalescent男Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
+        療養級女: { count: convalescent女Patients.length, names: convalescent女Patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`) },
       },
     };
   }, [filteredPatients, reportDate, healthAssessments, patientsWithWounds, incidentReports, patientRestraintAssessments, hasHealthTask, hasTubeCare, hospitalEpisodes, infectionControlRecords]);
@@ -898,7 +900,7 @@ const Reports: React.FC = () => {
 
       return {
         patientId: patient.院友id,
-        bedNumber: patient.床號 || '',
+        bedNumber: getPrintBedNumber(patient) || '',
         name: `${patient.中文姓氏}${patient.中文名字}`,
         半護理: patient.護理等級 === '半護理' ? 1 : 0,
         全護理: patient.護理等級 === '全護理' ? 1 : 0,
@@ -999,7 +1001,7 @@ const Reports: React.FC = () => {
                     value={patients.length}
                     bgColor={colors.bgColor}
                     textColor={colors.textColor}
-                    patientNames={patients.map(p => `${p.床號} ${p.中文姓氏}${p.中文名字}`)}
+                    patientNames={patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`)}
                   />
                 );
               })}
@@ -1021,7 +1023,7 @@ const Reports: React.FC = () => {
                   <div key={patient.院友id} className="border border-red-200 rounded-lg p-4 bg-red-50">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h4 className="font-semibold text-lg text-red-800">{patient.床號} {patient.中文姓氏}{patient.中文名字}</h4>
+                        <h4 className="font-semibold text-lg text-red-800"><BedNumberImprint patient={patient} size="lg" /> {patient.中文姓氏}{patient.中文名字}</h4>
                         <p className="text-sm text-gray-700 mt-1">性別: {patient.性別} | 護理等級: {patient.護理等級 || '未設定'}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {patientActiveInfections.map((infection) => (
@@ -1176,7 +1178,7 @@ const Reports: React.FC = () => {
                   <div key={task.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <h4 className="font-semibold text-lg mb-2">{patient.床號} {patient.中文姓氏}{patient.中文名字}</h4>
+                        <h4 className="font-semibold text-lg mb-2"><BedNumberImprint patient={patient} size="lg" /> {patient.中文姓氏}{patient.中文名字}</h4>
                         <p className="text-sm text-gray-600">任務類型: <span className="font-medium">{task.health_record_type}</span></p>
                       </div>
                       <div className="space-y-1 text-sm">
@@ -1242,7 +1244,7 @@ const Reports: React.FC = () => {
                   <div key={patient.院友id} className="border border-red-200 bg-red-50 rounded-lg p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-lg text-red-800">{patient.床號} {patient.中文姓氏}{patient.中文名字}</h4>
+                        <h4 className="font-semibold text-lg text-red-800"><BedNumberImprint patient={patient} size="lg" /> {patient.中文姓氏}{patient.中文名字}</h4>
                         <p className="text-sm text-gray-700 mt-1">性別: {patient.性別} | 護理等級: {patient.護理等級 || '未設定'}</p>
                         <div className="mt-3 space-y-2">
                           {tasks.map(task => (
@@ -1295,7 +1297,7 @@ const Reports: React.FC = () => {
                 <div key={patient.院友id} className="border border-orange-200 rounded-lg p-4 bg-orange-50">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h4 className="font-semibold text-lg text-orange-800">{patient.床號} {patient.中文姓氏}{patient.中文名字}</h4>
+                      <h4 className="font-semibold text-lg text-orange-800"><BedNumberImprint patient={patient} size="lg" /> {patient.中文姓氏}{patient.中文名字}</h4>
                       <p className="text-sm text-gray-700 mt-1">性別: {patient.性別} | 護理等級: {patient.護理等級 || '未設定'}</p>
 
                       {patient.藥物敏感 && Array.isArray(patient.藥物敏感) && patient.藥物敏感.length > 0 && (

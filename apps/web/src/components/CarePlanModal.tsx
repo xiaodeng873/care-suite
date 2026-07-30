@@ -33,6 +33,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { getPatientContacts, type PatientContact } from '../lib/database';
 import PatientAutocomplete from './PatientAutocomplete';
+import BedNumberImprint from './BedNumberImprint';
 import { fuzzyMatch } from '../utils/searchUtils';
 import { getCarePlanStatus, type CarePlanStatus as ComputedCarePlanStatus, getCarePlanStatusColor, getActiveCarePlan } from '../utils/carePlanStatus';
 import { getUserProfessionCategory, shouldDefaultToMyProfession } from '../utils/userProfession';
@@ -1077,7 +1078,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                           <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
                             <div>
                               <span className="text-gray-600">床號：</span>
-                              <span className="font-medium text-gray-900 ml-1">{patient.床號 || '-'}</span>
+                              <BedNumberImprint patient={patient} size="sm" className="font-medium text-gray-900 ml-1" />
                             </div>
                             <div>
                               <span className="text-gray-600">姓名：</span>

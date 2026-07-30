@@ -6,6 +6,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import HospitalEpisodeModal from '../components/HospitalEpisodeModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { printERRecordForms } from '../utils/erRecordPrintGenerator';
 import { printPatientReferralForms } from '../utils/patientReferralPrintGenerator';
@@ -1071,7 +1072,9 @@ const AdmissionRecords: React.FC = () => {
                                 '-'
                               )}
                             </div>
-                            <div className="text-sm text-gray-500">{patient?.床號}</div>
+                            {patient ? (
+                              <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" />
+                            ) : null}
                           </div>
                         </div>
                       </td>

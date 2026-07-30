@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Calendar, User, Ruler, Droplets, Thermometer, AlertCircle, Camera, Check, ChevronDown } from 'lucide-react';
 import { usePatients, type Wound, type WoundAssessment, type WoundAssessmentStatus } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
+import BedNumberImprint from './BedNumberImprint';
 import WoundPhotoUpload from './WoundPhotoUpload';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -298,7 +299,7 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
                 傷口評估 - {wound.wound_code}
               </h2>
               <div className="mt-1 text-sm text-gray-600">
-                {patient?.床號} - {patient?.中文姓名} | 
+                <BedNumberImprint patient={patient as any} size="sm" /> - {patient?.中文姓名} | 
                 發現日期: {formatDisplayDate(wound.discovery_date)} | 
                 位置: {wound.wound_location.side === 'front' ? '前側' : '後側'}
               </div>

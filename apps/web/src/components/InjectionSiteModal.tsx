@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, MapPin, User, Calendar, Clock, Syringe } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
+import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate } from '../utils/dateFormat';
 
 
@@ -95,7 +96,7 @@ const InjectionSiteModal: React.FC<InjectionSiteModalProps> = ({
           <div className="mb-4 p-4 bg-gray-50 rounded-lg">
             <div className="text-sm">
               <div className="font-medium text-gray-900 mb-1">
-                {patient?.中文姓氏}{patient?.中文名字} ({patient?.床號})
+                {patient?.中文姓氏}{patient?.中文名字} ({patient && <BedNumberImprint patient={patient} size="md" className="text-gray-900" />})
               </div>
               <div className="text-gray-600 mb-1">
                 藥物: {prescription?.medication_name}

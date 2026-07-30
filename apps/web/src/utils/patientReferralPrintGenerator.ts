@@ -3,7 +3,7 @@ import type { HospitalEpisode } from './erRecordPrintGenerator';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 import { getMealGuidances, getTubeCareRecords, getPrescriptions, getDiagnosisRecordsByPatientId, getPatientContacts, getHealthTasks, getRestraintAssessments } from '../lib/database';
 import { calcAge } from './cgatFeeHelper';
-import { formatDisplayDate } from './dateFormat';
+import { getPrintBedNumber } from './bedTransferUtils';
 
 const escapeHtml = (text: string | number | undefined | null): string => {
   if (text == null || text === '') return '';
@@ -77,7 +77,7 @@ const patientHeaderBlock = (patient: Patient) => {
   const enName = patient.英文姓名 || `${patient.英文姓氏 || ''} ${patient.英文名字 || ''}`.trim();
   const age = calcAge(patient.出生日期);
   const genderAge = patient.性別 ? `${patient.性別}${age !== null ? ` / ${age}歲` : ''}` : '';
-  const bed = patient.床號 || '';
+  const bed = getPrintBedNumber(patient);
   const idNumber = patient.身份證號碼 || '';
   const birthDate = formatDate(patient.出生日期);
   const contactPhone = patient.通訊電話 || '';

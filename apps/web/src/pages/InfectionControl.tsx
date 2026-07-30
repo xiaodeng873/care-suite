@@ -21,6 +21,7 @@ import InfectionControlModal from '../components/InfectionControlModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber } from '../utils/searchUtils';
 import { getInfectionTypeColors } from '../utils/infectionTypeColors';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { type InfectionControlRecord } from '../lib/database';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -335,14 +336,14 @@ const InfectionControl: React.FC = () => {
     const types = Array.from(new Set(activeRecords.map(r => (r.infection_type || '未分類').trim()))).sort();
     return types.map(type => {
       const patientIds = new Set<number>();
-      const names: string[] = [];
+      const names: React.ReactNode[] = [];
       activeRecords
         .filter(r => (r.infection_type || '未分類').trim() === type)
         .forEach(r => {
           if (!patientIds.has(r.patient_id)) {
             patientIds.add(r.patient_id);
             const p = allPatients.find(patient => patient.院友id === r.patient_id);
-            names.push(p ? `${p.床號} ${p.中文姓氏}${p.中文名字}` : `院友 #${r.patient_id}`);
+            names.push(p ? <><BedNumberImprint patient={p} size="sm" /> {p.中文姓氏}{p.中文名字}</> : `院友 #${r.patient_id}`);
           }
         });
       return { type, count: patientIds.size, names };
@@ -635,7 +636,7 @@ const InfectionControl: React.FC = () => {
                                     </PatientTooltip>
                                   ) : '-'}
                                 </div>
-                                <div className="text-sm text-gray-500">{patient?.床號}</div>
+                                <div className="text-sm text-gray-500">{patient ? <BedNumberImprint patient={patient} size="sm" /> : null}</div>
                               </div>
                             </div>
                           </td>

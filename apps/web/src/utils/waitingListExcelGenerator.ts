@@ -2,8 +2,10 @@ import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
 import { getTemplatesMetadata } from '../lib/database';
 import { getFormattedEnglishName } from './nameFormatter';
+import { getPrintBedNumber } from './bedTransferUtils';
 export interface WaitingListExportData {
   床號: string;
+  original_bed_number?: string;
   中文姓氏: string;
   中文名字: string;
   英文姓氏?: string;
@@ -202,7 +204,7 @@ export const applyWaitingListTemplateFormat = (
   patients.forEach((patient, index) => {
     const rowIndex = 14 + index; // 14為起始行
     // B: 床號
-    worksheet.getCell(`B${rowIndex}`).value = patient.床號;
+    worksheet.getCell(`B${rowIndex}`).value = getPrintBedNumber(patient);
     // C: 中文姓名
     worksheet.getCell(`C${rowIndex}`).value = `${patient.中文姓氏}${patient.中文名字}`;
     // D: 英文姓名
@@ -388,7 +390,7 @@ const exportWaitingListToExcelSimple = async (
     const rowIndex = headerRow + 1 + index;
     const row = worksheet.getOrCreateRow(rowIndex);
     const values = [
-      patient.床號,
+      getPrintBedNumber(patient),
       `${patient.中文姓氏}${patient.中文名字}`,
       getFormattedEnglishName(patient.英文姓氏, patient.英文名字) || patient.英文姓名 || '',
       patient.性別,

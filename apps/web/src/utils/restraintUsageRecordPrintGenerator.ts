@@ -7,6 +7,9 @@
 
 import type { Patient, PatientRestraintAssessment } from '../lib/database';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+import { getPrintBedNumber } from './bedTransferUtils';
+
+
 
 const MIN_ROWS = 7;
 const IFRAME_ID = 'restraint-usage-record-print-iframe';
@@ -148,7 +151,7 @@ body {
   <br>
   <div class="user-info">
     <div>姓名：<span class="db-line-input" style="width:130px;">${esc(patientName)}</span></div>
-    <div>床號：<span class="db-line-input" style="width:80px;">${esc(patient.床號)}</span></div>
+    <div>床號：<span class="db-line-input" style="width:80px;">${esc(getPrintBedNumber(patient))}</span></div>
     <div>身份證號碼：<span class="db-line-input" style="width:150px;">${esc(patient.身份證號碼)}</span></div>
   </div>
   <div class="instructions">

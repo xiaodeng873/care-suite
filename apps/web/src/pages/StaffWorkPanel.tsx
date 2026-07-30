@@ -15,6 +15,7 @@ import {
 import { usePatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useAuth } from '../context/AuthContext';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { Link } from 'react-router-dom';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 
@@ -440,7 +441,7 @@ const StaffWorkPanel: React.FC = () => {
                     
                     <div className="mt-1">
                       <div className="font-medium text-gray-900">
-                        {task.patient.床號} - {task.patient.中文姓氏}{task.patient.中文名字}
+                        <BedNumberImprint patient={task.patient} size="sm" className="font-medium text-gray-900" /> - {task.patient.中文姓氏}{task.patient.中文名字}
                       </div>
                       <div className="text-sm text-gray-600">
                         {task.prescription.medication_name} | {task.scheduledTime}

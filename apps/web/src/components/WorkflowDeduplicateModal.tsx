@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle, Pill, Calendar, Clock, User, Trash2, RefreshCw } from 'lucide-react';
+import BedNumberImprint from './BedNumberImprint';
 import { supabase } from '../lib/supabase';
 
 import { formatDisplayDateTime } from '../utils/dateFormat';
@@ -191,11 +192,6 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
     return patient ? `${patient.中文姓氏}${patient.中文名字}` : '未知';
   };
 
-  const getPatientBed = (patientId: number) => {
-    const patient = patients.find(p => p.院友id === patientId);
-    return patient?.床號 || '-';
-  };
-
   const getMedicationName = (prescriptionId: string) => {
     const prescription = prescriptions.find(p => p.id === prescriptionId);
     return prescription?.medication_name || '未知藥物';
@@ -335,7 +331,7 @@ const WorkflowDeduplicateModal: React.FC<WorkflowDeduplicateModalProps> = ({
                         <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
                           <User className="h-4 w-4" />
                           <span>
-                            {getPatientName(group.records[0].patient_id)} (床號: {getPatientBed(group.records[0].patient_id)})
+                            {getPatientName(group.records[0].patient_id)} (<BedNumberImprint patient={patients.find(p => p.院友id === group.records[0].patient_id) as any} size="sm" />)
                           </span>
                         </div>
                       </div>

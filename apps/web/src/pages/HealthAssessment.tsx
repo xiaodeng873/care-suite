@@ -41,6 +41,7 @@ import GenerateTemperatureModal from '../components/GenerateTemperatureModal';
 import { exportVitalSignsToExcel, type VitalSignExportData } from '../utils/vitalsignExcelGenerator';
 import { exportBloodSugarToExcel, type BloodSugarExportData } from '../utils/bloodSugarExcelGenerator';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { syncTaskStatus } from '../lib/database';
 import type { HealthRecord } from '../lib/database';
 import { isVirtualDataEnabled } from '../utils/toolsSettings';
@@ -1036,7 +1037,7 @@ const HealthAssessment: React.FC = () => {
                                 </PatientTooltip>
                               ) : '-'}
                             </div>
-                            <div className="text-sm text-gray-500">{patient?.床號}</div>
+                            {patient && <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" />}
                           </div>
                         </div>
                       </td>

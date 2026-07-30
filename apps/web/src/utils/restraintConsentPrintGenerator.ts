@@ -6,7 +6,7 @@
  *  院友姓名       → patient.中文姓氏 + 中文名字
  *  性別／年齡     → patient.性別 + 由出生日期計算年齡
  *  身份證號碼     → patient.身份證號碼
- *  房／床號       → patient.床號
+ *  房／床號       → (patient).床號
  *  上次評估日期   → assessment.doctor_signature_date
  *  下次評估日期   → 留空（不 mapping，供手寫）
  *  (一) 住客情況  → assessment.risk_factors (boolean map)
@@ -18,6 +18,9 @@
 import type { Patient, PatientRestraintAssessment } from '../lib/database';
 import { getFacilitySettings } from './facilitySettings';
 import { formatDisplayDate } from './dateFormat';
+import { getPrintBedNumber } from './bedTransferUtils';
+
+
 
 const calcAge = (birthDate: string | undefined): string => {
   if (!birthDate) return '';
@@ -334,7 +337,7 @@ table.main-table th, table.main-table td {
     </tr>
     <tr>
       <td>房／床號</td>
-      <td><input type="text" class="db-input"${val(esc(patient.床號))}></td>
+      <td><input type="text" class="db-input"${val(esc(getPrintBedNumber(patient)))}></td>
       <td></td><td></td>
       <td style="text-align:right; padding-right:5px;">上次評估日期</td>
       <td><input type="text" class="db-input"${val(lastAssessDate)}></td>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, CheckCircle, Hospital, Home, XCircle, AlertTriangle, Pause, AlertCircle, Syringe } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { formatDisplayDate } from '../utils/dateFormat';
+import BedNumberImprint from './BedNumberImprint';
 
 
 interface DispenseConfirmModalProps {
@@ -176,7 +177,7 @@ const DispenseConfirmModal: React.FC<DispenseConfirmModalProps> = ({
               <div>
                 <div className="text-gray-500 mb-1">院友</div>
                 <div className="font-medium text-gray-900">
-                  {patient?.中文姓氏}{patient?.中文名字} ({patient?.床號})
+                  {patient?.中文姓氏}{patient?.中文名字} {patient && <BedNumberImprint patient={patient} size="sm" className="text-gray-900" />}
                 </div>
               </div>
               <div>

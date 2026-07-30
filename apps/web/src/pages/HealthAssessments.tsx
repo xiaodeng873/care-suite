@@ -24,6 +24,7 @@ import { usePatients, type HealthAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import HealthAssessmentModal from '../components/HealthAssessmentModal';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { isHealthAssessmentOverdue, isHealthAssessmentDueSoon } from '../utils/taskScheduler';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
@@ -826,7 +827,7 @@ const HealthAssessments: React.FC = () => {
                                   </div>
                                   <div>
                                     <div className="text-sm font-medium text-gray-900">{group.patient.中文姓名}</div>
-                                    <div className="text-xs text-gray-500">{group.patient.床號}</div>
+                                    <div className="text-xs text-gray-500"><BedNumberImprint patient={group.patient} size="sm" className="text-xs text-gray-500" /></div>
                                   </div>
                                 </div>
                               </PatientTooltip>

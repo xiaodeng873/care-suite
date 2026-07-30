@@ -2,6 +2,8 @@ import { IncidentReport, Patient } from '../lib/database';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
 import { formatDisplayDate } from './dateFormat';
+import { getPrintBedNumber } from './bedTransferUtils';
+
 // 生成意外經過摘要 (不含日期、時間、院友名，因其他欄位已有)
 const generateIncidentSummary = (patient: Patient, report: IncidentReport): string => {
   let summary = '';
@@ -107,7 +109,7 @@ export const generateIncidentReportPrintHTML = (
     if (!patient) return;
 
     const patientName = patient.中文姓名 || '';
-    const bedNumber = patient.床號 || '';
+    const bedNumber = getPrintBedNumber(patient);
     const gender = patient.性別 || '';
     const age = patient.出生日期 
       ? new Date().getFullYear() - new Date(patient.出生日期).getFullYear() 

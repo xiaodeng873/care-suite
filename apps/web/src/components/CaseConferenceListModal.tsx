@@ -5,6 +5,7 @@ import { getCarePlanStatus } from '../utils/carePlanStatus';
 import { generateCaseConferenceListHtml } from '../utils/caseConferenceListPrintGenerator';
 import { formatDisplayDate } from '../utils/dateFormat';
 import type { CarePlan, Patient } from '../lib/database';
+import BedNumberImprint from './BedNumberImprint';
 import type {
   CaseConferenceGroupInput,
   CaseConferenceRoomInput,
@@ -298,7 +299,7 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
                             />
                           </td>
                           <td className="px-3 py-2 text-sm text-gray-900">
-                            {patient?.床號 || '-'}
+                            {patient ? <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-900" /> : '-'}
                           </td>
                           <td className="px-3 py-2 text-sm text-gray-900">
                             {patient?.中文姓名 || '-'}
@@ -335,7 +336,7 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
                 const patient = patients.find(p => p.院友id === plan.patient_id);
                 return (
                   <option key={plan.id} value={plan.id}>
-                    {patient?.床號 || '-'} {patient?.中文姓名 || '-'} · {plan.plan_type}
+                    {patient ? <BedNumberImprint patient={patient} size="sm" className="text-sm" /> : '-'} {patient?.中文姓名 || '-'} · {plan.plan_type}
                     {plan.review_due_date ? `（複檢到期 ${plan.review_due_date}）` : ''}
                   </option>
                 );

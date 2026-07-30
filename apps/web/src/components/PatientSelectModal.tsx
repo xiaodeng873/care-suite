@@ -4,6 +4,7 @@ import { usePatients } from '../context/PatientContext';
 import { getReasonBadgeClass, getReasonIcon } from '../utils/reasonColors';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import BedNumberImprint from './BedNumberImprint';
 
 interface PatientSelectModalProps {
   scheduleId: number;
@@ -147,7 +148,7 @@ const PatientSelectModal: React.FC<PatientSelectModalProps> = ({ scheduleId, onC
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span className="text-blue-600 font-medium">{patient.床號}</span>
+                        <BedNumberImprint patient={patient} size="sm" className="text-blue-600 font-medium" />
                       )}
                     </div>
                     <div>

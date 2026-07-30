@@ -1,6 +1,8 @@
 import type { CgatRecord, Patient } from '../lib/database';
 import { getFeeExemptEligibility, calcAge, calcCgatFee } from './cgatFeeHelper';
 import proxyTemplate from '../../../../doc_html/院舍取藥委託書.html?raw';
+import { getPrintBedNumber } from './bedTransferUtils';
+
 
 function formatIdForProxy(idNumber?: string): string {
   return idNumber || '';
@@ -68,7 +70,7 @@ function buildProxyItems(records: CgatRecord[], patientMap: Map<number, Patient>
     .map(r => {
       const patient = patientMap.get(r.patient_id);
       return {
-        bedNumber: patient?.床號 ?? '',
+        bedNumber: patient ? getPrintBedNumber(patient) : '',
         name: patient ? `${patient.中文姓氏 || ''}${patient.中文名字 || ''}` : '',
         idNumber: formatIdForProxy(patient?.身份證號碼),
         idCode: getIdCode(patient, r),

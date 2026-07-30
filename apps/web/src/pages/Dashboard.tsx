@@ -30,7 +30,9 @@ import TaskHistoryModal from '../components/TaskHistoryModal';
 import MonitoringTaskWorksheetModal from '../components/MonitoringTaskWorksheetModal';
 import BatchHealthRecordOCRModal from '../components/BatchHealthRecordOCRModal';
 import SingleWoundAssessmentModal from '../components/SingleWoundAssessmentModal';
-import { syncTaskStatus, SYNC_CUTOFF_DATE_STR, supabase } from '../lib/database';
+import BedNumberImprint from '../components/BedNumberImprint';
+import { syncTaskStatus, SYNC_CUTOFF_DATE_STR } from '../lib/database';
+import { supabase } from '../lib/supabase';
 import { getMissingMonitoringVitals } from '../utils/monitoringCoverage';
 import { hasInProgressCarePlan } from '../utils/carePlanStatus';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
@@ -96,7 +98,7 @@ function pickLatestPerPatient<T extends { patient_id: number; created_at?: strin
   return Array.from(latestPerPatient.values());
 }
 const Dashboard: React.FC = () => {
-  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, patientsWithWounds, activityRecords, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData, refreshWoundData } = usePatients();
+  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, patientsWithWounds, activityRecords, beds, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData, refreshWoundData } = usePatients();
   const [showActivityRecordModal, setShowActivityRecordModal] = useState(false);
   const [activityRecordPatientId, setActivityRecordPatientId] = useState<number | undefined>(undefined);
   const [showHealthRecordModal, setShowHealthRecordModal] = useState(false);
@@ -1184,7 +1186,7 @@ const Dashboard: React.FC = () => {
                             <div className="flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
-                                <span className="text-xs text-gray-500">({patient?.床號})</span>
+                                {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
                               </div>
                               <div className="flex flex-wrap gap-1.5 mt-1">
                                 {(() => {
@@ -1278,7 +1280,7 @@ const Dashboard: React.FC = () => {
                               <div className="flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
-                                  <span className="text-xs text-gray-500">({patient?.床號})</span>
+                                  {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
                                 </div>
                                 <div className="flex flex-wrap gap-1.5 mt-1">
                                   {(() => {
@@ -1368,7 +1370,7 @@ const Dashboard: React.FC = () => {
                               <div className="flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
-                                  <span className="text-xs text-gray-500">({patient?.床號})</span>
+                                  {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
                                 </div>
                                 <div className="flex flex-wrap gap-1.5 mt-1">
                                   {(() => {
@@ -1433,7 +1435,7 @@ const Dashboard: React.FC = () => {
                         <div className="flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                                 <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
-                                <span className="text-xs text-gray-500">({patient?.床號})</span>
+                                {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
                             </div>
                             <div className="flex flex-wrap items-center gap-2 mt-1">
                                 {getTaskTypeIcon(task.health_record_type)}
@@ -1469,7 +1471,7 @@ const Dashboard: React.FC = () => {
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
-                            <span className="text-xs text-gray-500">({patient?.床號})</span>
+                            {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
                           </div>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             <Stethoscope className="h-4 w-4 text-teal-600" />
@@ -1497,7 +1499,7 @@ const Dashboard: React.FC = () => {
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
-                            <span className="text-xs text-gray-500">({patient?.床號})</span>
+                            {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
                           </div>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             <Shield className="h-4 w-4 text-yellow-600" />
@@ -1525,7 +1527,7 @@ const Dashboard: React.FC = () => {
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
-                            <span className="text-xs text-gray-500">({patient?.床號})</span>
+                            {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
                           </div>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             <Stethoscope className="h-4 w-4 text-red-600" />
@@ -1588,7 +1590,7 @@ const Dashboard: React.FC = () => {
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
-                            <span className="text-xs text-gray-500">({patient?.床號})</span>
+                            {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
                           </div>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             <CalendarCheck className="h-4 w-4 text-blue-600" />
@@ -1622,7 +1624,7 @@ const Dashboard: React.FC = () => {
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
-                          <span className="text-xs text-gray-500">({patient?.床號})</span>
+                          {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
                         </div>
                         <div className="flex flex-wrap items-center gap-2 mt-1">
                           <Calendar className="h-4 w-4 text-blue-600" />

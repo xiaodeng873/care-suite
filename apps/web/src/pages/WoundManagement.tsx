@@ -4,6 +4,7 @@ import { usePatients, type WoundAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import WoundAssessmentModal from '../components/WoundAssessmentModal';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
@@ -860,7 +861,7 @@ const WoundManagement: React.FC = () => {
                                 '-'
                               )}
                             </div>
-                            <div className="text-sm text-gray-500">{patient?.床號}</div>
+                            <div className="text-sm text-gray-500">{patient && <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" />}</div>
                           </div>
                         </div>
                       </td>

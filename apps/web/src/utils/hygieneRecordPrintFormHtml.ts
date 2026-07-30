@@ -7,7 +7,10 @@
  */
 
 import type { Patient, HygieneRecord } from '../lib/database';
+
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+import { getPrintBedNumber } from './bedTransferUtils';
+
 
 const ROWS_PER_PAGE = 20;
 
@@ -107,7 +110,7 @@ const pageBlock = (patient: Patient, monthData: HygieneMonthData, facilityName: 
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const age = calculateAge(patient.出生日期);
   const gender = patient.性別 || '';
-  const bed = patient.床號 || '';
+  const bed = getPrintBedNumber(patient);
   const monthLabel = `${year}年${month.toString().padStart(2, '0')}月`;
 
   return `
@@ -253,15 +256,16 @@ export const printHygieneRecordForm = async (patients: Patient[], monthsData: Hy
 };
 
 /**
- * 依日期範圍為單一院友列印個人衛生記錄表。
+ * 依日期範圍為單一院友產生個人衛生記錄表 HTML。
  * 會自動將範圍內的每個月份拆成一頁，並只帶入該院友的記錄。
  */
-export const printHygieneRecordFormForDateRange = async (
+export const generateHygieneRecordFormForDateRange = (
   patient: Patient,
   records: HygieneRecord[],
   startDate: string,
-  endDate: string
-): Promise<void> => {
+  endDate: string,
+  facilityName: string
+): string => {
   const start = new Date(startDate);
   const end = new Date(endDate);
   const monthsData: HygieneMonthData[] = [];
@@ -285,5 +289,34 @@ export const printHygieneRecordFormForDateRange = async (
     }
   }
 
-  await printHygieneRecordForm([patient], monthsData);
+  return generateHygieneRecordPrintFormHtml([patient], monthsData, facilityName);
+};
+
+/**
+ * 依日期範圍為單一院友列印個人衛生記錄表。
+ */
+export const printHygieneRecordFormForDateRange = async (
+  patient: Patient,
+  records: HygieneRecord[],
+  startDate: string,
+  endDate: string
+): Promise<void> => {
+  const settings = await getFacilitySettings();
+  const html = generateHygieneRecordFormForDateRange(patient, records, startDate, endDate, settings.facilityNameZh);
+  const old = document.getElementById('hygiene-printform-iframe');
+  if (old) old.remove();
+  const iframe = document.createElement('iframe');
+  iframe.id = 'hygiene-printform-iframe';
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow?.document;
+  if (doc) {
+    doc.open();
+    doc.write(html);
+    doc.close();
+    iframe.onload = () => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    };
+  }
 };

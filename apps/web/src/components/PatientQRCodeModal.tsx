@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Download, QrCode, User } from 'lucide-react';
 import QRCode from 'qrcode';
 import type { Patient } from '../lib/database';
+import BedNumberImprint from './BedNumberImprint';
 
 interface PatientQRCodeModalProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ export const PatientQRCodeModal: React.FC<PatientQRCodeModalProps> = ({
     if (!qrCodeDataUrl || !patient) return;
 
     const link = document.createElement('a');
-    link.download = `patient_qrcode_${patient.床號}_${patient.中文姓名}.png`;
+    link.download = `patient_qrcode_${patient.original_bed_number || patient.床號}_${patient.中文姓名}.png`;
     link.href = qrCodeDataUrl;
     link.click();
   };
@@ -91,7 +92,7 @@ export const PatientQRCodeModal: React.FC<PatientQRCodeModalProps> = ({
               )}
             </div>
             <h3 className="text-xl font-bold text-gray-900">{patient.中文姓名}</h3>
-            <p className="text-sm text-gray-500">床號: {patient.床號}</p>
+            <p className="text-sm text-gray-500">床號: <BedNumberImprint patient={patient} size="sm" /></p>
             {patient.身份證號碼 && (
               <p className="text-sm text-gray-500">身份證: {patient.身份證號碼}</p>
             )}

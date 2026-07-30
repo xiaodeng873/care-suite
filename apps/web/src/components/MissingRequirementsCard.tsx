@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Syringe, Utensils, Calendar, AlertTriangle, ChevronDown, ChevronUp, ArrowRight, Stethoscope, ClipboardList, User } from 'lucide-react';
+import BedNumberImprint from './BedNumberImprint';
 
 interface Patient {
   院友id: number;
@@ -260,7 +261,7 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
               </div>
               <div className="flex-1">
                 <span className="font-medium text-red-800">
-                  {group.patient.中文姓氏}{group.patient.中文名字} <span className="text-xs text-red-600">({group.patient.床號})</span>
+                  {group.patient.中文姓氏}{group.patient.中文名字} <BedNumberImprint patient={group.patient as any} size="sm" />
                 </span>
               </div>
             </div>

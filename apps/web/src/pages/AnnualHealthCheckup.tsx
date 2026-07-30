@@ -25,6 +25,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import AnnualHealthCheckupModal from '../components/AnnualHealthCheckupModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import {
   getCheckupStatus,
   isOverdue,
@@ -728,7 +729,7 @@ const AnnualHealthCheckup: React.FC = () => {
                                     </PatientTooltip>
                                   ) : '-'}
                                 </div>
-                                <div className="text-sm text-gray-500">{patient?.床號}</div>
+                                {patient ? <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" /> : null}
                               </div>
                             </div>
                           </td>

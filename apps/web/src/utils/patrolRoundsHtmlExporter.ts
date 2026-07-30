@@ -210,19 +210,17 @@ function printViaIframe(html: string): void {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export async function exportPatrolRoundsRangeHtml(options: PatrolRoundsExportOptions): Promise<void> {
+export function generatePatrolRoundsRangeHtml(options: PatrolRoundsExportOptions): string {
   const {
     bedNumber,
     startDate,
     endDate,
     rounds,
+    facilityName = '',
   } = options;
 
-  const settings = await getFacilitySettings();
-  const facilityName = options.facilityName ?? settings.facilityNameZh;
-
   const allDates = dateRange(startDate, endDate);
-  if (allDates.length === 0) return;
+  if (allDates.length === 0) return '';
 
   // Build lookup: date → (scheduledTime → record)
   const dataIndex = new Map<string, Map<string, PatrolRoundRecord>>();
@@ -240,7 +238,14 @@ export async function exportPatrolRoundsRangeHtml(options: PatrolRoundsExportOpt
     buildPage(dates, facilityName, bedNumber, monthStr, dataIndex)
   );
 
-  printViaIframe(buildDocument(pageHtmls, facilityName));
+  return buildDocument(pageHtmls, facilityName);
+}
+
+export async function exportPatrolRoundsRangeHtml(options: PatrolRoundsExportOptions): Promise<void> {
+  const settings = await getFacilitySettings();
+  const facilityName = options.facilityName ?? settings.facilityNameZh;
+  const html = generatePatrolRoundsRangeHtml({ ...options, facilityName });
+  printViaIframe(html);
 }
 
 export async function exportPatrolRoundsHtml(

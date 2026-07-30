@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Syringe, Calendar, Building2, Plus, Trash2 } from 'lucide-react';
 import { usePatients, type VaccinationRecord } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
+import BedNumberImprint from './BedNumberImprint';
 import OCRDocumentBlock from './OCRDocumentBlock';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -170,7 +171,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
               <h2 className="text-xl font-semibold text-gray-900">疫苗記錄</h2>
               {selectedPatient && (
                 <p className="text-sm text-gray-500">
-                  {selectedPatient.中文姓名} - 床號: {selectedPatient.床號}
+                  {selectedPatient.中文姓名} - 床號: <BedNumberImprint patient={selectedPatient} size="sm" />
                 </p>
               )}
             </div>

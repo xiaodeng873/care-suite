@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Clock, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import BedNumberImprint from './BedNumberImprint';
 
 interface Patient {
   院友id: number;
@@ -88,7 +89,7 @@ const OverdueWorkflowCard: React.FC<OverdueWorkflowCardProps> = ({
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
                       <span className="font-medium text-amber-900">
-                        {item.patient.床號} {item.patient.中文姓氏}{item.patient.中文名字}
+                        <BedNumberImprint patient={item.patient as any} size="sm" /> {item.patient.中文姓氏}{item.patient.中文名字}
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-sm text-amber-700">

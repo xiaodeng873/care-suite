@@ -11,6 +11,8 @@ import {
   getPatientCareFlags,
   hasNonIndividualActivity,
 } from '../utils/activityRecordStatus';
+import BedNumberImprint from './BedNumberImprint';
+import type { Patient } from '../lib/database';
 
 interface ActivityRecordModalProps {
   onClose: () => void;
@@ -304,7 +306,7 @@ const ActivityRecordModal: React.FC<ActivityRecordModalProps> = ({ onClose, defa
                   )}
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">{patient.床號} {patient.中文姓氏}{patient.中文名字}</p>
+                  <p className="font-medium text-gray-900"><BedNumberImprint patient={patient} size="sm" className="font-medium text-gray-900" /> {patient.中文姓氏}{patient.中文名字}</p>
                   {absence.is_absent ? (
                     <p className="text-sm text-red-600">無法參加: {absence.absence_reason || '住院/外出'}</p>
                   ) : (
@@ -434,7 +436,7 @@ const ActivityRecordModal: React.FC<ActivityRecordModalProps> = ({ onClose, defa
                         >
                           {isSelected ? <CheckSquare className="h-5 w-5 text-blue-600 flex-shrink-0" /> : <Square className="h-5 w-5 text-gray-400 flex-shrink-0" />}
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900 truncate">{patient.床號} {patient.中文姓氏}{patient.中文名字}</div>
+                            <div className="font-medium text-gray-900 truncate"><BedNumberImprint patient={patient} size="sm" className="font-medium text-gray-900" /> {patient.中文姓氏}{patient.中文名字}</div>
                             {absence?.is_absent && (
                               <div className="text-xs text-red-600 mt-0.5">無法參加: {absence.absence_reason || '住院/外出'}</div>
                             )}
@@ -563,7 +565,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ sharedActivity, setSharedAc
 // 臥床/鼻胃飼確認對話框
 interface ConfirmModalProps {
   patientIds: number[];
-  patients: { 院友id: number; 床號: string; 中文姓名: string }[];
+  patients: Patient[];
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -584,7 +586,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ patientIds, patients, onCan
         <ul className="list-disc list-inside text-sm text-gray-800 mb-4 space-y-1">
           {patientIds.map(pid => {
             const p = patients.find(pp => pp.院友id === pid);
-            return <li key={pid}>{p?.床號} {p?.中文姓名}</li>;
+            return <li key={pid}>{p && <BedNumberImprint patient={p} size="sm" className="text-gray-800" />} {p?.中文姓名}</li>;
           })}
         </ul>
         <div className="flex justify-end gap-2">

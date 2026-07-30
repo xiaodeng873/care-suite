@@ -2,7 +2,9 @@ import React, { useState, useDeferredValue } from 'react';
 import { X, ArrowRightLeft, User, Bed, Search } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientTooltip from './PatientTooltip';
+import BedNumberImprint from './BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import type { BedTransferType } from '../lib/database';
 
 interface BedSwapModalProps {
   onClose: () => void;
@@ -12,6 +14,7 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
   const { patients, stations, beds, swapPatientBeds } = usePatients();
   const [selectedPatient1, setSelectedPatient1] = useState<any>(null);
   const [selectedPatient2, setSelectedPatient2] = useState<any>(null);
+  const [transferType, setTransferType] = useState<BedTransferType>('routine');
   const [searchTerm1, setSearchTerm1] = useState('');
   const [searchTerm2, setSearchTerm2] = useState('');
   const deferredSearch1 = useDeferredValue(searchTerm1);
@@ -65,7 +68,9 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
     const patient1BedInfo = getPatientBedInfo(selectedPatient1);
     const patient2BedInfo = getPatientBedInfo(selectedPatient2);
 
-    const confirmMessage = `確定要互換以下兩位院友的床位嗎？\n\n` +
+    const transferTypeLabel = transferType === 'routine' ? '常規' : '暫時性';
+    const confirmMessage = `確定要${transferTypeLabel}互換以下兩位院友的床位嗎？\n\n` +
+      `（${transferTypeLabel}互調：資料將跟隨床位交換；${transferType === 'temporary' ? '互換後雙方均仍視為原床位院友，列印文件顯示原床位。' : '互換後原床位標記隨之交換。'}）\n\n` +
       `${selectedPatient1.中文姓名} (${patient1BedInfo.station?.name} - ${patient1BedInfo.bed?.bed_number})\n` +
       `↕\n` +
       `${selectedPatient2.中文姓名} (${patient2BedInfo.station?.name} - ${patient2BedInfo.bed?.bed_number})`;
@@ -75,12 +80,15 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
     }
 
     try {
-      await swapPatientBeds(selectedPatient1.院友id, selectedPatient2.院友id);
+      await swapPatientBeds(selectedPatient1.院友id, selectedPatient2.院友id, transferType);
       alert('床位互換成功！');
       onClose();
     } catch (error) {
       console.error('床位互換失敗:', error);
-      alert(error instanceof Error ? error.message : '床位互換失敗，請重試');
+      const message = (error as any)?.message
+        || (error as any)?.error_description
+        || (typeof error === 'string' ? error : JSON.stringify(error));
+      alert(message || '床位互換失敗，請重試');
     }
   };
 
@@ -122,9 +130,8 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
             </p>
             <div className="flex flex-wrap items-center gap-2 mt-1">
               <Bed className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-600">
-                {bedInfo.station?.name} - {bedInfo.bed?.bed_number}
-              </span>
+              <BedNumberImprint patient={patient} beds={beds} size="sm" />
+              <span className="text-sm text-gray-600">({bedInfo.station?.name})</span>
             </div>
           </div>
           <input
@@ -240,6 +247,41 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
             </div>
           </div>
 
+          {/* 互換調動類型選擇 */}
+          <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-3">調動類型</h4>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <label className="flex items-start gap-3 p-3 border rounded-lg bg-white cursor-pointer hover:border-blue-300 transition-colors">
+                <input
+                  type="radio"
+                  name="swapTransferType"
+                  value="routine"
+                  checked={transferType === 'routine'}
+                  onChange={() => setTransferType('routine')}
+                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <div>
+                  <span className="font-medium text-gray-900">常規互換</span>
+                  <p className="text-sm text-gray-500">資料跟人走，雙方原床位標記隨之交換。</p>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 p-3 border rounded-lg bg-white cursor-pointer hover:border-amber-300 transition-colors">
+                <input
+                  type="radio"
+                  name="swapTransferType"
+                  value="temporary"
+                  checked={transferType === 'temporary'}
+                  onChange={() => setTransferType('temporary')}
+                  className="mt-1 h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300"
+                />
+                <div>
+                  <span className="font-medium text-gray-900">暫時性互換</span>
+                  <p className="text-sm text-gray-500">雙方名義上換床，所有頁面跟隨現床，但列印文件仍顯示原床位。</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
           {/* 互換預覽 */}
           {selectedPatient1 && selectedPatient2 && (
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -248,8 +290,9 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
                 <div className="text-center">
                   <div className="font-medium text-gray-900">{selectedPatient1.中文姓名}</div>
                   <div className="text-sm text-gray-600">
-                    {getPatientBedInfo(selectedPatient1).station?.name} - {getPatientBedInfo(selectedPatient1).bed?.bed_number}
+                    {getPatientBedInfo(selectedPatient1).station?.name} -
                   </div>
+                  <BedNumberImprint patient={selectedPatient1} beds={beds} size="sm" />
                 </div>
                 
                 <ArrowRightLeft className="h-6 w-6 text-blue-600" />
@@ -257,8 +300,9 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
                 <div className="text-center">
                   <div className="font-medium text-gray-900">{selectedPatient2.中文姓名}</div>
                   <div className="text-sm text-gray-600">
-                    {getPatientBedInfo(selectedPatient2).station?.name} - {getPatientBedInfo(selectedPatient2).bed?.bed_number}
+                    {getPatientBedInfo(selectedPatient2).station?.name} -
                   </div>
+                  <BedNumberImprint patient={selectedPatient2} beds={beds} size="sm" />
                 </div>
               </div>
             </div>

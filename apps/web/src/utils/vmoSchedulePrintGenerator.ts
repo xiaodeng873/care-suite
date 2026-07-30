@@ -14,6 +14,9 @@ const IFRAME_ID = 'vmo-schedule-print-iframe';
 
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 import { formatDisplayDate } from '../utils/dateFormat';
+import type { Patient } from '../lib/database';
+import { getPrintBedNumber } from './bedTransferUtils';
+
 
 
 const esc = (s: string | undefined | null): string =>
@@ -48,19 +51,7 @@ const printHtml = (html: string): void => {
 // ── Types ─────────────────────────────────────────────────────────────────
 
 export interface VmoPatientItem {
-  patient: {
-    床號?: string;
-    中文姓氏?: string;
-    中文名字?: string;
-    英文姓氏?: string;
-    英文名字?: string;
-    英文姓名?: string;
-    性別?: string;
-    身份證號碼?: string;
-    出生日期?: string;
-    藥物敏感?: string[];
-    不良藥物反應?: string[];
-  };
+  patient: Patient;
   reasons?: { 原因名稱: string }[];
   症狀說明?: string;
   備註?: string;
@@ -78,7 +69,7 @@ export const generateVmoWaitingListHtml = (
 ): string => {
   const MIN_ROWS = 10;
   const sorted = [...items].sort((a, b) =>
-    (a.patient?.床號 || '').localeCompare(b.patient?.床號 || '', 'zh-Hant', { numeric: true })
+    (a.patient ? getPrintBedNumber(a.patient) : '').localeCompare(b.patient ? getPrintBedNumber(b.patient) : '', 'zh-Hant', { numeric: true })
   );
   const total = Math.max(sorted.length, MIN_ROWS);
 
@@ -103,7 +94,7 @@ export const generateVmoWaitingListHtml = (
     const algCell = `<td>${esc(allergyText)}</td>`;
     return `<tr class="${rowClass}">
   <td><b>${i + 1}</b></td>
-  ${c(p?.\u5e8a\u865f || '')}${c(p ? `${p.\u4e2d\u6587\u59d3\u6c0f || ''}${p.\u4e2d\u6587\u540d\u5b57 || ''}` : '')}${c(eng)}
+  ${c(p ? getPrintBedNumber(p) : '')}${c(p ? `${p.\u4e2d\u6587\u59d3\u6c0f || ''}${p.\u4e2d\u6587\u540d\u5b57 || ''}` : '')}${c(eng)}
   ${c(p?.\u8eab\u4efd\u8b49\u865f\u78bc || '')}${c(p?.\u6027\u5225 || '')}${c(p ? fmtDate(p.\u51fa\u751f\u65e5\u671f) : '')}
   ${c(complaint)}${algCell}${ck(!!hasAnnual)}${ck(!!hasConsent)}${c(item?.\u5099\u8a3b || '')}
 </tr>`;

@@ -12,8 +12,10 @@
  *  - 尿片 / 片芯 列
  */
 
-import type { Patient } from '../lib/database';
+import type { Patient, DiaperChangeRecord } from '../lib/database';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+import { getPrintBedNumber } from './bedTransferUtils';
+import { formatDisplayDate } from './dateFormat';
 
 const TITLE = '換片及大便記錄 (B83 FK 06.2026)';
 const DATES_PER_PAGE = 4;
@@ -133,4 +135,193 @@ export const printDiaperRecordForm = async (patients: Patient[], yearMonth: stri
 // 單一院友版：保留舊 diaperRecordHtmlExporter 的入口位置，但以 print form 取代
 export const printDiaperRecordFormForPatient = async (patient: Patient, yearMonth: string): Promise<void> => {
   await printDiaperRecordForm([patient], yearMonth);
+};
+
+// ─── 日期範圍版（供 PatientPrintModal 床頭記錄 tab 使用）────────────────────────
+
+const dateRange = (start: string, end: string): string[] => {
+  const dates: string[] = [];
+  const cur = new Date(start);
+  const fin = new Date(end);
+  while (cur <= fin) {
+    dates.push(cur.toISOString().split('T')[0]);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+};
+
+const chunk = <T,>(arr: T[], size: number): T[][] => {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+};
+
+const formatDiaperDateLabel = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+};
+
+const checkBox = (label: string, checked: boolean): string =>
+  `<td class="cb">${checked ? '☑' : '☐'} ${label}</td>`;
+
+const emptyCell = (): string => '<td class="cb"></td>';
+
+const buildDiaperDayBlock = (dateStr: string, records: DiaperChangeRecord[], showData: boolean): string => {
+  const recordMap = new Map<string, DiaperChangeRecord>();
+  records.forEach(r => recordMap.set(r.time_slot, r));
+  const dayLabel = showData ? formatDiaperDateLabel(dateStr) : '';
+
+  const timeRow = `<tr><th class="hc">時間</th>${TIME_SLOTS.map(s => `<th class="hc" colspan="5">${s}</th>`).join('')}</tr>`;
+  const dateRow = `<tr><th class="hc" rowspan="2">${dayLabel}</th>${Array(TIME_SLOTS.length).fill('').map(() => `<th class="hc" rowspan="2">小便</th><th class="hc" colspan="3">大便</th><th class="hc" rowspan="2">簽名</th>`).join('')}</tr>`;
+  const subRow = `<tr>${Array(TIME_SLOTS.length).fill('').map(() => `<th class="hc sm" colspan="3">(色、質、量)</th>`).join('')}</tr>`;
+
+  const r1 = `<tr><td class="dc" rowspan="5">${dayLabel}</td>${TIME_SLOTS.map(slot => {
+    const r = recordMap.get(slot);
+    const hasRecord = !!r;
+    return checkBox('多', hasRecord && r.urine_amount === '多') +
+      checkBox('正常', hasRecord && r.stool_color === '正常') +
+      checkBox('硬', hasRecord && r.stool_texture === '硬') +
+      checkBox('多', hasRecord && r.stool_amount === '多') +
+      `<td class="sig" rowspan="5">${showData && r?.recorder ? r.recorder : ''}</td>`;
+  }).join('')}</tr>`;
+
+  const buildDataRow = (urine: string, color: string, texture: string, amount: string) => {
+    return `<tr>${TIME_SLOTS.map(slot => {
+      const r = recordMap.get(slot);
+      const hasRecord = !!r;
+      const cells: string[] = [];
+      if (urine) cells.push(checkBox(urine, hasRecord && r.urine_amount === urine));
+      else cells.push(emptyCell());
+      if (color) cells.push(checkBox(color, hasRecord && r.stool_color === color));
+      else cells.push(emptyCell());
+      if (texture) cells.push(checkBox(texture, hasRecord && r.stool_texture === texture));
+      else cells.push(emptyCell());
+      if (amount) cells.push(checkBox(amount, hasRecord && r.stool_amount === amount));
+      else cells.push(emptyCell());
+      return cells.join('');
+    }).join('')}</tr>`;
+  };
+
+  const r2 = buildDataRow('中', '有血', '軟', '中');
+  const r3 = buildDataRow('少', '有潺', '稀', '少');
+  const r4 = buildDataRow('', '黑便', '', '');
+
+  const r5 = `<tr>${TIME_SLOTS.map(() => `<td class="cb">尿片</td><td class="cb"></td><td class="cb">片芯</td><td class="cb"></td>`).join('')}</tr>`;
+
+  return timeRow + dateRow + subRow + r1 + r2 + r3 + r4 + r5;
+};
+
+const buildDiaperRangePage = (
+  patient: Patient,
+  dates: string[],
+  recordsByDate: Map<string, DiaperChangeRecord[]>,
+  startDate: string,
+  endDate: string,
+  facilityName: string,
+  showData: boolean
+): string => {
+  const name = showData ? patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}` : '';
+  const bed = showData ? getPrintBedNumber(patient) : '';
+  const dateRangeLabel = `${formatDisplayDate(new Date(startDate))} 至 ${formatDisplayDate(new Date(endDate))}`;
+  const days = dates
+    .map(d => buildDiaperDayBlock(d, recordsByDate.get(d) || [], showData))
+    .join('<tr class="sep"><td colspan="31"></td></tr>') + '<tr class="sep"><td colspan="31"></td></tr>';
+  return `
+  <div class="page"><div class="inner">
+    <div class="inst">${facilityName}</div>
+    <div class="title">${TITLE}</div>
+    <div class="info">
+      <div><span>院友姓名：</span><span class="ul">${name}</span></div>
+      <div><span>床號：</span><span class="ul">${bed}</span></div>
+      <div><span>日期範圍：</span><span class="ul">${dateRangeLabel}</span></div>
+    </div>
+    <table class="rt"><tbody>${days}</tbody></table>
+    <div class="footer">
+      <div class="page-num"></div>
+      <div class="doc-code">B83 FK (06.2026)</div>
+    </div>
+  </div></div>`;
+};
+
+export const generateDiaperRecordFormForDateRange = (
+  patient: Patient,
+  records: DiaperChangeRecord[],
+  startDate: string,
+  endDate: string,
+  facilityName: string,
+  showData: boolean = true
+): string => {
+  const allDates = dateRange(startDate, endDate);
+  if (allDates.length === 0) return '';
+
+  const recordsByDate = new Map<string, DiaperChangeRecord[]>();
+  records.forEach(r => {
+    if (!recordsByDate.has(r.change_date)) recordsByDate.set(r.change_date, []);
+    recordsByDate.get(r.change_date)!.push(r);
+  });
+
+  const pages = chunk(allDates, DATES_PER_PAGE).map(dates =>
+    buildDiaperRangePage(patient, dates, recordsByDate, startDate, endDate, facilityName, showData)
+  );
+
+  return `<!DOCTYPE html>
+<html lang="zh-TW"><head><meta charset="utf-8"/><title>換片及大便記錄</title>
+<style>
+@page { size: A4 landscape; margin: 6mm; }
+* { box-sizing: border-box; }
+body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-serif; margin:0; padding:0; background:#f4f4f4; font-size:10px; color:#000; }
+.no-print { text-align:center; margin:10px; }
+.no-print button { padding:8px 20px; font-size:12px; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer; }
+.page { width:100%; height:198mm; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; }
+.page:last-child { page-break-after: avoid; }
+.inner { width:100%; flex:1; display:flex; flex-direction:column; min-height:0; }
+.inst { text-align:center; font-size:16px; font-weight:bold; }
+.title { text-align:center; font-size:14px; font-weight:bold; margin:2px 0 4px; }
+.info { display:flex; justify-content:center; gap:40px; margin-bottom:3px; font-size:12px; }
+.ul { border-bottom:1px solid #000; padding:0 30px; font-weight:bold; }
+.rt { width:100%; border-collapse:collapse; table-layout:fixed; }
+.rt th,.rt td { border:1px solid #000; text-align:center; vertical-align:middle; padding:2px; overflow:hidden; }
+.hc { background:#e9ecef; font-weight:bold; height:5mm; }
+.sm { font-size:8px; height:3.5mm; }
+.cb { height:5.5mm; white-space:nowrap; font-size:9px; }
+.dc { width:34px; font-weight:bold; }
+.sig { width:40px; }
+.sep td { border:none; height:1.5mm; background:#d9d9d9; }
+.footer { margin-top:auto; display:flex; justify-content:flex-end; position:relative; height:30px; }
+.page-num { position:absolute; left:50%; transform:translateX(-50%); font-size:24px; font-weight:bold; bottom:0; }
+.doc-code { font-size:11px; font-weight:bold; align-self:flex-end; }
+@media print { body{background:#fff;} .no-print{display:none!important;} .page{box-shadow:none;margin:0;} }
+</style></head>
+<body>
+<div class="no-print"><button onclick="window.print()">列印</button></div>
+${pages.join('')}
+</body></html>`;
+};
+
+export const printDiaperRecordFormForDateRange = async (
+  patient: Patient,
+  records: DiaperChangeRecord[],
+  startDate: string,
+  endDate: string,
+  showData: boolean = true
+): Promise<void> => {
+  const settings = await getFacilitySettings();
+  const html = generateDiaperRecordFormForDateRange(patient, records, startDate, endDate, settings.facilityNameZh, showData);
+  const old = document.getElementById('diaper-printform-iframe');
+  if (old) old.remove();
+  const iframe = document.createElement('iframe');
+  iframe.id = 'diaper-printform-iframe';
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow?.document;
+  if (doc) {
+    doc.open();
+    doc.write(html);
+    doc.close();
+    iframe.onload = () => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    };
+  }
 };

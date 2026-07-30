@@ -11,12 +11,14 @@ export interface FollowUpRecordData {
   備註?: string;
   院友: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     英文名字?: string;
   };
 }
 
+import { getPrintBedNumber } from './bedTransferUtils';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 import { formatDisplayDate } from './dateFormat';
 interface FollowUpRecord {
@@ -80,7 +82,7 @@ const formatChineseNameWithEnglishInitial = (
 const prepareRecords = (appointments: FollowUpRecordData[]): FollowUpRecord[] => {
   const records: FollowUpRecord[] = appointments.map(appointment => ({
     日期: formatDate(appointment.覆診日期),
-    床號: appointment.院友.床號,
+    床號: getPrintBedNumber(appointment.院友),
     院友姓名: formatChineseNameWithEnglishInitial(
       appointment.院友.中文姓氏,
       appointment.院友.中文名字,

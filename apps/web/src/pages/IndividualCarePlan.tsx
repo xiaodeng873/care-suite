@@ -28,6 +28,7 @@ import CarePlanModal from '../components/CarePlanModal';
 import ProblemLibraryModal from '../components/ProblemLibraryModal';
 import CaseConferenceListModal from '../components/CaseConferenceListModal';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { useAuth } from '../context/AuthContext';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { getCarePlanStatus, getCarePlanStatusColor, getCarePlanStatusLabel } from '../utils/carePlanStatus';
@@ -829,7 +830,7 @@ const IndividualCarePlan: React.FC = () => {
                                 </div>
                                 <div>
                                   <div className="text-sm font-medium text-gray-900">{group.patient.中文姓名}</div>
-                                  <div className="text-xs text-gray-500">{group.patient.床號}</div>
+                                  <div className="text-xs text-gray-500"><BedNumberImprint patient={group.patient as any} size="sm" /></div>
                                 </div>
                               </div>
                             </PatientTooltip>

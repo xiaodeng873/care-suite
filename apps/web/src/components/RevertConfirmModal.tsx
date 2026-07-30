@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import { X, AlertTriangle, Clock, User, Pill, CheckCircle, XCircle } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
 
 
@@ -161,7 +162,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
               <div className="flex-1">
                 <div className="text-xs text-gray-500">院友資訊</div>
                 <div className="font-medium text-gray-900">
-                  {patient?.中文姓氏}{patient?.中文名字} ({patient?.床號})
+                  {patient?.中文姓氏}{patient?.中文名字} (<BedNumberImprint patient={patient as any} size="sm" />)
                 </div>
               </div>
             </div>

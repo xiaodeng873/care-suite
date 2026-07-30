@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X, Clock, User, RotateCcw, Plus, Pencil, Trash2, ArrowLeftRight, Repeat, CalendarClock, History } from 'lucide-react';
 import * as db from '../lib/database';
+import BedNumberImprint from './BedNumberImprint';
 import { usePatients } from '../context/PatientContext';
 import { ACTION_TYPE_LABELS, PRESCRIPTION_STATUS_LABELS } from '../utils/prescriptionActivityLog';
 
@@ -130,7 +131,7 @@ const PrescriptionActivityLogModal: React.FC<PrescriptionActivityLogModalProps> 
   };
 
   const patientName = patient?.中文姓名 || '院友';
-  const patientBed = patient?.床號 ? `床號 ${patient.床號}` : '';
+  const patientBed = patient?.original_bed_number ? `床號 ${patient.床號}（原${patient.original_bed_number}）` : (patient?.床號 ? `床號 ${patient.床號}` : '');
   const patientGender = patient?.性別 || '';
 
   return (

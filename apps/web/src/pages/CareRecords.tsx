@@ -14,11 +14,13 @@ import {
   GraduationCap,
   Plus,
   X,
-  FileText
+  Printer
 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from '../components/PatientAutocomplete';
+import PatientPrintModal, { PRINT_DOCUMENTS } from '../components/PatientPrintModal';
+import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 import PatrolRoundModal from '../components/PatrolRoundModal';
 import DiaperChangeModal from '../components/DiaperChangeModal';
 import RestraintObservationModal from '../components/RestraintObservationModal';
@@ -47,12 +49,6 @@ import {
   hidePatientCareTab,
   getVisibleTabTypes
 } from '../utils/careTabsHelper';
-import { exportRestraintObservationHtml, exportRestraintObservationRangeHtml } from '../utils/restraintObservationHtmlExporter';
-import { printDiaperRecordFormForPatient } from '../utils/diaperRecordPrintFormHtml';
-import { printHygieneRecordFormForDateRange } from '../utils/hygieneRecordPrintFormHtml';
-import { exportIntakeOutputRangeHtml, convertDbRecordToRow } from '../utils/intakeOutputHtmlGenerator';
-import { exportPatrolRoundsHtml, exportPatrolRoundsRangeHtml } from '../utils/patrolRoundsHtmlExporter';
-import { getFacilitySettings } from '../utils/facilitySettings';
 import { formatDisplayDate } from '../utils/dateFormat';
 
 type TabType = 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene';
@@ -112,25 +108,12 @@ const CareRecords: React.FC = () => {
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [showHygieneModal, setShowHygieneModal] = useState(false);
   const [showIntakeOutputModal, setShowIntakeOutputModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [modalDate, setModalDate] = useState('');
   const [modalTimeSlot, setModalTimeSlot] = useState('');
   const [modalExistingRecord, setModalExistingRecord] = useState<any>(null);
   const [patientCareTabs, setPatientCareTabs] = useState<PatientCareTab[]>([]);
   const [showAddTabMenu, setShowAddTabMenu] = useState(false);
-  // 應展日期範圍匹配導出之起始 / 結束日期 state
-  const [restraintExportStart, setRestraintExportStart] = useState<string>('');
-  const [restraintExportEnd, setRestraintExportEnd]     = useState<string>('');
-  const [diaperExportStart, setDiaperExportStart]       = useState<string>('');
-  const [diaperExportEnd, setDiaperExportEnd]           = useState<string>('');
-  const [hygieneExportStart, setHygieneExportStart]     = useState<string>('');
-  const [hygieneExportEnd, setHygieneExportEnd]         = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-01`;
-  });
-  const [ioExportStart, setIoExportStart]               = useState<string>('');
-  const [ioExportEnd, setIoExportEnd]                   = useState<string>('');
-  const [patrolExportStart, setPatrolExportStart] = useState<string>('');
-  const [patrolExportEnd, setPatrolExportEnd] = useState<string>('');
   const weekDates = useMemo(() => generateWeekDates(weekStartDate), [weekStartDate]);
   // 將 Date 物件轉換為 YYYY-MM-DD 字串格式，用於與資料庫日期比對
   const weekDateStrings = useMemo(() =>
@@ -664,43 +647,6 @@ const CareRecords: React.FC = () => {
           </tbody>
         </table>
       </div>
-      {/* 匯出巡房記錄（上/下半月） */}
-      <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="text-sm font-medium text-gray-700">匯出日期範圍：</span>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">開始：</label>
-            <input type="date" value={patrolExportStart || weekDateStrings[0]}
-              onChange={e => setPatrolExportStart(e.target.value)}
-              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg" />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">至：</label>
-            <input type="date" value={patrolExportEnd || weekDateStrings[6]}
-              onChange={e => setPatrolExportEnd(e.target.value)}
-              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg" />
-          </div>
-          <button
-            onClick={async () => {
-              if (!selectedPatient) { alert('請先選擇院友'); return; }
-              const start = patrolExportStart || weekDateStrings[0];
-              const end = patrolExportEnd || weekDateStrings[6];
-              try {
-                const recs = await db.getPatrolRoundsInDateRange(start, end);
-                const patientRecs = recs.filter(r => r.patient_id === selectedPatient.院友id);
-                await exportPatrolRoundsRangeHtml({
-                  bedNumber: selectedPatient.床號,
-                  startDate: start,
-                  endDate: end,
-                  rounds: patientRecs
-                });
-              } catch (err) { console.error(err); alert('匯出失敗'); }
-            }}
-            className="btn-primary flex items-center gap-2 px-4 py-2">
-            <FileText className="h-4 w-4" />匯出巡房記錄表
-          </button>
-        </div>
-      </div>
     </>);
   };
   const renderDiaperTable = () => {
@@ -784,36 +730,6 @@ const CareRecords: React.FC = () => {
           </tbody>
         </table>
       </div>
-      {/* 匯出換片記錄表 — 日期範圍 */}
-      <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="text-sm font-medium text-gray-700">匯出日期範圍（每4天一頁）：</span>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">開始：</label>
-            <input type="date" value={diaperExportStart || weekDateStrings[0]}
-              onChange={e => setDiaperExportStart(e.target.value)}
-              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg" />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">至：</label>
-            <input type="date" value={diaperExportEnd || weekDateStrings[6]}
-              onChange={e => setDiaperExportEnd(e.target.value)}
-              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg" />
-          </div>
-          <button
-            onClick={async () => {
-              if (!selectedPatient) { alert('請先選擇院友'); return; }
-              const start = diaperExportStart || weekDateStrings[0];
-              try {
-                const yearMonth = `${new Date(start).getFullYear()}年${(new Date(start).getMonth() + 1).toString().padStart(2, '0')}月`;
-                await printDiaperRecordFormForPatient(selectedPatient, yearMonth);
-              } catch { alert('匯出失敗，請稍後再試'); }
-            }}
-            className="btn-primary flex items-center gap-2 px-4 py-2">
-            <FileText className="h-4 w-4" />匯出換片記錄表
-          </button>
-        </div>
-      </div>
     </>;
   };
   const renderRestraintTable = () => {
@@ -893,38 +809,6 @@ const CareRecords: React.FC = () => {
             ))}
           </tbody>
         </table>
-      </div>
-      {/* 匯出約束觀察記錄表 — 日期範圍 */}
-      <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="text-sm font-medium text-gray-700">匯出日期範圍（每4天一頁）：</span>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">開始：</label>
-            <input type="date" value={restraintExportStart || weekDateStrings[0]}
-              onChange={e => setRestraintExportStart(e.target.value)}
-              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg" />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">至：</label>
-            <input type="date" value={restraintExportEnd || weekDateStrings[6]}
-              onChange={e => setRestraintExportEnd(e.target.value)}
-              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg" />
-          </div>
-          <button
-            onClick={async () => {
-              if (!selectedPatient) { alert('請先選擇院友'); return; }
-              const start = restraintExportStart || weekDateStrings[0];
-              const end   = restraintExportEnd   || weekDateStrings[6];
-              const assessment = patientRestraintAssessments.find(a => a.patient_id === selectedPatient.院友id) ?? null;
-              try {
-                const recs = await db.getRestraintObservationRecordsInDateRange(start, end);
-                exportRestraintObservationRangeHtml(selectedPatient, recs.filter(r => r.patient_id === selectedPatient.院友id), assessment, start, end);
-              } catch { alert('匯出失敗，請稍後再試'); }
-            }}
-            className="btn-primary flex items-center gap-2 px-4 py-2">
-            <FileText className="h-4 w-4" />匯出觀察記錄表
-          </button>
-        </div>
       </div>
     </>;
   };
@@ -1137,51 +1021,6 @@ const CareRecords: React.FC = () => {
           </tbody>
         </table>
       </div>
-      {/* 匯出出入量記錄表 — 日期範圍，每天一頁 */}
-      <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="text-sm font-medium text-gray-700">匯出日期範圍（每天一頁）：</span>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">開始：</label>
-            <input type="date" value={ioExportStart || weekDateStrings[0]}
-              onChange={e => setIoExportStart(e.target.value)}
-              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg" />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">至：</label>
-            <input type="date" value={ioExportEnd || weekDateStrings[0]}
-              onChange={e => setIoExportEnd(e.target.value)}
-              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg" />
-          </div>
-          <button
-            onClick={async () => {
-              if (!selectedPatient) { alert('請先選擇院友'); return; }
-              const start = ioExportStart || weekDateStrings[0];
-              const end   = ioExportEnd   || start;
-              try {
-                const settings = await getFacilitySettings().catch(() => null);
-                const patient = selectedPatient;
-                const name = `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`.trim() || patient.中文姓名 || '';
-                const genderAge = `${patient.性別 ?? ''}/${patient.出生日期 ? new Date().getFullYear() - new Date(patient.出生日期).getFullYear() : ''}`;
-                const recs = await db.getIntakeOutputRecordsByPatient(patient.院友id, start, end);
-                const recsWithDate = recs.map(r => ({ ...r, ...r.intake_items, record_date: r.record_date }));
-                const guidance = mealGuidances.find(g => g.patient_id === patient.院友id);
-                exportIntakeOutputRangeHtml(
-                  { facilityName: settings?.facilityNameZh,
-                    patientName: name, bedNumber: String(patient.床號 ?? ''),
-                    genderAge, targetIntakeMl: undefined,
-                    mealCombination: guidance?.meal_combination,
-                    specialDiets: guidance?.special_diets ?? [] },
-                  recs as any,
-                  start, end
-                );
-              } catch { alert('匯出失敗，請稍後再試'); }
-            }}
-            className="btn-primary flex items-center gap-2 px-4 py-2">
-            <FileText className="h-4 w-4" />匯出出入量記錄表
-          </button>
-        </div>
-      </div>
       </>
     );
   };
@@ -1371,42 +1210,6 @@ const CareRecords: React.FC = () => {
           </tbody>
         </table>
       </div>
-      {/* 匯出衛生記錄表 — 日期範圍，按月分頁 */}
-      <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="text-sm font-medium text-gray-700">匯出日期範圍（每月一頁）：</span>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">開始：</label>
-            <input type="date" value={hygieneExportStart || weekDateStrings[0]}
-              onChange={e => setHygieneExportStart(e.target.value)}
-              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg" />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">至：</label>
-            <input type="date" value={hygieneExportEnd}
-              onChange={e => setHygieneExportEnd(e.target.value)}
-              className="form-input text-sm px-3 py-2 border border-gray-300 rounded-lg" />
-          </div>
-          <button
-            onClick={async () => {
-              if (!selectedPatient) { alert('請先選擇院友'); return; }
-              const start = hygieneExportStart || weekDateStrings[0];
-              const end   = hygieneExportEnd   || start;
-              try {
-                const recs = await db.getHygieneRecordsInDateRange(start, end);
-                await printHygieneRecordFormForDateRange(
-                  selectedPatient,
-                  recs.filter(r => r.patient_id === selectedPatient.院友id),
-                  start,
-                  end
-                );
-              } catch { alert('匯出失敗，請稍後再試'); }
-            }}
-            className="btn-primary flex items-center gap-2 px-4 py-2">
-            <FileText className="h-4 w-4" />匯出衛生記錄表
-          </button>
-        </div>
-      </div>
       </>
     );
   };
@@ -1420,6 +1223,20 @@ const CareRecords: React.FC = () => {
       </div>
     );
   };
+  const activeTabToDocumentId: Record<TabType, string | undefined> = {
+    patrol: 'bedhead_patrol_rounds',
+    diaper: 'bedhead_diaper',
+    intake_output: 'bedhead_intake_output',
+    restraint: 'bedhead_restraint_observation',
+    hygiene: 'bedhead_hygiene',
+    position: undefined,
+    toilet_training: undefined,
+  };
+  const bedheadInitialDocumentIds = useMemo(() => {
+    const id = activeTabToDocumentId[activeTab];
+    if (id) return [id];
+    return PRINT_DOCUMENTS.filter(d => d.category === '床頭記錄' && !d.disabled).map(d => d.id);
+  }, [activeTab]);
   if (loading) {
     return <LoadingScreen pageName="床頭記錄" />;
   }
@@ -1474,6 +1291,14 @@ const CareRecords: React.FC = () => {
             >
               <RefreshCw className="h-4 w-4" />
               <span>重新整理</span>
+            </button>
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="btn-primary flex items-center space-x-1"
+              title="列印"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印</span>
             </button>
           </div>
         </div>
@@ -1827,6 +1652,27 @@ const CareRecords: React.FC = () => {
             setModalTimeSlot('');
           }}
           onDelete={handleIntakeOutputDelete}
+        />
+      )}
+      {showPrintModal && (
+        <PatientPrintModal
+          patients={sortedActivePatients}
+          onClose={() => setShowPrintModal(false)}
+          onPrint={(selected, docs, start, end, mode) => {
+            setShowPrintModal(false);
+            generatePatientPrintBundle({
+              patients: selected,
+              documentIds: docs,
+              startDate: start,
+              endDate: end,
+              contentMode: mode,
+            });
+          }}
+          initialTab="床頭記錄"
+          initialSelectedPatientIds={selectedPatient ? [selectedPatient.院友id] : undefined}
+          initialSelectedDocumentIds={bedheadInitialDocumentIds}
+          initialStartDate={weekDateStrings[0]}
+          initialEndDate={weekDateStrings[weekDateStrings.length - 1]}
         />
       )}
     </div>

@@ -36,6 +36,12 @@ export interface Patient {
   transfer_facility_name?: string;
   needs_medication_crushing?: boolean;
   qr_code_id?: string; // 院友專屬二維碼 ID
+  // 床位調動印記欄位
+  original_bed_id?: string;
+  original_bed_number?: string; // 去正規化原床位號，供顯示/列印時直接使用
+  original_station_id?: string;
+  bed_transfer_type?: 'routine' | 'temporary' | null;
+  temporary_transfer_started_at?: string;
   // 院友個人及健康記錄（P1/P2）擴充欄位
   通訊電話?: string;
   通訊地址?: string;
@@ -1114,11 +1120,92 @@ export const createPrescriptionActivityLogEntry = async (
   const { error } = await supabase.from('prescription_activity_log').insert([entry]);
   if (error) throw error;
 };
+
+// ========== 床位調動類型與日誌（Bed Transfer）==========
+export type BedTransferType = 'routine' | 'temporary';
+export type BedTransferActionType =
+  | 'admission'
+  | 'discharge'
+  | 'routine_transfer'
+  | 'temporary_transfer'
+  | 'swap'
+  | 'return'
+  | 'cancel_temporary'
+  | 'original_bed_change';
+
+export interface BedTransferLogEntry {
+  id: string;
+  patient_id: number | null;
+  patient_name: string | null;
+  from_bed_id: string | null;
+  to_bed_id: string | null;
+  from_bed_number: string | null;
+  to_bed_number: string | null;
+  action_type: BedTransferActionType;
+  transfer_subtype: string | null;
+  actor_user_id: string | null;
+  actor_username: string | null;
+  actor_name: string | null;
+  actor_role: string | null;
+  actor_department: string | null;
+  notes: string | null;
+  group_id: string | null;
+  created_at: string;
+}
+
+export const getBedTransferLog = async (patientId: number): Promise<BedTransferLogEntry[]> => {
+  const { data, error } = await supabase
+    .from('bed_transfer_log')
+    .select('*')
+    .eq('patient_id', patientId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as BedTransferLogEntry[];
+};
+
+export const getBedTransferLogByBedId = async (bedId: string): Promise<BedTransferLogEntry[]> => {
+  const { data, error } = await supabase
+    .from('bed_transfer_log')
+    .select('*')
+    .or(`from_bed_id.eq.${bedId},to_bed_id.eq.${bedId}`)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as BedTransferLogEntry[];
+};
+
+export const getAllBedTransferLog = async (): Promise<BedTransferLogEntry[]> => {
+  const { data, error } = await supabase
+    .from('bed_transfer_log')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as BedTransferLogEntry[];
+};
+
+export const createBedTransferLogEntry = async (
+  entry: Omit<BedTransferLogEntry, 'id' | 'created_at'>
+): Promise<void> => {
+  const { error } = await supabase.from('bed_transfer_log').insert([entry]);
+  if (error) throw error;
+};
+
+export const deleteBedTransferLogEntry = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('bed_transfer_log').delete().eq('id', id);
+  if (error) throw error;
+};
+
 // 其他基礎函式
 export const getPatients = async (): Promise<Patient[]> => {
-  const { data, error } = await supabase.from('院友主表').select('*').order('床號', { ascending: true });
+  const [{ data, error }, beds] = await Promise.all([
+    supabase.from('院友主表').select('*').order('床號', { ascending: true }),
+    getBeds(),
+  ]);
   if (error) throw error;
-  return data || [];
+  const bedMap = new Map(beds.map(b => [b.id, b.bed_number]));
+  return ((data || []) as Patient[]).map(p => ({
+    ...p,
+    original_bed_number: p.original_bed_id ? bedMap.get(p.original_bed_id) || p.床號 : p.床號,
+  }));
 };
 export const createPatient = async (patient: Omit<Patient, '院友id'>): Promise<Patient> => {
   // 清理空字符串，將其轉換為 null
@@ -1323,27 +1410,141 @@ export const getPatientByQrCodeId = async (qrCodeId: string): Promise<Patient | 
   return data;
 };
 
-export const assignPatientToBed = async (patientId: number, bedId: string): Promise<void> => {
+export const assignPatientToBed = async (
+  patientId: number,
+  bedId: string,
+  transferType: BedTransferType = 'routine',
+  opts?: { originalBedId?: string }
+): Promise<void> => {
+  const [{ data: bed, error: bedError }, { data: patient, error: patientError }] = await Promise.all([
+    supabase.from('beds').select('id, station_id, bed_number').eq('id', bedId).single(),
+    supabase.from('院友主表').select('院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type, 在住狀態').eq('院友id', patientId).single()
+  ]);
+  if (bedError) throw bedError;
+  if (patientError) throw patientError;
+
+  const wasTemporary = patient.bed_transfer_type === 'temporary';
+  const oldBedId = patient.bed_id;
+
+  let updateData: any = {
+    bed_id: bed.id,
+    station_id: bed.station_id,
+    床號: bed.bed_number,
+    在住狀態: '在住'
+  };
+
+  if (transferType === 'routine') {
+    updateData.original_bed_id = bed.id;
+    updateData.original_station_id = bed.station_id;
+    updateData.bed_transfer_type = 'routine';
+    updateData.temporary_transfer_started_at = null;
+  } else {
+    // temporary
+    if (!wasTemporary) {
+      // 首次暫調：保留原床為根
+      updateData.original_bed_id = oldBedId || bed.id;
+      updateData.original_station_id = patient.station_id || bed.station_id;
+      updateData.bed_transfer_type = 'temporary';
+      updateData.temporary_transfer_started_at = new Date().toISOString();
+    } else {
+      // 再次暫調：根保持不變
+      updateData.bed_transfer_type = 'temporary';
+      if (opts?.originalBedId) {
+        // 同時更改原床位
+        updateData.original_bed_id = opts.originalBedId;
+      }
+    }
+  }
+
+  // 若顯式指定新的原床位（routine 或 temporary 都可能）
+  if (opts?.originalBedId && transferType !== 'temporary') {
+    const { data: originalBed } = await supabase.from('beds').select('station_id').eq('id', opts.originalBedId).single();
+    updateData.original_bed_id = opts.originalBedId;
+    updateData.original_station_id = originalBed?.station_id || bed.station_id;
+  }
+
+  const { error } = await supabase.from('院友主表').update(updateData).eq('院友id', patientId);
+  if (error) throw error;
+};
+
+export const changeOriginalBed = async (patientId: number, newOriginalBedId: string): Promise<void> => {
   const { data: bed, error: bedError } = await supabase
     .from('beds')
     .select('id, station_id, bed_number')
-    .eq('id', bedId)
+    .eq('id', newOriginalBedId)
     .single();
   if (bedError) throw bedError;
 
-  const { error } = await supabase
-    .from('院友主表')
-    .update({
-      bed_id: bed.id,
-      station_id: bed.station_id,
-      床號: bed.bed_number,
-      在住狀態: '在住'
-    })
-    .eq('院友id', patientId);
+  const { error } = await supabase.from('院友主表').update({
+    original_bed_id: bed.id,
+    original_station_id: bed.station_id
+  }).eq('院友id', patientId);
   if (error) throw error;
 };
-export const swapPatientBeds = async (patientId1: number, patientId2: number): Promise<void> => {
-  const { data: patients, error: fetchError } = await supabase.from('院友主表').select('院友id, bed_id').in('院友id', [patientId1, patientId2]);
+
+export const endTemporaryTransfer = async (patientId: number): Promise<void> => {
+  const { data: patient, error: patientError } = await supabase
+    .from('院友主表')
+    .select('院友id, bed_id, station_id, 床號, original_bed_id, original_station_id')
+    .eq('院友id', patientId)
+    .single();
+  if (patientError) throw patientError;
+  if (!patient.original_bed_id) throw new Error('沒有原床位');
+
+  const { data: bed, error: bedError } = await supabase
+    .from('beds')
+    .select('id, station_id, bed_number')
+    .eq('id', patient.original_bed_id)
+    .single();
+  if (bedError) throw bedError;
+
+  const { error } = await supabase.from('院友主表').update({
+    bed_id: bed.id,
+    station_id: bed.station_id,
+    床號: bed.bed_number,
+    original_bed_id: bed.id,
+    original_station_id: bed.station_id,
+    bed_transfer_type: 'routine',
+    temporary_transfer_started_at: null
+  }).eq('院友id', patientId);
+  if (error) throw error;
+};
+
+export const cancelTemporaryTransfer = async (
+  patientId: number,
+  actor?: { user_id?: string; username?: string; name?: string; role?: string; department?: string }
+): Promise<{ success: boolean; reason?: string }> => {
+  const { data, error } = await supabase.rpc('fn_end_temporary_transfer', {
+    p_patient_id: patientId,
+    p_actor: actor || null
+  });
+  if (error) throw error;
+  return data as { success: boolean; reason?: string };
+};
+
+export const cancelTemporarySwapPair = async (
+  patientId1: number,
+  patientId2: number,
+  actor?: { user_id?: string; username?: string; name?: string; role?: string; department?: string }
+): Promise<{ success: boolean; reason?: string }> => {
+  const { data, error } = await supabase.rpc('fn_end_temporary_swap_pair', {
+    p_patient_id1: patientId1,
+    p_patient_id2: patientId2,
+    p_actor: actor || null
+  });
+  if (error) throw error;
+  return data as { success: boolean; reason?: string };
+};
+
+export const swapPatientBeds = async (
+  patientId1: number,
+  patientId2: number,
+  transferType: BedTransferType = 'routine'
+): Promise<void> => {
+  const { data: patients, error: fetchError } = await supabase
+    .from('院友主表')
+    .select('院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type')
+    .in('院友id', [patientId1, patientId2]);
   if (fetchError) throw fetchError;
   const patient1 = patients?.find(p => p.院友id === patientId1);
   const patient2 = patients?.find(p => p.院友id === patientId2);
@@ -1360,17 +1561,51 @@ export const swapPatientBeds = async (patientId1: number, patientId2: number): P
   const bed2 = beds?.find(b => b.id === patient2.bed_id);
   if (!bed1 || !bed2) throw new Error('找不到床位資料');
 
-  const { error: updateError1 } = await supabase.from('院友主表').update({
+  const p1WasTemporary = patient1.bed_transfer_type === 'temporary';
+  const p2WasTemporary = patient2.bed_transfer_type === 'temporary';
+
+  let p1Update: any = {
     bed_id: bed2.id,
     station_id: bed2.station_id,
     床號: bed2.bed_number
-  }).eq('院友id', patientId1);
-  if (updateError1) throw updateError1;
-  const { error: updateError2 } = await supabase.from('院友主表').update({
+  };
+  let p2Update: any = {
     bed_id: bed1.id,
     station_id: bed1.station_id,
     床號: bed1.bed_number
-  }).eq('院友id', patientId2);
+  };
+
+  if (transferType === 'routine') {
+    // 根跟人走
+    p1Update.original_bed_id = bed2.id;
+    p1Update.original_station_id = bed2.station_id;
+    p1Update.bed_transfer_type = 'routine';
+    p1Update.temporary_transfer_started_at = null;
+
+    p2Update.original_bed_id = bed1.id;
+    p2Update.original_station_id = bed1.station_id;
+    p2Update.bed_transfer_type = 'routine';
+    p2Update.temporary_transfer_started_at = null;
+  } else {
+    // 暫時互換：根不動，只交換現床位
+    p1Update.bed_transfer_type = p1WasTemporary ? 'temporary' : 'temporary';
+    p2Update.bed_transfer_type = p2WasTemporary ? 'temporary' : 'temporary';
+    // 若原本常規，互換後變成暫時（根仍是原床）
+    if (!p1WasTemporary) {
+      p1Update.original_bed_id = bed1.id;
+      p1Update.original_station_id = bed1.station_id;
+      p1Update.temporary_transfer_started_at = new Date().toISOString();
+    }
+    if (!p2WasTemporary) {
+      p2Update.original_bed_id = bed2.id;
+      p2Update.original_station_id = bed2.station_id;
+      p2Update.temporary_transfer_started_at = new Date().toISOString();
+    }
+  }
+
+  const { error: updateError1 } = await supabase.from('院友主表').update(p1Update).eq('院友id', patientId1);
+  if (updateError1) throw updateError1;
+  const { error: updateError2 } = await supabase.from('院友主表').update(p2Update).eq('院友id', patientId2);
   if (updateError2) throw updateError2;
 };
 export const moveBedToStation = async (bedId: string, newStationId: string): Promise<void> => {
@@ -1982,11 +2217,15 @@ export const getPatientsWithWounds = async (): Promise<PatientWithWounds[]> => {
       throw assessmentsError;
     }
     // 取得所有在住病人
-    const { data: patients, error: patientsError } = await supabase
-      .from('院友主表')
-      .select('院友id, 床號, 中文姓氏, 中文名字')
-      .eq('在住狀態', '在住');
+    const [{ data: patients, error: patientsError }, beds] = await Promise.all([
+      supabase
+        .from('院友主表')
+        .select('院友id, 床號, 中文姓氏, 中文名字, original_bed_id')
+        .eq('在住狀態', '在住'),
+      getBeds(),
+    ]);
     if (patientsError) throw patientsError;
+    const bedMap = new Map(beds.map(b => [b.id, b.bed_number]));
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     // 組合數據
@@ -2022,7 +2261,7 @@ export const getPatientsWithWounds = async (): Promise<PatientWithWounds[]> => {
       });
       return {
         patient_id: patient.院友id,
-        bed_number: patient.床號,
+        bed_number: patient.original_bed_id ? bedMap.get(patient.original_bed_id) || patient.床號 : patient.床號,
         patient_name: `${patient.中文姓氏}${patient.中文名字}`,
         wounds: woundsWithAssessments,
         active_wound_count: woundsWithAssessments.filter(w => w.status === 'active').length,

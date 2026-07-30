@@ -2,12 +2,14 @@ import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 import { saveAs } from 'file-saver';
 import { formatDisplayDate } from './dateFormat';
+import { getPrintBedNumber } from './bedTransferUtils';
 interface Patient {
   院友id: string;
   中文姓名: string;
   中文姓氏: string;
   中文名字: string;
   床號: string;
+  original_bed_number?: string;
   性別?: string;
   出生日期?: string;
   身份證號碼?: string;
@@ -116,7 +118,7 @@ export const convertIncidentReportToTemplateData = (
   const data: Record<string, string> = {};
   // 一、基本資訊
   data['院友姓名'] = patient.中文姓名 || `${patient.中文姓氏}${patient.中文名字}`;
-  data['床號'] = patient.床號 || '';
+  data['床號'] = getPrintBedNumber(patient);
   data['性別'] = patient.性別 || '';
   data['出生日期'] = formatDateChinese(patient.出生日期);
   data['年齡'] = calculateAge(patient.出生日期);
@@ -415,7 +417,7 @@ export const generateIncidentReportWord = async (
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
     // 生成檔案名稱
-    const fileName = `意外事件報告_${patient.床號}_${patient.中文姓名}_${report.incident_date}.docx`;
+    const fileName = `意外事件報告_${getPrintBedNumber(patient)}_${patient.中文姓名}_${report.incident_date}.docx`;
     // 下載檔案
     saveAs(output, fileName);
   } catch (error) {

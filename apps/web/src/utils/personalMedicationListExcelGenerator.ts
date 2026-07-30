@@ -1,5 +1,6 @@
 import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
+import { getPrintBedNumber } from './bedTransferUtils';
 interface ExtractedTemplate {
   columnWidths: number[];
   rowHeights: number[];
@@ -326,7 +327,7 @@ export const applyPersonalMedicationListTemplate = async (
     : patient.英文姓名 || '';
   worksheet.getCell('C3').value = englishName;
   worksheet.getCell('F3').value = patient.身份證號碼 || '';
-  worksheet.getCell('I3').value = patient.床號 || '';
+  worksheet.getCell('I3').value = getPrintBedNumber(patient);
   const allergies = patient.藥物敏感 && patient.藥物敏感.length > 0
     ? patient.藥物敏感.join('、')
     : 'NKDA';
@@ -412,7 +413,7 @@ export const applyPersonalMedicationListTemplate = async (
       worksheet.getCell('C' + (pageStartRow + 2)).font = { name: 'MingLiU' };
       worksheet.getCell('F' + (pageStartRow + 2)).value = patient.身份證號碼 || '';
       worksheet.getCell('F' + (pageStartRow + 2)).font = { name: 'MingLiU' };
-      worksheet.getCell('I' + (pageStartRow + 2)).value = patient.床號 || '';
+      worksheet.getCell('I' + (pageStartRow + 2)).value = getPrintBedNumber(patient);
       worksheet.getCell('I' + (pageStartRow + 2)).font = { name: 'MingLiU' };
       worksheet.getCell('C' + (pageStartRow + 3)).value = allergies;
       worksheet.getCell('C' + (pageStartRow + 3)).font = { name: 'MingLiU' };
@@ -533,10 +534,10 @@ export const exportPersonalMedicationListToExcel = async (
         p.status === 'active'
       );
       if (activePrescriptions.length === 0) {
-        console.warn(`  警告: 院友 ${patient.床號} ${patient.中文姓氏}${patient.中文名字} 沒有在服處方，跳過`);
+        console.warn(`  警告: 院友 ${getPrintBedNumber(patient)} ${patient.中文姓氏}${patient.中文名字} 沒有在服處方，跳過`);
         continue;
       }
-      const sheetName = patient.床號 + patient.中文姓氏 + patient.中文名字;
+      const sheetName = getPrintBedNumber(patient) + patient.中文姓氏 + patient.中文名字;
       const worksheet = workbook.addWorksheet(sheetName.substring(0, 31));
       await applyPersonalMedicationListTemplate(worksheet, templateFormat, patient, activePrescriptions, sortBy);
     }
@@ -545,7 +546,7 @@ export const exportPersonalMedicationListToExcel = async (
     }
     const finalFilename = filename ||
       (selectedPatients.length === 1
-        ? selectedPatients[0].床號 + '_' + selectedPatients[0].中文姓氏 + selectedPatients[0].中文名字 + '_個人藥物記錄.xlsx'
+        ? getPrintBedNumber(selectedPatients[0]) + '_' + selectedPatients[0].中文姓氏 + selectedPatients[0].中文名字 + '_個人藥物記錄.xlsx'
         : '個人藥物記錄_' + selectedPatients.length + '名院友.xlsx');
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -587,10 +588,10 @@ export const exportSelectedPersonalMedicationListToExcel = async (
       throw new Error('沒有可匯出的處方');
     }
     const workbook = new ExcelJS.Workbook();
-    const sheetName = currentPatient.床號 + currentPatient.中文姓氏 + currentPatient.中文名字;
+    const sheetName = getPrintBedNumber(currentPatient) + currentPatient.中文姓氏 + currentPatient.中文名字;
     const worksheet = workbook.addWorksheet(sheetName.substring(0, 31));
     await applyPersonalMedicationListTemplate(worksheet, templateFormat, currentPatient, prescriptionsToExport, sortBy);
-    const finalFilename = currentPatient.床號 + '_' + currentPatient.中文姓氏 + currentPatient.中文名字 + '_個人藥物記錄.xlsx';
+    const finalFilename = getPrintBedNumber(currentPatient) + '_' + currentPatient.中文姓氏 + currentPatient.中文名字 + '_個人藥物記錄.xlsx';
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     saveAs(blob, finalFilename);

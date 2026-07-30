@@ -1,5 +1,8 @@
 import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
+import { getPrintBedNumber } from './bedTransferUtils';
+
+
 // 範本格式提取介面
 interface ExtractedTemplate {
   columnWidths: number[];
@@ -33,6 +36,7 @@ interface SheetConfig {
   template: ExtractedTemplate;
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     英文姓氏?: string;
@@ -219,6 +223,7 @@ const applyPrintFormTemplateFormat = (
   template: ExtractedTemplate,
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     英文姓氏?: string;
@@ -329,13 +334,13 @@ const applyPrintFormTemplateFormat = (
   const patientDataMappings = [
     // 常見的院友資料位置
     { cell: 'B3', value: `${patient.中文姓氏}${patient.中文名字}`, label: '中文姓名' },
-    { cell: 'D3', value: patient.床號, label: '床號' },
+    { cell: 'D3', value: getPrintBedNumber(patient), label: '床號' },
     { cell: 'F3', value: patient.性別, label: '性別' },
     { cell: 'H3', value: patient.身份證號碼, label: '身份證號碼' },
     { cell: 'J3', value: patient.出生日期 ? `${calculateAge(patient.出生日期)}歲` : '', label: '年齡' },
     // 其他可能的位置
     { cell: 'B4', value: `${patient.中文姓氏}${patient.中文名字}`, label: '中文姓名' },
-    { cell: 'D4', value: patient.床號, label: '床號' },
+    { cell: 'D4', value: getPrintBedNumber(patient), label: '床號' },
     { cell: 'F4', value: patient.性別, label: '性別' },
     { cell: 'H4', value: patient.身份證號碼, label: '身份證號碼' },
     // 英文姓名
@@ -410,10 +415,10 @@ export const exportPrintFormsToExcel = async (
     const extractedFormat = template.extracted_format;
     // 構建工作表配置
     const sheetsConfig: SheetConfig[] = selectedPatients.map(patient => ({
-      name: `${patient.床號}_${patient.中文姓氏}${patient.中文名字}`,
+      name: `${getPrintBedNumber(patient)}_${patient.中文姓氏}${patient.中文名字}`,
       template: extractedFormat,
       patient: {
-        床號: patient.床號,
+        床號: getPrintBedNumber(patient),
         中文姓氏: patient.中文姓氏,
         中文名字: patient.中文名字,
         英文姓氏: patient.英文姓氏,
@@ -435,7 +440,7 @@ export const exportPrintFormsToExcel = async (
     const templateBaseName = template.original_name.replace(/\.(xlsx|xls)$/i, '');
     const finalFilename = filename || 
       (sheetsConfig.length === 1 
-        ? `${sheetsConfig[0].patient.床號}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_${templateBaseName}.xlsx`
+        ? `${getPrintBedNumber(sheetsConfig[0].patient)}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_${templateBaseName}.xlsx`
         : `${templateBaseName}(${sheetsConfig.length}名院友).xlsx`);
     // 創建工作簿並匯出
     const workbook = await createPrintFormWorkbook(sheetsConfig);

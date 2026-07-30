@@ -1,8 +1,10 @@
 import React, { useState, useDeferredValue } from 'react';
-import { X, Bed, User, Search } from 'lucide-react';
+import { X, Bed, User, Search, ArrowRightLeft, Home } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import PatientTooltip from './PatientTooltip';
+import BedNumberImprint from './BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import type { BedTransferType } from '../lib/database';
 
 interface BedAssignmentModalProps {
   bed: any;
@@ -10,12 +12,15 @@ interface BedAssignmentModalProps {
 }
 
 const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose }) => {
-  const { patients, stations, assignPatientToBed } = usePatients();
+  const { patients, stations, beds, assignPatientToBed } = usePatients();
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [transferType, setTransferType] = useState<BedTransferType>('routine');
 
   const station = stations.find(s => s.id === bed.station_id);
+
+  const isChangingBed = (patient: any) => patient?.bed_id && patient?.在住狀態 === '在住';
 
   // 篩選可指派的院友（沒有床位或在住狀態為在住的院友）
   const availablePatients = patients.filter(patient => {
@@ -41,6 +46,16 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
     return patient.在住狀態 === '在住' || patient.在住狀態 === '待入住';
   }).sort((a, b) => comparePatientsForSearch(a, b, deferredSearch));
 
+  const handleSelectPatient = (patient: any) => {
+    setSelectedPatient(patient);
+    if (isChangingBed(patient)) {
+      // 已是暫時調動者，預設保持暫時；否則預設常規
+      setTransferType(patient.bed_transfer_type === 'temporary' ? 'temporary' : 'routine');
+    } else {
+      setTransferType('routine');
+    }
+  };
+
   const handleAssign = async () => {
     if (!selectedPatient) {
       alert('請選擇要指派的院友');
@@ -48,7 +63,7 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
     }
 
     try {
-      await assignPatientToBed(selectedPatient.院友id, bed.id);
+      await assignPatientToBed(selectedPatient.院友id, bed.id, transferType);
       onClose();
     } catch (error) {
       console.error('指派院友到床位失敗:', error);
@@ -116,76 +131,125 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {availablePatients.length > 0 ? (
               availablePatients.map(patient => (
-                <div
-                  key={patient.院友id}
-                  className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                    selectedPatient?.院友id === patient.院友id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => setSelectedPatient(patient)}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
-                        {patient.院友相片 ? (
-                          <img 
-                            src={patient.院友相片} 
-                            alt={patient.中文姓名} 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <User className="h-6 w-6 text-blue-600" />
-                        )}
-                      </div>
-                      <div>
-                        <PatientTooltip patient={patient}>
-                          <p className="font-medium text-gray-900 cursor-help hover:text-blue-600 transition-colors">
-                            {patient.中文姓氏}{patient.中文名字}
+                  <div
+                    key={patient.院友id}
+                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                      selectedPatient?.院友id === patient.院友id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => handleSelectPatient(patient)}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="w-12 h-12 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
+                          {patient.院友相片 ? (
+                            <img 
+                              src={patient.院友相片} 
+                              alt={patient.中文姓名} 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <User className="h-6 w-6 text-blue-600" />
+                          )}
+                        </div>
+                        <div>
+                          <PatientTooltip patient={patient}>
+                            <p className="font-medium text-gray-900 cursor-help hover:text-blue-600 transition-colors">
+                              {patient.中文姓氏}{patient.中文名字}
+                            </p>
+                          </PatientTooltip>
+                          <p className="text-sm text-gray-600">
+                            目前床號: <BedNumberImprint patient={patient} beds={beds} size="sm" /> | {patient.性別} | {patient.護理等級 || '未設定'} | {patient.在住狀態}
                           </p>
-                        </PatientTooltip>
-                        <p className="text-sm text-gray-600">
-                          目前床號: {patient.床號 || '未指派'} | {patient.性別} | {patient.護理等級 || '未設定'} | {patient.在住狀態}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          身份證: {patient.身份證號碼}
-                        </p>
-                        {(patient.英文姓氏 || patient.英文名字 || patient.英文姓名) && (
                           <p className="text-xs text-gray-500">
-                            英文: {patient.英文姓氏&& patient.英文名字 ? 
-                              `${patient.英文姓氏.toUpperCase()}, ${patient.英文名字}` : 
-                              patient.英文姓名 || ''}
+                            身份證: {patient.身份證號碼}
                           </p>
+                          {(patient.英文姓氏 || patient.英文名字 || patient.英文姓名) && (
+                            <p className="text-xs text-gray-500">
+                              英文: {patient.英文姓氏&& patient.英文名字 ? 
+                                `${patient.英文姓氏.toUpperCase()}, ${patient.英文名字}` : 
+                                patient.英文姓名 || ''}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center">
+                        {patient.bed_id && patient.在住狀態 === '在住' && (
+                          <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full mr-2">
+                            需要遷移
+                          </span>
                         )}
+                        {patient.在住狀態 === '待入住' && (
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full mr-2">
+                            待入住
+                          </span>
+                        )}
+                        <input
+                          type="radio"
+                          checked={selectedPatient?.院友id === patient.院友id}
+                          onChange={() => handleSelectPatient(patient)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
                       </div>
                     </div>
-                    
-                    <div className="flex items-center">
-                      {patient.bed_id && patient.在住狀態 === '在住' && (
-                        <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full mr-2">
-                          需要遷移
-                        </span>
-                      )}
-                      {patient.在住狀態 === '待入住' && (
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full mr-2">
-                          待入住
-                        </span>
-                      )}
-                      <input
-                        type="radio"
-                        checked={selectedPatient?.院友id === patient.院友id}
-                        onChange={() => setSelectedPatient(patient)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                    </div>
-                  </div>
                   
-                  {patient.bed_id && patient.在住狀態 === '在住' && selectedPatient?.院友id === patient.院友id && (
-                    <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  {isChangingBed(patient) && selectedPatient?.院友id === patient.院友id && (
+                    <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg space-y-3">
                       <p className="text-sm text-orange-800">
-                        <strong>注意：</strong>此院友目前已有床位「{patient.床號}」，
-                        指派到新床位後將自動釋放原床位。
+                        <strong>注意：</strong>此院友目前已有床位「<BedNumberImprint patient={patient} beds={beds} size="sm" />」，
+                        指派到新床位「{bed.bed_number}」時請選擇調動類型。
                       </p>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <label className={`flex-1 flex items-center gap-2 p-2 rounded border cursor-pointer ${
+                          transferType === 'routine'
+                            ? 'bg-blue-50 border-blue-300'
+                            : 'bg-white border-gray-200 hover:border-gray-300'
+                        }`}>
+                          <input
+                            type="radio"
+                            name="transferType"
+                            value="routine"
+                            checked={transferType === 'routine'}
+                            onChange={() => setTransferType('routine')}
+                            className="h-4 w-4 text-blue-600"
+                          />
+                          <div className="flex items-center gap-2">
+                            <Home className="h-4 w-4 text-blue-600" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">常規調動</p>
+                              <p className="text-xs text-gray-500">資料跟人走，原床位釋放</p>
+                            </div>
+                          </div>
+                        </label>
+                        <label className={`flex-1 flex items-center gap-2 p-2 rounded border cursor-pointer ${
+                          transferType === 'temporary'
+                            ? 'bg-amber-50 border-amber-300'
+                            : 'bg-white border-gray-200 hover:border-gray-300'
+                        }`}>
+                          <input
+                            type="radio"
+                            name="transferType"
+                            value="temporary"
+                            checked={transferType === 'temporary'}
+                            onChange={() => setTransferType('temporary')}
+                            className="h-4 w-4 text-amber-600"
+                          />
+                          <div className="flex items-center gap-2">
+                            <ArrowRightLeft className="h-4 w-4 text-amber-600" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">暫時性調動</p>
+                              <p className="text-xs text-gray-500">保留原床位為根，現床位為新位置</p>
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                      {transferType === 'temporary' && patient.bed_transfer_type === 'temporary' && (
+                        <p className="text-xs text-amber-700">
+                          此院友已處於暫時性調動。再次暫時性調動將保留原床位「原{patient.original_bed_id ? (beds.find(b => b.id === patient.original_bed_id)?.bed_number || patient.original_bed_id) : '未知'}」，現床位改為 {bed.bed_number}。
+                        </p>
+                      )}
                     </div>
                   )}
                   

@@ -8,6 +8,7 @@ import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettin
 import { formatDisplayDate } from './dateFormat';
 export interface BedListBed {
   bed_number: string;
+  current_bed_number?: string;
   patient?: {
     name: string;
     gender?: string;
@@ -15,6 +16,10 @@ export interface BedListBed {
     careLevel?: string;
     infectionControl?: string[] | null;
   } | null;
+}
+
+function isTemporaryBed(bed: BedListBed): boolean {
+  return !!bed.current_bed_number;
 }
 
 export interface BedListInput {
@@ -144,8 +149,12 @@ export function generateBedListHtml(input: BedListInput): string {
   const renderBedRow = (bed: BedListBed, idx: number): string => {
     const alt = idx % 2 === 1 ? ' br-alt' : '';
     const rowH = getBedRowHeight(bed);
+    // 暫時性調動小字：顯示現床號
+    const tempBedHtml = isTemporaryBed(bed)
+      ? `<span class="btemp">(暫${bed.current_bed_number})</span>`
+      : '';
     if (!bed.patient) {
-      return `<div class="br br-e${alt}" style="height:${rowH.toFixed(1)}mm"><span class="bnum-e">${stripCodePrefix(bed.bed_number)}</span><span class="bempty-tag">未入住</span></div>`;
+      return `<div class="br br-e${alt}" style="height:${rowH.toFixed(1)}mm"><span class="bnum-e">${stripCodePrefix(bed.bed_number)}</span>${tempBedHtml}<span class="bempty-tag">未入住</span></div>`;
     }
     const lbl = typeLabel(bed.patient.admissionType);
     const cls = badgeClass(bed.patient.admissionType);
@@ -156,6 +165,7 @@ export function generateBedListHtml(input: BedListInput): string {
     return `<div class="br${alt}" style="height:${rowH.toFixed(1)}mm">
   <div class="br-left">
     <span class="bnum">${stripCodePrefix(bed.bed_number)}</span>
+    ${tempBedHtml}
     ${cls ? `<span class="${cls}">${lbl}</span>` : ''}
   </div>
   <div class="br-right">
@@ -266,6 +276,7 @@ export function generateBedListHtml(input: BedListInput): string {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Microsoft JhengHei','微軟正黑體','PingFang TC',sans-serif; color: #111; }
 @page { size: A4 landscape; margin: 5mm; }
+.btemp { font-size: 7px; color: #666; margin-left: 2px; white-space: nowrap; }
 /* 共用：不含 height/overflow/shadow，由各 media 自己定義 */
 .page { width:287mm; display:flex; flex-direction:column; gap:2mm; background:#fff; flex-shrink:0; }
 

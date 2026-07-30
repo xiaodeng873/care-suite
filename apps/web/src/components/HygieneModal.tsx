@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Trash2, Calendar, Check } from 'lucide-react';
 import type { Patient, HygieneRecord } from '../lib/database';
 import DeleteConfirmModal from './DeleteConfirmModal';
+import BedNumberImprint from './BedNumberImprint';
 
 interface HygieneModalProps {
   patient: Patient;
@@ -227,7 +228,7 @@ const HygieneModal: React.FC<HygieneModalProps> = ({
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">卫生记录</h2>
-                <p className="text-sm text-blue-100">{patient.中文姓名} - 床號: {patient.床號}</p>
+                <p className="text-sm text-blue-100">{patient.中文姓名} - 床號: <BedNumberImprint patient={patient} size="sm" className="text-blue-100" /></p>
               </div>
             </div>
             <button

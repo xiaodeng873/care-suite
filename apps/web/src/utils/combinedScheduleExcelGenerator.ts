@@ -12,6 +12,7 @@ import {
   type PrescriptionExportData 
 } from './prescriptionExcelGenerator';
 import { getFormattedEnglishName } from './nameFormatter';
+import { getPrintBedNumber } from './bedTransferUtils';
 // 定義 ScheduleWithDetails 介面
 interface Patient {
   院友id: number;
@@ -52,7 +53,7 @@ function toWaitingListData(items: ScheduleItem[], visitDate: string): WaitingLis
     .map((item) => {
       if (!item.patient) return null;
       return {
-        床號: item.patient.床號 || '',
+        床號: getPrintBedNumber(item.patient),
         中文姓氏: item.patient.中文姓氏 || '',
         中文名字: item.patient.中文名字 || '',
         英文姓氏: item.patient.英文姓氏 || '',
@@ -105,35 +106,17 @@ export const exportCombinedScheduleToExcel = async (
       }
       if (totalCount === 0) throw new Error('無有效的院友資料可匯出到候診記錄表');
     } else {
-    // 準備候診記錄表資料
-    const waitingListData: WaitingListExportData[] = schedule.院友列表
-      .map((item: ScheduleItem) => {
-        if (!item.patient) {
-          console.warn(`院友資料缺失，細項id: ${item.細項id}`);
-          return null;
-        }
-        const data = {
-          床號: item.patient.床號 || '',
-          中文姓氏: item.patient.中文姓氏 || '',
-          中文名字: item.patient.中文名字 || '',
-          英文姓氏: item.patient.英文姓氏 || '',
-          英文名字: item.patient.英文名字 || '',
-          中文姓名: `${item.patient.中文姓氏 || ''}${item.patient.中文名字 || ''}`,
-          英文姓名: getFormattedEnglishName(item.patient.英文姓氏, item.patient.英文名字) || item.patient.英文姓名 || '',
-          性別: item.patient.性別 || '',
-          身份證號碼: item.patient.身份證號碼 || '',
-          出生日期: item.patient.出生日期 ? new Date(item.patient.出生日期).toLocaleDateString('zh-TW') : '',
-          看診原因: item.reasons?.map(r => r.原因名稱) || [],
-          症狀說明: item.症狀說明 || '',
-          藥物敏感: item.patient.藥物敏感 || [],
-          不良藥物反應: item.patient.不良藥物反應 || [],
-          備註: item.備註 || '',
-          到診日期: schedule.到診日期
-        };
-        console.log(`生成的 waitingListData 項目:`, JSON.stringify(data, null, 2));
-        return data;
-      })
-      .filter((item): item is WaitingListExportData => item !== null);
+      // 準備候診記錄表資料
+      const waitingListData = toWaitingListData(
+        schedule.院友列表.filter((item) => {
+          if (!item.patient) {
+            console.warn(`院友資料缺失，細項id: ${item.細項id}`);
+            return false;
+          }
+          return true;
+        }),
+        schedule.到診日期
+      );
     // 檢查是否有有效資料
     if (waitingListData.length === 0) {
       console.warn('無有效的候診記錄表資料可匯出');
@@ -171,7 +154,7 @@ export const exportCombinedScheduleToExcel = async (
           continue;
         }
         const prescriptionData: PrescriptionExportData = {
-          床號: patient.patient.床號 || '',
+          床號: getPrintBedNumber(patient.patient),
           中文姓氏: patient.patient.中文姓氏 || '',
           中文名字: patient.patient.中文名字 || '',
           中文姓名: `${patient.patient.中文姓氏 || ''}${patient.patient.中文名字 || ''}`,
@@ -193,7 +176,7 @@ export const exportCombinedScheduleToExcel = async (
         };
         console.log(`生成的 prescriptionData:`, JSON.stringify(prescriptionData, null, 2));
         // 創建處方箋工作表
-        const prescriptionWorksheetName = `${patient.patient.床號}_${patient.patient.中文姓氏}${patient.patient.中文名字}_處方箋`;
+        const prescriptionWorksheetName = `${getPrintBedNumber(patient.patient)}_${patient.patient.中文姓氏}${patient.patient.中文名字}_處方箋`;
         const prescriptionWorksheet = workbook.addWorksheet(prescriptionWorksheetName);
         if (prescriptionTemplate && prescriptionTemplate.extracted_format) {
           applyPrescriptionTemplateFormat(
@@ -288,7 +271,7 @@ const createSimpleWaitingListWorksheet = async (
     const rowIndex = 4 + index;
     const row = worksheet.getRow(rowIndex);
     const values = [
-      patient.床號,
+      getPrintBedNumber(patient),
       `${patient.中文姓氏}${patient.中文名字}`,
       getFormattedEnglishName(patient.英文姓氏, patient.英文名字) || patient.英文姓名 || '',
       patient.性別,
@@ -343,7 +326,7 @@ const createSimplePrescriptionWorksheet = async (
   // 標題
   worksheet.mergeCells('A1:L1');
   const titleCell = worksheet.getCell('A1');
-  titleCell.value = `VMO處方箋 - ${prescription.中文姓氏}${prescription.中文名字} (${prescription.床號})`;
+  titleCell.value = `VMO處方箋 - ${prescription.中文姓氏}${prescription.中文名字} (${getPrintBedNumber(prescription)})`;
   titleCell.font = { size: 16, bold: true };
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
   titleCell.fill = {
@@ -400,7 +383,7 @@ const createSimplePrescriptionWorksheet = async (
     const rowIndex = 8 + i;
     const row = worksheet.getRow(rowIndex);
     const values = [
-      prescription.床號,
+      getPrintBedNumber(prescription),
       `${prescription.中文姓氏}${prescription.中文名字}`,
       prescription.處方日期,
       '', // 藥物名稱 - 空白供填寫

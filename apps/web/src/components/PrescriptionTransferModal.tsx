@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, ArrowRight, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import BedNumberImprint from './BedNumberImprint';
 import PrescriptionEndDateModal from './PrescriptionEndDateModal';
 import { getHongKongNow } from '../utils/prescriptionExpiry';
 
@@ -281,7 +282,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
               <div>
                 <span className="text-sm text-gray-600">院友：</span>
                 <span className="font-medium text-gray-900 ml-2">
-                  {patient ? `${patient.床號} - ${patient.中文姓氏}${patient.中文名字}` : '未知院友'}
+                  {patient ? <><BedNumberImprint patient={patient as any} size="sm" /> - {patient.中文姓氏}{patient.中文名字}</> : '未知院友'}
                 </span>
               </div>
               <div>

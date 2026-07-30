@@ -413,6 +413,33 @@ export interface IntakeOutputRecordWithDate extends IntakeOutputDbRecord {
   record_date: string;  // 'YYYY-MM-DD'
 }
 
+export const generateIntakeOutputRangeHtml = (
+  baseInput: Omit<IntakeOutputHtmlInput, 'recordDate' | 'rows'>,
+  allRecords: IntakeOutputRecordWithDate[],
+  startDate: string,
+  endDate: string,
+  facilityName: string
+): string[] => {
+  const days: string[] = [];
+  let cur = new Date(startDate);
+  const end = new Date(endDate);
+  while (cur <= end) {
+    days.push(cur.toISOString().split('T')[0]);
+    cur.setDate(cur.getDate() + 1);
+  }
+  const pages = days.map(dateStr => {
+    const d = new Date(dateStr);
+    const displayDate = formatDisplayDate(d);
+    const dayRecords = allRecords.filter(r => r.record_date === dateStr);
+    const rows = dayRecords.map(convertDbRecordToRow);
+    return generateIntakeOutputHtml({ ...baseInput, facilityName, recordDate: displayDate, rows });
+  });
+  // 出入量頁面用 .page 類別，需額外注入 page-break
+  return pages.map((p, i) =>
+    i === 0 ? p.replace('</style>', '.page { page-break-after: always; break-after: page; }\n</style>') : p
+  );
+};
+
 export const exportIntakeOutputRangeHtml = async (
   baseInput: Omit<IntakeOutputHtmlInput, 'recordDate' | 'rows'>,
   allRecords: IntakeOutputRecordWithDate[],
@@ -421,19 +448,8 @@ export const exportIntakeOutputRangeHtml = async (
 ): Promise<void> => {
   const settings = await getFacilitySettings();
   const facilityName = baseInput.facilityName ?? settings.facilityNameZh;
-  import('./printUtils').then(({ printCombinedHtml, dateChunks }) => {
-    const days = dateChunks(startDate, endDate, 1);
-    const pages = days.map(dateStr => {
-      const d = new Date(dateStr);
-      const displayDate = formatDisplayDate(d);
-      const dayRecords = allRecords.filter(r => r.record_date === dateStr);
-      const rows = dayRecords.map(convertDbRecordToRow);
-      return generateIntakeOutputHtml({ ...baseInput, facilityName, recordDate: displayDate, rows });
-    });
-    // 出入量頁面用 .page 類別，需額外注入 page-break
-    const combined = pages.map((p, i) =>
-      i === 0 ? p.replace('</style>', '.page { page-break-after: always; break-after: page; }\n</style>') : p
-    );
-    printCombinedHtml(combined, 'io-printframe');
+  const pages = generateIntakeOutputRangeHtml(baseInput, allRecords, startDate, endDate, facilityName);
+  import('./printUtils').then(({ printCombinedHtml }) => {
+    printCombinedHtml(pages, 'io-printframe');
   });
 };

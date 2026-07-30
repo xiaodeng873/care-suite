@@ -7,6 +7,7 @@ import FollowUpModal from '../components/FollowUpModal';
 import PatientAutocomplete from '../components/PatientAutocomplete';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { exportFollowUpListToExcel, type FollowUpExportData } from '../utils/followUpListGenerator';
 import { generateFollowUpRecordWorksheet, type FollowUpRecordData } from '../utils/followUpRecordWorksheetGenerator';
@@ -1051,7 +1052,7 @@ const FollowUpManagement: React.FC = () => {
                                 '-'
                               )}
                             </div>
-                            <div className="text-sm text-gray-500">{patient?.床號}</div>
+                            {patient && <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" />}
                           </div>
                         </div>
                       </td>

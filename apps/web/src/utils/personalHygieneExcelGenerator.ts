@@ -1,7 +1,11 @@
 import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
+import { getPrintBedNumber } from './bedTransferUtils';
+
+
 interface PersonalHygieneExportData {
   床號: string;
+  original_bed_number?: string;
   中文姓氏: string;
   中文名字: string;
   中文姓名?: string; // Legacy field for compatibility
@@ -46,6 +50,7 @@ interface SheetConfig {
   template: ExtractedTemplate;
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     性別: string;
@@ -233,6 +238,7 @@ const applyPersonalHygieneTemplateFormat = (
   template: ExtractedTemplate,
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     性別: string;
@@ -340,7 +346,7 @@ const applyPersonalHygieneTemplateFormat = (
   // N4: 性別
   worksheet.getCell('N4').value = patient.性別;
   // R4: 床號
-  worksheet.getCell('R4').value = patient.床號;
+  worksheet.getCell('R4').value = getPrintBedNumber(patient);
   // Step 7: Apply print settings and page breaks
   try {
     // 完全清除所有現有分頁符
@@ -422,10 +428,11 @@ export const exportPersonalHygieneToExcel = async (
     const extractedFormat = template.extracted_format;
     // 構建工作表配置
     const sheetsConfig: SheetConfig[] = selectedPatients.map(patient => ({
-      name: `${patient.床號}${patient.中文姓氏}${patient.中文名字}`,
+      name: `${getPrintBedNumber(patient)}${patient.中文姓氏}${patient.中文名字}`,
       template: extractedFormat,
       patient: {
-        床號: patient.床號,
+        床號: getPrintBedNumber(patient),
+        original_bed_number: patient.original_bed_number,
         中文姓氏: patient.中文姓氏,
         中文名字: patient.中文名字,
         性別: patient.性別,
@@ -445,7 +452,7 @@ export const exportPersonalHygieneToExcel = async (
     const templateBaseName = template.original_name.replace(/\.(xlsx|xls)$/i, '');
     const finalFilename = filename || 
       (sheetsConfig.length === 1 
-        ? `${sheetsConfig[0].patient.床號}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_${templateBaseName}_${months.firstMonth}_${months.secondMonth}.xlsx`
+        ? `${getPrintBedNumber(sheetsConfig[0].patient)}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_${templateBaseName}_${months.firstMonth}_${months.secondMonth}.xlsx`
         : `${templateBaseName}_${months.firstMonth}_${months.secondMonth}(${sheetsConfig.length}名院友).xlsx`);
     // 創建工作簿並匯出
     const workbook = await createPersonalHygieneWorkbook(sheetsConfig);

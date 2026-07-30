@@ -10,6 +10,8 @@ import type { Patient, PatientActivityRecord } from '../lib/database';
 import { ACTIVITY_BOOLEAN_FIELDS, type ActivityBooleanField } from './activityRecordStatus';
 import { formatDisplayDate } from './dateFormat';
 import { getFacilitySettings } from './facilitySettings';
+import { getPrintBedNumber } from './bedTransferUtils';
+
 
 const ROWS_PER_PAGE = 25;
 const DOC_CODE = 'A19D FK (11.2020)';
@@ -56,7 +58,7 @@ const generateDataRows = (records: PatientActivityRecord[]): string => {
 // 產生單一頁的整頁 HTML（完全複刻 doc_html 樣式與結構）
 const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageIndex: number, totalPages: number, facilityName: string): string => {
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
-  const bed = patient.床號 || '';
+  const bed = getPrintBedNumber(patient);
   const idNumber = patient.身份證號碼 || '';
   const dataRows = generateDataRows(pageRecords);
   const emptyRowCount = Math.max(ROWS_PER_PAGE - pageRecords.length, 0);

@@ -20,7 +20,7 @@ import {
   useHealthTask, useAdmission, useServiceReason, useDailySystemTask, useActivityRecord
 } from './merged/RecordsContext';
 // Re-export types from database module
-export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, ResponsibleUnit, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote, CarePlan, CarePlanProblem, CarePlanNursingNeed, CarePlanWithDetails, ProblemLibrary, NursingNeedItem, PlanType, ProblemCategory, OutcomeReview, CaseConferenceProfessional, MedicationPrescription, PatientTubeCareRecord, TubeCareType, OxygenAction, PatientActivityRecord } from '../lib/database';
+export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, ResponsibleUnit, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote, CarePlan, CarePlanProblem, CarePlanNursingNeed, CarePlanWithDetails, ProblemLibrary, NursingNeedItem, PlanType, ProblemCategory, OutcomeReview, CaseConferenceProfessional, MedicationPrescription, PatientTubeCareRecord, TubeCareType, OxygenAction, PatientActivityRecord, BedTransferType, BedTransferLogEntry } from '../lib/database';
 // Re-export Station types for backward compatibility
 export type { Station, Room, Bed } from './facility';
 // Re-export Schedule types for backward compatibility (from merged context)
@@ -107,8 +107,12 @@ interface PatientContextType {
   addBed: (bed: Omit<db.Bed, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateBed: (bed: db.Bed) => Promise<void>;
   deleteBed: (id: string) => Promise<void>;
-  assignPatientToBed: (patientId: number, bedId: string) => Promise<void>;
-  swapPatientBeds: (patientId1: number, patientId2: number) => Promise<void>;
+  assignPatientToBed: (patientId: number, bedId: string, transferType?: db.BedTransferType, opts?: { originalBedId?: string }) => Promise<void>;
+  swapPatientBeds: (patientId1: number, patientId2: number, transferType?: db.BedTransferType) => Promise<void>;
+  changeOriginalBed: (patientId: number, newOriginalBedId: string) => Promise<void>;
+  endTemporaryTransfer: (patientId: number) => Promise<void>;
+  cancelTemporaryTransfer: (patientId: number) => Promise<{ success: boolean; reason?: string }>;
+  cancelTemporarySwapPair: (patientId1: number, patientId2: number) => Promise<{ success: boolean; reason?: string }>;
   moveBedToStation: (bedId: string, newStationId: string) => Promise<void>;
   addSchedule: (schedule: Omit<db.Schedule, '排程id'>) => Promise<void>;
   updateSchedule: (schedule: ScheduleWithDetails) => Promise<void>;
@@ -289,6 +293,10 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     deleteBed,
     assignPatientToBed: assignPatientToBedInStation,
     swapPatientBeds: swapPatientBedsInStation,
+    changeOriginalBed: changeOriginalBedInStation,
+    endTemporaryTransfer: endTemporaryTransferInStation,
+    cancelTemporaryTransfer: cancelTemporaryTransferInStation,
+    cancelTemporarySwapPair: cancelTemporarySwapPairInStation,
     moveBedToStation: moveBedToStationInStation,
     refreshStationData,
   } = useStation();
@@ -811,14 +819,36 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     }
   };
 
-  const assignPatientToBed = async (patientId: number, bedId: string) => {
-    await assignPatientToBedInStation(patientId, bedId);
+  const assignPatientToBed = async (patientId: number, bedId: string, transferType: db.BedTransferType = 'routine', opts?: { originalBedId?: string }) => {
+    await assignPatientToBedInStation(patientId, bedId, transferType, opts);
     await refreshData();
   };
 
-  const swapPatientBeds = async (patientId1: number, patientId2: number) => {
-    await swapPatientBedsInStation(patientId1, patientId2);
+  const swapPatientBeds = async (patientId1: number, patientId2: number, transferType: db.BedTransferType = 'routine') => {
+    await swapPatientBedsInStation(patientId1, patientId2, transferType);
     await refreshData();
+  };
+
+  const changeOriginalBed = async (patientId: number, newOriginalBedId: string) => {
+    await changeOriginalBedInStation(patientId, newOriginalBedId);
+    await refreshData();
+  };
+
+  const endTemporaryTransfer = async (patientId: number) => {
+    await endTemporaryTransferInStation(patientId);
+    await refreshData();
+  };
+
+  const cancelTemporaryTransfer = async (patientId: number) => {
+    const result = await cancelTemporaryTransferInStation(patientId);
+    await refreshData();
+    return result;
+  };
+
+  const cancelTemporarySwapPair = async (patientId1: number, patientId2: number) => {
+    const result = await cancelTemporarySwapPairInStation(patientId1, patientId2);
+    await refreshData();
+    return result;
   };
 
   const moveBedToStation = async (bedId: string, newStationId: string) => {
@@ -899,6 +929,10 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       deleteBed,
       assignPatientToBed,
       swapPatientBeds,
+      changeOriginalBed,
+      endTemporaryTransfer,
+      cancelTemporaryTransfer,
+      cancelTemporarySwapPair,
       moveBedToStation,
       addSchedule,
       updateSchedule,

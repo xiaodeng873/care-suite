@@ -9,6 +9,7 @@ import PrescriptionTransferModal from '../components/PrescriptionTransferModal';
 import PrescriptionActivityLogModal from '../components/PrescriptionActivityLogModal';
 import BatchPrescriptionDateUpdateModal from '../components/BatchPrescriptionDateUpdateModal';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import MedicationRecordExportModal from '../components/MedicationRecordExportModal';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { getHongKongNow, isPrescriptionExpired } from '../utils/prescriptionExpiry';
@@ -557,7 +558,7 @@ const PrescriptionManagement: React.FC = () => {
                       </div>
                       <div className="flex-1 text-left">
                         <div className="font-medium text-gray-900">
-                          {currentPatient.patient.床號} - {currentPatient.patient.中文姓氏}{currentPatient.patient.中文名字}
+                          <BedNumberImprint patient={currentPatient.patient} size="sm" /> - {currentPatient.patient.中文姓氏}{currentPatient.patient.中文名字}
                         </div>
                         <div className="text-sm text-gray-500">
                           {currentPatient.totalCount} 個處方
@@ -625,7 +626,7 @@ const PrescriptionManagement: React.FC = () => {
                             </div>
                             <div className="flex-1">
                               <div className="font-medium text-gray-900">
-                                {summary.patient.床號} - {summary.patient.中文姓氏}{summary.patient.中文名字}
+                                <BedNumberImprint patient={summary.patient} size="sm" /> - {summary.patient.中文姓氏}{summary.patient.中文名字}
                               </div>
                               <div className="text-sm text-gray-500">
                                 在服: {summary.prescriptions.active.length} | 
@@ -724,7 +725,7 @@ const PrescriptionManagement: React.FC = () => {
                     
                     <div className="space-y-2 text-sm text-gray-600">
                       <div className="flex flex-wrap items-center gap-4">
-                        <span>床號: <span className="font-medium text-gray-900">{currentPatient.patient.床號}</span></span>
+                        <span>床號: <BedNumberImprint patient={currentPatient.patient} size="sm" className="font-medium text-gray-900" /></span>
                         <span>性別: <span className="font-medium text-gray-900">{currentPatient.patient.性別}</span></span>
                         {currentPatient.patient.出生日期 && (
                           <span>年齡: <span className="font-medium text-gray-900">{calculateAge(currentPatient.patient.出生日期)}歲</span></span>

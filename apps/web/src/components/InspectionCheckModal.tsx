@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Activity, Droplets, Heart, Thermometer, Wind, Eye, AlertTriangle, CheckCircle, Plus, XCircle } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
+import BedNumberImprint from './BedNumberImprint';
 import HealthRecordModal from './HealthRecordModal';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -377,7 +378,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
                     )}
                   </div>
                   <p className="text-sm text-gray-600">
-                    {patient?.中文姓氏}{patient?.中文名字} - {prescription?.medication_name}
+                    {patient && <BedNumberImprint patient={patient} size="sm" className="text-gray-600" />} {patient?.中文姓氏}{patient?.中文名字} - {prescription?.medication_name}
                     {workflowRecord?.scheduled_time && (
                       <span className="ml-2 text-blue-600 font-medium">
                         ({workflowRecord.scheduled_time.substring(0, 5)})

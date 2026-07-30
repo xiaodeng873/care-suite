@@ -1,4 +1,5 @@
 import React from 'react';
+import BedNumberImprint from '../BedNumberImprint';
 import type { PrefillData } from '../../hooks/useAiAssistant';
 
 interface OpenFormCardProps {
@@ -28,7 +29,7 @@ export const OpenFormCard: React.FC<OpenFormCardProps> = ({ prefillData, onOpenF
 
       {patient && (
         <div className="text-xs text-gray-600 mb-2">
-          院友：{patient.中文姓名}{patient.床號 ? `（${patient.床號}）` : ''}
+          院友：{patient.中文姓名}{patient.床號 ? <span>（<BedNumberImprint patient={patient as any} size="sm" />）</span> : ''}
         </div>
       )}
 

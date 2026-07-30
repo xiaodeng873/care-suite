@@ -5,6 +5,9 @@
 
 import type { RestraintObservationRecord, PatientRestraintAssessment, Patient } from '../lib/database';
 import { DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+import { getPrintBedNumber } from './bedTransferUtils';
+
+
 
 // 觀察時段定義 (每2小時一次) - 顯示格式
 const OBSERVATION_TIME_SLOTS_DISPLAY = [
@@ -66,19 +69,17 @@ interface ExportData {
   includeDayNumber?: boolean;
 }
 
-// 格式化日期為中文格式；includeDayNumber=false 時保留「日」字，但日子以可視空白區域佔位，供手寫
-const formatDateChinese = (dateStr: string, includeDayNumber: boolean = true): string => {
+// 標題日期永遠顯示完整日子，不受「不顯示日子」設定影響
+const formatTitleDate = (dateStr: string): string => {
   const date = new Date(dateStr);
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const day = date.getDate().toString().padStart(2, '0');
-  return includeDayNumber
-    ? `${year}年${month}月${day}日`
-    : `${year}年${month}月<span class="blank-day"></span>日`;
+  return `${year}年${month}月${day}日`;
 };
 
-// 格式化日期為短格式；includeDayNumber=false 時保留「日」字，但日子以可視空白區域佔位，供手寫
-const formatDateShort = (dateStr: string, includeDayNumber: boolean = true): string => {
+// 卡片日期可依 includeDayNumber 隱藏日子（保留「日」字，日子以可視空白區域佔位，供手寫）
+const formatCardDate = (dateStr: string, includeDayNumber: boolean = true): string => {
   const date = new Date(dateStr);
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -242,7 +243,7 @@ const generateDayObservationTable = (
     <div class="observation-table-container">
       <table class="data-table observation-table">
         <thead>
-          <tr><th colspan="6">日期：${formatDateShort(date, includeDayNumber)}</th></tr>
+          <tr><th colspan="6">日期：${formatCardDate(date, includeDayNumber)}</th></tr>
           <tr>
             <th class="time-slot">觀察時段</th>
             <th class="actual-time">實際觀察時間</th>
@@ -339,8 +340,8 @@ export const generateRestraintObservationHtml = (data: ExportData): string => {
 
   const observationTables = dates.map(date => generateDayObservationTable(date, records, includeDayNumber)).join('');
 
-  const startDateLabel = formatDateChinese(dates[0], includeDayNumber);
-  const endDateLabel = formatDateChinese(dates[dates.length - 1], includeDayNumber);
+  const startDateLabel = formatTitleDate(dates[0]);
+  const endDateLabel = formatTitleDate(dates[dates.length - 1]);
 
   return `<!DOCTYPE html>
 <html lang="zh-TW">
@@ -610,7 +611,7 @@ body {
 </div>
 <div class="info-item">
 <span>房及/或床號：</span>
-<span class="underline-input prefilled">${patient.床號}</span>
+<span class="underline-input prefilled">${getPrintBedNumber(patient)}</span>
 </div>
 </section>
 ${generateConstraintTable(config)}
@@ -701,6 +702,38 @@ export const exportRestraintObservationHtml = (
   }
 };
 
+// ── 日期範圍版產生（每4天一頁，單一院友）──────────────────────────────────
+export const generateRestraintObservationRangeHtml = (
+  patient: Patient,
+  records: RestraintObservationRecord[],
+  assessment: PatientRestraintAssessment | null,
+  startDate: string,
+  endDate: string,
+  includeDayNumber: boolean = true,
+  facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
+): string[] => {
+  const chunks: string[] = [];
+  let cur = new Date(startDate);
+  const end = new Date(endDate);
+  while (cur <= end) {
+    chunks.push(cur.toISOString().split('T')[0]);
+    cur.setDate(cur.getDate() + 4);
+  }
+  return chunks.map(chunkStart => {
+    const chunkStartDate = new Date(chunkStart);
+    const chunkEndDate = new Date(chunkStartDate);
+    chunkEndDate.setDate(chunkStartDate.getDate() + 3);
+    const chunkEnd = chunkEndDate.toISOString().split('T')[0];
+    const actualChunkEnd = chunkEnd < endDate ? chunkEnd : endDate;
+    return generateRestraintObservationHtml({
+      patient, records, assessment,
+      dateRange: { start: chunkStart, end: actualChunkEnd },
+      facilityName,
+      includeDayNumber,
+    });
+  });
+};
+
 // ── 日期範圍版匯出（每4天一頁，單一院友）──────────────────────────────────
 export const exportRestraintObservationRangeHtml = (
   patient: Patient,
@@ -711,18 +744,8 @@ export const exportRestraintObservationRangeHtml = (
   includeDayNumber: boolean = true,
   facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
 ): void => {
-  import('./printUtils').then(({ printCombinedHtml, dateChunks, addDays }) => {
-    const chunks = dateChunks(startDate, endDate, 4);
-    const pages = chunks.map(chunkStart => {
-      const chunkEnd = addDays(chunkStart, 3);
-      const actualChunkEnd = chunkEnd < endDate ? chunkEnd : endDate;
-      return generateRestraintObservationHtml({
-        patient, records, assessment,
-        dateRange: { start: chunkStart, end: actualChunkEnd },
-        facilityName,
-        includeDayNumber,
-      });
-    });
+  import('./printUtils').then(({ printCombinedHtml }) => {
+    const pages = generateRestraintObservationRangeHtml(patient, records, assessment, startDate, endDate, includeDayNumber, facilityName);
     printCombinedHtml(pages, 'restraint-print-iframe');
   });
 };
@@ -739,20 +762,10 @@ export const exportRestraintObservationsRangeHtml = (
   includeDayNumber: boolean = true,
   facilityName: string = DEFAULT_FACILITY_SETTINGS.facilityNameZh
 ): void => {
-  import('./printUtils').then(({ printCombinedHtml, dateChunks, addDays }) => {
-    const chunks = dateChunks(startDate, endDate, 4);
+  import('./printUtils').then(({ printCombinedHtml }) => {
     const pages: string[] = [];
     items.forEach(({ patient, records, assessment }) => {
-      chunks.forEach(chunkStart => {
-        const chunkEnd = addDays(chunkStart, 3);
-        const actualChunkEnd = chunkEnd < endDate ? chunkEnd : endDate;
-        pages.push(generateRestraintObservationHtml({
-          patient, records, assessment,
-          dateRange: { start: chunkStart, end: actualChunkEnd },
-          facilityName,
-          includeDayNumber,
-        }));
-      });
+      pages.push(...generateRestraintObservationRangeHtml(patient, records, assessment, startDate, endDate, includeDayNumber, facilityName));
     });
     printCombinedHtml(pages, 'restraint-print-iframe');
   });

@@ -1,5 +1,7 @@
 import type { CgatRecord, Patient } from '../lib/database';
 import { getFeeExemptEligibility } from './cgatFeeHelper';
+import { getPrintBedNumber } from './bedTransferUtils';
+
 
 /**
  * 從身份證號碼取出「首 3 位數字 + 尾碼（含括號）」供診症名單使用。
@@ -52,7 +54,7 @@ function compareBed(a: string, b: string): number {
 }
 
 function buildRow(record: CgatRecord, patient: Patient | undefined): string {
-  const 床號 = patient?.床號 ?? '';
+  const 床號 = patient ? getPrintBedNumber(patient) : '';
   const 姓名 = patient ? `${patient.中文姓氏 || ''}${patient.中文名字 || ''}` : '';
   const id = formatIdForWorksheet(patient?.身份證號碼);
 
@@ -172,7 +174,7 @@ function buildPage(
   const sortedRecords = [...records].sort((a, b) => {
     const pa = patientMap.get(a.patient_id);
     const pb = patientMap.get(b.patient_id);
-    return compareBed(pa?.床號 ?? '', pb?.床號 ?? '');
+    return compareBed(pa ? getPrintBedNumber(pa) : '', pb ? getPrintBedNumber(pb) : '');
   });
 
   const rows = sortedRecords.map(r => buildRow(r, patientMap.get(r.patient_id))).join('');

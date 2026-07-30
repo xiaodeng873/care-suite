@@ -1,6 +1,7 @@
 import personalHealthRecordP1 from '../../../../../doc_html/院友個人及健康記錄P1.html?raw';
 import personalHealthRecordP2 from '../../../../../doc_html/院友個人及健康記錄P2.html?raw';
 import { processDocHtmlTemplate, combineDocHtmlDocuments } from './baseTemplateProcessor';
+import { getPrintBedNumber } from '../../utils/bedTransferUtils';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';
 
 const EDUCATION_CHECKBOX: Record<string, string> = {
@@ -59,7 +60,7 @@ export function generatePersonalHealthRecordHtml(ctx: DocumentGeneratorContext):
   const allergies = patient.藥物敏感 || [];
   const p2FieldValues: Record<string, string> = {
     m_resident_name: chineseName,
-    m_room_no: patient.床號 || '',
+    m_room_no: getPrintBedNumber(patient) || '',
     m_id_no: patient.身份證號碼 || '',
     allergy_detail: allergies.join('、'),
   };

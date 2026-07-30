@@ -1,9 +1,11 @@
 import { formatDisplayDate } from './dateFormat';
+import { getPrintBedNumber } from './bedTransferUtils';
 import type { HealthAssessment } from '../lib/database';
 import { getFacilitySettings } from './facilitySettings';
 
 interface PatientInfo {
   床號?: string;
+  original_bed_number?: string;
   中文姓名?: string;
   英文姓名?: string;
   性別?: string;
@@ -162,7 +164,7 @@ const generateP1 = (
 
         <div class="info-row">
           <span>院友姓名：<input type="text" class="db-line-input" style="width: 120px;" value="${escapeHtml(patient.中文姓名 || '')}"></span>
-          <span>床號：<input type="text" class="db-line-input" style="width: 60px;" value="${escapeHtml(patient.床號 || '')}"></span>
+          <span>床號：<input type="text" class="db-line-input" style="width: 60px;" value="${escapeHtml(getPrintBedNumber(patient))}"></span>
           <span>身份證號碼：<input type="text" class="db-line-input" style="width: 150px;" value="${escapeHtml(patient.身份證號碼 || '')}"></span>
         </div>
 

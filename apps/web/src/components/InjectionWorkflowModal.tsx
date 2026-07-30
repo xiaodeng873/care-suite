@@ -4,6 +4,7 @@ import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import { isInjectionQualified } from '@care-suite/shared';
 import { getRecentInjectionSites, RecentInjectionSite } from '../lib/database';
+import BedNumberImprint from './BedNumberImprint';
 
 // 注射區域定義（與 InjectionSiteModal 一致）
 export const INJECTION_AREAS = [
@@ -212,7 +213,7 @@ const InjectionWorkflowModal: React.FC<InjectionWorkflowModalProps> = ({
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-600">
-              {patient?.中文姓氏}{patient?.中文名字} {patient?.床號}
+              {patient?.中文姓氏}{patient?.中文名字} {patient && <BedNumberImprint patient={patient} size="sm" />}
             </span>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="h-6 w-6" />

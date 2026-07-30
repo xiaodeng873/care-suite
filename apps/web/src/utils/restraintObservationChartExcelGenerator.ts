@@ -2,6 +2,7 @@ import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
 import { getTemplatesMetadata } from '../lib/database';
 import type { PatientRestraintAssessment } from '../context/PatientContext';
+import { getPrintBedNumber } from './bedTransferUtils';
 interface RestraintObservationExportData {
   id: string;
   patient_id: number;
@@ -15,6 +16,7 @@ interface RestraintObservationExportData {
   updated_at: string;
   院友: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     性別: string;
@@ -49,6 +51,7 @@ interface SheetConfig {
   template: ExtractedTemplate;
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     性別: string;
@@ -280,6 +283,7 @@ const applyRestraintObservationTemplateFormat = (
   template: ExtractedTemplate,
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     性別: string;
@@ -418,7 +422,7 @@ const applyRestraintObservationTemplateFormat = (
   // J3: 院友姓名
   worksheet.getCell('J3').value = `${patient.中文姓氏}${patient.中文名字}`;
   // R3: 床號
-  worksheet.getCell('R3').value = patient.床號;
+  worksheet.getCell('R3').value = getPrintBedNumber(patient);
   // 格式化 C25 的日期 - 使用開始日期的年份和月份
   const startDateObj = new Date(startDate);
   const c25DateFormatted = `${startDateObj.getFullYear()}年${(startDateObj.getMonth() + 1).toString().padStart(2, '0')}月          日`;
@@ -680,6 +684,7 @@ export const exportRestraintObservationsToExcel = async (
         ...assessment,
         院友: {
           床號: patient?.床號 || '',
+          original_bed_number: patient?.original_bed_number,
           中文姓氏: patient?.中文姓氏 || '',
           中文名字: patient?.中文名字 || '',
           性別: patient?.性別 || '',
@@ -693,7 +698,7 @@ export const exportRestraintObservationsToExcel = async (
     });
     // 構建工作表配置
     const sheetsConfig: SheetConfig[] = exportData.map(data => ({
-      name: `${data.院友.床號}_${data.院友.中文姓氏}${data.院友.中文名字}`,
+      name: `${getPrintBedNumber(data.院友)}_${data.院友.中文姓氏}${data.院友.中文名字}`,
       template: extractedFormat,
       patient: data.院友,
       assessment: data,
@@ -707,7 +712,7 @@ export const exportRestraintObservationsToExcel = async (
     // 決定檔案名稱
     const finalFilename = filename || 
       (sheetsConfig.length === 1 
-        ? `${sheetsConfig[0].patient.床號}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_約束物品觀察表.xlsx`
+        ? `${getPrintBedNumber(sheetsConfig[0].patient)}_${sheetsConfig[0].patient.中文姓氏}${sheetsConfig[0].patient.中文名字}_約束物品觀察表.xlsx`
         : `約束物品觀察表(${sheetsConfig.length}名院友)_${startDate}_${endDate}.xlsx`);
     // 創建工作簿並匯出
     const workbook = await createRestraintObservationWorkbook(sheetsConfig);
@@ -738,7 +743,7 @@ const exportRestraintObservationsToExcelSimple = async (
   sortedAssessments.forEach((assessment, index) => {
     const patient = patients.find(p => p.院友id === assessment.patient_id);
     if (!patient) return;
-    const sheetName = `${patient.床號}_${patient.中文姓氏}${patient.中文名字}_約束物品觀察表`;
+    const sheetName = `${getPrintBedNumber(patient)}_${patient.中文姓氏}${patient.中文名字}_約束物品觀察表`;
     const worksheet = workbook.addWorksheet(sheetName);
     // 設定欄寬
     worksheet.columns = [
@@ -763,7 +768,7 @@ const exportRestraintObservationsToExcelSimple = async (
     };
     // 院友資訊
     worksheet.getCell('A3').value = `院友姓名: ${patient.中文姓氏}${patient.中文名字}`;
-    worksheet.getCell('C3').value = `床號: ${patient.床號}`;
+    worksheet.getCell('C3').value = `床號: ${getPrintBedNumber(patient)}`;
     worksheet.getCell('E3').value = `性別: ${patient.性別}`;
     if (patient.出生日期) {
       const age = calculateAge(patient.出生日期);

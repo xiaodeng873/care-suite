@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Pill, CheckCircle, UserPlus, Lock, Clock } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import BedNumberImprint from './BedNumberImprint';
 import { useAuth } from '../context/AuthContext';
 import { isInjectionQualified } from '@care-suite/shared';
 
@@ -168,7 +169,7 @@ const PrnWorkflowModal: React.FC<PrnWorkflowModalProps> = ({
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-600">
-              {patient?.中文姓氏}{patient?.中文名字} {patient?.床號}
+              {patient?.中文姓氏}{patient?.中文名字} <BedNumberImprint patient={patient as any} size="sm" />
             </span>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="h-6 w-6" />

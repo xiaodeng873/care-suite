@@ -2,14 +2,17 @@ import React, { useState, useMemo } from 'react';
 import { X, Search, Printer } from 'lucide-react';
 import type { Patient } from '../lib/database';
 import type { PrintContentMode } from '../utils/patientPrintBundleGenerator';
+import BedNumberImprint from './BedNumberImprint';
 
-export type PrintDocumentCategory = '入住文件' | '常用表格';
+export type PrintDocumentCategory = '入住文件' | '常用表格' | '床頭記錄';
 
 export interface PrintDocumentOption {
   id: string;
   name: string;
   category: PrintDocumentCategory;
   defaultChecked: boolean;
+  disabled?: boolean;
+  disabledHint?: string;
 }
 
 export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
@@ -42,12 +45,27 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
   { id: 'restraint_consent', name: '使用約束措施的評估及同意書', category: '常用表格', defaultChecked: false },
   { id: 'medication_proxy', name: '要求院舍派發成藥確認書', category: '常用表格', defaultChecked: false },
   { id: 'self_medication', name: '自行存放及使用藥物同意書', category: '常用表格', defaultChecked: false },
+  // 床頭記錄
+  { id: 'bedhead_patrol_rounds', name: '院友巡房記錄表', category: '床頭記錄', defaultChecked: true },
+  { id: 'bedhead_diaper', name: '換片及大便記錄', category: '床頭記錄', defaultChecked: true },
+  { id: 'bedhead_intake_output', name: '個人出入量記錄表', category: '床頭記錄', defaultChecked: true },
+  { id: 'bedhead_hygiene', name: '個人衛生、清潔及大便記錄', category: '床頭記錄', defaultChecked: true },
+  { id: 'bedhead_restraint_observation', name: '身體約束物品觀察記錄表', category: '床頭記錄', defaultChecked: true },
+  { id: 'bedhead_position_change', name: '轉身記錄', category: '床頭記錄', defaultChecked: false, disabled: true, disabledHint: '未開放' },
+  { id: 'bedhead_toilet_training', name: '如廁訓練', category: '床頭記錄', defaultChecked: false, disabled: true, disabledHint: '未開放' },
 ];
+
+const TAB_ORDER: PrintDocumentCategory[] = ['入住文件', '常用表格', '床頭記錄'];
 
 interface PatientPrintModalProps {
   patients: Patient[];
   onClose: () => void;
   onPrint: (selectedPatients: Patient[], selectedDocuments: string[], startDate: string, endDate: string, contentMode: PrintContentMode) => void;
+  initialTab?: PrintDocumentCategory;
+  initialSelectedPatientIds?: number[];
+  initialSelectedDocumentIds?: string[];
+  initialStartDate?: string;
+  initialEndDate?: string;
 }
 
 const CONTENT_MODE_OPTIONS: { value: PrintContentMode; label: string }[] = [
@@ -56,21 +74,43 @@ const CONTENT_MODE_OPTIONS: { value: PrintContentMode; label: string }[] = [
   { value: 'blank', label: '空白文件' },
 ];
 
-const PatientPrintModal: React.FC<PatientPrintModalProps> = ({ patients, onClose, onPrint }) => {
-  const [activeTab, setActiveTab] = useState<PrintDocumentCategory>('入住文件');
+const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
+  patients,
+  onClose,
+  onPrint,
+  initialTab,
+  initialSelectedPatientIds,
+  initialSelectedDocumentIds,
+  initialStartDate,
+  initialEndDate,
+}) => {
+  const [activeTab, setActiveTab] = useState<PrintDocumentCategory>(initialTab ?? '入住文件');
   const [patientSearch, setPatientSearch] = useState('');
-  const [selectedPatientIds, setSelectedPatientIds] = useState<Set<number>>(new Set());
+  const [selectedPatientIds, setSelectedPatientIds] = useState<Set<number>>(() => {
+    const initial = new Set<number>();
+    if (initialSelectedPatientIds) {
+      initialSelectedPatientIds.forEach(id => initial.add(id));
+    } else if (patients.length === 1) {
+      initial.add(patients[0].院友id);
+    }
+    return initial;
+  });
   const [checkedDocuments, setCheckedDocuments] = useState<Set<string>>(() => {
     const initial = new Set<string>();
     PRINT_DOCUMENTS.forEach(doc => {
-      if (doc.defaultChecked) initial.add(doc.id);
+      if (doc.disabled) return;
+      if (initialSelectedDocumentIds) {
+        if (initialSelectedDocumentIds.includes(doc.id)) initial.add(doc.id);
+      } else if (doc.defaultChecked) {
+        initial.add(doc.id);
+      }
     });
     return initial;
   });
 
   const today = new Date().toISOString().split('T')[0];
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState(today);
+  const [startDate, setStartDate] = useState(initialStartDate ?? '');
+  const [endDate, setEndDate] = useState(initialEndDate ?? today);
   const [contentMode, setContentMode] = useState<PrintContentMode>('data');
 
   const filteredPatients = useMemo(() => {
@@ -101,6 +141,8 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({ patients, onClose
   };
 
   const toggleDocument = (id: string) => {
+    const doc = PRINT_DOCUMENTS.find(d => d.id === id);
+    if (doc?.disabled) return;
     const next = new Set(checkedDocuments);
     if (next.has(id)) next.delete(id); else next.add(id);
     setCheckedDocuments(next);
@@ -109,6 +151,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({ patients, onClose
   const toggleAllDocuments = (checked: boolean) => {
     const next = new Set(checkedDocuments);
     tabDocuments.forEach(doc => {
+      if (doc.disabled) return;
       if (checked) next.add(doc.id); else next.delete(doc.id);
     });
     setCheckedDocuments(next);
@@ -209,7 +252,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({ patients, onClose
                     className="h-4 w-4"
                   />
                   <span className="text-sm">{patient.中文姓名 || `${patient.中文姓氏}${patient.中文名字}`}</span>
-                  <span className="text-xs text-gray-500 ml-auto">{patient.床號}</span>
+                  <BedNumberImprint patient={patient} size="sm" className="text-xs text-gray-500 ml-auto" />
                 </label>
               ))}
             </div>
@@ -219,7 +262,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({ patients, onClose
           <div className="flex-1 flex flex-col">
             <div className="border-b border-gray-200">
               <div className="flex">
-                {(['入住文件', '常用表格'] as PrintDocumentCategory[]).map(tab => (
+                {TAB_ORDER.map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -244,14 +287,28 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({ patients, onClose
 
             <div className="flex-1 overflow-y-auto p-3">
               {tabDocuments.map((doc, index) => (
-                <label key={doc.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                <label
+                  key={doc.id}
+                  className={`flex items-center gap-2 p-2 rounded ${
+                    doc.disabled
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'hover:bg-gray-50 cursor-pointer'
+                  }`}
+                  title={doc.disabled ? doc.disabledHint : undefined}
+                >
                   <input
                     type="checkbox"
                     checked={checkedDocuments.has(doc.id)}
-                    onChange={() => toggleDocument(doc.id)}
-                    className="h-4 w-4"
+                    onChange={() => !doc.disabled && toggleDocument(doc.id)}
+                    disabled={doc.disabled}
+                    className="h-4 w-4 disabled:opacity-50"
                   />
-                  <span className="text-sm">{index + 1}. {doc.name}</span>
+                  <span className="text-sm">
+                    {index + 1}. {doc.name}
+                    {doc.disabled && doc.disabledHint && (
+                      <span className="ml-1 text-xs text-gray-400">（{doc.disabledHint}）</span>
+                    )}
+                  </span>
                 </label>
               ))}
             </div>

@@ -28,6 +28,7 @@ import { printCgatWorksheet } from '../utils/cgatWorksheetGenerator';
 import { printCgatMedicationProxy } from '../utils/cgatMedicationProxyGenerator';
 import type { CgatRecord, Patient } from '../lib/database';
 import { formatDisplayDate } from '../utils/dateFormat';
+import BedNumberImprint from '../components/BedNumberImprint';
 
 
 type SortField = '院友姓名' | 'medication_end_date' | 'cgat_visit_date' | 'created_at';
@@ -688,7 +689,7 @@ const Cgat: React.FC = () => {
                                     </PatientTooltip>
                                   ) : '-'}
                                 </div>
-                                <div className="text-sm text-gray-500">{patient?.床號}</div>
+                                {patient ? <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" /> : <span className="text-sm text-gray-500">-</span>}
                               </div>
                             </div>
                           </td>

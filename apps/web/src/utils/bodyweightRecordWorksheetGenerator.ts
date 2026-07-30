@@ -4,6 +4,10 @@ import {
   DEFAULT_FACILITY_SETTINGS,
   type FacilitySettings,
 } from './facilitySettings';
+import {
+  getPrintBedNumber,
+  enrichPatientsWithOriginalBedNumber,
+} from './bedTransferUtils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 院友體重記錄表（A4 直印）
@@ -23,6 +27,8 @@ interface PatientRow {
   院友id: number;
   中文姓名: string | null;
   床號: string | null;
+  original_bed_id?: string | null;
+  original_bed_number?: string | null;
   性別: string | null;
   出生日期: string | null;
 }
@@ -96,7 +102,7 @@ const formatCompare = (current: number | null, previous: number | null): string 
 const fetchInResidencePatients = async (patientIds?: number[]): Promise<PatientRow[]> => {
   let query = supabase
     .from('院友主表')
-    .select('院友id, 中文姓名, 床號, 性別, 出生日期');
+    .select('院友id, 中文姓名, 床號, 性別, 出生日期, original_bed_id');
   if (patientIds && patientIds.length > 0) {
     query = query.in('院友id', patientIds);
   } else {
@@ -203,7 +209,7 @@ const renderInfoRow = (patient: PatientRow, pageLabel: string): string => `
     <colgroup><col style="width: 25%;"><col style="width: 18%;"><col style="width: 18%;"><col style="width: 18%;"><col style="width: 21%;"></colgroup>
     <tr>
       <td>院友姓名：<input type="text" class="db-line-input" style="width: 60%;" value="${escapeAttr(patient.中文姓名 ?? '')}" readonly></td>
-      <td>床號：<input type="text" class="db-line-input" style="width: 60%;" value="${escapeAttr(patient.床號 ?? '')}" readonly></td>
+      <td>床號：<input type="text" class="db-line-input" style="width: 60%;" value="${escapeAttr(getPrintBedNumber(patient) ?? '')}" readonly></td>
       <td>性別：<input type="text" class="db-line-input" style="width: 60%;" value="${escapeAttr(patient.性別 ?? '')}" readonly></td>
       <td>年齡：<input type="text" class="db-line-input" style="width: 60%;" value="${escapeAttr(calculateAge(patient.出生日期))}" readonly></td>
       <td>頁數：<input type="text" class="db-line-input" style="width: 70%;" value="${escapeAttr(pageLabel)}" readonly></td>
@@ -330,9 +336,11 @@ export const generateBodyweightRecordHtml = async (
     includeData ? fetchWeightRecords(startDate, endDate) : Promise.resolve([]),
   ]);
 
+  const patientsRawEnriched = await enrichPatientsWithOriginalBedNumber(patientsRaw);
+
   const patients = options?.blankHeader
-    ? patientsRaw.map(p => ({ ...p, 中文姓名: '', 床號: '', 性別: '', 出生日期: '' }))
-    : patientsRaw;
+    ? patientsRawEnriched.map(p => ({ ...p, 中文姓名: '', 床號: '', original_bed_number: '', 性別: '', 出生日期: '' }))
+    : patientsRawEnriched;
 
   // 依院友分組記錄
   const recordsByPatient = new Map<number, WeightRecord[]>();

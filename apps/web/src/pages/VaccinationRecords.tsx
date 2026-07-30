@@ -16,6 +16,7 @@ import { usePatients, type VaccinationRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import VaccinationRecordModal from '../components/VaccinationRecordModal';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -604,7 +605,7 @@ const VaccinationRecords: React.FC = () => {
                               )}
                               <div>
                                 <p className="font-medium text-gray-900">{patient.中文姓名}</p>
-                                <p className="text-sm text-gray-500">床號: {patient.床號}</p>
+                                <p className="text-sm text-gray-500">床號: <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" /></p>
                                 <p className="text-xs text-green-600">共 {group.records.length} 筆記錄</p>
                               </div>
                             </div>

@@ -7,8 +7,12 @@ import type {
   PatientLog,
   Wound,
   MedicationPrescription,
+  PatientCareTab,
+  MealGuidance,
 } from '../lib/database';
+import { supabase } from '../lib/supabase';
 import { getFacilitySettings } from './facilitySettings';
+import { getPrintBedNumber } from './bedTransferUtils';
 import { PRINT_DOCUMENTS } from '../components/PatientPrintModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,7 +36,7 @@ export interface DocumentGeneratorContext {
   contentMode: PrintContentMode;
 }
 
-type DocumentGenerator = (ctx: DocumentGeneratorContext) => Promise<string>;
+type DocumentGenerator = (ctx: DocumentGeneratorContext) => Promise<string | string[]>;
 
 // ─── 工具 ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +53,45 @@ const worksheetOptions = (ctx: DocumentGeneratorContext) => ({
   includeData: ctx.contentMode === 'data',
   blankHeader: ctx.contentMode === 'blank',
 });
+
+// ─── 床頭記錄 tab 輔助 ────────────────────────────────────────────────────────
+
+const ALWAYS_VISIBLE_BEDHEAD_TABS: PatientCareTab['tab_type'][] = ['patrol', 'hygiene'];
+
+let cachedCareTabs: PatientCareTab[] | null = null;
+let cachedCareTabPatientIds: number[] | null = null;
+
+async function loadPatientCareTabsForPatients(patientIds: number[]): Promise<PatientCareTab[]> {
+  if (
+    cachedCareTabs &&
+    cachedCareTabPatientIds &&
+    cachedCareTabPatientIds.length === patientIds.length &&
+    cachedCareTabPatientIds.every((id, i) => id === patientIds[i])
+  ) {
+    return cachedCareTabs;
+  }
+  const { data, error } = await supabase
+    .from('patient_care_tabs')
+    .select('*')
+    .in('patient_id', patientIds)
+    .eq('is_hidden', false);
+  if (error) {
+    console.error('載入院友床頭記錄選項卡失敗:', error);
+    return [];
+  }
+  cachedCareTabs = data || [];
+  cachedCareTabPatientIds = [...patientIds];
+  return cachedCareTabs;
+}
+
+function patientHasCareTab(
+  tabs: PatientCareTab[],
+  patientId: number,
+  tabType: PatientCareTab['tab_type']
+): boolean {
+  if (ALWAYS_VISIBLE_BEDHEAD_TABS.includes(tabType)) return true;
+  return tabs.some(t => t.patient_id === patientId && t.tab_type === tabType);
+}
 
 // ─── Generator 註冊表 ───────────────────────────────────────────────────────
 
@@ -344,6 +387,132 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
         const mod = await import('./docHtmlGenerators/selfMedicationGenerator');
         return mod.generateSelfMedicationHtml;
       }
+      // ─── 床頭記錄 ─────────────────────────────────────────────────────────────
+      case 'bedhead_patrol_rounds': {
+        const mod = await import('./patrolRoundsHtmlExporter');
+        return async (ctx) => {
+          const patient = ctxPatient(ctx);
+          if (ctx.contentMode === 'data') {
+            const tabs = await loadPatientCareTabsForPatients([ctx.patient.院友id]);
+            if (!patientHasCareTab(tabs, ctx.patient.院友id, 'patrol')) return '';
+            const db = await import('../lib/database');
+            const rounds = await db.getPatrolRoundsInDateRange(ctx.startDate, ctx.endDate);
+            const patientRounds = rounds.filter(r => r.patient_id === ctx.patient.院友id);
+            if (patientRounds.length === 0) return '';
+            return mod.generatePatrolRoundsRangeHtml({
+              facilityName: ctx.facilityName,
+              bedNumber: getPrintBedNumber(patient),
+              startDate: ctx.startDate,
+              endDate: ctx.endDate,
+              rounds: patientRounds,
+            });
+          }
+          return mod.generatePatrolRoundsRangeHtml({
+            facilityName: ctx.facilityName,
+            bedNumber: getPrintBedNumber(patient),
+            startDate: ctx.startDate,
+            endDate: ctx.endDate,
+            rounds: [],
+          });
+        };
+      }
+      case 'bedhead_diaper': {
+        const mod = await import('./diaperRecordPrintFormHtml');
+        return async (ctx) => {
+          const patient = ctxPatient(ctx);
+          if (ctx.contentMode === 'data') {
+            const tabs = await loadPatientCareTabsForPatients([ctx.patient.院友id]);
+            if (!patientHasCareTab(tabs, ctx.patient.院友id, 'diaper')) return '';
+            const db = await import('../lib/database');
+            const records = await db.getDiaperChangeRecordsInDateRange(ctx.startDate, ctx.endDate);
+            const patientRecords = records.filter(r => r.patient_id === ctx.patient.院友id);
+            if (patientRecords.length === 0) return '';
+            return mod.generateDiaperRecordFormForDateRange(patient, patientRecords, ctx.startDate, ctx.endDate, ctx.facilityName, true);
+          }
+          return mod.generateDiaperRecordFormForDateRange(patient, [], ctx.startDate, ctx.endDate, ctx.facilityName, false);
+        };
+      }
+      case 'bedhead_intake_output': {
+        const mod = await import('./intakeOutputHtmlGenerator');
+        return async (ctx) => {
+          const patient = ctxPatient(ctx);
+          if (ctx.contentMode === 'data') {
+            const tabs = await loadPatientCareTabsForPatients([ctx.patient.院友id]);
+            if (!patientHasCareTab(tabs, ctx.patient.院友id, 'intake_output')) return '';
+            const db = await import('../lib/database');
+            const records = await db.getIntakeOutputRecordsByPatient(ctx.patient.院友id, ctx.startDate, ctx.endDate);
+            if (records.length === 0) return '';
+            const guidances = await db.getMealGuidances();
+            const guidance = guidances.find(g => g.patient_id === ctx.patient.院友id);
+            const name = `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`.trim() || patient.中文姓名 || '';
+            const genderAge = `${patient.性別 ?? ''}/${patient.出生日期 ? new Date().getFullYear() - new Date(patient.出生日期).getFullYear() : ''}`;
+            return mod.generateIntakeOutputRangeHtml(
+              {
+                facilityName: ctx.facilityName,
+                patientName: name,
+                bedNumber: getPrintBedNumber(patient),
+                genderAge,
+                targetIntakeMl: undefined,
+                mealCombination: guidance?.meal_combination,
+                specialDiets: guidance?.special_diets ?? [],
+              },
+              records as any,
+              ctx.startDate,
+              ctx.endDate,
+              ctx.facilityName
+            );
+          }
+          return mod.generateIntakeOutputRangeHtml(
+            {
+              facilityName: ctx.facilityName,
+              patientName: '',
+              bedNumber: '',
+              genderAge: '',
+              targetIntakeMl: undefined,
+              mealCombination: undefined,
+              specialDiets: [],
+            },
+            [],
+            ctx.startDate,
+            ctx.endDate,
+            ctx.facilityName
+          );
+        };
+      }
+      case 'bedhead_hygiene': {
+        const mod = await import('./hygieneRecordPrintFormHtml');
+        return async (ctx) => {
+          const patient = ctxPatient(ctx);
+          if (ctx.contentMode === 'data') {
+            const tabs = await loadPatientCareTabsForPatients([ctx.patient.院友id]);
+            if (!patientHasCareTab(tabs, ctx.patient.院友id, 'hygiene')) return '';
+            const db = await import('../lib/database');
+            const records = await db.getHygieneRecordsInDateRange(ctx.startDate, ctx.endDate);
+            const patientRecords = records.filter(r => r.patient_id === ctx.patient.院友id);
+            if (patientRecords.length === 0) return '';
+            return mod.generateHygieneRecordFormForDateRange(patient, patientRecords, ctx.startDate, ctx.endDate, ctx.facilityName);
+          }
+          return mod.generateHygieneRecordFormForDateRange(patient, [], ctx.startDate, ctx.endDate, ctx.facilityName);
+        };
+      }
+      case 'bedhead_restraint_observation': {
+        const mod = await import('./restraintObservationHtmlExporter');
+        return async (ctx) => {
+          const patient = ctxPatient(ctx);
+          if (ctx.contentMode === 'data') {
+            const tabs = await loadPatientCareTabsForPatients([ctx.patient.院友id]);
+            if (!patientHasCareTab(tabs, ctx.patient.院友id, 'restraint')) return '';
+            const db = await import('../lib/database');
+            const records = await db.getRestraintObservationRecordsInDateRange(ctx.startDate, ctx.endDate);
+            const patientRecords = records.filter(r => r.patient_id === ctx.patient.院友id);
+            if (patientRecords.length === 0) return '';
+            const assessments = await db.getRestraintAssessments();
+            const assessment = assessments.find(a => a.patient_id === ctx.patient.院友id) ?? null;
+            return mod.generateRestraintObservationRangeHtml(patient, patientRecords, assessment, ctx.startDate, ctx.endDate, true, ctx.facilityName);
+          }
+          return mod.generateRestraintObservationRangeHtml(patient, [], null, ctx.startDate, ctx.endDate, true, ctx.facilityName);
+        };
+      }
       default:
         return null;
     }
@@ -359,11 +528,15 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
   const { patients, documentIds, startDate, endDate, contentMode } = options;
   if (patients.length === 0 || documentIds.length === 0) return;
 
+  // 清除床頭記錄選項卡快取，避免跨次列印使用舊資料
+  cachedCareTabs = null;
+  cachedCareTabPatientIds = null;
+
   const settings = await getFacilitySettings();
   const facilityName = settings.facilityNameZh;
 
   const orderMap = new Map(PRINT_DOCUMENTS.map((d, i) => [d.id, i]));
-  const categoryWeight: Record<string, number> = { '入住文件': 0, '常用表格': 1 };
+  const categoryWeight: Record<string, number> = { '入住文件': 0, '常用表格': 1, '床頭記錄': 2 };
   const sortedDocumentIds = [...documentIds].sort((a, b) => {
     const ad = PRINT_DOCUMENTS.find(d => d.id === a);
     const bd = PRINT_DOCUMENTS.find(d => d.id === b);
@@ -384,7 +557,9 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     for (const docId of sortedDocumentIds) {
       const generator = await getGenerator(docId);
       if (!generator) continue;
-      const docName = PRINT_DOCUMENTS.find(d => d.id === docId)?.name || docId;
+      const doc = PRINT_DOCUMENTS.find(d => d.id === docId);
+      const docName = doc?.name || docId;
+      const isBedhead = doc?.category === '床頭記錄';
 
       try {
         let html = await generator({
@@ -395,6 +570,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
           contentMode,
         });
         // 「含既有輸入內容」模式：有內容則印內容，無內容則回退印基本資料
+        // 床頭記錄：data 模式下沒有該 tab 或沒有記錄時會回傳空字串，且不加入 skipped 提示
         if (!html && contentMode === 'data') {
           html = await generator({
             patient,
@@ -404,9 +580,11 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
             contentMode: 'basic',
           });
         }
-        if (html) {
+        if (Array.isArray(html)) {
+          pages.push(...html.filter(h => h.trim()));
+        } else if (html) {
           pages.push(html);
-        } else if (contentMode === 'data') {
+        } else if (contentMode === 'data' && !isBedhead) {
           skipped.push(`${docName}（${patientName}）`);
         }
       } catch (error) {

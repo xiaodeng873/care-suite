@@ -1,16 +1,8 @@
 import React, { useMemo } from 'react';
 import { PartyPopper, ArrowRight } from 'lucide-react';
 import { getActivityRecordOverdueInfo } from '../utils/activityRecordStatus';
-import type { PatientActivityRecord } from '../lib/database';
-
-interface Patient {
-  院友id: number;
-  中文姓名: string;
-  床號: string;
-  中文姓氏?: string;
-  中文名字?: string;
-  在住狀態?: string;
-}
+import BedNumberImprint from './BedNumberImprint';
+import type { Patient, PatientActivityRecord } from '../lib/database';
 
 interface ActivityRecordReminderCardProps {
   patients: Patient[];
@@ -57,7 +49,7 @@ const ActivityRecordReminderCard: React.FC<ActivityRecordReminderCardProps> = ({
             className="w-full flex items-center justify-between py-2 text-left hover:bg-gray-50 rounded-lg px-2 -mx-2"
           >
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 w-12 shrink-0">{patient.床號}</span>
+              <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500 w-12 shrink-0" />
               <span className="text-sm text-gray-800">{patient.中文姓名}</span>
               <span className="text-xs text-red-600 bg-red-50 rounded-full px-2 py-0.5">
                 僅 {info.previousMonthCount} 次

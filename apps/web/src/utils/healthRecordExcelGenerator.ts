@@ -1,6 +1,7 @@
 import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
 import { getTemplatesMetadata } from '../lib/database';
+import { getPrintBedNumber } from './bedTransferUtils';
 export interface HealthRecordExportData {
   記錄id?: number;
   床號: string;
@@ -44,6 +45,7 @@ interface SheetConfig {
   template: ExtractedTemplate;
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     性別: string;
@@ -141,6 +143,7 @@ const applyHealthRecordTemplateFormat = (
   template: ExtractedTemplate,
   patient: {
     床號: string;
+    original_bed_number?: string;
     中文姓氏: string;
     中文名字: string;
     性別: string;
@@ -201,7 +204,7 @@ const applyHealthRecordTemplateFormat = (
   if (patient) {
     // 填充院友基本資訊到表頭 (假設表頭在前幾行)
     worksheet.getCell('B3').value = `${patient.中文姓氏}${patient.中文名字}` || '';
-    worksheet.getCell('D3').value = patient.床號 || '';
+    worksheet.getCell('D3').value = getPrintBedNumber(patient);
     worksheet.getCell('H3').value = patient.性別 || '';
     if (patient.出生日期) {
       const age = calculateAge(patient.出生日期);
@@ -377,7 +380,7 @@ const createHealthRecordWorkbook = async (
       console.error(`❌ 創建工作表 ${config.name} 失敗:`, error);
       // 不要因為單個工作表失敗就停止整個匯出
       // 創建一個簡單的錯誤工作表
-      const errorSheet = workbook.addWorksheet(`錯誤_${config.patient.床號}_${config.patient.中文姓氏}${config.patient.中文名字}`);
+      const errorSheet = workbook.addWorksheet(`錯誤_${getPrintBedNumber(config.patient)}_${config.patient.中文姓氏}${config.patient.中文名字}`);
       errorSheet.getCell('A1').value = `創建 ${config.patient.中文姓氏}${config.patient.中文名字} 的工作表時發生錯誤: ${error.message}`;
       continue;
     }
@@ -605,7 +608,7 @@ const exportHealthRecordsToExcelSimple = async (
     const firstRecord = recordGroup[0];
     const patient = patients.find(p => p.床號 === firstRecord.床號 && `${p.中文姓氏}${p.中文名字}` === `${firstRecord.中文姓氏}${firstRecord.中文名字}`);
     if (!patient) return;
-    const sheetName = `${firstRecord.床號}${firstRecord.中文姓氏}${firstRecord.中文名字}${recordType}記錄表`;
+    const sheetName = `${getPrintBedNumber(patient)}${patient.中文姓氏}${patient.中文名字}${recordType}記錄表`;
     const worksheet = workbook.addWorksheet(sheetName);
     // 根據記錄類型設定不同的表頭
     let headers: string[] = ['序號', '記錄日期'];
@@ -642,7 +645,7 @@ const exportHealthRecordsToExcelSimple = async (
       };
       // 院友資訊
       worksheet.getCell('A3').value = `院友姓名: ${patient.中文姓氏}${patient.中文名字}`;
-      worksheet.getCell('C3').value = `床號: ${patient.床號}`;
+      worksheet.getCell('C3').value = `床號: ${getPrintBedNumber(patient)}`;
       worksheet.getCell('F3').value = `性別: ${patient.性別}`;
       if (patient.出生日期) {
         const age = calculateAge(patient.出生日期);
@@ -775,7 +778,7 @@ const exportHealthRecordsToExcelSimple = async (
     };
     // 院友資訊
     worksheet.getCell('A3').value = `院友姓名: ${patient.中文姓氏}${patient.中文名字}`;
-    worksheet.getCell('C3').value = `床號: ${patient.床號}`;
+    worksheet.getCell('C3').value = `床號: ${getPrintBedNumber(patient)}`;
     worksheet.getCell('F3').value = `性別: ${patient.性別}`;
     if (patient.出生日期) {
       const age = calculateAge(patient.出生日期);
@@ -884,7 +887,7 @@ const exportBodyweightToExcelSimple = async (
     const firstRecord = recordGroup[0];
     const patient = patients.find(p => p.床號 === firstRecord.床號 && `${p.中文姓氏}${p.中文名字}` === `${firstRecord.中文姓氏}${firstRecord.中文名字}`);
     if (!patient) return;
-    const sheetName = `${firstRecord.床號}${firstRecord.中文姓氏}${firstRecord.中文名字}體重記錄表`;
+    const sheetName = `${getPrintBedNumber(patient)}${patient.中文姓氏}${patient.中文名字}體重記錄表`;
     const worksheet = workbook.addWorksheet(sheetName);
     // 設定欄寬
     worksheet.columns = [
@@ -914,7 +917,7 @@ const exportBodyweightToExcelSimple = async (
     };
     // 院友資訊
     worksheet.getCell('A3').value = `院友姓名: ${patient.中文姓氏}${patient.中文名字}`;
-    worksheet.getCell('C3').value = `床號: ${patient.床號}`;
+    worksheet.getCell('C3').value = `床號: ${getPrintBedNumber(patient)}`;
     worksheet.getCell('F3').value = `性別: ${patient.性別}`;
     if (patient.出生日期) {
       const age = calculateAge(patient.出生日期);

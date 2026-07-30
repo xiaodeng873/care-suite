@@ -20,6 +20,7 @@ import {
   Printer
 } from 'lucide-react';
 import { usePatients, type IncidentReport } from '../context/PatientContext';
+import BedNumberImprint from '../components/BedNumberImprint';
 import IncidentReportModal from '../components/IncidentReportModal';
 import PatientTooltip from '../components/PatientTooltip';
 import { generateIncidentReportWord } from '../utils/incidentReportWordGenerator';
@@ -728,7 +729,7 @@ const IncidentReports: React.FC = () => {
                               )}
                               <div>
                                 <div className="font-medium text-gray-900">{patient.中文姓名}</div>
-                                <div className="text-sm text-gray-500">{patient.床號}</div>
+                                <div className="text-sm text-gray-500"><BedNumberImprint patient={patient} size="sm" /></div>
                               </div>
                             </div>
                           </PatientTooltip>

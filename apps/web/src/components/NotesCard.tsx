@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { StickyNote, Plus, Check, Trash2, ChevronDown, ChevronUp, User, Calendar, Edit } from 'lucide-react';
+import BedNumberImprint from './BedNumberImprint';
 import { usePatients } from '../context/PatientContext';
 import NoteModal from './NoteModal';
 
@@ -123,7 +124,7 @@ const NotesCard: React.FC = () => {
                               </div>
                             )}
                             <span className="font-medium text-gray-900">
-                              {patient.床號} - {patient.中文姓氏}{patient.中文名字}
+                              <BedNumberImprint patient={patient as any} size="sm" /> - {patient.中文姓氏}{patient.中文名字}
                             </span>
                           </>
                         ) : (
@@ -200,7 +201,7 @@ const NotesCard: React.FC = () => {
                       <div key={note.id} className="p-2 bg-gray-50 border border-gray-200 rounded text-sm">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-1">
                           <span className="text-gray-700">
-                            {patient ? `${patient.床號} ${patient.中文姓氏}${patient.中文名字}` : '(無院友)'}
+                            {patient ? <><BedNumberImprint patient={patient as any} size="sm" /> {patient.中文姓氏}{patient.中文名字}</> : '(無院友)'}
                           </span>
                           <span className="text-gray-500 text-xs">
                             {formatDate(note.note_date)}

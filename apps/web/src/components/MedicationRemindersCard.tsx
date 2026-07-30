@@ -1,15 +1,8 @@
 import React, { useState } from 'react';
 import { Clock, Pill, ChevronDown, ChevronUp, ArrowRight, PackageX, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface Patient {
-  院友id: number;
-  中文姓名: string;
-  床號: string;
-  中文姓氏?: string;
-  中文名字?: string;
-  院友相片?: string;
-}
+import type { Patient } from '../lib/database';
+import BedNumberImprint from './BedNumberImprint';
 
 interface OverdueWorkflow {
   patient: Patient;
@@ -110,7 +103,7 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
                         </div>
                         <div className="flex-1">
                           <div className="font-medium text-amber-900">
-                            {item.patient.中文姓氏}{item.patient.中文名字} <span className="text-xs text-amber-600">({item.patient.床號})</span>
+                            {item.patient.中文姓氏}{item.patient.中文名字} <span className="text-xs text-amber-600">(<BedNumberImprint patient={item.patient} size="sm" className="text-xs text-amber-600" />)</span>
                           </div>
                           <div className="text-sm text-amber-700">
                             {item.overdueCount} 個逾期流程 · {dateEntries.length} 個日期
@@ -185,7 +178,7 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
                     </div>
                     <div className="flex-1">
                       <div className="font-medium text-blue-900">
-                        {item.patient.中文姓氏}{item.patient.中文名字} <span className="text-xs text-blue-600">({item.patient.床號})</span>
+                        {item.patient.中文姓氏}{item.patient.中文名字} <span className="text-xs text-blue-600">(<BedNumberImprint patient={item.patient} size="sm" className="text-xs text-blue-600" />)</span>
                       </div>
                       <div className="text-sm text-blue-700">{item.count} 個待變更處方</div>
                     </div>
@@ -231,7 +224,7 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
                     </div>
                     <div className="flex-1">
                       <div className="font-medium text-rose-900">
-                        {(g.patient.中文姓氏 || g.patient.中文名字) ? `${g.patient.中文姓氏 ?? ''}${g.patient.中文名字 ?? ''}` : (g.patient.中文姓名 ?? '')} <span className="text-xs text-rose-600">({g.patient.床號})</span>
+                        {(g.patient.中文姓氏 || g.patient.中文名字) ? `${g.patient.中文姓氏 ?? ''}${g.patient.中文名字 ?? ''}` : (g.patient.中文姓名 ?? '')} <span className="text-xs text-rose-600">(<BedNumberImprint patient={g.patient} size="sm" className="text-xs text-rose-600" />)</span>
                       </div>
                       <div className="text-sm text-rose-700">
                         {g.source}{g.specialty ? `${g.specialty}` : ''}的藥物尚餘 {g.remainingDays} 天服完

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pill, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import BedNumberImprint from './BedNumberImprint';
 
 interface Patient {
   院友id: number;
@@ -61,7 +62,7 @@ const PendingPrescriptionCard: React.FC<PendingPrescriptionCardProps> = ({
                 <Pill className="h-4 w-4 text-blue-600" />
                 <div>
                   <div className="font-medium text-blue-900">
-                    {item.patient.床號} {item.patient.中文姓氏}{item.patient.中文名字}
+                    <BedNumberImprint patient={item.patient as any} size="sm" /> {item.patient.中文姓氏}{item.patient.中文名字}
                   </div>
                   <div className="text-sm text-blue-700">
                     {item.count} 個待變更處方

@@ -7,6 +7,7 @@ import { isInHospital } from '../utils/careRecordHelper';
 import { getRecentHealthRecordsByPatient } from '../lib/database';
 import type { VitalSignType, HealthRecord } from '../lib/database';
 import VitalSignScanner from './VitalSignScanner';
+import BedNumberImprint from './BedNumberImprint';
 import type { VitalSignScanResult } from '../utils/vitalSignOcrParser';
 import { generateVitalSuggestion } from '../utils/healthRecordGenerator';
 import { isVirtualDataEnabled } from '../utils/toolsSettings';
@@ -593,7 +594,11 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
                             院友：
                             {(() => {
                               const patient = patients.find(p => p.院友id.toString() === formData.院友id);
-                              return patient ? `${patient.中文姓名} (${patient.床號})` : '未選擇';
+                              return patient ? (
+                                <span className="flex flex-wrap items-center gap-1">
+                                  {patient.中文姓名} (<BedNumberImprint patient={patient} size="sm" className="text-xs text-gray-500" />)
+                                </span>
+                              ) : '未選擇';
                             })()}
                           </span>
                           <span className="text-blue-600">|</span>

@@ -21,6 +21,7 @@ import {
 import { usePatients, type PatientTubeCareRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import TubeCareModal from '../components/TubeCareModal';
+import BedNumberImprint from '../components/BedNumberImprint';
 import PatientTooltip from '../components/PatientTooltip';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
@@ -635,7 +636,9 @@ const TubeCareManagement: React.FC = () => {
                                     </PatientTooltip>
                                   ) : '-'}
                                 </div>
-                                <div className="text-sm text-gray-500">{patient?.床號}</div>
+                                {patient && (
+                                  <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" />
+                                )}
                               </div>
                             </div>
                           </td>

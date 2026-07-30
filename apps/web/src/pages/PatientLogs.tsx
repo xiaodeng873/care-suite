@@ -20,6 +20,7 @@ import { usePatients, type PatientLog } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientLogModal from '../components/PatientLogModal';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { printPatientLogNursingTreatment } from '../utils/patientLogNursingTreatmentGenerator';
@@ -730,7 +731,11 @@ const PatientLogs: React.FC = () => {
                                 '-'
                               )}
                             </div>
-                            <div className="text-sm text-gray-500">{patient?.床號}</div>
+                            <div className="text-sm text-gray-500">
+                              {patient && (
+                                <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" />
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>

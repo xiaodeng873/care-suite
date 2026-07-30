@@ -1,6 +1,7 @@
 import ExcelJS from '@zurmokeeper/exceljs';
 import { saveAs } from 'file-saver';
 import { supabase } from '../lib/supabase';
+import { getPrintBedNumber } from './bedTransferUtils';
 import {
   fetchWorkflowRecordsForMonth,
   generateStaffCodeMapping,
@@ -383,7 +384,7 @@ const applyMedicationRecordTemplate = async (
   let workflowRecords: WorkflowRecord[] = [];
   let staffCodeMapping: StaffCodeMapping = {};
   if (includeWorkflowRecords) {
-    console.log(`院友: ${patient.床號}${patient.中文姓氏}${patient.中文名字} (ID: ${patient.院友id})`);
+    console.log(`院友: ${getPrintBedNumber(patient)}${patient.中文姓氏}${patient.中文名字} (ID: ${patient.院友id})`);
     const prescriptionIds = processedPrescriptions.map(p => p.id);
     const uniquePrescriptionIds = [...new Set(prescriptionIds)];
     console.log(`提取的處方ID數量 (去重前): ${prescriptionIds.length}`);
@@ -464,7 +465,7 @@ const applyMedicationRecordTemplate = async (
   worksheet.getCell('AF1').value = patient.中文姓氏 + patient.中文名字;
   const age = calculateAge(patient.出生日期);
   worksheet.getCell('AF2').value = patient.性別 + '/' + age;
-  worksheet.getCell('AO1').value = patient.床號;
+  worksheet.getCell('AO1').value = getPrintBedNumber(patient);
   worksheet.getCell('AO2').value = patient.出生日期
     ? new Date(patient.出生日期).toLocaleDateString('zh-TW')
     : '';
@@ -1240,21 +1241,21 @@ export const exportMedicationRecordToExcel = async (
       }
       // 創建口服工作表
       if (categorized.oral.length > 0) {
-        const sheetName = patient.床號 + patient.中文姓氏 + patient.中文名字 + '(口服)';
+        const sheetName = getPrintBedNumber(patient) + patient.中文姓氏 + patient.中文名字 + '(口服)';
         const worksheet = workbook.addWorksheet(sheetName.substring(0, 31));
         await applyMedicationRecordTemplate(worksheet, templateFormat.oral, patient, categorized.oral, selectedMonth, 'oral', includeWorkflowRecords);
         totalSheets++;
       }
       // 創建注射工作表
       if (categorized.injection.length > 0) {
-        const sheetName = patient.床號 + patient.中文姓氏 + patient.中文名字 + '(注射)';
+        const sheetName = getPrintBedNumber(patient) + patient.中文姓氏 + patient.中文名字 + '(注射)';
         const worksheet = workbook.addWorksheet(sheetName.substring(0, 31));
         await applyMedicationRecordTemplate(worksheet, templateFormat.injection, patient, categorized.injection, selectedMonth, 'injection', includeWorkflowRecords);
         totalSheets++;
       }
       // 創建外用工作表
       if (categorized.topical.length > 0) {
-        const sheetName = patient.床號 + patient.中文姓氏 + patient.中文名字 + '(外用)';
+        const sheetName = getPrintBedNumber(patient) + patient.中文姓氏 + patient.中文名字 + '(外用)';
         const worksheet = workbook.addWorksheet(sheetName.substring(0, 31));
         await applyMedicationRecordTemplate(worksheet, templateFormat.topical, patient, categorized.topical, selectedMonth, 'topical', includeWorkflowRecords);
         totalSheets++;
@@ -1269,7 +1270,7 @@ export const exportMedicationRecordToExcel = async (
     const templateBaseName = template.original_name.replace(/\.(xlsx|xls)$/i, '');
     const finalFilename = filename ||
       (selectedPatients.length === 1
-        ? selectedPatients[0].床號 + '_' + selectedPatients[0].中文姓氏 + selectedPatients[0].中文名字 + '_' + templateBaseName + '.xlsx'
+        ? getPrintBedNumber(selectedPatients[0]) + '_' + selectedPatients[0].中文姓氏 + selectedPatients[0].中文名字 + '_' + templateBaseName + '.xlsx'
         : templateBaseName + '_' + selectedPatients.length + '名院友.xlsx');
     // 儲存檔案
     const buffer = await workbook.xlsx.writeBuffer();
@@ -1362,21 +1363,21 @@ export const exportSelectedMedicationRecordToExcel = async (
     let totalSheets = 0;
     // 創建口服工作表
     if (categorized.oral.length > 0) {
-      const sheetName = currentPatient.床號 + currentPatient.中文姓氏 + currentPatient.中文名字 + '(口服)';
+      const sheetName = getPrintBedNumber(currentPatient) + currentPatient.中文姓氏 + currentPatient.中文名字 + '(口服)';
       const worksheet = workbook.addWorksheet(sheetName.substring(0, 31));
       await applyMedicationRecordTemplate(worksheet, templateFormat.oral, currentPatient, categorized.oral, selectedMonth, 'oral', includeWorkflowRecords);
       totalSheets++;
     }
     // 創建注射工作表
     if (categorized.injection.length > 0) {
-      const sheetName = currentPatient.床號 + currentPatient.中文姓氏 + currentPatient.中文名字 + '(注射)';
+      const sheetName = getPrintBedNumber(currentPatient) + currentPatient.中文姓氏 + currentPatient.中文名字 + '(注射)';
       const worksheet = workbook.addWorksheet(sheetName.substring(0, 31));
       await applyMedicationRecordTemplate(worksheet, templateFormat.injection, currentPatient, categorized.injection, selectedMonth, 'injection', includeWorkflowRecords);
       totalSheets++;
     }
     // 創建外用工作表
     if (categorized.topical.length > 0) {
-      const sheetName = currentPatient.床號 + currentPatient.中文姓氏 + currentPatient.中文名字 + '(外用)';
+      const sheetName = getPrintBedNumber(currentPatient) + currentPatient.中文姓氏 + currentPatient.中文名字 + '(外用)';
       const worksheet = workbook.addWorksheet(sheetName.substring(0, 31));
       await applyMedicationRecordTemplate(worksheet, templateFormat.topical, currentPatient, categorized.topical, selectedMonth, 'topical', includeWorkflowRecords);
       totalSheets++;
@@ -1389,7 +1390,7 @@ export const exportSelectedMedicationRecordToExcel = async (
     // 生成檔案名稱
     const templateBaseName = medicationTemplate.original_name.replace(/\.(xlsx|xls)$/i, '');
     const modeText = isExportAll ? '全部' : '已選' + prescriptionsToExport.length + '個';
-    const finalFilename = currentPatient.床號 + '_' + currentPatient.中文姓氏 + currentPatient.中文名字 +
+    const finalFilename = getPrintBedNumber(currentPatient) + '_' + currentPatient.中文姓氏 + currentPatient.中文名字 +
       '_' + modeText + '_' + templateBaseName + '.xlsx';
     // 儲存檔案
     const buffer = await workbook.xlsx.writeBuffer();
@@ -1460,7 +1461,7 @@ const applyBlankMedicationRecordTemplate = async (
   worksheet.getCell('AF1').value = patient.中文姓氏 + patient.中文名字;
   const age = calculateAge(patient.出生日期);
   worksheet.getCell('AF2').value = patient.性別 + '/' + age;
-  worksheet.getCell('AO1').value = patient.床號;
+  worksheet.getCell('AO1').value = getPrintBedNumber(patient);
   worksheet.getCell('AO2').value = patient.出生日期
     ? new Date(patient.出生日期).toLocaleDateString('zh-TW')
     : '';
@@ -1523,7 +1524,7 @@ export const exportBlankMedicationRecordToExcel = async (
     // 為每種途徑創建空白工作表
     for (const routeType of routeTypes) {
       const routeName = routeType === 'oral' ? '口服' : routeType === 'injection' ? '注射' : '外用';
-      const sheetName = patient.床號 + patient.中文姓氏 + patient.中文名字 + '(' + routeName + ')';
+      const sheetName = getPrintBedNumber(patient) + patient.中文姓氏 + patient.中文名字 + '(' + routeName + ')';
       const worksheet = workbook.addWorksheet(sheetName.substring(0, 31));
       const format = routeType === 'oral' ? templateFormat.oral : 
                      routeType === 'injection' ? templateFormat.injection : templateFormat.topical;
@@ -1532,7 +1533,7 @@ export const exportBlankMedicationRecordToExcel = async (
     
     // 生成檔案名稱
     const templateBaseName = template.original_name.replace(/\.(xlsx|xls)$/i, '');
-    const finalFilename = filename || patient.床號 + '_' + patient.中文姓氏 + patient.中文名字 + '_空白藥紙_' + templateBaseName + '.xlsx';
+    const finalFilename = filename || getPrintBedNumber(patient) + '_' + patient.中文姓氏 + patient.中文名字 + '_空白藥紙_' + templateBaseName + '.xlsx';
     
     // 儲存檔案
     const buffer = await workbook.xlsx.writeBuffer();
@@ -1570,7 +1571,7 @@ export const exportBatchBlankMedicationRecordToExcel = async (
     for (const patient of patients) {
       for (const routeType of routeTypes) {
         const routeName = routeType === 'oral' ? '口服' : routeType === 'injection' ? '注射' : '外用';
-        const sheetName = patient.床號 + patient.中文姓氏 + patient.中文名字 + '(' + routeName + ')';
+        const sheetName = getPrintBedNumber(patient) + patient.中文姓氏 + patient.中文名字 + '(' + routeName + ')';
         const worksheet = workbook.addWorksheet(sheetName.substring(0, 31));
         const format = routeType === 'oral' ? templateFormat.oral : 
                        routeType === 'injection' ? templateFormat.injection : templateFormat.topical;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar, Clock, Guitar as Hospital, MapPin, Bed, User, AlertTriangle, Heart, Building2, FileText } from 'lucide-react';
 import { usePatients, type PatientAdmissionRecord, type AdmissionEventType } from '../context/PatientContext';
+import BedNumberImprint from './BedNumberImprint';
 
 interface TransferPath {
   id: string;
@@ -294,7 +295,7 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                     .filter(p => p.在住狀態 === '在住')
                     .map(patient => (
                       <option key={patient.院友id} value={patient.院友id}>
-                        {patient.床號} - {patient.中文姓氏}{patient.中文名字}
+                        <BedNumberImprint patient={patient} size="sm" /> - {patient.中文姓氏}{patient.中文名字}
                       </option>
                     ))}
                 </select>

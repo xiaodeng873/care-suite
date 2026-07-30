@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, Calendar, AlertTriangle, CheckCircle, User, Pill, Clock } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate } from '../utils/dateFormat';
 
 
@@ -276,7 +277,7 @@ ${prescriptionsByPatient.map(group =>
                         {patient?.中文姓氏}{patient?.中文名字}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {patient?.床號} • {prescriptions.length} 個處方
+                        {patient && <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" />} • {prescriptions.length} 個處方
                       </div>
                     </div>
                   </div>

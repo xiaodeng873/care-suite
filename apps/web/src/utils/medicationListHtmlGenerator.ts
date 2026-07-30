@@ -2,6 +2,8 @@ import { formatDisplayDate } from './dateFormat';
 import shortTermTemplate from '../../../../doc_html/院友服用藥物一覽表（短期藥）.html?raw';
 import longTermTemplate from '../../../../doc_html/院友服用藥物一覽表（長期藥）.html?raw';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+import { getPrintBedNumber } from './bedTransferUtils';
+
 
 interface MedicationPrescription {
   id?: string;
@@ -46,6 +48,7 @@ interface PatientForMedicationList {
   英文名字?: string;
   英文姓名?: string;
   床號?: string;
+  original_bed_number?: string;
   性別?: string;
   出生日期?: string;
   身份證號碼?: string;
@@ -289,7 +292,7 @@ function renderPage(
   );
   html = html.replace(
     /<td>床號：<\/td>\s*<td><input type="text" class="db-line-input"><\/td>/,
-    `<td>床號：</td><td><input type="text" class="db-line-input" value="${escapeHtml(patient.床號 ?? '')}"></td>`
+    `<td>床號：</td><td><input type="text" class="db-line-input" value="${escapeHtml(getPrintBedNumber(patient))}"></td>`
   );
   html = html.replace(
     /<td>性別\/年齡：<\/td>\s*<td><input type="text" class="db-line-input"><\/td>/,

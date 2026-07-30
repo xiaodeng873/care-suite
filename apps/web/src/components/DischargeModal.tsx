@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import BedNumberImprint from './BedNumberImprint';
 import { X, LogOut, Calendar, Heart, Home, Hospital, Building2 } from 'lucide-react';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -75,12 +76,12 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ patient, onClose, onCon
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <span className="text-blue-600 font-medium">{patient.床號}</span>
+                <BedNumberImprint patient={patient} size="sm" className="text-blue-600 font-medium" />
               )}
             </div>
             <div>
               <p className="font-medium text-gray-900">{patient.中文姓氏}{patient.中文名字}</p>
-              <p className="text-sm text-gray-600">床號: {patient.床號}</p>
+              <p className="text-sm text-gray-600">床號: <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-600" /></p>
               {patient.入住日期 && (
                 <p className="text-sm text-gray-600">
                   入住日期: {formatDisplayDate(patient.入住日期)}

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, FileText, Calendar, User, MessageSquare, AlertTriangle } from 'lucide-react';
 import { usePatients, type PatientLog } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
+import BedNumberImprint from './BedNumberImprint';
 
 interface PatientLogModalProps {
   log?: PatientLog;
@@ -19,7 +20,7 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
   defaultLogType,
   defaultContent
 }) => {
-  const { addPatientLog, updatePatientLog } = usePatients();
+  const { addPatientLog, updatePatientLog, allPatients } = usePatients();
   const { user, displayName } = useAuth();
 
   // 香港時區輔助函數
@@ -36,6 +37,11 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
     content: log?.content || defaultContent || '',
     recorder: log?.recorder || displayName || user?.email || ''
   });
+
+  const selectedPatient = useMemo(
+    () => allPatients.find(p => p.院友id.toString() === formData.patient_id.toString()),
+    [allPatients, formData.patient_id]
+  );
 
   const [hasChanges, setHasChanges] = useState(false);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
@@ -135,9 +141,17 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
               <div className={`p-2 rounded-lg ${getLogTypeColor(formData.log_type)} bg-opacity-10`}>
                 <FileText className="h-6 w-6" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900">
-                {log ? '編輯院友日誌' : '新增院友日誌'}
-              </h2>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {log ? '編輯院友日誌' : '新增院友日誌'}
+                </h2>
+                {selectedPatient && (
+                  <p className="mt-1 text-sm text-gray-500 flex items-center gap-2">
+                    <BedNumberImprint patient={selectedPatient} size="sm" />
+                    {selectedPatient.中文姓名}
+                  </p>
+                )}
+              </div>
             </div>
             <button
               onClick={handleCloseRequest}

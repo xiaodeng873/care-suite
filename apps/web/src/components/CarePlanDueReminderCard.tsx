@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { ClipboardList, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import BedNumberImprint from './BedNumberImprint';
+import type { Patient } from '../lib/database';
 
 interface CarePlan {
   id: string;
@@ -8,15 +10,6 @@ interface CarePlan {
   plan_date: string;
   review_due_date?: string | null;
   plan_type?: string;
-}
-
-interface Patient {
-  院友id: number;
-  中文姓名: string;
-  床號: string;
-  中文姓氏?: string;
-  中文名字?: string;
-  在住狀態?: string;
 }
 
 interface CarePlanDueReminderCardProps {
@@ -91,7 +84,7 @@ const CarePlanDueReminderCard: React.FC<CarePlanDueReminderCardProps> = ({ careP
             >
               <div>
                 <div className="font-medium text-green-900">
-                  {patient ? `${patient.床號} ${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}` : `院友 #${plan.patient_id}`}
+                  {patient ? <><BedNumberImprint patient={patient} size="sm" /> {patient.中文姓氏 ?? ''}{patient.中文名字 ?? ''}</> : `院友 #${plan.patient_id}`}
                 </div>
                 <div className="text-sm text-green-700">
                   到期：{plan.review_due_date}

@@ -17,6 +17,7 @@ import { isPrescriptionScheduledOnDate } from './prescriptionSchedule';
 import { isPrescriptionExpired, isPrescriptionAboutToExpire } from './prescriptionExpiry';
 
 import { formatDisplayDate } from './dateFormat';
+import { getPrintBedNumber } from './bedTransferUtils';
 // 渲染為同步流程，故於各匯出入口（async）先取得院舍設定後存於模組層，供 renderHeaderRegion 讀取。
 let activeFacility: FacilitySettings = DEFAULT_FACILITY_SETTINGS;
 
@@ -521,7 +522,7 @@ const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRo
         + `<td class="mr-h-title"><div class="mr-org">${escapeHtml(facilityNameZh)}</div><div class="mr-doc">個人備藥及給藥記錄</div></td>`
         + `<td class="mr-h-photo" rowspan="2">${photoHtml}</td>`
         + infoCell('院友姓名', name)
-        + infoCell('院號', String(patient.床號 ?? ''))
+        + infoCell('院號', getPrintBedNumber(patient))
         + reactCell('藥物過敏反應', allergyText)
       + '</tr>'
       + '<tr>'

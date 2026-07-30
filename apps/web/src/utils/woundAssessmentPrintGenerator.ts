@@ -10,6 +10,8 @@ import type { Wound, WoundAssessment, Patient } from '../lib/database';
 import { computeNextAssessmentDue } from '../lib/database';
 import { getFacilitySettings } from './facilitySettings';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { getPrintBedNumber } from './bedTransferUtils';
+
 
 
 const IFRAME_ID = 'wound-assessment-print-iframe';
@@ -263,7 +265,7 @@ const buildPage = (
       <div class="station-box" style="text-align:center;">${esc(stationCode)}站</div>
       <div class="identity-box">
         <div class="id-row"><span class="id-label">姓名：</span><span class="id-line">${esc(name)}</span></div>
-        <div class="id-row"><span class="id-label">床號：</span><span class="id-line">${esc(patient.床號 ?? '')}</span></div>
+        <div class="id-row"><span class="id-label">床號：</span><span class="id-line">${esc(getPrintBedNumber(patient))}</span></div>
       </div>
     </div>
     <div class="header-center">

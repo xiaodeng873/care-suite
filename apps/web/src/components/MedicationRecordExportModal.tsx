@@ -6,6 +6,7 @@ import { exportMedicationListToHtml, classifyMedicationTerm } from '../utils/med
 import { useStationData } from '../context/facility/StationContext';
 import { supabase } from '../lib/supabase';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import BedNumberImprint from './BedNumberImprint';
 
 interface MedicationRecordExportModalProps {
   onClose: () => void;
@@ -1100,7 +1101,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                             )}
                             <div className="flex-1">
                               <div className="font-medium text-gray-900">
-                                {patient.床號} {patient.中文姓氏}{patient.中文名字}
+                                <BedNumberImprint patient={patient} size="sm" className="text-gray-900" /> {patient.中文姓氏}{patient.中文名字}
                               </div>
                               <div className="text-sm text-gray-600 mt-1">
                                 {validPrescriptions.length > 0 ? (

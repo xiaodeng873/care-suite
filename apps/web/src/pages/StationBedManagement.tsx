@@ -10,7 +10,6 @@ import {
   Users,
   User,
   ArrowRightLeft,
-  MoveRight,
   AlertTriangle,
   CheckCircle,
   X,
@@ -18,7 +17,10 @@ import {
   Download,
   QrCode,
   Printer,
-  DoorOpen
+  DoorOpen,
+  History,
+  RotateCcw,
+  Home,
 } from 'lucide-react';
 import * as QRCode from 'qrcode';
 import { usePatients } from '../context/PatientContext';
@@ -29,7 +31,11 @@ import RoomModal from '../components/RoomModal';
 import BedAssignmentModal from '../components/BedAssignmentModal';
 import BedSwapModal from '../components/BedSwapModal';
 import PatientTooltip from '../components/PatientTooltip';
+import BedNumberImprint from '../components/BedNumberImprint';
+import BedTransferLogModal from '../components/BedTransferLogModal';
+import ChangeOriginalBedModal from '../components/ChangeOriginalBedModal';
 import StationManagementModal from '../components/StationManagementModal';
+import { isTemporaryTransfer, getRootBedNumber } from '../utils/bedTransferUtils';
 import { printBedList } from '../utils/bedListHtmlGenerator';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from '../utils/facilitySettings';
 import { supabase } from '../lib/supabase';
@@ -44,7 +50,8 @@ const StationBedManagement: React.FC = () => {
     loading, 
     deleteStation, 
     deleteBed,
-    moveBedToStation 
+    cancelTemporaryTransfer,
+    cancelTemporarySwapPair,
   } = usePatients();
   const [showStationModal, setShowStationModal] = useState(false);
   const [showBedModal, setShowBedModal] = useState(false);
@@ -62,6 +69,12 @@ const StationBedManagement: React.FC = () => {
   const [showPrintStationModal, setShowPrintStationModal] = useState(false);
   const [selectedStationForPrint, setSelectedStationForPrint] = useState<string>('');
   
+  const [showAllBedLogModal, setShowAllBedLogModal] = useState(false);
+  const [showPatientTransferLogModal, setShowPatientTransferLogModal] = useState(false);
+  const [patientTransferLogTarget, setPatientTransferLogTarget] = useState<any>(null);
+  const [showChangeOriginalBedModal, setShowChangeOriginalBedModal] = useState(false);
+  const [changeOriginalBedTarget, setChangeOriginalBedTarget] = useState<any>(null);
+
   // 下載床位 QR Code
   const downloadBedQRCode = async (bed: any) => {
     const qrData = {
@@ -228,17 +241,53 @@ const StationBedManagement: React.FC = () => {
     setSelectedBed(bed);
     setShowAssignmentModal(true);
   };
-  const handleMoveBed = async (bedId: string, newStationId: string) => {
-    const bed = beds.find(b => b.id === bedId);
-    const newStation = stations.find(s => s.id === newStationId);
-    if (confirm(`確定要將床位「${bed?.bed_number}」遷移到「${newStation?.name}」嗎？`)) {
-      try {
-        await moveBedToStation(bedId, newStationId);
-      } catch (error) {
-        alert('床位遷移失敗，請重試');
+  const handleCancelTemporaryTransfer = async (patient: any) => {
+    if (!window.confirm(`確定要取消「${patient.中文姓名}」的暫時性調動並嘗試返回原床嗎？\n\n若原床已被佔用，院友將困在現床。`)) {
+      return;
+    }
+    try {
+      const result = await cancelTemporaryTransfer(patient.院友id);
+      if (result.success) {
+        alert('已取消暫時性調動並返回原床');
+      } else if (result.reason === 'mutual_swap_detected' && result.partner_patient_id) {
+        const partner = patients.find((p: any) => p.院友id === result.partner_patient_id);
+        if (!partner) {
+          alert('偵測到互相暫換，但找不到對方院友資料，請刷新頁面後重試。');
+          return;
+        }
+        const message =
+          `「${patient.中文姓名}」與「${partner.中文姓名}」正處於暫時性互換，單獨取消會互相困住對方。\n\n` +
+          `是否同時取消兩人的暫時性調動，讓 ${patient.中文姓名} 返回 ${patient.original_bed_number || '原床'}，` +
+          `${partner.中文姓名} 返回 ${partner.original_bed_number || '原床'}？`;
+        if (window.confirm(message)) {
+          const pairResult = await cancelTemporarySwapPair(patient.院友id, partner.院友id);
+          if (pairResult.success) {
+            alert('已同時取消兩人的暫時性調動並返回原床');
+          } else {
+            alert(`成對取消失敗：${pairResult.reason || '請重試'}`);
+          }
+        }
+      } else if (result.reason === 'root_bed_occupied') {
+        alert('原床位已被佔用，院友仍留在現床。請先騰出原床位或更改原床位。');
+      } else {
+        alert('取消暫時性調動失敗，請重試');
       }
+    } catch (error) {
+      console.error('取消暫時性調動失敗:', error);
+      alert(error instanceof Error ? error.message : '取消暫時性調動失敗，請重試');
     }
   };
+
+  const handleOpenPatientTransferLog = (patient: any) => {
+    setPatientTransferLogTarget(patient);
+    setShowPatientTransferLogModal(true);
+  };
+
+  const handleOpenChangeOriginalBed = (patient: any) => {
+    setChangeOriginalBedTarget(patient);
+    setShowChangeOriginalBedModal(true);
+  };
+
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedStationFilter('');
@@ -271,8 +320,13 @@ const StationBedManagement: React.FC = () => {
             .filter(r => r.patient_id === patient.院友id && !r.recovery_date)
             .map(r => r.infection_type)
         : null;
+      // 列印床位表以原床為主；暫時性調動者小字顯示現床
+      const isTemporary = patient && patient.bed_transfer_type === 'temporary' && !!patient.original_bed_number;
+      const bedNumber = patient ? (patient.original_bed_number || patient.床號) : bed.bed_number;
+      const currentBedNumber = isTemporary ? patient.床號 : undefined;
       return {
-        bed_number: bed.bed_number,
+        bed_number: bedNumber,
+        current_bed_number: currentBedNumber,
         patient: patient
           ? {
               name: `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`.trim() || patient.中文姓名 || '',
@@ -464,6 +518,13 @@ const StationBedManagement: React.FC = () => {
             <span>床位互換</span>
           </button>
           <button
+            onClick={() => setShowAllBedLogModal(true)}
+            className="btn-secondary flex flex-wrap items-center gap-2"
+          >
+            <History className="h-4 w-4" />
+            <span>床位調動日誌</span>
+          </button>
+          <button
             onClick={() => setShowPrintStationModal(true)}
             className="btn-secondary flex flex-wrap items-center gap-2"
           >
@@ -630,7 +691,13 @@ const StationBedManagement: React.FC = () => {
                             <div className="flex flex-wrap items-center gap-2">
                               <Bed className={`h-5 w-5 ${bed.is_occupied ? 'text-green-600' : 'text-blue-600'}`} />
                               <div>
-                                <h3 className="font-medium text-gray-900">{room.room_number}-{bed.bed_no || bed.bed_number}</h3>
+                                <h3 className="font-medium text-gray-900">
+                                  {patient ? (
+                                    <BedNumberImprint patient={patient} beds={beds} size="md" />
+                                  ) : (
+                                    `${room.room_number}-${bed.bed_no || bed.bed_number}`
+                                  )}
+                                </h3>
                                 {bed.bed_name && bed.bed_name !== bed.bed_number && (
                                   <p className="text-sm text-gray-600">{bed.bed_name}</p>
                                 )}
@@ -646,7 +713,7 @@ const StationBedManagement: React.FC = () => {
                                 <button className="p-1 text-gray-400 hover:text-gray-600">
                                   <Settings className="h-4 w-4" />
                                 </button>
-                                <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                                <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                                   <button
                                     onClick={() => handleEditBed(bed)}
                                     className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
@@ -663,18 +730,37 @@ const StationBedManagement: React.FC = () => {
                                       <span>指派院友</span>
                                     </button>
                                   )}
+                                  {patient && isTemporaryTransfer(patient) && (
+                                    <>
+                                      <div className="border-t border-gray-100 my-1"></div>
+                                      <div className="px-4 py-2 text-xs text-gray-500">暫時性調動</div>
+                                      <button
+                                        onClick={() => handleCancelTemporaryTransfer(patient)}
+                                        className="w-full px-4 py-2 text-left text-amber-700 hover:bg-amber-50 flex flex-wrap items-center gap-2"
+                                      >
+                                        <RotateCcw className="h-4 w-4" />
+                                        <span>取消暫時性調動</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handleOpenChangeOriginalBed(patient)}
+                                        className="w-full px-4 py-2 text-left text-indigo-700 hover:bg-indigo-50 flex flex-wrap items-center gap-2"
+                                      >
+                                        <Home className="h-4 w-4" />
+                                        <span>更改原床位</span>
+                                      </button>
+                                    </>
+                                  )}
                                   <div className="border-t border-gray-100 my-1"></div>
-                                  <div className="px-4 py-2 text-xs text-gray-500">遷移到其他居住區</div>
-                                  {stations.filter(s => s.id !== station.id).map(targetStation => (
+                                  <div className="px-4 py-2 text-xs text-gray-500">日誌</div>
+                                  {patient && (
                                     <button
-                                      key={targetStation.id}
-                                      onClick={() => handleMoveBed(bed.id, targetStation.id)}
+                                      onClick={() => handleOpenPatientTransferLog(patient)}
                                       className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
                                     >
-                                      <MoveRight className="h-4 w-4" />
-                                      <span>遷移到 {targetStation.name}</span>
+                                      <User className="h-4 w-4" />
+                                      <span>院友調動日誌</span>
                                     </button>
-                                  ))}
+                                  )}
                                   <div className="border-t border-gray-100 my-1"></div>
                                   <button
                                     onClick={() => handleDeleteBed(bed.id)}
@@ -743,7 +829,7 @@ const StationBedManagement: React.FC = () => {
                               </div>
                             )}
                             {/* 右欄：QR Code */}
-                            <div className="flex items-center justify-center">
+                            <div className="flex flex-col items-center justify-center gap-2">
                               <button
                                 onClick={() => downloadBedQRCode(bed)}
                                 className="p-2 hover:bg-blue-50 rounded-lg transition-colors group"
@@ -833,6 +919,31 @@ const StationBedManagement: React.FC = () => {
       {showStationManagementModal && (
         <StationManagementModal
           onClose={() => setShowStationManagementModal(false)}
+        />
+      )}
+
+      {showChangeOriginalBedModal && changeOriginalBedTarget && (
+        <ChangeOriginalBedModal
+          patient={changeOriginalBedTarget}
+          onClose={() => {
+            setShowChangeOriginalBedModal(false);
+            setChangeOriginalBedTarget(null);
+          }}
+        />
+      )}
+      {showPatientTransferLogModal && patientTransferLogTarget && (
+        <BedTransferLogModal
+          patient={patientTransferLogTarget}
+          onClose={() => {
+            setShowPatientTransferLogModal(false);
+            setPatientTransferLogTarget(null);
+          }}
+        />
+      )}
+      {showAllBedLogModal && (
+        <BedTransferLogModal
+          title="床位調動日誌"
+          onClose={() => setShowAllBedLogModal(false)}
         />
       )}
 

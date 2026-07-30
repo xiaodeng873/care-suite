@@ -1,5 +1,6 @@
 import nursingAssessmentTemplate from '../../../../../doc_html/院友護理評估記錄.html?raw';
 import { processDocHtmlTemplate } from './baseTemplateProcessor';
+import { getPrintBedNumber } from '../../utils/bedTransferUtils';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';
 
 export function generateNursingAssessmentHtml(ctx: DocumentGeneratorContext): Promise<string> {
@@ -11,7 +12,7 @@ export function generateNursingAssessmentHtml(ctx: DocumentGeneratorContext): Pr
   if (patient.性別 === '女') checkedBoxes.push('gender_female');
 
   const fieldValues: Record<string, string> = {
-    bed_no: patient.床號 || '',
+    bed_no: getPrintBedNumber(patient) || '',
     birth_date: patient.出生日期 || '',
     admission_date: patient.入住日期 || '',
   };

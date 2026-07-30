@@ -2,6 +2,8 @@ import type { PatientLog, Patient } from '../lib/database';
 import { formatDisplayDate } from './dateFormat';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 import { printCombinedHtml } from './printUtils';
+import { getPrintBedNumber } from './bedTransferUtils';
+
 
 const MAX_ROWS_PER_PAGE = 35;
 // 護理/治療欄寬度約可容納 38 個 14px 中文字（含左右 padding）。
@@ -176,7 +178,7 @@ const buildPageHtml = (
     .join('');
 
   const 姓名 = patient ? `${patient.中文姓氏 || ''}${patient.中文名字 || ''}` : '';
-  const 床號 = patient?.床號 || '';
+  const 床號 = patient ? getPrintBedNumber(patient) : '';
   const 性別年齡 = patient
     ? `${patient.性別 || ''}/${calculateAge(patient.出生日期)}`
     : '';
