@@ -123,14 +123,14 @@ body {
   .no-print { display: none !important; }
 }
 /* 置中 */
-.pw { min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; }
+.pw { min-height: 287mm; display: flex; justify-content: center; align-items: flex-start; }
 .page {
   width: 200mm;
   background: #fff;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 287mm;
 }
 
 /* ── 表頭 ── */

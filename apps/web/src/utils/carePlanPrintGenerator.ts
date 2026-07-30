@@ -465,14 +465,14 @@ function generateFullHtml(input: CarePlanPrintInput): string {
 
     .icp-print { page: icp; }
 
-    .page {
+        .page {
       page: icp;
       page-break-after: always;
       break-after: page;
       position: relative;
       display: flex;
       flex-direction: column;
-      min-height: 100vh;
+      min-height: 275mm;
     }
     .page:last-child { page-break-after: auto; break-after: auto; }
 

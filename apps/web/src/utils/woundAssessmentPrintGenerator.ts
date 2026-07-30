@@ -203,7 +203,7 @@ const CSS = `
 @page { size: A4; margin: 0.4in 0.25in; }
 @media print { html,body{background:#fff;} .no-print{display:none!important;} }
 body { font-family:"DFKai-SB","BiauKai","標楷體",serif; margin:0; padding:0; background:#fff; width:100%; }
-.container { width:100%; box-sizing:border-box; display:flex; flex-direction:column; min-height:100vh; }
+.container { width:100%; box-sizing:border-box; display:flex; flex-direction:column; min-height:276mm; }
 .header { display:flex; justify-content:center; align-items:flex-start; margin-bottom:6px; position:relative; }
 .header-left { position:absolute; left:0; top:0; width:18%; display:flex; }
 .station-box { display:none; }

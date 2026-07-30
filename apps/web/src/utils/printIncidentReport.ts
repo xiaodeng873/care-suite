@@ -289,7 +289,7 @@ export const generateIncidentReportPrintHTML = (
                 background: white;
                 box-shadow: 0 6px 24px rgba(0,0,0,0.22);
                 margin: 0 auto 20px;
-                min-height: 100vh;
+                min-height: 297mm;
             }
         }
 

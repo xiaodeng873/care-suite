@@ -194,9 +194,9 @@ const generateHTML = (records: CoverRecord[], facilityName: string): string => {
           font-size: 11pt;
           line-height: 1.4;
         }
-        .page {
+                .page {
           width: 100%;
-          min-height: 100vh;
+          min-height: 190mm;
           display: flex;
           flex-direction: column;
           position: relative;
@@ -205,14 +205,13 @@ const generateHTML = (records: CoverRecord[], facilityName: string): string => {
         .page-break {
           page-break-after: always;
         }
-        .grid {
+                .grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
           grid-template-rows: 1fr 1fr;
           gap: 8mm;
           flex: 1;
           width: 100%;
-          height: calc(100vh - 15mm);
         }
         .cover-card {
           border: 2px solid #333;

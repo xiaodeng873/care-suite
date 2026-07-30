@@ -374,8 +374,8 @@ function assembleDocument(pages: string[], usedTemplates: string[]): string {
       resize: none;
       overflow: hidden;
     }
-    .print-page { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; min-height: 100vh; }
-    .print-page .container { display: flex; flex-direction: column; min-height: 100vh; }
+    .print-page { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; }
+    .print-page .container { display: flex; flex-direction: column; }
     .print-page .footer { margin-top: auto !important; }
     @media print {
       .print-page { page-break-after: always; }

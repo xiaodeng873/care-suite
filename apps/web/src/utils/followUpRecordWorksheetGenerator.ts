@@ -201,9 +201,9 @@ const generateHTML = (records: FollowUpRecord[], facilityName: string): string =
           font-size: 9pt;
           line-height: 1.3;
         }
-        .page {
+                .page {
           width: 100%;
-          min-height: 100vh;
+          min-height: 180mm;
           display: flex;
           flex-direction: column;
           position: relative;

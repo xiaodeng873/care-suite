@@ -107,7 +107,7 @@ body {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 277mm;
 }
 .title-section { text-align: center; margin-bottom: 5px; }
 .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
