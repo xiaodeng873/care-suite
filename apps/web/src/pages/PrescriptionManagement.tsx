@@ -4,6 +4,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useSearchParams } from 'react-router-dom';
 import { Pill, Plus, Trash2, Search, Filter, Download, User, Calendar, AlertTriangle, CheckCircle, ArrowRight, X, ChevronUp, ChevronDown, Settings, FileText, Activity, ChevronRight, ChevronLeft, Heart, Shield, History } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { useWorkflow } from '../context/merged/WorkflowContext';
 import PrescriptionModal from '../components/PrescriptionModal';
 import PrescriptionTransferModal from '../components/PrescriptionTransferModal';
 import PrescriptionActivityLogModal from '../components/PrescriptionActivityLogModal';
@@ -90,6 +91,7 @@ interface PatientDropdownFilters {
 
 const PrescriptionManagement: React.FC = () => {
   const { prescriptions, patients, deletePrescription, updatePrescription, loading } = usePatients();
+  const { refreshPrescriptionData } = useWorkflow();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showModal, setShowModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -107,6 +109,11 @@ const PrescriptionManagement: React.FC = () => {
   const [showBatchUpdateModal, setShowBatchUpdateModal] = useState(false);
   const [showActivityLog, setShowActivityLog] = useState(false);
   const [showMedicationRecordExportModal, setShowMedicationRecordExportModal] = useState(false);
+
+  // 掛載時自動刷新處方資料，確保匯入後最新資料可見
+  useEffect(() => {
+    refreshPrescriptionData();
+  }, [refreshPrescriptionData]);
 
   // 添加途徑過濾狀態
   const [selectedRoute, setSelectedRoute] = useState<string>('全部');
@@ -531,7 +538,6 @@ const PrescriptionManagement: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* 院友選擇和導航 */}
       <div className="bg-white shadow-sm">
         <div className="card p-4">

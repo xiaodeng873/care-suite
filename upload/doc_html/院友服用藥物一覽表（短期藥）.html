@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>院友服用藥物一覽表 - 善頤(福群)</title>
+    <style>
+        /* A4 紙張規格設定 */
+        @page {
+            size: A4;
+            margin: 5mm 0.25in;
+        }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0; padding: 0;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.2;
+        }
+
+        .container { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; min-height: 287mm; }
+
+        /* 標題區域極致上推 */
+        .header-section {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            position: relative;
+        }
+
+        .short-term-box {
+            border: 2px solid black;
+            padding: 5px 15px;
+            font-size: 22px;
+            font-weight: bold;
+            margin-left: 20px;
+        }
+
+        .title-section {
+            flex-grow: 1;
+            text-align: center;
+            margin-right: 80px; /* 補償左側方框位移 */
+        }
+
+        .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .title-section h2 { 
+            margin: 4px 0 0 0; 
+            font-size: 22px; 
+            font-weight: bold; 
+            display: inline-block;
+            border-bottom: 1.5px solid black;
+            padding-bottom: 2px;
+        }
+
+        /* 資訊欄位隱形表格 */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+            table-layout: fixed;
+        }
+        .info-table td {
+            border: none;
+            padding: 3px 0;
+            vertical-align: bottom;
+            font-size: 15px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        /* DB Mapping 組件 */
+        .db-line-input {
+            width: 90%;
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 15px;
+            outline: none;
+            padding: 0 5px;
+        }
+
+        .db-checkbox {
+            width: 14px;
+            height: 14px;
+            vertical-align: middle;
+            margin-right: 3px;
+        }
+
+        /* 主表格設定 */
+        table.main-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            table-layout: fixed; 
+            border: 1.5px solid black; 
+        }
+        table.main-table th, table.main-table td { 
+            border: 1px solid black; 
+            text-align: center; 
+            vertical-align: middle; 
+            padding: 0; 
+        }
+        
+        table.main-table th { 
+            font-size: 13px; 
+            font-weight: bold; 
+            height: 25px; 
+            background-color: #fff; 
+        }
+        
+        /* 欄寬精確分配 */
+        .col-drug   { width: 34%; } /* 藥名/劑型/方法 */
+        .col-source { width: 14%; } /* 處方來源 */
+        .col-start  { width: 11%; } /* 開始日期 */
+        .col-end    { width: 11%; } /* 結束日期 */
+        .col-notice { width: 22%; } /* 注意事項 */
+        .col-sign   { width: 8%; }  /* 簽名 */
+
+        /* 數據行高度精算 (26行不超頁) */
+        .data-row { height: 31.5px; }
+        
+        .db-text-cell {
+            width: 100%; height: 100%; border: none; background: transparent;
+            font-family: inherit; font-size: 13px; text-align: left;
+            padding: 2px 4px; box-sizing: border-box; outline: none;
+            resize: none; display: block;
+        }
+
+        /* 頁尾 */
+        .footer {
+            margin-top: auto;
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            height: 30px;
+            font-weight: bold;
+        }
+        .page-num {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            bottom: 0;
+        }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 頂部標題部 -->
+    <div class="header-section" style="align-items: flex-start;">
+        <div style="width: 18%; display: flex; align-items: flex-start; justify-content: flex-start;">
+            <div class="short-term-box">短期藥</div>
+        </div>
+        <div class="title-section" style="flex: 1; margin-right: 0;">
+            <h1>善頤(福群)護老院</h1>
+            <h2>院友服用藥物一覽表</h2>
+        </div>
+        <div style="width: 18%; display: flex; align-items: flex-start; justify-content: flex-end;"></div>
+    </div>
+
+    <!-- 院友基本資料 -->
+    <table class="info-table">
+        <colgroup>
+            <col style="width: 85px;">  <!-- 姓名標籤 -->
+            <col style="width: auto;">  <!-- 姓名輸入 -->
+            <col style="width: 55px;">  <!-- 床號標籤 -->
+            <col style="width: 100px;"> <!-- 床號輸入 -->
+            <col style="width: 90px;">  <!-- 性別標籤 -->
+            <col style="width: 180px;"> <!-- 性別輸入 -->
+            <col style="width: 55px;">  <!-- 頁數標籤 -->
+            <col style="width: 60px;">  <!-- 頁數輸入 -->
+        </colgroup>
+        <tr>
+            <td>院友姓名：</td>
+            <td><input type="text" class="db-line-input"></td>
+            <td>床號：</td>
+            <td><input type="text" class="db-line-input"></td>
+            <td>性別/年齡：</td>
+            <td><input type="text" class="db-line-input"></td>
+            <td>頁數：</td>
+            <td><input type="text" class="db-line-input"></td>
+        </tr>
+    </table>
+
+    <!-- 敏感與證件號碼 -->
+    <table class="info-table">
+        <colgroup>
+            <col style="width: 250px;"> <!-- 藥物敏感 -->
+            <col style="width: auto;">  <!-- 身份證號 -->
+        </colgroup>
+        <tr>
+            <td>
+                藥物敏感：
+                <input type="checkbox" class="db-checkbox">NKDA , 
+                <input type="checkbox" class="db-checkbox">如有：
+                <input type="text" class="db-line-input" style="width: 80px;">
+            </td>
+            <td style="text-align: right; padding-right: 15px;">
+                身份證號碼：<input type="text" class="db-line-input" style="width: 200px;">
+            </td>
+        </tr>
+    </table>
+
+    <!-- 主表格 -->
+    <table class="main-table">
+        <colgroup>
+            <col class="col-drug">
+            <col class="col-source">
+            <col class="col-start">
+            <col class="col-end">
+            <col class="col-notice">
+            <col class="col-sign">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>藥名/劑型/劑量/次數/時間/方法</th>
+                <th>處方來源</th>
+                <th>開始日期</th>
+                <th>結束日期</th>
+                <th>注意事項</th>
+                <th>簽名</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 生成 24 行數據 -->
+            <script>
+                for (let i = 0; i < 24; i++) {
+                    document.write('<tr class="data-row">');
+                    document.write('<td><textarea class="db-text-cell"></textarea></td>');
+                    document.write('<td><textarea class="db-text-cell"></textarea></td>');
+                    document.write('<td><input type="text" class="db-text-cell" style="text-align:center;"></td>');
+                    document.write('<td><input type="text" class="db-text-cell" style="text-align:center;"></td>');
+                    document.write('<td><textarea class="db-text-cell"></textarea></td>');
+                    document.write('<td><input type="text" class="db-text-cell"></td>');
+                    document.write('</tr>');
+                }
+            </script>
+        </tbody>
+    </table>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">3</div>
+        <div class="doc-code">B16H FK (11.2020)</div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-import outingConsentTemplate from '../../../../../doc_html/院友外出同意書.html?raw';
+import outingConsentTemplate from '../../../../../upload/doc_html/院友外出同意書.html?raw';
 import { processDocHtmlTemplate, fillInputAfterLabel } from './baseTemplateProcessor';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';
 

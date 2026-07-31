@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>院友健康評估及記錄(續) - 善頤(福群)</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm 0.25in 10mm 0.25in;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0; padding: 0;
+            background-color: #fff;
+            width: 100%;
+            color: #000;
+        }
+
+        .container { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; min-height: 271mm; } /* 可印 272mm (297-15-10)，275mm 會把頁尾擠到第 2 頁 */
+        .page-content { flex: 1 1 auto; }
+
+        /* 標題與小項 */
+        .section-title { font-size: 18px; font-weight: bold; margin: 8px 0 3px 20px; }
+
+        /* 表格通用設定 */
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 10px; }
+        th, td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0px; height: 24px; font-size: 14px; }
+        
+        .bold { font-weight: bold; }
+        .label-m { width: 10mm; font-weight: bold; font-size: 16px; line-height: 1.1; }
+        .label-s { width: 25mm; font-weight: bold; text-align: left; padding-left: 3px; font-size: 13px; }
+        .col-eval { width: auto; }
+
+        /* DB組件 - 填滿整個格子且透明 */
+        .db-text-cell { 
+            width: 100%; 
+            height: 100%; 
+            border: none; 
+            background: transparent; 
+            font-family: inherit; 
+            font-size: 12px; 
+            text-align: center; 
+            outline: none;
+            display: block;
+            box-sizing: border-box;
+        }
+
+        /* 頁尾：緊隨內容，用 flex 推到底 */
+        .footer { margin-top: auto; padding-top: 5px; display: flex; justify-content: flex-end; position: relative; min-height: 30px; font-weight: bold; }
+        .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="page-content">
+
+    <!-- 4. 飲食營養 -->
+    <div class="section-title">4. 飲食營養</div>
+    <table>
+        <colgroup>
+            <col class="label-m"><col class="label-s"><col class="col-eval-6" span="6">
+        </colgroup>
+        <tr style="height: 22px;">
+            <th colspan="2">觀察日期</th>
+            <td></td><td></td><td></td><td></td><td></td><td></td>
+        </tr>
+        <tr><th rowspan="3" class="label-m">狀<br>況</th><td class="label-s">正常</td><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr><td class="label-s">厭食</td><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr><td class="label-s">吞嚥困難</td><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr><th colspan="2" class="label-s">普通飯餐</th><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr><th colspan="2" class="label-s">特別餐：</th><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr><th colspan="2" class="label-s">鼻胃管/腸胃造口</th><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr style="height: 32px;">
+            <th class="label-m">身高<br>(米)</th>
+            <th class="label-m">體重<br>(公斤)</th>
+            <script>for(let i=0;i<6;i++) document.write('<td><input type="text" class="db-text-cell"></td>');</script>
+        </tr>
+        <tr style="height: 32px;">
+            <th colspan="2">體質指數 (BMI)<br>(公斤)/(米)²</th>
+            <script>for(let i=0;i<6;i++) document.write('<td><input type="text" class="db-text-cell"></td>');</script>
+        </tr>
+    </table>
+
+    <!-- 飲食轉變原因 -->
+    <table>
+        <colgroup><col style="width:25%"><col style="width:25%"><col style="width:25%"><col style="width:25%"></colgroup>
+        <tr style="height: 22px;"><th>飲食轉變原因</th><th></th><th>飲食轉變原因</th><th></th></tr>
+        <tr style="height: 24px;"><td></td><td></td><td></td><td></td></tr>
+        <tr style="height: 24px;"><td></td><td></td><td></td><td></td></tr>
+        <tr style="height: 24px;"><td></td><td></td><td></td><td></td></tr>
+    </table>
+
+   <!-- 5. 視聽能力 -->
+    <div class="section-title">5. 視聽能力</div>
+    <table>
+        <!-- 欄寬分配：大項10mm + 子項25mm + 剩餘65%平分為12格 -->
+        <colgroup>
+            <col style="width: 10mm;">
+            <col style="width: 25mm;">
+            <col span="12" style="width: calc((100% - 35mm) / 12);">
+        </colgroup>
+
+        <!-- 觀察日期列 -->
+        <tr>
+            <th colspan="2">觀察日期</th>
+            <td colspan="2"><input type="text" class="db-text-cell" placeholder=""></td>
+            <td colspan="2"><input type="text" class="db-text-cell"></td>
+            <td colspan="2"><input type="text" class="db-text-cell"></td>
+            <td colspan="2"><input type="text" class="db-text-cell"></td>
+            <td colspan="2"><input type="text" class="db-text-cell"></td>
+            <td colspan="2"><input type="text" class="db-text-cell"></td>
+        </tr>
+
+        <!-- 左右標示列 -->
+        <tr style="height: 18px; font-size: 11px;">
+            <th colspan="2"></th>
+            <th>左</th><th>右</th><th>左</th><th>右</th><th>左</th><th>右</th><th>左</th><th>右</th><th>左</th><th>右</th><th>左</th><th>右</th>
+        </tr>
+
+        <!-- 視力部分 -->
+        <tr>
+            <th rowspan="5" class="label-m">視<br>力</th>
+            <td class="label-s">清楚</td>
+            <script>for(let i=0;i<12;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr>
+            <td class="label-s">視力模糊</td>
+            <script>for(let i=0;i<12;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr>
+            <td class="label-s">失明</td>
+            <script>for(let i=0;i<12;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr>
+            <td class="label-s">需要輔助器：</td>
+            <script>for(let i=0;i<6;i++) document.write('<td colspan="2"><input type="text" class="db-text-cell"></td>');</script>
+        </tr>
+        <tr>
+            <td class="label-s">其他</td>
+            <script>for(let i=0;i<6;i++) document.write('<td colspan="2"><input type="text" class="db-text-cell"></td>');</script>
+        </tr>
+
+        <!-- 聽力部分 -->
+        <tr>
+            <th rowspan="5" class="label-m">聽<br>力</th>
+            <td class="label-s">清楚</td>
+            <script>for(let i=0;i<12;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr>
+            <td class="label-s">聽力衰退</td>
+            <script>for(let i=0;i<12;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr>
+            <td class="label-s">嚴重失聰</td>
+            <script>for(let i=0;i<12;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr>
+            <td class="label-s">需要助聽器：</td>
+            <script>for(let i=0;i<6;i++) document.write('<td colspan="2"><input type="text" class="db-text-cell"></td>');</script>
+        </tr>
+        <tr>
+            <td class="label-s">其他</td>
+            <script>for(let i=0;i<6;i++) document.write('<td colspan="2"><input type="text" class="db-text-cell"></td>');</script>
+        </tr>
+    </table>
+
+    <!-- 6. 語言溝通能力 -->
+    <div class="section-title">6. 語言溝通能力</div>
+    <table>
+        <colgroup>
+            <col class="label-m"><col class="label-s"><col class="col-eval-6" span="6">
+        </colgroup>
+        <tr style="height: 22px;">
+            <th colspan="2">觀察日期</th>
+            <td></td><td></td><td></td><td></td><td></td><td></td>
+        </tr>
+        <tr><th colspan="2" class="label-s">清楚</th><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr><th colspan="2" class="label-s">含糊</th><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr><th colspan="2" class="label-s">無反應</th><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+        <tr><th colspan="2" class="label-s">其他</th><script>for(let i=0;i<6;i++) document.write('<td><input type="text" class="db-text-cell"></td>');</script></tr>
+    </table>
+
+    </div>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">7</div>
+        <div class="doc-code">B24 FK (11.2020)</div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,183 @@
+模式：DRY-RUN（不寫入資料庫）
+讀取 CSV：C:/Users/Admin/Desktop/care-suite/regime - Sheet1.csv
+CSV 列數：3008，院友數：314，現有藥物數：1000
+
+床位範圍：202-287 樓
+範圍外跳過：1329
+預計寫入處方筆數：1563
+預計新增藥物：207
+錯誤 / 跳過：116
+
+--- DRY-RUN 預覽（前 5 筆）---
+{
+  "patient_id": 18,
+  "medication_name": "LACTULOSE LIQUID",
+  "prescription_date": "2026-03-05",
+  "start_date": "2026-03-05",
+  "start_time": "00:00",
+  "end_date": null,
+  "dosage_form": "藥水",
+  "administration_route": "口服",
+  "dosage_amount": "10",
+  "dosage_unit": "毫升",
+  "frequency_type": "daily",
+  "frequency_value": null,
+  "specific_weekdays": [],
+  "is_odd_even_day": "none",
+  "is_prn": false,
+  "medication_time_slots": [
+    "08:00",
+    "16:00"
+  ],
+  "meal_timing": null,
+  "notes": null,
+  "preparation_method": "immediate",
+  "status": "active",
+  "medication_source": "廣華醫院",
+  "medication_source_specialty": "社區老人評估小組",
+  "medication_quantity": null,
+  "is_long_term": true,
+  "inspection_rules": [],
+  "created_by": "system_migration",
+  "last_modified_by": "system_migration"
+}
+{
+  "patient_id": 18,
+  "medication_name": "PARACETAMOL TABLET 500MG",
+  "prescription_date": "2026-03-03",
+  "start_date": "2025-10-27",
+  "start_time": "00:00",
+  "end_date": null,
+  "dosage_form": "片劑",
+  "administration_route": "口服",
+  "dosage_amount": "1",
+  "dosage_unit": "粒",
+  "frequency_type": "daily",
+  "frequency_value": null,
+  "specific_weekdays": [],
+  "is_odd_even_day": "none",
+  "is_prn": true,
+  "medication_time_slots": [
+    "08:00"
+  ],
+  "meal_timing": null,
+  "notes": null,
+  "preparation_method": "advanced",
+  "status": "active",
+  "medication_source": "廣華醫院",
+  "medication_source_specialty": "ORT",
+  "medication_quantity": null,
+  "is_long_term": true,
+  "inspection_rules": [],
+  "created_by": "system_migration",
+  "last_modified_by": "system_migration"
+}
+{
+  "patient_id": 18,
+  "medication_name": "RIVAROXABAN TAB 15MG",
+  "prescription_date": "2026-03-05",
+  "start_date": "2024-08-23",
+  "start_time": "00:00",
+  "end_date": null,
+  "dosage_form": "片劑",
+  "administration_route": "口服",
+  "dosage_amount": "1",
+  "dosage_unit": "粒",
+  "frequency_type": "daily",
+  "frequency_value": null,
+  "specific_weekdays": [],
+  "is_odd_even_day": "none",
+  "is_prn": false,
+  "medication_time_slots": [
+    "08:00"
+  ],
+  "meal_timing": null,
+  "notes": null,
+  "preparation_method": "advanced",
+  "status": "active",
+  "medication_source": "廣華醫院",
+  "medication_source_specialty": "社區老人評估小組",
+  "medication_quantity": null,
+  "is_long_term": true,
+  "inspection_rules": [],
+  "created_by": "system_migration",
+  "last_modified_by": "system_migration"
+}
+{
+  "patient_id": 18,
+  "medication_name": "LANSOPRAZOLE ORODISPERSIBLE TAB 30MG",
+  "prescription_date": "2026-03-05",
+  "start_date": "2024-01-03",
+  "start_time": "00:00",
+  "end_date": null,
+  "dosage_form": "片劑",
+  "administration_route": "口服",
+  "dosage_amount": "1",
+  "dosage_unit": "粒",
+  "frequency_type": "daily",
+  "frequency_value": null,
+  "specific_weekdays": [],
+  "is_odd_even_day": "none",
+  "is_prn": false,
+  "medication_time_slots": [
+    "07:00"
+  ],
+  "meal_timing": "餐前",
+  "notes": "可溶於水;勿磨碎或咬碎",
+  "preparation_method": "advanced",
+  "status": "active",
+  "medication_source": "廣華醫院",
+  "medication_source_specialty": "社區老人評估小組",
+  "medication_quantity": null,
+  "is_long_term": true,
+  "inspection_rules": [],
+  "created_by": "system_migration",
+  "last_modified_by": "system_migration"
+}
+{
+  "patient_id": 18,
+  "medication_name": "FOLIC ACID TAB 5MG",
+  "prescription_date": "2026-03-05",
+  "start_date": "2024-01-03",
+  "start_time": "00:00",
+  "end_date": null,
+  "dosage_form": "片劑",
+  "administration_route": "口服",
+  "dosage_amount": "1",
+  "dosage_unit": "粒",
+  "frequency_type": "daily",
+  "frequency_value": null,
+  "specific_weekdays": [],
+  "is_odd_even_day": "none",
+  "is_prn": false,
+  "medication_time_slots": [
+    "08:00"
+  ],
+  "meal_timing": null,
+  "notes": null,
+  "preparation_method": "advanced",
+  "status": "active",
+  "medication_source": "廣華醫院",
+  "medication_source_specialty": "社區老人評估小組",
+  "medication_quantity": null,
+  "is_long_term": true,
+  "inspection_rules": [],
+  "created_by": "system_migration",
+  "last_modified_by": "system_migration"
+}
+
+--- 設定變更預覽 ---
+劑型: 7 項
+服用途徑: 9 項
+服用單位: 15 項
+特殊用法: 5 項
+服用時段: 16 項
+每日次數: 7 項
+機構_醫管局醫院: 40 項
+機構_醫管局門診: 31 項
+機構_醫管局精神科: 20 項
+機構_衛生署: 32 項
+機構_其他: 16 項
+專科: 45 項
+
+日誌已寫入：C:\Users\Admin\Desktop\care-suite\scripts\import_regime_csv.log.json

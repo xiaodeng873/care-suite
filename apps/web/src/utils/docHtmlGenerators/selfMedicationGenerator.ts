@@ -1,4 +1,4 @@
-import selfMedicationTemplate from '../../../../../doc_html/自行存放及使用藥物同意書.html?raw';
+import selfMedicationTemplate from '../../../../../upload/doc_html/自行存放及使用藥物同意書.html?raw';
 import { processDocHtmlTemplate, setInputTagValue } from './baseTemplateProcessor';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';
 

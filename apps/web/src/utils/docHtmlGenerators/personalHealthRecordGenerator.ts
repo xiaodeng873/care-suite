@@ -1,5 +1,5 @@
-import personalHealthRecordP1 from '../../../../../doc_html/院友個人及健康記錄P1.html?raw';
-import personalHealthRecordP2 from '../../../../../doc_html/院友個人及健康記錄P2.html?raw';
+import personalHealthRecordP1 from '../../../../../upload/doc_html/院友個人及健康記錄P1.html?raw';
+import personalHealthRecordP2 from '../../../../../upload/doc_html/院友個人及健康記錄P2.html?raw';
 import { processDocHtmlTemplate, combineDocHtmlDocuments } from './baseTemplateProcessor';
 import { getPrintBedNumber } from '../../utils/bedTransferUtils';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';

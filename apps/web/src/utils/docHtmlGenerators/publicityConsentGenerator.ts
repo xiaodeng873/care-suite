@@ -1,4 +1,4 @@
-import publicityConsentTemplate from '../../../../../doc_html/發佈資料同意書.html?raw';
+import publicityConsentTemplate from '../../../../../upload/doc_html/發佈資料同意書.html?raw';
 import { processDocHtmlTemplate, fillInputAfterLabel, setInputTagValue } from './baseTemplateProcessor';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';
 

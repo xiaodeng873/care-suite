@@ -960,11 +960,22 @@ export const deleteFollowUp = async (id: string): Promise<void> => {
   if (error) throw error;
 };
 export const getPrescriptions = async (patientId?: number): Promise<MedicationPrescription[]> => {
-  let query = supabase.from('new_medication_prescriptions').select('*').order('created_at', { ascending: false });
-  if (patientId) query = query.eq('patient_id', patientId);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data || [];
+  const PAGE_SIZE = 1000;
+  const allData: MedicationPrescription[] = [];
+  let pageNo = 0;
+
+  while (true) {
+    let query = supabase.from('new_medication_prescriptions').select('*').order('created_at', { ascending: false });
+    if (patientId) query = query.eq('patient_id', patientId);
+    const { data, error } = await query.range(pageNo * PAGE_SIZE, (pageNo + 1) * PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allData.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    pageNo++;
+  }
+
+  return allData;
 };
 export const getMedicationPrescriptions = getPrescriptions; // Alias
 export const createPrescription = async (prescription: Omit<MedicationPrescription, 'id' | 'created_at' | 'updated_at'>): Promise<MedicationPrescription> => {

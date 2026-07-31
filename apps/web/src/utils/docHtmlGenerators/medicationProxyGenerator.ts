@@ -1,4 +1,4 @@
-import medicationProxyTemplate from '../../../../../doc_html/要求院舍派發成藥確認書.html?raw';
+import medicationProxyTemplate from '../../../../../upload/doc_html/要求院舍派發成藥確認書.html?raw';
 import { processDocHtmlTemplate, setInputTagValue } from './baseTemplateProcessor';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';
 

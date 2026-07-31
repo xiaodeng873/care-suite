@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>院友健康評估及記錄(頁3修正) - 善頤(福群)</title>
+    <style>
+        /* A4 紙張規格：頂部留 12mm 空白 */
+        @page {
+            size: A4;
+            margin: 15mm 0.25in 10mm 0.25in;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0; padding: 0;
+            background-color: #fff;
+            width: 100%;
+            color: #000;
+        }
+
+        .container { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; min-height: 271mm; } /* 可印 272mm (297-15-10)，275mm 會把頁尾擠到第 2 頁 */
+        .page-content { flex: 1 1 auto; }
+
+        /* 章節標題 */
+        .section-title { font-size: 15px; font-weight: bold; margin: 10px 0 2px 20px; }
+
+        /* 表格通用設定 */
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 0; }
+        th, td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 2px; height: 23px; font-size: 12px; }
+        
+        .bold { font-weight: bold; }
+        
+        /* 標籤欄寬度 (對齊前幾項的總和 10mm + 25mm = 35mm) */
+        .label-col { width: 35mm; text-align: center; font-weight: bold; }
+        .col-eval { width: auto; }
+
+        /* 簽署欄文字靠左頂格 */
+        .sign-label { text-align: left; vertical-align: top; padding: 4px; line-height: 1.3; }
+
+        /* 兩個表格之間的間隙 */
+        .table-gap { height: 8px; }
+
+        /* DB組件 */
+        .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 12px; text-align: center; outline: none; }
+
+        /* 頁尾：緊隨內容，用 flex 推到底 */
+        .footer { margin-top: auto; padding-top: 10px; display: flex; justify-content: flex-end; position: relative; min-height: 30px; font-weight: bold; }
+        .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="page-content">
+
+    <!-- 7. 意識認知 -->
+    <div class="section-title">7. 意識認知</div>
+    <table>
+        <colgroup>
+            <col class="label-m"><col class="label-s"><col class="col-eval" span="6">
+        </colgroup>
+        <tr>
+            <th colspan="2">觀察日期</th>
+            <td><input type="text" class="db-text-cell" placeholder=""></td><td></td><td></td><td></td><td></td><td></td>
+        </tr>
+        <tr>
+            <th rowspan="5" class="label-m">認知</th>
+            <td class="label-s">時間<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        </tr>
+        <tr><td class="label-s">人物<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">地方<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">無認知能力<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">其他</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    </table>
+
+    <!-- 8. 大小便自制能力 -->
+    <div class="section-title">8. 大小便自制能力</div>
+    <table>
+        <colgroup>
+            <col class="label-m"><col class="label-s"><col class="col-eval" span="6">
+        </colgroup>
+        <tr>
+            <th colspan="2">觀察日期</th>
+            <td><input type="text" class="db-text-cell" placeholder=""></td><td></td><td></td><td></td><td></td><td></td>
+        </tr>
+        <tr>
+            <th colspan="2" class="label-s">需要用尿片</th>
+            <script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        </tr>
+        </tr>
+        <!-- 大便部分 -->
+        <tr>
+            <th rowspan="5" class="label-m">大便</th>
+            <td class="label-s">正常<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        </tr>
+        <tr><td class="label-s">便秘<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">失禁<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">腸造口<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">需要輔助器：</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <!-- 小便部分 -->
+        <tr>
+            <th rowspan="6" class="label-m">小便</th>
+            <td class="label-s">正常<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        </tr>
+        <tr><td class="label-s">間歇性失禁<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">完全失禁<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">造口<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">導尿管<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">需要輔助器：</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    </table>
+
+    <!-- 9. 情緒表現 -->
+    <div class="section-title">9. 情緒表現</div>
+    <table>
+        <colgroup>
+            <col class="label-s" style="width: 35mm;"><col class="col-eval" span="6">
+        </colgroup>
+        <tr>
+            <th>觀察日期</th>
+            <td><input type="text" class="db-text-cell" placeholder=""></td><td></td><td></td><td></td><td></td><td></td>
+        </tr>
+        <tr><td class="label-s">喜樂<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">平靜<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">冷漠<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">抑鬱<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">激動<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+        <tr><td class="label-s">其他<script>for(let i=0;i<6;i++) document.write('<td><div class="opt"><input type="checkbox" class="db-checkbox"></div></td>');</script>
+    </table>
+
+        <!-- 10. 備註 -->
+    <div class="section-title">10. 備註</div>
+    <table>
+        <colgroup>
+            <col class="label-col">
+            <col class="col-eval" span="6">
+        </colgroup>
+        <tr style="height: 25px;">
+            <th>觀察日期</th>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <!-- 備註內容格：保持 6 欄垂直框線 -->
+        <tr style="height: 90px;">
+            <td></td> <!-- 左側標籤留白 -->
+            <td><input type="text" class="db-text-cell"></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+
+    <!-- 表格間的物理間隙 -->
+    <div class="table-gap"></div>
+
+    <!-- 評估者簽署欄：獨立表格，保持 6 欄垂直框線 -->
+    <table>
+        <colgroup>
+            <col class="label-col">
+            <col class="col-eval" span="6">
+        </colgroup>
+        <tr style="height: 55px;">
+            <td class="sign-label">評估者/記錄者<br>姓名,職位及簽署</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+
+    </div>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">7</div>
+        <div class="doc-code">B24 FK (11.2020)</div>
+    </div>
+</div>
+
+</body>
+</html>

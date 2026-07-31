@@ -1,6 +1,6 @@
 import type { CgatRecord, Patient } from '../lib/database';
 import { getFeeExemptEligibility, calcAge, calcCgatFee } from './cgatFeeHelper';
-import proxyTemplate from '../../../../doc_html/院舍取藥委託書.html?raw';
+import proxyTemplate from '../../../../upload/doc_html/院舍取藥委託書.html?raw';
 import { getPrintBedNumber } from './bedTransferUtils';
 
 

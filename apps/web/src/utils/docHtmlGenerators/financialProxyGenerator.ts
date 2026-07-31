@@ -1,5 +1,5 @@
-import financialProxyP1Template from '../../../../../doc_html/託管院友財物授權書P1.html?raw';
-import financialProxyP2Template from '../../../../../doc_html/託管院友財物授權書P2.html?raw';
+import financialProxyP1Template from '../../../../../upload/doc_html/託管院友財物授權書P1.html?raw';
+import financialProxyP2Template from '../../../../../upload/doc_html/託管院友財物授權書P2.html?raw';
 import { processDocHtmlTemplate, fillInputAfterLabel } from './baseTemplateProcessor';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';
 

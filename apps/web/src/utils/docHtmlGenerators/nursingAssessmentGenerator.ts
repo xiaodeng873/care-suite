@@ -1,4 +1,4 @@
-import nursingAssessmentTemplate from '../../../../../doc_html/院友護理評估記錄.html?raw';
+import nursingAssessmentTemplate from '../../../../../upload/doc_html/院友護理評估記錄.html?raw';
 import { processDocHtmlTemplate } from './baseTemplateProcessor';
 import { getPrintBedNumber } from '../../utils/bedTransferUtils';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';

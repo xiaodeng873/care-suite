@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>要求院舍派發成藥確認書</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm 10mm 10mm 10mm; /* 頂部留 12mm 空白才開始標題 */
+        }
+        body {
+            font-family: "MingLiU", "PMingLiU", "Microsoft JhengHei", serif;
+            font-size: 14px;
+            line-height: 1.45;
+            margin: 0;
+            padding: 0;
+            color: #000;
+        }
+
+        /* 核心：實現跨頁重複 Header 的結構 */
+        .print-wrapper {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        /* 每頁頂部的 Header */
+        .page-header {
+            display: table-header-group;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            padding-bottom: 12px;
+            font-size: 12px;
+        }
+
+        /* 確保部分內容不會被截斷 */
+        .section-block {
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        /* 樣式保持 */
+        .title-area { text-align: center; margin-bottom: 14px; }
+        .title-main { font-size: 18px; font-weight: bold; margin-top: 3px; }
+
+        .bordered-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 4px;
+        }
+        .bordered-table th, .bordered-table td {
+            border: 1px solid black;
+            padding: 3px;
+            text-align: center;
+            height: 22px;
+        }
+
+        table.layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: none;
+        }
+        table.layout-table td { border: none; padding: 3px 0; vertical-align: bottom; }
+
+        input[type="text"], textarea {
+            border: none;
+            border-bottom: 0.5px solid black;
+            width: 100%;
+            background: transparent;
+            font-family: inherit;
+            font-size: inherit;
+            resize: none;
+            outline: none;
+            padding: 0;
+            display: block;
+        }
+        
+        .bordered-table textarea { border-bottom: none !important; }
+
+        input[type="checkbox"] { margin: 0 2px 0 5px; vertical-align: middle; }
+
+        .care-home-title {
+            text-align: center;
+            margin: 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+    </style>
+</head>
+<body>
+
+<table class="print-wrapper">
+    <!-- 每頁重複的頁首 -->
+    <thead class="page-header">
+        <tr>
+            <td>
+                <div class="header-content">
+                    <span>《安老院實務守則》2024 年 6 月（修訂版）</span>
+                    <span>附件 12.2</span>
+                </div>
+            </td>
+        </tr>
+    </thead>
+
+    <!-- 主內容區 -->
+    <tbody>
+        <tr>
+            <td>
+                <!-- 院舍名稱部分 -->
+                <div class="care-home-title">
+                    <span>（</span>
+                    <input type="text" style="width: 300px; text-align: center;" placeholder="安老院名稱">
+                    <span>安老院名稱）</span>
+                </div>
+
+                <div class="title-area">
+                    <div class="title-main">要求院舍派發成藥／非處方藥物確認書</div>
+                </div>
+
+                <!-- 住客資料塊 -->
+                <div class="section-block">
+                    <table class="bordered-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 20%;">住客姓名</th>
+                                <th style="width: 20%;">性別／年齡</th>
+                                <th style="width: 35%;">身份證號碼</th>
+                                <th style="width: 25%;">房及／或床號</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><textarea rows="1"></textarea></td>
+                                <td><textarea rows="1"></textarea></td>
+                                <td><textarea rows="1"></textarea></td>
+                                <td><textarea rows="1"></textarea></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style="margin-bottom: 5px;">填寫此確認書前，請先細閱第（五）項備註及在「*」處刪去不適用者。</div>
+                </div>
+
+                <!-- (一) 藥物表：會隨筆數向下推移 -->
+                <div class="section-block">
+                    <strong>（一）要求派發的成藥／非處方藥物的資料</strong>
+                    <table class="bordered-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">藥物名稱</th>
+                                <th style="width: 20%;">藥物來源</th>
+                                <th style="width: 30%;">用藥目的</th>
+                                <th style="width: 25%;">使用方法</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 無內容時固定顯示 5 行，平均列高增加 20%（約 20px） -->
+                            <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+                            <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+                            <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+                            <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+                            <tr><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td><td><textarea rows="1"></textarea></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- (二) 住客確認：整體切割 -->
+                <div class="section-block">
+                    <strong>（二）住客確認（若住客認知能力不足而不能簽署，則不用填寫此部分）</strong><br>
+                    上述藥物乃本人要求安老院為本人安排派發，如因此引致不良反應，本人願意承擔風險。
+                    <table class="layout-table" style="margin-top: 5px;">
+                        <tr>
+                            <td style="width: 80px; white-space: nowrap;">住客簽署</td>
+                            <td style="width: 300px;"><input type="text"></td>
+                            <td style="width: 80px; padding-left: 20px; white-space: nowrap;">簽署日期</td>
+                            <td><input type="text"></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- (三) 相關人確認：整體切割 -->
+                <div class="section-block">
+                    <strong>（三）監護人／保證人／家人／親屬確認</strong><br>
+                    <table class="layout-table">
+                        <tr>
+                            <td style="width: 40px; white-space: nowrap;">本人</td>
+                            <td style="width: 180px;"><input type="text"></td>
+                            <td style="width: 70px; text-align: center; white-space: nowrap;">（姓名）乃</td>
+                            <td style="width: 180px;"><input type="text"></td>
+                            <td style="width: 120px; text-align: right; white-space: nowrap;">（住客姓名）的</td>
+                        </tr>
+                    </table>
+                    <div style="margin-top: 5px;">
+                        *<input type="checkbox">監護人／<input type="checkbox">保證人／<input type="checkbox">家人／<input type="checkbox">親屬，上述藥物乃本人要求安老院為上述住客安排派發，如因此引致不良反應，本人願意承擔風險。
+                    </div>
+                    <table class="layout-table" style="margin-top: 5px;">
+                        <tr>
+                            <td style="width: 90px; white-space: nowrap;">與住客關係</td>
+                            <td style="width: 250px;"><input type="text"></td>
+                            <td style="width: 50px; padding-left: 20px; white-space: nowrap;">簽署</td>
+                            <td style="width: 150px;"><input type="text"></td>
+                            <td style="width: 50px; padding-left: 20px; white-space: nowrap;">日期</td>
+                            <td><input type="text"></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- (四) 安老院確認：整體切割 -->
+                <div class="section-block">
+                    <strong>（四）安老院確認</strong>
+                    <div style="text-align: justify; margin-top: 5px;">
+                        鑑於上述住客及／或其 *<input type="checkbox">監護人／<input type="checkbox">保證人／<input type="checkbox">家人／<input type="checkbox">親屬要求本安老院為該住客派發有關成藥／非處方藥物，本院護理人員已提醒該住客及／或該 *<input type="checkbox">監護人／<input type="checkbox">保證人／<input type="checkbox">家人／<input type="checkbox">親屬該藥物可能引致不良反應，並就此諮詢
+                        <table class="layout-table" style="display: inline-table; width: 200px; vertical-align: bottom;"><tr><td><input type="text" style="text-align: center;"></td></tr></table>
+                        （醫生姓名）*<input type="checkbox">註冊醫生／<input type="checkbox">註冊中醫／<input type="checkbox">表列中醫的意見（所屬醫院／診所：<table class="layout-table" style="display: inline-table; width: 280px; vertical-align: bottom;"><tr><td><input type="text"></td></tr></table>）。有關醫生不反對上述住客使用／服用該等藥物。
+                    </div>
+                    
+                    <table class="layout-table" style="margin-top: 8px; table-layout: fixed;">
+                        <tr>
+                            <td style="width: 33.3%;"><div style="display: flex; align-items: flex-end;"><span style="white-space: nowrap;">主管姓名</span><input type="text" style="flex: 1; margin-left: 5px;"></div></td>
+                            <td style="width: 33.3%; padding-left: 20px;"><div style="display: flex; align-items: flex-end;"><span style="white-space: nowrap;">簽署</span><input type="text" style="flex: 1; margin-left: 5px;"></div></td>
+                            <td style="width: 33.3%; padding-left: 20px;"><div style="display: flex; align-items: flex-end;"><span style="white-space: nowrap;">日期</span><input type="text" style="flex: 1; margin-left: 5px;"></div></td>
+                        </tr>
+                        <tr style="height: 15px;"><td></td></tr>
+                        <tr>
+                            <td><div style="display: flex; align-items: flex-end;"><span style="white-space: nowrap;">護士／保健員姓名</span><input type="text" style="flex: 1; margin-left: 5px;"></div></td>
+                            <td style="padding-left: 20px;"><div style="display: flex; align-items: flex-end;"><span style="white-space: nowrap;">簽署</span><input type="text" style="flex: 1; margin-left: 5px;"></div></td>
+                            <td style="padding-left: 20px;"><div style="display: flex; align-items: flex-end;"><span style="white-space: nowrap;">日期</span><input type="text" style="flex: 1; margin-left: 5px;"></div></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- (五) 備註：整體切割 -->
+                <div class="section-block">
+                    <strong>（五）備註</strong>
+                    <table class="layout-table">
+                        <tr><td style="width: 25px; vertical-align: top;">1.</td><td>第（一）項所列的藥物必須記錄於住客的「個人藥物紀錄」，並保存藥物的「使用說明書」，以供醫護人員參考。</td></tr>
+                        <tr><td style="vertical-align: top;">2.</td><td>如住客使用上述藥物後有不良反應，便應立即停止使用，並徵詢 *<input type="checkbox">註冊醫生／<input type="checkbox">註冊中醫／<input type="checkbox">表列中醫的意見。</td></tr>
+                        <tr><td style="vertical-align: top;">3.</td><td>如第（一）項所列的藥物有任何轉變，必須更新確認書。</td></tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+</body>
+</html>

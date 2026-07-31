@@ -1,4 +1,4 @@
-import personalBelongingsTemplate from '../../../../../doc_html/私人物品記錄表.html?raw';
+import personalBelongingsTemplate from '../../../../../upload/doc_html/私人物品記錄表.html?raw';
 import { processDocHtmlTemplate, fillInputAfterLabel } from './baseTemplateProcessor';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';
 

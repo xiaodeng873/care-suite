@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>院友健康評估及記錄(7) - 善頤(福群)</title>
+    <style>
+        /* 1. A4 規格與頁面平衡：頂部留 12mm 空白 */
+        @page {
+            size: A4;
+            margin: 15mm 0.25in 10mm 0.25in;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0; padding: 0;
+            background-color: #fff;
+            width: 100%;
+            color: #000;
+            font-size: 13px;
+        }
+
+        .container { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; min-height: 271mm; } /* 可印 272mm (297-15-10)，275mm 會把頁尾擠到第 2 頁 */
+        .page-content { flex: 1 1 auto; }
+
+        .title-box { text-align: center; margin-top: 0; margin-bottom: 5px; }
+        .title-box h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .title-box h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
+
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-weight: bold; }
+        .db-line-input { border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 13px; }
+
+        .habit-row { font-weight: bold; line-height: 1.2; margin-bottom: 4px; }
+        .db-checkbox { width: 13px; height: 13px; vertical-align: middle; cursor: pointer; }
+        .opt-span { margin-right: 8px; white-space: nowrap; font-size: 12px; }
+
+        /* 3. 表格核心高度控制 */
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0px 1px; height: 18.5px; font-size: 11.5px; }
+        
+        .col-m { width: 8.5mm; font-weight: bold; line-height: 1.0; font-size: 11px; }
+        .col-s { width: 26mm; font-weight: bold; text-align: left; padding-left: 2px; }
+        .col-e { width: auto; }
+
+        /* 表格內組件 */
+        .db-text-cell { width: 100%; border: none; background: transparent; font-family: inherit; text-align: center; outline: none; font-size: 11px; }
+        .side-opt { display: inline-flex; align-items: center; margin: 0 1px; font-size: 10px; font-weight: normal; }
+
+        /* 4. 頁尾：緊隨內容，用 flex 推到底 */
+        .footer { margin-top: auto; padding-top: 3px; display: flex; justify-content: flex-end; position: relative; min-height: 26px; font-weight: bold; }
+        .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
+
+        tr { page-break-inside: avoid; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="page-content">
+        <div class="title-box">
+            <h1>善頤(福群)護老院</h1>
+            <h2>院友健康評估及記錄(3 頁)</h2>
+        </div>
+
+        <!-- 院友資訊 -->
+        <div class="info-row">
+            <span>院友姓名：<input type="text" class="db-line-input" style="width: 120px;"></span>
+            <span>床號：<input type="text" class="db-line-input" style="width: 60px;"></span>
+            <span>身份證號碼：<input type="text" class="db-line-input" style="width: 150px;"></span>
+        </div>
+
+        <!-- 習慣 -->
+        <div class="habit-row">
+            1. 吸煙習慣：<span class="opt-span"><input type="checkbox" class="db-checkbox">從不</span>
+            <span class="opt-span"><input type="checkbox" class="db-checkbox">已戒 <input type="text" class="db-line-input" style="width:25px;"> 年</span>
+            <span class="opt-span"><input type="checkbox" class="db-checkbox">每天吸 <input type="text" class="db-line-input" style="width:25px;"> 支</span>
+            <span class="opt-span"><input type="checkbox" class="db-checkbox">間中吸</span><br>
+            2. 飲酒習慣：<span class="opt-span"><input type="checkbox" class="db-checkbox">從不</span>
+            <span class="opt-span"><input type="checkbox" class="db-checkbox">已戒 <input type="text" class="db-line-input" style="width:25px;"> 年</span>
+            <span class="opt-span"><input type="checkbox" class="db-checkbox">每天飲多少 <input type="text" class="db-line-input" style="width:40px;"></span>
+            <span class="opt-span"><input type="checkbox" class="db-checkbox">間中飲</span><br>
+            3. 日常活動及自理能力
+        </div>
+
+        <!-- 主表格 -->
+        <table>
+            <colgroup>
+                <col class="col-m"><col class="col-s"><col class="col-e" span="6">
+            </colgroup>
+
+            <tr style="height: 22px;">
+                <th colspan="2">觀察日期</th>
+                <td><input type="text" class="db-text-cell"></td><td><input type="text" class="db-text-cell"></td>
+                <td><input type="text" class="db-text-cell"></td><td><input type="text" class="db-text-cell"></td>
+                <td><input type="text" class="db-text-cell"></td><td><input type="text" class="db-text-cell"></td>
+            </tr>
+
+            <!-- 最高活動能力 - 全部改為 checkbox -->
+            <tr><th rowspan="5" class="col-m">最<br>高<br>活<br>動<br>能<br>力</th><td class="col-s">完全獨立</td><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+            <tr><td class="col-s">協助步行</td><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+            <tr><td class="col-s">輪椅</td><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+            <tr><td class="col-s">坐椅</td><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+            <tr><td class="col-s">臥床</td><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+
+            <!-- 肢體活動 - 完全正常改為 checkbox -->
+            <tr><th rowspan="3" class="col-m">肢<br>體<br>活<br>動</th><td class="col-s">完全正常</td><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
+            <tr>
+                <td class="col-s">手有障礙</td>
+                <script>for(let i=0;i<6;i++) document.write('<td><div class="side-opt"><input type="checkbox" class="db-checkbox">左</div><div class="side-opt"><input type="checkbox" class="db-checkbox">右</div></td>');</script>
+            </tr>
+            <tr>
+                <td class="col-s">腳有障礙</td>
+                <script>for(let i=0;i<6;i++) document.write('<td><div class="side-opt"><input type="checkbox" class="db-checkbox">左</div><div class="side-opt"><input type="checkbox" class="db-checkbox">右</div></td>');</script>
+            </tr>
+
+            <!-- 各項 ADL 邏輯修改 -->
+            <script>
+                const items = [
+                    {t:'飲<br>食', rows:['獨立','需要幫助','完全依賴','需要輔助器','種類：']},
+                    {t:'穿<br>衣', rows:['獨立','需要幫助','完全依賴','需要輔助器','種類：']},
+                    {t:'梳<br>洗', rows:['獨立','需要幫助','完全依賴','需要輔助器','種類：']},
+                    {t:'步<br>行', rows:['獨立','需要幫助','完全依賴','需要輔助器','種類：']},
+                    {t:'上<br>落<br>床', rows:['獨立','需要幫助','完全依賴','需要輔助器種類：']},
+                    {t:'沐<br>浴', rows:['獨立','需要幫助','完全依賴','需要輔助器','種類：']},
+                    {t:'如<br>廁', rows:['獨立','需要幫助','完全依賴','需要輔助器','種類：']}
+                ];
+                
+                items.forEach(it => {
+                    it.rows.forEach((rowName, index) => {
+                        let cellContent = '';
+                        // 如果不是最後一行（不是種類行），就放 checkbox
+                        if (index < it.rows.length - 1) {
+                            cellContent = '<td><input type="checkbox" class="db-checkbox"></td>'.repeat(6);
+                        } else {
+                            // 最後一行（種類行）保留 text-cell
+                            cellContent = '<td><input type="text" class="db-text-cell"></td>'.repeat(6);
+                        }
+
+                        if (index === 0) {
+                            document.write(`<tr><th rowspan="${it.rows.length}" class="col-m">${it.t}</th><td class="col-s">${rowName}</td>${cellContent}</tr>`);
+                        } else {
+                            document.write(`<tr><td class="col-s">${rowName}</td>${cellContent}</tr>`);
+                        }
+                    });
+                });
+            </script>
+        </table>
+    </div>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">7</div>
+        <div class="doc-code">B24 FK (11.2020)</div>
+    </div>
+</div>
+
+</body>
+</html>

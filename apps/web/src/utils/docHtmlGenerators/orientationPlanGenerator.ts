@@ -1,4 +1,4 @@
-import orientationPlanTemplate from '../../../../../doc_html/新院友入住導向計劃紀錄.html?raw';
+import orientationPlanTemplate from '../../../../../upload/doc_html/新院友入住導向計劃紀錄.html?raw';
 import { processDocHtmlTemplate } from './baseTemplateProcessor';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';
 

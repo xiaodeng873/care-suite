@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>託管院友財物授權書 - 善頤(福群)</title>
+    <style>
+        /* A4 紙張規格與出血位設定 */
+        @page {
+            size: A4;
+            margin: 0; /* 由容器統一控制 Margin 確保底置精確 */
+        }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0; padding: 0;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.4;
+            font-size: 15px;
+        }
+
+        /* A4 容器定義，確保底置元素相對於此 */
+        .a4-container {
+            width: 210mm;
+            height: 297mm;
+            padding: 5mm 12mm 10mm 12mm;
+            box-sizing: border-box;
+            position: relative; /* 關鍵：供頁尾絕對定位 */
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 標題區域極致置頂 */
+        .title-section { text-align: center; margin-bottom: 10px; }
+        .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .title-section h2 { 
+            margin: 4px 0 0 0; font-size: 22px; font-weight: bold; 
+            display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px;
+        }
+
+        /* 專業隱形表格佈局 */
+        .info-layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-bottom: 5px;
+        }
+        .info-layout-table td {
+            border: none;
+            padding: 2px 0;
+            vertical-align: bottom;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        /* DB Mapping 組件 */
+        .db-line-input {
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 0 5px;
+            text-align: center;
+        }
+        .db-checkbox {
+            width: 15px;
+            height: 15px;
+            border: 1px solid black;
+            display: inline-block;
+            margin-right: 8px;
+            vertical-align: middle;
+            cursor: pointer;
+        }
+
+        /* 財物清單區 */
+        .property-list { margin: 10px 0 15px 30px; }
+        .property-row { display: flex; align-items: flex-end; margin-bottom: 6px; }
+        .property-label { min-width: 120px; }
+
+        /* 授權條款區 */
+        .auth-section { margin-top: 10px; text-align: justify; }
+        .auth-title { font-weight: bold; text-decoration: underline; margin-bottom: 8px; }
+        .auth-item { margin-bottom: 12px; }
+        .auth-row { display: flex; align-items: flex-start; margin-bottom: 5px; }
+        .auth-num { min-width: 25px; font-weight: bold; }
+        .auth-content { flex-grow: 1; line-height: 1.6; }
+
+        /* 頁尾按鈕 */
+        .footer-wrap {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .next-page-box {
+            display: inline-block;
+            border: 1.5px solid black;
+            padding: 5px 25px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        /* --- 絕對底置區域 (Fixed Bottom) --- */
+        .footer {
+            margin-top: auto;
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            height: 30px;
+            font-weight: bold;
+        }
+
+        .page-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            bottom: 0;
+        }
+
+        .doc-id-right {
+            font-size: 11px;
+            font-weight: bold;
+            align-self: flex-end;
+        }
+    </style>
+</head>
+<body>
+
+<div class="a4-container">
+    <!-- 標題 -->
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>託管院友財物授權書</h2>
+    </div>
+<br>
+
+    <!-- 個人資料 - 隱形表格第一排 -->
+    <div style="font-weight: bold; margin-bottom: 5px;">個人資料：</div>
+    <table class="info-layout-table">
+        <colgroup>
+            <col style="width: 35%;">
+            <col style="width: 35%;">
+            <col style="width: 30%;">
+        </colgroup>
+        <tr>
+            <td>院友姓名&nbsp;&nbsp;&nbsp;&nbsp;：<div style="display:inline-block; width: 55%;"><input type="text" class="db-line-input"></div></td>
+            <td>身份證號碼 ：<div style="display:inline-block; width: 55%;"><input type="text" class="db-line-input"></div></td>
+            <td style="text-align: right;">房 / 床號 ：<div style="display:inline-block; width: 55%;"><input type="text" class="db-line-input"></div></td>
+        </tr>
+        <tr>
+            <td>#委託人姓名 ：<div style="display:inline-block; width: 55%;"><input type="text" class="db-line-input"></div></td>
+            <td>身份證號碼 ：<div style="display:inline-block; width: 55%;"><input type="text" class="db-line-input"></div></td>
+            <td style="text-align: right;">與院友關係 ：<div style="display:inline-block; width: 55%;"><input type="text" class="db-line-input"></div></td>
+        </tr>
+    </table>
+    <div style="font-size: 13px; font-weight: bold; margin-bottom: 10px;">
+        (# 委託人須年滿18歲或以上，並為院友之監護人(註一) / 保證人(註二) / 家人 / 親屬)
+    </div>
+
+    <!-- 託管財物 -->
+    <div style="font-weight: bold;">託管財物：</div>
+    <div style="font-weight: bold; margin-bottom: 5px;">院友及委託人現委託本院代為保管院友以下之財物：</div>
+    
+    <div class="property-list">
+        <div class="property-row"><div class="db-checkbox"></div>香港身份證</div>
+        <div class="property-row"><div class="db-checkbox"></div>覆診文件：<div style="width: 300px;"><input type="text" class="db-line-input"></div></div>
+        <div class="property-row"><div class="db-checkbox"></div>醫療費用豁免證明書</div>
+        <div class="property-row"><div class="db-checkbox"></div><div style="width: 150px;"><input type="text" class="db-line-input"></div>銀行存摺，帳戶號碼：<div style="flex-grow:1;"><input type="text" class="db-line-input"></div></div>
+        <div class="property-row"><div class="db-checkbox"></div><div style="width: 150px;"><input type="text" class="db-line-input"></div>銀行提款咭乙張，帳戶號碼：<div style="flex-grow:1;"><input type="text" class="db-line-input"></div></div>
+        <div class="property-row"><div class="db-checkbox"></div>圖章乙枚</div>
+        <div class="property-row" style="margin-left: 25px;">圖章樣本：<div style="width: 250px; border-bottom: 1px solid black; height: 30px;"></div></div>
+        <div class="property-row"><div class="db-checkbox"></div>首次託管現金港幣<div style="width: 150px;"><input type="text" class="db-line-input"></div>元</div>
+        <div class="property-row"><div class="db-checkbox"></div>其他財物(請列明)<div style="flex-grow:1;"><input type="text" class="db-line-input"></div></div>
+    </div>
+
+    <!-- 授權內容 -->
+    <div class="auth-section">
+        <div class="auth-title">動用銀行存款、圖章、銀行提款卡及現金之授權 (必須填寫，若不適用必須刪去)：</div>
+        <div style="font-weight: bold; margin-bottom: 10px;">院友及委託人現</div>
+        
+        <!-- 條款 (1) -->
+        <div class="auth-item">
+            <div class="auth-row">
+                <div class="auth-num">(1)</div>
+                <div class="auth-content">
+                    <div class="db-checkbox"></div>同意&nbsp;&nbsp;<div class="db-checkbox"></div>不同意<br>
+                    授權本院於上述委託保管銀行存摺之帳戶，即<span style="display:inline-block; width:120px;"><input type="text" class="db-line-input"></span>銀行帳戶號碼：<span style="display:inline-block; width:250px;"><input type="text" class="db-line-input"></span>安排自動轉帳以支付本院每月之院費、其他收費及代支。每月之院費、其他收費及代支總額不多於港幣<span style="display:inline-block; width:150px;"><input type="text" class="db-line-input"></span>。
+                </div>
+            </div>
+        </div>
+
+        <!-- 條款 (2) -->
+        <div class="auth-item">
+            <div class="auth-row">
+                <div class="auth-num">(2)</div>
+                <div class="auth-content">
+                    <div class="db-checkbox"></div>同意&nbsp;&nbsp;<div class="db-checkbox"></div>不同意<br>
+                    授權本院以本院保管之*圖章蓋章／*銀行提款咭，於上述委託保管銀行存摺之帳戶，即<span style="display:inline-block; width:200px;"><input type="text" class="db-line-input"></span>銀行帳戶號碼：<span style="display:inline-block; width:250px;"><input type="text" class="db-line-input"></span>提取現金，*以支付本院每月之院費、其他收費及代支。每月之院費、其他收費及代支總額不多於港幣<span style="display:inline-block; width:150px;"><input type="text" class="db-line-input"></span>及／或*為院友提取零用現金，每月之總額不多於港幣<span style="display:inline-block; width:150px;"><input type="text" class="db-line-input"></span>。
+                </div>
+            </div>
+        </div>
+
+        <!-- 條款 (3) -->
+        <div class="auth-item">
+            <div class="auth-row">
+                <div class="auth-num">(3)</div>
+                <div class="auth-content">
+                    <div class="db-checkbox"></div>同意&nbsp;&nbsp;<div class="db-checkbox"></div>不同意<br>
+                    授權本院動用上述委託本院託管之現金及不時從銀行賬戶提取或親友存放之現金作為院友之零用及以支付院友之交通、診金、其他日常雜項及醫療支出。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 頁尾按鈕 -->
+    <div class="footer-wrap">
+        <div class="next-page-box">( 後頁再續 )</div>
+    </div>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-center">19</div>
+        <div class="doc-id-right">A23 FK (5.2026)</div>
+    </div>
+</div>
+
+</body>
+</html>

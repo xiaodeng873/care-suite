@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8" />
+  <title>ICP 表頭含全部院友基本資料布局預覽</title>
+  <style>
+    @page icp {
+      size: A4 portrait;
+      margin: 12mm 10mm 10mm 10mm;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: "Microsoft JhengHei", "PingFang HK", "Heiti TC", sans-serif;
+      font-size: 9pt;
+      line-height: 1.25;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+
+        .page {
+      page: icp;
+      page-break-after: always;
+      break-after: page;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 275mm;
+    }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+
+    .page-header {
+      border-bottom: 1px solid #000;
+      padding-bottom: 3px;
+      margin-bottom: 3px;
+    }
+
+    .header-title {
+      text-align: center;
+      border-bottom: 1px solid #000;
+      padding-bottom: 2px;
+      margin-bottom: 2px;
+    }
+    .header-title h1 {
+      font-size: 22pt;
+      margin: 0;
+      line-height: 1.1;
+    }
+    .header-title h2 {
+      font-size: 18pt;
+      margin: 0;
+      line-height: 1.1;
+    }
+
+    .header-info-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .header-info-table td,
+    .header-info-table th {
+      border: 1px solid #000;
+      padding: 1px 3px;
+      vertical-align: middle;
+      text-align: left;
+    }
+    .header-info-table td.label {
+      background: #f8f8f8;
+      font-weight: bold;
+      white-space: nowrap;
+      width: 1%;
+    }
+    .header-photo-cell {
+      width: 56px;
+      min-width: 56px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .header-photo {
+      width: 40px;
+      height: 50px;
+      border: 1px solid #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7pt;
+      color: #666;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    .page-footer {
+      display: flex;
+      justify-content: flex-end;
+      font-size: 8pt;
+      border-top: 1px solid #000;
+      padding-top: 2px;
+      margin-top: auto;
+    }
+
+    .section-title {
+      font-weight: bold;
+      font-size: 10pt;
+      margin-top: 3px;
+      margin-bottom: 1px;
+      border-left: 3px solid #000;
+      padding-left: 4px;
+    }
+
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 2px;
+    }
+    .info-table td,
+    .info-table th {
+      border: 1px solid #000;
+      padding: 1px 3px;
+      vertical-align: top;
+    }
+    .info-table td.label {
+      background: #f8f8f8;
+      font-weight: bold;
+      white-space: nowrap;
+      width: 1%;
+    }
+
+    .box {
+      border: 1px solid #000;
+      min-height: 14px;
+      padding: 1px 3px;
+      margin-bottom: 2px;
+    }
+
+    .declaration {
+      border: 1px solid #000;
+      padding: 2px 3px;
+      margin-bottom: 2px;
+    }
+
+    .blank-line {
+      display: inline-block;
+      min-width: 120px;
+      border-bottom: 1px solid #000;
+      padding-bottom: 2px;
+    }
+
+    .checkbox {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border: 1px solid #000;
+      margin-right: 3px;
+      vertical-align: middle;
+    }
+    .checkbox.checked {
+      background: #000;
+      box-shadow: inset 0 0 0 1px #fff;
+    }
+
+    .nursing-needs-overall {
+      border: 1px solid #000;
+      border-bottom: 1px solid #000;
+      padding: 1px 3px;
+    }
+    .nursing-needs-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid #000;
+      border-top: none;
+      margin-bottom: 2px;
+    }
+    .need-item {
+      padding: 1px 3px;
+      border-top: 1px solid #000;
+      border-right: 1px solid #000;
+    }
+    .need-item:nth-child(-n+3) { border-top: none; }
+    .need-item:nth-child(3n) { border-right: none; }
+
+    .index-content-table th,
+    .index-content-table td:last-child { text-align: center; }
+    .index-content-table td:first-child { text-align: left; }
+
+    .signature-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 2px;
+    }
+    .signature-table th,
+    .signature-table td {
+      border: 1px solid #000;
+      padding: 1px 3px;
+      text-align: center;
+    }
+    .signature-table td:first-child { text-align: left; }
+
+    .problem-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 3px;
+    }
+    .problem-table th,
+    .problem-table td {
+      border: 1px solid #000;
+      padding: 2px 3px;
+      vertical-align: top;
+    }
+    .problem-table th { background: #f0f0f0; text-align: center; }
+    .col-problem { width: 25%; }
+    .col-goals { width: 25%; }
+    .col-interventions { width: 35%; }
+    .col-outcome { width: 15%; }
+    .category-cell {
+      background: #e6e6e6;
+      font-weight: bold;
+    }
+    .problem-text { font-weight: bold; margin-bottom: 3px; }
+    .assessor-line { font-size: 8pt; margin-top: 3px; }
+    .item-list { margin: 0; padding-left: 14px; }
+    .item-list li { margin-bottom: 1px; }
+    .notes-label { font-weight: bold; background: #f8f8f8; }
+    .notes-cell { min-height: 22px; }
+  </style>
+</head>
+<body>
+
+  <!-- 索引頁：表頭包含全部院友基本資料 -->
+  <div class="page">
+    <div class="page-header">
+      <div class="header-title">
+        <h1>仁愛護理之家</h1>
+        <h2>個人照顧計劃</h2>
+      </div>
+      <table class="header-info-table">
+        <tr>
+          <td class="header-photo-cell" rowspan="2">
+            <div class="header-photo">院友相片</div>
+          </td>
+          <td class="label">中文姓名</td>
+          <td>陳大文</td>
+          <td class="label">英文姓名</td>
+          <td>CHAN Tai Man</td>
+          <td class="label">性別</td>
+          <td>男</td>
+          <td class="label">年齡</td>
+          <td>82 歲</td>
+        </tr>
+        <tr>
+          <td class="label">出生年月日</td>
+          <td>01/01/1944</td>
+          <td class="label">身份證號碼</td>
+          <td>A123456(7)</td>
+          <td class="label">區域 / 床號</td>
+          <td>A區 / 101</td>
+          <td class="label">入住日期</td>
+          <td>15/06/2019</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="section-title">計劃周期</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">上次複檢日期</td><td>首次</td>
+        <td class="label">是次複檢日期</td><td>28/07/2026</td>
+        <td class="label">下次複檢日期</td><td>28/10/2026</td>
+      </tr>
+    </table>
+
+    <div class="section-title">體格檢驗</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">體重（公斤）</td><td>&nbsp;</td>
+        <td class="label">身高（米）</td><td>&nbsp;</td>
+        <td class="label">BMI</td><td>&nbsp;</td>
+      </tr>
+    </table>
+
+    <div class="section-title">診斷</div>
+    <div class="box">高血壓、2型糖尿病、認知障礙症</div>
+
+    <div class="section-title">藥物或食物過敏歷史</div>
+    <div class="box">NKDA</div>
+
+    <div class="section-title">護理需要（可多選）</div>
+    <div class="nursing-needs-overall">
+      <span class="checkbox"></span> 有　　<span class="checkbox checked"></span> 沒有
+    </div>
+    <div class="nursing-needs-grid">
+      <div class="need-item"><span class="checkbox"></span> 失禁</div>
+      <div class="need-item"><span class="checkbox checked"></span> 傷口</div>
+      <div class="need-item"><span class="checkbox"></span> 壓瘡</div>
+      <div class="need-item"><span class="checkbox checked"></span> 導尿管</div>
+      <div class="need-item"><span class="checkbox"></span> 鼻胃管</div>
+      <div class="need-item"><span class="checkbox"></span> 胃造瘻</div>
+      <div class="need-item"><span class="checkbox"></span> 大腸造口</div>
+      <div class="need-item"><span class="checkbox"></span> 氣管造口</div>
+      <div class="need-item"><span class="checkbox"></span> 吸氧</div>
+      <div class="need-item"><span class="checkbox"></span> 腹膜透析</div>
+      <div class="need-item"><span class="checkbox"></span> 血液透析</div>
+      <div class="need-item"><span class="checkbox"></span> 其他</div>
+    </div>
+
+    <div class="section-title">計劃內容項目</div>
+    <table class="info-table index-content-table">
+      <thead>
+        <tr>
+          <th>專業類別</th>
+          <th>問題</th>
+          <th>頁碼</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td rowspan="2">個案專員/護士</td>
+          <td>下肢水腫，皮膚容易破損</td>
+          <td>2</td>
+        </tr>
+        <tr>
+          <td>進食時偶有嗆咳</td>
+          <td>2</td>
+        </tr>
+        <tr>
+          <td>物理治療師</td>
+          <td>步行不穩，容易跌倒</td>
+          <td>3</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="section-title">評估職員簽署表</div>
+    <table class="signature-table">
+      <thead>
+        <tr>
+          <th>專業類別</th>
+          <th>姓名</th>
+          <th>簽署</th>
+          <th>完成日期</th>
+          <th>檢討日期</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>個案專員/護士</td>
+          <td>&nbsp;</td>
+          <td></td>
+          <td>&nbsp;</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>物理治療師</td>
+          <td>&nbsp;</td>
+          <td></td>
+          <td>&nbsp;</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="section-title">參與聲明</div>
+    <div class="declaration">
+      <span class="checkbox"></span> 邀請家人及院友參與個人護理計劃過程，徵詢意見。<br/>
+      <span style="display:block; margin-top:2px;">（職員簽署）<span class="blank-line">&nbsp;</span></span>
+    </div>
+
+    <div class="section-title">家屬聯絡</div>
+    <table class="info-table">
+      <tr>
+        <td class="label">個案會議日期</td><td>20/07/2026</td>
+        <td class="label">聯絡家屬 / 聽取報告日期</td><td>21/07/2026</td>
+      </tr>
+      <tr>
+        <td class="label">院友家屬姓名及簽署</td>
+        <td colspan="3"><span class="blank-line">&nbsp;</span></td>
+      </tr>
+    </table>
+
+    <div class="section-title">特別護理需求 / 其他專業意見（如有）</div>
+    <div class="box">&nbsp;</div>
+
+    <div class="box" style="font-size:8pt; margin-top:2px;">
+      院友家屬簽署後，即代表已閱覽後面各頁的個人照顧計劃，並清楚明白及同意計劃內容。
+    </div>
+
+    <div class="page-footer"><span></span><span>第 1 頁 / 共 3 頁</span></div>
+  </div>
+
+  <!-- 問題頁 2：護理 -->
+  <div class="page">
+    <div class="page-header">
+      <div class="header-title">
+        <h1>仁愛護理之家</h1>
+        <h2>個人照顧計劃</h2>
+      </div>
+      <table class="header-info-table">
+        <tr>
+          <td class="header-photo-cell" rowspan="2">
+            <div class="header-photo">院友相片</div>
+          </td>
+          <td class="label">中文姓名</td>
+          <td>陳大文</td>
+          <td class="label">英文姓名</td>
+          <td>CHAN Tai Man</td>
+          <td class="label">性別</td>
+          <td>男</td>
+          <td class="label">年齡</td>
+          <td>82 歲</td>
+        </tr>
+        <tr>
+          <td class="label">出生年月日</td>
+          <td>01/01/1944</td>
+          <td class="label">身份證號碼</td>
+          <td>A123456(7)</td>
+          <td class="label">區域 / 床號</td>
+          <td>A區 / 101</td>
+          <td class="label">入住日期</td>
+          <td>15/06/2019</td>
+        </tr>
+      </table>
+    </div>
+
+    <table class="problem-table">
+      <thead>
+        <tr>
+          <th class="col-problem">問題</th>
+          <th class="col-goals">護理 / 介入目標</th>
+          <th class="col-interventions">護理計劃 / 介入步驟</th>
+          <th class="col-outcome">成效檢討</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="category-cell" colspan="4">護理</td>
+        </tr>
+        <tr>
+          <td>
+            <div class="problem-text">下肢水腫，皮膚容易破損</div>
+            <div class="assessor-line">評估職員：黃姑娘</div>
+          </td>
+          <td>
+            <ul class="item-list">
+              <li>每日檢查皮膚狀況</li>
+              <li>減少水腫情況</li>
+            </ul>
+          </td>
+          <td>
+            <ul class="item-list">
+              <li>抬高雙腿 30 分鐘</li>
+              <li>按醫囑使用壓力襪</li>
+            </ul>
+          </td>
+          <td>
+            <div class="outcome-options">
+              <div><span class="checkbox"></span> 保持現狀</div>
+              <div><span class="checkbox checked"></span> 滿意</div>
+              <div><span class="checkbox"></span> 部分滿意</div>
+              <div><span class="checkbox"></span> 需要持續改善</div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="notes-label" colspan="4">其他要點 / 備註</td>
+        </tr>
+        <tr>
+          <td class="notes-cell" colspan="4">&nbsp;</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="page-footer"><span></span><span>第 2 頁 / 共 3 頁</span></div>
+  </div>
+
+  <!-- 問題頁 3：物理治療 -->
+  <div class="page">
+    <div class="page-header">
+      <div class="header-title">
+        <h1>仁愛護理之家</h1>
+        <h2>個人照顧計劃</h2>
+      </div>
+      <table class="header-info-table">
+        <tr>
+          <td class="header-photo-cell" rowspan="2">
+            <div class="header-photo">院友相片</div>
+          </td>
+          <td class="label">中文姓名</td>
+          <td>陳大文</td>
+          <td class="label">英文姓名</td>
+          <td>CHAN Tai Man</td>
+          <td class="label">性別</td>
+          <td>男</td>
+          <td class="label">年齡</td>
+          <td>82 歲</td>
+        </tr>
+        <tr>
+          <td class="label">出生年月日</td>
+          <td>01/01/1944</td>
+          <td class="label">身份證號碼</td>
+          <td>A123456(7)</td>
+          <td class="label">區域 / 床號</td>
+          <td>A區 / 101</td>
+          <td class="label">入住日期</td>
+          <td>15/06/2019</td>
+        </tr>
+      </table>
+    </div>
+
+    <table class="problem-table">
+      <thead>
+        <tr>
+          <th class="col-problem">問題</th>
+          <th class="col-goals">護理 / 介入目標</th>
+          <th class="col-interventions">護理計劃 / 介入步驟</th>
+          <th class="col-outcome">成效檢討</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="category-cell" colspan="4">物理治療</td>
+        </tr>
+        <tr>
+          <td>
+            <div class="problem-text">步行不穩，容易跌倒</div>
+            <div class="assessor-line">評估職員：李物理治療師</div>
+          </td>
+          <td>
+            <ul class="item-list">
+              <li>改善平衡力</li>
+              <li>維持下肢肌力</li>
+            </ul>
+          </td>
+          <td>
+            <ul class="item-list">
+              <li>每週兩次物理治療運動</li>
+              <li>使用四腳助行架</li>
+            </ul>
+          </td>
+          <td>
+            <div class="outcome-options">
+              <div><span class="checkbox"></span> 保持現狀</div>
+              <div><span class="checkbox"></span> 滿意</div>
+              <div><span class="checkbox checked"></span> 部分滿意</div>
+              <div><span class="checkbox"></span> 需要持續改善</div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="notes-label" colspan="4">其他要點 / 備註</td>
+        </tr>
+        <tr>
+          <td class="notes-cell" colspan="4">院友仍需使用助行器，進展緩慢。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="page-footer"><span></span><span>第 3 頁 / 共 3 頁</span></div>
+  </div>
+
+</body>
+</html>

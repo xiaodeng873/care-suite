@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>生命表徵觀察記錄表 - 善頤(福群)</title>
+    <style>
+        /* A4 紙張規格：左右 0.25 吋出血位，頂部極致壓縮 */
+        @page {
+            size: A4;
+            margin: 5mm 0.25in;
+        }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+            margin: 0; padding: 0;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.2;
+        }
+
+        .container { width: 100%; box-sizing: border-box; }
+
+        /* 標題區域上推 */
+        .title-section { text-align: center; margin-bottom: 12px; }
+        .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+        .title-section h2 { 
+            margin: 4px 0 0 0; 
+            font-size: 22px; 
+            font-weight: bold; 
+            display: inline-block;
+            border-bottom: 1.5px solid black;
+            padding-bottom: 2px;
+        }
+
+        /* 院友資訊區域 - 專業隱形表格排版 */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            table-layout: fixed;
+        }
+        .info-table td {
+            border: none;
+            padding: 2px 0;
+            vertical-align: bottom;
+            font-size: 16px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        /* DB Mapping 底線輸入框 */
+        .db-line-input {
+            width: 90%;
+            border: none;
+            border-bottom: 1px solid black;
+            background: transparent;
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+            padding: 0 0 1px 5px;
+            box-sizing: border-box;
+        }
+
+        /* 主表格設定 */
+        table.main-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            table-layout: fixed; 
+            border: 1.5px solid black; 
+        }
+        table.main-table th, table.main-table td { 
+            border: 1px solid black; 
+            text-align: center; 
+            vertical-align: middle; 
+            padding: 0; 
+        }
+        
+        /* 表頭樣式 */
+        table.main-table th { 
+            font-size: 14px; 
+            font-weight: bold; 
+            background-color: #fff; 
+            height: 38px;
+            line-height: 1.1;
+        }
+        
+        /* 欄寬精確分配 (依圖比例) */
+        .col-datetime { width: 18%; }
+        .col-temp     { width: 10%; }
+        .col-bp       { width: 17%; }
+        .col-pulse    { width: 15%; }
+        .col-resp     { width: 10%; }
+        .col-spo2     { width: 10%; }
+        .col-remark   { width: auto; }
+
+        /* 數據行高度精算 (30行不超頁) */
+        .data-row { height: 30px; }
+        
+        /* DB Mapping 透明輸入格 */
+        .db-text-cell {
+            width: 100%; height: 100%; border: none; background: transparent;
+            font-family: inherit; font-size: 14px; text-align: center;
+            outline: none; display: block; box-sizing: border-box;
+        }
+
+        /* 頁尾 */
+        .footer {
+            margin-top: 8px;
+            display: flex;
+            justify-content: flex-end;
+            position: relative;
+            height: 30px;
+        }
+        .page-num {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            bottom: 0;
+        }
+        .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 標題 -->
+    <div class="title-section">
+        <h1>善頤(福群)護老院</h1>
+        <h2>生命表徵觀察記錄表</h2>
+    </div>
+<br>
+    <!-- 院友資訊欄位 -->
+    <table class="info-table">
+        <colgroup>
+            <col style="width: 25%;"> <!-- 姓名 -->
+            <col style="width: 18%;"> <!-- 床號 -->
+            <col style="width: 18%;"> <!-- 性別 -->
+            <col style="width: 18%;"> <!-- 年齡 -->
+            <col style="width: 21%;"> <!-- 頁數 -->
+        </colgroup>
+        <tr>
+            <td>院友姓名：<input type="text" class="db-line-input" style="width: 60%;"></td>
+            <td>床號：<input type="text" class="db-line-input" style="width: 60%;"></td>
+            <td>性別：<input type="text" class="db-line-input" style="width: 60%;"></td>
+            <td>年齡：<input type="text" class="db-line-input" style="width: 60%;"></td>
+            <td>頁數：<input type="text" class="db-line-input" style="width: 70%;"></td>
+        </tr>
+    </table>
+
+    <!-- 主表格 -->
+    <table class="main-table">
+        <colgroup>
+            <col class="col-datetime">
+            <col class="col-temp">
+            <col class="col-bp">
+            <col class="col-pulse">
+            <col class="col-resp">
+            <col class="col-spo2">
+            <col class="col-remark">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>日期 / 時間</th>
+                <th>體 溫 (°C)</th>
+                <th>血 壓 (mmHg)</th>
+                <th>脈 搏 (每分鐘)</th>
+                <th>呼 吸<br>(每分鐘)</th>
+                <th>SPO<sub>2</sub> (%)</th>
+                <th>備 註</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 生成 33 行數據 -->
+            <script>
+                for (let i = 0; i < 33; i++) {
+                    document.write('<tr class="data-row">');
+                    document.write('<td><input class="db-text-cell"></td>');
+                    document.write('<td><input class="db-text-cell"></td>');
+                    document.write('<td><input class="db-text-cell"></td>');
+                    document.write('<td><input class="db-text-cell"></td>');
+                    document.write('<td><input class="db-text-cell"></td>');
+                    document.write('<td><input class="db-text-cell"></td>');
+                    document.write('<td><input class="db-text-cell" style="text-align:left; padding-left:5px;"></td>');
+                    document.write('</tr>');
+                }
+            </script>
+        </tbody>
+    </table>
+
+    <!-- 頁尾 -->
+    <div class="footer">
+        <div class="page-num">5</div>
+        <div class="doc-code">B4C FK (3.2025)</div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>氧氣樽度數檢查記錄表 - 放大版</title>
+    <style>
+        @page {
+            size: A4;
+            /* 調整邊距以容納放大後的內容 */
+            margin: 5mm 8mm; 
+        }
+        body {
+            /* 基礎字體放大 10% (13px -> 14.3px) */
+            font-family: "MingLiU", "PMingLiU", "Microsoft JhengHei", serif;
+            margin: 0;
+            padding: 0;
+            color: #000;
+            line-height: 1.2;
+            font-size: 14.3px; 
+        }
+        .print-wrapper {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        /* 表頭區域 */
+        .page-header {
+            display: table-header-group;
+        }
+        .header-container {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 11px; /* 10px -> 11px */
+        }
+        
+        /* 左側日期與樓層方框 放大 10% */
+        .header-left-box {
+            border: 1.5px solid black;
+            padding: 6px;
+            width: 200px; /* 180px -> 200px */
+            text-align: center;
+        }
+        .date-line {
+            font-size: 17.6px; /* 16px -> 17.6px */
+            margin-bottom: 9px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid black;
+        }
+        .floor-select {
+            font-size: 15.4px; /* 14px -> 15.4px */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* 中間標題 放大 10% */
+        .header-center {
+            text-align: center;
+            flex-grow: 1;
+        }
+        .title-top {
+            font-size: 26.4px; /* 24px -> 26.4px */
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-bottom: 6px;
+        }
+        .title-main {
+            font-size: 22px; /* 20px -> 22px */
+            font-weight: bold;
+        }
+
+        /* 容量說明列 放大 10% */
+        .info-line {
+            width: 100%;
+            font-size: 13.2px; /* 12px -> 13.2px */
+            border: 1px solid black;
+            border-bottom: none;
+            padding: 4px 6px;
+            box-sizing: border-box;
+            background-color: #f2f2f2;
+        }
+
+        /* 主表格 放大 10% */
+        .main-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .main-table th, .main-table td {
+            border: 1px solid black;
+            padding: 2px;
+            height: 42px; /* 38px -> 42px (列高放大) */
+            text-align: center;
+            font-size: 14.3px; /* 13px -> 14.3px */
+        }
+        .main-table th {
+            font-weight: normal;
+            background-color: #f2f2f2;
+        }
+        
+        /* 寬度分配 放大 10% */
+        .col-date  { width: 38px; } /* 35 -> 38 */
+        .col-gauge { width: 60px; } /* 55 -> 60 */
+        .col-rank  { width: 72px; } /* 65 -> 72 */
+        .col-name  { width: auto; }
+        .col-sign  { width: 88px; } /* 80 -> 88 */
+
+        /* 輸入框樣式 */
+        textarea {
+            width: 100%;
+            height: 100%;
+            border: none;
+            resize: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: 14.3px;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+            outline: none;
+            display: block;
+        }
+        input[type="checkbox"] {
+            margin-right: 4px;
+            transform: scale(1.1); /* Checkbox 亦放大 */
+            vertical-align: middle;
+        }
+
+        /* 頁尾編號 */
+        .page-footer {
+            display: table-footer-group;
+        }
+        .footer-content {
+            text-align: right;
+            font-size: 12.1px; /* 11px -> 12.1px */
+            padding-top: 11px;
+        }
+    </style>
+</head>
+<body>
+
+<table class="print-wrapper">
+    <!-- 每頁重複表頭 -->
+    <thead class="page-header">
+        <tr>
+            <td>
+                <div class="header-container">
+                    <!-- 左方框 -->
+                    <div class="header-left-box">
+                        <div class="date-line">
+                            <textarea rows="1" style="display:inline; width:55px; text-align:right; border-bottom:1px solid black;"></textarea> 年 
+                            <textarea rows="1" style="display:inline; width:44px; text-align:right; border-bottom:1px solid black;"></textarea> 月
+                        </div>
+                        <div class="floor-select">
+                            <input type="checkbox"> 1樓 ／ <input type="checkbox"> 2樓
+                        </div>
+                    </div>
+                    
+                    <!-- 標題 -->
+                    <div class="header-center">
+                        <div class="title-top">善頤(福群)護老院</div>
+                        <div class="title-main">氧氣樽度數檢查記錄表</div>
+                    </div>
+                    
+                    <!-- 右側平衡空間 -->
+                    <div style="width: 200px;"></div>
+                </div>
+
+                <div class="info-line">
+                    氧氣樽總容量：每樽 680L (當壓力錶顯示低於 300psi 時要採購新氧氣樽)
+                </div>
+            </td>
+        </tr>
+    </thead>
+
+    <!-- 主表格內容 -->
+    <tbody>
+        <tr>
+            <td>
+                <table class="main-table">
+                    <thead>
+                        <tr>
+                            <th class="col-date">日期</th>
+                            <th class="col-gauge">氧氣樽<br>度數</th>
+                            <th class="col-rank">檢查職員<br>職級</th>
+                            <th class="col-name">姓名</th>
+                            <th class="col-sign">簽署</th>
+                            <!-- 右側對稱 -->
+                            <th class="col-date">日期</th>
+                            <th class="col-gauge">氧氣樽<br>度數</th>
+                            <th class="col-rank">檢查職員<br>職級</th>
+                            <th class="col-name">姓名</th>
+                            <th class="col-sign">簽署</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <script>
+                            for(let i=1; i<=15; i++) {
+                                let leftDay = i;
+                                let rightDay = i + 15;
+                                document.write(`
+                                <tr>
+                                    <td>${leftDay}</td>
+                                    <td><textarea></textarea></td>
+                                    <td><textarea></textarea></td>
+                                    <td><textarea></textarea></td>
+                                    <td><textarea></textarea></td>
+                                    <td>${rightDay}</td>
+                                    <td><textarea></textarea></td>
+                                    <td><textarea></textarea></td>
+                                    <td><textarea></textarea></td>
+                                    <td><textarea></textarea></td>
+                                </tr>
+                                `);
+                            }
+                        </script>
+                        <!-- 第 31 日 -->
+                        <tr>
+                            <td colspan="5" style="background-color: #f2f2f2;"></td>
+                            <td>31</td>
+                            <td><textarea></textarea></td>
+                            <td><textarea></textarea></td>
+                            <td><textarea></textarea></td>
+                            <td><textarea></textarea></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </tbody>
+
+    <!-- 每頁重複頁尾 -->
+    <tfoot class="page-footer">
+        <tr>
+            <td>
+                <div class="footer-content">
+                    A85 FK (11.2020)
+                </div>
+            </td>
+        </tr>
+    </tfoot>
+</table>
+
+</body>
+</html>

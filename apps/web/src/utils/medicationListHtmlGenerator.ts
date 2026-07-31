@@ -1,6 +1,6 @@
 import { formatDisplayDate } from './dateFormat';
-import shortTermTemplate from '../../../../doc_html/院友服用藥物一覽表（短期藥）.html?raw';
-import longTermTemplate from '../../../../doc_html/院友服用藥物一覽表（長期藥）.html?raw';
+import shortTermTemplate from '../../../../upload/doc_html/院友服用藥物一覽表（短期藥）.html?raw';
+import longTermTemplate from '../../../../upload/doc_html/院友服用藥物一覽表（長期藥）.html?raw';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 import { getPrintBedNumber } from './bedTransferUtils';
 

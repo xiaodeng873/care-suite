@@ -1,0 +1,13 @@
+模式：正式執行
+讀取 CSV：C:/Users/Admin/Desktop/care-suite/regime - Sheet1.csv
+CSV 列數：3008，院友數：314，現有藥物數：1000
+
+床位範圍：202-287 樓
+範圍外跳過：1329
+預計寫入處方筆數：1563
+預計新增藥物：207
+錯誤 / 跳過：116
+
+實際寫入處方：1563 筆
+
+日誌已寫入：C:\Users\Admin\Desktop\care-suite\scripts\import_regime_csv.log.json

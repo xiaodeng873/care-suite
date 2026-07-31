@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>巡房記錄表 - 善頤(福群)</title>
+    <style id="dynamic-styles">
+        /* 定義可調變量 */
+        :root {
+            --footer-bottom: 2mm;
+            --row-height: 4.3mm;
+        }
+
+        /* A4 紙張與微調邊距 */
+        @page { 
+            size: A4; 
+            margin: 4mm 0.2in; 
+        }
+        
+        body { 
+            font-family: "DFKai-SB", "BiauKai", "標楷體", serif; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #fff; 
+            color: #000; 
+            line-height: 1.1; 
+        }
+
+        /* 單頁 A4 物理容器 */
+        .page {
+            width: 100%;
+            height: 288mm; 
+            box-sizing: border-box;
+            position: relative; 
+            display: flex;
+            flex-direction: column;
+            page-break-after: always;
+        }
+        
+        .page:last-child {
+            page-break-after: avoid;
+        }
+
+        /* 頂部標題與資訊區 */
+        .header-section {
+            width: 100%;
+            height: 24mm; 
+            box-sizing: border-box;
+        }
+        .title-section { 
+            text-align: center; 
+            margin-bottom: 2px; 
+        }
+        .title-section h1 { 
+            margin: 0; 
+            font-size: 26px; 
+            font-weight: bold; 
+            letter-spacing: 2px; 
+        }
+        .title-section h2 { 
+            margin: 4px 0 0 0; 
+            font-size: 22px; 
+            font-weight: bold; 
+            display: inline-block; 
+            border-bottom: 1.5px solid black;
+            padding-bottom: 2px; 
+        }
+
+        .info-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            table-layout: fixed; 
+            margin-top: 4px;
+        }
+        .info-table td { 
+            border: none; 
+            padding: 2px 0; 
+            vertical-align: bottom; 
+            font-size: 16px; 
+            font-weight: bold; 
+            white-space: nowrap; 
+        }
+        .db-line-input { 
+            border: none; 
+            border-bottom: 1.5px solid black; 
+            background: transparent; 
+            font-family: inherit; 
+            font-size: 16px; 
+            font-weight: bold;
+            outline: none; 
+            padding: 0 0 1px 5px; 
+            box-sizing: border-box; 
+        }
+
+        /* 網格高度 */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 3mm;
+            height: 259mm; 
+            box-sizing: border-box;
+            margin-top: 2px;
+        }
+
+        .card {
+            border: 1.5px solid black;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            height: 100%; 
+        }
+        
+        .card-empty {
+            border: none;
+            box-sizing: border-box;
+        }
+
+        .card-title {
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            background-color: #fff;
+            border-bottom: 1.5px solid black;
+            height: 5.2mm;
+            line-height: 5.2mm;
+            box-sizing: border-box;
+        }
+
+        .card-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            height: calc(100% - 5.2mm);
+            border: none;
+        }
+        .card-table th, .card-table td {
+            border: 1px solid black;
+            text-align: center;
+            padding: 0;
+            font-size: 10px;
+            box-sizing: border-box;
+        }
+        .card-table th {
+            height: 4.5mm;
+            font-size: 9px;
+            font-weight: bold;
+            background: #fff;
+            border-bottom: 1.5px solid black;
+        }
+        
+        /* 使用變量控制行高 */
+        .card-table td {
+            height: var(--row-height);
+        }
+
+        .card-table th:first-child, .card-table td:first-child { border-left: none; }
+        .card-table th:last-child, .card-table td:last-child { border-right: none; }
+        .card-table tr:last-child td { border-bottom: none; }
+
+        .db-text-cell { 
+            width: 100%; height: 100%; border: none; background: transparent; 
+            font-family: inherit; font-size: 10px; text-align: center; 
+            outline: none; display: block; box-sizing: border-box; padding: 0;
+        }
+
+        /* 使用變量控制頁碼位置 */
+        .footer { 
+            margin-top: 5px;
+            display: flex; 
+            justify-content: flex-end; 
+            position: relative; 
+            height: 30px;
+            font-weight: bold;
+        }
+        .page-num { 
+            position: absolute; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            font-size: 24px; 
+            font-weight: bold; 
+            bottom: 0;
+        }
+        .doc-code { 
+            font-size: 11px; 
+            font-weight: bold; 
+            align-self: flex-end; 
+        }
+        .page-num { 
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px; 
+            font-weight: bold; 
+            bottom: 0;
+        }
+        .doc-code { 
+            font-size: 11px; 
+            font-weight: bold; 
+            align-self: flex-end; 
+        }
+
+        /* 控制面板樣式 - 僅顯示於螢幕，不列印 */
+        #control-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 9999;
+            font-family: sans-serif;
+            font-size: 14px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            width: 250px;
+        }
+        #control-panel h3 { margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid #666; padding-bottom: 5px; }
+        .ctrl-group { margin-bottom: 10px; }
+        .ctrl-group label { display: block; margin-bottom: 5px; }
+        .ctrl-group input { width: 100%; }
+        .ctrl-val { float: right; color: #0f0; }
+
+        @media print {
+            #control-panel { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 控制面板 -->
+<div id="control-panel">
+    <h3>頁面微調控制</h3>
+    <div class="ctrl-group">
+        <label>頁碼距離底部: <span id="val-footer" class="ctrl-val">2mm</span></label>
+        <input type="range" id="input-footer" min="-30" max="15" step="0.5" value="2">
+        <small>(正數向上移，負數向下移)</small>
+    </div>
+    <div class="ctrl-group">
+        <label>表格單列行高: <span id="val-row" class="ctrl-val">4.3mm</span></label>
+        <input type="range" id="input-row" min="3.5" max="5.5" step="0.1" value="4.3">
+    </div>
+    <button onclick="window.print()" style="width:100%; padding: 5px; cursor:pointer;">開啟列印對話框</button>
+</div>
+
+<script>
+    const totalDays = 31; 
+
+    function generatePage(startDay, endDay) {
+        document.write('<div class="page">');
+        document.write(`
+            <div class="header-section">
+                <div class="title-section">
+                    <h1>善頤(福群)護老院</h1>
+                    <h2>院友巡房記錄表</h2>
+                </div>
+                <table class="info-table">
+                    <colgroup>
+                        <col style="width: 60%;">
+                        <col style="width: 40%;">
+                    </colgroup>
+                    <tr>
+                        <td>房 / 床號：<input type="text" class="db-line-input" style="width: 280px; display: inline-block;"></td>
+                        <td style="text-align: right; padding-right: 20px;">月份：<input type="text" class="db-line-input" style="width: 180px; display: inline-block;"></td>
+                    </tr>
+                </table>
+            </div>
+        `);
+        
+        document.write('<div class="grid-container">');
+        for (let i = 0; i < 16; i++) {
+            let dayNum = startDay + i;
+            if (dayNum <= endDay) {
+                document.write(`
+                    <div class="card">
+                        <div class="card-title">${dayNum} 日</div>
+                        <table class="card-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 33.3%;">時間</th>
+                                    <th style="width: 33.3%;">簽署</th>
+                                    <th style="width: 33.3%;">加簽</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `);
+                for (let r = 0; r < 12; r++) {
+                    document.write(`
+                                <tr>
+                                    <td><input class="db-text-cell"></td>
+                                    <td><input class="db-text-cell"></td>
+                                    <td><input class="db-text-cell"></td>
+                                </tr>
+                    `);
+                }
+                document.write(`</tbody></table></div>`);
+            } else {
+                document.write('<div class="card-empty"></div>');
+            }
+        }
+        document.write('</div>'); 
+
+        let pageNum = startDay === 1 ? '1' : '2';
+        document.write(`
+            <div class="footer">
+                <div class="page-num">第 ${pageNum} 頁</div>
+                <div class="doc-code">—</div>
+            </div>
+        `);
+        document.write('</div>'); 
+    }
+
+    // 生成兩頁
+    generatePage(1, totalDays);
+    generatePage(17, totalDays);
+
+    // 控制面板交互邏輯
+    const root = document.documentElement;
+    const inputFooter = document.getElementById('input-footer');
+    const inputRow = document.getElementById('input-row');
+    const valFooter = document.getElementById('val-footer');
+    const valRow = document.getElementById('val-row');
+
+    inputFooter.addEventListener('input', (e) => {
+        const v = e.target.value + 'mm';
+        root.style.setProperty('--footer-bottom', v);
+        valFooter.textContent = v;
+    });
+
+    inputRow.addEventListener('input', (e) => {
+        const v = e.target.value + 'mm';
+        root.style.setProperty('--row-height', v);
+        valRow.textContent = v;
+    });
+</script>
+
+</body>
+</html>
