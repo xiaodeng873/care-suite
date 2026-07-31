@@ -4,11 +4,13 @@
     <meta charset="UTF-8">
     <title>個人意外事件記錄表 - 善頤(福群)</title>
     <style>
-        /* A4 紙張與出血位設定 */
+        /* A4 紙張設定：頂部留 12mm 空白才開始標題 */
         @page {
             size: A4;
-            margin: 5mm 12mm; /* 極小化上邊距，左右標準出血 */
+            margin: 15mm 10mm 10mm 10mm;
         }
+
+        * { box-sizing: border-box; }
 
         body {
             font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
@@ -18,9 +20,16 @@
             color: #000;
         }
 
-        .container { width: 100%; box-sizing: border-box; }
+        .page {
+            width: 100%;
+            min-height: 271mm; /* 可印高度 = 297 - 15 - 10 = 272mm，留 1mm 保險，過高會把頁尾擠到第 2 頁 */
+            display: flex;
+            flex-direction: column;
+        }
 
-        /* 頂部標題區 - 移除Logo後的設計 */
+        .page-content { flex: 1 1 auto; }
+
+        /* 頂部標題區 */
         .header-section {
             display: flex;
             align-items: flex-start;
@@ -68,7 +77,7 @@
             text-align: center;
             vertical-align: middle;
             padding: 0;
-            height: 52px; /* 精算 15 行的高度 */
+            height: 52px; /* 15 行高度 */
         }
 
         th {
@@ -114,13 +123,15 @@
             font-size: 12px;
         }
 
-        /* 頁尾 */
+        /* 頁尾：緊隨內容，用 flex 推到底 */
         .footer {
-            margin-top: 8px;
+            margin-top: auto;
+            padding-top: 8px;
             display: flex;
             justify-content: flex-end;
+            align-items: flex-end;
             position: relative;
-            height: 30px;
+            min-height: 30px;
         }
 
         .page-num {
@@ -129,72 +140,75 @@
             transform: translateX(-50%);
             font-size: 24px;
             font-weight: bold;
-            bottom: 0;
         }
 
         .doc-code {
             font-size: 11px;
             font-weight: bold;
-            align-self: flex-end;
         }
+
+        /* 避免單元格被分頁切開 */
+        tr, td, th { break-inside: avoid; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <!-- 標頭 -->
-    <div class="header-section">
-        <div class="title-box">
-            <h1>善頤(福群)護老院</h1>
-            <h2>個人意外事件記錄表</h2>
+<div class="page">
+    <div class="page-content">
+        <!-- 標頭 -->
+        <div class="header-section">
+            <div class="title-box">
+                <h1>善頤(福群)護老院</h1>
+                <h2>個人意外事件記錄表</h2>
+            </div>
         </div>
-    </div>
 
-    <!-- 院友基本資料 -->
-    <div class="info-bar">
-        <span>院友姓名：<input type="text" class="db-line-input" style="width: 180px;"></span>
-        <span>床號：<input type="text" class="db-line-input" style="width: 100px;"></span>
-        <span>性別：<input type="text" class="db-line-input" style="width: 80px;"></span>
-        <span>年齡：<input type="text" class="db-line-input" style="width: 80px;"></span>
-    </div>
+        <!-- 院友基本資料 -->
+        <div class="info-bar">
+            <span>院友姓名：<input type="text" class="db-line-input" style="width: 180px;"></span>
+            <span>床號：<input type="text" class="db-line-input" style="width: 100px;"></span>
+            <span>性別：<input type="text" class="db-line-input" style="width: 80px;"></span>
+            <span>年齡：<input type="text" class="db-line-input" style="width: 80px;"></span>
+        </div>
 
-    <!-- 主表格 -->
-    <table>
-        <thead>
-            <tr>
-                <th class="col-no"></th>
-                <th class="col-date">日期</th>
-                <th class="col-time">時間</th>
-                <th class="col-evt">事件</th>
-                <th class="col-treat">傷勢及治療</th>
-                <th class="col-hosp">
-                    <div class="hosp-header-box">
-                        <span>送院</span>
-                        <span>☑ ☒</span>
-                    </div>
-                </th>
-                <th class="col-sign">簽署</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- 迴圈生成 15 行 -->
-            <script>
-                for (let i = 1; i <= 15; i++) {
-                    document.write(`
-                    <tr>
-                        <td class="col-no">${i}</td>
-                        <td><input type="text" class="db-text-cell"></td>
-                        <td><input type="text" class="db-text-cell"></td>
-                        <td><textarea class="db-text-cell"></textarea></td>
-                        <td><textarea class="db-text-cell"></textarea></td>
-                        <td><input type="checkbox" class="db-checkbox"></td>
-                        <td><input type="text" class="db-text-cell"></td>
-                    </tr>
-                    `);
-                }
-            </script>
-        </tbody>
-    </table>
+        <!-- 主表格 -->
+        <table>
+            <thead>
+                <tr>
+                    <th class="col-no"></th>
+                    <th class="col-date">日期</th>
+                    <th class="col-time">時間</th>
+                    <th class="col-evt">事件</th>
+                    <th class="col-treat">傷勢及治療</th>
+                    <th class="col-hosp">
+                        <div class="hosp-header-box">
+                            <span>送院</span>
+                            <span>☑ ☒</span>
+                        </div>
+                    </th>
+                    <th class="col-sign">簽署</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 迴圈生成 15 行 -->
+                <script>
+                    for (let i = 1; i <= 15; i++) {
+                        document.write(`
+                        <tr>
+                            <td class="col-no">${i}</td>
+                            <td><input type="text" class="db-text-cell"></td>
+                            <td><input type="text" class="db-text-cell"></td>
+                            <td><textarea class="db-text-cell"></textarea></td>
+                            <td><textarea class="db-text-cell"></textarea></td>
+                            <td><input type="checkbox" class="db-checkbox"></td>
+                            <td><input type="text" class="db-text-cell"></td>
+                        </tr>
+                        `);
+                    }
+                </script>
+            </tbody>
+        </table>
+    </div>
 
     <!-- 頁尾 -->
     <div class="footer">

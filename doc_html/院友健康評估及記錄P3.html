@@ -4,11 +4,13 @@
     <meta charset="UTF-8">
     <title>院友健康評估及記錄(頁3修正) - 善頤(福群)</title>
     <style>
-        /* A4 紙張規格：左右 0.25 吋出血位，頂部上移 */
+        /* A4 紙張規格：頂部留 12mm 空白 */
         @page {
             size: A4;
-            margin: 5mm 0.25in 5mm 0.25in;
+            margin: 15mm 0.25in 10mm 0.25in;
         }
+
+        * { box-sizing: border-box; }
 
         body {
             font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
@@ -18,7 +20,8 @@
             color: #000;
         }
 
-        .container { width: 100%; box-sizing: border-box; }
+        .container { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; min-height: 271mm; } /* 可印 272mm (297-15-10)，275mm 會把頁尾擠到第 2 頁 */
+        .page-content { flex: 1 1 auto; }
 
         /* 章節標題 */
         .section-title { font-size: 15px; font-weight: bold; margin: 10px 0 2px 20px; }
@@ -42,8 +45,8 @@
         /* DB組件 */
         .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 12px; text-align: center; outline: none; }
 
-        /* 頁尾頁碼與代碼 */
-        .footer { display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; margin-top: 10px; }
+        /* 頁尾：緊隨內容，用 flex 推到底 */
+        .footer { margin-top: auto; padding-top: 10px; display: flex; justify-content: flex-end; position: relative; min-height: 30px; font-weight: bold; }
         .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
         .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
     </style>
@@ -51,6 +54,7 @@
 <body>
 
 <div class="container">
+    <div class="page-content">
 
     <!-- 7. 意識認知 -->
     <div class="section-title">7. 意識認知</div>
@@ -173,6 +177,8 @@
             <td></td>
         </tr>
     </table>
+
+    </div>
 
     <!-- 頁尾 -->
     <div class="footer">

@@ -21,7 +21,7 @@ const DEFAULT_PAGE_CONFIG: PageConfig = {
 };
 
 /** Normalize a margin shorthand to `top right bottom left` */
-const normalizeMargin = (margin: string): string => {
+export const normalizeMargin = (margin: string): string => {
   if (!margin) return '0 0 0 0';
   const parts = margin.trim().split(/\s+/);
   if (parts.length === 0) return '0 0 0 0';
@@ -189,7 +189,7 @@ export const groupPagesByConfig = (
 };
 
 /** Remove all @page blocks from CSS (including nested @top-center etc.) */
-const stripPageBlocks = (css: string): string => {
+export const stripPageBlocks = (css: string): string => {
   let out = '';
   let i = 0;
   const n = css.length;
@@ -396,7 +396,7 @@ ${parts.map((p) => p.body).join('\n')}
 };
 
 /** 每個 iframe 最多渲染的文件份數，超過則拆成多組依序列印 */
-export const MAX_PAGES_PER_IFRAME = 100;
+export const MAX_PAGES_PER_IFRAME = 30;
 
 /**
  * 依 `size + orientation` 把 pages 分組，同組文件合併到單一 iframe 列印。
@@ -404,12 +404,12 @@ export const MAX_PAGES_PER_IFRAME = 100;
  *   每份文件自己的 margin 改以容器 padding 還原，列印版面與原範本一致
  *   （唯一差異：自然溢出的續頁頂部少了原 @page margin 的留白，
  *    但續頁可用空間只會更多、不會裁切內容）
- * - 每組最多 MAX_PAGES_PER_IFRAME 份文件，超出再拆成多個 iframe
+ * - 每組最多 MAX_PAGES_PER_IFRAME 份文件（目前 30 份），超出再拆成多個 iframe
  * - 不同組/批次之間依序叫出列印對話框（上組關閉後才開下組）
  */
 export const printGroupedHtml = (pages: string[], iframeId: string): void => {
   const groups = groupPagesByConfig(pages);
-  // 每組再按 100 份一批切分
+  // 每組再按 30 份一批切分
   const batches: { config: PageConfig; pages: string[] }[] = [];
   for (const group of groups.values()) {
     for (let i = 0; i < group.pages.length; i += MAX_PAGES_PER_IFRAME) {
@@ -425,9 +425,11 @@ export const printGroupedHtml = (pages: string[], iframeId: string): void => {
     index++;
 
     const parts = batchPages.map((page, i) => {
-      // 用文件自己的 margin 作為容器 padding，還原原範本的可列印範圍
+      // 用文件自己的 margin 作為容器 padding，還原原範本的可列印範圍。
+      // 必須 box-sizing: border-box：範本的 `body { width:100% }` 會被 scope 成
+      // 容器本身，content-box 下總寬 = 100% + 左右 padding，會超出頁面裁掉右側
       const margin = extractPageConfig(page).margin;
-      const wrapperStyle = margin === '0 0 0 0' ? '' : `padding: ${margin};`;
+      const wrapperStyle = margin === '0 0 0 0' ? '' : `padding: ${margin}; box-sizing: border-box;`;
       return scopeDocumentHtml(page, `print-doc-${index - 1}-${i}`, 'strip', wrapperStyle);
     });
 

@@ -332,7 +332,6 @@ body {
     </div>
   </div>
   <div class="footer">
-    <div class="page-num">1</div>
     <div class="doc-code"></div>
   </div>
 </div>

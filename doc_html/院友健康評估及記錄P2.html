@@ -6,8 +6,10 @@
     <style>
         @page {
             size: A4;
-            margin: 5mm 0.25in;
+            margin: 15mm 0.25in 10mm 0.25in;
         }
+
+        * { box-sizing: border-box; }
 
         body {
             font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
@@ -17,7 +19,8 @@
             color: #000;
         }
 
-        .container { width: 100%; box-sizing: border-box; }
+        .container { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; min-height: 271mm; } /* 可印 272mm (297-15-10)，275mm 會把頁尾擠到第 2 頁 */
+        .page-content { flex: 1 1 auto; }
 
         /* 標題與小項 */
         .section-title { font-size: 18px; font-weight: bold; margin: 8px 0 3px 20px; }
@@ -45,8 +48,8 @@
             box-sizing: border-box;
         }
 
-        /* 頁尾 */
-        .footer { display: flex; justify-content: flex-end; position: relative; height: 30px; font-weight: bold; margin-top: 5px; }
+        /* 頁尾：緊隨內容，用 flex 推到底 */
+        .footer { margin-top: auto; padding-top: 5px; display: flex; justify-content: flex-end; position: relative; min-height: 30px; font-weight: bold; }
         .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
         .doc-code { font-size: 11px; font-weight: bold; align-self: flex-end; }
     </style>
@@ -54,6 +57,7 @@
 <body>
 
 <div class="container">
+    <div class="page-content">
 
     <!-- 4. 飲食營養 -->
     <div class="section-title">4. 飲食營養</div>
@@ -174,6 +178,8 @@
         <tr><th colspan="2" class="label-s">無反應</th><script>for(let i=0;i<6;i++) document.write('<td><input type="checkbox" class="db-checkbox"></td>');</script></tr>
         <tr><th colspan="2" class="label-s">其他</th><script>for(let i=0;i<6;i++) document.write('<td><input type="text" class="db-text-cell"></td>');</script></tr>
     </table>
+
+    </div>
 
     <!-- 頁尾 -->
     <div class="footer">

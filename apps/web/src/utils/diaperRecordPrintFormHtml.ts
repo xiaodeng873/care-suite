@@ -86,7 +86,7 @@ export const generateDiaperRecordPrintFormHtml = (patients: Patient[], yearMonth
 body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-serif; margin:0; padding:0; background:#f4f4f4; font-size:10px; color:#000; }
 .no-print { text-align:center; margin:10px; }
 .no-print button { padding:8px 20px; font-size:12px; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer; }
-.page { width:100%; height:198mm; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; }
+.page { width:100%; height:198mm; overflow:hidden; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; }
 .inner { width:100%; flex:1; display:flex; flex-direction:column; min-height:0; }
 .inst { text-align:center; font-size:16px; font-weight:bold; }
 .title { text-align:center; font-size:14px; font-weight:bold; margin:2px 0 4px; }
@@ -273,7 +273,7 @@ export const generateDiaperRecordFormForDateRange = (
 body { font-family:"Microsoft JhengHei","微軟正黑體","PingFang TC",sans-serif; margin:0; padding:0; background:#f4f4f4; font-size:10px; color:#000; }
 .no-print { text-align:center; margin:10px; }
 .no-print button { padding:8px 20px; font-size:12px; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer; }
-.page { width:100%; height:198mm; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; }
+.page { width:100%; height:198mm; overflow:hidden; margin:0 auto; background:#fff; page-break-after:always; display:flex; flex-direction:column; }
 .page:last-child { page-break-after: avoid; }
 .inner { width:100%; flex:1; display:flex; flex-direction:column; min-height:0; }
 .inst { text-align:center; font-size:16px; font-weight:bold; }

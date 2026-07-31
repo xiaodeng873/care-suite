@@ -17,7 +17,7 @@ import {
 //   日期 → 記錄日期；時間 → 記錄時間；體溫°C → 數值；備註 → 備註；記錄職員 → 記錄人員。
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ROWS_PER_PAGE = 30; // 每組資料列數（不計表頭），與 doc_html 一致
+const ROWS_PER_PAGE = 28; // 每組資料列數（不計表頭），與 doc_html 一致
 const SETS_PER_PAGE = 3; // 每頁「日期/時間/體溫/備註/記錄職員」組數
 const CELLS_PER_PAGE = ROWS_PER_PAGE * SETS_PER_PAGE; // 每頁可容納的記錄數 = 99
 const DOC_CODE = 'B26 FK (09.2016)';

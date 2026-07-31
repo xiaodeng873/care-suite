@@ -18,7 +18,7 @@ import {
 //   跟進行動(註) → 備註；記錄職員 → 記錄人員。
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ROWS_PER_PAGE = 30; // 每組資料列數（不計表頭），與 doc_html 一致
+const ROWS_PER_PAGE = 28; // 每組資料列數（不計表頭），與 doc_html 一致
 const SETS_PER_PAGE = 2; // 每頁「日期/體重/淨改變%/跟進行動/記錄職員」組數
 const CELLS_PER_PAGE = ROWS_PER_PAGE * SETS_PER_PAGE; // 每頁可容納的記錄數 = 66
 const DOC_CODE = 'B28 FK (11.2020)';

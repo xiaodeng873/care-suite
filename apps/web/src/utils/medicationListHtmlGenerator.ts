@@ -395,11 +395,14 @@ export async function generateMedicationListHtml(
     startDate?: string;
     endDate?: string;
     allowBlankPage?: boolean;
+    /** 指定只產生短期或長期藥；未指定則兩者都產生 */
+    termType?: MedicationTermType;
   } = {}
 ): Promise<string> {
   const facility = await getFacilitySettings();
   const facilityNameZh = facility.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
   const allowBlankPage = options.allowBlankPage ?? false;
+  const termType = options.termType;
 
   const pages: string[] = [];
   const usedTemplates: string[] = [];
@@ -413,15 +416,15 @@ export async function generateMedicationListHtml(
     const shortTerm = filtered.filter(p => classifyMedicationTerm(p) === 'short');
     const longTerm = filtered.filter(p => classifyMedicationTerm(p) === 'long');
 
-    const addPages = (prescriptions: MedicationPrescription[], termType: MedicationTermType) => {
-      const template = termType === 'short' ? shortTermTemplate : longTermTemplate;
+    const addPages = (prescriptions: MedicationPrescription[], type: MedicationTermType) => {
+      const template = type === 'short' ? shortTermTemplate : longTermTemplate;
       if (prescriptions.length === 0) {
         if (allowBlankPage) {
           if (!usedTemplates.includes(template)) {
             usedTemplates.push(template);
           }
-          const label = termType === 'short' ? '短期藥' : '長期藥';
-          pages.push(renderPage(template, patient, [], termType, 1, 1, facilityNameZh, label));
+          const label = type === 'short' ? '短期藥' : '長期藥';
+          pages.push(renderPage(template, patient, [], type, 1, 1, facilityNameZh, label));
         }
         return;
       }
@@ -429,15 +432,21 @@ export async function generateMedicationListHtml(
         usedTemplates.push(template);
       }
       const totalPages = Math.ceil(prescriptions.length / 24);
-      const label = termType === 'short' ? '短期藥' : '長期藥';
+      const label = type === 'short' ? '短期藥' : '長期藥';
       for (let i = 0; i < totalPages; i++) {
         const pagePrescriptions = prescriptions.slice(i * 24, (i + 1) * 24);
-        pages.push(renderPage(template, patient, pagePrescriptions, termType, i + 1, totalPages, facilityNameZh, label));
+        pages.push(renderPage(template, patient, pagePrescriptions, type, i + 1, totalPages, facilityNameZh, label));
       }
     };
 
-    addPages(shortTerm, 'short');
-    addPages(longTerm, 'long');
+    if (termType === 'short') {
+      addPages(shortTerm, 'short');
+    } else if (termType === 'long') {
+      addPages(longTerm, 'long');
+    } else {
+      addPages(shortTerm, 'short');
+      addPages(longTerm, 'long');
+    }
   }
 
   return assembleDocument(pages, usedTemplates);

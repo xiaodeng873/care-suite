@@ -216,9 +216,9 @@ body { font-family:"DFKai-SB","BiauKai","標楷體",serif; margin:0; padding:0; 
 table { width:100%; border-collapse:collapse; table-layout:fixed; }
 /* 統一字體：左側表頭與評估值欄同大小（只 th 加粗） */
 th, td { border:1px solid black; text-align:center; vertical-align:middle; padding:0 2px; font-size:14px; line-height:1.05; }
-.col-m { width:9mm; }
-.col-s { width:17mm; }
-.col-e { width:auto; }
+.col-m { width:8mm; }
+.col-s { width:15mm; }
+.col-e { width:25mm; }
 .bold { font-weight:bold; }
 /* 符合項目：只顯示已選擇的文字 */
 .vc { font-size:14px; padding:0 2px; }
@@ -227,8 +227,8 @@ th, td { border:1px solid black; text-align:center; vertical-align:middle; paddi
 /* 相片 */
 .db-photo-square { width:90%; aspect-ratio:1/1; border:1px dashed #ccc; margin:1px auto; display:flex; align-items:center; justify-content:center; font-size:7px; color:#aaa; background:#fafafa; }
 /* 人體圖 */
-.body-diagram-wrap { position:relative; display:inline-block; width:100%; margin-top:6px; }
-.body-diagram-img { width:100%; display:block; }
+.body-diagram-wrap { position:relative; display:block; width:100%; margin-top:6px; overflow:hidden; }
+.body-diagram-img { width:100%; max-width:100%; height:auto; display:block; }
 .wound-marker { position:absolute; transform:translate(-50%,-50%); pointer-events:none; width:16px; height:16px; }
 .wound-marker::before,.wound-marker::after { content:''; position:absolute; width:100%; height:3px; background:#000 !important; top:50%; left:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 .wound-marker::before { transform:translateY(-50%) rotate(45deg); }
@@ -254,10 +254,18 @@ const buildPage = (
 
   // 計算「每星期次數」：每天次數式 = 7 ÷ 間隔天數（每天 1 次 = 7/1 = 7 次/週）
   // weekly 單位則取指定星期幾的數量
+  // 無明確頻率資料時：兩個選項都不預選，第二個選項以底線留空（對應 doc_html 範本設計）
   const freqUnit = wound.assessment_frequency_unit ?? 'daily';
-  const timesPerWeek = freqUnit === 'weekly'
-    ? (wound.assessment_specific_days_of_week?.length || 1)
-    : Math.round(7 / (wound.assessment_frequency_value ?? 7));
+  const hasFreq = freqUnit === 'weekly'
+    ? (wound.assessment_specific_days_of_week?.length ?? 0) > 0
+    : wound.assessment_frequency_value != null;
+  const timesPerWeek = !hasFreq ? null
+    : freqUnit === 'weekly'
+      ? (wound.assessment_specific_days_of_week?.length ?? 1)
+      : Math.round(7 / (wound.assessment_frequency_value ?? 7));
+  const timesPerWeekText = timesPerWeek != null && timesPerWeek > 1
+    ? String(timesPerWeek)
+    : '<span class="db-text-underline" style="min-width:25px;"></span>';
 
   return `<div class="container"${pageNum > 1 ? ' style="page-break-before:always;"' : ''}>
   <div class="header">
@@ -273,7 +281,7 @@ const buildPage = (
       <h2>傷口評估記錄表</h2>
       <div class="bold" style="font-size:14px;margin-top:2px;">
         <span style="margin-right:6px;"><input type="checkbox"${timesPerWeek === 1 ? ' checked' : ''}>每星期 1 次</span> / 
-        <span><input type="checkbox"${timesPerWeek !== 1 ? ' checked' : ''}>每星期 ${timesPerWeek} 次</span>
+        <span><input type="checkbox"${timesPerWeek != null && timesPerWeek > 1 ? ' checked' : ''}>每星期 ${timesPerWeekText} 次</span>
       </div>
     </div>
   </div>

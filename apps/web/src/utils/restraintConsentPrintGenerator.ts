@@ -193,7 +193,9 @@ export const generateRestraintConsentPrintHtml = (
 <title>使用約束措施的評估及同意書</title>
 <style>
 /* ── 列印設定 ── */
-@page { size: A4; margin: 5mm 12mm 10mm 12mm; }
+/* 頂距唔放 @page，改用每頁自己的 padding-top：bundle 合併列印時 @page margin 會被剝走，
+   續頁（page-2）拎唔到頂距；padding-top 跟住個 page div，兩條列印路徑每頁都有 15mm */
+@page { size: A4; margin: 0 12mm 10mm 12mm; }
 
 /* ── 螢幕預覽（含固定 width，防列印後 cascade 競爭） ── */
 @media screen {
@@ -221,6 +223,7 @@ body {
 .page {
   background: #fff;
   box-sizing: border-box;
+  padding-top: 15mm; /* 每頁頂部留白（見 @page 註解） */
 }
 .a4-container { width: 100%; box-sizing: border-box; position: relative; }
 
@@ -254,6 +257,9 @@ body {
 
 /* 雙線大框 */
 .double-border-box { border:3px double black; width:100%; box-sizing:border-box; }
+/* P1 大框不可跨頁折斷：否則框的底邊會碎裂到第 2 頁頂部，形成一條多餘橫線。
+   P1 大框設計上本就完整位於第 1 頁（第 2 頁另有獨立大框），avoid 只係保險 */
+.page-1 .double-border-box { break-inside:avoid; page-break-inside:avoid; }
 .double-border-box.bottom-margin { margin-bottom:8px; }
 .section-block { border-bottom:3px double black; padding:4px 6px; }
 .section-block:last-child { border-bottom:none; }
@@ -682,15 +688,16 @@ table.main-table th, table.main-table td {
 </div><!-- end pw -->
 
 <script>
-/* 自動微調：偵測 P1 是否超出單頁可列印高度，若超出則按比例縮放（置中，避免靠左），
-   使其剛好容納於一張 A4 內，不會溢出到第 2 頁。 */
+/* 自動微調：偵測每頁是否超出單頁可列印高度，若超出則按比例縮放（置中，避免靠左），
+   使其剛好容納於一張 A4 內，不會溢出到下一頁。 */
 (function () {
   function fitAll() {
-    var pages = document.querySelectorAll('.page-1');
+    var pages = document.querySelectorAll('.page-1, .page-2');
     if (!pages.length) return;
-    // 單張 A4 可列印內容高度 = 297mm - 上邊距 5mm - 下邊距 10mm = 282mm
+    // 單張 A4 可列印內容高度 = 297mm - 頂距 15mm - 下邊距 10mm = 272mm，
+    // 再用 271mm 留 1mm 保險，避免 sub-pixel 捨入令 .page 超界碎裂到下一頁
     var probe = document.createElement('div');
-    probe.style.cssText = 'position:absolute;visibility:hidden;width:1px;height:282mm;';
+    probe.style.cssText = 'position:absolute;visibility:hidden;width:1px;height:271mm;';
     document.body.appendChild(probe);
     var avail = probe.offsetHeight;
     probe.remove();
@@ -707,7 +714,9 @@ table.main-table th, table.main-table td {
         var k = avail / h;
         inner.style.transformOrigin = 'top center';
         inner.style.transform = 'scale(' + k + ')';
-        page.style.height = (h * k) + 'px';
+        // .page 有 padding-top（每頁頂距），box-sizing:border-box 下要補回，否則內容底部被裁
+        var padTop = parseFloat(window.getComputedStyle(page).paddingTop) || 0;
+        page.style.height = (h * k + padTop) + 'px';
         page.style.overflow = 'hidden';
       }
     });

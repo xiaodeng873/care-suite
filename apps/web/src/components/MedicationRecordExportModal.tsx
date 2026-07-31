@@ -391,10 +391,20 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         }
 
         if (shouldExportPersonalMedicationList) {
-          exportMedicationListToHtml([{ ...currentPatient.patient, prescriptions: currentPatientPrescriptionsToExport }], {
-            startDate: listStartDate,
-            endDate: listEndDate,
+          const currentListPrescriptions = currentPatientPrescriptionsToExport.filter(p => {
+            const term = classifyMedicationTerm(p);
+            if (term === 'short' && !includeShortTerm) return false;
+            if (term === 'long' && !includeLongTerm) return false;
+            return true;
           });
+          if (currentListPrescriptions.length === 0) {
+            alert('所選院友沒有符合長期/短期篩選的處方，無法匯出個人藥物記錄');
+          } else {
+            exportMedicationListToHtml([{ ...currentPatient.patient, prescriptions: currentListPrescriptions }], {
+              startDate: listStartDate,
+              endDate: listEndDate,
+            });
+          }
         }
       } else {
         const selectedPatients = activePatients

@@ -6,7 +6,7 @@
     <style>
         @page {
             size: A4;
-            margin: 10mm; /* 壓縮邊距以確保一頁 A4 完成 */
+            margin: 15mm 10mm 10mm 10mm; /* 頂部留 12mm 空白才開始標題 */
         }
         body {
             font-family: "MingLiU", "PMingLiU", "Microsoft JhengHei", serif;
@@ -17,7 +17,7 @@
             color: #000;
         }
 
-        /* 核心：實現跨頁重複 Header/Footer 的結構 */
+        /* 核心：實現跨頁重複 Header 的結構 */
         .print-wrapper {
             width: 100%;
             border-collapse: collapse;
@@ -27,10 +27,6 @@
         .page-header {
             display: table-header-group;
         }
-        /* 每頁底部的 Footer */
-        .page-footer {
-            display: table-footer-group;
-        }
 
         .header-content {
             display: flex;
@@ -39,17 +35,9 @@
             font-size: 12px;
         }
 
-        .footer-content {
-            text-align: center;
-            padding-top: 12px;
-            font-size: 11px;
-        }
-
         /* 確保部分內容不會被截斷 */
         .section-block {
-            page-break-inside: avoid;
-            break-inside: avoid;
-            margin-bottom: 16px;
+            margin-bottom: 6px;
             display: block;
         }
 
@@ -60,13 +48,13 @@
         .bordered-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 12px;
+            margin-bottom: 4px;
         }
         .bordered-table th, .bordered-table td {
             border: 1px solid black;
-            padding: 5px;
+            padding: 3px;
             text-align: center;
-            height: 26px;
+            height: 22px;
         }
 
         table.layout-table {
@@ -255,17 +243,6 @@
             </td>
         </tr>
     </tbody>
-
-    <!-- 每頁重複的頁尾 -->
-    <tfoot class="page-footer">
-        <tr>
-            <td>
-                <div class="footer-content">
-                    附件 12.2 - 1
-                </div>
-            </td>
-        </tr>
-    </tfoot>
 </table>
 
 </body>

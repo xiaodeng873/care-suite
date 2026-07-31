@@ -264,13 +264,13 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
         return async (ctx) => {
           const patient = ctxPatient(ctx);
           if (ctx.contentMode !== 'data') {
-            return mod.generateMedicationListHtml([{ ...patient, prescriptions: [] }], { allowBlankPage: true });
+            return mod.generateMedicationListHtml([{ ...patient, prescriptions: [] }], { allowBlankPage: true, termType: 'short' });
           }
           const db = await import('../lib/database');
           const prescriptions = await db.getPrescriptions(ctx.patient.院友id);
           const shortTerm = (prescriptions || []).filter(p => mod.classifyMedicationTerm(p) === 'short');
           if (shortTerm.length === 0) return '';
-          return mod.generateMedicationListHtml([{ ...patient, prescriptions: shortTerm }], { startDate: ctx.startDate || undefined, endDate: ctx.endDate || undefined });
+          return mod.generateMedicationListHtml([{ ...patient, prescriptions: shortTerm }], { startDate: ctx.startDate || undefined, endDate: ctx.endDate || undefined, termType: 'short' });
         };
       }
       case 'medication_list_long': {
@@ -278,13 +278,13 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
         return async (ctx) => {
           const patient = ctxPatient(ctx);
           if (ctx.contentMode !== 'data') {
-            return mod.generateMedicationListHtml([{ ...patient, prescriptions: [] }], { allowBlankPage: true });
+            return mod.generateMedicationListHtml([{ ...patient, prescriptions: [] }], { allowBlankPage: true, termType: 'long' });
           }
           const db = await import('../lib/database');
           const prescriptions = await db.getPrescriptions(ctx.patient.院友id);
           const longTerm = (prescriptions || []).filter(p => mod.classifyMedicationTerm(p) === 'long');
           if (longTerm.length === 0) return '';
-          return mod.generateMedicationListHtml([{ ...patient, prescriptions: longTerm }], { startDate: ctx.startDate || undefined, endDate: ctx.endDate || undefined });
+          return mod.generateMedicationListHtml([{ ...patient, prescriptions: longTerm }], { startDate: ctx.startDate || undefined, endDate: ctx.endDate || undefined, termType: 'long' });
         };
       }
       case 'temperature_record': {
@@ -591,7 +591,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
           });
         }
         if (Array.isArray(html)) {
-          pages.push(...html.filter(h => h.trim()));
+          pages.push(...html.filter(Boolean));
         } else if (html) {
           pages.push(html);
         } else if (contentMode === 'data' && !isBedhead) {

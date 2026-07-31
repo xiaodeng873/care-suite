@@ -216,8 +216,8 @@ export const generateHygieneRecordPrintFormHtml = (
   table.main-table th, table.main-table td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0; }
   table.main-table th { font-size: 11px; font-weight: bold; background-color: #fff; height: 110px; line-height: 1.1; }
   .vertical-th { writing-mode: vertical-rl; text-orientation: upright; white-space: nowrap; text-align: center; vertical-align: middle; font-size: 14px; font-weight: bold; padding: 10px 0; line-height: 1.0; }
-  .data-row { height: 29px; }
-  .db-text-cell { width: 100%; height: 32px; border: none; background: transparent; font-family: inherit; font-size: 12px; text-align: center; outline: none; display: block; box-sizing: border-box; }
+  .data-row { height: 27px; }
+  .db-text-cell { width: 100%; height: 25px; border: none; background: transparent; font-family: inherit; font-size: 12px; text-align: center; outline: none; display: block; box-sizing: border-box; }
   .legend-section { margin-top: 6px; font-size: 11px; font-weight: bold; line-height: 1.4; text-align: left; }
   .footer { margin-top: auto; position: relative; height: 30px; display: flex; justify-content: flex-end; }
   .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
