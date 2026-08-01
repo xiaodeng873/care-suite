@@ -2716,10 +2716,10 @@ const MedicationWorkflow: React.FC = () => {
                       <th className="w-10 px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         行號
                       </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '110px'}}>
+                      <th className="px-1 py-3 text-left text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider leading-tight" style={{width: '70px'}}>
                         開始 / 處方日期
                       </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '200px'}}>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '235px'}}>
                         藥物名稱及劑型
                       </th>
                       <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '76px'}}>
@@ -3093,11 +3093,13 @@ const MedicationWorkflow: React.FC = () => {
                               {isFirstRow && (
                                 <td
                                   rowSpan={rowSpanCount}
-                                  className="px-3 whitespace-nowrap text-xs text-gray-700 dark:text-gray-200"
+                                  className="px-1 text-[10px] leading-tight text-gray-700 dark:text-gray-200"
                                   style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
                                 >
-                                  <div>開始日期：{prescription.start_date ? formatDisplayDate(prescription.start_date) : ''}</div>
-                                  <div>處方日期：{prescription.prescription_date ? formatDisplayDate(prescription.prescription_date) : ''}</div>
+                                  <div>開始日期：</div>
+                                  <div>{prescription.start_date ? formatDisplayDate(prescription.start_date) : ''}</div>
+                                  <div>處方日期：</div>
+                                  <div>{prescription.prescription_date ? formatDisplayDate(prescription.prescription_date) : ''}</div>
                                 </td>
                               )}
                               {/* ── rowspan 欄：藥物名稱及劑型 ── */}
