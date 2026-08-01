@@ -2717,15 +2717,15 @@ const MedicationWorkflow: React.FC = () => {
                         行號
                       </th>
                       <th className="px-1 py-3 text-left text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider leading-tight" style={{width: '70px'}}>
-                        開始 / 處方日期
+                        藥物日期
                       </th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '235px'}}>
                         藥物名稱及劑型
                       </th>
-                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '76px'}}>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '29px'}}>
                         途徑/次數
                       </th>
-                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '92px', minWidth: '88px'}}>
+                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '50px', minWidth: '50px'}}>
                         服用時間
                       </th>
                     {weekDates.map((date) => {
