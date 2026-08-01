@@ -77,6 +77,22 @@ async function main() {
   let deleted = 0;
   let failed = 0;
   const BATCH = 100;
+  const toDeleteIds = toDelete.map(d => d.id);
+
+  // 先刪除這些處方的工作流程記錄，避免殘留錯誤記錄
+  let deletedWorkflows = 0;
+  let failedWorkflows = 0;
+  for (let i = 0; i < toDeleteIds.length; i += BATCH) {
+    const batchIds = toDeleteIds.slice(i, i + BATCH);
+    const { error: wfError } = await supabase.from('medication_workflow_records').delete().in('prescription_id', batchIds);
+    if (wfError) {
+      console.error(`刪除工作流程記錄批次 ${i + 1}-${i + batchIds.length} 失敗：${wfError.message}`);
+      failedWorkflows += batchIds.length;
+    } else {
+      deletedWorkflows += batchIds.length;
+    }
+  }
+
   for (let i = 0; i < toDelete.length; i += BATCH) {
     const batchIds = toDelete.slice(i, i + BATCH).map(d => d.id);
     const { error } = await supabase.from('new_medication_prescriptions').delete().in('id', batchIds);
@@ -87,7 +103,8 @@ async function main() {
       deleted += batchIds.length;
     }
   }
-  console.log(`\n實際刪除：${deleted} 筆，失敗：${failed} 筆`);
+  console.log(`\n實際刪除處方：${deleted} 筆，失敗：${failed} 筆`);
+  console.log(`實際刪除工作流程記錄：${deletedWorkflows} 筆，失敗：${failedWorkflows} 筆`);
 }
 
 main().catch(err => {

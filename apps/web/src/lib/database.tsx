@@ -835,6 +835,10 @@ export interface MedicationPrescription {
   is_long_term?: boolean;
   // 檢測規則（可能為空陣列）
   inspection_rules?: MedicationInspectionRule[];
+  // 最近完成給藥的日期（自動抓取）
+  last_taken_date?: string;
+  // 是否在備藥及給藥記錄中顯示上次服用日期
+  show_last_taken_in_record?: boolean;
   created_at: string;
   updated_at: string;
 }

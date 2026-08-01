@@ -62,6 +62,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       start_time: prescription?.start_time || getHongKongTime(),
       end_date: prescription?.end_date || '',
       end_time: prescription?.end_time || '',
+      last_taken_date: prescription?.last_taken_date || '',
+      show_last_taken_in_record: prescription?.show_last_taken_in_record || false,
       duration_days: prescription?.duration_days || '',
       dosage_form: prescription?.dosage_form || '',
       administration_route: prescription?.administration_route || '',
@@ -120,6 +122,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
   );
 
   const [newTimeSlot, setNewTimeSlot] = useState('');
+  const [lastTakenDate, setLastTakenDate] = useState<string>(prescription?.last_taken_date || '');
 
   const [ocrFilledFields, setOcrFilledFields] = useState<Set<string>>(new Set());
   const [fieldConfidences, setFieldConfidences] = useState<Record<string, number>>({});
@@ -272,6 +275,29 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     if (!admissionDateIso) return;
     setFormData(prev => (prev.start_date === admissionDateIso ? prev : { ...prev, start_date: admissionDateIso }));
   }, [startDateMode, admissionDateIso]);
+
+  // 自動抓取最近服用日期（從 workflow records 中找最近一次完成給藥的日期）
+  useEffect(() => {
+    if (!prescription?.id) return;
+    const fetchLastTaken = async () => {
+      const { data, error } = await supabase
+        .from('medication_workflow_records')
+        .select('scheduled_date')
+        .eq('prescription_id', prescription.id)
+        .eq('dispensing_status', 'completed')
+        .order('scheduled_date', { ascending: false })
+        .limit(1);
+      if (error) {
+        console.warn('抓取最近服用日期失敗:', error);
+        return;
+      }
+      if (data && data.length > 0) {
+        setLastTakenDate(data[0].scheduled_date);
+        setFormData(prev => ({ ...prev, last_taken_date: data[0].scheduled_date }));
+      }
+    };
+    fetchLastTaken();
+  }, [prescription?.id]);
 
   const addInspectionRule = () => {
     setInspectionRules(prev => [...prev, {
@@ -473,6 +499,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         start_time: formData.start_time,
         end_date: formData.end_date || null,
         end_time: formData.end_time || null,
+        last_taken_date: formData.last_taken_date || null,
+        show_last_taken_in_record: formData.show_last_taken_in_record || false,
         duration_days: formData.duration_days === '' ? null : (typeof formData.duration_days === 'string' ? parseInt(formData.duration_days) : formData.duration_days),
         dosage_form: formData.dosage_form,
         administration_route: formData.administration_route,
@@ -529,7 +557,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       const isColumnMissing = msg.includes('column') && (msg.includes('does not exist') || msg.includes('unknown'));
       if (isColumnMissing) {
         try {
-          const { medication_source_specialty: _sp, estimated_end_date: _ed, is_long_term: _ilt, ...fallbackData } = prescriptionData as any;
+          const { medication_source_specialty: _sp, estimated_end_date: _ed, is_long_term: _ilt, last_taken_date: _ltd, show_last_taken_in_record: _slt, ...fallbackData } = prescriptionData as any;
           if (prescription && prescription.id) {
             await updatePrescription({ id: prescription.id, ...fallbackData });
           } else {
@@ -881,6 +909,33 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   onChange={handleChange}
                   className="form-input"
                 />
+              </div>
+
+              <div>
+                <label className="form-label">
+                  <Calendar className="h-4 w-4 inline mr-1" />
+                  上次服用日期
+                </label>
+                <input
+                  type="date"
+                  value={lastTakenDate}
+                  readOnly
+                  className="form-input bg-gray-50 text-gray-600"
+                  title="自動抓取最近完成給藥的日期"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="show_last_taken_in_record"
+                    checked={formData.show_last_taken_in_record}
+                    onChange={handleChange}
+                    className="accent-blue-600 h-4 w-4"
+                  />
+                  將上次服用日期映射到備藥及給藥記錄
+                </label>
               </div>
             </div>
 

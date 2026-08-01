@@ -200,13 +200,15 @@ const PrescriptionManagement: React.FC = () => {
     const currentPrescriptions = currentPatient ? 
       currentPatient.prescriptions[activeTab] : [];
     
-    // 應用途徑過濾：外用包含原本外用 + 所有非口服/注射途徑
+    // 應用途徑過濾：注射包含所有注射類（皮下、肌肉等），外用為非口服/注射
     let filteredPrescriptions = currentPrescriptions;
     if (selectedRoute !== '全部') {
       if (selectedRoute === '外用') {
         filteredPrescriptions = currentPrescriptions.filter(p =>
-          p.administration_route && !['口服', '注射'].includes(p.administration_route)
+          p.administration_route && p.administration_route !== '口服' && !p.administration_route.includes('注射')
         );
+      } else if (selectedRoute === '注射') {
+        filteredPrescriptions = currentPrescriptions.filter(p => p.administration_route && p.administration_route.includes('注射'));
       } else {
         filteredPrescriptions = currentPrescriptions.filter(p => p.administration_route === selectedRoute);
       }
@@ -215,8 +217,8 @@ const PrescriptionManagement: React.FC = () => {
     return {
       全部: currentPrescriptions.length,
       口服: currentPrescriptions.filter(p => p.administration_route === '口服').length,
-      外用: currentPrescriptions.filter(p => p.administration_route && !['口服', '注射'].includes(p.administration_route)).length,
-      注射: currentPrescriptions.filter(p => p.administration_route === '注射').length,
+      外用: currentPrescriptions.filter(p => p.administration_route && p.administration_route !== '口服' && !p.administration_route.includes('注射')).length,
+      注射: currentPrescriptions.filter(p => p.administration_route && p.administration_route.includes('注射')).length,
       filtered: filteredPrescriptions.length
     };
   }, [currentPatient, activeTab, selectedRoute]);
@@ -327,13 +329,15 @@ const PrescriptionManagement: React.FC = () => {
     const currentPrescriptions = currentPatient ? 
       currentPatient.prescriptions[activeTab] : [];
     
-    // 應用途徑過濾：外用包含原本外用 + 所有非口服/注射途徑
+    // 應用途徑過濾：注射包含所有注射類（皮下、肌肉等），外用為非口服/注射
     let filteredPrescriptions = currentPrescriptions;
     if (selectedRoute !== '全部') {
       if (selectedRoute === '外用') {
         filteredPrescriptions = currentPrescriptions.filter(p =>
-          p.administration_route && !['口服', '注射'].includes(p.administration_route)
+          p.administration_route && p.administration_route !== '口服' && !p.administration_route.includes('注射')
         );
+      } else if (selectedRoute === '注射') {
+        filteredPrescriptions = currentPrescriptions.filter(p => p.administration_route && p.administration_route.includes('注射'));
       } else {
         filteredPrescriptions = currentPrescriptions.filter(p => p.administration_route === selectedRoute);
       }
@@ -358,13 +362,15 @@ const PrescriptionManagement: React.FC = () => {
     const currentPrescriptions = currentPatient ? 
       currentPatient.prescriptions[activeTab] : [];
     
-    // 應用途徑過濾：外用包含原本外用 + 所有非口服/注射途徑
+    // 應用途徑過濾：注射包含所有注射類（皮下、肌肉等），外用為非口服/注射
     let filteredPrescriptions = currentPrescriptions;
     if (selectedRoute !== '全部') {
       if (selectedRoute === '外用') {
         filteredPrescriptions = currentPrescriptions.filter(p =>
-          p.administration_route && !['口服', '注射'].includes(p.administration_route)
+          p.administration_route && p.administration_route !== '口服' && !p.administration_route.includes('注射')
         );
+      } else if (selectedRoute === '注射') {
+        filteredPrescriptions = currentPrescriptions.filter(p => p.administration_route && p.administration_route.includes('注射'));
       } else {
         filteredPrescriptions = currentPrescriptions.filter(p => p.administration_route === selectedRoute);
       }
@@ -940,8 +946,10 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
   if (selectedRoute !== '全部') {
     if (selectedRoute === '外用') {
       currentPrescriptions = currentPrescriptions.filter(p =>
-        p.administration_route && !['口服', '注射'].includes(p.administration_route)
+        p.administration_route && p.administration_route !== '口服' && !p.administration_route.includes('注射')
       );
+    } else if (selectedRoute === '注射') {
+      currentPrescriptions = currentPrescriptions.filter(p => p.administration_route && p.administration_route.includes('注射'));
     } else {
       currentPrescriptions = currentPrescriptions.filter(p => p.administration_route === selectedRoute);
     }

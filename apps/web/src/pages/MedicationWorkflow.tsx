@@ -2560,7 +2560,7 @@ const MedicationWorkflow: React.FC = () => {
   return (
     <div className="-m-4 lg:-m-6">
       {/* 頁面標題與控制區 */}
-      <div className="sticky top-16 bg-white z-[25] py-2 px-4 lg:px-6 border-b border-gray-200">
+      <div className="sticky top-16 bg-white dark:bg-slate-800 z-[25] py-2 px-4 lg:px-6 border-b border-gray-200 dark:border-slate-700">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* 左側：eMAR + 院友資訊卡 同一行 */}
           <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
@@ -2683,13 +2683,13 @@ const MedicationWorkflow: React.FC = () => {
               {filteredPrescriptions.length > 0 ? (
                 <div className="relative">
                   {/* 步驟 Tab（執藥 / 核藥 / 派藥） */}
-                  <div className="bg-white border-b-2 border-gray-200">
+                  <div className="bg-white dark:bg-slate-800 border-b-2 border-gray-200 dark:border-slate-700">
                     <div className="flex">
                       {(
                         [
-                          { step: 'preparation', label: '執藥', icon: <FastForward className="h-4 w-4" />, active: 'border-blue-500 text-blue-600 bg-blue-50', inactive: 'hover:text-blue-500' },
-                          { step: 'verification', label: '核藥', icon: <CheckSquare className="h-4 w-4" />, active: 'border-green-500 text-green-600 bg-green-50', inactive: 'hover:text-green-500' },
-                          { step: 'dispensing',   label: '派藥', icon: <Users className="h-4 w-4" />,       active: 'border-purple-500 text-purple-600 bg-purple-50', inactive: 'hover:text-purple-500' },
+                          { step: 'preparation', label: '執藥', icon: <FastForward className="h-4 w-4" />, active: 'border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/40', inactive: 'hover:text-blue-500 dark:text-gray-400' },
+                          { step: 'verification', label: '核藥', icon: <CheckSquare className="h-4 w-4" />, active: 'border-green-500 text-green-600 bg-green-50 dark:bg-green-900/40', inactive: 'hover:text-green-500 dark:text-gray-400' },
+                          { step: 'dispensing',   label: '派藥', icon: <Users className="h-4 w-4" />,       active: 'border-purple-500 text-purple-600 bg-purple-50 dark:bg-purple-900/40', inactive: 'hover:text-purple-500 dark:text-gray-400' },
                         ] as const
                       ).map(({ step, label, icon, active, inactive }) => (
                         <button
@@ -2708,24 +2708,24 @@ const MedicationWorkflow: React.FC = () => {
                   </div>
                   <div
                     ref={tableContainerRef}
-                    className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-400px)]"
+                    className="overflow-x-auto"
                   >
                 <table className="w-full min-w-[768px] mw-table">
-                  <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
+                  <thead className="bg-gray-50 dark:bg-slate-700 sticky top-0 z-10 shadow-sm">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="w-10 px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         行號
                       </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '110px'}}>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '110px'}}>
                         開始 / 處方日期
                       </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '150px'}}>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '200px'}}>
                         藥物名稱及劑型
                       </th>
-                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '76px'}}>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '76px'}}>
                         途徑/次數
                       </th>
-                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '92px', minWidth: '88px'}}>
+                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '92px', minWidth: '88px'}}>
                         服用時間
                       </th>
                     {weekDates.map((date) => {
@@ -2797,7 +2797,7 @@ const MedicationWorkflow: React.FC = () => {
                           key={date}
                           data-date={date}
                           className={`px-1 py-3 text-center text-xs font-medium uppercase tracking-wider transition-colors relative ${
-                            isSelectedDate ? 'bg-blue-100 text-blue-800' : 'text-gray-500 hover:bg-blue-50'
+                            isSelectedDate ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-slate-700'
                           }`}
                         >
                           <div
@@ -2820,7 +2820,7 @@ const MedicationWorkflow: React.FC = () => {
                           {isMenuOpen && (
                             <Portal>
                               <div
-                                className="fixed w-56 bg-white rounded-lg shadow-xl border-2 border-blue-300"
+                                className="fixed w-56 bg-white dark:bg-slate-800 rounded-lg shadow-xl border-2 border-blue-300 dark:border-blue-700"
                                 ref={dateMenuRef}
                                 style={{
                                   bottom: menuPosition.bottom !== undefined ? `${menuPosition.bottom}px` : 'auto',
@@ -2830,9 +2830,9 @@ const MedicationWorkflow: React.FC = () => {
                               >
                                 {/* 截止時間設定（執藥/核藥時顯示） */}
                                 {(workflowStep === 'preparation' || workflowStep === 'verification') && (
-                                  <div className="px-3 py-2 border-b border-gray-100 flex items-center gap-2">
-                                    <Clock className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                                    <span className="text-xs text-gray-500 flex-shrink-0">截止時間</span>
+                                  <div className="px-3 py-2 border-b border-gray-100 dark:border-slate-700 flex items-center gap-2">
+                                    <Clock className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">截止時間</span>
                                     <input
                                       type="time"
                                       value={batchCutoffTime}
@@ -2848,7 +2848,7 @@ const MedicationWorkflow: React.FC = () => {
                                         }
                                       }}
                                       onClick={(e) => e.stopPropagation()}
-                                      className="ml-auto text-xs border border-gray-200 rounded px-1 py-0.5 w-20 text-center"
+                                      className="ml-auto text-xs border border-gray-200 dark:border-slate-600 rounded px-1 py-0.5 w-20 text-center bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                                       disabled={loadingCutoffTime}
                                     />
                                   </div>
@@ -2866,8 +2866,8 @@ const MedicationWorkflow: React.FC = () => {
                                         disabled={!canPrepareBefore || oneClickProcessing.preparation}
                                         className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${
                                           canPrepareBefore && !oneClickProcessing.preparation
-                                            ? 'hover:bg-gray-100 text-gray-700'
-                                            : 'text-gray-400 cursor-not-allowed'
+                                            ? 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200'
+                                            : 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                         }`}
                                       >
                                         <FastForward className="h-3.5 w-3.5 flex-shrink-0" />
@@ -2883,8 +2883,8 @@ const MedicationWorkflow: React.FC = () => {
                                         disabled={!canPrepareAfter || oneClickProcessing.preparation}
                                         className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${
                                           canPrepareAfter && !oneClickProcessing.preparation
-                                            ? 'hover:bg-gray-100 text-gray-700'
-                                            : 'text-gray-400 cursor-not-allowed'
+                                            ? 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200'
+                                            : 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                         }`}
                                       >
                                         <FastForward className="h-3.5 w-3.5 flex-shrink-0" />
@@ -2898,10 +2898,10 @@ const MedicationWorkflow: React.FC = () => {
                                           setSelectedDateForMenu(null);
                                         }}
                                         disabled={!canPrepare || oneClickProcessing.preparation}
-                                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 border-t border-gray-100 ${
+                                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 border-t border-gray-100 dark:border-slate-700 ${
                                           canPrepare && !oneClickProcessing.preparation
-                                            ? 'hover:bg-gray-100 text-gray-700'
-                                            : 'text-gray-400 cursor-not-allowed'
+                                            ? 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200'
+                                            : 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                         }`}
                                       >
                                         <FastForward className="h-3.5 w-3.5 flex-shrink-0" />
@@ -2921,8 +2921,8 @@ const MedicationWorkflow: React.FC = () => {
                                         disabled={!canVerifyBefore || oneClickProcessing.verification}
                                         className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${
                                           canVerifyBefore && !oneClickProcessing.verification
-                                            ? 'hover:bg-gray-100 text-gray-700'
-                                            : 'text-gray-400 cursor-not-allowed'
+                                            ? 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200'
+                                            : 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                         }`}
                                       >
                                         <CheckSquare className="h-3.5 w-3.5 flex-shrink-0" />
@@ -2938,8 +2938,8 @@ const MedicationWorkflow: React.FC = () => {
                                         disabled={!canVerifyAfter || oneClickProcessing.verification}
                                         className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${
                                           canVerifyAfter && !oneClickProcessing.verification
-                                            ? 'hover:bg-gray-100 text-gray-700'
-                                            : 'text-gray-400 cursor-not-allowed'
+                                            ? 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200'
+                                            : 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                         }`}
                                       >
                                         <CheckSquare className="h-3.5 w-3.5 flex-shrink-0" />
@@ -2953,10 +2953,10 @@ const MedicationWorkflow: React.FC = () => {
                                           setSelectedDateForMenu(null);
                                         }}
                                         disabled={!canVerify || oneClickProcessing.verification}
-                                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 border-t border-gray-100 ${
+                                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 border-t border-gray-100 dark:border-slate-700 ${
                                           canVerify && !oneClickProcessing.verification
-                                            ? 'hover:bg-gray-100 text-gray-700'
-                                            : 'text-gray-400 cursor-not-allowed'
+                                            ? 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200'
+                                            : 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                         }`}
                                       >
                                         <CheckSquare className="h-3.5 w-3.5 flex-shrink-0" />
@@ -2989,7 +2989,7 @@ const MedicationWorkflow: React.FC = () => {
                             </Portal>
                           )}
                           {hasOverdue && (
-                            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-800"></span>
                           )}
                         </th>
                       );
@@ -3059,7 +3059,9 @@ const MedicationWorkflow: React.FC = () => {
                         {effectiveSlots.map((timeSlot, tsIndex) => {
                           const isFirstRow = tsIndex === 0;
                           const isLastRow = tsIndex === effectiveSlots.length - 1;
-                          const slotRowBg = tsIndex % 2 === 0 ? '#ffffff' : '#eaf0f7';
+                          const slotRowClass = tsIndex % 2 === 0
+                            ? 'bg-white dark:bg-slate-800'
+                            : 'bg-[#eaf0f7] dark:bg-slate-700';
                           const slotBorderBottom = isLastRow
                             ? '2px solid #d1d5db'
                             : '1px solid #f1f5f9';
@@ -3069,8 +3071,8 @@ const MedicationWorkflow: React.FC = () => {
                           return (
                             <React.Fragment key={`${prescription.id}-${tsIndex}`}>
                             <tr
-                              className="mw-row cursor-pointer"
-                              style={{ backgroundColor: slotRowBg }}
+                              className={`mw-row cursor-pointer ${slotRowClass}`}
+                              style={{ borderBottom: mainRowBorder }}
                               onDoubleClick={isFirstRow ? () => {
                                 setSelectedPrescription(prescription);
                                 setShowModal(true);
@@ -3081,7 +3083,7 @@ const MedicationWorkflow: React.FC = () => {
                               {isFirstRow && (
                                 <td
                                   rowSpan={rowSpanCount}
-                                  className="px-4 whitespace-nowrap text-sm text-gray-900"
+                                  className="w-10 px-1 text-center text-sm text-gray-900 dark:text-gray-100"
                                   style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
                                 >
                                   {index + 1}
@@ -3091,7 +3093,7 @@ const MedicationWorkflow: React.FC = () => {
                               {isFirstRow && (
                                 <td
                                   rowSpan={rowSpanCount}
-                                  className="px-3 whitespace-nowrap text-xs text-gray-700"
+                                  className="px-3 whitespace-nowrap text-xs text-gray-700 dark:text-gray-200"
                                   style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
                                 >
                                   <div>開始日期：{prescription.start_date ? formatDisplayDate(prescription.start_date) : ''}</div>
@@ -3108,30 +3110,30 @@ const MedicationWorkflow: React.FC = () => {
                                   style={{ verticalAlign: 'middle', ...prescriptionBorderStyle }}
                                 >
                                   <div className="space-y-1.5">
-                                    <div className="font-medium text-gray-900 flex flex-wrap items-center gap-2">
+                                    <div className="font-medium text-gray-900 dark:text-gray-100 flex flex-wrap items-center gap-2">
                                       <span>{prescription.medication_name}</span>
                                       {prescription.is_long_term === false && (
-                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">短期藥物</span>
+                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-700">短期藥物</span>
                                       )}
                                       {prescription.status === 'active' && prescription.end_date && prescription.is_long_term !== false && !isPrescriptionExpired(prescription) && (
-                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-300">
+                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-300 dark:bg-orange-900 dark:text-orange-200 dark:border-orange-700">
                                           即將停用處方
                                           <span className="ml-1 text-[10px] font-normal opacity-80">預計:{prescription.end_date}</span>
                                         </span>
                                       )}
                                       {prescription.status === 'active' && prescription.end_date && isPrescriptionExpired(prescription) && (
-                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-800 border border-red-300">已逾期</span>
+                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-700">已逾期</span>
                                       )}
                                       {prescription.status === 'inactive' && (
-                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 border border-gray-300">停用處方</span>
+                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 border border-gray-300 dark:bg-slate-700 dark:text-gray-200 dark:border-slate-600">停用處方</span>
                                       )}
                                     </div>
                                     {prescription.dosage_form && (
-                                      <div className="text-xs text-gray-500">{prescription.dosage_form}</div>
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">{prescription.dosage_form}</div>
                                     )}
-                                    <div className="text-xs space-y-0.5 text-gray-600 mt-2 pt-2 border-t border-gray-200">
+                                    <div className="text-xs space-y-0.5 text-gray-600 dark:text-gray-300 mt-2 pt-2 border-t border-gray-200 dark:border-slate-700">
                                       {prescription.inspection_rules && prescription.inspection_rules.length > 0 && (
-                                        <div className="text-orange-600 font-medium">
+                                        <div className="text-orange-600 dark:text-orange-400 font-medium">
                                           {`服藥前檢測：${prescription.inspection_rules.map((r: any) => {
                                             const OPERATOR_LABELS: Record<string, string> = { gt: '>', lt: '<', gte: '≥', lte: '≤' };
                                             const ACTION_LABELS: Record<string, string> = { block_dispensing: '停服' };
@@ -3142,16 +3144,16 @@ const MedicationWorkflow: React.FC = () => {
                                         </div>
                                       )}
                                       {prescription.medication_source && (
-                                        <div>來源：{prescription.medication_source}</div>
+                                        <div className="dark:text-gray-300">來源：{prescription.medication_source}</div>
                                       )}
                                       {prescription.cannot_crush && (
-                                        <div className="text-red-600 font-medium">⚠️ 不可碎藥</div>
+                                        <div className="text-red-600 dark:text-red-400 font-medium">⚠️ 不可碎藥</div>
                                       )}
                                       {prescription.preparation_method === 'immediate' && (
-                                        <div className="text-blue-600 font-medium">⚡ 即時備藥</div>
+                                        <div className="text-blue-600 dark:text-blue-400 font-medium">⚡ 即時備藥</div>
                                       )}
                                       {prescription.notes && (
-                                        <div className="text-gray-700 mt-1">{prescription.notes}</div>
+                                        <div className="text-gray-700 dark:text-gray-200 mt-1">{prescription.notes}</div>
                                       )}
                                     </div>
                                   </div>
@@ -3214,8 +3216,8 @@ const MedicationWorkflow: React.FC = () => {
                               )}
                               {/* ── 服用時間欄 ── */}
                               <td
-                                className="px-2 text-xs font-medium text-gray-700 text-center whitespace-nowrap"
-                                style={{ borderBottom: mainRowBorder, backgroundColor: slotRowBg }}
+                                className={`px-2 text-xs font-medium text-gray-700 dark:text-gray-200 text-center whitespace-nowrap ${slotRowClass}`}
+                                style={{ borderBottom: mainRowBorder }}
                               >
                                 {timeSlot === PRN_ADD_ROW ? '按需要' : timeSlot}
                               </td>
@@ -3233,15 +3235,15 @@ const MedicationWorkflow: React.FC = () => {
                                 const renderPrnEmptyCell = () => {
                                   const d = new Date(date);
                                   const start = new Date(prescription.start_date);
-                                  if (d < start) return <div className="text-center text-xs text-gray-400 py-1">無處方</div>;
+                                  if (d < start) return <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-1">無處方</div>;
                                   if (prescription.end_date) {
                                     const end = new Date(prescription.end_date);
-                                    if (d > end) return <div className="text-center text-xs text-gray-400 py-1">無處方</div>;
+                                    if (d > end) return <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-1">無處方</div>;
                                   }
                                   const dayCount = prnDayCount(date);
                                   const clickable = isAddRow || dayCount >= 1;
                                   if (!clickable) {
-                                    return <div className="text-center text-xs text-gray-300 py-1">·</div>;
+                                    return <div className="text-center text-xs text-gray-300 dark:text-gray-600 py-1">·</div>;
                                   }
                                   const atLimit = dayCount >= prnDailyLimit;
                                   return (
@@ -3249,8 +3251,8 @@ const MedicationWorkflow: React.FC = () => {
                                       onClick={(e) => { e.stopPropagation(); openPrnDose(prescription, date); }}
                                       className={`w-full text-center text-xs rounded py-1 ${
                                         atLimit
-                                          ? 'text-gray-400 hover:bg-gray-100'
-                                          : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'
+                                          ? 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-700'
+                                          : 'text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-slate-700'
                                       }`}
                                       title={atLimit ? '已達每日上限' : '需要時給藥'}
                                     >
@@ -3261,11 +3263,8 @@ const MedicationWorkflow: React.FC = () => {
                                 return (
                                   <td
                                     key={date}
-                                    className="px-1 py-1"
-                                    style={{
-                                      borderBottom: mainRowBorder,
-                                      backgroundColor: isSelectedDate ? '#eff6ff' : slotRowBg,
-                                    }}
+                                    className={`px-1 py-1 ${isSelectedDate ? 'bg-blue-100 dark:bg-blue-900' : slotRowClass}`}
+                                    style={{ borderBottom: mainRowBorder }}
                                   >
                                     {workflowRecord ? (
                                       <WorkflowCell
@@ -3277,7 +3276,7 @@ const MedicationWorkflow: React.FC = () => {
                                     ) : prnNoSlot ? (
                                       renderPrnEmptyCell()
                                     ) : (
-                                      <div className="text-center text-xs text-gray-400 py-1">
+                                      <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-1">
                                         {(() => {
                                           const d = new Date(date);
                                           const start = new Date(prescription.start_date);
@@ -3296,10 +3295,10 @@ const MedicationWorkflow: React.FC = () => {
                             </tr>
                             {/* ── 注射位置子列（比照 HTML 藥紙檢測列結構） ── */}
                             {isInjectionRx && timeSlot !== PRN_ADD_ROW && (
-                              <tr className="mw-row" style={{ backgroundColor: slotRowBg }}>
+                              <tr className={`mw-row ${slotRowClass}`}>
                                 <td
-                                  className="px-2 text-xs font-medium text-orange-700 text-center whitespace-nowrap"
-                                  style={{ borderBottom: slotBorderBottom, backgroundColor: slotRowBg }}
+                                  className={`px-2 text-xs font-medium text-orange-700 dark:text-orange-300 text-center whitespace-nowrap ${slotRowClass}`}
+                                  style={{ borderBottom: slotBorderBottom }}
                                 >
                                   注射位置
                                 </td>
@@ -3318,11 +3317,8 @@ const MedicationWorkflow: React.FC = () => {
                                   return (
                                     <td
                                       key={date}
-                                      className="px-1 text-center text-xs text-orange-700"
-                                      style={{
-                                        borderBottom: slotBorderBottom,
-                                        backgroundColor: isSelectedDate ? '#eff6ff' : slotRowBg,
-                                      }}
+                                      className={`px-1 text-center text-xs text-orange-700 dark:text-orange-300 ${isSelectedDate ? 'bg-blue-100 dark:bg-blue-900' : slotRowClass}`}
+                                      style={{ borderBottom: slotBorderBottom }}
                                     >
                                       {site || '\u00A0'}
                                     </td>
@@ -3365,7 +3361,7 @@ const MedicationWorkflow: React.FC = () => {
             <User className="h-24 w-24 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">請選擇院友</h3>
             <p className="text-gray-600 mb-6">選擇院友後即可查看其 eMAR</p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+            <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-800 rounded-lg p-4 max-w-md mx-auto">
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <Zap className="h-5 w-5 text-blue-600" />
                 <h4 className="font-medium text-blue-900">使用說明</h4>

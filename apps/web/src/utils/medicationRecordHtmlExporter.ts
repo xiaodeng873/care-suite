@@ -18,6 +18,7 @@ import { isPrescriptionExpired, isPrescriptionAboutToExpire } from './prescripti
 
 import { formatDisplayDate } from './dateFormat';
 import { getPrintBedNumber } from './bedTransferUtils';
+import { supabase } from '../lib/supabase';
 // 渲染為同步流程，故於各匯出入口（async）先取得院舍設定後存於模組層，供 renderHeaderRegion 讀取。
 let activeFacility: FacilitySettings = DEFAULT_FACILITY_SETTINGS;
 
@@ -126,6 +127,38 @@ export const exportBlankMedicationRecordToHtml = async (
   printViaIframe(html);
 };
 
+/**
+ * 查詢每個處方最近一次完成給藥的日期。
+ */
+const fetchLastTakenDatesForPrescriptions = async (
+  prescriptionIds: string[]
+): Promise<Map<string, string>> => {
+  const map = new Map<string, string>();
+  const uniqueIds = [...new Set(prescriptionIds)].filter(Boolean);
+  if (uniqueIds.length === 0) return map;
+
+  const PAGE = 1000;
+  for (let i = 0; i < uniqueIds.length; i += PAGE) {
+    const batch = uniqueIds.slice(i, i + PAGE);
+    const { data, error } = await supabase
+      .from('medication_workflow_records')
+      .select('prescription_id, scheduled_date')
+      .in('prescription_id', batch)
+      .eq('dispensing_status', 'completed');
+    if (error) {
+      console.warn('查詢最近服用日期失敗:', error);
+      continue;
+    }
+    for (const r of data || []) {
+      const existing = map.get(r.prescription_id);
+      if (!existing || r.scheduled_date > existing) {
+        map.set(r.prescription_id, r.scheduled_date);
+      }
+    }
+  }
+  return map;
+};
+
 const buildMedicationRecordHtml = async (
   patients: PatientWithPrescriptions[],
   selectedMonth: string,
@@ -136,7 +169,12 @@ const buildMedicationRecordHtml = async (
   const renderedPages: string[] = [];
 
   for (const patient of patients) {
-    const prescriptions = patient.prescriptions ?? [];
+    const prescriptions = (patient.prescriptions ?? []).map((p) => ({ ...p }));
+    const allPrescriptionIds = prescriptions.map((p) => p.id);
+    const lastTakenMap = await fetchLastTakenDatesForPrescriptions(allPrescriptionIds);
+    for (const p of prescriptions) {
+      p.last_taken_date = lastTakenMap.get(p.id) || p.last_taken_date || '';
+    }
 
     let workflowRecords: WorkflowRecord[] = [];
     if (includeWorkflowRecords && prescriptions.length > 0) {
@@ -644,8 +682,12 @@ const renderPrescriptionBlock = (
     if (prescription.status === 'inactive') return '停用處方';
     return '';
   })();
+  const lastTakenLine = (prescription.show_last_taken_in_record && prescription.last_taken_date)
+    ? `<div class="mr-med-last-taken" style="color: #2563eb; font-weight: bold;">上次服用：${formatDisplayDate(prescription.last_taken_date)}</div>`
+    : '';
   const nameInfo = `<div class="mr-med-name">${escapeHtml(prescription.medication_name ?? '')}${termLabel ? `<span class="mr-med-short">${termLabel}</span>` : ''}</div>`
     + (prescription.dosage_form ? `<div class="mr-med-form">${escapeHtml(String(prescription.dosage_form))}</div>` : '')
+    + lastTakenLine
     + (inspectionRequirement ? `<div class="mr-med-test">${escapeHtml(inspectionRequirement)}</div>` : '')
     + (prescription.medication_source ? `<div class="mr-med-source">來源：${escapeHtml(String(prescription.medication_source))}</div>` : '')
     + (prescription.cannot_crush ? `<div class="mr-med-warning" style="color: #dc2626; font-weight: bold;">⚠️ 不可碎藥</div>` : '');
@@ -799,7 +841,7 @@ const renderBodyInjectionRow = (
   return `<tr class="mr-inject-body-row"><td class="c-time mr-insp-type">注射位置</td>${dayCells}</tr>`;
 };
 
-// 計算處方邊界標記格：▶ = 開始前 N 格，◄ = 結束後 N 格（N = 此處方所有日內時段數）。
+// 計算處方邊界標記格：▶ = 開始前 N 格，◀ = 結束後 N 格（N = 此處方所有日內時段數）。
 const getBoundaryCells = (
   prescription: MedicationPrescription,
   slots: string[],
@@ -829,7 +871,7 @@ const getBoundaryCells = (
       before.add(`${allCells[i][0]}__${allCells[i][1]}`);
     }
   }
-  // ◄（結束後）只在處方「確有結束日」時標記；無 end_date 的長期處方不標，避免月尾非服藥日誤畫箭頭
+  // ◀（結束後）只在處方「確有結束日」時標記；無 end_date 的長期處方不標，避免月尾非服藥日誤畫箭頭
   if (prescription.end_date && lastActiveIdx >= 0 && lastActiveIdx < allCells.length - 1) {
     for (let i = lastActiveIdx + 1; i <= Math.min(allCells.length - 1, lastActiveIdx + N); i += 1) {
       after.add(`${allCells[i][0]}__${allCells[i][1]}`);
@@ -879,7 +921,7 @@ const signatureDayCells = (
       if (boundary.before.has(key)) {
         cellInner = '<span class="mr-cell-special">▶</span>'; isBoundary = true;
       } else if (boundary.after.has(key)) {
-        cellInner = '<span class="mr-cell-special">◄</span>'; isBoundary = true;
+        cellInner = '<span class="mr-cell-special">◀</span>'; isBoundary = true;
       }
     }
     const inactiveClass = !inRange ? (isImmediate ? ' mr-inactive-prn' : ' mr-inactive') : '';
@@ -1023,7 +1065,7 @@ const dispenseDayCells = (
           const hasAfter = blockBoundaries.some(({ block, boundary }) =>
             block.timeSlots.includes(slot) && boundary.after.has(key)
           );
-          if (hasAfter) content = '◄';
+          if (hasAfter) content = '◀';
         }
       }
     }
@@ -1084,7 +1126,7 @@ const getDosageText = (prescription: MedicationPrescription): string => {
 };
 
 // 純「日期範圍」判斷：只看 start_date/end_date + start_time/end_time，不看服藥頻率。
-// 供 ▶/◄ 邊界標記使用（邊界代表處方起訖，非個別服藥日）。
+// 供 ▶/◀ 邊界標記使用（邊界代表處方起訖，非個別服藥日）。
 const isDateInPrescriptionDateRange = (dateStr: string, timeSlot: string | undefined, prescription: MedicationPrescription): boolean => {
   const checkDate = new Date(dateStr);
   const startDate = prescription.start_date ? new Date(prescription.start_date) : null;
@@ -1262,7 +1304,7 @@ td.mr-diag-prn {
 }
 /* 即時備藥非有效期日格：空格（無斜線無灰底） */
 td.mr-inactive-prn { background: #e2e8f0 !important; background-image: none !important; }
-/* ▶/◄ 邊界標記格：紫色提示開始/結束 */
+/* ▶/◀ 邊界標記格：紫色提示開始/結束 */
 td.mr-boundary { color: #7c3aed; font-weight: bold; }
 /* 處方列之間加深色分隔線（空白列同樣套用，確保版面統一） */
 tbody.mr-prescription-body + tbody.mr-prescription-body > tr:first-child > td,
@@ -1283,7 +1325,7 @@ td.c-day { position: relative; }
 .mr-cell-special {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 7pt; font-weight: bold; pointer-events: none;
+  font-size: 8.5pt; font-weight: bold; pointer-events: none;
 }
 /* 處方區空白填充列 */
 .mr-filler-row td { background-color: white; }
