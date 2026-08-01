@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertTriangle, Calendar, User, FileText, Activity, Download, Plus, Trash2 } from 'lucide-react';
+import { X, AlertTriangle, Calendar, User, FileText, Activity, Plus, Trash2 } from 'lucide-react';
 import { usePatients, type IncidentReport } from '../context/PatientContext';
 import { useRecords } from '../context/merged/RecordsContext';
 import PatientAutocomplete from './PatientAutocomplete';
-import { generateIncidentReportWord } from '../utils/incidentReportWordGenerator';
-import { getTemplatesMetadata, getIncidentPresetOptions, createIncidentPresetOption, deleteIncidentPresetOption, type IncidentPresetOption } from '../lib/database';
+import { getIncidentPresetOptions, createIncidentPresetOption, deleteIncidentPresetOption, type IncidentPresetOption } from '../lib/database';
 
 interface IncidentReportModalProps {
   report?: IncidentReport;
@@ -174,7 +173,6 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
     });
   };
 
-  const [isExporting, setIsExporting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [showPatrolTimePopover, setShowPatrolTimePopover] = useState(false);
   const [recentPatrolTimes, setRecentPatrolTimes] = useState<Array<{ time: string; date: string }>>([]);
@@ -569,53 +567,6 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
     } catch (error) {
       console.error('儲存意外事件報告失敗:', error);
       setValidationErrors(['儲存意外事件報告失敗，請重試']);
-    }
-  };
-
-  const handleExportWord = async () => {
-    if (!report) {
-      alert('請先儲存報告後再匯出');
-      return;
-    }
-
-    setIsExporting(true);
-
-    try {
-      // 查找院友資料
-      const patient = patients.find(p => p.院友id === report.patient_id);
-      if (!patient) {
-        alert('找不到院友資料');
-        return;
-      }
-
-      // 獲取意外事件報告範本
-      const templates = await getTemplatesMetadata();
-      const incidentTemplate = templates.find(t => t.type === 'incident-report');
-
-      if (!incidentTemplate) {
-        alert('找不到意外事件報告範本，請先在範本管理中上傳 Word 範本');
-        return;
-      }
-
-      // 下載範本檔案
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/templates/${incidentTemplate.storage_path}`
-      );
-
-      if (!response.ok) {
-        throw new Error('無法載入範本檔案');
-      }
-
-      const templateArrayBuffer = await response.arrayBuffer();
-
-      // 生成 Word 文件
-      await generateIncidentReportWord(report, patient, templateArrayBuffer);
-
-    } catch (error) {
-      console.error('匯出 Word 失敗:', error);
-      alert(`匯出失敗：${error instanceof Error ? error.message : '未知錯誤'}`);
-    } finally {
-      setIsExporting(false);
     }
   };
 
@@ -1679,30 +1630,10 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
 
           {/* 提交按鈕 */}
           <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-gray-200">
-            {report && (
-              <button
-                type="button"
-                onClick={handleExportWord}
-                disabled={isExporting}
-                className="btn-secondary flex flex-wrap items-center justify-center gap-2"
-              >
-                {isExporting ? (
-                  <>
-                    <div className="animate-spin h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full"></div>
-                    <span>匯出中...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4" />
-                    <span>匯出Word</span>
-                  </>
-                )}
-              </button>
-            )}
-            <button
+                        <button
               type="submit"
               className="btn-primary flex-1"
-              disabled={isExporting}
+              
             >
               {report ? '更新意外事件報告' : '新增意外事件報告'}
             </button>
@@ -1710,7 +1641,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
               type="button"
               onClick={onClose}
               className="btn-secondary flex-1"
-              disabled={isExporting}
+              
             >
               取消
             </button>

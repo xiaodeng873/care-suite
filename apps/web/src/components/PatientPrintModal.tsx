@@ -44,6 +44,7 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
   { id: 'wound_assessment', name: '傷口評估記錄表', category: '常用表格', defaultChecked: false },
   { id: 'restraint_usage_common', name: '使用約束物品紀錄', category: '常用表格', defaultChecked: false },
   { id: 'restraint_consent', name: '使用約束措施的評估及同意書', category: '常用表格', defaultChecked: false },
+  { id: 'accident_report', name: '意外事件報告', category: '常用表格', defaultChecked: false },
   { id: 'medication_proxy', name: '要求院舍派發成藥確認書', category: '常用表格', defaultChecked: false },
   { id: 'self_medication', name: '自行存放及使用藥物同意書', category: '常用表格', defaultChecked: false },
   // 床頭記錄
@@ -61,6 +62,8 @@ const TAB_ORDER: PrintDocumentCategory[] = ['入住文件', '常用表格', '床
 export interface PrintDocumentOptions {
   /** Excel 匯出時，是否按院友分開工作表；false 則全部院友堆在同一張工作表 */
   separateSheetsPerPatient?: boolean;
+  /** 意外事件報告：指定要列印的報告 ID；若未指定則對每位院友取最近一份 */
+  selectedIncidentReportIds?: string[];
 }
 
 interface PatientPrintModalProps {

@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>意外事件報告</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 12mm 14mm 10mm 14mm;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: "DFKai-SB", "BiauKai", "標楷體", "Microsoft JhengHei", serif;
+            margin: 0;
+            padding: 0;
+            color: #000;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .page {
+            width: 100%;
+            min-height: 274mm;
+            padding: 0;
+            page-break-after: always;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page:last-child { page-break-after: auto; }
+        .page:nth-of-type(2) { padding-top: 15mm; }
+
+        /* 頁首 */
+        .header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .header-center {
+            flex: 1;
+            text-align: center;
+            padding: 0 12px;
+        }
+
+        .header-center h1 {
+            margin: 0;
+            font-size: 23px;
+            letter-spacing: 4px;
+            font-weight: bold;
+        }
+
+        .header-center h2 {
+            margin: 5px 0 0;
+            font-size: 20px;
+            font-weight: bold;
+            border-bottom: 1.5px solid #000;
+            display: inline-block;
+            padding: 0 28px 2px;
+        }
+
+        /* 基本欄位 */
+        .form-row {
+            display: flex;
+            align-items: baseline;
+            margin: 5px 0;
+            width: 100%;
+        }
+
+        .form-row.wrap { flex-wrap: wrap; }
+        .form-row.top { align-items: flex-start; }
+
+        /* 兩端對齊行（首三行資料列） */
+        .form-row.justify {
+            justify-content: space-between;
+        }
+        .form-row.justify > * {
+            flex-shrink: 0;
+        }
+
+        .label {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .label-col {
+            flex-shrink: 0;
+            white-space: nowrap;
+            text-align: left;
+        }
+
+        .content-col {
+            flex: 1;
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 4px 0;
+        }
+
+        .content {
+            flex: 1;
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 4px 0;
+        }
+
+        /* 下劃線輸入 */
+        .u {
+            display: inline-block;
+            border-bottom: 1px solid #000;
+            min-width: 50px;
+            height: 1.2em;
+            text-align: center;
+            margin: 0 3px;
+        }
+        .u.xs { min-width: 36px; }
+        .u.sm { min-width: 52px; }
+        .u.md { min-width: 80px; }
+        .u.lg { min-width: 120px; }
+        .u.xl { min-width: 180px; }
+        .u.fluid { flex: 1; min-width: 60px; }
+
+        /* 多行橫線：6 條固定長度底線，文字填滿一行先換 */
+        .lines {
+            width: 100%;
+            line-height: 23px;
+        }
+        .line {
+            height: 23px;
+            line-height: 23px;
+            overflow: hidden;
+            white-space: nowrap;
+            border-bottom: 1px solid #000;
+        }
+        .original-lines {
+            width: 100%;
+            line-height: 1.65em;
+        }
+        .original-lines .line {
+            min-height: 1.65em;
+            height: auto;
+            word-break: break-word;
+            line-height: 1.65em;
+            border-bottom: 1px solid #000;
+        }
+
+        /* 核取方塊 */
+        .cb {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            margin-right: 12px;
+        }
+        .cb-box {
+            font-family: "Segoe UI Symbol", "Arial Unicode MS", sans-serif;
+            margin-right: 3px;
+        }
+
+        /* 分節標題 */
+        .section-title {
+            border: 1.5px solid #000;
+            padding: 4px 22px;
+            display: inline-block;
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        .section-title-wrap {
+            text-align: center;
+            margin: 10px 0 8px;
+        }
+
+        /* 第 2 頁 */
+        .page2-title {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 14px;
+            text-decoration: underline;
+            text-underline-offset: 4px;
+        }
+
+        .id-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 14px;
+        }
+        .id-table td {
+            border: 1px solid #000;
+            padding: 5px 5px;
+            height: 34px;
+            vertical-align: middle;
+        }
+        .id-table .id-label {
+            width: 90px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .followup-title {
+            font-weight: bold;
+            margin: 10px 0 6px;
+        }
+
+        .followup-list {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .followup-list li {
+            margin: 5px 0;
+        }
+
+        .notice {
+            margin: 12px 0;
+            text-indent: 2em;
+        }
+
+        .sign-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 14px;
+            flex-wrap: wrap;
+            gap: 8px 0;
+        }
+
+        .footer-note {
+            margin-top: auto;
+            padding-top: 12px;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 第 1 頁 -->
+<div class="page">
+    <div class="header">
+        <div class="header-center">
+            <h1>善頤（福群）護老院</h1>
+            <h2>意外事件報告</h2>
+        </div>
+    </div>
+
+    <div class="form-row justify">
+        <span class="label">院友姓名：<span class="u md" data-field="patient_name"></span></span>
+        <span class="label">性別：<span class="u xs" data-field="gender"></span></span>
+        <span class="label">年齡：<span class="u xs" data-field="age"></span></span>
+        <span class="label">身份證號碼：<span class="u md" data-field="id_number"></span></span>
+        <span class="label">床號：<span class="u sm" data-field="bed_number"></span></span>
+    </div>
+
+    <div class="form-row justify">
+        <span class="label">意外發生日期：<span class="u md" data-field="incident_date"></span></span>
+        <span class="label">時間：<span class="u sm" data-field="incident_time"></span></span>
+        <span class="label">事故性質：</span>
+        <span class="cb"><span class="cb-box" data-cb="incident_type:跌倒">☐</span>跌倒</span>
+        <span class="cb"><span class="cb-box" data-cb="incident_type:其他">☐</span>其他：<span class="u lg" data-field="other_incident_type"></span></span>
+    </div>
+
+    <div class="form-row justify">
+        <span class="label">地點：</span>
+        <span class="cb"><span class="cb-box" data-cb="location:客廳/飯廳">☐</span>客廳/飯廳</span>
+        <span class="cb"><span class="cb-box" data-cb="location:走廊">☐</span>走廊</span>
+        <span class="cb"><span class="cb-box" data-cb="location:廁所">☐</span>廁所</span>
+        <span class="cb"><span class="cb-box" data-cb="location:浴室">☐</span>浴室</span>
+        <span class="cb"><span class="cb-box" data-cb="location:床邊">☐</span>床邊</span>
+        <span class="cb"><span class="cb-box" data-cb="location:其他地方">☐</span>其他地方：<span class="u lg" data-field="other_location"></span></span>
+    </div>
+
+    <div class="section-title-wrap"><div class="section-title">意外發生經過</div></div>
+
+    <div class="form-row wrap">
+        <div class="label-col" style="width: 5em;">院友活動：</div>
+        <div class="content-col">
+            <span class="cb"><span class="cb-box" data-cb="patient_activity:躺臥">☐</span>躺臥</span>
+            <span class="cb"><span class="cb-box" data-cb="patient_activity:站立">☐</span>站立</span>
+            <span class="cb"><span class="cb-box" data-cb="patient_activity:步行">☐</span>步行</span>
+            <span class="cb"><span class="cb-box" data-cb="patient_activity:起身下床/上床">☐</span>起身下床/上床</span>
+            <span class="cb"><span class="cb-box" data-cb="patient_activity:過床/椅/便椅/沖涼椅">☐</span>過床/椅/便椅/沖涼椅</span>
+            <span class="cb"><span class="cb-box" data-cb="patient_activity:進食">☐</span>進食</span>
+            <span class="cb"><span class="cb-box" data-cb="patient_activity:梳洗">☐</span>梳洗</span>
+            <span class="cb"><span class="cb-box" data-cb="patient_activity:如廁">☐</span>如廁</span>
+            <span class="cb"><span class="cb-box" data-cb="patient_activity:洗澡">☐</span>洗澡</span>
+            <span class="cb"><span class="cb-box" data-cb="patient_activity:穿/脫衣服">☐</span>穿/脫衣服</span>
+            <span class="cb"><span class="cb-box" data-cb="patient_activity:其他">☐</span>其他：<span class="u lg" data-field="other_patient_activity"></span></span>
+        </div>
+    </div>
+
+    <div class="form-row wrap">
+        <div class="label-col" style="width: 7.5em;">院友身體不適：</div>
+        <div class="content-col">
+            <span class="cb"><span class="cb-box" data-cb="physical_discomfort:下肢乏力">☐</span>下肢乏力</span>
+            <span class="cb"><span class="cb-box" data-cb="physical_discomfort:關節疼痛">☐</span>關節疼痛</span>
+            <span class="cb"><span class="cb-box" data-cb="physical_discomfort:暈眩">☐</span>暈眩</span>
+            <span class="cb"><span class="cb-box" data-cb="physical_discomfort:暈倒">☐</span>暈倒</span>
+            <span class="cb"><span class="cb-box" data-cb="physical_discomfort:心跳">☐</span>心跳</span>
+            <span class="cb"><span class="cb-box" data-cb="physical_discomfort:胸部劇痛">☐</span>胸部劇痛</span>
+            <span class="cb"><span class="cb-box" data-cb="physical_discomfort:其他">☐</span>其他：<span class="u md" data-field="physical_discomfort_other"></span></span>
+            <span class="cb"><span class="cb-box" data-cb="physical_discomfort:不適用">☐</span>不適用</span>
+        </div>
+    </div>
+
+    <div class="form-row wrap">
+        <div class="label-col" style="width: 9em;">院友不安全的行為：</div>
+        <div class="content-col">
+            <span class="cb"><span class="cb-box" data-cb="unsafe_behavior:不安全的動作">☐</span>不安全的動作：<span class="u md" data-field="unsafe_behavior_action"></span></span>
+            <span class="cb"><span class="cb-box" data-cb="unsafe_behavior:沒有使用合適輔助工具">☐</span>沒有使用合適輔助工具</span>
+            <span class="cb"><span class="cb-box" data-cb="unsafe_behavior:沒有找人幫助">☐</span>沒有找人幫助</span>
+            <span class="cb"><span class="cb-box" data-cb="unsafe_behavior:其他">☐</span>其他：<span class="u md" data-field="unsafe_behavior_other"></span></span>
+            <span class="cb"><span class="cb-box" data-cb="unsafe_behavior:不適用">☐</span>不適用</span>
+        </div>
+    </div>
+
+    <div class="form-row wrap">
+        <div class="label-col" style="width: 7.5em;">環境/個人因素：</div>
+        <div class="content-col">
+            <span class="cb"><span class="cb-box" data-cb="environmental_factors:地面濕滑/不平">☐</span>地面濕滑/不平</span>
+            <span class="cb"><span class="cb-box" data-cb="environmental_factors:光線不足">☐</span>光線不足</span>
+            <span class="cb"><span class="cb-box" data-cb="environmental_factors:傢俬移動(如輪椅/便椅未上鎖)">☐</span>傢俬移動（如輪椅/便椅未上鎖）</span>
+            <span class="cb"><span class="cb-box" data-cb="environmental_factors:雜物障礙">☐</span>雜物障礙</span>
+            <span class="cb"><span class="cb-box" data-cb="environmental_factors:褲過長">☐</span>褲過長</span>
+            <span class="cb"><span class="cb-box" data-cb="environmental_factors:鞋覆問題">☐</span>鞋覆問題</span>
+            <span class="cb"><span class="cb-box" data-cb="environmental_factors:被別人碰到">☐</span>被別人碰到</span>
+            <span class="cb"><span class="cb-box" data-cb="environmental_factors:其他">☐</span>其他：<span class="u md" data-field="environmental_factors_other"></span></span>
+            <span class="cb"><span class="cb-box" data-cb="environmental_factors:不適用">☐</span>不適用</span>
+        </div>
+    </div>
+
+    <div class="form-row top">
+        <span class="label">詳情：</span>
+        <div class="content">
+            <div class="lines" data-lines="incident_details">
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-title-wrap"><div class="section-title">意外發生後處理</div></div>
+
+    <div class="form-row wrap">
+        <span class="label">處理日期：</span><span class="u md" data-field="treatment_date"></span>
+        <span class="label">時間：</span><span class="u sm" data-field="treatment_time"></span>
+    </div>
+
+    <div class="form-row wrap">
+        <div class="label-col" style="width: 7.5em;">檢查：生命表徵：</div>
+        <div class="content-col">
+            血壓：<span class="u xs" data-field="bp_systolic"></span>/<span class="u xs" data-field="bp_diastolic"></span>mmHg &nbsp;
+            <span class="cb">脈搏：<span class="u xs" data-field="pulse"></span>/分鐘</span>
+            <span class="cb">呼吸：<span class="u xs" data-field="respiration"></span>/分鐘</span>
+            <span class="cb">體溫：<span class="u xs" data-field="temperature"></span>°C</span>
+            <span class="cb">血含氧量：<span class="u sm" data-field="oxygen_saturation"></span>%</span>
+            <span class="cb">血糖：<span class="u sm" data-field="blood_sugar"></span>mmol/L</span>
+        </div>
+    </div>
+
+    <div class="form-row wrap">
+        <span class="label">清醒程度：</span>
+        <span class="cb"><span class="cb-box" data-cb="consciousness_level:清醒">☐</span>清醒</span>
+        <span class="cb"><span class="cb-box" data-cb="consciousness_level:混亂">☐</span>混亂</span>
+        <span class="cb"><span class="cb-box" data-cb="consciousness_level:昏迷">☐</span>昏迷</span>
+    </div>
+
+    <div class="form-row wrap">
+        <span class="label">四肢活動情況：</span>
+        <div class="content">
+            <span class="cb"><span class="cb-box" data-cb="limb_movement.status:正常">☐</span>正常</span>
+            <span class="cb"><span class="cb-box" data-cb="limb_movement.status:不正常">☐</span>不正常（</span>
+            <span class="cb"><span class="cb-box" data-cb="limb_movement.abnormal_limbs:左手">☐</span>左手</span>
+            <span class="cb"><span class="cb-box" data-cb="limb_movement.abnormal_limbs:右手">☐</span>右手</span>
+            <span class="cb"><span class="cb-box" data-cb="limb_movement.abnormal_limbs:左腳">☐</span>左腳</span>
+            <span class="cb"><span class="cb-box" data-cb="limb_movement.abnormal_limbs:右腳">☐</span>右腳 詳情：<span class="u sm" data-field="limb_details"></span>）</span>
+        </div>
+    </div>
+
+    <div class="form-row wrap">
+        <div class="label-col" style="width: 5em;">受傷情況：</div>
+        <div class="content-col">
+            <span class="cb"><span class="cb-box" data-cb="injury_situation:無皮外傷">☐</span>無皮外傷</span>
+            <span class="cb"><span class="cb-box" data-cb="injury_situation:表皮擦損">☐</span>表皮擦損</span>
+            <span class="cb"><span class="cb-box" data-cb="injury_situation:瘀腫">☐</span>瘀腫（位置：<span class="u sm" data-field="bruise_location"></span>）</span>
+            <span class="cb"><span class="cb-box" data-cb="injury_situation:骨折">☐</span>骨折（位置：<span class="u sm" data-field="fracture_location"></span>）</span>
+            <span class="cb"><span class="cb-box" data-cb="injury_situation:其他">☐</span>其他：<span class="u md" data-field="injury_other"></span></span>
+        </div>
+    </div>
+
+    <div class="form-row top">
+        <span class="label">院友申訴：</span>
+        <div class="content">
+            <div class="lines original-lines" data-lines="patient_complaint">
+                <div class="line"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row wrap">
+        <span class="label">即時處理：</span>
+        <div class="content">
+            <span class="cb"><span class="cb-box" data-cb="immediate_treatment:包紮傷口">☐</span>包紮傷口</span>
+            <span class="cb"><span class="cb-box" data-cb="immediate_treatment:其他">☐</span>其他：<span class="u xl" data-field="immediate_treatment_other"></span></span>
+            <span class="cb"><span class="cb-box" data-cb="immediate_treatment:不適用">☐</span>不適用</span>
+        </div>
+    </div>
+
+    <div class="form-row wrap">
+        <span class="label">就診安排：</span>
+        <div class="content">
+            <span class="cb"><span class="cb-box" data-cb="medical_arrangement:急症室">☐</span>急症室</span>
+            <span class="cb"><span class="cb-box" data-cb="medical_arrangement:門診">☐</span>門診</span>
+            <span class="cb"><span class="cb-box" data-cb="medical_arrangement:醫生到診">☐</span>醫生到診</span>
+            <span class="cb"><span class="cb-box" data-cb="medical_arrangement:沒有送院">☐</span>沒有送院</span>
+        </div>
+    </div>
+
+    <div class="form-row wrap">
+        <span class="label">救護車：</span>
+        <span class="cb">召車時間：<span class="u sm" data-field="ambulance_call_time"></span></span>
+        <span class="cb">到達時間：<span class="u sm" data-field="ambulance_arrival_time"></span></span>
+        <span class="cb">離開時間：<span class="u sm" data-field="ambulance_departure_time"></span></span>
+        <span class="cb">送往：<span class="u sm" data-field="hospital_destination"></span>醫院</span>
+    </div>
+</div>
+
+<!-- 第 2 頁 -->
+<div class="page">
+    <div class="page2-title">意外事件報告（續）</div>
+
+    <table class="id-table">
+        <tr>
+            <td class="id-label">院友姓名</td>
+            <td data-field="patient_name"></td>
+            <td class="id-label">身份證號碼</td>
+            <td data-field="id_number"></td>
+        </tr>
+    </table>
+
+    <div class="form-row wrap">
+        <span class="label">通知家屬：日期：</span><span class="u md" data-field="family_notification_date"></span>
+        <span class="label">時間：</span><span class="u sm" data-field="family_notification_time"></span>
+        <span class="label">家屬姓名：</span><span class="u md" data-field="family_name"></span>
+    </div>
+
+    <div class="form-row wrap">
+        <span class="label">家屬與院友關係：</span>
+        <div class="content">
+            <span class="cb"><span class="cb-box" data-cb="family_relationship:保證人">☐</span>保證人</span>
+            <span class="cb"><span class="cb-box" data-cb="family_relationship:監護人">☐</span>監護人</span>
+            <span class="cb"><span class="cb-box" data-cb="family_relationship:家人">☐</span>家人</span>
+            <span class="cb"><span class="cb-box" data-cb="family_relationship:其他">☐</span>其他：<span class="u md" data-field="other_family_relationship"></span></span>
+        </div>
+    </div>
+
+    <div class="form-row wrap">
+        <span class="label">聯絡電話：</span><span class="u md" data-field="contact_phone"></span>
+    </div>
+
+    <div class="form-row wrap">
+        <span class="label">負責通知職員姓名：</span><span class="u md" data-field="notifying_staff_name"></span>
+        <span class="label">職位：</span><span class="u md" data-field="notifying_staff_position"></span>
+    </div>
+
+    <div class="form-row wrap">
+        <div class="label-col" style="width: 10.5em;">院友在醫院診治情況：</div>
+        <div class="content-col">
+            <span class="cb"><span class="cb-box" data-cb="hospital_treatment:照X光">☐</span>照X光</span>
+            <span class="cb"><span class="cb-box" data-cb="hospital_treatment:預防破傷風針注射">☐</span>預防破傷風針注射</span>
+            <span class="cb"><span class="cb-box" data-cb="hospital_treatment:洗傷口">☐</span>洗傷口</span>
+            <span class="cb"><span class="cb-box" data-cb="hospital_treatment:縫針">☐</span>縫針</span>
+            <span class="cb"><span class="cb-box" data-cb="hospital_treatment:觀察病房">☐</span>觀察病房</span>
+            <span class="cb"><span class="cb-box" data-cb="hospital_treatment:不需要留醫">☐</span>不需要留醫</span>
+            <span class="cb"><span class="cb-box" data-cb="hospital_treatment:返回護理院/家">☐</span>返回護理院/家*；回院時間：<span class="u sm" data-field="return_time"></span></span>
+            <span class="cb"><span class="cb-box" data-cb="hospital_treatment:其他治療(例如藥物等)">☐</span>其他治療（例如藥物等）：<span class="u xl" data-field="hospital_treatment_other"></span></span>
+            <span class="cb"><span class="cb-box" data-cb="hospital_treatment:醫院留醫">☐</span>醫院留醫：</span>
+            <span class="cb"><span class="cb-box" data-cb="hospital_admission.hospital:KWH">☐</span>KWH</span>
+            <span class="cb"><span class="cb-box" data-cb="hospital_admission.hospital:QEH">☐</span>QEH</span>
+            <span class="cb"><span class="cb-box" data-cb="hospital_admission.hospital:KH">☐</span>KH</span>
+            <span class="cb">樓層：<span class="u xs" data-field="hospital_floor"></span></span>
+            <span class="cb">病房：<span class="u xs" data-field="hospital_ward"></span></span>
+            <span class="cb">床號：<span class="u xs" data-field="hospital_bed_number"></span></span>
+        </div>
+    </div>
+
+    <div class="followup-title">事後跟進：</div>
+
+    <ol class="followup-list">
+        <li>呈交「特別事故報告」予社署安老院牌照事務處：
+            <span class="cb"><span class="cb-box" data-cb="submit_to_social_welfare:true">☐</span>需要</span>
+            <span class="cb"><span class="cb-box" data-cb="submit_to_social_welfare:false">☐</span>不需要 *</span>
+        </li>
+        <li>呈交「特別事故報告」(1)副本或「特別事故報告（院舍存檔用）」予總部：
+            <span class="cb"><span class="cb-box" data-cb="submit_to_headquarters:true">☐</span>需要</span>
+            <span class="cb"><span class="cb-box" data-cb="submit_to_headquarters:false">☐</span>不需要 *</span>
+        </li>
+        <li>
+            院方的即時改善行動：
+            <div class="lines" data-lines="immediate_improvement_actions">
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+            </div>
+        </li>
+        <li>
+            院方預防意外再次發生的方法：
+            <div class="lines" data-lines="prevention_methods">
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+            </div>
+        </li>
+    </ol>
+
+    <div class="notice">
+        備註：如院友曾出現跌倒情況，尤其是曾觸及頭部者，或已出現明顯損傷及精神狀態不適，必須即時安排醫療服務或送醫院診治。
+    </div>
+
+    <div class="sign-row">
+        <span class="cb">填報人簽名：<span class="u md" data-field="reporter_signature"></span></span>
+        <span class="cb">姓名：<span class="u md" data-field="reporter_signature_name"></span></span>
+        <span class="cb">職位：<span class="u sm" data-field="reporter_position"></span></span>
+        <span class="cb">日期：<span class="u md" data-field="report_date"></span></span>
+    </div>
+
+    <div class="sign-row">
+        <span class="cb">院長批閱：<span class="u md" data-field="director_review_signature"></span></span>
+        <span class="cb">日期：<span class="u md" data-field="director_review_date"></span></span>
+        <span class="cb"><span class="cb-box" data-cb="submit_to_headquarters_flag:true">☐</span>呈交總部</span>
+        <span class="cb"><span class="cb-box" data-cb="submit_to_social_welfare_flag:true">☐</span>呈交社署</span>
+    </div>
+
+    <div class="footer-note">(請在適當的☐內填上√ * 將不適用者刪除)</div>
+</div>
+
+</body>
+</html>

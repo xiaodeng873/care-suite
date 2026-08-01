@@ -212,6 +212,35 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
           return mod.generateIncidentReportPrintHTML(filtered.map(r => ({ patient, report: r })), ctx.facilityName);
         };
       }
+      case 'accident_report': {
+        const mod = await import('./incidentReportHtmlGenerator');
+        return async (ctx) => {
+          const patient = ctxPatient(ctx);
+          if (ctx.contentMode !== 'data') {
+            return mod.generateIncidentReportHtml({} as IncidentReport, patient, ctx.facilityName);
+          }
+          const db = await import('../lib/database');
+          const reports = await db.getIncidentReports();
+          let patientReports = (reports || []).filter(r => {
+            if (r.patient_id !== ctx.patient.院友id) return false;
+            const d = r.incident_date || '';
+            return (!ctx.startDate || d >= ctx.startDate) && (!ctx.endDate || d <= ctx.endDate);
+          });
+
+          const selectedIds = ctx.printOptions?.selectedIncidentReportIds;
+          if (selectedIds && selectedIds.length > 0) {
+            patientReports = patientReports.filter(r => selectedIds.includes(r.id));
+          } else {
+            patientReports.sort((a, b) => (b.incident_date || '').localeCompare(a.incident_date || ''));
+            patientReports = patientReports.slice(0, 1);
+          }
+
+          if (patientReports.length === 0) return '';
+          return patientReports
+            .map(r => mod.generateIncidentReportHtml(r, patient, ctx.facilityName))
+            .join('\n');
+        };
+      }
       case 'activity_record': {
         const mod = await import('./activityRecordPrintFormHtml');
         return async (ctx) => {
@@ -585,6 +614,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
           endDate,
           facilityName,
           contentMode,
+          printOptions,
         });
         // 「含既有輸入內容」模式：有內容則印內容，無內容則回退印基本資料
         // 床頭記錄除外：data 模式下院友沒有該 tab 或沒有記錄時必須整份跳過，不回退
@@ -595,6 +625,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
             endDate,
             facilityName,
             contentMode: 'basic',
+            printOptions,
           });
         }
         if (Array.isArray(html)) {

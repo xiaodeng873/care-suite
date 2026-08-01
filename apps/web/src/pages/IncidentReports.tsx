@@ -15,7 +15,6 @@ import {
   ChevronUp,
   ChevronDown,
   X,
-  Download,
   FileText,
   Printer
 } from 'lucide-react';
@@ -23,9 +22,9 @@ import { usePatients, type IncidentReport } from '../context/PatientContext';
 import BedNumberImprint from '../components/BedNumberImprint';
 import IncidentReportModal from '../components/IncidentReportModal';
 import PatientTooltip from '../components/PatientTooltip';
-import { generateIncidentReportWord } from '../utils/incidentReportWordGenerator';
-import { printIncidentReport } from '../utils/printIncidentReport';
-import { getTemplatesMetadata, downloadTemplateFile } from '../lib/database';
+
+import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
+import PatientPrintModal from '../components/PatientPrintModal';
 import { formatDisplayDate } from '../utils/dateFormat';
 
 
@@ -52,6 +51,7 @@ const IncidentReports: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('incident_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
@@ -64,7 +64,6 @@ const IncidentReports: React.FC = () => {
     在住狀態: '在住'
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
-  const [exportingIds, setExportingIds] = useState<Set<string>>(new Set());
 
   React.useEffect(() => {
     setCurrentPage(1);
@@ -189,6 +188,15 @@ const IncidentReports: React.FC = () => {
     }
   });
 
+  const selectedPatientIdsForPrint = useMemo(() => {
+    const ids = new Set<number>();
+    selectedRows.forEach(reportId => {
+      const report = incidentReports.find(r => r.id === reportId);
+      if (report) ids.add(report.patient_id);
+    });
+    return Array.from(ids);
+  }, [selectedRows, incidentReports]);
+
   const totalItems = sortedReports.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
@@ -261,52 +269,6 @@ const IncidentReports: React.FC = () => {
     }
   };
 
-  const handleExportWord = async (report: IncidentReport) => {
-    setExportingIds(prev => new Set(prev).add(report.id));
-
-    try {
-      // 查找院友資料
-      const patient = patients.find(p => p.院友id === report.patient_id);
-      if (!patient) {
-        alert('找不到院友資料');
-        return;
-      }
-
-      // 獲取意外事件報告範本
-      const templates = await getTemplatesMetadata();
-      const incidentTemplate = templates.find(t => t.type === 'incident-report');
-
-      if (!incidentTemplate) {
-        alert('找不到意外事件報告範本，請先在範本管理中上傳 Word 範本');
-        return;
-      }
-
-      // 下載範本檔案
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/templates/${incidentTemplate.storage_path}`
-      );
-
-      if (!response.ok) {
-        throw new Error('無法載入範本檔案');
-      }
-
-      const templateArrayBuffer = await response.arrayBuffer();
-
-      // 生成 Word 文件
-      await generateIncidentReportWord(report, patient, templateArrayBuffer);
-
-    } catch (error) {
-      console.error('匯出 Word 失敗:', error);
-      alert(`匯出失敗：${error instanceof Error ? error.message : '未知錯誤'}`);
-    } finally {
-      setExportingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(report.id);
-        return newSet;
-      });
-    }
-  };
-
   const handleSelectAll = () => {
     if (selectedRows.size === paginatedReports.length && paginatedReports.length > 0) {
       setSelectedRows(new Set());
@@ -325,35 +287,12 @@ const IncidentReports: React.FC = () => {
     setSelectedRows(newSelected);
   };
 
-  const handleBatchPrint = async () => {
+  const handleBatchPrint = () => {
     if (selectedRows.size === 0) {
       alert('請先選擇要列印的記錄');
       return;
     }
-
-    try {
-      // 獲取選中的報告及其患者信息
-      const selectedReports: Array<{ patient: any; report: IncidentReport }> = [];
-      selectedRows.forEach(reportId => {
-        const report = incidentReports.find(r => r.id === reportId);
-        if (report) {
-          const patient = patients.find(p => p.院友id === report.patient_id);
-          if (patient) {
-            selectedReports.push({ patient, report });
-          }
-        }
-      });
-
-      if (selectedReports.length === 0) {
-        alert('無法找到選中的記錄');
-        return;
-      }
-
-      await printIncidentReport(selectedReports);
-    } catch (error) {
-      console.error('列印失敗:', error);
-      alert(`列印失敗：${error instanceof Error ? error.message : '未知錯誤'}`);
-    }
+    setShowPrintModal(true);
   };
 
   const handleBatchDelete = async () => {
@@ -420,13 +359,27 @@ const IncidentReports: React.FC = () => {
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleAdd}
-              className="btn-primary flex flex-wrap items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>新增意外事件報告</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleBatchPrint}
+                className="btn-secondary flex flex-wrap items-center gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                <span>列印</span>
+                {selectedRows.size > 0 && (
+                  <span className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">
+                    {selectedRows.size}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={handleAdd}
+                className="btn-primary flex flex-wrap items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>新增意外事件報告</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -593,13 +546,8 @@ const IncidentReports: React.FC = () => {
                 </button>
                 {selectedRows.size > 0 && (
                   <>
-                    <button
-                      onClick={handleBatchPrint}
-                      className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-                    >
-                      <Printer className="h-4 w-4" />
-                      列印選定記錄 ({selectedRows.size})
-                    </button>
+                    
+
                     <button
                       onClick={handleBatchDelete}
                       className="text-sm text-red-600 hover:text-red-700 font-medium"
@@ -693,7 +641,6 @@ const IncidentReports: React.FC = () => {
                 paginatedReports.map(report => {
                   const patient = patients.find(p => p.院友id === report.patient_id);
                   const isDeleting = deletingIds.has(report.id);
-                  const isExporting = exportingIds.has(report.id);
 
                   return (
                     <tr
@@ -766,23 +713,13 @@ const IncidentReports: React.FC = () => {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleExportWord(report)}
-                            className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
-                            title="匯出Word"
-                            disabled={isDeleting || isExporting}
-                          >
-                            {isExporting ? (
-                              <div className="animate-spin h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full"></div>
-                            ) : (
-                              <Download className="h-4 w-4" />
-                            )}
-                          </button>
+                          
+
                           <button
                             onClick={() => handleEdit(report)}
                             className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                             title="編輯"
-                            disabled={isDeleting || isExporting}
+                            disabled={isDeleting}
                           >
                             <Edit3 className="h-4 w-4" />
                           </button>
@@ -790,7 +727,7 @@ const IncidentReports: React.FC = () => {
                             onClick={() => handleDelete(report.id)}
                             className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="刪除"
-                            disabled={isDeleting || isExporting}
+                            disabled={isDeleting}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -876,6 +813,32 @@ const IncidentReports: React.FC = () => {
           onClose={() => {
             setShowModal(false);
             setSelectedReport(null);
+          }}
+        />
+      )}
+
+      {showPrintModal && (
+        <PatientPrintModal
+          patients={patients}
+          initialSelectedPatientIds={selectedPatientIdsForPrint}
+          initialSelectedDocumentIds={['accident_report']}
+          initialStartDate={advancedFilters.startDate}
+          initialEndDate={advancedFilters.endDate}
+          initialTab="常用表格"
+          onClose={() => setShowPrintModal(false)}
+          onPrint={(selectedPatients, selectedDocuments, startDate, endDate, contentMode, printOptions) => {
+            generatePatientPrintBundle({
+              patients: selectedPatients,
+              documentIds: selectedDocuments,
+              startDate,
+              endDate,
+              contentMode,
+              printOptions: {
+                ...printOptions,
+                selectedIncidentReportIds: Array.from(selectedRows),
+              },
+            });
+            setShowPrintModal(false);
           }}
         />
       )}
