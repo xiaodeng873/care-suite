@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { parse } from '@fast-csv/parse';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const CSV_PATH = process.env.CSV_PATH || 'C:/Users/Admin/Desktop/care-suite/regime - Sheet1.csv';
 const C_PATIENT_CSV = process.env.C_PATIENT_CSV || 'C:/Users/Admin/Desktop/care-suite/upload/院友個人基本資料(C).csv';
@@ -994,20 +996,18 @@ async function main() {
 
       // 來源 / 專科 / 途徑 / 頻率 / 劑量
       const { source, specialty } = parseSource(row['藥物來源'], settings, unknownSources);
-      const route = parseRoute(row['服用途徑'], settings, unknownRoutes);
+      let route = parseRoute(row['服用途徑'], settings, unknownRoutes);
+      // TNG 舌下丸在院內歸類為口服藥
+      if (/\b(TNG|GLYCERYL TRINITRATE)\b/i.test(medicationName)) {
+        route = '口服';
+      }
       const freq = parseFrequency(row['頻率'], unknownFreqs);
       const { amount, unit } = parseDosage(row['劑量/單位']);
       const dosageForm = inferDosageForm(route, unit);
 
-      // 時間點：先讀 CSV，若無則用頻率對照產生的預設時間；PRN 可留白
+      // 時間點：只採用 CSV 原始值，空白即留白，不再依頻率自動生成
       let slots = parseTimeSlots(row['服用時間點']);
       const isPrn = /\bPRN\b/i.test(row['PRN/remark'] || '');
-      if (slots.length === 0 && freq._autoSlots && freq._autoSlots.length) {
-        slots = freq._autoSlots;
-      }
-      if (!isPrn && slots.length === 0 && freq.daily_frequency) {
-        slots = getAutoTimeSlots(freq.daily_frequency, freq.meal_timing || '');
-      }
 
       // 備藥方式
       let preparation = 'immediate';

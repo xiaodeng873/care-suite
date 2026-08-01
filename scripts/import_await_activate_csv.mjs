@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { parse } from '@fast-csv/parse';
 import fs from 'fs';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const CSV_PATH = process.env.AWAIT_CSV_PATH || 'C:/Users/Admin/Desktop/care-suite/upload/await to activate - Sheet1.csv';
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -230,12 +232,17 @@ async function main() {
         continue;
       }
 
-      const route = parseRoute(routeRaw);
+      let route = parseRoute(routeRaw);
+      // TNG 舌下丸在院內歸類為口服藥
+      if (/\b(TNG|GLYCERYL TRINITRATE)\b/i.test(medicationName)) {
+        route = '口服';
+      }
       const freq = parseFrequency(freqRaw);
       const { amount, unit } = parseDosage(dosageRaw);
       const prep = parsePreparation(prepOrSpecial);
       const special = parseSpecialInstruction(prepOrSpecial);
-      const slots = parseTimeSlots(timeRaw);
+      const isNoTimeSlot = /無時段|無時間|無服藥時段/i.test(timeRaw);
+      let slots = parseTimeSlots(timeRaw);
 
       // 備藥方式
       let preparation = 'immediate';
@@ -245,6 +252,8 @@ async function main() {
       if (isOralTablet && !(isPrn && slots.length === 0)) preparation = 'advanced';
       if (prep === '提前') preparation = 'advanced';
       if (prep === '即時') preparation = 'immediate';
+      // TNG 舌下丸即時備藥
+      if (/\b(TNG|GLYCERYL TRINITRATE)\b/i.test(medicationName)) preparation = 'immediate';
 
       const { source, specialty } = parseSource(sourceRaw);
 

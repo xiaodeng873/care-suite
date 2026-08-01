@@ -77,7 +77,9 @@ const DISPENSE_NOTE_ITEMS: string[] = [
 // 分頁及版面固定規格
 const MAX_PRESCRIPTIONS_PER_PAGE = 5; // 每頁最多處方數
 const MIN_SLOT_ROWS = 4;              // 每個處方最少顯示時段列數（不足補空行）
-const MIN_SUMMARY_ROWS = 6;           // 彙總區最少列數（不足補空行）
+const SUMMARY_ROWS_4 = 2;             // 4 行彙總檔：AM/PM 各 2 行（PM 從第 3 行起）
+const SUMMARY_ROWS_6 = 3;             // 6 行彙總檔：AM/PM 各 3 行
+const SUMMARY_ROWS_8 = 4;             // 8 行彙總檔：AM/PM 各 4 行
 
 export const exportMedicationRecordToHtml = async (
   patients: PatientWithPrescriptions[],
@@ -179,7 +181,7 @@ const preparePages = (
       let fillerCount = 0;
       if (includeBlankRows) {
         const realSumMm = pb.reduce((sum, b) => sum + getBlockHeightMm(b), 0);
-        const usableMm = bodyUsableMm(summaryRowCount(pb, includeBlankRows), includeBlankRows, footerLegendMm);
+        const usableMm = bodyUsableMm(summaryRowCount(pb), footerLegendMm);
         const roomForFillers = Math.floor((usableMm - realSumMm) / FILLER_BLOCK_MM);
         fillerCount = Math.max(0, roomForFillers);
       }
@@ -214,9 +216,6 @@ const FILLER_BLOCK_MM = MIN_SLOT_ROWS * ROW_SIGN_MM; // 一個空白處方區塊
 const FOOTER_FIXED_MM = 4;            // 頁碼標籤高度（8pt字體≈2.82mm + 瀏覽器行高差異安全邊距）
 const SAFETY_MARGIN_MM = 0;           // 移除安全邊距，讓 footer 能貼底填滿
 const AM_SECTION_MIN = 2;             // 處方列上午時段區最少預留列數（≤12:00，PM 從第3行起）
-const SUMMARY_AM_MIN = 3;             // 彙總區上午時段區最少預留列數（PM 從第4行起）
-const PM_SECTION_MIN = 2;             // 下午時段區最少預留列數（>12:00）
-const SUMMARY_PM_MIN = 3;             // 彙總區下午最少列數（= MIN_SUMMARY_ROWS - SUMMARY_AM_MIN）
 
 // 將時間點分為上午（≤12:00）和下午（>12:00）兩組。
 // 注意：故意不依賴 parseTimeToMinutes，以避免 const 初始化順序問題。
@@ -243,15 +242,14 @@ const estimateFooterLegendMm = (staffCount: number): number => {
 
 // 給定彙總時段數，計算 body 可用高度（mm）。
 // 需保留 footer（含頁碼）高度，避免頁尾被 body 擠出頁面造成裁切。
-const bodyUsableMm = (summarySlots: number, includeBlankRows: boolean, footerLegendMm: number): number => {
-  const footerRows = includeBlankRows ? Math.max(MIN_SUMMARY_ROWS, summarySlots) : Math.max(1, summarySlots);
-  const footerMm = Math.max(footerRows * ROW_SUMMARY_MM, footerLegendMm) + FOOTER_FIXED_MM;
+const bodyUsableMm = (summaryRows: number, footerLegendMm: number): number => {
+  const footerMm = Math.max(summaryRows * ROW_SUMMARY_MM, footerLegendMm) + FOOTER_FIXED_MM;
   return PAGE_HEIGHT_MM - HEADER_HEIGHT_MM - TABLE_HEADER_MM - footerMm - SAFETY_MARGIN_MM;
 };
 
 // 計算一個處方區塊實際佔用高度（mm）。
 // 採 AM/PM 分區排列：上午（≤12:00）時段占前 AM_SECTION_MIN 列起，
-// 下午（>12:00）時段占後 PM_SECTION_MIN 列起，不足最小列數的部分以空白列補齊。
+// 下午（>12:00）時段接續其後，整體合計不足 MIN_SLOT_ROWS（4）列時以空白列補齊。
 const getBlockHeightMm = (block: PrescriptionBlock): number => {
   const inspCount = prescriptionHasInspection(block.prescription)
     ? new Set((block.prescription.inspection_rules as any[]).map((r: any) => String(r?.vital_sign_type ?? '').trim()).filter(Boolean)).size
@@ -282,7 +280,7 @@ const paginateBlocks = (
     const blockMm = getBlockHeightMm(block);
     if (current.length > 0) {
       const projected = [...current, block];
-      const usableMm = bodyUsableMm(summaryRowCount(projected, includeBlankRows), includeBlankRows, footerLegendMm);
+      const usableMm = bodyUsableMm(summaryRowCount(projected), footerLegendMm);
       if (currentMm + blockMm > usableMm || current.length >= MAX_PRESCRIPTIONS_PER_PAGE) {
         result.push(current);
         current = [];
@@ -297,15 +295,27 @@ const paginateBlocks = (
   return result.length > 0 ? result : [[]];
 };
 
-// 彙總區列數（彙總無檢測行，每時段 1 列；AM 最少 2 列，合計最少 4／6 列）。
-const summaryRowCount = (blocks: PrescriptionBlock[], includeBlankRows: boolean): number => {
+// 彙總區行數配置：4/6/8 三檔，對稱 AM/PM；真實資料超過 8 行檔則按實際擴展。
+const computeSummaryLayout = (am: string[], pm: string[]): { totalRows: number; amRows: number; pmRows: number } => {
+  const amCount = am.length;
+  const pmCount = pm.length;
+  if (amCount <= SUMMARY_ROWS_4 && pmCount <= SUMMARY_ROWS_4) {
+    return { totalRows: SUMMARY_ROWS_4 * 2, amRows: SUMMARY_ROWS_4, pmRows: SUMMARY_ROWS_4 };
+  }
+  if (amCount <= SUMMARY_ROWS_6 && pmCount <= SUMMARY_ROWS_6) {
+    return { totalRows: SUMMARY_ROWS_6 * 2, amRows: SUMMARY_ROWS_6, pmRows: SUMMARY_ROWS_6 };
+  }
+  if (amCount <= SUMMARY_ROWS_8 && pmCount <= SUMMARY_ROWS_8) {
+    return { totalRows: SUMMARY_ROWS_8 * 2, amRows: SUMMARY_ROWS_8, pmRows: SUMMARY_ROWS_8 };
+  }
+  // 極端資料超出標準 8 行檔：按真實時段數延伸，避免截斷。
+  return { totalRows: amCount + pmCount, amRows: amCount, pmRows: pmCount };
+};
+
+const summaryRowCount = (blocks: PrescriptionBlock[]): number => {
   const allSlots = [...new Set(blocks.flatMap((b) => b.timeSlots).filter(Boolean))];
   const { am, pm } = splitAmPm(allSlots);
-  const amPad = Math.max(0, SUMMARY_AM_MIN - am.length);  // 彙總區 AM 最少 3 列（PM 從第4行起）
-  const amTotal = am.length + amPad;
-  const minTotal = includeBlankRows ? MIN_SUMMARY_ROWS : MIN_SLOT_ROWS;
-  const pmPad = Math.max(0, minTotal - amTotal - pm.length);
-  return amTotal + pm.length + pmPad;
+  return computeSummaryLayout(am, pm).totalRows;
 };
 
 // ---- 服藥前檢測項 ----
@@ -489,7 +499,7 @@ const renderPage = (
     + renderHeaderRegion(page.patient, page.routeKind, selectedMonth)
     + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows)}</div>`
     + '<div class="mr-top-spacer"></div>'
-    + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel, includeBlankRows)
+    + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel)
     + '</section>';
 };
 
@@ -887,21 +897,16 @@ const renderFooterRegion = (
   dayCount: number,
   workflowRecords: WorkflowRecord[],
   staffMapping: StaffCodeMapping,
-  pageLabel: string,
-  includeBlankRows: boolean
+  pageLabel: string
 ): string => {
   const pageSlots = sortDistinctTimeSlots(page.blocks.flatMap((block) => block.timeSlots));
-  // AM/PM 分區：上午時段固定占前兩行（rows 1-2），下午時段從第3行起（row 3+）
   const { am: amPageSlots, pm: pmPageSlots } = splitAmPm(pageSlots);
+  const { amRows, pmRows, totalRows } = computeSummaryLayout(amPageSlots, pmPageSlots);
   const summaryAm = [...amPageSlots];
+  while (summaryAm.length < amRows) summaryAm.push('');
   const summaryPm = [...pmPageSlots];
-  // 上午固定預留 SUMMARY_AM_MIN(3) 行（彙總區 PM 從第4行起）
-  while (summaryAm.length < SUMMARY_AM_MIN) summaryAm.push('');
-  // 下午：空白模式補至 SUMMARY_PM_MIN（合計 MIN_SUMMARY_ROWS），有資料模式補至 PM_SECTION_MIN
-  const pmMinRows = includeBlankRows ? SUMMARY_PM_MIN : PM_SECTION_MIN;
-  while (summaryPm.length < pmMinRows) summaryPm.push('');
+  while (summaryPm.length < pmRows) summaryPm.push('');
   const summarySlots = [...summaryAm, ...summaryPm];
-  const totalRows = summarySlots.length;
 
   const legendCodes = '<div class="mr-legend-codes">'
     + DISPENSE_CODE_ITEMS.map((item) => `<span>${escapeHtml(item)}</span>`).join('')
@@ -1196,7 +1201,7 @@ body {
 .mr-header-table td { border: 0.4pt solid #9aa7b4; padding: 1mm 1.5mm; vertical-align: middle; }
 .mr-hc-title { width: 94mm; }
 .mr-hc-photo { width: 28mm; }
-.mr-hc-info { width: 36mm; }
+.mr-hc-info { width: 42mm; }
 .mr-h-title { text-align: center; }
 .mr-org { font-size: 15pt; font-weight: bold; color: #0f2740; line-height: 1.3; letter-spacing: 1pt; }
 .mr-doc { font-size: 11.5pt; font-weight: bold; color: #1f3a52; line-height: 1.2; letter-spacing: 2pt; margin-top: 0.8mm; }

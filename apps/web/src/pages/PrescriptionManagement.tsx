@@ -118,6 +118,13 @@ const PrescriptionManagement: React.FC = () => {
   // 添加途徑過濾狀態
   const [selectedRoute, setSelectedRoute] = useState<string>('全部');
 
+  // 「其他」分類已取消，若舊狀態為「其他」則重置為「全部」
+  useEffect(() => {
+    if (selectedRoute === '其他') {
+      setSelectedRoute('全部');
+    }
+  }, [selectedRoute]);
+
   // 自動將已到期的在服處方轉為停用（前端輪詢）
   const isExpiringRef = useRef(false);
   useEffect(() => {
@@ -193,24 +200,23 @@ const PrescriptionManagement: React.FC = () => {
     const currentPrescriptions = currentPatient ? 
       currentPatient.prescriptions[activeTab] : [];
     
-    // 應用途徑過濾
+    // 應用途徑過濾：外用包含原本外用 + 所有非口服/注射途徑
     let filteredPrescriptions = currentPrescriptions;
     if (selectedRoute !== '全部') {
-      if (selectedRoute === '其他') {
-        filteredPrescriptions = currentPrescriptions.filter(p => 
-          p.administration_route && !['口服', '外用', '注射'].includes(p.administration_route)
+      if (selectedRoute === '外用') {
+        filteredPrescriptions = currentPrescriptions.filter(p =>
+          p.administration_route && !['口服', '注射'].includes(p.administration_route)
         );
       } else {
         filteredPrescriptions = currentPrescriptions.filter(p => p.administration_route === selectedRoute);
       }
     }
-    
+
     return {
       全部: currentPrescriptions.length,
       口服: currentPrescriptions.filter(p => p.administration_route === '口服').length,
-      外用: currentPrescriptions.filter(p => p.administration_route === '外用').length,
+      外用: currentPrescriptions.filter(p => p.administration_route && !['口服', '注射'].includes(p.administration_route)).length,
       注射: currentPrescriptions.filter(p => p.administration_route === '注射').length,
-      其他: currentPrescriptions.filter(p => p.administration_route && !['口服', '外用', '注射'].includes(p.administration_route)).length,
       filtered: filteredPrescriptions.length
     };
   }, [currentPatient, activeTab, selectedRoute]);
@@ -321,12 +327,12 @@ const PrescriptionManagement: React.FC = () => {
     const currentPrescriptions = currentPatient ? 
       currentPatient.prescriptions[activeTab] : [];
     
-    // 應用途徑過濾
+    // 應用途徑過濾：外用包含原本外用 + 所有非口服/注射途徑
     let filteredPrescriptions = currentPrescriptions;
     if (selectedRoute !== '全部') {
-      if (selectedRoute === '其他') {
-        filteredPrescriptions = currentPrescriptions.filter(p => 
-          p.administration_route && !['口服', '外用', '注射'].includes(p.administration_route)
+      if (selectedRoute === '外用') {
+        filteredPrescriptions = currentPrescriptions.filter(p =>
+          p.administration_route && !['口服', '注射'].includes(p.administration_route)
         );
       } else {
         filteredPrescriptions = currentPrescriptions.filter(p => p.administration_route === selectedRoute);
@@ -352,12 +358,12 @@ const PrescriptionManagement: React.FC = () => {
     const currentPrescriptions = currentPatient ? 
       currentPatient.prescriptions[activeTab] : [];
     
-    // 應用途徑過濾
+    // 應用途徑過濾：外用包含原本外用 + 所有非口服/注射途徑
     let filteredPrescriptions = currentPrescriptions;
     if (selectedRoute !== '全部') {
-      if (selectedRoute === '其他') {
-        filteredPrescriptions = currentPrescriptions.filter(p => 
-          p.administration_route && !['口服', '外用', '注射'].includes(p.administration_route)
+      if (selectedRoute === '外用') {
+        filteredPrescriptions = currentPrescriptions.filter(p =>
+          p.administration_route && !['口服', '注射'].includes(p.administration_route)
         );
       } else {
         filteredPrescriptions = currentPrescriptions.filter(p => p.administration_route === selectedRoute);
@@ -892,7 +898,7 @@ const PrescriptionManagement: React.FC = () => {
 interface IntegratedPrescriptionCardProps {
   currentPatient: PatientPrescriptionSummary;
   selectedPrescriptions: Set<string>;
-  routeStatistics: { 全部: number; 口服: number; 外用: number; 注射: number; 其他: number; filtered: number };
+  routeStatistics: { 全部: number; 口服: number; 外用: number; 注射: number; filtered: number };
   selectedRoute: string;
   setSelectedRoute: (route: string) => void;
   onSelectRow: (prescriptionId: string) => void;
@@ -932,9 +938,9 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
   // 計算當前視圖中的處方
   let currentPrescriptions = currentPatient.prescriptions[activeTab];
   if (selectedRoute !== '全部') {
-    if (selectedRoute === '其他') {
-      currentPrescriptions = currentPrescriptions.filter(p => 
-        p.administration_route && !['口服', '外用', '注射'].includes(p.administration_route)
+    if (selectedRoute === '外用') {
+      currentPrescriptions = currentPrescriptions.filter(p =>
+        p.administration_route && !['口服', '注射'].includes(p.administration_route)
       );
     } else {
       currentPrescriptions = currentPrescriptions.filter(p => p.administration_route === selectedRoute);
@@ -1211,8 +1217,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
                 { key: '全部', label: '全部', color: 'bg-gray-100 text-gray-800 hover:bg-gray-200' },
                 { key: '口服', label: '口服', color: 'bg-blue-100 text-blue-800 hover:bg-blue-200' },
                 { key: '外用', label: '外用', color: 'bg-green-100 text-green-800 hover:bg-green-200' },
-                { key: '注射', label: '注射', color: 'bg-red-100 text-red-800 hover:bg-red-200' },
-                { key: '其他', label: '其他', color: 'bg-purple-100 text-purple-800 hover:bg-purple-200' }
+                { key: '注射', label: '注射', color: 'bg-red-100 text-red-800 hover:bg-red-200' }
               ].map(route => (
                 <button
                   key={route.key}
