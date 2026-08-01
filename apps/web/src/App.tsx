@@ -39,6 +39,7 @@ const routeNames: Record<string, string> = {
   '/wound': '傷口管理',
   '/wound-old': '傷口評估',
   '/prescriptions': '處方管理',
+  '/prescription-search': '處方搜尋',
   '/drug-database': '藥物資料庫',
   '/medication-workflow': 'eMAR',
   '/hospital-outreach': 'CGAT',
@@ -89,6 +90,7 @@ const WoundManagement = lazy(() => import('./pages/WoundManagement'));
 const WoundManagementNew = lazy(() => import('./pages/WoundManagementNew'));
 const PrescriptionManagement = lazy(() => import('./pages/PrescriptionManagement'));
 const DrugDatabase = lazy(() => import('./pages/DrugDatabase'));
+const PrescriptionSearch = lazy(() => import('./pages/PrescriptionSearch'));
 const MedicationWorkflow = lazy(() => import('./pages/MedicationWorkflow'));
 const HospitalOutreach = lazy(() => import('./pages/Cgat'));
 const AnnualHealthCheckup = lazy(() => import('./pages/AnnualHealthCheckup'));
@@ -296,6 +298,7 @@ function AuthenticatedContent({
             <Route path="/wound-old" element={<WoundManagement />} />
             <Route path="/activity-records" element={<ActivityRecords />} />
             <Route path="/prescriptions" element={<PrescriptionManagement />} />
+            <Route path="/prescription-search" element={<PrescriptionSearch />} />
             <Route path="/drug-database" element={<DrugDatabase />} />
             <Route path="/medication-workflow" element={<MedicationWorkflow />} />
             <Route path="/hospital-outreach" element={<HospitalOutreach />} />

@@ -36,6 +36,7 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
   // 常用表格
   { id: 'medication_list_short', name: '院友服用藥物一覽表（短期藥）', category: '常用表格', defaultChecked: true },
   { id: 'medication_list_long', name: '院友服用藥物一覽表（長期藥）', category: '常用表格', defaultChecked: false },
+  { id: 'vaccination_record', name: '疫苗接種記錄', category: '常用表格', defaultChecked: false },
   { id: 'temperature_record', name: '院友體溫記錄', category: '常用表格', defaultChecked: false },
   { id: 'bodyweight_record', name: '院友體重記錄', category: '常用表格', defaultChecked: false },
   { id: 'blood_sugar_record', name: '院友血糖記錄', category: '常用表格', defaultChecked: false },
@@ -57,10 +58,15 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
 
 const TAB_ORDER: PrintDocumentCategory[] = ['入住文件', '常用表格', '床頭記錄'];
 
+export interface PrintDocumentOptions {
+  /** Excel 匯出時，是否按院友分開工作表；false 則全部院友堆在同一張工作表 */
+  separateSheetsPerPatient?: boolean;
+}
+
 interface PatientPrintModalProps {
   patients: Patient[];
   onClose: () => void;
-  onPrint: (selectedPatients: Patient[], selectedDocuments: string[], startDate: string, endDate: string, contentMode: PrintContentMode) => void;
+  onPrint: (selectedPatients: Patient[], selectedDocuments: string[], startDate: string, endDate: string, contentMode: PrintContentMode, printOptions?: PrintDocumentOptions) => void;
   initialTab?: PrintDocumentCategory;
   initialSelectedPatientIds?: number[];
   initialSelectedDocumentIds?: string[];
@@ -115,17 +121,23 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
   const [startDate, setStartDate] = useState(initialStartDate ?? defaultStartDate);
   const [endDate, setEndDate] = useState(initialEndDate ?? today);
   const [contentMode, setContentMode] = useState<PrintContentMode>('data');
+  const [separateSheetsPerPatient, setSeparateSheetsPerPatient] = useState(false);
+
+  const [residencyFilter, setResidencyFilter] = useState<string>('');
 
   const filteredPatients = useMemo(() => {
-    if (!patientSearch.trim()) return patients;
-    const term = patientSearch.toLowerCase();
-    return patients.filter(p =>
-      (p.中文姓名 && p.中文姓名.toLowerCase().includes(term)) ||
-      (p.中文姓氏 && p.中文姓氏.toLowerCase().includes(term)) ||
-      (p.中文名字 && p.中文名字.toLowerCase().includes(term)) ||
-      (p.床號 && p.床號.toLowerCase().includes(term))
-    );
-  }, [patients, patientSearch]);
+    return patients.filter(p => {
+      const matchesResidency = !residencyFilter || p.在住狀態 === residencyFilter;
+      if (!patientSearch.trim()) return matchesResidency;
+      const term = patientSearch.toLowerCase();
+      const matchesSearch =
+        (p.中文姓名 && p.中文姓名.toLowerCase().includes(term)) ||
+        (p.中文姓氏 && p.中文姓氏.toLowerCase().includes(term)) ||
+        (p.中文名字 && p.中文名字.toLowerCase().includes(term)) ||
+        (p.床號 && p.床號.toLowerCase().includes(term));
+      return matchesResidency && matchesSearch;
+    });
+  }, [patients, patientSearch, residencyFilter]);
 
   const tabDocuments = useMemo(() => PRINT_DOCUMENTS.filter(d => d.category === activeTab), [activeTab]);
 
@@ -167,6 +179,8 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
     setCheckedDocuments(next);
   };
 
+  const hasVaccinationRecord = checkedDocuments.has('vaccination_record');
+
   const handlePrint = () => {
     const selected = patients.filter(p => selectedPatientIds.has(p.院友id));
     if (selected.length === 0) {
@@ -178,7 +192,10 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
       return;
     }
     const effectiveStartDate = startDate || selected[0]?.入住日期 || '';
-    onPrint(selected, Array.from(checkedDocuments), effectiveStartDate, endDate, contentMode);
+    const printOptions: PrintDocumentOptions | undefined = hasVaccinationRecord
+      ? { separateSheetsPerPatient }
+      : undefined;
+    onPrint(selected, Array.from(checkedDocuments), effectiveStartDate, endDate, contentMode, printOptions);
   };
 
   const selectedCount = selectedPatientIds.size;
@@ -229,12 +246,26 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
               </label>
             ))}
           </div>
+          {hasVaccinationRecord && (
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Excel 工作表：</label>
+              <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={separateSheetsPerPatient}
+                  onChange={e => setSeparateSheetsPerPatient(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                按院友分開 sheet
+              </label>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
           {/* 左側：院友選擇 */}
           <div className="lg:w-1/3 border-r border-gray-200 flex flex-col">
-            <div className="p-3 border-b border-gray-200">
+            <div className="p-3 border-b border-gray-200 space-y-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
@@ -245,6 +276,16 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
                   className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded"
                 />
               </div>
+              <select
+                value={residencyFilter}
+                onChange={e => setResidencyFilter(e.target.value)}
+                className="w-full text-sm border border-gray-300 rounded py-2 px-3"
+              >
+                <option value="">全部在住狀態</option>
+                <option value="在住">在住</option>
+                <option value="待入住">待入住</option>
+                <option value="已退住">已退住</option>
+              </select>
             </div>
             <div className="p-3 border-b border-gray-200 flex items-center gap-2 text-sm">
               <button onClick={() => toggleAllPatients(true)} className="text-blue-600 hover:underline">全選</button>

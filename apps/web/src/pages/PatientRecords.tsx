@@ -1289,7 +1289,7 @@ const PatientRecords: React.FC = () => {
         <PatientPrintModal
           patients={patients}
           onClose={() => setShowPrintModal(false)}
-          onPrint={async (selectedPatients, documentIds, startDate, endDate, contentMode) => {
+          onPrint={async (selectedPatients, documentIds, startDate, endDate, contentMode, printOptions) => {
             setShowPrintModal(false);
             try {
               await generatePatientPrintBundle({
@@ -1298,6 +1298,7 @@ const PatientRecords: React.FC = () => {
                 startDate,
                 endDate,
                 contentMode,
+                printOptions,
               });
             } catch (error) {
               console.error('列印失敗:', error);

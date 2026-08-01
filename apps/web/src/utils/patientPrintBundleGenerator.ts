@@ -1,5 +1,6 @@
 import type {
   Patient,
+  VaccinationRecord,
   HealthAssessment,
   FollowUpAppointment,
   IncidentReport,
@@ -13,7 +14,8 @@ import type {
 import { supabase } from '../lib/supabase';
 import { getFacilitySettings } from './facilitySettings';
 import { getPrintBedNumber } from './bedTransferUtils';
-import { PRINT_DOCUMENTS } from '../components/PatientPrintModal';
+import { PRINT_DOCUMENTS, type PrintDocumentOptions } from '../components/PatientPrintModal';
+import { exportVaccinationRecordsToExcel } from './vaccinationRecordExcelGenerator';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,6 +28,7 @@ export interface PrintBundleOptions {
   startDate: string;
   endDate: string;
   contentMode: PrintContentMode;
+  printOptions?: PrintDocumentOptions;
 }
 
 export interface DocumentGeneratorContext {
@@ -535,7 +538,7 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
 // ─── 主入口 ──────────────────────────────────────────────────────────────────
 
 export async function generatePatientPrintBundle(options: PrintBundleOptions): Promise<void> {
-  const { patients, documentIds, startDate, endDate, contentMode } = options;
+  const { patients, documentIds, startDate, endDate, contentMode, printOptions } = options;
   if (patients.length === 0 || documentIds.length === 0) return;
 
   // 清除床頭記錄選項卡快取，避免跨次列印使用舊資料
@@ -558,13 +561,17 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     return ai - bi;
   });
 
+  // 疫苗接種記錄是 Excel 匯出，與 HTML 文件分開處理
+  const hasVaccinationRecord = sortedDocumentIds.includes('vaccination_record');
+  const htmlDocumentIds = sortedDocumentIds.filter(id => id !== 'vaccination_record');
+
   const pages: string[] = [];
   const skipped: string[] = [];
   const failed: string[] = [];
 
   for (const patient of patients) {
     const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
-    for (const docId of sortedDocumentIds) {
+    for (const docId of htmlDocumentIds) {
       const generator = await getGenerator(docId);
       if (!generator) continue;
       const doc = PRINT_DOCUMENTS.find(d => d.id === docId);
@@ -604,18 +611,52 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     }
   }
 
-  if (pages.length === 0) {
-    alert('沒有可列印的內容');
+  let excelGenerated = false;
+  if (hasVaccinationRecord) {
+    try {
+      const patientIds = patients.map(p => p.院友id);
+      const { data, error } = await supabase
+        .from('vaccination_records')
+        .select('*')
+        .in('patient_id', patientIds)
+        .order('vaccination_date', { ascending: false });
+      if (error) throw error;
+      const records = (data || []) as VaccinationRecord[];
+      const effectiveStartDate = startDate || '';
+      const effectiveEndDate = endDate || '';
+      if (records.length > 0) {
+        await exportVaccinationRecordsToExcel({
+          patients,
+          records,
+          startDate: effectiveStartDate,
+          endDate: effectiveEndDate,
+          separateSheetsPerPatient: printOptions?.separateSheetsPerPatient ?? false,
+        });
+        excelGenerated = true;
+      } else {
+        skipped.push('疫苗接種記錄（日期範圍內沒有記錄）');
+      }
+    } catch (error) {
+      console.error('產生疫苗接種記錄 Excel 失敗:', error);
+      failed.push('疫苗接種記錄');
+    }
+  }
+
+  // 若只有 HTML 且無內容，則提示；若只有 Excel 也會在上方匯出
+  if (pages.length === 0 && !excelGenerated) {
+    alert('沒有可列印或匯出的內容');
     return;
   }
 
-  // 使用 printGroupedHtml：依 @page 設定分組，同組合併到單一 iframe 列印
-  const { printGroupedHtml } = await import('./printUtils');
-  printGroupedHtml(pages, 'patient-bundle-print-iframe');
+  if (pages.length > 0) {
+    // 使用 printGroupedHtml：依 @page 設定分組，同組合併到單一 iframe 列印
+    const { printGroupedHtml } = await import('./printUtils');
+    printGroupedHtml(pages, 'patient-bundle-print-iframe');
+  }
 
-  // 回報未能列印的文件
+  // 回報未能列印/匯出的文件
   const notices: string[] = [];
-  if (skipped.length > 0) notices.push(`以下文件在日期範圍內沒有記錄，未有列印：\n${skipped.join('\n')}`);
+  if (skipped.length > 0) notices.push(`以下文件在日期範圍內沒有記錄，未有列印/匯出：\n${skipped.join('\n')}`);
   if (failed.length > 0) notices.push(`以下文件產生失敗：\n${failed.join('\n')}`);
   if (notices.length > 0) {
     setTimeout(() => alert(notices.join('\n\n')), 600);

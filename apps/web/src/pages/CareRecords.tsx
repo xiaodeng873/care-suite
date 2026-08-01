@@ -1658,7 +1658,7 @@ const CareRecords: React.FC = () => {
         <PatientPrintModal
           patients={sortedActivePatients}
           onClose={() => setShowPrintModal(false)}
-          onPrint={(selected, docs, start, end, mode) => {
+          onPrint={(selected, docs, start, end, mode, printOptions) => {
             setShowPrintModal(false);
             generatePatientPrintBundle({
               patients: selected,
@@ -1666,6 +1666,7 @@ const CareRecords: React.FC = () => {
               startDate: start,
               endDate: end,
               contentMode: mode,
+              printOptions,
             });
           }}
           initialTab="床頭記錄"

@@ -6,6 +6,8 @@ import {
   Trash2,
   Search,
   Filter,
+
+  Printer,
   User,
   Calendar,
   ChevronUp,
@@ -17,6 +19,9 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import VaccinationRecordModal from '../components/VaccinationRecordModal';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
+import PatientPrintModal from '../components/PatientPrintModal';
+import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
+
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -57,6 +62,7 @@ const VaccinationRecords: React.FC = () => {
     在住狀態: '在住'
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   React.useEffect(() => {
     setCurrentPage(1);
@@ -69,7 +75,7 @@ const VaccinationRecords: React.FC = () => {
   const hasAdvancedFilters = () => {
     return advancedFilters.床號 || advancedFilters.中文姓名 || advancedFilters.vaccine_item ||
            advancedFilters.vaccination_unit || advancedFilters.startDate || advancedFilters.endDate ||
-           (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '在住');
+           (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '');
   };
 
   const updateAdvancedFilter = (field: keyof AdvancedFilters, value: string) => {
@@ -342,17 +348,27 @@ const VaccinationRecords: React.FC = () => {
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">疫苗記錄</h1>
-          <button
-            onClick={() => {
-              setSelectedPatientId(undefined);
-              setSelectedPatientRecords([]);
-              setShowModal(true);
-            }}
-            className="btn-primary flex flex-wrap items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            <span>新增疫苗記錄</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印</span>
+            </button>
+           
+            <button
+              onClick={() => {
+                setSelectedPatientId(undefined);
+                setSelectedPatientRecords([]);
+                setShowModal(true);
+              }}
+              className="btn-primary flex flex-wrap items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>新增疫苗記錄</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -761,6 +777,31 @@ const VaccinationRecords: React.FC = () => {
             setShowModal(false);
             setSelectedPatientId(undefined);
             setSelectedPatientRecords([]);
+          }}
+        />
+      )}
+
+      {showPrintModal && (
+        <PatientPrintModal
+          patients={patients}
+          initialTab="常用表格"
+          initialSelectedDocumentIds={['vaccination_record']}
+          onClose={() => setShowPrintModal(false)}
+          onPrint={async (selectedPatients, documentIds, startDate, endDate, contentMode, printOptions) => {
+            setShowPrintModal(false);
+            try {
+              await generatePatientPrintBundle({
+                patients: selectedPatients,
+                documentIds,
+                startDate,
+                endDate,
+                contentMode,
+                printOptions,
+              });
+            } catch (error) {
+              console.error('列印失敗:', error);
+              alert('列印失敗，請稍後再試');
+            }
           }}
         />
       )}

@@ -2722,7 +2722,7 @@ const MedicationWorkflow: React.FC = () => {
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '235px'}}>
                         藥物名稱及劑型
                       </th>
-                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '29px'}}>
+                      <th className="py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '29px'}}>
                         途徑/次數
                       </th>
                       <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style={{width: '50px', minWidth: '50px'}}>

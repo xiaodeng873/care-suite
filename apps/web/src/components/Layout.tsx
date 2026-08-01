@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key } from 'lucide-react';
+import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key, Search } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
@@ -26,6 +26,7 @@ const routeNames: Record<string, string> = {
   '/wound': '傷口管理',
   '/wound-old': '傷口評估',
   '/prescriptions': '處方管理',
+  '/prescription-search': '處方搜尋',
   '/drug-database': '藥物資料庫',
   '/medication-workflow': 'eMAR',
   '/hospital-outreach': 'CGAT',
@@ -145,6 +146,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       category: 'medication',
       items: [
         { name: '處方管理', href: '/prescriptions', icon: Pill, feature: 'prescription_management' },
+        { name: '處方搜尋', href: '/prescription-search', icon: Search, feature: 'prescription_management' },
         { name: 'eMAR', href: '/medication-workflow', icon: CheckSquare, feature: 'medication_workflow' },
         { name: '藥物資料庫', href: '/drug-database', icon: Database, feature: 'drug_database' },
       ]
