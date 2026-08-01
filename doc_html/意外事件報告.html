@@ -125,28 +125,41 @@
         .u.xl { min-width: 180px; }
         .u.fluid { flex: 1; min-width: 60px; }
 
-        /* 多行橫線：6 條固定長度底線，文字填滿一行先換 */
+        /* 多行橫線：用 .line 畫固定底線，.lines-text 絕對定位覆蓋文字 */
         .lines {
+            position: relative;
             width: 100%;
             line-height: 23px;
         }
-        .line {
-            height: 23px;
+        .lines-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
             line-height: 23px;
-            overflow: hidden;
-            white-space: nowrap;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            z-index: 1;
+        }
+        .line {
+            position: relative;
+            z-index: 0;
+            height: 23px;
             border-bottom: 1px solid #000;
         }
         .original-lines {
+            position: relative;
             width: 100%;
             line-height: 1.65em;
         }
         .original-lines .line {
-            min-height: 1.65em;
-            height: auto;
-            word-break: break-word;
-            line-height: 1.65em;
+            position: relative;
+            z-index: 0;
+            height: 1.65em;
             border-bottom: 1px solid #000;
+        }
+        .original-lines .lines-text {
+            line-height: 1.65em;
         }
 
         /* 核取方塊 */
@@ -335,6 +348,7 @@
         <span class="label">詳情：</span>
         <div class="content">
             <div class="lines" data-lines="incident_details">
+                <div class="lines-text"></div>
                 <div class="line"></div>
                 <div class="line"></div>
                 <div class="line"></div>
@@ -398,6 +412,7 @@
         <span class="label">院友申訴：</span>
         <div class="content">
             <div class="lines original-lines" data-lines="patient_complaint">
+                <div class="lines-text"></div>
                 <div class="line"></div>
             </div>
         </div>
@@ -504,6 +519,7 @@
         <li>
             院方的即時改善行動：
             <div class="lines" data-lines="immediate_improvement_actions">
+                <div class="lines-text"></div>
                 <div class="line"></div>
                 <div class="line"></div>
                 <div class="line"></div>
@@ -515,6 +531,7 @@
         <li>
             院方預防意外再次發生的方法：
             <div class="lines" data-lines="prevention_methods">
+                <div class="lines-text"></div>
                 <div class="line"></div>
                 <div class="line"></div>
                 <div class="line"></div>

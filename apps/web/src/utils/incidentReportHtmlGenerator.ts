@@ -185,24 +185,8 @@ function splitTextIntoLines(text: string, maxLineLength: number): string[] {
   return lines;
 }
 
-function renderLines(text: string, minLines = 6, maxLineLength = 48): string {
-  const lines: string[] = [];
-  if (text) {
-    const rawLines = text.split('\n');
-    for (const rawLine of rawLines) {
-      if (rawLine.length <= maxLineLength) {
-        lines.push(rawLine);
-      } else {
-        for (let i = 0; i < rawLine.length; i += maxLineLength) {
-          lines.push(rawLine.slice(i, i + maxLineLength));
-        }
-      }
-    }
-  }
-  while (lines.length < minLines) {
-    lines.push('');
-  }
-  return lines.map(line => `<div class="line">${escapeHtml(line)}</div>`).join('');
+function renderLines(text: string, _minLines = 6, _maxLineLength = 48): string {
+  return escapeHtml(text || '');
 }
 
 export function generateIncidentReportHtml(
@@ -237,10 +221,9 @@ export function generateIncidentReportHtml(
     const field = el.getAttribute('data-lines');
     if (!field) return;
     const text = getFieldValue(report, patient, field);
-    if (field === 'patient_complaint') {
-      el.innerHTML = `<div class="line">${escapeHtml(text)}</div>`;
-    } else {
-      el.innerHTML = renderLines(text);
+    const textEl = el.querySelector('.lines-text');
+    if (textEl) {
+      textEl.innerHTML = renderLines(text);
     }
   });
 
