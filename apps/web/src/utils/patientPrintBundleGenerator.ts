@@ -10,12 +10,19 @@ import type {
   MedicationPrescription,
   PatientCareTab,
   MealGuidance,
+  PatientHealthTask,
+  PatientTubeCareRecord,
+  InfectionControlRecord,
+  Station,
+  DiaperChangeRecord,
 } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { getFacilitySettings } from './facilitySettings';
 import { getPrintBedNumber } from './bedTransferUtils';
 import { PRINT_DOCUMENTS, type PrintDocumentOptions } from '../components/PatientPrintModal';
 import { exportVaccinationRecordsToExcel } from './vaccinationRecordExcelGenerator';
+import { exportStatisticsReportToExcel, type StatisticsReportDocumentId } from './statisticsReportsExcelGenerator';
+import type { PatientFeeRecord, FeeItem } from '../lib/database';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,6 +36,12 @@ export interface PrintBundleOptions {
   endDate: string;
   contentMode: PrintContentMode;
   printOptions?: PrintDocumentOptions;
+  stations?: Station[];
+  mealGuidances?: MealGuidance[];
+  patientHealthTasks?: PatientHealthTask[];
+  patientTubeCareRecords?: PatientTubeCareRecord[];
+  infectionControlRecords?: InfectionControlRecord[];
+  diaperChangeRecords?: DiaperChangeRecord[];
 }
 
 export interface DocumentGeneratorContext {
@@ -37,6 +50,7 @@ export interface DocumentGeneratorContext {
   endDate: string;
   facilityName: string;
   contentMode: PrintContentMode;
+  printOptions?: PrintDocumentOptions;
 }
 
 type DocumentGenerator = (ctx: DocumentGeneratorContext) => Promise<string | string[]>;
@@ -578,7 +592,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
   const facilityName = settings.facilityNameZh;
 
   const orderMap = new Map(PRINT_DOCUMENTS.map((d, i) => [d.id, i]));
-  const categoryWeight: Record<string, number> = { '入住文件': 0, '常用表格': 1, '床頭記錄': 2 };
+  const categoryWeight: Record<string, number> = { '入住文件': 0, '常用表格': 1, '床頭記錄': 2, '統計報表': 3 };
   const sortedDocumentIds = [...documentIds].sort((a, b) => {
     const ad = PRINT_DOCUMENTS.find(d => d.id === a);
     const bd = PRINT_DOCUMENTS.find(d => d.id === b);
@@ -590,9 +604,20 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     return ai - bi;
   });
 
-  // 疫苗接種記錄是 Excel 匯出，與 HTML 文件分開處理
+  const STATISTICS_REPORT_IDS = new Set([
+    'meal_statistics_report',
+    'tube_care_statistics_report',
+    'infection_control_statistics_report',
+    'special_care_statistics_report',
+    'drug_sensitivity_statistics_report',
+    'diaper_statistics_report',
+  ]);
+
+  // Excel 匯出文件（疫苗接種記錄 + 統計報表）與 HTML 文件分開處理
   const hasVaccinationRecord = sortedDocumentIds.includes('vaccination_record');
-  const htmlDocumentIds = sortedDocumentIds.filter(id => id !== 'vaccination_record');
+  const hasFeeStatisticsReport = sortedDocumentIds.includes('fee_statistics_report');
+  const statisticsDocumentIds = sortedDocumentIds.filter(id => STATISTICS_REPORT_IDS.has(id)) as StatisticsReportDocumentId[];
+  const htmlDocumentIds = sortedDocumentIds.filter(id => id !== 'vaccination_record' && id !== 'fee_statistics_report' && !STATISTICS_REPORT_IDS.has(id));
 
   const pages: string[] = [];
   const skipped: string[] = [];
@@ -642,6 +667,32 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     }
   }
 
+  if (hasFeeStatisticsReport) {
+    try {
+      const patientIds = patients.map(p => p.院友id);
+      const [{ data: recordsData, error: recordsError }, { data: feeItemsData, error: feeItemsError }] = await Promise.all([
+        supabase.from('patient_fee_records').select('*').in('patient_id', patientIds).order('record_date', { ascending: true }),
+        supabase.from('fee_items').select('*').eq('is_active', true),
+      ]);
+      if (recordsError) throw recordsError;
+      if (feeItemsError) throw feeItemsError;
+      const records = (recordsData || []) as PatientFeeRecord[];
+      const feeItems = (feeItemsData || []) as FeeItem[];
+
+      const feeMod = await import('./feeStatementPrintFormHtml');
+      const feeMonth = printOptions?.feeMonth || (endDate ? endDate.slice(0, 7) : new Date().toISOString().slice(0, 7));
+      const feeHtml = feeMod.generateFeeStatisticsReportHtml(patients, records, feeItems, {
+        month: feeMonth,
+        skipEmptyPatients: printOptions?.feeSkipEmptyPatients ?? false,
+        facilityName,
+      });
+      pages.push(feeHtml);
+    } catch (error) {
+      console.error('產生雜費記錄報表失敗:', error);
+      failed.push('雜費記錄報表');
+    }
+  }
+
   let excelGenerated = false;
   if (hasVaccinationRecord) {
     try {
@@ -670,6 +721,88 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     } catch (error) {
       console.error('產生疫苗接種記錄 Excel 失敗:', error);
       failed.push('疫苗接種記錄');
+    }
+  }
+
+  if (statisticsDocumentIds.length > 0) {
+    try {
+      const patientIds = patients.map(p => p.院友id);
+      let stations = options.stations || [];
+      if (stations.length === 0) {
+        const { data, error } = await supabase.from('stations').select('*').order('created_at', { ascending: true });
+        if (error) throw error;
+        stations = (data || []) as Station[];
+      }
+
+      let mealGuidances = options.mealGuidances || [];
+      let patientHealthTasks = options.patientHealthTasks || [];
+      let patientTubeCareRecords = options.patientTubeCareRecords || [];
+      let infectionControlRecords = options.infectionControlRecords || [];
+      let diaperChangeRecords = options.diaperChangeRecords || [];
+
+      const needsMeal = statisticsDocumentIds.includes('meal_statistics_report');
+      const needsTube = statisticsDocumentIds.includes('tube_care_statistics_report');
+      const needsSpecial = statisticsDocumentIds.includes('special_care_statistics_report');
+      const needsInfection = statisticsDocumentIds.includes('infection_control_statistics_report');
+      const needsDiaper = statisticsDocumentIds.includes('diaper_statistics_report');
+
+      if (needsMeal && mealGuidances.length === 0) {
+        const { data, error } = await supabase.from('meal_guidance').select('*').in('patient_id', patientIds);
+        if (error) throw error;
+        mealGuidances = (data || []) as MealGuidance[];
+      }
+      if (needsSpecial && patientHealthTasks.length === 0) {
+        const { data, error } = await supabase.from('patient_health_tasks').select('*').in('patient_id', patientIds);
+        if (error) throw error;
+        patientHealthTasks = (data || []) as PatientHealthTask[];
+      }
+      if (needsTube && patientTubeCareRecords.length === 0) {
+        const { data, error } = await supabase.from('patient_tube_care_records').select('*').in('patient_id', patientIds);
+        if (error) throw error;
+        patientTubeCareRecords = (data || []) as PatientTubeCareRecord[];
+      }
+      if (needsInfection && infectionControlRecords.length === 0) {
+        const { data, error } = await supabase.from('infection_control_records').select('*').in('patient_id', patientIds);
+        if (error) throw error;
+        infectionControlRecords = (data || []) as InfectionControlRecord[];
+      }
+      if (needsDiaper && diaperChangeRecords.length === 0) {
+        const { data, error } = await supabase.from('diaper_change_records').select('*').in('patient_id', patientIds);
+        if (error) throw error;
+        diaperChangeRecords = (data || []) as DiaperChangeRecord[];
+      }
+
+      // 尿片統計需要開啟「換片記錄」tab 的院友名單
+      let patientCareTabs: PatientCareTab[] = [];
+      if (needsDiaper) {
+        patientCareTabs = await loadPatientCareTabsForPatients(patientIds);
+      }
+
+      for (const documentId of statisticsDocumentIds) {
+        try {
+          await exportStatisticsReportToExcel({
+            documentId,
+            patients,
+            stations,
+            mealGuidances,
+            patientHealthTasks,
+            patientTubeCareRecords,
+            infectionControlRecords,
+            diaperChangeRecords,
+            patientCareTabs,
+            diaperMonthRange: printOptions?.diaperMonthRange,
+            separateSheetsPerStation: printOptions?.separateSheetsPerStation ?? false,
+          });
+          excelGenerated = true;
+        } catch (error) {
+          console.error(`產生統計報表 ${documentId} 失敗:`, error);
+          const docName = PRINT_DOCUMENTS.find(d => d.id === documentId)?.name || documentId;
+          failed.push(docName);
+        }
+      }
+    } catch (error) {
+      console.error('產生統計報表 Excel 失敗:', error);
+      failed.push('統計報表');
     }
   }
 

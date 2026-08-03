@@ -1,21 +1,21 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { BarChart3, Calendar, FileText, Activity, Utensils, Stethoscope, AlertCircle, Bot } from 'lucide-react';
+import { BarChart3, Calendar, FileText, Activity, Utensils, Stethoscope, AlertCircle, Bot, Printer, Droplets, Receipt, ChevronDown, ChevronRight } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { useStationFilter } from '../context/StationFilterContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import MonthlyReportTable from '../components/MonthlyReportTable';
 import PatientListModal from '../components/PatientListModal';
+import PatientPrintModal from '../components/PatientPrintModal';
 import { AiUsageStatsPanel } from '../components/AiUsageStatsPanel';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { formatFrequencyDescription } from '../utils/taskScheduler';
-import { getInfectionTypeColors } from '../utils/infectionTypeColors';
 import { supabase } from '../lib/supabase';
-import type { Patient, PatientCareTab } from '../lib/database';
+import type { Patient, PatientCareTab, Station, PatientTubeCareRecord, MealGuidance } from '../lib/database';
 import { formatDisplayDate, formatDisplayDateTime } from '../utils/dateFormat';
 
 
 import { getPrintBedNumber } from '../utils/bedTransferUtils';
-type ReportTab = 'daily' | 'monthly' | 'infection' | 'meal' | 'tube' | 'special' | 'drugSensitivity' | 'aiUsage';
+type ReportTab = 'daily' | 'monthly' | 'infection' | 'meal' | 'tube' | 'special' | 'drugSensitivity' | 'diaper' | 'fee' | 'aiUsage';
 type TimeFilter = 'today' | 'yesterday' | 'thisMonth' | 'lastMonth';
 
 interface StatCardProps {
@@ -56,7 +56,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, bgColor, textColor, s
 };
 
 const Reports: React.FC = () => {
-  const { patients, allPatients, stations, healthAssessments, incidentReports, patientHealthTasks, patientRestraintAssessments, prescriptions, healthRecords, mealGuidances, hospitalEpisodes, diagnosisRecords, patientTubeCareRecords, patientsWithWounds, infectionControlRecords, loading } = usePatients();
+  const { patients, allPatients, stations, healthAssessments, incidentReports, patientHealthTasks, patientRestraintAssessments, prescriptions, healthRecords, mealGuidances, hospitalEpisodes, diagnosisRecords, patientTubeCareRecords, patientsWithWounds, infectionControlRecords, diaperChangeRecords, loading } = usePatients();
   const { selectedStationIds } = useStationFilter();
   const [activeTab, setActiveTab] = useState<ReportTab>('daily');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('today');
@@ -68,6 +68,19 @@ const Reports: React.FC = () => {
   const [modalTitle, setModalTitle] = useState('');
   const [modalPatients, setModalPatients] = useState<string[]>([]);
   const [patientCareTabs, setPatientCareTabs] = useState<PatientCareTab[]>([]);
+  // 尿片矩陣：已展開的居住區（預設全部摺疊，只顯示居住區行及小計行）
+  const [expandedDiaperStations, setExpandedDiaperStations] = useState<Set<string>>(new Set());
+  // 尿片矩陣：月份範圍（YYYY-MM；空字串 = 自動，預設最近 9 個月）
+  const [diaperStartMonth, setDiaperStartMonth] = useState('');
+  const [diaperEndMonth, setDiaperEndMonth] = useState('');
+  const toggleDiaperStation = (stationId: string) => {
+    setExpandedDiaperStations(prev => {
+      const next = new Set(prev);
+      if (next.has(stationId)) next.delete(stationId);
+      else next.add(stationId);
+      return next;
+    });
+  };
 
   // 載入所有啟用中的 care tabs，供「轉身」判斷
   useEffect(() => {
@@ -114,6 +127,75 @@ const Reports: React.FC = () => {
     return p.last_station_id || p.station_id;
   };
 
+  interface StationStat {
+    stationId: string;
+    stationName: string;
+    count: number;
+    patientNames: string[];
+  }
+
+  const computeStationStats = (
+    activePatients: Patient[],
+    stations: Station[],
+    predicate: (p: Patient) => boolean
+  ): StationStat[] => {
+    const stationMap = new Map(stations.map(s => [s.id, s]));
+    const byStation = new Map<string, Patient[]>();
+    for (const p of activePatients) {
+      const stationId = getReportStationId(p) || 'unknown';
+      const list = byStation.get(stationId) || [];
+      list.push(p);
+      byStation.set(stationId, list);
+    }
+    const stats: StationStat[] = [];
+    for (const [stationId, patients] of byStation) {
+      const matched = patients.filter(predicate);
+      stats.push({
+        stationId,
+        stationName: stationMap.get(stationId)?.name || '未分區',
+        count: matched.length,
+        patientNames: matched.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`),
+      });
+    }
+    stats.sort((a, b) => {
+      const idxA = stations.findIndex(s => s.id === a.stationId);
+      const idxB = stations.findIndex(s => s.id === b.stationId);
+      if (idxA === -1 && idxB === -1) return a.stationName.localeCompare(b.stationName, 'zh-Hant');
+      if (idxA === -1) return 1;
+      if (idxB === -1) return -1;
+      return idxA - idxB;
+    });
+    return stats;
+  };
+
+  const renderStationStatCards = (stats: StationStat[], bgColor: string, textColor: string) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {stats.map(stat => (
+        <StatCard
+          key={stat.stationId}
+          title={stat.stationName}
+          value={stat.count}
+          bgColor={bgColor}
+          textColor={textColor}
+          patientNames={stat.patientNames}
+        />
+      ))}
+    </div>
+  );
+
+  const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [initialPrintDocumentIds, setInitialPrintDocumentIds] = useState<string[]>([]);
+
+  const TAB_DOCUMENT_MAP: Record<Exclude<ReportTab, 'daily' | 'monthly' | 'aiUsage'>, string> = {
+    meal: 'meal_statistics_report',
+    tube: 'tube_care_statistics_report',
+    infection: 'infection_control_statistics_report',
+    special: 'special_care_statistics_report',
+    drugSensitivity: 'drug_sensitivity_statistics_report',
+    diaper: 'diaper_statistics_report',
+    fee: 'fee_statistics_report',
+  };
+
   const filteredPatients = useMemo(() => {
     if (!selectedStationIds.length || !stations.length || selectedStationIds.length >= stations.length) return allPatients || [];
     return (allPatients || []).filter(p => {
@@ -121,6 +203,30 @@ const Reports: React.FC = () => {
       return stationId && selectedStationIds.includes(stationId);
     });
   }, [allPatients, selectedStationIds, stations]);
+  const handlePrintStatistics = async (
+    selectedPatients: Patient[],
+    selectedDocuments: string[],
+    startDate: string,
+    endDate: string,
+    contentMode: 'basic' | 'data' | 'blank',
+    printOptions?: import('../components/PatientPrintModal').PrintDocumentOptions
+  ) => {
+    const { generatePatientPrintBundle } = await import('../utils/patientPrintBundleGenerator');
+    await generatePatientPrintBundle({
+      patients: selectedPatients,
+      documentIds: selectedDocuments,
+      startDate,
+      endDate,
+      contentMode,
+      printOptions,
+      stations,
+      mealGuidances,
+      patientHealthTasks,
+      patientTubeCareRecords,
+      infectionControlRecords,
+      diaperChangeRecords,
+    });
+  };
 
   /** Parse a TEXT column that may contain a JSON array, '、'-delimited string, or already be an array */
   const parseTextToArray = (value: unknown): string[] => {
@@ -966,23 +1072,18 @@ const Reports: React.FC = () => {
   };
 
   const renderInfectionReport = () => {
-    const activePatients = filteredPatients.filter(p => p.在住狀態 === '在住');
+    const activePatients = (allPatients || []).filter(p => p.在住狀態 === '在住');
     const activeInfections = infectionControlRecords.filter(r => !r.recovery_date);
     const infectionPatients = activePatients.filter(p =>
       activeInfections.some(r => r.patient_id === p.院友id)
     );
+    const infectionStats = computeStationStats(
+      activePatients,
+      stations,
+      p => activeInfections.some(r => r.patient_id === p.院友id)
+    );
 
     // 按感染性質動態分組，僅為實際存在的性質生成卡片
-    const infectionTypes = Array.from(
-      new Set(activeInfections.map(r => r.infection_type || '未分類'))
-    ).sort();
-
-    const infectionStats = infectionTypes.map(type => ({
-      type,
-      patients: activePatients.filter(p =>
-        activeInfections.some(r => r.patient_id === p.院友id && (r.infection_type || '未分類') === type)
-      ),
-    }));
 
     return (
       <div className="space-y-6">
@@ -991,21 +1092,7 @@ const Reports: React.FC = () => {
           {infectionStats.length === 0 ? (
             <p className="text-gray-500 text-center py-8">暫無感染控制記錄</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {infectionStats.map(({ type, patients }) => {
-                const colors = getInfectionTypeColors(type);
-                return (
-                  <StatCard
-                    key={type}
-                    title={type}
-                    value={patients.length}
-                    bgColor={colors.bgColor}
-                    textColor={colors.textColor}
-                    patientNames={patients.map(p => `${getPrintBedNumber(p)} ${p.中文姓氏}${p.中文名字}`)}
-                  />
-                );
-              })}
-            </div>
+            renderStationStatCards(infectionStats, 'bg-red-100', 'text-red-700')
           )}
         </div>
 
@@ -1044,108 +1131,96 @@ const Reports: React.FC = () => {
     );
   };
 
-  const renderMealReport = () => {
-    const activePatients = filteredPatients.filter(p => p.在住狀態 === '在住');
-    const patientsWithMealGuidance = activePatients.filter(p =>
-      (mealGuidances || []).some(mg => mg.patient_id === p.院友id)
-    );
-
-    const filteredGuidances = (mealGuidances || []).filter(mg =>
-      patientsWithMealGuidance.some(p => p.院友id === mg.patient_id)
-    );
-
+  const renderMealKitchenStats = (guidances: MealGuidance[], title: string) => {
     const statistics = {
-      總餐膳數: filteredGuidances.length,
-      正飯: filteredGuidances.filter(g => g.meal_combination?.includes('正飯')).length,
-      軟飯: filteredGuidances.filter(g => g.meal_combination?.includes('軟飯')).length,
-      糊飯: filteredGuidances.filter(g => g.meal_combination?.includes('糊飯')).length,
-      正餸: filteredGuidances.filter(g => g.meal_combination?.includes('正餸')).length,
-      碎餸: filteredGuidances.filter(g => g.meal_combination?.includes('碎餸')).length,
-      糊餸: filteredGuidances.filter(g => g.meal_combination?.includes('糊餸')).length,
-      糖尿餐: filteredGuidances.filter(g => g.special_diets?.includes('糖尿餐')).length,
-      痛風餐: filteredGuidances.filter(g => g.special_diets?.includes('痛風餐')).length,
-      低鹽餐: filteredGuidances.filter(g => g.special_diets?.includes('低鹽餐')).length,
-      雞蛋總數: filteredGuidances
+      總餐膳數: guidances.length,
+      正飯: guidances.filter(g => g.meal_combination?.includes('正飯')).length,
+      軟飯: guidances.filter(g => g.meal_combination?.includes('軟飯')).length,
+      糊飯: guidances.filter(g => g.meal_combination?.includes('糊飯')).length,
+      正餸: guidances.filter(g => g.meal_combination?.includes('正餸')).length,
+      碎餸: guidances.filter(g => g.meal_combination?.includes('碎餸')).length,
+      糊餸: guidances.filter(g => g.meal_combination?.includes('糊餸')).length,
+      糖尿餐: guidances.filter(g => g.special_diets?.includes('糖尿餐')).length,
+      痛風餐: guidances.filter(g => g.special_diets?.includes('痛風餐')).length,
+      低鹽餐: guidances.filter(g => g.special_diets?.includes('低鹽餐')).length,
+      雞蛋總數: guidances
         .filter(g => g.special_diets?.includes('雞蛋') && g.egg_quantity)
         .reduce((sum, g) => sum + (g.egg_quantity || 0), 0),
-      需要凝固粉: filteredGuidances.filter(g => g.needs_thickener).length
+      需要凝固粉: guidances.filter(g => g.needs_thickener).length,
     };
 
     return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4">廚房準備統計</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
-              <h4 className="text-md font-medium text-gray-700 mb-3">總數統計</h4>
-              <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
-                  <span className="text-sm text-gray-600">餐膳總數</span>
-                  <span className="font-bold text-blue-600 text-lg">{statistics.總餐膳數} 份</span>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
-                  <span className="text-sm text-gray-600">需要凝固粉</span>
-                  <span className="font-medium text-blue-600">{statistics.需要凝固粉} 份</span>
-                </div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4">{title}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div>
+            <h4 className="text-md font-medium text-gray-700 mb-3">總數統計</h4>
+            <div className="space-y-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
+                <span className="text-sm text-gray-600">餐膳總數</span>
+                <span className="font-bold text-blue-600 text-lg">{statistics.總餐膳數} 份</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
+                <span className="text-sm text-gray-600">需要凝固粉</span>
+                <span className="font-medium text-blue-600">{statistics.需要凝固粉} 份</span>
               </div>
             </div>
+          </div>
 
-            <div>
-              <h4 className="text-md font-medium text-gray-700 mb-3">主食需求</h4>
-              <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
-                  <span className="text-sm text-gray-600">正飯</span>
-                  <span className="font-medium text-green-600">{statistics.正飯} 份</span>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
-                  <span className="text-sm text-gray-600">軟飯</span>
-                  <span className="font-medium text-yellow-600">{statistics.軟飯} 份</span>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
-                  <span className="text-sm text-gray-600">糊飯</span>
-                  <span className="font-medium text-orange-600">{statistics.糊飯} 份</span>
-                </div>
+          <div>
+            <h4 className="text-md font-medium text-gray-700 mb-3">主食需求</h4>
+            <div className="space-y-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
+                <span className="text-sm text-gray-600">正飯</span>
+                <span className="font-medium text-green-600">{statistics.正飯} 份</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
+                <span className="text-sm text-gray-600">軟飯</span>
+                <span className="font-medium text-yellow-600">{statistics.軟飯} 份</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
+                <span className="text-sm text-gray-600">糊飯</span>
+                <span className="font-medium text-orange-600">{statistics.糊飯} 份</span>
               </div>
             </div>
+          </div>
 
-            <div>
-              <h4 className="text-md font-medium text-gray-700 mb-3">配菜需求</h4>
-              <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
-                  <span className="text-sm text-gray-600">正餸</span>
-                  <span className="font-medium text-green-600">{statistics.正餸} 份</span>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
-                  <span className="text-sm text-gray-600">碎餸</span>
-                  <span className="font-medium text-yellow-600">{statistics.碎餸} 份</span>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
-                  <span className="text-sm text-gray-600">糊餸</span>
-                  <span className="font-medium text-orange-600">{statistics.糊餸} 份</span>
-                </div>
+          <div>
+            <h4 className="text-md font-medium text-gray-700 mb-3">配菜需求</h4>
+            <div className="space-y-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
+                <span className="text-sm text-gray-600">正餸</span>
+                <span className="font-medium text-green-600">{statistics.正餸} 份</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
+                <span className="text-sm text-gray-600">碎餸</span>
+                <span className="font-medium text-yellow-600">{statistics.碎餸} 份</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
+                <span className="text-sm text-gray-600">糊餸</span>
+                <span className="font-medium text-orange-600">{statistics.糊餸} 份</span>
               </div>
             </div>
+          </div>
 
-            <div>
-              <h4 className="text-md font-medium text-gray-700 mb-3">特殊餐膳需求</h4>
-              <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
-                  <span className="text-sm text-gray-600">糖尿餐</span>
-                  <span className="font-medium text-blue-600">{statistics.糖尿餐} 份</span>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
-                  <span className="text-sm text-gray-600">痛風餐</span>
-                  <span className="font-medium text-purple-600">{statistics.痛風餐} 份</span>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
-                  <span className="text-sm text-gray-600">低鹽餐</span>
-                  <span className="font-medium text-green-600">{statistics.低鹽餐} 份</span>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
-                  <span className="text-sm text-gray-600">雞蛋</span>
-                  <span className="font-medium text-yellow-600">{statistics.雞蛋總數} 隻</span>
-                </div>
+          <div>
+            <h4 className="text-md font-medium text-gray-700 mb-3">特殊餐膳需求</h4>
+            <div className="space-y-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
+                <span className="text-sm text-gray-600">糖尿餐</span>
+                <span className="font-medium text-blue-600">{statistics.糖尿餐} 份</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
+                <span className="text-sm text-gray-600">痛風餐</span>
+                <span className="font-medium text-purple-600">{statistics.痛風餐} 份</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
+                <span className="text-sm text-gray-600">低鹽餐</span>
+                <span className="font-medium text-green-600">{statistics.低鹽餐} 份</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 items-center">
+                <span className="text-sm text-gray-600">雞蛋</span>
+                <span className="font-medium text-yellow-600">{statistics.雞蛋總數} 隻</span>
               </div>
             </div>
           </div>
@@ -1154,57 +1229,144 @@ const Reports: React.FC = () => {
     );
   };
 
-  const renderTubeReport = () => {
-    const activePatients = filteredPatients.filter(p => p.在住狀態 === '在住');
-    const tubeTypes = ['鼻胃飼管更換', '導尿管更換'];
+  const renderMealReport = () => {
+    const activePatients = (allPatients || []).filter(p => p.在住狀態 === '在住');
+    const stationMap = new Map(stations.map(s => [s.id, s]));
+    const byStation = new Map<string, Patient[]>();
+    for (const p of activePatients) {
+      const stationId = getReportStationId(p) || 'unknown';
+      const list = byStation.get(stationId) || [];
+      list.push(p);
+      byStation.set(stationId, list);
+    }
 
-    const tubeTasks = (patientHealthTasks || []).filter(task =>
-      tubeTypes.includes(task.health_record_type) &&
-      activePatients.some(p => p.院友id === task.patient_id)
+    const stationStats = [] as { stationId: string; stationName: string; guidances: MealGuidance[] }[];
+    for (const [stationId, stationPatients] of byStation) {
+      const patientIds = new Set(stationPatients.map(p => p.院友id));
+      const guidances = (mealGuidances || []).filter(mg => patientIds.has(mg.patient_id));
+      stationStats.push({
+        stationId,
+        stationName: stationMap.get(stationId)?.name || '未分區',
+        guidances,
+      });
+    }
+    stationStats.sort((a, b) => {
+      const idxA = stations.findIndex(s => s.id === a.stationId);
+      const idxB = stations.findIndex(s => s.id === b.stationId);
+      if (idxA === -1 && idxB === -1) return a.stationName.localeCompare(b.stationName, 'zh-Hant');
+      if (idxA === -1) return 1;
+      if (idxB === -1) return -1;
+      return idxA - idxB;
+    });
+
+    const allGuidances = (mealGuidances || []).filter(mg => activePatients.some(p => p.院友id === mg.patient_id));
+
+    return (
+      <div className="space-y-6">
+        {allGuidances.length > 0 ? (
+          renderMealKitchenStats(allGuidances, '全部廚房統計')
+        ) : (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-4">餐膳統計</h3>
+            <p className="text-gray-500 text-center py-8">暫無餐膳記錄</p>
+          </div>
+        )}
+        {stationStats.map(stat =>
+          stat.guidances.length > 0 ? (
+            <div key={stat.stationId}>
+              {renderMealKitchenStats(stat.guidances, stat.stationName + ' 廚房統計')}
+            </div>
+          ) : null
+        )}
+      </div>
     );
+  };
+
+  const renderTubeReport = () => {
+    const activePatients = (allPatients || []).filter(p => p.在住狀態 === '在住');
+    const nonTerminatedRecords = (patientTubeCareRecords || []).filter(record => !record.is_terminated);
+
+    const latestByCareType = new Map<string, PatientTubeCareRecord>();
+    for (const record of nonTerminatedRecords) {
+      const key = `${record.patient_id}_${record.care_type}`;
+      const existing = latestByCareType.get(key);
+      if (!existing) {
+        latestByCareType.set(key, record);
+      } else {
+        const getDate = (r: PatientTubeCareRecord) => r.execution_date || r.updated_at || r.created_at;
+        const recordDate = getDate(record);
+        const existingDate = getDate(existing);
+        if (recordDate && (!existingDate || new Date(recordDate) > new Date(existingDate))) {
+          latestByCareType.set(key, record);
+        }
+      }
+    }
+    const activeTubeRecords = Array.from(latestByCareType.values());
+
+    const tubeStats = computeStationStats(
+      activePatients,
+      stations,
+      p => activeTubeRecords.some(record => record.patient_id === p.院友id)
+    );
+
+    const recordMap = new Map<number, PatientTubeCareRecord[]>();
+    for (const record of activeTubeRecords) {
+      const list = recordMap.get(record.patient_id) || [];
+      list.push(record);
+      recordMap.set(record.patient_id, list);
+    }
 
     return (
       <div className="space-y-6">
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4">喉管相關報表 (共 {tubeTasks.length} 項)</h3>
+          <h3 className="text-lg font-semibold mb-4">喉管護理統計</h3>
+          {tubeStats.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">暫無喉管護理記錄</p>
+          ) : (
+            renderStationStatCards(tubeStats, 'bg-teal-100', 'text-teal-700')
+          )}
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">喉管相關報表 (共 {activeTubeRecords.length} 項)</h3>
           <div className="space-y-4">
-            {tubeTasks.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">暫無喉管相關任務</p>
+            {activeTubeRecords.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">暫無喉管相關記錄</p>
             ) : (
-              tubeTasks.map(task => {
-                const patient = activePatients.find(p => p.院友id === task.patient_id);
+              activeTubeRecords.map(record => {
+                const patient = activePatients.find(p => p.院友id === record.patient_id);
                 if (!patient) return null;
+                const tubeNature = [record.tube_material, record.oxygen_action].filter(Boolean).join(' / ');
                 return (
-                  <div key={task.id} className="border border-gray-200 rounded-lg p-4">
+                  <div key={record.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <h4 className="font-semibold text-lg mb-2"><BedNumberImprint patient={patient} size="lg" /> {patient.中文姓氏}{patient.中文名字}</h4>
-                        <p className="text-sm text-gray-600">任務類型: <span className="font-medium">{task.health_record_type}</span></p>
+                        <p className="text-sm text-gray-600">喉管護理類型: <span className="font-medium">{record.care_type}</span></p>
                       </div>
                       <div className="space-y-1 text-sm">
-                        {task.last_completed_at && (
+                        {record.execution_date && (
                           <p className="text-gray-700">
-                            上次完成: <span className="font-medium">{formatDisplayDate(task.last_completed_at)}</span>
+                            上次完成: <span className="font-medium">{formatDisplayDate(record.execution_date)}</span>
                           </p>
                         )}
-                        {task.next_due_at && (
+                        {record.next_due_date && (
                           <p className="text-blue-600">
-                            下次到期: <span className="font-medium">{formatDisplayDate(task.next_due_at)}</span>
+                            下次到期: <span className="font-medium">{formatDisplayDate(record.next_due_date)}</span>
                           </p>
                         )}
-                        {task.tube_type && (
+                        {tubeNature && (
                           <p className="text-gray-700">
-                            喉管類型: <span className="font-medium">{task.tube_type}</span>
+                            喉管性質: <span className="font-medium">{tubeNature}</span>
                           </p>
                         )}
-                        {task.tube_size && (
+                        {record.tube_size && (
                           <p className="text-gray-700">
-                            管徑: <span className="font-medium">{task.tube_size}</span>
+                            管徑: <span className="font-medium">{record.tube_size}</span>
                           </p>
                         )}
-                        {task.notes && (
+                        {record.notes && (
                           <p className="text-gray-500">
-                            備註: {task.notes}
+                            備註: {record.notes}
                           </p>
                         )}
                       </div>
@@ -1220,18 +1382,31 @@ const Reports: React.FC = () => {
   };
 
   const renderSpecialCareList = () => {
-    const activePatients = filteredPatients.filter(p => p.在住狀態 === '在住');
+    const activePatients = (allPatients || []).filter(p => p.在住狀態 === '在住');
     const specialCareTasks = (patientHealthTasks || []).filter(task =>
-      task.health_record_type === '生命表徵' &&
       task.notes === '特別關顧' &&
       activePatients.some(p => p.院友id === task.patient_id)
     );
-
+    const specialCareStats = computeStationStats(
+      activePatients,
+      stations,
+      p => (patientHealthTasks || []).some(task =>
+        task.notes === '特別關顧' && task.patient_id === p.院友id
+      )
+    );
     const specialCarePatientIds = new Set(specialCareTasks.map(t => t.patient_id));
     const specialCarePatients = activePatients.filter(p => specialCarePatientIds.has(p.院友id));
 
     return (
       <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">特別關顧統計</h3>
+          {specialCareStats.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">暫無特別關顧記錄</p>
+          ) : (
+            renderStationStatCards(specialCareStats, 'bg-red-100', 'text-red-700')
+          )}
+        </div>
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">特別關顧名單 (共 {specialCarePatients.length} 人)</h3>
           <div className="space-y-4">
@@ -1250,17 +1425,26 @@ const Reports: React.FC = () => {
                           {tasks.map(task => (
                             <div key={task.id} className="bg-white p-2 rounded border border-red-200">
                               <p className="text-sm">
-                                <span className="font-medium text-red-700">監測頻率:</span>{' '}
+                                <span className="font-medium text-red-700">監測項目：</span>
+                                {task.health_record_type}
+                              </p>
+                              <p className="text-sm">
+                                <span className="font-medium text-red-700">頻率：</span>
                                 {task.frequency_unit === 'hourly' ? `每 ${task.frequency_value} 小時 1 次` : formatFrequencyDescription(task)}
                               </p>
                               {task.specific_times && Array.isArray(task.specific_times) && task.specific_times.length > 0 && (
                                 <p className="text-sm text-gray-600">
-                                  指定時間: {task.specific_times.join(', ')}
+                                  指定時間：{task.specific_times.join(', ')}
                                 </p>
                               )}
                               {task.next_due_at && (
                                 <p className="text-sm text-blue-600">
-                                  下次: {formatDisplayDateTime(new Date(task.next_due_at))}
+                                  下次到期：{formatDisplayDateTime(new Date(task.next_due_at))}
+                                </p>
+                              )}
+                              {task.notes && (
+                                <p className="text-sm text-gray-600">
+                                  備註：{task.notes}
                                 </p>
                               )}
                             </div>
@@ -1279,14 +1463,30 @@ const Reports: React.FC = () => {
   };
 
   const renderDrugSensitivityReport = () => {
-    const activePatients = filteredPatients.filter(p => p.在住狀態 === '在住');
+    const activePatients = (allPatients || []).filter(p => p.在住狀態 === '在住');
     const drugSensitivityPatients = activePatients.filter(p =>
       (p.藥物敏感 && Array.isArray(p.藥物敏感) && p.藥物敏感.length > 0) ||
       (p.不良藥物反應 && Array.isArray(p.不良藥物反應) && p.不良藥物反應.length > 0)
     );
 
+    const drugStats = computeStationStats(
+      activePatients,
+      stations,
+      p => Boolean(
+        (p.藥物敏感 && Array.isArray(p.藥物敏感) && p.藥物敏感.length > 0) ||
+        (p.不良藥物反應 && Array.isArray(p.不良藥物反應) && p.不良藥物反應.length > 0)
+      )
+    );
     return (
       <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">藥物敏感統計</h3>
+          {drugStats.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">暫無藥物敏感或不良反應記錄</p>
+          ) : (
+            renderStationStatCards(drugStats, 'bg-orange-100', 'text-orange-700')
+          )}
+        </div>
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">藥物敏感報表 (共 {drugSensitivityPatients.length} 人)</h3>
           <div className="space-y-4">
@@ -1336,7 +1536,241 @@ const Reports: React.FC = () => {
     );
   };
 
+  const renderDiaperStatisticsReport = () => {
+    const patientById = new Map((allPatients || []).map(p => [p.院友id, p]));
+
+    const monthTotalsByPatient = new Map<number, Map<string, { urineCount: number; coreCount: number }>>();
+    let minMonth: string | null = null;
+    let maxMonth: string | null = null;
+    for (const record of (diaperChangeRecords || [])) {
+      const month = record.change_date.slice(0, 7);
+      if (!minMonth || month < minMonth) minMonth = month;
+      if (!maxMonth || month > maxMonth) maxMonth = month;
+      const patientMonthMap = monthTotalsByPatient.get(record.patient_id) || new Map<string, { urineCount: number; coreCount: number }>();
+      const existing = patientMonthMap.get(month) || { urineCount: 0, coreCount: 0 };
+      existing.urineCount += record.urine_count ?? 0;
+      existing.coreCount += record.core_count ?? 0;
+      patientMonthMap.set(month, existing);
+      monthTotalsByPatient.set(record.patient_id, patientMonthMap);
+    }
+
+    // 月份範圍：用戶指定優先，預設最近 9 個月（以最後記錄月份為結束）
+    const shiftMonth = (month: string, delta: number): string => {
+      let year = Number(month.slice(0, 4));
+      let monthNum = Number(month.slice(5, 7)) + delta;
+      while (monthNum > 12) { monthNum -= 12; year += 1; }
+      while (monthNum < 1) { monthNum += 12; year -= 1; }
+      return `${year}-${String(monthNum).padStart(2, '0')}`;
+    };
+    const effectiveEndMonth = diaperEndMonth || maxMonth;
+    const effectiveStartMonth = diaperStartMonth || (effectiveEndMonth ? shiftMonth(effectiveEndMonth, -8) : null);
+    const months: string[] = [];
+    if (effectiveStartMonth && effectiveEndMonth) {
+      const rangeStart = effectiveStartMonth <= effectiveEndMonth ? effectiveStartMonth : effectiveEndMonth;
+      const rangeEnd = effectiveStartMonth <= effectiveEndMonth ? effectiveEndMonth : effectiveStartMonth;
+      let current = rangeStart;
+      let guard = 0;
+      while (current <= rangeEnd && guard < 600) {
+        months.push(current);
+        current = shiftMonth(current, 1);
+        guard += 1;
+      }
+    }
+
+    interface DiaperMatrixPatient {
+      patientId: number;
+      patient: Patient | undefined;
+      bed: string;
+      name: string;
+    }
+
+    // 列入院友 = 床頭記錄開啟「換片記錄」tab 的院友 ∪ 有換片記錄行的院友（不作在住狀態過濾）
+    const diaperPatientIds = new Set<number>(monthTotalsByPatient.keys());
+    for (const tab of (patientCareTabs || [])) {
+      if (tab.tab_type === 'diaper') diaperPatientIds.add(tab.patient_id);
+    }
+
+    const byStation = new Map<string, DiaperMatrixPatient[]>();
+    for (const patientId of diaperPatientIds) {
+      const patient = patientById.get(patientId);
+      const stationId = (patient ? getReportStationId(patient) : null) || 'unknown';
+      const name = patient
+        ? (`${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`.trim() || patient.中文姓名 || `院友 #${patientId}`)
+        : `院友 #${patientId}`;
+      const list = byStation.get(stationId) || [];
+      list.push({ patientId, patient, bed: patient?.床號 || '', name });
+      byStation.set(stationId, list);
+    }
+
+    const sortMatrixPatients = (list: DiaperMatrixPatient[]) => [...list].sort((a, b) => {
+      if (a.bed !== b.bed) return a.bed.localeCompare(b.bed, 'zh-Hant');
+      return a.name.localeCompare(b.name, 'zh-Hant');
+    });
+
+    const knownStationIds = new Set(stations.map(s => s.id));
+    const groups: { stationId: string; stationName: string; patients: DiaperMatrixPatient[] }[] = stations.map(station => ({
+      stationId: station.id,
+      stationName: station.name,
+      patients: sortMatrixPatients(byStation.get(station.id) || []),
+    }));
+    const unassigned: DiaperMatrixPatient[] = [];
+    for (const [stationId, list] of byStation) {
+      if (!knownStationIds.has(stationId)) unassigned.push(...list);
+    }
+    if (unassigned.length > 0) {
+      groups.push({ stationId: 'unknown', stationName: '未分區', patients: sortMatrixPatients(unassigned) });
+    }
+
+    const getPatientMonth = (patientId: number, month: string) =>
+      monthTotalsByPatient.get(patientId)?.get(month) || { urineCount: 0, coreCount: 0 };
+
+    const getGroupMonthTotals = (group: { patients: DiaperMatrixPatient[] }, month: string) => {
+      let urine = 0;
+      let core = 0;
+      for (const p of group.patients) {
+        const total = getPatientMonth(p.patientId, month);
+        urine += total.urineCount;
+        core += total.coreCount;
+      }
+      return { urine, core };
+    };
+
+    const grandMonthTotals = months.map(month => {
+      let urine = 0;
+      let core = 0;
+      for (const group of groups) {
+        const total = getGroupMonthTotals(group, month);
+        urine += total.urine;
+        core += total.core;
+      }
+      return { month, urine, core };
+    });
+
+    const matrixColSpan = 2 + months.length * 2;
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-1">每月尿片統計矩陣</h3>
+          <p className="text-sm text-gray-500 mb-3">點擊居住區行可展開／收合該區院友明細</p>
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">月份範圍：</label>
+            <input
+              type="month"
+              value={effectiveStartMonth || ''}
+              onChange={e => setDiaperStartMonth(e.target.value)}
+              className="form-input text-sm"
+            />
+            <span className="text-sm text-gray-500">至</span>
+            <input
+              type="month"
+              value={effectiveEndMonth || ''}
+              onChange={e => setDiaperEndMonth(e.target.value)}
+              className="form-input text-sm"
+            />
+            <span className="text-xs text-gray-500">（預設最近 9 個月，可指定任何月份）</span>
+          </div>
+          {months.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">暫無尿片記錄</p>
+          ) : (
+            <div className="overflow-auto max-h-[75vh]">
+              <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th rowSpan={2} className="sticky left-0 top-0 z-30 bg-gray-50 w-24 min-w-24 px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200 whitespace-nowrap">床號</th>
+                    <th rowSpan={2} className="sticky left-24 top-0 z-30 bg-gray-50 min-w-28 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200 whitespace-nowrap">姓名</th>
+                    {months.map(month => (
+                      <th key={month} colSpan={2} className="sticky top-0 z-20 bg-gray-50 h-9 px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200 whitespace-nowrap">{month}</th>
+                    ))}
+                  </tr>
+                  <tr className="bg-gray-50">
+                    {months.map(month => (
+                      <React.Fragment key={month}>
+                        <th className="sticky top-9 z-20 bg-gray-50 px-2 py-1 text-center text-xs font-medium text-gray-500 border border-gray-200 whitespace-nowrap">尿片</th>
+                        <th className="sticky top-9 z-20 bg-gray-50 px-2 py-1 text-center text-xs font-medium text-gray-500 border border-gray-200 whitespace-nowrap">片芯</th>
+                      </React.Fragment>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {groups.map(group => {
+                    const isExpanded = expandedDiaperStations.has(group.stationId);
+                    return (
+                    <React.Fragment key={group.stationId}>
+                      <tr className="bg-gray-100 cursor-pointer" onClick={() => toggleDiaperStation(group.stationId)}>
+                        <td colSpan={matrixColSpan} className="sticky left-0 z-10 bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 border border-gray-200">
+                          <span className="inline-flex items-center gap-1">
+                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            {group.stationName}（{group.patients.length} 位院友）
+                          </span>
+                        </td>
+                      </tr>
+                      {isExpanded && group.patients.map(matrixPatient => {
+                        return (
+                          <tr key={matrixPatient.patientId}>
+                            <td className="sticky left-0 z-10 bg-white px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center border border-gray-200">
+                              {matrixPatient.patient ? <BedNumberImprint patient={matrixPatient.patient} size="sm" /> : '—'}
+                            </td>
+                            <td className="sticky left-24 z-10 bg-white px-3 py-2 whitespace-nowrap text-sm text-gray-900 border border-gray-200">{matrixPatient.name}</td>
+                            {months.map(month => {
+                              const monthTotal = getPatientMonth(matrixPatient.patientId, month);
+                              return (
+                                <React.Fragment key={month}>
+                                  <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-900 text-right border border-gray-200">{monthTotal.urineCount}</td>
+                                  <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-900 text-right border border-gray-200">{monthTotal.coreCount}</td>
+                                </React.Fragment>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                      <tr className="bg-gray-50 font-semibold">
+                        <td colSpan={2} className="sticky left-0 z-10 bg-gray-50 px-3 py-2 whitespace-nowrap text-sm text-gray-900 border border-gray-200">{group.stationName} 小計</td>
+                        {months.map(month => {
+                          const monthTotal = getGroupMonthTotals(group, month);
+                          return (
+                            <React.Fragment key={month}>
+                              <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-900 text-right border border-gray-200">{monthTotal.urine}</td>
+                              <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-900 text-right border border-gray-200">{monthTotal.core}</td>
+                            </React.Fragment>
+                          );
+                        })}
+                      </tr>
+                    </React.Fragment>
+                    );
+                  })}
+                  <tr className="bg-blue-50 font-bold">
+                    <td colSpan={2} className="sticky left-0 z-10 bg-blue-50 px-3 py-2 whitespace-nowrap text-sm text-gray-900 border border-gray-200">所有居住區總計</td>
+                    {grandMonthTotals.map(monthTotal => (
+                      <React.Fragment key={monthTotal.month}>
+                        <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-900 text-right border border-gray-200">{monthTotal.urine}</td>
+                        <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-900 text-right border border-gray-200">{monthTotal.core}</td>
+                      </React.Fragment>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderFeeReport = () => {
+    return (
+      <div className="bg-white rounded-lg shadow p-8 text-center">
+        <Receipt className="mx-auto h-12 w-12 text-gray-400" />
+        <h3 className="mt-3 text-lg font-semibold text-gray-900">雜費記錄報表</h3>
+        <p className="mt-2 text-sm text-gray-500">
+          請使用右上角「列印」按鈕，選擇月份及院友後產生 A4 卡片式報表。
+        </p>
+      </div>
+    );
+  };
+
   return (
+    <>
     <div className="p-6">
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1344,6 +1778,18 @@ const Reports: React.FC = () => {
             <BarChart3 className="h-8 w-8 text-blue-600" />
             <h1 className="text-2xl font-bold text-gray-900">統計報表</h1>
           </div>
+          <button
+            onClick={() => {
+              if (activeTab === 'meal' || activeTab === 'tube' || activeTab === 'infection' || activeTab === 'special' || activeTab === 'drugSensitivity' || activeTab === 'diaper' || activeTab === 'fee') {
+                setInitialPrintDocumentIds([TAB_DOCUMENT_MAP[activeTab]]);
+                setPrintModalOpen(true);
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Printer className="h-4 w-4" />
+            列印
+          </button>
         </div>
       </div>
 
@@ -1399,6 +1845,20 @@ const Reports: React.FC = () => {
             藥物敏感報表
           </button>
           <button
+            onClick={() => setActiveTab('diaper')}
+            className={`px-4 py-2 font-medium ${activeTab === 'diaper' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+          >
+            <Droplets className="h-4 w-4 inline mr-1" />
+            尿片統計報表
+          </button>
+          <button
+            onClick={() => setActiveTab('fee')}
+            className={`px-4 py-2 font-medium ${activeTab === 'fee' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+          >
+            <Receipt className="h-4 w-4 inline mr-1" />
+            雜費記錄報表
+          </button>
+          <button
             onClick={() => setActiveTab('aiUsage')}
             className={`px-4 py-2 font-medium ${activeTab === 'aiUsage' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
           >
@@ -1416,9 +1876,24 @@ const Reports: React.FC = () => {
         {activeTab === 'tube' && renderTubeReport()}
         {activeTab === 'special' && renderSpecialCareList()}
         {activeTab === 'drugSensitivity' && renderDrugSensitivityReport()}
+        {activeTab === 'diaper' && renderDiaperStatisticsReport()}
+        {activeTab === 'fee' && renderFeeReport()}
         {activeTab === 'aiUsage' && <AiUsageStatsPanel />}
       </div>
     </div>
+    {printModalOpen && (
+      <PatientPrintModal
+        patients={(allPatients || []).filter(p => p.在住狀態 === '在住')}
+        onClose={() => setPrintModalOpen(false)}
+        onPrint={handlePrintStatistics}
+        initialTab="統計報表"
+        initialSelectedDocumentIds={initialPrintDocumentIds}
+        initialSelectedPatientIds={(allPatients || []).filter(p => p.在住狀態 === '在住').map(p => p.院友id)}
+        initialStartDate={(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().split('T')[0]; })()}
+        initialEndDate={new Date().toISOString().split('T')[0]}
+      />
+    )}
+    </>
   );
 };
 

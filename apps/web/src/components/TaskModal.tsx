@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, CheckSquare, User, Calendar, Clock, Activity, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, CheckSquare, User, Calendar, Clock, Activity, FileText, Droplets, Scale } from 'lucide-react';
 import PatientAutocomplete from './PatientAutocomplete';
 import { usePatients, type PatientHealthTask, type HealthTaskType, type FrequencyUnit, type MonitoringTaskNotes } from '../context/PatientContext';
 import type { VitalSignType } from '../lib/database';
@@ -74,6 +74,25 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
     isVitalSignType(task?.health_record_type) ? [task!.health_record_type as VitalSignType] : []
   );
 
+  // 特別關顧：與 notes 同步
+  const [isSpecialCare, setIsSpecialCare] = useState(() => task?.notes === '特別關顧');
+
+  const toggleSpecialCare = (checked: boolean) => {
+    setIsSpecialCare(checked);
+    setFormData(prev => ({
+      ...prev,
+      notes: checked ? '特別關顧' : (prev.notes === '特別關顧' ? '' : prev.notes),
+    }));
+    if (checked) {
+      setSelectedVitalTypes(prev => {
+        const boundTypes: VitalSignType[] = ['血壓', '脈搏', '血含氧量', '呼吸'];
+        const next = new Set(prev);
+        for (const t of boundTypes) next.add(t);
+        return Array.from(next);
+      });
+    }
+  };
+
   const [formData, setFormData] = useState({
     patient_id: task?.patient_id?.toString() || '',
     health_record_type: (task && !isVitalSignType(task.health_record_type)
@@ -98,6 +117,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
       ? new Date(task.start_date).toTimeString().slice(0, 5)
       : getHongKongTime(),
   });
+
+  // 當備註欄位從下拉選單選回「特別關顧」時，同步 checkbox 狀態
+  useEffect(() => {
+    setIsSpecialCare(formData.notes === '特別關顧');
+  }, [formData.notes]);
 
   // ... (handleChange 等輔助函式保持不變) ...
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -334,6 +358,18 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
 
               {taskCategory === 'monitoring' && (
                 <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <input
+                      type="checkbox"
+                      id="isSpecialCare"
+                      checked={isSpecialCare}
+                      onChange={(e) => toggleSpecialCare(e.target.checked)}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="isSpecialCare" className="text-sm font-medium text-red-700">
+                      特別關顧（自動勾選血壓、脈搏、血含氧量、呼吸）
+                    </label>
+                  </div>
                   <p className="text-sm text-gray-500 mb-2">
                     {task ? '監測項目（編輯時不可更改類型）' : '監測項目 * （可多選）'}
                   </p>

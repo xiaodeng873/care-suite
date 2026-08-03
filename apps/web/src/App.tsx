@@ -56,6 +56,7 @@ const routeNames: Record<string, string> = {
   '/individual-care-plan': '個人照顧計劃',
   '/activity-records': '活動記錄',
   '/reports': '報表查詢',
+  '/fee-records': '費用記錄',
   '/settings': '系統設定',
   '/rehabilitation': '復康服務',
   '/infection-control': '感染控制'
@@ -102,6 +103,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Rehabilitation = lazy(() => import('./pages/Rehabilitation'));
 const IndividualCarePlan = lazy(() => import('./pages/IndividualCarePlan'));
 const ActivityRecords = lazy(() => import('./pages/ActivityRecords'));
+const FeeRecords = lazy(() => import('./pages/FeeRecords'));
 const InfectionControl = lazy(() => import('./pages/InfectionControl'));
 
 function AppContent() {
@@ -297,6 +299,7 @@ function AuthenticatedContent({
             <Route path="/wound" element={<WoundManagementNew />} />
             <Route path="/wound-old" element={<WoundManagement />} />
             <Route path="/activity-records" element={<ActivityRecords />} />
+            <Route path="/fee-records" element={<FeeRecords />} />
             <Route path="/prescriptions" element={<PrescriptionManagement />} />
             <Route path="/prescription-search" element={<PrescriptionSearch />} />
             <Route path="/drug-database" element={<DrugDatabase />} />

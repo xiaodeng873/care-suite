@@ -621,6 +621,43 @@ export interface DiaperChangeRecord {
   created_at: string;
   updated_at: string;
 }
+
+export type FeeItemCategory = '服務' | '用品';
+export type FeeItemUnit = '次' | '個' | '日' | '月' | '項' | '小時' | '療程';
+
+export interface FeeItem {
+  id: string;
+  code: string;
+  name_zh: string;
+  category: FeeItemCategory;
+  unit: FeeItemUnit;
+  unit_price: number;
+  description?: string | null;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PatientFeeRecord {
+  id: string;
+  patient_id: number;
+  fee_item_id?: string | null;
+  record_date: string;
+  start_time?: string | null;
+  end_time?: string | null;
+  item_name: string;
+  item_category: string;
+  unit: string;
+  unit_price: number;
+  quantity: number;
+  amount: number;
+  is_recurring: boolean;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface RestraintObservationRecord {
   id: string;
   patient_id: number;
@@ -3219,6 +3256,181 @@ export const deleteDiaperChangeRecord = async (recordId: string): Promise<void> 
   const { error } = await supabase.from('diaper_change_records').delete().eq('id', recordId);
   if (error) throw error;
 };
+
+// User Profiles (staff)
+export interface UserProfile {
+  id: string;
+  username: string;
+  password_hash: string;
+  name_zh: string;
+  name_en?: string | null;
+  id_number?: string | null;
+  date_of_birth?: string | null;
+  department: string;
+  nursing_position?: string | null;
+  allied_health_position?: string | null;
+  hygiene_position?: string | null;
+  other_position?: string | null;
+  hire_date: string;
+  employment_type: string;
+  monthly_hour_limit?: number | null;
+  role: string;
+  is_active: boolean;
+  auth_user_id?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const getUserProfiles = async (activeOnly = true): Promise<UserProfile[]> => {
+  let query = supabase.from('user_profiles').select('*').order('name_zh', { ascending: true });
+  if (activeOnly) {
+    query = query.eq('is_active', true);
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+};
+
+// Fee Items and Patient Fee Records
+export const generateFeeItemCode = async (category: FeeItemCategory): Promise<string> => {
+  const prefix = category === '服務' ? 'S' : 'M';
+  const { data, error } = await supabase
+    .from('fee_items')
+    .select('code')
+    .ilike('code', `${prefix}___`)
+    .order('code', { ascending: true });
+  if (error) throw error;
+  const used = new Set<number>();
+  const regex = new RegExp(`^${prefix}(\\d{3})$`);
+  for (const row of (data || [])) {
+    const match = row.code.match(regex);
+    if (match) used.add(Number(match[1]));
+  }
+  let n = 1;
+  while (used.has(n)) n += 1;
+  return `${prefix}${String(n).padStart(3, '0')}`;
+};
+
+export const getFeeItems = async (): Promise<FeeItem[]> => {
+  const { data, error } = await supabase.from('fee_items').select('*').order('display_order', { ascending: true }).order('code', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const createFeeItem = async (item: Omit<FeeItem, 'id' | 'created_at' | 'updated_at'>): Promise<FeeItem> => {
+  const { data, error } = await supabase.from('fee_items').insert([item]).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const updateFeeItem = async (item: FeeItem): Promise<FeeItem> => {
+  const { id, created_at, updated_at, ...updateData } = item;
+  const { data, error } = await supabase.from('fee_items').update(updateData).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const deleteFeeItem = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('fee_items').delete().eq('id', id);
+  if (error) throw error;
+};
+
+export const getPatientFeeRecordsInDateRange = async (startDate: string, endDate: string): Promise<PatientFeeRecord[]> => {
+  const { data, error } = await supabase
+    .from('patient_fee_records')
+    .select('*')
+    .gte('record_date', startDate)
+    .lte('record_date', endDate)
+    .order('record_date', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+export const createPatientFeeRecord = async (record: Omit<PatientFeeRecord, 'id' | 'created_at' | 'updated_at'>): Promise<PatientFeeRecord> => {
+  const { data, error } = await supabase.from('patient_fee_records').insert([record]).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const updatePatientFeeRecord = async (record: PatientFeeRecord): Promise<PatientFeeRecord> => {
+  const { id, created_at, updated_at, ...updateData } = record;
+  const { data, error } = await supabase.from('patient_fee_records').update(updateData).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const deletePatientFeeRecord = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('patient_fee_records').delete().eq('id', id);
+  if (error) throw error;
+};
+
+export const carryForwardRecurringFeeRecordsForPatient = async (
+  patientId: number,
+  targetYear: number,
+  targetMonth: number
+): Promise<PatientFeeRecord[]> => {
+  const targetStart = `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`;
+  const prevDate = new Date(targetYear, targetMonth - 2, 1);
+  const prevStart = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-01`;
+  const prevEnd = `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`;
+  const targetEnd = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(new Date(targetYear, targetMonth, 0).getDate()).padStart(2, '0')}`;
+
+  const { data, error } = await supabase
+    .from('patient_fee_records')
+    .select('*')
+    .eq('patient_id', patientId)
+    .gte('record_date', prevStart)
+    .lt('record_date', prevEnd)
+    .eq('is_recurring', true);
+  if (error) throw error;
+
+  // 只查詢同一位院友的目標月份記錄，避免不同院友互相干擾
+  const { data: existingRowsRaw, error: existingError } = await supabase
+    .from('patient_fee_records')
+    .select('*')
+    .eq('patient_id', patientId)
+    .gte('record_date', targetStart)
+    .lte('record_date', targetEnd);
+  if (existingError) throw existingError;
+
+  const existingRows: PatientFeeRecord[] = existingRowsRaw || [];
+
+  const toInsert: Omit<PatientFeeRecord, 'id' | 'created_at' | 'updated_at'>[] = [];
+  for (const record of (data || [])) {
+    const alreadyExists = existingRows.some(
+      e =>
+        e.fee_item_id === record.fee_item_id &&
+        e.item_name === record.item_name &&
+        e.unit_price === record.unit_price &&
+        e.unit === record.unit &&
+        e.start_time === record.start_time &&
+        e.end_time === record.end_time
+    );
+    if (alreadyExists) continue;
+    toInsert.push({
+      patient_id: record.patient_id,
+      fee_item_id: record.fee_item_id,
+      record_date: targetStart,
+      start_time: record.start_time,
+      end_time: record.end_time,
+      item_name: record.item_name,
+      item_category: record.item_category,
+      unit: record.unit,
+      unit_price: record.unit_price,
+      quantity: record.quantity,
+      amount: record.amount,
+      is_recurring: true,
+      notes: record.notes,
+    });
+  }
+  if (toInsert.length === 0) return [];
+  const { data: inserted, error: insertError } = await supabase.from('patient_fee_records').insert(toInsert).select();
+  if (insertError) throw insertError;
+  return inserted || [];
+};
+
 export const getRestraintObservationRecords = async (): Promise<RestraintObservationRecord[]> => {
   const { data, error } = await supabase.from('restraint_observation_records').select('*').order('observation_date', { ascending: false }).order('scheduled_time', { ascending: false });
   if (error) throw error;

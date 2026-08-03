@@ -217,6 +217,7 @@ export const PERMISSION_STRUCTURE: Record<PermissionCategory, FeatureDefinition[
     { key: 'patient_logs', name_zh: '院友日誌', route: '/patient-logs' },
     { key: 'diagnosis_records', name_zh: '診斷記錄', route: '/diagnosis-records' },
     { key: 'vaccination_records', name_zh: '疫苗記錄', route: '/vaccination-records' },
+    { key: 'fee_records', name_zh: '費用記錄', route: '/fee-records' },
   ],
   medication: [
     { key: 'prescription_management', name_zh: '處方管理', route: '/prescriptions' },

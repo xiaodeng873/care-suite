@@ -4,7 +4,7 @@ import type { Patient } from '../lib/database';
 import type { PrintContentMode } from '../utils/patientPrintBundleGenerator';
 import BedNumberImprint from './BedNumberImprint';
 
-export type PrintDocumentCategory = '入住文件' | '常用表格' | '床頭記錄';
+export type PrintDocumentCategory = '入住文件' | '常用表格' | '床頭記錄' | '統計報表';
 
 export interface PrintDocumentOption {
   id: string;
@@ -55,15 +55,31 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
   { id: 'bedhead_restraint_observation', name: '身體約束物品觀察記錄表', category: '床頭記錄', defaultChecked: true },
   { id: 'bedhead_position_change', name: '轉身記錄', category: '床頭記錄', defaultChecked: false, disabled: true, disabledHint: '未開放' },
   { id: 'bedhead_toilet_training', name: '如廁訓練', category: '床頭記錄', defaultChecked: false, disabled: true, disabledHint: '未開放' },
+  // 統計報表
+  { id: 'meal_statistics_report', name: '餐膳統計報表', category: '統計報表', defaultChecked: false },
+  { id: 'tube_care_statistics_report', name: '喉管護理報表', category: '統計報表', defaultChecked: false },
+  { id: 'infection_control_statistics_report', name: '感染控制報表', category: '統計報表', defaultChecked: false },
+  { id: 'special_care_statistics_report', name: '特別關顧報表', category: '統計報表', defaultChecked: false },
+  { id: 'drug_sensitivity_statistics_report', name: '藥物敏感報表', category: '統計報表', defaultChecked: false },
+  { id: 'diaper_statistics_report', name: '尿片統計報表', category: '統計報表', defaultChecked: false },
+  { id: 'fee_statistics_report', name: '雜費記錄報表', category: '統計報表', defaultChecked: false },
 ];
 
-const TAB_ORDER: PrintDocumentCategory[] = ['入住文件', '常用表格', '床頭記錄'];
+const TAB_ORDER: PrintDocumentCategory[] = ['入住文件', '常用表格', '床頭記錄', '統計報表'];
 
 export interface PrintDocumentOptions {
   /** Excel 匯出時，是否按院友分開工作表；false 則全部院友堆在同一張工作表 */
   separateSheetsPerPatient?: boolean;
+  /** Excel 匯出時，是否按居住區分開工作表；false 則全部居住區合併在同一張工作表 */
+  separateSheetsPerStation?: boolean;
   /** 意外事件報告：指定要列印的報告 ID；若未指定則對每位院友取最近一份 */
   selectedIncidentReportIds?: string[];
+  /** 尿片統計報表：指定月份範圍（YYYY-MM）；未指定則預設最近 9 個月 */
+  diaperMonthRange?: { startMonth: string; endMonth: string };
+  /** 雜費記錄報表：指定月份（YYYY-MM）；未指定則使用 endDate 所在月份 */
+  feeMonth?: string;
+  /** 雜費記錄報表：當月無記錄的院友是否跳過不列印 */
+  feeSkipEmptyPatients?: boolean;
 }
 
 interface PatientPrintModalProps {
@@ -121,10 +137,30 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
     d.setMonth(d.getMonth() - 1);
     return d.toISOString().split('T')[0];
   })();
-  const [startDate, setStartDate] = useState(initialStartDate ?? defaultStartDate);
-  const [endDate, setEndDate] = useState(initialEndDate ?? today);
+  // 防禦性處理：若外部傳入的初始範圍 start > end，自動對調，避免「預設最近一個月」顯示反了
+  const resolvedInitialStart = initialStartDate ?? defaultStartDate;
+  const resolvedInitialEnd = initialEndDate ?? today;
+  const [startDate, setStartDate] = useState(
+    resolvedInitialStart > resolvedInitialEnd ? resolvedInitialEnd : resolvedInitialStart
+  );
+  const [endDate, setEndDate] = useState(
+    resolvedInitialStart > resolvedInitialEnd ? resolvedInitialStart : resolvedInitialEnd
+  );
   const [contentMode, setContentMode] = useState<PrintContentMode>('data');
   const [separateSheetsPerPatient, setSeparateSheetsPerPatient] = useState(false);
+  const [separateSheetsPerStation, setSeparateSheetsPerStation] = useState(false);
+  // 尿片統計報表月份範圍（預設最近 9 個月）
+  const currentMonth = today.slice(0, 7);
+  const defaultDiaperStartMonth = (() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 8);
+    return d.toISOString().slice(0, 7);
+  })();
+  const [diaperStartMonth, setDiaperStartMonth] = useState(defaultDiaperStartMonth);
+  const [diaperEndMonth, setDiaperEndMonth] = useState(currentMonth);
+  // 雜費記錄報表月份（預設當月）
+  const [feeMonth, setFeeMonth] = useState(currentMonth);
+  const [feeSkipEmptyPatients, setFeeSkipEmptyPatients] = useState(false);
 
   const [residencyFilter, setResidencyFilter] = useState<string>('');
 
@@ -183,6 +219,17 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
   };
 
   const hasVaccinationRecord = checkedDocuments.has('vaccination_record');
+  const STATISTICS_REPORT_IDS = new Set([
+    'meal_statistics_report',
+    'tube_care_statistics_report',
+    'infection_control_statistics_report',
+    'special_care_statistics_report',
+    'drug_sensitivity_statistics_report',
+    'diaper_statistics_report',
+  ]);
+  const hasStatisticsReport = Array.from(checkedDocuments).some(id => STATISTICS_REPORT_IDS.has(id));
+  const hasDiaperReport = checkedDocuments.has('diaper_statistics_report');
+  const hasFeeReport = checkedDocuments.has('fee_statistics_report');
 
   const handlePrint = () => {
     const selected = patients.filter(p => selectedPatientIds.has(p.院友id));
@@ -194,11 +241,25 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
       alert('請先勾選文件');
       return;
     }
-    const effectiveStartDate = startDate || selected[0]?.入住日期 || '';
-    const printOptions: PrintDocumentOptions | undefined = hasVaccinationRecord
-      ? { separateSheetsPerPatient }
+    // 列印時也確保 startDate 不大於 endDate
+    let effectiveStartDate = startDate || selected[0]?.入住日期 || '';
+    let effectiveEndDate = endDate;
+    if (effectiveStartDate && effectiveEndDate && effectiveStartDate > effectiveEndDate) {
+      [effectiveStartDate, effectiveEndDate] = [effectiveEndDate, effectiveStartDate];
+    }
+    const printOptions: PrintDocumentOptions | undefined = (hasVaccinationRecord || hasStatisticsReport || hasFeeReport)
+      ? {
+          separateSheetsPerPatient,
+          separateSheetsPerStation,
+          ...(hasDiaperReport && diaperStartMonth && diaperEndMonth
+            ? { diaperMonthRange: { startMonth: diaperStartMonth, endMonth: diaperEndMonth } }
+            : {}),
+          ...(hasFeeReport
+            ? { feeMonth, feeSkipEmptyPatients }
+            : {}),
+        }
       : undefined;
-    onPrint(selected, Array.from(checkedDocuments), effectiveStartDate, endDate, contentMode, printOptions);
+    onPrint(selected, Array.from(checkedDocuments), effectiveStartDate, effectiveEndDate, contentMode, printOptions);
   };
 
   const selectedCount = selectedPatientIds.size;
@@ -260,6 +321,59 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
                   className="h-4 w-4"
                 />
                 按院友分開 sheet
+              </label>
+            </div>
+          )}
+          {hasStatisticsReport && (
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">統計報表工作表：</label>
+              <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={separateSheetsPerStation}
+                  onChange={e => setSeparateSheetsPerStation(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                按居住區分開 sheet
+              </label>
+            </div>
+          )}
+          {hasDiaperReport && (
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">尿片統計月份：</label>
+              <input
+                type="month"
+                value={diaperStartMonth}
+                onChange={e => setDiaperStartMonth(e.target.value)}
+                className="form-input text-sm"
+              />
+              <span className="text-sm text-gray-500">至</span>
+              <input
+                type="month"
+                value={diaperEndMonth}
+                onChange={e => setDiaperEndMonth(e.target.value)}
+                className="form-input text-sm"
+              />
+              <span className="text-xs text-gray-500">（預設最近 9 個月，可指定任何月份）</span>
+            </div>
+          )}
+          {hasFeeReport && (
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">雜費記錄月份：</label>
+              <input
+                type="month"
+                value={feeMonth}
+                onChange={e => setFeeMonth(e.target.value)}
+                className="form-input text-sm"
+              />
+              <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={feeSkipEmptyPatients}
+                  onChange={e => setFeeSkipEmptyPatients(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                跳過當月無記錄院友
               </label>
             </div>
           )}
