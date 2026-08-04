@@ -1,6 +1,6 @@
 # ADR 0001: Universal Expo App as Single Frontend for All Platforms
 
-**Status**: Accepted  
+**Status**: Superseded (2026-08-04) — `apps/app/` 與 `apps/mobile/` 已刪除；現役前端只有 `apps/web/` 與 `apps/marketing/`  
 **Date**: 2026-05-25
 
 ## Context

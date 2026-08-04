@@ -1,6 +1,5 @@
 /**
- * Shared design tokens — consumed by both apps/app (NativeWind/Tailwind)
- * and apps/web (Tailwind CSS).
+ * Shared design tokens — consumed by apps/web and apps/marketing (Tailwind CSS).
  *
  * Single source of truth for brand colours, spacing, and typography scale.
  * Import into tailwind.config.js on each app:
