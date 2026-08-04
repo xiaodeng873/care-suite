@@ -3,16 +3,16 @@ import { X } from 'lucide-react';
 
 interface CgatMedicationProxyModalProps {
   onClose: () => void;
-  onConfirm: (proxyDate: string, responsiblePerson: string, prescriptionPaperCount: string) => void;
+  onConfirm: (proxyDate: string, proxyPerson: string, prescriptionPaperCount: string) => void;
 }
 
 const CgatMedicationProxyModal: React.FC<CgatMedicationProxyModalProps> = ({ onClose, onConfirm }) => {
   const [proxyDate, setProxyDate] = useState('');
-  const [responsiblePerson, setResponsiblePerson] = useState('');
+  const [proxyPerson, setProxyPerson] = useState('');
   const [prescriptionPaperCount, setPrescriptionPaperCount] = useState('');
 
   const handleConfirm = () => {
-    onConfirm(proxyDate, responsiblePerson.trim(), prescriptionPaperCount.trim());
+    onConfirm(proxyDate, proxyPerson.trim(), prescriptionPaperCount.trim());
   };
 
   return (
@@ -35,12 +35,12 @@ const CgatMedicationProxyModal: React.FC<CgatMedicationProxyModalProps> = ({ onC
             />
           </div>
           <div>
-            <label className="form-label">負責人</label>
+            <label className="form-label">前往取藥之職員</label>
             <input
               type="text"
-              value={responsiblePerson}
-              onChange={(e) => setResponsiblePerson(e.target.value)}
-              placeholder="請輸入負責人姓名"
+              value={proxyPerson}
+              onChange={(e) => setProxyPerson(e.target.value)}
+              placeholder="請輸入前往取藥之職員姓名"
               className="form-input"
             />
           </div>

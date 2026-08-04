@@ -24,6 +24,11 @@
             min-height: 287mm;
         }
         
+        .avoid-break-to-end {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        
         /* 右上角職員取方塊 */
         .staff-box {
             position: absolute;
@@ -249,8 +254,8 @@
         </tbody>
     </table>
 
-    <!-- 身份代號說明：加入避免跨頁切斷容器 -->
-    <div style="break-inside: avoid; page-break-inside: avoid;">
+    <!-- 身份代號說明到結尾：避免跨頁切斷 -->
+    <div class="avoid-break-to-end">
         <table class="layout-table" style="margin-top: 5px; font-size: 14px;">
             <tr><td style="width: 100%; font-weight: bold;">身份代號：</td></tr>
             <tr>
@@ -266,10 +271,9 @@
                 </td>
             </tr>
         </table>
-    </div>
 
-    <!-- (丙) 豁免登記：加入避免跨頁切斷容器 -->
-    <div style="break-inside: avoid; page-break-inside: avoid;">
+    <!-- (丙) 豁免登記 -->
+    <div>
         <table class="layout-table" style="margin-top: 20px;">
             <tr>
                 <td style="width: 30%;">（丙） 茲證明上述病人已繳費或登記豁免：</td>
@@ -290,6 +294,7 @@
     </div>
 
     <div class="date-bottom">April 2021</div>
+    </div>
 
     <!-- 頁尾 -->
     <div class="footer">

@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <title>Care Suite — 由註冊護士打造的院舍管理系統</title>
+  <meta name="description" content="Care Suite 將繁瑣的文書與雜務整理成井井有條的模組化工作流，讓前線護士把時間還給院友。紙本電子並存，無合約綁定。" />
+  <meta property="og:title" content="Care Suite — 由註冊護士打造的院舍管理系統" />
+  <meta property="og:description" content="將繁瑣的文書與雜務整理成井井有條的模組化工作流，讓前線護士把時間還給院友。" />
+  <meta property="og:url" content="/" />
+  <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#2563EB" />
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+<meta property="og:site_name" content="Care Suite" />
+<meta property="og:image" content="/images/og-default.svg" />
+<meta name="twitter:card" content="summary_large_image" />
+<script>
+  // Apply saved theme or system preference before render to avoid flash
+  (function() {
+    const saved = localStorage.getItem('cs-theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (saved === 'dark' || (!saved && prefersDark)) {
+      document.documentElement.classList.add('dark');
+    } else if (saved === 'light') {
+      document.documentElement.classList.add('light');
+    }
+  })();
+</script>
+<script defer src="/js/main.js"></script>
+
+</head>
+<body>
+  <nav class="navbar" role="navigation" aria-label="主導覽">
+  <div class="container">
+    <a class="navbar-brand" href="/" aria-label="Care Suite 首頁">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="32" height="32" rx="8" fill="#2563EB"/>
+        <path d="M8 16C8 12.686 10.686 10 14 10H18C21.314 10 24 12.686 24 16V22H8V16Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M13 22V18C13 16.895 13.895 16 15 16H17C18.105 16 19 16.895 19 18V22" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="16" cy="13" r="2" fill="white"/>
+      </svg>
+      Care <span>Suite</span>
+    </a>
+
+    <div class="navbar-menu">
+      <div class="navbar-dropdown">
+        <a class="navbar-link navbar-dropdown-toggle" href="/features" aria-haspopup="true" aria-expanded="false">
+          功能
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </a>
+        <div class="navbar-dropdown-menu" role="menu">
+          <a href="/features" role="menuitem">功能總覽</a>
+          <a href="/features/dashboard" role="menuitem">主控台</a>
+          <a href="/features/residents" role="menuitem">院友管理</a>
+          <a href="/features/beds" role="menuitem">床位管理</a>
+          <a href="/features/records" role="menuitem">護理記錄</a>
+          <a href="/features/medication" role="menuitem">藥物管理</a>
+          <a href="/features/treatment" role="menuitem">醫療服務</a>
+          <a href="/features/compliance" role="menuitem">合規評估</a>
+          <a href="/features/operations" role="menuitem">日常營運</a>
+          <a href="/features/printing" role="menuitem">列印範本</a>
+          <a href="/features/ai-tools" role="menuitem">AI 工具</a>
+          <a href="/features/analytics" role="menuitem">數據報表</a>
+          <a href="/features/permissions" role="menuitem">權限管理</a>
+          <a href="/features/platform" role="menuitem">全平台</a>
+        </div>
+      </div>
+      <a class="navbar-link" href="/pricing">收費</a>
+      <a class="navbar-link" href="/faq">Q&A</a>
+      <a class="navbar-link" href="/updates">更新</a>
+      <a class="navbar-link" href="/news">專欄</a>
+      <a class="navbar-link" href="/about">關於</a>
+    </div>
+
+    <div class="navbar-actions">
+      <button class="icon-btn" id="theme-toggle" aria-label="切換深色/淺色模式" title="切換主題">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+      <a class="btn btn-ghost btn-sm" href="/app">登入</a>
+      <a class="btn btn-primary btn-sm" href="https://wa.me/85200000000?text=我想了解Care%20Suite院舍管理系統">WhatsApp 查詢</a>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <button class="icon-btn" id="theme-toggle-mobile" aria-label="切換深色/淺色模式" title="切換主題">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+      <button class="navbar-toggle" aria-label="打開選單" aria-expanded="false" aria-controls="mobile-menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="mobile-menu" id="mobile-menu" role="dialog" aria-modal="true" aria-label="手機選單">
+  <div class="mobile-menu-header">
+    <a class="navbar-brand" href="/">Care <span>Suite</span></a>
+    <button class="navbar-toggle" aria-label="關閉選單" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </div>
+  <div class="mobile-menu-links">
+    <a href="/features">功能總覽</a>
+    <a href="/features/dashboard" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— 主控台</a>
+    <a href="/features/residents" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— 院友管理</a>
+    <a href="/features/beds" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— 床位管理</a>
+    <a href="/features/records" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— 護理記錄</a>
+    <a href="/features/medication" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— 藥物管理</a>
+    <a href="/features/treatment" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— 醫療服務</a>
+    <a href="/features/compliance" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— 合規評估</a>
+    <a href="/features/operations" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— 日常營運</a>
+    <a href="/features/printing" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— 列印範本</a>
+    <a href="/features/ai-tools" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— AI 工具</a>
+    <a href="/features/analytics" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— 數據報表</a>
+    <a href="/features/permissions" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— 權限管理</a>
+    <a href="/features/platform" style="padding-left: 24px; font-size: 1rem; font-weight: 500;">— 全平台</a>
+    <a href="/pricing">收費</a>
+    <a href="/faq">Q&A</a>
+    <a href="/updates">更新</a>
+    <a href="/news">專欄</a>
+    <a href="/about">關於</a>
+  </div>
+  <div class="mobile-menu-actions">
+    <a class="btn btn-ghost" href="/app">登入</a>
+    <a class="btn btn-primary" href="https://wa.me/85200000000?text=我想了解Care%20Suite院舍管理系統">WhatsApp 查詢</a>
+  </div>
+</div>
+
+
+  <header class="hero">
+    <div class="container hero-layout">
+      <div class="hero-content">
+        <div class="hero-badge">✦ 註冊護士自主研發</div>
+        <h1 class="hero-title">讓院舍工作井井有條，把時間還給院友</h1>
+        <p class="hero-subtitle">Care Suite 是專為香港安老院舍設計的管理系統。由註冊護士從前線經驗出發，把監測、用藥、床位、文件、合規檢查整合成一條龍工作流。</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary btn-lg" href="https://wa.me/85200000000?text=我想預約Care%20Suite示範">預約示範</a>
+          <a class="btn btn-ghost btn-lg" href="/features">看看有什麼功能</a>
+        </div>
+        <div class="hero-trust">
+          <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> 無需安裝 app</span>
+          <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> HK$18/人/月</span>
+          <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> 無合約綁定</span>
+        </div>
+      </div>
+      <div class="hero-image" aria-label="護士照顧院友的溫馨場景">
+        <img src="/images/scenes/nurse-care.svg" alt="吉卜力風格插圖：護士在院舍床邊照顧長者" width="800" height="500" loading="eager" />
+      </div>
+    </div>
+  </header>
+
+  <section class="section">
+    <div class="container text-center">
+      <h2 class="section-title">為什麼院舍選擇 Care Suite？</h2>
+      <p class="section-subtitle">我們不做「萬能系統」，只做院舍每天真正用得上的功能。</p>
+      <div class="grid grid-4">
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          </div>
+          <h3 class="card-title">任何裝置，帳密即登</h3>
+          <p class="card-text">網頁與手機瀏覽器直接使用，無需安裝 app。前線員工用 iPad、舊電話都用到。</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+          </div>
+          <h3 class="card-title">紙本電子並存</h3>
+          <p class="card-text">可列印社署格式空白表格，沿用既有工作流，按自己的步伐數碼化，不用一刀切。</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          </div>
+          <h3 class="card-title">數據自主，絕不綁定</h3>
+          <p class="card-text">各類記錄隨時匯出，無合約綁定，一個月費全包全部功能，不用擔心被套牢。</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </div>
+          <h3 class="card-title">註冊護士研發，入屋入戶</h3>
+          <p class="card-text">開發者本身是註冊護士兼工程師，親臨院舍了解需求，現場度身訂造方案。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-bg">
+    <div class="container">
+      <div class="text-center">
+        <h2 class="section-title">核心功能一覽</h2>
+        <p class="section-subtitle">從入院到退院，從監測到派藥，從記錄到列印，覆蓋院舍日常運作。</p>
+      </div>
+      <div class="grid grid-3">
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+          </div>
+          <h3 class="card-title">生命表徵與監測</h3>
+          <p class="card-text">血壓計、血糖儀拍照自動讀數，逾期任務即時浮現，體重異常自動警示。</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>
+          </div>
+          <h3 class="card-title">eMAR 藥物管理</h3>
+          <p class="card-text">執藥、核藥、派藥三簽留痕，派藥前安全檢測，掃 QR 碼確認院友身份。</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+          </div>
+          <h3 class="card-title">床位與調動日誌</h3>
+          <p class="card-text">常規與暫時調動分開處理，原床印記清晰，床位調動足跡全程可追溯。</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          </div>
+          <h3 class="card-title">約 40 種文件列印</h3>
+          <p class="card-text">社署檢查常用表格、入住文件、床頭記錄，空白或含資料一鍵列印。</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          </div>
+          <h3 class="card-title">待辦與到期提醒</h3>
+          <p class="card-text">約束同意書、年度體檢、健康評估、傷口評估到期自動浮上主頁。</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z"></path><path d="M12 2a10 10 0 0 1 10 10"></path></svg>
+          </div>
+          <h3 class="card-title">AI 助護</h3>
+          <p class="card-text">用自然語言查詢全院數據，上傳文件比對新舊處方差異，所有操作須經確認。</p>
+        </article>
+      </div>
+      <div class="text-center" style="margin-top: 32px;">
+        <a class="btn btn-primary" href="/features">查看全部功能</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="text-center">
+        <h2 class="section-title">最近更新</h2>
+        <p class="section-subtitle">產品持續進化，這裡是最新的幾項改進。</p>
+      </div>
+      <div class="grid grid-3">
+        <article class="card post-card">
+          <div class="post-meta"><span class="badge badge-new">新功能</span><time>2026-08</time></div>
+          <h3 class="card-title"><a href="/updates/2026-08-bed-transfer-log">床位調動日誌上線</a></h3>
+          <p class="card-text">每張床、每位院友的入住、退住、互換、暫調足跡，現在全部清晰可查。</p>
+        </article>
+        <article class="card post-card">
+          <div class="post-meta"><span class="badge badge-new">新功能</span><time>2026-08</time></div>
+          <h3 class="card-title"><a href="/updates/2026-08-prescription-search">處方搜尋與可見性設定</a></h3>
+          <p class="card-text">新增處方搜尋頁，並可記錄最後服用日期與控制顯示狀態，減少畫面雜訊。</p>
+        </article>
+        <article class="card post-card">
+          <div class="post-meta"><span class="badge badge-improvement">改善</span><time>2026-08</time></div>
+          <h3 class="card-title"><a href="/updates/2026-08-care-plan-meeting">照顧計劃與個案會議增強</a></h3>
+          <p class="card-text">ICP 不再是一次過文件，會議名單、跟進事項、責任人一目了然。</p>
+        </article>
+      </div>
+      <div class="text-center" style="margin-top: 32px;">
+        <a class="btn btn-ghost" href="/updates">查看全部更新</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-bg">
+    <div class="container">
+      <div class="text-center">
+        <h2 class="section-title">新聞專欄</h2>
+        <p class="section-subtitle">法規解讀、院舍營運心得、產品教學。</p>
+      </div>
+      <div class="grid grid-3">
+        <article class="card post-card">
+          <div class="post-meta"><span class="badge badge-topic">法規解讀</span><time>2026-08</time></div>
+          <h3 class="card-title"><a href="/news/2026-08-code-of-practice-2024">安老院實務守則 2024 修訂：電子化記錄要注意的 5 件事</a></h3>
+          <p class="card-text">社署修訂後，院舍在電子記錄、數據保存、員工查閱權限方面要留意什麼？</p>
+        </article>
+        <article class="card post-card">
+          <div class="post-meta"><span class="badge badge-topic">產品教學</span><time>2026-08</time></div>
+          <h3 class="card-title"><a href="/news/2026-08-emar-three-sign">eMAR 三簽制度：如何減少派藥事故風險</a></h3>
+          <p class="card-text">從紙本簽名到電子簽署，三簽流程怎樣幫院舍守住最後一道閘？</p>
+        </article>
+        <article class="card post-card">
+          <div class="post-meta"><span class="badge badge-topic">行業觀察</span><time>2026-08</time></div>
+          <h3 class="card-title"><a href="/news/2026-08-staff-retention">護理員流失率高，系統怎樣設計才能即學即用？</a></h3>
+          <p class="card-text">培訓時間短、流失快，院舍系統必須一開即用，掃碼直達。</p>
+        </article>
+      </div>
+      <div class="text-center" style="margin-top: 32px;">
+        <a class="btn btn-ghost" href="/news">查看全部專欄</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section cta-section">
+    <div class="container text-center">
+      <h2 class="section-title">準備好讓院舍工作更有條理？</h2>
+      <p class="section-subtitle">預約一次示範，由註冊護士親自帶你了解系統如何配合你院舍的流程。</p>
+      <div class="hero-actions" style="justify-content: center;">
+        <a class="btn btn-secondary btn-lg" href="https://wa.me/85200000000?text=我想預約Care%20Suite示範">WhatsApp 預約示範</a>
+        <a class="btn btn-ghost btn-lg" href="/pricing" style="border-color: rgba(255,255,255,0.4); color: #fff;">查看收費</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand">Care <span>Suite</span></div>
+        <p class="footer-desc">由註冊護士親手打造的院舍管理系統，將繁瑣文書整理成井井有條的工作流。</p>
+        <p class="footer-desc">24 小時客戶服務熱線：<a href="tel:+85200000000">0000 0000</a></p>
+      </div>
+      <div>
+        <div class="footer-title">產品</div>
+        <ul class="footer-links">
+          <li><a href="/features">功能介紹</a></li>
+          <li><a href="/pricing">收費詳情</a></li>
+          <li><a href="/faq">常見問題</a></li>
+          <li><a href="/app">登入系統</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-title">內容</div>
+        <ul class="footer-links">
+          <li><a href="/updates">更新公告</a></li>
+          <li><a href="/news">新聞專欄</a></li>
+          <li><a href="/about">關於我們</a></li>
+          <li><a href="/contact">聯絡我們</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-title">法務</div>
+        <ul class="footer-links">
+          <li><a href="/privacy">私隱政策</a></li>
+          <li><a href="/terms">服務條款</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © 2026 Care Suite. 保留一切權利。
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

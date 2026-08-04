@@ -4,6 +4,7 @@ import { usePatients } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import { useAuth } from '../context/AuthContext';
 import { isInjectionQualified } from '@care-suite/shared';
+import { isQuickSignEnabled } from '../utils/toolsSettings';
 
 type StepKey = 'preparation' | 'verification' | 'dispensing';
 
@@ -78,10 +79,11 @@ const PrnWorkflowModal: React.FC<PrnWorkflowModalProps> = ({
   const currentUserId = userProfile?.id || user?.id || '';
   const currentUserPosition = userProfile?.nursing_position || '';
 
-  // 開啟時：三簽署自動填當前登入者（合資格時，普通 PRN 可一人完成三簽）
+  // 開啟時：快速簽署已啟用才自動帶入當前登入者三簽（普通 PRN 可一人完成三簽）；
+  // 快速簽署關閉時，三簽須逐步手動身份確認
   useEffect(() => {
     if (!isOpen || !prnContext) return;
-    const autoSign: Signer | null = currentUserQualified
+    const autoSign: Signer | null = currentUserQualified && isQuickSignEnabled()
       ? { name: displayName || '未知', id: currentUserId, position: currentUserPosition }
       : null;
     setSignatures({ preparation: autoSign, verification: autoSign, dispensing: autoSign });

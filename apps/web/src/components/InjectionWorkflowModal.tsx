@@ -3,6 +3,7 @@ import { X, Syringe, MapPin, CheckCircle, UserPlus, Lock } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import { isInjectionQualified } from '@care-suite/shared';
+import { isQuickSignEnabled } from '../utils/toolsSettings';
 import { getRecentInjectionSites, RecentInjectionSite } from '../lib/database';
 import BedNumberImprint from './BedNumberImprint';
 
@@ -86,8 +87,9 @@ const InjectionWorkflowModal: React.FC<InjectionWorkflowModalProps> = ({
   // 開啟時：初始化簽署與載入近兩次注射位置
   useEffect(() => {
     if (!isOpen || !workflowRecord) return;
-    // 首簽①②自動填當前登入者（合資格時），③須另一人點擊確認
-    const autoSign: Signer | null = currentUserQualified
+    // 快速簽署已啟用才自動帶入當前登入者首簽①②（合資格時），③須另一人點擊確認；
+    // 快速簽署關閉時，三簽全部須手動身份確認
+    const autoSign: Signer | null = currentUserQualified && isQuickSignEnabled()
       ? { name: displayName || '未知', id: currentUserId, position: currentUserPosition }
       : null;
     setSignatures({ preparation: autoSign, verification: autoSign, dispensing: null });

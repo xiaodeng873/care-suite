@@ -46,7 +46,7 @@ const TemplateManagement: React.FC = () => {
   const [passwordVerifying, setPasswordVerifying] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
 
-  // 是否有管理者權限（admin 或 developer）
+  // 是否有主管權限（admin 或 developer）
   const canModifyTemplates = isAdmin() || isDeveloper();
   const templateTypes = [
     { value: 'waiting-list', label: '院友候診記錄表', description: '醫生到診時的院友候診記錄' },
@@ -353,7 +353,7 @@ const TemplateManagement: React.FC = () => {
     return <LoadingScreen pageName="範本管理" />;
   }
 
-  // 非管理者角色無權限訪問
+  // 非主管角色無權限訪問
   if (!canModifyTemplates) {
     return (
       <div className="space-y-6">
@@ -364,7 +364,7 @@ const TemplateManagement: React.FC = () => {
           <div className="text-center py-12">
             <ShieldAlert className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">無權限</h3>
-            <p className="text-gray-500">您沒有權限存取範本管理，需要管理者或以上角色。</p>
+            <p className="text-gray-500">您沒有權限存取範本管理，需要主管或以上角色。</p>
           </div>
         </div>
       </div>

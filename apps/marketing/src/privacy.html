@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <title>私隱政策 — Care Suite 院舍管理系統</title>
+  <meta name="description" content="Care Suite 私隱政策：說明我們如何處理院友數據、數據儲存、匯出承諾與第三方服務。" />
+  <meta property="og:title" content="私隱政策 — Care Suite 院舍管理系統" />
+  <meta property="og:description" content="Care Suite 私隱政策。" />
+  <meta property="og:url" content="/privacy" />
+  <!-- INCLUDE: head.html -->
+</head>
+<body>
+  <!-- INCLUDE: nav.html -->
+
+  <header class="page-header">
+    <div class="container">
+      <h1>私隱政策</h1>
+      <p>我們極度重視院友及院舍數據的安全與自主。</p>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container article">
+      <h2>1. 資料種類</h2>
+      <p>Care Suite 儲存的資料包括院友個人資料、健康紀錄、藥物紀錄、監測數據、床頭記錄、聯絡人資料、員工帳號與操作日誌等。這些資料僅用於協助院舍提供照顧服務及符合法規記錄要求。</p>
+
+      <h2>2. 資料儲存與保安</h2>
+      <p>數據儲存於 Supabase 雲端資料庫，傳輸過程使用 TLS 加密，靜態資料亦加密保存。我們採用角色為本的權限控管，確保只有獲授權的員工可查閱或修改對應資料。</p>
+
+      <h2>3. 第三方服務</h2>
+      <p>系統的 OCR 與 AI 助護功能會將圖片上傳至 Google Gemini Vision 進行辨識與分析。上傳前我們會在回覆中自動隱藏敏感 ID；AI 提出的新增、修改或刪除建議必須經用戶確認才會執行，並且受同一套權限系統約束。</p>
+
+      <h2>4. 資料匯出與自主</h2>
+      <p>我們承諾不綁定用戶。各列表頁幾乎全部支援 CSV/Excel 匯出，院舍可隨時取回自己的數據。全量一鍵備份功能開發中，完成後將讓數據自主更加完整。</p>
+
+      <h2>5. 資料保留</h2>
+      <p>院舍可隨時要求刪除帳號與相關數據。退住院友的歷史記錄會按院舍需要保留，供日後督察查閱或法律程序之用。</p>
+
+      <h2>6. 查詢與投訴</h2>
+      <p>如對資料處理有任何疑問，請透過 WhatsApp 或 24 小時客戶服務熱線聯絡我們。</p>
+    </div>
+  </main>
+
+  <!-- INCLUDE: footer.html -->
+</body>
+</html>

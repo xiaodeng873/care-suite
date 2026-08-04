@@ -2730,6 +2730,7 @@ const MedicationWorkflow: React.FC = () => {
                       </th>
                     {weekDates.map((date) => {
                       const d = new Date(date);
+                      const year = d.getFullYear();
                       const month = d.getMonth() + 1;
                       const dayOfMonth = d.getDate();
                       const weekdayIndex = d.getDay();
@@ -2812,9 +2813,12 @@ const MedicationWorkflow: React.FC = () => {
                                 setSelectedDateForMenu(date);
                               }
                             }}
-                            title={`點擊展開選單 ${month}/${dayOfMonth}${hasOverdue ? ' (有逾期未完成流程)' : ''}`}
+                            title={`點擊展開選單 ${String(dayOfMonth).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}${hasOverdue ? ' (有逾期未完成流程)' : ''}`}
                           >
-                            {month}/{dayOfMonth}<br/>({weekday})
+                            <div className="leading-tight">
+                              <div>{String(dayOfMonth).padStart(2, '0')}/{String(month).padStart(2, '0')}/{year}</div>
+                              <div className="text-[10px]">({weekday})</div>
+                            </div>
                           </div>
                           {/* 下拉選單（使用 Portal 渲染到 body，確保在所有元素之上，向上展開） */}
                           {isMenuOpen && (

@@ -27,7 +27,7 @@ const REQUEST_LABELS: Record<string, string> = {
 
 const ROLE_LABELS: Record<string, string> = {
   developer: '開發者',
-  admin: '管理者',
+  admin: '主管',
   staff: '職員',
 };
 

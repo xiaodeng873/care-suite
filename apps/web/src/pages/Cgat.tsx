@@ -16,6 +16,7 @@ import {
   Printer
 } from 'lucide-react';
 import { usePatients } from '../context/PatientContext';
+import { useAuth } from '../context/AuthContext';
 import { useCgat } from '../context/CgatContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import CgatModal from '../components/CgatModal';
@@ -43,6 +44,8 @@ interface AdvancedFilters {
 const Cgat: React.FC = () => {
   // CGAT 特例：解除站別過濾，列出所有院友
   const { allPatients: patients, loading } = usePatients();
+  const { user } = useAuth();
+  const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || '';
   const { cgatRecords, deleteCgatRecord } = useCgat();
   const [showModal, setShowModal] = useState(false);
   const [showProxyModal, setShowProxyModal] = useState(false);
@@ -870,15 +873,16 @@ const Cgat: React.FC = () => {
       {showProxyModal && (
         <CgatMedicationProxyModal
           onClose={() => setShowProxyModal(false)}
-          onConfirm={async (proxyDate, responsiblePerson, prescriptionPaperCount) => {
+          onConfirm={async (proxyDate, proxyPerson, prescriptionPaperCount) => {
             setShowProxyModal(false);
             await printCgatMedicationProxy(
               sortedRecords,
               patients,
               Array.from(selectedRows),
               proxyDate,
-              responsiblePerson,
-              prescriptionPaperCount
+              proxyPerson,
+              prescriptionPaperCount,
+              displayName
             );
           }}
         />

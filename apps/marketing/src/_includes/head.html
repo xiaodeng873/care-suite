@@ -1,0 +1,21 @@
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#2563EB" />
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+<meta property="og:site_name" content="Care Suite" />
+<meta property="og:image" content="/images/og-default.svg" />
+<meta name="twitter:card" content="summary_large_image" />
+<script>
+  // Apply saved theme or system preference before render to avoid flash
+  (function() {
+    const saved = localStorage.getItem('cs-theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (saved === 'dark' || (!saved && prefersDark)) {
+      document.documentElement.classList.add('dark');
+    } else if (saved === 'light') {
+      document.documentElement.classList.add('light');
+    }
+  })();
+</script>
+<script defer src="/js/main.js"></script>

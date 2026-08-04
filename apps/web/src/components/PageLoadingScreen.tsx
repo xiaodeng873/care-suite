@@ -1,4 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import {
+  getFacilitySettings,
+  type FacilitySettings,
+  DEFAULT_FACILITY_SETTINGS,
+} from '../utils/facilitySettings';
 
 interface PageLoadingScreenProps {
   /** 頁面名稱，顯示在加載畫面中 */
@@ -75,6 +80,47 @@ const AdPlaceholder: React.FC = () => {
       <div className="mt-4 pt-3 border-t border-blue-100">
         <p className="text-xs text-gray-400 text-center">廣告位置 (Ad Space)</p>
       </div>
+    </div>
+  );
+};
+
+// 院舍品牌區塊：從 facility_settings 讀取院舍名稱與 logo
+const BrandBlock: React.FC<{ pageName?: string }> = ({ pageName = '頁面' }) => {
+  const [settings, setSettings] = useState<FacilitySettings>(DEFAULT_FACILITY_SETTINGS);
+
+  useEffect(() => {
+    let cancelled = false;
+    getFacilitySettings()
+      .then(s => { if (!cancelled) setSettings(s); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <div className="text-center mb-8">
+      <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg mb-4 overflow-hidden">
+        {settings.logoDataUri ? (
+          <img src={settings.logoDataUri} alt="院舍logo" className="w-full h-full object-contain" />
+        ) : (
+          <svg
+            className="w-10 h-10 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+            />
+          </svg>
+        )}
+      </div>
+      <h1 className="text-2xl font-bold text-gray-800 mb-1">
+        {settings.facilityNameZh || settings.facilityNameEn || 'SeniorCare'}
+      </h1>
+      <p className="text-gray-500">正在載入 {pageName}...</p>
     </div>
   );
 };
@@ -166,25 +212,7 @@ const PageLoadingScreen: React.FC<PageLoadingScreenProps> = ({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
         <div className="w-full max-w-lg px-6">
           {/* Logo/品牌區域 */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg mb-4">
-              <svg 
-                className="w-10 h-10 text-white" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
-                />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-1">SeniorCare</h1>
-            <p className="text-gray-500">正在載入 {pageName}...</p>
-          </div>
+          <BrandBlock pageName={pageName} />
 
           {/* 廣告區域 */}
           <div className="mb-8">
@@ -237,25 +265,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
       <div className="w-full max-w-lg px-6">
         {/* Logo/品牌區域 */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg mb-4">
-            <svg 
-              className="w-10 h-10 text-white" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
-              />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-1">SeniorCare</h1>
-          <p className="text-gray-500">正在載入 {pageName}...</p>
-        </div>
+        <BrandBlock pageName={pageName} />
 
         {/* 廣告區域 */}
         <div className="mb-8">

@@ -6,6 +6,11 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
 import { usePatients } from '../context/PatientContext';
 import { useStationFilter } from '../context/StationFilterContext';
+import {
+  getFacilitySettings,
+  DEFAULT_FACILITY_SETTINGS,
+  type FacilitySettings,
+} from '../utils/facilitySettings';
 import { LoadingScreen } from './PageLoadingScreen';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import type { PermissionCategory } from '@care-suite/shared';
@@ -83,6 +88,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [facilitySettings, setFacilitySettings] = useState<FacilitySettings>(DEFAULT_FACILITY_SETTINGS);
   const { displayName, hasPermission, hasCategoryViewPermission, isDeveloper, userProfile, customLogout } = useAuth();
   const { isNavigating, navigatingTo, isInitialLoad, startNavigation, finishNavigation } = useNavigation();
   const { loading: patientLoading, stations } = usePatients();
@@ -91,6 +97,15 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const stationFilterRef = useRef<HTMLDivElement | null>(null);
+
+  // 載入院舍名稱
+  useEffect(() => {
+    let cancelled = false;
+    getFacilitySettings()
+      .then(s => { if (!cancelled) setFacilitySettings(s); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   // 當 PatientContext 載入完成時，結束初始導航狀態
   useEffect(() => {
@@ -333,7 +348,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
                 }}
               >
                 <Home className="h-6 w-6 text-blue-600" />
-                <span className="text-xl font-bold text-gray-900 hidden sm:inline">SeniorCare</span>
+                <span className="text-base font-bold text-gray-900 hidden sm:inline">
+                  {facilitySettings.facilityNameZh || facilitySettings.facilityNameEn || 'SeniorCare'}
+                </span>
               </Link>
 
               {/* 桌面版導覽 */}

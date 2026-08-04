@@ -139,12 +139,43 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelec
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // 香港時區輔助函數：禁止輸入未來時間
+  const nowHK = (): { date: string; time: string } => {
+    const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Hong_Kong' }));
+    return {
+      date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+      time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+    };
+  };
+  const isFutureDateTime = (dateStr: string, timeStr: string): boolean => {
+    const { date, time } = nowHK();
+    return dateStr > date || (dateStr === date && timeStr > time);
+  };
+  const isFutureDate = (dateStr: string): boolean => {
+    return dateStr > nowHK().date;
+  };
+
   // ─── Modal ────────────────────────────────────────────────────
   const [modal, setModal] = useState<ModalState | null>(null);
 
   const openCell = useCallback((type: TabType, date: string, timeSlot: string, existing: any) => {
     if (!patient && type !== 'patrol') return;
     if (isAbsent && type !== 'patrol') return; // 缺席凍結
+    // 護理員界面禁止輸入未來時間的數據
+    if (!existing) {
+      if (type === 'hygiene') {
+        if (isFutureDate(date)) {
+          alert('不可輸入未來日期的數據');
+          return;
+        }
+      } else if (type !== 'toilet_training') {
+        const checkTime = type === 'diaper' ? parseDiaperSlotStartTime(timeSlot) : timeSlot;
+        if (isFutureDateTime(date, checkTime)) {
+          alert('不可輸入未來時間的數據');
+          return;
+        }
+      }
+    }
     setModal({ type, date, timeSlot, existing });
   }, [patient, isAbsent]);
 
@@ -243,6 +274,9 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelec
 
   const handlePatrolSubmit = (data: Omit<PatrolRound, 'id' | 'created_at' | 'updated_at'>) =>
     wrapSave(async () => {
+      if (isFutureDateTime(data.patrol_date, data.patrol_time)) {
+        throw new Error('不可輸入未來時間的數據');
+      }
       if (modal?.existing) await db.updatePatrolRound({ ...modal.existing, ...data });
       else await db.createPatrolRound(data);
       closeModal(); loadData();
@@ -264,6 +298,9 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelec
 
   const handleRestraintSubmit = (data: any) =>
     wrapSave(async () => {
+      if (isFutureDateTime(data.observation_date, data.observation_time)) {
+        throw new Error('不可輸入未來時間的數據');
+      }
       const converted = { ...data, notes: data.notes ? s2t(data.notes) : data.notes };
       if (modal?.existing) await db.updateRestraintObservationRecord({ ...modal.existing, ...converted });
       else await db.createRestraintObservationRecord(converted);
@@ -275,6 +312,9 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelec
 
   const handlePositionSubmit = (data: Omit<PositionChangeRecord, 'id' | 'created_at' | 'updated_at'>) =>
     wrapSave(async () => {
+      if (isFutureDateTime(data.change_date, data.scheduled_time)) {
+        throw new Error('不可輸入未來時間的數據');
+      }
       if (modal?.existing) await db.deletePositionChangeRecord(modal.existing.id);
       await db.createPositionChangeRecord(data);
       closeModal(); loadData();

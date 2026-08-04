@@ -63,6 +63,8 @@ export interface UserProfile {
   allied_health_position: AlliedHealthPositionType | null;
   hygiene_position: HygienePositionType | null;
   other_position: string | null;
+  /** 次要職位列表（可擔任其他角色） */
+  secondary_positions: string[];
   hire_date: string;
   employment_type: EmploymentType;
   monthly_hour_limit: number | null;
@@ -159,6 +161,157 @@ export const ALLIED_HEALTH_POSITIONS: AlliedHealthPositionType[] = [
 /** 衛生部門職位列表 */
 export const HYGIENE_POSITIONS: HygienePositionType[] = ['助理員'];
 
+/** 行政部門職位（排班管理：主管） */
+export type AdminPositionType = '主管';
+
+/** 行政部門職位列表 */
+export const ADMIN_POSITIONS: AdminPositionType[] = ['主管'];
+
+/** 全部枚舉職位列表（次要職位選項等用途） */
+export const ALL_POSITIONS: string[] = [
+  ...ADMIN_POSITIONS,
+  ...NURSING_POSITIONS,
+  ...ALLIED_HEALTH_POSITIONS,
+  ...HYGIENE_POSITIONS,
+];
+
+// =====================================================
+// 僱傭詳情（排班管理底層）
+// =====================================================
+
+/** 工作日安排 */
+export type WorkPattern = '輪班' | '一至五';
+
+/** 僱傭詳情適用職位判斷結果 */
+export type EmploymentPosition =
+  | '主管'
+  | '註冊護士'
+  | '登記護士'
+  | '保健員'
+  | '護理員'
+  | '助理員'
+  | '物理治療師';
+
+/** 僱傭詳情資料介面（對應 user_employment_details 表） */
+export interface UserEmploymentDetails {
+  id: string;
+  user_id: string;
+  work_pattern: WorkPattern | null;
+  weekly_contract_hours: number | null;
+  weekly_min_hours: number | null;
+  weekly_max_hours: number | null;
+  daily_min_hours: number | null;
+  daily_max_hours: number | null;
+  /** 工時結餘：正數 = 院舍現欠職員；負數 = 職員現欠院舍 */
+  hours_balance: number;
+  weekly_rest_days: number | null;
+  accumulated_rest_days: number;
+  /** 休息日計算起始日（起始日發放一次每周休息日天數，之後逢周日發放） */
+  rest_day_start_date: string | null;
+  annual_leave_days_per_year: number | null;
+  annual_leave_start_date: string | null;
+  preferred_station_primary: string | null;
+  preferred_station_secondary: string[];
+  stations_forbidden: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** 年假明細類型 */
+export type AnnualLeaveDetailType = 'grant' | 'usage' | 'writeoff';
+
+/** 年假用度明細（對應 user_annual_leave_details 表） */
+export interface UserAnnualLeaveDetail {
+  id: string;
+  user_id: string;
+  record_date: string;
+  detail_type: AnnualLeaveDetailType;
+  days: number;
+  remark: string | null;
+  /** 系統自動發放的獲得行，唯讀 */
+  is_system: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 結餘抹平類型 */
+export type BalanceType = 'hours' | 'rest_days';
+
+/** 休息日用度明細（對應 user_rest_day_details 表，結構與年假明細相同） */
+export type UserRestDayDetail = UserAnnualLeaveDetail;
+
+/** 結餘抹平記錄（對應 user_balance_adjustments 表） */
+export interface UserBalanceAdjustment {
+  id: string;
+  user_id: string;
+  balance_type: BalanceType;
+  previous_value: number;
+  new_value: number;
+  remark: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+/** 請假類型 */
+export type LeaveType = 'AL' | 'PRD' | 'DO' | 'SL' | 'CL' | 'NPL';
+
+/** 請假類型列表 */
+export const LEAVE_TYPES: LeaveType[] = ['AL', 'PRD', 'DO', 'SL', 'CL', 'NPL'];
+
+/** 請假類型中文名稱對照 */
+export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
+  AL: '年假',
+  PRD: '補假',
+  DO: '休息日',
+  SL: '病假',
+  CL: '事假',
+  NPL: '無薪假',
+};
+
+/** 請假記錄（對應 user_leave_records 表） */
+export interface UserLeaveRecord {
+  id: string;
+  user_id: string;
+  leave_date: string;
+  leave_type: LeaveType;
+  remark: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 判斷用戶職位是否適用僱傭詳情；回傳對應職位，不適用回傳 null。
+ *  主要職位不適用時，會繼續檢查次要職位（secondary_positions）。 */
+export function getEmploymentPosition(
+  profile: Pick<UserProfile, 'nursing_position' | 'hygiene_position' | 'allied_health_position' | 'other_position'> & { secondary_positions?: string[] | null } | null | undefined
+): EmploymentPosition | null {
+  if (!profile) return null;
+  if (profile.other_position === '主管') return '主管';
+  if (profile.nursing_position === '註冊護士') return '註冊護士';
+  if (profile.nursing_position === '登記護士') return '登記護士';
+  if (profile.nursing_position === '保健員') return '保健員';
+  if (profile.nursing_position === '護理員') return '護理員';
+  if (profile.hygiene_position === '助理員') return '助理員';
+  if (profile.allied_health_position === '物理治療師') return '物理治療師';
+
+  // 主要職位不適用時，檢查次要職位（按僱傭詳情適用職位順序取第一個）
+  const secondaryPositions = profile.secondary_positions || [];
+  const applicablePositions: EmploymentPosition[] = [
+    '主管',
+    '註冊護士',
+    '登記護士',
+    '保健員',
+    '護理員',
+    '助理員',
+    '物理治療師',
+  ];
+  for (const position of applicablePositions) {
+    if (secondaryPositions.includes(position)) return position;
+  }
+
+  return null;
+}
+
 /** 僱傭類型列表 */
 export const EMPLOYMENT_TYPES: EmploymentType[] = ['正職', '兼職'];
 
@@ -168,7 +321,7 @@ export const USER_ROLES: UserRole[] = ['developer', 'admin', 'staff'];
 /** 用戶角色中文名稱對照 */
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   developer: '開發者',
-  admin: '管理者',
+  admin: '主管',
   staff: '員工',
 };
 
@@ -276,8 +429,10 @@ export function getPositionsByDepartment(department: DepartmentType): string[] {
       return ALLIED_HEALTH_POSITIONS;
     case '衛生':
       return HYGIENE_POSITIONS;
+    case '行政':
+      return ADMIN_POSITIONS;
     default:
-      return []; // 行政、社工、膳食使用自由輸入
+      return []; // 社工、膳食使用自由輸入
   }
 }
 
@@ -285,7 +440,7 @@ export function getPositionsByDepartment(department: DepartmentType): string[] {
  * 判斷部門是否使用枚舉職位選單
  */
 export function departmentHasEnumPositions(department: DepartmentType): boolean {
-  return ['護理', '專職', '衛生'].includes(department);
+  return ['護理', '專職', '衛生', '行政'].includes(department);
 }
 
 /**

@@ -40,7 +40,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   
-  // 自訂認證（管理者/員工用）
+  // 自訂認證（主管/員工用）
   userProfile: UserProfile | null;
   customToken: string | null;
   
@@ -56,7 +56,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   
-  // 自訂認證方法（管理者/員工用）
+  // 自訂認證方法（主管/員工用）
   customLogin: (username: string, password: string) => Promise<{ error: any }>;
   qrLogin: (qrCodeId: string) => Promise<{ error: any }>;
   customLogout: () => Promise<void>;
@@ -342,7 +342,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 自訂認證登入（管理者/員工用）
+  // 自訂認證登入（主管/員工用）
   const customLogin = async (username: string, password: string) => {
     try {
       const result = await callAuthApi('login', { username, password });
@@ -438,7 +438,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // 自訂認證用戶（管理者/員工）
+    // 自訂認證用戶（主管/員工）
     if (!userProfile?.id) {
       return { error: '用戶未登入' };
     }
@@ -476,7 +476,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: '密碼驗證失敗' };
       }
     }
-    // 自訂認證用戶（管理者/員工）
+    // 自訂認證用戶（主管/員工）
     if (userProfile?.id) {
       try {
         const result = await callAuthApi('verify-password', {
@@ -526,30 +526,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     feature: string,
     action: PermissionAction
   ): boolean => {
-    // 開發者擁有所有權限
-    if (user) return true;
-    
+    // 開發者擁有所有權限（Supabase auth 或自訂認證 developer）
+    if (user || userProfile?.role === 'developer') return true;
+
     // 檢查權限列表
     return permissions.some(
       p => p.category === category && p.feature === feature && p.action === action
     );
-  }, [user, permissions]);
+  }, [user, userProfile, permissions]);
 
   // 權限檢查：是否有類別下任一權限
   const hasAnyPermission = useCallback((category: PermissionCategory): boolean => {
-    // 開發者擁有所有權限
-    if (user) return true;
-    
+    // 開發者擁有所有權限（Supabase auth 或自訂認證 developer）
+    if (user || userProfile?.role === 'developer') return true;
+
     return permissions.some(p => p.category === category);
-  }, [user, permissions]);
+  }, [user, userProfile, permissions]);
 
   // 權限檢查：是否有類別下任一查看權限
   const hasCategoryViewPermission = useCallback((category: PermissionCategory): boolean => {
-    // 開發者擁有所有權限
-    if (user) return true;
-    
+    // 開發者擁有所有權限（Supabase auth 或自訂認證 developer）
+    if (user || userProfile?.role === 'developer') return true;
+
     return permissions.some(p => p.category === category && p.action === 'view');
-  }, [user, permissions]);
+  }, [user, userProfile, permissions]);
 
   // 是否已認證
   const isAuthenticated = useCallback((): boolean => {
@@ -561,7 +561,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return !!user || userProfile?.role === 'developer';
   }, [user, userProfile]);
 
-  // 是否為管理者
+  // 是否為主管
   const isAdmin = useCallback((): boolean => {
     return isDeveloper() || userProfile?.role === 'admin';
   }, [userProfile, isDeveloper]);

@@ -1,0 +1,13 @@
+{
+  "name": "care-suite-marketing",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/build.js && node scripts/serve.js",
+    "build": "node scripts/build.js",
+    "preview": "node scripts/build.js && node scripts/serve.js dist 4173",
+    "lint": "echo 'No lint configured for static marketing site'"
+  },
+  "devDependencies": {}
+}

@@ -3,7 +3,7 @@ import type { ProblemCategory } from '../lib/database';
 
 /**
  * 把員工 profile 的職位/部門對應到 ICP 問題庫的專業分類。
- * 開發者與管理者不應被視為任何專業，回傳 null 表示「全部可見」。
+ * 開發者與主管不應被視為任何專業，回傳 null 表示「全部可見」。
  */
 export function getUserProfessionCategory(userProfile: UserProfile | null): ProblemCategory | null {
   if (!userProfile) return null;

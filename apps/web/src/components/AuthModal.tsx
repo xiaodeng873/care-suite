@@ -105,7 +105,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           setPassword('');
         }
       } else {
-        // 員工/管理者使用自訂認證
+        // 員工/主管使用自訂認證
         const { error } = await customLogin(username, password);
         if (error) {
           setError(typeof error === 'string' ? error : '登入失敗');

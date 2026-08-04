@@ -113,10 +113,11 @@ function generateProxyHtml(
   records: CgatRecord[],
   patients: Patient[],
   proxyDate: string,
-  responsiblePerson: string,
+  proxyPerson: string,
   prescriptionPaperCount: string,
   facilityName: string,
-  facilityPhone: string
+  facilityPhone: string,
+  staffName: string
 ): string {
   const patientMap = new Map<number, Patient>();
   for (const p of patients) {
@@ -159,7 +160,7 @@ function generateProxyHtml(
   // 現委託本院職員
   html = html.replace(
     /<td style="width: 25%;"><textarea rows="1"><\/textarea><\/td>\s*<td style="width: 15%;">員工證號碼（適用者）<\/td>/,
-    `<td style="width: 25%;"><textarea rows="1">${escapeHtml(responsiblePerson)}</textarea></td>
+    `<td style="width: 25%;"><textarea rows="1">${escapeHtml(proxyPerson)}</textarea></td>
             <td style="width: 15%;">員工證號碼（適用者）</td>`
   );
 
@@ -167,18 +168,47 @@ function generateProxyHtml(
   html = html.replace(
     /<td style="width: 8%; text-align: right;">負責人：<\/td>\s*<td style="width: 32%;"><textarea rows="1"><\/textarea><\/td>/,
     `<td style="width: 8%; text-align: right;">負責人：</td>
-            <td style="width: 32%;"><textarea rows="1">${escapeHtml(responsiblePerson)}</textarea></td>`
+            <td style="width: 32%;"><textarea rows="1">${escapeHtml(staffName)}</textarea></td>`
+  );
+
+  // 安老院／護老院名稱
+  html = html.replace(
+    /<td style="width: 40%;"><textarea rows="1" style="text-align: right;"><\/textarea><\/td>\s*<td style="width: 15%; text-align: right;">安老院／護老院<\/td>/,
+    `<td style="width: 40%;"><textarea rows="1" style="text-align: right;">${escapeHtml(facilityName)}</textarea></td>
+            <td style="width: 15%; text-align: right;">安老院／護老院</td>`
   );
 
   // 院舍電話：請致電 __ 與本院護士 __ 聯絡
   html = html.replace(
-    /<td style="width: 22%;">\* 如需進一步有關資料，請致電<\/td>\s*<td style="width: 25%;"><textarea rows="1"><\/textarea><\/td>\s*<td style="width: 10%;">與本院護士<\/td>/,
+    /<td style="width: 22%;">\* 如需進一步有關資料，請致電<\/td>\s*<td style="width: 25%;"><textarea rows="1"><\/textarea><\/td>\s*<td style="width: 10%;">與本院護士<\/td>\s*<td style="width: 25%;"><textarea rows="1"><\/textarea><\/td>\s*<td style="width: 18%;">聯絡。<\/td>/,
     `<td style="width: 22%;">* 如需進一步有關資料，請致電</td>
             <td style="width: 25%;"><textarea rows="1">${escapeHtml(facilityPhone)}</textarea></td>
-            <td style="width: 10%;">與本院護士</td>`
+            <td style="width: 10%;">與本院護士</td>
+            <td style="width: 25%;"><textarea rows="1">${escapeHtml(staffName)}</textarea></td>
+            <td style="width: 18%;">聯絡。</td>`
   );
 
-  // 甲部藥單數目
+  // 負責人下方日期：同樣使用 proxyDate
+  html = html.replace(
+    /<td style="width: 45%;"><\/td>\s*<td style="width: 15%; border-bottom: 0\.5px solid black;"><\/td>\s*<td style="width: 5%; text-align: center;">年<\/td>\s*<td style="width: 10%; border-bottom: 0\.5px solid black;"><\/td>\s*<td style="width: 5%; text-align: center;">月<\/td>\s*<td style="width: 10%; border-bottom: 0\.5px solid black;"><\/td>\s*<td style="width: 10%; text-align: center;">日<\/td>/,
+    `<td style="width: 45%;"></td>
+            <td style="width: 15%; border-bottom: 0.5px solid black; text-align: center;">${escapeHtml(dateParts.year)}</td>
+            <td style="width: 5%; text-align: center;">年</td>
+            <td style="width: 10%; border-bottom: 0.5px solid black; text-align: center;">${escapeHtml(dateParts.month)}</td>
+            <td style="width: 5%; text-align: center;">月</td>
+            <td style="width: 10%; border-bottom: 0.5px solid black; text-align: center;">${escapeHtml(dateParts.day)}</td>
+            <td style="width: 10%; text-align: center;">日</td>`
+  );
+
+  // 取消頁碼 + 避免從身份代號說明區到結尾跨頁切斷
+  html = html.replace(
+    /<\/head>/,
+    `<style>
+      .page-num, .doc-code { display: none !important; }
+      .avoid-break-to-end { break-inside: avoid; page-break-inside: avoid; }
+    </style></head>`
+  );
+
   html = html.replace(
     /<td style="width: 15%;"><textarea rows="1" style="text-align: center;"><\/textarea><\/td>\s*<td style="width: 12%;">份\/病人，<\/td>\s*<td style="width: 15%;"><textarea rows="1" style="text-align: center;"><\/textarea><\/td>\s*<td style="width: 43%;">張藥單紙<\/td>/,
     `<td style="width: 15%;"><textarea rows="1" style="text-align: center;">${patientCount}</textarea></td>
@@ -251,8 +281,9 @@ export async function printCgatMedicationProxy(
   patients: Patient[],
   selectedRecordIds: string[],
   proxyDate: string,
-  responsiblePerson: string,
-  prescriptionPaperCount: string
+  proxyPerson: string,
+  prescriptionPaperCount: string,
+  staffName: string
 ): Promise<void> {
   if (selectedRecordIds.length === 0) {
     alert('請先選擇要列印的 CGAT 記錄');
@@ -272,6 +303,6 @@ export async function printCgatMedicationProxy(
   const facilityName = settings.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
   const facilityPhone = settings.facilityPhone || DEFAULT_FACILITY_SETTINGS.facilityPhone;
 
-  const html = generateProxyHtml(eligibleRecords, patients, proxyDate, responsiblePerson, prescriptionPaperCount, facilityName, facilityPhone);
+  const html = generateProxyHtml(eligibleRecords, patients, proxyDate, proxyPerson, prescriptionPaperCount, facilityName, facilityPhone, staffName);
   printViaIframe(html);
 }

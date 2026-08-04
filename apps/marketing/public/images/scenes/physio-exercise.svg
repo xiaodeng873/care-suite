@@ -1,0 +1,35 @@
+<svg width="800" height="500" viewBox="0 0 800 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#DCFCE7"/>
+      <stop offset="100%" stop-color="#F0FDF4"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#bg2)"/>
+  <!-- Mirror / window -->
+  <rect x="500" y="60" width="220" height="180" rx="12" fill="#BBF7D0"/>
+  <rect x="520" y="80" width="180" height="140" rx="8" fill="#DCFCE7"/>
+  <!-- Therapy ball -->
+  <circle cx="180" cy="400" r="55" fill="#93C5FD"/>
+  <circle cx="160" cy="380" r="15" fill="#BFDBFE" opacity="0.6"/>
+  <!-- Elderly person sitting -->
+  <circle cx="320" cy="260" r="35" fill="#FDE68A"/>
+  <rect x="270" y="290" width="100" height="110" rx="16" fill="#FEF3C7"/>
+  <rect x="270" y="380" width="45" height="80" rx="12" fill="#374151"/>
+  <rect x="325" y="380" width="45" height="80" rx="12" fill="#374151"/>
+  <!-- Physiotherapist -->
+  <circle cx="450" cy="230" r="30" fill="#FDE68A"/>
+  <rect x="420" y="260" width="60" height="90" rx="12" fill="#FFFFFF"/>
+  <rect x="420" y="260" width="60" height="25" rx="4" fill="#059669"/>
+  <rect x="430" y="200" width="40" height="15" rx="4" fill="#059669"/>
+  <!-- Arm support gesture -->
+  <path d="M390 300 Q420 320 450 300" stroke="#FDE68A" stroke-width="14" stroke-linecap="round" fill="none"/>
+  <!-- Plant -->
+  <ellipse cx="680" cy="430" rx="50" ry="15" fill="#86EFAC"/>
+  <rect x="672" y="370" width="16" height="60" rx="4" fill="#A16207"/>
+  <circle cx="680" cy="360" r="32" fill="#4ADE80"/>
+  <circle cx="655" y="380" r="24" fill="#22C55E"/>
+  <circle cx="705" y="380" r="24" fill="#22C55E"/>
+  <!-- Decor -->
+  <circle cx="120" cy="120" r="60" fill="#FEF9C3" opacity="0.5"/>
+</svg>

@@ -49,6 +49,7 @@ interface CreateUserRequest {
   allied_health_position?: string;
   hygiene_position?: string;
   other_position?: string;
+  secondary_positions?: string[];
   hire_date: string;
   employment_type: string;
   monthly_hour_limit?: number;
@@ -681,6 +682,7 @@ async function handleCreateUser(req: CreateUserRequest, authHeader: string) {
       allied_health_position: req.allied_health_position || null,
       hygiene_position: req.hygiene_position || null,
       other_position: req.other_position || null,
+      secondary_positions: req.secondary_positions || [],
       hire_date: req.hire_date,
       employment_type: req.employment_type,
       monthly_hour_limit: req.employment_type === "兼職" ? (req.monthly_hour_limit || 68) : null,
