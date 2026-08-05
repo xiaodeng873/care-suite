@@ -279,7 +279,7 @@ function AuthenticatedContent({
   }
 
   return (
-    <BrowserRouter basename="/app">
+    <BrowserRouter basename="/">
       <NavigationProvider>
         <Layout user={effectiveUser} onSignOut={onSignOut}>
           <Suspense fallback={<RouteLoadingFallback />}>

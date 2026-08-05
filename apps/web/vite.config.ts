@@ -5,7 +5,7 @@ import path from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/app/',
+  base: '/',
   resolve: {
     alias: {
       '@care-suite/shared': path.resolve(__dirname, '../../packages/shared/src/index.ts'),

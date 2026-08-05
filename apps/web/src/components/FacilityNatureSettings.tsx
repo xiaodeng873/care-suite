@@ -7,9 +7,9 @@ import {
   DEFAULT_SPECIFIC_HOURS_CONFIG,
   FACILITY_NATURES,
   GRID_POSITIONS,
-  NATURE_HOURS_POSITIONS,
   NATURE_RATIO_POSITIONS,
-  PHYSIOTHERAPIST,
+  NIGHT_ANY_STAFF,
+  STATUTORY_RATIOS,
   loadFacilityNatureSettings,
   saveFacilityNatureSettings,
   type FacilityNature,
@@ -19,20 +19,20 @@ import {
   type TimeSegment,
 } from '../utils/facilityNatureSettings';
 import {
-  ceilHalf,
   computeStaffingRequirements,
   natureDenominator,
+  ratioHeadcount,
   timeToMinutes,
 } from '../utils/staffingRequirements';
 
-const TABS = ['床位設定', '病護比例', '各職位總工時', '特定鐘點', '24小時最低人手'] as const;
+const TABS = ['床位設定', '病護比例', '24小時最低人手'] as const;
 
 const INPUT_CLASS =
   'w-24 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm';
 const TIME_INPUT_CLASS =
   'px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm';
 
-/** 整數輸入；留空 = null（無要求） */
+/** 整數輸入；留空 = null */
 const IntInput: React.FC<{
   value: number | null;
   onChange: (v: number | null) => void;
@@ -92,30 +92,6 @@ const FacilityNatureSettings: React.FC = () => {
   }, []);
 
   // -----------------------------------------------------
-  // 表單更新 helpers
-  // -----------------------------------------------------
-
-  const updateRatio = (nature: FacilityNature, position: string, value: number | null) => {
-    setRequirements((prev) => ({
-      ...prev,
-      [nature]: {
-        ratios: { ...prev[nature]?.ratios, [position]: value },
-        hours: prev[nature]?.hours ?? {},
-      },
-    }));
-  };
-
-  const updateHours = (nature: FacilityNature, position: string, value: number | null) => {
-    setRequirements((prev) => ({
-      ...prev,
-      [nature]: {
-        ratios: prev[nature]?.ratios ?? {},
-        hours: { ...prev[nature]?.hours, [position]: value },
-      },
-    }));
-  };
-
-  // -----------------------------------------------------
   // 特定鐘點驗證
   // -----------------------------------------------------
 
@@ -128,29 +104,35 @@ const FacilityNatureSettings: React.FC = () => {
 
   const req1Error = ((): string | null => {
     const segs = specific.requirement1.segments;
-    if (segs.length === 0) return '要求1至少需要一個時段';
+    if (segs.length === 0) return '護理員指明期間至少需要一個時段';
     for (const seg of segs) {
       const s = timeToMinutes(seg.start);
       const e = timeToMinutes(seg.end);
-      if (s < 7 * 60 || e > 22 * 60) return '要求1時段必須在 07:00–22:00 之內';
-      if (s >= e) return '要求1時段的起始時間必須早於結束時間';
+      if (s < 7 * 60 || e > 22 * 60) return '護理員指明期間必須在 07:00–22:00 之內';
+      if (s >= e) return '護理員指明期間的起始時間必須早於結束時間';
     }
     const sorted = [...segs].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
     for (let i = 1; i < sorted.length; i++) {
       if (timeToMinutes(sorted[i].start) < timeToMinutes(sorted[i - 1].end)) {
-        return '要求1時段不可重疊';
+        return '護理員指明期間時段不可重疊';
       }
     }
     if (req1TotalMinutes !== 10 * 60) {
-      return `要求1所有時段總和必須剛好 10 小時（目前 ${(req1TotalMinutes / 60).toFixed(1)} 小時）`;
+      return `護理員指明期間所有時段總和必須剛好 10 小時（目前 ${(req1TotalMinutes / 60).toFixed(1)} 小時）`;
     }
     return null;
   })();
 
   const req3Minutes = segmentMinutes(specific.requirement3);
   const req3Error =
-    req3Minutes !== 11 * 60
-      ? `要求3時段必須剛好連續 11 小時（目前 ${(req3Minutes / 60).toFixed(1)} 小時）`
+    req3Minutes !== 13 * 60
+      ? `護士／保健員指明期間必須剛好連續 13 小時（目前 ${(req3Minutes / 60).toFixed(1)} 小時）`
+      : null;
+
+  const assistantMinutes = segmentMinutes(specific.assistantWindow);
+  const assistantError =
+    assistantMinutes !== 11 * 60
+      ? `助理員指明期間必須剛好連續 11 小時（目前 ${(assistantMinutes / 60).toFixed(1)} 小時）`
       : null;
 
   const bedCountsTotal = FACILITY_NATURES.reduce((sum, n) => sum + (bedCounts[n] || 0), 0);
@@ -175,6 +157,10 @@ const FacilityNatureSettings: React.FC = () => {
       setMessage({ type: 'error', text: req3Error });
       return;
     }
+    if (assistantError) {
+      setMessage({ type: 'error', text: assistantError });
+      return;
+    }
     setSaving(true);
     setMessage(null);
     try {
@@ -195,11 +181,10 @@ const FacilityNatureSettings: React.FC = () => {
     () =>
       computeStaffingRequirements({
         bedCounts,
-        requirements,
         specific,
         currentResidents,
       }),
-    [bedCounts, requirements, specific, currentResidents]
+    [bedCounts, specific, currentResidents]
   );
 
   if (loading) {
@@ -265,75 +250,8 @@ const FacilityNatureSettings: React.FC = () => {
 
   const renderRatioTab = () => {
     const denominator = natureDenominator(activeNature, bedCounts, currentResidents);
-    const ratios = requirements[activeNature]?.ratios ?? {};
-    return (
-      <div>
-        {natureSelector}
-        <p className="text-sm text-gray-600 mb-4">
-          分母：
-          {activeNature === '安老院'
-            ? `max(0, 全院在住 ${currentResidents} − 計劃類宿位總和) = `
-            : `${activeNature}宿位數 = `}
-          <span className="font-semibold text-gray-900">{denominator}</span>
-        </p>
-        <div className="space-y-3 max-w-xl">
-          {NATURE_RATIO_POSITIONS[activeNature].map((position) => {
-            const n = ratios[position] ?? null;
-            return (
-              <div key={position} className="flex items-center justify-between gap-4">
-                <label className="text-sm font-medium text-gray-700">{position}</label>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">1 :</span>
-                  <IntInput value={n} onChange={(v) => updateRatio(activeNature, position, v)} />
-                  <span className="text-sm text-gray-500 w-32">
-                    {n != null && n > 0
-                      ? `所需 ${Math.ceil(denominator / n)} 人`
-                      : '無要求'}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const renderHoursTab = () => {
-    const hours = requirements[activeNature]?.hours ?? {};
-    return (
-      <div>
-        {natureSelector}
-        <p className="text-sm text-gray-600 mb-4">
-          各職位每天最低總工時（物理治療師以每周計，每日換算 = 每周 ÷ 5 進位至 0.5）；留空 = 無要求。
-        </p>
-        <div className="space-y-3 max-w-xl">
-          {NATURE_HOURS_POSITIONS[activeNature].map((position) => {
-            const value = hours[position] ?? null;
-            const isPT = position === PHYSIOTHERAPIST;
-            return (
-              <div key={position} className="flex items-center justify-between gap-4">
-                <label className="text-sm font-medium text-gray-700">{position}</label>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">{isPT ? '每周總共' : '每天總共'}</span>
-                  <IntInput value={value} onChange={(v) => updateHours(activeNature, position, v)} />
-                  <span className="text-sm text-gray-500 w-44">
-                    {value == null
-                      ? '小時（無要求）'
-                      : isPT
-                        ? `小時（每日約 ${ceilHalf(value / 5)} 小時）`
-                        : '小時'}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const renderSpecificTab = () => {
+    const isContractNature = activeNature === '甲一買位' || activeNature === '院舍卷計劃';
+    const healthWorkerNeeded = ratioHeadcount(currentResidents, STATUTORY_RATIOS.healthWorker);
     const segs = specific.requirement1.segments;
     const updateSegment = (index: number, field: 'start' | 'end', value: string) => {
       setSpecific((prev) => ({
@@ -347,160 +265,272 @@ const FacilityNatureSettings: React.FC = () => {
       }));
     };
     return (
-      <div className="space-y-8 max-w-2xl">
-        {/* 要求1 */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-1">
-            要求1：指定時段護理員對住客比例
-          </h3>
+      <div className="space-y-8">
+        {/* 三個特定鐘點（全院共用；比例按附表1寫死，不可手調） */}
+        <div className="max-w-2xl">
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">特定鐘點（全院共用）</h3>
           <p className="text-xs text-gray-500 mb-3">
-            時段須在 07:00–22:00 內、起早於止、不可重疊，所有時段總和必須剛好 10 小時。
+            三個指明期間分別針對護理員（10 小時）、護士／保健員（連續 13 小時）、助理員（連續 11 小時）；
+            比例為《安老院規例》附表1的法定底線，所有人手換算向上取整。
           </p>
-          <div className="space-y-2">
-            {segs.map((seg, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <input
-                  type="time"
-                  value={seg.start}
-                  min="07:00"
-                  max="22:00"
-                  onChange={(e) => updateSegment(index, 'start', e.target.value)}
-                  className={TIME_INPUT_CLASS}
-                />
-                <span className="text-sm text-gray-500">至</span>
-                <input
-                  type="time"
-                  value={seg.end}
-                  min="07:00"
-                  max="22:00"
-                  onChange={(e) => updateSegment(index, 'end', e.target.value)}
-                  className={TIME_INPUT_CLASS}
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSpecific((prev) => ({
-                      ...prev,
-                      requirement1: {
-                        ...prev.requirement1,
-                        segments: prev.requirement1.segments.filter((_, i) => i !== index),
-                      },
-                    }))
-                  }
-                  className="p-1.5 text-red-500 hover:text-red-700"
-                  title="刪除此時段"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-4 mt-3">
-            <button
-              type="button"
-              onClick={() =>
-                setSpecific((prev) => ({
-                  ...prev,
-                  requirement1: {
-                    ...prev.requirement1,
-                    segments: [...prev.requirement1.segments, { start: '07:00', end: '08:00' }],
-                  },
-                }))
-              }
-              className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              新增時段
-            </button>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>護理員對住客 1 :</span>
-              <IntInput
-                value={specific.requirement1.ratio}
-                onChange={(v) =>
+
+          {/* 護理員指明期間（10 小時，可分割） */}
+          <div className="border border-gray-200 rounded-lg p-3 mb-4">
+            <p className="text-sm font-medium text-gray-900 mb-1">
+              護理員指明期間（合共 10 小時，可分割，須在 07:00–22:00 內）
+            </p>
+            <p className="text-xs text-gray-500 mb-3">
+              期間內每 {STATUTORY_RATIOS.careWorkerDay} 名住客須有 1 名護理員當值；期間以外任何時間每{' '}
+              {STATUTORY_RATIOS.careWorkerNight} 名住客須有 1 名護理員當值。
+            </p>
+            <div className="space-y-2">
+              {segs.map((seg, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    value={seg.start}
+                    min="07:00"
+                    max="22:00"
+                    onChange={(e) => updateSegment(index, 'start', e.target.value)}
+                    className={TIME_INPUT_CLASS}
+                  />
+                  <span className="text-sm text-gray-500">至</span>
+                  <input
+                    type="time"
+                    value={seg.end}
+                    min="07:00"
+                    max="22:00"
+                    onChange={(e) => updateSegment(index, 'end', e.target.value)}
+                    className={TIME_INPUT_CLASS}
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSpecific((prev) => ({
+                        ...prev,
+                        requirement1: {
+                          ...prev.requirement1,
+                          segments: prev.requirement1.segments.filter((_, i) => i !== index),
+                        },
+                      }))
+                    }
+                    className="p-1.5 text-red-500 hover:text-red-700"
+                    title="刪除此時段"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-4 mt-3">
+              <button
+                type="button"
+                onClick={() =>
                   setSpecific((prev) => ({
                     ...prev,
-                    requirement1: { ...prev.requirement1, ratio: v ?? prev.requirement1.ratio },
+                    requirement1: {
+                      ...prev.requirement1,
+                      segments: [...prev.requirement1.segments, { start: '07:00', end: '08:00' }],
+                    },
                   }))
                 }
+                className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                新增時段
+              </button>
+            </div>
+            <p className={`text-sm mt-2 ${req1Error ? 'text-red-600' : 'text-green-600'}`}>
+              10 小時時段總計：{(req1TotalMinutes / 60).toFixed(1)} 小時
+              {req1Error ? `（${req1Error}）` : '（符合 10 小時要求）'}
+            </p>
+          </div>
+
+          {/* 護士／保健員指明期間（連續 13 小時） */}
+          <div className="border border-gray-200 rounded-lg p-3 mb-4">
+            <p className="text-sm font-medium text-gray-900 mb-1">
+              護士／保健員指明期間（連續 13 小時，不可分割）
+            </p>
+            <p className="text-xs text-gray-500 mb-3">
+              期間內每 {STATUTORY_RATIOS.healthWorker} 名住客須有 1 名保健員（在場及當值）；1 名護士（在場及當值）視為等同於
+              2 名保健員。以全院在住 {currentResidents} 人計，最少需要 {healthWorkerNeeded} 名保健員當量
+              （純護士 {ratioHeadcount(currentResidents, STATUTORY_RATIOS.nurse)} 人／純保健員 {healthWorkerNeeded} 人，可混合）。
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                value={specific.requirement3.start}
+                onChange={(e) =>
+                  setSpecific((prev) => ({
+                    ...prev,
+                    requirement3: { ...prev.requirement3, start: e.target.value },
+                  }))
+                }
+                className={TIME_INPUT_CLASS}
+              />
+              <span className="text-sm text-gray-500">至</span>
+              <input
+                type="time"
+                value={specific.requirement3.end}
+                onChange={(e) =>
+                  setSpecific((prev) => ({
+                    ...prev,
+                    requirement3: { ...prev.requirement3, end: e.target.value },
+                  }))
+                }
+                className={TIME_INPUT_CLASS}
               />
             </div>
+            <p className={`text-sm mt-2 ${req3Error ? 'text-red-600' : 'text-green-600'}`}>
+              連續當值長度：{(req3Minutes / 60).toFixed(1)} 小時
+              {req3Error ? `（${req3Error}）` : '（符合 13 小時要求）'}
+            </p>
           </div>
-          <p className={`text-sm mt-2 ${req1Error ? 'text-red-600' : 'text-green-600'}`}>
-            目前總計：{(req1TotalMinutes / 60).toFixed(1)} 小時
-            {req1Error ? `（${req1Error}）` : '（符合 10 小時要求）'}
+
+          {/* 助理員指明期間（連續 11 小時） */}
+          <div className="border border-gray-200 rounded-lg p-3">
+            <p className="text-sm font-medium text-gray-900 mb-1">
+              助理員指明期間（連續 11 小時，不可分割）
+            </p>
+            <p className="text-xs text-gray-500 mb-3">
+              期間內每 {STATUTORY_RATIOS.assistant} 名住客須有 1 名助理員當值（如廚子、家務助理、文員等，須在場）。
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                value={specific.assistantWindow.start}
+                onChange={(e) =>
+                  setSpecific((prev) => ({
+                    ...prev,
+                    assistantWindow: { ...prev.assistantWindow, start: e.target.value },
+                  }))
+                }
+                className={TIME_INPUT_CLASS}
+              />
+              <span className="text-sm text-gray-500">至</span>
+              <input
+                type="time"
+                value={specific.assistantWindow.end}
+                onChange={(e) =>
+                  setSpecific((prev) => ({
+                    ...prev,
+                    assistantWindow: { ...prev.assistantWindow, end: e.target.value },
+                  }))
+                }
+                className={TIME_INPUT_CLASS}
+              />
+            </div>
+            <p className={`text-sm mt-2 ${assistantError ? 'text-red-600' : 'text-green-600'}`}>
+              指明期間長度：{(assistantMinutes / 60).toFixed(1)} 小時
+              {assistantError ? `（${assistantError}）` : '（符合 11 小時要求）'}
+            </p>
+          </div>
+
+          <p className="text-xs text-gray-500 mt-3">
+            附表1第5項：每日 {NIGHT_ANY_STAFF.start} 至翌日 {NIGHT_ANY_STAFF.end} 須有 {NIGHT_ANY_STAFF.count}{' '}
+            名員工當值（可以是為遵守其他項目而聘用的人），已反映於「24小時最低人手」表格的「任何員工」欄。
           </p>
         </div>
 
-        {/* 要求2 */}
+        {/* 各性質人手換算（法定比例寫死，向上取整，即時反映分母） */}
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-1">
-            要求2：其餘 14 小時護理員對住客比例
-          </h3>
-          <p className="text-xs text-gray-500 mb-3">
-            其餘 14 小時（24 小時 − 要求1時段）。
+          {natureSelector}
+          <p className="text-sm text-gray-600 mb-4">
+            分母：
+            {activeNature === '安老院'
+              ? `max(0, 全院在住 ${currentResidents} − 計劃類宿位總和) = `
+              : `${activeNature}宿位數 = `}
+            <span className="font-semibold text-gray-900">{denominator}</span>
           </p>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span>護理員對住客 1 :</span>
-            <IntInput
-              value={specific.requirement2.ratio}
-              onChange={(v) =>
-                setSpecific((prev) => ({
-                  ...prev,
-                  requirement2: { ratio: v ?? prev.requirement2.ratio },
-                }))
+          <div className="space-y-3 max-w-2xl">
+            {NATURE_RATIO_POSITIONS[activeNature].map((position) => {
+              if (position === '主管') {
+                return (
+                  <div key={position} className="flex items-center justify-between gap-4">
+                    <label className="text-sm font-medium text-gray-700">{position}</label>
+                    <span className="text-sm text-gray-500">1 人</span>
+                  </div>
+                );
               }
-            />
+              if (position === '註冊護士') {
+                return (
+                  <div key={position} className="flex items-center justify-between gap-4">
+                    <label className="text-sm font-medium text-gray-700">{position}</label>
+                    <span className="text-sm text-gray-500">最少 1 名當值（買位合約要求）</span>
+                  </div>
+                );
+              }
+              if (position === '保健員') {
+                return (
+                  <div key={position} className="flex items-center justify-between gap-4">
+                    <label className="text-sm font-medium text-gray-700">{position}</label>
+                    <span className="text-sm text-gray-500">
+                      {isContractNature
+                        ? `13 小時時段內與護士混合貢獻（全院需 ${healthWorkerNeeded} 名保健員當量）`
+                        : `13 小時時段 1:${STATUTORY_RATIOS.healthWorker}（全院在住需 ${healthWorkerNeeded} 名）`}
+                    </span>
+                  </div>
+                );
+              }
+              if (position === '護理員') {
+                return (
+                  <div key={position} className="flex items-center justify-between gap-4">
+                    <label className="text-sm font-medium text-gray-700">{position}</label>
+                    <span className="text-sm text-gray-500">
+                      指明期間 1:{STATUTORY_RATIOS.careWorkerDay}（此性質需{' '}
+                      {ratioHeadcount(denominator, STATUTORY_RATIOS.careWorkerDay)} 人）；其餘時間 1:
+                      {STATUTORY_RATIOS.careWorkerNight}（需{' '}
+                      {ratioHeadcount(denominator, STATUTORY_RATIOS.careWorkerNight)} 人）
+                    </span>
+                  </div>
+                );
+              }
+              if (position === '助理員') {
+                return (
+                  <div key={position} className="flex items-center justify-between gap-4">
+                    <label className="text-sm font-medium text-gray-700">{position}</label>
+                    <span className="text-sm text-gray-500">
+                      指明期間 1:{STATUTORY_RATIOS.assistant}（此性質需{' '}
+                      {ratioHeadcount(denominator, STATUTORY_RATIOS.assistant)} 人當值）
+                    </span>
+                  </div>
+                );
+              }
+              return null;
+            })}
           </div>
-        </div>
-
-        {/* 要求3 */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-1">
-            要求3：護士／保健員最低連續當值時段
-          </h3>
-          <p className="text-xs text-gray-500 mb-3">
-            每天有護士／保健員當值最低連續 11 小時，不可分割。
-          </p>
-          <div className="flex items-center gap-2">
-            <input
-              type="time"
-              value={specific.requirement3.start}
-              onChange={(e) =>
-                setSpecific((prev) => ({
-                  ...prev,
-                  requirement3: { ...prev.requirement3, start: e.target.value },
-                }))
-              }
-              className={TIME_INPUT_CLASS}
-            />
-            <span className="text-sm text-gray-500">至</span>
-            <input
-              type="time"
-              value={specific.requirement3.end}
-              onChange={(e) =>
-                setSpecific((prev) => ({
-                  ...prev,
-                  requirement3: { ...prev.requirement3, end: e.target.value },
-                }))
-              }
-              className={TIME_INPUT_CLASS}
-            />
-          </div>
-          <p className={`text-sm mt-2 ${req3Error ? 'text-red-600' : 'text-green-600'}`}>
-            目前長度：{(req3Minutes / 60).toFixed(1)} 小時
-            {req3Error ? `（${req3Error}）` : '（符合 11 小時要求）'}
-          </p>
         </div>
       </div>
     );
   };
 
+  const a1VoucherBedTotal = (bedCounts['甲一買位'] || 0) + (bedCounts['院舍卷計劃'] || 0);
+  const healthWorkerNeeded = ratioHeadcount(currentResidents, STATUTORY_RATIOS.healthWorker);
+
   const renderGridTab = () => (
     <div className="space-y-4">
       <p className="text-xs text-gray-500">
-        以表單當前值（未儲存亦會反映）及全院在住 {currentResidents} 人即時計算。
-        要求3時段內護士／保健員欄除最少 1 人當值外，會同時提升至病護比例換算的最低僱用人數（11 小時內同樣要符合病護比例才合格）。
+        以表單當前值（未儲存亦會反映）及全院在住 {currentResidents} 人即時計算，法定比例寫死、向上取整。
+        護理員按 10 小時（1:{STATUTORY_RATIOS.careWorkerDay}）／其餘時間（1:{STATUTORY_RATIOS.careWorkerNight}）逐小時填充；
+        助理員按指明期間 11 小時（1:{STATUTORY_RATIOS.assistant}）填充；
+        「任何員工」欄為附表1第5項（{NIGHT_ANY_STAFF.start}–翌日 {NIGHT_ANY_STAFF.end} 須 {NIGHT_ANY_STAFF.count} 名當值，可兼任）。
       </p>
+      {a1VoucherBedTotal > 0 ? (
+        <div className="border border-blue-200 bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-800">
+          連續 13 小時時段（{specific.requirement3.start}–{specific.requirement3.end}）混合要求（甲一／院舍卷，排班指引）：
+          護士人數 × 2 ＋ 保健員人數 ≥ {healthWorkerNeeded} 名保健員當量（全院在住 {currentResidents} 人 ÷{' '}
+          {STATUTORY_RATIOS.healthWorker}，向上取整）。由誰貢獻這 13 小時在排班時決定，此處不預填任何欄；
+          註冊護士欄保底 1 名當值（買位合約要求）。
+        </div>
+      ) : (
+        bedCountsTotal > 0 && (
+          <div className="border border-blue-200 bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-800">
+            連續 13 小時時段（{specific.requirement3.start}–{specific.requirement3.end}）無護士要求，完全由保健員達標：
+            每 {STATUTORY_RATIOS.healthWorker} 名住客 1 名，全院在住 {currentResidents} 人 → 時段內保健員欄已填入最少{' '}
+            {healthWorkerNeeded} 人（向上取整）。
+          </div>
+        )
+      )}
       <div className="overflow-x-auto">
         <table className="min-w-full text-xs border border-gray-200">
           <thead>
@@ -545,9 +575,6 @@ const FacilityNatureSettings: React.FC = () => {
             <tr className="bg-gray-50">
               <th className="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-600">職位</th>
               <th className="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-600">
-                每日最低總工時要求
-              </th>
-              <th className="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-600">
                 每日最低僱用人數
               </th>
             </tr>
@@ -556,9 +583,6 @@ const FacilityNatureSettings: React.FC = () => {
             {staffing.dailySummaries.map((s) => (
               <tr key={s.position} className="bg-white">
                 <td className="border border-gray-200 px-2 py-1 text-gray-700">{s.position}</td>
-                <td className="border border-gray-200 px-2 py-1 text-center text-gray-700">
-                  {s.requiredDailyHours > 0 ? s.requiredDailyHours.toFixed(1) : '-'}
-                </td>
                 <td className="border border-gray-200 px-2 py-1 text-center text-gray-700">
                   {s.minHeadcount > 0 ? s.minHeadcount : '-'}
                 </td>
@@ -579,7 +603,8 @@ const FacilityNatureSettings: React.FC = () => {
           <h2 className="text-lg font-medium text-gray-900">院舍性質</h2>
         </div>
         <p className="mt-1 text-sm text-gray-500">
-          設定各院舍性質的床位數、病護比例、職位總工時與特定鐘點，並預覽 24 小時最低人手要求。
+          設定各院舍性質的床位數與三個特定鐘點（護理員 10 小時、護士／保健員連續 13 小時、助理員連續 11 小時），
+          比例按《安老院規例》附表1寫死、向上取整，並預覽 24 小時最低人手要求。
         </p>
       </div>
 
@@ -609,9 +634,7 @@ const FacilityNatureSettings: React.FC = () => {
       <div className="p-6">
         {activeTab === 0 && renderBedTab()}
         {activeTab === 1 && renderRatioTab()}
-        {activeTab === 2 && renderHoursTab()}
-        {activeTab === 3 && renderSpecificTab()}
-        {activeTab === 4 && renderGridTab()}
+        {activeTab === 2 && renderGridTab()}
 
         {message && (
           <div
@@ -623,7 +646,7 @@ const FacilityNatureSettings: React.FC = () => {
           </div>
         )}
 
-        {activeTab !== 4 && (
+        {activeTab !== 2 && (
           <div className="pt-6">
             <button
               type="button"

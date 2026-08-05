@@ -12,27 +12,38 @@ export const FACILITY_NATURES: FacilityNature[] = ['安老院', '甲二買位', 
 /** 買位／計劃類（有宿位數作分母，且觸發要求3用註冊護士） */
 export const CONTRACT_NATURES: FacilityNature[] = ['甲二買位', '甲一買位', '院舍卷計劃'];
 
-/** 24 小時最低人手表格的七個職位欄（順序固定） */
-export const GRID_POSITIONS = ['主管', '註冊護士', '登記護士', '保健員', '護理員', '助理員', '物理治療師'] as const;
+/** 24 小時最低人手表格的職位欄（順序固定）；「任何員工」對應表1第5項（18:00–翌日07:00 須有 2 名員工當值） */
+export const GRID_POSITIONS = ['主管', '註冊護士', '登記護士', '保健員', '護理員', '助理員', '物理治療師', '任何員工'] as const;
 export type GridPosition = (typeof GRID_POSITIONS)[number];
 
-/** 病護比例頁各性質適用職位（甲一買位／院舍卷計劃另有物理治療師） */
+/**
+ * 法定最低比例（高度照顧院舍共通底線，《安老院規例》附表1，寫死不可手調）：
+ * - 護士及保健員：指明期間內 13 小時，每 30 名住客 1 名保健員；1 名護士（在場及當值）視同 2 名保健員（→ 護士 1:60）
+ * - 護理員：指明期間內 10 小時 1:20；其餘任何時間 1:40
+ * - 助理員：指明期間內 11 小時 1:40
+ * 所有人手換算向上取整（ceil），帶小數必須進位。
+ */
+export const STATUTORY_RATIOS = {
+  careWorkerDay: 20,
+  careWorkerNight: 40,
+  assistant: 40,
+  healthWorker: 30,
+  /** 1 名護士視同 2 名保健員 */
+  nurse: 60,
+} as const;
+
+/** 表1第5項：每日 18:00 至翌日 07:00 須有 2 名員工當值（可以是為遵守其他項目而聘用的人） */
+export const NIGHT_ANY_STAFF = { start: '18:00', end: '07:00', count: 2 } as const;
+
+/** 病護比例頁各性質適用職位（保健員所有性質都有，但只有 13 小時連續當值要求，無比例輸入；安老院／甲二無護士要求；
+ *  買位合約的各職位比例與總工時已在合約列明、與排班無關，不在此輸入；甲一／院舍卷只保留「最少 1 名註冊護士當值」；
+ *  助理員有指明期間 11 小時的當值比例，所有性質適用） */
 export const NATURE_RATIO_POSITIONS: Record<FacilityNature, string[]> = {
   安老院: ['主管', '保健員', '護理員', '助理員'],
-  甲二買位: ['主管', '註冊護士', '登記護士', '護理員', '助理員'],
-  甲一買位: ['主管', '註冊護士', '登記護士', '護理員', '助理員', '物理治療師'],
-  院舍卷計劃: ['主管', '註冊護士', '登記護士', '護理員', '助理員', '物理治療師'],
+  甲二買位: ['主管', '保健員', '護理員', '助理員'],
+  甲一買位: ['主管', '註冊護士', '保健員', '護理員', '助理員'],
+  院舍卷計劃: ['主管', '註冊護士', '保健員', '護理員', '助理員'],
 };
-
-/** 工時頁各性質適用職位（甲一買位／院舍卷計劃另有物理治療師，每周計；甲二買位無此要求） */
-export const NATURE_HOURS_POSITIONS: Record<FacilityNature, string[]> = {
-  安老院: ['主管', '保健員', '護理員', '助理員'],
-  甲二買位: ['主管', '註冊護士', '登記護士', '護理員', '助理員'],
-  甲一買位: ['主管', '註冊護士', '登記護士', '護理員', '助理員', '物理治療師'],
-  院舍卷計劃: ['主管', '註冊護士', '登記護士', '護理員', '助理員', '物理治療師'],
-};
-
-export const PHYSIOTHERAPIST = '物理治療師';
 
 // =====================================================
 // 資料結構（對應 facility_settings 三個 jsonb 欄位）
@@ -48,16 +59,20 @@ export const DEFAULT_BED_COUNTS: NatureBedCounts = {
   院舍卷計劃: 0,
 };
 
-/** 病護比例：職位 → 1:N 的 N（null = 無要求） */
-export type PositionRatioMap = Record<string, number | null>;
+/** 10 小時／14 小時分段比例（舊儲存格式；法定比例現已寫死，僅作還原相容用） */
+export interface SplitRatio {
+  /** 要求1時段（07:00–22:00 內合共 10 小時）的 1:N */
+  day: number | null;
+  /** 其餘 14 小時的 1:N */
+  night: number | null;
+}
 
-/** 工時頁：職位 → 每天最低總工時（小時，null = 無要求；物理治療師為每周最低總工時） */
-export type PositionHoursMap = Record<string, number | null>;
+/** 病護比例：職位 → 單一 1:N 或 10h/14h 分段比例（null = 無要求）。法定共通比例已寫死（STATUTORY_RATIOS），此處僅保留舊資料還原 */
+export type PositionRatioMap = Record<string, number | SplitRatio | null>;
 
-/** nature_requirements：每性質一組 { ratios, hours } */
+/** nature_requirements：每性質一組 { ratios } */
 export interface NatureRequirementsEntry {
   ratios: PositionRatioMap;
-  hours: PositionHoursMap;
 }
 
 export type NatureRequirements = Partial<Record<FacilityNature, NatureRequirementsEntry>>;
@@ -67,20 +82,20 @@ export interface TimeSegment {
   end: string;
 }
 
-/** specific_hours_config：全院共用特定鐘點 */
+/** specific_hours_config：全院共用的時段定義（三個特定鐘點；比例已按附表1寫死，見 STATUTORY_RATIOS） */
 export interface SpecificHoursConfig {
-  /** 要求1：指定時段內護理員對住客 1:ratio（時段總和必須剛好 10 小時） */
-  requirement1: { segments: TimeSegment[]; ratio: number };
-  /** 要求2：其餘 14 小時護理員對住客 1:ratio */
-  requirement2: { ratio: number };
-  /** 要求3：每天有護士／保健員當值最低連續 11 小時，不可分割 */
+  /** 護理員指明期間：時段總和必須剛好 10 小時，在 07:00–22:00 內，可分割；其餘 14 小時為另一段 */
+  requirement1: { segments: TimeSegment[] };
+  /** 護士／保健員指明期間：最低連續 13 小時，不可分割 */
   requirement3: TimeSegment;
+  /** 助理員指明期間：連續 11 小時，不可分割（院舍向社署申報的日間核心時段，預設 07:00–18:00） */
+  assistantWindow: TimeSegment;
 }
 
 export const DEFAULT_SPECIFIC_HOURS_CONFIG: SpecificHoursConfig = {
-  requirement1: { segments: [{ start: '07:00', end: '17:00' }], ratio: 20 },
-  requirement2: { ratio: 40 },
-  requirement3: { start: '07:00', end: '18:00' },
+  requirement1: { segments: [{ start: '07:00', end: '17:00' }] },
+  requirement3: { start: '07:00', end: '20:00' },
+  assistantWindow: { start: '07:00', end: '18:00' },
 };
 
 export interface FacilityNatureSettings {
@@ -96,6 +111,12 @@ export interface FacilityNatureSettings {
 function toPositiveIntOrNull(value: unknown): number | null {
   const n = typeof value === 'string' ? Number(value) : value;
   return typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+}
+
+/** 正數（保留至多兩位小數；助理員比例 1:9.09、1:12.5 需要小數） */
+function toPositiveNumberOrNull(value: unknown): number | null {
+  const n = typeof value === 'string' ? Number(value) : value;
+  return typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
 }
 
 function toNonNegativeInt(value: unknown): number {
@@ -128,17 +149,18 @@ function sanitizeRequirements(raw: unknown): NatureRequirements {
     const ratios: PositionRatioMap = {};
     if (e.ratios && typeof e.ratios === 'object') {
       for (const [pos, n] of Object.entries(e.ratios as Record<string, unknown>)) {
-        ratios[pos] = toPositiveIntOrNull(n);
+        // 分段比例 { day, night }（10h/14h）；否則為單一 1:N
+        // （舊格式的定額 {per,count}、合約欄 contractPer/contractCount 及 hours 已廢除，不再讀取）
+        if (n && typeof n === 'object') {
+          const o = n as Record<string, unknown>;
+          if ('per' in o || 'count' in o) continue;
+          ratios[pos] = { day: toPositiveIntOrNull(o.day), night: toPositiveIntOrNull(o.night) };
+        } else {
+          ratios[pos] = toPositiveNumberOrNull(n);
+        }
       }
     }
-    const hours: PositionHoursMap = {};
-    if (e.hours && typeof e.hours === 'object') {
-      for (const [pos, h] of Object.entries(e.hours as Record<string, unknown>)) {
-        // 舊格式 {N, M, H}（每名每天）已廢除：物件會被 toPositiveIntOrNull 視為 null（無要求），需重新輸入總工時
-        hours[pos] = toPositiveIntOrNull(h);
-      }
-    }
-    result[nature] = { ratios, hours };
+    result[nature] = { ratios };
   }
   return result;
 }
@@ -157,22 +179,25 @@ function sanitizeSpecific(raw: unknown): SpecificHoursConfig {
       .filter((s): s is TimeSegment => isTimeString(s.start) && isTimeString(s.end));
     if (parsed.length > 0) segments = parsed;
   }
-  const ratio1 = toPositiveIntOrNull(r1?.ratio) ?? fallback.requirement1.ratio;
-
-  const r2 = obj.requirement2 as Record<string, unknown> | undefined;
-  const ratio2 = toPositiveIntOrNull(r2?.ratio) ?? fallback.requirement2.ratio;
 
   const r3 = obj.requirement3 as Record<string, unknown> | undefined;
-  const requirement3: TimeSegment =
+  let requirement3: TimeSegment =
     r3 && isTimeString(r3.start) && isTimeString(r3.end)
       ? { start: r3.start, end: r3.end }
       : fallback.requirement3;
+  // 舊預設時段 07:00–18:00 是 11 小時，法例要求為 13 小時：自動改用新預設 07:00–20:00（自訂時段保留）
+  if (requirement3.start === '07:00' && requirement3.end === '18:00') {
+    requirement3 = { ...requirement3, end: '20:00' };
+  }
 
-  return {
-    requirement1: { segments, ratio: ratio1 },
-    requirement2: { ratio: ratio2 },
-    requirement3,
-  };
+  const aw = obj.assistantWindow as Record<string, unknown> | undefined;
+  const assistantWindow: TimeSegment =
+    aw && isTimeString(aw.start) && isTimeString(aw.end)
+      ? { start: aw.start, end: aw.end }
+      : fallback.assistantWindow;
+
+  // 舊格式的 requirement1.ratio / requirement2.ratio（全院護理員比例）已併入各性質的分段比例，不再讀取
+  return { requirement1: { segments }, requirement3, assistantWindow };
 }
 
 // =====================================================
