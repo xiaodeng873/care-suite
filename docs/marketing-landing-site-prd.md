@@ -351,6 +351,7 @@ relatedFeatures: ["#21", "#19"]  # 連結到功能編號
 **落地形態**
 
 - 單一 domain：靜態營銷站部署於根路徑 `/`；現有 React 應用遷至 `/app` 子路徑（Vite `base` 設為 `/app/`）。營銷站 CTA → `/app`（登入 Modal 自動彈出，現有行為不變）。
+  - **2026-08-05 決策（已推翻子路徑方案）**：React 應用維持獨立網域根目錄部署（`base: '/'`）。營銷站 CTA 改用 `%APP_URL%` 佔位符，build 時由環境變數 `APP_URL` 注入 web app 的完整網址（見 `apps/marketing/scripts/build.js`）；未設定時 fallback 為 `/app`。曾於 19269bd 嘗試 `base: '/app/'`，因 web 專案以根目錄部署導致 module script 全部 404（MIME text/html），已於 c4367a8 還原。
 - 技術選型：**Astro（或純 HTML+CSS）** 靜態輸出。首選 Astro：內容用 Markdown/資料檔驅動、內建 sitemap、輸出零 JS 靜態頁；若求極簡可純 HTML。
 - 託管：任何靜態託管（Cloudflare Pages / Netlify / 現有伺服器），與主 App 部署解耦。
 

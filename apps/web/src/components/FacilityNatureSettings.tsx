@@ -251,7 +251,9 @@ const FacilityNatureSettings: React.FC = () => {
   const renderRatioTab = () => {
     const denominator = natureDenominator(activeNature, bedCounts, currentResidents);
     const isContractNature = activeNature === '甲一買位' || activeNature === '院舍卷計劃';
-    const healthWorkerNeeded = ratioHeadcount(currentResidents, STATUTORY_RATIOS.healthWorker);
+    const isA2 = activeNature === '甲二買位';
+    const isPrivate = activeNature === '安老院';
+    const healthWorkerForNature = ratioHeadcount(denominator, STATUTORY_RATIOS.healthWorker);
     const segs = specific.requirement1.segments;
     const updateSegment = (index: number, field: 'start' | 'end', value: string) => {
       setSpecific((prev) => ({
@@ -352,9 +354,9 @@ const FacilityNatureSettings: React.FC = () => {
               護士／保健員指明期間（連續 13 小時，不可分割）
             </p>
             <p className="text-xs text-gray-500 mb-3">
-              期間內每 {STATUTORY_RATIOS.healthWorker} 名住客須有 1 名保健員（在場及當值）；1 名護士（在場及當值）視為等同於
-              2 名保健員。以全院在住 {currentResidents} 人計，最少需要 {healthWorkerNeeded} 名保健員當量
-              （純護士 {ratioHeadcount(currentResidents, STATUTORY_RATIOS.nurse)} 人／純保健員 {healthWorkerNeeded} 人，可混合）。
+              期間內每 {STATUTORY_RATIOS.healthWorker} 名住客須有 1 名保健員當量；1 名護士（在場及當值）視同 2 名保健員（即 1:60）。
+              私安老院及甲二買位完全由保健員達標；甲一買位及院舍卷計劃由註冊護士先佔 1:60，剩餘由登記護士／保健員填補。
+              各性質實際人數見下方「各性質人手換算」及「24小時最低人手」表格。
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -456,7 +458,17 @@ const FacilityNatureSettings: React.FC = () => {
                 return (
                   <div key={position} className="flex items-center justify-between gap-4">
                     <label className="text-sm font-medium text-gray-700">{position}</label>
-                    <span className="text-sm text-gray-500">最少 1 名當值（買位合約要求）</span>
+                    <span className="text-sm text-gray-500">最少 1 名當值</span>
+                  </div>
+                );
+              }
+              if (position === '登記護士') {
+                return (
+                  <div key={position} className="flex items-center justify-between gap-4">
+                    <label className="text-sm font-medium text-gray-700">{position}</label>
+                    <span className="text-sm text-gray-500">
+                      13 小時時段內按 1:{STATUTORY_RATIOS.nurse} 與註冊護士／保健員混合貢獻（剩餘缺口由登記護士填補）
+                    </span>
                   </div>
                 );
               }
@@ -466,8 +478,8 @@ const FacilityNatureSettings: React.FC = () => {
                     <label className="text-sm font-medium text-gray-700">{position}</label>
                     <span className="text-sm text-gray-500">
                       {isContractNature
-                        ? `13 小時時段內與護士混合貢獻（全院需 ${healthWorkerNeeded} 名保健員當量）`
-                        : `13 小時時段 1:${STATUTORY_RATIOS.healthWorker}（全院在住需 ${healthWorkerNeeded} 名）`}
+                        ? `13 小時時段內與護士混合貢獻（先由護士 1:${STATUTORY_RATIOS.nurse} 填補，剩餘由保健員 1:${STATUTORY_RATIOS.healthWorker} 填補）`
+                        : `13 小時時段 1:${STATUTORY_RATIOS.healthWorker}（此性質分母 ${denominator} 人需 ${healthWorkerForNature} 人）`}
                     </span>
                   </div>
                 );
@@ -505,7 +517,18 @@ const FacilityNatureSettings: React.FC = () => {
   };
 
   const a1VoucherBedTotal = (bedCounts['甲一買位'] || 0) + (bedCounts['院舍卷計劃'] || 0);
-  const healthWorkerNeeded = ratioHeadcount(currentResidents, STATUTORY_RATIOS.healthWorker);
+  const a2BedTotal = bedCounts['甲二買位'] || 0;
+  const privateDenominator = natureDenominator('安老院', bedCounts, currentResidents);
+  const a1VoucherHealthWorkerNeeded = ratioHeadcount(a1VoucherBedTotal, STATUTORY_RATIOS.healthWorker);
+  const a1VoucherRnNeeded = ratioHeadcount(a1VoucherBedTotal, STATUTORY_RATIOS.nurse);
+  const a1VoucherEnNeeded = ratioHeadcount(
+    Math.max(0, a1VoucherHealthWorkerNeeded - a1VoucherRnNeeded * 2),
+    2
+  ); // 每個登記護士 = 2 保健員當量
+  const a1VoucherHwNeeded = Math.max(0, a1VoucherHealthWorkerNeeded - a1VoucherRnNeeded * 2 - a1VoucherEnNeeded * 2);
+  const nonA1HealthWorkerNeeded =
+    ratioHeadcount(privateDenominator, STATUTORY_RATIOS.healthWorker) +
+    ratioHeadcount(a2BedTotal, STATUTORY_RATIOS.healthWorker);
 
   const renderGridTab = () => (
     <div className="space-y-4">
@@ -513,21 +536,23 @@ const FacilityNatureSettings: React.FC = () => {
         以表單當前值（未儲存亦會反映）及全院在住 {currentResidents} 人即時計算，法定比例寫死、向上取整。
         護理員按 10 小時（1:{STATUTORY_RATIOS.careWorkerDay}）／其餘時間（1:{STATUTORY_RATIOS.careWorkerNight}）逐小時填充；
         助理員按指明期間 11 小時（1:{STATUTORY_RATIOS.assistant}）填充；
+        保健員／護士 13 小時時段按各性質分母獨立計算後加總；
         「任何員工」欄為附表1第5項（{NIGHT_ANY_STAFF.start}–翌日 {NIGHT_ANY_STAFF.end} 須 {NIGHT_ANY_STAFF.count} 名當值，可兼任）。
       </p>
       {a1VoucherBedTotal > 0 ? (
         <div className="border border-blue-200 bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-800">
-          連續 13 小時時段（{specific.requirement3.start}–{specific.requirement3.end}）混合要求（甲一／院舍卷，排班指引）：
-          護士人數 × 2 ＋ 保健員人數 ≥ {healthWorkerNeeded} 名保健員當量（全院在住 {currentResidents} 人 ÷{' '}
-          {STATUTORY_RATIOS.healthWorker}，向上取整）。由誰貢獻這 13 小時在排班時決定，此處不預填任何欄；
-          註冊護士欄保底 1 名當值（買位合約要求）。
+          甲一／院舍卷宿位共 {a1VoucherBedTotal} 個：連續 13 小時時段（{specific.requirement3.start}–{specific.requirement3.end}）
+          需 {a1VoucherHealthWorkerNeeded} 名保健員當量。註冊護士先佔 1:{STATUTORY_RATIOS.nurse}（需 {a1VoucherRnNeeded} 名），
+          剩餘由登記護士 1:{STATUTORY_RATIOS.nurse}（需 {a1VoucherEnNeeded} 名）及保健員 1:{STATUTORY_RATIOS.healthWorker}（需 {a1VoucherHwNeeded} 名）填補。
+          另每日須最少 1 名註冊護士當值（買位合約要求）。
         </div>
       ) : (
         bedCountsTotal > 0 && (
           <div className="border border-blue-200 bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-800">
-            連續 13 小時時段（{specific.requirement3.start}–{specific.requirement3.end}）無護士要求，完全由保健員達標：
-            每 {STATUTORY_RATIOS.healthWorker} 名住客 1 名，全院在住 {currentResidents} 人 → 時段內保健員欄已填入最少{' '}
-            {healthWorkerNeeded} 人（向上取整）。
+            私安老院及甲二買位無護士要求：連續 13 小時時段（{specific.requirement3.start}–{specific.requirement3.end}）
+            完全由保健員按各自分母 1:{STATUTORY_RATIOS.healthWorker} 達標：私位分母 {privateDenominator} 人 → {ratioHeadcount(privateDenominator, STATUTORY_RATIOS.healthWorker)} 名；
+            甲二宿位 {a2BedTotal} 個 → {ratioHeadcount(a2BedTotal, STATUTORY_RATIOS.healthWorker)} 名；
+            合計 {nonA1HealthWorkerNeeded} 名。
           </div>
         )
       )}

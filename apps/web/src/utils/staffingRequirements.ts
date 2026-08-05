@@ -105,12 +105,21 @@ export function minHeadcountForPosition(
   }
   if (position === '保健員') {
     if (hasA1VoucherBeds(bedCounts)) return 0;
-    return hasAnyBeds(bedCounts)
-      ? ratioHeadcount(currentResidents, STATUTORY_RATIOS.healthWorker)
-      : 0;
+    let total = 0;
+    for (const nature of FACILITY_NATURES) {
+      total += ratioHeadcount(
+        natureDenominator(nature, bedCounts, currentResidents),
+        STATUTORY_RATIOS.healthWorker
+      );
+    }
+    return total;
   }
   if (position === '註冊護士') {
     return hasA1VoucherBeds(bedCounts) ? 1 : 0;
+  }
+  if (position === '登記護士') {
+    // 特定鐘點的護士分層填補為排班指引，不計入固定僱用人數
+    return 0;
   }
   if (position === '護理員' || position === '助理員') {
     const ratio =
@@ -173,16 +182,34 @@ export function computeStaffingRequirements(input: StaffingInput): StaffingResul
 
   // 步驟 3：護士／保健員指明期間（連續 13 小時）
   {
-    const hasA1Voucher = hasA1VoucherBeds(bedCounts);
+    const a1Beds = (bedCounts['甲一買位'] || 0) + (bedCounts['院舍卷計劃'] || 0);
+    const a2Beds = bedCounts['甲二買位'] || 0;
+
+    // 安老院／甲二：保健員按各自分母 1:30 獨立計算（向上取整後加總）
+    const nonA1HealthWorkers =
+      ratioHeadcount(natureDenominator('安老院', bedCounts, currentResidents), STATUTORY_RATIOS.healthWorker) +
+      ratioHeadcount(a2Beds, STATUTORY_RATIOS.healthWorker);
+
+    // 甲一／院舍卷：護士/保健員 1:30（保健員當量），1 護士 = 2 保健員
+    // 註冊護士先佔 1:60，剩餘用登記護士 1:60，最終剩餘用保健員 1:30
+    let rnCount = 0;
+    let enCount = 0;
+    let hwCount = 0;
+    if (a1Beds > 0) {
+      const totalEquivalents = ratioHeadcount(a1Beds, STATUTORY_RATIOS.healthWorker); // 保健員當量
+      rnCount = ratioHeadcount(a1Beds, STATUTORY_RATIOS.nurse); // 1:60
+      const remainingAfterRn = Math.max(0, totalEquivalents - rnCount * 2);
+      enCount = ratioHeadcount(remainingAfterRn, 2); // 每個登記護士 = 2 保健員當量
+      const remainingAfterEn = Math.max(0, remainingAfterRn - enCount * 2);
+      hwCount = remainingAfterEn;
+    }
+
     const minimums: Record<string, number> = {
-      // 甲一／院舍卷：混合約束只作排班指引，不預填護士／保健員欄；註冊護士保底 1 名當值
-      註冊護士: hasA1Voucher ? 1 : 0,
-      // 安老院／甲二：無護士要求，完全由保健員 1:30 達標
-      保健員:
-        !hasA1Voucher && hasAnyBeds(bedCounts)
-          ? ratioHeadcount(currentResidents, STATUTORY_RATIOS.healthWorker)
-          : 0,
+      註冊護士: rnCount,
+      登記護士: enCount,
+      保健員: nonA1HealthWorkers + hwCount,
     };
+
     for (const [pos, minimum] of Object.entries(minimums)) {
       if (minimum <= 0) continue;
       const col = colIndex(pos);

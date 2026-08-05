@@ -6,9 +6,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm -ws run build",
-    "dev": "npm -ws run dev",
-    "lint": "npm -ws run lint"
+    "build": "npm -ws run build --if-present",
+    "dev": "npm -ws run dev --if-present",
+    "lint": "npm -ws run lint --if-present"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",

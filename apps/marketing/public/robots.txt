@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# 上線後請加入絕對網址的 Sitemap 行，例如：
+# Sitemap: https://your-domain.com/sitemap.xml

@@ -1313,9 +1313,22 @@ export const updatePatient = async (patient: Patient): Promise<Patient> => {
   if (cleanedPatient.nursing_assessment_json && Object.keys(cleanedPatient.nursing_assessment_json).length === 0) {
     delete cleanedPatient.nursing_assessment_json;
   }
-  const { data, error } = await supabase.from('院友主表').update(cleanedPatient).eq('院友id', patient.院友id).select().single();
-  if (error) throw error;
-  return data;
+  // 遠端 DB 可能尚未套用最新 migration：欄位不存在時 PostgREST 回 PGRST204，
+  // 逐一移除 schema cache 不認識的欄位後重試，避免單一新欄位令整個更新失敗。
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error } = await supabase.from('院友主表').update(cleanedPatient).eq('院友id', patient.院友id).select().single();
+    if (!error) return data;
+    const missingColumn = error.code === 'PGRST204'
+      ? /'([^']+)' column/.exec(error.message || '')?.[1]
+      : undefined;
+    if (missingColumn && missingColumn in cleanedPatient) {
+      console.warn(`[updatePatient] 遠端 DB 缺少欄位「${missingColumn}」，已略過（請儘快套用對應 migration）`);
+      delete cleanedPatient[missingColumn];
+      continue;
+    }
+    throw error;
+  }
+  throw new Error('updatePatient: 超過缺少欄位重試上限');
 };
 export const deletePatient = async (patientId: number): Promise<void> => {
   const { error } = await supabase.from('院友主表').delete().eq('院友id', patientId);

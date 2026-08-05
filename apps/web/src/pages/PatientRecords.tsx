@@ -14,6 +14,7 @@ import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { deletePatientSchedulesAfterDate } from '../lib/database';
 import type { Patient } from '../lib/database';
+import { buildEpisodeClosurePayloads, isEpisodeUnclosed } from '../utils/dischargeEpisodeClosure';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -300,15 +301,7 @@ const PatientRecords: React.FC = () => {
   };
 
   const getUnclosedHospitalEpisodes = (patientId: number) => {
-    return hospitalEpisodes.filter((ep: any) => {
-      if (ep.patient_id !== patientId) return false;
-      const events = ep.episode_events || [];
-      const hasVacationStart = events.some((e: any) => e.event_type === 'vacation_start');
-      const hasVacationEnd = events.some((e: any) => e.event_type === 'vacation_end');
-      const hasAdmissionOrTransfer = events.some((e: any) => e.event_type === 'admission' || e.event_type === 'transfer');
-      const hasDischarge = events.some((e: any) => e.event_type === 'discharge');
-      return (hasVacationStart && !hasVacationEnd) || (hasAdmissionOrTransfer && !hasDischarge);
-    });
+    return hospitalEpisodes.filter((ep: any) => ep.patient_id === patientId && isEpisodeUnclosed(ep));
   };
 
   const executeDischarge = async (updatedPatient: any, dischargeDate: string) => {
@@ -372,92 +365,16 @@ const PatientRecords: React.FC = () => {
     deathDate?: string | null,
     transferFacilityName?: string | null
   ) => {
-    if (dischargeReason === '留醫') return;
-
-    const closingDate = dischargeReason === '死亡' ? (deathDate || dischargeDate) : dischargeDate;
-
-    let dischargeType: string;
-    let dischargeDestination: string | null = null;
-    let dateOfDeath: string | null = null;
-
-    switch (dischargeReason) {
-      case '死亡':
-        dischargeType = 'deceased';
-        dateOfDeath = deathDate || dischargeDate;
-        break;
-      case '回家':
-        dischargeType = 'home';
-        break;
-      case '轉往其他機構':
-        dischargeType = 'transfer_out';
-        dischargeDestination = transferFacilityName || '';
-        break;
-      default:
-        return;
-    }
-
-    const patientEpisodes = hospitalEpisodes.filter((ep: any) => ep.patient_id === patientId);
-
-    for (const episode of patientEpisodes) {
-      const events = episode.episode_events || [];
-      const hasVacationStart = events.some((e: any) => e.event_type === 'vacation_start');
-      const hasVacationEnd = events.some((e: any) => e.event_type === 'vacation_end');
-      const hasAdmissionOrTransfer = events.some((e: any) => e.event_type === 'admission' || e.event_type === 'transfer');
-      const hasDischarge = events.some((e: any) => e.event_type === 'discharge');
-
-      const newEvents: any[] = [];
-
-      if (hasVacationStart && !hasVacationEnd) {
-        newEvents.push({
-          event_type: 'vacation_end',
-          event_date: closingDate,
-          event_time: '',
-          hospital_name: episode.primary_hospital || '',
-          hospital_ward: episode.primary_ward || '',
-          hospital_bed_number: episode.primary_bed_number || '',
-          remarks: '自動閉合：院友退住',
-          event_order: (events.length + newEvents.length + 1) * 10,
-          vacation_end_type: dischargeType,
-          vacation_destination: dischargeDestination
-        });
-      }
-
-      if (hasAdmissionOrTransfer && !hasDischarge) {
-        // 使用最後一個入院/轉院事件嘅醫院名稱（如可用）
-        const sortedEvents = [...events].sort((a: any, b: any) => {
-          const dateA = new Date(`${a.event_date} ${a.event_time || '00:00'}`).getTime();
-          const dateB = new Date(`${b.event_date} ${b.event_time || '00:00'}`).getTime();
-          return dateB - dateA;
-        });
-        const lastHospitalEvent = sortedEvents.find((e: any) => e.event_type === 'admission' || e.event_type === 'transfer');
-
-        newEvents.push({
-          event_type: 'discharge',
-          event_date: closingDate,
-          event_time: '',
-          hospital_name: lastHospitalEvent?.hospital_name || episode.primary_hospital || '',
-          hospital_ward: lastHospitalEvent?.hospital_ward || episode.primary_ward || '',
-          hospital_bed_number: lastHospitalEvent?.hospital_bed_number || episode.primary_bed_number || '',
-          remarks: '自動閉合：院友退住',
-          event_order: (events.length + newEvents.length + 1) * 10
-        });
-      }
-
-      if (newEvents.length === 0) continue;
-
-      const updatedEvents = [...events, ...newEvents];
-      const { episode_events, ...episodeData } = episode;
-
-      await updateHospitalEpisode({
-        ...episodeData,
-        events: updatedEvents,
-        episode_end_date: closingDate,
-        status: 'completed',
-        discharge_type: hasAdmissionOrTransfer && !hasDischarge ? dischargeType : (episode.discharge_type || null),
-        discharge_destination: hasAdmissionOrTransfer && !hasDischarge && dischargeType === 'transfer_out' ? dischargeDestination : (episode.discharge_destination || null),
-        vacation_end_type: hasVacationStart && !hasVacationEnd ? dischargeType : (episode.vacation_end_type || null),
-        date_of_death: dateOfDeath
-      });
+    const payloads = buildEpisodeClosurePayloads(
+      patientId,
+      dischargeReason,
+      dischargeDate,
+      deathDate,
+      transferFacilityName,
+      hospitalEpisodes
+    );
+    for (const payload of payloads) {
+      await updateHospitalEpisode({ ...payload.episodeUpdate, events: payload.events });
     }
   };
 

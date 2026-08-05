@@ -114,9 +114,18 @@ describe('每日最低僱用人數', () => {
     ).toBe(0);
   });
 
-  it('保健員：有甲一／院舍卷宿位時由排班決定組合，最低僱用人數為 0', () => {
-    const bedCounts = { ...DEFAULT_BED_COUNTS, 安老院: 50, 甲一買位: 50 };
-    expect(minHeadcountForPosition('保健員', bedCounts, 100)).toBe(0);
+  it('保健員：安老院／甲二各自按分母 1:30 計算；有甲一／院舍卷時由排班決定，最低僱用人數為 0', () => {
+    // 甲二 40 床位（在住 40）→ 40 分母，安老院無私位，保健員 = ceil(40/30) = 2
+    const a2Only = { ...DEFAULT_BED_COUNTS, 甲二買位: 40 };
+    expect(minHeadcountForPosition('保健員', a2Only, 40)).toBe(2);
+
+    // 安老院 100 私位 + 甲二 0 → 保健員 = ceil(100/30) = 4
+    const private100 = { ...DEFAULT_BED_COUNTS, 安老院: 100 };
+    expect(minHeadcountForPosition('保健員', private100, 100)).toBe(4);
+
+    // 有甲一/院卷時保健員 0
+    const mixed = { ...DEFAULT_BED_COUNTS, 安老院: 50, 甲一買位: 50 };
+    expect(minHeadcountForPosition('保健員', mixed, 100)).toBe(0);
   });
 
   it('任何員工（夜班兩名）可兼任，不計入僱用人數', () => {
@@ -167,32 +176,67 @@ describe('computeStaffingRequirements', () => {
     expect(grid[8][col('助理員')]).toBe(2);
   });
 
-  it('護士／保健員 13h：甲一／院舍卷混合約束不預填欄，註冊護士保底 1', () => {
-    const { grid } = computeStaffingRequirements(
-      makeInput({ bedCounts: { 甲一買位: 10 }, currentResidents: 100 })
-    );
-    const rnCol = col('註冊護士');
+  it('護士／保健員 13h：甲一／院舍卷由註冊護士先佔 1:60，剩餘登記護士／保健員填補', () => {
+    const enCol = col('登記護士');
     const hwCol = col('保健員');
+    const rnCol = col('註冊護士');
+
+    // 40 甲一宿位：RN=ceil(40/60)=1, EN=0, HW=0
+    const a1_40 = makeInput({ bedCounts: { 甲一買位: 40 }, currentResidents: 40 });
+    const { grid: g1 } = computeStaffingRequirements(a1_40);
     for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
-      expect(grid[h][rnCol]).toBe(1);
-      expect(grid[h][hwCol]).toBe(0);
+      expect(g1[h][rnCol]).toBe(1);
+      expect(g1[h][enCol]).toBe(0);
+      expect(g1[h][hwCol]).toBe(0);
     }
-    expect(grid[6][rnCol]).toBe(0);
-    expect(grid[20][rnCol]).toBe(0);
+
+    // 100 甲一宿位：RN=ceil(100/60)=2, EN=0, HW=0
+    const a1_100 = makeInput({ bedCounts: { 甲一買位: 100 }, currentResidents: 100 });
+    const { grid: g2 } = computeStaffingRequirements(a1_100);
+    for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
+      expect(g2[h][rnCol]).toBe(2);
+      expect(g2[h][enCol]).toBe(0);
+      expect(g2[h][hwCol]).toBe(0);
+    }
+
+    // 70 甲一宿位：total=ceil(70/30)=3, RN=ceil(70/60)=2（貢獻 4 當量），已填滿
+    const a1_70 = makeInput({ bedCounts: { 甲一買位: 70 }, currentResidents: 70 });
+    const { grid: g3 } = computeStaffingRequirements(a1_70);
+    for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
+      expect(g3[h][rnCol]).toBe(2);
+      expect(g3[h][enCol]).toBe(0);
+      expect(g3[h][hwCol]).toBe(0);
+    }
   });
 
-  it('護士／保健員 13h：安老院／甲二完全由保健員達標 → 時段內 ceil(在住÷30)', () => {
-    const { grid } = computeStaffingRequirements(
-      makeInput({ bedCounts: { 甲二買位: 40 }, currentResidents: 100 })
-    );
+  it('護士／保健員 13h：安老院／甲二完全由保健員按各自分母達標，甲二 0 宿位則為 0', () => {
+    // 安老院 100 私位 → 保健員時段內 ceil(100/30)=4
+    const privateOnly = makeInput({ bedCounts: { 安老院: 100 }, currentResidents: 100 });
+    const { grid: g1 } = computeStaffingRequirements(privateOnly);
     const rnCol = col('註冊護士');
     const hwCol = col('保健員');
     for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
-      expect(grid[h][rnCol]).toBe(0);
-      expect(grid[h][hwCol]).toBe(4); // ceil(100/30)
+      expect(g1[h][rnCol]).toBe(0);
+      expect(g1[h][hwCol]).toBe(4);
     }
-    expect(grid[6][hwCol]).toBe(0);
-    expect(grid[20][hwCol]).toBe(0);
+    expect(g1[6][hwCol]).toBe(0);
+    expect(g1[20][hwCol]).toBe(0);
+
+    // 甲二 40 床位（無安老院私位）→ 保健員時段內 ceil(40/30)=2
+    const a2Only = makeInput({ bedCounts: { 甲二買位: 40 }, currentResidents: 40 });
+    const { grid: g2 } = computeStaffingRequirements(a2Only);
+    for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
+      expect(g2[h][rnCol]).toBe(0);
+      expect(g2[h][hwCol]).toBe(2);
+    }
+
+    // 甲二 0 宿位且無其他宿位 → 全部為 0
+    const a2Zero = makeInput({ bedCounts: { 甲二買位: 0 }, currentResidents: 0 });
+    const { grid: g3 } = computeStaffingRequirements(a2Zero);
+    for (let h = 0; h < 24; h++) {
+      expect(g3[h][hwCol]).toBe(0);
+      expect(g3[h][rnCol]).toBe(0);
+    }
   });
 
   it('任何員工欄：18:00–翌日 07:00 固定 2 名（有宿位時），其餘時間為 0', () => {

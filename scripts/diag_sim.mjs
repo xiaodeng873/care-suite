@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 const SB = 'https://mzeptzwuqvpjspxgnzkp.supabase.co';
-const KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const KEY = process.env.VITE_SUPABASE_ANON_KEY;
 const sb = createClient(SB, KEY);
 const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const CUTOFF = '2025-12-01';

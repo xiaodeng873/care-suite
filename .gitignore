@@ -2,4 +2,6 @@ node_modules
 .env
 .env.local
 .agents/last-tokens.txt
+.expo/
+apps/marketing/dist/
 

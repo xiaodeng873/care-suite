@@ -43,13 +43,19 @@ function loadIncludes() {
   return includes;
 }
 
+// Web app（登入入口）的網址。部署時以環境變數 APP_URL 指定（例如 https://app.example.com），
+// 未設定時預設 '/app'（配合 PRD 的單一 domain 子路徑設計）。
+const APP_URL = process.env.APP_URL || '/app';
+
 function processHtml(content, includes, relativeDir) {
   // Replace <!-- INCLUDE: filename.html -->
-  return content.replace(/<!--\s*INCLUDE:\s*([^\s]+)\s*-->/g, (match, filename) => {
+  const withIncludes = content.replace(/<!--\s*INCLUDE:\s*([^\s]+)\s*-->/g, (match, filename) => {
     if (includes[filename]) return includes[filename];
     console.warn(`  Warning: include not found: ${filename}`);
     return '';
   });
+  // 佔位符需在最後替換，include（nav/footer）內的 %APP_URL% 才會生效
+  return withIncludes.replaceAll('%APP_URL%', APP_URL);
 }
 
 function build(src, dest, includes, baseDir = src) {

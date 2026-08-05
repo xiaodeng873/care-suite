@@ -37,7 +37,7 @@ The application uses Supabase as the database. The database schema is automatica
 
 ## Deployment
 
-The application is deployed on Netlify. Make sure to set the environment variables in your Netlify dashboard:
+The application is deployed on Vercel. Make sure to set the environment variables in your Vercel dashboard:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
