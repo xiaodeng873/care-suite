@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+  a1ContractDailyHours,
+  computeDualRedLineStaffing,
   computeStaffingRequirements,
   minHeadcountForPosition,
   natureDenominator,
@@ -92,9 +94,9 @@ describe('每日最低僱用人數', () => {
     expect(minHeadcountForPosition('主管', { ...DEFAULT_BED_COUNTS }, 0)).toBe(0);
   });
 
-  it('護理員：各性質 ceil(分母÷20) 總和（50 甲一 + 50 私位 → 3 + 3 = 6）', () => {
+  it('護理員：以全院在住人數計算（50 甲一 + 50 私位 → 100 人 → ceil(100/20)=5）', () => {
     const bedCounts = { ...DEFAULT_BED_COUNTS, 安老院: 50, 甲一買位: 50 };
-    expect(minHeadcountForPosition('護理員', bedCounts, 100)).toBe(6);
+    expect(minHeadcountForPosition('護理員', bedCounts, 100)).toBe(5);
   });
 
   it('助理員：各性質 ceil(分母÷40) 總和（100 私位 → 3）', () => {
@@ -102,30 +104,27 @@ describe('每日最低僱用人數', () => {
     expect(minHeadcountForPosition('助理員', bedCounts, 100)).toBe(3);
   });
 
-  it('註冊護士：有甲一／院舍卷宿位時保底 1 名當值，否則為 0', () => {
+  it('註冊/登記護士：有甲一買位宿位時保底 1 名當值，否則為 0', () => {
     expect(
-      minHeadcountForPosition('註冊護士', { ...DEFAULT_BED_COUNTS, 甲一買位: 50 }, 100)
+      minHeadcountForPosition('註冊/登記護士', { ...DEFAULT_BED_COUNTS, 甲一買位: 50 }, 100)
     ).toBe(1);
     expect(
-      minHeadcountForPosition('註冊護士', { ...DEFAULT_BED_COUNTS, 院舍卷計劃: 50 }, 100)
-    ).toBe(1);
-    expect(
-      minHeadcountForPosition('註冊護士', { ...DEFAULT_BED_COUNTS, 安老院: 100 }, 100)
+      minHeadcountForPosition('註冊/登記護士', { ...DEFAULT_BED_COUNTS, 安老院: 100 }, 100)
     ).toBe(0);
   });
 
-  it('保健員：安老院／甲二各自按分母 1:30 計算；有甲一／院舍卷時由排班決定，最低僱用人數為 0', () => {
-    // 甲二 40 床位（在住 40）→ 40 分母，安老院無私位，保健員 = ceil(40/30) = 2
+  it('保健員：以全院在住人數計算；有甲一時先扣除 1 名註冊護士貢獻的 2 當量', () => {
+    // 甲二 40 床位（在住 40）→ ceil(40/30) = 2
     const a2Only = { ...DEFAULT_BED_COUNTS, 甲二買位: 40 };
     expect(minHeadcountForPosition('保健員', a2Only, 40)).toBe(2);
 
-    // 安老院 100 私位 + 甲二 0 → 保健員 = ceil(100/30) = 4
+    // 安老院 100 私位 + 甲二 0 → ceil(100/30) = 4
     const private100 = { ...DEFAULT_BED_COUNTS, 安老院: 100 };
     expect(minHeadcountForPosition('保健員', private100, 100)).toBe(4);
 
-    // 有甲一/院卷時保健員 0
+    // 有甲一時：100 人，保健員當量 ceil(100/30)=4，1 名護士視同 2 當量 → 保健員 2
     const mixed = { ...DEFAULT_BED_COUNTS, 安老院: 50, 甲一買位: 50 };
-    expect(minHeadcountForPosition('保健員', mixed, 100)).toBe(0);
+    expect(minHeadcountForPosition('保健員', mixed, 100)).toBe(2);
   });
 
   it('任何員工（夜班兩名）可兼任，不計入僱用人數', () => {
@@ -148,13 +147,13 @@ describe('computeStaffingRequirements', () => {
     }
   });
 
-  it('護理員欄跨性質加總：50 甲一 + 50 私位 → 期間內 3+3=6，期間外 2+2=4', () => {
+  it('護理員欄以全院在住人數計算：50 甲一 + 50 私位 → 100 人，期間內 5，期間外 3', () => {
     const { grid } = computeStaffingRequirements(
       makeInput({ bedCounts: { 甲一買位: 50, 安老院: 50 }, currentResidents: 100 })
     );
     const careCol = col('護理員');
-    expect(grid[8][careCol]).toBe(6);
-    expect(grid[20][careCol]).toBe(4);
+    expect(grid[8][careCol]).toBe(5);
+    expect(grid[20][careCol]).toBe(3);
   });
 
   it('助理員欄：100 私位 → 指明期間（07:00–18:00）每小時 ceil(100/40)=3，時段外為 0', () => {
@@ -176,36 +175,32 @@ describe('computeStaffingRequirements', () => {
     expect(grid[8][col('助理員')]).toBe(2);
   });
 
-  it('護士／保健員 13h：甲一／院舍卷由註冊護士先佔 1:60，剩餘登記護士／保健員填補', () => {
-    const enCol = col('登記護士');
+  it('護士／保健員 13h：甲一買位護士與保健員混合貢獻，至少 1 名註冊護士', () => {
+    const nurseCol = col('註冊/登記護士');
     const hwCol = col('保健員');
-    const rnCol = col('註冊護士');
 
-    // 40 甲一宿位：RN=ceil(40/60)=1, EN=0, HW=0
+    // 40 甲一宿位：總當量 ceil(40/30)=2；護士至少 1 名（貢獻 2 當量），保健員 0
     const a1_40 = makeInput({ bedCounts: { 甲一買位: 40 }, currentResidents: 40 });
     const { grid: g1 } = computeStaffingRequirements(a1_40);
     for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
-      expect(g1[h][rnCol]).toBe(1);
-      expect(g1[h][enCol]).toBe(0);
+      expect(g1[h][nurseCol]).toBe(1);
       expect(g1[h][hwCol]).toBe(0);
     }
 
-    // 100 甲一宿位：RN=ceil(100/60)=2, EN=0, HW=0
+    // 100 甲一宿位：總當量 ceil(100/30)=4；護士至少 1 名（貢獻 2 當量），保健員 2
     const a1_100 = makeInput({ bedCounts: { 甲一買位: 100 }, currentResidents: 100 });
     const { grid: g2 } = computeStaffingRequirements(a1_100);
     for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
-      expect(g2[h][rnCol]).toBe(2);
-      expect(g2[h][enCol]).toBe(0);
-      expect(g2[h][hwCol]).toBe(0);
+      expect(g2[h][nurseCol]).toBe(1);
+      expect(g2[h][hwCol]).toBe(2);
     }
 
-    // 70 甲一宿位：total=ceil(70/30)=3, RN=ceil(70/60)=2（貢獻 4 當量），已填滿
+    // 70 甲一宿位：總當量 ceil(70/30)=3；護士至少 1 名（貢獻 2 當量），保健員 1
     const a1_70 = makeInput({ bedCounts: { 甲一買位: 70 }, currentResidents: 70 });
     const { grid: g3 } = computeStaffingRequirements(a1_70);
     for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
-      expect(g3[h][rnCol]).toBe(2);
-      expect(g3[h][enCol]).toBe(0);
-      expect(g3[h][hwCol]).toBe(0);
+      expect(g3[h][nurseCol]).toBe(1);
+      expect(g3[h][hwCol]).toBe(1);
     }
   });
 
@@ -213,10 +208,10 @@ describe('computeStaffingRequirements', () => {
     // 安老院 100 私位 → 保健員時段內 ceil(100/30)=4
     const privateOnly = makeInput({ bedCounts: { 安老院: 100 }, currentResidents: 100 });
     const { grid: g1 } = computeStaffingRequirements(privateOnly);
-    const rnCol = col('註冊護士');
+    const nurseCol = col('註冊/登記護士');
     const hwCol = col('保健員');
     for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
-      expect(g1[h][rnCol]).toBe(0);
+      expect(g1[h][nurseCol]).toBe(0);
       expect(g1[h][hwCol]).toBe(4);
     }
     expect(g1[6][hwCol]).toBe(0);
@@ -226,7 +221,7 @@ describe('computeStaffingRequirements', () => {
     const a2Only = makeInput({ bedCounts: { 甲二買位: 40 }, currentResidents: 40 });
     const { grid: g2 } = computeStaffingRequirements(a2Only);
     for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
-      expect(g2[h][rnCol]).toBe(0);
+      expect(g2[h][nurseCol]).toBe(0);
       expect(g2[h][hwCol]).toBe(2);
     }
 
@@ -235,17 +230,33 @@ describe('computeStaffingRequirements', () => {
     const { grid: g3 } = computeStaffingRequirements(a2Zero);
     for (let h = 0; h < 24; h++) {
       expect(g3[h][hwCol]).toBe(0);
-      expect(g3[h][rnCol]).toBe(0);
+      expect(g3[h][nurseCol]).toBe(0);
     }
   });
 
-  it('任何員工欄：18:00–翌日 07:00 固定 2 名（有宿位時），其餘時間為 0', () => {
+  it('任何員工欄：其他職位夜班已達 2 名時顯示 0（可兼任，只補差額）', () => {
     const { grid } = computeStaffingRequirements(
       makeInput({ bedCounts: { 安老院: 100 }, currentResidents: 100 })
     );
     const anyCol = col('任何員工');
+    // 100 私位夜班護理員 = ceil(100/40) = 3 ≥ 2 → 任何員工全欄 0
     for (let h = 0; h < 24; h++) {
-      const expected = h >= 18 || h < 7 ? 2 : 0;
+      expect(grid[h][anyCol]).toBe(0);
+    }
+  });
+
+  it('任何員工欄：細院舍夜班護理員不足 2 名時補差額', () => {
+    // 30 私位 → 夜班護理員 ceil(30/40) = 1。
+    // h=18,19 保健員 13h 時段（07:00–20:00）仍在班（1 名）→ 全院已有 2 名 → 補 0；
+    // h=20–23、0–6 只有護理員 1 名 → 補 1。
+    const { grid } = computeStaffingRequirements(
+      makeInput({ bedCounts: { 安老院: 30 }, currentResidents: 30 })
+    );
+    const anyCol = col('任何員工');
+    for (let h = 0; h < 24; h++) {
+      const inNight = h >= 18 || h < 7;
+      const hwOnDuty = h >= NURSE_HW_START && h < NURSE_HW_END ? 1 : 0; // ceil(30/30)
+      const expected = inNight ? Math.max(0, 2 - 1 - hwOnDuty) : 0;
       expect(grid[h][anyCol]).toBe(expected);
     }
   });
@@ -275,5 +286,75 @@ describe('computeStaffingRequirements', () => {
     expect(hw.minHeadcount).toBe(4); // ceil(100/30)
     const any = dailySummaries.find((s) => s.position === '任何員工')!;
     expect(any.minHeadcount).toBe(0); // 可兼任
+  });
+});
+
+describe('雙紅線獨立合格引擎', () => {
+  it('甲一合約工時換算：40 宿位基準', () => {
+    // 主管固定 48/7 ≈ 6.857 → 7.0
+    expect(a1ContractDailyHours('主管', 40)).toBe(7.0);
+    // 護士 96/7 ≈ 13.714 → 14.0（向上取整至 0.5）
+    expect(a1ContractDailyHours('護士', 40)).toBe(14.0);
+    // 保健員 96/7 ≈ 13.714 → 14.0
+    expect(a1ContractDailyHours('保健員', 40)).toBe(14.0);
+    // 護理員 384/7 ≈ 54.857 → 55.0
+    expect(a1ContractDailyHours('護理員', 40)).toBe(55.0);
+    // 助理員 192/7 ≈ 27.429 → 27.5
+    expect(a1ContractDailyHours('助理員', 40)).toBe(27.5);
+  });
+
+  it('甲一合約工時換算：非 40 倍數按比例換算後向上取整', () => {
+    // 41 宿位：護士 96×41/40/7 ≈ 14.057 → 14.5
+    expect(a1ContractDailyHours('護士', 41)).toBe(14.5);
+    // 50 宿位：護士 96×50/40/7 ≈ 17.143 → 17.5
+    expect(a1ContractDailyHours('護士', 50)).toBe(17.5);
+    // 主管不按比例，固定 7.0
+    expect(a1ContractDailyHours('主管', 100)).toBe(7.0);
+  });
+
+  it('甲一 0 宿位時所有合約工時為 0', () => {
+    expect(a1ContractDailyHours('主管', 0)).toBe(0);
+    expect(a1ContractDailyHours('護士', 0)).toBe(0);
+    expect(a1ContractDailyHours('保健員', 0)).toBe(0);
+  });
+
+  it('雙紅線獨立合格：紅線2目標 > 紅線1隱含時，每日總工時 = 紅線2目標', () => {
+    const input = makeInput({ bedCounts: { 甲一買位: 40 }, currentResidents: 40 });
+    const result = computeDualRedLineStaffing(input);
+
+    // 主管：紅線1隱含 0，紅線2目標 7.0 → 每日總工時 7.0
+    expect(result.statutoryImpliedHours['主管']).toBe(0);
+    expect(result.contractTargetHours['主管']).toBe(7.0);
+    expect(result.dailyHours['主管']).toBe(7.0);
+    expect(result.supplementaryHours['主管']).toBe(7.0);
+
+    // 護理員：紅線1隱含工時（10h×2 + 14h×1 = 34）> 紅線2目標 55.0？不，紅線1隱含是 34，紅線2是 55
+    // 實際上 40 甲一宿位：護理員 10h 內 ceil(40/20)=2，其餘 14h ceil(40/40)=1，總共 2×10 + 1×14 = 34
+    // 紅線2目標 55.0 > 34，所以每日總工時 = 55.0
+    expect(result.dailyHours['護理員']).toBe(55.0);
+    expect(result.supplementaryHours['護理員']).toBe(21.0); // 55 - 34
+  });
+
+  it('≥8h 硬約束：工時只看紅線2合約，不與紅線1隱含工時混合', () => {
+    // 甲一 10 宿位：紅線1 13h 時段護士=1（隱含 13h），紅線2合約 3.5h
+    const input = makeInput({ bedCounts: { 甲一買位: 10 }, currentResidents: 10 });
+    const result = computeDualRedLineStaffing(input);
+
+    // 「護士」合約工時計入註冊/登記護士
+    expect(result.contractTargetHours['註冊/登記護士']).toBe(3.5);
+    // 工時只看紅線2，不看紅線1隱含工時
+    expect(result.dailyHours['註冊/登記護士']).toBe(3.5);
+  });
+
+  it('護士替代保健員：紅線1當量正確，紅線2工時獨立', () => {
+    const input = makeInput({ bedCounts: { 甲一買位: 40 }, currentResidents: 40 });
+    const result = computeDualRedLineStaffing(input);
+
+    // 紅線1：13h 時段護士=1（貢獻 2 當量），保健員=0
+    // 紅線2：護士合約工時計入註冊/登記護士，保健員獨立計算
+    expect(result.contractTargetHours['註冊/登記護士']).toBe(14.0);
+    expect(result.contractTargetHours['保健員']).toBe(14.0);
+    expect(result.dailyHours['註冊/登記護士']).toBe(14.0);
+    expect(result.dailyHours['保健員']).toBe(14.0);
   });
 });

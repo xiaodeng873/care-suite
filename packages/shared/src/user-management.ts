@@ -72,6 +72,8 @@ export interface UserProfile {
   is_active: boolean;
   auth_user_id: string | null;
   login_qr_code_id: string; // 用戶登入二維碼識別碼
+  /** 大頭照 URL（Supabase Storage avatars bucket） */
+  avatar_url: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -192,24 +194,46 @@ export type EmploymentPosition =
   | '助理員'
   | '物理治療師';
 
+/** 公眾假期類型：銀行假期(PH) / 勞工假期(SH) */
+export type PublicHolidayType = 'PH' | 'SH';
+
+/** 公眾假期 model（對應 public_holidays 表） */
+export interface PublicHoliday {
+  id: string;
+  holiday_date: string;
+  name: string;
+  type: PublicHolidayType;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** 僱傭詳情資料介面（對應 user_employment_details 表） */
 export interface UserEmploymentDetails {
   id: string;
   user_id: string;
   work_pattern: WorkPattern | null;
+  /** 每周合約工時（NULL = 未設定） */
   weekly_contract_hours: number | null;
-  weekly_min_hours: number | null;
-  weekly_max_hours: number | null;
-  daily_min_hours: number | null;
-  daily_max_hours: number | null;
+  /** 每天合約工時（NULL = 未設定） */
+  daily_contract_hours: number | null;
+  /** 每周工作天數（最大 6，0.5 為單位） */
+  weekly_work_days: number | null;
   /** 工時結餘：正數 = 院舍現欠職員；負數 = 職員現欠院舍 */
   hours_balance: number;
-  weekly_rest_days: number | null;
+  /** PRD 小數累積（0.0–0.9，滿 1.0 可預排 1 天 PRD） */
+  rest_day_fraction: number;
   accumulated_rest_days: number;
   /** 休息日計算起始日（起始日發放一次每周休息日天數，之後逢周日發放） */
   rest_day_start_date: string | null;
   annual_leave_days_per_year: number | null;
   annual_leave_start_date: string | null;
+  /** 公眾假期類型（PH/SH），NULL = 不適用 */
+  public_holiday_type: PublicHolidayType | null;
+  /** 公眾假期計算起始日 */
+  public_holiday_start_date: string | null;
+  /** 公眾假期備註/描述 */
+  public_holiday_description: string | null;
   preferred_station_primary: string | null;
   preferred_station_secondary: string[];
   stations_forbidden: string[];
@@ -241,6 +265,9 @@ export type BalanceType = 'hours' | 'rest_days';
 /** 休息日用度明細（對應 user_rest_day_details 表，結構與年假明細相同） */
 export type UserRestDayDetail = UserAnnualLeaveDetail;
 
+/** 公眾假期用度明細（對應 user_public_holiday_details 表，結構與年假明細相同） */
+export type UserPublicHolidayDetail = UserAnnualLeaveDetail;
+
 /** 結餘抹平記錄（對應 user_balance_adjustments 表） */
 export interface UserBalanceAdjustment {
   id: string;
@@ -254,19 +281,21 @@ export interface UserBalanceAdjustment {
 }
 
 /** 請假類型 */
-export type LeaveType = 'AL' | 'PRD' | 'DO' | 'SL' | 'CL' | 'NPL';
+export type LeaveType = 'AL' | 'PRD' | 'DO' | 'SL' | 'CL' | 'NPL' | 'PH' | 'SH';
 
 /** 請假類型列表 */
-export const LEAVE_TYPES: LeaveType[] = ['AL', 'PRD', 'DO', 'SL', 'CL', 'NPL'];
+export const LEAVE_TYPES: LeaveType[] = ['AL', 'PRD', 'DO', 'SL', 'CL', 'NPL', 'PH', 'SH'];
 
 /** 請假類型中文名稱對照 */
 export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   AL: '年假',
-  PRD: '補假',
+  PRD: '補休/PRD',
   DO: '休息日',
   SL: '病假',
   CL: '事假',
   NPL: '無薪假',
+  PH: '銀行假期',
+  SH: '勞工假期',
 };
 
 /** 請假記錄（對應 user_leave_records 表） */
@@ -275,7 +304,58 @@ export interface UserLeaveRecord {
   user_id: string;
   leave_date: string;
   leave_type: LeaveType;
+  /** PH/SH 預排時指向實際假期（可 null） */
+  reference_public_holiday_id: string | null;
   remark: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 班次名稱 */
+export type ShiftName = '早班' | '午班' | '晚班';
+
+/** 班次名稱列表 */
+export const SHIFT_NAMES: ShiftName[] = ['早班', '午班', '晚班'];
+
+/** 班次名稱顯示對照 */
+export const SHIFT_NAME_LABELS: Record<ShiftName, string> = {
+  早班: '早',
+  午班: '午',
+  晚班: '晚',
+};
+
+/** 居住區班次設定（對應 station_shift_settings 表） */
+export interface StationShiftSetting {
+  id: string;
+  station_id: string | null;
+  shift_name: ShiftName;
+  start_time: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 班次指派（對應 user_shift_assignments 表） */
+export interface UserShiftAssignment {
+  id: string;
+  user_id: string;
+  work_date: string;
+  station_id: string | null;
+  shift_name: ShiftName;
+  start_time: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 未上班原因（對應 user_absence_records 表） */
+export interface UserAbsenceRecord {
+  id: string;
+  user_id: string;
+  absence_date: string;
+  reason: string;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }

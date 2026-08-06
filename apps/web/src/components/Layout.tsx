@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key, Search, Receipt } from 'lucide-react';
+import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CalendarDays, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key, Search, Receipt } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
@@ -200,6 +200,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
         { name: '餐膳指引', href: '/meal-guidance', icon: Utensils, feature: 'meal_guidance' },
         { name: '意外事件報告', href: '/incident-reports', icon: AlertTriangle, feature: 'incident_reports' },
         { name: '感染控制', href: '/infection-control', icon: Shield, feature: 'infection_control' },
+        { name: '排班管理', href: '/roster-management', icon: CalendarDays, feature: 'roster_management' },
       ]
     },
     {

@@ -4,16 +4,22 @@ import { supabase } from '../lib/supabase';
 // 院舍性質類型定義
 // =====================================================
 
-/** 四個院舍性質：安老院（=私位）、甲二買位、甲一買位、院舍卷計劃 */
-export type FacilityNature = '安老院' | '甲二買位' | '甲一買位' | '院舍卷計劃';
+/** 三個院舍性質：安老院（=私位）、甲二買位、甲一買位 */
+export type FacilityNature = '安老院' | '甲二買位' | '甲一買位';
 
-export const FACILITY_NATURES: FacilityNature[] = ['安老院', '甲二買位', '甲一買位', '院舍卷計劃'];
+export const FACILITY_NATURES: FacilityNature[] = ['安老院', '甲二買位', '甲一買位'];
 
-/** 買位／計劃類（有宿位數作分母，且觸發要求3用註冊護士） */
-export const CONTRACT_NATURES: FacilityNature[] = ['甲二買位', '甲一買位', '院舍卷計劃'];
+/** 參與法定人手計算的性質 */
+export const STAFFING_NATURES: FacilityNature[] = ['安老院', '甲二買位', '甲一買位'];
+
+/** 非私位的性質（用於從私位分母中扣除） */
+export const NON_PRIVATE_NATURES: FacilityNature[] = ['甲二買位', '甲一買位'];
+
+/** 觸發甲一買位合約工時的性質 */
+export const A1_CONTRACT_NATURES: FacilityNature[] = ['甲一買位'];
 
 /** 24 小時最低人手表格的職位欄（順序固定）；「任何員工」對應表1第5項（18:00–翌日07:00 須有 2 名員工當值） */
-export const GRID_POSITIONS = ['主管', '註冊護士', '登記護士', '保健員', '護理員', '助理員', '物理治療師', '任何員工'] as const;
+export const GRID_POSITIONS = ['主管', '註冊/登記護士', '保健員', '護理員', '助理員', '物理治療師', '任何員工'] as const;
 export type GridPosition = (typeof GRID_POSITIONS)[number];
 
 /**
@@ -35,14 +41,31 @@ export const STATUTORY_RATIOS = {
 /** 表1第5項：每日 18:00 至翌日 07:00 須有 2 名員工當值（可以是為遵守其他項目而聘用的人） */
 export const NIGHT_ANY_STAFF = { start: '18:00', end: '07:00', count: 2 } as const;
 
+/** 甲一買位每 40 宿位合約工時基準（寫死法定值，RN+EN 合計） */
+export const A1_CONTRACT_WEEKLY_HOURS_PER_40_BEDS = {
+  主管: 48,
+  護士: 96,
+  保健員: 96,
+  護理員: 384,
+  助理員: 192,
+} as const;
+
+/** 參與甲一合約工時的職位（順序固定） */
+export const A1_CONTRACT_POSITIONS = ['主管', '護士', '保健員', '護理員', '助理員'] as const;
+
+/** 每人每日最低工時硬約束（小時） */
+export const MIN_DAILY_HOURS_PER_PERSON = 8;
+
+/** 工時計算最小單位（小時） */
+export const WORK_HOUR_STEP = 0.5;
+
 /** 病護比例頁各性質適用職位（保健員所有性質都有，但只有 13 小時連續當值要求，無比例輸入；安老院／甲二無護士要求；
- *  買位合約的各職位比例與總工時已在合約列明、與排班無關，不在此輸入；甲一／院舍卷只保留「最少 1 名註冊護士當值」；
+ *  買位合約的各職位比例與總工時已在合約列明、與排班無關，不在此輸入；甲一買位保留「註冊/登記護士」；
  *  助理員有指明期間 11 小時的當值比例，所有性質適用） */
 export const NATURE_RATIO_POSITIONS: Record<FacilityNature, string[]> = {
   安老院: ['主管', '保健員', '護理員', '助理員'],
   甲二買位: ['主管', '保健員', '護理員', '助理員'],
-  甲一買位: ['主管', '註冊護士', '登記護士', '保健員', '護理員', '助理員'],
-  院舍卷計劃: ['主管', '註冊護士', '登記護士', '保健員', '護理員', '助理員'],
+  甲一買位: ['主管', '註冊/登記護士', '保健員', '護理員', '助理員'],
 };
 
 // =====================================================
@@ -56,7 +79,6 @@ export const DEFAULT_BED_COUNTS: NatureBedCounts = {
   安老院: 0,
   甲二買位: 0,
   甲一買位: 0,
-  院舍卷計劃: 0,
 };
 
 /** 10 小時／14 小時分段比例（舊儲存格式；法定比例現已寫死，僅作還原相容用） */

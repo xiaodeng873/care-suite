@@ -59,7 +59,8 @@ const routeNames: Record<string, string> = {
   '/fee-records': '費用記錄',
   '/settings': '系統設定',
   '/rehabilitation': '復康服務',
-  '/infection-control': '感染控制'
+  '/infection-control': '感染控制',
+  '/roster-management': '排班管理'
 };
 
 // 根據當前路由顯示對應名稱的 Loading 組件
@@ -105,6 +106,7 @@ const IndividualCarePlan = lazy(() => import('./pages/IndividualCarePlan'));
 const ActivityRecords = lazy(() => import('./pages/ActivityRecords'));
 const FeeRecords = lazy(() => import('./pages/FeeRecords'));
 const InfectionControl = lazy(() => import('./pages/InfectionControl'));
+const RosterManagement = lazy(() => import('./pages/RosterManagement'));
 
 function AppContent() {
   const { user, userProfile, loading: authLoading, authReady, signOut, customLogout, isAuthenticated } = useAuth();
@@ -320,6 +322,7 @@ function AuthenticatedContent({
             <Route path="/settings" element={<Settings />} />
             <Route path="/rehabilitation" element={<Rehabilitation />} />
             <Route path="/infection-control" element={<InfectionControl />} />
+            <Route path="/roster-management" element={<RosterManagement />} />
           </Routes>
           </Suspense>
         </Layout>

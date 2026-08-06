@@ -4,6 +4,8 @@ import {
   UserProfile,
   UserAnnualLeaveDetail,
   UserRestDayDetail,
+  UserPublicHolidayDetail,
+  PublicHoliday,
   UserLeaveRecord,
   LeaveType,
   WorkPattern,
@@ -13,7 +15,12 @@ import {
 import { supabase } from '../lib/supabase';
 import { useStationData } from '../context/facility/StationContext';
 import { getExpectedAnnualLeaveGrants } from '../utils/annualLeave';
-import { getExpectedRestDayGrants } from '../utils/restDays';
+import {
+  getExpectedRestDayGrants,
+  getExpectedMonthlyRestDays,
+  weeklyRestDays,
+} from '../utils/restDays';
+import { getExpectedPublicHolidayGrants, loadPublicHolidaysRange } from '../utils/publicHolidays';
 
 // =====================================================
 // 僱傭詳情區塊（用戶管理 Modal 內，編輯適用職位用戶時顯示）
@@ -51,21 +58,25 @@ const LEAVE_TYPE_COLORS: Record<LeaveType, string> = {
   SL: 'bg-red-500',
   CL: 'bg-orange-400',
   NPL: 'bg-gray-400',
+  PH: 'bg-yellow-400',
+  SH: 'bg-pink-400',
 };
 
 const inputClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500';
 
-/** 明細表類型：年假 / 休息日（兩表結構相同，邏輯共用） */
-type DetailTable = 'al' | 'rest';
+/** 明細表類型：年假 / 休息日 / 公眾假期（三表結構相同，邏輯共用） */
+type DetailTable = 'al' | 'rest' | 'ph';
 
 const DETAIL_TABLE_NAMES: Record<DetailTable, string> = {
   al: 'user_annual_leave_details',
   rest: 'user_rest_day_details',
+  ph: 'user_public_holiday_details',
 };
 
 const DETAIL_TABLE_LABELS: Record<DetailTable, string> = {
   al: '年假',
   rest: '休息日',
+  ph: '公眾假期',
 };
 
 /** 年假/休息日明細新增/編輯 Modal 的表單狀態 */
@@ -90,15 +101,15 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
   // ----- 僱傭詳情表單（數字欄位以字串保存，'' = null） -----
   const [workPattern, setWorkPattern] = useState<WorkPattern | null>(null);
   const [weeklyContractHours, setWeeklyContractHours] = useState('');
-  const [weeklyMinHours, setWeeklyMinHours] = useState('');
-  const [weeklyMaxHours, setWeeklyMaxHours] = useState('');
-  const [dailyMinHours, setDailyMinHours] = useState('');
-  const [dailyMaxHours, setDailyMaxHours] = useState('');
+  const [dailyContractHours, setDailyContractHours] = useState('');
+  const [weeklyWorkDays, setWeeklyWorkDays] = useState('');
   const [hoursBalance, setHoursBalance] = useState('0');
-  const [weeklyRestDays, setWeeklyRestDays] = useState('');
   const [restDayStartDate, setRestDayStartDate] = useState(user.hire_date || '');
   const [annualLeaveDaysPerYear, setAnnualLeaveDaysPerYear] = useState('');
   const [annualLeaveStartDate, setAnnualLeaveStartDate] = useState(user.hire_date || '');
+  const [publicHolidayType, setPublicHolidayType] = useState<'' | 'PH' | 'SH'>('');
+  const [publicHolidayStartDate, setPublicHolidayStartDate] = useState(user.hire_date || '');
+  const [publicHolidayDescription, setPublicHolidayDescription] = useState('');
   const [preferredPrimary, setPreferredPrimary] = useState('');
   const [preferredSecondary, setPreferredSecondary] = useState<string[]>([]);
   const [stationsForbidden, setStationsForbidden] = useState<string[]>([]);
@@ -106,6 +117,13 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
   const [initialStartDate, setInitialStartDate] = useState<string | null>(null);
   /** 載入時的休息日起始日，用於偵測更改 */
   const [initialRestStartDate, setInitialRestStartDate] = useState<string | null>(null);
+  /** 載入時的每周工作天數，用於偵測更改 */
+  const [initialWeeklyWorkDays, setInitialWeeklyWorkDays] = useState<string | null>(null);
+  /** 載入時的公眾假期起始日，用於偵測更改 */
+  const [initialPublicHolidayStartDate, setInitialPublicHolidayStartDate] = useState<string | null>(null);
+
+  /** 載入時的公眾假期類型，用於偵測更改 */
+  const [initialPublicHolidayType, setInitialPublicHolidayType] = useState<'' | 'PH' | 'SH'>('');
 
   // ----- 年假明細 -----
   const [leaveDetails, setLeaveDetails] = useState<UserAnnualLeaveDetail[]>([]);
@@ -117,6 +135,27 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
   // ----- 休息日明細 -----
   const [restDetails, setRestDetails] = useState<UserRestDayDetail[]>([]);
   const [restDetailTableOpen, setRestDetailTableOpen] = useState(false);
+  const [restDayFraction, setRestDayFraction] = useState(0);
+
+  // ----- 下月 DO / PRD 預估 -----
+  const nextMonthRestEstimate = useMemo(() => {
+    const workDays = parseHalf(weeklyWorkDays);
+    if (workDays === 'invalid' || workDays === null || workDays <= 0) return null;
+    const next = new Date();
+    next.setMonth(next.getMonth() + 1);
+    return getExpectedMonthlyRestDays(
+      workDays,
+      next.getFullYear(),
+      next.getMonth() + 1,
+      restDayFraction,
+      restDayStartDate,
+    );
+  }, [weeklyWorkDays, restDayFraction, restDayStartDate]);
+
+  // ----- 公眾假期明細 -----
+  const [publicHolidayDetails, setPublicHolidayDetails] = useState<UserPublicHolidayDetail[]>([]);
+  const [publicDetailTableOpen, setPublicDetailTableOpen] = useState(false);
+  const [publicHolidays, setPublicHolidays] = useState<PublicHoliday[]>([]);
 
   // ----- 工時結餘抹平 Modal -----
   const [balanceModal, setBalanceModal] = useState<{ remark: string } | null>(null);
@@ -164,6 +203,26 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
     return grant - restUsageTotal - writeoff;
   }, [restDetails, restUsageTotal]);
 
+  // ----- 公眾假期計算值 -----
+  const phSystemGrantTotal = useMemo(
+    () => publicHolidayDetails.filter(d => d.detail_type === 'grant' && d.is_system).reduce((s, d) => s + d.days, 0),
+    [publicHolidayDetails],
+  );
+  const phUsageTotal = useMemo(
+    () => publicHolidayDetails.filter(d => d.detail_type === 'usage').reduce((s, d) => s + d.days, 0),
+    [publicHolidayDetails],
+  );
+  const phBalance = useMemo(() => {
+    const grant = publicHolidayDetails.filter(d => d.detail_type === 'grant').reduce((s, d) => s + d.days, 0);
+    const writeoff = publicHolidayDetails.filter(d => d.detail_type === 'writeoff').reduce((s, d) => s + d.days, 0);
+    return grant - phUsageTotal - writeoff;
+  }, [publicHolidayDetails, phUsageTotal]);
+  const phCurrentMonthDays = useMemo(() => {
+    if (!publicHolidayType) return 0;
+    const nowStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    return publicHolidays.filter(h => h.type === publicHolidayType && h.holiday_date.startsWith(nowStr.slice(0, 7))).length;
+  }, [publicHolidays, publicHolidayType, now]);
+
   // ----- 年假獲得行 lazy 補齊 -----
   const materializeGrants = useCallback(
     async (startDate: string, daysPerYear: number | null, existing: UserAnnualLeaveDetail[]) => {
@@ -191,23 +250,71 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
     [user.id, currentUserId],
   );
 
-  // ----- 休息日獲得行 lazy 補齊（起始日一次 + 逢周日發放） -----
+  // ----- 休息日獲得行 lazy 補齊（起始日一次 + 逢周日發放整數 DO；fraction 累積） -----
   const materializeRestGrants = useCallback(
-    async (startDate: string, weeklyDays: number | null, existing: UserRestDayDetail[]) => {
-      const expected = getExpectedRestDayGrants(startDate, weeklyDays);
+    async (startDate: string, weeklyWorkDays: number | null, existing: UserRestDayDetail[]) => {
+      if (!weeklyWorkDays || weeklyWorkDays <= 0) return;
+      const { grants, totalFraction } = getExpectedRestDayGrants(startDate, weeklyWorkDays);
+
+      // 補齊缺失的整數 DO 獲得行
+      const existingDates = new Set(
+        existing.filter(d => d.detail_type === 'grant' && d.is_system).map(d => d.record_date),
+      );
+      const missing = grants.filter(g => !existingDates.has(g.record_date));
+      if (missing.length > 0) {
+        const { error } = await supabase.from('user_rest_day_details').insert(
+          missing.map(g => ({
+            user_id: user.id,
+            record_date: g.record_date,
+            detail_type: 'grant',
+            days: g.days,
+            remark: '系統自動發放',
+            is_system: true,
+            created_by: currentUserId,
+          })),
+        );
+        if (error) throw error;
+      }
+
+      // 更新 rest_day_fraction：總累積 fraction 減去已預排的 PRD 數量
+      const { count: prdCount, error: countErr } = await supabase
+        .from('user_leave_records')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('leave_type', 'PRD');
+      if (countErr) throw countErr;
+      const fraction = Math.max(0, parseFloat((totalFraction - (prdCount ?? 0)).toFixed(1)));
+      const { error: updateErr } = await supabase
+        .from('user_employment_details')
+        .update({ rest_day_fraction: fraction, updated_at: new Date().toISOString() })
+        .eq('user_id', user.id);
+      if (updateErr) throw updateErr;
+    },
+    [user.id, currentUserId],
+  );
+
+  // ----- 公眾假期獲得行 lazy 補齊（每月按當月假期日數發放） -----
+  const materializePublicHolidayGrants = useCallback(
+    async (
+      startDate: string,
+      type: 'PH' | 'SH',
+      existing: UserPublicHolidayDetail[],
+      holidayCache: PublicHoliday[],
+    ) => {
+      const expected = getExpectedPublicHolidayGrants(startDate, type, holidayCache);
       if (expected.length === 0) return;
       const existingDates = new Set(
         existing.filter(d => d.detail_type === 'grant' && d.is_system).map(d => d.record_date),
       );
       const missing = expected.filter(g => !existingDates.has(g.record_date));
       if (missing.length === 0) return;
-      const { error } = await supabase.from('user_rest_day_details').insert(
+      const { error } = await supabase.from('user_public_holiday_details').insert(
         missing.map(g => ({
           user_id: user.id,
           record_date: g.record_date,
           detail_type: 'grant',
           days: g.days,
-          remark: '系統自動發放',
+          remark: g.remark,
           is_system: true,
           created_by: currentUserId,
         })),
@@ -227,6 +334,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
         { data: rows, error: e2 },
         { data: records, error: e3 },
         { data: restRows, error: e5 },
+        { data: phRows, error: e7 },
       ] = await Promise.all([
         supabase.from('user_employment_details').select('*').eq('user_id', user.id).maybeSingle(),
         supabase
@@ -242,28 +350,39 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           .eq('user_id', user.id)
           .order('record_date', { ascending: true })
           .order('created_at', { ascending: true }),
+        supabase
+          .from('user_public_holiday_details')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('record_date', { ascending: true })
+          .order('created_at', { ascending: true }),
       ]);
       if (e1) throw e1;
       if (e2) throw e2;
       if (e3) throw e3;
       if (e5) throw e5;
+      if (e7) throw e7;
 
       if (details) {
         setWorkPattern(details.work_pattern);
         setWeeklyContractHours(details.weekly_contract_hours?.toString() ?? '');
-        setWeeklyMinHours(details.weekly_min_hours?.toString() ?? '');
-        setWeeklyMaxHours(details.weekly_max_hours?.toString() ?? '');
-        setDailyMinHours(details.daily_min_hours?.toString() ?? '');
-        setDailyMaxHours(details.daily_max_hours?.toString() ?? '');
+        setDailyContractHours(details.daily_contract_hours?.toString() ?? '');
+        setWeeklyWorkDays(details.weekly_work_days?.toString() ?? '');
         setHoursBalance(details.hours_balance?.toString() ?? '0');
-        setWeeklyRestDays(details.weekly_rest_days?.toString() ?? '');
+        setRestDayFraction(details.rest_day_fraction ?? 0);
         // 休息日計算起始日預設 = 入職日期
         setRestDayStartDate(details.rest_day_start_date ?? user.hire_date ?? '');
         setInitialRestStartDate(details.rest_day_start_date ?? user.hire_date ?? null);
+        setInitialWeeklyWorkDays(details.weekly_work_days?.toString() ?? null);
         setAnnualLeaveDaysPerYear(details.annual_leave_days_per_year?.toString() ?? '');
         // 年假計算起始日預設 = 入職日期
         setAnnualLeaveStartDate(details.annual_leave_start_date ?? user.hire_date ?? '');
         setInitialStartDate(details.annual_leave_start_date ?? user.hire_date ?? null);
+        setPublicHolidayType(details.public_holiday_type ?? '');
+        setPublicHolidayStartDate(details.public_holiday_start_date ?? user.hire_date ?? '');
+        setInitialPublicHolidayStartDate(details.public_holiday_start_date ?? user.hire_date ?? null);
+        setInitialPublicHolidayType(details.public_holiday_type ?? '');
+        setPublicHolidayDescription(details.public_holiday_description ?? '');
         setPreferredPrimary(details.preferred_station_primary ?? '');
         setPreferredSecondary(details.preferred_station_secondary ?? []);
         setStationsForbidden(details.stations_forbidden ?? []);
@@ -272,6 +391,8 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
         setInitialStartDate(user.hire_date || null);
         setRestDayStartDate(user.hire_date || '');
         setInitialRestStartDate(user.hire_date || null);
+        setPublicHolidayStartDate(user.hire_date || '');
+        setInitialPublicHolidayStartDate(user.hire_date || null);
       }
 
       let detailRows = (rows ?? []) as UserAnnualLeaveDetail[];
@@ -294,9 +415,9 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       let restDetailRows = (restRows ?? []) as UserRestDayDetail[];
       // lazy 補齊休息日獲得行
       const restStart = details?.rest_day_start_date ?? user.hire_date ?? null;
-      const weeklyDays = details?.weekly_rest_days ?? null;
-      if (restStart && weeklyDays) {
-        await materializeRestGrants(restStart, weeklyDays, restDetailRows);
+      const workDaysForRest = details?.weekly_work_days ?? null;
+      if (restStart && workDaysForRest) {
+        await materializeRestGrants(restStart, workDaysForRest, restDetailRows);
         const { data: refreshedRest, error: e6 } = await supabase
           .from('user_rest_day_details')
           .select('*')
@@ -305,8 +426,42 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           .order('created_at', { ascending: true });
         if (e6) throw e6;
         restDetailRows = (refreshedRest ?? []) as UserRestDayDetail[];
+        // 重新載入 employment details 以取得更新後的 rest_day_fraction
+        const { data: refreshedDetails, error: eDetails } = await supabase
+          .from('user_employment_details')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (eDetails) throw eDetails;
+        if (refreshedDetails) {
+          setRestDayFraction(refreshedDetails.rest_day_fraction ?? 0);
+        }
       }
       setRestDetails(restDetailRows);
+
+      let publicHolidayDetailRows = (phRows ?? []) as UserPublicHolidayDetail[];
+      // lazy 補齊公眾假期獲得行
+      const phStart = details?.public_holiday_start_date ?? user.hire_date ?? null;
+      const phType = details?.public_holiday_type ?? null;
+      if (phStart && phType) {
+        const today = new Date();
+        const endStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const holidayCache = await loadPublicHolidaysRange(phStart, endStr, phType);
+        setPublicHolidays(holidayCache);
+        await materializePublicHolidayGrants(phStart, phType, publicHolidayDetailRows, holidayCache);
+        const { data: refreshedPh, error: e8 } = await supabase
+          .from('user_public_holiday_details')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('record_date', { ascending: true })
+          .order('created_at', { ascending: true });
+        if (e8) throw e8;
+        publicHolidayDetailRows = (refreshedPh ?? []) as UserPublicHolidayDetail[];
+      } else {
+        setPublicHolidays([]);
+      }
+      setPublicHolidayDetails(publicHolidayDetailRows);
+
       setLeaveRecords((records ?? []) as UserLeaveRecord[]);
     } catch (err) {
       console.error('載入僱傭詳情失敗:', err);
@@ -314,7 +469,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
     } finally {
       setLoading(false);
     }
-  }, [user.id, user.hire_date, materializeGrants, materializeRestGrants]);
+  }, [user.id, user.hire_date, materializeGrants, materializeRestGrants, materializePublicHolidayGrants]);
 
   useEffect(() => {
     loadData();
@@ -327,12 +482,9 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
     // 驗證所有數字欄位是 0.5 的倍數
     const numericInputs: Array<[string, string, boolean]> = [
       ['每周合約時間', weeklyContractHours, false],
-      ['每周最少時間', weeklyMinHours, false],
-      ['每周最多時間', weeklyMaxHours, false],
-      ['每天最少時間', dailyMinHours, false],
-      ['每天最多時間', dailyMaxHours, false],
+      ['每天合約工時', dailyContractHours, false],
+      ['每周工作天數', weeklyWorkDays, false],
       ['工時結餘', hoursBalance, true],
-      ['每周休息日', weeklyRestDays, false],
       ['每年年假天數', annualLeaveDaysPerYear, false],
     ];
     const parsed: Record<string, number | null> = {};
@@ -340,6 +492,10 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       const p = parseHalf(value);
       if (p === 'invalid' || (p !== null && !allowNegative && p < 0)) {
         setMessage({ type: 'error', text: `${label}必須是 0.5 的倍數${allowNegative ? '' : '且不可為負數'}` });
+        return;
+      }
+      if (label === '每周工作天數' && p !== null && p > 6) {
+        setMessage({ type: 'error', text: '每周工作天數不可大於 6' });
         return;
       }
       parsed[label] = p;
@@ -353,9 +509,23 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
     }
 
     const restStartChanged = (restDayStartDate || null) !== initialRestStartDate;
+    const weeklyWorkDaysChanged = (weeklyWorkDays || null) !== initialWeeklyWorkDays;
     const hasSystemRestGrants = restDetails.some(d => d.detail_type === 'grant' && d.is_system);
-    if (restStartChanged && hasSystemRestGrants) {
-      const ok = window.confirm('更改起始日會令所有系統發放的休息日獲得明細重新計算，不能繼承。確定更改？');
+    if ((restStartChanged || weeklyWorkDaysChanged) && hasSystemRestGrants) {
+      const reason = restStartChanged && weeklyWorkDaysChanged
+        ? '起始日及每周工作天數'
+        : restStartChanged
+          ? '起始日'
+          : '每周工作天數';
+      const ok = window.confirm(`更改${reason}會令所有系統發放的休息日獲得明細重新計算，不能繼承。確定更改？`);
+      if (!ok) return;
+    }
+
+    const phStartChanged = (publicHolidayStartDate || null) !== initialPublicHolidayStartDate;
+    const phTypeChanged = publicHolidayType !== initialPublicHolidayType;
+    const hasSystemPhGrants = publicHolidayDetails.some(d => d.detail_type === 'grant' && d.is_system);
+    if ((phStartChanged || phTypeChanged) && hasSystemPhGrants) {
+      const ok = window.confirm('更改公眾假期類型或起始日會令所有系統發放的公眾假期明細重新計算，不能繼承。確定更改？');
       if (!ok) return;
     }
 
@@ -370,9 +540,17 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           .eq('is_system', true);
         if (error) throw error;
       }
-      if (restStartChanged && hasSystemRestGrants) {
+      if ((restStartChanged || weeklyWorkDaysChanged) && hasSystemRestGrants) {
         const { error } = await supabase
           .from('user_rest_day_details')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('is_system', true);
+        if (error) throw error;
+      }
+      if ((phStartChanged || phTypeChanged) && hasSystemPhGrants) {
+        const { error } = await supabase
+          .from('user_public_holiday_details')
           .delete()
           .eq('user_id', user.id)
           .eq('is_system', true);
@@ -384,15 +562,15 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           user_id: user.id,
           work_pattern: workPattern,
           weekly_contract_hours: parsed['每周合約時間'],
-          weekly_min_hours: parsed['每周最少時間'],
-          weekly_max_hours: parsed['每周最多時間'],
-          daily_min_hours: parsed['每天最少時間'],
-          daily_max_hours: parsed['每天最多時間'],
+          daily_contract_hours: parsed['每天合約工時'],
+          weekly_work_days: parsed['每周工作天數'],
           hours_balance: parsed['工時結餘'] ?? 0,
-          weekly_rest_days: parsed['每周休息日'],
           rest_day_start_date: restDayStartDate || null,
           annual_leave_days_per_year: parsed['每年年假天數'],
           annual_leave_start_date: annualLeaveStartDate || null,
+          public_holiday_type: publicHolidayType || null,
+          public_holiday_start_date: publicHolidayStartDate || null,
+          public_holiday_description: publicHolidayDescription.trim() || null,
           preferred_station_primary: preferredPrimary || null,
           preferred_station_secondary: preferredSecondary,
           stations_forbidden: stationsForbidden,
@@ -410,16 +588,34 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           .eq('user_id', user.id);
         await materializeGrants(annualLeaveStartDate, parsed['每年年假天數'], (rows ?? []) as UserAnnualLeaveDetail[]);
       }
-      if (restDayStartDate && parsed['每周休息日']) {
+      if (restDayStartDate && parsed['每周工作天數']) {
         const { data: rows } = await supabase
           .from('user_rest_day_details')
           .select('*')
           .eq('user_id', user.id);
-        await materializeRestGrants(restDayStartDate, parsed['每周休息日'], (rows ?? []) as UserRestDayDetail[]);
+        await materializeRestGrants(restDayStartDate, parsed['每周工作天數'], (rows ?? []) as UserRestDayDetail[]);
+      }
+      if (publicHolidayType && publicHolidayStartDate) {
+        const today = new Date();
+        const endStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const holidayCache = await loadPublicHolidaysRange(publicHolidayStartDate, endStr, publicHolidayType);
+        const { data: rows } = await supabase
+          .from('user_public_holiday_details')
+          .select('*')
+          .eq('user_id', user.id);
+        await materializePublicHolidayGrants(
+          publicHolidayStartDate,
+          publicHolidayType,
+          (rows ?? []) as UserPublicHolidayDetail[],
+          holidayCache,
+        );
       }
 
       setInitialStartDate(annualLeaveStartDate || null);
       setInitialRestStartDate(restDayStartDate || null);
+      setInitialWeeklyWorkDays(weeklyWorkDays || null);
+      setInitialPublicHolidayStartDate(publicHolidayStartDate || null);
+      setInitialPublicHolidayType(publicHolidayType);
       setMessage({ type: 'success', text: '僱傭詳情已儲存' });
       await loadData();
     } catch (err) {
@@ -473,7 +669,11 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
   };
 
   // ----- 年假 / 休息日 使用、抹平行 -----
-  const balanceFor = (table: DetailTable) => (table === 'al' ? leaveBalance : restBalance);
+  const balanceFor = (table: DetailTable) => {
+    if (table === 'al') return leaveBalance;
+    if (table === 'ph') return phBalance;
+    return restBalance;
+  };
 
   const openAddUsage = (table: DetailTable) => {
     setLeaveRowError(null);
@@ -545,13 +745,23 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       days = p;
     }
 
-    // 透支硬阻止（只限年假；休息日可透支無上限）：編輯時先還原原行影響再計算
-    const y = parseHalf(annualLeaveDaysPerYear);
-    if (table === 'al' && detailType === 'usage' && y !== null && y !== 'invalid' && y > 0) {
+    // 透支硬阻止：年假不可超過每年額度；公眾假期不可透支（即不可低於 0）；休息日可透支無上限
+    if (table === 'al' && detailType === 'usage') {
+      const y = parseHalf(annualLeaveDaysPerYear);
+      if (y !== null && y !== 'invalid' && y > 0) {
+        let newBalance = balance - days;
+        if (mode === 'edit' && row!.detail_type === 'usage') newBalance += row!.days;
+        if (newBalance < -y) {
+          setLeaveRowError(`年假透支不可超過每年 ${fmt(y)} 天`);
+          return;
+        }
+      }
+    }
+    if (table === 'ph' && detailType === 'usage') {
       let newBalance = balance - days;
       if (mode === 'edit' && row!.detail_type === 'usage') newBalance += row!.days;
-      if (newBalance < -y) {
-        setLeaveRowError(`透支不可超過每年 ${fmt(y)} 天`);
+      if (newBalance < 0) {
+        setLeaveRowError('公眾假期不可透支下月額度');
         return;
       }
     }
@@ -651,7 +861,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
     label: string,
     value: string,
     setter: (v: string) => void,
-    opts: { unit?: string; min?: number } = {},
+    opts: { unit?: string; min?: number; max?: number } = {},
   ) => (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
@@ -660,6 +870,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           type="number"
           step={0.5}
           min={opts.min ?? 0}
+          max={opts.max}
           value={value}
           onChange={e => setter(e.target.value)}
           placeholder="無限制"
@@ -826,12 +1037,8 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                 <h4 className="text-sm font-semibold text-gray-900 mb-2">工作時間</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {renderHalfInput('每周合約時間', weeklyContractHours, setWeeklyContractHours, { unit: '小時' })}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                  {renderHalfInput('每周最少', weeklyMinHours, setWeeklyMinHours, { unit: '小時' })}
-                  {renderHalfInput('每周最多', weeklyMaxHours, setWeeklyMaxHours, { unit: '小時' })}
-                  {renderHalfInput('每天最少', dailyMinHours, setDailyMinHours, { unit: '小時' })}
-                  {renderHalfInput('每天最多', dailyMaxHours, setDailyMaxHours, { unit: '小時' })}
+                  {renderHalfInput('每天合約工時', dailyContractHours, setDailyContractHours, { unit: '小時' })}
+                  {renderHalfInput('每周工作天數', weeklyWorkDays, setWeeklyWorkDays, { unit: '天', max: 6 })}
                 </div>
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">工時結餘</label>
@@ -869,7 +1076,18 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
               <div>
                 <h4 className="text-sm font-semibold text-gray-900 mb-2">休息日</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {renderHalfInput('每周休息日', weeklyRestDays, setWeeklyRestDays, { unit: '天' })}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">每周休息天數</label>
+                    <p className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
+                      {(() => {
+                        const d = parseHalf(weeklyWorkDays);
+                        if (d === 'invalid' || d === null || d <= 0) return '—';
+                        return fmt(weeklyRestDays(d));
+                      })()}{' '}
+                      天
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">由「每周工作天數」自動計算（7 − 每周工作天數）</p>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">休息日計算起始日</label>
                     <input
@@ -881,18 +1099,24 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  由起始日發放一次每周休息日天數，之後逢周日發放；可透支無上限、可累積無上限。
+                  由起始日發放一次每周休息天數，之後逢周日發放；可透支無上限、可累積無上限。
+                  小數部分累積為 PRD，滿 1 天方可預排。
                 </p>
                 <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-700">
                   <span>
-                    按起始日至今應獲得：<span className="font-medium">{fmt(restSystemGrantTotal)}</span> 天
+                    DO 已獲得：<span className="font-medium">{fmt(restSystemGrantTotal)}</span> 天
                   </span>
                   <span>
-                    累積：<span className={`font-medium ${restBalance < 0 ? 'text-red-600' : ''}`}>{fmt(restBalance)}</span> 天
+                    DO 已使用：<span className="font-medium">{fmt(restUsageTotal)}</span> 天
                   </span>
                   <span>
-                    已使用：<span className="font-medium">{fmt(restUsageTotal)}</span> 天
+                    PRD 累積：<span className="font-medium">{fmt(restDayFraction)}</span> 天
                   </span>
+                  {nextMonthRestEstimate && (
+                    <span className="text-blue-600">
+                      下月預估：DO {nextMonthRestEstimate.doDays} 天 / PRD {nextMonthRestEstimate.prdDays} 天
+                    </span>
+                  )}
                 </div>
                 {renderDetailTable('rest', restDetails, restBalance, restDetailTableOpen, () =>
                   setRestDetailTableOpen(prev => !prev),
@@ -914,6 +1138,9 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                     />
                   </div>
                 </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  按入職日／指定起始日起計，受僱每滿一個月發放，滿 3 個月起可享用；可透支無上限、可累積無上限。
+                </p>
                 <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-700">
                   <span>
                     按起始日至今應獲得：<span className="font-medium">{fmt(systemGrantTotal)}</span> 天
@@ -931,7 +1158,71 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                 )}
               </div>
 
-              {/* 5. 優先指派局住區 */}
+              {/* 5. 公眾假期 */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">公眾假期</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">假期類型</label>
+                    <select
+                      value={publicHolidayType}
+                      onChange={e => setPublicHolidayType(e.target.value as '' | 'PH' | 'SH')}
+                      className={inputClass}
+                    >
+                      <option value="">無</option>
+                      <option value="PH">銀行假期（PH）</option>
+                      <option value="SH">勞工假期（SH）</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">公眾假期計算起始日</label>
+                    <input
+                      type="date"
+                      value={publicHolidayStartDate}
+                      onChange={e => setPublicHolidayStartDate(e.target.value)}
+                      disabled={!publicHolidayType}
+                      className={`${inputClass} ${!publicHolidayType ? 'bg-gray-100 opacity-60' : ''}`}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">描述</label>
+                    <textarea
+                      value={publicHolidayDescription}
+                      onChange={e => setPublicHolidayDescription(e.target.value)}
+                      disabled={!publicHolidayType}
+                      rows={2}
+                      placeholder="例如：按香港銀行假期放假"
+                      className={`${inputClass} ${!publicHolidayType ? 'bg-gray-100 opacity-60' : ''}`}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  由起始日當月起，每月 1 日按當月假期日數自動發放；不可透支下月、可累積無上限。
+                  {publicHolidayType && (
+                    <>
+                      {' '}
+                      本月{publicHolidayType === 'PH' ? '銀行' : '勞工'}假期額度：
+                      <span className="font-medium">{phCurrentMonthDays}</span> 天。
+                    </>
+                  )}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-700">
+                  <span>
+                    按起始日至今應獲得：<span className="font-medium">{fmt(phSystemGrantTotal)}</span> 天
+                  </span>
+                  <span>
+                    累積：<span className={`font-medium ${phBalance < 0 ? 'text-red-600' : ''}`}>{fmt(phBalance)}</span> 天
+                  </span>
+                  <span>
+                    已使用：<span className="font-medium">{fmt(phUsageTotal)}</span> 天
+                  </span>
+                </div>
+                {renderDetailTable('ph', publicHolidayDetails, phBalance, publicDetailTableOpen, () =>
+                  setPublicDetailTableOpen(prev => !prev),
+                )}
+              </div>
+
+              {/* 6. 優先指派局住區 */}
               <div>
                 <h4 className="text-sm font-semibold text-gray-900 mb-2">優先指派局住區</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

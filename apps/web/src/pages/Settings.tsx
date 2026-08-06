@@ -8,6 +8,7 @@ import FacilitySettingsPanel from '../components/FacilitySettingsPanel';
 import FacilityNatureSettings from '../components/FacilityNatureSettings';
 import MedicationSettingsPanel from '../components/MedicationSettingsPanel';
 import { fuzzyMatch } from '../utils/searchUtils';
+import { uploadAvatar, getAvatarUrl, validateAvatarFile } from '../utils/avatarUpload';
 import { useAuth, supabase } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -66,6 +67,8 @@ interface UserFormData {
   monthly_hour_limit: number;
   role: UserRole;
   is_active: boolean;
+  avatar_url: string;
+  avatarFile: File | null;
 }
 
 const initialFormData: UserFormData = {
@@ -86,6 +89,8 @@ const initialFormData: UserFormData = {
   monthly_hour_limit: DEFAULT_PART_TIME_HOUR_LIMIT,
   role: 'staff',
   is_active: true,
+  avatar_url: '',
+  avatarFile: null,
 };
 
 // =====================================================
@@ -107,6 +112,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newSecondaryPosition, setNewSecondaryPosition] = useState('');
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -129,9 +135,13 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
         monthly_hour_limit: user.monthly_hour_limit || DEFAULT_PART_TIME_HOUR_LIMIT,
         role: user.role,
         is_active: user.is_active,
+        avatar_url: user.avatar_url || '',
+        avatarFile: null,
       });
+      setAvatarPreview(getAvatarUrl(user.avatar_url));
     } else {
       setFormData(initialFormData);
+      setAvatarPreview(null);
     }
     setNewSecondaryPosition('');
     setError(null);
@@ -166,6 +176,30 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
         secondary_positions: prev.secondary_positions.filter(pos => pos !== value),
       }));
     }
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validation = validateAvatarFile(file);
+    if (validation) {
+      setError(validation.message);
+      return;
+    }
+    setError(null);
+
+    setFormData(prev => ({ ...prev, avatarFile: file }));
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearAvatar = () => {
+    setFormData(prev => ({ ...prev, avatar_url: '', avatarFile: null }));
+    setAvatarPreview(null);
   };
 
   // 由部門與各職位欄位推算主要職位（自由輸入部門推算不到則回傳空字串）
@@ -417,6 +451,45 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
           {/* 個人資料 */}
           <div className="border-b pb-4">
             <h3 className="text-lg font-medium text-gray-900 mb-4">個人資料</h3>
+
+            {/* 大頭照 */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="relative">
+                {avatarPreview || formData.avatar_url ? (
+                  <img
+                    src={avatarPreview || formData.avatar_url}
+                    alt="大頭照預覽"
+                    className="h-20 w-20 rounded-full object-cover border border-gray-200"
+                  />
+                ) : (
+                  <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+                    <Users className="h-8 w-8 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="inline-flex items-center px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 cursor-pointer">
+                  <span>上傳相片</span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
+                </label>
+                {(avatarPreview || formData.avatar_url) && (
+                  <button
+                    type="button"
+                    onClick={clearAvatar}
+                    className="inline-flex items-center px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    移除相片
+                  </button>
+                )}
+                <p className="text-xs text-gray-500">PNG / JPEG / WEBP，最大 2MB</p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">中文姓名 *</label>
@@ -1063,8 +1136,16 @@ const Settings: React.FC = () => {
     const supabaseUrl = getSupabaseUrl();
     const supabaseAnonKey = getSupabaseAnonKey();
 
+    const uploadAvatarIfNeeded = async (userId: string): Promise<string | null> => {
+      if (!formData.avatarFile) return formData.avatar_url || null;
+      const { url } = await uploadAvatar(userId, formData.avatarFile);
+      return url;
+    };
+
     if (formData.id) {
       // 編輯用戶
+      const avatarUrl = await uploadAvatarIfNeeded(formData.id);
+
       const updateData: any = {
         name_zh: formData.name_zh,
         name_en: formData.name_en || null,
@@ -1081,6 +1162,7 @@ const Settings: React.FC = () => {
         monthly_hour_limit: formData.employment_type === '兼職' ? formData.monthly_hour_limit : null,
         role: formData.role,
         is_active: formData.is_active,
+        avatar_url: avatarUrl,
       };
 
       const { error } = await supabase
@@ -1151,6 +1233,19 @@ const Settings: React.FC = () => {
 
       const result = await response.json();
       if (!result.success) throw new Error(result.error);
+
+      // 上傳大頭照並更新新用戶的 avatar_url
+      const newUserId = result.user?.id as string | undefined;
+      if (newUserId && formData.avatarFile) {
+        const avatarUrl = await uploadAvatar(newUserId, formData.avatarFile);
+        const { error: avatarError } = await supabase
+          .from('user_profiles')
+          .update({ avatar_url: avatarUrl.url })
+          .eq('id', newUserId);
+        if (avatarError) {
+          console.error('更新新用戶大頭照失敗:', avatarError);
+        }
+      }
     }
 
     await fetchUsers();
@@ -1208,7 +1303,7 @@ const Settings: React.FC = () => {
             permission_id: permissionId,
           };
         })
-        .filter(Boolean);
+        .filter((item): item is { user_id: string; permission_id: string } => !!item);
 
       if (inserts.length > 0) {
         const { error: insertError } = await supabase
