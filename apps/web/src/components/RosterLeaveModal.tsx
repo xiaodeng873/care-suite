@@ -1,24 +1,32 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import type { UserProfile, LeaveType, PublicHoliday } from '@care-suite/shared';
+import type { UserProfile, LeaveType } from '@care-suite/shared';
 import { LEAVE_TYPE_LABELS } from '@care-suite/shared';
 import { validateScheduledLeave } from '../utils/leaveValidation';
 import type { RosterLeaveContext } from '../utils/leaveValidation';
 
+export interface RosterLeaveModalPayload {
+  leaveDate: string;
+  recordType: 'leave' | 'availability';
+  leaveType: LeaveType | null;
+  urgency: 'mandatory' | 'preferred';
+  referencePublicHolidayId?: string | null;
+  availabilityStartTime?: string | null;
+  availabilityEndTime?: string | null;
+}
+
 interface RosterLeaveModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (payload: {
-    leaveDate: string;
-    leaveType: LeaveType;
-    referencePublicHolidayId?: string | null;
-  }) => Promise<void>;
+  onSave: (payload: RosterLeaveModalPayload) => Promise<void>;
   user: UserProfile;
   initialDate?: string;
   context: RosterLeaveContext;
 }
 
-const LEAVE_OPTIONS: LeaveType[] = ['PH', 'SH', 'DO', 'PRD', 'AL', 'SL', 'CL', 'NPL'];
+const BASE_LEAVE_OPTIONS: LeaveType[] = ['AL', 'DO', 'PRD'];
+
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
 export const RosterLeaveModal: React.FC<RosterLeaveModalProps> = ({
   isOpen,
@@ -28,21 +36,49 @@ export const RosterLeaveModal: React.FC<RosterLeaveModalProps> = ({
   initialDate,
   context,
 }) => {
+  const [recordType, setRecordType] = useState<'leave' | 'availability'>('leave');
   const [leaveType, setLeaveType] = useState<LeaveType>('DO');
   const [leaveDate, setLeaveDate] = useState(initialDate ?? '');
+  const [isMandatory, setIsMandatory] = useState(false);
+  const [availabilityStart, setAvailabilityStart] = useState('09:00');
+  const [availabilityEnd, setAvailabilityEnd] = useState('18:00');
   const [selectedHolidayId, setSelectedHolidayId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
+      setRecordType('leave');
       setLeaveType('DO');
       setLeaveDate(initialDate ?? '');
+      setIsMandatory(false);
+      setAvailabilityStart('09:00');
+      setAvailabilityEnd('18:00');
       setSelectedHolidayId('');
       setError(null);
       setSaving(false);
     }
   }, [isOpen, initialDate]);
+
+  const dateLabel = useMemo(() => {
+    if (!leaveDate) return '';
+    const d = new Date(leaveDate);
+    if (isNaN(d.getTime())) return '';
+    return `${leaveDate}（星期${WEEKDAYS[d.getDay()]}）`;
+  }, [leaveDate]);
+
+  const leaveOptions = useMemo(() => {
+    const opts = [...BASE_LEAVE_OPTIONS];
+    if (context.publicHolidayType === 'PH') opts.push('PH');
+    if (context.publicHolidayType === 'SH') opts.push('SH');
+    return opts;
+  }, [context.publicHolidayType]);
+
+  useEffect(() => {
+    if (!leaveOptions.includes(leaveType)) {
+      setLeaveType('DO');
+    }
+  }, [leaveOptions, leaveType]);
 
   const availableHolidays = useMemo(() => {
     if (leaveType !== 'PH' && leaveType !== 'SH') return [];
@@ -60,15 +96,34 @@ export const RosterLeaveModal: React.FC<RosterLeaveModalProps> = ({
     }
   }, [leaveType, availableHolidays]);
 
+  const balanceText = useMemo(() => {
+    if (leaveType === 'DO') return `DO 尚可排 ${context.doBalance} 天`;
+    if (leaveType === 'PRD') {
+      const available = Math.floor(context.restDayFraction + context.prdExpected);
+      return `PRD 尚可排 ${available} 天`;
+    }
+    if (leaveType === 'AL') return `AL 尚可請 ${context.alBalance} 天`;
+    if (leaveType === 'PH' || leaveType === 'SH') {
+      return `${LEAVE_TYPE_LABELS[leaveType]} 尚有 ${availableHolidays.length} 個未預排`;
+    }
+    return null;
+  }, [leaveType, context, availableHolidays.length]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    const payload = {
+    const payload: RosterLeaveModalPayload = {
       leaveDate,
-      leaveType,
+      recordType,
+      leaveType: recordType === 'leave' ? leaveType : null,
+      urgency: isMandatory ? 'mandatory' : 'preferred',
       referencePublicHolidayId:
-        leaveType === 'PH' || leaveType === 'SH' ? selectedHolidayId || null : null,
+        recordType === 'leave' && (leaveType === 'PH' || leaveType === 'SH')
+          ? selectedHolidayId || null
+          : null,
+      availabilityStartTime: recordType === 'availability' ? availabilityStart.slice(0, 5) : null,
+      availabilityEndTime: recordType === 'availability' ? availabilityEnd.slice(0, 5) : null,
     };
 
     const validation = validateScheduledLeave(payload, context);
@@ -95,7 +150,7 @@ export const RosterLeaveModal: React.FC<RosterLeaveModalProps> = ({
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <h3 className="text-lg font-semibold text-gray-900">
-            預排假期：{user.name_zh}
+            預排：{user.name_zh}
           </h3>
           <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
@@ -118,50 +173,135 @@ export const RosterLeaveModal: React.FC<RosterLeaveModalProps> = ({
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
+            {dateLabel && <p className="text-xs text-gray-500 mt-1">{dateLabel}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">假別</label>
-            <div className="grid grid-cols-4 gap-2">
-              {LEAVE_OPTIONS.map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setLeaveType(type)}
-                  className={`px-2 py-2 text-sm rounded-lg border ${
-                    leaveType === type
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {LEAVE_TYPE_LABELS[type]}
-                </button>
-              ))}
+            <label className="block text-sm font-medium text-gray-700 mb-1">預排類型</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setRecordType('leave')}
+                className={`px-3 py-2 text-sm rounded-lg border ${
+                  recordType === 'leave'
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                放假
+              </button>
+              <button
+                type="button"
+                onClick={() => setRecordType('availability')}
+                className={`px-3 py-2 text-sm rounded-lg border ${
+                  recordType === 'availability'
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                特定上班時間
+              </button>
             </div>
           </div>
 
-          {(leaveType === 'PH' || leaveType === 'SH') && (
+          <div className="flex items-start gap-3">
+            <input
+              id="mandatory"
+              type="checkbox"
+              checked={isMandatory}
+              onChange={(e) => setIsMandatory(e.target.checked)}
+              className="mt-0.5 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+            />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {leaveType === 'PH' ? '銀行假期' : '勞工假期'}
+              <label htmlFor="mandatory" className="text-sm font-medium text-gray-700">
+                必須
               </label>
-              <select
-                value={selectedHolidayId}
-                onChange={(e) => setSelectedHolidayId(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                {availableHolidays.length === 0 && (
-                  <option value="">暫無可用假期</option>
-                )}
-                {availableHolidays.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.holiday_date} {h.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                預排日只需與實際假期同月即可。
+               </div>
+          </div>
+
+          {recordType === 'leave' && (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">假別</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {leaveOptions.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      title={LEAVE_TYPE_LABELS[type]}
+                      onClick={() => setLeaveType(type)}
+                      className={`px-2 py-2 text-sm font-semibold rounded-lg border ${
+                        leaveType === type
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {balanceText && (
+                <p className="text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+                  餘額：{balanceText}
+                </p>
+              )}
+
+              {(leaveType === 'PH' || leaveType === 'SH') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {leaveType === 'PH' ? '銀行假期' : '勞工假期'}
+                  </label>
+                  <select
+                    value={selectedHolidayId}
+                    onChange={(e) => setSelectedHolidayId(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    {availableHolidays.length === 0 && (
+                      <option value="">暫無可用假期</option>
+                    )}
+                    {availableHolidays.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.holiday_date} {h.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    預排日只需與實際假期同月即可。
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {recordType === 'availability' && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">開始時間</label>
+                  <input
+                    type="time"
+                    value={availabilityStart}
+                    onChange={(e) => setAvailabilityStart(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">結束時間</label>
+                  <input
+                    type="time"
+                    value={availabilityEnd}
+                    onChange={(e) => setAvailabilityEnd(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                自動排班只會在這個時段內為該員工安排班次。
               </p>
             </div>
           )}

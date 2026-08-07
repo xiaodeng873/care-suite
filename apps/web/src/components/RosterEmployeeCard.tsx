@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import type { UserProfile, UserEmploymentDetails } from '@care-suite/shared';
 import { getEmploymentPosition } from '@care-suite/shared';
-import { calculateAge, formatTimeRange, getDailyContractHours, getUserAllPositions } from '../utils/roster';
+import { calculateAge, getDailyContractHours, getUserAllPositions } from '../utils/roster';
 
 interface RosterEmployeeCardProps {
   user: UserProfile;
@@ -9,6 +9,7 @@ interface RosterEmployeeCardProps {
   doBalance: number;
   prdBalance: number;
   alBalance: number;
+  draggable?: boolean;
   onDragStart?: (user: UserProfile) => void;
   onDragEnd?: () => void;
 }
@@ -19,6 +20,7 @@ export const RosterEmployeeCard: React.FC<RosterEmployeeCardProps> = ({
   doBalance,
   prdBalance,
   alBalance,
+  draggable = true,
   onDragStart,
   onDragEnd,
 }) => {
@@ -72,9 +74,9 @@ export const RosterEmployeeCard: React.FC<RosterEmployeeCardProps> = ({
   return (
     <div
       ref={cardRef}
-      draggable={true}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
+      draggable={draggable}
+      onDragStart={draggable ? handleDragStart : undefined}
+      onDragEnd={draggable ? handleDragEnd : undefined}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
       className="relative flex items-center gap-2 p-2 bg-white border border-gray-200 rounded-lg shadow-sm cursor-move hover:border-blue-400 hover:shadow-md transition-all select-none"

@@ -217,6 +217,8 @@ export interface UserEmploymentDetails {
   weekly_contract_hours: number | null;
   /** 每天合約工時（NULL = 未設定） */
   daily_contract_hours: number | null;
+  /** 預設上班時間（HH:MM），拖入排班表時優先使用；NULL 則跟從班次開始時間 */
+  default_work_start_time: string | null;
   /** 每周工作天數（最大 6，0.5 為單位） */
   weekly_work_days: number | null;
   /** 工時結餘：正數 = 院舍現欠職員；負數 = 職員現欠院舍 */
@@ -298,14 +300,35 @@ export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   SH: '勞工假期',
 };
 
-/** 請假記錄（對應 user_leave_records 表） */
+/** 預排記錄類型 */
+export type LeaveRecordType = 'leave' | 'availability';
+
+/** 預排必要程度 */
+export type LeaveUrgency = 'mandatory' | 'preferred';
+
+/** 請假／可上班時間預排記錄（對應 user_leave_records 表） */
 export interface UserLeaveRecord {
   id: string;
   user_id: string;
   leave_date: string;
-  leave_type: LeaveType;
+  /** 記錄類型：leave = 放假；availability = 能夠上班時間 */
+  record_type: LeaveRecordType;
+  /** 放假時必填；availability 時為 null */
+  leave_type: LeaveType | null;
   /** PH/SH 預排時指向實際假期（可 null） */
   reference_public_holiday_id: string | null;
+  /** 必要程度：mandatory = 必須；preferred = 希望 */
+  urgency: LeaveUrgency;
+  /** 能夠上班時間起點（HH:MM），僅 availability 使用 */
+  availability_start_time: string | null;
+  /** 能夠上班時間終點（HH:MM），僅 availability 使用 */
+  availability_end_time: string | null;
+  /** 主管是否已 override 希望類申請 */
+  is_overridden: boolean;
+  /** override 操作者（可 null） */
+  overridden_by: string | null;
+  /** override 時間（可 null） */
+  overridden_at: string | null;
   remark: string | null;
   created_at: string;
   updated_at: string;
@@ -328,6 +351,7 @@ export const SHIFT_NAME_LABELS: Record<ShiftName, string> = {
 export interface StationShiftSetting {
   id: string;
   station_id: string | null;
+  position: string | null;
   shift_name: ShiftName;
   start_time: string;
   is_active: boolean;
@@ -342,8 +366,11 @@ export interface UserShiftAssignment {
   user_id: string;
   work_date: string;
   station_id: string | null;
+  /** 該班次所屬的統計職位（如 註冊/登記護士、保健員），NULL 時以員工自身職位回退 */
+  position?: string | null;
   shift_name: ShiftName;
   start_time: string;
+  end_time: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

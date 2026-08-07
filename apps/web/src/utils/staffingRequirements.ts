@@ -1,6 +1,5 @@
 import {
   A1_CONTRACT_NATURES,
-  A1_CONTRACT_POSITIONS,
   A1_CONTRACT_WEEKLY_HOURS_PER_40_BEDS,
   FACILITY_NATURES,
   GRID_POSITIONS,
@@ -253,6 +252,8 @@ export interface DualRedLineResult {
   contractTargetHours: Record<string, number>;
   /** 需額外補足工時（紅線2 - 紅線1隱含），只給總量邊界，不指定具體時段 */
   supplementaryHours: Record<string, number>;
+  /** 是否有買位合約工時要求（甲一或甲二買位宿位數 > 0） */
+  hasContractHours: boolean;
 }
 
 /**
@@ -265,6 +266,8 @@ export interface DualRedLineResult {
 export function computeDualRedLineStaffing(input: StaffingInput): DualRedLineResult {
   const { bedCounts } = input;
   const a1VoucherBeds = bedCounts['甲一買位'] || 0;
+  const a2VoucherBeds = bedCounts['甲二買位'] || 0;
+  const hasContractHours = a1VoucherBeds + a2VoucherBeds > 0;
 
   // 紅線 1：特定鐘點人數
   const statutory = computeStaffingRequirements(input);
@@ -275,6 +278,7 @@ export function computeDualRedLineStaffing(input: StaffingInput): DualRedLineRes
     statutoryImpliedHours: {},
     contractTargetHours: {},
     supplementaryHours: {},
+    hasContractHours,
   };
 
   const colIndex = (pos: string) => GRID_POSITIONS.indexOf(pos as GridPosition);

@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PublicHolidayModal from '../components/PublicHolidayModal';
 import RosterScheduleView from '../components/RosterScheduleView';
-import RosterLeaveModal from '../components/RosterLeaveModal';
+import RosterLeaveModal, { type RosterLeaveModalPayload } from '../components/RosterLeaveModal';
 import RosterEmployeeCard from '../components/RosterEmployeeCard';
 import RosterScheduleGrid from '../components/RosterScheduleGrid';
 import type {
@@ -16,17 +16,16 @@ import type {
   UserProfile,
   UserRestDayDetail,
   UserPublicHolidayDetail,
-  LeaveType,
   StationShiftSetting,
   UserShiftAssignment,
   EmploymentPosition,
 } from '@care-suite/shared';
-import { getEmploymentPosition, ALL_POSITIONS } from '@care-suite/shared';
+import { getEmploymentPosition } from '@care-suite/shared';
 import { usePatients } from '../context/PatientContext';
 import type { RosterLeaveContext } from '../utils/leaveValidation';
 import { getRosterExpectedCounts, getRosterUsedCounts } from '../utils/leaveValidation';
-import { getPositionOptions, getWeekRange } from '../utils/roster';
-import { loadFacilityNatureSettings, DEFAULT_SPECIFIC_HOURS_CONFIG, GRID_POSITIONS } from '../utils/facilityNatureSettings';
+import { getPositionOptions, getWeekRange, toGridPosition, normalizeTime } from '../utils/roster';
+import { loadFacilityNatureSettings, DEFAULT_SPECIFIC_HOURS_CONFIG } from '../utils/facilityNatureSettings';
 import type { SpecificHoursConfig } from '../utils/facilityNatureSettings';
 import { computeDualRedLineStaffing, computeStaffingRequirements } from '../utils/staffingRequirements';
 import type { StaffingResult } from '../utils/staffingRequirements';
@@ -45,11 +44,22 @@ interface Station {
   code?: string | null;
 }
 
-interface RosterUser {
-  profile: UserProfile;
-  details: UserEmploymentDetails | null;
-  restDetails: UserRestDayDetail[];
-  phDetails: UserPublicHolidayDetail[];
+const ASSISTANT_DEPARTMENTS = new Set(['社工', '膳食', '衛生']);
+
+function userCanFillPosition(user: UserProfile, position: string): boolean {
+  const primary = getEmploymentPosition(user);
+  if (toGridPosition(primary) === position) return true;
+  if ((user.secondary_positions || []).some((p) => toGridPosition(p) === position)) return true;
+  if (
+    position === '保健員' &&
+    (primary === '註冊護士' ||
+      primary === '登記護士' ||
+      (user.secondary_positions || []).some((p) => p === '註冊護士' || p === '登記護士'))
+  ) {
+    return true;
+  }
+  if (position === '助理員' && ASSISTANT_DEPARTMENTS.has(user.department)) return true;
+  return false;
 }
 
 const RosterManagement: React.FC = () => {
@@ -79,6 +89,7 @@ const RosterManagement: React.FC = () => {
   const [shiftSettings, setShiftSettings] = useState<StationShiftSetting[]>([]);
   const [shiftAssignments, setShiftAssignments] = useState<UserShiftAssignment[]>([]);
   const [dailyRequirements, setDailyRequirements] = useState<{ position: string; hours: number; peakHeadcount: number }[]>([]);
+  const [hasContractHours, setHasContractHours] = useState(false);
   const [specificHours, setSpecificHours] = useState<SpecificHoursConfig>(DEFAULT_SPECIFIC_HOURS_CONFIG);
   const [staffingResult, setStaffingResult] = useState<StaffingResult | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<EmploymentPosition | ''>('');
@@ -109,6 +120,10 @@ const RosterManagement: React.FC = () => {
     const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     return { y: next.getFullYear(), m: next.getMonth() + 1 };
   });
+
+  // 假期預排頁專用：整月班次指派與居住區優先順序
+  const [monthShiftAssignments, setMonthShiftAssignments] = useState<UserShiftAssignment[]>([]);
+  const [stationPriority, setStationPriority] = useState<(string | null)[]>([]);
 
   const yearOptions = useMemo(() => {
     const current = new Date().getFullYear();
@@ -144,7 +159,10 @@ const RosterManagement: React.FC = () => {
 
       const map: Record<string, UserEmploymentDetails> = {};
       for (const d of details ?? []) {
-        map[d.user_id] = d as UserEmploymentDetails;
+        map[d.user_id] = {
+          ...d,
+          default_work_start_time: normalizeTime(d.default_work_start_time) || d.default_work_start_time,
+        } as UserEmploymentDetails;
       }
       setEmploymentMap(map);
     };
@@ -154,6 +172,42 @@ const RosterManagement: React.FC = () => {
       alert('載入員工失敗');
     });
   }, []);
+
+  // 載入院舍設定並計算每日人手要求（排班表與假期預排頁共用）
+  const loadFacilityStaffing = useCallback(async () => {
+    try {
+      const facilitySettings = await loadFacilityNatureSettings();
+      const currentResidents = allPatients.filter((p) => p.在住狀態 === '在住').length;
+      const staffingInput = {
+        bedCounts: facilitySettings.bedCounts,
+        specific: facilitySettings.specific,
+        currentResidents,
+      };
+      const dualRedLine = computeDualRedLineStaffing(staffingInput);
+      const staffingReqResult = computeStaffingRequirements(staffingInput);
+      console.log('[loadFacilityStaffing]', {
+        bedCounts: facilitySettings.bedCounts,
+        currentResidents,
+        dailyHours: dualRedLine.dailyHours,
+        peakHeadcount: dualRedLine.peakHeadcount,
+        gridSample: staffingReqResult.grid.slice(7, 15).map((row) => row.slice(0, 5)),
+      });
+      setDailyRequirements(
+        Object.entries(dualRedLine.dailyHours).map(([position, hours]) => ({
+          position,
+          hours,
+          peakHeadcount: dualRedLine.peakHeadcount[position] ?? 0,
+        })),
+      );
+      setHasContractHours(dualRedLine.hasContractHours);
+      setSpecificHours(facilitySettings.specific);
+      setStaffingResult(staffingReqResult);
+    } catch (err) {
+      console.error('[loadFacilityStaffing] 計算人手要求失敗:', err);
+      setDailyRequirements([]);
+      setStaffingResult(null);
+    }
+  }, [allPatients]);
 
   // 載入排班表所需資料
   const loadRosterData = useCallback(async (showLoading = true) => {
@@ -172,39 +226,34 @@ const RosterManagement: React.FC = () => {
         { data: stationsData, error: eStations },
         { data: settingsData, error: eSettings },
         { data: assignments, error: eAssignments },
+        { data: weekLeaves, error: eLeaves },
       ] = await Promise.all([
         supabase.from('stations').select('id, name, code').order('name', { ascending: true }),
         supabase.from('station_shift_settings').select('*').order('station_id', { ascending: true }).order('sort_order', { ascending: true }),
         supabase.from('user_shift_assignments').select('*').in('user_id', userIds).gte('work_date', startStr).lte('work_date', endStr),
+        supabase.from('user_leave_records').select('*').in('user_id', userIds).gte('leave_date', startStr).lte('leave_date', endStr),
       ]);
 
       if (eStations) throw eStations;
       if (eSettings) throw eSettings;
       if (eAssignments) throw eAssignments;
+      if (eLeaves) throw eLeaves;
 
       setStations((stationsData ?? []) as Station[]);
-      setShiftSettings((settingsData ?? []) as StationShiftSetting[]);
-      setShiftAssignments((assignments ?? []) as UserShiftAssignment[]);
-
-      // 載入院舍設定並計算每日人手要求
-      const facilitySettings = await loadFacilityNatureSettings();
-      const currentResidents = allPatients.filter((p) => p.在住狀態 === '在住').length;
-      const staffingInput = {
-        bedCounts: facilitySettings.bedCounts,
-        specific: facilitySettings.specific,
-        currentResidents,
-      };
-      const dualRedLine = computeDualRedLineStaffing(staffingInput);
-      const staffingReqResult = computeStaffingRequirements(staffingInput);
-      setDailyRequirements(
-        Object.entries(dualRedLine.dailyHours).map(([position, hours]) => ({
-          position,
-          hours,
-          peakHeadcount: dualRedLine.peakHeadcount[position] ?? 0,
-        })),
+      setShiftSettings(
+        (settingsData ?? []).map((s) => ({
+          ...s,
+          start_time: normalizeTime(s.start_time) || s.start_time,
+        })) as StationShiftSetting[],
       );
-      setSpecificHours(facilitySettings.specific);
-      setStaffingResult(staffingReqResult);
+      setShiftAssignments(
+        (assignments ?? []).map((a) => ({
+          ...a,
+          start_time: normalizeTime(a.start_time) || a.start_time,
+          end_time: normalizeTime(a.end_time) || a.end_time,
+        })) as UserShiftAssignment[],
+      );
+      setLeaveRecords((weekLeaves ?? []) as UserLeaveRecord[]);
 
       // 預設選中第一個有員工的職位
       const positionOptions = getPositionOptions(users);
@@ -218,7 +267,7 @@ const RosterManagement: React.FC = () => {
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [users, weekAnchor, allPatients]);
+  }, [users, weekAnchor]);
 
   // 拖曳/刪除班次後只靜默重新載入當週 assignments，避免整個排班表閃爍
   const loadAssignmentsOnly = useCallback(async () => {
@@ -235,10 +284,52 @@ const RosterManagement: React.FC = () => {
         .gte('work_date', startStr)
         .lte('work_date', endStr);
       if (error) throw error;
-      setShiftAssignments((data ?? []) as UserShiftAssignment[]);
+      setShiftAssignments(
+        (data ?? []).map((a) => ({
+          ...a,
+          start_time: normalizeTime(a.start_time) || a.start_time,
+          end_time: normalizeTime(a.end_time) || a.end_time,
+        })) as UserShiftAssignment[],
+      );
     } catch (err) {
       console.error('重新載入班次失敗:', err);
       alert('重新載入班次失敗');
+    }
+  }, [users, weekAnchor]);
+
+  // 班次設定儲存後靜默重新載入班次設定與當週 assignments
+  const reloadShiftSettingsAndAssignments = useCallback(async () => {
+    if (users.length === 0) return;
+    try {
+      const userIds = users.map((u) => u.id);
+      const { start, end } = getWeekRange(weekAnchor);
+      const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+      const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+      const [
+        { data: settingsData, error: eSettings },
+        { data: assignments, error: eAssignments },
+      ] = await Promise.all([
+        supabase.from('station_shift_settings').select('*').order('station_id', { ascending: true }).order('sort_order', { ascending: true }),
+        supabase.from('user_shift_assignments').select('*').in('user_id', userIds).gte('work_date', startStr).lte('work_date', endStr),
+      ]);
+      if (eSettings) throw eSettings;
+      if (eAssignments) throw eAssignments;
+      setShiftSettings(
+        (settingsData ?? []).map((s) => ({
+          ...s,
+          start_time: normalizeTime(s.start_time) || s.start_time,
+        })) as StationShiftSetting[],
+      );
+      setShiftAssignments(
+        (assignments ?? []).map((a) => ({
+          ...a,
+          start_time: normalizeTime(a.start_time) || a.start_time,
+          end_time: normalizeTime(a.end_time) || a.end_time,
+        })) as UserShiftAssignment[],
+      );
+    } catch (err) {
+      console.error('重新載入班次設定失敗:', err);
+      alert('重新載入班次設定失敗');
     }
   }, [users, weekAnchor]);
 
@@ -246,11 +337,18 @@ const RosterManagement: React.FC = () => {
     if (activeTab !== 'roster') return;
     loadRosterData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, weekAnchor, users.length, allPatients.length]);
+  }, [activeTab, weekAnchor, users.length]);
 
-  // 防止拖曳放開時觸發瀏覽器預設導航（導致整頁重新載入）
+  // 院舍設定／在住人數變化時重新計算人手要求
   useEffect(() => {
-    if (activeTab !== 'roster') return;
+    if (activeTab !== 'roster' && activeTab !== 'leave') return;
+    loadFacilityStaffing();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, allPatients]);
+
+  // 防止拖曳放開時觸發瀏覽器預設導航（排班表與假期預排頁都有拖曳）
+  useEffect(() => {
+    if (activeTab !== 'roster' && activeTab !== 'leave') return;
     const preventDefault = (e: DragEvent) => {
       e.preventDefault();
     };
@@ -279,19 +377,44 @@ const RosterManagement: React.FC = () => {
         { data: holidays, error: e2 },
         { data: restDetails, error: e3 },
         { data: phDetails, error: e4 },
+        { data: stationsData, error: e5 },
+        { data: monthAssignments, error: e6 },
       ] = await Promise.all([
         supabase.from('user_leave_records').select('*').in('user_id', userIds).gte('leave_date', start).lte('leave_date', end),
         supabase.from('public_holidays').select('*').gte('holiday_date', `${monthCursor.y}-01-01`).lte('holiday_date', `${monthCursor.y}-12-31`).order('holiday_date', { ascending: true }),
         supabase.from('user_rest_day_details').select('*').in('user_id', userIds),
         supabase.from('user_public_holiday_details').select('*').in('user_id', userIds),
+        supabase.from('stations').select('id, name, code').order('name', { ascending: true }),
+        supabase.from('user_shift_assignments').select('*').in('user_id', userIds).gte('work_date', start).lte('work_date', end),
       ]);
       if (e1) throw e1;
       if (e2) throw e2;
       if (e3) throw e3;
       if (e4) throw e4;
+      if (e5) throw e5;
+      if (e6) throw e6;
 
-      setLeaveRecords((leaves ?? []) as UserLeaveRecord[]);
+      setLeaveRecords(
+        (leaves ?? []).map((l) => ({
+          ...l,
+          availability_start_time: l.availability_start_time ? normalizeTime(l.availability_start_time) || l.availability_start_time : l.availability_start_time,
+          availability_end_time: l.availability_end_time ? normalizeTime(l.availability_end_time) || l.availability_end_time : l.availability_end_time,
+        })) as UserLeaveRecord[],
+      );
       setPublicHolidays((holidays ?? []) as PublicHoliday[]);
+      setMonthShiftAssignments(
+        (monthAssignments ?? []).map((a) => ({
+          ...a,
+          start_time: normalizeTime(a.start_time) || a.start_time,
+          end_time: normalizeTime(a.end_time) || a.end_time,
+        })) as UserShiftAssignment[],
+      );
+
+      const loadedStations = (stationsData ?? []) as Station[];
+      setStations(loadedStations);
+      if (stationPriority.length === 0 && loadedStations.length > 0) {
+        setStationPriority([...loadedStations.map((s) => s.id), null]);
+      }
 
       const rMap: Record<string, UserRestDayDetail[]> = {};
       for (const d of (restDetails ?? []) as UserRestDayDetail[]) {
@@ -304,13 +427,15 @@ const RosterManagement: React.FC = () => {
         (pMap[d.user_id] ??= []).push(d);
       }
       setPhDetailsMap(pMap);
+
+      await loadFacilityStaffing();
     } catch (err) {
       console.error('載入假期預排資料失敗:', err);
       alert('載入假期預排資料失敗');
     } finally {
       setLoading(false);
     }
-  }, [users, monthCursor]);
+  }, [users, monthCursor, stationPriority.length, loadFacilityStaffing]);
 
   useEffect(() => {
     if (activeTab !== 'leave') return;
@@ -349,64 +474,122 @@ const RosterManagement: React.FC = () => {
     });
   };
 
-  const getUserBalances = (userId: string) => {
-    const details = employmentMap[userId];
-    const expected = getRosterExpectedCounts(
-      details?.weekly_work_days ?? null,
-      details?.rest_day_fraction ?? 0,
-      publicHolidays,
-      monthCursor.y,
-      monthCursor.m,
-      details?.rest_day_start_date,
-    );
-    const userLeaves = leaveRecords.filter((l) => l.user_id === userId);
-    const used = getRosterUsedCounts(userLeaves, monthCursor.y, monthCursor.m);
+  const getUserBalances = useCallback(
+    (userId: string) => {
+      const details = employmentMap[userId];
+      const expected = getRosterExpectedCounts(
+        details?.weekly_work_days ?? null,
+        details?.rest_day_fraction ?? 0,
+        publicHolidays,
+        monthCursor.y,
+        monthCursor.m,
+        details?.rest_day_start_date,
+      );
+      const userLeaves = leaveRecords.filter((l) => l.user_id === userId);
+      const used = getRosterUsedCounts(userLeaves, monthCursor.y, monthCursor.m);
 
-    const restGrantTotal = (restDetailsMap[userId] ?? [])
-      .filter((d) => d.detail_type === 'grant' && d.is_system)
-      .reduce((s, d) => s + d.days, 0);
-    const restUsageTotal = (restDetailsMap[userId] ?? [])
-      .filter((d) => d.detail_type === 'usage')
-      .reduce((s, d) => s + d.days, 0);
-    const doBalance = restGrantTotal - restUsageTotal;
+      const restGrantTotal = (restDetailsMap[userId] ?? [])
+        .filter((d) => d.detail_type === 'grant' && d.is_system)
+        .reduce((s, d) => s + d.days, 0);
+      const restUsageTotal = (restDetailsMap[userId] ?? [])
+        .filter((d) => d.detail_type === 'usage')
+        .reduce((s, d) => s + d.days, 0);
+      const doBalance = restGrantTotal - restUsageTotal;
 
-    const phGrantTotal = (phDetailsMap[userId] ?? [])
-      .filter((d) => d.detail_type === 'grant' && d.is_system && d.remark?.includes('PH'))
-      .reduce((s, d) => s + d.days, 0);
-    const shGrantTotal = (phDetailsMap[userId] ?? [])
-      .filter((d) => d.detail_type === 'grant' && d.is_system && d.remark?.includes('SH'))
-      .reduce((s, d) => s + d.days, 0);
+      const phGrantTotal = (phDetailsMap[userId] ?? [])
+        .filter((d) => d.detail_type === 'grant' && d.is_system && d.remark?.includes('PH'))
+        .reduce((s, d) => s + d.days, 0);
+      const shGrantTotal = (phDetailsMap[userId] ?? [])
+        .filter((d) => d.detail_type === 'grant' && d.is_system && d.remark?.includes('SH'))
+        .reduce((s, d) => s + d.days, 0);
 
-    return {
-      doBalance: doBalance + expected.doExpected,
-      restDayFraction: details?.rest_day_fraction ?? 0,
-      prdExpected: expected.prdExpected,
-      phAvailable: phGrantTotal + expected.phExpected - used.phUsed,
-      shAvailable: shGrantTotal + expected.shExpected - used.shUsed,
-    };
-  };
+      const alBalance = (details?.annual_leave_days_per_year ?? 0) - used.alUsed;
 
-  const getUsedHolidayIds = (userId: string) => {
-    const ids = new Set<string>();
-    for (const l of leaveRecords) {
-      if (l.user_id === userId && (l.leave_type === 'PH' || l.leave_type === 'SH') && l.reference_public_holiday_id) {
-        ids.add(l.reference_public_holiday_id);
+      return {
+        doBalance: doBalance + expected.doExpected,
+        restDayFraction: details?.rest_day_fraction ?? 0,
+        prdExpected: expected.prdExpected,
+        phAvailable: phGrantTotal + expected.phExpected - used.phUsed,
+        shAvailable: shGrantTotal + expected.shExpected - used.shUsed,
+        alBalance,
+      };
+    },
+    [employmentMap, publicHolidays, monthCursor, leaveRecords, restDetailsMap, phDetailsMap],
+  );
+
+  const getUsedHolidayIds = useCallback(
+    (userId: string) => {
+      const ids = new Set<string>();
+      for (const l of leaveRecords) {
+        if (
+          l.user_id === userId &&
+          l.record_type === 'leave' &&
+          !l.is_overridden &&
+          (l.leave_type === 'PH' || l.leave_type === 'SH') &&
+          l.reference_public_holiday_id
+        ) {
+          ids.add(l.reference_public_holiday_id);
+        }
       }
-    }
-    return ids;
-  };
+      return ids;
+    },
+    [leaveRecords],
+  );
 
   const handleCellClick = (user: UserProfile, date: string) => {
     setLeaveModal({ user, initialDate: date });
   };
 
+  const handleMoveLeave = async (record: UserLeaveRecord, targetDate: string) => {
+    const isOwn = record.user_id === userProfile?.id;
+    if (!isAdminUser && !isOwn) return;
+    if (record.leave_date === targetDate) return;
+    const exists = leaveRecords.some(
+      (l) => l.user_id === record.user_id && l.leave_date === targetDate && l.id !== record.id,
+    );
+    if (exists) {
+      alert('目標日期已有預排記錄');
+      return;
+    }
+    try {
+      await supabase.from('user_leave_records').update({ leave_date: targetDate, updated_at: new Date().toISOString() }).eq('id', record.id);
+
+      if (record.record_type === 'leave' && record.leave_type === 'DO') {
+        await supabase
+          .from('user_rest_day_details')
+          .update({ record_date: targetDate })
+          .eq('user_id', record.user_id)
+          .eq('record_date', record.leave_date)
+          .eq('detail_type', 'usage');
+      } else if (record.record_type === 'leave' && (record.leave_type === 'PH' || record.leave_type === 'SH')) {
+        await supabase
+          .from('user_public_holiday_details')
+          .update({ record_date: targetDate })
+          .eq('user_id', record.user_id)
+          .eq('record_date', record.leave_date)
+          .eq('detail_type', 'usage');
+      }
+
+      setLeaveRecords((prev) =>
+        prev.map((l) => (l.id === record.id ? { ...record, leave_date: targetDate, updated_at: new Date().toISOString() } : l)),
+      );
+    } catch (err) {
+      console.error('移動預排失敗:', err);
+      alert('移動預排失敗');
+    }
+  };
+
   const handleLeaveClick = async (record: UserLeaveRecord) => {
-    if (!window.confirm(`確定刪除 ${record.leave_date} 的 ${record.leave_type} 預排？`)) return;
+    const label =
+      record.record_type === 'availability'
+        ? `能夠上班時間 ${record.availability_start_time}-${record.availability_end_time}`
+        : record.leave_type ?? '預排';
+    if (!window.confirm(`確定刪除 ${record.leave_date} 的 ${label} 預排？`)) return;
     try {
       const { error: e1 } = await supabase.from('user_leave_records').delete().eq('id', record.id);
       if (e1) throw e1;
 
-      if (record.leave_type === 'DO') {
+      if (record.record_type === 'leave' && record.leave_type === 'DO') {
         const { error: e2 } = await supabase
           .from('user_rest_day_details')
           .delete()
@@ -414,7 +597,7 @@ const RosterManagement: React.FC = () => {
           .eq('record_date', record.leave_date)
           .eq('detail_type', 'usage');
         if (e2) throw e2;
-      } else if (record.leave_type === 'PRD') {
+      } else if (record.record_type === 'leave' && record.leave_type === 'PRD') {
         const details = employmentMap[record.user_id];
         const newFraction = Math.max(0, (details?.rest_day_fraction ?? 0) + 1);
         const { error: e2 } = await supabase
@@ -422,7 +605,7 @@ const RosterManagement: React.FC = () => {
           .update({ rest_day_fraction: newFraction, updated_at: new Date().toISOString() })
           .eq('user_id', record.user_id);
         if (e2) throw e2;
-      } else if (record.leave_type === 'PH' || record.leave_type === 'SH') {
+      } else if (record.record_type === 'leave' && (record.leave_type === 'PH' || record.leave_type === 'SH')) {
         const { error: e2 } = await supabase
           .from('user_public_holiday_details')
           .delete()
@@ -439,27 +622,35 @@ const RosterManagement: React.FC = () => {
     }
   };
 
-  const handleSaveLeave = async (payload: {
-    leaveDate: string;
-    leaveType: LeaveType;
-    referencePublicHolidayId?: string | null;
-  }) => {
+  const handleSaveLeave = async (payload: RosterLeaveModalPayload) => {
     if (!leaveModal) return;
     const userId = leaveModal.user.id;
 
+    const insertPayload: Record<string, unknown> = {
+      user_id: userId,
+      leave_date: payload.leaveDate,
+      record_type: payload.recordType,
+      urgency: payload.urgency,
+      leave_type: payload.recordType === 'leave' ? payload.leaveType : null,
+      reference_public_holiday_id:
+        payload.recordType === 'leave' && (payload.leaveType === 'PH' || payload.leaveType === 'SH')
+          ? payload.referencePublicHolidayId ?? null
+          : null,
+      availability_start_time: payload.recordType === 'availability' ? payload.availabilityStartTime : null,
+      availability_end_time: payload.recordType === 'availability' ? payload.availabilityEndTime : null,
+      is_overridden: false,
+    };
+
     const { data: inserted, error: e1 } = await supabase
       .from('user_leave_records')
-      .insert({
-        user_id: userId,
-        leave_date: payload.leaveDate,
-        leave_type: payload.leaveType,
-        reference_public_holiday_id: payload.referencePublicHolidayId ?? null,
-      })
+      .insert(insertPayload)
       .select()
       .single();
     if (e1) throw e1;
 
-    if (payload.leaveType === 'DO') {
+    const leaveType = payload.recordType === 'leave' ? payload.leaveType : null;
+
+    if (leaveType === 'DO') {
       const { error: e2 } = await supabase.from('user_rest_day_details').insert({
         user_id: userId,
         record_date: payload.leaveDate,
@@ -469,7 +660,7 @@ const RosterManagement: React.FC = () => {
         is_system: false,
       });
       if (e2) throw e2;
-    } else if (payload.leaveType === 'PRD') {
+    } else if (leaveType === 'PRD') {
       const details = employmentMap[userId];
       const newFraction = Math.max(0, (details?.rest_day_fraction ?? 0) - 1);
       const { error: e2 } = await supabase
@@ -477,23 +668,34 @@ const RosterManagement: React.FC = () => {
         .update({ rest_day_fraction: newFraction, updated_at: new Date().toISOString() })
         .eq('user_id', userId);
       if (e2) throw e2;
-    } else if (payload.leaveType === 'PH' || payload.leaveType === 'SH') {
+    } else if (leaveType === 'PH' || leaveType === 'SH') {
       const holiday = publicHolidays.find((h) => h.id === payload.referencePublicHolidayId);
       const { error: e2 } = await supabase.from('user_public_holiday_details').insert({
         user_id: userId,
         record_date: payload.leaveDate,
         detail_type: 'usage',
         days: 1,
-        remark: `排班預排 ${payload.leaveType}: ${holiday?.name ?? ''}`,
+        remark: `排班預排 ${leaveType}: ${holiday?.name ?? ''}`,
         is_system: false,
       });
       if (e2) throw e2;
     }
 
-    setLeaveRecords((prev) => [...prev, inserted as UserLeaveRecord]);
+    setLeaveRecords((prev) => [
+      ...prev,
+      {
+        ...inserted,
+        availability_start_time: inserted.availability_start_time
+          ? normalizeTime(inserted.availability_start_time) || inserted.availability_start_time
+          : inserted.availability_start_time,
+        availability_end_time: inserted.availability_end_time
+          ? normalizeTime(inserted.availability_end_time) || inserted.availability_end_time
+          : inserted.availability_end_time,
+      } as UserLeaveRecord,
+    ]);
     setEmploymentMap((prev) => {
       const details = prev[userId];
-      if (!details || payload.leaveType !== 'PRD') return prev;
+      if (!details || leaveType !== 'PRD') return prev;
       return {
         ...prev,
         [userId]: { ...details, rest_day_fraction: Math.max(0, details.rest_day_fraction - 1) },
@@ -514,9 +716,11 @@ const RosterManagement: React.FC = () => {
       doBalance: balances.doBalance,
       restDayFraction: balances.restDayFraction,
       prdExpected: balances.prdExpected,
+      alBalance: balances.alBalance,
       publicHolidays,
+      publicHolidayType: employmentMap[leaveModal.user.id]?.public_holiday_type ?? null,
     };
-  }, [leaveModal, leaveRecords, publicHolidays, employmentMap, restDetailsMap, phDetailsMap, monthCursor]);
+  }, [leaveModal, leaveRecords, publicHolidays, monthCursor, getUserBalances, getUsedHolidayIds, employmentMap]);
 
   // 假期設定表格
   const handleDelete = async (id: string) => {
@@ -689,11 +893,7 @@ const RosterManagement: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">排班管理</h1>
-      </div>
-
+    <div className="p-6 h-screen flex flex-col">
       <div className="border-b border-gray-200 mb-6">
         <nav className="flex gap-6">
           <button
@@ -733,7 +933,7 @@ const RosterManagement: React.FC = () => {
       </div>
 
       {activeTab === 'roster' && (
-        <div className="flex gap-4 h-[calc(100vh-12rem)]">
+        <div className="flex gap-4 flex-1 min-h-0">
           {/* 左側：員工卡片列 */}
           <div className="w-72 flex flex-col gap-3 flex-shrink-0">
             <div className="space-y-2">
@@ -790,6 +990,7 @@ const RosterManagement: React.FC = () => {
                     doBalance={balances.doBalance}
                     prdBalance={balances.prdBalance}
                     alBalance={balances.alBalance}
+                    draggable={isAdminUser && !!selectedPosition && userCanFillPosition(user, toGridPosition(selectedPosition))}
                     onDragStart={() => setDraggedUserId(user.id)}
                     onDragEnd={() => setDraggedUserId(null)}
                   />
@@ -813,10 +1014,15 @@ const RosterManagement: React.FC = () => {
               weekAnchor={weekAnchor}
               selectedPosition={selectedPosition}
               dailyRequirements={dailyRequirements}
+              hasContractHours={hasContractHours}
               draggedUserId={draggedUserId}
               onWeekChange={setWeekAnchor}
               onPositionChange={setSelectedPosition}
+              leaveRecords={leaveRecords}
+              stationPriority={stationPriority}
               onAssignmentChange={loadAssignmentsOnly}
+              onLeaveRecordsChange={() => loadRosterData(false)}
+              onSettingsChange={reloadShiftSettingsAndAssignments}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-400">
@@ -847,7 +1053,7 @@ const RosterManagement: React.FC = () => {
               <ChevronRight className="h-5 w-5" />
             </button>
             <span className="text-sm text-gray-500">
-              點擊空格預排假期，點擊已排假期刪除
+              點擊空格新增預排，點擊已排預排刪除
             </span>
           </div>
 
@@ -861,9 +1067,21 @@ const RosterManagement: React.FC = () => {
               employmentDetails={employmentMap}
               leaveRecords={leaveRecords}
               publicHolidays={publicHolidays}
+              shiftAssignments={monthShiftAssignments}
+              specificHours={specificHours}
+              staffingResult={staffingResult}
+              dailyRequirements={dailyRequirements}
+              hasContractHours={hasContractHours}
+              stations={stations}
+              stationPriority={stationPriority}
+              onStationPriorityChange={setStationPriority}
+              currentUserId={userProfile?.id ?? ''}
+              isAdmin={isAdminUser}
               loading={loading}
               onCellClick={handleCellClick}
               onLeaveClick={handleLeaveClick}
+              onMoveLeave={handleMoveLeave}
+              onCheckConflicts={() => {}}
             />
           )}
         </div>

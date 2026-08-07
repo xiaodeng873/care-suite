@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS user_employment_details (
   -- 有薪年假
   annual_leave_days_per_year numeric(4,1),
   annual_leave_start_date date,
-  -- 優先指派局住區
+  -- 優先指派居住區
   preferred_station_primary uuid REFERENCES stations(id) ON DELETE SET NULL,
   preferred_station_secondary uuid[] NOT NULL DEFAULT '{}',
   stations_forbidden uuid[] NOT NULL DEFAULT '{}',

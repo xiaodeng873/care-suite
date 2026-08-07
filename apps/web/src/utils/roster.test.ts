@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { UserProfile, StationShiftSetting, UserShiftAssignment } from '@care-suite/shared';
+import type { UserProfile, StationShiftSetting, UserShiftAssignment, UserEmploymentDetails } from '@care-suite/shared';
 import {
   getWeekRange,
   getWeekDays,
@@ -136,10 +136,10 @@ describe('roster utils', () => {
   describe('getActiveShiftSettings', () => {
     it('filters and sorts active settings for a station', () => {
       const settings: StationShiftSetting[] = [
-        { id: '1', station_id: 's1', shift_name: '午班', start_time: '15:00', is_active: true, sort_order: 2, created_at: '', updated_at: '' },
-        { id: '2', station_id: 's1', shift_name: '早班', start_time: '07:00', is_active: true, sort_order: 1, created_at: '', updated_at: '' },
-        { id: '3', station_id: 's1', shift_name: '晚班', start_time: '23:00', is_active: false, sort_order: 3, created_at: '', updated_at: '' },
-        { id: '4', station_id: 's2', shift_name: '早班', start_time: '08:00', is_active: true, sort_order: 1, created_at: '', updated_at: '' },
+        { id: '1', station_id: 's1', position: null, shift_name: '午班', start_time: '15:00', is_active: true, sort_order: 2, created_at: '', updated_at: '' },
+        { id: '2', station_id: 's1', position: null, shift_name: '早班', start_time: '07:00', is_active: true, sort_order: 1, created_at: '', updated_at: '' },
+        { id: '3', station_id: 's1', position: null, shift_name: '晚班', start_time: '23:00', is_active: false, sort_order: 3, created_at: '', updated_at: '' },
+        { id: '4', station_id: 's2', position: null, shift_name: '早班', start_time: '08:00', is_active: true, sort_order: 1, created_at: '', updated_at: '' },
       ];
       const result = getActiveShiftSettings(settings, 's1');
       expect(result).toHaveLength(2);
@@ -149,7 +149,7 @@ describe('roster utils', () => {
 
     it('returns unassigned station settings with null station_id', () => {
       const settings: StationShiftSetting[] = [
-        { id: '1', station_id: null, shift_name: '早班', start_time: '07:00', is_active: true, sort_order: 1, created_at: '', updated_at: '' },
+        { id: '1', station_id: null, position: null, shift_name: '早班', start_time: '07:00', is_active: true, sort_order: 1, created_at: '', updated_at: '' },
       ];
       expect(getActiveShiftSettings(settings, null)).toHaveLength(1);
     });
@@ -162,7 +162,7 @@ describe('roster utils', () => {
         { nursing_position: '保健員', secondary_positions: [] },
         { nursing_position: '護理員', secondary_positions: ['助理員', 'invalid'] },
       ] as unknown as UserProfile[];
-      expect(getPositionOptions(users)).toEqual(['保健員', '助理員', '護理員']);
+      expect(getPositionOptions(users)).toEqual(['保健員', '助理員', '登記護士', '註冊護士', '護理員']);
     });
   });
 
@@ -185,7 +185,7 @@ describe('roster utils', () => {
         u1: { daily_contract_hours: 8 },
         u2: { daily_contract_hours: 6 },
         u3: { daily_contract_hours: 8 },
-      } as any;
+      } as unknown as Record<string, UserEmploymentDetails>;
       const assignments: UserShiftAssignment[] = [
         { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
         { id: '2', user_id: 'u2', work_date: '2026-08-02', station_id: 's1', shift_name: '午班', start_time: '15:00', created_by: null, created_at: '', updated_at: '' },
@@ -195,6 +195,19 @@ describe('roster utils', () => {
       expect(summary['護理員']).toEqual({ headcount: 2, hours: 14 });
       expect(summary['助理員']).toEqual({ headcount: 1, hours: 8 });
     });
+
+    it('counts nurse covering health worker shift toward health worker headcount and nurse hours', () => {
+      const users = [
+        { id: 'u1', nursing_position: '登記護士', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const employmentDetails = { u1: { daily_contract_hours: 8 } } as unknown as Record<string, UserEmploymentDetails>;
+      const assignments: UserShiftAssignment[] = [
+        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', position: '保健員', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
+      ];
+      const summary = summarizeDailyShiftByPosition('2026-08-02', users, employmentDetails, assignments);
+      expect(summary['保健員']).toEqual({ headcount: 1, hours: 0 });
+      expect(summary['註冊/登記護士']).toEqual({ headcount: 0, hours: 8 });
+    });
   });
 
   describe('buildDailyCompliance', () => {
@@ -202,7 +215,7 @@ describe('roster utils', () => {
       const users = [
         { id: 'u1', nursing_position: '護理員', secondary_positions: [] },
       ] as unknown as UserProfile[];
-      const employmentDetails = { u1: { daily_contract_hours: 8 } } as any;
+      const employmentDetails = { u1: { daily_contract_hours: 8 } } as unknown as Record<string, UserEmploymentDetails>;
       const assignments: UserShiftAssignment[] = [
         { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
       ];
@@ -253,13 +266,19 @@ describe('roster utils', () => {
       ]);
     });
 
-    it('flags specific slot as not ok when no users of that position exist', () => {
-      const users: UserProfile[] = [];
-      const employmentDetails = {};
-      const assignments: UserShiftAssignment[] = [];
-      const requiredHours = { 助理員: 105 };
+    it('counts social work, dietary, and hygiene staff as assistants for specific slot', () => {
+      const users = [
+        { id: 'u1', nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '文員', department: '社工', secondary_positions: [] },
+        { id: 'u2', nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '廚師', department: '膳食', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const employmentDetails = { u1: { daily_contract_hours: 8 }, u2: { daily_contract_hours: 8 } } as unknown as Record<string, UserEmploymentDetails>;
+      const assignments: UserShiftAssignment[] = [
+        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: '18:00', created_by: null, created_at: '', updated_at: '' },
+        { id: '2', user_id: 'u2', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: '18:00', created_by: null, created_at: '', updated_at: '' },
+      ];
+      const requiredHours = { 助理員: 0 };
       const requiredHourly = {
-        助理員: Array.from({ length: 24 }, (_, h) => (h >= 7 && h < 18 ? 7 : 0)),
+        助理員: Array.from({ length: 24 }, (_, h) => (h >= 7 && h < 18 ? 2 : 0)),
       };
       const specific = {
         requirement1: { segments: [{ start: '07:00', end: '17:00' }] },
@@ -267,13 +286,85 @@ describe('roster utils', () => {
         assistantWindow: { start: '07:00', end: '18:00' },
       };
       const rows = buildDailyCompliance('2026-08-02', requiredHours, requiredHourly, specific, users, employmentDetails, assignments);
-      const row = rows.find((r) => r.position === '助理員')!;
-      expect(row.hoursOk).toBe(false);
-      expect(row.specificSlotOk).toBe(false);
-      expect(row.hasSpecificSlotRequirement).toBe(true);
-      expect(row.requiredSpecificHeadcount).toBe(7);
-      expect(row.actualSpecificHeadcount).toBe(0);
-      expect(row.specificSegments).toEqual([{ label: '07:00-18:00', required: 7, actual: 0 }]);
+      const assistantRow = rows.find((r) => r.position === '助理員')!;
+      expect(assistantRow.actualSpecificHeadcount).toBe(2);
+      expect(assistantRow.specificSlotOk).toBe(true);
+    });
+
+    it('combines health worker and nurse equivalents for the 13-hour specific slot', () => {
+      const users = [
+        { id: 'u1', nursing_position: '註冊護士', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const employmentDetails = { u1: { daily_contract_hours: 8 } } as unknown as Record<string, UserEmploymentDetails>;
+      const assignments: UserShiftAssignment[] = [
+        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', position: '保健員', shift_name: '早班', start_time: '07:00', end_time: '20:00', created_by: null, created_at: '', updated_at: '' },
+      ];
+      const requiredHours = { 保健員: 0, '註冊/登記護士': 0 };
+      const requiredHourly = {
+        保健員: Array.from({ length: 24 }, (_, h) => (h >= 7 && h < 20 ? 2 : 0)),
+        '註冊/登記護士': Array.from({ length: 24 }, (_, h) => (h >= 7 && h < 20 ? 1 : 0)),
+      };
+      const specific = {
+        requirement1: { segments: [{ start: '07:00', end: '17:00' }] },
+        requirement3: { start: '07:00', end: '20:00' },
+        assistantWindow: { start: '07:00', end: '18:00' },
+      };
+      const rows = buildDailyCompliance('2026-08-02', requiredHours, requiredHourly, specific, users, employmentDetails, assignments);
+      const healthWorkerRow = rows.find((r) => r.position === '保健員')!;
+      expect(healthWorkerRow.requiredSpecificHeadcount).toBe(4);
+      expect(healthWorkerRow.actualSpecificHeadcount).toBe(2);
+      expect(healthWorkerRow.specificSlotOk).toBe(false);
+      const nurseRow = rows.find((r) => r.position === '註冊/登記護士')!;
+      expect(nurseRow.requiredSpecificHeadcount).toBe(8);
+      expect(nurseRow.actualSpecificHeadcount).toBe(11);
+      expect(nurseRow.specificSlotOk).toBe(true);
+    });
+
+    it('flags A1 nurse coverage as not ok when fewer than 8 hours within 07:00-18:00', () => {
+      const users = [
+        { id: 'u1', nursing_position: '註冊護士', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const employmentDetails = { u1: { daily_contract_hours: 6 } } as unknown as Record<string, UserEmploymentDetails>;
+      const assignments: UserShiftAssignment[] = [
+        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '09:00', end_time: '15:00', created_by: null, created_at: '', updated_at: '' },
+      ];
+      const requiredHourly = {
+        '註冊/登記護士': Array.from({ length: 24 }, (_, h) => (h >= 7 && h < 20 ? 1 : 0)),
+      };
+      const specific = {
+        requirement1: { segments: [{ start: '07:00', end: '17:00' }] },
+        requirement3: { start: '07:00', end: '20:00' },
+        assistantWindow: { start: '07:00', end: '18:00' },
+      };
+      const rows = buildDailyCompliance('2026-08-02', {}, requiredHourly, specific, users, employmentDetails, assignments);
+      const nurseRow = rows.find((r) => r.position === '註冊/登記護士')!;
+      expect(nurseRow.requiredSpecificHeadcount).toBe(8);
+      expect(nurseRow.actualSpecificHeadcount).toBe(6);
+      expect(nurseRow.specificSlotOk).toBe(false);
+    });
+
+    it('does not count enrolled nurse toward A1 registered nurse 8-hour coverage', () => {
+      const users = [
+        { id: 'u1', nursing_position: '登記護士', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const employmentDetails = { u1: { daily_contract_hours: 8 } } as unknown as Record<string, UserEmploymentDetails>;
+      const assignments: UserShiftAssignment[] = [
+        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: '15:00', created_by: null, created_at: '', updated_at: '' },
+      ];
+      const requiredHourly = {
+        '註冊/登記護士': Array.from({ length: 24 }, (_, h) => (h >= 7 && h < 20 ? 1 : 0)),
+      };
+      const specific = {
+        requirement1: { segments: [{ start: '07:00', end: '17:00' }] },
+        requirement3: { start: '07:00', end: '20:00' },
+        assistantWindow: { start: '07:00', end: '18:00' },
+      };
+      const rows = buildDailyCompliance('2026-08-02', {}, requiredHourly, specific, users, employmentDetails, assignments);
+      const nurseRow = rows.find((r) => r.position === '註冊/登記護士')!;
+      expect(nurseRow.requiredSpecificHeadcount).toBe(8);
+      expect(nurseRow.actualSpecificHeadcount).toBe(0);
+      expect(nurseRow.specificSlotOk).toBe(false);
+      expect(nurseRow.specificSegments[0]?.label).toBe('註冊護士 07:00-18:00');
     });
   });
 });

@@ -12,7 +12,7 @@ export interface RosterLeaveContext {
   year: number;
   /** 目標月份（1-12） */
   month: number;
-  /** 該員工在整個系統中的請假記錄 */
+  /** 該員工在整個系統中的預排記錄 */
   existingLeaves: UserLeaveRecord[];
   /** 該員工已預排的 PH/SH 所引用的 public_holiday id 集合 */
   usedHolidayIds: Set<string>;
@@ -22,8 +22,12 @@ export interface RosterLeaveContext {
   restDayFraction: number;
   /** 目標月預估 PRD 天數 */
   prdExpected: number;
+  /** 該員工年假可用天數 */
+  alBalance: number;
   /** 該月 PH/SH 假期清單（public_holidays） */
   publicHolidays: PublicHoliday[];
+  /** 該員工適用的公眾假期類型（PH/SH），未設定則不能預排 PH/SH */
+  publicHolidayType: 'PH' | 'SH' | null;
 }
 
 /** 檢查請假日期是否落在目標年月 */
@@ -41,21 +45,46 @@ export function hasLeaveConflict(
   return existingLeaves.some((l) => l.leave_date === leaveDate && l.id !== excludeId);
 }
 
+function parseTimeMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
 /** 驗證一筆排班預排是否合法；回傳錯誤訊息或 null */
 export function validateScheduledLeave(
   payload: {
+    recordType: 'leave' | 'availability';
     leaveDate: string;
-    leaveType: LeaveType;
+    leaveType: LeaveType | null;
+    urgency: 'mandatory' | 'preferred';
     referencePublicHolidayId?: string | null;
+    availabilityStartTime?: string | null;
+    availabilityEndTime?: string | null;
   },
   ctx: RosterLeaveContext,
 ): string | null {
   if (!isDateInTargetMonth(payload.leaveDate, ctx.year, ctx.month)) {
-    return '預排日必須在目标排班月份內';
+    return '預排日必須在目標排班月份內';
   }
 
   if (hasLeaveConflict(payload.leaveDate, ctx.existingLeaves)) {
-    return '該員工在目標日期已有請假記錄';
+    return '該員工在目標日期已有預排記錄';
+  }
+
+  if (payload.recordType === 'availability') {
+    if (!payload.availabilityStartTime || !payload.availabilityEndTime) {
+      return '請輸入特定上班時間的開始與結束時間';
+    }
+    const start = parseTimeMinutes(payload.availabilityStartTime);
+    const end = parseTimeMinutes(payload.availabilityEndTime);
+    if (start === end) {
+      return '特定上班時間必須大於 0 小時';
+    }
+    return null;
+  }
+
+  if (!payload.leaveType) {
+    return '請選擇假別';
   }
 
   if (payload.leaveType === 'DO') {
@@ -92,7 +121,13 @@ export function validateScheduledLeave(
     return null;
   }
 
-  // AL / SL / CL / NPL：暫不在此驗證額度，僅檢查衝突
+  if (payload.leaveType === 'AL') {
+    if (ctx.alBalance <= 0) {
+      return 'AL 額度不足';
+    }
+  }
+
+  // SL / CL / NPL：暫不驗證額度，僅檢查衝突
   return null;
 }
 
@@ -124,17 +159,18 @@ export function getRosterExpectedCounts(
   };
 }
 
-/** 計算目標月份的各假別已使用數（按 leave_date 年月） */
+/** 計算目標月份的各假別已使用數（按 leave_date 年月，只計放假記錄） */
 export function getRosterUsedCounts(leaveRecords: UserLeaveRecord[], year: number, month: number) {
   const inMonth = (date: string) => isDateInTargetMonth(date, year, month);
+  const leaves = leaveRecords.filter((l) => l.record_type === 'leave');
   return {
-    doUsed: leaveRecords.filter((l) => l.leave_type === 'DO' && inMonth(l.leave_date)).length,
-    prdUsed: leaveRecords.filter((l) => l.leave_type === 'PRD' && inMonth(l.leave_date)).length,
-    phUsed: leaveRecords.filter((l) => l.leave_type === 'PH' && inMonth(l.leave_date)).length,
-    shUsed: leaveRecords.filter((l) => l.leave_type === 'SH' && inMonth(l.leave_date)).length,
-    alUsed: leaveRecords.filter((l) => l.leave_type === 'AL' && inMonth(l.leave_date)).length,
-    slUsed: leaveRecords.filter((l) => l.leave_type === 'SL' && inMonth(l.leave_date)).length,
-    clUsed: leaveRecords.filter((l) => l.leave_type === 'CL' && inMonth(l.leave_date)).length,
-    nplUsed: leaveRecords.filter((l) => l.leave_type === 'NPL' && inMonth(l.leave_date)).length,
+    doUsed: leaves.filter((l) => l.leave_type === 'DO' && inMonth(l.leave_date)).length,
+    prdUsed: leaves.filter((l) => l.leave_type === 'PRD' && inMonth(l.leave_date)).length,
+    phUsed: leaves.filter((l) => l.leave_type === 'PH' && inMonth(l.leave_date)).length,
+    shUsed: leaves.filter((l) => l.leave_type === 'SH' && inMonth(l.leave_date)).length,
+    alUsed: leaves.filter((l) => l.leave_type === 'AL' && inMonth(l.leave_date)).length,
+    slUsed: leaves.filter((l) => l.leave_type === 'SL' && inMonth(l.leave_date)).length,
+    clUsed: leaves.filter((l) => l.leave_type === 'CL' && inMonth(l.leave_date)).length,
+    nplUsed: leaves.filter((l) => l.leave_type === 'NPL' && inMonth(l.leave_date)).length,
   };
 }

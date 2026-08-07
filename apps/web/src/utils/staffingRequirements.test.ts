@@ -357,4 +357,11 @@ describe('雙紅線獨立合格引擎', () => {
     expect(result.dailyHours['註冊/登記護士']).toBe(14.0);
     expect(result.dailyHours['保健員']).toBe(14.0);
   });
+
+  it('甲一或甲二有買位宿位時 hasContractHours 為 true，否則 false', () => {
+    expect(computeDualRedLineStaffing(makeInput({ bedCounts: { 甲一買位: 40 } })).hasContractHours).toBe(true);
+    expect(computeDualRedLineStaffing(makeInput({ bedCounts: { 甲二買位: 40 } })).hasContractHours).toBe(true);
+    expect(computeDualRedLineStaffing(makeInput({ bedCounts: { 安老院: 40 } })).hasContractHours).toBe(false);
+    expect(computeDualRedLineStaffing(makeInput({})).hasContractHours).toBe(false);
+  });
 });

@@ -18,8 +18,15 @@ function makeLeave(
     id,
     user_id: 'u1',
     leave_date: date,
+    record_type: 'leave',
     leave_type: type,
     reference_public_holiday_id: refId ?? null,
+    urgency: 'mandatory',
+    availability_start_time: null,
+    availability_end_time: null,
+    is_overridden: false,
+    overridden_by: null,
+    overridden_at: null,
     remark: null,
     created_at: '',
     updated_at: '',
@@ -38,7 +45,9 @@ const baseCtx = {
   doBalance: 0,
   restDayFraction: 0,
   prdExpected: 0,
+  alBalance: 0,
   publicHolidays: [] as PublicHoliday[],
+  publicHolidayType: null as 'PH' | 'SH' | null,
 };
 
 describe('isDateInTargetMonth', () => {
@@ -68,40 +77,40 @@ describe('validateScheduledLeave', () => {
   it('DO 額度足夠 → 通過', () => {
     const ctx = { ...baseCtx, doBalance: 1 };
     expect(
-      validateScheduledLeave({ leaveDate: '2025-04-10', leaveType: 'DO' }, ctx),
+      validateScheduledLeave({ recordType: 'leave', urgency: 'mandatory', leaveDate: '2025-04-10', leaveType: 'DO' }, ctx),
     ).toBeNull();
   });
 
   it('DO 額度不足 → 錯誤', () => {
     const ctx = { ...baseCtx, doBalance: 0 };
-    expect(validateScheduledLeave({ leaveDate: '2025-04-10', leaveType: 'DO' }, ctx)).toBe(
+    expect(validateScheduledLeave({ recordType: 'leave', urgency: 'mandatory', leaveDate: '2025-04-10', leaveType: 'DO' }, ctx)).toBe(
       'DO 額度不足',
     );
   });
 
   it('PRD fraction 不足 → 錯誤', () => {
     const ctx = { ...baseCtx, restDayFraction: 0.5, prdExpected: 0 };
-    expect(validateScheduledLeave({ leaveDate: '2025-04-10', leaveType: 'PRD' }, ctx)).toBe(
+    expect(validateScheduledLeave({ recordType: 'leave', urgency: 'mandatory', leaveDate: '2025-04-10', leaveType: 'PRD' }, ctx)).toBe(
       'PRD 累積不足 1 天，無法預排',
     );
   });
 
   it('PRD fraction + 預期達 1 → 通過', () => {
     const ctx = { ...baseCtx, restDayFraction: 0.5, prdExpected: 1 };
-    expect(validateScheduledLeave({ leaveDate: '2025-04-10', leaveType: 'PRD' }, ctx)).toBeNull();
+    expect(validateScheduledLeave({ recordType: 'leave', urgency: 'mandatory', leaveDate: '2025-04-10', leaveType: 'PRD' }, ctx)).toBeNull();
   });
 
   it('PH 需關聯實際假期且同月', () => {
     const h = makeHoliday('h1', '2025-04-04', '清明節', 'PH');
     const ctx = { ...baseCtx, publicHolidays: [h] };
     expect(
-      validateScheduledLeave({ leaveDate: '2025-04-03', leaveType: 'PH', referencePublicHolidayId: 'h1' }, ctx),
+      validateScheduledLeave({ recordType: 'leave', urgency: 'mandatory', leaveDate: '2025-04-03', leaveType: 'PH', referencePublicHolidayId: 'h1' }, ctx),
     ).toBeNull();
     expect(
-      validateScheduledLeave({ leaveDate: '2025-05-03', leaveType: 'PH', referencePublicHolidayId: 'h1' }, ctx),
-    ).toBe('預排日必須在目标排班月份內');
+      validateScheduledLeave({ recordType: 'leave', urgency: 'mandatory', leaveDate: '2025-05-03', leaveType: 'PH', referencePublicHolidayId: 'h1' }, ctx),
+    ).toBe('預排日必須在目標排班月份內');
     expect(
-      validateScheduledLeave({ leaveDate: '2025-04-03', leaveType: 'PH' }, ctx),
+      validateScheduledLeave({ recordType: 'leave', urgency: 'mandatory', leaveDate: '2025-04-03', leaveType: 'PH' }, ctx),
     ).toBe('PH/SH 預排必須關聯實際假期');
   });
 
@@ -109,7 +118,7 @@ describe('validateScheduledLeave', () => {
     const h = makeHoliday('h1', '2025-04-04', '清明節', 'PH');
     const ctx = { ...baseCtx, publicHolidays: [h], usedHolidayIds: new Set(['h1']) };
     expect(
-      validateScheduledLeave({ leaveDate: '2025-04-03', leaveType: 'PH', referencePublicHolidayId: 'h1' }, ctx),
+      validateScheduledLeave({ recordType: 'leave', urgency: 'mandatory', leaveDate: '2025-04-03', leaveType: 'PH', referencePublicHolidayId: 'h1' }, ctx),
     ).toBe('該實際假期已被同一員工預排');
   });
 
@@ -119,8 +128,8 @@ describe('validateScheduledLeave', () => {
       doBalance: 1,
       existingLeaves: [makeLeave('1', '2025-04-10', 'DO')],
     };
-    expect(validateScheduledLeave({ leaveDate: '2025-04-10', leaveType: 'AL' }, ctx)).toBe(
-      '該員工在目標日期已有請假記錄',
+    expect(validateScheduledLeave({ recordType: 'leave', urgency: 'mandatory', leaveDate: '2025-04-10', leaveType: 'AL' }, ctx)).toBe(
+      '該員工在目標日期已有預排記錄',
     );
   });
 });

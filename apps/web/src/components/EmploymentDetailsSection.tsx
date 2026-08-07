@@ -8,7 +8,6 @@ import {
   PublicHoliday,
   UserLeaveRecord,
   LeaveType,
-  WorkPattern,
   LEAVE_TYPES,
   LEAVE_TYPE_LABELS,
 } from '@care-suite/shared';
@@ -21,6 +20,7 @@ import {
   weeklyRestDays,
 } from '../utils/restDays';
 import { getExpectedPublicHolidayGrants, loadPublicHolidaysRange } from '../utils/publicHolidays';
+import { normalizeTime } from '../utils/roster';
 
 // =====================================================
 // 僱傭詳情區塊（用戶管理 Modal 內，編輯適用職位用戶時顯示）
@@ -99,9 +99,9 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // ----- 僱傭詳情表單（數字欄位以字串保存，'' = null） -----
-  const [workPattern, setWorkPattern] = useState<WorkPattern | null>(null);
   const [weeklyContractHours, setWeeklyContractHours] = useState('');
   const [dailyContractHours, setDailyContractHours] = useState('');
+  const [defaultWorkStartTime, setDefaultWorkStartTime] = useState('');
   const [weeklyWorkDays, setWeeklyWorkDays] = useState('');
   const [hoursBalance, setHoursBalance] = useState('0');
   const [restDayStartDate, setRestDayStartDate] = useState(user.hire_date || '');
@@ -164,7 +164,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
 
   // ----- 請假概況 -----
   const [leaveRecords, setLeaveRecords] = useState<UserLeaveRecord[]>([]);
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const [matrixMonth, setMatrixMonth] = useState({ y: now.getFullYear(), m: now.getMonth() + 1 });
 
   // ----- 計算值 -----
@@ -364,9 +364,9 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       if (e7) throw e7;
 
       if (details) {
-        setWorkPattern(details.work_pattern);
         setWeeklyContractHours(details.weekly_contract_hours?.toString() ?? '');
         setDailyContractHours(details.daily_contract_hours?.toString() ?? '');
+        setDefaultWorkStartTime(normalizeTime(details.default_work_start_time) ?? details.default_work_start_time ?? '');
         setWeeklyWorkDays(details.weekly_work_days?.toString() ?? '');
         setHoursBalance(details.hours_balance?.toString() ?? '0');
         setRestDayFraction(details.rest_day_fraction ?? 0);
@@ -560,9 +560,9 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       const { error } = await supabase.from('user_employment_details').upsert(
         {
           user_id: user.id,
-          work_pattern: workPattern,
           weekly_contract_hours: parsed['每周合約時間'],
           daily_contract_hours: parsed['每天合約工時'],
+          default_work_start_time: normalizeTime(defaultWorkStartTime) || defaultWorkStartTime || null,
           weekly_work_days: parsed['每周工作天數'],
           hours_balance: parsed['工時結餘'] ?? 0,
           rest_day_start_date: restDayStartDate || null,
@@ -813,7 +813,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
     }
   };
 
-  // ----- 優先指派局住區（勾選衝突時自動從另一組移除） -----
+  // ----- 優先指派居住區（勾選衝突時自動從另一組移除） -----
   const handlePrimaryChange = (id: string) => {
     setPreferredPrimary(id);
     if (id) {
@@ -1014,31 +1014,23 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
             <p className="text-sm text-gray-500">載入中...</p>
           ) : (
             <>
-              {/* 1. 工作日安排 */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-900 mb-2">工作日安排</h4>
-                <div className="flex items-center gap-6">
-                  {(['輪班', '一至五'] as WorkPattern[]).map(p => (
-                    <label key={p} className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={workPattern === p}
-                        onChange={e => setWorkPattern(e.target.checked ? p : null)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      {p}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* 2. 工作時間 */}
+              {/* 1. 工作時間 */}
               <div>
                 <h4 className="text-sm font-semibold text-gray-900 mb-2">工作時間</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {renderHalfInput('每周合約時間', weeklyContractHours, setWeeklyContractHours, { unit: '小時' })}
                   {renderHalfInput('每天合約工時', dailyContractHours, setDailyContractHours, { unit: '小時' })}
                   {renderHalfInput('每周工作天數', weeklyWorkDays, setWeeklyWorkDays, { unit: '天', max: 6 })}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">預設上班時間</label>
+                    <input
+                      type="time"
+                      value={defaultWorkStartTime}
+                      onChange={e => setDefaultWorkStartTime(e.target.value)}
+                      className={inputClass}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">拖入排班表時優先使用，未設定則跟從班次開始時間</p>
+                  </div>
                 </div>
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">工時結餘</label>
@@ -1222,9 +1214,9 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                 )}
               </div>
 
-              {/* 6. 優先指派局住區 */}
+              {/* 6. 優先指派居住區 */}
               <div>
-                <h4 className="text-sm font-semibold text-gray-900 mb-2">優先指派局住區</h4>
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">優先指派居住區</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">最優先區</label>
