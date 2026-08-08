@@ -8,7 +8,7 @@ import type { ProblemCategory } from '../lib/database';
 export function getUserProfessionCategory(userProfile: UserProfile | null): ProblemCategory | null {
   if (!userProfile) return null;
 
-  const { nursing_position, allied_health_position, department } = userProfile;
+  const { nursing_position, allied_health_position, department, other_position } = userProfile;
 
   if (nursing_position) {
     return '護理';
@@ -20,8 +20,11 @@ export function getUserProfessionCategory(userProfile: UserProfile | null): Prob
     if (allied_health_position.includes('言語')) return '言語治療';
   }
 
-  if (department === '膳食') return '營養師';
-  if (department === '社工') return '社工';
+  if (department === '庶務') return null;
+  if (department === '行政') {
+    if (other_position === '社工' || other_position === '社工助理') return '社工';
+    return null;
+  }
   // 醫生、行政、衛生等目前無法單純對應，視為不過濾
 
   return null;

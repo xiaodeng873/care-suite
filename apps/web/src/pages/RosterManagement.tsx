@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PublicHolidayModal from '../components/PublicHolidayModal';
+import { formatDisplayDate } from '../utils/dateFormat';
+import ConfirmOverrideModal from '../components/ConfirmOverrideModal';
 import RosterScheduleView from '../components/RosterScheduleView';
 import RosterLeaveModal, { type RosterLeaveModalPayload } from '../components/RosterLeaveModal';
 import RosterEmployeeCard from '../components/RosterEmployeeCard';
@@ -15,7 +17,7 @@ import type {
   UserLeaveRecord,
   UserProfile,
   UserRestDayDetail,
-  UserPublicHolidayDetail,
+  UserAnnualLeaveDetail,
   StationShiftSetting,
   UserShiftAssignment,
   EmploymentPosition,
@@ -24,10 +26,26 @@ import { getEmploymentPosition } from '@care-suite/shared';
 import { usePatients } from '../context/PatientContext';
 import type { RosterLeaveContext } from '../utils/leaveValidation';
 import { getRosterExpectedCounts, getRosterUsedCounts } from '../utils/leaveValidation';
-import { getPositionOptions, getWeekRange, toGridPosition, normalizeTime } from '../utils/roster';
-import { loadFacilityNatureSettings, DEFAULT_SPECIFIC_HOURS_CONFIG } from '../utils/facilityNatureSettings';
-import type { SpecificHoursConfig } from '../utils/facilityNatureSettings';
-import { computeDualRedLineStaffing, computeStaffingRequirements } from '../utils/staffingRequirements';
+import {
+  getPositionOptions,
+  getRosterGroupOptions,
+  getWeekRange,
+  toGridPosition,
+  normalizeTime,
+  formatDate,
+  formatTime,
+  getShiftDayRequiredHourly,
+  shiftDayWindowToShiftHours,
+  getSpecificWindowsForPosition,
+  getPreScheduleAvailableByShiftHour,
+} from '../utils/roster';
+import { addDays } from '../utils/shiftDay';
+import type { PreScheduleSegmentConflict } from '../utils/roster';
+import { getExpectedRestDayGrants } from '../utils/restDays';
+import { getExpectedAnnualLeaveGrants } from '../utils/annualLeave';
+import { loadFacilityNatureSettings, DEFAULT_SPECIFIC_HOURS_CONFIG, GRID_POSITIONS } from '../utils/facilityNatureSettings';
+import type { SpecificHoursConfig, GridPosition } from '../utils/facilityNatureSettings';
+import { computeDualRedLineStaffing, computeStaffingRequirements, timeToMinutes } from '../utils/staffingRequirements';
 import type { StaffingResult } from '../utils/staffingRequirements';
 import { useDebounce } from '../hooks/useDebounce';
 
@@ -44,12 +62,17 @@ interface Station {
   code?: string | null;
 }
 
-const ASSISTANT_DEPARTMENTS = new Set(['社工', '膳食', '衛生']);
-
 function userCanFillPosition(user: UserProfile, position: string): boolean {
+  if (position === '行政') {
+    return user.department === '行政';
+  }
+  if (position === '庶務') {
+    return user.department === '庶務';
+  }
   const primary = getEmploymentPosition(user);
+  if (primary === position) return true;
   if (toGridPosition(primary) === position) return true;
-  if ((user.secondary_positions || []).some((p) => toGridPosition(p) === position)) return true;
+  if ((user.secondary_positions || []).some((p) => p === position || toGridPosition(p) === position)) return true;
   if (
     position === '保健員' &&
     (primary === '註冊護士' ||
@@ -58,7 +81,6 @@ function userCanFillPosition(user: UserProfile, position: string): boolean {
   ) {
     return true;
   }
-  if (position === '助理員' && ASSISTANT_DEPARTMENTS.has(user.department)) return true;
   return false;
 }
 
@@ -81,7 +103,7 @@ const RosterManagement: React.FC = () => {
   const [leaveRecords, setLeaveRecords] = useState<UserLeaveRecord[]>([]);
   const [publicHolidays, setPublicHolidays] = useState<PublicHoliday[]>([]);
   const [restDetailsMap, setRestDetailsMap] = useState<Record<string, UserRestDayDetail[]>>({});
-  const [phDetailsMap, setPhDetailsMap] = useState<Record<string, UserPublicHolidayDetail[]>>({});
+  const [annualDetailsMap, setAnnualDetailsMap] = useState<Record<string, UserAnnualLeaveDetail[]>>({});
   const [loading, setLoading] = useState(true);
 
   // 排班資料
@@ -92,13 +114,13 @@ const RosterManagement: React.FC = () => {
   const [hasContractHours, setHasContractHours] = useState(false);
   const [specificHours, setSpecificHours] = useState<SpecificHoursConfig>(DEFAULT_SPECIFIC_HOURS_CONFIG);
   const [staffingResult, setStaffingResult] = useState<StaffingResult | null>(null);
-  const [selectedPosition, setSelectedPosition] = useState<EmploymentPosition | ''>('');
+  const [selectedPosition, setSelectedPosition] = useState<string>('');
   const [draggedUserId, setDraggedUserId] = useState<string | null>(null);
 
   // 左側篩選
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
-  const [filterPosition, setFilterPosition] = useState<EmploymentPosition | ''>('');
+  const [filterPosition, setFilterPosition] = useState<string>('');
   const [sortBy, setSortBy] = useState<'name' | 'position' | 'daily_hours'>('name');
 
   // 假期設定 state
@@ -112,6 +134,7 @@ const RosterManagement: React.FC = () => {
   const [leaveModal, setLeaveModal] = useState<{
     user: UserProfile;
     initialDate?: string;
+    editingRecord?: UserLeaveRecord;
   } | null>(null);
 
   // 下個月游標（假期預排）
@@ -124,6 +147,15 @@ const RosterManagement: React.FC = () => {
   // 假期預排頁專用：整月班次指派與居住區優先順序
   const [monthShiftAssignments, setMonthShiftAssignments] = useState<UserShiftAssignment[]>([]);
   const [stationPriority, setStationPriority] = useState<(string | null)[]>([]);
+
+  // 預排衝突檢查結果
+  const [preScheduleConflicts, setPreScheduleConflicts] = useState<PreScheduleSegmentConflict[]>([]);
+  const [preScheduleConflictModalOpen, setPreScheduleConflictModalOpen] = useState(false);
+  const [pendingLeaveConflict, setPendingLeaveConflict] = useState<{
+    userId: string;
+    payload: RosterLeaveModalPayload;
+    oldRecord?: UserLeaveRecord;
+  } | null>(null);
 
   const yearOptions = useMemo(() => {
     const current = new Date().getFullYear();
@@ -255,11 +287,11 @@ const RosterManagement: React.FC = () => {
       );
       setLeaveRecords((weekLeaves ?? []) as UserLeaveRecord[]);
 
-      // 預設選中第一個有員工的職位
-      const positionOptions = getPositionOptions(users);
+      // 預設選中第一個有員工的職位分頁
+      const rosterOptions = getRosterGroupOptions(users);
       setSelectedPosition((prev) => {
         if (prev) return prev;
-        return positionOptions[0] ?? '';
+        return rosterOptions[0] ?? '';
       });
     } catch (err) {
       console.error('載入排班資料失敗:', err);
@@ -371,26 +403,28 @@ const RosterManagement: React.FC = () => {
       const start = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}-01`;
       const end = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}-${new Date(monthCursor.y, monthCursor.m, 0).getDate()}`;
       const userIds = users.map((u) => u.id);
+      const holidayStart = '2020-01-01';
+      const holidayEnd = `${new Date().getFullYear() + 1}-12-31`;
 
       const [
         { data: leaves, error: e1 },
         { data: holidays, error: e2 },
         { data: restDetails, error: e3 },
-        { data: phDetails, error: e4 },
+        { data: annualDetails, error: e7 },
         { data: stationsData, error: e5 },
         { data: monthAssignments, error: e6 },
       ] = await Promise.all([
         supabase.from('user_leave_records').select('*').in('user_id', userIds).gte('leave_date', start).lte('leave_date', end),
-        supabase.from('public_holidays').select('*').gte('holiday_date', `${monthCursor.y}-01-01`).lte('holiday_date', `${monthCursor.y}-12-31`).order('holiday_date', { ascending: true }),
+        supabase.from('public_holidays').select('*').gte('holiday_date', holidayStart).lte('holiday_date', holidayEnd).order('holiday_date', { ascending: true }),
         supabase.from('user_rest_day_details').select('*').in('user_id', userIds),
-        supabase.from('user_public_holiday_details').select('*').in('user_id', userIds),
+        supabase.from('user_annual_leave_details').select('*').in('user_id', userIds),
         supabase.from('stations').select('id, name, code').order('name', { ascending: true }),
         supabase.from('user_shift_assignments').select('*').in('user_id', userIds).gte('work_date', start).lte('work_date', end),
       ]);
       if (e1) throw e1;
       if (e2) throw e2;
       if (e3) throw e3;
-      if (e4) throw e4;
+      if (e7) throw e7;
       if (e5) throw e5;
       if (e6) throw e6;
 
@@ -422,11 +456,11 @@ const RosterManagement: React.FC = () => {
       }
       setRestDetailsMap(rMap);
 
-      const pMap: Record<string, UserPublicHolidayDetail[]> = {};
-      for (const d of (phDetails ?? []) as UserPublicHolidayDetail[]) {
-        (pMap[d.user_id] ??= []).push(d);
+      const aMap: Record<string, UserAnnualLeaveDetail[]> = {};
+      for (const d of (annualDetails ?? []) as UserAnnualLeaveDetail[]) {
+        (aMap[d.user_id] ??= []).push(d);
       }
-      setPhDetailsMap(pMap);
+      setAnnualDetailsMap(aMap);
 
       await loadFacilityStaffing();
     } catch (err) {
@@ -474,48 +508,113 @@ const RosterManagement: React.FC = () => {
     });
   };
 
-  const getUserBalances = useCallback(
-    (userId: string) => {
-      const details = employmentMap[userId];
-      const expected = getRosterExpectedCounts(
-        details?.weekly_work_days ?? null,
-        details?.rest_day_fraction ?? 0,
-        publicHolidays,
-        monthCursor.y,
-        monthCursor.m,
-        details?.rest_day_start_date,
-      );
-      const userLeaves = leaveRecords.filter((l) => l.user_id === userId);
-      const used = getRosterUsedCounts(userLeaves, monthCursor.y, monthCursor.m);
+  // 預排衝突檢查：按假期預排記錄計算當天可候召人數，排除放假及有特定上班時間者
+  const handleCheckConflicts = useCallback(() => {
+    if (!staffingResult) {
+      setPreScheduleConflicts([]);
+      setPreScheduleConflictModalOpen(true);
+      return;
+    }
+    const conflicts: PreScheduleSegmentConflict[] = [];
+    const daysInMonth = new Date(monthCursor.y, monthCursor.m, 0).getDate();
+    const positionsToCheck: GridPosition[] = ['護理員', '助理員', '保健員', '註冊/登記護士'];
 
-      const restGrantTotal = (restDetailsMap[userId] ?? [])
-        .filter((d) => d.detail_type === 'grant' && d.is_system)
-        .reduce((s, d) => s + d.days, 0);
-      const restUsageTotal = (restDetailsMap[userId] ?? [])
-        .filter((d) => d.detail_type === 'usage')
-        .reduce((s, d) => s + d.days, 0);
-      const doBalance = restGrantTotal - restUsageTotal;
+    const requiredHourly: Record<string, number[]> = {};
+    for (let c = 0; c < GRID_POSITIONS.length; c++) {
+      requiredHourly[GRID_POSITIONS[c]] = staffingResult.grid.map((row) => row[c]);
+    }
 
-      const phGrantTotal = (phDetailsMap[userId] ?? [])
-        .filter((d) => d.detail_type === 'grant' && d.is_system && d.remark?.includes('PH'))
-        .reduce((s, d) => s + d.days, 0);
-      const shGrantTotal = (phDetailsMap[userId] ?? [])
-        .filter((d) => d.detail_type === 'grant' && d.is_system && d.remark?.includes('SH'))
-        .reduce((s, d) => s + d.days, 0);
+    const shiftHourToTime = (shiftHour: number): string =>
+      formatTime((shiftHour + 7) % 24, 0);
 
-      const alBalance = (details?.annual_leave_days_per_year ?? 0) - used.alUsed;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = formatDate(monthCursor.y, monthCursor.m, d);
+      const requiredByShiftHour = getShiftDayRequiredHourly(dateStr, requiredHourly);
 
-      return {
-        doBalance: doBalance + expected.doExpected,
-        restDayFraction: details?.rest_day_fraction ?? 0,
-        prdExpected: expected.prdExpected,
-        phAvailable: phGrantTotal + expected.phExpected - used.phUsed,
-        shAvailable: shGrantTotal + expected.shExpected - used.shUsed,
-        alBalance,
-      };
-    },
-    [employmentMap, publicHolidays, monthCursor, leaveRecords, restDetailsMap, phDetailsMap],
-  );
+      for (const position of positionsToCheck) {
+        const windows = getSpecificWindowsForPosition(position, specificHours);
+        if (windows.length === 0) continue;
+
+        const { available: availableByShiftHour, equivalent: equivalentByShiftHour } =
+          getPreScheduleAvailableByShiftHour(dateStr, position, users, leaveRecords);
+
+        const req = requiredByShiftHour[position];
+
+        for (const { label, segment } of windows) {
+          const { startH, endH } = shiftDayWindowToShiftHours(segment);
+          let currentGap: { start: number; end: number; required: number; actualPeople: number; equivalent: number } | null = null;
+          for (let h = startH; h < endH; h++) {
+            const shiftHour = ((h % 24) + 24) % 24;
+            const required = req?.[shiftHour] ?? 0;
+            if (required <= 0) {
+              if (currentGap) {
+                conflicts.push({
+                  date: dateStr,
+                  position,
+                  windowLabel: label,
+                  windowTime: `${segment.start}-${segment.end}`,
+                  gapTime: `${shiftHourToTime(currentGap.start)}-${shiftHourToTime(currentGap.end)}`,
+                  required: currentGap.required,
+                  actualPeople: currentGap.actualPeople,
+                  equivalent: currentGap.equivalent,
+                });
+                currentGap = null;
+              }
+              continue;
+            }
+            const actualPeople = availableByShiftHour[shiftHour] ?? 0;
+            const equivalent = equivalentByShiftHour[shiftHour] ?? 0;
+            if (equivalent < required) {
+              if (!currentGap || currentGap.required !== required || currentGap.equivalent !== equivalent) {
+                if (currentGap) {
+                  conflicts.push({
+                    date: dateStr,
+                    position,
+                    windowLabel: label,
+                    windowTime: `${segment.start}-${segment.end}`,
+                    gapTime: `${shiftHourToTime(currentGap.start)}-${shiftHourToTime(currentGap.end)}`,
+                    required: currentGap.required,
+                    actualPeople: currentGap.actualPeople,
+                    equivalent: currentGap.equivalent,
+                  });
+                }
+                currentGap = { start: h, end: h + 1, required, actualPeople, equivalent };
+              } else {
+                currentGap.end = h + 1;
+              }
+            } else if (currentGap) {
+              conflicts.push({
+                date: dateStr,
+                position,
+                windowLabel: label,
+                windowTime: `${segment.start}-${segment.end}`,
+                gapTime: `${shiftHourToTime(currentGap.start)}-${shiftHourToTime(currentGap.end)}`,
+                required: currentGap.required,
+                actualPeople: currentGap.actualPeople,
+                equivalent: currentGap.equivalent,
+              });
+              currentGap = null;
+            }
+          }
+          if (currentGap) {
+            conflicts.push({
+              date: dateStr,
+              position,
+              windowLabel: label,
+              windowTime: `${segment.start}-${segment.end}`,
+              gapTime: `${shiftHourToTime(currentGap.start)}-${shiftHourToTime(currentGap.end)}`,
+              required: currentGap.required,
+              actualPeople: currentGap.actualPeople,
+              equivalent: currentGap.equivalent,
+            });
+          }
+        }
+      }
+    }
+
+    setPreScheduleConflicts(conflicts);
+    setPreScheduleConflictModalOpen(true);
+  }, [monthCursor, leaveRecords, users, specificHours, staffingResult]);
 
   const getUsedHolidayIds = useCallback(
     (userId: string) => {
@@ -536,9 +635,174 @@ const RosterManagement: React.FC = () => {
     [leaveRecords],
   );
 
+  const getUserBalances = useCallback(
+    (userId: string) => {
+      const details = employmentMap[userId];
+      const targetMonthStr = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}`;
+      const expected = getRosterExpectedCounts(
+        details?.weekly_work_days ?? null,
+        details?.rest_day_fraction ?? 0,
+        publicHolidays,
+        monthCursor.y,
+        monthCursor.m,
+        details?.rest_day_start_date,
+      );
+
+      // 預估額度：只對「下一個月或更遠」的目標月顯示，並於「目標月前一個月的 1 日」起出現
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const targetMonthStart = new Date(monthCursor.y, monthCursor.m - 1, 1);
+      const prevMonthStart = new Date(monthCursor.y, monthCursor.m - 2, 1);
+      const showEstimated = targetMonthStart > currentMonthStart && today >= prevMonthStart;
+
+      // ---------- 休息日（DO / PRD）----------
+      const restRows = restDetailsMap[userId] ?? [];
+      const restExpected = getExpectedRestDayGrants(details?.rest_day_start_date, details?.weekly_work_days);
+      const restSystemTotal = restExpected.grants.reduce((s, g) => s + g.days, 0);
+      const restManualGrant = restRows
+        .filter((d) => d.detail_type === 'grant' && !d.is_system)
+        .reduce((s, d) => s + d.days, 0);
+      const restUsage = restRows
+        .filter((d) => d.detail_type === 'usage')
+        .reduce((s, d) => s + d.days, 0);
+      const restWriteoff = restRows
+        .filter((d) => d.detail_type === 'writeoff')
+        .reduce((s, d) => s + d.days, 0);
+      const doAccumulated = restSystemTotal + restManualGrant - restUsage - restWriteoff;
+      const doEstimated = showEstimated ? expected.doExpected : 0;
+      const prdAccumulated = details?.rest_day_fraction ?? 0;
+      const prdEstimated = showEstimated ? expected.prdExpected : 0;
+
+      // ---------- 有薪年假 ----------
+      const alRows = annualDetailsMap[userId] ?? [];
+      const alExpected = getExpectedAnnualLeaveGrants(details?.annual_leave_start_date, details?.annual_leave_days_per_year);
+      const alSystemTotal = alExpected.reduce((s, g) => s + g.days, 0);
+      const alManualGrant = alRows
+        .filter((d) => d.detail_type === 'grant' && !d.is_system)
+        .reduce((s, d) => s + d.days, 0);
+      const alUsage = alRows
+        .filter((d) => d.detail_type === 'usage')
+        .reduce((s, d) => s + d.days, 0);
+      const alWriteoff = alRows
+        .filter((d) => d.detail_type === 'writeoff')
+        .reduce((s, d) => s + d.days, 0);
+      const alAccumulated = alSystemTotal + alManualGrant - alUsage - alWriteoff;
+      const alEstimated = showEstimated
+        ? alExpected.filter((g) => g.record_date.startsWith(targetMonthStr)).reduce((s, g) => s + g.days, 0)
+        : 0;
+
+      // ---------- 公眾假期（PH / SH）----------
+      // 自 2026-08-08 起：每個假期獨立一行，有效期為 holiday_date + 30 天。
+      // 累積 = 未過期且未使用的該類假期數；預估 = 目標月份該類假期數（由本月 1 日起顯示）。
+      const phType = details?.public_holiday_type;
+      const phStart = details?.public_holiday_start_date;
+      const usedHolidayIds = getUsedHolidayIds(userId);
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      let phAccumulated = 0;
+      let phEstimated = 0;
+      let shAccumulated = 0;
+      let shEstimated = 0;
+      if (phType && phStart) {
+        const userHolidays = publicHolidays.filter(
+          (h) => h.type === phType && h.holiday_date >= phStart,
+        );
+        const unexpired = userHolidays.filter(
+          (h) => addDays(h.holiday_date, 30) >= todayStr,
+        );
+        const unusedUnexpired = unexpired.filter((h) => !usedHolidayIds.has(h.id));
+        const accumulated = unusedUnexpired.length;
+        const estimated = showEstimated
+          ? userHolidays.filter((h) => h.holiday_date.startsWith(targetMonthStr)).length
+          : 0;
+        if (phType === 'PH') {
+          phAccumulated = accumulated;
+          phEstimated = estimated;
+        } else {
+          shAccumulated = accumulated;
+          shEstimated = estimated;
+        }
+      }
+
+      return {
+        doBalance: doAccumulated + doEstimated,
+        doAccumulated,
+        doEstimated,
+        restDayFraction: prdAccumulated,
+        prdExpected: expected.prdExpected,
+        prdEstimated,
+        alBalance: alAccumulated + alEstimated,
+        alAccumulated,
+        alEstimated,
+        phAvailable: phAccumulated + phEstimated,
+        phAccumulated,
+        phEstimated,
+        shAvailable: shAccumulated + shEstimated,
+        shAccumulated,
+        shEstimated,
+      };
+    },
+    [
+      employmentMap,
+      publicHolidays,
+      monthCursor,
+      restDetailsMap,
+      annualDetailsMap,
+      getUsedHolidayIds,
+    ],
+  );
+
   const handleCellClick = (user: UserProfile, date: string) => {
     setLeaveModal({ user, initialDate: date });
   };
+
+  const handleLeaveClick = (record: UserLeaveRecord) => {
+    const user = users.find((u) => u.id === record.user_id);
+    if (!user) return;
+    setLeaveModal({ user, editingRecord: record });
+  };
+
+  const handleDeleteLeave = useCallback(async () => {
+    if (!leaveModal?.editingRecord) return;
+    const record = leaveModal.editingRecord;
+    try {
+      const { error: e1 } = await supabase.from('user_leave_records').delete().eq('id', record.id);
+      if (e1) throw e1;
+
+      if (record.record_type === 'leave' && record.leave_type === 'DO') {
+        const { error: e2 } = await supabase
+          .from('user_rest_day_details')
+          .delete()
+          .eq('user_id', record.user_id)
+          .eq('record_date', record.leave_date)
+          .eq('detail_type', 'usage');
+        if (e2) throw e2;
+      } else if (record.record_type === 'leave' && record.leave_type === 'PRD') {
+        const details = employmentMap[record.user_id];
+        const newFraction = Math.max(0, (details?.rest_day_fraction ?? 0) + 1);
+        const { error: e2 } = await supabase
+          .from('user_employment_details')
+          .update({ rest_day_fraction: newFraction, updated_at: new Date().toISOString() })
+          .eq('user_id', record.user_id);
+        if (e2) throw e2;
+      } else if (record.record_type === 'leave' && (record.leave_type === 'PH' || record.leave_type === 'SH')) {
+        const { error: e2 } = await supabase
+          .from('user_public_holiday_details')
+          .delete()
+          .eq('user_id', record.user_id)
+          .eq('record_date', record.leave_date)
+          .eq('reference_public_holiday_id', record.reference_public_holiday_id)
+          .eq('detail_type', 'usage');
+        if (e2) throw e2;
+      }
+
+      await loadLeaveData();
+    } catch (err) {
+      console.error('刪除預排失敗:', err);
+      throw new Error('刪除預排失敗');
+    }
+  }, [leaveModal, employmentMap, loadLeaveData]);
 
   const handleMoveLeave = async (record: UserLeaveRecord, targetDate: string) => {
     const isOwn = record.user_id === userProfile?.id;
@@ -567,6 +831,7 @@ const RosterManagement: React.FC = () => {
           .update({ record_date: targetDate })
           .eq('user_id', record.user_id)
           .eq('record_date', record.leave_date)
+          .eq('reference_public_holiday_id', record.reference_public_holiday_id)
           .eq('detail_type', 'usage');
       }
 
@@ -579,52 +844,44 @@ const RosterManagement: React.FC = () => {
     }
   };
 
-  const handleLeaveClick = async (record: UserLeaveRecord) => {
-    const label =
-      record.record_type === 'availability'
-        ? `能夠上班時間 ${record.availability_start_time}-${record.availability_end_time}`
-        : record.leave_type ?? '預排';
-    if (!window.confirm(`確定刪除 ${record.leave_date} 的 ${label} 預排？`)) return;
-    try {
-      const { error: e1 } = await supabase.from('user_leave_records').delete().eq('id', record.id);
-      if (e1) throw e1;
+  const executeSaveLeave = async (payload: RosterLeaveModalPayload, oldRecord?: UserLeaveRecord) => {
+    if (!leaveModal) return;
+    const userId = leaveModal.user.id;
 
-      if (record.record_type === 'leave' && record.leave_type === 'DO') {
+    // 編輯時：先刪除舊記錄及相關明細，再以新資料插入（避免 leave_type / date 改變後明細錯亂）
+    if (oldRecord) {
+      const { error: eDel } = await supabase.from('user_leave_records').delete().eq('id', oldRecord.id);
+      if (eDel) throw eDel;
+
+      if (oldRecord.record_type === 'leave' && oldRecord.leave_type === 'DO') {
         const { error: e2 } = await supabase
           .from('user_rest_day_details')
           .delete()
-          .eq('user_id', record.user_id)
-          .eq('record_date', record.leave_date)
+          .eq('user_id', userId)
+          .eq('record_date', oldRecord.leave_date)
           .eq('detail_type', 'usage');
         if (e2) throw e2;
-      } else if (record.record_type === 'leave' && record.leave_type === 'PRD') {
-        const details = employmentMap[record.user_id];
+      } else if (oldRecord.record_type === 'leave' && oldRecord.leave_type === 'PRD') {
+        const details = employmentMap[userId];
         const newFraction = Math.max(0, (details?.rest_day_fraction ?? 0) + 1);
         const { error: e2 } = await supabase
           .from('user_employment_details')
           .update({ rest_day_fraction: newFraction, updated_at: new Date().toISOString() })
-          .eq('user_id', record.user_id);
+          .eq('user_id', userId);
         if (e2) throw e2;
-      } else if (record.record_type === 'leave' && (record.leave_type === 'PH' || record.leave_type === 'SH')) {
+      } else if (oldRecord.record_type === 'leave' && (oldRecord.leave_type === 'PH' || oldRecord.leave_type === 'SH')) {
         const { error: e2 } = await supabase
           .from('user_public_holiday_details')
           .delete()
-          .eq('user_id', record.user_id)
-          .eq('record_date', record.leave_date)
+          .eq('user_id', userId)
+          .eq('record_date', oldRecord.leave_date)
+          .eq('reference_public_holiday_id', oldRecord.reference_public_holiday_id)
           .eq('detail_type', 'usage');
         if (e2) throw e2;
       }
 
-      await loadLeaveData();
-    } catch (err) {
-      console.error('刪除預排失敗:', err);
-      alert('刪除預排失敗');
+      setLeaveRecords((prev) => prev.filter((l) => l.id !== oldRecord.id));
     }
-  };
-
-  const handleSaveLeave = async (payload: RosterLeaveModalPayload) => {
-    if (!leaveModal) return;
-    const userId = leaveModal.user.id;
 
     const insertPayload: Record<string, unknown> = {
       user_id: userId,
@@ -676,6 +933,8 @@ const RosterManagement: React.FC = () => {
         detail_type: 'usage',
         days: 1,
         remark: `排班預排 ${leaveType}: ${holiday?.name ?? ''}`,
+        reference_public_holiday_id: holiday?.id ?? null,
+        expiry_date: holiday ? addDays(holiday.holiday_date, 30) : null,
         is_system: false,
       });
       if (e2) throw e2;
@@ -703,6 +962,37 @@ const RosterManagement: React.FC = () => {
     });
 
     await loadLeaveData();
+  };
+
+  const handleSaveLeave = async (payload: RosterLeaveModalPayload) => {
+    if (!leaveModal) return;
+    const userId = leaveModal.user.id;
+    const oldRecord = leaveModal.editingRecord;
+
+    // 檢查是否與已排班次衝突
+    const conflictingAssignments = monthShiftAssignments.filter(
+      (a) => a.user_id === userId && a.work_date === payload.leaveDate,
+    );
+    const hasShiftConflict =
+      conflictingAssignments.length > 0 &&
+      (payload.recordType === 'leave' ||
+        (payload.recordType === 'availability' &&
+          payload.availabilityStartTime &&
+          payload.availabilityEndTime &&
+          conflictingAssignments.some((a) => {
+            const s = timeToMinutes(payload.availabilityStartTime!);
+            const e = timeToMinutes(payload.availabilityEndTime!);
+            const as = timeToMinutes(a.start_time ?? '00:00');
+            const ae = timeToMinutes(a.end_time ?? '00:00');
+            return s < ae && e > as;
+          })));
+
+    if (hasShiftConflict) {
+      setPendingLeaveConflict({ userId, payload, oldRecord });
+      return;
+    }
+
+    await executeSaveLeave(payload, oldRecord);
   };
 
   const leaveModalContext: RosterLeaveContext | null = useMemo(() => {
@@ -752,8 +1042,12 @@ const RosterManagement: React.FC = () => {
   };
 
   const grouped = useMemo(() => {
-    const ph = holidays.filter((h) => h.type === 'PH');
-    const sh = holidays.filter((h) => h.type === 'SH');
+    const ph = holidays
+      .filter((h) => h.type === 'PH')
+      .sort((a, b) => a.holiday_date.localeCompare(b.holiday_date));
+    const sh = holidays
+      .filter((h) => h.type === 'SH')
+      .sort((a, b) => a.holiday_date.localeCompare(b.holiday_date));
     return { ph, sh };
   }, [holidays]);
 
@@ -795,7 +1089,7 @@ const RosterManagement: React.FC = () => {
             )}
             {list.map((h) => (
               <tr key={h.id} className="border-t border-gray-100">
-                <td className="px-4 py-2 whitespace-nowrap">{h.holiday_date}</td>
+                <td className="px-4 py-2 whitespace-nowrap">{formatDisplayDate(h.holiday_date)}</td>
                 <td className="px-4 py-2">{h.name}</td>
                 <td className="px-4 py-2 text-right">
                   {isAdminUser ? (
@@ -835,7 +1129,7 @@ const RosterManagement: React.FC = () => {
   );
 
   // 左側員工卡片篩選
-  const positionOptions = useMemo(() => getPositionOptions(users), [users]);
+  const positionOptions = useMemo(() => getRosterGroupOptions(users), [users]);
 
   const filteredEmployeeCards = useMemo(() => {
     let list = users;
@@ -850,6 +1144,12 @@ const RosterManagement: React.FC = () => {
     }
     if (filterPosition) {
       list = list.filter((u) => {
+        if (filterPosition === '行政') {
+          return u.department === '行政';
+        }
+        if (filterPosition === '庶務') {
+          return u.department === '庶務';
+        }
         const primary = getEmploymentPosition(u);
         if (primary === filterPosition) return true;
         return (u.secondary_positions || []).includes(filterPosition);
@@ -949,7 +1249,7 @@ const RosterManagement: React.FC = () => {
               </div>
               <select
                 value={filterPosition}
-                onChange={(e) => setFilterPosition(e.target.value as EmploymentPosition | '')}
+                onChange={(e) => setFilterPosition(e.target.value)}
                 className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">所有職位</option>
@@ -990,7 +1290,7 @@ const RosterManagement: React.FC = () => {
                     doBalance={balances.doBalance}
                     prdBalance={balances.prdBalance}
                     alBalance={balances.alBalance}
-                    draggable={isAdminUser && !!selectedPosition && userCanFillPosition(user, toGridPosition(selectedPosition))}
+                    draggable={isAdminUser && !!selectedPosition && userCanFillPosition(user, selectedPosition)}
                     onDragStart={() => setDraggedUserId(user.id)}
                     onDragEnd={() => setDraggedUserId(null)}
                   />
@@ -1023,6 +1323,7 @@ const RosterManagement: React.FC = () => {
               onAssignmentChange={loadAssignmentsOnly}
               onLeaveRecordsChange={() => loadRosterData(false)}
               onSettingsChange={reloadShiftSettingsAndAssignments}
+              onViewLeaveTab={() => setActiveTab('leave')}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-400">
@@ -1053,7 +1354,7 @@ const RosterManagement: React.FC = () => {
               <ChevronRight className="h-5 w-5" />
             </button>
             <span className="text-sm text-gray-500">
-              點擊空格新增預排，點擊已排預排刪除
+              點擊空格新增預排，點擊已排預排編輯
             </span>
           </div>
 
@@ -1081,7 +1382,10 @@ const RosterManagement: React.FC = () => {
               onCellClick={handleCellClick}
               onLeaveClick={handleLeaveClick}
               onMoveLeave={handleMoveLeave}
-              onCheckConflicts={() => {}}
+              onCheckConflicts={handleCheckConflicts}
+              complianceMode="preSchedule"
+              preScheduleConflicts={preScheduleConflicts}
+              getUserFullBalances={getUserBalances}
             />
           )}
         </div>
@@ -1136,10 +1440,95 @@ const RosterManagement: React.FC = () => {
           isOpen
           onClose={() => setLeaveModal(null)}
           onSave={handleSaveLeave}
+          onDelete={leaveModal.editingRecord ? handleDeleteLeave : undefined}
           user={leaveModal.user}
           initialDate={leaveModal.initialDate}
+          editingRecord={leaveModal.editingRecord}
           context={leaveModalContext}
         />
+      )}
+
+      {pendingLeaveConflict && (
+        <ConfirmOverrideModal
+          isOpen
+          title="預排與排班衝突"
+          onClose={() => setPendingLeaveConflict(null)}
+          secondaryLabel="查看排班表"
+          onSecondary={() => {
+            setPendingLeaveConflict(null);
+            setActiveTab('roster');
+          }}
+        >
+          <div className="space-y-2">
+            <p>
+              <span className="font-medium">{pendingLeaveConflict.oldRecord ? '修改後' : '新增'}的預排</span>與以下現有班次重疊，無法新增：
+            </p>
+            <ul className="list-disc pl-5 space-y-1">
+              {monthShiftAssignments
+                .filter(
+                  (a) =>
+                    a.user_id === pendingLeaveConflict.userId &&
+                    a.work_date === pendingLeaveConflict.payload.leaveDate,
+                )
+                .map((a) => {
+                  const station = stations.find((s) => s.id === a.station_id);
+                  return (
+                    <li key={a.id}>
+                      {station?.name ?? '未分配居住區'} / {a.shift_name} / {a.start_time?.slice(0, 5)}-{a.end_time?.slice(0, 5)}
+                    </li>
+                  );
+                })}
+            </ul>
+            <p className="text-gray-500">
+              請先到排班表刪除衝突班次，或改由排班表直接調整。此處不再提供「仍要預排」。
+            </p>
+          </div>
+        </ConfirmOverrideModal>
+      )}
+
+      {preScheduleConflictModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">預排人手衝突檢查</h3>
+              <button
+                type="button"
+                onClick={() => setPreScheduleConflictModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto">
+              {preScheduleConflicts.length === 0 ? (
+                <p className="text-sm text-green-700">本月預排無人手衝突。</p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">以下日期職位在特定鐘點時段人手不足（未預排放假且無特定上班時間者視為可候召）：</p>
+                  {preScheduleConflicts.map((c, idx) => (
+                    <div key={idx} className="text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-800">
+                      <div className="font-medium">{c.date} {c.position} {c.gapTime}</div>
+                      <div className="text-red-700">
+                        {c.position === '保健員'
+                          ? `${c.windowLabel}（${c.windowTime}）：需要 ${c.required} 名保健員人手，可候召 ${c.actualPeople} 人（等效 ${c.equivalent} 人），人手不足`
+                          : `${c.windowLabel}（${c.windowTime}）：需要 ${c.required} 人，可候召 ${c.actualPeople} 人，人手不足`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPreScheduleConflictModalOpen(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                關閉
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

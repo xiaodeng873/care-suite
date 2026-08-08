@@ -11,7 +11,7 @@
 export type UserRole = 'developer' | 'admin' | 'staff';
 
 /** 部門類型 */
-export type DepartmentType = '行政' | '社工' | '護理' | '專職' | '膳食' | '衛生';
+export type DepartmentType = '行政' | '庶務' | '護理' | '專職' | '衛生';
 
 /** 護理部門職位 */
 export type NursingPositionType = '註冊護士' | '登記護士' | '保健員' | '護理員';
@@ -26,7 +26,13 @@ export type AlliedHealthPositionType =
   | '言語治療師助理';
 
 /** 衛生部門職位 */
-export type HygienePositionType = '助理員';
+export type HygienePositionType = '清潔員';
+
+/** 行政部門職位 */
+export type AdminPositionType = '主管' | '文員' | '會計' | '社工' | '社工助理';
+
+/** 庶務部門職位 */
+export type GeneralAffairsPositionType = '廚師' | '清潔員';
 
 /** 僱傭類型 */
 export type EmploymentType = '正職' | '兼職';
@@ -117,10 +123,9 @@ export interface UserSession {
 /** 部門列表 */
 export const DEPARTMENTS: DepartmentType[] = [
   '行政',
-  '社工',
+  '庶務',
   '護理',
   '專職',
-  '膳食',
   '衛生',
 ];
 
@@ -161,19 +166,20 @@ export const ALLIED_HEALTH_POSITIONS: AlliedHealthPositionType[] = [
 ];
 
 /** 衛生部門職位列表 */
-export const HYGIENE_POSITIONS: HygienePositionType[] = ['助理員'];
-
-/** 行政部門職位（排班管理：主管） */
-export type AdminPositionType = '主管';
+export const HYGIENE_POSITIONS: HygienePositionType[] = ['清潔員'];
 
 /** 行政部門職位列表 */
-export const ADMIN_POSITIONS: AdminPositionType[] = ['主管'];
+export const ADMIN_POSITIONS: AdminPositionType[] = ['主管', '文員', '會計', '社工', '社工助理'];
+
+/** 庶務部門職位列表 */
+export const GENERAL_AFFAIRS_POSITIONS: GeneralAffairsPositionType[] = ['廚師', '清潔員'];
 
 /** 全部枚舉職位列表（次要職位選項等用途） */
 export const ALL_POSITIONS: string[] = [
   ...ADMIN_POSITIONS,
   ...NURSING_POSITIONS,
   ...ALLIED_HEALTH_POSITIONS,
+  ...GENERAL_AFFAIRS_POSITIONS,
   ...HYGIENE_POSITIONS,
 ];
 
@@ -187,12 +193,22 @@ export type WorkPattern = '輪班' | '一至五';
 /** 僱傭詳情適用職位判斷結果 */
 export type EmploymentPosition =
   | '主管'
+  | '文員'
+  | '會計'
   | '註冊護士'
   | '登記護士'
   | '保健員'
   | '護理員'
-  | '助理員'
-  | '物理治療師';
+  | '物理治療師'
+  | '物理治療師助理'
+  | '職業治療師'
+  | '職業治療師助理'
+  | '言語治療師'
+  | '言語治療師助理'
+  | '社工助理'
+  | '社工'
+  | '廚師'
+  | '清潔員';
 
 /** 公眾假期類型：銀行假期(PH) / 勞工假期(SH) */
 export type PublicHolidayType = 'PH' | 'SH';
@@ -267,8 +283,14 @@ export type BalanceType = 'hours' | 'rest_days';
 /** 休息日用度明細（對應 user_rest_day_details 表，結構與年假明細相同） */
 export type UserRestDayDetail = UserAnnualLeaveDetail;
 
-/** 公眾假期用度明細（對應 user_public_holiday_details 表，結構與年假明細相同） */
-export type UserPublicHolidayDetail = UserAnnualLeaveDetail;
+/** 公眾假期用度明細（對應 user_public_holiday_details 表）
+ *  在年假明細基礎上加入關聯假期與 30 天有效期 */
+export interface UserPublicHolidayDetail extends UserAnnualLeaveDetail {
+  /** 關聯的 public_holidays 記錄；grant 必須填寫，usage/writeoff 可為 null */
+  reference_public_holiday_id: string | null;
+  /** 有效期至（grant 必填，為 holiday_date + 30 天） */
+  expiry_date: string | null;
+}
 
 /** 結餘抹平記錄（對應 user_balance_adjustments 表） */
 export interface UserBalanceAdjustment {
@@ -283,10 +305,10 @@ export interface UserBalanceAdjustment {
 }
 
 /** 請假類型 */
-export type LeaveType = 'AL' | 'PRD' | 'DO' | 'SL' | 'CL' | 'NPL' | 'PH' | 'SH';
+export type LeaveType = 'AL' | 'PRD' | 'DO' | 'SL' | 'NPL' | 'PH' | 'SH';
 
 /** 請假類型列表 */
-export const LEAVE_TYPES: LeaveType[] = ['AL', 'PRD', 'DO', 'SL', 'CL', 'NPL', 'PH', 'SH'];
+export const LEAVE_TYPES: LeaveType[] = ['AL', 'PRD', 'DO', 'SL', 'NPL', 'PH', 'SH'];
 
 /** 請假類型中文名稱對照 */
 export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
@@ -294,7 +316,6 @@ export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   PRD: '補休/PRD',
   DO: '休息日',
   SL: '病假',
-  CL: '事假',
   NPL: '無薪假',
   PH: '銀行假期',
   SH: '勞工假期',
@@ -372,6 +393,10 @@ export interface UserShiftAssignment {
   start_time: string;
   end_time: string | null;
   created_by: string | null;
+  /** 因與預排衝突而被 override，是否需重新調整 */
+  is_overridden?: boolean;
+  overridden_by?: string | null;
+  overridden_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -394,23 +419,44 @@ export function getEmploymentPosition(
 ): EmploymentPosition | null {
   if (!profile) return null;
   if (profile.other_position === '主管') return '主管';
+  if (profile.other_position === '文員') return '文員';
+  if (profile.other_position === '會計') return '會計';
+  if (profile.other_position === '社工助理') return '社工助理';
+  if (profile.other_position === '社工') return '社工';
+  if (profile.other_position === '廚師') return '廚師';
+  if (profile.other_position === '清潔員') return '清潔員';
   if (profile.nursing_position === '註冊護士') return '註冊護士';
   if (profile.nursing_position === '登記護士') return '登記護士';
   if (profile.nursing_position === '保健員') return '保健員';
   if (profile.nursing_position === '護理員') return '護理員';
-  if (profile.hygiene_position === '助理員') return '助理員';
+  if (profile.hygiene_position === '清潔員') return '清潔員';
   if (profile.allied_health_position === '物理治療師') return '物理治療師';
+  if (profile.allied_health_position === '物理治療師助理') return '物理治療師助理';
+  if (profile.allied_health_position === '職業治療師') return '職業治療師';
+  if (profile.allied_health_position === '職業治療師助理') return '職業治療師助理';
+  if (profile.allied_health_position === '言語治療師') return '言語治療師';
+  if (profile.allied_health_position === '言語治療師助理') return '言語治療師助理';
 
   // 主要職位不適用時，檢查次要職位（按僱傭詳情適用職位順序取第一個）
   const secondaryPositions = profile.secondary_positions || [];
   const applicablePositions: EmploymentPosition[] = [
     '主管',
+    '文員',
+    '會計',
     '註冊護士',
     '登記護士',
     '保健員',
     '護理員',
-    '助理員',
     '物理治療師',
+    '物理治療師助理',
+    '職業治療師',
+    '職業治療師助理',
+    '言語治療師',
+    '言語治療師助理',
+    '社工助理',
+    '社工',
+    '廚師',
+    '清潔員',
   ];
   for (const position of applicablePositions) {
     if (secondaryPositions.includes(position)) return position;
@@ -538,8 +584,10 @@ export function getPositionsByDepartment(department: DepartmentType): string[] {
       return HYGIENE_POSITIONS;
     case '行政':
       return ADMIN_POSITIONS;
+    case '庶務':
+      return GENERAL_AFFAIRS_POSITIONS;
     default:
-      return []; // 社工、膳食使用自由輸入
+      return [];
   }
 }
 
@@ -547,7 +595,7 @@ export function getPositionsByDepartment(department: DepartmentType): string[] {
  * 判斷部門是否使用枚舉職位選單
  */
 export function departmentHasEnumPositions(department: DepartmentType): boolean {
-  return ['護理', '專職', '衛生', '行政'].includes(department);
+  return ['護理', '專職', '衛生', '行政', '庶務'].includes(department);
 }
 
 /**

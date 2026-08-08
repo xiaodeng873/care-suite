@@ -32,6 +32,7 @@ import {
   ALLIED_HEALTH_POSITIONS,
   HYGIENE_POSITIONS,
   ADMIN_POSITIONS,
+  GENERAL_AFFAIRS_POSITIONS,
   ALL_POSITIONS,
   EMPLOYMENT_TYPES,
   USER_ROLE_LABELS,
@@ -39,7 +40,6 @@ import {
   PERMISSION_ACTION_LABELS,
   PERMISSION_STRUCTURE,
   getPositionsByDepartment,
-  departmentHasEnumPositions,
   DEFAULT_PART_TIME_HOUR_LIMIT,
   getEmploymentPosition,
 } from '@care-suite/shared';
@@ -208,7 +208,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
     if (dept === '護理') return formData.nursing_position;
     if (dept === '專職') return formData.allied_health_position;
     if (dept === '衛生') return formData.hygiene_position;
-    if (dept === '行政') return formData.other_position;
+    if (dept === '行政' || dept === '庶務') return formData.other_position;
     return '';
   };
 
@@ -338,7 +338,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
       );
     }
 
-    // 行政 - 枚舉職位（主管），存入 other_position
+    // 行政 - 枚舉職位，存入 other_position
     if (dept === '行政') {
       return (
         <div>
@@ -359,7 +359,28 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
       );
     }
 
-    // 社工、膳食 - 自由輸入
+    // 庶務 - 枚舉職位，存入 other_position
+    if (dept === '庶務') {
+      return (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">職位 *</label>
+          <select
+            name="other_position"
+            value={formData.other_position}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            required
+          >
+            <option value="">請選擇職位</option>
+            {GENERAL_AFFAIRS_POSITIONS.map((pos: string) => (
+              <option key={pos} value={pos}>{pos}</option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+
+    // 其他未預期部門 - 自由輸入
     return (
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">職位</label>
@@ -1155,7 +1176,7 @@ const Settings: React.FC = () => {
         nursing_position: formData.department === '護理' ? formData.nursing_position : null,
         allied_health_position: formData.department === '專職' ? formData.allied_health_position : null,
         hygiene_position: formData.department === '衛生' ? formData.hygiene_position : null,
-        other_position: !departmentHasEnumPositions(formData.department as DepartmentType) ? formData.other_position : null,
+        other_position: ['行政', '庶務'].includes(formData.department) ? formData.other_position : null,
         secondary_positions: formData.secondary_positions,
         hire_date: formData.hire_date,
         employment_type: formData.employment_type,
@@ -1222,7 +1243,7 @@ const Settings: React.FC = () => {
           nursing_position: formData.department === '護理' ? formData.nursing_position : null,
           allied_health_position: formData.department === '專職' ? formData.allied_health_position : null,
           hygiene_position: formData.department === '衛生' ? formData.hygiene_position : null,
-          other_position: !departmentHasEnumPositions(formData.department as DepartmentType) ? formData.other_position : null,
+          other_position: ['行政', '庶務'].includes(formData.department) ? formData.other_position : null,
           secondary_positions: formData.secondary_positions,
           hire_date: formData.hire_date,
           employment_type: formData.employment_type,

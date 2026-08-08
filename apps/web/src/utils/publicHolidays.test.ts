@@ -3,12 +3,13 @@ import {
   getExpectedPublicHolidayGrants,
   getPublicHolidaysForMonth,
   getValidSubstituteDates,
+  addDays,
 } from './publicHolidays';
 import type { PublicHoliday } from '@care-suite/shared';
 
 function makeHoliday(date: string, name: string, type: 'PH' | 'SH'): PublicHoliday {
   return {
-    id: 'x',
+    id: `${type}-${date}`,
     holiday_date: date,
     name,
     type,
@@ -30,23 +31,37 @@ describe('getExpectedPublicHolidayGrants', () => {
     expect(getExpectedPublicHolidayGrants('2025-06-01', 'PH', h, new Date('2025-05-01'))).toEqual([]);
   });
 
-  it('按當月 PH 日數發放，備註列出假期名稱', () => {
+  it('按每個假期獨立產生 grant，有效期為 holiday_date + 30 天', () => {
     const h = [
       makeHoliday('2025-04-04', '清明節', 'PH'),
       makeHoliday('2025-04-18', '耶穌受難節', 'PH'),
       makeHoliday('2025-05-01', '勞動節', 'PH'),
     ];
     const result = getExpectedPublicHolidayGrants('2025-04-01', 'PH', h, new Date('2025-05-05'));
-    expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({
+    expect(result).toHaveLength(3);
+    expect(result[0]).toMatchObject({
       record_date: '2025-04-01',
-      days: 2,
-      remark: '4月 PH: 清明節, 耶穌受難節',
+      days: 1,
+      remark: '清明節',
+      holiday_date: '2025-04-04',
+      expiry_date: '2025-05-04',
+      reference_public_holiday_id: 'PH-2025-04-04',
     });
-    expect(result[1]).toEqual({
+    expect(result[1]).toMatchObject({
+      record_date: '2025-04-01',
+      days: 1,
+      remark: '耶穌受難節',
+      holiday_date: '2025-04-18',
+      expiry_date: '2025-05-18',
+      reference_public_holiday_id: 'PH-2025-04-18',
+    });
+    expect(result[2]).toMatchObject({
       record_date: '2025-05-01',
       days: 1,
-      remark: '5月 PH: 勞動節',
+      remark: '勞動節',
+      holiday_date: '2025-05-01',
+      expiry_date: '2025-05-31',
+      reference_public_holiday_id: 'PH-2025-05-01',
     });
   });
 
@@ -58,9 +73,9 @@ describe('getExpectedPublicHolidayGrants', () => {
     const ph = getExpectedPublicHolidayGrants('2025-04-01', 'PH', h, new Date('2025-04-30'));
     const sh = getExpectedPublicHolidayGrants('2025-04-01', 'SH', h, new Date('2025-04-30'));
     expect(ph).toHaveLength(1);
-    expect(ph[0].days).toBe(1);
+    expect(ph[0].reference_public_holiday_id).toBe('PH-2025-04-04');
     expect(sh).toHaveLength(1);
-    expect(sh[0].days).toBe(1);
+    expect(sh[0].reference_public_holiday_id).toBe('SH-2025-04-05');
   });
 
   it('無假期月份不產生 row', () => {
@@ -111,5 +126,15 @@ describe('getValidSubstituteDates', () => {
 
   it('假期與目標月份不同 → 空', () => {
     expect(getValidSubstituteDates('2025-04-04', 2025, 5)).toEqual([]);
+  });
+});
+
+describe('addDays', () => {
+  it('跨月加天數', () => {
+    expect(addDays('2025-04-04', 30)).toBe('2025-05-04');
+  });
+
+  it('跨年加天數', () => {
+    expect(addDays('2025-12-25', 30)).toBe('2026-01-24');
   });
 });

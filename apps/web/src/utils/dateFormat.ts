@@ -36,6 +36,26 @@ export function formatDisplayDate(
 }
 
 /**
+ * 解析 DD/MM/YYYY 字串，回傳內部 ISO 格式 YYYY-MM-DD。
+ * 無效時回傳 null。
+ */
+export function parseDisplayDate(display: string): string | null {
+  const clean = display.replace(/\s/g, '');
+  const parts = clean.split('/');
+  if (parts.length !== 3) return null;
+  const [d, m, y] = parts;
+  if (!d || !m || !y || d.length > 2 || m.length > 2 || y.length !== 4) return null;
+  const day = Number(d);
+  const month = Number(m);
+  const year = Number(y);
+  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return null;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/**
  * 計算年齡（以今日為基準，未過生日則減一歲）。
  */
 export function calculateAge(birthDate: Date | string | number | undefined | null): number | null {

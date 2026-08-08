@@ -13,7 +13,6 @@ import {
   NATURE_RATIO_POSITIONS,
   NIGHT_ANY_STAFF,
   STATUTORY_RATIOS,
-  WORK_HOUR_STEP,
   loadFacilityNatureSettings,
   saveFacilityNatureSettings,
   type FacilityNature,
@@ -370,7 +369,7 @@ const FacilityNatureSettings: React.FC = () => {
               護士／保健員指明期間（連續 13 小時，不可分割）
             </p>
             <p className="text-xs text-gray-500 mb-3">
-              期間內每 {STATUTORY_RATIOS.healthWorker} 名住客須有 1 名保健員當量；1 名護士（在場及當值）視同 2 名保健員（即 1:60）。
+              期間內每 {STATUTORY_RATIOS.healthWorker} 名住客須有 1 名保健員人手；1 名護士（在場及當值）視同 2 名保健員（即 1:60）。
               私安老院及甲二買位完全由保健員達標；甲一買位由護士與保健員混合貢獻，其中需要至少 1 名註冊護士。
               各性質實際人數見下方「各性質人手換算」及「24小時最低人手」表格。
             </p>
@@ -483,7 +482,7 @@ const FacilityNatureSettings: React.FC = () => {
                     <label className="text-sm font-medium text-gray-700">{position}</label>
                     <span className="text-sm text-gray-500">
                       {isContractNature
-                        ? `13 小時時段內與護士混合貢獻，全院在住 ${currentResidents} 人需 ${healthWorkerForNature} 名保健員（已扣除 1 名護士貢獻的 2 當量）`
+                        ? `13 小時時段內與護士混合貢獻，全院在住 ${currentResidents} 人需 ${healthWorkerForNature} 名保健員（已扣除 1 名護士貢獻的 2 名人手）`
                         : `13 小時時段 1:${STATUTORY_RATIOS.healthWorker}（全院在住 ${currentResidents} 人需 ${healthWorkerForNature} 人）`}
                     </span>
                   </div>
@@ -594,7 +593,7 @@ const FacilityNatureSettings: React.FC = () => {
       {a1VoucherBedTotal > 0 ? (
         <div className="border border-blue-200 bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-800">
           全院在住 {currentResidents} 人：連續 13 小時時段（{specific.requirement3.start}–{specific.requirement3.end}）
-          需 {healthWorkerEquivalents} 名保健員當量，由護士與保健員混合貢獻，其中至少 1 名註冊護士（買位合約要求），其餘由 {a1HealthWorkerCount} 名保健員填補。
+          需 {healthWorkerEquivalents} 名保健員，由護士與保健員混合貢獻，其中至少 1 名註冊護士（買位合約要求），其餘由 {a1HealthWorkerCount} 名保健員填補。
         </div>
       ) : (
         bedCountsTotal > 0 && (

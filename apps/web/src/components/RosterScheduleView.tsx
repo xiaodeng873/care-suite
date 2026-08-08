@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { UserProfile, UserEmploymentDetails, UserLeaveRecord, PublicHoliday, EmploymentPosition, UserShiftAssignment } from '@care-suite/shared';
+import type { UserProfile, UserEmploymentDetails, UserLeaveRecord, PublicHoliday, UserShiftAssignment } from '@care-suite/shared';
 import { LEAVE_TYPE_LABELS, getEmploymentPosition } from '@care-suite/shared';
 import { AlertCircle, ArrowUp, ArrowDown, CheckCircle2 } from 'lucide-react';
-import { getRosterUserBalance, getPositionOptions, toGridPosition, buildDailyCompliance } from '../utils/roster';
-import type { ComplianceRow } from '../utils/roster';
+import { getRosterUserBalance, getRosterGroupOptions, toGridPosition, buildDailyCompliance, buildPreScheduleDailyCompliance, formatShiftTimeAbbreviation, getShiftEndTime } from '../utils/roster';
+import type { ComplianceRow, PreScheduleSegmentConflict } from '../utils/roster';
 import type { SpecificHoursConfig } from '../utils/facilityNatureSettings';
 import { GRID_POSITIONS } from '../utils/facilityNatureSettings';
 import type { StaffingResult } from '../utils/staffingRequirements';
@@ -30,6 +30,25 @@ interface RosterScheduleViewProps {
   onLeaveClick: (record: UserLeaveRecord) => void;
   onMoveLeave?: (record: UserLeaveRecord, targetDate: string) => void;
   onCheckConflicts?: () => void;
+  complianceMode?: 'actual' | 'preSchedule';
+  preScheduleConflicts?: PreScheduleSegmentConflict[];
+  getUserFullBalances?: (userId: string) => {
+    doBalance: number;
+    doAccumulated: number;
+    doEstimated: number;
+    restDayFraction: number;
+    prdExpected: number;
+    prdEstimated: number;
+    phAvailable: number;
+    phAccumulated: number;
+    phEstimated: number;
+    shAvailable: number;
+    shAccumulated: number;
+    shEstimated: number;
+    alBalance: number;
+    alAccumulated: number;
+    alEstimated: number;
+  } | null;
 }
 
 const LEAVE_BADGE_COLORS: Record<NonNullable<UserLeaveRecord['leave_type']>, string> = {
@@ -37,24 +56,29 @@ const LEAVE_BADGE_COLORS: Record<NonNullable<UserLeaveRecord['leave_type']>, str
   PRD: 'bg-blue-500',
   DO: 'bg-purple-400',
   SL: 'bg-red-500',
-  CL: 'bg-orange-400',
   NPL: 'bg-gray-400',
   PH: 'bg-yellow-400',
   SH: 'bg-pink-400',
 };
 
-const ASSISTANT_DEPARTMENTS = new Set(['社工', '膳食', '衛生']);
+
 
 function formatDate(y: number, m: number, d: number): string {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
+const signed = (n: number): string => (n >= 0 ? `+${n}` : String(n));
+
+const isPartTime = (user: UserProfile): boolean => user.employment_type === '兼職';
+
 function userMatchesPositionFilter(user: UserProfile, filter: string): boolean {
   if (!filter) return true;
+  if (filter === '行政') return user.department === '行政';
+  if (filter === '庶務') return user.department === '庶務';
   const primary = getEmploymentPosition(user);
+  if (primary === filter) return true;
   if (toGridPosition(primary) === filter) return true;
-  if ((user.secondary_positions || []).some((p) => toGridPosition(p) === filter)) return true;
-  if (filter === '助理員' && ASSISTANT_DEPARTMENTS.has(user.department)) return true;
+  if ((user.secondary_positions || []).some((p) => p === filter || toGridPosition(p) === filter)) return true;
   return false;
 }
 
@@ -109,9 +133,11 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
   onLeaveClick,
   onMoveLeave,
   onCheckConflicts,
+  complianceMode = 'actual',
+  getUserFullBalances,
 }) => {
   const daysInMonth = useMemo(() => new Date(year, month, 0).getDate(), [year, month]);
-  const [positionFilter, setPositionFilter] = useState<EmploymentPosition | ''>('');
+  const [positionFilter, setPositionFilter] = useState<string>('');
   const [draggedRecord, setDraggedRecord] = useState<UserLeaveRecord | null>(null);
 
   // 防止拖曳放開時觸發瀏覽器預設導航（導致整頁重新載入）
@@ -135,13 +161,24 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
     return map;
   }, [leaveRecords]);
 
+  const assignmentMap = useMemo(() => {
+    const map = new Map<string, UserShiftAssignment[]>();
+    for (const assignment of shiftAssignments) {
+      const key = `${assignment.user_id}|${assignment.work_date}`;
+      const list = map.get(key) || [];
+      list.push(assignment);
+      map.set(key, list);
+    }
+    return map;
+  }, [shiftAssignments]);
+
   const visibleUsers = useMemo(() => {
     if (!isAdmin) return users.filter((u) => u.id === currentUserId);
     if (!positionFilter) return users;
     return users.filter((u) => userMatchesPositionFilter(u, positionFilter));
   }, [users, isAdmin, currentUserId, positionFilter]);
 
-  const positionOptions = useMemo(() => getPositionOptions(users), [users]);
+  const positionOptions = useMemo(() => getRosterGroupOptions(users), [users]);
 
   const requiredHoursMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -163,20 +200,44 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
     return Array.from({ length: daysInMonth }, (_, i) => {
       const d = i + 1;
       const date = formatDate(year, month, d);
+      const rows =
+        complianceMode === 'preSchedule'
+          ? buildPreScheduleDailyCompliance(
+              date,
+              requiredHoursMap,
+              requiredHourly,
+              specificHours,
+              users,
+              employmentDetails,
+              leaveRecords,
+            )
+          : buildDailyCompliance(
+              date,
+              requiredHoursMap,
+              requiredHourly,
+              specificHours,
+              users,
+              employmentDetails,
+              shiftAssignments,
+            );
       return {
         date,
-        rows: buildDailyCompliance(
-          date,
-          requiredHoursMap,
-          requiredHourly,
-          specificHours,
-          users,
-          employmentDetails,
-          shiftAssignments,
-        ),
+        rows,
       };
     });
-  }, [daysInMonth, year, month, requiredHoursMap, requiredHourly, specificHours, users, employmentDetails, shiftAssignments]);
+  }, [
+    daysInMonth,
+    year,
+    month,
+    requiredHoursMap,
+    requiredHourly,
+    specificHours,
+    users,
+    employmentDetails,
+    shiftAssignments,
+    leaveRecords,
+    complianceMode,
+  ]);
 
   const compliancePositions = useMemo(() => {
     const set = new Set<string>();
@@ -216,7 +277,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
             <label className="text-sm font-medium text-gray-700">職位過濾</label>
             <select
               value={positionFilter}
-              onChange={(e) => setPositionFilter(e.target.value as EmploymentPosition | '')}
+              onChange={(e) => setPositionFilter(e.target.value)}
               className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="">全部</option>
@@ -271,10 +332,10 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
         </div>
       )}
 
-      {/* 每日職位達標概覽 */}
+      {/* 每日職位侯召概覽 */}
       {isAdmin && (
         <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">每日職位達標概覽</div>
+          <div className="bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">每日職位侯召概覽</div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-xs">
               <thead className="bg-gray-50 sticky top-0">
@@ -335,8 +396,11 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
               <th className="px-3 py-2 text-left font-medium text-gray-600 sticky left-0 bg-gray-50 min-w-[8rem]">
                 員工
               </th>
-              <th className="px-3 py-2 text-left font-medium text-gray-600 sticky left-[8rem] bg-gray-50 min-w-[10rem]">
-                額度
+              <th className="px-3 py-2 text-left font-medium text-gray-600 sticky left-[8rem] bg-gray-50 min-w-[5rem]">
+                累積
+              </th>
+              <th className="px-3 py-2 text-left font-medium text-gray-600 bg-gray-50 min-w-[5rem]">
+                預計{month}月收穫
               </th>
               {Array.from({ length: daysInMonth }, (_, i) => {
                 const d = i + 1;
@@ -346,7 +410,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                 return (
                   <th
                     key={d}
-                    className={`px-1 py-2 text-center font-semibold min-w-[2.5rem] border border-gray-300 bg-white ${
+                    className={`px-1 py-2 text-center font-semibold min-w-[3rem] border border-gray-300 bg-white ${
                       isSunday ? 'text-red-600' : 'text-gray-800'
                     }`}
                   >
@@ -360,41 +424,99 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
           <tbody>
             {visibleUsers.length === 0 && (
               <tr>
-                <td colSpan={daysInMonth + 2} className="px-4 py-6 text-center text-gray-400">
+                <td colSpan={daysInMonth + 3} className="px-4 py-6 text-center text-gray-400">
                   暫無適用職位員工
                 </td>
               </tr>
             )}
             {visibleUsers.map((user) => {
-              const balance = getRosterUserBalance(user.id, employmentDetails, leaveRecords, publicHolidays, year, month);
+              const full = getUserFullBalances?.(user.id);
+              const monthly = getRosterUserBalance(user.id, employmentDetails, leaveRecords, publicHolidays, year, month);
+              const balance = full
+                ? {
+                    doBalance: full.doBalance,
+                    prdBalance: full.restDayFraction,
+                    phBalance: full.phAvailable,
+                    shBalance: full.shAvailable,
+                    alBalance: full.alBalance,
+                  }
+                : monthly;
               return (
                 <tr key={user.id} className="border-t border-gray-100 hover:bg-gray-50">
                   <td className="px-3 py-2 font-medium text-gray-900 sticky left-0 bg-white min-w-[8rem]">
                     <div>{user.name_zh}</div>
                     <div className="text-[10px] text-gray-500 font-normal">{userDisplayPositions(user)}</div>
                   </td>
-                  <td className="px-3 py-2 text-gray-600 sticky left-[8rem] bg-white min-w-[10rem]">
-                    <div className="space-y-0.5">
-                      <div>DO {balance.doBalance >= 0 ? `+${balance.doBalance}` : balance.doBalance}</div>
-                      <div>PRD {balance.prdBalance >= 0 ? `+${balance.prdBalance}` : balance.prdBalance}</div>
-                      {employmentDetails[user.id]?.public_holiday_type === 'PH' && (
-                        <div>PH {balance.phBalance >= 0 ? `+${balance.phBalance}` : balance.phBalance}</div>
-                      )}
-                      {employmentDetails[user.id]?.public_holiday_type === 'SH' && (
-                        <div>SH {balance.shBalance >= 0 ? `+${balance.shBalance}` : balance.shBalance}</div>
-                      )}
-                      <div>AL {balance.alBalance >= 0 ? `+${balance.alBalance}` : balance.alBalance}</div>
-                    </div>
+                  <td className="px-3 py-2 text-gray-600 sticky left-[8rem] bg-white min-w-[5rem]">
+                    {full ? (
+                      isPartTime(user) ? (
+                        <span className="text-gray-400">兼職不適用</span>
+                      ) : (
+                        <div className="space-y-0.5">
+                          <div>DO {signed(full.doAccumulated)}</div>
+                          <div>PRD {signed(full.restDayFraction)}</div>
+                          {employmentDetails[user.id]?.public_holiday_type === 'PH' && (
+                            <div>PH {signed(full.phAccumulated)}</div>
+                          )}
+                          {employmentDetails[user.id]?.public_holiday_type === 'SH' && (
+                            <div>SH {signed(full.shAccumulated)}</div>
+                          )}
+                          <div>AL {signed(full.alAccumulated)}</div>
+                        </div>
+                      )
+                    ) : (
+                      <div className="space-y-0.5">
+                        <div>DO {signed(balance.doBalance)}</div>
+                        <div>PRD {signed(balance.prdBalance)}</div>
+                        {employmentDetails[user.id]?.public_holiday_type === 'PH' && (
+                          <div>PH {signed(balance.phBalance)}</div>
+                        )}
+                        {employmentDetails[user.id]?.public_holiday_type === 'SH' && (
+                          <div>SH {signed(balance.shBalance)}</div>
+                        )}
+                        <div>AL {signed(balance.alBalance)}</div>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-gray-600 bg-white min-w-[5rem]">
+                    {full ? (
+                      isPartTime(user) ? (
+                        <span className="text-gray-400">—</span>
+                      ) : (
+                        <div className="space-y-0.5">
+                          {full.doEstimated !== 0 && <div>DO {signed(full.doEstimated)}</div>}
+                          {full.prdEstimated !== 0 && <div>PRD {signed(full.prdEstimated)}</div>}
+                          {employmentDetails[user.id]?.public_holiday_type === 'PH' && full.phEstimated !== 0 && (
+                            <div>PH {signed(full.phEstimated)}</div>
+                          )}
+                          {employmentDetails[user.id]?.public_holiday_type === 'SH' && full.shEstimated !== 0 && (
+                            <div>SH {signed(full.shEstimated)}</div>
+                          )}
+                          {full.alEstimated !== 0 && <div>AL {signed(full.alEstimated)}</div>}
+                        </div>
+                      )
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </td>
                   {Array.from({ length: daysInMonth }, (_, i) => {
                     const d = i + 1;
                     const dateStr = formatDate(year, month, d);
                     const record = leaveMap.get(`${user.id}|${dateStr}`);
+                    const assignments = assignmentMap.get(`${user.id}|${dateStr}`) ?? [];
+                    const shiftAbbrev =
+                      assignments.length > 0
+                        ? formatShiftTimeAbbreviation(
+                            assignments[0].start_time,
+                            assignments[0].end_time ||
+                              getShiftEndTime(assignments[0].start_time, employmentDetails[user.id]?.daily_contract_hours),
+                          )
+                        : null;
                     const canEdit = isAdmin || user.id === currentUserId;
                     const recordTitle = record
                       ? record.record_type === 'leave'
-                        ? `${dateStr} ${record.leave_type ? LEAVE_TYPE_LABELS[record.leave_type] : ''}${record.urgency === 'mandatory' ? '（必須）' : ''}`
-                        : `${dateStr} 特定上班 ${record.availability_start_time}-${record.availability_end_time}${record.urgency === 'mandatory' ? '（必須）' : ''}`
+                        ? `${dateStr} ${record.leave_type ? LEAVE_TYPE_LABELS[record.leave_type] : ''}${record.urgency === 'mandatory' ? '（必須）' : ''}${record.is_overridden ? '【待調整】' : ''}`
+                        : `${dateStr} 特定上班 ${record.availability_start_time}-${record.availability_end_time}${record.urgency === 'mandatory' ? '（必須）' : ''}${record.is_overridden ? '【待調整】' : ''}`
                       : '';
                     const isDropTarget = draggedRecord && !record && draggedRecord.user_id === user.id && draggedRecord.leave_date !== dateStr;
                     return (
@@ -432,7 +554,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                               record.record_type === 'leave' && record.leave_type
                                 ? LEAVE_BADGE_COLORS[record.leave_type]
                                 : 'bg-blue-400'
-                            }`}
+                            } ${record.is_overridden ? 'ring-2 ring-red-400 ring-offset-1' : ''}`}
                             title={recordTitle}
                             aria-label={recordTitle}
                           >
@@ -448,6 +570,13 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                               </span>
                             )}
                           </button>
+                        ) : shiftAbbrev ? (
+                          <span
+                            className="inline-flex items-center justify-center min-w-[4rem] h-6 rounded-sm text-[10px] font-medium bg-gray-100 text-gray-700 border border-gray-200"
+                            title={`已排班次 ${shiftAbbrev}`}
+                          >
+                            {shiftAbbrev}
+                          </span>
                         ) : (
                           <button
                             type="button"

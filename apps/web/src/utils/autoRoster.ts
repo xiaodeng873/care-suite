@@ -108,8 +108,6 @@ function computeDeficit(
   return deficit;
 }
 
-const ASSISTANT_DEPARTMENTS = new Set(['社工', '膳食', '衛生']);
-
 function isNurse(user: UserProfile): boolean {
   const primary = getEmploymentPosition(user);
   if (primary === '註冊護士' || primary === '登記護士') return true;
@@ -120,11 +118,13 @@ function isNurse(user: UserProfile): boolean {
 
 /** 判斷員工是否能擔任目標職位 */
 export function userCanFillPosition(user: UserProfile, position: string): boolean {
+  if (position === '行政') return user.department === '行政';
+  if (position === '庶務') return user.department === '庶務';
   const primary = getEmploymentPosition(user);
+  if (primary === position) return true;
   if (toGridPosition(primary) === position) return true;
-  if ((user.secondary_positions || []).some((p) => toGridPosition(p) === position)) return true;
+  if ((user.secondary_positions || []).some((p) => p === position || toGridPosition(p) === position)) return true;
   if (position === '保健員' && isNurse(user)) return true;
-  if (position === '助理員' && ASSISTANT_DEPARTMENTS.has(user.department)) return true;
   return false;
 }
 
@@ -274,6 +274,37 @@ function candidatePriority(
   return stationIndex * 1000 + shiftIndex;
 }
 
+/** 依員工偏好居住區產生專屬居住區順序：
+ * - 有設定 preferred_station 者：先 primary，再 secondary，其餘在後
+ * - 無設定偏好者：未分區優先
+ */
+function getUserStationList(
+  userId: string,
+  employmentDetails: Record<string, UserEmploymentDetails>,
+  baseList: (string | null)[],
+): (string | null)[] {
+  const details = employmentDetails[userId];
+  const prefs: (string | null)[] = [];
+  if (details?.preferred_station_primary) {
+    prefs.push(details.preferred_station_primary);
+  }
+  if (details?.preferred_station_secondary?.length) {
+    for (const s of details.preferred_station_secondary) {
+      if (!prefs.includes(s)) prefs.push(s);
+    }
+  }
+  const rest = baseList.filter((s) => !prefs.includes(s));
+  if (prefs.length > 0) {
+    return [...prefs, ...rest];
+  }
+  // 沒有設定偏好者：未分區優先
+  const unassignedIndex = baseList.indexOf(null);
+  if (unassignedIndex >= 0) {
+    return [null, ...baseList.filter((_, i) => i !== unassignedIndex)];
+  }
+  return baseList;
+}
+
 /**
  * 每日一鍵排班啟發式演算法：
  * 1. 硬性排除：必須放假、不在可用時段、已排班、職位不符。
@@ -354,7 +385,12 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
   );
   const initialDeficit = computeDeficit(initialCompliance, position);
 
-  const eligibleUsers = users.filter((u) => userCanFillPosition(u, position));
+  const eligibleUsers = users.filter((u) => {
+    if (!userCanFillPosition(u, position)) return false;
+    // 自動排班不主動把護士編入保健員表（仍允許手動拖曳）
+    if (position === '保健員' && isNurse(u)) return false;
+    return true;
+  });
 
   while (true) {
     const currentCompliance = buildDailyCompliance(
@@ -381,8 +417,15 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
 
       const availability = getAvailabilityWindow(user.id, date, leaveRecords);
       const preferredLeave = getPreferredLeave(user.id, date, leaveRecords);
+      const userStationList = getUserStationList(user.id, employmentDetails, stationList);
+      const userShiftOrder = new Map<string, number>();
+      for (const sid of userStationList) {
+        getActiveShifts(shiftSettings, sid, position).forEach((s, i) =>
+          userShiftOrder.set(`${sid ?? 'unassigned'}|${s.shift_name}`, i),
+        );
+      }
 
-      for (const stationId of stationList) {
+      for (const stationId of userStationList) {
         const shifts = getActiveShifts(shiftSettings, stationId, position);
         for (const shift of shifts) {
           if (
@@ -434,11 +477,11 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
               (preferredPenalty < currentBestPenalty ||
                 (preferredPenalty === currentBestPenalty &&
                   bestCandidate &&
-                  candidatePriority(candidate, stationList, shiftOrder) <
+                  candidatePriority(candidate, userStationList, userShiftOrder) <
                     candidatePriority(
                       { ...bestCandidate, work_date: date },
-                      stationList,
-                      shiftOrder,
+                      userStationList,
+                      userShiftOrder,
                     ))));
 
           if (better) {

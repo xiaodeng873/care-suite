@@ -113,7 +113,7 @@ describe('每日最低僱用人數', () => {
     ).toBe(0);
   });
 
-  it('保健員：以全院在住人數計算；有甲一時先扣除 1 名註冊護士貢獻的 2 當量', () => {
+  it('保健員：以全院在住人數計算；有甲一時先扣除 1 名註冊護士貢獻的 2 名人手', () => {
     // 甲二 40 床位（在住 40）→ ceil(40/30) = 2
     const a2Only = { ...DEFAULT_BED_COUNTS, 甲二買位: 40 };
     expect(minHeadcountForPosition('保健員', a2Only, 40)).toBe(2);
@@ -122,7 +122,7 @@ describe('每日最低僱用人數', () => {
     const private100 = { ...DEFAULT_BED_COUNTS, 安老院: 100 };
     expect(minHeadcountForPosition('保健員', private100, 100)).toBe(4);
 
-    // 有甲一時：100 人，保健員當量 ceil(100/30)=4，1 名護士視同 2 當量 → 保健員 2
+    // 有甲一時：100 人，保健員人手 ceil(100/30)=4，1 名護士視同 2 名人手 → 保健員 2
     const mixed = { ...DEFAULT_BED_COUNTS, 安老院: 50, 甲一買位: 50 };
     expect(minHeadcountForPosition('保健員', mixed, 100)).toBe(2);
   });
@@ -179,7 +179,7 @@ describe('computeStaffingRequirements', () => {
     const nurseCol = col('註冊/登記護士');
     const hwCol = col('保健員');
 
-    // 40 甲一宿位：總當量 ceil(40/30)=2；護士至少 1 名（貢獻 2 當量），保健員 0
+    // 40 甲一宿位：總人手 ceil(40/30)=2；護士至少 1 名（貢獻 2 名人手），保健員 0
     const a1_40 = makeInput({ bedCounts: { 甲一買位: 40 }, currentResidents: 40 });
     const { grid: g1 } = computeStaffingRequirements(a1_40);
     for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
@@ -187,7 +187,7 @@ describe('computeStaffingRequirements', () => {
       expect(g1[h][hwCol]).toBe(0);
     }
 
-    // 100 甲一宿位：總當量 ceil(100/30)=4；護士至少 1 名（貢獻 2 當量），保健員 2
+    // 100 甲一宿位：總人手 ceil(100/30)=4；護士至少 1 名（貢獻 2 名人手），保健員 2
     const a1_100 = makeInput({ bedCounts: { 甲一買位: 100 }, currentResidents: 100 });
     const { grid: g2 } = computeStaffingRequirements(a1_100);
     for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
@@ -195,7 +195,7 @@ describe('computeStaffingRequirements', () => {
       expect(g2[h][hwCol]).toBe(2);
     }
 
-    // 70 甲一宿位：總當量 ceil(70/30)=3；護士至少 1 名（貢獻 2 當量），保健員 1
+    // 70 甲一宿位：總人手 ceil(70/30)=3；護士至少 1 名（貢獻 2 名人手），保健員 1
     const a1_70 = makeInput({ bedCounts: { 甲一買位: 70 }, currentResidents: 70 });
     const { grid: g3 } = computeStaffingRequirements(a1_70);
     for (let h = NURSE_HW_START; h < NURSE_HW_END; h++) {
@@ -346,11 +346,11 @@ describe('雙紅線獨立合格引擎', () => {
     expect(result.dailyHours['註冊/登記護士']).toBe(3.5);
   });
 
-  it('護士替代保健員：紅線1當量正確，紅線2工時獨立', () => {
+  it('護士替代保健員：紅線1人手正確，紅線2工時獨立', () => {
     const input = makeInput({ bedCounts: { 甲一買位: 40 }, currentResidents: 40 });
     const result = computeDualRedLineStaffing(input);
 
-    // 紅線1：13h 時段護士=1（貢獻 2 當量），保健員=0
+    // 紅線1：13h 時段護士=1（貢獻 2 名人手），保健員=0
     // 紅線2：護士合約工時計入註冊/登記護士，保健員獨立計算
     expect(result.contractTargetHours['註冊/登記護士']).toBe(14.0);
     expect(result.contractTargetHours['保健員']).toBe(14.0);

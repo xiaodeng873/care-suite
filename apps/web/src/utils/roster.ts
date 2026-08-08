@@ -12,6 +12,7 @@ import { getEmploymentPosition } from '@care-suite/shared';
 import { getRosterExpectedCounts, getRosterUsedCounts } from './leaveValidation';
 import type { SpecificHoursConfig, TimeSegment } from './facilityNatureSettings';
 import { timeToMinutes } from './staffingRequirements';
+import { getAssignmentShiftDay, getShiftDayStart, addDays } from './shiftDay';
 
 export interface WeekDay {
   date: string;
@@ -58,6 +59,18 @@ export function parseTime(timeStr: string): { hours: number; minutes: number } {
 
 export function formatTime(hours: number, minutes: number): string {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+/** 把班次時間轉為簡寫，如 07:00-18:00 -> 7A-6P，13:00-22:00 -> 1P-10P，21:00-07:00 -> 9P-7A */
+export function formatShiftTimeAbbreviation(startTime: string, endTime: string): string {
+  const format = (time: string): string => {
+    const { hours } = parseTime(time);
+    if (hours === 0) return '12A';
+    if (hours === 12) return '12P';
+    if (hours < 12) return `${hours}A`;
+    return `${hours - 12}P`;
+  };
+  return `${format(startTime)}-${format(endTime)}`;
 }
 
 export function normalizeTime(time: string | null | undefined): string | null {
@@ -209,13 +222,31 @@ export function getActiveShiftSettings(
 
 const APPLICABLE_POSITIONS: EmploymentPosition[] = [
   '主管',
+  '文員',
+  '會計',
   '註冊護士',
   '登記護士',
   '保健員',
   '護理員',
-  '助理員',
   '物理治療師',
+  '物理治療師助理',
+  '職業治療師',
+  '職業治療師助理',
+  '言語治療師',
+  '言語治療師助理',
+  '社工',
+  '社工助理',
+  '廚師',
+  '清潔員',
 ];
+
+/** 特定鐘點計算時視為「助理員」的職位（行政、庶務全部非護理崗位） */
+const ASSISTANT_SLOT_POSITIONS = new Set<string>(['文員', '會計', '社工', '社工助理', '廚師', '清潔員']);
+
+export function isAssistantSlotContributor(user: UserProfile): boolean {
+  const primary = getEmploymentPosition(user);
+  return primary ? ASSISTANT_SLOT_POSITIONS.has(primary) : false;
+}
 
 export function getPositionOptions(users: UserProfile[]): EmploymentPosition[] {
   const set = new Set<EmploymentPosition>([
@@ -223,7 +254,6 @@ export function getPositionOptions(users: UserProfile[]): EmploymentPosition[] {
     '登記護士',
     '保健員',
     '護理員',
-    '助理員',
   ]);
   for (const user of users) {
     const primary = getEmploymentPosition(user);
@@ -237,8 +267,87 @@ export function getPositionOptions(users: UserProfile[]): EmploymentPosition[] {
   return Array.from(set).sort();
 }
 
+const GRID_POSITION_ORDER = ['主管', '註冊/登記護士', '保健員', '護理員', '物理治療師'];
+
+/** 回傳用於職位過濾的 grid position 選項（註冊/登記護士合併為一項；助理員不再是真實職位） */
+export function getGridPositionOptions(users: UserProfile[]): string[] {
+  const set = new Set<string>(['註冊/登記護士', '保健員', '護理員']);
+  for (const user of users) {
+    const primary = getEmploymentPosition(user);
+    if (primary) set.add(toGridPosition(primary));
+    for (const pos of user.secondary_positions || []) {
+      set.add(toGridPosition(pos));
+    }
+  }
+  return GRID_POSITION_ORDER.filter((p) => set.has(p));
+}
+
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+const ROSTER_GROUP_ORDER = [
+  '註冊/登記護士',
+  '保健員',
+  '護理員',
+  '行政',
+  '物理治療師',
+  '物理治療師助理',
+  '職業治療師',
+  '職業治療師助理',
+  '言語治療師',
+  '言語治療師助理',
+  '庶務',
+];
+
+const SINGLE_SHIFT_GROUPS = new Set<string>([
+  '行政',
+  '物理治療師',
+  '物理治療師助理',
+  '職業治療師',
+  '職業治療師助理',
+  '言語治療師',
+  '言語治療師助理',
+  '庶務',
+]);
+
+/** 判斷該排班分頁是否預設單班制（行政、專職、庶務等非護理部門） */
+export function isSingleShiftGroup(position: string): boolean {
+  return SINGLE_SHIFT_GROUPS.has(position);
+}
+
+const ADMIN_POSITIONS_SET = new Set<string>(['主管', '文員', '會計', '社工', '社工助理']);
+const GENERAL_AFFAIRS_POSITIONS_SET = new Set<string>(['廚師', '清潔員']);
+
+/** 回傳排班表頂部職位分頁選項；行政部門合併為「行政」（含社工），庶務部門合併為「庶務」，註冊/登記護士合併為一項，專職崗位各自獨立 */
+export function getRosterGroupOptions(users: UserProfile[]): string[] {
+  const set = new Set<string>();
+  for (const user of users) {
+    const primary = getEmploymentPosition(user);
+    if (primary) {
+      if (ADMIN_POSITIONS_SET.has(primary)) {
+        set.add('行政');
+      } else if (GENERAL_AFFAIRS_POSITIONS_SET.has(primary)) {
+        set.add('庶務');
+      } else if (primary === '註冊護士' || primary === '登記護士') {
+        set.add('註冊/登記護士');
+      } else {
+        set.add(primary);
+      }
+    }
+    for (const pos of user.secondary_positions || []) {
+      if (ADMIN_POSITIONS_SET.has(pos)) {
+        set.add('行政');
+      } else if (GENERAL_AFFAIRS_POSITIONS_SET.has(pos)) {
+        set.add('庶務');
+      } else if (pos === '註冊護士' || pos === '登記護士') {
+        set.add('註冊/登記護士');
+      } else if (APPLICABLE_POSITIONS.includes(pos as EmploymentPosition)) {
+        set.add(pos);
+      }
+    }
+  }
+  return ROSTER_GROUP_ORDER.filter((p) => set.has(p));
 }
 
 /** 取得班次結束時間 = 起始時間 + 該員工 daily_contract_hours（未設定則用預設 8 小時） */
@@ -279,15 +388,12 @@ export function toGridPosition(position: string | null | undefined): string {
   return position;
 }
 
-/** 特定鐘點計算時視為助理員的部門 */
-const ASSISTANT_DEPARTMENTS = new Set(['社工', '膳食', '衛生']);
-
-/** 取得員工在特定鐘點達標檢查中所屬的職位（社工/膳食/衛生部門歸入助理員） */
+/** 取得員工在特定鐘點達標檢查中所屬的職位；
+ * 行政、社工、衛生、膳食全部非護理崗位共同計入「助理員」特定鐘點 */
 function getSpecificSlotPosition(user: UserProfile): string {
-  const primary = toGridPosition(getEmploymentPosition(user));
-  if (primary === '助理員') return '助理員';
-  if (ASSISTANT_DEPARTMENTS.has(user.department)) return '助理員';
-  return primary;
+  const primary = getEmploymentPosition(user);
+  if (primary && ASSISTANT_SLOT_POSITIONS.has(primary)) return '助理員';
+  return toGridPosition(primary);
 }
 
 function getAssignmentGridPosition(a: UserShiftAssignment, user: UserProfile): string {
@@ -303,7 +409,9 @@ export function summarizeDailyShiftByPosition(
 ): Record<string, DailyShiftSummary> {
   const summary: Record<string, DailyShiftSummary> = {};
 
-  for (const a of assignments.filter((x) => x.work_date === date)) {
+  for (const a of assignments) {
+    // 排班日以每天早上 07:00 為起點
+    if (getAssignmentShiftDay(a.work_date, a.start_time) !== date) continue;
     const user = users.find((u) => u.id === a.user_id);
     if (!user) continue;
     // 人手（headcount）按班次所屬職位；工時按員工自身職位
@@ -351,6 +459,275 @@ export interface ComplianceRow {
   specificSegments: SpecificSlotSegment[];
 }
 
+export interface PreScheduleSegmentConflict {
+  date: string;
+  position: string;
+  windowLabel: string;
+  windowTime: string;
+  gapTime: string;
+  required: number;
+  actualPeople: number;
+  equivalent: number;
+}
+
+export function canFillPositionInPreSchedule(
+  user: UserProfile,
+  position: string,
+): boolean {
+  const primary = getEmploymentPosition(user);
+  if (primary === position) return true;
+  if (toGridPosition(primary) === position) return true;
+  if ((user.secondary_positions || []).some((p) => p === position || toGridPosition(p) === position)) return true;
+  if (
+    position === '保健員' &&
+    (primary === '註冊護士' ||
+      primary === '登記護士' ||
+      (user.secondary_positions || []).some((p) => p === '註冊護士' || p === '登記護士'))
+  ) {
+    return true;
+  }
+  if (position === '助理員') {
+    return isAssistantSlotContributor(user);
+  }
+  return false;
+}
+
+export function getDayRecordsMap(
+  leaveRecords: UserLeaveRecord[],
+): Map<string, Map<string, UserLeaveRecord>> {
+  const map = new Map<string, Map<string, UserLeaveRecord>>();
+  for (const r of leaveRecords) {
+    if (!map.has(r.leave_date)) map.set(r.leave_date, new Map());
+    map.get(r.leave_date)!.set(r.user_id, r);
+  }
+  return map;
+}
+
+function hourInSegment(hour: number, seg: TimeSegment): boolean {
+  const slotStart = hour * 60;
+  const s = timeToMinutes(seg.start);
+  const e = timeToMinutes(seg.end);
+  if (s <= e) return slotStart >= s && slotStart < e;
+  return slotStart >= s || slotStart < e;
+}
+
+export function getPreScheduleAvailableByShiftHour(
+  date: string,
+  position: string,
+  users: UserProfile[],
+  leaveRecords: UserLeaveRecord[],
+): { available: number[]; equivalent: number[] } {
+  const available = new Array(24).fill(0);
+  const nurseCount = new Array(24).fill(0);
+  const nurseEquivalent = new Array(24).fill(0);
+  const dayRecords = getDayRecordsMap(leaveRecords);
+
+  for (const u of users) {
+    const matchesPosition =
+      position === '助理員'
+        ? isAssistantSlotContributor(u)
+        : canFillPositionInPreSchedule(u, position);
+    if (!matchesPosition) continue;
+    const primary = getEmploymentPosition(u);
+    const isNurse = primary === '註冊護士' || primary === '登記護士';
+    for (let h = 0; h < 24; h++) {
+      const recordDate = h < 17 ? date : addDays(date, 1);
+      const record = dayRecords.get(recordDate)?.get(u.id);
+      if (!record) {
+        available[h]++;
+        if (isNurse) {
+          nurseCount[h]++;
+          nurseEquivalent[h] += 2;
+        }
+      } else if (
+        record.record_type === 'availability' &&
+        record.availability_start_time &&
+        record.availability_end_time
+      ) {
+        const calendarHour = (h + 7) % 24;
+        if (
+          hourInSegment(calendarHour, {
+            start: record.availability_start_time,
+            end: record.availability_end_time,
+          })
+        ) {
+          available[h]++;
+          if (isNurse) {
+            nurseCount[h]++;
+            nurseEquivalent[h] += 2;
+          }
+        }
+      }
+    }
+  }
+
+  if (position === '保健員') {
+    const equivalent = available.map((hw, h) => hw - nurseCount[h] + nurseEquivalent[h]);
+    return { available, equivalent };
+  }
+  return { available, equivalent: available };
+}
+
+export function getSpecificWindowsForPosition(
+  position: string,
+  specific: SpecificHoursConfig,
+): { label: string; segment: TimeSegment }[] {
+  if (position === '護理員') {
+    return [
+      ...specific.requirement1.segments.map((seg, i) => ({
+        label: `護理員指明期間${specific.requirement1.segments.length > 1 ? i + 1 : ''}`,
+        segment: seg,
+      })),
+      ...getComplementSegments(specific.requirement1.segments).map((seg, i) => ({
+        label: `護理員非指明期間${i + 1}`,
+        segment: seg,
+      })),
+    ];
+  }
+  if (position === '註冊/登記護士' || position === '保健員') {
+    return [{ label: '護士/保健員指明期間', segment: specific.requirement3 }];
+  }
+  if (position === '助理員') {
+    return [{ label: '助理員指明期間', segment: specific.assistantWindow }];
+  }
+  return [];
+}
+
+function buildPreScheduleSpecificSlotCompliance(
+  date: string,
+  requiredHourly: Record<string, number[]>,
+  specific: SpecificHoursConfig,
+  users: UserProfile[],
+  employmentDetails: Record<string, UserEmploymentDetails>,
+  leaveRecords: UserLeaveRecord[],
+): Record<string, SpecificSlotCompliance> {
+  const shiftDayRequired = getShiftDayRequiredHourly(date, requiredHourly);
+  const result: Record<string, SpecificSlotCompliance> = {};
+  const isA1Facility = Math.max(...(requiredHourly['註冊/登記護士'] ?? [])) > 0;
+  const nurseWindow: TimeSegment = { start: '07:00', end: '18:00' };
+
+  for (const position of Object.keys(requiredHourly)) {
+    const windows = getSpecificWindowsForPosition(position, specific);
+    if (windows.length === 0) continue;
+
+    if (position === '註冊/登記護士' && isA1Facility) {
+      const dayRecords = getDayRecordsMap(leaveRecords);
+      let rnHours = 0;
+      for (const u of users) {
+        const primary = getEmploymentPosition(u);
+        if (primary !== '註冊護士') continue;
+        const record = dayRecords.get(date)?.get(u.id);
+        if (record) continue;
+        const dailyHours = getDailyContractHours(employmentDetails[u.id]) ?? 8;
+        rnHours += Math.min(dailyHours, 8);
+      }
+      result[position] = {
+        requiredMinHeadcount: 8,
+        actualMinHeadcount: rnHours,
+        ok: rnHours >= 8,
+        segments: [{ label: `註冊護士 ${formatWindowLabel(nurseWindow)}`, required: 8, actual: rnHours }],
+      };
+      continue;
+    }
+
+    const { available, equivalent } = getPreScheduleAvailableByShiftHour(
+      date,
+      position,
+      users,
+      leaveRecords,
+    );
+    const req = shiftDayRequired[position];
+
+    let requiredMin = Infinity;
+    let actualMin = Infinity;
+    const segments: SpecificSlotSegment[] = [];
+    for (const window of windows) {
+      const { startH, endH } = shiftDayWindowToShiftHours(window.segment);
+      let segReqMin = Infinity;
+      let segActMin = Infinity;
+      for (let h = startH; h < endH; h++) {
+        const shiftHour = ((h % 24) + 24) % 24;
+        const required = req?.[shiftHour] ?? 0;
+        if (required <= 0) continue;
+        segReqMin = Math.min(segReqMin, required);
+        segActMin = Math.min(
+          segActMin,
+          position === '保健員' ? equivalent[shiftHour] : available[shiftHour],
+        );
+      }
+      if (segReqMin === Infinity) segReqMin = 0;
+      if (segActMin === Infinity) segActMin = 0;
+      segments.push({ label: window.label, required: segReqMin, actual: segActMin });
+      requiredMin = Math.min(requiredMin, segReqMin);
+      actualMin = Math.min(actualMin, segActMin);
+    }
+    if (requiredMin === Infinity) requiredMin = 0;
+    if (actualMin === Infinity) actualMin = 0;
+    result[position] = {
+      requiredMinHeadcount: requiredMin,
+      actualMinHeadcount: actualMin,
+      ok: actualMin >= requiredMin,
+      segments,
+    };
+  }
+  return result;
+}
+
+export function buildPreScheduleDailyCompliance(
+  date: string,
+  requiredHours: Record<string, number>,
+  requiredHourly: Record<string, number[]>,
+  specific: SpecificHoursConfig,
+  users: UserProfile[],
+  employmentDetails: Record<string, UserEmploymentDetails>,
+  leaveRecords: UserLeaveRecord[],
+): ComplianceRow[] {
+  const dayRecords = getDayRecordsMap(leaveRecords);
+  const availableHours: Record<string, number> = {};
+
+  for (const position of Object.keys(requiredHours)) {
+    let total = 0;
+    for (const u of users) {
+      if (position === '助理員') {
+        if (!isAssistantSlotContributor(u)) continue;
+      } else if (!canFillPositionInPreSchedule(u, position)) {
+        continue;
+      }
+      const record = dayRecords.get(date)?.get(u.id);
+      if (record) continue;
+      total += getDailyContractHours(employmentDetails[u.id]) ?? 8;
+    }
+    availableHours[position] = total;
+  }
+
+  const specificSlot = buildPreScheduleSpecificSlotCompliance(
+    date,
+    requiredHourly,
+    specific,
+    users,
+    employmentDetails,
+    leaveRecords,
+  );
+
+  const positions = new Set([
+    ...Object.keys(requiredHours),
+    ...Object.keys(availableHours),
+    ...Object.keys(requiredHourly),
+  ]);
+
+  return Array.from(positions).map((position) => ({
+    position,
+    requiredHours: requiredHours[position] ?? 0,
+    actualHours: availableHours[position] ?? 0,
+    hoursOk: (availableHours[position] ?? 0) >= (requiredHours[position] ?? 0),
+    requiredSpecificHeadcount: specificSlot[position]?.requiredMinHeadcount ?? 0,
+    actualSpecificHeadcount: specificSlot[position]?.actualMinHeadcount ?? 0,
+    specificSlotOk: specificSlot[position]?.ok ?? true,
+    hasSpecificSlotRequirement: (specificSlot[position]?.requiredMinHeadcount ?? 0) > 0,
+    specificSegments: specificSlot[position]?.segments ?? [],
+  }));
+}
+
 export function buildDailyCompliance(
   date: string,
   requiredHours: Record<string, number>,
@@ -385,7 +762,7 @@ export function buildDailyCompliance(
 // 特定鐘點達標檢查
 // =====================================================
 
-function getComplementSegments(segments: TimeSegment[]): TimeSegment[] {
+export function getComplementSegments(segments: TimeSegment[]): TimeSegment[] {
   if (segments.length === 0) return [{ start: '00:00', end: '00:00' }];
   const sorted = [...segments].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
   const merged: TimeSegment[] = [];
@@ -445,75 +822,117 @@ function getComplementSegments(segments: TimeSegment[]): TimeSegment[] {
   return complement;
 }
 
-function getSpecificWindowsForPosition(
-  position: string,
-  specific: SpecificHoursConfig,
-): TimeSegment[] {
-  if (position === '註冊/登記護士' || position === '保健員') {
-    return [specific.requirement3];
-  }
-  if (position === '護理員') {
-    return [...specific.requirement1.segments, ...getComplementSegments(specific.requirement1.segments)];
-  }
-  if (position === '助理員') {
-    return [specific.assistantWindow];
-  }
-  return [];
+/** 把 calendar 時間窗口轉為排班日內的小時索引（0=07:00，23=翌日06:59） */
+export function shiftDayWindowToShiftHours(seg: TimeSegment): { startH: number; endH: number } {
+  const dayStartMin = timeToMinutes('07:00');
+  const startMin = (timeToMinutes(seg.start) - dayStartMin + 1440) % 1440;
+  let endMin = (timeToMinutes(seg.end) - dayStartMin + 1440) % 1440;
+  if (endMin <= startMin) endMin += 1440;
+  return { startH: Math.floor(startMin / 60), endH: Math.floor(endMin / 60) };
 }
 
-function getAssignmentMinutes(
-  assignment: UserShiftAssignment,
-  dailyHours: number,
-): { start: number; end: number } {
-  const start = timeToMinutes(assignment.start_time);
-  const end = assignment.end_time
-    ? timeToMinutes(assignment.end_time)
-    : (start + Math.round(dailyHours * 60)) % 1440;
-  return { start, end };
-}
-
-function assignmentCoversHour(
-  startMinutes: number,
-  endMinutes: number,
-  hour: number,
-): boolean {
-  const slotStart = hour * 60;
-  const slotEnd = slotStart + 60;
-  if (endMinutes > startMinutes) {
-    return slotStart < endMinutes && slotEnd > startMinutes;
+/** 把 staffingResult.grid 的 calendar 00-23 required 映射為排班日 0-23 required */
+export function getShiftDayRequiredHourly(
+  date: string,
+  requiredHourly: Record<string, number[]>,
+): Record<string, number[]> {
+  const result: Record<string, number[]> = {};
+  const nextDayDate = new Date(date);
+  nextDayDate.setDate(nextDayDate.getDate() + 1);
+  const nextDayStr = `${nextDayDate.getFullYear()}-${pad(nextDayDate.getMonth() + 1)}-${pad(nextDayDate.getDate())}`;
+  // 目前 requiredHourly 每天都一樣，直接用同一組；未來若按日變化可再擴充
+  void nextDayStr;
+  for (const [position, hourly] of Object.entries(requiredHourly)) {
+    result[position] = new Array(24).fill(0).map((_, shiftHour) => {
+      const calendarHour = shiftHour < 17 ? shiftHour + 7 : shiftHour - 17;
+      return hourly?.[calendarHour] ?? 0;
+    });
   }
-  if (endMinutes < startMinutes) {
-    return slotStart < endMinutes || slotEnd > startMinutes;
+  return result;
+}
+
+/** 計算排班日 date 內每小時的實際在班人數（按員工實際職位歸類，RN/EN 合併） */
+function getShiftDayActualHourly(
+  date: string,
+  users: UserProfile[],
+  employmentDetails: Record<string, UserEmploymentDetails>,
+  assignments: UserShiftAssignment[],
+): { actual: Record<string, number[]>; equivalent: Record<string, number[]> } {
+  const positions = ['主管', '註冊/登記護士', '保健員', '護理員', '助理員', '物理治療師', '任何員工'];
+  const actual: Record<string, number[]> = {};
+  for (const p of positions) actual[p] = new Array(24).fill(0);
+  const equivalent: Record<string, number[]> = {};
+
+  const dayStart = getShiftDayStart(date);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  for (const a of assignments) {
+    const user = users.find((u) => u.id === a.user_id);
+    if (!user) continue;
+    const pos = getSpecificSlotPosition(user);
+    if (!actual[pos]) continue;
+
+    const dailyHours = getDailyContractHours(employmentDetails[a.user_id]) ?? 8;
+    const start = new Date(`${a.work_date}T${a.start_time}:00`);
+    const end = a.end_time
+      ? new Date(`${a.work_date}T${a.end_time}:00`)
+      : new Date(start.getTime() + dailyHours * 60 * 60 * 1000);
+    if (end <= start) end.setDate(end.getDate() + 1);
+
+    const effectiveStart = start < dayStart ? dayStart : start;
+    const effectiveEnd = end > dayEnd ? dayEnd : end;
+    if (effectiveStart >= effectiveEnd) continue;
+
+    for (let h = 0; h < 24; h++) {
+      const slotStart = new Date(dayStart.getTime() + h * 60 * 60 * 1000);
+      const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000);
+      if (slotStart < effectiveEnd && slotEnd > effectiveStart) {
+        actual[pos][h]++;
+        // 保健員特定鐘點：護士與保健員可混合貢獻，1 護士 = 2 保健員
+        if (pos === '註冊/登記護士' || pos === '保健員') {
+          if (!equivalent['保健員']) equivalent['保健員'] = new Array(24).fill(0);
+          equivalent['保健員'][h] += pos === '註冊/登記護士' ? 2 : 1;
+        }
+      }
+    }
   }
-  return true;
+  return { actual, equivalent };
 }
 
-function hourInSegment(hour: number, seg: TimeSegment): boolean {
-  const slotStart = hour * 60;
-  const s = timeToMinutes(seg.start);
-  const e = timeToMinutes(seg.end);
-  if (s <= e) return slotStart >= s && slotStart < e;
-  return slotStart >= s || slotStart < e;
-}
-
-/** 計算指定時段內有護士當值的小時數（甲一買位合約要求） */
-function computeNurseCoverageHours(
+/** 計算排班日 date 內 07:00-18:00 有註冊護士當值的小時數（甲一買位合約要求） */
+function computeNurseCoverageShiftDayHours(
   date: string,
   assignments: UserShiftAssignment[],
   users: UserProfile[],
   employmentDetails: Record<string, UserEmploymentDetails>,
-  window: TimeSegment,
 ): number {
   const coverage = new Array(24).fill(false);
-  for (const a of assignments.filter((x) => x.work_date === date)) {
+  const dayStart = getShiftDayStart(date);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const windowStart = new Date(`${date}T07:00:00`);
+  const windowEnd = new Date(`${date}T18:00:00`);
+
+  for (const a of assignments) {
     const user = users.find((u) => u.id === a.user_id);
     if (!user) continue;
     const primary = getEmploymentPosition(user);
     if (primary !== '註冊護士') continue;
+
     const dailyHours = getDailyContractHours(employmentDetails[a.user_id]) ?? 8;
-    const { start, end } = getAssignmentMinutes(a, dailyHours);
+    const start = new Date(`${a.work_date}T${a.start_time}:00`);
+    const end = a.end_time
+      ? new Date(`${a.work_date}T${a.end_time}:00`)
+      : new Date(start.getTime() + dailyHours * 60 * 60 * 1000);
+    if (end <= start) end.setDate(end.getDate() + 1);
+
+    const effectiveStart = start < dayStart ? dayStart : start;
+    const effectiveEnd = end > dayEnd ? dayEnd : end;
+    if (effectiveStart >= effectiveEnd) continue;
+
     for (let h = 0; h < 24; h++) {
-      if (hourInSegment(h, window) && assignmentCoversHour(start, end, h)) {
+      const slotStart = new Date(dayStart.getTime() + h * 60 * 60 * 1000);
+      const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000);
+      if (slotStart < windowEnd && slotEnd > windowStart && slotStart < effectiveEnd && slotEnd > effectiveStart) {
         coverage[h] = true;
       }
     }
@@ -525,6 +944,10 @@ function formatWindowLabel(seg: TimeSegment): string {
   return `${seg.start}-${seg.end}`;
 }
 
+function pad(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
 export function buildSpecificSlotCompliance(
   date: string,
   requiredHourly: Record<string, number[]>,
@@ -533,48 +956,25 @@ export function buildSpecificSlotCompliance(
   employmentDetails: Record<string, UserEmploymentDetails>,
   assignments: UserShiftAssignment[],
 ): Record<string, SpecificSlotCompliance> {
-  // 建立實際每小時在班人數（按員工實際職位歸類，RN/EN 合併）
-  const actualHourly: Record<string, number[]> = {};
-  for (const position of Object.keys(requiredHourly)) {
-    actualHourly[position] = new Array(24).fill(0);
-  }
-  for (const user of users) {
-    const pos = getSpecificSlotPosition(user);
-    if (!actualHourly[pos]) actualHourly[pos] = new Array(24).fill(0);
-  }
-
-  // 保健員特定鐘點：護士與保健員可混合貢獻，1 護士 = 2 保健員當量
-  const healthWorkerEquivalentHourly: number[] = new Array(24).fill(0);
-
-  for (const a of assignments.filter((x) => x.work_date === date)) {
-    const user = users.find((u) => u.id === a.user_id);
-    if (!user) continue;
-    const pos = getSpecificSlotPosition(user);
-    if (!actualHourly[pos]) continue;
-    const dailyHours = getDailyContractHours(employmentDetails[a.user_id]) ?? 8;
-    const { start, end } = getAssignmentMinutes(a, dailyHours);
-    for (let h = 0; h < 24; h++) {
-      if (assignmentCoversHour(start, end, h)) {
-        actualHourly[pos][h]++;
-        if (pos === '註冊/登記護士') {
-          healthWorkerEquivalentHourly[h] += 2;
-        } else if (pos === '保健員') {
-          healthWorkerEquivalentHourly[h] += 1;
-        }
-      }
-    }
-  }
+  const shiftDayRequired = getShiftDayRequiredHourly(date, requiredHourly);
+  const { actual: shiftDayActual, equivalent: shiftDayEquivalent } = getShiftDayActualHourly(
+    date,
+    users,
+    employmentDetails,
+    assignments,
+  );
 
   const result: Record<string, SpecificSlotCompliance> = {};
   const isA1Facility = Math.max(...(requiredHourly['註冊/登記護士'] ?? [])) > 0;
   const nurseWindow: TimeSegment = { start: '07:00', end: '18:00' };
+
   for (const position of Object.keys(requiredHourly)) {
     const windows = getSpecificWindowsForPosition(position, specific);
     if (windows.length === 0) continue;
 
     // 甲一買位：只有註冊護士（RN）可貢獻 07:00-18:00 內累積不少於 8 小時；登記護士（EN）只計工時，不計此項
     if (position === '註冊/登記護士' && isA1Facility) {
-      const actualHours = computeNurseCoverageHours(date, assignments, users, employmentDetails, nurseWindow);
+      const actualHours = computeNurseCoverageShiftDayHours(date, assignments, users, employmentDetails);
       result[position] = {
         requiredMinHeadcount: 8,
         actualMinHeadcount: actualHours,
@@ -584,32 +984,30 @@ export function buildSpecificSlotCompliance(
       continue;
     }
 
-    const req = requiredHourly[position];
+    const req = shiftDayRequired[position];
     let requiredMin = Infinity;
     let actualMin = Infinity;
     const segments: SpecificSlotSegment[] = [];
     for (const window of windows) {
-      const s = timeToMinutes(window.start);
-      const e = timeToMinutes(window.end);
-      const startH = Math.floor(s / 60);
-      const endH = e > s ? Math.floor(e / 60) : 24 + Math.floor(e / 60);
+      const { startH, endH } = shiftDayWindowToShiftHours(window.segment);
       let segReqMin = Infinity;
       let segActMin = Infinity;
-      for (let hi = startH; hi < endH; hi++) {
-        const hour = ((hi % 24) + 24) % 24;
-        // 保健員特定鐘點：護士 + 保健員混合當量
+      for (let h = startH; h < endH; h++) {
+        const shiftHour = ((h % 24) + 24) % 24;
+        // 保健員特定鐘點：護士 + 保健員混合人手
         if (position === '保健員') {
-          const requiredEquivalents = (req[hour] ?? 0) + 2 * (requiredHourly['註冊/登記護士']?.[hour] ?? 0);
+          const requiredEquivalents =
+            (req[shiftHour] ?? 0) + 2 * (shiftDayRequired['註冊/登記護士']?.[shiftHour] ?? 0);
           segReqMin = Math.min(segReqMin, requiredEquivalents);
-          segActMin = Math.min(segActMin, healthWorkerEquivalentHourly[hour]);
+          segActMin = Math.min(segActMin, shiftDayEquivalent['保健員']?.[shiftHour] ?? 0);
         } else {
-          segReqMin = Math.min(segReqMin, req[hour] ?? 0);
-          segActMin = Math.min(segActMin, actualHourly[position]?.[hour] ?? 0);
+          segReqMin = Math.min(segReqMin, req[shiftHour] ?? 0);
+          segActMin = Math.min(segActMin, shiftDayActual[position]?.[shiftHour] ?? 0);
         }
       }
       if (segReqMin === Infinity) segReqMin = 0;
       if (segActMin === Infinity) segActMin = 0;
-      segments.push({ label: formatWindowLabel(window), required: segReqMin, actual: segActMin });
+      segments.push({ label: formatWindowLabel(window.segment), required: segReqMin, actual: segActMin });
       requiredMin = Math.min(requiredMin, segReqMin);
       actualMin = Math.min(actualMin, segActMin);
     }

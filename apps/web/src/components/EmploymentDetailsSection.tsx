@@ -1,19 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronDown, ChevronRight, ChevronLeft, Plus, Edit2, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Edit2, Trash2, X } from 'lucide-react';
 import {
   UserProfile,
   UserAnnualLeaveDetail,
   UserRestDayDetail,
   UserPublicHolidayDetail,
   PublicHoliday,
-  UserLeaveRecord,
-  LeaveType,
-  LEAVE_TYPES,
-  LEAVE_TYPE_LABELS,
 } from '@care-suite/shared';
 import { supabase } from '../lib/supabase';
 import { useStationData } from '../context/facility/StationContext';
 import { getExpectedAnnualLeaveGrants } from '../utils/annualLeave';
+import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from '../components/DateInput';
 import {
   getExpectedRestDayGrants,
   getExpectedMonthlyRestDays,
@@ -35,6 +33,16 @@ interface EmploymentDetailsSectionProps {
 /** 數字顯示：整數不帶小數位，否則一位小數 */
 const fmt = (n: number): string => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
+/** 計算兩個 YYYY-MM-DD 之間相差天數（end - start） */
+function daysBetween(start: string, end: string): number {
+  const parse = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d).getTime();
+  };
+  const ms = parse(end) - parse(start);
+  return Math.floor(ms / (1000 * 60 * 60 * 24));
+}
+
 /** 檢查字串是否為有效的 0.5 倍數數字（空白回傳 null 表示未填） */
 const parseHalf = (s: string): number | null | 'invalid' => {
   if (s.trim() === '') return null;
@@ -48,18 +56,6 @@ const DETAIL_TYPE_LABELS: Record<UserAnnualLeaveDetail['detail_type'], string> =
   grant: '獲得',
   usage: '使用',
   writeoff: '抹平',
-};
-
-/** 請假概況矩陣各假別標記顏色 */
-const LEAVE_TYPE_COLORS: Record<LeaveType, string> = {
-  AL: 'bg-green-500',
-  PRD: 'bg-blue-500',
-  DO: 'bg-purple-400',
-  SL: 'bg-red-500',
-  CL: 'bg-orange-400',
-  NPL: 'bg-gray-400',
-  PH: 'bg-yellow-400',
-  SH: 'bg-pink-400',
 };
 
 const inputClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500';
@@ -162,11 +158,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
   const [balanceModalError, setBalanceModalError] = useState<string | null>(null);
   const [balanceSaving, setBalanceSaving] = useState(false);
 
-  // ----- 請假概況 -----
-  const [leaveRecords, setLeaveRecords] = useState<UserLeaveRecord[]>([]);
-  const now = useMemo(() => new Date(), []);
-  const [matrixMonth, setMatrixMonth] = useState({ y: now.getFullYear(), m: now.getMonth() + 1 });
-
   // ----- 計算值 -----
   const systemGrantTotal = useMemo(
     () => leaveDetails.filter(d => d.detail_type === 'grant' && d.is_system).reduce((s, d) => s + d.days, 0),
@@ -204,38 +195,82 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
   }, [restDetails, restUsageTotal]);
 
   // ----- 公眾假期計算值 -----
-  const phSystemGrantTotal = useMemo(
-    () => publicHolidayDetails.filter(d => d.detail_type === 'grant' && d.is_system).reduce((s, d) => s + d.days, 0),
+  const todayStrForPh = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const phGrantRows = useMemo(
+    () => publicHolidayDetails.filter(d => d.detail_type === 'grant'),
     [publicHolidayDetails],
+  );
+  const phUsageRows = useMemo(
+    () => publicHolidayDetails.filter(d => d.detail_type === 'usage'),
+    [publicHolidayDetails],
+  );
+  const phWriteoffRows = useMemo(
+    () => publicHolidayDetails.filter(d => d.detail_type === 'writeoff'),
+    [publicHolidayDetails],
+  );
+  /** 未過期的 grant（系統 + 手動） */
+  const phUnexpiredGrantRows = useMemo(
+    () => phGrantRows.filter(d => !d.expiry_date || d.expiry_date >= todayStrForPh),
+    [phGrantRows, todayStrForPh],
+  );
+  const phExpiredTotal = useMemo(
+    () => phGrantRows.filter(d => d.expiry_date && d.expiry_date < todayStrForPh).reduce((s, d) => s + d.days, 0),
+    [phGrantRows, todayStrForPh],
   );
   const phUsageTotal = useMemo(
-    () => publicHolidayDetails.filter(d => d.detail_type === 'usage').reduce((s, d) => s + d.days, 0),
-    [publicHolidayDetails],
+    () => phUsageRows.reduce((s, d) => s + d.days, 0),
+    [phUsageRows],
   );
-  const phBalance = useMemo(() => {
-    const grant = publicHolidayDetails.filter(d => d.detail_type === 'grant').reduce((s, d) => s + d.days, 0);
-    const writeoff = publicHolidayDetails.filter(d => d.detail_type === 'writeoff').reduce((s, d) => s + d.days, 0);
-    return grant - phUsageTotal - writeoff;
-  }, [publicHolidayDetails, phUsageTotal]);
-  const phCurrentMonthDays = useMemo(() => {
-    if (!publicHolidayType) return 0;
-    const nowStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-    return publicHolidays.filter(h => h.type === publicHolidayType && h.holiday_date.startsWith(nowStr.slice(0, 7))).length;
-  }, [publicHolidays, publicHolidayType, now]);
+  const phWriteoffTotal = useMemo(
+    () => phWriteoffRows.reduce((s, d) => s + d.days, 0),
+    [phWriteoffRows],
+  );
+  /** 有效累積 = 未過期 grant − 使用 − 抹平 */
+  const phBalance = useMemo(
+    () => phUnexpiredGrantRows.reduce((s, d) => s + d.days, 0) - phUsageTotal - phWriteoffTotal,
+    [phUnexpiredGrantRows, phUsageTotal, phWriteoffTotal],
+  );
+  /** 已用假期 ID 集合（用於倒數清單） */
+  const phUsedHolidayIds = useMemo(
+    () => new Set(phUsageRows.map(d => d.reference_public_holiday_id).filter(Boolean) as string[]),
+    [phUsageRows],
+  );
+  /** 未用且未過期的公眾假期清單（供倒數顯示） */
+  const phUnusedHolidayList = useMemo(() => {
+    const list: { name: string; holiday_date: string; expiry_date: string; daysLeft: number }[] = [];
+    for (const g of phUnexpiredGrantRows) {
+      if (!g.reference_public_holiday_id) continue;
+      if (phUsedHolidayIds.has(g.reference_public_holiday_id)) continue;
+      const holiday = publicHolidays.find(h => h.id === g.reference_public_holiday_id);
+      if (!holiday || !g.expiry_date) continue;
+      const daysLeft = daysBetween(todayStrForPh, g.expiry_date);
+      if (daysLeft < 0) continue;
+      list.push({
+        name: holiday.name,
+        holiday_date: holiday.holiday_date,
+        expiry_date: g.expiry_date,
+        daysLeft,
+      });
+    }
+    list.sort((a, b) => a.holiday_date.localeCompare(b.holiday_date));
+    return list;
+  }, [phUnexpiredGrantRows, phUsedHolidayIds, publicHolidays, todayStrForPh]);
 
   // ----- 年假獲得行 lazy 補齊 -----
   const materializeGrants = useCallback(
-    async (startDate: string, daysPerYear: number | null, existing: UserAnnualLeaveDetail[]) => {
+    async (startDate: string, daysPerYear: number | null) => {
       const expected = getExpectedAnnualLeaveGrants(startDate, daysPerYear);
       if (expected.length === 0) return;
-      // 與 DB 中 is_system=true 的獲得行按 record_date 比對，缺則補；多出的系統行不刪
-      const existingDates = new Set(
-        existing.filter(d => d.detail_type === 'grant' && d.is_system).map(d => d.record_date),
-      );
-      const missing = expected.filter(g => !existingDates.has(g.record_date));
-      if (missing.length === 0) return;
+      // 清理所有系統發放的獲得行，再重新寫入預期日期，避免重複或舊起始日遺留
+      const { error: deleteErr } = await supabase
+        .from('user_annual_leave_details')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('is_system', true)
+        .eq('detail_type', 'grant');
+      if (deleteErr) throw deleteErr;
       const { error } = await supabase.from('user_annual_leave_details').insert(
-        missing.map(g => ({
+        expected.map(g => ({
           user_id: user.id,
           record_date: g.record_date,
           detail_type: 'grant',
@@ -252,15 +287,56 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
 
   // ----- 休息日獲得行 lazy 補齊（起始日一次 + 逢周日發放整數 DO；fraction 累積） -----
   const materializeRestGrants = useCallback(
-    async (startDate: string, weeklyWorkDays: number | null, existing: UserRestDayDetail[]) => {
+    async (startDate: string, weeklyWorkDays: number | null) => {
       if (!weeklyWorkDays || weeklyWorkDays <= 0) return;
       const { grants, totalFraction } = getExpectedRestDayGrants(startDate, weeklyWorkDays);
+      const expectedDates = new Set(grants.map(g => g.record_date));
 
-      // 補齊缺失的整數 DO 獲得行
-      const existingDates = new Set(
-        existing.filter(d => d.detail_type === 'grant' && d.is_system).map(d => d.record_date),
+      // 1) 先取出所有獲得行，按建立時間由舊到新排序
+      const { data: allGrants, error: fetchErr } = await supabase
+        .from('user_rest_day_details')
+        .select('id, record_date, is_system')
+        .eq('user_id', user.id)
+        .eq('detail_type', 'grant')
+        .order('created_at', { ascending: true });
+      if (fetchErr) throw fetchErr;
+
+      const seenDates = new Set<string>();
+      const duplicateIds: string[] = [];
+      const manualDates = new Set<string>();
+      const keptSystemDates = new Set<string>();
+      for (const row of (allGrants ?? []) as { id: string; record_date: string; is_system: boolean }[]) {
+        if (seenDates.has(row.record_date)) {
+          // 同一日期已存在，視為重複行
+          duplicateIds.push(row.id);
+          continue;
+        }
+        seenDates.add(row.record_date);
+        if (row.is_system) {
+          if (expectedDates.has(row.record_date)) {
+            keptSystemDates.add(row.record_date);
+          } else {
+            // 舊起始日或舊每周工作天數遺留的系統行
+            duplicateIds.push(row.id);
+          }
+        } else {
+          manualDates.add(row.record_date);
+        }
+      }
+
+      // 2) 刪除重複行及過期的系統行
+      if (duplicateIds.length > 0) {
+        const { error: deleteErr } = await supabase
+          .from('user_rest_day_details')
+          .delete()
+          .in('id', duplicateIds);
+        if (deleteErr) throw deleteErr;
+      }
+
+      // 3) 補回尚未覆蓋的預期系統發放日
+      const missing = grants.filter(
+        g => !manualDates.has(g.record_date) && !keptSystemDates.has(g.record_date),
       );
-      const missing = grants.filter(g => !existingDates.has(g.record_date));
       if (missing.length > 0) {
         const { error } = await supabase.from('user_rest_day_details').insert(
           missing.map(g => ({
@@ -293,28 +369,32 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
     [user.id, currentUserId],
   );
 
-  // ----- 公眾假期獲得行 lazy 補齊（每月按當月假期日數發放） -----
+  // ----- 公眾假期獲得行 lazy 補齊（按單一假期發放，30 天內有效） -----
   const materializePublicHolidayGrants = useCallback(
     async (
       startDate: string,
       type: 'PH' | 'SH',
-      existing: UserPublicHolidayDetail[],
       holidayCache: PublicHoliday[],
     ) => {
       const expected = getExpectedPublicHolidayGrants(startDate, type, holidayCache);
       if (expected.length === 0) return;
-      const existingDates = new Set(
-        existing.filter(d => d.detail_type === 'grant' && d.is_system).map(d => d.record_date),
-      );
-      const missing = expected.filter(g => !existingDates.has(g.record_date));
-      if (missing.length === 0) return;
+      // 清理所有系統發放的獲得行，再重新寫入預期假期，避免重複或舊起始日遺留
+      const { error: deleteErr } = await supabase
+        .from('user_public_holiday_details')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('is_system', true)
+        .eq('detail_type', 'grant');
+      if (deleteErr) throw deleteErr;
       const { error } = await supabase.from('user_public_holiday_details').insert(
-        missing.map(g => ({
+        expected.map(g => ({
           user_id: user.id,
           record_date: g.record_date,
           detail_type: 'grant',
           days: g.days,
           remark: g.remark,
+          reference_public_holiday_id: g.reference_public_holiday_id,
+          expiry_date: g.expiry_date,
           is_system: true,
           created_by: currentUserId,
         })),
@@ -332,7 +412,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       const [
         { data: details, error: e1 },
         { data: rows, error: e2 },
-        { data: records, error: e3 },
         { data: restRows, error: e5 },
         { data: phRows, error: e7 },
       ] = await Promise.all([
@@ -343,7 +422,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           .eq('user_id', user.id)
           .order('record_date', { ascending: true })
           .order('created_at', { ascending: true }),
-        supabase.from('user_leave_records').select('*').eq('user_id', user.id),
         supabase
           .from('user_rest_day_details')
           .select('*')
@@ -359,7 +437,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       ]);
       if (e1) throw e1;
       if (e2) throw e2;
-      if (e3) throw e3;
       if (e5) throw e5;
       if (e7) throw e7;
 
@@ -400,7 +477,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       const startDate = details?.annual_leave_start_date ?? user.hire_date ?? null;
       const daysPerYear = details?.annual_leave_days_per_year ?? null;
       if (startDate && daysPerYear) {
-        await materializeGrants(startDate, daysPerYear, detailRows);
+        await materializeGrants(startDate, daysPerYear);
         const { data: refreshed, error: e4 } = await supabase
           .from('user_annual_leave_details')
           .select('*')
@@ -417,7 +494,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       const restStart = details?.rest_day_start_date ?? user.hire_date ?? null;
       const workDaysForRest = details?.weekly_work_days ?? null;
       if (restStart && workDaysForRest) {
-        await materializeRestGrants(restStart, workDaysForRest, restDetailRows);
+        await materializeRestGrants(restStart, workDaysForRest);
         const { data: refreshedRest, error: e6 } = await supabase
           .from('user_rest_day_details')
           .select('*')
@@ -448,7 +525,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
         const endStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         const holidayCache = await loadPublicHolidaysRange(phStart, endStr, phType);
         setPublicHolidays(holidayCache);
-        await materializePublicHolidayGrants(phStart, phType, publicHolidayDetailRows, holidayCache);
+        await materializePublicHolidayGrants(phStart, phType, holidayCache);
         const { data: refreshedPh, error: e8 } = await supabase
           .from('user_public_holiday_details')
           .select('*')
@@ -461,8 +538,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
         setPublicHolidays([]);
       }
       setPublicHolidayDetails(publicHolidayDetailRows);
-
-      setLeaveRecords((records ?? []) as UserLeaveRecord[]);
     } catch (err) {
       console.error('載入僱傭詳情失敗:', err);
       setMessage({ type: 'error', text: '載入僱傭詳情失敗' });
@@ -582,33 +657,16 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
 
       // 按（可能已更改的）起始日補齊系統獲得行
       if (annualLeaveStartDate && parsed['每年年假天數']) {
-        const { data: rows } = await supabase
-          .from('user_annual_leave_details')
-          .select('*')
-          .eq('user_id', user.id);
-        await materializeGrants(annualLeaveStartDate, parsed['每年年假天數'], (rows ?? []) as UserAnnualLeaveDetail[]);
+        await materializeGrants(annualLeaveStartDate, parsed['每年年假天數']);
       }
       if (restDayStartDate && parsed['每周工作天數']) {
-        const { data: rows } = await supabase
-          .from('user_rest_day_details')
-          .select('*')
-          .eq('user_id', user.id);
-        await materializeRestGrants(restDayStartDate, parsed['每周工作天數'], (rows ?? []) as UserRestDayDetail[]);
+        await materializeRestGrants(restDayStartDate, parsed['每周工作天數']);
       }
       if (publicHolidayType && publicHolidayStartDate) {
         const today = new Date();
         const endStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         const holidayCache = await loadPublicHolidaysRange(publicHolidayStartDate, endStr, publicHolidayType);
-        const { data: rows } = await supabase
-          .from('user_public_holiday_details')
-          .select('*')
-          .eq('user_id', user.id);
-        await materializePublicHolidayGrants(
-          publicHolidayStartDate,
-          publicHolidayType,
-          (rows ?? []) as UserPublicHolidayDetail[],
-          holidayCache,
-        );
+        await materializePublicHolidayGrants(publicHolidayStartDate, publicHolidayType, holidayCache);
       }
 
       setInitialStartDate(annualLeaveStartDate || null);
@@ -842,20 +900,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
     }
   };
 
-  // ----- 請假概況矩陣 -----
-  const daysInMonth = new Date(matrixMonth.y, matrixMonth.m, 0).getDate();
-  const shiftMonth = (delta: number) => {
-    setMatrixMonth(prev => {
-      const total = (prev.m - 1) + delta;
-      return { y: prev.y + Math.floor(total / 12), m: (total % 12) + 1 };
-    });
-  };
-  const leaveRecordSet = useMemo(() => {
-    const set = new Set<string>();
-    for (const r of leaveRecords) set.add(`${r.leave_date}|${r.leave_type}`);
-    return set;
-  }, [leaveRecords]);
-
   // ----- 小組件 -----
   const renderHalfInput = (
     label: string,
@@ -943,7 +987,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                 )}
                 {details.map(row => (
                   <tr key={row.id} className="border-b border-gray-100">
-                    <td className="py-1.5 pr-3 whitespace-nowrap">{row.record_date}</td>
+                    <td className="py-1.5 pr-3 whitespace-nowrap">{formatDisplayDate(row.record_date)}</td>
                     <td className="py-1.5 pr-3">
                       {DETAIL_TYPE_LABELS[row.detail_type]}
                       {row.is_system && <span className="ml-1 text-xs text-gray-400">（系統）</span>}
@@ -1082,11 +1126,9 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">休息日計算起始日</label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={restDayStartDate}
-                      onChange={e => setRestDayStartDate(e.target.value)}
-                      className={inputClass}
+                      onChange={v => setRestDayStartDate(v)}
                     />
                   </div>
                 </div>
@@ -1122,11 +1164,9 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                   {renderHalfInput('每年', annualLeaveDaysPerYear, setAnnualLeaveDaysPerYear, { unit: '天' })}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">年假計算起始日</label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={annualLeaveStartDate}
-                      onChange={e => setAnnualLeaveStartDate(e.target.value)}
-                      className={inputClass}
+                      onChange={v => setAnnualLeaveStartDate(v)}
                     />
                   </div>
                 </div>
@@ -1168,12 +1208,10 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">公眾假期計算起始日</label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={publicHolidayStartDate}
-                      onChange={e => setPublicHolidayStartDate(e.target.value)}
+                      onChange={v => setPublicHolidayStartDate(v)}
                       disabled={!publicHolidayType}
-                      className={`${inputClass} ${!publicHolidayType ? 'bg-gray-100 opacity-60' : ''}`}
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -1189,26 +1227,41 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  由起始日當月起，每月 1 日按當月假期日數自動發放；不可透支下月、可累積無上限。
-                  {publicHolidayType && (
-                    <>
-                      {' '}
-                      本月{publicHolidayType === 'PH' ? '銀行' : '勞工'}假期額度：
-                      <span className="font-medium">{phCurrentMonthDays}</span> 天。
-                    </>
-                  )}
+                  由起始日當月起，每月 1 日按當月假期日數自動發放；每個假期須在假期當日後 30 天內用完，逾期失效。
                 </p>
                 <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-700">
                   <span>
-                    按起始日至今應獲得：<span className="font-medium">{fmt(phSystemGrantTotal)}</span> 天
-                  </span>
-                  <span>
-                    累積：<span className={`font-medium ${phBalance < 0 ? 'text-red-600' : ''}`}>{fmt(phBalance)}</span> 天
+                    未過期額度：<span className={`font-medium ${phBalance < 0 ? 'text-red-600' : ''}`}>{fmt(phBalance)}</span> 天
                   </span>
                   <span>
                     已使用：<span className="font-medium">{fmt(phUsageTotal)}</span> 天
                   </span>
+                  {phExpiredTotal > 0 && (
+                    <span className="text-red-600">
+                      已過期：<span className="font-medium">{fmt(phExpiredTotal)}</span> 天
+                    </span>
+                  )}
                 </div>
+                {publicHolidayType && phUnusedHolidayList.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs font-medium text-gray-600 mb-1.5">未用假期倒數（有效期至）</p>
+                    <div className="flex flex-wrap gap-2">
+                      {phUnusedHolidayList.map(h => (
+                        <span
+                          key={h.holiday_date}
+                          className={`inline-flex items-center px-2 py-1 rounded-md text-xs ${
+                            h.daysLeft <= 7 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}
+                        >
+                          {h.name}
+                          <span className="ml-1 text-[10px] opacity-80">
+                            ({formatDisplayDate(h.holiday_date)} 剩 {h.daysLeft} 天)
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {renderDetailTable('ph', publicHolidayDetails, phBalance, publicDetailTableOpen, () =>
                   setPublicDetailTableOpen(prev => !prev),
                 )}
@@ -1271,71 +1324,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                 <p className="text-xs text-gray-500 mt-2">
                   不選擇「不可前往」的局住區，自動指派仍有可能派往該區。
                 </p>
-              </div>
-
-              {/* 6. 請假概況 */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-900 mb-2">請假概況</h4>
-                <div className="flex items-center gap-2 mb-2">
-                  <button
-                    type="button"
-                    onClick={() => shiftMonth(-1)}
-                    className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-                    title="上月"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <span className="text-sm font-medium text-gray-700 min-w-[5rem] text-center">
-                    {matrixMonth.y}-{String(matrixMonth.m).padStart(2, '0')}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => shiftMonth(1)}
-                    className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-                    title="下月"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                </div>
-                <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                  <table className="text-xs">
-                    <thead>
-                      <tr className="border-b border-gray-200 bg-gray-50">
-                        <th className="px-2 py-1 text-left font-medium text-gray-500 sticky left-0 bg-gray-50">
-                          假別
-                        </th>
-                        {Array.from({ length: daysInMonth }, (_, i) => (
-                          <th key={i + 1} className="px-1 py-1 font-medium text-gray-500 text-center min-w-[1.5rem]">
-                            {i + 1}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {LEAVE_TYPES.map(t => (
-                        <tr key={t} className="border-b border-gray-100">
-                          <td className="px-2 py-1 whitespace-nowrap text-gray-700 sticky left-0 bg-white">
-                            {LEAVE_TYPE_LABELS[t]} {t}
-                          </td>
-                          {Array.from({ length: daysInMonth }, (_, i) => {
-                            const dateStr = `${matrixMonth.y}-${String(matrixMonth.m).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`;
-                            const hasLeave = leaveRecordSet.has(`${dateStr}|${t}`);
-                            return (
-                              <td key={i + 1} className="px-1 py-1 text-center">
-                                {hasLeave && (
-                                  <span
-                                    className={`inline-block h-4 w-4 rounded-sm ${LEAVE_TYPE_COLORS[t]}`}
-                                    title={`${dateStr} ${LEAVE_TYPE_LABELS[t]}`}
-                                  />
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
               </div>
 
               {/* 儲存按鈕（獨立於用戶表單） */}
@@ -1433,11 +1421,10 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
               )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">日期 *</label>
-                <input
-                  type="date"
+                <DateInput
                   value={leaveRowModal.record_date}
-                  onChange={e => setLeaveRowModal(prev => (prev ? { ...prev, record_date: e.target.value } : prev))}
-                  className={inputClass}
+                  onChange={v => setLeaveRowModal(prev => (prev ? { ...prev, record_date: v } : prev))}
+                  required
                 />
               </div>
               <div>

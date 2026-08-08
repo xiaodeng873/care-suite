@@ -184,7 +184,7 @@ const FeeRecords: React.FC = () => {
   const assistantNames = useMemo(
     () =>
       userProfiles
-        .filter(p => p.hygiene_position === '助理員')
+        .filter(p => p.hygiene_position === '清潔員')
         .map(p => p.name_zh)
         .filter(Boolean),
     [userProfiles]

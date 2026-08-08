@@ -5,7 +5,7 @@
 
 import type { UserLeaveRecord, PublicHoliday, LeaveType } from '@care-suite/shared';
 import { getExpectedMonthlyRestDays } from './restDays';
-import { getPublicHolidaysForMonth } from './publicHolidays';
+import { getPublicHolidaysForMonth, addDays } from './publicHolidays';
 
 export interface RosterLeaveContext {
   /** 目標年份 */
@@ -16,7 +16,7 @@ export interface RosterLeaveContext {
   existingLeaves: UserLeaveRecord[];
   /** 該員工已預排的 PH/SH 所引用的 public_holiday id 集合 */
   usedHolidayIds: Set<string>;
-  /** 可排 DO 的總額度（結餘 + 目標月預估） */
+  /** DO 累積結餘（grant - usage - writeoff） */
   doBalance: number;
   /** 當前 PRD fraction 累積（可用 PRD = floor(fraction + 目標月預估)） */
   restDayFraction: number;
@@ -115,6 +115,10 @@ export function validateScheduledLeave(
     if (!isDateInTargetMonth(holiday.holiday_date, ctx.year, ctx.month)) {
       return '實際假期與目標排班月份不同';
     }
+    const expiryDate = addDays(holiday.holiday_date, 30);
+    if (payload.leaveDate > expiryDate) {
+      return '該假期已超過 30 天有效期';
+    }
     if (ctx.usedHolidayIds.has(payload.referencePublicHolidayId)) {
       return '該實際假期已被同一員工預排';
     }
@@ -127,7 +131,7 @@ export function validateScheduledLeave(
     }
   }
 
-  // SL / CL / NPL：暫不驗證額度，僅檢查衝突
+  // SL / NPL：暫不驗證額度，僅檢查衝突
   return null;
 }
 
@@ -170,7 +174,6 @@ export function getRosterUsedCounts(leaveRecords: UserLeaveRecord[], year: numbe
     shUsed: leaves.filter((l) => l.leave_type === 'SH' && inMonth(l.leave_date)).length,
     alUsed: leaves.filter((l) => l.leave_type === 'AL' && inMonth(l.leave_date)).length,
     slUsed: leaves.filter((l) => l.leave_type === 'SL' && inMonth(l.leave_date)).length,
-    clUsed: leaves.filter((l) => l.leave_type === 'CL' && inMonth(l.leave_date)).length,
     nplUsed: leaves.filter((l) => l.leave_type === 'NPL' && inMonth(l.leave_date)).length,
   };
 }

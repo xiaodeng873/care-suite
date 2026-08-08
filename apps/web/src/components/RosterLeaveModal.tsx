@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import type { UserProfile, LeaveType } from '@care-suite/shared';
+import type { UserProfile, LeaveType, UserLeaveRecord } from '@care-suite/shared';
 import { LEAVE_TYPE_LABELS } from '@care-suite/shared';
 import { validateScheduledLeave } from '../utils/leaveValidation';
 import type { RosterLeaveContext } from '../utils/leaveValidation';
+import DateInput from './DateInput';
 
 export interface RosterLeaveModalPayload {
+  id?: string;
   leaveDate: string;
   recordType: 'leave' | 'availability';
   leaveType: LeaveType | null;
@@ -19,12 +21,14 @@ interface RosterLeaveModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (payload: RosterLeaveModalPayload) => Promise<void>;
+  onDelete?: () => Promise<void>;
   user: UserProfile;
   initialDate?: string;
+  editingRecord?: UserLeaveRecord | null;
   context: RosterLeaveContext;
 }
 
-const BASE_LEAVE_OPTIONS: LeaveType[] = ['AL', 'DO', 'PRD'];
+const BASE_LEAVE_OPTIONS: LeaveType[] = ['AL', 'DO', 'PRD', 'SL', 'NPL'];
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -32,8 +36,10 @@ export const RosterLeaveModal: React.FC<RosterLeaveModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  onDelete,
   user,
   initialDate,
+  editingRecord,
   context,
 }) => {
   const [recordType, setRecordType] = useState<'leave' | 'availability'>('leave');
@@ -44,21 +50,34 @@ export const RosterLeaveModal: React.FC<RosterLeaveModalProps> = ({
   const [availabilityEnd, setAvailabilityEnd] = useState('18:00');
   const [selectedHolidayId, setSelectedHolidayId] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isPartTime = user.employment_type === '兼職';
 
   useEffect(() => {
     if (isOpen) {
-      setRecordType('leave');
-      setLeaveType('DO');
-      setLeaveDate(initialDate ?? '');
-      setIsMandatory(false);
-      setAvailabilityStart('09:00');
-      setAvailabilityEnd('18:00');
-      setSelectedHolidayId('');
+      if (editingRecord) {
+        setRecordType(editingRecord.record_type);
+        setLeaveType(editingRecord.leave_type ?? 'DO');
+        setLeaveDate(editingRecord.leave_date);
+        setIsMandatory(editingRecord.urgency === 'mandatory');
+        setAvailabilityStart(editingRecord.availability_start_time ?? '09:00');
+        setAvailabilityEnd(editingRecord.availability_end_time ?? '18:00');
+        setSelectedHolidayId(editingRecord.reference_public_holiday_id ?? '');
+      } else {
+        setRecordType(isPartTime ? 'availability' : 'leave');
+        setLeaveType('DO');
+        setLeaveDate(initialDate ?? '');
+        setIsMandatory(false);
+        setAvailabilityStart('09:00');
+        setAvailabilityEnd('18:00');
+        setSelectedHolidayId('');
+      }
       setError(null);
       setSaving(false);
+      setDeleting(false);
     }
-  }, [isOpen, initialDate]);
+  }, [isOpen, initialDate, editingRecord, isPartTime]);
 
   const dateLabel = useMemo(() => {
     if (!leaveDate) return '';
@@ -68,15 +87,16 @@ export const RosterLeaveModal: React.FC<RosterLeaveModalProps> = ({
   }, [leaveDate]);
 
   const leaveOptions = useMemo(() => {
+    if (isPartTime) return [] as LeaveType[];
     const opts = [...BASE_LEAVE_OPTIONS];
     if (context.publicHolidayType === 'PH') opts.push('PH');
     if (context.publicHolidayType === 'SH') opts.push('SH');
     return opts;
-  }, [context.publicHolidayType]);
+  }, [context.publicHolidayType, isPartTime]);
 
   useEffect(() => {
     if (!leaveOptions.includes(leaveType)) {
-      setLeaveType('DO');
+      setLeaveType(leaveOptions[0] ?? 'DO');
     }
   }, [leaveOptions, leaveType]);
 
@@ -114,6 +134,7 @@ export const RosterLeaveModal: React.FC<RosterLeaveModalProps> = ({
     setError(null);
 
     const payload: RosterLeaveModalPayload = {
+      id: editingRecord?.id,
       leaveDate,
       recordType,
       leaveType: recordType === 'leave' ? leaveType : null,
@@ -166,43 +187,48 @@ export const RosterLeaveModal: React.FC<RosterLeaveModalProps> = ({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">日期</label>
-            <input
-              type="date"
+            <DateInput
               value={leaveDate}
-              onChange={(e) => setLeaveDate(e.target.value)}
+              onChange={(v) => setLeaveDate(v)}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
             {dateLabel && <p className="text-xs text-gray-500 mt-1">{dateLabel}</p>}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">預排類型</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setRecordType('leave')}
-                className={`px-3 py-2 text-sm rounded-lg border ${
-                  recordType === 'leave'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                放假
-              </button>
-              <button
-                type="button"
-                onClick={() => setRecordType('availability')}
-                className={`px-3 py-2 text-sm rounded-lg border ${
-                  recordType === 'availability'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                特定上班時間
-              </button>
+          {!isPartTime && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">預排類型</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRecordType('leave')}
+                  className={`px-3 py-2 text-sm rounded-lg border ${
+                    recordType === 'leave'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  放假
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecordType('availability')}
+                  className={`px-3 py-2 text-sm rounded-lg border ${
+                    recordType === 'availability'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  特定上班時間
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+          {isPartTime && (
+            <p className="text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
+              兼職員工不設假期額度，只可設定特定上班時間。
+            </p>
+          )}
 
           <div className="flex items-start gap-3">
             <input
@@ -307,17 +333,38 @@ export const RosterLeaveModal: React.FC<RosterLeaveModalProps> = ({
           )}
 
           <div className="flex justify-end gap-2 pt-2">
+            {editingRecord && onDelete && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!window.confirm('確定刪除此預排？')) return;
+                  setDeleting(true);
+                  try {
+                    await onDelete();
+                    onClose();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : '刪除失敗');
+                  } finally {
+                    setDeleting(false);
+                  }
+                }}
+                disabled={deleting || saving}
+                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 mr-auto"
+              >
+                {deleting ? '刪除中...' : '刪除'}
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}
-              disabled={saving}
+              disabled={saving || deleting}
               className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
             >
               取消
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || deleting}
               className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? '儲存中...' : '儲存'}

@@ -94,7 +94,7 @@ function hasAnyBeds(bedCounts: NatureBedCounts): boolean {
  * - 主管：全院固定 1 人（有任何宿位時）
  * - 護理員：全院 ceil(入住人數÷20)（指明期間 1:20，大於 1:40，取日間值）
  * - 助理員：全院 ceil(入住人數÷40)（指明期間 1:40）
- * - 保健員：全院保健員當量 ceil(入住人數÷30)；有甲一買位宿位時，先扣 1 名註冊護士貢獻的 2 當量
+ * - 保健員：全院保健員人手 ceil(入住人數÷30)；有甲一買位宿位時，先扣 1 名註冊護士貢獻的 2 名人手
  * - 註冊/登記護士：有甲一買位宿位 → 保底 1 名當值（買位合約要求）
  * - 任何員工（夜班 18:00–07:00 兩名）：可由其他職位兼任，不計入僱用人數 → 0
  */
@@ -109,7 +109,7 @@ export function minHeadcountForPosition(
   if (position === '保健員') {
     const equivalents = ratioHeadcount(currentResidents, STATUTORY_RATIOS.healthWorker);
     if (hasA1VoucherBeds(bedCounts)) {
-      return Math.max(0, equivalents - 2); // 1 名註冊護士視同 2 名保健員當量
+      return Math.max(0, equivalents - 2); // 1 名註冊護士視同 2 名保健員人手
     }
     return equivalents;
   }
@@ -128,7 +128,7 @@ export function minHeadcountForPosition(
  * 計算順序（比例全部寫死，向上取整）：
  * 1. 護理員欄：指明期間 10h 全院 ceil(入住人數÷20)，其餘 14h 全院 ceil(入住人數÷40)
  * 2. 助理員欄：指明期間 11h 全院 ceil(入住人數÷40)
- * 3. 護士／保健員指明期間（連續 13 小時）：全院保健員當量 ceil(入住人數÷30)，
+ * 3. 護士／保健員指明期間（連續 13 小時）：全院保健員人手 ceil(入住人數÷30)，
  *    1 名註冊護士視同 2 名保健員。有甲一買位時，註冊護士欄保底 1 名，剩餘由保健員填補。
  * 4. 任何員工欄：18:00–翌日 07:00 全院至少 2 名員工當值（可兼任，不計入僱用人數）
  * 5. 總結只列每日最低僱用人數；實際工時與組合取決於排班，此階段不比對達標
@@ -261,7 +261,7 @@ export interface DualRedLineResult {
  * - 紅線 1（特定鐘點人數）：每小時每職位最少當值人數，不可妥協
  * - 紅線 2（甲一合約時數）：每職位每日總工時目標，不可妥協
  * - 兩者獨立，不能互相抵扣
- * - 護士替代保健員只影響紅線 1 的當量計算（1 護士 = 2 保健員），不影響紅線 2 的獨立工時
+ * - 護士替代保健員只影響紅線 1 的人手計算（1 護士 = 2 保健員），不影響紅線 2 的獨立工時
  */
 export function computeDualRedLineStaffing(input: StaffingInput): DualRedLineResult {
   const { bedCounts } = input;

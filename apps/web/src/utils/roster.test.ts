@@ -11,11 +11,16 @@ import {
   getApplicablePosition,
   getUserAllPositions,
   getShiftEndTime,
+  formatShiftTimeAbbreviation,
   buildShiftAssignmentMap,
   getActiveShiftSettings,
   getPositionOptions,
+  getGridPositionOptions,
   summarizeDailyShiftByPosition,
   buildDailyCompliance,
+  buildPreScheduleDailyCompliance,
+  canFillPositionInPreSchedule,
+  getPreScheduleAvailableByShiftHour,
   clamp,
 } from './roster';
 
@@ -53,6 +58,13 @@ describe('roster utils', () => {
       expect(addHoursToTime('07:00', -2)).toBe('05:00');
       expect(addHoursToTime('23:00', 10)).toBe('09:00');
     });
+
+    it('formats shift time abbreviation', () => {
+      expect(formatShiftTimeAbbreviation('07:00', '18:00')).toBe('7A-6P');
+      expect(formatShiftTimeAbbreviation('13:00', '22:00')).toBe('1P-10P');
+      expect(formatShiftTimeAbbreviation('21:00', '07:00')).toBe('9P-7A');
+      expect(formatShiftTimeAbbreviation('00:00', '12:00')).toBe('12A-12P');
+    });
   });
 
   describe('calculateAge', () => {
@@ -74,7 +86,7 @@ describe('roster utils', () => {
       hygiene_position: null,
       allied_health_position: null,
       other_position: null,
-      secondary_positions: ['助理員'],
+      secondary_positions: ['社工助理'],
     } as unknown as UserProfile;
 
     it('matches primary position', () => {
@@ -82,7 +94,7 @@ describe('roster utils', () => {
     });
 
     it('matches secondary position', () => {
-      expect(getApplicablePosition(user, '助理員')).toBe(true);
+      expect(getApplicablePosition(user, '社工助理')).toBe(true);
     });
 
     it('returns false for non-matching position', () => {
@@ -97,9 +109,9 @@ describe('roster utils', () => {
         hygiene_position: null,
         allied_health_position: null,
         other_position: null,
-        secondary_positions: ['助理員', '護理員'],
+        secondary_positions: ['社工助理', '護理員'],
       } as unknown as UserProfile;
-      expect(getUserAllPositions(user)).toEqual(['護理員', '助理員']);
+      expect(getUserAllPositions(user)).toEqual(['護理員', '社工助理']);
     });
   });
 
@@ -155,14 +167,27 @@ describe('roster utils', () => {
     });
   });
 
+  describe('getGridPositionOptions', () => {
+    it('merges registered and enrolled nurses into a single grid option', () => {
+      const users = [
+        { nursing_position: '註冊護士', secondary_positions: [] },
+        { nursing_position: '登記護士', secondary_positions: [] },
+        { nursing_position: '護理員', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      expect(getGridPositionOptions(users)).toContain('註冊/登記護士');
+      expect(getGridPositionOptions(users)).not.toContain('註冊護士');
+      expect(getGridPositionOptions(users)).not.toContain('登記護士');
+    });
+  });
+
   describe('getPositionOptions', () => {
     it('collects unique positions from primary and secondary roles', () => {
       const users = [
-        { nursing_position: '護理員', secondary_positions: ['助理員'] },
+        { nursing_position: '護理員', secondary_positions: ['社工助理'] },
         { nursing_position: '保健員', secondary_positions: [] },
-        { nursing_position: '護理員', secondary_positions: ['助理員', 'invalid'] },
+        { nursing_position: '護理員', secondary_positions: ['社工助理', 'invalid'] },
       ] as unknown as UserProfile[];
-      expect(getPositionOptions(users)).toEqual(['保健員', '助理員', '登記護士', '註冊護士', '護理員']);
+      expect(getPositionOptions(users)).toEqual(['保健員', '登記護士', '社工助理', '註冊護士', '護理員']);
     });
   });
 
@@ -179,7 +204,7 @@ describe('roster utils', () => {
       const users = [
         { id: 'u1', nursing_position: '護理員', secondary_positions: [] },
         { id: 'u2', nursing_position: '護理員', secondary_positions: [] },
-        { id: 'u3', nursing_position: null, hygiene_position: '助理員', secondary_positions: [] },
+        { id: 'u3', nursing_position: null, hygiene_position: '清潔員', secondary_positions: [] },
       ] as unknown as UserProfile[];
       const employmentDetails = {
         u1: { daily_contract_hours: 8 },
@@ -193,7 +218,7 @@ describe('roster utils', () => {
       ];
       const summary = summarizeDailyShiftByPosition('2026-08-02', users, employmentDetails, assignments);
       expect(summary['護理員']).toEqual({ headcount: 2, hours: 14 });
-      expect(summary['助理員']).toEqual({ headcount: 1, hours: 8 });
+      expect(summary['清潔員']).toEqual({ headcount: 1, hours: 8 });
     });
 
     it('counts nurse covering health worker shift toward health worker headcount and nurse hours', () => {
@@ -266,19 +291,23 @@ describe('roster utils', () => {
       ]);
     });
 
-    it('counts social work, dietary, and hygiene staff as assistants for specific slot', () => {
+    it('counts all non-nursing staff as assistants for specific slot', () => {
       const users = [
-        { id: 'u1', nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '文員', department: '社工', secondary_positions: [] },
-        { id: 'u2', nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '廚師', department: '膳食', secondary_positions: [] },
+        { id: 'u1', nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '文員', department: '行政', secondary_positions: [] },
+        { id: 'u2', nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '社工助理', department: '行政', secondary_positions: [] },
+        { id: 'u3', nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '清潔員', department: '庶務', secondary_positions: [] },
+        { id: 'u4', nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '廚師', department: '庶務', secondary_positions: [] },
       ] as unknown as UserProfile[];
-      const employmentDetails = { u1: { daily_contract_hours: 8 }, u2: { daily_contract_hours: 8 } } as unknown as Record<string, UserEmploymentDetails>;
+      const employmentDetails = { u1: { daily_contract_hours: 8 }, u2: { daily_contract_hours: 8 }, u3: { daily_contract_hours: 8 }, u4: { daily_contract_hours: 8 } } as unknown as Record<string, UserEmploymentDetails>;
       const assignments: UserShiftAssignment[] = [
         { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: '18:00', created_by: null, created_at: '', updated_at: '' },
         { id: '2', user_id: 'u2', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: '18:00', created_by: null, created_at: '', updated_at: '' },
+        { id: '3', user_id: 'u3', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: '18:00', created_by: null, created_at: '', updated_at: '' },
+        { id: '4', user_id: 'u4', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: '18:00', created_by: null, created_at: '', updated_at: '' },
       ];
       const requiredHours = { 助理員: 0 };
       const requiredHourly = {
-        助理員: Array.from({ length: 24 }, (_, h) => (h >= 7 && h < 18 ? 2 : 0)),
+        助理員: Array.from({ length: 24 }, (_, h) => (h >= 7 && h < 18 ? 3 : 0)),
       };
       const specific = {
         requirement1: { segments: [{ start: '07:00', end: '17:00' }] },
@@ -287,7 +316,7 @@ describe('roster utils', () => {
       };
       const rows = buildDailyCompliance('2026-08-02', requiredHours, requiredHourly, specific, users, employmentDetails, assignments);
       const assistantRow = rows.find((r) => r.position === '助理員')!;
-      expect(assistantRow.actualSpecificHeadcount).toBe(2);
+      expect(assistantRow.actualSpecificHeadcount).toBe(4);
       expect(assistantRow.specificSlotOk).toBe(true);
     });
 
@@ -365,6 +394,65 @@ describe('roster utils', () => {
       expect(nurseRow.actualSpecificHeadcount).toBe(0);
       expect(nurseRow.specificSlotOk).toBe(false);
       expect(nurseRow.specificSegments[0]?.label).toBe('註冊護士 07:00-18:00');
+    });
+  });
+
+  describe('canFillPositionInPreSchedule', () => {
+    it('matches primary position', () => {
+      const user = { nursing_position: '護理員', secondary_positions: [] } as unknown as UserProfile;
+      expect(canFillPositionInPreSchedule(user, '護理員')).toBe(true);
+    });
+
+    it('allows nurse to cover health worker', () => {
+      const user = { nursing_position: '註冊護士', secondary_positions: [] } as unknown as UserProfile;
+      expect(canFillPositionInPreSchedule(user, '保健員')).toBe(true);
+    });
+
+    it('does not allow health worker to cover nurse', () => {
+      const user = { nursing_position: null, hygiene_position: '保健員', secondary_positions: [] } as unknown as UserProfile;
+      expect(canFillPositionInPreSchedule(user, '註冊/登記護士')).toBe(false);
+    });
+  });
+
+  describe('getPreScheduleAvailableByShiftHour', () => {
+    it('counts available users per shift hour and treats nurse as 2 health workers', () => {
+      const users = [
+        { id: 'u1', nursing_position: '保健員', secondary_positions: [] },
+        { id: 'u2', nursing_position: '註冊護士', secondary_positions: [] },
+        { id: 'u3', nursing_position: '保健員', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const leaves = [
+        { user_id: 'u3', leave_date: '2026-08-02', record_type: 'leave', leave_type: 'AL' },
+      ] as unknown as UserLeaveRecord[];
+      const { available, equivalent } = getPreScheduleAvailableByShiftHour('2026-08-02', '保健員', users, leaves);
+      expect(available[0]).toBe(2);
+      expect(equivalent[0]).toBe(3);
+    });
+  });
+
+  describe('buildPreScheduleDailyCompliance', () => {
+    it('shows available hours and specific slot from leave records, not assignments', () => {
+      const users = [
+        { id: 'u1', nursing_position: '護理員', secondary_positions: [] },
+        { id: 'u2', nursing_position: '護理員', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const employmentDetails = { u1: { daily_contract_hours: 8 }, u2: { daily_contract_hours: 8 } } as unknown as Record<string, UserEmploymentDetails>;
+      const leaves = [] as unknown as UserLeaveRecord[];
+      const requiredHours = { 護理員: 16 };
+      const requiredHourly = {
+        護理員: Array.from({ length: 24 }, (_, h) => (h >= 7 && h < 17 ? 2 : h < 7 || h >= 17 ? 1 : 0)),
+      };
+      const specific = {
+        requirement1: { segments: [{ start: '07:00', end: '17:00' }] },
+        requirement3: { start: '07:00', end: '20:00' },
+        assistantWindow: { start: '07:00', end: '18:00' },
+      };
+      const rows = buildPreScheduleDailyCompliance('2026-08-02', requiredHours, requiredHourly, specific, users, employmentDetails, leaves);
+      const careRow = rows.find((r) => r.position === '護理員')!;
+      expect(careRow.actualHours).toBe(16);
+      expect(careRow.hoursOk).toBe(true);
+      expect(careRow.actualSpecificHeadcount).toBe(2);
+      expect(careRow.specificSlotOk).toBe(true);
     });
   });
 });

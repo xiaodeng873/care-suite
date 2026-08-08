@@ -6,17 +6,19 @@ import type {
   UserShiftAssignment,
   UserLeaveRecord,
   StationShiftSetting,
-  EmploymentPosition,
   ShiftName,
   PublicHoliday,
 } from '@care-suite/shared';
-import { SHIFT_NAME_LABELS, getEmploymentPosition } from '@care-suite/shared';
+import { SHIFT_NAME_LABELS, getEmploymentPosition, LEAVE_TYPE_LABELS } from '@care-suite/shared';
 import { supabase, useAuth } from '../context/AuthContext';
 import RosterShiftCard from './RosterShiftCard';
 import RosterConflictModal from './RosterConflictModal';
+import ConfirmOverrideModal from './ConfirmOverrideModal';
+import ConflictTicker from './ConflictTicker';
 import { generateAutoRoster } from '../utils/autoRoster';
 import type { AutoRosterConflict } from '../utils/autoRoster';
-import { getWeekRange,
+import {
+  getWeekRange,
   getWeekDays,
   getActiveShiftSettings,
   buildShiftAssignmentMap,
@@ -26,19 +28,28 @@ import { getWeekRange,
   getDragStartTime,
   buildDailyCompliance,
   toGridPosition,
+  getRosterGroupOptions,
+  isSingleShiftGroup,
   normalizeTime,
   type WeekDay,
 } from '../utils/roster';
+import { getAssignmentShiftDay } from '../utils/shiftDay';
 import type { SpecificHoursConfig } from '../utils/facilityNatureSettings';
 import { GRID_POSITIONS } from '../utils/facilityNatureSettings';
 import type { StaffingResult } from '../utils/staffingRequirements';
-
-const ASSISTANT_DEPARTMENTS = new Set(['社工', '膳食', '衛生']);
+import { timeToMinutes } from '../utils/staffingRequirements';
 
 function userCanFillPosition(user: UserProfile, position: string): boolean {
+  if (position === '行政') {
+    return user.department === '行政';
+  }
+  if (position === '庶務') {
+    return user.department === '庶務';
+  }
   const primary = getEmploymentPosition(user);
+  if (primary === position) return true;
   if (toGridPosition(primary) === position) return true;
-  if ((user.secondary_positions || []).some((p) => toGridPosition(p) === position)) return true;
+  if ((user.secondary_positions || []).some((p) => p === position || toGridPosition(p) === position)) return true;
   if (
     position === '保健員' &&
     (primary === '註冊護士' ||
@@ -47,8 +58,30 @@ function userCanFillPosition(user: UserProfile, position: string): boolean {
   ) {
     return true;
   }
-  if (position === '助理員' && ASSISTANT_DEPARTMENTS.has(user.department)) return true;
   return false;
+}
+
+/** 檢查排班時段是否與預排衝突（以每天早上 07:00 為排班日起點） */
+function findLeaveConflict(
+  userId: string,
+  date: string,
+  startTime: string,
+  endTime: string,
+  leaveRecords: UserLeaveRecord[],
+): UserLeaveRecord | null {
+  const shiftDay = getAssignmentShiftDay(date, startTime);
+  for (const r of leaveRecords) {
+    if (r.user_id !== userId || r.leave_date !== shiftDay) continue;
+    if (r.record_type === 'leave') return r;
+    if (r.record_type === 'availability' && r.availability_start_time && r.availability_end_time) {
+      const s = timeToMinutes(startTime);
+      const e = timeToMinutes(endTime);
+      const rs = timeToMinutes(r.availability_start_time);
+      const re = timeToMinutes(r.availability_end_time);
+      if (s < re && e > rs) return r;
+    }
+  }
+  return null;
 }
 
 interface Station {
@@ -72,7 +105,7 @@ interface RosterScheduleGridProps {
   specificHours: SpecificHoursConfig;
   staffingResult: StaffingResult | null;
   weekAnchor: Date;
-  selectedPosition: EmploymentPosition;
+  selectedPosition: string;
   dailyRequirements: DailyRequirement[];
   hasContractHours: boolean;
   draggedUserId: string | null;
@@ -80,9 +113,10 @@ interface RosterScheduleGridProps {
   stationPriority: (string | null)[];
   onWeekChange: (anchor: Date) => void;
   onLeaveRecordsChange?: () => void;
-  onPositionChange: (position: EmploymentPosition) => void;
+  onPositionChange: (position: string) => void;
   onAssignmentChange: () => void;
   onSettingsChange: () => void;
+  onViewLeaveTab?: () => void;
 }
 
 export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
@@ -105,6 +139,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
   onAssignmentChange,
   onLeaveRecordsChange,
   onSettingsChange,
+  onViewLeaveTab,
 }) => {
   const { userProfile, isAdmin } = useAuth();
   const canEdit = isAdmin();
@@ -127,7 +162,44 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
   const [publicHolidays, setPublicHolidays] = useState<PublicHoliday[]>([]);
   const [conflicts, setConflicts] = useState<AutoRosterConflict[]>([]);
   const [conflictModalOpen, setConflictModalOpen] = useState(false);
-  const selectedGridPosition = toGridPosition(selectedPosition);
+  const [pendingRosterInsert, setPendingRosterInsert] = useState<{
+    payload: Record<string, unknown>;
+    conflict: UserLeaveRecord;
+  } | null>(null);
+  const selectedGridPosition = selectedPosition;
+  const [highlightDate, setHighlightDate] = useState<string | null>(null);
+
+  const overriddenAssignments = useMemo(
+    () => shiftAssignments.filter((a) => a.is_overridden),
+    [shiftAssignments],
+  );
+
+  const tickerItems = useMemo(() => {
+    const items: import('./ConflictTicker').TickerItem[] = [];
+    for (const a of overriddenAssignments) {
+      const user = users.find((u) => u.id === a.user_id);
+      const station = stations.find((s) => s.id === a.station_id);
+      items.push({
+        id: `override-${a.id}`,
+        text: `${a.work_date} ${station?.name ?? '未分區'} ${user?.name_zh ?? a.user_id} ${a.shift_name} 班次被標為待調整`,
+        onClick: () => setHighlightDate(a.work_date),
+      });
+    }
+    return items;
+  }, [overriddenAssignments, users, stations]);
+
+  useEffect(() => {
+    if (!highlightDate) return;
+    const el = document.getElementById(`day-block-${highlightDate}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-2', 'ring-red-400');
+      const timer = setTimeout(() => {
+        el.classList.remove('ring-2', 'ring-red-400');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightDate]);
 
   // 載入當週涉及年份的公眾假期，用於在日期列顯示假期名稱
   useEffect(() => {
@@ -184,15 +256,17 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     return Object.fromEntries(Object.entries(payload).filter(([k]) => k !== 'end_time')) as Omit<T, 'end_time'>;
   };
 
-  // 初始化班次設定編輯狀態，永遠提供早/午/晚三班可選
+  // 初始化班次設定編輯狀態：護理部門預設早/午/晚三班；其他部門預設只有一班（全日班，底層以早班儲存），但仍可手動啟用午/晚班
   useEffect(() => {
     if (editingStation) {
       const existing = getActiveShiftSettings(shiftSettings, editingStation.id, selectedPosition);
+      const isSingle = isSingleShiftGroup(selectedPosition);
       const defaults: { shift_name: ShiftName; start_time: string }[] = [
-        { shift_name: '早班', start_time: '07:00' },
+        { shift_name: '早班', start_time: isSingle ? '08:00' : '07:00' },
         { shift_name: '午班', start_time: '13:00' },
         { shift_name: '晚班', start_time: '22:00' },
       ];
+      const hasExisting = existing.length > 0;
       const merged = defaults.map((d, index) => {
         const found = existing.find((s) => s.shift_name === d.shift_name);
         if (found) return { ...found, sort_order: index + 1 };
@@ -202,7 +276,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
           position: selectedPosition,
           shift_name: d.shift_name,
           start_time: d.start_time,
-          is_active: false,
+          is_active: isSingle && d.shift_name === '早班' && !hasExisting,
           sort_order: index + 1,
           created_at: '',
           updated_at: '',
@@ -276,7 +350,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
             work_date: date,
             station_id: stationId,
             shift_name: shift.shift_name,
-            position: selectedGridPosition,
+            position: selectedPosition,
             start_time: sourceStartTime,
             end_time: sourceEndTime,
             updated_at: now,
@@ -308,7 +382,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
             work_date: date,
             station_id: stationId,
             shift_name: shift.shift_name,
-            position: selectedGridPosition,
+            position: selectedPosition,
             start_time: sourceStartTime,
             end_time: endTime,
             updated_at: new Date().toISOString(),
@@ -333,7 +407,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
 
     const sourceUser = users.find((u) => u.id === sourceUserId);
     if (!sourceUser) return;
-    if (!userCanFillPosition(sourceUser, selectedGridPosition)) {
+    if (!userCanFillPosition(sourceUser, selectedPosition)) {
       alert('該員工職位不符合此排班表');
       return;
     }
@@ -345,19 +419,26 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
       return;
     }
 
+    const sourceStartTime = getDragStartTime(employmentDetails[sourceUserId], shift.start_time);
+    const endTime = getEndTimeForUser(sourceUserId, sourceStartTime);
+    const insertPayload = {
+      user_id: sourceUserId,
+      work_date: date,
+      station_id: stationId,
+      position: selectedPosition,
+      shift_name: shift.shift_name,
+      start_time: sourceStartTime,
+      end_time: endTime,
+      created_by: userProfile?.id ?? null,
+    };
+
+    const conflict = findLeaveConflict(sourceUserId, date, sourceStartTime, endTime, leaveRecords);
+    if (conflict) {
+      setPendingRosterInsert({ payload: insertPayload, conflict });
+      return;
+    }
+
     try {
-      const sourceStartTime = getDragStartTime(employmentDetails[sourceUserId], shift.start_time);
-      const endTime = getEndTimeForUser(sourceUserId, sourceStartTime);
-      const insertPayload = {
-        user_id: sourceUserId,
-        work_date: date,
-        station_id: stationId,
-        position: selectedGridPosition,
-        shift_name: shift.shift_name,
-        start_time: sourceStartTime,
-        end_time: endTime,
-        created_by: userProfile?.id ?? null,
-      };
       const error = await withEndTimeFallback(
         async () => await supabase.from('user_shift_assignments').insert(insertPayload),
         async () => await supabase.from('user_shift_assignments').insert(withoutEndTime(insertPayload)),
@@ -378,6 +459,54 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     } catch (err) {
       console.error('刪除班次失敗:', err);
       alert(getSupabaseErrorMessage(err, '刪除班次失敗'));
+    }
+  };
+
+  const confirmInsertAssignment = async () => {
+    if (!pendingRosterInsert) return;
+    const { payload, conflict } = pendingRosterInsert;
+    setPendingRosterInsert(null);
+    try {
+      const error = await withEndTimeFallback(
+        async () => await supabase.from('user_shift_assignments').insert(payload),
+        async () => await supabase.from('user_shift_assignments').insert(withoutEndTime(payload)),
+      );
+      if (error) throw error;
+
+      // 直接刪除衝突的預排記錄及相關明細
+      if (conflict.record_type === 'leave') {
+        const { error: delError } = await supabase.from('user_leave_records').delete().eq('id', conflict.id);
+        if (delError) throw delError;
+
+        if (conflict.leave_type === 'DO') {
+          await supabase
+            .from('user_rest_day_details')
+            .delete()
+            .eq('user_id', conflict.user_id)
+            .eq('record_date', conflict.leave_date)
+            .eq('detail_type', 'usage');
+        } else if (conflict.leave_type === 'PRD') {
+          const details = employmentDetails[conflict.user_id];
+          const newFraction = Math.max(0, (details?.rest_day_fraction ?? 0) + 1);
+          await supabase
+            .from('user_employment_details')
+            .update({ rest_day_fraction: newFraction, updated_at: new Date().toISOString() })
+            .eq('user_id', conflict.user_id);
+        } else if (conflict.leave_type === 'PH' || conflict.leave_type === 'SH') {
+          await supabase
+            .from('user_public_holiday_details')
+            .delete()
+            .eq('user_id', conflict.user_id)
+            .eq('record_date', conflict.leave_date)
+            .eq('detail_type', 'usage');
+        }
+      }
+
+      onAssignmentChange();
+      onLeaveRecordsChange?.();
+    } catch (err) {
+      console.error('新增班次失敗:', err);
+      alert(getSupabaseErrorMessage(err, '新增班次失敗'));
     }
   };
 
@@ -464,7 +593,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     try {
       const result = generateAutoRoster({
         date,
-        position: selectedGridPosition,
+        position: selectedPosition,
         users,
         employmentDetails,
         stations,
@@ -590,7 +719,11 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     const expanded = complianceExpanded.has(day.date);
 
     return (
-      <div key={day.date} className="border border-gray-200 rounded-lg overflow-hidden">
+      <div
+        key={day.date}
+        id={`day-block-${day.date}`}
+        className="border border-gray-200 rounded-lg overflow-hidden"
+      >
         {/* 日期列 */}
         <div className="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -652,16 +785,32 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
               </tr>
             </thead>
             <tbody>
-              {allShiftNames.map((shiftName) => (
-                <tr key={`${day.date}-${shiftName}`} className="border-t border-gray-100">
-                  <td className="px-2 py-2 font-medium text-gray-700 whitespace-nowrap sticky left-0 bg-white z-10">
-                    {SHIFT_NAME_LABELS[shiftName]}
-                  </td>
+              {allShiftNames.map((shiftName) => {
+                const shiftLabel = isSingleShiftGroup(selectedPosition) && shiftName === '早班'
+                  ? '全日班'
+                  : SHIFT_NAME_LABELS[shiftName];
+                return (
+                  <tr key={`${day.date}-${shiftName}`} className="border-t border-gray-100">
+                    <td className="px-2 py-2 font-medium text-gray-700 whitespace-nowrap sticky left-0 bg-white z-10">
+                      {shiftLabel}
+                    </td>
                   {stationColumns.map((station) => {
                     const stationId = station?.id ?? null;
                     const shift = getStationShift(stationId, shiftName);
                     const key = `${stationId ?? 'unassigned'}|${shiftName}|${day.date}`;
                     const list = assignmentMap.byKey.get(key) || [];
+                    // 只顯示屬於當前職位頁的卡片（護士頂替保健員的卡片會留在保健員頁）
+                    const visibleList = list.filter((a) => {
+                      if (a.position) {
+                        if (a.position === selectedGridPosition) return true;
+                        if (selectedGridPosition === '註冊/登記護士' && (a.position === '註冊護士' || a.position === '登記護士')) return true;
+                        if (selectedGridPosition === '行政' && (a.position === '主管' || a.position === '文員' || a.position === '會計' || a.position === '社工' || a.position === '社工助理')) return true;
+                        if (selectedGridPosition === '庶務' && (a.position === '廚師' || a.position === '清潔員')) return true;
+                        return false;
+                      }
+                      const user = users.find((u) => u.id === a.user_id);
+                      return user ? userCanFillPosition(user, selectedGridPosition) : false;
+                    });
                     const disabled = !shift;
                     return (
                       <td
@@ -677,27 +826,34 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                         }
                       >
                         <div className="space-y-1 min-h-[3rem]">
-                          {list.map((assignment) => {
+                          {visibleList.map((assignment) => {
                             const user = users.find((u) => u.id === assignment.user_id);
                             if (!user) return null;
                             return (
-                              <RosterShiftCard
+                              <div
                                 key={assignment.id}
-                                user={user}
-                                assignment={assignment}
-                                endTime={getAssignmentEndTime(
-                                  assignment,
-                                  getDailyContractHours(employmentDetails[user.id]),
+                                className={`rounded ${assignment.is_overridden ? 'border border-dashed border-red-400 bg-red-50/50 p-0.5' : ''}`}
+                              >
+                                {assignment.is_overridden && (
+                                  <div className="text-[10px] text-red-600 font-medium px-1">待調整</div>
                                 )}
-                                readOnly={!canEdit}
-                                onUpdateTime={handleUpdateShiftTime}
-                                onDelete={handleDelete}
-                                onDragStart={() => setDraggedAssignmentId(assignment.id)}
-                                onDragEnd={() => setDraggedAssignmentId(null)}
-                              />
+                                <RosterShiftCard
+                                  user={user}
+                                  assignment={assignment}
+                                  endTime={getAssignmentEndTime(
+                                    assignment,
+                                    getDailyContractHours(employmentDetails[user.id]),
+                                  )}
+                                  readOnly={!canEdit}
+                                  onUpdateTime={handleUpdateShiftTime}
+                                  onDelete={handleDelete}
+                                  onDragStart={() => setDraggedAssignmentId(assignment.id)}
+                                  onDragEnd={() => setDraggedAssignmentId(null)}
+                                />
+                              </div>
                             );
                           })}
-                          {list.length === 0 && !disabled && (
+                          {visibleList.length === 0 && !disabled && (
                             <div className="text-[10px] text-gray-300 text-center py-2 border border-dashed border-gray-200 rounded min-h-[2.5rem] flex items-center justify-center">
                               拖入排班
                             </div>
@@ -712,8 +868,9 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                     );
                   })}
                 </tr>
-              ))}
-            </tbody>
+              );
+            })}
+          </tbody>
           </table>
         </div>
 
@@ -751,7 +908,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                     {currentRow.specificSegments.map((s, idx) => {
                       const segOk = s.actual >= s.required;
                       let unit: string;
-                      if (currentRow.position === '保健員') unit = '當量';
+                      if (currentRow.position === '保健員') unit = '人手';
                       else if (currentRow.position === '註冊/登記護士') unit = '小時';
                       else unit = '人';
                       return (
@@ -818,10 +975,10 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <select
           value={selectedPosition}
-          onChange={(e) => onPositionChange(e.target.value as EmploymentPosition)}
+          onChange={(e) => onPositionChange(e.target.value)}
           className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
         >
-          {Array.from(new Set(users.map((u) => toGridPosition(getEmploymentPosition(u))).filter((p): p is EmploymentPosition => !!p))).map((pos) => (
+          {getRosterGroupOptions(users).map((pos) => (
             <option key={pos} value={pos}>{pos}</option>
           ))}
         </select>
@@ -845,6 +1002,12 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
+
+        {tickerItems.length > 0 && (
+          <div className="flex-1 min-w-0">
+            <ConflictTicker items={tickerItems} />
+          </div>
+        )}
       </div>
 
       {/* 日區塊列表：日期 > 排班表 > 達標檢查 */}
@@ -866,6 +1029,43 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         onClose={() => setConflictModalOpen(false)}
         onOverride={canEdit ? handleOverrideConflict : undefined}
       />
+
+      {/* 排班與預排衝突 Modal */}
+      {pendingRosterInsert && (
+        <ConfirmOverrideModal
+          isOpen
+          title="排班與預排衝突"
+          onClose={() => setPendingRosterInsert(null)}
+          onConfirm={confirmInsertAssignment}
+          confirmLabel="仍要排班"
+          secondaryLabel="查看預排表"
+          onSecondary={() => {
+            setPendingRosterInsert(null);
+            onViewLeaveTab?.();
+          }}
+        >
+          <div className="space-y-2">
+            <p>
+              <span className="font-medium">新增的班次</span>與該員工當日預排重疊：
+            </p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>
+                日期：{pendingRosterInsert.conflict.leave_date}
+                <br />
+                預排：
+                {pendingRosterInsert.conflict.record_type === 'leave'
+                  ? pendingRosterInsert.conflict.leave_type
+                    ? LEAVE_TYPE_LABELS[pendingRosterInsert.conflict.leave_type]
+                    : '放假'
+                  : `特定上班 ${pendingRosterInsert.conflict.availability_start_time}-${pendingRosterInsert.conflict.availability_end_time}`}
+              </li>
+            </ul>
+            <p className="text-gray-500">
+              點擊「仍要排班」會強制寫入，並直接刪除衝突的預排事件（包括 DO/PRD/PH/SH 的相關額度扣減會自動回復）。
+            </p>
+          </div>
+        </ConfirmOverrideModal>
+      )}
 
       {/* 班次設定 Modal */}
       {editingStation && (
@@ -891,7 +1091,9 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                       onChange={() => toggleShiftActive(index)}
                       className="h-4 w-4"
                     />
-                    {SHIFT_NAME_LABELS[setting.shift_name]}
+                    {isSingleShiftGroup(selectedPosition) && setting.shift_name === '早班'
+                      ? '全日班'
+                      : SHIFT_NAME_LABELS[setting.shift_name]}
                   </label>
                   <input
                     type="time"
