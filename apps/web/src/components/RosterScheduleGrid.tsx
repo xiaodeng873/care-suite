@@ -27,11 +27,12 @@ import {
   getShiftEndTime,
   getDragStartTime,
   buildDailyCompliance,
-  toGridPosition,
   getRosterGroupOptions,
   isSingleShiftGroup,
   getAssignmentPositionForTable,
   normalizeTime,
+  getSpecificWorkingTimeWindow,
+  isShiftInWindow,
   type WeekDay,
   type ComplianceRow,
 } from '../utils/roster';
@@ -45,7 +46,20 @@ function userCanFillPosition(user: UserProfile, position: string): boolean {
   return getAssignmentPositionForTable(user, position) !== null;
 }
 
-/** 檢查排班時段是否與預排衝突（以每天早上 07:00 為排班日起點） */
+/** 檢查班次是否落在員工常態化特定上班時間窗口內 */
+function findWindowConflict(
+  userId: string,
+  startTime: string,
+  endTime: string,
+  employmentDetails: Record<string, UserEmploymentDetails>,
+): string | null {
+  const window = getSpecificWorkingTimeWindow(employmentDetails[userId]);
+  if (!window) return null;
+  if (isShiftInWindow(window, startTime, endTime)) return null;
+  return `該員工已設定特定上班時間 ${window.start}-${window.end}，此班次時間不在允許範圍內`;
+}
+
+/** 檢查排班時段是否與預排請假/單次 availability 衝突（以每天早上 07:00 為排班日起點） */
 function findLeaveConflict(
   userId: string,
   date: string,
@@ -150,6 +164,14 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     payload: Record<string, unknown>;
     conflict: UserLeaveRecord;
   } | null>(null);
+  const [pendingWindowOverride, setPendingWindowOverride] = useState<{
+    sourceAssignmentId: string | null;
+    sourceUserIdFromList: string | null;
+    date: string;
+    stationId: string | null;
+    shift: StationShiftSetting;
+    dropTarget: { assignmentId: string; insertBefore: boolean } | null;
+  } | null>(null);
   const selectedGridPosition = selectedPosition;
   const [highlightDate, setHighlightDate] = useState<string | null>(null);
   const [dragOverItem, setDragOverItem] = useState<{ id: string; insertBefore: boolean } | null>(null);
@@ -244,13 +266,14 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     return Object.fromEntries(Object.entries(payload).filter(([k]) => k !== 'end_time')) as Omit<T, 'end_time'>;
   };
 
-  // 初始化班次設定編輯狀態：護理部門預設早/午/晚三班；其他部門預設只有一班（全日班，底層以早班儲存），但仍可手動啟用午/晚班
+  // 初始化班次設定編輯狀態：所有部門均可選早/日/午/晚四班；單班制部門（行政、專職、庶務）無既有設定時預設只啟用日班
   useEffect(() => {
     if (editingStation) {
       const existing = getActiveShiftSettings(shiftSettings, editingStation.id, selectedPosition);
       const isSingle = isSingleShiftGroup(selectedPosition);
       const defaults: { shift_name: ShiftName; start_time: string }[] = [
-        { shift_name: '早班', start_time: isSingle ? '08:00' : '07:00' },
+        { shift_name: '早班', start_time: '07:00' },
+        { shift_name: '日班', start_time: '08:00' },
         { shift_name: '午班', start_time: '13:00' },
         { shift_name: '晚班', start_time: '22:00' },
       ];
@@ -264,7 +287,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
           position: selectedPosition,
           shift_name: d.shift_name,
           start_time: d.start_time,
-          is_active: isSingle && d.shift_name === '早班' && !hasExisting,
+          is_active: isSingle && d.shift_name === '日班' && !hasExisting,
           sort_order: index + 1,
           created_at: '',
           updated_at: '',
@@ -302,6 +325,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     stationId: string | null,
     shift: StationShiftSetting,
     dropTarget: { assignmentId: string; insertBefore: boolean } | null,
+    skipWindowCheck = false,
   ) => {
     if (!canEdit) return;
 
@@ -377,6 +401,22 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
       !dropTarget
     ) {
       return;
+    }
+
+    // 檢查常態化特定上班時間窗口；若衝突，讓主管決定是否 override
+    if (!skipWindowCheck) {
+      const windowConflict = findWindowConflict(sourceUserId || '', sourceStartTime, endTime, employmentDetails);
+      if (windowConflict) {
+        setPendingWindowOverride({
+          sourceAssignmentId,
+          sourceUserIdFromList,
+          date,
+          stationId,
+          shift,
+          dropTarget,
+        });
+        return;
+      }
     }
 
     // 新增時檢查預排衝突
@@ -598,6 +638,13 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     }
   };
 
+  const confirmWindowOverride = async () => {
+    if (!pendingWindowOverride) return;
+    const { sourceAssignmentId, sourceUserIdFromList, date, stationId, shift, dropTarget } = pendingWindowOverride;
+    setPendingWindowOverride(null);
+    await processDrop(sourceAssignmentId, sourceUserIdFromList, date, stationId, shift, dropTarget, true);
+  };
+
   const handleUpdateShiftTime = async (id: string, startTime: string, endTime: string) => {
     try {
       const updatePayload = {
@@ -785,7 +832,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         set.add(s.shift_name);
       }
     }
-    const order: ShiftName[] = ['早班', '午班', '晚班'];
+    const order: ShiftName[] = ['早班', '日班', '午班', '晚班'];
     return order.filter((name) => set.has(name));
   }, [stationColumns, shiftSettings, selectedPosition]);
 
@@ -888,9 +935,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
             </thead>
             <tbody>
               {allShiftNames.map((shiftName) => {
-                const shiftLabel = isSingleShiftGroup(selectedPosition) && shiftName === '早班'
-                  ? '全日班'
-                  : SHIFT_NAME_LABELS[shiftName];
+                const shiftLabel = SHIFT_NAME_LABELS[shiftName];
                 return (
                   <tr key={`${day.date}-${shiftName}`} className="border-t border-gray-100">
                     <td className="px-2 py-2 font-medium text-gray-700 whitespace-nowrap sticky left-0 bg-white z-10">
@@ -901,8 +946,11 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                     const shift = getStationShift(stationId, shiftName);
                     const key = `${stationId ?? 'unassigned'}|${shiftName}|${day.date}`;
                     const list = assignmentMap.byKey.get(key) || [];
-                    // 只顯示屬於當前職位頁的卡片（護士/保健員合併顯示；行政/庶務以實際職位或舊分頁標記匹配）
+                    // 只顯示屬於當前職位頁的卡片（護士/保健員合併顯示；行政/庶務以實際職位或舊分頁標記匹配）。
+                    // 若該員工的真實職位屬於當前分頁（即使 a.position 是舊分頁或其他分頁標記），也顯示，避免工時統計有人但畫面看不到人。
                     const visibleList = list.filter((a) => {
+                      const user = users.find((u) => u.id === a.user_id);
+                      const userBelongsToTab = user ? userCanFillPosition(user, selectedGridPosition) : false;
                       if (a.position) {
                         if (a.position === selectedGridPosition) return true;
                         if (selectedGridPosition === '護士/保健員' && (
@@ -913,10 +961,9 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                         )) return true;
                         if (selectedGridPosition === '行政' && (a.position === '主管' || a.position === '文員' || a.position === '會計' || a.position === '社工' || a.position === '社工助理' || a.position === '行政')) return true;
                         if (selectedGridPosition === '庶務' && (a.position === '廚師' || a.position === '清潔員' || a.position === '庶務')) return true;
-                        return false;
+                        return userBelongsToTab;
                       }
-                      const user = users.find((u) => u.id === a.user_id);
-                      return user ? userCanFillPosition(user, selectedGridPosition) : false;
+                      return userBelongsToTab;
                     });
                     const disabled = !shift;
                     return (
@@ -1186,6 +1233,26 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         </ConfirmOverrideModal>
       )}
 
+      {/* 特定上班時間窗口 override Modal */}
+      {pendingWindowOverride && (
+        <ConfirmOverrideModal
+          isOpen
+          title="特定上班時間衝突"
+          onClose={() => setPendingWindowOverride(null)}
+          onConfirm={confirmWindowOverride}
+          confirmLabel="仍要排班"
+        >
+          <div className="space-y-2">
+            <p>
+              該班次時間超出員工僱傭詳情中設定的「特定上班時間」窗口。
+            </p>
+            <p className="text-gray-500">
+              點擊「仍要排班」會強制寫入此班次；仍可隨後手動調整時間。
+            </p>
+          </div>
+        </ConfirmOverrideModal>
+      )}
+
       {/* 班次設定 Modal */}
       {editingStation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
@@ -1210,9 +1277,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                       onChange={() => toggleShiftActive(index)}
                       className="h-4 w-4"
                     />
-                    {isSingleShiftGroup(selectedPosition) && setting.shift_name === '早班'
-                      ? '全日班'
-                      : SHIFT_NAME_LABELS[setting.shift_name]}
+                    {SHIFT_NAME_LABELS[setting.shift_name]}
                   </label>
                   <input
                     type="time"

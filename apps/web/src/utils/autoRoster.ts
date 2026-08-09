@@ -13,8 +13,14 @@ import {
   buildDailyCompliance,
   getDailyContractHours,
   getShiftEndTime,
-  getDragStartTime,
   getAssignmentPositionForTable,
+  getSpecificWorkingTimeWindow,
+  getShiftDayActualHourly,
+  getShiftDayRequiredHourly,
+  shiftDayWindowToShiftHours,
+  getSpecificWindowsForPosition,
+  computeNurseCoverageShiftDayHours,
+  formatTime,
 } from './roster';
 import type { ComplianceRow } from './roster';
 import type { StaffingResult } from './staffingRequirements';
@@ -92,25 +98,6 @@ function buildRequiredHourly(
   return map;
 }
 
-/** 單一職位分頁的缺口分數：底層 requirement 職位缺口總和。
- * 工時缺口與特定鐘點缺口同權，不再額外加重特定鐘點。 */
-function computeDeficit(
-  compliance: ComplianceRow[],
-  position: string,
-): number {
-  const positions = getRequirementPositions(position);
-  let deficit = 0;
-  for (const p of positions) {
-    const row = compliance.find((r) => r.position === p);
-    if (!row) continue;
-    if (!row.hoursOk) deficit += row.requiredHours - row.actualHours;
-    if (row.hasSpecificSlotRequirement && !row.specificSlotOk) {
-      deficit += row.requiredSpecificHeadcount - row.actualSpecificHeadcount;
-    }
-  }
-  return deficit;
-}
-
 function isNurse(user: UserProfile): boolean {
   const primary = getEmploymentPosition(user);
   if (primary === '註冊護士' || primary === '登記護士') return true;
@@ -169,35 +156,209 @@ function getRequirementPositions(position: string): string[] {
   return [position];
 }
 
-function getAssignmentMinutes(
-  assignment: Pick<UserShiftAssignment, 'start_time' | 'end_time'>,
-  dailyHours: number,
-): { start: number; end: number } {
-  const start = timeToMinutes(assignment.start_time);
-  const end = assignment.end_time
-    ? timeToMinutes(assignment.end_time)
-    : (start + Math.round(dailyHours * 60)) % 1440;
-  return { start, end };
+/** 取得員工對某居住區的偏好排名（越前越偏好） */
+function getStationRank(
+  userId: string,
+  stationId: string | null,
+  employmentDetails: Record<string, UserEmploymentDetails>,
+  baseList: (string | null)[],
+): number {
+  const list = getUserStationList(userId, employmentDetails, baseList);
+  return list.indexOf(stationId);
 }
 
+/** 計算特定鐘點窗口內尚未被覆蓋的小時數總和。
+ * 把「最低 headcount 缺口」拆成每小時來計算，讓 07:00-15:00 的早班能拿到部分 credit，
+ * 避免演算法只選不覆蓋特定鐘點的晚班。 */
+function computeSpecificDeficitHours(
+  date: string,
+  position: string,
+  users: UserProfile[],
+  employmentDetails: Record<string, UserEmploymentDetails>,
+  assignments: UserShiftAssignment[],
+  requiredHourly: Record<string, number[]>,
+  specific: SpecificHoursConfig,
+): number {
+  const positions = getRequirementPositions(position);
+  const { actual, equivalent } = getShiftDayActualHourly(date, users, employmentDetails, assignments);
+  const requiredShiftDay = getShiftDayRequiredHourly(date, requiredHourly);
+  let deficit = 0;
+
+  for (const p of positions) {
+    const windows = getSpecificWindowsForPosition(p, specific);
+    for (const window of windows) {
+      const { startH, endH } = shiftDayWindowToShiftHours(window.segment);
+      for (let h = startH; h < endH; h++) {
+        // 保健員特定鐘點用「等效需求」：保健員需求 + 2 × 護士需求（1 護士 = 2 保健員），
+        // 與 buildSpecificSlotCompliance 的判定口徑一致，否則演算法達標但介面仍顯示紅色
+        const req = p === '保健員'
+          ? (requiredShiftDay['保健員']?.[h] ?? 0) +
+            2 * (requiredShiftDay['註冊/登記護士']?.[h] ?? 0)
+          : (requiredShiftDay[p]?.[h] ?? 0);
+        if (req <= 0) continue;
+        const act = p === '保健員'
+          ? (equivalent['保健員']?.[h] ?? 0)
+          : (actual[p]?.[h] ?? 0);
+        if (act < req) {
+          deficit += req - act;
+        }
+      }
+    }
+  }
+
+  // 甲一買位：註冊護士 07:00-18:00 累積 8 小時當值要求。
+  // 不計入缺口會令演算法對此紅線「視而不見」，把 RN 當多餘人手塞去窗口外的晚班。
+  if (
+    positions.includes('註冊/登記護士') &&
+    (requiredHourly['註冊/登記護士'] ?? []).some((r) => r > 0)
+  ) {
+    const rnHours = computeNurseCoverageShiftDayHours(date, assignments, users, employmentDetails);
+    deficit += Math.max(0, 8 - rnHours);
+  }
+
+  return deficit;
+}
+
+/** 結合工時缺口與特定鐘點未覆蓋小時數的綜合缺口分數。
+ * 工時與特定鐘點同權，但特定鐘點以「每小時」計算，避免只看窗口內最低 headcount。 */
+function computeGranularDeficit(
+  date: string,
+  position: string,
+  compliance: ComplianceRow[],
+  users: UserProfile[],
+  employmentDetails: Record<string, UserEmploymentDetails>,
+  assignments: UserShiftAssignment[],
+  requiredHourly: Record<string, number[]>,
+  specific: SpecificHoursConfig,
+): number {
+  const positions = getRequirementPositions(position);
+  let deficit = 0;
+
+  // 工時缺口
+  for (const p of positions) {
+    const row = compliance.find((r) => r.position === p);
+    if (!row) continue;
+    if (!row.hoursOk) deficit += row.requiredHours - row.actualHours;
+  }
+
+  // 特定鐘點缺口（以小時計）
+  deficit += computeSpecificDeficitHours(
+    date,
+    position,
+    users,
+    employmentDetails,
+    assignments,
+    requiredHourly,
+    specific,
+  );
+
+  return deficit;
+}
+
+/** 計算班次覆蓋「有需求小時」的數量（以排班日 07:00 為 h=0）。
+ * 第二輪補班用：多餘人手必須優先排入有需求的班次（窗口內），
+ * 避免「等效達標就停」後溢出人手被塞進窗口以外的班次（如晚班）。 */
+function computeRequiredCoverageHours(
+  date: string,
+  position: string,
+  requiredHourly: Record<string, number[]>,
+  startTime: string,
+  dailyHours: number,
+): number {
+  const positions = getRequirementPositions(position);
+  const requiredShiftDay = getShiftDayRequiredHourly(date, requiredHourly);
+  const startH = Math.floor(
+    (((timeToMinutes(startTime) - timeToMinutes('07:00')) % 1440) + 1440) % 1440 / 60,
+  );
+  let covered = 0;
+  const hours = Math.round(dailyHours);
+  for (let i = 0; i < hours; i++) {
+    const h = (startH + i) % 24;
+    if (positions.some((p) => (requiredShiftDay[p]?.[h] ?? 0) > 0)) covered++;
+  }
+  return covered;
+}
+
+/** 把「午夜起計分鐘數」轉為排班日座標（07:00 = 0，範圍 0-1439） */
+function toShiftDayMinutes(minutes: number): number {
+  return (((minutes - timeToMinutes('07:00')) % 1440) + 1440) % 1440;
+}
+
+/** 排班日以 07:00 為起點，跨午夜不是特例：21:00-06:00 即 840-1380，直接比較即可 */
 function segmentContains(
   container: { start: number; end: number },
   inner: { start: number; end: number },
 ): boolean {
-  // 支援跨午夜容器（如 22:00-06:00）
-  const normalize = (v: number) => (v < container.start ? v + 1440 : v);
-  const innerStart = normalize(inner.start);
-  const innerEnd = normalize(inner.end);
-  // 若 inner 本身跨午夜，且容器不跨午夜，視為不包含
-  if (innerEnd <= innerStart) return false;
-  return innerStart >= container.start && innerEnd <= container.end;
+  const containerStart = toShiftDayMinutes(container.start);
+  let containerEnd = toShiftDayMinutes(container.end);
+  if (containerEnd <= containerStart) containerEnd += 1440;
+  const innerStart = toShiftDayMinutes(inner.start);
+  let innerEnd = toShiftDayMinutes(inner.end);
+  if (innerEnd <= innerStart) innerEnd += 1440;
+  return innerStart >= containerStart && innerEnd <= containerEnd;
+}
+
+/** 排班日座標下兩段時間的重疊分鐘數 */
+function spanOverlapMinutes(
+  a: { start: number; end: number },
+  b: { start: number; end: number },
+): number {
+  const toSpan = (s: { start: number; end: number }) => {
+    const start = toShiftDayMinutes(s.start);
+    let end = toShiftDayMinutes(s.end);
+    if (end <= start) end += 1440;
+    return { start, end };
+  };
+  const sa = toSpan(a);
+  const sb = toSpan(b);
+  return Math.max(0, Math.min(sa.end, sb.end) - Math.max(sa.start, sb.start));
+}
+
+/** 分鐘數轉回 HH:MM（自動 mod 一天） */
+function minutesToTime(minutes: number): string {
+  const m = ((minutes % 1440) + 1440) % 1440;
+  return formatTime(Math.floor(m / 60), m % 60);
+}
+
+/**
+ * 計算員工在某班次的候選：
+ * - 無特定上班時間/可用時段：跟隨班次設定時間，重疊視為全段。
+ * - 有特定上班時間：卡片用員工自己的窗口時間（必須整段落在窗口內），
+ *   且窗口與班次時段重疊至少一半工時才屬於這個班次桶；否則回傳 null（衝突，不可排）。
+ *   回傳重疊分鐘數供排序：多個班次合格時，歸重疊最多的一個。
+ */
+function getCandidateStartTime(
+  shift: StationShiftSetting,
+  dailyHours: number,
+  availability: { start: number; end: number } | null,
+): { startTime: string; overlap: number } | null {
+  const dailyMinutes = Math.round(dailyHours * 60);
+  if (!availability) return { startTime: shift.start_time.slice(0, 5), overlap: dailyMinutes };
+  const ownStart = availability.start;
+  const ownEnd = ownStart + dailyMinutes;
+  if (!segmentContains(availability, { start: ownStart, end: ownEnd })) return null;
+  const shiftStart = timeToMinutes(shift.start_time);
+  const overlap = spanOverlapMinutes(
+    { start: ownStart, end: ownEnd },
+    { start: shiftStart, end: shiftStart + dailyMinutes },
+  );
+  // 卡片需與班次時段重疊至少一半工時，才屬於這個班次桶
+  if (overlap * 2 < dailyMinutes) return null;
+  return { startTime: minutesToTime(ownStart), overlap };
 }
 
 function getAvailabilityWindow(
   userId: string,
   date: string,
   leaveRecords: UserLeaveRecord[] | undefined,
+  employmentDetails: Record<string, UserEmploymentDetails>,
 ): { start: number; end: number } | null {
+  // 常態化「特定上班時間」優先；有設定時視為強制可用時段
+  const constant = getSpecificWorkingTimeWindow(employmentDetails[userId]);
+  if (constant) {
+    return { start: timeToMinutes(constant.start), end: timeToMinutes(constant.end) };
+  }
+  // 否則回退單次 availability 記錄
   const record = leaveRecords?.find(
     (l) =>
       l.user_id === userId &&
@@ -227,6 +388,26 @@ function hasMandatoryLeave(
         !l.is_overridden,
     ) ?? false
   );
+}
+
+function isOnLeave(
+  userId: string,
+  date: string,
+  leaveRecords: UserLeaveRecord[] | undefined,
+): boolean {
+  return (
+    leaveRecords?.some(
+      (l) =>
+        l.user_id === userId &&
+        l.leave_date === date &&
+        l.record_type === 'leave' &&
+        !l.is_overridden,
+    ) ?? false
+  );
+}
+
+function isFullTime(user: UserProfile): boolean {
+  return user.employment_type === '正職';
 }
 
 function getPreferredLeave(
@@ -267,14 +448,6 @@ function makeMockAssignment(
   };
 }
 
-/** 同分時只按居住區順序排，班次（早/午/晚）無分先後。 */
-function candidatePriority(
-  candidate: AutoRosterCandidate,
-  stationList: (string | null)[],
-): number {
-  return stationList.indexOf(candidate.station_id);
-}
-
 /** 依員工偏好居住區產生專屬居住區順序：
  * - 有設定 preferred_station 者：先 primary，再 secondary，其餘在後
  * - 無設定偏好者：未分區優先
@@ -309,10 +482,12 @@ function getUserStationList(
 /**
  * 每日一鍵排班啟發式演算法：
  * 1. 硬性排除：必須放假、不在可用時段、已排班、職位不符。
- * 2. 以雙紅線缺口為目標（特定鐘點權重高於工時）。
- * 3. 每次貪婪選擇「插入後缺口減少最多」的員工＋居住區＋班次。
- * 4. 分數相同時按居住區優先順序、班次順序排優先；有「希望」放假者排後。
- * 5. 當兩條紅線都達標，或再也找不到能改善的候選者時停止。
+ * 2. 以「工時缺口 + 特定鐘點未覆蓋小時數」為目標，同權比較所有員工×所有居住區×所有班次。
+ * 3. 同分時優先順序：沒有「希望」放假者 > 覆蓋較多「有需求小時」的班次（窗口內優先）
+ *    > 居住區偏好 > 班次 start_time（僅為確定性）。
+ * 4. 當兩條紅線都達標，或再也找不到能改善的候選者時停止。
+ * 5. 第二輪為尚未排班的正職員工補班：優先排入覆蓋「有需求小時」最多的班次（窗口內），
+ *    再按居住區偏好、班次 start_time 排序，避免溢出人手被塞進窗口以外的班次。
  * 6. 回傳因無法滿足紅線而被迫忽略的「希望」預排。
  */
 export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
@@ -376,7 +551,16 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
     employmentDetails,
     simulatedAssignments,
   );
-  const initialDeficit = computeDeficit(initialCompliance, position);
+  const initialDeficit = computeGranularDeficit(
+    date,
+    position,
+    initialCompliance,
+    users,
+    employmentDetails,
+    simulatedAssignments,
+    requiredHourly,
+    specific,
+  );
 
   const eligibleUsers = users.filter((u) => {
     if (!userCanFillPosition(u, position)) return false;
@@ -395,11 +579,26 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
       employmentDetails,
       simulatedAssignments,
     );
-    const currentDeficit = computeDeficit(currentCompliance, position);
+    const currentDeficit = computeGranularDeficit(
+      date,
+      position,
+      currentCompliance,
+      users,
+      employmentDetails,
+      simulatedAssignments,
+      requiredHourly,
+      specific,
+    );
     if (currentDeficit <= 0) break;
 
-    let bestCandidate: AutoRosterCandidate | null = null;
-    let bestScore = 0;
+    let best: {
+      candidate: AutoRosterCandidate;
+      score: number;
+      preferredPenalty: number;
+      overlap: number;
+      coverage: number;
+      stationRank: number;
+    } | null = null;
 
     for (const user of eligibleUsers) {
       if (assignedUserIds.has(user.id)) continue;
@@ -408,12 +607,14 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
       const dailyHours = getDailyContractHours(employmentDetails[user.id]) ?? 8;
       if (dailyHours <= 0) continue;
 
-      const availability = getAvailabilityWindow(user.id, date, leaveRecords);
+      const availability = getAvailabilityWindow(user.id, date, leaveRecords, employmentDetails);
       const preferredLeave = getPreferredLeave(user.id, date, leaveRecords);
       const userStationList = getUserStationList(user.id, employmentDetails, stationList);
 
       for (const stationId of userStationList) {
         const shifts = getActiveShifts(shiftSettings, stationId, position);
+        if (shifts.length === 0) continue;
+
         for (const shift of shifts) {
           if (
             simulatedAssignments.some(
@@ -423,22 +624,16 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
             continue;
           }
 
-          const shiftMinutes = getAssignmentMinutes(
-            { start_time: shift.start_time, end_time: null },
-            dailyHours,
-          );
-          if (availability && !segmentContains(availability, shiftMinutes)) {
-            continue;
-          }
+          const candidateSpec = getCandidateStartTime(shift, dailyHours, availability);
+          if (!candidateSpec) continue;
 
           const candidate: AutoRosterCandidate = {
             user_id: user.id,
             work_date: date,
             station_id: stationId,
             shift_name: shift.shift_name,
-            // 一鍵排班應跟隨班次設定時間，才能覆蓋特定鐘點；
-            // 不應套用員工偏好上班時間，否則午/晚班會被拉成早班。
-            start_time: shift.start_time,
+            // 無特定上班時間者跟隨班次設定時間；有特定上班時間者用其窗口時間
+            start_time: candidateSpec.startTime,
             position,
           };
 
@@ -453,39 +648,121 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
             employmentDetails,
             mockAssignments,
           );
-          const mockDeficit = computeDeficit(mockCompliance, position);
+          const mockDeficit = computeGranularDeficit(
+            date,
+            position,
+            mockCompliance,
+            users,
+            employmentDetails,
+            mockAssignments,
+            requiredHourly,
+            specific,
+          );
           const score = currentDeficit - mockDeficit;
 
-          // 同分時：優先沒有「希望」放假者，再按居住區/班次順序
+          // 同分時優先順序：1. 沒有「希望」放假者；2. 與班次時段重疊較多（決定特定上班時間
+          // 員工歸哪個班次桶）；3. 覆蓋較多「有需求小時」的班次（窗口內優先，
+          // 避免工時同分時人被塞去窗口外的晚班）；4. 居住區偏好；5. 開始時間（只為確定性）
           const preferredPenalty = preferredLeave ? 1 : 0;
-          const currentBestPenalty = bestCandidate && getPreferredLeave(bestCandidate.user_id, date, leaveRecords) ? 1 : 0;
+          const overlap = candidateSpec.overlap;
+          const coverage = computeRequiredCoverageHours(
+            date,
+            position,
+            requiredHourly,
+            candidateSpec.startTime,
+            dailyHours,
+          );
+          const stationRank = getStationRank(user.id, stationId, employmentDetails, stationList);
 
           const better =
-            score > bestScore ||
-            (score === bestScore &&
-              (preferredPenalty < currentBestPenalty ||
-                (preferredPenalty === currentBestPenalty &&
-                  bestCandidate &&
-                  candidatePriority(candidate, stationList) <
-                    candidatePriority(
-                      { ...bestCandidate, work_date: date },
-                      stationList,
-                    ))));
+            !best ||
+            score > best.score ||
+            (score === best.score && preferredPenalty < best.preferredPenalty) ||
+            (score === best.score && preferredPenalty === best.preferredPenalty && overlap > best.overlap) ||
+            (score === best.score && preferredPenalty === best.preferredPenalty && overlap === best.overlap && coverage > best.coverage) ||
+            (score === best.score && preferredPenalty === best.preferredPenalty && overlap === best.overlap && coverage === best.coverage && stationRank < best.stationRank) ||
+            (score === best.score && preferredPenalty === best.preferredPenalty && overlap === best.overlap && coverage === best.coverage && stationRank === best.stationRank && timeToMinutes(candidateSpec.startTime) < timeToMinutes(best.candidate.start_time));
 
           if (better) {
-            bestCandidate = candidate;
-            bestScore = score;
+            best = { candidate, score, preferredPenalty, overlap, coverage, stationRank };
           }
         }
       }
     }
 
     // 找不到能改善的候選者就停止（已盡力）
-    if (!bestCandidate || bestScore <= 0) break;
+    if (!best || best.score <= 0) break;
 
-    insertions.push(bestCandidate);
-    simulatedAssignments.push(makeMockAssignment(bestCandidate, employmentDetails));
-    assignedUserIds.add(bestCandidate.user_id);
+    insertions.push(best.candidate);
+    simulatedAssignments.push(makeMockAssignment(best.candidate, employmentDetails));
+    assignedUserIds.add(best.candidate.user_id);
+  }
+
+  // 第二輪：為尚未排班的正職員工補上班次（考慮所有居住區與班次）。
+  // 「達標就停」不代表多餘人手可隨便塞：先選覆蓋最多「有需求小時」的班次（窗口內優先），
+  // 再按居住區偏好、班次 start_time 排序，避免溢出人手被塞進窗口以外的班次。
+  for (const user of eligibleUsers) {
+    if (assignedUserIds.has(user.id)) continue;
+    if (!isFullTime(user)) continue;
+    if (isOnLeave(user.id, date, leaveRecords)) continue;
+
+    const dailyHours = getDailyContractHours(employmentDetails[user.id]) ?? 8;
+    if (dailyHours <= 0) continue;
+
+    const availability = getAvailabilityWindow(user.id, date, leaveRecords, employmentDetails);
+    const userStationList = getUserStationList(user.id, employmentDetails, stationList);
+
+    let best: { candidate: AutoRosterCandidate; overlap: number; coverage: number; stationRank: number } | null = null;
+    for (const stationId of userStationList) {
+      const shifts = getActiveShifts(shiftSettings, stationId, position);
+      for (const shift of shifts) {
+        if (
+          simulatedAssignments.some(
+            (a) => a.user_id === user.id && a.work_date === date,
+          )
+        ) {
+          continue;
+        }
+
+        const candidateSpec = getCandidateStartTime(shift, dailyHours, availability);
+        if (!candidateSpec) continue;
+
+        const candidate: AutoRosterCandidate = {
+          user_id: user.id,
+          work_date: date,
+          station_id: stationId,
+          shift_name: shift.shift_name,
+          start_time: candidateSpec.startTime,
+          position,
+        };
+        const overlap = candidateSpec.overlap;
+        const coverage = computeRequiredCoverageHours(
+          date,
+          position,
+          requiredHourly,
+          candidateSpec.startTime,
+          dailyHours,
+        );
+        const stationRank = getStationRank(user.id, stationId, employmentDetails, stationList);
+
+        const better =
+          !best ||
+          overlap > best.overlap ||
+          (overlap === best.overlap && coverage > best.coverage) ||
+          (overlap === best.overlap && coverage === best.coverage && stationRank < best.stationRank) ||
+          (overlap === best.overlap &&
+            coverage === best.coverage &&
+            stationRank === best.stationRank &&
+            timeToMinutes(candidateSpec.startTime) < timeToMinutes(best.candidate.start_time));
+        if (better) best = { candidate, overlap, coverage, stationRank };
+      }
+    }
+
+    if (best) {
+      insertions.push(best.candidate);
+      simulatedAssignments.push(makeMockAssignment(best.candidate, employmentDetails));
+      assignedUserIds.add(user.id);
+    }
   }
 
   const finalCompliance = buildDailyCompliance(
@@ -520,7 +797,16 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
     insertions,
     finalCompliance,
     initialDeficit,
-    finalDeficit: computeDeficit(finalCompliance, position),
+    finalDeficit: computeGranularDeficit(
+      date,
+      position,
+      finalCompliance,
+      users,
+      employmentDetails,
+      simulatedAssignments,
+      requiredHourly,
+      specific,
+    ),
     conflicts,
   };
 }

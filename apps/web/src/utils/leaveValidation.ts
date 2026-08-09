@@ -28,6 +28,8 @@ export interface RosterLeaveContext {
   publicHolidays: PublicHoliday[];
   /** 該員工適用的公眾假期類型（PH/SH），未設定則不能預排 PH/SH */
   publicHolidayType: 'PH' | 'SH' | null;
+  /** 該員工當月已排班工時結餘（WHB） */
+  whb?: number;
 }
 
 /** 檢查請假日期是否落在目標年月 */

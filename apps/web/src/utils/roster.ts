@@ -126,12 +126,41 @@ export function getDailyContractHours(
   return details?.daily_contract_hours ?? null;
 }
 
-/** 拖入排班表時的優先開始時間：員工預設上班時間 > 班次開始時間 */
+/** 拖入排班表時的開始時間：一律跟隨班次設定時間 */
 export function getDragStartTime(
-  details: UserEmploymentDetails | null | undefined,
+  _details: UserEmploymentDetails | null | undefined,
   shiftStartTime: string,
 ): string {
-  return normalizeTime(details?.default_work_start_time) ?? shiftStartTime.slice(0, 5);
+  return shiftStartTime.slice(0, 5);
+}
+
+/** 取得員工常態化「特定上班時間」窗口（以 default_work_start_time 起，daily_contract_hours 止） */
+export function getSpecificWorkingTimeWindow(
+  details: UserEmploymentDetails | null | undefined,
+): { start: string; end: string } | null {
+  const start = normalizeTime(details?.default_work_start_time);
+  if (!start) return null;
+  const hours = getDailyContractHours(details) ?? 8;
+  return { start, end: getShiftEndTime(start, hours) };
+}
+
+/** 班次是否完全落在指定時間窗口內（支援跨午夜窗口） */
+export function isShiftInWindow(
+  window: { start: string; end: string },
+  shiftStart: string,
+  shiftEnd: string,
+): boolean {
+  const ws = timeToMinutes(window.start);
+  const we = timeToMinutes(window.end);
+  const ss = timeToMinutes(shiftStart);
+  const se = timeToMinutes(shiftEnd);
+
+  // 將窗口正規化為 [ws, we]（可能跨午夜則 we += 1440）
+  const normalize = (v: number) => (v < ws ? v + 1440 : v);
+  const nwe = we <= ws ? we + 1440 : we;
+  const nss = normalize(ss);
+  const nse = se <= ss ? se + 1440 : normalize(se);
+  return nss >= ws && nse <= nwe && nse > nss;
 }
 
 export interface RosterUserBalance {
@@ -336,8 +365,6 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-const NURSE_POSITIONS_SET = new Set<string>(['註冊護士', '登記護士']);
-const HEALTH_WORKER_POSITIONS_SET = new Set<string>(['保健員']);
 const NURSE_HEALTH_WORKER_TABLE_POSITIONS = new Set<string>([
   '註冊護士',
   '登記護士',
@@ -463,6 +490,19 @@ export function getAssignmentEndTime(
   return getShiftEndTime(assignment.start_time, dailyContractHours);
 }
 
+/** 計算班次的實際工時（小時），支援跨午夜 */
+export function getAssignmentDurationHours(
+  assignment: UserShiftAssignment,
+  dailyContractHours: number | null,
+): number {
+  const startMinutes = timeToMinutes(assignment.start_time);
+  const endMinutes = assignment.end_time
+    ? timeToMinutes(assignment.end_time)
+    : startMinutes + (dailyContractHours ?? 8) * 60;
+  const diff = ((endMinutes - startMinutes + 1440) % 1440);
+  return diff / 60;
+}
+
 export function formatTimeRange(startTime: string, endTime: string): string {
   return `${startTime}-${endTime}`;
 }
@@ -486,7 +526,7 @@ export function toGridPosition(position: string | null | undefined): string {
 
 /** 取得員工在特定鐘點達標檢查中所屬的職位；
  * 行政、社工、衛生、膳食全部非護理崗位共同計入「助理員」特定鐘點 */
-function getSpecificSlotPosition(user: UserProfile): string {
+export function getSpecificSlotPosition(user: UserProfile): string {
   const primary = getEmploymentPosition(user);
   if (primary && ASSISTANT_SLOT_POSITIONS.has(primary)) return '助理員';
   return toGridPosition(primary);
@@ -952,7 +992,7 @@ export function getShiftDayRequiredHourly(
 }
 
 /** 計算排班日 date 內每小時的實際在班人數（按員工實際職位歸類，RN/EN 合併） */
-function getShiftDayActualHourly(
+export function getShiftDayActualHourly(
   date: string,
   users: UserProfile[],
   employmentDetails: Record<string, UserEmploymentDetails>,
@@ -999,18 +1039,20 @@ function getShiftDayActualHourly(
   return { actual, equivalent };
 }
 
-/** 計算排班日 date 內 07:00-18:00 有註冊護士當值的小時數（甲一買位合約要求） */
-function computeNurseCoverageShiftDayHours(
+/** 計算排班日 date 內 07:00-18:00 註冊護士的累積當值小時數。
+ * 甲一買位合約要求：窗口內累積不少於 8 小時當值即可，不要求 RN 覆蓋整個窗口；
+ * 多名 RN 的當值時間可疊加（例如兩名 RN 各 4 小時亦合格）。 */
+export function computeNurseCoverageShiftDayHours(
   date: string,
   assignments: UserShiftAssignment[],
   users: UserProfile[],
   employmentDetails: Record<string, UserEmploymentDetails>,
 ): number {
-  const coverage = new Array(24).fill(false);
   const dayStart = getShiftDayStart(date);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const windowStart = new Date(`${date}T07:00:00`);
   const windowEnd = new Date(`${date}T18:00:00`);
+  let totalMinutes = 0;
 
   for (const a of assignments) {
     const user = users.find((u) => u.id === a.user_id);
@@ -1027,17 +1069,13 @@ function computeNurseCoverageShiftDayHours(
 
     const effectiveStart = start < dayStart ? dayStart : start;
     const effectiveEnd = end > dayEnd ? dayEnd : end;
-    if (effectiveStart >= effectiveEnd) continue;
-
-    for (let h = 0; h < 24; h++) {
-      const slotStart = new Date(dayStart.getTime() + h * 60 * 60 * 1000);
-      const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000);
-      if (slotStart < windowEnd && slotEnd > windowStart && slotStart < effectiveEnd && slotEnd > effectiveStart) {
-        coverage[h] = true;
-      }
+    const overlapStart = effectiveStart > windowStart ? effectiveStart : windowStart;
+    const overlapEnd = effectiveEnd < windowEnd ? effectiveEnd : windowEnd;
+    if (overlapEnd > overlapStart) {
+      totalMinutes += (overlapEnd.getTime() - overlapStart.getTime()) / 60000;
     }
   }
-  return coverage.filter(Boolean).length;
+  return Math.round(totalMinutes / 60);
 }
 
 function formatWindowLabel(seg: TimeSegment): string {

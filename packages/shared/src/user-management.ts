@@ -231,6 +231,26 @@ export const POSITION_DISPLAY_PRIORITY: Record<EmploymentPosition, number> = {
   言語治療師助理: 17,
 };
 
+/** 排班卡片的職位英文代號（顯示於姓名前）；特定鐘點中算作助理員的職位一律 AW；主管無代號 */
+export const POSITION_CARD_CODES: Partial<Record<EmploymentPosition, string>> = {
+  註冊護士: 'RN',
+  登記護士: 'EN',
+  保健員: 'HW',
+  護理員: 'PCW',
+  文員: 'AW',
+  會計: 'AW',
+  社工: 'AW',
+  社工助理: 'AW',
+  廚師: 'AW',
+  清潔員: 'AW',
+  物理治療師: 'PT',
+  物理治療師助理: 'PTA',
+  職業治療師: 'OT',
+  職業治療師助理: 'OTA',
+  言語治療師: 'ST',
+  言語治療師助理: 'STA',
+};
+
 /** 公眾假期類型：銀行假期(PH) / 勞工假期(SH) */
 export type PublicHolidayType = 'PH' | 'SH';
 
@@ -377,14 +397,15 @@ export interface UserLeaveRecord {
 }
 
 /** 班次名稱 */
-export type ShiftName = '早班' | '午班' | '晚班';
+export type ShiftName = '早班' | '日班' | '午班' | '晚班';
 
 /** 班次名稱列表 */
-export const SHIFT_NAMES: ShiftName[] = ['早班', '午班', '晚班'];
+export const SHIFT_NAMES: ShiftName[] = ['早班', '日班', '午班', '晚班'];
 
 /** 班次名稱顯示對照 */
 export const SHIFT_NAME_LABELS: Record<ShiftName, string> = {
   早班: '早',
+  日班: '日',
   午班: '午',
   晚班: '晚',
 };

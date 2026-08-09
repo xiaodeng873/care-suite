@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { UserProfile, UserEmploymentDetails, UserLeaveRecord, PublicHoliday, UserShiftAssignment } from '@care-suite/shared';
 import { LEAVE_TYPE_LABELS, getEmploymentPosition } from '@care-suite/shared';
 import { AlertCircle, ArrowUp, ArrowDown, CheckCircle2 } from 'lucide-react';
-import { getRosterUserBalance, getRosterGroupOptions, toGridPosition, buildDailyCompliance, buildPreScheduleDailyCompliance, formatShiftTimeAbbreviation, getShiftEndTime, getAssignmentPositionForTable } from '../utils/roster';
+import { getRosterUserBalance, getRosterGroupOptions, buildDailyCompliance, buildPreScheduleDailyCompliance, formatShiftTimeAbbreviation, getShiftEndTime, getAssignmentPositionForTable } from '../utils/roster';
 import type { ComplianceRow, PreScheduleSegmentConflict } from '../utils/roster';
 import type { SpecificHoursConfig } from '../utils/facilityNatureSettings';
 import { GRID_POSITIONS } from '../utils/facilityNatureSettings';
@@ -48,6 +48,7 @@ interface RosterScheduleViewProps {
     alBalance: number;
     alAccumulated: number;
     alEstimated: number;
+    whb: number;
   } | null;
 }
 
@@ -68,6 +69,9 @@ function formatDate(y: number, m: number, d: number): string {
 }
 
 const signed = (n: number): string => (n >= 0 ? `+${n}` : String(n));
+
+/** WHB 顯示：正數不帶 +，負數帶 − */
+const whbSigned = (n: number): string => (n >= 0 ? String(n) : String(n));
 
 const isPartTime = (user: UserProfile): boolean => user.employment_type === '兼職';
 
@@ -390,10 +394,10 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
               <th className="px-3 py-2 text-left font-medium text-gray-600 sticky left-0 bg-gray-50 min-w-[8rem]">
                 員工
               </th>
-              <th className="px-3 py-2 text-left font-medium text-gray-600 sticky left-[8rem] bg-gray-50 min-w-[5rem]">
+              <th className="px-2 py-2 text-left font-medium text-gray-600 sticky left-[8rem] bg-gray-50 min-w-[4rem]">
                 累積
               </th>
-              <th className="px-3 py-2 text-left font-medium text-gray-600 bg-gray-50 min-w-[5rem]">
+              <th className="px-2 py-2 text-left font-medium text-gray-600 bg-gray-50 min-w-[4rem]">
                 預計{month}月收穫
               </th>
               {Array.from({ length: daysInMonth }, (_, i) => {
@@ -441,7 +445,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                     <div>{user.name_zh}</div>
                     <div className="text-[10px] text-gray-500 font-normal">{userDisplayPositions(user)}</div>
                   </td>
-                  <td className="px-3 py-2 text-gray-600 sticky left-[8rem] bg-white min-w-[5rem]">
+                  <td className="px-2 py-2 text-gray-600 sticky left-[8rem] bg-white min-w-[4rem]">
                     {full ? (
                       isPartTime(user) ? (
                         <span className="text-gray-400">兼職不適用</span>
@@ -456,6 +460,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                             <div>SH {signed(full.shAccumulated)}</div>
                           )}
                           <div>AL {signed(full.alAccumulated)}</div>
+                          <div className="text-blue-600">WHB {whbSigned(full.whb)}</div>
                         </div>
                       )
                     ) : (
@@ -472,7 +477,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-gray-600 bg-white min-w-[5rem]">
+                  <td className="px-2 py-2 text-gray-600 bg-white min-w-[4rem]">
                     {full ? (
                       isPartTime(user) ? (
                         <span className="text-gray-400">—</span>

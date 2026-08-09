@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import type { UserProfile, UserShiftAssignment } from '@care-suite/shared';
+import { getEmploymentPosition, POSITION_CARD_CODES } from '@care-suite/shared';
 
 interface RosterShiftCardProps {
   user: UserProfile;
@@ -44,6 +45,8 @@ export const RosterShiftCard: React.FC<RosterShiftCardProps> = ({
   const [tempEnd, setTempEnd] = useState(endTime);
   const cardRef = useRef<HTMLDivElement>(null);
   const dragImageRef = useRef<HTMLElement | null>(null);
+  const position = getEmploymentPosition(user);
+  const positionCode = position ? POSITION_CARD_CODES[position] : undefined;
 
   const handleSave = () => {
     const start = tempStart.slice(0, 5);
@@ -136,7 +139,10 @@ export const RosterShiftCard: React.FC<RosterShiftCardProps> = ({
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-gray-900 truncate select-none">{user.name_zh}</div>
+        <div className="font-medium text-gray-900 truncate select-none">
+          {positionCode && <span className="text-[10px] font-normal text-gray-500 mr-1">{positionCode}</span>}
+          {user.name_zh}
+        </div>
         {editing && !readOnly ? (
           <div className="flex items-center gap-1">
             <select

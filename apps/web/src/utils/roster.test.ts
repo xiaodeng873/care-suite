@@ -510,6 +510,35 @@ describe('roster utils', () => {
       expect(nurseRow.specificSlotOk).toBe(false);
     });
 
+    it('stacks multiple RN duty hours within 07:00-18:00 toward the 8-hour requirement', () => {
+      const users = [
+        { id: 'u1', nursing_position: '註冊護士', secondary_positions: [] },
+        { id: 'u2', nursing_position: '註冊護士', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const employmentDetails = {
+        u1: { daily_contract_hours: 8 },
+        u2: { daily_contract_hours: 8 },
+      } as unknown as Record<string, UserEmploymentDetails>;
+      const assignments: UserShiftAssignment[] = [
+        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: '11:00', created_by: null, created_at: '', updated_at: '' },
+        { id: '2', user_id: 'u2', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: '11:00', created_by: null, created_at: '', updated_at: '' },
+      ];
+      const requiredHourly = {
+        '註冊/登記護士': Array.from({ length: 24 }, (_, h) => (h >= 7 && h < 20 ? 1 : 0)),
+      };
+      const specific = {
+        requirement1: { segments: [{ start: '07:00', end: '17:00' }] },
+        requirement3: { start: '07:00', end: '20:00' },
+        assistantWindow: { start: '07:00', end: '18:00' },
+      };
+      const rows = buildDailyCompliance('2026-08-02', {}, requiredHourly, specific, users, employmentDetails, assignments);
+      const nurseRow = rows.find((r) => r.position === '註冊/登記護士')!;
+      // 兩名 RN 各當值 4 小時（重疊），累積 8 小時即合格，不需 RN 覆蓋整個窗口
+      expect(nurseRow.requiredSpecificHeadcount).toBe(8);
+      expect(nurseRow.actualSpecificHeadcount).toBe(8);
+      expect(nurseRow.specificSlotOk).toBe(true);
+    });
+
     it('does not count enrolled nurse toward A1 registered nurse 8-hour coverage', () => {
       const users = [
         { id: 'u1', nursing_position: '登記護士', secondary_positions: [] },

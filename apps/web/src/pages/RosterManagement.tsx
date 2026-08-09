@@ -20,17 +20,14 @@ import type {
   UserAnnualLeaveDetail,
   StationShiftSetting,
   UserShiftAssignment,
-  EmploymentPosition,
 } from '@care-suite/shared';
 import { getEmploymentPosition } from '@care-suite/shared';
 import { usePatients } from '../context/PatientContext';
 import type { RosterLeaveContext } from '../utils/leaveValidation';
 import { getRosterExpectedCounts, getRosterUsedCounts } from '../utils/leaveValidation';
 import {
-  getPositionOptions,
   getRosterGroupOptions,
   getWeekRange,
-  toGridPosition,
   normalizeTime,
   formatDate,
   formatTime,
@@ -39,6 +36,7 @@ import {
   getSpecificWindowsForPosition,
   getPreScheduleAvailableByShiftHour,
   getAssignmentPositionForTable,
+  getAssignmentDurationHours,
 } from '../utils/roster';
 import { addDays } from '../utils/shiftDay';
 import type { PreScheduleSegmentConflict } from '../utils/roster';
@@ -708,6 +706,15 @@ const RosterManagement: React.FC = () => {
         }
       }
 
+      // ---------- 工時結算 WHB（當月已排班工時 − 合約工時累積） ----------
+      let whb = 0;
+      const userDailyHours = details?.daily_contract_hours ?? 8;
+      for (const a of monthShiftAssignments) {
+        if (a.user_id !== userId) continue;
+        const workedHours = getAssignmentDurationHours(a, userDailyHours);
+        whb += workedHours - userDailyHours;
+      }
+
       return {
         doBalance: doAccumulated + doEstimated,
         doAccumulated,
@@ -724,6 +731,7 @@ const RosterManagement: React.FC = () => {
         shAvailable: shAccumulated + shEstimated,
         shAccumulated,
         shEstimated,
+        whb,
       };
     },
     [
@@ -732,6 +740,7 @@ const RosterManagement: React.FC = () => {
       monthCursor,
       restDetailsMap,
       annualDetailsMap,
+      monthShiftAssignments,
       getUsedHolidayIds,
     ],
   );

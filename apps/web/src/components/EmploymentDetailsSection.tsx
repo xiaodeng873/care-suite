@@ -105,7 +105,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
   const [annualLeaveStartDate, setAnnualLeaveStartDate] = useState(user.hire_date || '');
   const [publicHolidayType, setPublicHolidayType] = useState<'' | 'PH' | 'SH'>('');
   const [publicHolidayStartDate, setPublicHolidayStartDate] = useState(user.hire_date || '');
-  const [publicHolidayDescription, setPublicHolidayDescription] = useState('');
   const [preferredPrimary, setPreferredPrimary] = useState('');
   const [preferredSecondary, setPreferredSecondary] = useState<string[]>([]);
   const [stationsForbidden, setStationsForbidden] = useState<string[]>([]);
@@ -459,7 +458,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
         setPublicHolidayStartDate(details.public_holiday_start_date ?? user.hire_date ?? '');
         setInitialPublicHolidayStartDate(details.public_holiday_start_date ?? user.hire_date ?? null);
         setInitialPublicHolidayType(details.public_holiday_type ?? '');
-        setPublicHolidayDescription(details.public_holiday_description ?? '');
         setPreferredPrimary(details.preferred_station_primary ?? '');
         setPreferredSecondary(details.preferred_station_secondary ?? []);
         setStationsForbidden(details.stations_forbidden ?? []);
@@ -645,7 +643,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           annual_leave_start_date: annualLeaveStartDate || null,
           public_holiday_type: publicHolidayType || null,
           public_holiday_start_date: publicHolidayStartDate || null,
-          public_holiday_description: publicHolidayDescription.trim() || null,
           preferred_station_primary: preferredPrimary || null,
           preferred_station_secondary: preferredSecondary,
           stations_forbidden: stationsForbidden,
@@ -1066,14 +1063,16 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                   {renderHalfInput('每天合約工時', dailyContractHours, setDailyContractHours, { unit: '小時' })}
                   {renderHalfInput('每周工作天數', weeklyWorkDays, setWeeklyWorkDays, { unit: '天', max: 6 })}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">預設上班時間</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">特定上班時間</label>
                     <input
                       type="time"
                       value={defaultWorkStartTime}
                       onChange={e => setDefaultWorkStartTime(e.target.value)}
                       className={inputClass}
                     />
-                    <p className="text-xs text-gray-500 mt-1">拖入排班表時優先使用，未設定則跟從班次開始時間</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      未設定則無限制；有填寫時視為強制可用時段，班次必須落在「特定上班時間」至「特定上班時間＋每天合約工時」範圍內，優先於工時與特定鐘點。
+                    </p>
                   </div>
                 </div>
                 <div className="mt-4">
@@ -1212,17 +1211,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                       value={publicHolidayStartDate}
                       onChange={v => setPublicHolidayStartDate(v)}
                       disabled={!publicHolidayType}
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">描述</label>
-                    <textarea
-                      value={publicHolidayDescription}
-                      onChange={e => setPublicHolidayDescription(e.target.value)}
-                      disabled={!publicHolidayType}
-                      rows={2}
-                      placeholder="例如：按香港銀行假期放假"
-                      className={`${inputClass} ${!publicHolidayType ? 'bg-gray-100 opacity-60' : ''}`}
                     />
                   </div>
                 </div>
