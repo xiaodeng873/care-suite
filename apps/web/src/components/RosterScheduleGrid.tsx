@@ -173,6 +173,8 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     dropTarget: { assignmentId: string; insertBefore: boolean } | null;
   } | null>(null);
   const selectedGridPosition = selectedPosition;
+  /** 行政排班頁不分居住區，全域一欄 */
+  const isGlobalTab = selectedPosition === '行政';
   const [highlightDate, setHighlightDate] = useState<string | null>(null);
   const [dragOverItem, setDragOverItem] = useState<{ id: string; insertBefore: boolean } | null>(null);
 
@@ -822,7 +824,10 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     });
   };
 
-  const stationColumns = useMemo<(Station | null)[]>(() => [...stations, null], [stations]);
+  const stationColumns = useMemo<(Station | null)[]>(
+    () => (isGlobalTab ? [null] : [...stations, null]),
+    [stations, isGlobalTab],
+  );
 
   const allShiftNames = useMemo<ShiftName[]>(() => {
     const set = new Set<ShiftName>();
@@ -866,6 +871,11 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     }
     const dayAllOk = complianceRows.length === 0 || complianceRows.every((r) => (hasContractHours ? r.hoursOk && r.specificSlotOk : r.specificSlotOk));
     const expanded = complianceExpanded.has(day.date);
+    // 本週最後一天（星期六）顯示一周工時統計，只限當前分頁相關且買位有指定工時的職位
+    const isLastDay = day.date === days[days.length - 1]?.date;
+    const weeklyRows = isLastDay
+      ? weeklyHoursStats.filter((s) => complianceRows.some((r) => r.position === s.position))
+      : [];
 
     return (
       <div
@@ -918,10 +928,10 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                     className="px-2 py-2 text-center font-medium text-gray-600 min-w-[12rem] bg-gray-50"
                   >
                     <div className="flex items-center justify-between px-1">
-                      <span>{station?.name ?? '未分區'}</span>
+                      <span>{station?.name ?? (isGlobalTab ? '全域' : '未分區')}</span>
                       <button
                         type="button"
-                        onClick={() => canEdit && setEditingStation(station ?? { id: null, name: '未分區' })}
+                        onClick={() => canEdit && setEditingStation(station ?? { id: null, name: isGlobalTab ? '全域' : '未分區' })}
                         disabled={!canEdit}
                         className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -1068,7 +1078,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                     )}
                     {currentRow.hasSpecificSlotRequirement ? (
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="font-medium text-gray-700">特定鐘點：</span>
+                        <span className="font-medium text-gray-700">{currentRow.isA1Contract ? '甲一買位：' : '特定鐘點：'}</span>
                         {currentRow.specificSegments.map((s, idx) => {
                           const segOk = s.actual >= s.required;
                           let unit: string;
@@ -1094,6 +1104,23 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
               </div>
             ) : (
               <div className="text-xs text-gray-400">該職位當天無要求</div>
+            )}
+            {weeklyRows.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-100">
+                <p className="text-xs font-semibold text-gray-700 mb-1">一周工時統計</p>
+                <div className="space-y-1">
+                  {weeklyRows.map((s) => (
+                    <div key={s.position} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                      <span className="font-medium text-gray-700 min-w-[5rem]">{s.position}</span>
+                      <div className={s.ok ? 'text-green-700' : 'text-red-700'}>
+                        <span className="font-medium">本週工時：</span>
+                        {s.actual.toFixed(1)}/{s.required.toFixed(1)} h
+                        <span className="ml-1 text-[10px]">{s.ok ? '一週達標' : '一週不足'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -1134,6 +1161,21 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
       ),
     }));
   }, [days, requiredHoursMap, requiredHourly, specificHours, users, employmentDetails, shiftAssignments]);
+
+  // 一周工時統計：只計買位要求有指定工時的職位，於本週最後一天（星期六）的達標檢查內顯示
+  const weeklyHoursStats = useMemo(() => {
+    if (!hasContractHours) return [];
+    return dailyRequirements
+      .filter((r) => r.hours > 0)
+      .map((r) => {
+        const actual = complianceByDay.reduce((sum, d) => {
+          const row = d.rows.find((cr) => cr.position === r.position);
+          return sum + (row?.actualHours ?? 0);
+        }, 0);
+        const required = r.hours * days.length;
+        return { position: r.position, actual, required, ok: actual >= required };
+      });
+  }, [hasContractHours, dailyRequirements, complianceByDay, days]);
 
   return (
     <div className="flex-1 flex flex-col min-w-0">

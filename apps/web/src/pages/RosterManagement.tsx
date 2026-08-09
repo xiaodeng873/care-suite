@@ -195,6 +195,7 @@ const RosterManagement: React.FC = () => {
         bedCounts: facilitySettings.bedCounts,
         specific: facilitySettings.specific,
         currentResidents,
+        contractHours: facilitySettings.contractHours,
       };
       const dualRedLine = computeDualRedLineStaffing(staffingInput);
       const staffingReqResult = computeStaffingRequirements(staffingInput);

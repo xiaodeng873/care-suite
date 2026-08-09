@@ -291,8 +291,6 @@ export interface UserEmploymentDetails {
   public_holiday_type: PublicHolidayType | null;
   /** 公眾假期計算起始日 */
   public_holiday_start_date: string | null;
-  /** 公眾假期備註/描述 */
-  public_holiday_description: string | null;
   preferred_station_primary: string | null;
   preferred_station_secondary: string[];
   stations_forbidden: string[];

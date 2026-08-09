@@ -4,7 +4,6 @@ import { useStation } from '../context/facility';
 import { usePatients } from '../context/PatientContext';
 import {
   A1_CONTRACT_POSITIONS,
-  A1_CONTRACT_WEEKLY_HOURS_PER_40_BEDS,
   DEFAULT_BED_COUNTS,
   DEFAULT_SPECIFIC_HOURS_CONFIG,
   FACILITY_NATURES,
@@ -15,6 +14,8 @@ import {
   STATUTORY_RATIOS,
   loadFacilityNatureSettings,
   saveFacilityNatureSettings,
+  type ContractHoursConfig,
+  type ContractNature,
   type FacilityNature,
   type NatureBedCounts,
   type NatureRequirements,
@@ -22,14 +23,16 @@ import {
   type TimeSegment,
 } from '../utils/facilityNatureSettings';
 import {
-  a1ContractDailyHours,
+  activeContractNature,
   computeDualRedLineStaffing,
   computeStaffingRequirements,
+  contractDailyHours,
+  contractWeeklyHours,
   ratioHeadcount,
   timeToMinutes,
 } from '../utils/staffingRequirements';
 
-const TABS = ['床位設定', '特定鐘點底線', '甲一合約工時', '24小時最低人手'] as const;
+const TABS = ['床位設定', '特定鐘點底線', '買位合約工時', '24小時最低人手'] as const;
 
 const INPUT_CLASS =
   'w-24 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm';
@@ -70,6 +73,7 @@ const FacilityNatureSettings: React.FC = () => {
   const [bedCounts, setBedCounts] = useState<NatureBedCounts>({ ...DEFAULT_BED_COUNTS });
   const [requirements, setRequirements] = useState<NatureRequirements>({});
   const [specific, setSpecific] = useState<SpecificHoursConfig>(DEFAULT_SPECIFIC_HOURS_CONFIG);
+  const [contractHours, setContractHours] = useState<ContractHoursConfig>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -88,6 +92,7 @@ const FacilityNatureSettings: React.FC = () => {
       setBedCounts(settings.bedCounts);
       setRequirements(settings.requirements);
       setSpecific(settings.specific);
+      setContractHours(settings.contractHours);
       setLoading(false);
     })();
     return () => {
@@ -168,7 +173,7 @@ const FacilityNatureSettings: React.FC = () => {
     setSaving(true);
     setMessage(null);
     try {
-      await saveFacilityNatureSettings({ bedCounts, requirements, specific });
+      await saveFacilityNatureSettings({ bedCounts, requirements, specific, contractHours });
       setMessage({ type: 'success', text: '院舍性質設定已儲存' });
     } catch (err) {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : '儲存失敗' });
@@ -197,8 +202,9 @@ const FacilityNatureSettings: React.FC = () => {
         bedCounts,
         specific,
         currentResidents,
+        contractHours,
       }),
-    [bedCounts, specific, currentResidents]
+    [bedCounts, specific, currentResidents, contractHours]
   );
 
   if (loading) {
@@ -521,16 +527,34 @@ const FacilityNatureSettings: React.FC = () => {
   };
 
   const renderContractTab = () => {
-    const a1VoucherBeds = bedCounts['甲一買位'] || 0;
+    const nature: ContractNature | null = activeContractNature(bedCounts);
+    if (!nature) {
+      return (
+        <div className="max-w-3xl text-sm text-gray-500">
+          「床位設定」中沒有買位宿位（甲一或甲二買位），本院舍無買位合約工時要求。
+        </div>
+      );
+    }
+    const contractBeds = bedCounts[nature] || 0;
+    const overrides = contractHours[nature] ?? {};
+    const updateOverride = (pos: string, value: number | null) => {
+      setContractHours((prev) => {
+        const nextEntry = { ...(prev[nature] ?? {}) };
+        if (value == null) delete nextEntry[pos];
+        else nextEntry[pos] = value;
+        return { ...prev, [nature]: nextEntry };
+      });
+    };
     return (
       <div className="space-y-6 max-w-3xl">
         <div>
           <p className="text-sm text-gray-600 mb-2">
-            甲一買位宿位總數：
-            <span className="font-semibold text-gray-900">{a1VoucherBeds}</span>
+            {nature}宿位總數：
+            <span className="font-semibold text-gray-900">{contractBeds}</span>
           </p>
           <p className="text-xs text-gray-500">
-            按每 40 宿位基準比例換算，向上取整至 0.5 小時；主管固定 1 名、48 小時/週，不按比例。
+            每週合約總工時可直接修改；留空則按每 40 宿位基準換算（主管固定 48 小時/週，不按比例）。
+            每日平均 = 每週 ÷ 7，向上取整至 0.5 小時。
           </p>
         </div>
 
@@ -545,14 +569,31 @@ const FacilityNatureSettings: React.FC = () => {
             </thead>
             <tbody>
               {A1_CONTRACT_POSITIONS.map((pos) => {
-                const weeklyBase = A1_CONTRACT_WEEKLY_HOURS_PER_40_BEDS[pos as keyof typeof A1_CONTRACT_WEEKLY_HOURS_PER_40_BEDS];
-                const weeklyHours = pos === '主管' ? weeklyBase : (weeklyBase * a1VoucherBeds) / 40;
-                const dailyHours = a1ContractDailyHours(pos, a1VoucherBeds);
+                const weeklyHours = contractWeeklyHours(pos, nature, contractBeds, overrides);
+                const dailyHours = contractDailyHours(pos, nature, contractBeds, overrides);
                 return (
                   <tr key={pos} className="bg-white">
                     <td className="border border-gray-200 px-3 py-2 text-gray-700">{pos}</td>
                     <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
-                      {weeklyHours.toFixed(1)} 小時
+                      <span className="inline-flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          value={overrides[pos] ?? ''}
+                          placeholder={weeklyHours.toFixed(1)}
+                          onChange={(e) => {
+                            if (e.target.value === '') {
+                              updateOverride(pos, null);
+                              return;
+                            }
+                            const n = parseFloat(e.target.value);
+                            updateOverride(pos, Number.isFinite(n) ? Math.max(0, n) : null);
+                          }}
+                          className={INPUT_CLASS}
+                        />
+                        小時
+                      </span>
                     </td>
                     <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
                       {dailyHours.toFixed(1)} 小時
@@ -562,16 +603,6 @@ const FacilityNatureSettings: React.FC = () => {
               })}
             </tbody>
           </table>
-        </div>
-
-        <div className="border border-amber-200 bg-amber-50 rounded-lg px-4 py-3 text-sm text-amber-800">
-          <p className="font-medium mb-1">合約工時規則</p>
-          <ul className="list-disc list-inside space-y-1 text-xs">
-            <li>每人每日工作不得少於 {MIN_DAILY_HOURS_PER_PERSON} 小時</li>
-            <li>護士可向下替代保健員：護士頂替保健員時，該小時只算保健員工時，不算護士工時</li>
-            <li>保健員不可替代護士</li>
-            <li>此表為買位合約工時邊界，與特定鐘點人數紅線獨立，兩者必須同時達標</li>
-          </ul>
         </div>
       </div>
     );
@@ -642,11 +673,11 @@ const FacilityNatureSettings: React.FC = () => {
         </table>
       </div>
 
-      {/* 雙紅線總結：特定鐘點人數 + 甲一合約時數 */}
+      {/* 雙紅線總結：特定鐘點人數 + 買位合約時數 */}
       <div className="mt-6 space-y-4">
         <h3 className="text-sm font-semibold text-gray-900">雙紅線總結（人數與時數獨立達標）</h3>
         <p className="text-xs text-gray-500">
-          特定鐘點決定每小時人數（紅線1）；甲一合約決定每日總工時（紅線2）。兩者獨立，不可互相抵扣。
+          特定鐘點決定每小時人數（紅線1）；買位合約決定每日總工時（紅線2）。兩者獨立，不可互相抵扣。
           補足工時只給總量邊界，具體時段由排班系統決定。
         </p>
 

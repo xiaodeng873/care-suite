@@ -18,6 +18,10 @@ export const NON_PRIVATE_NATURES: FacilityNature[] = ['甲二買位', '甲一買
 /** 觸發甲一買位合約工時的性質 */
 export const A1_CONTRACT_NATURES: FacilityNature[] = ['甲一買位'];
 
+/** 有買位合約工時的性質（甲一/甲二，視乎床位設定，兩者互斥） */
+export type ContractNature = '甲一買位' | '甲二買位';
+export const CONTRACT_NATURES: ContractNature[] = ['甲一買位', '甲二買位'];
+
 /** 24 小時最低人手表格的職位欄（順序固定）；「任何員工」對應表1第5項（18:00–翌日07:00 須有 2 名員工當值） */
 export const GRID_POSITIONS = ['主管', '註冊/登記護士', '保健員', '護理員', '助理員', '物理治療師', '任何員工'] as const;
 export type GridPosition = (typeof GRID_POSITIONS)[number];
@@ -41,7 +45,7 @@ export const STATUTORY_RATIOS = {
 /** 表1第5項：每日 18:00 至翌日 07:00 須有 2 名員工當值（可以是為遵守其他項目而聘用的人） */
 export const NIGHT_ANY_STAFF = { start: '18:00', end: '07:00', count: 2 } as const;
 
-/** 甲一買位每 40 宿位合約工時基準（寫死法定值，RN+EN 合計） */
+/** 甲一買位每 40 宿位合約工時基準（法定預設值，可在「買位合約工時」頁修改，RN+EN 合計） */
 export const A1_CONTRACT_WEEKLY_HOURS_PER_40_BEDS = {
   主管: 48,
   護士: 96,
@@ -50,8 +54,20 @@ export const A1_CONTRACT_WEEKLY_HOURS_PER_40_BEDS = {
   助理員: 192,
 } as const;
 
-/** 參與甲一合約工時的職位（順序固定） */
+/** 參與買位合約工時的職位（順序固定） */
 export const A1_CONTRACT_POSITIONS = ['主管', '護士', '保健員', '護理員', '助理員'] as const;
+
+/** 買位合約工時每 40 宿位每週基準預設值。
+ * 甲二級（EA2）40 買位宿位：主管 48、保健員 192、護理員 384、助理員 288（每週總計 912 小時）；
+ * 無護士要求；物理/職業治療師按服務時數，不列入。 */
+export const DEFAULT_CONTRACT_WEEKLY_HOURS_PER_40_BEDS: Record<ContractNature, Record<string, number>> = {
+  甲一買位: { ...A1_CONTRACT_WEEKLY_HOURS_PER_40_BEDS },
+  甲二買位: { 主管: 48, 護士: 0, 保健員: 192, 護理員: 384, 助理員: 288 },
+};
+
+/** 買位合約工時用戶設定：性質 → 職位 → 每週合約總工時（絕對值；缺省時按每 40 宿位基準換算） */
+export type ContractWeeklyHours = Record<string, number>;
+export type ContractHoursConfig = Partial<Record<ContractNature, ContractWeeklyHours>>;
 
 /** 每人每日最低工時硬約束（小時） */
 export const MIN_DAILY_HOURS_PER_PERSON = 8;
@@ -124,6 +140,8 @@ export interface FacilityNatureSettings {
   bedCounts: NatureBedCounts;
   requirements: NatureRequirements;
   specific: SpecificHoursConfig;
+  /** 買位合約工時用戶設定（每週總工時絕對值）；空物件 = 全部用基準換算 */
+  contractHours: ContractHoursConfig;
 }
 
 // =====================================================
@@ -148,6 +166,29 @@ function toNonNegativeInt(value: unknown): number {
 
 function isTimeString(value: unknown): value is string {
   return typeof value === 'string' && /^\d{2}:\d{2}$/.test(value);
+}
+
+/** 非負數（買位工時可為 0，例如甲二無護士要求），取整至 0.5 小時 */
+function toNonNegativeHalfHour(value: unknown): number | null {
+  const n = typeof value === 'string' ? Number(value) : value;
+  return typeof n === 'number' && Number.isFinite(n) && n >= 0 ? Math.round(n * 2) / 2 : null;
+}
+
+function sanitizeContractHours(raw: unknown): ContractHoursConfig {
+  const result: ContractHoursConfig = {};
+  if (!raw || typeof raw !== 'object') return result;
+  const obj = raw as Record<string, unknown>;
+  for (const nature of CONTRACT_NATURES) {
+    const entry = obj[nature];
+    if (!entry || typeof entry !== 'object') continue;
+    const hours: ContractWeeklyHours = {};
+    for (const [pos, v] of Object.entries(entry as Record<string, unknown>)) {
+      const n = toNonNegativeHalfHour(v);
+      if (n != null) hours[pos] = n;
+    }
+    result[nature] = hours;
+  }
+  return result;
 }
 
 function sanitizeBedCounts(raw: unknown): NatureBedCounts {
@@ -233,7 +274,7 @@ function sanitizeSpecific(raw: unknown): SpecificHoursConfig {
 export async function loadFacilityNatureSettings(): Promise<FacilityNatureSettings> {
   const { data, error } = await supabase
     .from('facility_settings')
-    .select('nature_bed_counts, nature_requirements, specific_hours_config')
+    .select('nature_bed_counts, nature_requirements, specific_hours_config, contract_hours_config')
     .eq('id', 1)
     .maybeSingle();
 
@@ -245,10 +286,11 @@ export async function loadFacilityNatureSettings(): Promise<FacilityNatureSettin
     bedCounts: sanitizeBedCounts(data?.nature_bed_counts),
     requirements: sanitizeRequirements(data?.nature_requirements),
     specific: sanitizeSpecific(data?.specific_hours_config),
+    contractHours: sanitizeContractHours(data?.contract_hours_config),
   };
 }
 
-/** 儲存院舍性質設定（三欄一併更新）。床位總和等驗證在元件層完成。 */
+/** 儲存院舍性質設定（四欄一併更新）。床位總和等驗證在元件層完成。 */
 export async function saveFacilityNatureSettings(settings: FacilityNatureSettings): Promise<void> {
   const { error } = await supabase
     .from('facility_settings')
@@ -256,6 +298,7 @@ export async function saveFacilityNatureSettings(settings: FacilityNatureSetting
       nature_bed_counts: settings.bedCounts,
       nature_requirements: settings.requirements,
       specific_hours_config: settings.specific,
+      contract_hours_config: settings.contractHours,
       updated_at: new Date().toISOString(),
     })
     .eq('id', 1);

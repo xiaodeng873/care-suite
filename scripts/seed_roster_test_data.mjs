@@ -141,7 +141,6 @@ async function main() {
     annual_leave_start_date: '2024-01-01',
     public_holiday_type: 'PH',
     public_holiday_start_date: '2024-01-01',
-    public_holiday_description: '測試用',
     preferred_station_secondary: [],
     stations_forbidden: [],
   }));

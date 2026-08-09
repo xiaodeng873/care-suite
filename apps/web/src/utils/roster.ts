@@ -585,6 +585,8 @@ export interface SpecificSlotCompliance {
   actualMinHeadcount: number;
   ok: boolean;
   segments: SpecificSlotSegment[];
+  /** true = 此項為甲一買位合約要求（RN 07:00-18:00 累積 8 小時），並非特定鐘點 */
+  isA1Contract?: boolean;
 }
 
 export interface ComplianceRow {
@@ -597,6 +599,8 @@ export interface ComplianceRow {
   specificSlotOk: boolean;
   hasSpecificSlotRequirement: boolean;
   specificSegments: SpecificSlotSegment[];
+  /** true = 該職位的時段要求來自甲一買位合約，顯示時標作「甲一買位」而非「特定鐘點」 */
+  isA1Contract?: boolean;
 }
 
 export interface PreScheduleSegmentConflict {
@@ -766,6 +770,7 @@ function buildPreScheduleSpecificSlotCompliance(
         actualMinHeadcount: rnHours,
         ok: rnHours >= 8,
         segments: [{ label: `註冊護士 ${formatWindowLabel(nurseWindow)}`, required: 8, actual: rnHours }],
+        isA1Contract: true,
       };
       continue;
     }
@@ -865,6 +870,7 @@ export function buildPreScheduleDailyCompliance(
     specificSlotOk: specificSlot[position]?.ok ?? true,
     hasSpecificSlotRequirement: (specificSlot[position]?.requiredMinHeadcount ?? 0) > 0,
     specificSegments: specificSlot[position]?.segments ?? [],
+    isA1Contract: specificSlot[position]?.isA1Contract ?? false,
   }));
 }
 
@@ -895,6 +901,7 @@ export function buildDailyCompliance(
     specificSlotOk: specificSlot[position]?.ok ?? true,
     hasSpecificSlotRequirement: (specificSlot[position]?.requiredMinHeadcount ?? 0) > 0,
     specificSegments: specificSlot[position]?.segments ?? [],
+    isA1Contract: specificSlot[position]?.isA1Contract ?? false,
   }));
 }
 
@@ -1118,6 +1125,7 @@ export function buildSpecificSlotCompliance(
         actualMinHeadcount: actualHours,
         ok: actualHours >= 8,
         segments: [{ label: `註冊護士 ${formatWindowLabel(nurseWindow)}`, required: 8, actual: actualHours }],
+        isA1Contract: true,
       };
       continue;
     }

@@ -92,7 +92,7 @@ function buildComplianceTooltip(row: ComplianceRow, hasContractHours: boolean): 
     const segments = row.specificSegments
       .map((s) => `${s.label} ${s.actual}/${s.required} 人`)
       .join('；');
-    parts.push(`特定鐘點：${slotIcon} ${segments}`);
+    parts.push(`${row.isA1Contract ? '甲一買位' : '特定鐘點'}：${slotIcon} ${segments}`);
   } else {
     parts.push('特定鐘點：— 無特定鐘點');
   }

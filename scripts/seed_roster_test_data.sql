@@ -144,7 +144,7 @@ INSERT INTO user_employment_details (
   default_work_start_time, weekly_work_days, hours_balance, rest_day_fraction,
   accumulated_rest_days, rest_day_start_date, annual_leave_days_per_year,
   annual_leave_start_date, public_holiday_type, public_holiday_start_date,
-  public_holiday_description, preferred_station_primary, preferred_station_secondary,
+  preferred_station_primary, preferred_station_secondary,
   stations_forbidden, created_at, updated_at
 )
 SELECT
@@ -162,7 +162,6 @@ SELECT
   '2024-01-01',   -- annual_leave_start_date
   'PH',           -- public_holiday_type
   '2024-01-01',   -- public_holiday_start_date
-  '測試用',       -- public_holiday_description
   NULL,           -- preferred_station_primary
   ARRAY[]::uuid[],-- preferred_station_secondary
   ARRAY[]::uuid[],-- stations_forbidden

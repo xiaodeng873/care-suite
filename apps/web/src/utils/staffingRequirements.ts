@@ -1,12 +1,16 @@
 import {
   A1_CONTRACT_NATURES,
   A1_CONTRACT_WEEKLY_HOURS_PER_40_BEDS,
+  DEFAULT_CONTRACT_WEEKLY_HOURS_PER_40_BEDS,
   FACILITY_NATURES,
   GRID_POSITIONS,
   NIGHT_ANY_STAFF,
   NON_PRIVATE_NATURES,
   STATUTORY_RATIOS,
   WORK_HOUR_STEP,
+  type ContractHoursConfig,
+  type ContractNature,
+  type ContractWeeklyHours,
   type FacilityNature,
   type GridPosition,
   type NatureBedCounts,
@@ -24,6 +28,8 @@ export interface StaffingInput {
   specific: SpecificHoursConfig;
   /** 全院當前在住人數 */
   currentResidents: number;
+  /** 買位合約工時用戶設定（每週總工時絕對值）；缺省用每 40 宿位基準換算 */
+  contractHours?: ContractHoursConfig;
 }
 
 export interface DailySummary {
@@ -213,7 +219,7 @@ export function computeStaffingRequirements(input: StaffingInput): StaffingResul
 }
 
 // =====================================================
-// 雙紅線獨立合格引擎：特定鐘點人數（紅線1）+ 甲一合約時數（紅線2）
+// 雙紅線獨立合格引擎：特定鐘點人數（紅線1）+ 買位合約時數（紅線2）
 // =====================================================
 
 /** 向上取整至指定步長（0.5 小時） */
@@ -222,15 +228,49 @@ function roundUpToStep(value: number, step: number): number {
 }
 
 /**
- * 甲一買位合約每日工時目標：
- * - 主管固定 48 小時/週 ÷ 7，不按比例
- * - 其他職位按宿位比例換算（每 40 宿位基準），向上取整至 0.5 小時
+ * 當前生效的買位性質：視乎床位設定，甲一與甲二互斥（甲一優先）。
+ * 無買位宿位時回傳 null，所有買位合約要求不顯現、不作計算。
+ */
+export function activeContractNature(bedCounts: NatureBedCounts): ContractNature | null {
+  if ((bedCounts['甲一買位'] || 0) > 0) return '甲一買位';
+  if ((bedCounts['甲二買位'] || 0) > 0) return '甲二買位';
+  return null;
+}
+
+/** 買位合約每週總工時：優先用用戶設定值（絕對值）；缺省按每 40 宿位基準換算（主管固定不按比例）。 */
+export function contractWeeklyHours(
+  position: string,
+  nature: ContractNature,
+  beds: number,
+  overrides?: ContractWeeklyHours | null
+): number {
+  // 「註冊/登記護士」對應合約中的「護士」（RN+EN 合計）
+  const key = position === '註冊/登記護士' ? '護士' : position;
+  const override = overrides?.[key];
+  if (override != null) return override;
+  const base = DEFAULT_CONTRACT_WEEKLY_HOURS_PER_40_BEDS[nature][key] ?? 0;
+  if (key === '主管') return base;
+  return (base * beds) / 40;
+}
+
+/** 買位合約每日工時目標：每週總工時 ÷ 7，向上取整至 0.5 小時 */
+export function contractDailyHours(
+  position: string,
+  nature: ContractNature,
+  beds: number,
+  overrides?: ContractWeeklyHours | null
+): number {
+  if (beds <= 0) return 0;
+  return roundUpToStep(contractWeeklyHours(position, nature, beds, overrides) / 7, WORK_HOUR_STEP);
+}
+
+/**
+ * 甲一買位合約每日工時目標（預設基準，無用戶設定時的換算；保留供測試與預覽用）
  */
 export function a1ContractDailyHours(position: string, a1VoucherBeds: number): number {
   if (a1VoucherBeds <= 0) return 0;
   if (position === '主管') return roundUpToStep(48 / 7, WORK_HOUR_STEP);
 
-  // 「註冊/登記護士」對應合約中的「護士」（RN+EN 合計）
   const contractKey = position === '註冊/登記護士' ? '護士' : position;
   const weeklyBase =
     A1_CONTRACT_WEEKLY_HOURS_PER_40_BEDS[
@@ -248,7 +288,7 @@ export interface DualRedLineResult {
   peakHeadcount: Record<string, number>;
   /** 紅線1：特定鐘點隱含每日工時 */
   statutoryImpliedHours: Record<string, number>;
-  /** 紅線2：甲一合約每日工時目標 */
+  /** 紅線2：買位合約每日工時目標 */
   contractTargetHours: Record<string, number>;
   /** 需額外補足工時（紅線2 - 紅線1隱含），只給總量邊界，不指定具體時段 */
   supplementaryHours: Record<string, number>;
@@ -259,15 +299,16 @@ export interface DualRedLineResult {
 /**
  * 雙紅線獨立合格計算：
  * - 紅線 1（特定鐘點人數）：每小時每職位最少當值人數，不可妥協
- * - 紅線 2（甲一合約時數）：每職位每日總工時目標，不可妥協
+ * - 紅線 2（買位合約時數）：每職位每日總工時目標，不可妥協
  * - 兩者獨立，不能互相抵扣
  * - 護士替代保健員只影響紅線 1 的人手計算（1 護士 = 2 保健員），不影響紅線 2 的獨立工時
  */
 export function computeDualRedLineStaffing(input: StaffingInput): DualRedLineResult {
   const { bedCounts } = input;
-  const a1VoucherBeds = bedCounts['甲一買位'] || 0;
-  const a2VoucherBeds = bedCounts['甲二買位'] || 0;
-  const hasContractHours = a1VoucherBeds + a2VoucherBeds > 0;
+  const contractNature = activeContractNature(bedCounts);
+  const contractBeds = contractNature ? bedCounts[contractNature] || 0 : 0;
+  const contractOverrides = contractNature ? input.contractHours?.[contractNature] : null;
+  const hasContractHours = contractNature !== null;
 
   // 紅線 1：特定鐘點人數
   const statutory = computeStaffingRequirements(input);
@@ -291,12 +332,14 @@ export function computeDualRedLineStaffing(input: StaffingInput): DualRedLineRes
     const peak = Math.max(...columnValues, 0);
     const statutoryH = columnValues.reduce((sum, v) => sum + v, 0);
 
-    // 紅線 2：甲一買位每日工時目標
+    // 紅線 2：買位合約每日工時目標（甲一/甲二視乎床位設定；無買位宿位時為 0）
     // 「護士」是 RN+EN 合計概念，計入「註冊/登記護士」欄
-    const contractH = a1ContractDailyHours(pos, a1VoucherBeds);
+    const contractH = contractNature
+      ? contractDailyHours(pos, contractNature, contractBeds, contractOverrides)
+      : 0;
 
     // 紅線 1 與紅線 2 分開計算：
-    // - 工時只看甲一買位合約，不看人手比例
+    // - 工時只看買位合約，不看人手比例
     // - 人頭只看特定鐘點比例，獨立於工時
     const dailyH = contractH;
 
