@@ -8,7 +8,7 @@ import type {
   StationShiftSetting,
   EmploymentPosition,
 } from '@care-suite/shared';
-import { getEmploymentPosition } from '@care-suite/shared';
+import { getEmploymentPosition, POSITION_DISPLAY_PRIORITY } from '@care-suite/shared';
 import { getRosterExpectedCounts, getRosterUsedCounts } from './leaveValidation';
 import type { SpecificHoursConfig, TimeSegment } from './facilityNatureSettings';
 import { timeToMinutes } from './staffingRequirements';
@@ -173,12 +173,45 @@ export function getRosterUserBalance(
 
 export function buildShiftAssignmentMap(
   assignments: UserShiftAssignment[],
+  users?: UserProfile[],
+  selectedGridPosition?: string,
 ): {
   byKey: Map<string, UserShiftAssignment[]>;
   byUserDate: Map<string, UserShiftAssignment>;
 } {
   const byKey = new Map<string, UserShiftAssignment[]>();
   const byUserDate = new Map<string, UserShiftAssignment>();
+  const userMap = users ? new Map(users.map((u) => [u.id, u])) : null;
+
+  const getPosition = (a: UserShiftAssignment): string | null => {
+    const pos = a.position as EmploymentPosition | null;
+    if (pos && pos in POSITION_DISPLAY_PRIORITY) return pos;
+    if (userMap) {
+      const user = userMap.get(a.user_id);
+      if (user) {
+        if (selectedGridPosition) {
+          const tablePos = getAssignmentPositionForTable(user, selectedGridPosition);
+          if (tablePos && tablePos in POSITION_DISPLAY_PRIORITY) return tablePos;
+        }
+        const primary = getEmploymentPosition(user);
+        if (primary && primary in POSITION_DISPLAY_PRIORITY) return primary;
+      }
+    }
+    return null;
+  };
+
+  const getPriority = (a: UserShiftAssignment): number => {
+    const pos = getPosition(a) as EmploymentPosition | null;
+    return pos && pos in POSITION_DISPLAY_PRIORITY ? POSITION_DISPLAY_PRIORITY[pos] : 99;
+  };
+
+  const getHireDate = (a: UserShiftAssignment): string => {
+    if (userMap) {
+      const user = userMap.get(a.user_id);
+      if (user) return user.hire_date || '9999-12-31';
+    }
+    return '9999-12-31';
+  };
 
   for (const a of assignments) {
     const key = `${a.station_id ?? 'unassigned'}|${a.shift_name}|${a.work_date}`;
@@ -187,6 +220,23 @@ export function buildShiftAssignmentMap(
     byKey.set(key, list);
 
     byUserDate.set(`${a.user_id}|${a.work_date}`, a);
+  }
+
+  // 同班次（station + shift + date）內排序：職位優先級 > 手動 sort_order > 入職日期 > 創建時間
+  // 未手動調整時 sort_order 均為 0，故同職位內按入職日期；手調後 sort_order 可改變同職位內順序
+  for (const list of byKey.values()) {
+    list.sort((a, b) => {
+      const pA = getPriority(a);
+      const pB = getPriority(b);
+      if (pA !== pB) return pA - pB;
+      const soA = a.sort_order ?? 0;
+      const soB = b.sort_order ?? 0;
+      if (soA !== soB) return soA - soB;
+      const hA = getHireDate(a);
+      const hB = getHireDate(b);
+      if (hA !== hB) return hA.localeCompare(hB);
+      return a.created_at.localeCompare(b.created_at);
+    });
   }
 
   return { byKey, byUserDate };
@@ -286,9 +336,16 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-const ROSTER_GROUP_ORDER = [
-  '註冊/登記護士',
+const NURSE_POSITIONS_SET = new Set<string>(['註冊護士', '登記護士']);
+const HEALTH_WORKER_POSITIONS_SET = new Set<string>(['保健員']);
+const NURSE_HEALTH_WORKER_TABLE_POSITIONS = new Set<string>([
+  '註冊護士',
+  '登記護士',
   '保健員',
+]);
+
+const ROSTER_GROUP_ORDER = [
+  '護士/保健員',
   '護理員',
   '行政',
   '物理治療師',
@@ -319,7 +376,46 @@ export function isSingleShiftGroup(position: string): boolean {
 const ADMIN_POSITIONS_SET = new Set<string>(['主管', '文員', '會計', '社工', '社工助理']);
 const GENERAL_AFFAIRS_POSITIONS_SET = new Set<string>(['廚師', '清潔員']);
 
-/** 回傳排班表頂部職位分頁選項；行政部門合併為「行政」（含社工），庶務部門合併為「庶務」，註冊/登記護士合併為一項，專職崗位各自獨立 */
+/** 回傳把員工派入目標排班分頁時應儲存的實際職位；無法填入則回傳 null。
+ * 護士/保健員表：護士與保健員均可填入；護士自然可貢獻保健員特定鐘點（由底層等效邏輯處理）。
+ * 行政/庶務表：以部門 primary 優先，其次找匹配的次要職位。
+ * 專職/護理員：直接比對 primary 或 secondary。 */
+export function getAssignmentPositionForTable(
+  user: UserProfile,
+  table: string,
+): string | null {
+  const primary = getEmploymentPosition(user);
+  const secondary = user.secondary_positions || [];
+
+  if (table === '護士/保健員') {
+    if (primary && NURSE_HEALTH_WORKER_TABLE_POSITIONS.has(primary)) return primary;
+    const match = secondary.find((p) => NURSE_HEALTH_WORKER_TABLE_POSITIONS.has(p));
+    return match || null;
+  }
+
+  if (table === '行政') {
+    if (primary && ADMIN_POSITIONS_SET.has(primary)) return primary;
+    const match = secondary.find((p) => ADMIN_POSITIONS_SET.has(p));
+    return match || null;
+  }
+
+  if (table === '庶務') {
+    if (primary && GENERAL_AFFAIRS_POSITIONS_SET.has(primary)) return primary;
+    const match = secondary.find((p) => GENERAL_AFFAIRS_POSITIONS_SET.has(p));
+    return match || null;
+  }
+
+  if (table === '護理員') {
+    if (primary === '護理員') return '護理員';
+    return secondary.find((p) => p === '護理員') || null;
+  }
+
+  // 專職各崗位獨立分頁
+  if (primary === table) return primary;
+  return secondary.find((p) => p === table) || null;
+}
+
+/** 回傳排班表頂部職位分頁選項；護士/保健員合併為一頁，行政（含社工）、庶務各自合併，專職崗位各自獨立 */
 export function getRosterGroupOptions(users: UserProfile[]): string[] {
   const set = new Set<string>();
   for (const user of users) {
@@ -329,8 +425,8 @@ export function getRosterGroupOptions(users: UserProfile[]): string[] {
         set.add('行政');
       } else if (GENERAL_AFFAIRS_POSITIONS_SET.has(primary)) {
         set.add('庶務');
-      } else if (primary === '註冊護士' || primary === '登記護士') {
-        set.add('註冊/登記護士');
+      } else if (NURSE_HEALTH_WORKER_TABLE_POSITIONS.has(primary)) {
+        set.add('護士/保健員');
       } else {
         set.add(primary);
       }
@@ -340,8 +436,8 @@ export function getRosterGroupOptions(users: UserProfile[]): string[] {
         set.add('行政');
       } else if (GENERAL_AFFAIRS_POSITIONS_SET.has(pos)) {
         set.add('庶務');
-      } else if (pos === '註冊護士' || pos === '登記護士') {
-        set.add('註冊/登記護士');
+      } else if (NURSE_HEALTH_WORKER_TABLE_POSITIONS.has(pos)) {
+        set.add('護士/保健員');
       } else if (APPLICABLE_POSITIONS.includes(pos as EmploymentPosition)) {
         set.add(pos);
       }
@@ -397,8 +493,12 @@ function getSpecificSlotPosition(user: UserProfile): string {
 }
 
 function getAssignmentGridPosition(a: UserShiftAssignment, user: UserProfile): string {
-  if (a.position) return a.position;
-  return toGridPosition(getEmploymentPosition(user));
+  if (!a.position) return toGridPosition(getEmploymentPosition(user));
+  // 舊資料或分頁標記需映射回實際職位，讓人手與工時統計正確
+  if (a.position === '護士/保健員' || a.position === '行政' || a.position === '庶務') {
+    return toGridPosition(getEmploymentPosition(user));
+  }
+  return a.position;
 }
 
 export function summarizeDailyShiftByPosition(
@@ -417,7 +517,7 @@ export function summarizeDailyShiftByPosition(
     // 人手（headcount）按班次所屬職位；工時按員工自身職位
     // 例如：護士替補保健員班次時，算入保健員人手，但工時歸入護士
     const headcountPosition = getAssignmentGridPosition(a, user);
-    const hoursPosition = toGridPosition(getEmploymentPosition(user));
+    const hoursPosition = getSpecificSlotPosition(user);
     const hours = getDailyContractHours(employmentDetails[a.user_id]) ?? 8;
 
     const headcountEntry = summary[headcountPosition] || { headcount: 0, hours: 0 };

@@ -10,6 +10,11 @@ interface RosterShiftCardProps {
   onDelete?: (id: string) => void;
   onDragStart?: (assignment: UserShiftAssignment) => void;
   onDragEnd?: () => void;
+  onDragOverItem?: (e: React.DragEvent, assignmentId: string, insertBefore: boolean) => void;
+  onDropItem?: (e: React.DragEvent, assignmentId: string, insertBefore: boolean) => void;
+  onDragLeaveItem?: (assignmentId: string) => void;
+  isDragOver?: boolean;
+  insertBefore?: boolean;
 }
 
 const HOUR_OPTIONS = [
@@ -28,6 +33,11 @@ export const RosterShiftCard: React.FC<RosterShiftCardProps> = ({
   onDelete,
   onDragStart,
   onDragEnd,
+  onDragOverItem,
+  onDropItem,
+  onDragLeaveItem,
+  isDragOver,
+  insertBefore,
 }) => {
   const [editing, setEditing] = useState(false);
   const [tempStart, setTempStart] = useState(assignment.start_time);
@@ -92,7 +102,31 @@ export const RosterShiftCard: React.FC<RosterShiftCardProps> = ({
       draggable={!readOnly}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      className="flex items-center gap-1.5 p-1.5 bg-blue-50 border border-blue-200 rounded-md text-xs group cursor-move select-none"
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = e.currentTarget.getBoundingClientRect();
+        const before = e.clientY < rect.top + rect.height / 2;
+        onDragOverItem?.(e, assignment.id, before);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = e.currentTarget.getBoundingClientRect();
+        const before = e.clientY < rect.top + rect.height / 2;
+        onDropItem?.(e, assignment.id, before);
+      }}
+      onDragLeave={(e) => {
+        e.stopPropagation();
+        onDragLeaveItem?.(assignment.id);
+      }}
+      className={`flex items-center gap-1.5 p-1.5 bg-blue-50 border rounded-md text-xs group cursor-move select-none transition-colors ${
+        isDragOver
+          ? insertBefore
+            ? 'border-t-2 border-red-400 border-b border-blue-200'
+            : 'border-b-2 border-red-400 border-t border-blue-200'
+          : 'border-blue-200'
+      }`}
     >
       {user.avatar_url ? (
         <img src={user.avatar_url} alt={user.name_zh} draggable={false} className="h-5 w-5 rounded-full object-cover select-none" />

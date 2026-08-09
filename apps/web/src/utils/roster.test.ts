@@ -16,6 +16,8 @@ import {
   getActiveShiftSettings,
   getPositionOptions,
   getGridPositionOptions,
+  getRosterGroupOptions,
+  getAssignmentPositionForTable,
   summarizeDailyShiftByPosition,
   buildDailyCompliance,
   buildPreScheduleDailyCompliance,
@@ -143,6 +145,51 @@ describe('roster utils', () => {
       expect(byUserDate.get('u1|2026-08-03')).toBeDefined();
       expect(byUserDate.get('u2|2026-08-03')).toBeUndefined();
     });
+
+    it('sorts by position priority and hire date when sort_order is uniform', () => {
+      const assignments: UserShiftAssignment[] = [
+        { id: 'hw', user_id: 'u_hw', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '保健員', created_by: null, created_at: 'a', updated_at: '' },
+        { id: 'en_old', user_id: 'u_en_old', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '登記護士', created_by: null, created_at: 'b', updated_at: '' },
+        { id: 'rn', user_id: 'u_rn', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '註冊護士', created_by: null, created_at: 'c', updated_at: '' },
+        { id: 'en_new', user_id: 'u_en_new', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '登記護士', created_by: null, created_at: 'd', updated_at: '' },
+      ];
+      const users = [
+        { id: 'u_hw', hire_date: '2020-01-01', nursing_position: '保健員', secondary_positions: [] },
+        { id: 'u_en_old', hire_date: '2018-01-01', nursing_position: '登記護士', secondary_positions: [] },
+        { id: 'u_rn', hire_date: '2019-01-01', nursing_position: '註冊護士', secondary_positions: [] },
+        { id: 'u_en_new', hire_date: '2021-01-01', nursing_position: '登記護士', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const { byKey } = buildShiftAssignmentMap(assignments, users);
+      const list = byKey.get('s1|早班|2026-08-02')!;
+      expect(list.map((a) => a.id)).toEqual(['rn', 'en_old', 'en_new', 'hw']);
+    });
+
+    it('sort_order only overrides order within the same position priority', () => {
+      const assignments: UserShiftAssignment[] = [
+        { id: 'rn', user_id: 'u_rn', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '註冊護士', sort_order: 3, created_by: null, created_at: '', updated_at: '' },
+        { id: 'hw', user_id: 'u_hw', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '保健員', sort_order: 1, created_by: null, created_at: '', updated_at: '' },
+        { id: 'en', user_id: 'u_en', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '登記護士', sort_order: 2, created_by: null, created_at: '', updated_at: '' },
+      ];
+      const { byKey } = buildShiftAssignmentMap(assignments, []);
+      const list = byKey.get('s1|早班|2026-08-02')!;
+      // 職位優先級仍高於 sort_order
+      expect(list.map((a) => a.id)).toEqual(['rn', 'en', 'hw']);
+    });
+
+    it('sort_order overrides hire_date within the same position', () => {
+      const assignments: UserShiftAssignment[] = [
+        { id: 'en_new', user_id: 'u_en_new', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '登記護士', sort_order: 0, created_by: null, created_at: 'a', updated_at: '' },
+        { id: 'en_old', user_id: 'u_en_old', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '登記護士', sort_order: 1, created_by: null, created_at: 'b', updated_at: '' },
+      ];
+      const users = [
+        { id: 'u_en_new', hire_date: '2021-01-01', nursing_position: '登記護士', secondary_positions: [] },
+        { id: 'u_en_old', hire_date: '2018-01-01', nursing_position: '登記護士', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const { byKey } = buildShiftAssignmentMap(assignments, users);
+      const list = byKey.get('s1|早班|2026-08-02')!;
+      // sort_order 0 的 en_new 排在 sort_order 1 的 en_old 前面，即使 en_new 入職較晚
+      expect(list.map((a) => a.id)).toEqual(['en_new', 'en_old']);
+    });
   });
 
   describe('getActiveShiftSettings', () => {
@@ -167,6 +214,69 @@ describe('roster utils', () => {
     });
   });
 
+  describe('getRosterGroupOptions', () => {
+    it('merges nurses and health workers into a single tab', () => {
+      const users = [
+        { nursing_position: '註冊護士', secondary_positions: [] },
+        { nursing_position: '保健員', secondary_positions: [] },
+        { nursing_position: '護理員', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const options = getRosterGroupOptions(users);
+      expect(options).toContain('護士/保健員');
+      expect(options).not.toContain('註冊/登記護士');
+      expect(options).not.toContain('保健員');
+      expect(options).toContain('護理員');
+    });
+
+    it('groups admin and general affairs separately', () => {
+      const users = [
+        { nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '主管', department: '行政', secondary_positions: [] },
+        { nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '廚師', department: '庶務', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const options = getRosterGroupOptions(users);
+      expect(options).toContain('行政');
+      expect(options).toContain('庶務');
+    });
+  });
+
+  describe('getAssignmentPositionForTable', () => {
+    it('returns nurse/health worker primary position for merged tab', () => {
+      const rn = { nursing_position: '註冊護士', secondary_positions: [] } as unknown as UserProfile;
+      const en = { nursing_position: '登記護士', secondary_positions: [] } as unknown as UserProfile;
+      const hw = { nursing_position: '保健員', secondary_positions: [] } as unknown as UserProfile;
+      expect(getAssignmentPositionForTable(rn, '護士/保健員')).toBe('註冊護士');
+      expect(getAssignmentPositionForTable(en, '護士/保健員')).toBe('登記護士');
+      expect(getAssignmentPositionForTable(hw, '護士/保健員')).toBe('保健員');
+    });
+
+    it('returns secondary position when primary does not match table', () => {
+      const user = {
+        nursing_position: '主管',
+        secondary_positions: ['廚師'],
+      } as unknown as UserProfile;
+      expect(getAssignmentPositionForTable(user, '庶務')).toBe('廚師');
+    });
+
+    it('returns admin primary position for admin table', () => {
+      const user = {
+        nursing_position: null,
+        hygiene_position: null,
+        allied_health_position: null,
+        other_position: '主管',
+        department: '行政',
+        secondary_positions: [],
+      } as unknown as UserProfile;
+      expect(getAssignmentPositionForTable(user, '行政')).toBe('主管');
+    });
+
+    it('returns null when user cannot fill table', () => {
+      const user = {
+        nursing_position: '護理員',
+        secondary_positions: [],
+      } as unknown as UserProfile;
+      expect(getAssignmentPositionForTable(user, '行政')).toBeNull();
+    });
+  });
   describe('getGridPositionOptions', () => {
     it('merges registered and enrolled nurses into a single grid option', () => {
       const users = [
@@ -218,7 +328,35 @@ describe('roster utils', () => {
       ];
       const summary = summarizeDailyShiftByPosition('2026-08-02', users, employmentDetails, assignments);
       expect(summary['護理員']).toEqual({ headcount: 2, hours: 14 });
-      expect(summary['清潔員']).toEqual({ headcount: 1, hours: 8 });
+      expect(summary['清潔員']).toEqual({ headcount: 1, hours: 0 });
+      expect(summary['助理員']).toEqual({ headcount: 0, hours: 8 });
+    });
+
+    it('counts admin and general affairs staff hours toward assistant slot', () => {
+      const users = [
+        { id: 'u1', nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '文員', department: '行政', secondary_positions: [] },
+        { id: 'u2', nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '會計', department: '行政', secondary_positions: [] },
+        { id: 'u3', nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '廚師', department: '庶務', secondary_positions: [] },
+        { id: 'u4', nursing_position: null, hygiene_position: null, allied_health_position: null, other_position: '主管', department: '行政', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const employmentDetails = {
+        u1: { daily_contract_hours: 8 },
+        u2: { daily_contract_hours: 8 },
+        u3: { daily_contract_hours: 8 },
+        u4: { daily_contract_hours: 8 },
+      } as unknown as Record<string, UserEmploymentDetails>;
+      const assignments: UserShiftAssignment[] = [
+        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
+        { id: '2', user_id: 'u2', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
+        { id: '3', user_id: 'u3', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
+        { id: '4', user_id: 'u4', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
+      ];
+      const summary = summarizeDailyShiftByPosition('2026-08-02', users, employmentDetails, assignments);
+      expect(summary['助理員']).toEqual({ headcount: 0, hours: 24 });
+      expect(summary['主管']).toEqual({ headcount: 1, hours: 8 });
+      expect(summary['文員']).toEqual({ headcount: 1, hours: 0 });
+      expect(summary['會計']).toEqual({ headcount: 1, hours: 0 });
+      expect(summary['廚師']).toEqual({ headcount: 1, hours: 0 });
     });
 
     it('counts nurse covering health worker shift toward health worker headcount and nurse hours', () => {

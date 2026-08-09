@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { UserProfile, UserEmploymentDetails, UserLeaveRecord, PublicHoliday, UserShiftAssignment } from '@care-suite/shared';
 import { LEAVE_TYPE_LABELS, getEmploymentPosition } from '@care-suite/shared';
 import { AlertCircle, ArrowUp, ArrowDown, CheckCircle2 } from 'lucide-react';
-import { getRosterUserBalance, getRosterGroupOptions, toGridPosition, buildDailyCompliance, buildPreScheduleDailyCompliance, formatShiftTimeAbbreviation, getShiftEndTime } from '../utils/roster';
+import { getRosterUserBalance, getRosterGroupOptions, toGridPosition, buildDailyCompliance, buildPreScheduleDailyCompliance, formatShiftTimeAbbreviation, getShiftEndTime, getAssignmentPositionForTable } from '../utils/roster';
 import type { ComplianceRow, PreScheduleSegmentConflict } from '../utils/roster';
 import type { SpecificHoursConfig } from '../utils/facilityNatureSettings';
 import { GRID_POSITIONS } from '../utils/facilityNatureSettings';
@@ -73,13 +73,7 @@ const isPartTime = (user: UserProfile): boolean => user.employment_type === '兼
 
 function userMatchesPositionFilter(user: UserProfile, filter: string): boolean {
   if (!filter) return true;
-  if (filter === '行政') return user.department === '行政';
-  if (filter === '庶務') return user.department === '庶務';
-  const primary = getEmploymentPosition(user);
-  if (primary === filter) return true;
-  if (toGridPosition(primary) === filter) return true;
-  if ((user.secondary_positions || []).some((p) => p === filter || toGridPosition(p) === filter)) return true;
-  return false;
+  return getAssignmentPositionForTable(user, filter) !== null;
 }
 
 function buildComplianceTooltip(row: ComplianceRow, hasContractHours: boolean): string {

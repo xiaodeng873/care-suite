@@ -38,6 +38,7 @@ import {
   shiftDayWindowToShiftHours,
   getSpecificWindowsForPosition,
   getPreScheduleAvailableByShiftHour,
+  getAssignmentPositionForTable,
 } from '../utils/roster';
 import { addDays } from '../utils/shiftDay';
 import type { PreScheduleSegmentConflict } from '../utils/roster';
@@ -63,25 +64,7 @@ interface Station {
 }
 
 function userCanFillPosition(user: UserProfile, position: string): boolean {
-  if (position === '行政') {
-    return user.department === '行政';
-  }
-  if (position === '庶務') {
-    return user.department === '庶務';
-  }
-  const primary = getEmploymentPosition(user);
-  if (primary === position) return true;
-  if (toGridPosition(primary) === position) return true;
-  if ((user.secondary_positions || []).some((p) => p === position || toGridPosition(p) === position)) return true;
-  if (
-    position === '保健員' &&
-    (primary === '註冊護士' ||
-      primary === '登記護士' ||
-      (user.secondary_positions || []).some((p) => p === '註冊護士' || p === '登記護士'))
-  ) {
-    return true;
-  }
-  return false;
+  return getAssignmentPositionForTable(user, position) !== null;
 }
 
 const RosterManagement: React.FC = () => {
@@ -1143,17 +1126,7 @@ const RosterManagement: React.FC = () => {
       );
     }
     if (filterPosition) {
-      list = list.filter((u) => {
-        if (filterPosition === '行政') {
-          return u.department === '行政';
-        }
-        if (filterPosition === '庶務') {
-          return u.department === '庶務';
-        }
-        const primary = getEmploymentPosition(u);
-        if (primary === filterPosition) return true;
-        return (u.secondary_positions || []).includes(filterPosition);
-      });
+      list = list.filter((u) => userCanFillPosition(u, filterPosition));
     }
     list = [...list].sort((a, b) => {
       if (sortBy === 'name') return a.name_zh.localeCompare(b.name_zh);
@@ -1317,7 +1290,10 @@ const RosterManagement: React.FC = () => {
               hasContractHours={hasContractHours}
               draggedUserId={draggedUserId}
               onWeekChange={setWeekAnchor}
-              onPositionChange={setSelectedPosition}
+              onPositionChange={(position) => {
+                setSelectedPosition(position);
+                setFilterPosition(position);
+              }}
               leaveRecords={leaveRecords}
               stationPriority={stationPriority}
               onAssignmentChange={loadAssignmentsOnly}

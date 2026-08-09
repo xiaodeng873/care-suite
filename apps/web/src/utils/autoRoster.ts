@@ -11,10 +11,10 @@ import { GRID_POSITIONS } from './facilityNatureSettings';
 import type { SpecificHoursConfig } from './facilityNatureSettings';
 import {
   buildDailyCompliance,
-  toGridPosition,
   getDailyContractHours,
   getShiftEndTime,
   getDragStartTime,
+  getAssignmentPositionForTable,
 } from './roster';
 import type { ComplianceRow } from './roster';
 import type { StaffingResult } from './staffingRequirements';
@@ -92,18 +92,21 @@ function buildRequiredHourly(
   return map;
 }
 
-/** 單一職位的缺口分數：工時缺口 + 特定鐘點缺口（加權） */
+/** 單一職位分頁的缺口分數：底層 requirement 職位缺口總和。
+ * 工時缺口與特定鐘點缺口同權，不再額外加重特定鐘點。 */
 function computeDeficit(
   compliance: ComplianceRow[],
   position: string,
 ): number {
-  const row = compliance.find((r) => r.position === position);
-  if (!row) return 0;
+  const positions = getRequirementPositions(position);
   let deficit = 0;
-  if (!row.hoursOk) deficit += row.requiredHours - row.actualHours;
-  if (row.hasSpecificSlotRequirement && !row.specificSlotOk) {
-    deficit +=
-      (row.requiredSpecificHeadcount - row.actualSpecificHeadcount) * 5;
+  for (const p of positions) {
+    const row = compliance.find((r) => r.position === p);
+    if (!row) continue;
+    if (!row.hoursOk) deficit += row.requiredHours - row.actualHours;
+    if (row.hasSpecificSlotRequirement && !row.specificSlotOk) {
+      deficit += row.requiredSpecificHeadcount - row.actualSpecificHeadcount;
+    }
   }
   return deficit;
 }
@@ -116,28 +119,24 @@ function isNurse(user: UserProfile): boolean {
   );
 }
 
-/** 判斷員工是否能擔任目標職位 */
+/** 判斷員工是否能擔任目標排班分頁 */
 export function userCanFillPosition(user: UserProfile, position: string): boolean {
-  if (position === '行政') return user.department === '行政';
-  if (position === '庶務') return user.department === '庶務';
-  const primary = getEmploymentPosition(user);
-  if (primary === position) return true;
-  if (toGridPosition(primary) === position) return true;
-  if ((user.secondary_positions || []).some((p) => p === position || toGridPosition(p) === position)) return true;
-  if (position === '保健員' && isNurse(user)) return true;
-  return false;
+  return getAssignmentPositionForTable(user, position) !== null;
 }
 
-/** 該職位是否有工時或特定鐘點要求 */
+/** 該職位分頁是否有工時或特定鐘點要求 */
 function positionHasRequirement(
   position: string,
   requiredHours: Record<string, number>,
   requiredHourly: Record<string, number[]>,
 ): boolean {
-  if ((requiredHours[position] ?? 0) > 0) return true;
-  const hourly = requiredHourly[position];
-  if (!hourly) return false;
-  return hourly.some((h) => h > 0);
+  const positions = getRequirementPositions(position);
+  return positions.some((p) => {
+    if ((requiredHours[p] ?? 0) > 0) return true;
+    const hourly = requiredHourly[p];
+    if (!hourly) return false;
+    return hourly.some((h) => h > 0);
+  });
 }
 
 /** 某居住區某職位的啟用班次，按 sort_order 排列 */
@@ -161,6 +160,13 @@ function getActiveShifts(
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
+}
+
+/** 把排班分頁映射到底層 requirement 職位鍵 */
+function getRequirementPositions(position: string): string[] {
+  if (position === '行政' || position === '庶務') return ['助理員'];
+  if (position === '護士/保健員') return ['註冊/登記護士', '保健員'];
+  return [position];
 }
 
 function getAssignmentMinutes(
@@ -261,17 +267,12 @@ function makeMockAssignment(
   };
 }
 
-/** 在候選者分數相同時，按居住區順序、班次順序排優先 */
+/** 同分時只按居住區順序排，班次（早/午/晚）無分先後。 */
 function candidatePriority(
   candidate: AutoRosterCandidate,
   stationList: (string | null)[],
-  shiftOrder: Map<string, number>,
 ): number {
-  const stationIndex = stationList.indexOf(candidate.station_id);
-  const shiftIndex = shiftOrder.get(
-    `${candidate.station_id ?? 'unassigned'}|${candidate.shift_name}`,
-  ) ?? Infinity;
-  return stationIndex * 1000 + shiftIndex;
+  return stationList.indexOf(candidate.station_id);
 }
 
 /** 依員工偏好居住區產生專屬居住區順序：
@@ -358,14 +359,6 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
       ? [...stationPriority]
       : [...stations.map((s) => s.id), null];
 
-  const shiftOrder = new Map<string, number>();
-  for (const stationId of stationList) {
-    const shifts = getActiveShifts(shiftSettings, stationId, position);
-    shifts.forEach((s, i) =>
-      shiftOrder.set(`${stationId ?? 'unassigned'}|${s.shift_name}`, i),
-    );
-  }
-
   const insertions: AutoRosterCandidate[] = [];
   const simulatedAssignments: UserShiftAssignment[] = [...existingAssignments];
   const assignedUserIds = new Set<string>();
@@ -418,12 +411,6 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
       const availability = getAvailabilityWindow(user.id, date, leaveRecords);
       const preferredLeave = getPreferredLeave(user.id, date, leaveRecords);
       const userStationList = getUserStationList(user.id, employmentDetails, stationList);
-      const userShiftOrder = new Map<string, number>();
-      for (const sid of userStationList) {
-        getActiveShifts(shiftSettings, sid, position).forEach((s, i) =>
-          userShiftOrder.set(`${sid ?? 'unassigned'}|${s.shift_name}`, i),
-        );
-      }
 
       for (const stationId of userStationList) {
         const shifts = getActiveShifts(shiftSettings, stationId, position);
@@ -449,7 +436,9 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
             work_date: date,
             station_id: stationId,
             shift_name: shift.shift_name,
-            start_time: getDragStartTime(employmentDetails[user.id], shift.start_time),
+            // 一鍵排班應跟隨班次設定時間，才能覆蓋特定鐘點；
+            // 不應套用員工偏好上班時間，否則午/晚班會被拉成早班。
+            start_time: shift.start_time,
             position,
           };
 
@@ -477,11 +466,10 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
               (preferredPenalty < currentBestPenalty ||
                 (preferredPenalty === currentBestPenalty &&
                   bestCandidate &&
-                  candidatePriority(candidate, userStationList, userShiftOrder) <
+                  candidatePriority(candidate, stationList) <
                     candidatePriority(
                       { ...bestCandidate, work_date: date },
-                      userStationList,
-                      userShiftOrder,
+                      stationList,
                     ))));
 
           if (better) {

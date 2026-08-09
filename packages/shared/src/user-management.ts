@@ -210,6 +210,27 @@ export type EmploymentPosition =
   | '廚師'
   | '清潔員';
 
+/** 排班表卡片預設顯示優先級：職位越高越靠前，同職位按入職日期 */
+export const POSITION_DISPLAY_PRIORITY: Record<EmploymentPosition, number> = {
+  註冊護士: 1,
+  登記護士: 2,
+  保健員: 3,
+  護理員: 4,
+  主管: 5,
+  會計: 6,
+  社工: 7,
+  社工助理: 8,
+  文員: 9,
+  廚師: 10,
+  清潔員: 10,
+  物理治療師: 12,
+  物理治療師助理: 13,
+  職業治療師: 14,
+  職業治療師助理: 15,
+  言語治療師: 16,
+  言語治療師助理: 17,
+};
+
 /** 公眾假期類型：銀行假期(PH) / 勞工假期(SH) */
 export type PublicHolidayType = 'PH' | 'SH';
 
@@ -397,6 +418,8 @@ export interface UserShiftAssignment {
   is_overridden?: boolean;
   overridden_by?: string | null;
   overridden_at?: string | null;
+  /** 同班次內多張卡片的顯示排序，數字越小越靠前 */
+  sort_order?: number;
   created_at: string;
   updated_at: string;
 }

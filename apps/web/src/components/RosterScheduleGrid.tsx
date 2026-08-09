@@ -30,8 +30,10 @@ import {
   toGridPosition,
   getRosterGroupOptions,
   isSingleShiftGroup,
+  getAssignmentPositionForTable,
   normalizeTime,
   type WeekDay,
+  type ComplianceRow,
 } from '../utils/roster';
 import { getAssignmentShiftDay } from '../utils/shiftDay';
 import type { SpecificHoursConfig } from '../utils/facilityNatureSettings';
@@ -40,25 +42,7 @@ import type { StaffingResult } from '../utils/staffingRequirements';
 import { timeToMinutes } from '../utils/staffingRequirements';
 
 function userCanFillPosition(user: UserProfile, position: string): boolean {
-  if (position === '行政') {
-    return user.department === '行政';
-  }
-  if (position === '庶務') {
-    return user.department === '庶務';
-  }
-  const primary = getEmploymentPosition(user);
-  if (primary === position) return true;
-  if (toGridPosition(primary) === position) return true;
-  if ((user.secondary_positions || []).some((p) => p === position || toGridPosition(p) === position)) return true;
-  if (
-    position === '保健員' &&
-    (primary === '註冊護士' ||
-      primary === '登記護士' ||
-      (user.secondary_positions || []).some((p) => p === '註冊護士' || p === '登記護士'))
-  ) {
-    return true;
-  }
-  return false;
+  return getAssignmentPositionForTable(user, position) !== null;
 }
 
 /** 檢查排班時段是否與預排衝突（以每天早上 07:00 為排班日起點） */
@@ -168,6 +152,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
   } | null>(null);
   const selectedGridPosition = selectedPosition;
   const [highlightDate, setHighlightDate] = useState<string | null>(null);
+  const [dragOverItem, setDragOverItem] = useState<{ id: string; insertBefore: boolean } | null>(null);
 
   const overriddenAssignments = useMemo(
     () => shiftAssignments.filter((a) => a.is_overridden),
@@ -218,7 +203,10 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     load();
   }, [days]);
 
-  const assignmentMap = useMemo(() => buildShiftAssignmentMap(shiftAssignments), [shiftAssignments]);
+  const assignmentMap = useMemo(
+    () => buildShiftAssignmentMap(shiftAssignments, users, selectedGridPosition),
+    [shiftAssignments, users, selectedGridPosition],
+  );
 
   const getSupabaseErrorMessage = (err: unknown, fallback: string): string => {
     if (err && typeof err === 'object') {
@@ -307,6 +295,206 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     return getShiftEndTime(startTime, getDailyContractHours(employmentDetails[userId]));
   };
 
+  const processDrop = async (
+    sourceAssignmentId: string | null,
+    sourceUserIdFromList: string | null,
+    date: string,
+    stationId: string | null,
+    shift: StationShiftSetting,
+    dropTarget: { assignmentId: string; insertBefore: boolean } | null,
+  ) => {
+    if (!canEdit) return;
+
+    const sourceAssignment = sourceAssignmentId
+      ? shiftAssignments.find((a) => a.id === sourceAssignmentId)
+      : null;
+
+    let sourceUserId: string | null = null;
+    let sourceUser: UserProfile | undefined;
+    let actualPosition: string | null = null;
+
+    if (sourceAssignment) {
+      sourceUserId = sourceAssignment.user_id;
+      sourceUser = users.find((u) => u.id === sourceUserId);
+      if (!sourceUser) return;
+      actualPosition =
+        sourceAssignment.position ||
+        getAssignmentPositionForTable(sourceUser, selectedGridPosition) ||
+        null;
+      if (!actualPosition) {
+        alert('該員工職位不符合此排班表');
+        return;
+      }
+    } else if (sourceUserIdFromList) {
+      sourceUserId = sourceUserIdFromList;
+      sourceUser = users.find((u) => u.id === sourceUserId);
+      if (!sourceUser) return;
+      actualPosition = getAssignmentPositionForTable(sourceUser, selectedGridPosition);
+      if (!actualPosition) {
+        alert('該員工職位不符合此排班表');
+        return;
+      }
+    } else {
+      return;
+    }
+
+    // 行政表主管單日限制
+    if (selectedGridPosition === '行政' && actualPosition === '主管') {
+      const hasSupervisor = shiftAssignments.some((a) => {
+        if (a.id === sourceAssignment?.id) return false;
+        if (a.work_date !== date) return false;
+        const u = users.find((usr) => usr.id === a.user_id);
+        if (!u) return false;
+        const pos = a.position === '行政' || a.position === '庶務' ? getEmploymentPosition(u) : a.position;
+        return pos === '主管';
+      });
+      if (hasSupervisor) {
+        alert('當天行政表已有一位主管當值，不能安排另一位主管');
+        return;
+      }
+    }
+
+    const targetKey = `${stationId ?? 'unassigned'}|${shift.shift_name}|${date}`;
+
+    // 新增時檢查同 cell 是否已有同員工
+    if (!sourceAssignment) {
+      const existingInCell = assignmentMap.byKey.get(targetKey)?.some((a) => a.user_id === sourceUserId);
+      if (existingInCell) {
+        alert('該員工在該時段已有班次');
+        return;
+      }
+    }
+
+    const sourceStartTime = getDragStartTime(employmentDetails[sourceUserId || ''], shift.start_time);
+    const endTime = getEndTimeForUser(sourceUserId || '', sourceStartTime);
+
+    // 拖回原位（同 key 且無指定插入目標）則不處理
+    if (
+      sourceAssignment &&
+      sourceAssignment.work_date === date &&
+      sourceAssignment.station_id === stationId &&
+      sourceAssignment.shift_name === shift.shift_name &&
+      !dropTarget
+    ) {
+      return;
+    }
+
+    // 新增時檢查預排衝突
+    if (!sourceAssignment) {
+      const conflict = findLeaveConflict(sourceUserId || '', date, sourceStartTime, endTime, leaveRecords);
+      if (conflict) {
+        setPendingRosterInsert({
+          payload: {
+            user_id: sourceUserId,
+            work_date: date,
+            station_id: stationId,
+            position: actualPosition,
+            shift_name: shift.shift_name,
+            start_time: sourceStartTime,
+            end_time: endTime,
+            created_by: userProfile?.id ?? null,
+          },
+          conflict,
+        });
+        return;
+      }
+    }
+
+    // 計算新排序
+    const targetList = (assignmentMap.byKey.get(targetKey) || []).filter(
+      (a) => a.id !== sourceAssignment?.id,
+    );
+    if (targetList.some((a) => a.user_id === sourceUserId)) {
+      alert('該員工在該時段已有班次');
+      return;
+    }
+    let insertIndex = targetList.length;
+    if (dropTarget) {
+      const idx = targetList.findIndex((a) => a.id === dropTarget.assignmentId);
+      if (idx >= 0) {
+        insertIndex = dropTarget.insertBefore ? idx : idx + 1;
+      }
+    }
+
+    const sourceOriginKey = sourceAssignment
+      ? `${sourceAssignment.station_id ?? 'unassigned'}|${sourceAssignment.shift_name}|${sourceAssignment.work_date}`
+      : null;
+    const sourceOriginList =
+      sourceOriginKey && sourceOriginKey !== targetKey
+        ? (assignmentMap.byKey.get(sourceOriginKey) || []).filter((a) => a.id !== sourceAssignment?.id)
+        : null;
+
+    const now = new Date().toISOString();
+
+    try {
+      // 移動 source assignment
+      if (sourceAssignment) {
+        const sourceUpdate = {
+          work_date: date,
+          station_id: stationId,
+          shift_name: shift.shift_name,
+          position: actualPosition,
+          start_time: sourceStartTime,
+          end_time: endTime,
+          sort_order: insertIndex,
+          updated_at: now,
+        };
+        const error = await withEndTimeFallback(
+          async () => await supabase.from('user_shift_assignments').update(sourceUpdate).eq('id', sourceAssignment.id),
+          async () =>
+            await supabase.from('user_shift_assignments').update(withoutEndTime(sourceUpdate)).eq('id', sourceAssignment.id),
+        );
+        if (error) throw error;
+      } else {
+        const insertPayload = {
+          user_id: sourceUserId,
+          work_date: date,
+          station_id: stationId,
+          position: actualPosition,
+          shift_name: shift.shift_name,
+          start_time: sourceStartTime,
+          end_time: endTime,
+          created_by: userProfile?.id ?? null,
+          sort_order: insertIndex,
+        };
+        const error = await withEndTimeFallback(
+          async () => await supabase.from('user_shift_assignments').insert(insertPayload),
+          async () => await supabase.from('user_shift_assignments').insert(withoutEndTime(insertPayload)),
+        );
+        if (error) throw error;
+      }
+
+      // 重新編號 target key 內所有卡片
+      const targetSortUpdates = targetList.map((a, i) => ({
+        id: a.id,
+        sort_order: i < insertIndex ? i : i + 1,
+      }));
+      for (const upd of targetSortUpdates) {
+        const { error } = await supabase
+          .from('user_shift_assignments')
+          .update({ sort_order: upd.sort_order, updated_at: now })
+          .eq('id', upd.id);
+        if (error) throw error;
+      }
+
+      // 若跨 key 移動，重新編號原 key 的卡片
+      if (sourceOriginList) {
+        for (let i = 0; i < sourceOriginList.length; i++) {
+          const { error } = await supabase
+            .from('user_shift_assignments')
+            .update({ sort_order: i, updated_at: now })
+            .eq('id', sourceOriginList[i].id);
+          if (error) throw error;
+        }
+      }
+
+      onAssignmentChange();
+    } catch (err) {
+      console.error(sourceAssignment ? '移動班次失敗:' : '新增班次失敗:', err);
+      alert(getSupabaseErrorMessage(err, sourceAssignment ? '移動班次失敗' : '新增班次失敗'));
+    }
+  };
+
   const handleDrop = async (
     e: React.DragEvent,
     date: string,
@@ -319,136 +507,33 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     const sourceAssignmentId = draggedAssignmentId || e.dataTransfer.getData('assignmentId');
     const sourceUserId = draggedUserId || e.dataTransfer.getData('userId') || e.dataTransfer.getData('text/plain');
 
-    // 從排班表內拖曳：移動或交換班次
-    if (sourceAssignmentId) {
-      if (!canEdit) return;
-      const source = shiftAssignments.find((a) => a.id === sourceAssignmentId);
-      if (!source) return;
+    await processDrop(sourceAssignmentId || null, sourceUserId || null, date, stationId, shift, null);
+  };
 
-      // 拖回原位則不處理
-      if (
-        source.work_date === date &&
-        source.station_id === stationId &&
-        source.shift_name === shift.shift_name
-      ) {
-        return;
-      }
+  const handleDropOnCard = async (
+    e: React.DragEvent,
+    assignmentId: string,
+    insertBefore: boolean,
+    date: string,
+    stationId: string | null,
+    shift: StationShiftSetting,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverItem(null);
 
-      const targetKey = `${stationId ?? 'unassigned'}|${shift.shift_name}|${date}`;
-      const targetList = assignmentMap.byKey.get(targetKey) || [];
-      const target = targetList[0];
+    const sourceAssignmentId = draggedAssignmentId || e.dataTransfer.getData('assignmentId');
+    const sourceUserId = draggedUserId || e.dataTransfer.getData('userId') || e.dataTransfer.getData('text/plain');
 
-      try {
-        if (target) {
-          // 交換兩個班次
-          const now = new Date().toISOString();
-          const sourceStartTime = getDragStartTime(employmentDetails[source.user_id], shift.start_time);
-          const targetStartTime = getDragStartTime(employmentDetails[target.user_id], source.start_time);
-          const sourceEndTime = getEndTimeForUser(source.user_id, sourceStartTime);
-          const targetEndTime = getEndTimeForUser(target.user_id, targetStartTime);
-          const sourceUpdate = {
-            work_date: date,
-            station_id: stationId,
-            shift_name: shift.shift_name,
-            position: selectedPosition,
-            start_time: sourceStartTime,
-            end_time: sourceEndTime,
-            updated_at: now,
-          };
-          const targetUpdate = {
-            work_date: source.work_date,
-            station_id: source.station_id,
-            shift_name: source.shift_name,
-            position: source.position,
-            start_time: targetStartTime,
-            end_time: targetEndTime,
-            updated_at: now,
-          };
-          const e1 = await withEndTimeFallback(
-            async () => await supabase.from('user_shift_assignments').update(sourceUpdate).eq('id', source.id),
-            async () => await supabase.from('user_shift_assignments').update(withoutEndTime(sourceUpdate)).eq('id', source.id),
-          );
-          const e2 = await withEndTimeFallback(
-            async () => await supabase.from('user_shift_assignments').update(targetUpdate).eq('id', target.id),
-            async () => await supabase.from('user_shift_assignments').update(withoutEndTime(targetUpdate)).eq('id', target.id),
-          );
-          if (e1) throw e1;
-          if (e2) throw e2;
-        } else {
-          // 移動到空白時段
-          const sourceStartTime = getDragStartTime(employmentDetails[source.user_id], shift.start_time);
-          const endTime = getEndTimeForUser(source.user_id, sourceStartTime);
-          const updatePayload = {
-            work_date: date,
-            station_id: stationId,
-            shift_name: shift.shift_name,
-            position: selectedPosition,
-            start_time: sourceStartTime,
-            end_time: endTime,
-            updated_at: new Date().toISOString(),
-          };
-          const error = await withEndTimeFallback(
-            async () => await supabase.from('user_shift_assignments').update(updatePayload).eq('id', source.id),
-            async () => await supabase.from('user_shift_assignments').update(withoutEndTime(updatePayload)).eq('id', source.id),
-          );
-          if (error) throw error;
-        }
-        onAssignmentChange();
-      } catch (err) {
-        console.error('移動/交換班次失敗:', err);
-        alert(getSupabaseErrorMessage(err, '移動/交換班次失敗'));
-      }
+    // 拖曳自己到自己上不做任何事
+    if (sourceAssignmentId && sourceAssignmentId === assignmentId) {
       return;
     }
 
-    // 從左側員工列拖曳：新增班次
-    if (!sourceUserId) return;
-    if (!canEdit) return;
-
-    const sourceUser = users.find((u) => u.id === sourceUserId);
-    if (!sourceUser) return;
-    if (!userCanFillPosition(sourceUser, selectedPosition)) {
-      alert('該員工職位不符合此排班表');
-      return;
-    }
-
-    const targetKey = `${stationId ?? 'unassigned'}|${shift.shift_name}|${date}`;
-    const existingInCell = assignmentMap.byKey.get(targetKey)?.some((a) => a.user_id === sourceUserId);
-    if (existingInCell) {
-      alert('該員工在該時段已有班次');
-      return;
-    }
-
-    const sourceStartTime = getDragStartTime(employmentDetails[sourceUserId], shift.start_time);
-    const endTime = getEndTimeForUser(sourceUserId, sourceStartTime);
-    const insertPayload = {
-      user_id: sourceUserId,
-      work_date: date,
-      station_id: stationId,
-      position: selectedPosition,
-      shift_name: shift.shift_name,
-      start_time: sourceStartTime,
-      end_time: endTime,
-      created_by: userProfile?.id ?? null,
-    };
-
-    const conflict = findLeaveConflict(sourceUserId, date, sourceStartTime, endTime, leaveRecords);
-    if (conflict) {
-      setPendingRosterInsert({ payload: insertPayload, conflict });
-      return;
-    }
-
-    try {
-      const error = await withEndTimeFallback(
-        async () => await supabase.from('user_shift_assignments').insert(insertPayload),
-        async () => await supabase.from('user_shift_assignments').insert(withoutEndTime(insertPayload)),
-      );
-      if (error) throw error;
-      onAssignmentChange();
-    } catch (err) {
-      console.error('新增班次失敗:', err);
-      alert(getSupabaseErrorMessage(err, '新增班次失敗'));
-    }
+    await processDrop(sourceAssignmentId || null, sourceUserId || null, date, stationId, shift, {
+      assignmentId,
+      insertBefore,
+    });
   };
 
   const handleDelete = async (id: string) => {
@@ -467,9 +552,12 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     const { payload, conflict } = pendingRosterInsert;
     setPendingRosterInsert(null);
     try {
+      const targetKey = `${payload.station_id ?? 'unassigned'}|${payload.shift_name}|${payload.work_date}`;
+      const existingCount = assignmentMap.byKey.get(targetKey)?.length ?? 0;
+      const payloadWithSort = { ...payload, sort_order: existingCount };
       const error = await withEndTimeFallback(
-        async () => await supabase.from('user_shift_assignments').insert(payload),
-        async () => await supabase.from('user_shift_assignments').insert(withoutEndTime(payload)),
+        async () => await supabase.from('user_shift_assignments').insert(payloadWithSort),
+        async () => await supabase.from('user_shift_assignments').insert(withoutEndTime(payloadWithSort)),
       );
       if (error) throw error;
 
@@ -714,8 +802,22 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     const holiday = publicHolidays.find((h) => h.holiday_date === day.date);
     const dateLabel = `${day.date.slice(8, 10)}/${day.date.slice(5, 7)}/${day.date.slice(0, 4)} 星期${day.weekday}`;
     const dayCompliance = complianceByDay.find((d) => d.date === day.date);
-    const currentRow = dayCompliance?.rows.find((r) => r.position === selectedGridPosition);
-    const dayAllOk = !currentRow || (hasContractHours ? currentRow.hoursOk && currentRow.specificSlotOk : currentRow.specificSlotOk);
+    let complianceRows: ComplianceRow[] = [];
+    let complianceLabel = '當日人手達標檢查';
+    if (selectedGridPosition === '行政' || selectedGridPosition === '庶務') {
+      const assistantRow = dayCompliance?.rows.find((r) => r.position === '助理員');
+      if (assistantRow) complianceRows = [assistantRow];
+      complianceLabel = '當日助理員達標檢查';
+    } else if (selectedGridPosition === '護士/保健員') {
+      const nurseRow = dayCompliance?.rows.find((r) => r.position === '註冊/登記護士');
+      const hwRow = dayCompliance?.rows.find((r) => r.position === '保健員');
+      complianceRows = [nurseRow, hwRow].filter(Boolean) as ComplianceRow[];
+      complianceLabel = '當日護士/保健員達標檢查';
+    } else {
+      const row = dayCompliance?.rows.find((r) => r.position === selectedGridPosition);
+      if (row) complianceRows = [row];
+    }
+    const dayAllOk = complianceRows.length === 0 || complianceRows.every((r) => (hasContractHours ? r.hoursOk && r.specificSlotOk : r.specificSlotOk));
     const expanded = complianceExpanded.has(day.date);
 
     return (
@@ -799,13 +901,18 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                     const shift = getStationShift(stationId, shiftName);
                     const key = `${stationId ?? 'unassigned'}|${shiftName}|${day.date}`;
                     const list = assignmentMap.byKey.get(key) || [];
-                    // 只顯示屬於當前職位頁的卡片（護士頂替保健員的卡片會留在保健員頁）
+                    // 只顯示屬於當前職位頁的卡片（護士/保健員合併顯示；行政/庶務以實際職位或舊分頁標記匹配）
                     const visibleList = list.filter((a) => {
                       if (a.position) {
                         if (a.position === selectedGridPosition) return true;
-                        if (selectedGridPosition === '註冊/登記護士' && (a.position === '註冊護士' || a.position === '登記護士')) return true;
-                        if (selectedGridPosition === '行政' && (a.position === '主管' || a.position === '文員' || a.position === '會計' || a.position === '社工' || a.position === '社工助理')) return true;
-                        if (selectedGridPosition === '庶務' && (a.position === '廚師' || a.position === '清潔員')) return true;
+                        if (selectedGridPosition === '護士/保健員' && (
+                          a.position === '註冊護士' ||
+                          a.position === '登記護士' ||
+                          a.position === '保健員' ||
+                          a.position === '註冊/登記護士'
+                        )) return true;
+                        if (selectedGridPosition === '行政' && (a.position === '主管' || a.position === '文員' || a.position === '會計' || a.position === '社工' || a.position === '社工助理' || a.position === '行政')) return true;
+                        if (selectedGridPosition === '庶務' && (a.position === '廚師' || a.position === '清潔員' || a.position === '庶務')) return true;
                         return false;
                       }
                       const user = users.find((u) => u.id === a.user_id);
@@ -849,6 +956,13 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                                   onDelete={handleDelete}
                                   onDragStart={() => setDraggedAssignmentId(assignment.id)}
                                   onDragEnd={() => setDraggedAssignmentId(null)}
+                                  onDragOverItem={(_, id, before) => setDragOverItem({ id, insertBefore: before })}
+                                  onDropItem={(e, id, before) =>
+                                    shift ? handleDropOnCard(e, id, before, day.date, stationId, shift) : undefined
+                                  }
+                                  onDragLeaveItem={() => setDragOverItem(null)}
+                                  isDragOver={dragOverItem?.id === assignment.id}
+                                  insertBefore={dragOverItem?.id === assignment.id ? dragOverItem.insertBefore : undefined}
                                 />
                               </div>
                             );
@@ -882,49 +996,54 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         >
           <div className="flex items-center gap-2">
             {dayAllOk ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <AlertCircle className="h-4 w-4 text-amber-600" />}
-            <span className="text-sm font-semibold text-gray-800">當日人手達標檢查</span>
+            <span className="text-sm font-semibold text-gray-800">{complianceLabel}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className={`text-xs ${dayAllOk ? 'text-green-700' : 'text-amber-700'}`}>
-              {currentRow ? (dayAllOk ? '人手達標' : '人手不足') : '無要求'}
+              {complianceRows.length > 0 ? (dayAllOk ? '人手達標' : '人手不足') : '無要求'}
             </span>
             {expanded ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
           </div>
         </button>
         {expanded && (
           <div className="px-3 py-2 border-t border-gray-200 bg-white">
-            {currentRow ? (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                {hasContractHours && (
-                  <div className={currentRow.hoursOk ? 'text-green-700' : 'text-red-700'}>
-                    <span className="font-medium">工時：</span>
-                    {currentRow.actualHours.toFixed(1)}/{currentRow.requiredHours.toFixed(1)} h
-                    <span className="ml-1 text-[10px]">{currentRow.hoursOk ? '工時達標' : '工時不足'}</span>
+            {complianceRows.length > 0 ? (
+              <div className="space-y-1">
+                {complianceRows.map((currentRow) => (
+                  <div key={currentRow.position} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                    <span className="font-medium text-gray-700 min-w-[5rem]">{currentRow.position}</span>
+                    {hasContractHours && (
+                      <div className={currentRow.hoursOk ? 'text-green-700' : 'text-red-700'}>
+                        <span className="font-medium">工時：</span>
+                        {currentRow.actualHours.toFixed(1)}/{currentRow.requiredHours.toFixed(1)} h
+                        <span className="ml-1 text-[10px]">{currentRow.hoursOk ? '工時達標' : '工時不足'}</span>
+                      </div>
+                    )}
+                    {currentRow.hasSpecificSlotRequirement ? (
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="font-medium text-gray-700">特定鐘點：</span>
+                        {currentRow.specificSegments.map((s, idx) => {
+                          const segOk = s.actual >= s.required;
+                          let unit: string;
+                          if (currentRow.position === '保健員') unit = '人手';
+                          else if (currentRow.position === '註冊/登記護士') unit = '小時';
+                          else unit = '人';
+                          return (
+                            <div
+                              key={idx}
+                              className={`text-[10px] ${segOk ? 'text-green-700' : 'text-red-700'}`}
+                              title={`${s.label} 需要 ${s.required} ${unit}，實際 ${s.actual} ${unit}`}
+                            >
+                              {segOk ? '✓' : '⚠'} {s.label} {s.actual}/{s.required} {unit} {segOk ? '人手達標' : '人手不足'}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-gray-400">— 無特定鐘點</span>
+                    )}
                   </div>
-                )}
-                {currentRow.hasSpecificSlotRequirement ? (
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="font-medium text-gray-700">特定鐘點：</span>
-                    {currentRow.specificSegments.map((s, idx) => {
-                      const segOk = s.actual >= s.required;
-                      let unit: string;
-                      if (currentRow.position === '保健員') unit = '人手';
-                      else if (currentRow.position === '註冊/登記護士') unit = '小時';
-                      else unit = '人';
-                      return (
-                        <div
-                          key={idx}
-                          className={`text-[10px] ${segOk ? 'text-green-700' : 'text-red-700'}`}
-                          title={`${s.label} 需要 ${s.required} ${unit}，實際 ${s.actual} ${unit}`}
-                        >
-                          {segOk ? '✓' : '⚠'} {s.label} {s.actual}/{s.required} {unit} {segOk ? '人手達標' : '人手不足'}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <span className="text-[10px] text-gray-400">— 無特定鐘點</span>
-                )}
+                ))}
               </div>
             ) : (
               <div className="text-xs text-gray-400">該職位當天無要求</div>
