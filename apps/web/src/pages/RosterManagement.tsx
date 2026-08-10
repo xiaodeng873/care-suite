@@ -519,12 +519,12 @@ const RosterManagement: React.FC = () => {
   }, [activeTab]);
 
   // 載入假期預排資料
-  const loadLeaveData = useCallback(async () => {
+  const loadLeaveData = useCallback(async (showLoading = true) => {
     if (users.length === 0) {
-      setLoading(false);
+      if (showLoading) setLoading(false);
       return;
     }
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const start = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}-01`;
       const end = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}-${new Date(monthCursor.y, monthCursor.m, 0).getDate()}`;
@@ -593,7 +593,7 @@ const RosterManagement: React.FC = () => {
       console.error('載入假期預排資料失敗:', err);
       alert('載入假期預排資料失敗');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [users, monthCursor, stationPriority.length, loadFacilityStaffing]);
 
@@ -617,12 +617,12 @@ const RosterManagement: React.FC = () => {
 
   // 打開列印 modal 時補載另一 tab 的資料，確保預排表與排班表的資料都齊
   const handleOpenPrintModal = async () => {
-    const loads: Promise<unknown>[] = [];
-    if (activeTab === 'roster') loads.push(loadLeaveData());
-    else if (activeTab === 'leave') loads.push(loadRosterData());
-    else loads.push(loadLeaveData(), loadRosterData());
-    await Promise.all(loads);
     setPrintModalOpen(true);
+    const loads: Promise<unknown>[] = [];
+    if (activeTab === 'roster') loads.push(loadLeaveData(false));
+    else if (activeTab === 'leave') loads.push(loadRosterData(false));
+    else loads.push(loadLeaveData(false), loadRosterData(false));
+    await Promise.all(loads);
   };
 
   // 列印綜合文件（排班管理 tab）：產生預排表/排班表 HTML 並列印
