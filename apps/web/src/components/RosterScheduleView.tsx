@@ -68,7 +68,7 @@ function formatDate(y: number, m: number, d: number): string {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
-const signed = (n: number): string => (n >= 0 ? `+${n}` : String(n));
+const signed = (n: number): string => String(n);
 
 /** WHB 顯示：正數不帶 +，負數帶 − */
 const whbSigned = (n: number): string => (n >= 0 ? String(n) : String(n));

@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Printer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PublicHolidayModal from '../components/PublicHolidayModal';
+import PatientPrintModal from '../components/PatientPrintModal';
+import type { PrintDocumentOptions } from '../components/PatientPrintModal';
 import { formatDisplayDate } from '../utils/dateFormat';
 import ConfirmOverrideModal from '../components/ConfirmOverrideModal';
 import RosterScheduleView from '../components/RosterScheduleView';
@@ -46,9 +48,148 @@ import { loadFacilityNatureSettings, DEFAULT_SPECIFIC_HOURS_CONFIG, GRID_POSITIO
 import type { SpecificHoursConfig, GridPosition } from '../utils/facilityNatureSettings';
 import { computeDualRedLineStaffing, computeStaffingRequirements, timeToMinutes } from '../utils/staffingRequirements';
 import type { StaffingResult } from '../utils/staffingRequirements';
+import { ROSTER_PRINT_DEPARTMENTS } from '../utils/rosterPrintGenerator';
+import type { RosterPrintDocumentId, UserFullBalances } from '../utils/rosterPrintGenerator';
 import { useDebounce } from '../hooks/useDebounce';
 
 type Tab = 'roster' | 'leave' | 'holiday';
+
+/** 純計算某員工在目標月份的餘額（WHB / 休息日 / 年假 / 公眾假期） */
+function computeUserBalancesForMonth(
+  userId: string,
+  year: number,
+  month: number,
+  monthAssignments: UserShiftAssignment[],
+  leaveRecords: UserLeaveRecord[],
+  employmentMap: Record<string, UserEmploymentDetails>,
+  publicHolidays: PublicHoliday[],
+  restDetailsMap: Record<string, UserRestDayDetail[]>,
+  annualDetailsMap: Record<string, UserAnnualLeaveDetail[]>,
+): UserFullBalances {
+  const details = employmentMap[userId];
+  const targetMonthStr = `${year}-${String(month).padStart(2, '0')}`;
+  const expected = getRosterExpectedCounts(
+    details?.weekly_work_days ?? null,
+    publicHolidays,
+    year,
+    month,
+    details?.rest_day_start_date,
+  );
+
+  // 預估額度：只對「下一個月或更遠」的目標月顯示，並於「目標月前一個月的 1 日」起出現
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const targetMonthStart = new Date(year, month - 1, 1);
+  const prevMonthStart = new Date(year, month - 2, 1);
+  const showEstimated = targetMonthStart > currentMonthStart && today >= prevMonthStart;
+
+  // ---------- 休息日（DO / PRD）----------
+  const restRows = restDetailsMap[userId] ?? [];
+  const restExpected = getExpectedRestDayGrants(details?.rest_day_start_date, details?.weekly_work_days);
+  const restSystemTotal = restExpected.grants.reduce((s, g) => s + g.days, 0);
+  const restManualGrant = restRows
+    .filter((d) => d.detail_type === 'grant' && !d.is_system)
+    .reduce((s, d) => s + d.days, 0);
+  const restUsage = restRows
+    .filter((d) => d.detail_type === 'usage')
+    .reduce((s, d) => s + d.days, 0);
+  const restWriteoff = restRows
+    .filter((d) => d.detail_type === 'writeoff')
+    .reduce((s, d) => s + d.days, 0);
+  const doAccumulated = restSystemTotal + restManualGrant - restUsage - restWriteoff;
+  const doEstimated = showEstimated ? expected.doExpected : 0;
+  const prdAccumulated = details?.rest_day_fraction ?? 0;
+  const prdEstimated = showEstimated ? expected.prdExpected : 0;
+
+  // ---------- 有薪年假 ----------
+  const alRows = annualDetailsMap[userId] ?? [];
+  const alExpected = getExpectedAnnualLeaveGrants(details?.annual_leave_start_date, details?.annual_leave_days_per_year);
+  const alSystemTotal = alExpected.reduce((s, g) => s + g.days, 0);
+  const alManualGrant = alRows
+    .filter((d) => d.detail_type === 'grant' && !d.is_system)
+    .reduce((s, d) => s + d.days, 0);
+  const alUsage = alRows
+    .filter((d) => d.detail_type === 'usage')
+    .reduce((s, d) => s + d.days, 0);
+  const alWriteoff = alRows
+    .filter((d) => d.detail_type === 'writeoff')
+    .reduce((s, d) => s + d.days, 0);
+  const alAccumulated = alSystemTotal + alManualGrant - alUsage - alWriteoff;
+  const alEstimated = showEstimated
+    ? alExpected.filter((g) => g.record_date.startsWith(targetMonthStr)).reduce((s, g) => s + g.days, 0)
+    : 0;
+
+  // ---------- 公眾假期（PH / SH）----------
+  const usedHolidayIds = new Set<string>();
+  for (const l of leaveRecords) {
+    if (
+      l.user_id === userId &&
+      l.record_type === 'leave' &&
+      !l.is_overridden &&
+      (l.leave_type === 'PH' || l.leave_type === 'SH') &&
+      l.reference_public_holiday_id
+    ) {
+      usedHolidayIds.add(l.reference_public_holiday_id);
+    }
+  }
+  const phType = details?.public_holiday_type;
+  const phStart = details?.public_holiday_start_date;
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  let phAccumulated = 0;
+  let phEstimated = 0;
+  let shAccumulated = 0;
+  let shEstimated = 0;
+  if (phType && phStart) {
+    const userHolidays = publicHolidays.filter(
+      (h) => h.type === phType && h.holiday_date >= phStart,
+    );
+    const unexpired = userHolidays.filter(
+      (h) => addDays(h.holiday_date, 30) >= todayStr,
+    );
+    const unusedUnexpired = unexpired.filter((h) => !usedHolidayIds.has(h.id));
+    const accumulated = unusedUnexpired.length;
+    const estimated = showEstimated
+      ? userHolidays.filter((h) => h.holiday_date.startsWith(targetMonthStr)).length
+      : 0;
+    if (phType === 'PH') {
+      phAccumulated = accumulated;
+      phEstimated = estimated;
+    } else {
+      shAccumulated = accumulated;
+      shEstimated = estimated;
+    }
+  }
+
+  // ---------- 工時結算 WHB（當月已排班工時 − 合約工時累積） ----------
+  let whb = 0;
+  const userDailyHours = details?.daily_contract_hours ?? 8;
+  for (const a of monthAssignments) {
+    if (a.user_id !== userId) continue;
+    const workedHours = getAssignmentDurationHours(a, userDailyHours);
+    whb += workedHours - userDailyHours;
+  }
+
+  return {
+    doBalance: doAccumulated + doEstimated,
+    doAccumulated,
+    doEstimated,
+    restDayFraction: prdAccumulated,
+    prdExpected: expected.prdExpected,
+    prdEstimated,
+    alBalance: alAccumulated + alEstimated,
+    alAccumulated,
+    alEstimated,
+    phAvailable: phAccumulated + phEstimated,
+    phAccumulated,
+    phEstimated,
+    shAvailable: shAccumulated + shEstimated,
+    shAccumulated,
+    shEstimated,
+    whb,
+  };
+}
 
 const HOLIDAY_TYPE_LABELS: Record<PublicHolidayType, string> = {
   PH: '銀行假期',
@@ -132,6 +273,9 @@ const RosterManagement: React.FC = () => {
   // 預排衝突檢查結果
   const [preScheduleConflicts, setPreScheduleConflicts] = useState<PreScheduleSegmentConflict[]>([]);
   const [preScheduleConflictModalOpen, setPreScheduleConflictModalOpen] = useState(false);
+
+  // 列印綜合文件（排班管理 tab）
+  const [printModalOpen, setPrintModalOpen] = useState(false);
   const [pendingLeaveConflict, setPendingLeaveConflict] = useState<{
     userId: string;
     payload: RosterLeaveModalPayload;
@@ -459,6 +603,120 @@ const RosterManagement: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, monthCursor.y, monthCursor.m, users.length]);
 
+  // 列印 modal 左側員工欄的項目（姓名 + 職位小字）
+  const rosterEmployeeItems = useMemo(
+    () =>
+      users.map((u) => ({
+        id: u.id,
+        name: u.name_zh,
+        detail: getEmploymentPosition(u) ?? '',
+        department: u.department ?? '',
+      })),
+    [users],
+  );
+
+  // 打開列印 modal 時補載另一 tab 的資料，確保預排表與排班表的資料都齊
+  const handleOpenPrintModal = async () => {
+    const loads: Promise<unknown>[] = [];
+    if (activeTab === 'roster') loads.push(loadLeaveData());
+    else if (activeTab === 'leave') loads.push(loadRosterData());
+    else loads.push(loadLeaveData(), loadRosterData());
+    await Promise.all(loads);
+    setPrintModalOpen(true);
+  };
+
+  // 列印綜合文件（排班管理 tab）：產生預排表/排班表 HTML 並列印
+  const handleRosterPrint = async (
+    documentIds: string[],
+    printOptions?: PrintDocumentOptions,
+  ) => {
+    setPrintModalOpen(false);
+    const rosterDocIds = documentIds.filter(
+      (id): id is RosterPrintDocumentId => id === 'roster_pre_schedule' || id === 'roster_schedule',
+    );
+    if (rosterDocIds.length === 0) return; // 此入口只用排班管理 tab
+    const [{ generateRosterPrintPages }, { printGroupedHtml }, { getFacilitySettings }] = await Promise.all([
+      import('../utils/rosterPrintGenerator'),
+      import('../utils/printUtils'),
+      import('../utils/facilitySettings'),
+    ]);
+    const settings = await getFacilitySettings();
+
+    // 列印月份統一由 modal 決定（預設當月）
+    const printYearMonth = printOptions?.rosterYearMonth ?? new Date().toISOString().slice(0, 7);
+    const [printYear, printMonth] = printYearMonth.split('-').map((n) => Number(n));
+    const monthStart = `${printYear}-${String(printMonth).padStart(2, '0')}-01`;
+    const monthEnd = `${printYear}-${String(printMonth).padStart(2, '0')}-${new Date(printYear, printMonth, 0).getDate()}`;
+    const userIds = users.map((u) => u.id);
+
+    const [
+      { data: leaves, error: eLeaves },
+      { data: assignments, error: eAssignments },
+    ] = await Promise.all([
+      supabase.from('user_leave_records').select('*').in('user_id', userIds).gte('leave_date', monthStart).lte('leave_date', monthEnd),
+      supabase.from('user_shift_assignments').select('*').in('user_id', userIds).gte('work_date', monthStart).lte('work_date', monthEnd),
+    ]);
+    if (eLeaves) throw eLeaves;
+    if (eAssignments) throw eAssignments;
+
+    const printLeaveRecords = (leaves ?? []).map((l) => ({
+      ...l,
+      availability_start_time: l.availability_start_time ? normalizeTime(l.availability_start_time) || l.availability_start_time : l.availability_start_time,
+      availability_end_time: l.availability_end_time ? normalizeTime(l.availability_end_time) || l.availability_end_time : l.availability_end_time,
+    })) as UserLeaveRecord[];
+    const printMonthAssignments = (assignments ?? []).map((a) => ({
+      ...a,
+      start_time: normalizeTime(a.start_time) || a.start_time,
+      end_time: normalizeTime(a.end_time) || a.end_time,
+    })) as UserShiftAssignment[];
+
+    // 只輸出 modal 左欄被勾選的員工（未傳名單時視為全選）
+    const selectedIds = printOptions?.rosterUserIds ? new Set(printOptions.rosterUserIds) : null;
+    const printUsers = selectedIds ? users.filter((u) => selectedIds.has(u.id)) : users;
+    const files = generateRosterPrintPages(
+      {
+        users: printUsers,
+        employmentDetails: employmentMap,
+        stations,
+        shiftSettings,
+        weekAnchor,
+        weekAssignments: shiftAssignments,
+        year: printYear,
+        month: printMonth,
+        monthAssignments: printMonthAssignments,
+        scheduleMonthAssignments: printMonthAssignments,
+        leaveRecords: printLeaveRecords,
+        publicHolidays,
+        specificHours,
+        staffingResult,
+        dailyRequirements,
+        hasContractHours,
+        getUserFullBalances: (userId) =>
+          computeUserBalancesForMonth(
+            userId,
+            printYear,
+            printMonth,
+            printMonthAssignments,
+            printLeaveRecords,
+            employmentMap,
+            publicHolidays,
+            restDetailsMap,
+            annualDetailsMap,
+          ),
+        facilityName: settings.facilityNameZh,
+      },
+      {
+        documents: rosterDocIds,
+        departments: printOptions?.rosterDepartments ?? [...ROSTER_PRINT_DEPARTMENTS],
+        outputMode: printOptions?.rosterOutputMode ?? 'combined',
+        includeBalance: printOptions?.rosterIncludeBalance ?? true,
+        includeCompliance: printOptions?.rosterIncludeCompliance ?? false,
+      },
+    );
+    // 預排表為 A4 landscape、排班表為 A4 portrait，printGroupedHtml 可混合方向列印
+    printGroupedHtml(files.flatMap((f) => f.pages), 'roster-print-iframe');
+  };
+
   // 假期設定載入
   const loadHolidays = useCallback(async () => {
     const start = `${year}-01-01`;
@@ -618,123 +876,18 @@ const RosterManagement: React.FC = () => {
   );
 
   const getUserBalances = useCallback(
-    (userId: string) => {
-      const details = employmentMap[userId];
-      const targetMonthStr = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}`;
-      const expected = getRosterExpectedCounts(
-        details?.weekly_work_days ?? null,
-        details?.rest_day_fraction ?? 0,
-        publicHolidays,
+    (userId: string) =>
+      computeUserBalancesForMonth(
+        userId,
         monthCursor.y,
         monthCursor.m,
-        details?.rest_day_start_date,
-      );
-
-      // 預估額度：只對「下一個月或更遠」的目標月顯示，並於「目標月前一個月的 1 日」起出現
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-      const targetMonthStart = new Date(monthCursor.y, monthCursor.m - 1, 1);
-      const prevMonthStart = new Date(monthCursor.y, monthCursor.m - 2, 1);
-      const showEstimated = targetMonthStart > currentMonthStart && today >= prevMonthStart;
-
-      // ---------- 休息日（DO / PRD）----------
-      const restRows = restDetailsMap[userId] ?? [];
-      const restExpected = getExpectedRestDayGrants(details?.rest_day_start_date, details?.weekly_work_days);
-      const restSystemTotal = restExpected.grants.reduce((s, g) => s + g.days, 0);
-      const restManualGrant = restRows
-        .filter((d) => d.detail_type === 'grant' && !d.is_system)
-        .reduce((s, d) => s + d.days, 0);
-      const restUsage = restRows
-        .filter((d) => d.detail_type === 'usage')
-        .reduce((s, d) => s + d.days, 0);
-      const restWriteoff = restRows
-        .filter((d) => d.detail_type === 'writeoff')
-        .reduce((s, d) => s + d.days, 0);
-      const doAccumulated = restSystemTotal + restManualGrant - restUsage - restWriteoff;
-      const doEstimated = showEstimated ? expected.doExpected : 0;
-      const prdAccumulated = details?.rest_day_fraction ?? 0;
-      const prdEstimated = showEstimated ? expected.prdExpected : 0;
-
-      // ---------- 有薪年假 ----------
-      const alRows = annualDetailsMap[userId] ?? [];
-      const alExpected = getExpectedAnnualLeaveGrants(details?.annual_leave_start_date, details?.annual_leave_days_per_year);
-      const alSystemTotal = alExpected.reduce((s, g) => s + g.days, 0);
-      const alManualGrant = alRows
-        .filter((d) => d.detail_type === 'grant' && !d.is_system)
-        .reduce((s, d) => s + d.days, 0);
-      const alUsage = alRows
-        .filter((d) => d.detail_type === 'usage')
-        .reduce((s, d) => s + d.days, 0);
-      const alWriteoff = alRows
-        .filter((d) => d.detail_type === 'writeoff')
-        .reduce((s, d) => s + d.days, 0);
-      const alAccumulated = alSystemTotal + alManualGrant - alUsage - alWriteoff;
-      const alEstimated = showEstimated
-        ? alExpected.filter((g) => g.record_date.startsWith(targetMonthStr)).reduce((s, g) => s + g.days, 0)
-        : 0;
-
-      // ---------- 公眾假期（PH / SH）----------
-      // 自 2026-08-08 起：每個假期獨立一行，有效期為 holiday_date + 30 天。
-      // 累積 = 未過期且未使用的該類假期數；預估 = 目標月份該類假期數（由本月 1 日起顯示）。
-      const phType = details?.public_holiday_type;
-      const phStart = details?.public_holiday_start_date;
-      const usedHolidayIds = getUsedHolidayIds(userId);
-      const todayStr = new Date().toISOString().slice(0, 10);
-
-      let phAccumulated = 0;
-      let phEstimated = 0;
-      let shAccumulated = 0;
-      let shEstimated = 0;
-      if (phType && phStart) {
-        const userHolidays = publicHolidays.filter(
-          (h) => h.type === phType && h.holiday_date >= phStart,
-        );
-        const unexpired = userHolidays.filter(
-          (h) => addDays(h.holiday_date, 30) >= todayStr,
-        );
-        const unusedUnexpired = unexpired.filter((h) => !usedHolidayIds.has(h.id));
-        const accumulated = unusedUnexpired.length;
-        const estimated = showEstimated
-          ? userHolidays.filter((h) => h.holiday_date.startsWith(targetMonthStr)).length
-          : 0;
-        if (phType === 'PH') {
-          phAccumulated = accumulated;
-          phEstimated = estimated;
-        } else {
-          shAccumulated = accumulated;
-          shEstimated = estimated;
-        }
-      }
-
-      // ---------- 工時結算 WHB（當月已排班工時 − 合約工時累積） ----------
-      let whb = 0;
-      const userDailyHours = details?.daily_contract_hours ?? 8;
-      for (const a of monthShiftAssignments) {
-        if (a.user_id !== userId) continue;
-        const workedHours = getAssignmentDurationHours(a, userDailyHours);
-        whb += workedHours - userDailyHours;
-      }
-
-      return {
-        doBalance: doAccumulated + doEstimated,
-        doAccumulated,
-        doEstimated,
-        restDayFraction: prdAccumulated,
-        prdExpected: expected.prdExpected,
-        prdEstimated,
-        alBalance: alAccumulated + alEstimated,
-        alAccumulated,
-        alEstimated,
-        phAvailable: phAccumulated + phEstimated,
-        phAccumulated,
-        phEstimated,
-        shAvailable: shAccumulated + shEstimated,
-        shAccumulated,
-        shEstimated,
-        whb,
-      };
-    },
+        monthShiftAssignments,
+        leaveRecords,
+        employmentMap,
+        publicHolidays,
+        restDetailsMap,
+        annualDetailsMap,
+      ),
     [
       employmentMap,
       publicHolidays,
@@ -742,7 +895,7 @@ const RosterManagement: React.FC = () => {
       restDetailsMap,
       annualDetailsMap,
       monthShiftAssignments,
-      getUsedHolidayIds,
+      leaveRecords,
     ],
   );
 
@@ -1160,7 +1313,6 @@ const RosterManagement: React.FC = () => {
     const details = employmentMap[user.id];
     const expected = getRosterExpectedCounts(
       details?.weekly_work_days ?? null,
-      details?.rest_day_fraction ?? 0,
       publicHolidays,
       y,
       m,
@@ -1178,41 +1330,51 @@ const RosterManagement: React.FC = () => {
   return (
     <div className="p-6 h-screen flex flex-col">
       <div className="border-b border-gray-200 mb-6">
-        <nav className="flex gap-6">
+        <div className="flex items-center justify-between">
+          <nav className="flex gap-6">
+            <button
+              type="button"
+              onClick={() => setActiveTab('roster')}
+              className={`pb-2 text-sm font-medium border-b-2 ${
+                activeTab === 'roster'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              排班表
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('leave')}
+              className={`pb-2 text-sm font-medium border-b-2 ${
+                activeTab === 'leave'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              假期預排
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('holiday')}
+              className={`pb-2 text-sm font-medium border-b-2 ${
+                activeTab === 'holiday'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              假期設定
+            </button>
+          </nav>
           <button
             type="button"
-            onClick={() => setActiveTab('roster')}
-            className={`pb-2 text-sm font-medium border-b-2 ${
-              activeTab === 'roster'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            onClick={handleOpenPrintModal}
+            className="mb-1 flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
-            排班表
+            <Printer className="h-4 w-4" />
+            列印
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('leave')}
-            className={`pb-2 text-sm font-medium border-b-2 ${
-              activeTab === 'leave'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            假期預排
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('holiday')}
-            className={`pb-2 text-sm font-medium border-b-2 ${
-              activeTab === 'holiday'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            假期設定
-          </button>
-        </nav>
+        </div>
       </div>
 
       {activeTab === 'roster' && (
@@ -1418,6 +1580,18 @@ const RosterManagement: React.FC = () => {
           onSave={handleSave}
           initial={editingHoliday}
           defaultYear={year}
+        />
+      )}
+
+      {printModalOpen && (
+        <PatientPrintModal
+          patients={[]}
+          initialTab="排班管理"
+          rosterEmployees={rosterEmployeeItems}
+          onClose={() => setPrintModalOpen(false)}
+          onPrint={async (_patients, documentIds, _startDate, _endDate, _contentMode, printOptions) => {
+            await handleRosterPrint(documentIds, printOptions);
+          }}
         />
       )}
 

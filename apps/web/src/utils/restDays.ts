@@ -1,8 +1,9 @@
 // =====================================================
 // 休息日獲得行產生規則（lazy materialization）
 // 對應 user_rest_day_details 表內 is_system=true 的「獲得」明細
-// 規則：起始日發放一次整數 DO，之後逢周日發放同樣整數 DO；
-//       小數部分累積為 PRD fraction，不自動發放，滿 1.0 才可手動預排。
+// 規則：由受僱日開始計算每周工作天數 W；完成 W 天工作後的翌日發放一次 DO；
+//       之後每完成一周工作（W 天工作 + R 天休息）再發放同樣整數 DO；
+//       小數部分累積為 PRD fraction，滿 1.0 才可手動預排。
 // =====================================================
 
 /** 系統應發放的一筆休息日（DO）獲得行 */
@@ -49,9 +50,8 @@ export function splitRestDays(weeklyWorkDays: number): { integerDO: number; frac
  *
  * 規則（W = 每周工作天數；R = 7 - W；I = floor(R) 整數 DO；F = R - I 小數 PRD）：
  * - 無 W 或 W <= 0 或 W >= 7 → 空結果
- * - 起始日當日：一筆 days = I（若 I > 0）
- * - 之後每個周日（起始日之後的首個周日起；起始日本身是周日則由下一個周日起）：
- *   一筆 days = I（若 I > 0），同時累積 F 至 totalFraction
+ * - 受僱日開始計算，完成 W 天工作後的翌日首次發放 days = I
+ * - 之後每完成一周工作（再 W 天工作 + R 天休息）發放一次 days = I（若 I > 0）
  * - 返回 { grants, totalFraction = F × 發放次數 }
  */
 export function getExpectedRestDayGrants(
@@ -71,16 +71,9 @@ export function getExpectedRestDayGrants(
   const grants: ExpectedRestDayGrant[] = [];
   let count = 0;
 
-  if (integerDO > 0) {
-    grants.push({ record_date: startDate, days: integerDO });
-  }
-  count += 1;
-
   const [y, m, d] = startDate.split('-').map(Number);
-  const start = new Date(y, m - 1, d);
-  const dayOfWeek = start.getDay();
-  const daysToSunday = dayOfWeek === 0 ? 7 : 7 - dayOfWeek;
-  const cursor = new Date(y, m - 1, d + daysToSunday);
+  const firstGrantOffset = Math.floor(weeklyWorkDays);
+  const cursor = new Date(y, m - 1, d + firstGrantOffset);
 
   while (formatLocalDate(cursor) <= todayStr) {
     if (integerDO > 0) {
@@ -90,43 +83,54 @@ export function getExpectedRestDayGrants(
     cursor.setDate(cursor.getDate() + 7);
   }
 
-  // 小數累積：每次發放（包括起始日）都累積一次 F
+  // 小數累積：每次發放都累積一次 F
   const totalFraction = parseFloat((fraction * count).toFixed(1));
   return { grants, totalFraction };
 }
 
-/** 統計某月周日數（若 startDate 在該月之後，則回 0） */
-export function countSundaysInMonth(year: number, month: number, startDate?: string): number {
-  const start = startDate ? new Date(startDate) : new Date(year, month - 1, 1);
-  const monthStart = new Date(year, month - 1, 1);
-  const monthEnd = new Date(year, month, 0);
-  const effectiveStart = start > monthStart ? start : monthStart;
+/** 統計某月內完成一周工作後發放的次數（首次為受僱日 + floor(W) 天，其後每 7 天一次） */
+function countGrantEventsInMonth(
+  startDate: string,
+  weeklyWorkDays: number,
+  year: number,
+  month: number,
+): number {
+  const monthStart = formatDate(year, month, 1);
+  const monthEnd = formatDate(year, month, new Date(year, month, 0).getDate());
+  if (startDate > monthEnd) return 0;
+
+  const [sy, sm, sd] = startDate.split('-').map(Number);
+  const firstGrantOffset = Math.floor(weeklyWorkDays);
+  const cursor = new Date(sy, sm - 1, sd + firstGrantOffset);
 
   let count = 0;
-  const cursor = new Date(effectiveStart);
-  while (cursor <= monthEnd) {
-    if (cursor.getDay() === 0) count += 1;
-    cursor.setDate(cursor.getDate() + 1);
+  while (formatLocalDate(cursor) <= monthEnd) {
+    if (formatLocalDate(cursor) >= monthStart) {
+      count += 1;
+    }
+    cursor.setDate(cursor.getDate() + 7);
   }
   return count;
 }
 
-/** 預期某月 DO / PRD 額度（假設已過入職期，按整月計算） */
+/** 預期某月 DO / PRD 獲得量（只計當月，不累積） */
 export function getExpectedMonthlyRestDays(
   weeklyWorkDays: number,
   year: number,
   month: number,
-  currentFraction: number,
   startDate?: string,
 ): { doDays: number; prdDays: number; totalFraction: number; leftoverFraction: number } {
   if (!weeklyWorkDays || weeklyWorkDays <= 0 || weeklyWorkDays > 6) {
     return { doDays: 0, prdDays: 0, totalFraction: 0, leftoverFraction: 0 };
   }
+  if (!startDate) {
+    return { doDays: 0, prdDays: 0, totalFraction: 0, leftoverFraction: 0 };
+  }
   const { integerDO, fraction } = splitRestDays(weeklyWorkDays);
-  const sundays = countSundaysInMonth(year, month, startDate);
+  const grantEvents = countGrantEventsInMonth(startDate, weeklyWorkDays, year, month);
 
-  const doDays = integerDO * sundays;
-  const totalFraction = parseFloat((currentFraction + fraction * sundays).toFixed(1));
+  const doDays = integerDO * grantEvents;
+  const totalFraction = parseFloat((fraction * grantEvents).toFixed(1));
   const prdDays = Math.floor(totalFraction);
   const leftoverFraction = parseFloat((totalFraction - prdDays).toFixed(1));
 

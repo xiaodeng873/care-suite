@@ -135,21 +135,21 @@ describe('validateScheduledLeave', () => {
 });
 
 describe('getRosterExpectedCounts', () => {
-  it('5 天工作，4 個周日 → 8 DO, 0 PRD', () => {
-    const counts = getRosterExpectedCounts(5, 0, [], 2025, 4, '2025-01-01');
+  it('5 天工作，2025-04 有 4 次發放 → 8 DO, 0 PRD', () => {
+    const counts = getRosterExpectedCounts(5, [], 2025, 4, '2025-01-01');
     expect(counts.doExpected).toBe(8);
     expect(counts.prdExpected).toBe(0);
   });
 
-  it('5.5 天工作，4 個周日，0.5 fraction → 4 DO, 2 PRD', () => {
-    const counts = getRosterExpectedCounts(5.5, 0.5, [], 2025, 4, '2025-01-01');
+  it('5.5 天工作，2025-04 有 4 次發放 → 4 DO, 2 PRD', () => {
+    const counts = getRosterExpectedCounts(5.5, [], 2025, 4, '2025-01-01');
     expect(counts.doExpected).toBe(4);
     expect(counts.prdExpected).toBe(2);
   });
 
   it('計算 PH/SH 數目', () => {
     const h = [makeHoliday('h1', '2025-04-04', '清明節', 'PH')];
-    const counts = getRosterExpectedCounts(5, 0, h, 2025, 4, '2025-01-01');
+    const counts = getRosterExpectedCounts(5, h, 2025, 4, '2025-01-01');
     expect(counts.phExpected).toBe(1);
     expect(counts.shExpected).toBe(0);
   });

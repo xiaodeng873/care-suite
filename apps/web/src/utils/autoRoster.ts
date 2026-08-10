@@ -448,7 +448,7 @@ function makeMockAssignment(
   };
 }
 
-/** 依員工偏好居住區產生專屬居住區順序：
+/** 依員工偏好居住區產生專屬居住區順序；會排除 stations_forbidden 的居住區：
  * - 有設定 preferred_station 者：先 primary，再 secondary，其餘在後
  * - 無設定偏好者：未分區優先
  */
@@ -458,25 +458,28 @@ function getUserStationList(
   baseList: (string | null)[],
 ): (string | null)[] {
   const details = employmentDetails[userId];
+  const forbidden = new Set(details?.stations_forbidden ?? []);
+  const isForbidden = (s: string | null) => s !== null && forbidden.has(s);
+
   const prefs: (string | null)[] = [];
-  if (details?.preferred_station_primary) {
+  if (details?.preferred_station_primary && !isForbidden(details.preferred_station_primary)) {
     prefs.push(details.preferred_station_primary);
   }
   if (details?.preferred_station_secondary?.length) {
     for (const s of details.preferred_station_secondary) {
-      if (!prefs.includes(s)) prefs.push(s);
+      if (!isForbidden(s) && !prefs.includes(s)) prefs.push(s);
     }
   }
-  const rest = baseList.filter((s) => !prefs.includes(s));
+  const rest = baseList.filter((s) => !prefs.includes(s) && !isForbidden(s));
   if (prefs.length > 0) {
     return [...prefs, ...rest];
   }
-  // 沒有設定偏好者：未分區優先
+  // 沒有設定偏好者：未分區優先（未分區不會在 forbidden uuid[] 內）
   const unassignedIndex = baseList.indexOf(null);
   if (unassignedIndex >= 0) {
-    return [null, ...baseList.filter((_, i) => i !== unassignedIndex)];
+    return [null, ...baseList.filter((s, i) => i !== unassignedIndex && !isForbidden(s))];
   }
-  return baseList;
+  return baseList.filter((s) => !isForbidden(s));
 }
 
 /**

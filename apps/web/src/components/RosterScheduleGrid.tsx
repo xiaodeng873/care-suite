@@ -33,6 +33,7 @@ import {
   normalizeTime,
   getSpecificWorkingTimeWindow,
   isShiftInWindow,
+  doTimeRangesOverlap,
   type WeekDay,
   type ComplianceRow,
 } from '../utils/roster';
@@ -156,6 +157,8 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     });
   };
   const [autoRosterLoading, setAutoRosterLoading] = useState<string | null>(null);
+  const [autoRosteredDates, setAutoRosteredDates] = useState<Set<string>>(new Set());
+  const [autoRosterIdsByDate, setAutoRosterIdsByDate] = useState<Map<string, string[]>>(new Map());
   const [draggedAssignmentId, setDraggedAssignmentId] = useState<string | null>(null);
   const [publicHolidays, setPublicHolidays] = useState<PublicHoliday[]>([]);
   const [conflicts, setConflicts] = useState<AutoRosterConflict[]>([]);
@@ -171,6 +174,17 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     stationId: string | null;
     shift: StationShiftSetting;
     dropTarget: { assignmentId: string; insertBefore: boolean } | null;
+  } | null>(null);
+  const [pendingOverlapOverride, setPendingOverlapOverride] = useState<{
+    sourceAssignmentId: string | null;
+    sourceUserIdFromList: string | null;
+    date: string;
+    stationId: string | null;
+    shift: StationShiftSetting;
+    dropTarget: { assignmentId: string; insertBefore: boolean } | null;
+    proposedStart: string;
+    proposedEnd: string;
+    overlappingAssignments: UserShiftAssignment[];
   } | null>(null);
   const selectedGridPosition = selectedPosition;
   /** 行政排班頁不分居住區，全域一欄 */
@@ -253,15 +267,15 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     return message.includes('column') && message.includes(column.toLowerCase()) && message.includes('does not exist');
   };
 
-  const withEndTimeFallback = async (
-    operation: () => Promise<{ error: unknown }>,
-    fallback: () => Promise<{ error: unknown }>,
-  ): Promise<unknown> => {
+  const withEndTimeFallback = async <T,>(
+    operation: () => Promise<{ data: T; error: unknown }>,
+    fallback: () => Promise<{ data: T; error: unknown }>,
+  ): Promise<{ data: T | null; error: unknown }> => {
     const result = await operation();
     if (result.error && isMissingColumnError(result.error, 'end_time')) {
-      return (await fallback()).error;
+      return await fallback();
     }
-    return result.error;
+    return result as { data: T; error: unknown };
   };
 
   const withoutEndTime = <T extends Record<string, unknown>>(payload: T): Omit<T, 'end_time'> => {
@@ -328,6 +342,9 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     shift: StationShiftSetting,
     dropTarget: { assignmentId: string; insertBefore: boolean } | null,
     skipWindowCheck = false,
+    skipOverlapCheck = false,
+    overrideStartTime?: string,
+    overrideEndTime?: string,
   ) => {
     if (!canEdit) return;
 
@@ -391,8 +408,8 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
       }
     }
 
-    const sourceStartTime = getDragStartTime(employmentDetails[sourceUserId || ''], shift.start_time);
-    const endTime = getEndTimeForUser(sourceUserId || '', sourceStartTime);
+    const sourceStartTime = overrideStartTime ?? getDragStartTime(employmentDetails[sourceUserId || ''], shift.start_time);
+    const endTime = overrideEndTime ?? getEndTimeForUser(sourceUserId || '', sourceStartTime);
 
     // 拖回原位（同 key 且無指定插入目標）則不處理
     if (
@@ -403,6 +420,44 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
       !dropTarget
     ) {
       return;
+    }
+
+    // 檢查是否被禁止前往此居住區
+    if (stationId !== null) {
+      const forbidden = employmentDetails[sourceUserId || '']?.stations_forbidden;
+      if (Array.isArray(forbidden) && forbidden.includes(stationId)) {
+        alert('該員工被禁止前往此居住區');
+        return;
+      }
+    }
+
+    // 同一人每日最多 2 個非重疊班次（主管可 override 重疊）
+    const userDayAssignments = shiftAssignments.filter(
+      (a) => a.user_id === sourceUserId && a.work_date === date && a.id !== sourceAssignment?.id,
+    );
+    if (userDayAssignments.length >= 2) {
+      alert('該員工當日已有 2 個班次');
+      return;
+    }
+    if (!skipOverlapCheck) {
+      const overlapping = userDayAssignments.filter((a) => {
+        const aEnd = getAssignmentEndTime(a, getDailyContractHours(employmentDetails[a.user_id]));
+        return doTimeRangesOverlap(sourceStartTime, endTime, a.start_time, aEnd);
+      });
+      if (overlapping.length > 0) {
+        setPendingOverlapOverride({
+          sourceAssignmentId,
+          sourceUserIdFromList,
+          date,
+          stationId,
+          shift,
+          dropTarget,
+          proposedStart: sourceStartTime,
+          proposedEnd: endTime,
+          overlappingAssignments: overlapping,
+        });
+        return;
+      }
     }
 
     // 檢查常態化特定上班時間窗口；若衝突，讓主管決定是否 override
@@ -481,7 +536,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
           sort_order: insertIndex,
           updated_at: now,
         };
-        const error = await withEndTimeFallback(
+        const { error } = await withEndTimeFallback(
           async () => await supabase.from('user_shift_assignments').update(sourceUpdate).eq('id', sourceAssignment.id),
           async () =>
             await supabase.from('user_shift_assignments').update(withoutEndTime(sourceUpdate)).eq('id', sourceAssignment.id),
@@ -499,7 +554,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
           created_by: userProfile?.id ?? null,
           sort_order: insertIndex,
         };
-        const error = await withEndTimeFallback(
+        const { error } = await withEndTimeFallback(
           async () => await supabase.from('user_shift_assignments').insert(insertPayload),
           async () => await supabase.from('user_shift_assignments').insert(withoutEndTime(insertPayload)),
         );
@@ -597,7 +652,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
       const targetKey = `${payload.station_id ?? 'unassigned'}|${payload.shift_name}|${payload.work_date}`;
       const existingCount = assignmentMap.byKey.get(targetKey)?.length ?? 0;
       const payloadWithSort = { ...payload, sort_order: existingCount };
-      const error = await withEndTimeFallback(
+      const { error } = await withEndTimeFallback(
         async () => await supabase.from('user_shift_assignments').insert(payloadWithSort),
         async () => await supabase.from('user_shift_assignments').insert(withoutEndTime(payloadWithSort)),
       );
@@ -647,6 +702,37 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     await processDrop(sourceAssignmentId, sourceUserIdFromList, date, stationId, shift, dropTarget, true);
   };
 
+  const confirmOverlapOverride = async () => {
+    if (!pendingOverlapOverride) return;
+    const { sourceAssignmentId, sourceUserIdFromList, date, stationId, shift, dropTarget, proposedStart, proposedEnd } = pendingOverlapOverride;
+
+    // 再次檢查調整後時間是否仍與當日其他班次重疊
+    const sourceUserId = sourceAssignmentId
+      ? shiftAssignments.find((a) => a.id === sourceAssignmentId)?.user_id
+      : sourceUserIdFromList;
+    if (!sourceUserId) {
+      setPendingOverlapOverride(null);
+      return;
+    }
+    const sourceAssignment = sourceAssignmentId
+      ? shiftAssignments.find((a) => a.id === sourceAssignmentId)
+      : null;
+    const userDayAssignments = shiftAssignments.filter(
+      (a) => a.user_id === sourceUserId && a.work_date === date && a.id !== sourceAssignment?.id,
+    );
+    const stillOverlapping = userDayAssignments.some((a) => {
+      const aEnd = getAssignmentEndTime(a, getDailyContractHours(employmentDetails[a.user_id]));
+      return doTimeRangesOverlap(proposedStart, proposedEnd, a.start_time, aEnd);
+    });
+    if (stillOverlapping) {
+      alert('調整後的時間仍然與其他班次重疊，請再修改');
+      return;
+    }
+
+    setPendingOverlapOverride(null);
+    await processDrop(sourceAssignmentId, sourceUserIdFromList, date, stationId, shift, dropTarget, false, true, proposedStart, proposedEnd);
+  };
+
   const handleUpdateShiftTime = async (id: string, startTime: string, endTime: string) => {
     try {
       const updatePayload = {
@@ -654,7 +740,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         end_time: endTime.slice(0, 5),
         updated_at: new Date().toISOString(),
       };
-      const error = await withEndTimeFallback(
+      const { error } = await withEndTimeFallback(
         async () => await supabase.from('user_shift_assignments').update(updatePayload).eq('id', id),
         async () => await supabase.from('user_shift_assignments').update(withoutEndTime(updatePayload)).eq('id', id),
       );
@@ -728,6 +814,27 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     if (!selectedPosition) return;
     setAutoRosterLoading(date);
     try {
+      // 已經自動排班過的日期：再按一下即「一鍵排空」，刪除上次自動插入的班次
+      if (autoRosteredDates.has(date)) {
+        const ids = autoRosterIdsByDate.get(date) ?? [];
+        if (ids.length > 0) {
+          const { error } = await supabase.from('user_shift_assignments').delete().in('id', ids);
+          if (error) throw error;
+          await onAssignmentChange();
+        }
+        setAutoRosteredDates((prev) => {
+          const next = new Set(prev);
+          next.delete(date);
+          return next;
+        });
+        setAutoRosterIdsByDate((prev) => {
+          const next = new Map(prev);
+          next.delete(date);
+          return next;
+        });
+        return;
+      }
+
       const result = generateAutoRoster({
         date,
         position: selectedPosition,
@@ -758,14 +865,25 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
           created_by: userProfile?.id ?? null,
         }));
 
-        const error = await withEndTimeFallback(
-          async () => await supabase.from('user_shift_assignments').insert(inserts),
+        const { data, error } = await withEndTimeFallback(
+          async () => await supabase.from('user_shift_assignments').insert(inserts).select('id'),
           async () =>
             await supabase.from('user_shift_assignments').insert(
               inserts.map((ins) => withoutEndTime(ins)),
-            ),
+            ).select('id'),
         );
         if (error) throw error;
+
+        setAutoRosteredDates((prev) => {
+          const next = new Set(prev);
+          next.add(date);
+          return next;
+        });
+        setAutoRosterIdsByDate((prev) => {
+          const next = new Map(prev);
+          next.set(date, (data ?? []).map((row) => row.id as string));
+          return next;
+        });
 
         await onAssignmentChange();
       }
@@ -908,7 +1026,11 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                 disabled={autoRosterLoading === day.date}
                 className="text-[10px] px-1.5 py-0.5 rounded border border-blue-200 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
               >
-                {autoRosterLoading === day.date ? '排班中…' : '一鍵排班'}
+                {autoRosterLoading === day.date
+                  ? '處理中…'
+                  : autoRosteredDates.has(day.date)
+                    ? '一鍵排空'
+                    : '一鍵排班'}
               </button>
             )}
           </div>
@@ -1046,22 +1168,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         </div>
 
         {/* 當日人手達標檢查 */}
-        <button
-          type="button"
-          onClick={() => toggleDayExpanded(day.date)}
-          className={`w-full px-3 py-2 border-t border-gray-200 flex items-center justify-between ${dayAllOk ? 'bg-green-50' : 'bg-amber-50'}`}
-        >
-          <div className="flex items-center gap-2">
-            {dayAllOk ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <AlertCircle className="h-4 w-4 text-amber-600" />}
-            <span className="text-sm font-semibold text-gray-800">{complianceLabel}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`text-xs ${dayAllOk ? 'text-green-700' : 'text-amber-700'}`}>
-              {complianceRows.length > 0 ? (dayAllOk ? '人手達標' : '人手不足') : '無要求'}
-            </span>
-            {expanded ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
-          </div>
-        </button>
+     
         {expanded && (
           <div className="px-3 py-2 border-t border-gray-200 bg-white">
             {complianceRows.length > 0 ? (
@@ -1290,6 +1397,62 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
             </p>
             <p className="text-gray-500">
               點擊「仍要排班」會強制寫入此班次；仍可隨後手動調整時間。
+            </p>
+          </div>
+        </ConfirmOverrideModal>
+      )}
+
+      {/* 當日班次時間重疊 override Modal */}
+      {pendingOverlapOverride && (
+        <ConfirmOverrideModal
+          isOpen
+          title="調整班次時間以避免重疊"
+          onClose={() => setPendingOverlapOverride(null)}
+          onConfirm={confirmOverlapOverride}
+          confirmLabel="確認並繼續排班"
+        >
+          <div className="space-y-3">
+            <p>
+              該員工當日已有以下班次，新班次與之時間重疊。請調整新班次時間，消除重疊後才可繼續。
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-gray-600">
+              {pendingOverlapOverride.overlappingAssignments.map((a) => {
+                const aEnd = getAssignmentEndTime(a, getDailyContractHours(employmentDetails[a.user_id]));
+                return (
+                  <li key={a.id}>
+                    {a.shift_name}：{a.start_time}-{aEnd}
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-gray-700">新班次開始：</label>
+              <input
+                type="time"
+                value={pendingOverlapOverride.proposedStart}
+                onChange={(e) =>
+                  setPendingOverlapOverride((prev) =>
+                    prev ? { ...prev, proposedStart: e.target.value } : null
+                  )
+                }
+                className="form-input text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-gray-700">新班次結束：</label>
+              <input
+                type="time"
+                value={pendingOverlapOverride.proposedEnd}
+                onChange={(e) =>
+                  setPendingOverlapOverride((prev) =>
+                    prev ? { ...prev, proposedEnd: e.target.value } : null
+                  )
+                }
+                className="form-input text-sm"
+              />
+            </div>
+            <p className="text-gray-500">
+              確認後會以調整後的時間寫入；若仍與特定上班時間窗口衝突，會再彈出 override 選項。
             </p>
           </div>
         </ConfirmOverrideModal>

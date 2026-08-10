@@ -142,10 +142,9 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       workDays,
       next.getFullYear(),
       next.getMonth() + 1,
-      restDayFraction,
       restDayStartDate,
     );
-  }, [weeklyWorkDays, restDayFraction, restDayStartDate]);
+  }, [weeklyWorkDays, restDayStartDate]);
 
   // ----- 公眾假期明細 -----
   const [publicHolidayDetails, setPublicHolidayDetails] = useState<UserPublicHolidayDetail[]>([]);

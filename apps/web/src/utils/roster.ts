@@ -183,7 +183,6 @@ export function getRosterUserBalance(
   const userLeaves = leaveRecords.filter((l) => l.user_id === userId);
   const expected = getRosterExpectedCounts(
     details?.weekly_work_days ?? null,
-    details?.rest_day_fraction ?? 0,
     publicHolidays,
     year,
     month,
@@ -488,6 +487,22 @@ export function getAssignmentEndTime(
 ): string {
   if (assignment.end_time) return assignment.end_time;
   return getShiftEndTime(assignment.start_time, dailyContractHours);
+}
+
+/** 判斷兩個時間區間是否重疊；支援跨午夜（如 22:00-06:00）。
+ * 時間相切（end == start）視為不重疊。 */
+export function doTimeRangesOverlap(
+  start1: string,
+  end1: string,
+  start2: string,
+  end2: string,
+): boolean {
+  const wrap = (s: number, e: number) => (e < s ? e + 1440 : e);
+  const s1 = timeToMinutes(start1);
+  const e1 = wrap(s1, timeToMinutes(end1));
+  const s2 = timeToMinutes(start2);
+  const e2 = wrap(s2, timeToMinutes(end2));
+  return s1 < e2 && s2 < e1;
 }
 
 /** 計算班次的實際工時（小時），支援跨午夜 */

@@ -704,4 +704,63 @@ describe('generateAutoRoster', () => {
     const nurseRow = result.finalCompliance.find((r) => r.position === '註冊/登記護士')!;
     expect(nurseRow.specificSlotOk).toBe(true);
   });
+
+  it('falls back to unassigned zone when all stations are forbidden', () => {
+    const forbiddenShift: StationShiftSetting = {
+      ...shiftSetting,
+      id: 's-forbidden',
+      station_id: 'station-a',
+      position: '護士/保健員',
+      shift_name: '早班',
+      start_time: '07:00',
+    } as unknown as StationShiftSetting;
+    const unassignedShift: StationShiftSetting = {
+      ...shiftSetting,
+      id: 's-unassigned',
+      station_id: null,
+      position: '護士/保健員',
+      shift_name: '早班',
+      start_time: '07:00',
+      sort_order: 2,
+    } as unknown as StationShiftSetting;
+    const nurse: UserProfile = {
+      ...user,
+      id: 'r1',
+      username: 'r1',
+      name_zh: '護士1',
+      nursing_position: '註冊護士',
+    } as unknown as UserProfile;
+    const nurseDetails: UserEmploymentDetails = {
+      ...details,
+      id: 'd-r1',
+      user_id: 'r1',
+      stations_forbidden: ['station-a'],
+    } as unknown as UserEmploymentDetails;
+
+    const nurseStaffing: StaffingResult = {
+      grid: Array.from({ length: 24 }, () => [0, 0, 0, 0, 0, 0, 0]),
+      dailySummaries: [],
+    };
+    for (let h = 7; h < 20; h++) nurseStaffing.grid[h][1] = 1;
+
+    const result = generateAutoRoster({
+      date: '2026-08-02',
+      position: '護士/保健員',
+      users: [nurse],
+      employmentDetails: { r1: nurseDetails },
+      stations: [{ id: 'station-a', name: 'A區' }],
+      stationPriority: ['station-a', null],
+      shiftSettings: [forbiddenShift, unassignedShift],
+      existingAssignments: [],
+      dailyRequirements: [
+        { position: '註冊/登記護士', hours: 8, peakHeadcount: 1 },
+      ],
+      staffingResult: nurseStaffing,
+      specific,
+    });
+
+    expect(result.insertions.length).toBe(1);
+    expect(result.insertions[0].station_id).toBeNull();
+    expect(result.insertions[0].shift_name).toBe('早班');
+  });
 });

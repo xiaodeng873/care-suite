@@ -140,7 +140,6 @@ export function validateScheduledLeave(
 /** 計算目標月份的預估 DO / PRD 天數與 PH / SH 數目 */
 export function getRosterExpectedCounts(
   weeklyWorkDays: number | null,
-  restDayFraction: number,
   publicHolidays: PublicHoliday[],
   year: number,
   month: number,
@@ -150,7 +149,6 @@ export function getRosterExpectedCounts(
     weeklyWorkDays ?? 0,
     year,
     month,
-    restDayFraction,
     restDayStartDate ?? undefined,
   );
   const ph = getPublicHolidaysForMonth(publicHolidays, year, month, 'PH');

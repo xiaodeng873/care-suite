@@ -2,9 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { X, Search, Printer } from 'lucide-react';
 import type { Patient } from '../lib/database';
 import type { PrintContentMode } from '../utils/patientPrintBundleGenerator';
+import { ROSTER_PRINT_DEPARTMENTS } from '../utils/rosterPrintGenerator';
 import BedNumberImprint from './BedNumberImprint';
 
-export type PrintDocumentCategory = '入住文件' | '常用表格' | '床頭記錄' | '統計報表';
+export type PrintDocumentCategory = '入住文件' | '常用表格' | '床頭記錄' | '統計報表' | '排班管理';
 
 export interface PrintDocumentOption {
   id: string;
@@ -63,9 +64,12 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
   { id: 'drug_sensitivity_statistics_report', name: '藥物敏感報表', category: '統計報表', defaultChecked: false },
   { id: 'diaper_statistics_report', name: '尿片統計報表', category: '統計報表', defaultChecked: false },
   { id: 'fee_statistics_report', name: '雜費記錄報表', category: '統計報表', defaultChecked: false },
+  // 排班管理
+  { id: 'roster_pre_schedule', name: '假期預排表', category: '排班管理', defaultChecked: true },
+  { id: 'roster_schedule', name: '排班表', category: '排班管理', defaultChecked: true },
 ];
 
-const TAB_ORDER: PrintDocumentCategory[] = ['入住文件', '常用表格', '床頭記錄', '統計報表'];
+const TAB_ORDER: PrintDocumentCategory[] = ['入住文件', '常用表格', '床頭記錄', '統計報表', '排班管理'];
 
 export interface PrintDocumentOptions {
   /** Excel 匯出時，是否按院友分開工作表；false 則全部院友堆在同一張工作表 */
@@ -80,6 +84,28 @@ export interface PrintDocumentOptions {
   feeMonth?: string;
   /** 雜費記錄報表：當月無記錄的院友是否跳過不列印 */
   feeSkipEmptyPatients?: boolean;
+  /** 排班管理：要列印的部門 */
+  rosterDepartments?: string[];
+  /** 排班管理：每部門各一份 HTML 或綜合一份 */
+  rosterOutputMode?: 'separate' | 'combined';
+  /** 排班管理：預排表是否列印累積欄 */
+  rosterIncludeBalance?: boolean;
+  /** 排班管理：排班表是否列印達標檢查 */
+  rosterIncludeCompliance?: boolean;
+  /** 排班管理：被勾選的員工 id（只有這些員工會出現在輸出） */
+  rosterUserIds?: string[];
+  /** 排班管理：列印月份（YYYY-MM），兩份文件統一使用 */
+  rosterYearMonth?: string;
+}
+
+/** 排班管理 tab 左側員工欄的項目 */
+export interface RosterEmployeeItem {
+  id: string;
+  name: string;
+  /** 右側小字（例如職位） */
+  detail?: string;
+  /** 所屬部門（篩選用） */
+  department?: string;
 }
 
 interface PatientPrintModalProps {
@@ -91,6 +117,8 @@ interface PatientPrintModalProps {
   initialSelectedDocumentIds?: string[];
   initialStartDate?: string;
   initialEndDate?: string;
+  /** 提供此 prop 才會出現「排班管理」tab，左側欄改為員工勾選 */
+  rosterEmployees?: RosterEmployeeItem[];
 }
 
 const CONTENT_MODE_OPTIONS: { value: PrintContentMode; label: string }[] = [
@@ -108,6 +136,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
   initialSelectedDocumentIds,
   initialStartDate,
   initialEndDate,
+  rosterEmployees,
 }) => {
   const [activeTab, setActiveTab] = useState<PrintDocumentCategory>(initialTab ?? '入住文件');
   const [patientSearch, setPatientSearch] = useState('');
@@ -126,6 +155,11 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
     if (initialSelectedDocumentIds) {
       PRINT_DOCUMENTS.forEach(doc => {
         if (!doc.disabled && initialSelectedDocumentIds.includes(doc.id)) initial.add(doc.id);
+      });
+    } else if (initialTab === '排班管理') {
+      // 排班管理 tab 依 defaultChecked 預設勾選（此入口無院友文件）
+      PRINT_DOCUMENTS.forEach(doc => {
+        if (!doc.disabled && doc.category === '排班管理' && doc.defaultChecked) initial.add(doc.id);
       });
     }
     return initial;
@@ -161,6 +195,21 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
   // 雜費記錄報表月份（預設當月）
   const [feeMonth, setFeeMonth] = useState(currentMonth);
   const [feeSkipEmptyPatients, setFeeSkipEmptyPatients] = useState(false);
+
+  // 排班管理 tab 選項
+  const [rosterDepartments, setRosterDepartments] = useState<Set<string>>(() => new Set(ROSTER_PRINT_DEPARTMENTS));
+  const [rosterOutputMode, setRosterOutputMode] = useState<'separate' | 'combined'>('combined');
+  const [rosterIncludeBalance, setRosterIncludeBalance] = useState(true);
+  const [rosterIncludeCompliance, setRosterIncludeCompliance] = useState(false);
+  // 排班管理 tab：列印月份（YYYY-MM，預設當月）
+  const [rosterYearMonth, setRosterYearMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  // 排班管理 tab：員工勾選（預設全選）
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [employeePositionFilter, setEmployeePositionFilter] = useState('');
+  const [employeeDepartmentFilter, setEmployeeDepartmentFilter] = useState('');
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(
+    () => new Set((rosterEmployees ?? []).map(e => e.id)),
+  );
 
   const [residencyFilter, setResidencyFilter] = useState<string>('');
 
@@ -231,14 +280,67 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
   const hasDiaperReport = checkedDocuments.has('diaper_statistics_report');
   const hasFeeReport = checkedDocuments.has('fee_statistics_report');
 
+  // 排班管理 tab：院友選擇與日期範圍不適用
+  const isRosterTab = activeTab === '排班管理';
+  const ROSTER_DOCUMENT_IDS = new Set(['roster_pre_schedule', 'roster_schedule']);
+  const hasRosterDoc = Array.from(checkedDocuments).some(id => ROSTER_DOCUMENT_IDS.has(id));
+
+  const toggleRosterDepartment = (dept: string) => {
+    const next = new Set(rosterDepartments);
+    if (next.has(dept)) next.delete(dept); else next.add(dept);
+    setRosterDepartments(next);
+  };
+
+  // 排班管理 tab：員工清單（文字搜尋 + 按職位/部門篩選）
+  const employeePositionOptions = useMemo(
+    () => Array.from(new Set((rosterEmployees ?? []).map(e => e.detail).filter((d): d is string => !!d))),
+    [rosterEmployees],
+  );
+  const employeeDepartmentOptions = useMemo(
+    () => Array.from(new Set((rosterEmployees ?? []).map(e => e.department).filter((d): d is string => !!d))),
+    [rosterEmployees],
+  );
+  const filteredEmployees = useMemo(() => {
+    const list = rosterEmployees ?? [];
+    const term = employeeSearch.trim().toLowerCase();
+    return list.filter(e => {
+      if (employeePositionFilter && e.detail !== employeePositionFilter) return false;
+      if (employeeDepartmentFilter && e.department !== employeeDepartmentFilter) return false;
+      if (!term) return true;
+      return e.name.toLowerCase().includes(term) || (e.detail ?? '').toLowerCase().includes(term);
+    });
+  }, [rosterEmployees, employeeSearch, employeePositionFilter, employeeDepartmentFilter]);
+
+  const toggleEmployee = (id: string) => {
+    const next = new Set(selectedEmployeeIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedEmployeeIds(next);
+  };
+
+  const toggleAllEmployees = (checked: boolean) => {
+    if (checked) {
+      setSelectedEmployeeIds(new Set(filteredEmployees.map(e => e.id)));
+    } else {
+      setSelectedEmployeeIds(new Set());
+    }
+  };
+
   const handlePrint = () => {
     const selected = patients.filter(p => selectedPatientIds.has(p.院友id));
-    if (selected.length === 0) {
+    if (!isRosterTab && selected.length === 0) {
       alert('請先選擇院友');
       return;
     }
     if (checkedDocuments.size === 0) {
       alert('請先勾選文件');
+      return;
+    }
+    if (isRosterTab && rosterDepartments.size === 0) {
+      alert('請先勾選部門');
+      return;
+    }
+    if (isRosterTab && selectedEmployeeIds.size === 0) {
+      alert('請先勾選員工');
       return;
     }
     // 列印時也確保 startDate 不大於 endDate
@@ -247,7 +349,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
     if (effectiveStartDate && effectiveEndDate && effectiveStartDate > effectiveEndDate) {
       [effectiveStartDate, effectiveEndDate] = [effectiveEndDate, effectiveStartDate];
     }
-    const printOptions: PrintDocumentOptions | undefined = (hasVaccinationRecord || hasStatisticsReport || hasFeeReport)
+    const printOptions: PrintDocumentOptions | undefined = (hasVaccinationRecord || hasStatisticsReport || hasFeeReport || hasRosterDoc)
       ? {
           separateSheetsPerPatient,
           separateSheetsPerStation,
@@ -256,6 +358,18 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
             : {}),
           ...(hasFeeReport
             ? { feeMonth, feeSkipEmptyPatients }
+            : {}),
+          ...(hasRosterDoc
+            ? {
+                rosterDepartments: ROSTER_PRINT_DEPARTMENTS.filter(d => rosterDepartments.has(d)),
+                rosterOutputMode,
+                rosterIncludeBalance,
+                rosterIncludeCompliance,
+                rosterUserIds: (rosterEmployees ?? [])
+                  .map(e => e.id)
+                  .filter(id => selectedEmployeeIds.has(id)),
+                rosterYearMonth,
+              }
             : {}),
         }
       : undefined;
@@ -276,40 +390,118 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
         </div>
 
         <div className="p-4 border-b border-gray-200 space-y-3">
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">日期範圍：</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={e => setStartDate(e.target.value)}
-              className="form-input text-sm"
-              placeholder="入住日期"
-            />
-            <span className="text-sm text-gray-500">至</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={e => setEndDate(e.target.value)}
-              className="form-input text-sm"
-            />
-            <span className="text-xs text-gray-500">（預設最近一個月）</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">列印內容：</label>
-            {CONTENT_MODE_OPTIONS.map(option => (
-              <label key={option.value} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+          {!isRosterTab && (
+            <>
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">日期範圍：</label>
                 <input
-                  type="radio"
-                  name="print-content-mode"
-                  value={option.value}
-                  checked={contentMode === option.value}
-                  onChange={() => setContentMode(option.value)}
-                  className="h-4 w-4"
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  className="form-input text-sm"
+                  placeholder="入住日期"
                 />
-                {option.label}
-              </label>
-            ))}
-          </div>
+                <span className="text-sm text-gray-500">至</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  className="form-input text-sm"
+                />
+                <span className="text-xs text-gray-500">（預設最近一個月）</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">列印內容：</label>
+                {CONTENT_MODE_OPTIONS.map(option => (
+                  <label key={option.value} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="print-content-mode"
+                      value={option.value}
+                      checked={contentMode === option.value}
+                      onChange={() => setContentMode(option.value)}
+                      className="h-4 w-4"
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+          {isRosterTab && (
+            <>
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">列印月份：</label>
+                <input
+                  type="month"
+                  value={rosterYearMonth}
+                  onChange={e => setRosterYearMonth(e.target.value)}
+                  className="form-input text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">部門：</label>
+                {ROSTER_PRINT_DEPARTMENTS.map(dept => (
+                  <label key={dept} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rosterDepartments.has(dept)}
+                      onChange={() => toggleRosterDepartment(dept)}
+                      className="h-4 w-4"
+                    />
+                    {dept}
+                  </label>
+                ))}
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">輸出模式：</label>
+                <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="roster-output-mode"
+                    value="separate"
+                    checked={rosterOutputMode === 'separate'}
+                    onChange={() => setRosterOutputMode('separate')}
+                    className="h-4 w-4"
+                  />
+                  每部門各一份 HTML
+                </label>
+                <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="roster-output-mode"
+                    value="combined"
+                    checked={rosterOutputMode === 'combined'}
+                    onChange={() => setRosterOutputMode('combined')}
+                    className="h-4 w-4"
+                  />
+                  綜合一份 HTML
+                </label>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">選項：</label>
+                <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={rosterIncludeBalance}
+                    onChange={e => setRosterIncludeBalance(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  列印累積欄（預排表）
+                </label>
+                <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={rosterIncludeCompliance}
+                    onChange={e => setRosterIncludeCompliance(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  列印達標檢查（排班表）
+                </label>
+              </div>
+              <p className="text-xs text-gray-500">兩份文件統一使用「列印月份」的資料；預排表 A4 橫向，排班表 A4 直向。</p>
+            </>
+          )}
           {hasVaccinationRecord && (
             <div className="flex items-center gap-4">
               <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Excel 工作表：</label>
@@ -380,7 +572,8 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-          {/* 左側：院友選擇 */}
+          {/* 左側：院友選擇（排班管理 tab 改為員工選擇） */}
+          {!isRosterTab && (
           <div className="lg:w-1/3 border-r border-gray-200 flex flex-col">
             <div className="p-3 border-b border-gray-200 space-y-2">
               <div className="relative">
@@ -425,12 +618,71 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
               ))}
             </div>
           </div>
+          )}
+          {isRosterTab && (
+          <div className="lg:w-1/3 border-r border-gray-200 flex flex-col">
+            <div className="p-3 border-b border-gray-200 space-y-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="搜索員工..."
+                  value={employeeSearch}
+                  onChange={e => setEmployeeSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded"
+                />
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={employeePositionFilter}
+                  onChange={e => setEmployeePositionFilter(e.target.value)}
+                  className="flex-1 text-sm border border-gray-300 rounded py-2 px-3"
+                >
+                  <option value="">全部職位</option>
+                  {employeePositionOptions.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+                <select
+                  value={employeeDepartmentFilter}
+                  onChange={e => setEmployeeDepartmentFilter(e.target.value)}
+                  className="flex-1 text-sm border border-gray-300 rounded py-2 px-3"
+                >
+                  <option value="">全部部門</option>
+                  {employeeDepartmentOptions.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="p-3 border-b border-gray-200 flex items-center gap-2 text-sm">
+              <button onClick={() => toggleAllEmployees(true)} className="text-blue-600 hover:underline">全選</button>
+              <span className="text-gray-400">|</span>
+              <button onClick={() => toggleAllEmployees(false)} className="text-blue-600 hover:underline">取消全選</button>
+              <span className="ml-auto text-gray-500">已選 {selectedEmployeeIds.size} 人</span>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {filteredEmployees.map(employee => (
+                <label key={employee.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedEmployeeIds.has(employee.id)}
+                    onChange={() => toggleEmployee(employee.id)}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-sm">{employee.name}</span>
+                  {employee.detail && <span className="text-xs text-gray-500 ml-auto">{employee.detail}</span>}
+                </label>
+              ))}
+            </div>
+          </div>
+          )}
 
           {/* 右側：文件選擇 */}
           <div className="flex-1 flex flex-col">
             <div className="border-b border-gray-200">
               <div className="flex">
-                {TAB_ORDER.map(tab => (
+                {TAB_ORDER.filter(tab => tab !== '排班管理' || rosterEmployees).map(tab => (
                   <button
                     key={tab}
                     onClick={() => handleTabChange(tab)}
@@ -487,11 +739,11 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
           <button onClick={onClose} className="btn-secondary px-4 py-2">取消</button>
           <button
             onClick={handlePrint}
-            disabled={selectedCount === 0 || checkedCount === 0}
+            disabled={isRosterTab ? (checkedCount === 0 || rosterDepartments.size === 0 || selectedEmployeeIds.size === 0) : (selectedCount === 0 || checkedCount === 0)}
             className="btn-primary flex items-center gap-2 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Printer className="h-4 w-4" />
-            列印 ({selectedCount} 位院友)
+            {isRosterTab ? '列印' : `列印 (${selectedCount} 位院友)`}
           </button>
         </div>
       </div>
