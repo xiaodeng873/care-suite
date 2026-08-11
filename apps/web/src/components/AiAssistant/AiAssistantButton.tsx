@@ -17,17 +17,17 @@ export const AiAssistantButton: React.FC = () => {
         {...aiAssistant}
       />
 
-      {/* Floating Action Button */}
+      {/* Floating Action Button — 對話框打開時隱藏，避免遮住右下角傳送鈕 */}
       <button
         onClick={() => setIsOpen(prev => !prev)}
         className={`fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition-all duration-300 hover:scale-110 active:scale-95 ${
           isOpen
-            ? 'bg-gray-700 hover:bg-gray-800 text-white rotate-0'
+            ? 'hidden'
             : 'bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white'
         }`}
-        title={isOpen ? '關閉 AI 助護' : '開啟 AI 助護'}
+        title="開啟 AI 助護"
       >
-        {isOpen ? '✕' : <NurseIcon size={32} />}
+        <NurseIcon size={32} />
       </button>
     </Portal>
   );

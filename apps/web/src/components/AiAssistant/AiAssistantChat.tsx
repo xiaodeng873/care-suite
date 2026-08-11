@@ -333,7 +333,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
       style={{ fontFamily: 'inherit' }}
     >
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pl-4 pr-12 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shrink-0">
           <div className="flex items-center gap-2">
             <NurseIcon size={28} />
             <span className="font-semibold text-sm">AI 助護</span>
@@ -346,15 +346,21 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
             >
               🗑️
             </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 hover:bg-white/20 rounded-lg transition-colors text-xs"
-              title="關閉"
-            >
-              ✕
-            </button>
           </div>
         </div>
+
+        {/* 對話框右上角關閉鈕 */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 z-10 p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+          title="關閉"
+          aria-label="關閉"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
 
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3">
