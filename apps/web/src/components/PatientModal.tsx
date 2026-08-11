@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, User, Upload, Camera, Trash2, LogOut, LogIn, Calendar } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import { type PatientContact, createPatientContact, type VaccinationRecord } from '../lib/database';
@@ -15,9 +15,19 @@ import PatientNursingAssessmentSection from './PatientNursingAssessmentSection';
 interface PatientModalProps {
   patient?: any;
   onClose: () => void;
+  /** 新增院友時的身份證 OCR 預填資料（欄位同 OCRIDCardBlock 的提取結果） */
+  ocrPrefill?: {
+    中文姓名?: string;
+    英文姓名?: string;
+    身份證號碼?: string;
+    出生日期?: string;
+    性別?: string;
+  };
+  /** AI 助護帶入的身份證圖（base64 data URL），新增提交時一併寫入「身份證相片」欄 */
+  idCardImage?: string;
 }
 
-const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
+const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefill, idCardImage }) => {
   const { addPatient, updatePatient, stations, beds, patients, vaccinationRecords: allVaccinationRecords, addVaccinationRecord, updateVaccinationRecord, deleteVaccinationRecord } = usePatientData();
   const [activeSubTab, setActiveSubTab] = useState<'basic' | 'contacts' | 'social' | 'medical' | 'services'>('basic');
   const [activeMainTab, setActiveMainTab] = useState<'personal' | 'nursing'>('personal');
@@ -193,6 +203,14 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
   const handleOCRError = (error: string) => {
     setOcrError(error);
   };
+
+  // AI 助護身份證預填：新增院友時把 OCR 結果帶入表單（只套用一次）
+  const ocrPrefillAppliedRef = useRef(false);
+  useEffect(() => {
+    if (patient || !ocrPrefill || ocrPrefillAppliedRef.current) return;
+    ocrPrefillAppliedRef.current = true;
+    handleOCRComplete(ocrPrefill);
+  }, [patient, ocrPrefill]);
 
   // 格式化香港身份證號碼：自動大寫、括號包裹最後一碼
   const formatHKID = (raw: string): string => {
@@ -554,7 +572,10 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
           ...sanitizedFormData
         });
       } else {
-        const newPatient = await addPatient(sanitizedFormData);
+        const newPatient = await addPatient({
+          ...sanitizedFormData,
+          ...(idCardImage ? { 身份證相片: idCardImage } : {}),
+        });
         const newPatientId = newPatient.院友id;
 
         // 新增院友時同時寫入疫苗記錄
@@ -704,6 +725,14 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
           {ocrError && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
               <div className="text-red-600 text-sm">{ocrError}</div>
+            </div>
+          )}
+
+          {/* AI 助護帶入的身份證圖：新增提交時一併留檔到「身份證相片」欄 */}
+          {!patient && idCardImage && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+              <img src={idCardImage} alt="身份證圖" className="h-10 rounded border border-gray-200" />
+              <span>已附加身份證圖，新增院友後將一併留檔到「身份證相片」欄。</span>
             </div>
           )}
 

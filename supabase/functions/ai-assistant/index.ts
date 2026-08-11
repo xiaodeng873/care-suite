@@ -410,7 +410,9 @@ ${hasImage ? `
 3. **診斷記錄（diagnosis）**— 診斷書、檢查報告、化驗結果。關鍵詞：診斷、Diagnosis、ICD code
 4. **疫苗記錄（vaccination）**— 疫苗注射記錄、疫苗卡。關鍵詞：疫苗名稱、注射日期、批次號
 5. **新增院友 / 身份證（id_card）**— 香港身份證（HKID）正面或反面。關鍵詞：Hong Kong Identity Card、香港身份證、HKID、姓名、出生日期、性別
-6. **其他（other）**— 無法歸類的文件
+6. **監測工作紙（health_worksheet）**— 生命表徵 / 健康監測記錄表，通常是表格形式，每行一位院友。關鍵詞：監測工作紙、生命表徵記錄表、血壓、血糖、脈搏、床號、批量記錄
+7. **院友人像相片（portrait）**— 院友正面人像、大頭照。畫面主要是一個人的面部或半身像，沒有文件或表格文字內容
+8. **其他（other）**— 無法歸類的文件
 
 ### 提取規則：
 - 圖片中所有可辨識的文字都要盡量提取
@@ -427,7 +429,7 @@ ${hasImage ? `
 \`\`\`json
 {
   "type": "image_analysis",
-  "document_type": "followup|prescription|diagnosis|vaccination|id_card|other",
+  "document_type": "followup|prescription|diagnosis|vaccination|id_card|health_worksheet|portrait|other",
   "extracted_data": {
     // 根據文件類型提取的結構化資料（見下方各類型欄位）
   },
@@ -465,6 +467,18 @@ ${hasImage ? `
 - 身份證號碼（HKID，含校驗碼括號，例如 A123456(7)）
 - 出生日期（YYYY-MM-DD）
 - 性別（男 或 女）
+
+#### 監測工作紙 (health_worksheet)：
+- extracted_data 是一個 JSON 陣列（不是物件），每個元素代表工作紙上一位院友的一行記錄：
+  [{"床號": "A101", "院友姓名": "王大明", "記錄日期": "2026-07-01", "記錄時間": "08:00", "收縮壓": 120, "舒張壓": 80, "脈搏": 72, "血糖值": 6.5, "備註": ""}]
+- 只輸出有值的欄位，無法辨識的欄位直接省略，不要輸出 null 或空字串
+- 所有數值用數字類型（非字串）；血糖值保留一位小數
+- 此類型不需要 comparison_query，suggested_action 用 "none"
+
+#### 院友人像相片 (portrait)：
+- 通常沒有文字可提取，extracted_data 可以是空物件 {}
+- 如果圖片中附有姓名或床號等文字線索，放入 院友姓名 / 床號 欄位
+- 此類型不需要 comparison_query，suggested_action 用 "none"
 
 ### 比對查詢 SQL (comparison_query)：
 在 comparison_query 中生成一個 SELECT 來查找可能匹配的現有記錄，例如：
@@ -694,13 +708,14 @@ async function handleImageChat(message, imageBase64, imageMimeType, systemPrompt
   // Step 2: Smart patient identification — use ALL extracted clues to find matching patient
   let matchedPatient = null;
   let patientMatchCandidates = [];
-  if (analysisResponse.document_type !== "other") {
+  if (analysisResponse.document_type !== "other" && analysisResponse.document_type !== "health_worksheet") {
     const ed = analysisResponse.extracted_data || {};
     // Helper: detect if a string is Latin/English (no CJK characters)
     const isEnglishStr = (s: string) => /^[A-Za-z\s,.\-']+$/.test(s.trim());
     // Gather all possible patient identifiers from ALL extracted_data fields
     let chineseName = "";
     let englishName = "";
+    let bedNo = "";
     const hkid = ed.身份證號碼 || ed.HKID || "";
     // Collect all name-like fields
     const nameFields = [ed.中文姓名, ed.院友姓名, ed.姓名, ed.patient_name, ed.name];
@@ -720,14 +735,23 @@ async function handleImageChat(message, imageBase64, imageMimeType, systemPrompt
         if (!englishName) englishName = n.trim();
       }
     }
+    // Bed number clue extracted from image (e.g. portrait with a bed label)
+    if (ed.床號 && typeof ed.床號 === "string") bedNo = ed.床號.trim();
     // Also try to extract patient name from the user message as a fallback
-    if (!chineseName && !englishName && message) {
+    // (strip the frontend's default image-upload boilerplate first)
+    const msgForClues = (message || "").replace(/請分析這張圖片（第 \d+\/\d+ 張）|請分析這張圖片/g, "").trim();
+    if (!chineseName && !englishName && msgForClues) {
       // Match Chinese names (2-4 CJK chars)
-      const cnMatch = message.match(/([\u4e00-\u9fff]{2,4})/);
+      const cnMatch = msgForClues.match(/([\u4e00-\u9fff]{2,4})/);
       if (cnMatch) chineseName = cnMatch[1];
       // Match English names like "CHOW Mei Wan" or "CHAN, Pui Hing"
-      const enMatch = message.match(/([A-Z][a-z]*(?:\s+[A-Z][a-z]*){1,3})/);
+      const enMatch = msgForClues.match(/([A-Z][a-z]*(?:\s+[A-Z][a-z]*){1,3})/);
       if (enMatch) englishName = enMatch[1];
+    }
+    // Portrait photos carry no text clues — also match a bed number from the user message
+    if (!bedNo && analysisResponse.document_type === "portrait" && msgForClues) {
+      const bedMatch = msgForClues.match(/([A-Za-z]{1,2}\d{2,4}[A-Za-z]?)/);
+      if (bedMatch) bedNo = bedMatch[1].toUpperCase();
     }
     // Helper: strip OCR placeholder characters (X, x, *, ?) to get real name chars
     const stripPlaceholders = (s: string) => s.replace(/[Xx*?✕✖]+/g, "").trim();
@@ -752,6 +776,10 @@ async function handleImageChat(message, imageBase64, imageMimeType, systemPrompt
     // HKID — search each real segment
     for (const seg of hkidRealSegments) {
       conditions.push(`REPLACE(REPLACE("身份證號碼", '(', ''), ')', '') ILIKE '%${seg}%'`);
+    }
+    // Bed number (from image label or user message — portrait fallback)
+    if (bedNo) {
+      conditions.push(`UPPER("床號") = '${bedNo.toUpperCase().replace(/'/g, "''")}'`);
     }
     // Chinese name — full clean name match if we have 2+ real chars
     if (cnClean.length >= 2) {
@@ -807,6 +835,10 @@ async function handleImageChat(message, imageBase64, imageMimeType, systemPrompt
                 else if (posMatch >= 2) score += 20;
               }
             }
+          }
+          // --- Bed number scoring ---
+          if (bedNo && (candidate.床號 || "").toUpperCase() === bedNo.toUpperCase()) {
+            score += 40;
           }
           // --- Chinese name scoring ---
           if (cnClean && cName) {
@@ -998,11 +1030,15 @@ async function handleImageChat(message, imageBase64, imageMimeType, systemPrompt
     diagnosis: "診斷記錄",
     vaccination: "疫苗記錄",
     id_card: "身份證 / 新增院友",
+    health_worksheet: "監測工作紙",
+    portrait: "院友相片",
     other: "其他文件"
   };
   const docLabel = docTypeLabels[analysisResponse.document_type] || "文件";
   let summaryPrompt;
   const isIdCard = analysisResponse.document_type === "id_card";
+  const isWorksheet = analysisResponse.document_type === "health_worksheet";
+  const isPortrait = analysisResponse.document_type === "portrait";
   // Build patient context string for non-id_card types
   const patientContext = matchedPatient ? `\n\n✅ 系統已自動識別此文件屬於院友：${matchedPatient.中文姓氏 || ""}${matchedPatient.中文名字 || matchedPatient.中文姓名 || "未知"}（床號：${matchedPatient.床號 || "無"}，在住狀態：${matchedPatient.在住狀態 || "未知"}）` : "";
   // Role/tone instruction — shared across all summary prompts
@@ -1011,7 +1047,42 @@ async function handleImageChat(message, imageBase64, imageMimeType, systemPrompt
 - 用第三人稱稱呼院友，例如「王洪晏院友」「該院友」，絕不用「您好」「您的」
 - 不要出現「個人檔案」，這裡叫「系統記錄」或直接說「覆診記錄」「處方記錄」等
 - 語氣專業簡潔，像護理同事之間的工作溝通`;
-  if (existingRecords.length > 0) {
+  if (isWorksheet) {
+    const worksheetRecords = Array.isArray(analysisResponse.extracted_data) ? analysisResponse.extracted_data : [];
+    summaryPrompt = `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張「監測工作紙」圖片。
+${toneRule}
+
+已從工作紙中提取 ${worksheetRecords.length} 筆監測記錄：
+${JSON.stringify(worksheetRecords.slice(0, 30), null, 2)}
+
+請用繁體中文：
+1. 簡要列出每位院友的監測數值（床號、姓名、血壓/脈搏/血糖等，有值的才列）
+2. 告知護理人員可點擊下方按鈕開啟「監測記錄核對」表單，逐筆核對並儲存
+3. 如果有欄位缺失或模糊之處，提醒在表單中人手補填
+
+直接用自然語言回答，不要返回 JSON。`;
+  } else if (isPortrait) {
+    summaryPrompt = matchedPatient ? `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張院友人像相片。
+${toneRule}
+
+系統已根據線索匹配到院友：${matchedPatient.中文姓氏 || ""}${matchedPatient.中文名字 || matchedPatient.中文姓名 || "未知"}（床號：${matchedPatient.床號 || "無"}，在住狀態：${matchedPatient.在住狀態 || "未知"}）
+
+請用繁體中文：
+1. 說明已識別此相片屬於該院友（顯示姓名和床號）
+2. 告知護理人員可點擊下方「設為院友相片」按鈕，將此相片儲存為該院友的院友相片
+3. 如果匹配可能不正確，提醒先核對院友身份
+
+直接用自然語言回答，不要返回 JSON。` : `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張院友人像相片。
+${toneRule}
+
+系統未能自動匹配到對應的院友（人像相片本身沒有文字線索）。
+
+請用繁體中文：
+1. 說明已收到人像相片，但無法確定是哪位院友
+2. 請護理人員在訊息中註明院友姓名或床號，然後重新上傳相片
+
+直接用自然語言回答，不要返回 JSON。`;
+  } else if (existingRecords.length > 0) {
     summaryPrompt = isIdCard ? `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張身份證圖片，希望新增院友。
 ${toneRule}
 
@@ -1126,6 +1197,7 @@ ${JSON.stringify(analysisResponse.extracted_data, null, 2)}
       documentType: analysisResponse.document_type,
       extractedData: analysisResponse.extracted_data,
       matchedPatient: matchedPatient ? {
+        院友id: matchedPatient.院友id,
         中文姓名: `${matchedPatient.中文姓氏 || ""}${matchedPatient.中文名字 || ""}` || matchedPatient.中文姓名,
         床號: matchedPatient.床號,
         在住狀態: matchedPatient.在住狀態

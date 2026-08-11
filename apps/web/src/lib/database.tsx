@@ -16,6 +16,7 @@ export interface Patient {
   身份證號碼: string;
   出生日期?: string;
   院友相片?: string;
+  身份證相片?: string;
   藥物敏感?: string[];
   不良藥物反應?: string[];
   感染控制?: string[];
@@ -1260,8 +1261,9 @@ export const getPatients = async (): Promise<Patient[]> => {
   }));
 };
 
-// 院友主表欄位清單（排除 院友相片）。相片係 base64，佔全表流量約九成，
-// 初始載入用 light 版本（實測 3459ms/5.1MB → 約 400ms/0.3MB），相片背景補載。
+// 院友主表欄位清單（排除 院友相片、身份證相片）。兩者皆係 base64，佔全表流量約九成，
+// 初始載入用 light 版本（實測 3459ms/5.1MB → 約 400ms/0.3MB），院友相片背景補載；
+// 身份證相片只喺留檔時寫入，日常畫面毋需讀取，故唔補載。
 // ⚠️ 院友主表 新增欄位時請同步加入此清單；dev 模式會自動對比並 console.warn。
 // （PostgREST 唔支援排除欄位語法，OpenAPI spec endpoint 又只限 service_role，所以只能列明。）
 const PATIENTS_LIGHT_COLUMNS = '院友id,床號,中文姓名,英文姓名,性別,身份證號碼,出生日期,藥物敏感,不良藥物反應,感染控制,入住日期,退住日期,護理等級,入住類型,社會福利,在住狀態,中文姓氏,中文名字,英文姓氏,英文名字,station_id,bed_id,is_hospitalized,discharge_reason,death_date,transfer_facility_name,needs_medication_crushing,qr_code_id,公務員,通訊電話,通訊地址,教育程度,從前主要職業,宗教信仰,婚姻狀況,首次記錄職員姓名,首次記錄職級,首次記錄簽署,首次記錄日期,social_status_json,medical_history_json,vaccination_records_json,medical_services_json,nursing_assessment_json,last_station_id,last_bed_id,original_bed_id,original_station_id,bed_transfer_type,temporary_transfer_started_at';
@@ -1274,7 +1276,7 @@ const checkPatientsLightColumnsDrift = async (): Promise<void> => {
   try {
     const { data, error } = await supabase.from('院友主表').select('*').limit(1);
     if (error || !data?.length) return;
-    const expected = new Set([...PATIENTS_LIGHT_COLUMNS.split(','), '院友相片']);
+    const expected = new Set([...PATIENTS_LIGHT_COLUMNS.split(','), '院友相片', '身份證相片']);
     const missing = Object.keys(data[0]).filter(c => !expected.has(c));
     if (missing.length) {
       console.warn(`[getPatientsLight] 院友主表 有新欄位未加入 PATIENTS_LIGHT_COLUMNS：${missing.join(', ')}，請更新 database.tsx`);

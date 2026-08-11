@@ -163,18 +163,24 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
               </label>
               <div className="relative">
                 <input
-                  id="idcard-file-input"
+                  id="idcard-file-input-camera"
                   type="file"
                   accept="image/*"
                   capture="environment"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                <label
-                  htmlFor="idcard-file-input"
+                <input
+                  id="idcard-file-input-album"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <div
                   onDrop={handleDrop}
                   onDragOver={(e) => e.preventDefault()}
-                  className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-colors relative"
+                  className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors relative"
                 >
                   {imagePreview ? (
                     <div className="relative w-full h-full">
@@ -198,14 +204,25 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
                   ) : (
                     <div className="flex flex-col items-center">
                       <Upload className="h-10 w-10 text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-600 mb-2">點擊選擇或拖放圖片</p>
+                      <p className="text-sm text-gray-600 mb-2">拍照或選擇相簿圖片</p>
                       <p className="text-xs text-gray-500 mb-3">支援 JPG、PNG、WEBP 格式</p>
-                      <div className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors">
-                        選擇檔案
+                      <div className="flex gap-2">
+                        <label
+                          htmlFor="idcard-file-input-camera"
+                          className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors cursor-pointer"
+                        >
+                          拍照
+                        </label>
+                        <label
+                          htmlFor="idcard-file-input-album"
+                          className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
+                          相簿
+                        </label>
                       </div>
                     </div>
                   )}
-                </label>
+                </div>
               </div>
               {selectedFile && (
                 <p className="text-xs text-gray-600 mt-1">

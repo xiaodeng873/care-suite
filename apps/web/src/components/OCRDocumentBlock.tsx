@@ -271,23 +271,25 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
                     capture="environment"
                     onChange={handleFileSelect}
                     className="hidden"
-                    id={`ocr-file-input-${documentType}`}
+                    id={`ocr-file-input-${documentType}-camera`}
                     disabled={isProcessing}
                   />
-                  <label
-                    htmlFor={`ocr-file-input-${documentType}`}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id={`ocr-file-input-${documentType}-album`}
+                    disabled={isProcessing}
+                  />
+                  <div
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
-                    onClick={(e) => {
-                      if (imagePreview) {
-                        e.preventDefault();
-                      }
-                    }}
                     className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg transition-colors ${
                       imagePreview
                         ? 'border-green-300 bg-green-50'
-                        : 'border-gray-300 hover:border-blue-400 bg-white hover:bg-blue-50 cursor-pointer active:bg-blue-100'
-                    } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        : 'border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50'
+                    } ${isProcessing ? 'opacity-50' : ''}`}
                   >
                     {imagePreview ? (
                       <div className="relative w-full h-full p-2">
@@ -312,14 +314,25 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
                     ) : (
                       <div className="flex flex-col items-center">
                         <Upload className="h-10 w-10 text-gray-400 mb-2" />
-                        <p className="text-sm text-gray-600 mb-2">點擊選擇或拖放圖片</p>
+                        <p className="text-sm text-gray-600 mb-2">拍照或選擇相簿圖片</p>
                         <p className="text-xs text-gray-500 mb-3">支援 JPG、PNG、WEBP 格式</p>
-                        <div className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
-                          選擇檔案
+                        <div className="flex gap-2">
+                          <label
+                            htmlFor={`ocr-file-input-${documentType}-camera`}
+                            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+                          >
+                            拍照
+                          </label>
+                          <label
+                            htmlFor={`ocr-file-input-${documentType}-album`}
+                            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                          >
+                            相簿
+                          </label>
                         </div>
                       </div>
                     )}
-                  </label>
+                  </div>
                 </div>
                 {selectedFile && (
                   <p className="text-xs text-gray-600 mt-1">

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Camera, Upload, X, Loader, CheckCircle, AlertTriangle, Save, Trash2, Plus, RefreshCw } from 'lucide-react';
 import { processImageWithGeminiVision } from '../utils/ocrProcessor';
 import { usePatientData } from '../context/PatientContext';
@@ -21,6 +21,8 @@ interface ParsedHealthRecord {
 
 interface BatchHealthRecordOCRModalProps {
   onClose: () => void;
+  /** AI 助護預填：已從圖片提取的監測記錄（與 WORKSHEET_OCR_PROMPT 輸出同結構的陣列），提供時直接進入核對階段 */
+  initialRecords?: Record<string, unknown>[];
 }
 
 type Phase = 'idle' | 'processing' | 'review';
@@ -59,7 +61,7 @@ const parseNum = (v: string): number | undefined => {
   return isNaN(n) ? undefined : n;
 };
 
-const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ onClose }) => {
+const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ onClose, initialRecords }) => {
   const { patients, addHealthRecordsForSession } = usePatientData();
   const { displayName } = useAuth();
 
@@ -87,6 +89,42 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
     }
     return null;
   }, [patients]);
+
+  /** 把 OCR 提取的單行記錄（WORKSHEET_OCR_PROMPT 結構）轉為可核對的 ParsedHealthRecord */
+  const toParsedRecord = useCallback((r: Record<string, unknown>): ParsedHealthRecord | null => {
+    if (!r || typeof r !== 'object') return null;
+    const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+    const dateStr = str(r['記錄日期']);
+    const timeStr = str(r['記錄時間']);
+    const matched = matchPatient(str(r['床號']), str(r['院友姓名']));
+    const rec: ParsedHealthRecord = {
+      tempId: Math.random().toString(36).slice(2, 10),
+      院友id: matched ? Number(matched.院友id) : null,
+      記錄日期: dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+        ? dateStr : new Date().toISOString().split('T')[0],
+      記錄時間: timeStr && /^\d{2}:\d{2}$/.test(timeStr)
+        ? timeStr : '08:00',
+      matchedPatient: matched || null,
+    };
+    if (r['收縮壓'] != null) rec.血壓收縮壓 = Number(r['收縮壓']);
+    if (r['舒張壓'] != null) rec.血壓舒張壓 = Number(r['舒張壓']);
+    if (r['脈搏'] != null) rec.脈搏 = Number(r['脈搏']);
+    if (r['血糖值'] != null) rec.血糖值 = parseFloat(String(r['血糖值']));
+    if (r['備註']) rec.備註 = String(r['備註']);
+    return rec;
+  }, [matchPatient]);
+
+  // AI 助護預填：有 initialRecords 時直接進入核對階段（只套用一次）
+  const initialRecordsAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!initialRecords?.length || initialRecordsAppliedRef.current) return;
+    initialRecordsAppliedRef.current = true;
+    const recs = initialRecords.map(toParsedRecord).filter((r): r is ParsedHealthRecord => r !== null);
+    if (recs.length > 0) {
+      setParsedRecords(recs);
+      setPhase('review');
+    }
+  }, [initialRecords, toParsedRecord]);
 
   const handleFiles = useCallback((files: FileList | File[]) => {
     const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
@@ -124,23 +162,8 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
         const records: any[] = Array.isArray(raw) ? raw : (raw?.records ?? []);
 
         records.forEach((r: any) => {
-          if (!r || typeof r !== 'object') return;
-          const matched = matchPatient(r['床號'], r['院友姓名']);
-          const rec: ParsedHealthRecord = {
-            tempId: Math.random().toString(36).slice(2, 10),
-            院友id: matched ? Number(matched.院友id) : null,
-            記錄日期: typeof r['記錄日期'] === 'string' && r['記錄日期'].match(/^\d{4}-\d{2}-\d{2}$/)
-              ? r['記錄日期'] : new Date().toISOString().split('T')[0],
-            記錄時間: typeof r['記錄時間'] === 'string' && r['記錄時間'].match(/^\d{2}:\d{2}$/)
-              ? r['記錄時間'] : '08:00',
-            matchedPatient: matched || null,
-          };
-          if (r['收縮壓'] != null) rec.血壓收縮壓 = Number(r['收縮壓']);
-          if (r['舒張壓'] != null) rec.血壓舒張壓 = Number(r['舒張壓']);
-          if (r['脈搏'] != null) rec.脈搏 = Number(r['脈搏']);
-          if (r['血糖值'] != null) rec.血糖值 = parseFloat(String(r['血糖值']));
-          if (r['備註']) rec.備註 = String(r['備註']);
-          allRecords.push(rec);
+          const rec = toParsedRecord(r);
+          if (rec) allRecords.push(rec);
         });
       } catch (err: any) {
         lastError = err?.message || '識別過程出現錯誤';
@@ -155,7 +178,7 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
       setProcessingError(lastError || '未能識別任何記錄，請確認圖片清晰且包含監測數據。');
       setPhase('idle');
     }
-  }, [selectedFiles, matchPatient]);
+  }, [selectedFiles, toParsedRecord]);
 
   const updateRecord = useCallback((tempId: string, updates: Partial<ParsedHealthRecord>) => {
     setParsedRecords(prev => prev.map(r => r.tempId === tempId ? { ...r, ...updates } : r));
