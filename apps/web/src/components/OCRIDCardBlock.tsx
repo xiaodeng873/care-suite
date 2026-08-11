@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Camera, ChevronDown, ChevronUp, Upload, X, Loader, FileText, RefreshCw, CreditCard } from 'lucide-react';
 import { processImageWithGeminiVision, validateImageFile } from '../utils/ocrProcessor';
 import { getDefaultPrompt } from '../utils/promptManager';
+import ImageSourcePicker from './ImageSourcePicker';
 
 interface OCRIDCardBlockProps {
   onOCRComplete: (extractedData: any) => void;
@@ -17,14 +18,11 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
   const [ocrResult, setOcrResult] = useState<any>(null);
   const [showRawText, setShowRawText] = useState(false);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  /** 載入單張圖片（拍照/相簿/拖放共用） */
+  const loadFile = (file: File) => {
     const validation = validateImageFile(file);
     if (!validation.valid) {
       onOCRError(validation.error || '無效的圖片檔案');
-      e.target.value = '';
       return;
     }
 
@@ -34,26 +32,17 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
       setImagePreview(reader.result as string);
     };
     reader.readAsDataURL(file);
-    e.target.value = '';
+  };
+
+  const handlePickerSelect = (files: File[]) => {
+    const file = files[0];
+    if (file) loadFile(file);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    if (!file) return;
-
-    const validation = validateImageFile(file);
-    if (!validation.valid) {
-      onOCRError(validation.error || '無效的圖片檔案');
-      return;
-    }
-
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    if (file) loadFile(file);
   };
 
   const handleRemoveImage = () => {
@@ -61,10 +50,6 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
     setImagePreview(null);
     setOcrResult(null);
     setShowRawText(false);
-    const fileInput = document.getElementById('idcard-file-input') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = '';
-    }
   };
 
   const handleStartOCR = async (skipCache: boolean = false) => {
@@ -162,67 +147,43 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
                 圖片上傳
               </label>
               <div className="relative">
-                <input
-                  id="idcard-file-input-camera"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <input
-                  id="idcard-file-input-album"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={(e) => e.preventDefault()}
-                  className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors relative"
-                >
-                  {imagePreview ? (
-                    <div className="relative w-full h-full">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-full h-full object-contain rounded-lg"
-                      />
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleRemoveImage();
-                        }}
-                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center">
-                      <Upload className="h-10 w-10 text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-600 mb-2">拍照或選擇相簿圖片</p>
-                      <p className="text-xs text-gray-500 mb-3">支援 JPG、PNG、WEBP 格式</p>
-                      <div className="flex gap-2">
-                        <label
-                          htmlFor="idcard-file-input-camera"
-                          className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors cursor-pointer"
-                        >
-                          拍照
-                        </label>
-                        <label
-                          htmlFor="idcard-file-input-album"
-                          className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                        >
-                          相簿
-                        </label>
-                      </div>
+                <ImageSourcePicker onSelect={handlePickerSelect}>
+                  {(openPicker) => (
+                    <div
+                      onDrop={handleDrop}
+                      onDragOver={(e) => e.preventDefault()}
+                      onClick={imagePreview ? undefined : openPicker}
+                      className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors relative ${imagePreview ? '' : 'cursor-pointer'}`}
+                    >
+                      {imagePreview ? (
+                        <div className="relative w-full h-full">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-full object-contain rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleRemoveImage();
+                            }}
+                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center">
+                          <Upload className="h-10 w-10 text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-600 mb-2">點擊拍照或選擇相簿圖片</p>
+                          <p className="text-xs text-gray-500">支援 JPG、PNG、WEBP 格式，亦可拖放圖片到此</p>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
+                </ImageSourcePicker>
               </div>
               {selectedFile && (
                 <p className="text-xs text-gray-600 mt-1">

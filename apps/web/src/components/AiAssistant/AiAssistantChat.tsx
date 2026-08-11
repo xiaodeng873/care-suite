@@ -9,6 +9,7 @@ import DiagnosisRecordModal from '../DiagnosisRecordModal';
 import VaccinationRecordModal from '../VaccinationRecordModal';
 import PatientModal from '../PatientModal';
 import BatchHealthRecordOCRModal from '../BatchHealthRecordOCRModal';
+import ImageSourcePicker from '../ImageSourcePicker';
 import { supabase } from '../../lib/supabase';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -131,7 +132,6 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
   }, [messages]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 自動滾動到底部
   useEffect(() => {
@@ -162,9 +162,8 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
     }
   };
 
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    e.target.value = '';
+  /** 把選取的圖片檔案加入待傳送佇列（readImageFile 會做格式/大小檢查） */
+  const addImageFiles = async (files: File[]) => {
     if (files.length === 0) return;
     const loaded = (await Promise.all(files.map(readImageFile))).filter((img): img is PendingImage => img !== null);
     if (loaded.length > 0) setImages(prev => [...prev, ...loaded]);
@@ -186,8 +185,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
     }
     if (files.length === 0) return;
     e.preventDefault();
-    const loaded = (await Promise.all(files.map(readImageFile))).filter((img): img is PendingImage => img !== null);
-    if (loaded.length > 0) setImages(prev => [...prev, ...loaded]);
+    await addImageFiles(files);
   };
 
   const handleOpenForm = (prefill: PrefillData) => {
@@ -425,27 +423,27 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
             </div>
           )}
           <div className="flex items-end gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
+            <ImageSourcePicker
+              onSelect={addImageFiles}
+              albumMultiple
               accept="image/jpeg,image/png,image/webp"
-              multiple
-              onChange={handleImageSelect}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading}
-              className="shrink-0 p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 disabled:text-gray-300 rounded-lg transition-colors"
-              title="上傳圖片（可多選）"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </svg>
-            </button>
+              {(openPicker) => (
+                <button
+                  type="button"
+                  onClick={openPicker}
+                  disabled={isLoading}
+                  className="shrink-0 p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 disabled:text-gray-300 rounded-lg transition-colors"
+                  title="上傳圖片（拍照或相簿，相簿可多選）"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                </button>
+              )}
+            </ImageSourcePicker>
             <textarea
               ref={inputRef}
               value={input}

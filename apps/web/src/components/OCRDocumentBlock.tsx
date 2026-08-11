@@ -3,6 +3,7 @@ import { Camera, ChevronDown, ChevronUp, Upload, X, Loader, CheckCircle, AlertTr
 import { processImageWithGeminiVision, validateImageFile } from '../utils/ocrProcessor';
 import { getDefaultPrompt } from '../utils/promptManager';
 import { usePatientData } from '../context/PatientContext';
+import ImageSourcePicker from './ImageSourcePicker';
 
 interface OCRDocumentBlockProps {
   documentType: 'vaccination' | 'diagnosis' | 'followup';
@@ -33,14 +34,11 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
     followup: '上傳覆診預約便條圖片，自動識別並填入資料'
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  /** 載入單張圖片（拍照/相簿/拖放共用） */
+  const loadFile = (file: File) => {
     const validation = validateImageFile(file);
     if (!validation.valid) {
       onOCRError(validation.error || '無效的圖片檔案');
-      e.target.value = '';
       return;
     }
 
@@ -55,6 +53,12 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
       setImagePreview(null);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handlePickerSelect = (files: File[]) => {
+    if (isProcessing) return;
+    const file = files[0];
+    if (file) loadFile(file);
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
@@ -69,35 +73,13 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
     if (isProcessing) return;
 
     const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-
-    const validation = validateImageFile(file);
-    if (!validation.valid) {
-      onOCRError(validation.error || '無效的圖片檔案');
-      return;
-    }
-
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.onerror = () => {
-      onOCRError('無法讀取圖片檔案');
-      setSelectedFile(null);
-      setImagePreview(null);
-    };
-    reader.readAsDataURL(file);
+    if (file) loadFile(file);
   };
 
   const handleClearImage = () => {
     setSelectedFile(null);
     setImagePreview(null);
     setOcrResult(null);
-    const fileInput = document.getElementById(`ocr-file-input-${documentType}`) as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = '';
-    }
   };
 
   const findMatchingPatient = (extractedData: any): number | undefined => {
@@ -265,74 +247,51 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
                   )}
                 </label>
                 <div className="relative">
-                  <input
-                    type="file"
+                  <ImageSourcePicker
+                    onSelect={handlePickerSelect}
                     accept="image/jpeg,image/jpg,image/png,image/webp"
-                    capture="environment"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id={`ocr-file-input-${documentType}-camera`}
-                    disabled={isProcessing}
-                  />
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id={`ocr-file-input-${documentType}-album`}
-                    disabled={isProcessing}
-                  />
-                  <div
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                    className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg transition-colors ${
-                      imagePreview
-                        ? 'border-green-300 bg-green-50'
-                        : 'border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50'
-                    } ${isProcessing ? 'opacity-50' : ''}`}
                   >
-                    {imagePreview ? (
-                      <div className="relative w-full h-full p-2">
-                        <img
-                          src={imagePreview}
-                          alt="預覽"
-                          className="w-full h-full object-contain rounded"
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleClearImage();
-                          }}
-                          className="absolute top-3 right-3 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                          disabled={isProcessing}
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center">
-                        <Upload className="h-10 w-10 text-gray-400 mb-2" />
-                        <p className="text-sm text-gray-600 mb-2">拍照或選擇相簿圖片</p>
-                        <p className="text-xs text-gray-500 mb-3">支援 JPG、PNG、WEBP 格式</p>
-                        <div className="flex gap-2">
-                          <label
-                            htmlFor={`ocr-file-input-${documentType}-camera`}
-                            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                          >
-                            拍照
-                          </label>
-                          <label
-                            htmlFor={`ocr-file-input-${documentType}-album`}
-                            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                          >
-                            相簿
-                          </label>
-                        </div>
+                    {(openPicker) => (
+                      <div
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop}
+                        onClick={imagePreview || isProcessing ? undefined : openPicker}
+                        className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg transition-colors ${
+                          imagePreview
+                            ? 'border-green-300 bg-green-50'
+                            : 'border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer'
+                        } ${isProcessing ? 'opacity-50' : ''}`}
+                      >
+                        {imagePreview ? (
+                          <div className="relative w-full h-full p-2">
+                            <img
+                              src={imagePreview}
+                              alt="預覽"
+                              className="w-full h-full object-contain rounded"
+                            />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleClearImage();
+                              }}
+                              className="absolute top-3 right-3 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                              disabled={isProcessing}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center">
+                            <Upload className="h-10 w-10 text-gray-400 mb-2" />
+                            <p className="text-sm text-gray-600 mb-2">點擊拍照或選擇相簿圖片</p>
+                            <p className="text-xs text-gray-500">支援 JPG、PNG、WEBP 格式，亦可拖放圖片到此</p>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
+                  </ImageSourcePicker>
                 </div>
                 {selectedFile && (
                   <p className="text-xs text-gray-600 mt-1">

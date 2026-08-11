@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Camera, Loader, RefreshCw, X } from 'lucide-react';
 import { processImageWithGeminiVision, validateImageFile } from '../utils/ocrProcessor';
+import ImageSourcePicker from './ImageSourcePicker';
 import {
   parseGeminiResponse,
   type VitalRecordType,
@@ -34,30 +35,14 @@ const DEVICE_PROMPTS: Record<VitalRecordType, string> = {
 };
 
 const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResult, onCancel }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const targetLabel = recordType === '血糖控制' ? '血糖儀' : '血壓計';
 
-  const openCamera = useCallback(() => {
-    setError(null);
-    fileInputRef.current?.click();
-  }, []);
-
-  // 進入時自動開啟原生相機（沿用使用者點擊「掃描」的手勢）
-  useEffect(() => {
-    const t = setTimeout(() => fileInputRef.current?.click(), 0);
-    return () => clearTimeout(t);
-  }, []);
-
-  const handleFileSelected = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = ''; // 允許重拍同一張
-      if (!file) return;
-
+  const handleFile = useCallback(
+    async (file: File) => {
       const validation = validateImageFile(file);
       if (!validation.valid) {
         setError(validation.error || '無效的圖片檔案');
@@ -113,17 +98,9 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
   }, []);
 
   return (
+    <ImageSourcePicker onSelect={files => { const f = files[0]; if (f) { setError(null); handleFile(f); } }} autoOpen>
+      {(openPicker) => (
     <div className="fixed inset-0 z-[60] bg-black flex flex-col">
-      {/* 隱藏的原生相機輸入 */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handleFileSelected}
-      />
-
       {/* 頂部狀態列 */}
       <div className="relative z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/70 to-transparent">
         <span className="text-white text-sm font-medium">拍攝{targetLabel}</span>
@@ -170,7 +147,7 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
           <div className="flex items-center justify-center gap-3">
             <button
               type="button"
-              onClick={openCamera}
+              onClick={() => { setError(null); openPicker(); }}
               className="flex items-center gap-2 px-6 py-3 rounded-full bg-blue-600 text-white font-medium active:bg-blue-700"
             >
               {phase === 'failed' ? <RefreshCw size={18} /> : <Camera size={18} />}
@@ -187,6 +164,8 @@ const VitalSignScanner: React.FC<VitalSignScannerProps> = ({ recordType, onResul
         )}
       </div>
     </div>
+      )}
+    </ImageSourcePicker>
   );
 };
 

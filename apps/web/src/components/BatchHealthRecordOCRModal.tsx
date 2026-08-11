@@ -4,6 +4,7 @@ import { processImageWithGeminiVision } from '../utils/ocrProcessor';
 import { usePatientData } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
+import ImageSourcePicker from './ImageSourcePicker';
 import type { HealthRecord } from '../lib/database';
 
 interface ParsedHealthRecord {
@@ -73,8 +74,6 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
   const [savingRows, setSavingRows] = useState<Set<string>>(new Set());
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [batchResult, setBatchResult] = useState<{ saved: number; failed: number } | null>(null);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const matchPatient = useCallback((bedNo?: string, name?: string): any | null => {
     if (!bedNo && !name) return null;
@@ -302,25 +301,20 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
         <div className="p-5 space-y-5">
           {/* Upload area */}
           <div>
-            <div
-              className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={e => { e.preventDefault(); }}
-              onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
-            >
-              <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">點擊上傳或拖放圖片（支援多張）</p>
-              <p className="text-xs text-gray-400 mt-1">支援 JPG、PNG；手機可直接拍攝</p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              capture="environment"
-              className="hidden"
-              onChange={e => { if (e.target.files) handleFiles(e.target.files); e.target.value = ''; }}
-            />
+            <ImageSourcePicker onSelect={files => handleFiles(files)} albumMultiple>
+              {(openPicker) => (
+                <div
+                  className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                  onClick={openPicker}
+                  onDragOver={e => { e.preventDefault(); }}
+                  onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
+                >
+                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">點擊拍照或選擇相簿圖片（相簿支援多張），亦可拖放圖片到此</p>
+                  <p className="text-xs text-gray-400 mt-1">支援 JPG、PNG</p>
+                </div>
+              )}
+            </ImageSourcePicker>
 
             {/* Image previews */}
             {imagePreviews.length > 0 && (
