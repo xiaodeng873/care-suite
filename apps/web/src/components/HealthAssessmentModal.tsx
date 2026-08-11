@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, User, Calendar, FileText, Activity, Brain, Eye, MessageSquare, Utensils, Heart } from 'lucide-react';
-import { usePatients, type HealthAssessment } from '../context/PatientContext';
+import { usePatientData, type HealthAssessment } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { supabase } from '../lib/supabase';
@@ -34,7 +34,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
   onClose,
   defaultPatientId
 }) => {
-  const { patients, addHealthAssessment, updateHealthAssessment, healthAssessments } = usePatients();
+  const { addHealthAssessment, updateHealthAssessment, healthAssessments } = usePatientData();
   const { displayName } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(

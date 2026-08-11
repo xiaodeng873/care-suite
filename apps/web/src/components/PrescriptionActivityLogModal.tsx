@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { X, Clock, User, RotateCcw, Plus, Pencil, Trash2, ArrowLeftRight, Repeat, CalendarClock, History } from 'lucide-react';
 import * as db from '../lib/database';
 import BedNumberImprint from './BedNumberImprint';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { ACTION_TYPE_LABELS, PRESCRIPTION_STATUS_LABELS } from '../utils/prescriptionActivityLog';
 
 interface PrescriptionActivityLogModalProps {
@@ -41,7 +41,7 @@ const formatTimestamp = (iso: string): string => {
 };
 
 const PrescriptionActivityLogModal: React.FC<PrescriptionActivityLogModalProps> = ({ patient, onClose }) => {
-  const { addPrescription, updatePrescription, deletePrescription } = usePatients();
+  const { addPrescription, updatePrescription, deletePrescription } = usePatientData();
   const [entries, setEntries] = useState<db.PrescriptionActivityLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState<string>('全部');

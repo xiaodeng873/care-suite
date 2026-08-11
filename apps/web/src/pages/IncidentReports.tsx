@@ -18,7 +18,7 @@ import {
   FileText,
   Printer
 } from 'lucide-react';
-import { usePatients, type IncidentReport } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type IncidentReport } from '../context/PatientContext';
 import BedNumberImprint from '../components/BedNumberImprint';
 import IncidentReportModal from '../components/IncidentReportModal';
 import PatientTooltip from '../components/PatientTooltip';
@@ -42,7 +42,8 @@ interface AdvancedFilters {
 }
 
 const IncidentReports: React.FC = () => {
-  const { incidentReports, allPatients: patients, deleteIncidentReport, loading } = usePatients();
+  const { incidentReports, deleteIncidentReport, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState<IncidentReport | null>(null);
   const [searchTerm, setSearchTerm] = useState('');

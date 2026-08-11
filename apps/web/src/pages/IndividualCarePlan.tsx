@@ -22,7 +22,7 @@ import {
   BookOpen,
   Printer,
 } from 'lucide-react';
-import { usePatients, type CarePlan, type PlanType } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type CarePlan, type PlanType } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import CarePlanModal from '../components/CarePlanModal';
 import ProblemLibraryModal from '../components/ProblemLibraryModal';
@@ -50,7 +50,8 @@ interface AdvancedFilters {
 }
 
 const IndividualCarePlan: React.FC = () => {
-  const { carePlans, patients, deleteCarePlan, duplicateCarePlan, loading, getCarePlanWithDetails } = usePatients();
+  const { carePlans, deleteCarePlan, duplicateCarePlan, loading, getCarePlanWithDetails } = usePatientData();
+  const patients = useFilteredPatients();
   const { displayName } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [showProblemLibraryModal, setShowProblemLibraryModal] = useState(false);

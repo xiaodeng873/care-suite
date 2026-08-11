@@ -1,6 +1,6 @@
 import React from 'react';
 import { Building2, Bed, User, AlertTriangle } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 
 interface SimpleStationBedSelectorProps {
   selectedStationId: string;
@@ -16,7 +16,7 @@ const SimpleStationBedSelector: React.FC<SimpleStationBedSelectorProps> = ({
   onSelectionChange,
   currentPatientId
 }) => {
-  const { stations, beds, patients } = usePatients();
+  const { stations, beds, patients } = usePatientData();
 
   // 獲取選中居住區的可用床位（排除當前院友自己佔用的床位）
   const availableBeds = beds.filter(bed => 

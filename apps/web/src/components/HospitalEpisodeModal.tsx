@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar, Clock, Guitar as Hospital, MapPin, Bed, User, AlertTriangle, Heart, Building2, FileText, Activity } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -30,7 +30,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
   defaultPatientId,
   defaultEventType = 'admission'
 }) => {
-  const { patients, allPatients, updatePatient, addHospitalEpisode, updateHospitalEpisode, loading } = usePatients();
+  const { patients, allPatients, updatePatient, addHospitalEpisode, updateHospitalEpisode, loading } = usePatientData();
 
   // 香港時區輔助函數
   const getHongKongDate = () => {

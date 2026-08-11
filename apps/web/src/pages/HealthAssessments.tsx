@@ -20,7 +20,8 @@ import {
   Copy,
   Printer
 } from 'lucide-react';
-import { usePatients, type HealthAssessment } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
+import type { HealthAssessment } from '../lib/database';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import HealthAssessmentModal from '../components/HealthAssessmentModal';
 import PatientTooltip from '../components/PatientTooltip';
@@ -50,7 +51,8 @@ interface AdvancedFilters {
 }
 
 const HealthAssessments: React.FC = () => {
-  const { healthAssessments, patients, deleteHealthAssessment, loading } = usePatients();
+  const { healthAssessments, deleteHealthAssessment, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<HealthAssessment | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -389,7 +391,7 @@ const HealthAssessments: React.FC = () => {
       created_at: undefined,
       updated_at: undefined
     };
-    setSelectedAssessment(newAssessment);
+    setSelectedAssessment(newAssessment as unknown as HealthAssessment);
     setShowModal(true);
   };
 

@@ -3,7 +3,7 @@ import { X, Save } from 'lucide-react';
 import type { PatientContact } from '../lib/database';
 import { getPatientContacts, createPatientContact, updatePatientContact } from '../lib/database';
 import PatientAutocomplete from './PatientAutocomplete';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 
 interface PatientContactModalProps {
   contact?: PatientContact | null;
@@ -13,7 +13,7 @@ interface PatientContactModalProps {
 }
 
 const PatientContactModal: React.FC<PatientContactModalProps> = ({ contact, onClose, onSaved, defaultPatientId }) => {
-  const { patients } = usePatients();
+  const { patients } = usePatientData();
   const [form, setForm] = useState<Partial<PatientContact>>({
     ...contact,
     院友id: contact?.院友id ?? defaultPatientId,

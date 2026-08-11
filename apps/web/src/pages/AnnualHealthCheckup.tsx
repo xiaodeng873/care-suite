@@ -20,7 +20,7 @@ import {
   FileText,
   Copy
 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import AnnualHealthCheckupModal from '../components/AnnualHealthCheckupModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
@@ -50,7 +50,7 @@ interface AdvancedFilters {
   在住狀態: string;
 }
 const AnnualHealthCheckup: React.FC = () => {
-  const { annualHealthCheckups, patients, prescriptions, deleteAnnualHealthCheckup, loading } = usePatients();
+  const { annualHealthCheckups, prescriptions, deleteAnnualHealthCheckup, loading } = usePatientData();  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedCheckup, setSelectedCheckup] = useState<AnnualHealthCheckup | null>(null);
   const [renewFromCheckup, setRenewFromCheckup] = useState<AnnualHealthCheckup | null>(null);

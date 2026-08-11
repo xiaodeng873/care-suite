@@ -1,6 +1,6 @@
 import React, { useState, useDeferredValue } from 'react';
 import { X, ArrowRightLeft, User, Bed, Search } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import PatientTooltip from './PatientTooltip';
 import BedNumberImprint from './BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
@@ -11,7 +11,8 @@ interface BedSwapModalProps {
 }
 
 const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
-  const { patients, stations, beds, swapPatientBeds } = usePatients();
+  const { stations, beds, swapPatientBeds } = usePatientData();
+  const patients = useFilteredPatients();
   const [selectedPatient1, setSelectedPatient1] = useState<any>(null);
   const [selectedPatient2, setSelectedPatient2] = useState<any>(null);
   const [transferType, setTransferType] = useState<BedTransferType>('routine');

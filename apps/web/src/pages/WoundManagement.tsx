@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronFirst as FirstAid, Plus, Edit3, Trash2, Search, Filter, Download, User, Calendar, AlertTriangle, CheckCircle, Clock, ChevronUp, ChevronDown, X, Activity, Copy } from 'lucide-react';
-import { usePatients, type WoundAssessment } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type WoundAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import WoundAssessmentModal from '../components/WoundAssessmentModal';
 import PatientTooltip from '../components/PatientTooltip';
@@ -28,7 +28,8 @@ interface AdvancedFilters {
 }
 
 const WoundManagement: React.FC = () => {
-  const { woundAssessments, patients, deleteWoundAssessment, loading } = usePatients();
+  const { woundAssessments, deleteWoundAssessment, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<WoundAssessment | null>(null);
   const [searchTerm, setSearchTerm] = useState('');

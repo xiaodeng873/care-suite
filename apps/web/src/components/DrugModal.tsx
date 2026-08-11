@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Pill, Upload, Camera, Trash2 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 
 interface DrugModalProps {
   drug?: any;
@@ -10,7 +10,7 @@ interface DrugModalProps {
 }
 
 const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
-  const { addDrug, updateDrug } = usePatients();
+  const { addDrug, updateDrug } = usePatientData();
 
   const [formData, setFormData] = useState({
     drug_name: drug?.drug_name || '',

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { X, Calendar, AlertTriangle, CheckCircle, User, Pill, Clock } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -16,7 +16,7 @@ const BatchPrescriptionDateUpdateModal: React.FC<BatchPrescriptionDateUpdateModa
   onClose,
   onSuccess
 }) => {
-  const { prescriptions, patients, updatePrescription } = usePatients();
+  const { prescriptions, patients, updatePrescription } = usePatientData();
   const [newPrescriptionDate, setNewPrescriptionDate] = useState('');
   const [newMedicationSource, setNewMedicationSource] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);

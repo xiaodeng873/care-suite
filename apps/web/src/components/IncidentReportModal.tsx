@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle, Calendar, User, FileText, Activity, Plus, Trash2 } from 'lucide-react';
-import { usePatients, type IncidentReport } from '../context/PatientContext';
+import { usePatientData, type IncidentReport } from '../context/PatientContext';
 import { useRecords } from '../context/merged/RecordsContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { getIncidentPresetOptions, createIncidentPresetOption, deleteIncidentPresetOption, type IncidentPresetOption } from '../lib/database';
@@ -11,7 +11,7 @@ interface IncidentReportModalProps {
 }
 
 const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClose }) => {
-  const { patients, addIncidentReport, updateIncidentReport } = usePatients();
+  const { patients, addIncidentReport, updateIncidentReport } = usePatientData();
   const { patrolRounds } = useRecords();
 
   const getHongKongDate = () => {

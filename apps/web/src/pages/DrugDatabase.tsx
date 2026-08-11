@@ -15,7 +15,7 @@ import {
   ChevronDown,
   FileText
 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import DrugModal from '../components/DrugModal';
 import { fuzzyMatch, drugSearchScore } from '../utils/searchUtils';
@@ -33,7 +33,7 @@ interface AdvancedFilters {
 }
 
 const DrugDatabase: React.FC = () => {
-  const { drugDatabase, deleteDrug, loading } = usePatients();
+  const { drugDatabase, deleteDrug, loading } = usePatientData();
   const [showModal, setShowModal] = useState(false);
   const [selectedDrug, setSelectedDrug] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');

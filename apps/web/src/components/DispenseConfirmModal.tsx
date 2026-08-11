@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, CheckCircle, Hospital, Home, XCircle, AlertTriangle, Pause, AlertCircle, Syringe } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { formatDisplayDate } from '../utils/dateFormat';
 import BedNumberImprint from './BedNumberImprint';
 
@@ -18,7 +18,7 @@ const DispenseConfirmModal: React.FC<DispenseConfirmModalProps> = ({
   onClose,
   onConfirm
 }) => {
-  const { patients } = usePatients();
+  const { patients } = usePatientData();
   const [selectedOption, setSelectedOption] = useState<string>('success');
   const [customReason, setCustomReason] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);

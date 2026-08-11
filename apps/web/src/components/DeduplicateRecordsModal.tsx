@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, AlertTriangle, User, Calendar, Clock, Activity, Droplets, Scale, Trash2 } from 'lucide-react';
-import { usePatients, DuplicateRecordGroup, HealthRecord, Patient } from '../context/PatientContext';
+import { DuplicateRecordGroup, HealthRecord, Patient } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
 

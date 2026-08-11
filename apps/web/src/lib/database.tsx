@@ -1259,6 +1259,53 @@ export const getPatients = async (): Promise<Patient[]> => {
     original_bed_number: p.original_bed_id ? bedMap.get(p.original_bed_id) || p.床號 : p.床號,
   }));
 };
+
+// 院友主表欄位清單（排除 院友相片）。相片係 base64，佔全表流量約九成，
+// 初始載入用 light 版本（實測 3459ms/5.1MB → 約 400ms/0.3MB），相片背景補載。
+// ⚠️ 院友主表 新增欄位時請同步加入此清單；dev 模式會自動對比並 console.warn。
+// （PostgREST 唔支援排除欄位語法，OpenAPI spec endpoint 又只限 service_role，所以只能列明。）
+const PATIENTS_LIGHT_COLUMNS = '院友id,床號,中文姓名,英文姓名,性別,身份證號碼,出生日期,藥物敏感,不良藥物反應,感染控制,入住日期,退住日期,護理等級,入住類型,社會福利,在住狀態,中文姓氏,中文名字,英文姓氏,英文名字,station_id,bed_id,is_hospitalized,discharge_reason,death_date,transfer_facility_name,needs_medication_crushing,qr_code_id,公務員,通訊電話,通訊地址,教育程度,從前主要職業,宗教信仰,婚姻狀況,首次記錄職員姓名,首次記錄職級,首次記錄簽署,首次記錄日期,social_status_json,medical_history_json,vaccination_records_json,medical_services_json,nursing_assessment_json,last_station_id,last_bed_id,original_bed_id,original_station_id,bed_transfer_type,temporary_transfer_started_at';
+
+// dev-only：對比遠端實際欄位同 light 清單，新增欄位漏咗更新時及早警告
+let patientsLightColumnsChecked = false;
+const checkPatientsLightColumnsDrift = async (): Promise<void> => {
+  if (patientsLightColumnsChecked || !import.meta.env.DEV) return;
+  patientsLightColumnsChecked = true;
+  try {
+    const { data, error } = await supabase.from('院友主表').select('*').limit(1);
+    if (error || !data?.length) return;
+    const expected = new Set([...PATIENTS_LIGHT_COLUMNS.split(','), '院友相片']);
+    const missing = Object.keys(data[0]).filter(c => !expected.has(c));
+    if (missing.length) {
+      console.warn(`[getPatientsLight] 院友主表 有新欄位未加入 PATIENTS_LIGHT_COLUMNS：${missing.join(', ')}，請更新 database.tsx`);
+    }
+  } catch {
+    // 對比失敗唔影響主流程
+  }
+};
+
+// 初始載入用：同 getPatients，但排除 base64 院友相片（約佔全表流量九成），
+// 相片由 getPatientPhotos 背景補載。
+export const getPatientsLight = async (): Promise<Patient[]> => {
+  checkPatientsLightColumnsDrift();
+  const [{ data, error }, beds] = await Promise.all([
+    supabase.from('院友主表').select(PATIENTS_LIGHT_COLUMNS).order('床號', { ascending: true }),
+    getBeds(),
+  ]);
+  if (error) throw error;
+  const bedMap = new Map(beds.map(b => [b.id, b.bed_number]));
+  return ((data || []) as unknown as Patient[]).map(p => ({
+    ...p,
+    original_bed_number: p.original_bed_id ? bedMap.get(p.original_bed_id) || p.床號 : p.床號,
+  }));
+};
+
+// 背景補載全部院友相片：院友id → 院友相片
+export const getPatientPhotos = async (): Promise<Map<number, string | null>> => {
+  const { data, error } = await supabase.from('院友主表').select('院友id, 院友相片');
+  if (error) throw error;
+  return new Map((data || []).map((p: any) => [p.院友id, p.院友相片]));
+};
 export const createPatient = async (patient: Omit<Patient, '院友id'>): Promise<Patient> => {
   // 清理空字符串，將其轉換為 null
   const cleanedPatient = { ...patient };
@@ -1873,12 +1920,35 @@ export const getReasons = async (): Promise<ServiceReason[]> => {
   if (error) throw error;
   return data || [];
 };
-export const getHealthRecords = async (options?: { limit?: number; daysBack?: number }): Promise<HealthRecord[]> => {
-  const pageSize = 1000;
-  let allRecords: HealthRecord[] = [];
-  let page = 0;
-  let hasMore = true;
+// 並行分頁載入：PostgREST 單次最多 1000 行，大表序列逐頁會好慢。
+// 第 1 頁攞 exact count 計總頁數，之後每批 6 頁並行，保持原有排序語義。
+const PAGE_FETCH_CONCURRENCY = 6;
+type PageResult = { data: any[] | null; error: any; count?: number | null };
+export const fetchAllPagesParallel = async (
+  fetchPage: (from: number, to: number, withCount: boolean) => Promise<PageResult>,
+  pageSize = 1000,
+): Promise<any[]> => {
+  const first = await fetchPage(0, pageSize - 1, true);
+  if (first.error) throw first.error;
+  const all = [...(first.data || [])];
+  const total = first.count ?? all.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  for (let p = 1; p < totalPages; p += PAGE_FETCH_CONCURRENCY) {
+    const batch = await Promise.all(
+      Array.from({ length: Math.min(PAGE_FETCH_CONCURRENCY, totalPages - p) }, (_, j) => {
+        const pageNo = p + j;
+        return fetchPage(pageNo * pageSize, (pageNo + 1) * pageSize - 1, false);
+      })
+    );
+    for (const r of batch) {
+      if (r.error) throw r.error;
+      all.push(...(r.data || []));
+    }
+  }
+  return all;
+};
 
+export const getHealthRecords = async (options?: { limit?: number; daysBack?: number }): Promise<HealthRecord[]> => {
   if (options?.limit !== undefined) {
     const { data, error } = await supabase
       .from('健康監測記錄')
@@ -1894,43 +1964,30 @@ export const getHealthRecords = async (options?: { limit?: number; daysBack?: nu
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - options.daysBack);
     const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
-    while (hasMore) {
-      const { data, error } = await supabase
+    return (await fetchAllPagesParallel(async (from, to, withCount) =>
+      await supabase
         .from('健康監測記錄')
-        .select('*')
+        .select('*', withCount ? { count: 'exact' } : undefined)
         .gte('記錄日期', cutoffDateStr)
         .order('記錄日期', { ascending: false })
         .order('記錄時間', { ascending: false })
-        .range(page * pageSize, (page + 1) * pageSize - 1);
-      if (error) throw error;
-      if (data && data.length > 0) {
-        allRecords = [...allRecords, ...(data as HealthRecord[])];
-        page++;
-        hasMore = data.length === pageSize;
-      } else {
-        hasMore = false;
-      }
-    }
-    return allRecords;
+        // 分頁必須有唯一 tiebreaker：(日期,時間) 有大量同值（批量輸入），
+        // 冇 tiebreaker 跨頁會重複/漏行
+        .order('記錄id', { ascending: false })
+        .range(from, to)
+    )) as HealthRecord[];
   }
 
-  while (hasMore) {
-    const { data, error } = await supabase
+  return (await fetchAllPagesParallel(async (from, to, withCount) =>
+    await supabase
       .from('健康監測記錄')
-      .select('*')
+      .select('*', withCount ? { count: 'exact' } : undefined)
       .order('記錄日期', { ascending: false })
       .order('記錄時間', { ascending: false })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-    if (error) throw error;
-    if (data && data.length > 0) {
-      allRecords = [...allRecords, ...(data as HealthRecord[])];
-      page++;
-      hasMore = data.length === pageSize;
-    } else {
-      hasMore = false;
-    }
-  }
-  return allRecords;
+      // 同上：唯一 tiebreaker 保證分頁穩定
+      .order('記錄id', { ascending: false })
+      .range(from, to)
+  )) as HealthRecord[];
 };
 export const createHealthRecord = async (record: Omit<HealthRecord, '記錄id' | '建立時間'>): Promise<HealthRecord> => {
   const { data, error } = await supabase.from('健康監測記錄').insert([record]).select('記錄id').single();

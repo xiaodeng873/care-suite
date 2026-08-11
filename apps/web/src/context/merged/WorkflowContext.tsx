@@ -343,31 +343,25 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
     try {
       const validPatientId = (patientId !== undefined && patientId !== null && !isNaN(patientId) && patientId > 0) ? patientId : null;
       const validScheduledDate = (scheduledDate && typeof scheduledDate === 'string' && scheduledDate.trim() !== '' && scheduledDate !== 'undefined') ? scheduledDate.trim() : null;
-      // 分頁載入，避免 Supabase 預設 1000 筆上限截斷資料
+      // 分頁並行載入，避免 Supabase 預設 1000 筆上限截斷資料
       // （否則按 scheduled_time 排序時，晚時段如 20:00 的記錄會被切掉，導致提醒卡片遺漏院友）
-      const PAGE_SIZE = 1000;
-      let page = 0;
-      let queryData: any[] = [];
-      while (true) {
-        let query = supabase.from('medication_workflow_records').select('*');
+      const queryData: any[] = await db.fetchAllPagesParallel(async (from, to, withCount) => {
+        let query = supabase
+          .from('medication_workflow_records')
+          .select('*', withCount ? { count: 'exact' } : undefined);
         if (validPatientId !== null) {
           query = query.eq('patient_id', validPatientId);
         }
         if (validScheduledDate !== null) {
           query = query.eq('scheduled_date', validScheduledDate);
         }
-        const { data: pageData, error: queryError } = await query
+        return await query
           .order('scheduled_date')
           .order('scheduled_time')
-          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-        if (queryError) {
-          throw new Error(`查詢工作流程記錄失敗: ${queryError.message}`);
-        }
-        if (!pageData || pageData.length === 0) break;
-        queryData = queryData.concat(pageData);
-        if (pageData.length < PAGE_SIZE) break;
-        page++;
-      }
+          // 唯一 tiebreaker：同 date+time 嘅記錄好多，冇 tiebreaker 分頁會重複/漏行
+          .order('id')
+          .range(from, to);
+      });
       if (!skipStateUpdate) {
         setPrescriptionWorkflowRecords(queryData || []);
       }
@@ -766,7 +760,11 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
   useEffect(() => {
     if (!isAuthenticated()) return;
     // 只需載入工作流程記錄，其他數據由 React Query 自動管理
-    fetchPrescriptionWorkflowRecordsInternal(undefined, undefined, false);
+    // 延遲 2 秒開始：此 fetch 唔阻塞登入閘門，等閘門關鍵請求先用盡頻寬
+    const timer = setTimeout(() => {
+      fetchPrescriptionWorkflowRecordsInternal(undefined, undefined, false);
+    }, 2000);
+    return () => clearTimeout(timer);
   }, [isAuthenticated]);
 
   // ===== 統一 loading 狀態 =====

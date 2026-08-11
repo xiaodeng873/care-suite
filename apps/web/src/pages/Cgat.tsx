@@ -15,7 +15,7 @@ import {
   Copy,
   Printer
 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import { useCgat } from '../context/CgatContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -43,7 +43,7 @@ interface AdvancedFilters {
 }
 const Cgat: React.FC = () => {
   // CGAT 特例：解除站別過濾，列出所有院友
-  const { allPatients: patients, loading } = usePatients();
+  const { patients, loading } = usePatientData();
   const { user } = useAuth();
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || '';
   const { cgatRecords, deleteCgatRecord } = useCgat();

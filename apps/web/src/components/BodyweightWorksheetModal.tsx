@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { X, Scale, CheckSquare, Square, Search } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { generateBodyweightRecordWorksheet } from '../utils/bodyweightRecordWorksheetGenerator';
 
 interface BodyweightWorksheetModalProps {
@@ -8,7 +8,8 @@ interface BodyweightWorksheetModalProps {
 }
 
 const BodyweightWorksheetModal: React.FC<BodyweightWorksheetModalProps> = ({ onClose }) => {
-  const { patients, stations } = usePatients();
+  const { stations } = usePatientData();
+  const patients = useFilteredPatients();
 
   const getHKDateParts = (date = new Date()) => {
     const formatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Hong_Kong', year: 'numeric', month: '2-digit', day: '2-digit' });

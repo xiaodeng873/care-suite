@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, FileText, Calendar, Building2, Plus, Trash2 } from 'lucide-react';
-import { usePatients, type DiagnosisRecord } from '../context/PatientContext';
+import { usePatientData, type DiagnosisRecord } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import OCRDocumentBlock from './OCRDocumentBlock';
 import { formatDisplayDate } from '../utils/dateFormat';
@@ -26,7 +26,7 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
   prefilledData,
   onClose
 }) => {
-  const { patients, addDiagnosisRecord } = usePatients();
+  const { patients, addDiagnosisRecord } = usePatientData();
 
   const getHongKongDate = () => {
     const now = new Date();

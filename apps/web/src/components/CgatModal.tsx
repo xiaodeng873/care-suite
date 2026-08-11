@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { X, User, Pill, Calendar, Stethoscope, DollarSign, FileText, AlertTriangle, Loader2 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { useCgat } from '../context/CgatContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import CgatDoctorVisitPicker from './CgatDoctorVisitPicker';
@@ -15,7 +15,7 @@ interface CgatModalProps {
 }
 
 const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => {
-  const { allPatients } = usePatients();
+  const { allPatients } = usePatientData();
   const { cgatRecords, addCgatRecord, updateCgatRecord } = useCgat();
 
   // 另存續期：以 renewFrom 內容預填，但視為新增（不帶 id）

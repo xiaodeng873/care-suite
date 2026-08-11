@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Syringe, MapPin, CheckCircle, UserPlus, Lock } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import { isInjectionQualified } from '@care-suite/shared';
 import { isQuickSignEnabled } from '../utils/toolsSettings';
@@ -57,7 +57,7 @@ const InjectionWorkflowModal: React.FC<InjectionWorkflowModalProps> = ({
   workflowRecord,
   onComplete,
 }) => {
-  const { patients, prescriptions } = usePatients();
+  const { patients, prescriptions } = usePatientData();
   const { user, userProfile, displayName, verifyStaffIdentity } = useAuth();
 
   const [signatures, setSignatures] = useState<Record<StepKey, Signer | null>>({

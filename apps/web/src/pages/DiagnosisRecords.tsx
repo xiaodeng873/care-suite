@@ -12,7 +12,7 @@ import {
   ChevronDown,
   X
 } from 'lucide-react';
-import { usePatients, type DiagnosisRecord } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type DiagnosisRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import DiagnosisRecordModal from '../components/DiagnosisRecordModal';
 import PatientTooltip from '../components/PatientTooltip';
@@ -35,7 +35,9 @@ interface AdvancedFilters {
 }
 
 const DiagnosisRecords: React.FC = () => {
-  const { diagnosisRecords, patients, deleteDiagnosisRecord, loading } = usePatients();
+  const { diagnosisRecords, deleteDiagnosisRecord, loading } = usePatientData();
+  const patients = useFilteredPatients();
+
   const [showModal, setShowModal] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<number | undefined>();
   const [selectedPatientRecords, setSelectedPatientRecords] = useState<DiagnosisRecord[]>([]);

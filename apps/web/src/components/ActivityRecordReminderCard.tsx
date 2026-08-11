@@ -1,20 +1,20 @@
 import React, { useMemo } from 'react';
 import { PartyPopper, ArrowRight } from 'lucide-react';
 import { getActivityRecordOverdueInfo } from '../utils/activityRecordStatus';
+import { useFilteredPatients } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import type { Patient, PatientActivityRecord } from '../lib/database';
 
 interface ActivityRecordReminderCardProps {
-  patients: Patient[];
   activityRecords: PatientActivityRecord[];
   onAddActivityRecord: (patient: Patient) => void;
 }
 
 const ActivityRecordReminderCard: React.FC<ActivityRecordReminderCardProps> = ({
-  patients,
   activityRecords,
   onAddActivityRecord,
 }) => {
+  const patients = useFilteredPatients();
   const overduePatients = useMemo(() => {
     const now = new Date();
     return patients

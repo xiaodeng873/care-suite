@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Building2 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 
 interface StationModalProps {
   station?: any;
@@ -8,7 +8,7 @@ interface StationModalProps {
 }
 
 const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
-  const { addStation, updateStation } = usePatients();
+  const { addStation, updateStation } = usePatientData();
 
   const [formData, setFormData] = useState({
     name: station?.name || '',

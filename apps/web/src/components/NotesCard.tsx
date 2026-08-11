@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { StickyNote, Plus, Check, Trash2, ChevronDown, ChevronUp, User, Calendar, Edit } from 'lucide-react';
 import BedNumberImprint from './BedNumberImprint';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import NoteModal from './NoteModal';
 
 import { formatDisplayDate } from '../utils/dateFormat';
 const NotesCard: React.FC = () => {
-  const { patients, patientNotes, completePatientNote, deletePatientNote } = usePatients();
+  const { patients, patientNotes, completePatientNote, deletePatientNote } = usePatientData();
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [editingNote, setEditingNote] = useState<any>(null);

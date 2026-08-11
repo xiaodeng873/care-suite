@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronRight, User } from 'lucide-react';
-import { usePatients } from '../../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../../context/PatientContext';
 import type { Bed, Patient } from '../../lib/database';
 import { t2s } from '../utils/chinese';
 import BedNumberImprint from '../../components/BedNumberImprint';
@@ -11,7 +11,8 @@ interface PatientListPageProps {
 }
 
 const PatientListPage: React.FC<PatientListPageProps> = ({ onSelectPatient }) => {
-  const { patients, stations, beds, loading, patrolRounds, diaperChangeRecords, restraintObservationRecords, positionChangeRecords } = usePatients();
+  const { stations, beds, loading, patrolRounds, diaperChangeRecords, restraintObservationRecords, positionChangeRecords } = usePatientData();
+  const patients = useFilteredPatients();
   const [search, setSearch] = useState('');
   const [selectedStation, setSelectedStation] = useState('all');
 

@@ -26,7 +26,7 @@ import {
   MoreVertical,
   Camera
 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import PatientAutocomplete from '../components/PatientAutocomplete';
@@ -71,7 +71,7 @@ interface WorkflowCellProps {
   selectedDate: string;
 }
 const WorkflowCell: React.FC<WorkflowCellProps> = ({ record, step, onStepClick, disabled, selectedDate }) => {
-  const { prescriptions } = usePatients();
+  const { prescriptions } = usePatientData();
   
   // 檢測 iPad 橫向模式（寬度 <= 1366px 且為橫向，涵蓋所有 iPad 型號）
   // iPad 標準橫向: 1024px, iPad Pro 11": 1194px, iPad Pro 12.9": 1366px
@@ -389,7 +389,6 @@ const WorkflowCell: React.FC<WorkflowCellProps> = ({ record, step, onStepClick, 
 };
 const MedicationWorkflow: React.FC = () => {
   const {
-    patients,
     prescriptions,
     prescriptionWorkflowRecords,
     fetchPrescriptionWorkflowRecords,
@@ -402,7 +401,8 @@ const MedicationWorkflow: React.FC = () => {
     hospitalEpisodes,
     refreshData,
     loading
-  } = usePatients();
+  } = usePatientData();
+  const patients = useFilteredPatients();
   const { displayName, user, userProfile } = useAuth();
   const currentUserId = userProfile?.id || user?.id || null;
   const [searchParams] = useSearchParams();

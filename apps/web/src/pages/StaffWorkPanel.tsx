@@ -12,7 +12,7 @@ import {
   ChevronRight,
   RefreshCw
 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useAuth } from '../context/AuthContext';
 import BedNumberImprint from '../components/BedNumberImprint';
@@ -29,12 +29,12 @@ interface TaskFilters {
 
 const StaffWorkPanel: React.FC = () => {
   const { 
-    patients, 
     prescriptions, 
     prescriptionWorkflowRecords,
     fetchPrescriptionWorkflowRecords,
     loading 
-  } = usePatients();
+  } = usePatientData();
+  const patients = useFilteredPatients();
   const { displayName } = useAuth();
 
   const [filters, setFilters] = useState<TaskFilters>({

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Pill, Calendar, Clock, User, AlertTriangle, Plus, Trash2, Sparkles, History } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import DrugAutocomplete from './DrugAutocomplete';
 import OCRPrescriptionBlock from './OCRPrescriptionBlock';
@@ -18,7 +18,7 @@ interface PrescriptionModalProps {
 const LAST_RX_KEY = (patientId: string | number) => `care_suite_last_rx_${patientId}`;
 
 const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onClose }) => {
-  const { addPrescription, updatePrescription, patients } = usePatients();
+  const { addPrescription, updatePrescription, patients } = usePatientData();
   // 每次開啟 modal 時讀取一次（已儲存的設定）
   const medSettings = useMemo(() => getMedicationSettings(), []);
 

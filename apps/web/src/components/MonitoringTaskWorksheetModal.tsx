@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { X, FileText } from 'lucide-react';
 import { generateMonitoringTaskWorksheet } from '../utils/monitoringTaskWorksheetGenerator';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 
 interface MonitoringTaskWorksheetModalProps {
   onClose: () => void;
 }
 
 const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> = ({ onClose }) => {
-  const { stations, patients } = usePatients();
+  const { stations, patients } = usePatientData();
   const [selectedStationId, setSelectedStationId] = useState<string>('all');
 
   const getHongKongDate = () => {

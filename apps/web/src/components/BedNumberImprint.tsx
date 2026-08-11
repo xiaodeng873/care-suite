@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Patient, Bed } from '../lib/database';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { isTemporaryTransfer, getRootBedNumber } from '../utils/bedTransferUtils';
 
 interface BedNumberImprintProps {
@@ -31,7 +31,7 @@ const BedNumberImprint: React.FC<BedNumberImprintProps> = ({
   size = 'md',
   className = '',
 }) => {
-  const { beds: contextBeds } = usePatients();
+  const { beds: contextBeds } = usePatientData();
   const beds = bedsProp ?? contextBeds ?? [];
   const currentBedNumber = patient.床號 || '—';
 

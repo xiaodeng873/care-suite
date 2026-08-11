@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { Users, Plus, Edit3, Trash2, Search, Filter, Download, User, Calendar, CreditCard, Heart, AlertTriangle, CheckCircle, ChevronUp, ChevronDown, X, LogOut, QrCode, Printer } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientModal from '../components/PatientModal';
 import DischargeModal from '../components/DischargeModal';
@@ -38,7 +38,8 @@ interface AdvancedFilters {
 }
 
 const PatientRecords: React.FC = () => {
-  const { patients, loading, deletePatient, updatePatient, hospitalEpisodes, updateHospitalEpisode } = usePatients();
+  const { loading, deletePatient, updatePatient, hospitalEpisodes, updateHospitalEpisode } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);

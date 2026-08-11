@@ -8,7 +8,7 @@ import { queryClient } from './lib/queryClient';
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
-import { PatientProvider, usePatients } from './context/PatientContext';
+import { PatientProvider, usePatientData, PatientFilterProvider } from './context/PatientContext';
 import { CgatProvider } from './context/CgatContext';
 import { StationProvider } from './context/facility';
 import { StationFilterProvider } from './context/StationFilterContext';
@@ -214,7 +214,7 @@ function AuthenticatedContent({
   const { userProfile } = useAuth();
 
   // 獲取所有 Context 的加載狀態（hooks 必須在任何条件返回前呼叫）
-  const { loading: patientLoading, patients } = usePatients();
+  const { loading: patientLoading, allPatients: patients } = usePatientData();
   const { loading: medicalLoading, healthRecords, followUpAppointments } = useMedical();
   const { scheduleLoading, prescriptionLoading, prescriptions } = useWorkflow();
   const { loading: recordsLoading, patientHealthTasks, mealGuidances, healthAssessments, patientRestraintAssessments, annualHealthCheckups } = useRecords();
@@ -275,11 +275,9 @@ function AuthenticatedContent({
     return <NurseApp onSignOut={onSignOut} />;
   }
 
-  // 顯示初始加載頁面
-  if (showInitialLoadingScreen) {
-    return <LoadingScreen pageName="主控台" />;
-  }
-
+  // 初始加載期間仍然 mount Routes（LoadingScreen 改為覆蓋層），
+  // 令 Dashboard 可以真正渲染並回報 ready，資料齊後立即進入，
+  // 不再硬等 8 秒 fallback 超時。
   return (
     <BrowserRouter basename="/">
       <NavigationProvider>
@@ -328,6 +326,8 @@ function AuthenticatedContent({
         </Layout>
       </NavigationProvider>
       <AiAssistantButton />
+      {/* 初始加載覆蓋層：底下 Routes 已 mount，Dashboard ready 或 fallback 後移除 */}
+      {showInitialLoadingScreen && <LoadingScreen pageName="主控台" />}
     </BrowserRouter>
   );
 }
@@ -340,17 +340,21 @@ function App() {
           <ThemeProvider>
           <StationProvider>
             <StationFilterProvider>
-            <MedicalProvider>
-              <WorkflowProvider>
-                <RecordsProvider>
-                  <PatientProvider>
-                    <CgatProvider>
-                      <AppContent />
-                    </CgatProvider>
-                  </PatientProvider>
-                </RecordsProvider>
-              </WorkflowProvider>
-            </MedicalProvider>          </StationFilterProvider>          </StationProvider>
+              <MedicalProvider>
+                <WorkflowProvider>
+                  <RecordsProvider>
+                    <PatientProvider>
+                      <PatientFilterProvider>
+                        <CgatProvider>
+                          <AppContent />
+                        </CgatProvider>
+                      </PatientFilterProvider>
+                    </PatientProvider>
+                  </RecordsProvider>
+                </WorkflowProvider>
+              </MedicalProvider>
+            </StationFilterProvider>
+          </StationProvider>
           </ThemeProvider>
         </AuthProvider>
       </DashboardReadyProvider>

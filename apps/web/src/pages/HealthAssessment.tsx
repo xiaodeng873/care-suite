@@ -29,7 +29,7 @@ import {
   Thermometer,
   Printer
 } from 'lucide-react';
-import { usePatients, DuplicateRecordGroup } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, DuplicateRecordGroup } from '../context/PatientContext';
 import HealthRecordModal from '../components/HealthRecordModal';
 import DeduplicateRecordsModal from '../components/DeduplicateRecordsModal';
 import RecycleBinModal from '../components/RecycleBinModal';
@@ -62,14 +62,14 @@ interface AdvancedFilters {
 const HealthAssessment: React.FC = () => {
   const {
     healthRecords,
-    patients,
     loading,
     deleteHealthRecord,
     findDuplicateHealthRecords,
     batchDeleteDuplicateRecords,
     refreshData,
     loadFullHealthRecords
-  } = usePatients();
+  } = usePatientData();
+  const patients = useFilteredPatients();
   // [新增] 進入頁面時，觸發載入完整歷史記錄
   useEffect(() => {
     loadFullHealthRecords();

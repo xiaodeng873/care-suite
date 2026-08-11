@@ -16,7 +16,7 @@ import {
   ChevronDown,
   X
 } from 'lucide-react';
-import { usePatients, type PatientLog } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type PatientLog } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientLogModal from '../components/PatientLogModal';
 import PatientTooltip from '../components/PatientTooltip';
@@ -42,7 +42,8 @@ interface AdvancedFilters {
 }
 
 const PatientLogs: React.FC = () => {
-  const { patientLogs, patients, deletePatientLog, loading } = usePatients();
+  const { patientLogs, deletePatientLog, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedLog, setSelectedLog] = useState<PatientLog | null>(null);
   const [searchTerm, setSearchTerm] = useState('');

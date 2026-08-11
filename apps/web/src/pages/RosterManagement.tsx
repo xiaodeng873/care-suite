@@ -24,7 +24,7 @@ import type {
   UserShiftAssignment,
 } from '@care-suite/shared';
 import { getEmploymentPosition } from '@care-suite/shared';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import type { RosterLeaveContext } from '../utils/leaveValidation';
 import { getRosterExpectedCounts, getRosterUsedCounts } from '../utils/leaveValidation';
 import {
@@ -208,7 +208,7 @@ function userCanFillPosition(user: UserProfile, position: string): boolean {
 
 const RosterManagement: React.FC = () => {
   const { isAdmin, userProfile } = useAuth();
-  const { allPatients } = usePatients();
+  const { allPatients } = usePatientData();
   const isAdminUser = isAdmin();
   const [activeTab, setActiveTab] = useState<Tab>('roster');
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Trash2, RotateCcw, Search, Calendar, User, Activity, AlertTriangle } from 'lucide-react';
-import { usePatients, DeletedHealthRecord, Patient } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, DeletedHealthRecord, Patient } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
@@ -11,7 +11,8 @@ interface RecycleBinModalProps {
 }
 
 const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ onClose }) => {
-  const { deletedHealthRecords, fetchDeletedHealthRecords, restoreHealthRecord, permanentlyDeleteHealthRecord, patients } = usePatients();
+  const { deletedHealthRecords, fetchDeletedHealthRecords, restoreHealthRecord, permanentlyDeleteHealthRecord } = usePatientData();
+  const patients = useFilteredPatients();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);

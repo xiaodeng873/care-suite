@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Calendar, User, Ruler, Droplets, Thermometer, AlertCircle, Camera, Check, ChevronDown } from 'lucide-react';
-import { usePatients, type Wound, type WoundAssessment, type WoundAssessmentStatus } from '../context/PatientContext';
+import { usePatientData, type Wound, type WoundAssessment, type WoundAssessmentStatus } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import BedNumberImprint from './BedNumberImprint';
 import WoundPhotoUpload from './WoundPhotoUpload';
@@ -109,7 +109,7 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
   onClose,
   onSave
 }) => {
-  const { addWoundAssessmentForWound, updateWoundAssessment, patients, updateWound } = usePatients();
+  const { addWoundAssessmentForWound, updateWoundAssessment, patients, updateWound } = usePatientData();
   const { displayName } = useAuth();
 
   const getHongKongDate = () => {

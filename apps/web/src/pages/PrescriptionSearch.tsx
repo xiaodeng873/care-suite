@@ -20,7 +20,7 @@ import {
   AlertTriangle as AlertIcon
 } from 'lucide-react';
 import { useDebounce } from '../hooks/useDebounce';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PrescriptionDetailModal from '../components/PrescriptionDetailModal';
 import PatientTooltip from '../components/PatientTooltip';
@@ -72,7 +72,7 @@ interface AdvancedFilters {
 
 interface PrescriptionWithPatient {
   prescription: MedicationPrescription;
-  patient: ReturnType<typeof usePatients>['patients'][number] | undefined;
+  patient: ReturnType<typeof useFilteredPatients>[number] | undefined;
 }
 
 const statusOrder = { active: 0, pending_change: 1, inactive: 2 };
@@ -106,7 +106,8 @@ const getStatusIcon = (status: string) => {
 };
 
 const PrescriptionSearch: React.FC = () => {
-  const { patients, prescriptions, loading } = usePatients();
+  const { prescriptions, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);

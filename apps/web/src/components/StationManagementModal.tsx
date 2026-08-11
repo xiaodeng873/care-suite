@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Building2, Bed, Plus, Edit3, Trash2, Search, User } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import StationModal from './StationModal';
 import BedModal from './BedModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName } from '../utils/searchUtils';
@@ -12,7 +12,7 @@ interface StationManagementModalProps {
 }
 
 const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose }) => {
-  const { stations, beds, patients, deleteStation, deleteBed } = usePatients();
+  const { stations, beds, patients, deleteStation, deleteBed } = usePatientData();
   const [showStationModal, setShowStationModal] = useState(false);
   const [showBedModal, setShowBedModal] = useState(false);
   const [selectedStation, setSelectedStation] = useState<any>(null);

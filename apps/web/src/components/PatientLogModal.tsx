@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { X, FileText, Calendar, User, MessageSquare, AlertTriangle } from 'lucide-react';
-import { usePatients, type PatientLog } from '../context/PatientContext';
+import { usePatientData, type PatientLog } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import BedNumberImprint from './BedNumberImprint';
@@ -20,7 +20,7 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
   defaultLogType,
   defaultContent
 }) => {
-  const { addPatientLog, updatePatientLog, allPatients } = usePatients();
+  const { addPatientLog, updatePatientLog, allPatients } = usePatientData();
   const { user, displayName } = useAuth();
 
   // 香港時區輔助函數

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Pill, Search, Plus } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { drugSearchScore } from '../utils/searchUtils';
 import DrugModal from './DrugModal';
 
@@ -17,7 +17,7 @@ const DrugAutocomplete: React.FC<DrugAutocompleteProps> = ({
   placeholder = "搜索藥物...",
   className = ""
 }) => {
-  const { drugDatabase } = usePatients();
+  const { drugDatabase } = usePatientData();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);

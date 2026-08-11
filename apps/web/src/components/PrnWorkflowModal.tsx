@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Pill, CheckCircle, UserPlus, Lock, Clock } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import { useAuth } from '../context/AuthContext';
 import { isInjectionQualified } from '@care-suite/shared';
@@ -54,7 +54,7 @@ const PrnWorkflowModal: React.FC<PrnWorkflowModalProps> = ({
   defaultTime,
   onComplete,
 }) => {
-  const { patients, prescriptions } = usePatients();
+  const { patients, prescriptions } = usePatientData();
   const { user, userProfile, displayName, verifyStaffIdentity } = useAuth();
 
   const [signatures, setSignatures] = useState<Record<StepKey, Signer | null>>({

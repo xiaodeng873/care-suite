@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Stethoscope, Download } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import {
   AnnualHealthCheckup,
@@ -31,7 +31,7 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
     diagnosisRecords,
     updateAnnualHealthCheckup: contextUpdateAnnualHealthCheckup,
     addAnnualHealthCheckup: contextAddAnnualHealthCheckup
-  } = usePatients();
+  } = usePatientData();
   const [loading, setLoading] = useState(false);
   const [fetchingReadings, setFetchingReadings] = useState(false);
   const parsedMentalState = parseMentalStateAssessment(checkup?.mental_state_assessment || null);

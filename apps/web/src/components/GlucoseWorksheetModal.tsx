@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { X, Droplets, CheckSquare, Square, Search } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { generateGlucoseRecordWorksheet } from '../utils/glucoseRecordWorksheetGenerator';
 
 interface GlucoseWorksheetModalProps {
@@ -8,7 +8,8 @@ interface GlucoseWorksheetModalProps {
 }
 
 const GlucoseWorksheetModal: React.FC<GlucoseWorksheetModalProps> = ({ onClose }) => {
-  const { patients, stations } = usePatients();
+  const { stations } = usePatientData();
+  const patients = useFilteredPatients();
 
   const getHKDateParts = (date = new Date()) => {
     const formatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Hong_Kong', year: 'numeric', month: '2-digit', day: '2-digit' });

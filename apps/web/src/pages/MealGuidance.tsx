@@ -17,7 +17,7 @@ import {
   X,
   BarChart3
 } from 'lucide-react';
-import { usePatients, type MealGuidance, type MealCombinationType, type SpecialDietType } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type MealGuidance, type MealCombinationType, type SpecialDietType } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import MealGuidanceModal from '../components/MealGuidanceModal';
 import PatientTooltip from '../components/PatientTooltip';
@@ -43,7 +43,8 @@ interface AdvancedFilters {
 }
 
 const MealGuidance: React.FC = () => {
-  const { mealGuidances, patients, deleteMealGuidance, loading } = usePatients();
+  const { mealGuidances, deleteMealGuidance, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedGuidance, setSelectedGuidance] = useState<MealGuidance | null>(null);
   const [searchTerm, setSearchTerm] = useState('');

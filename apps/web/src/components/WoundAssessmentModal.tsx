@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, ChevronFirst as FirstAid, Calendar, User, MapPin, Ruler, Droplets, Thermometer, Eye, Palette, Plus, Trash2 } from 'lucide-react';
-import { usePatients, type WoundAssessment } from '../context/PatientContext';
+import { usePatientData, type WoundAssessment } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import HumanBodyDiagram from './HumanBodyDiagram';
@@ -12,7 +12,7 @@ interface WoundAssessmentModalProps {
 }
 
 const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment, onClose }) => {
-  const { addWoundAssessment, updateWoundAssessment } = usePatients();
+  const { addWoundAssessment, updateWoundAssessment } = usePatientData();
   const { displayName } = useAuth();
 
   // 香港時區輔助函數

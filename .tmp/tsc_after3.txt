@@ -1,0 +1,929 @@
+apps/web/src/components/ActivityRecordModal.tsx(193,11): error TS2740: Type '{ patient_id: number; record_date: string; other_activity: string; notes: string; is_absent: boolean; absence_reason: string; recorder: string; }' is missing the following properties from type 'Omit<PatientActivityRecord, "id" | "created_at" | "updated_at">': has_birthday_party, has_festival_celebration, has_performance, has_outing, and 12 more.
+apps/web/src/components/DeduplicateRecordsModal.tsx(68,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+apps/web/src/components/DeduplicateRecordsModal.tsx(148,33): error TS2304: Cannot find name 'getPatientBedNumber'.
+apps/web/src/components/DeduplicateRecordsModal.tsx(217,47): error TS2339: Property 'created_at' does not exist on type 'HealthRecord'.
+apps/web/src/components/DeduplicateRecordsModal.tsx(218,72): error TS2339: Property 'created_at' does not exist on type 'HealthRecord'.
+apps/web/src/components/DeduplicateRecordsModal.tsx(231,39): error TS2339: Property 'created_at' does not exist on type 'HealthRecord'.
+apps/web/src/components/DeduplicateRecordsModal.tsx(232,64): error TS2339: Property 'created_at' does not exist on type 'HealthRecord'.
+apps/web/src/components/DocumentTaskModal.tsx(38,49): error TS2339: Property 'tube_type' does not exist on type 'HealthTask'.
+apps/web/src/components/DocumentTaskModal.tsx(39,49): error TS2339: Property 'tube_size' does not exist on type 'HealthTask'.
+apps/web/src/components/EnhancedAdmissionRecordModal.tsx(70,7): error TS2322: Type '"return_to_facility"' is not assignable to type '"transfer_out" | "home" | "deceased"'.
+apps/web/src/components/EnhancedAdmissionRecordModal.tsx(197,44): error TS2345: Argument of type '{ id: string; event_time: string | null; date_of_death: any; time_of_death: any; transfer_paths: { transfer_date: string | null; transfer_time: string | null; id: string; transfer_location: string; remarks?: string; }[]; ... 9 more ...; remarks: string; }' is not assignable to parameter of type 'PatientAdmissionRecord'.
+  Type '{ id: string; event_time: string | null; date_of_death: any; time_of_death: any; transfer_paths: { transfer_date: string | null; transfer_time: string | null; id: string; transfer_location: string; remarks?: string | undefined; }[]; ... 9 more ...; remarks: string; }' is missing the following properties from type 'PatientAdmissionRecord': created_at, updated_at
+apps/web/src/components/EnhancedAdmissionRecordModal.tsx(199,41): error TS2345: Argument of type '{ event_time: string | null; date_of_death: any; time_of_death: any; transfer_paths: { transfer_date: string | null; transfer_time: string | null; id: string; transfer_location: string; remarks?: string; }[]; ... 9 more ...; remarks: string; }' is not assignable to parameter of type 'Omit<PatientAdmissionRecord, "id" | "created_at" | "updated_at">'.
+  Types of property 'event_time' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/FollowUpModal.tsx(103,62): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+apps/web/src/components/FollowUpModal.tsx(153,24): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+apps/web/src/components/FollowUpModal.tsx(166,41): error TS2345: Argument of type '{ 院友id: number; 覆診日期: string; 出發時間: string | null; 覆診時間: string | null; 覆診地點: string | null; 覆診專科: string | null; 交通安排: string | null; 陪診人員: string | null; 備註: string | null; 狀態: "尚未安排" | ... 4 more ... | null; 覆診id: string; 創建時間: string; 更新時間: string; }' is not assignable to parameter of type 'FollowUpAppointment'.
+  Types of property '出發時間' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/FollowUpModal.tsx(173,38): error TS2345: Argument of type '{ 院友id: number; 覆診日期: string; 出發時間: string | null; 覆診時間: string | null; 覆診地點: string | null; 覆診專科: string | null; 交通安排: string | null; 陪診人員: string | null; 備註: string | null; 狀態: "尚未安排" | ... 4 more ... | null; }' is not assignable to parameter of type 'Omit<FollowUpAppointment, "覆診id" | "創建時間" | "更新時間">'.
+  Types of property '出發時間' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/HealthAssessmentModal.tsx(3,31): error TS2305: Module '"../context/PatientContext"' has no exported member 'HealthAssessment'.
+apps/web/src/components/HealthAssessmentModal.tsx(257,9): error TS2322: Type 'string[]' is not assignable to type 'never[]'.
+  Type 'string' is not assignable to type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(258,9): error TS2322: Type 'string[]' is not assignable to type 'never[]'.
+  Type 'string' is not assignable to type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(308,17): error TS2345: Argument of type '(prev: { daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }) => { ...; }' is not assignable to parameter of type 'SetStateAction<{ daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }>'.
+  Type '(prev: { daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }) => { ...; }' is not assignable to type '(prevState: { daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }) => { ...; }'.
+    Call signature return types '{ consciousness_cognition: string[]; daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; ... 11 more ...; toileting_aid: string; }; ... 12 more ...; next_due_date: string; }' and '{ daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }' are incompatible.
+      The types of 'consciousness_cognition' are incompatible between these types.
+        Type 'string[]' is not assignable to type 'never[]'.
+          Type 'string' is not assignable to type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(368,35): error TS2345: Argument of type '{ emotional_expression: string; behavior_expression: string; next_due_date: string | null; daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; ... 14 more ...; toileting_aid: string; }; ... 11 more ...; patient_id: number; }' is not assignable to parameter of type 'Omit<HealthAssessment, "id" | "created_at" | "updated_at" | "status" | "archived_at">'.
+  Types of property 'next_due_date' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/HealthAssessmentModal.tsx(431,17): error TS2345: Argument of type '(prev: { daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }) => { ...; }' is not assignable to parameter of type 'SetStateAction<{ daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }>'.
+  Type '(prev: { daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }) => { ...; }' is not assignable to type '(prevState: { daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }) => { ...; }'.
+    Call signature return types '{ treatment_items: string[]; daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; ... 10 more ...; toileting_aid: string; }; ... 12 more ...; next_due_date: string; }' and '{ daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }' are incompatible.
+      The types of 'treatment_items' are incompatible between these types.
+        Type 'string[]' is not assignable to type 'never[]'.
+          Type 'string' is not assignable to type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(440,17): error TS2345: Argument of type '(prev: { daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }) => { ...; }' is not assignable to parameter of type 'SetStateAction<{ daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }>'.
+  Type '(prev: { daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }) => { ...; }' is not assignable to type '(prevState: { daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }) => { ...; }'.
+    Call signature return types '{ emotional_expression: string[]; daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; ... 11 more ...; toileting_aid: string; }; ... 12 more ...; next_due_date: string; }' and '{ daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }' are incompatible.
+      The types of 'emotional_expression' are incompatible between these types.
+        Type 'string[]' is not assignable to type 'never[]'.
+          Type 'string' is not assignable to type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(449,17): error TS2345: Argument of type '(prev: { daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }) => { ...; }' is not assignable to parameter of type 'SetStateAction<{ daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }>'.
+  Type '(prev: { daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }) => { ...; }' is not assignable to type '(prevState: { daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }) => { ...; }'.
+    Call signature return types '{ behavior_expression: string[]; daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; ... 11 more ...; toileting_aid: string; }; ... 12 more ...; next_due_date: string; }' and '{ daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }' are incompatible.
+      The types of 'behavior_expression' are incompatible between these types.
+        Type 'string[]' is not assignable to type 'never[]'.
+          Type 'string' is not assignable to type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(635,92): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(651,93): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(677,23): error TS2322: Type 'string | boolean | never[]' is not assignable to type 'string | number | readonly string[] | undefined'.
+  Type 'false' is not assignable to type 'string | number | readonly string[] | undefined'.
+apps/web/src/components/HealthAssessmentModal.tsx(692,27): error TS2322: Type 'string | boolean | never[]' is not assignable to type 'string | number | readonly string[] | undefined'.
+  Type 'false' is not assignable to type 'string | number | readonly string[] | undefined'.
+apps/web/src/components/HealthAssessmentModal.tsx(993,65): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(997,76): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1002,67): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1011,72): error TS2345: Argument of type '"其他"' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1018,60): error TS2345: Argument of type '"其他"' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1140,57): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1147,66): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1153,59): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1178,66): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1185,75): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1191,68): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1202,59): error TS2345: Argument of type '"其他"' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1223,65): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1230,74): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1236,67): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+apps/web/src/components/HealthAssessmentModal.tsx(1254,33): error TS2339: Property 'remarks' does not exist on type '{ daily_activities: { is_bedridden: boolean; is_wheelchair: boolean; limb_movement_left: never[]; limb_movement_right: never[]; eating: string; eating_aid: string; dressing: string; dressing_aid: string; ... 9 more ...; toileting_aid: string; }; ... 13 more ...; next_due_date: string; }'.
+apps/web/src/components/HospitalEpisodeModal.tsx(373,45): error TS2339: Property 'vacation_destination' does not exist on type '{ event_type: "admission" | "discharge" | "transfer" | "vacation_start" | "vacation_end"; event_date: string; event_time: string; hospital_name?: string | undefined; hospital_ward?: string | undefined; hospital_bed_number?: string | undefined; remarks?: string | undefined; vacation_end_type?: string | undefined; }'.
+apps/web/src/components/HospitalEpisodeModal.tsx(374,41): error TS2339: Property 'vacation_contact' does not exist on type '{ event_type: "admission" | "discharge" | "transfer" | "vacation_start" | "vacation_end"; event_date: string; event_time: string; hospital_name?: string | undefined; hospital_ward?: string | undefined; hospital_bed_number?: string | undefined; remarks?: string | undefined; vacation_end_type?: string | undefined; }'.
+apps/web/src/components/IncidentReportModal.tsx(90,36): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ patient_id: string; incident_date: string; incident_time: string; incident_type: string; other_incident_type: string; location: string; other_location: string; patient_activity: string; ... 41 more ...; submit_to_social_welfare_flag: boolean; }'.
+  No index signature with a parameter of type 'string' was found on type '{ patient_id: string; incident_date: string; incident_time: string; incident_type: string; other_incident_type: string; location: string; other_location: string; patient_activity: string; ... 41 more ...; submit_to_social_welfare_flag: boolean; }'.
+apps/web/src/components/IncidentReportModal.tsx(164,31): error TS7006: Parameter 'l' implicitly has an 'any' type.
+apps/web/src/components/IncidentReportModal.tsx(556,36): error TS2345: Argument of type '{ id: string; created_at: string; updated_at: string; patient_id: number; incident_time: string | null; treatment_date: string | null; treatment_time: string | null; ambulance_call_time: string | null; ... 44 more ...; submit_to_social_welfare_flag: boolean; }' is not assignable to parameter of type 'IncidentReport'.
+  Types of property 'incident_time' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/IncidentReportModal.tsx(563,33): error TS2345: Argument of type '{ patient_id: number; incident_time: string | null; treatment_date: string | null; treatment_time: string | null; ambulance_call_time: string | null; ambulance_arrival_time: string | null; ... 43 more ...; submit_to_social_welfare_flag: boolean; }' is not assignable to parameter of type 'Omit<IncidentReport, "id" | "created_at" | "updated_at">'.
+  Types of property 'incident_time' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/IncidentReportModal.tsx(759,90): error TS2345: Argument of type 'string' is not assignable to parameter of type 'boolean'.
+apps/web/src/components/IncidentReportModal.tsx(785,90): error TS2345: Argument of type 'string' is not assignable to parameter of type 'boolean'.
+apps/web/src/components/IncidentReportModal.tsx(794,86): error TS2345: Argument of type 'string' is not assignable to parameter of type 'boolean'.
+apps/web/src/components/IncidentReportModal.tsx(820,92): error TS2345: Argument of type 'string' is not assignable to parameter of type 'boolean'.
+apps/web/src/components/IncidentReportModal.tsx(1158,100): error TS2345: Argument of type 'string' is not assignable to parameter of type 'boolean'.
+apps/web/src/components/IncidentReportModal.tsx(1197,96): error TS2345: Argument of type 'string' is not assignable to parameter of type 'boolean'.
+apps/web/src/components/IncidentReportModal.tsx(1382,93): error TS2345: Argument of type 'string' is not assignable to parameter of type 'boolean'.
+apps/web/src/components/InspectionCheckModal.tsx(404,18): error TS18048: 'prescription' is possibly 'undefined'.
+apps/web/src/components/InspectionCheckModal.tsx(404,18): error TS18048: 'prescription.inspection_rules' is possibly 'undefined'.
+apps/web/src/components/InspectionCheckModal.tsx(429,18): error TS18048: 'prescription' is possibly 'undefined'.
+apps/web/src/components/InspectionCheckModal.tsx(429,18): error TS18048: 'prescription.inspection_rules' is possibly 'undefined'.
+apps/web/src/components/MealGuidanceModal.tsx(102,84): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+apps/web/src/components/MealGuidanceModal.tsx(105,64): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+apps/web/src/components/MealGuidanceModal.tsx(156,30): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+apps/web/src/components/MealGuidanceModal.tsx(172,34): error TS2345: Argument of type '{ patient_id: number; meal_combination: MealCombinationType; special_diets: SpecialDietType[]; needs_thickener: boolean; needs_feeding: boolean; ... 9 more ...; updated_at: string; }' is not assignable to parameter of type 'MealGuidance'.
+  Types of property 'thickener_amount' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/MealGuidanceModal.tsx(178,31): error TS2345: Argument of type '{ patient_id: number; meal_combination: MealCombinationType; special_diets: SpecialDietType[]; needs_thickener: boolean; needs_feeding: boolean; ... 6 more ...; guidance_source: string | null; }' is not assignable to parameter of type 'Omit<MealGuidance, "id" | "created_at" | "updated_at">'.
+  Types of property 'remarks' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/MealGuidanceModal.tsx(187,64): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+apps/web/src/components/MealGuidanceModal.tsx(209,12): error TS2678: Type '"素食"' is not comparable to type 'SpecialDietType'.
+apps/web/src/components/MedicationRecordExportModal.tsx(206,45): error TS2345: Argument of type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").MedicationPrescription' is not assignable to parameter of type 'MedicationPrescription'.
+  Types of property 'inspection_rules' are incompatible.
+    Type 'MedicationInspectionRule[] | undefined' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[] | undefined'.
+      Type 'MedicationInspectionRule[]' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[]'.
+        Type 'MedicationInspectionRule' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }'.
+          Types of property 'condition_value' are incompatible.
+            Type 'number' is not assignable to type 'string'.
+apps/web/src/components/MedicationRecordExportModal.tsx(427,51): error TS2345: Argument of type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").MedicationPrescription' is not assignable to parameter of type 'MedicationPrescription'.
+  Types of property 'inspection_rules' are incompatible.
+    Type 'MedicationInspectionRule[] | undefined' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[] | undefined'.
+      Type 'MedicationInspectionRule[]' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[]'.
+        Type 'MedicationInspectionRule' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }'.
+          Types of property 'condition_value' are incompatible.
+            Type 'number' is not assignable to type 'string'.
+apps/web/src/components/MedicationRecordExportModal.tsx(481,53): error TS2345: Argument of type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").MedicationPrescription' is not assignable to parameter of type 'MedicationPrescription'.
+  Types of property 'inspection_rules' are incompatible.
+    Type 'MedicationInspectionRule[] | undefined' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[] | undefined'.
+      Type 'MedicationInspectionRule[]' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[]'.
+        Type 'MedicationInspectionRule' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }'.
+          Types of property 'condition_value' are incompatible.
+            Type 'number' is not assignable to type 'string'.
+apps/web/src/components/MedicationRecordExportModal.tsx(490,40): error TS2345: Argument of type '{ prescriptions: MedicationPrescription[]; 院友id: number; 床號: string; 中文姓名: string; 中文姓氏: string; 中文名字: string; 英文姓名?: string | undefined; 英文姓氏?: string | undefined; ... 44 more ...; nursing_assessment_json?: Record<...> | undefined; }[]' is not assignable to parameter of type 'PatientWithPrescriptions[]'.
+  Type '{ prescriptions: MedicationPrescription[]; 院友id: number; 床號: string; 中文姓名: string; 中文姓氏: string; 中文名字: string; 英文姓名?: string; 英文姓氏?: string; 英文名字?: string; 性別: "\u7537" | "\u5973"; ... 42 more ...; nursing_assessment_json?: Record<string, any>; }' is not assignable to type 'PatientWithPrescriptions'.
+    Types of property 'prescriptions' are incompatible.
+      Type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").MedicationPrescription[]' is not assignable to type 'MedicationPrescription[]'.
+        Type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").MedicationPrescription' is not assignable to type 'MedicationPrescription'.
+          Types of property 'inspection_rules' are incompatible.
+            Type 'MedicationInspectionRule[] | undefined' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[] | undefined'.
+              Type 'MedicationInspectionRule[]' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[]'.
+                Type 'MedicationInspectionRule' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }'.
+                  Types of property 'condition_value' are incompatible.
+                    Type 'number' is not assignable to type 'string'.
+apps/web/src/components/PatientLogModal.tsx(77,30): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+apps/web/src/components/PatientLogModal.tsx(85,32): error TS2345: Argument of type '{ patient_id: number; log_date: string; log_type: string; content: string; recorder: string; id: string; created_at: string; updated_at: string; }' is not assignable to parameter of type 'PatientLog'.
+  Types of property 'log_type' are incompatible.
+    Type 'string' is not assignable to type '"其他" | "日常護理" | "文件簽署" | "入院/出院" | "入住/退住" | "醫生到診" | "意外事故" | "覆診返藥"'.
+apps/web/src/components/PatientLogModal.tsx(90,29): error TS2345: Argument of type '{ patient_id: number; log_date: string; log_type: string; content: string; recorder: string; }' is not assignable to parameter of type 'Omit<PatientLog, "id" | "created_at" | "updated_at">'.
+  Types of property 'log_type' are incompatible.
+    Type 'string' is not assignable to type '"其他" | "日常護理" | "文件簽署" | "入院/出院" | "入住/退住" | "醫生到診" | "意外事故" | "覆診返藥"'.
+apps/web/src/components/PatientMedicalHistorySection.tsx(76,25): error TS7006: Parameter 'd' implicitly has an 'any' type.
+apps/web/src/components/PatientMedicalHistorySection.tsx(82,46): error TS7006: Parameter 'f' implicitly has an 'any' type.
+apps/web/src/components/PatientMedicalHistorySection.tsx(82,49): error TS7006: Parameter 'i' implicitly has an 'any' type.
+apps/web/src/components/PatientMedicalHistorySection.tsx(87,46): error TS7006: Parameter 's' implicitly has an 'any' type.
+apps/web/src/components/PatientMedicalHistorySection.tsx(87,49): error TS7006: Parameter 'i' implicitly has an 'any' type.
+apps/web/src/components/PatientMedicalHistorySection.tsx(96,58): error TS7006: Parameter '_' implicitly has an 'any' type.
+apps/web/src/components/PatientMedicalHistorySection.tsx(96,61): error TS7006: Parameter 'i' implicitly has an 'any' type.
+apps/web/src/components/PatientMedicalHistorySection.tsx(104,58): error TS7006: Parameter '_' implicitly has an 'any' type.
+apps/web/src/components/PatientMedicalHistorySection.tsx(104,61): error TS7006: Parameter 'i' implicitly has an 'any' type.
+apps/web/src/components/PatientMedicalHistorySection.tsx(237,35): error TS7006: Parameter 'fracture' implicitly has an 'any' type.
+apps/web/src/components/PatientMedicalHistorySection.tsx(237,45): error TS7006: Parameter 'index' implicitly has an 'any' type.
+apps/web/src/components/PatientMedicalHistorySection.tsx(287,35): error TS7006: Parameter 'surgery' implicitly has an 'any' type.
+apps/web/src/components/PatientMedicalHistorySection.tsx(287,44): error TS7006: Parameter 'index' implicitly has an 'any' type.
+apps/web/src/components/PatientModal.tsx(262,31): error TS7006: Parameter '_' implicitly has an 'any' type.
+apps/web/src/components/PatientModal.tsx(262,34): error TS7006: Parameter 'i' implicitly has an 'any' type.
+apps/web/src/components/PatientModal.tsx(279,35): error TS7006: Parameter '_' implicitly has an 'any' type.
+apps/web/src/components/PatientModal.tsx(279,38): error TS7006: Parameter 'i' implicitly has an 'any' type.
+apps/web/src/components/PatientModal.tsx(535,7): error TS2783: '在住狀態' is specified more than once, so this usage will be overwritten.
+apps/web/src/components/PatientSocialStatusSection.tsx(51,39): error TS7006: Parameter 'v' implicitly has an 'any' type.
+apps/web/src/components/PatientSocialStatusSection.tsx(51,42): error TS7006: Parameter 'i' implicitly has an 'any' type.
+apps/web/src/components/PatientSocialStatusSection.tsx(60,50): error TS7006: Parameter '_' implicitly has an 'any' type.
+apps/web/src/components/PatientSocialStatusSection.tsx(60,53): error TS7006: Parameter 'i' implicitly has an 'any' type.
+apps/web/src/components/PatientSocialStatusSection.tsx(329,31): error TS7006: Parameter 'visit' implicitly has an 'any' type.
+apps/web/src/components/PatientSocialStatusSection.tsx(329,38): error TS7006: Parameter 'index' implicitly has an 'any' type.
+apps/web/src/components/Portal.tsx(30,33): error TS2345: Argument of type 'HTMLElement | null' is not assignable to parameter of type 'Element | DocumentFragment'.
+  Type 'null' is not assignable to type 'Element | DocumentFragment'.
+apps/web/src/components/PrescriptionModal.tsx(181,41): error TS7006: Parameter 'd' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(259,64): error TS7006: Parameter 'slot' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(303,24): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(313,24): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(313,45): error TS7006: Parameter '_' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(313,48): error TS7006: Parameter 'i' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(317,24): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(317,42): error TS7006: Parameter 'rule' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(317,48): error TS7006: Parameter 'i' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(522,50): error TS7006: Parameter 'rule' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(529,13): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ patient_id: any; medication_name: any; medication_source: any; medication_source_specialty: any; medication_quantity: any; estimated_end_date: string | null; prescription_date: any; ... 24 more ...; inspection_rules: any; }'.
+  No index signature with a parameter of type 'string' was found on type '{ patient_id: any; medication_name: any; medication_source: any; medication_source_specialty: any; medication_quantity: any; estimated_end_date: string | null; prescription_date: any; ... 24 more ...; inspection_rules: any; }'.
+apps/web/src/components/PrescriptionModal.tsx(530,18): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ patient_id: any; medication_name: any; medication_source: any; medication_source_specialty: any; medication_quantity: any; estimated_end_date: string | null; prescription_date: any; ... 24 more ...; inspection_rules: any; }'.
+  No index signature with a parameter of type 'string' was found on type '{ patient_id: any; medication_name: any; medication_source: any; medication_source_specialty: any; medication_quantity: any; estimated_end_date: string | null; prescription_date: any; ... 24 more ...; inspection_rules: any; }'.
+apps/web/src/components/PrescriptionModal.tsx(560,174): error TS2552: Cannot find name 'prescriptionData'. Did you mean 'prescription'?
+apps/web/src/components/PrescriptionModal.tsx(1265,58): error TS7006: Parameter 'timeSlot' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(1265,68): error TS7006: Parameter 'index' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(1312,39): error TS7006: Parameter 'rule' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionModal.tsx(1312,45): error TS7006: Parameter 'index' implicitly has an 'any' type.
+apps/web/src/components/PrescriptionTransferModal.tsx(179,44): error TS2345: Argument of type '{ actionType: string; groupId: string | undefined; } | undefined' is not assignable to parameter of type '{ actionType?: PrescriptionActivityActionType | undefined; groupId?: string | undefined; restoredFromLogId?: string | undefined; } | undefined'.
+  Type '{ actionType: string; groupId: string | undefined; }' is not assignable to type '{ actionType?: PrescriptionActivityActionType | undefined; groupId?: string | undefined; restoredFromLogId?: string | undefined; }'.
+    Types of property 'actionType' are incompatible.
+      Type 'string' is not assignable to type 'PrescriptionActivityActionType | undefined'.
+apps/web/src/components/PrescriptionTransferModal.tsx(191,49): error TS2345: Argument of type '{ actionType: string; groupId: string | undefined; } | undefined' is not assignable to parameter of type '{ actionType?: PrescriptionActivityActionType | undefined; groupId?: string | undefined; restoredFromLogId?: string | undefined; } | undefined'.
+  Type '{ actionType: string; groupId: string | undefined; }' is not assignable to type '{ actionType?: PrescriptionActivityActionType | undefined; groupId?: string | undefined; restoredFromLogId?: string | undefined; }'.
+    Types of property 'actionType' are incompatible.
+      Type 'string' is not assignable to type 'PrescriptionActivityActionType | undefined'.
+apps/web/src/components/RestraintAssessmentModal.tsx(310,30): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+apps/web/src/components/RestraintAssessmentModal.tsx(321,48): error TS2345: Argument of type '{ patient_id: number; doctor_signature_date: string | null; next_due_date: string | null; risk_factors: any; alternatives: any; suggested_restraints: any; other_restraint_notes: string | null; usage_record: any; id: string; }' is not assignable to parameter of type 'PatientRestraintAssessment'.
+  Type '{ patient_id: number; doctor_signature_date: string | null; next_due_date: string | null; risk_factors: any; alternatives: any; suggested_restraints: any; other_restraint_notes: string | null; usage_record: any; id: string; }' is missing the following properties from type 'PatientRestraintAssessment': created_at, updated_at
+apps/web/src/components/RestraintAssessmentModal.tsx(326,45): error TS2345: Argument of type '{ patient_id: number; doctor_signature_date: string | null; next_due_date: string | null; risk_factors: any; alternatives: any; suggested_restraints: any; other_restraint_notes: string | null; usage_record: any; }' is not assignable to parameter of type 'Omit<PatientRestraintAssessment, "id" | "created_at" | "updated_at">'.
+  Types of property 'doctor_signature_date' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/ScheduleDetailModal.tsx(13,13): error TS2503: Cannot find namespace 'db'.
+apps/web/src/components/ScheduleDetailModal.tsx(23,52): error TS2503: Cannot find namespace 'db'.
+apps/web/src/components/ScheduleDetailModal.tsx(24,48): error TS2503: Cannot find namespace 'db'.
+apps/web/src/components/ScheduleDetailModal.tsx(67,9): error TS2698: Spread types may only be created from object types.
+apps/web/src/components/ScheduleDetailModal.tsx(68,23): error TS2339: Property '到診院友_看診原因' does not exist on type 'ParserError<"Expected identifier at `院友主表(中文姓名, 床號),\n          到診院友_看診原因(\n            看診原因選項(原因id, 原因名稱)\n          )\n        `">'.
+apps/web/src/components/ScheduleDetailModal.tsx(68,38): error TS7006: Parameter 'r' implicitly has an 'any' type.
+apps/web/src/components/ScheduleDetailModal.tsx(121,43): error TS7006: Parameter 'r' implicitly has an 'any' type.
+apps/web/src/components/ScheduleDetailModal.tsx(158,18): error TS2339: Property 'error' does not exist on type 'void'.
+apps/web/src/components/ScheduleDetailModal.tsx(159,42): error TS2339: Property 'error' does not exist on type 'void'.
+apps/web/src/components/ScheduleDetailModal.tsx(160,32): error TS2339: Property 'error' does not exist on type 'void'.
+apps/web/src/components/ScheduleDetailModal.tsx(178,48): error TS7006: Parameter 'r' implicitly has an 'any' type.
+apps/web/src/components/ScheduleDetailModal.tsx(180,33): error TS7006: Parameter 'id' implicitly has an 'any' type.
+apps/web/src/components/ScheduleDetailModal.tsx(187,39): error TS7006: Parameter 'id' implicitly has an 'any' type.
+apps/web/src/components/ScheduleDetailModal.tsx(199,45): error TS7006: Parameter 'r' implicitly has an 'any' type.
+apps/web/src/components/ScheduleDetailModal.tsx(346,71): error TS7006: Parameter 'r' implicitly has an 'any' type.
+apps/web/src/components/ScheduleDetailModal.tsx(367,47): error TS7006: Parameter 'r' implicitly has an 'any' type.
+apps/web/src/components/ScheduleModal.tsx(39,30): error TS2345: Argument of type '{ 排程id: any; 到診日期: any; }' is not assignable to parameter of type 'ScheduleWithDetails'.
+  Property '院友列表' is missing in type '{ 排程id: any; 到診日期: any; }' but required in type 'ScheduleWithDetails'.
+apps/web/src/components/TaskHistoryModal.tsx(168,59): error TS7006: Parameter 'time' implicitly has an 'any' type.
+apps/web/src/components/TaskModal.tsx(62,12): error TS2678: Type '"晩晴計劃"' is not comparable to type 'HealthTaskType | undefined'.
+apps/web/src/components/TaskModal.tsx(250,15): error TS2322: Type '{ health_record_type: "年度體檢" | "藥物自存同意書" | "預設醫療指示" | "血壓" | "脈搏" | "體溫" | "血含氧量" | "呼吸" | "血糖值" | "體重" | "傷口換症" | "約束物品同意書" | "導尿管更換" | "鼻胃飼管更換" | "氧氣喉管清洗/更換"; next_due_at: string; ... 16 more ...; updated_at: string; }' is not assignable to type 'PatientHealthTask'.
+  Types of property 'end_date' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/TaskModal.tsx(252,39): error TS2345: Argument of type '{ health_record_type: "年度體檢" | "藥物自存同意書" | "預設醫療指示" | "血壓" | "脈搏" | "體溫" | "血含氧量" | "呼吸" | "血糖值" | "體重" | "傷口換症" | "約束物品同意書" | "導尿管更換" | "鼻胃飼管更換" | "氧氣喉管清洗/更換"; next_due_at: string; ... 16 more ...; updated_at: string; }' is not assignable to parameter of type 'PatientHealthTask'.
+  Types of property 'end_date' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/TaskModal.tsx(259,17): error TS2322: Type '{ health_record_type: HealthTaskType; next_due_at: string; created_at: string; updated_at: string; patient_id: number; frequency_unit: FrequencyUnit; ... 12 more ...; id: string; }' is not assignable to type 'PatientHealthTask'.
+  Types of property 'end_date' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/TaskModal.tsx(264,38): error TS2345: Argument of type '{ health_record_type: HealthTaskType; next_due_at: string; patient_id: number; frequency_unit: FrequencyUnit; frequency_value: number; specific_times: string[]; ... 9 more ...; end_time: string | null; }' is not assignable to parameter of type 'Omit<PatientHealthTask, "id" | "created_at" | "updated_at">'.
+  Types of property 'end_date' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/TaskModal.tsx(279,12): error TS2678: Type '"生命表徵"' is not comparable to type 'HealthTaskType'.
+apps/web/src/components/TaskModal.tsx(280,12): error TS2678: Type '"血糖控制"' is not comparable to type 'HealthTaskType'.
+apps/web/src/components/TaskModal.tsx(281,12): error TS2678: Type '"體重控制"' is not comparable to type 'HealthTaskType'.
+apps/web/src/components/TaskModal.tsx(290,12): error TS2678: Type '"生命表徵"' is not comparable to type 'HealthTaskType'.
+apps/web/src/components/TaskModal.tsx(291,12): error TS2678: Type '"血糖控制"' is not comparable to type 'HealthTaskType'.
+apps/web/src/components/TaskModal.tsx(292,12): error TS2678: Type '"體重控制"' is not comparable to type 'HealthTaskType'.
+apps/web/src/components/WoundAssessmentModal.tsx(173,33): error TS7006: Parameter 'd' implicitly has an 'any' type.
+apps/web/src/components/WoundAssessmentModal.tsx(187,30): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+apps/web/src/components/WoundAssessmentModal.tsx(221,37): error TS2345: Argument of type '{ patient_id: number; assessment_date: string; next_assessment_date: string | null; assessor: string | null; wound_details: { wound_location: any; wound_photos: any; area_length: any; area_width: any; ... 20 more ...; remarks: any; }[]; id: string; }' is not assignable to parameter of type 'WoundAssessment'.
+  Type '{ patient_id: number; assessment_date: string; next_assessment_date: string | null; assessor: string | null; wound_details: { wound_location: any; wound_photos: any; area_length: any; area_width: any; ... 20 more ...; remarks: any; }[]; id: string; }' is missing the following properties from type 'WoundAssessment': status, created_at, updated_at
+apps/web/src/components/WoundAssessmentModal.tsx(226,34): error TS2345: Argument of type '{ patient_id: number; assessment_date: string; next_assessment_date: string | null; assessor: string | null; wound_details: { wound_location: any; wound_photos: any; area_length: any; area_width: any; ... 20 more ...; remarks: any; }[]; }' is not assignable to parameter of type 'Omit<WoundAssessment, "id" | "created_at" | "updated_at" | "status" | "archived_at">'.
+  Types of property 'assessor' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+apps/web/src/components/WoundAssessmentModal.tsx(754,48): error TS7006: Parameter 'dressing' implicitly has an 'any' type.
+apps/web/src/context/health/HealthRecordContext.tsx(175,48): error TS2345: Argument of type 'number[]' is not assignable to parameter of type 'string[]'.
+  Type 'number' is not assignable to type 'string'.
+apps/web/src/context/merged/MedicalContext.tsx(717,48): error TS2345: Argument of type 'number[]' is not assignable to parameter of type 'string[]'.
+  Type 'number' is not assignable to type 'string'.
+apps/web/src/example/createPatrolRound.ts(2,34): error TS2307: Cannot find module '@shared' or its corresponding type declarations.
+apps/web/src/hooks/queries/useWorkflowQueries.ts(125,11): error TS7034: Variable 'allData' implicitly has type 'any[]' in some locations where its type cannot be determined.
+apps/web/src/hooks/queries/useWorkflowQueries.ts(139,19): error TS7005: Variable 'allData' implicitly has an 'any[]' type.
+apps/web/src/lib/database.tsx(991,9): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ 院友id: number; 覆診日期: string; 出發時間?: string | undefined; 覆診時間?: string | undefined; 覆診地點?: string | undefined; 覆診專科?: string | undefined; 交通安排?: string | undefined; 陪診人員?: string | undefined; 備註?: string | undefined; 狀態: "尚未安排" | ... 3 more ... | "取消"; 創建時間: string; 更新時間: string; }'.
+  No index signature with a parameter of type 'string' was found on type '{ 院友id: number; 覆診日期: string; 出發時間?: string | undefined; 覆診時間?: string | undefined; 覆診地點?: string | undefined; 覆診專科?: string | undefined; 交通安排?: string | undefined; 陪診人員?: string | undefined; 備註?: string | undefined; 狀態: "尚未安排" | ... 3 more ... | "取消"; 創建時間: string; 更新時間: string; }'.
+apps/web/src/lib/database.tsx(992,7): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ 院友id: number; 覆診日期: string; 出發時間?: string | undefined; 覆診時間?: string | undefined; 覆診地點?: string | undefined; 覆診專科?: string | undefined; 交通安排?: string | undefined; 陪診人員?: string | undefined; 備註?: string | undefined; 狀態: "尚未安排" | ... 3 more ... | "取消"; 創建時間: string; 更新時間: string; }'.
+  No index signature with a parameter of type 'string' was found on type '{ 院友id: number; 覆診日期: string; 出發時間?: string | undefined; 覆診時間?: string | undefined; 覆診地點?: string | undefined; 覆診專科?: string | undefined; 交通安排?: string | undefined; 陪診人員?: string | undefined; 備註?: string | undefined; 狀態: "尚未安排" | ... 3 more ... | "取消"; 創建時間: string; 更新時間: string; }'.
+apps/web/src/lib/database.tsx(1034,9): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ patient_id?: number | undefined; medication_name?: string | undefined; prescription_date?: string | undefined; start_date?: string | undefined; start_time?: string | undefined; ... 26 more ...; updated_at?: string | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ patient_id?: number | undefined; medication_name?: string | undefined; prescription_date?: string | undefined; start_date?: string | undefined; start_time?: string | undefined; ... 26 more ...; updated_at?: string | undefined; }'.
+apps/web/src/lib/database.tsx(1035,7): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ patient_id?: number | undefined; medication_name?: string | undefined; prescription_date?: string | undefined; start_date?: string | undefined; start_time?: string | undefined; ... 26 more ...; updated_at?: string | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ patient_id?: number | undefined; medication_name?: string | undefined; prescription_date?: string | undefined; start_date?: string | undefined; start_time?: string | undefined; ... 26 more ...; updated_at?: string | undefined; }'.
+apps/web/src/lib/database.tsx(1313,9): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ 床號: string; 中文姓名: string; 中文姓氏: string; 中文名字: string; 英文姓名?: string | undefined; 英文姓氏?: string | undefined; 英文名字?: string | undefined; 性別: "男" | "女"; 身份證號碼: string; 出生日期?: string | undefined; ... 40 more ...; nursing_assessment_json?: Record<...> | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ 床號: string; 中文姓名: string; 中文姓氏: string; 中文名字: string; 英文姓名?: string | undefined; 英文姓氏?: string | undefined; 英文名字?: string | undefined; 性別: "男" | "女"; 身份證號碼: string; 出生日期?: string | undefined; ... 40 more ...; nursing_assessment_json?: Record<...> | undefined; }'.
+apps/web/src/lib/database.tsx(1313,37): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ 床號: string; 中文姓名: string; 中文姓氏: string; 中文名字: string; 英文姓名?: string | undefined; 英文姓氏?: string | undefined; 英文名字?: string | undefined; 性別: "男" | "女"; 身份證號碼: string; 出生日期?: string | undefined; ... 40 more ...; nursing_assessment_json?: Record<...> | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ 床號: string; 中文姓名: string; 中文姓氏: string; 中文名字: string; 英文姓名?: string | undefined; 英文姓氏?: string | undefined; 英文名字?: string | undefined; 性別: "男" | "女"; 身份證號碼: string; 出生日期?: string | undefined; ... 40 more ...; nursing_assessment_json?: Record<...> | undefined; }'.
+apps/web/src/lib/database.tsx(1337,43): error TS2339: Property '身份證號碼' does not exist on type 'ParserError<"Expected identifier at `院友id, 中文姓名, 床號, 在住狀態, 身份證號碼`">'.
+apps/web/src/lib/database.tsx(1343,39): error TS2339: Property '中文姓名' does not exist on type 'ParserError<"Expected identifier at `院友id, 中文姓名, 床號, 在住狀態, 身份證號碼`">'.
+apps/web/src/lib/database.tsx(1343,76): error TS2339: Property '床號' does not exist on type 'ParserError<"Expected identifier at `院友id, 中文姓名, 床號, 在住狀態, 身份證號碼`">'.
+apps/web/src/lib/database.tsx(1343,111): error TS2339: Property '在住狀態' does not exist on type 'ParserError<"Expected identifier at `院友id, 中文姓名, 床號, 在住狀態, 身份證號碼`">'.
+apps/web/src/lib/database.tsx(1355,9): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ 院友id: number; 床號: string; 中文姓名: string; 中文姓氏: string; 中文名字: string; 英文姓名?: string | undefined; 英文姓氏?: string | undefined; 英文名字?: string | undefined; 性別: "男" | "女"; 身份證號碼: string; 出生日期?: string | undefined; ... 40 more ...; nursing_assessment_json?: Record<...> | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ 院友id: number; 床號: string; 中文姓名: string; 中文姓氏: string; 中文名字: string; 英文姓名?: string | undefined; 英文姓氏?: string | undefined; 英文名字?: string | undefined; 性別: "男" | "女"; 身份證號碼: string; 出生日期?: string | undefined; ... 40 more ...; nursing_assessment_json?: Record<...> | undefined; }'.
+apps/web/src/lib/database.tsx(1355,37): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ 院友id: number; 床號: string; 中文姓名: string; 中文姓氏: string; 中文名字: string; 英文姓名?: string | undefined; 英文姓氏?: string | undefined; 英文名字?: string | undefined; 性別: "男" | "女"; 身份證號碼: string; 出生日期?: string | undefined; ... 40 more ...; nursing_assessment_json?: Record<...> | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ 院友id: number; 床號: string; 中文姓名: string; 中文姓氏: string; 中文名字: string; 英文姓名?: string | undefined; 英文姓氏?: string | undefined; 英文名字?: string | undefined; 性別: "男" | "女"; 身份證號碼: string; 出生日期?: string | undefined; ... 40 more ...; nursing_assessment_json?: Record<...> | undefined; }'.
+apps/web/src/lib/database.tsx(1373,14): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ 院友id: number; 床號: string; 中文姓名: string; 中文姓氏: string; 中文名字: string; 英文姓名?: string | undefined; 英文姓氏?: string | undefined; 英文名字?: string | undefined; 性別: "男" | "女"; 身份證號碼: string; 出生日期?: string | undefined; ... 40 more ...; nursing_assessment_json?: Record<...> | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ 院友id: number; 床號: string; 中文姓名: string; 中文姓氏: string; 中文名字: string; 英文姓名?: string | undefined; 英文姓氏?: string | undefined; 英文名字?: string | undefined; 性別: "男" | "女"; 身份證號碼: string; 出生日期?: string | undefined; ... 40 more ...; nursing_assessment_json?: Record<...> | undefined; }'.
+apps/web/src/lib/database.tsx(1538,32): error TS2339: Property 'bed_transfer_type' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type, 在住狀態`">'.
+apps/web/src/lib/database.tsx(1539,28): error TS2339: Property 'bed_id' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type, 在住狀態`">'.
+apps/web/src/lib/database.tsx(1558,48): error TS2339: Property 'station_id' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type, 在住狀態`">'.
+apps/web/src/lib/database.tsx(1604,16): error TS2339: Property 'original_bed_id' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id`">'.
+apps/web/src/lib/database.tsx(1609,23): error TS2339: Property 'original_bed_id' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id`">'.
+apps/web/src/lib/database.tsx(1661,42): error TS2339: Property '院友id' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type`">'.
+apps/web/src/lib/database.tsx(1662,42): error TS2339: Property '院友id' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type`">'.
+apps/web/src/lib/database.tsx(1665,28): error TS2339: Property 'bed_id' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type`">'.
+apps/web/src/lib/database.tsx(1665,45): error TS2339: Property 'bed_id' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type`">'.
+apps/web/src/lib/database.tsx(1672,50): error TS2339: Property 'bed_id' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type`">'.
+apps/web/src/lib/database.tsx(1673,50): error TS2339: Property 'bed_id' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type`">'.
+apps/web/src/lib/database.tsx(1676,35): error TS2339: Property 'bed_transfer_type' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type`">'.
+apps/web/src/lib/database.tsx(1677,35): error TS2339: Property 'bed_transfer_type' does not exist on type 'ParserError<"Expected identifier at `院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type`">'.
+apps/web/src/lib/database.tsx(1841,62): error TS2339: Property '原因id' does not exist on type 'ParserError<"Expected identifier at `細項id, 原因id`">'.
+apps/web/src/lib/database.tsx(1854,23): error TS2339: Property '細項id' does not exist on type 'ParserError<"Expected identifier at `細項id, 原因id`">'.
+apps/web/src/lib/database.tsx(1855,58): error TS2339: Property '原因id' does not exist on type 'ParserError<"Expected identifier at `細項id, 原因id`">'.
+apps/web/src/lib/database.tsx(1903,50): error TS2339: Property '排程id' does not exist on type 'ParserError<"Expected identifier at `排程id`">'.
+apps/web/src/lib/database.tsx(1990,23): error TS2698: Spread types may only be created from object types.
+apps/web/src/lib/database.tsx(2160,9): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ id: string; patient_id: number; doctor_signature_date?: string | undefined; next_due_date?: string | undefined; risk_factors: any; alternatives: any; suggested_restraints: any; other_restraint_notes?: string | undefined; is_terminated?: boolean | undefined; usage_record?: any; created_at: string; updated_at: strin...'.
+  No index signature with a parameter of type 'string' was found on type '{ id: string; patient_id: number; doctor_signature_date?: string | undefined; next_due_date?: string | undefined; risk_factors: any; alternatives: any; suggested_restraints: any; other_restraint_notes?: string | undefined; is_terminated?: boolean | undefined; usage_record?: any; created_at: string; updated_at: strin...'.
+apps/web/src/lib/database.tsx(2161,7): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ id: string; patient_id: number; doctor_signature_date?: string | undefined; next_due_date?: string | undefined; risk_factors: any; alternatives: any; suggested_restraints: any; other_restraint_notes?: string | undefined; is_terminated?: boolean | undefined; usage_record?: any; created_at: string; updated_at: strin...'.
+  No index signature with a parameter of type 'string' was found on type '{ id: string; patient_id: number; doctor_signature_date?: string | undefined; next_due_date?: string | undefined; risk_factors: any; alternatives: any; suggested_restraints: any; other_restraint_notes?: string | undefined; is_terminated?: boolean | undefined; usage_record?: any; created_at: string; updated_at: strin...'.
+apps/web/src/lib/database.tsx(2350,81): error TS2339: Property '院友id' does not exist on type 'ParserError<"Expected identifier at `院友id, 床號, 中文姓氏, 中文名字, original_bed_id`">'.
+apps/web/src/lib/database.tsx(2380,29): error TS2339: Property '院友id' does not exist on type 'ParserError<"Expected identifier at `院友id, 床號, 中文姓氏, 中文名字, original_bed_id`">'.
+apps/web/src/lib/database.tsx(2381,29): error TS2339: Property 'original_bed_id' does not exist on type 'ParserError<"Expected identifier at `院友id, 床號, 中文姓氏, 中文名字, original_bed_id`">'.
+apps/web/src/lib/database.tsx(2381,66): error TS2339: Property 'original_bed_id' does not exist on type 'ParserError<"Expected identifier at `院友id, 床號, 中文姓氏, 中文名字, original_bed_id`">'.
+apps/web/src/lib/database.tsx(2381,94): error TS2339: Property '床號' does not exist on type 'ParserError<"Expected identifier at `院友id, 床號, 中文姓氏, 中文名字, original_bed_id`">'.
+apps/web/src/lib/database.tsx(2381,107): error TS2339: Property '床號' does not exist on type 'ParserError<"Expected identifier at `院友id, 床號, 中文姓氏, 中文名字, original_bed_id`">'.
+apps/web/src/lib/database.tsx(2382,34): error TS2339: Property '中文姓氏' does not exist on type 'ParserError<"Expected identifier at `院友id, 床號, 中文姓氏, 中文名字, original_bed_id`">'.
+apps/web/src/lib/database.tsx(2382,49): error TS2339: Property '中文名字' does not exist on type 'ParserError<"Expected identifier at `院友id, 床號, 中文姓氏, 中文名字, original_bed_id`">'.
+apps/web/src/lib/database.tsx(3819,46): error TS2339: Property '記錄日期' does not exist on type 'ParserError<"Expected identifier at `記錄日期, 記錄時間, 任務id`">'.
+apps/web/src/lib/database.tsx(3823,54): error TS2339: Property '記錄日期' does not exist on type 'ParserError<"Expected identifier at `記錄日期, 記錄時間, 任務id`">'.
+apps/web/src/lib/database.tsx(3823,75): error TS2339: Property '記錄時間' does not exist on type 'ParserError<"Expected identifier at `記錄日期, 記錄時間, 任務id`">'.
+apps/web/src/lib/database.tsx(3825,45): error TS2339: Property '記錄日期' does not exist on type 'ParserError<"Expected identifier at `記錄日期, 記錄時間, 任務id`">'.
+apps/web/src/lib/database.tsx(4405,155): error TS2339: Property 'status' does not exist on type 'PostgrestError'.
+apps/web/src/lib/database.tsx(4408,86): error TS2339: Property 'status' does not exist on type 'PostgrestError'.
+apps/web/src/lib/database.tsx(4433,88): error TS2339: Property 'status' does not exist on type 'PostgrestError'.
+apps/web/src/lib/database.tsx(4459,88): error TS2339: Property 'status' does not exist on type 'PostgrestError'.
+apps/web/src/main.tsx(3,17): error TS5097: An import path can only end with a '.tsx' extension when 'allowImportingTsExtensions' is enabled.
+apps/web/src/nurse/pages/RecordsPage.tsx(329,37): error TS2554: Expected 2 arguments, but got 1.
+apps/web/src/nurse/pages/RecordsPage.tsx(501,54): error TS2339: Property 'notes' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'notes' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(502,56): error TS2339: Property 'notes' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'notes' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(506,44): error TS2339: Property 'has_urine' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'has_urine' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(507,44): error TS2339: Property 'has_stool' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'has_stool' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(508,44): error TS2339: Property 'has_none' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'has_none' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(509,54): error TS2339: Property 'notes' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'notes' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(510,56): error TS2339: Property 'notes' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'notes' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(513,54): error TS2339: Property 'notes' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'notes' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(514,56): error TS2339: Property 'notes' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'notes' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(517,54): error TS2339: Property 'notes' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'notes' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(518,43): error TS2339: Property 'observation_status' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'observation_status' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(519,43): error TS2339: Property 'observation_status' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'observation_status' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(520,43): error TS2339: Property 'observation_status' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'observation_status' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(521,56): error TS2339: Property 'notes' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'notes' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(524,54): error TS2339: Property 'notes' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'notes' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(524,79): error TS2339: Property 'position' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'position' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(525,56): error TS2339: Property 'notes' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'notes' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(529,66): error TS2339: Property 'status_notes' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'status_notes' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(530,43): error TS2339: Property 'care_items' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'care_items' does not exist on type 'PatrolRound'.
+apps/web/src/nurse/pages/RecordsPage.tsx(530,86): error TS2339: Property 'care_items' does not exist on type 'PatrolRound | DiaperChangeRecord | RestraintObservationRecord | PositionChangeRecord | HygieneRecord | IntakeOutputRecord'.
+  Property 'care_items' does not exist on type 'PatrolRound'.
+apps/web/src/pages/AdmissionRecords.tsx(684,46): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/web/src/pages/AdmissionRecords.tsx(689,51): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(158,40): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+apps/web/src/pages/Dashboard.tsx(173,34): error TS2339: Property 'start_date' does not exist on type 'HealthTask'.
+apps/web/src/pages/Dashboard.tsx(173,61): error TS2339: Property 'start_date' does not exist on type 'HealthTask'.
+apps/web/src/pages/Dashboard.tsx(268,40): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+apps/web/src/pages/Dashboard.tsx(270,39): error TS2322: Type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").Patient' is not assignable to type 'Patient'.
+  Types of property '院友id' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(602,47): error TS2367: This comparison appears to be unintentional because the types '"年度體檢" | "藥物自存同意書" | "預設醫療指示" | "血壓" | "脈搏" | "血含氧量" | "呼吸" | "血糖值" | "傷口換症" | "約束物品同意書" | "導尿管更換" | "鼻胃飼管更換" | "氧氣喉管清洗/更換"' and '"體重控制"' have no overlap.
+apps/web/src/pages/Dashboard.tsx(975,29): error TS2345: Argument of type '(prev: PatientHealthTask[]) => (PatientHealthTask | { last_completed_at: string; next_due_at: string | null; tube_type: string | undefined; ... 15 more ...; updated_at: string; })[]' is not assignable to parameter of type 'SetStateAction<PatientHealthTask[]>'.
+  Type '(prev: PatientHealthTask[]) => (PatientHealthTask | { last_completed_at: string; next_due_at: string | null; tube_type: string | undefined; ... 15 more ...; updated_at: string; })[]' is not assignable to type '(prevState: PatientHealthTask[]) => PatientHealthTask[]'.
+    Type '(PatientHealthTask | { last_completed_at: string; next_due_at: string | null; tube_type: string | undefined; tube_size: string | undefined; id: string; patient_id: number; ... 12 more ...; updated_at: string; })[]' is not assignable to type 'PatientHealthTask[]'.
+      Type 'PatientHealthTask | { last_completed_at: string; next_due_at: string | null; tube_type: string | undefined; tube_size: string | undefined; id: string; patient_id: number; ... 12 more ...; updated_at: string; }' is not assignable to type 'PatientHealthTask'.
+        Type '{ last_completed_at: string; next_due_at: string | null; tube_type: string | undefined; tube_size: string | undefined; id: string; patient_id: number; health_record_type: HealthTaskType; ... 11 more ...; updated_at: string; }' is not assignable to type 'PatientHealthTask'.
+          Types of property 'next_due_at' are incompatible.
+            Type 'string | null' is not assignable to type 'string'.
+              Type 'null' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(979,31): error TS2345: Argument of type '{ last_completed_at: string; next_due_at: string | null; tube_type: string | undefined; tube_size: string | undefined; id: string; patient_id: number; health_record_type: HealthTaskType; ... 11 more ...; updated_at: string; }' is not assignable to parameter of type 'PatientHealthTask'.
+  Types of property 'next_due_at' are incompatible.
+    Type 'string | null' is not assignable to type 'string'.
+      Type 'null' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1167,33): error TS2322: Type 'PatientHealthTask & { firstIncompleteDate?: Date | undefined; incompleteDates?: Date[] | undefined; }' is not assignable to type 'HealthTask'.
+  Types of property 'patient_id' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1168,33): error TS2322: Type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").Patient' is not assignable to type 'Patient'.
+  Types of property '院友id' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1170,33): error TS2322: Type '(PatientHealthTask & { firstIncompleteDate?: Date | undefined; incompleteDates?: Date[] | undefined; })[]' is not assignable to type 'HealthTask[]'.
+  Type 'PatientHealthTask & { firstIncompleteDate?: Date | undefined; incompleteDates?: Date[] | undefined; }' is not assignable to type 'HealthTask'.
+    Types of property 'patient_id' are incompatible.
+      Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1175,47): error TS2345: Argument of type 'PatientHealthTask & { firstIncompleteDate?: Date | undefined; incompleteDates?: Date[] | undefined; }' is not assignable to parameter of type 'HealthTask'.
+  Types of property 'patient_id' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1266,58): error TS2322: Type 'PatientHealthTask & { firstIncompleteDate?: Date | undefined; incompleteDates?: Date[] | undefined; }' is not assignable to type 'HealthTask'.
+  Types of property 'patient_id' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1266,69): error TS2322: Type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").Patient' is not assignable to type 'Patient'.
+  Types of property '院友id' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1266,124): error TS2322: Type '(PatientHealthTask & { firstIncompleteDate?: Date | undefined; incompleteDates?: Date[] | undefined; })[]' is not assignable to type 'HealthTask[]'.
+  Type 'PatientHealthTask & { firstIncompleteDate?: Date | undefined; incompleteDates?: Date[] | undefined; }' is not assignable to type 'HealthTask'.
+    Types of property 'patient_id' are incompatible.
+      Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1269,49): error TS2345: Argument of type 'PatientHealthTask & { firstIncompleteDate?: Date | undefined; incompleteDates?: Date[] | undefined; }' is not assignable to parameter of type 'HealthTask'.
+  Types of property 'patient_id' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1356,58): error TS2322: Type 'PatientHealthTask & { firstIncompleteDate?: Date | undefined; incompleteDates?: Date[] | undefined; }' is not assignable to type 'HealthTask'.
+  Types of property 'patient_id' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1356,69): error TS2322: Type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").Patient' is not assignable to type 'Patient'.
+  Types of property '院友id' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1356,124): error TS2322: Type '(PatientHealthTask & { firstIncompleteDate?: Date | undefined; incompleteDates?: Date[] | undefined; })[]' is not assignable to type 'HealthTask[]'.
+  Type 'PatientHealthTask & { firstIncompleteDate?: Date | undefined; incompleteDates?: Date[] | undefined; }' is not assignable to type 'HealthTask'.
+    Types of property 'patient_id' are incompatible.
+      Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1359,49): error TS2345: Argument of type 'PatientHealthTask & { firstIncompleteDate?: Date | undefined; incompleteDates?: Date[] | undefined; }' is not assignable to parameter of type 'HealthTask'.
+  Types of property 'patient_id' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1621,206): error TS2345: Argument of type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").FollowUpAppointment' is not assignable to parameter of type 'FollowUpAppointment'.
+  Types of property '院友id' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+apps/web/src/pages/Dashboard.tsx(1654,11): error TS2322: Type '{ guidance: any; onClose: () => void; onUpdate: () => Promise<void>; }' is not assignable to type 'IntrinsicAttributes & MealGuidanceModalProps'.
+  Property 'onUpdate' does not exist on type 'IntrinsicAttributes & MealGuidanceModalProps'.
+apps/web/src/pages/Dashboard.tsx(1683,76): error TS2322: Type '{ isOpen: true; onClose: () => void; task: HealthTask; patient: Patient; onTaskCompleted: (taskId: string, completionDate: string, nextDueDate: string, tubeType?: string | undefined, tubeSize?: string | undefined) => Promise<...>; }' is not assignable to type 'IntrinsicAttributes & DocumentTaskModalProps'.
+  Property 'isOpen' does not exist on type 'IntrinsicAttributes & DocumentTaskModalProps'.
+apps/web/src/pages/Dashboard.tsx(1684,167): error TS2739: Type 'FollowUpAppointment' is missing the following properties from type 'FollowUpAppointment': 創建時間, 更新時間
+apps/web/src/pages/Dashboard.tsx(1687,88): error TS2322: Type '{ isOpen: true; onClose: () => void; assessment: any; onUpdate: () => Promise<void>; }' is not assignable to type 'IntrinsicAttributes & HealthAssessmentModalProps'.
+  Property 'isOpen' does not exist on type 'IntrinsicAttributes & HealthAssessmentModalProps'.
+apps/web/src/pages/MealGuidance.tsx(422,12): error TS2678: Type '"素食"' is not comparable to type 'SpecialDietType'.
+apps/web/src/pages/MealGuidance.tsx(1112,11): error TS2322: Type 'MealGuidance | null' is not assignable to type 'MealGuidance | undefined'.
+  Type 'null' is not assignable to type 'MealGuidance | undefined'.
+apps/web/src/pages/MedicationWorkflow.tsx(3155,53): error TS2339: Property 'cannot_crush' does not exist on type 'MedicationPrescription'.
+apps/web/src/pages/MedicationWorkflow.tsx(3206,56): error TS2339: Property 'special_dosage_instruction' does not exist on type 'MedicationPrescription'.
+apps/web/src/pages/MedicationWorkflow.tsx(3207,67): error TS2339: Property 'special_dosage_instruction' does not exist on type 'MedicationPrescription'.
+apps/web/src/pages/PatientLogs.tsx(890,11): error TS2322: Type 'PatientLog | null' is not assignable to type 'PatientLog | undefined'.
+  Type 'null' is not assignable to type 'PatientLog | undefined'.
+apps/web/src/pages/PatientRecords.tsx(162,24): error TS2345: Argument of type '{ 床號: string; 中文姓名: string; 英文姓名: string; 性別: string; 護理等級: string; 入住類型: string; 在住狀態: string; 社會福利: string; 藥物敏感: string; 不良藥物反應: string; startDate: string; endDate: string; }' is not assignable to parameter of type 'SetStateAction<AdvancedFilters>'.
+  Property '公務員' is missing in type '{ 床號: string; 中文姓名: string; 英文姓名: string; 性別: string; 護理等級: string; 入住類型: string; 在住狀態: string; 社會福利: string; 藥物敏感: string; 不良藥物反應: string; startDate: string; endDate: string; }' but required in type 'AdvancedFilters'.
+apps/web/src/pages/PatientRecords.tsx(193,12): error TS2678: Type '"床號"' is not comparable to type '"中文姓名" | "性別" | "入住日期" | "退住日期" | "護理等級" | "入住類型" | "在住狀態" | "年齡" | "在住天數"'.
+apps/web/src/pages/PrintForms.tsx(219,24): error TS2345: Argument of type '{ 床號: string; 中文姓名: string; 護理等級: string; 入住類型: string; 在住狀態: string; 性別: string; 社會福利: string; }' is not assignable to parameter of type 'SetStateAction<AdvancedFilters>'.
+  Property '公務員' is missing in type '{ 床號: string; 中文姓名: string; 護理等級: string; 入住類型: string; 在住狀態: string; 性別: string; 社會福利: string; }' but required in type 'AdvancedFilters'.
+apps/web/src/pages/PrintForms.tsx(241,12): error TS2678: Type '"床號"' is not comparable to type '"中文姓名" | "護理等級" | "入住類型" | "在住狀態"'.
+apps/web/src/pages/Reports.tsx(527,62): error TS2367: This comparison appears to be unintentional because the types '"全護理" | "半護理" | "自理" | undefined' and '"療養級"' have no overlap.
+apps/web/src/pages/Reports.tsx(528,62): error TS2367: This comparison appears to be unintentional because the types '"全護理" | "半護理" | "自理" | undefined' and '"療養級"' have no overlap.
+apps/web/src/pages/Scheduling.tsx(591,11): error TS2322: Type '{ schedule: ScheduleWithDetails | null; onClose: () => void; onUpdate: () => Promise<void>; onDelete: (id: number) => Promise<void>; }' is not assignable to type 'IntrinsicAttributes & ScheduleModalProps'.
+  Property 'onUpdate' does not exist on type 'IntrinsicAttributes & ScheduleModalProps'.
+apps/web/src/pages/Scheduling.tsx(668,11): error TS2322: Type '{ scheduleId: number; onClose: () => void; onUpdate: () => Promise<void>; }' is not assignable to type 'IntrinsicAttributes & PatientSelectModalProps'.
+  Property 'onUpdate' does not exist on type 'IntrinsicAttributes & PatientSelectModalProps'.
+apps/web/src/pages/StationBedManagement.tsx(252,69): error TS2339: Property 'partner_patient_id' does not exist on type '{ success: boolean; reason?: string | undefined; }'.
+apps/web/src/pages/StationBedManagement.tsx(253,69): error TS2339: Property 'partner_patient_id' does not exist on type '{ success: boolean; reason?: string | undefined; }'.
+apps/web/src/pages/TaskManagement.tsx(322,53): error TS2367: This comparison appears to be unintentional because the types 'HealthTaskType' and '"生命表徵"' have no overlap.
+apps/web/src/pages/TaskManagement.tsx(323,53): error TS2367: This comparison appears to be unintentional because the types 'HealthTaskType' and '"血糖控制"' have no overlap.
+apps/web/src/pages/TaskManagement.tsx(324,49): error TS2367: This comparison appears to be unintentional because the types 'HealthTaskType' and '"體重控制"' have no overlap.
+apps/web/src/pages/TaskManagement.tsx(461,12): error TS2678: Type '"生命表徵"' is not comparable to type 'HealthTaskType'.
+apps/web/src/pages/TaskManagement.tsx(462,12): error TS2678: Type '"血糖控制"' is not comparable to type 'HealthTaskType'.
+apps/web/src/pages/TaskManagement.tsx(463,12): error TS2678: Type '"體重控制"' is not comparable to type 'HealthTaskType'.
+apps/web/src/pages/TaskManagement.tsx(472,12): error TS2678: Type '"生命表徵"' is not comparable to type 'HealthTaskType'.
+apps/web/src/pages/TaskManagement.tsx(473,12): error TS2678: Type '"血糖控制"' is not comparable to type 'HealthTaskType'.
+apps/web/src/pages/TaskManagement.tsx(474,12): error TS2678: Type '"體重控制"' is not comparable to type 'HealthTaskType'.
+apps/web/src/pages/TaskManagement.tsx(787,35): error TS2322: Type '"created_at"' is not assignable to type 'SortField'.
+apps/web/src/pages/TemplateManagement.tsx(346,7): error TS2353: Object literal may only specify known properties, and ''bed-layout'' does not exist in type '{ prescription: string; "waiting-list": string; "consent-form": string; "restraint-observation": string; "vital-signs": string; "blood-sugar": string; "weight-control": string; "follow-up-list": string; ... 6 more ...; "incident-report": string; }'.
+apps/web/src/pages/WoundManagement.tsx(220,9): error TS2322: Type 'string | undefined' is not assignable to type 'string | number'.
+  Type 'undefined' is not assignable to type 'string | number'.
+apps/web/src/pages/WoundManagement.tsx(221,9): error TS2322: Type 'string | undefined' is not assignable to type 'string | number'.
+  Type 'undefined' is not assignable to type 'string | number'.
+apps/web/src/pages/WoundManagement.tsx(302,27): error TS2345: Argument of type '{ id: undefined; assessment_date: string; next_assessment_date: null; archived_at: null; created_at: undefined; updated_at: undefined; wound_id?: string; patient_id: number; assessor?: string; ... 25 more ...; status: "active" | "archived"; }' is not assignable to parameter of type 'SetStateAction<WoundAssessment | null>'.
+  Type '{ id: undefined; assessment_date: string; next_assessment_date: null; archived_at: null; created_at: undefined; updated_at: undefined; wound_id?: string; patient_id: number; assessor?: string; ... 25 more ...; status: "active" | "archived"; }' is not assignable to type 'WoundAssessment'.
+    Types of property 'id' are incompatible.
+      Type 'undefined' is not assignable to type 'string'.
+apps/web/src/pages/WoundManagement.tsx(404,29): error TS2339: Property 'wound_location' does not exist on type 'WoundAssessment'.
+apps/web/src/pages/WoundManagement.tsx(404,90): error TS2339: Property 'wound_location' does not exist on type 'WoundAssessment'.
+apps/web/src/pages/WoundManagement.tsx(404,122): error TS2339: Property 'wound_location' does not exist on type 'WoundAssessment'.
+apps/web/src/pages/WoundManagement.tsx(417,13): error TS18048: 'assessment.dressings' is possibly 'undefined'.
+apps/web/src/pages/WoundManagement.tsx(417,47): error TS18048: 'assessment.dressings' is possibly 'undefined'.
+apps/web/src/utils/annualHealthCheckupExcelGenerator.ts(93,19): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/annualHealthCheckupExcelGenerator.ts(93,56): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/annualHealthCheckupExcelGenerator.ts(94,35): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/annualHealthCheckupExcelGenerator.ts(96,19): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/annualHealthCheckupExcelGenerator.ts(96,56): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/annualHealthCheckupExcelGenerator.ts(97,35): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/annualHealthCheckupExcelGenerator.ts(139,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/annualHealthCheckupExcelGenerator.ts(140,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/annualHealthCheckupExcelGenerator.ts(229,7): error TS2322: Type 'Partial<Fill>' is not assignable to type 'Fill'.
+  Type 'Partial<FillPattern>' is not assignable to type 'Fill'.
+    Type 'Partial<FillPattern>' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/annualHealthCheckupExcelGenerator.ts(257,17): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/annualHealthCheckupExcelGenerator.ts(260,17): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/annualHealthCheckupHelper.ts(235,28): error TS2339: Property '數值' does not exist on type 'ParserError<"Expected identifier at `數值, 數值_副`">'.
+apps/web/src/utils/annualHealthCheckupHelper.ts(236,59): error TS2339: Property '數值' does not exist on type 'ParserError<"Expected identifier at `數值, 數值_副`">'.
+apps/web/src/utils/annualHealthCheckupHelper.ts(238,28): error TS2339: Property '數值_副' does not exist on type 'ParserError<"Expected identifier at `數值, 數值_副`">'.
+apps/web/src/utils/annualHealthCheckupHelper.ts(239,60): error TS2339: Property '數值_副' does not exist on type 'ParserError<"Expected identifier at `數值, 數值_副`">'.
+apps/web/src/utils/annualHealthCheckupHelper.ts(254,46): error TS2339: Property '數值' does not exist on type 'ParserError<"Expected identifier at `數值`">'.
+apps/web/src/utils/annualHealthCheckupHelper.ts(255,45): error TS2339: Property '數值' does not exist on type 'ParserError<"Expected identifier at `數值`">'.
+apps/web/src/utils/annualHealthCheckupHelper.ts(269,36): error TS2339: Property '數值' does not exist on type 'ParserError<"Expected identifier at `數值`">'.
+apps/web/src/utils/annualHealthCheckupHelper.ts(270,34): error TS2339: Property '數值' does not exist on type 'ParserError<"Expected identifier at `數值`">'.
+apps/web/src/utils/bedLayoutExcelGenerator.ts(78,31): error TS2551: Property 'dimension' does not exist on type 'Worksheet'. Did you mean 'dimensions'?
+apps/web/src/utils/bedLayoutExcelGenerator.ts(108,19): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/bedLayoutExcelGenerator.ts(108,56): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/bedLayoutExcelGenerator.ts(109,35): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/bedLayoutExcelGenerator.ts(111,19): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/bedLayoutExcelGenerator.ts(111,56): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/bedLayoutExcelGenerator.ts(112,35): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/bedLayoutExcelGenerator.ts(164,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/bedLayoutExcelGenerator.ts(165,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/bedLayoutExcelGenerator.ts(264,9): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/bedLayoutExcelGenerator.ts(305,23): error TS2339: Property 'addPageBreak' does not exist on type 'Worksheet'.
+apps/web/src/utils/bedLayoutExcelGenerator.ts(314,23): error TS2339: Property 'addPageBreak' does not exist on type 'Worksheet'.
+apps/web/src/utils/bedTransferUtils.test.ts(12,3): error TS2739: Type '{ id: string; station_id: string; bed_number: string; is_occupied: true; qr_code_id: string; room_id: string; bed_no: string; }' is missing the following properties from type 'Bed': created_at, updated_at
+apps/web/src/utils/bedTransferUtils.test.ts(13,3): error TS2739: Type '{ id: string; station_id: string; bed_number: string; is_occupied: true; qr_code_id: string; room_id: string; bed_no: string; }' is missing the following properties from type 'Bed': created_at, updated_at
+apps/web/src/utils/bloodPressureRecordWorksheetGenerator.ts(133,10): error TS2352: Conversion of type 'ParserError<"Expected identifier at `院友id, 中文姓名, 床號, 性別, 出生日期, original_bed_id`">[]' to type 'PatientRow[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ error: true; } & String' is missing the following properties from type 'PatientRow': 院友id, 中文姓名, 床號, 性別, 出生日期
+apps/web/src/utils/bloodPressureRecordWorksheetGenerator.ts(166,18): error TS2352: Conversion of type '(ParserError<"Expected identifier at `院友id, 記錄日期, 記錄時間, 數值, 數值_副, 備註`"> | ParserError<"Expected identifier at `院友id, 記錄日期, 記錄時間, 數值, 備註`">)[]' to type 'RawVitalRecord[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'ParserError<"Expected identifier at `院友id, 記錄日期, 記錄時間, 數值, 數值_副, 備註`"> | ParserError<"Expected identifier at `院友id, 記錄日期, 記錄時間, 數值, 備註`">' is not comparable to type 'RawVitalRecord'.
+    Type '{ error: true; } & String' is missing the following properties from type 'RawVitalRecord': 院友id, 記錄日期, 記錄時間, 數值, 備註
+apps/web/src/utils/bloodSugarExcelGenerator.ts(125,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/bloodSugarExcelGenerator.ts(126,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/bloodSugarExcelGenerator.ts(237,9): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/bloodSugarExcelGenerator.ts(279,48): error TS2339: Property '中文姓氏' does not exist on type '{ 床號: string; 中文姓名: string; 性別: string; 出生日期: string; }'.
+apps/web/src/utils/bloodSugarExcelGenerator.ts(279,63): error TS2339: Property '中文名字' does not exist on type '{ 床號: string; 中文姓名: string; 性別: string; 出生日期: string; }'.
+apps/web/src/utils/bloodSugarExcelGenerator.ts(354,63): error TS2345: Argument of type '{ 床號: string; original_bed_number?: string | undefined; 中文姓氏: string; 中文名字: string; 性別: string; 出生日期: string; }' is not assignable to parameter of type '{ 床號: string; 中文姓名: string; 性別: string; 出生日期: string; }'.
+  Property '中文姓名' is missing in type '{ 床號: string; original_bed_number?: string | undefined; 中文姓氏: string; 中文名字: string; 性別: string; 出生日期: string; }' but required in type '{ 床號: string; 中文姓名: string; 性別: string; 出生日期: string; }'.
+apps/web/src/utils/bloodSugarExcelGenerator.ts(540,29): error TS2339: Property 'getOrCreateRow' does not exist on type 'Worksheet'.
+apps/web/src/utils/bodyweightExcelGenerator.ts(125,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/bodyweightExcelGenerator.ts(126,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/bodyweightExcelGenerator.ts(278,9): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/bodyweightExcelGenerator.ts(329,48): error TS2339: Property '中文姓氏' does not exist on type '{ 床號: string; original_bed_number?: string | undefined; 中文姓名: string; 性別: string; 出生日期: string; }'.
+apps/web/src/utils/bodyweightExcelGenerator.ts(329,63): error TS2339: Property '中文名字' does not exist on type '{ 床號: string; original_bed_number?: string | undefined; 中文姓名: string; 性別: string; 出生日期: string; }'.
+apps/web/src/utils/bodyweightExcelGenerator.ts(418,63): error TS2345: Argument of type '{ 床號: string; original_bed_number?: string | undefined; 中文姓氏: string; 中文名字: string; 性別: string; 出生日期: string; }' is not assignable to parameter of type '{ 床號: string; original_bed_number?: string | undefined; 中文姓名: string; 性別: string; 出生日期: string; }'.
+  Property '中文姓名' is missing in type '{ 床號: string; original_bed_number?: string | undefined; 中文姓氏: string; 中文名字: string; 性別: string; 出生日期: string; }' but required in type '{ 床號: string; original_bed_number?: string | undefined; 中文姓名: string; 性別: string; 出生日期: string; }'.
+apps/web/src/utils/bodyweightExcelGenerator.ts(611,29): error TS2339: Property 'getOrCreateRow' does not exist on type 'Worksheet'.
+apps/web/src/utils/bodyweightRecordWorksheetGenerator.ts(116,10): error TS2352: Conversion of type 'ParserError<"Expected identifier at `院友id, 中文姓名, 床號, 性別, 出生日期, original_bed_id`">[]' to type 'PatientRow[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ error: true; } & String' is missing the following properties from type 'PatientRow': 院友id, 中文姓名, 床號, 性別, 出生日期
+apps/web/src/utils/bodyweightRecordWorksheetGenerator.ts(141,18): error TS2352: Conversion of type 'ParserError<"Expected identifier at `院友id, 記錄日期, 記錄時間, 數值, 備註, 記錄人員`">[]' to type 'WeightRecord[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ error: true; } & String' is missing the following properties from type 'WeightRecord': 院友id, 記錄日期, 記錄時間, 數值, and 2 more.
+apps/web/src/utils/diaperChangeExcelGenerator.ts(75,31): error TS2551: Property 'dimension' does not exist on type 'Worksheet'. Did you mean 'dimensions'?
+apps/web/src/utils/diaperChangeExcelGenerator.ts(122,19): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/diaperChangeExcelGenerator.ts(122,56): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/diaperChangeExcelGenerator.ts(123,35): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/diaperChangeExcelGenerator.ts(125,19): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/diaperChangeExcelGenerator.ts(125,56): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/diaperChangeExcelGenerator.ts(126,35): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/diaperChangeExcelGenerator.ts(183,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/diaperChangeExcelGenerator.ts(184,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/diaperChangeExcelGenerator.ts(251,9): error TS2322: Type 'Partial<Fill>' is not assignable to type 'Fill'.
+  Type 'Partial<FillPattern>' is not assignable to type 'Fill'.
+    Type 'Partial<FillPattern>' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/diaperChangeExcelGenerator.ts(263,11): error TS2304: Cannot find name 'rowNum'.
+apps/web/src/utils/diaperChangeExcelGenerator.ts(265,29): error TS2304: Cannot find name 'rowNum'.
+apps/web/src/utils/diaperChangeExcelGenerator.ts(288,23): error TS2339: Property 'addPageBreak' does not exist on type 'Worksheet'.
+apps/web/src/utils/diaperChangeExcelGenerator.ts(297,23): error TS2339: Property 'addPageBreak' does not exist on type 'Worksheet'.
+apps/web/src/utils/diaperChangeExcelGenerator.ts(396,7): error TS2322: Type '{ orientation: string; paperSize: number; printArea: string; fitToPage: boolean; fitToWidth: number; fitToHeight: number; margins: { left: number; right: number; top: number; bottom: number; header: number; footer: number; }; ... 14 more ...; printTitlesColumn?: string | undefined; }' is not assignable to type 'Partial<PageSetup>'.
+  Types of property 'orientation' are incompatible.
+    Type 'string' is not assignable to type '"landscape" | "portrait" | undefined'.
+apps/web/src/utils/followUpListGenerator.ts(130,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/followUpListGenerator.ts(131,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/followUpListGenerator.ts(205,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/followUpListGenerator.ts(206,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/followUpListGenerator.ts(312,7): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/followUpListGenerator.ts(403,9): error TS2561: Object literal may only specify known properties, but 'diagonalUp' does not exist in type 'Partial<Borders>'. Did you mean to write 'diagonal'?
+apps/web/src/utils/followUpListGenerator.ts(403,37): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/followUpListGenerator.ts(404,39): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/followUpListGenerator.ts(409,7): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/glucoseRecordWorksheetGenerator.ts(111,10): error TS2352: Conversion of type 'ParserError<"Expected identifier at `院友id, 中文姓名, 床號, 性別, 出生日期, original_bed_id`">[]' to type 'PatientRow[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ error: true; } & String' is missing the following properties from type 'PatientRow': 院友id, 中文姓名, 床號, 性別, 出生日期
+apps/web/src/utils/glucoseRecordWorksheetGenerator.ts(136,18): error TS2352: Conversion of type 'ParserError<"Expected identifier at `院友id, 記錄日期, 記錄時間, 數值, 備註, 記錄人員`">[]' to type 'GlucoseRecord[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ error: true; } & String' is missing the following properties from type 'GlucoseRecord': 院友id, 記錄日期, 記錄時間, 數值, and 2 more.
+apps/web/src/utils/healthRecordExcelGenerator.ts(120,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/healthRecordExcelGenerator.ts(121,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/healthRecordExcelGenerator.ts(188,7): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/healthRecordExcelGenerator.ts(301,25): error TS2304: Cannot find name 'getTargetCell'.
+apps/web/src/utils/healthRecordExcelGenerator.ts(309,25): error TS2304: Cannot find name 'getTargetCell'.
+apps/web/src/utils/healthRecordExcelGenerator.ts(384,102): error TS18046: 'error' is of type 'unknown'.
+apps/web/src/utils/healthRecordExcelGenerator.ts(813,29): error TS2339: Property 'getOrCreateRow' does not exist on type 'Worksheet'.
+apps/web/src/utils/healthRecordExcelGenerator.ts(871,12): error TS2304: Cannot find name 'BodyweightExportData'.
+apps/web/src/utils/healthRecordExcelGenerator.ts(877,42): error TS2304: Cannot find name 'BodyweightExportData'.
+apps/web/src/utils/healthRecordGenerator.ts(37,57): error TS2339: Property '血壓收縮壓' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(37,83): error TS2339: Property '血壓收縮壓' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(38,58): error TS2339: Property '血壓舒張壓' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(38,84): error TS2339: Property '血壓舒張壓' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(39,54): error TS2339: Property '脈搏' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(39,77): error TS2339: Property '脈搏' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(40,53): error TS2339: Property '體溫' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(40,76): error TS2339: Property '體溫' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(41,55): error TS2339: Property '血含氧量' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(41,80): error TS2339: Property '血含氧量' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(42,53): error TS2339: Property '呼吸' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(42,76): error TS2339: Property '呼吸' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(89,56): error TS2339: Property '血糖值' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(89,80): error TS2339: Property '血糖值' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(97,55): error TS2339: Property '體重' does not exist on type 'HealthRecord'.
+apps/web/src/utils/healthRecordGenerator.ts(97,78): error TS2339: Property '體重' does not exist on type 'HealthRecord'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(76,22): error TS2339: Property 'beverage_ml' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(76,54): error TS2339: Property 'beverage_ml' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(77,22): error TS2339: Property 'tube_ml' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(77,54): error TS2339: Property 'tube_ml' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(78,22): error TS2339: Property 'gastric_ml' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(78,54): error TS2339: Property 'gastric_ml' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(79,22): error TS2339: Property 'urine_ml' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(79,54): error TS2339: Property 'urine_ml' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(82,30): error TS2339: Property 'meal' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(83,30): error TS2339: Property 'beverage_type' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(85,30): error TS2339: Property 'tube_type' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(87,30): error TS2339: Property 'other' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(88,30): error TS2339: Property 'gastric_color_ph' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(90,30): error TS2339: Property 'urine_color' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(92,30): error TS2339: Property 'recorder' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(92,44): error TS2339: Property 'notes' does not exist on type '{}'.
+apps/web/src/utils/intakeOutputHtmlGenerator.ts(92,62): error TS2339: Property 'notes' does not exist on type '{}'.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(93,19): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(93,56): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(94,35): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(96,19): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(96,56): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(97,35): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(142,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/medicationRecordExcelGenerator.ts(143,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/medicationRecordExcelGenerator.ts(266,9): error TS2365: Operator '>=' cannot be applied to types 'string' and 'number'.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(266,31): error TS2365: Operator '<=' cannot be applied to types 'string' and 'number'.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(284,9): error TS2322: Type 'Partial<Fill>' is not assignable to type 'Fill'.
+  Type 'Partial<FillPattern>' is not assignable to type 'Fill'.
+    Type 'Partial<FillPattern>' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(441,7): error TS2322: Type 'Partial<Fill>' is not assignable to type 'Fill'.
+  Type 'Partial<FillPattern>' is not assignable to type 'Fill'.
+    Type 'Partial<FillPattern>' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(501,9): error TS2740: Type '{ col: number; row: number; }' is missing the following properties from type 'Anchor': nativeCol, nativeColOff, nativeRow, nativeRowOff, and 3 more.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(502,9): error TS2740: Type '{ col: number; row: number; }' is missing the following properties from type 'Anchor': nativeCol, nativeColOff, nativeRow, nativeRowOff, and 3 more.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(835,15): error TS2561: Object literal may only specify known properties, but 'diagonalUp' does not exist in type 'Partial<Borders>'. Did you mean to write 'diagonal'?
+apps/web/src/utils/medicationRecordExcelGenerator.ts(861,13): error TS2561: Object literal may only specify known properties, but 'diagonalUp' does not exist in type 'Partial<Borders>'. Did you mean to write 'diagonal'?
+apps/web/src/utils/medicationRecordExcelGenerator.ts(959,15): error TS2561: Object literal may only specify known properties, but 'diagonalUp' does not exist in type 'Partial<Borders>'. Did you mean to write 'diagonal'?
+apps/web/src/utils/medicationRecordExcelGenerator.ts(994,17): error TS2561: Object literal may only specify known properties, but 'diagonalUp' does not exist in type 'Partial<Borders>'. Did you mean to write 'diagonal'?
+apps/web/src/utils/medicationRecordExcelGenerator.ts(1026,13): error TS2561: Object literal may only specify known properties, but 'diagonalUp' does not exist in type 'Partial<Borders>'. Did you mean to write 'diagonal'?
+apps/web/src/utils/medicationRecordExcelGenerator.ts(1093,15): error TS2561: Object literal may only specify known properties, but 'diagonalUp' does not exist in type 'Partial<Borders>'. Did you mean to write 'diagonal'?
+apps/web/src/utils/medicationRecordExcelGenerator.ts(1116,13): error TS2561: Object literal may only specify known properties, but 'diagonalUp' does not exist in type 'Partial<Borders>'. Did you mean to write 'diagonal'?
+apps/web/src/utils/medicationRecordExcelGenerator.ts(1142,11): error TS2561: Object literal may only specify known properties, but 'diagonalUp' does not exist in type 'Partial<Borders>'. Did you mean to write 'diagonal'?
+apps/web/src/utils/medicationRecordExcelGenerator.ts(1437,7): error TS2322: Type 'Partial<Fill>' is not assignable to type 'Fill'.
+  Type 'Partial<FillPattern>' is not assignable to type 'Fill'.
+    Type 'Partial<FillPattern>' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(1493,9): error TS2740: Type '{ col: number; row: number; }' is missing the following properties from type 'Anchor': nativeCol, nativeColOff, nativeRow, nativeRowOff, and 3 more.
+apps/web/src/utils/medicationRecordExcelGenerator.ts(1494,9): error TS2740: Type '{ col: number; row: number; }' is missing the following properties from type 'Anchor': nativeCol, nativeColOff, nativeRow, nativeRowOff, and 3 more.
+apps/web/src/utils/patientPrintBundleGenerator.ts(180,91): error TS2554: Expected 3 arguments, but got 4.
+apps/web/src/utils/patientPrintBundleGenerator.ts(190,79): error TS2554: Expected 3 arguments, but got 4.
+apps/web/src/utils/patientPrintBundleGenerator.ts(317,90): error TS2345: Argument of type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").MedicationPrescription' is not assignable to parameter of type 'MedicationPrescription'.
+  Types of property 'inspection_rules' are incompatible.
+    Type 'MedicationInspectionRule[] | undefined' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[] | undefined'.
+      Type 'MedicationInspectionRule[]' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[]'.
+        Type 'MedicationInspectionRule' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }'.
+          Types of property 'condition_value' are incompatible.
+            Type 'number' is not assignable to type 'string'.
+apps/web/src/utils/patientPrintBundleGenerator.ts(319,64): error TS2322: Type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").MedicationPrescription[]' is not assignable to type 'MedicationPrescription[]'.
+  Type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").MedicationPrescription' is not assignable to type 'MedicationPrescription'.
+    Types of property 'inspection_rules' are incompatible.
+      Type 'MedicationInspectionRule[] | undefined' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[] | undefined'.
+        Type 'MedicationInspectionRule[]' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[]'.
+          Type 'MedicationInspectionRule' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }'.
+            Types of property 'condition_value' are incompatible.
+              Type 'number' is not assignable to type 'string'.
+apps/web/src/utils/patientPrintBundleGenerator.ts(331,89): error TS2345: Argument of type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").MedicationPrescription' is not assignable to parameter of type 'MedicationPrescription'.
+  Types of property 'inspection_rules' are incompatible.
+    Type 'MedicationInspectionRule[] | undefined' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[] | undefined'.
+      Type 'MedicationInspectionRule[]' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[]'.
+        Type 'MedicationInspectionRule' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }'.
+          Types of property 'condition_value' are incompatible.
+            Type 'number' is not assignable to type 'string'.
+apps/web/src/utils/patientPrintBundleGenerator.ts(333,64): error TS2322: Type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").MedicationPrescription[]' is not assignable to type 'MedicationPrescription[]'.
+  Type 'import("C:/Users/Admin/Desktop/care-suite/apps/web/src/lib/database").MedicationPrescription' is not assignable to type 'MedicationPrescription'.
+    Types of property 'inspection_rules' are incompatible.
+      Type 'MedicationInspectionRule[] | undefined' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[] | undefined'.
+        Type 'MedicationInspectionRule[]' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }[]'.
+          Type 'MedicationInspectionRule' is not assignable to type '{ vital_sign_type?: string | undefined; condition_operator?: string | undefined; condition_value?: string | undefined; action_if_met?: string | undefined; }'.
+            Types of property 'condition_value' are incompatible.
+              Type 'number' is not assignable to type 'string'.
+apps/web/src/utils/patientReferralPrintGenerator.ts(24,10): error TS2304: Cannot find name 'formatDisplayDate'.
+apps/web/src/utils/personalHygieneExcelGenerator.ts(101,31): error TS2551: Property 'dimension' does not exist on type 'Worksheet'. Did you mean 'dimensions'?
+apps/web/src/utils/personalHygieneExcelGenerator.ts(132,19): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/personalHygieneExcelGenerator.ts(132,56): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/personalHygieneExcelGenerator.ts(133,35): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/personalHygieneExcelGenerator.ts(135,19): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/personalHygieneExcelGenerator.ts(135,56): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/personalHygieneExcelGenerator.ts(136,35): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/personalHygieneExcelGenerator.ts(188,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/personalHygieneExcelGenerator.ts(189,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/personalHygieneExcelGenerator.ts(288,9): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/personalMedicationListExcelGenerator.ts(82,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/personalMedicationListExcelGenerator.ts(83,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/personalMedicationListExcelGenerator.ts(143,9): error TS2367: This comparison appears to be unintentional because the types 'string' and 'number' have no overlap.
+apps/web/src/utils/personalMedicationListExcelGenerator.ts(161,9): error TS2322: Type 'Partial<Fill>' is not assignable to type 'Fill'.
+  Type 'Partial<FillPattern>' is not assignable to type 'Fill'.
+    Type 'Partial<FillPattern>' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/personalMedicationListExcelGenerator.ts(311,7): error TS2322: Type 'Partial<Fill>' is not assignable to type 'Fill'.
+  Type 'Partial<FillPattern>' is not assignable to type 'Fill'.
+    Type 'Partial<FillPattern>' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/personalMedicationListExcelGenerator.ts(397,15): error TS2367: This comparison appears to be unintentional because the types 'string' and 'number' have no overlap.
+apps/web/src/utils/personalMedicationListExcelGenerator.ts(405,32): error TS2322: Type 'Partial<Fill>' is not assignable to type 'Fill'.
+  Type 'Partial<FillPattern>' is not assignable to type 'Fill'.
+    Type 'Partial<FillPattern>' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/prescriptionExcelGenerator.ts(127,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/prescriptionExcelGenerator.ts(128,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/prescriptionExcelGenerator.ts(186,7): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/prescriptionExcelGenerator.ts(244,5): error TS2322: Type 'Partial<Border> | { style: string; color: { argb: string; }; }' is not assignable to type 'Partial<Border> | undefined'.
+  Type '{ style: string; color: { argb: string; }; }' is not assignable to type 'Partial<Border>'.
+    Types of property 'style' are incompatible.
+      Type 'string' is not assignable to type 'BorderStyle | undefined'.
+apps/web/src/utils/prescriptionExcelGenerator.ts(252,3): error TS2322: Type '{ style: string; color: { argb: string; }; }' is not assignable to type 'Partial<Border>'.
+  Types of property 'style' are incompatible.
+    Type 'string' is not assignable to type 'BorderStyle | undefined'.
+apps/web/src/utils/prescriptionExcelGenerator.ts(259,3): error TS2322: Type '{ style: string; color: { argb: string; }; }' is not assignable to type 'Partial<Border>'.
+  Types of property 'style' are incompatible.
+    Type 'string' is not assignable to type 'BorderStyle | undefined'.
+apps/web/src/utils/prescriptionExcelGenerator.ts(276,5): error TS2322: Type '{ style: string; color: { argb: string; }; }' is not assignable to type 'Partial<Border>'.
+  Types of property 'style' are incompatible.
+    Type 'string' is not assignable to type 'BorderStyle | undefined'.
+apps/web/src/utils/prescriptionExcelGenerator.ts(424,27): error TS2339: Property 'getOrCreateRow' does not exist on type 'Worksheet'.
+apps/web/src/utils/printFormExcelGenerator.ts(75,31): error TS2551: Property 'dimension' does not exist on type 'Worksheet'. Did you mean 'dimensions'?
+apps/web/src/utils/printFormExcelGenerator.ts(106,19): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/printFormExcelGenerator.ts(106,56): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/printFormExcelGenerator.ts(107,35): error TS2339: Property 'rowBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/printFormExcelGenerator.ts(109,19): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/printFormExcelGenerator.ts(109,56): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/printFormExcelGenerator.ts(110,35): error TS2339: Property 'colBreaks' does not exist on type 'Worksheet'.
+apps/web/src/utils/printFormExcelGenerator.ts(162,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/printFormExcelGenerator.ts(163,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/printFormExcelGenerator.ts(272,9): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/printFormExcelGenerator.ts(313,23): error TS2339: Property 'addPageBreak' does not exist on type 'Worksheet'.
+apps/web/src/utils/printFormExcelGenerator.ts(322,23): error TS2339: Property 'addPageBreak' does not exist on type 'Worksheet'.
+apps/web/src/utils/restraintConsentExcelGenerator.ts(175,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/restraintConsentExcelGenerator.ts(176,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/restraintConsentExcelGenerator.ts(383,9): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/restraintConsentExcelGenerator.ts(401,54): error TS2304: Cannot find name 'rowNum'.
+apps/web/src/utils/restraintConsentExcelGenerator.ts(401,65): error TS2304: Cannot find name 'col'.
+apps/web/src/utils/restraintObservationChartExcelGenerator.ts(202,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/restraintObservationChartExcelGenerator.ts(203,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/restraintObservationChartExcelGenerator.ts(290,5): error TS2300: Duplicate identifier '身份證號碼'.
+apps/web/src/utils/restraintObservationChartExcelGenerator.ts(292,5): error TS2300: Duplicate identifier '身份證號碼'.
+apps/web/src/utils/restraintObservationChartExcelGenerator.ts(386,7): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/roster.test.ts(137,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(138,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(139,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: null; shift_name: "午班"; start_time: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(151,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; position: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(152,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; position: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(153,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; position: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(154,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; position: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(169,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; position: string; sort_order: number; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(170,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; position: string; sort_order: number; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(171,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; position: string; sort_order: number; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(181,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; position: string; sort_order: number; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(182,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; position: string; sort_order: number; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(325,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(326,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "午班"; start_time: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(327,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "晚班"; start_time: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(349,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(350,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(351,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(352,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(368,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; position: string; shift_name: "早班"; start_time: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(383,9): error TS2741: Property 'end_time' is missing in type '{ id: string; user_id: string; work_date: string; station_id: string; shift_name: "早班"; start_time: string; created_by: null; created_at: string; updated_at: string; }' but required in type 'UserShiftAssignment'.
+apps/web/src/utils/roster.test.ts(593,23): error TS2304: Cannot find name 'UserLeaveRecord'.
+apps/web/src/utils/roster.test.ts(607,39): error TS2304: Cannot find name 'UserLeaveRecord'.
+apps/web/src/utils/scheduleDueChecker.ts(6,52): error TS2724: '"../lib/database"' has no exported member named 'ScheduleWithDetails'. Did you mean 'getSchedulesWithDetails'?
+apps/web/src/utils/scheduleDueChecker.ts(50,50): error TS7006: Parameter 'item' implicitly has an 'any' type.
+apps/web/src/utils/scheduleDueChecker.ts(52,64): error TS7006: Parameter 'r' implicitly has an 'any' type.
+apps/web/src/utils/taskScheduler.ts(212,44): error TS7006: Parameter 'r' implicitly has an 'any' type.
+apps/web/src/utils/taskScheduler.ts(219,27): error TS7006: Parameter 'r' implicitly has an 'any' type.
+apps/web/src/utils/taskScheduler.ts(248,52): error TS7006: Parameter 'r' implicitly has an 'any' type.
+apps/web/src/utils/temperatureRecordWorksheetGenerator.ts(110,10): error TS2352: Conversion of type 'ParserError<"Expected identifier at `院友id, 中文姓名, 床號, 性別, 出生日期, original_bed_id`">[]' to type 'PatientRow[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ error: true; } & String' is missing the following properties from type 'PatientRow': 院友id, 中文姓名, 床號, 性別, 出生日期
+apps/web/src/utils/temperatureRecordWorksheetGenerator.ts(135,18): error TS2352: Conversion of type 'ParserError<"Expected identifier at `院友id, 記錄日期, 記錄時間, 數值, 備註, 記錄人員`">[]' to type 'TempRecord[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ error: true; } & String' is missing the following properties from type 'TempRecord': 院友id, 記錄日期, 記錄時間, 數值, and 2 more.
+apps/web/src/utils/vitalsignExcelGenerator.ts(131,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/vitalsignExcelGenerator.ts(132,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/vitalsignExcelGenerator.ts(244,9): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/vitalsignExcelGenerator.ts(288,48): error TS2339: Property '中文姓氏' does not exist on type '{ 床號: string; original_bed_number?: string | undefined; 中文姓名: string; 性別: string; 出生日期: string; }'.
+apps/web/src/utils/vitalsignExcelGenerator.ts(288,63): error TS2339: Property '中文名字' does not exist on type '{ 床號: string; original_bed_number?: string | undefined; 中文姓名: string; 性別: string; 出生日期: string; }'.
+apps/web/src/utils/vitalsignExcelGenerator.ts(382,62): error TS2345: Argument of type '{ 床號: string; original_bed_number?: string | undefined; 中文姓氏: string; 中文名字: string; 性別: string; 出生日期: string; }' is not assignable to parameter of type '{ 床號: string; original_bed_number?: string | undefined; 中文姓名: string; 性別: string; 出生日期: string; }'.
+  Property '中文姓名' is missing in type '{ 床號: string; original_bed_number?: string | undefined; 中文姓氏: string; 中文名字: string; 性別: string; 出生日期: string; }' but required in type '{ 床號: string; original_bed_number?: string | undefined; 中文姓名: string; 性別: string; 出生日期: string; }'.
+apps/web/src/utils/vitalsignExcelGenerator.ts(579,29): error TS2339: Property 'getOrCreateRow' does not exist on type 'Worksheet'.
+apps/web/src/utils/waitingListExcelGenerator.ts(125,35): error TS2551: Property 'diagonalUp' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/waitingListExcelGenerator.ts(126,37): error TS2551: Property 'diagonalDown' does not exist on type 'Partial<Borders>'. Did you mean 'diagonal'?
+apps/web/src/utils/waitingListExcelGenerator.ts(185,7): error TS2322: Type '{ type?: "pattern" | undefined; pattern?: FillPatterns | undefined; fgColor?: Partial<Color> | undefined; bgColor?: Partial<Color> | undefined; } | { ...; } | { ...; }' is not assignable to type 'Fill'.
+  Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'Fill'.
+    Type '{ type?: "pattern" | undefined; pattern?: ExcelJS.FillPatterns | undefined; fgColor?: Partial<ExcelJS.Color> | undefined; bgColor?: Partial<ExcelJS.Color> | undefined; }' is not assignable to type 'FillPattern'.
+      Types of property 'type' are incompatible.
+        Type '"pattern" | undefined' is not assignable to type '"pattern"'.
+          Type 'undefined' is not assignable to type '"pattern"'.
+apps/web/src/utils/waitingListExcelGenerator.ts(277,5): error TS2304: Cannot find name 'worksheet'.
+apps/web/src/utils/waitingListExcelGenerator.ts(277,41): error TS2552: Cannot find name 'patient'. Did you mean 'patients'?
+apps/web/src/utils/waitingListExcelGenerator.ts(277,56): error TS2552: Cannot find name 'patient'. Did you mean 'patients'?
+apps/web/src/utils/waitingListExcelGenerator.ts(278,33): error TS2304: Cannot find name 'templatesData'.
+apps/web/src/utils/waitingListExcelGenerator.ts(278,52): error TS7006: Parameter 't' implicitly has an 'any' type.
+apps/web/src/utils/waitingListExcelGenerator.ts(391,27): error TS2339: Property 'getOrCreateRow' does not exist on type 'Worksheet'.
+apps/web/vitest.config.ts(4,29): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '{ test: { environment: "node"; globals: true; }; root?: string; base?: string; publicDir?: string | false; cacheDir?: string; mode?: string; define?: Record<string, any>; plugins?: PluginOption[]; ... 19 more ...; appType?: AppType; }' is not assignable to parameter of type 'ViteUserConfigExport'.
+      Type '{ test: { environment: "node"; globals: true; }; root?: string; base?: string; publicDir?: string | false; cacheDir?: string; mode?: string; define?: Record<string, any>; plugins?: PluginOption[]; ... 19 more ...; appType?: AppType; }' is not assignable to type 'UserConfig'.
+        Types of property 'server' are incompatible.
+          Type 'ServerOptions | undefined' is not assignable to type 'ServerOptions$1 | undefined'.
+            Type 'ServerOptions' is not assignable to type 'ServerOptions$1'.
+              Types of property 'proxy' are incompatible.
+                Type 'Record<string, string | import("C:/Users/Admin/Desktop/care-suite/node_modules/vite/dist/node/index").ProxyOptions> | undefined' is not assignable to type 'Record<string, string | import("C:/Users/Admin/Desktop/care-suite/node_modules/vitest/node_modules/vite/dist/node/index").ProxyOptions> | undefined'.
+                  Type 'Record<string, string | import("C:/Users/Admin/Desktop/care-suite/node_modules/vite/dist/node/index").ProxyOptions>' is not assignable to type 'Record<string, string | import("C:/Users/Admin/Desktop/care-suite/node_modules/vitest/node_modules/vite/dist/node/index").ProxyOptions>'.
+                    'string' index signatures are incompatible.
+                      Type 'string | import("C:/Users/Admin/Desktop/care-suite/node_modules/vite/dist/node/index").ProxyOptions' is not assignable to type 'string | import("C:/Users/Admin/Desktop/care-suite/node_modules/vitest/node_modules/vite/dist/node/index").ProxyOptions'.
+                        Type 'ProxyOptions' is not assignable to type 'string | ProxyOptions'.
+                          Type 'import("C:/Users/Admin/Desktop/care-suite/node_modules/vite/dist/node/index").ProxyOptions' is not assignable to type 'import("C:/Users/Admin/Desktop/care-suite/node_modules/vitest/node_modules/vite/dist/node/index").ProxyOptions'.
+                            Types of property 'configure' are incompatible.
+                              Type '((proxy: Server, options: ProxyOptions) => void) | undefined' is not assignable to type '((proxy: ProxyServer<typeof IncomingMessage, typeof ServerResponse, Error>, options: ProxyOptions) => void) | undefined'.
+                                Type '(proxy: Server, options: ProxyOptions) => void' is not assignable to type '(proxy: ProxyServer<typeof IncomingMessage, typeof ServerResponse, Error>, options: ProxyOptions) => void'.
+                                  Types of parameters 'proxy' and 'proxy' are incompatible.
+                                    Type 'ProxyServer<typeof IncomingMessage, typeof ServerResponse, Error>' is not assignable to type 'Server'.
+                                      Types of property 'web' are incompatible.
+                                        Type '(...args: [req: IncomingMessage, res: ServerResponse<IncomingMessage>, options: ServerOptions$3, callback?: ErrorCallback<typeof IncomingMessage, typeof ServerResponse, Error> | undefined] | [req: ...]) => void' is not assignable to type '(req: IncomingMessage, res: ServerResponse<IncomingMessage>, options?: ServerOptions | undefined, callback?: ErrorCallback | undefined) => void'.
+                                          Types of parameters 'args' and 'req' are incompatible.
+                                            Type '[req: IncomingMessage, res: ServerResponse<IncomingMessage>, options?: ServerOptions | undefined, callback?: ErrorCallback | undefined]' is not assignable to type '[req: IncomingMessage, res: ServerResponse<IncomingMessage>, options: ServerOptions$3, callback?: ErrorCallback<typeof IncomingMessage, typeof ServerResponse, Error> | undefined] | [req: ...]'.
+                                              Type '[req: IncomingMessage, res: ServerResponse<IncomingMessage>, options?: ServerOptions | undefined, callback?: ErrorCallback | undefined]' is not assignable to type '[req: IncomingMessage, res: ServerResponse<IncomingMessage>, options: ServerOptions$3, callback?: ErrorCallback<typeof IncomingMessage, typeof ServerResponse, Error> | undefined]'.
+                                                Source provides no match for required element at position 2 in target.

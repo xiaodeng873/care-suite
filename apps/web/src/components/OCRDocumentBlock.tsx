@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Camera, ChevronDown, ChevronUp, Upload, X, Loader, CheckCircle, AlertTriangle, FileText, RefreshCw } from 'lucide-react';
 import { processImageWithGeminiVision, validateImageFile } from '../utils/ocrProcessor';
 import { getDefaultPrompt } from '../utils/promptManager';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 
 interface OCRDocumentBlockProps {
   documentType: 'vaccination' | 'diagnosis' | 'followup';
@@ -11,7 +11,7 @@ interface OCRDocumentBlockProps {
 }
 
 const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCRComplete, onOCRError }) => {
-  const { patients } = usePatients();
+  const { patients } = usePatientData();
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);

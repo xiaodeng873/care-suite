@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useDeferredValue } from 'react';
 import { X, Printer, Search, CheckSquare, Square, Calendar, Users, AlertTriangle } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 import { printActivityRecordForm } from '../utils/activityRecordPrintFormHtml';
 
@@ -17,7 +17,8 @@ const getHongKongDate = () => {
 const firstDayOfMonth = (dateStr: string) => `${dateStr.slice(0, 7)}-01`;
 
 const ActivityRecordPrintModal: React.FC<ActivityRecordPrintModalProps> = ({ onClose }) => {
-  const { patients, activityRecords } = usePatients();
+  const { activityRecords } = usePatientData();
+  const patients = useFilteredPatients();
   const today = getHongKongDate();
   const [startDate, setStartDate] = useState(firstDayOfMonth(today));
   const [endDate, setEndDate] = useState(today);

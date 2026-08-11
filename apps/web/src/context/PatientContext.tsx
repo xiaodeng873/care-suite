@@ -275,7 +275,6 @@ interface PatientProviderProps {
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
 export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) => {
   const { user, userProfile, authReady, displayName, isAuthenticated } = useAuth();
-  const { selectedStationIds } = useStationFilter();
   
   // 從 SeniorCareontext 獲取居住區和床位數據（委託模式，向後兼容）
   const {
@@ -658,13 +657,21 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     try {
       // PatientContext 現在主要負責 patients 與感染控制數據
       // 其他數據由各自的子 Context 管理，避免重複獲取
+      // 院友相片（base64，佔院友主表流量約九成）分拆背景補載，唔阻塞初始載入
       const [patientsData, infectionData] = await Promise.all([
-        db.getPatients(),
+        db.getPatientsLight(),
         db.getInfectionControlRecords(),
       ]);
       setAllPatientsData(patientsData);
       setInfectionControlRecords(infectionData);
       setLoading(false);
+      db.getPatientPhotos()
+        .then(photoMap => {
+          setAllPatientsData(prev => prev.map(p =>
+            photoMap.has(p.院友id) ? { ...p, 院友相片: photoMap.get(p.院友id) ?? undefined } : p
+          ));
+        })
+        .catch(err => console.warn('背景載入院友相片失敗:', err));
     } catch (error) {
       console.error('刷新數據失敗:', error);
       setLoading(false);
@@ -879,13 +886,9 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   // addDrug, updateDrug, deleteDrug 已遷移至 DrugContext
   // Station 和 Bed 相關函數現在從 SeniorCareontext 獲取（見 PatientProvider 頂部的 useStation()）
   
-  // 全域居住區過濾：selectedStationIds 全選時等同無過濾
-  const patients = useMemo(() => {
-    if (!selectedStationIds.length || !stations.length) return allPatientsData;
-    if (selectedStationIds.length >= stations.length) return allPatientsData;
-    const selectedSet = new Set(selectedStationIds);
-    return allPatientsData.filter(p => p.station_id && selectedSet.has(p.station_id));
-  }, [allPatientsData, selectedStationIds, stations]);
+  // 全域居住區過濾已遷移至 PatientFilterContext / useFilteredPatients
+  // PatientContext 只提供全院友資料（allPatients），不再依賴 StationFilterContext
+  const patients = allPatientsData;
 
   return (
     <PatientContext.Provider value={{
@@ -1104,10 +1107,61 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     </PatientContext.Provider>
   );
 };
-export const usePatients = () => {
-  const context = useContext(PatientContext);
+
+// 獨立的居住區過濾 Context：與 PatientContext 解耦，只影響訂閱它的組件
+const PatientFilterContext = createContext<{ patients: db.Patient[] } | undefined>(undefined);
+
+export const PatientFilterProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const patientContext = useContext(PatientContext);
+  const { selectedStationIds } = useStationFilter();
+
+  const allPatients = patientContext?.allPatients ?? [];
+  const stations = patientContext?.stations ?? [];
+
+  const patients = useMemo(() => {
+    if (!selectedStationIds.length || !stations.length) return allPatients;
+    if (selectedStationIds.length >= stations.length) return allPatients;
+    const selectedSet = new Set(selectedStationIds);
+    return allPatients.filter(p => p.station_id && selectedSet.has(p.station_id));
+  }, [allPatients, stations, selectedStationIds]);
+
+  const filterValue = useMemo(() => ({ patients }), [patients]);
+
+  return (
+    <PatientFilterContext.Provider value={filterValue}>
+      {children}
+    </PatientFilterContext.Provider>
+  );
+};
+
+export const useFilteredPatients = () => {
+  const context = useContext(PatientFilterContext);
   if (context === undefined) {
+    throw new Error('useFilteredPatients must be used within a PatientFilterProvider');
+  }
+  return context.patients;
+};
+
+export const usePatients = () => {
+  const patientContext = useContext(PatientContext);
+  const filterContext = useContext(PatientFilterContext);
+  if (patientContext === undefined) {
     throw new Error('usePatients must be used within a PatientProvider');
   }
-  return context;
+  if (filterContext === undefined) {
+    throw new Error('usePatients must be used within a PatientFilterProvider (wrap your app with PatientFilterProvider inside PatientProvider)');
+  }
+  return {
+    ...patientContext,
+    patients: filterContext.patients,
+  };
+};
+
+// 不訂閱 PatientFilterContext：只取得 PatientContext 原始資料與操作函數
+export const usePatientData = () => {
+  const patientContext = useContext(PatientContext);
+  if (patientContext === undefined) {
+    throw new Error('usePatientData must be used within a PatientProvider');
+  }
+  return patientContext;
 };

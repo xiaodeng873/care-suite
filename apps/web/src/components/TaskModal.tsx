@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, CheckSquare, User, Calendar, Clock, Activity, FileText, Droplets, Scale } from 'lucide-react';
 import PatientAutocomplete from './PatientAutocomplete';
-import { usePatients, type PatientHealthTask, type HealthTaskType, type FrequencyUnit, type MonitoringTaskNotes } from '../context/PatientContext';
+import { usePatientData, type PatientHealthTask, type HealthTaskType, type FrequencyUnit, type MonitoringTaskNotes } from '../context/PatientContext';
 import type { VitalSignType } from '../lib/database';
 import { calculateNextDueDate } from '../utils/taskScheduler';
 
@@ -37,7 +37,7 @@ interface TaskModalProps {
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
-  const { addPatientHealthTask, updatePatientHealthTask, refreshData } = usePatients();
+  const { addPatientHealthTask, updatePatientHealthTask, refreshData } = usePatientData();
 
   // 香港時區輔助函數
   const getHongKongDate = () => {

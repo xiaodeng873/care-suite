@@ -18,7 +18,7 @@ import {
   Printer,
   FileText,
 } from 'lucide-react';
-import { usePatients, type Wound, type WoundWithAssessments, type WoundAssessment } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type Wound, type WoundWithAssessments, type WoundAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientTooltip from '../components/PatientTooltip';
 import WoundModal from '../components/WoundModal';
@@ -127,7 +127,8 @@ const DEFAULT_FILTERS: WoundFilters = {
 // ── component ─────────────────────────────────────────────────────────────────
 
 const WoundManagementNew: React.FC = () => {
-  const { patientsWithWounds, patients, stations, deleteWound, deleteWoundAssessment, updateWound, refreshWoundData, loading } = usePatients();
+  const { patientsWithWounds, stations, deleteWound, deleteWoundAssessment, updateWound, refreshWoundData, loading } = usePatientData();
+  const patients = useFilteredPatients();
 
   // ── table state ──
   const [sortField, setSortField]           = useState<SortField>('discovery_date');

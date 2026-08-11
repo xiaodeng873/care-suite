@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Utensils, Calendar, FileText, Droplets } from 'lucide-react';
-import { usePatients, type Patient, type MealGuidance, type MealCombinationType, type SpecialDietType } from '../context/PatientContext';
+import { usePatientData, type Patient, type MealGuidance, type MealCombinationType, type SpecialDietType } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -11,7 +11,7 @@ interface MealGuidanceModalProps {
 }
 
 const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose }) => {
-  const { patients, mealGuidances, addMealGuidance, updateMealGuidance } = usePatients();
+  const { patients, mealGuidances, addMealGuidance, updateMealGuidance } = usePatientData();
 
   // 香港時區輔助函數
   const getHongKongDate = () => {

@@ -3,7 +3,7 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from 
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useSearchParams } from 'react-router-dom';
 import { Pill, Plus, Trash2, Search, Filter, Download, User, Calendar, AlertTriangle, CheckCircle, ArrowRight, X, ChevronUp, ChevronDown, Settings, FileText, Activity, ChevronRight, ChevronLeft, Heart, Shield, History } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { useWorkflow } from '../context/merged/WorkflowContext';
 import PrescriptionModal from '../components/PrescriptionModal';
 import PrescriptionTransferModal from '../components/PrescriptionTransferModal';
@@ -90,7 +90,8 @@ interface PatientDropdownFilters {
 }
 
 const PrescriptionManagement: React.FC = () => {
-  const { prescriptions, patients, deletePrescription, updatePrescription, loading } = usePatients();
+  const { prescriptions, deletePrescription, updatePrescription, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const { refreshPrescriptionData } = useWorkflow();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showModal, setShowModal] = useState(false);

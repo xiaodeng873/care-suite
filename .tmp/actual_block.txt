@@ -1,0 +1,27 @@
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="col-span-1"><NotesCard /></div>
+        <div className="col-span-1">
+          <MissingRequirementsCard
+            missingTasks={missingTasks}
+            missingMealGuidance={missingMealGuidance}
+            missingDeathDate={missingDeathDate}
+            missingVaccination={missingVaccination}
+            missingHealthAssessment={missingHealthAssessment}
+            missingCarePlan={missingCarePlan}
+            onCreateTask={handleCreateMissingTask}
+            onAddMealGuidance={handleAddMealGuidance}
+            onEditPatient={handleEditPatientForDeathDate}
+            onAddVaccinationRecord={handleAddVaccinationRecord}
+            onAddHealthAssessment={handleAddHealthAssessment}
+            onAddCarePlan={handleAddCarePlan}
+          />
+        </div>
+        <div className="col-span-1"><CarePlanDueReminderCard carePlans={carePlans} patients={patients} /></div>
+        <div className="col-span-1"><MedicationRemindersCard overdueWorkflows={overdueWorkflows} pendingPrescriptions={pendingPrescriptions} lowStockGroups={lowStockGroups} /></div>
+        <div className="col-span-1">
+          <ActivityRecordReminderCard
+            activityRecords={activityRecords}
+            onAddActivityRecord={handleAddActivityRecord}
+          />
+        </div>
+      </div>

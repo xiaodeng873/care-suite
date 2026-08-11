@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { X, Thermometer, CheckSquare, Square } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import { syncTaskStatus } from '../lib/database';
 import type { HealthRecord } from '../lib/database';
@@ -14,7 +14,6 @@ const TARGET_TIME = '08:00';
 
 const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onClose }) => {
   const {
-    patients,
     stations,
     healthRecords,
     patientHealthTasks,
@@ -23,7 +22,8 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
     addHealthRecordsForSession,
     refreshData,
     refreshHealthTaskData,
-  } = usePatients();
+  } = usePatientData();
+  const patients = useFilteredPatients();
   const { displayName } = useAuth();
 
   const getHongKongDate = () => {

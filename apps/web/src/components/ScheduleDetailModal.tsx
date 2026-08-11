@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Calendar, Plus, Trash2, AlertCircle, Loader2 } from 'lucide-react';
 import BedNumberImprint from './BedNumberImprint';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import PatientTooltip from './PatientTooltip';
 import { getReasonBadgeClass } from '../utils/reasonColors';
@@ -26,7 +26,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
   const [error, setError] = useState<string>('');
   const [newPatientId, setNewPatientId] = useState<string>('');
 
-  const { patients, serviceReasons, addPatientToSchedule, updateScheduleDetail, deleteScheduleDetail } = usePatients();
+  const { patients, serviceReasons, addPatientToSchedule, updateScheduleDetail, deleteScheduleDetail } = usePatientData();
 
   useEffect(() => {
     if (schedule?.排程id) {
@@ -290,7 +290,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
               <div className="space-y-4">
                 {patientItems.map((item) => {
                   const patient = patients.find(p => p.院友id === item.院友id);
-                  // 站別過濾：其他居住區的院友找不到，直接跳過不顯示
+                  // 若院友資料未載入則跳過不顯示
                   if (!patient) return null;
                   return (
                     <div key={item.細項id} className="card p-4">

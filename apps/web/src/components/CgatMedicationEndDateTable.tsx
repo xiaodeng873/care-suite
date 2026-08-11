@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 
 interface CgatMedicationEndDateTableProps {
   patientId: string;
@@ -15,7 +15,7 @@ function isCgatSource(source?: string): boolean {
 
 /** 藥完日期小表：內嵌在 CGAT modal 內，只能從此小表選取 */
 const CgatMedicationEndDateTable: React.FC<CgatMedicationEndDateTableProps> = ({ patientId, selectedDate, onSelect }) => {
-  const { prescriptions } = usePatients();
+  const { prescriptions } = usePatientData();
 
   // 在服處方（status='active'），三欄去重（處方日期+藥物來源+預計結束日期）
   const rows = useMemo(() => {

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { X, Activity, User, Calendar, Clock, AlertTriangle, Camera, Sparkles, ChevronDown, ChevronUp, CheckCircle, RefreshCw, Loader2 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { isInHospital } from '../utils/careRecordHelper';
@@ -84,7 +84,7 @@ const getInitialActiveTypes = (
 };
 
 const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGroup, initialData, onClose, onTaskCompleted }) => {
-  const { updateHealthRecord, addHealthRecordsForSession, deleteHealthRecord, patients, hospitalEpisodes, admissionRecords } = usePatients();
+  const { updateHealthRecord, addHealthRecordsForSession, deleteHealthRecord, patients, hospitalEpisodes, admissionRecords } = usePatientData();
   const { displayName } = useAuth();
 
   const getHKNow = () => {

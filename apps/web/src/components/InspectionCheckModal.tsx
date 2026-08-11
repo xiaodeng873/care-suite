@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Activity, Droplets, Heart, Thermometer, Wind, Eye, AlertTriangle, CheckCircle, Plus, XCircle } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import BedNumberImprint from './BedNumberImprint';
 import HealthRecordModal from './HealthRecordModal';
@@ -29,7 +29,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
     fetchLatestVitalSigns,
     dispenseMedication,
     hospitalEpisodes
-  } = usePatients();
+  } = usePatientData();
   const { displayName } = useAuth();
 
   const [matchedRecords, setMatchedRecords] = useState<Record<string, { record: any; isMatched: boolean }>>({});

@@ -18,7 +18,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
@@ -56,7 +56,8 @@ const getCurrentMonthDateRange = () => {
 };
 
 const PrintForms: React.FC = () => {
-  const { patients, loading, patientRestraintAssessments, stations, beds } = usePatients();
+  const { loading, patientRestraintAssessments, stations, beds } = usePatientData();
+  const patients = useFilteredPatients();
   const [templates, setTemplates] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
   const [restraintUserIds, setRestraintUserIds] = useState<Set<number>>(new Set());

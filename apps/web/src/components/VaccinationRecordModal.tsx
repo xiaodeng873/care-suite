@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Syringe, Calendar, Building2, Plus, Trash2 } from 'lucide-react';
-import { usePatients, type VaccinationRecord } from '../context/PatientContext';
+import { usePatientData, type VaccinationRecord } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import BedNumberImprint from './BedNumberImprint';
 import OCRDocumentBlock from './OCRDocumentBlock';
@@ -27,7 +27,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
   prefilledData,
   onClose
 }) => {
-  const { patients, addVaccinationRecord } = usePatients();
+  const { patients, addVaccinationRecord } = usePatientData();
 
   const getHongKongDate = () => {
     const now = new Date();

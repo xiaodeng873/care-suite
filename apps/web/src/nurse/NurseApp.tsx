@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import BottomTabBar, { type TabName } from './components/BottomTabBar';
 import ScanPage from './pages/ScanPage';
 import PatientListPage from './pages/PatientListPage';
@@ -18,7 +18,7 @@ type NurseNav =
   | { screen: 'records'; bed: Bed; patient: Patient | null; initialDate?: string; from: 'scan' | 'patients' };
 
 const NurseApp: React.FC<NurseAppProps> = () => {
-  const { loading: dataLoading } = usePatients();
+  const { loading: dataLoading } = usePatientData();
   const [nav, setNav] = useState<NurseNav>({ screen: 'scan' });
 
   const activeTab: TabName =

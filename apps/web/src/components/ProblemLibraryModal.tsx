@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { X, Plus, Search, Edit3, Trash2, Check, FileText } from 'lucide-react';
-import { usePatients, type ProblemLibrary, type ProblemCategory } from '../context/PatientContext';
+import { usePatientData, type ProblemLibrary, type ProblemCategory } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import { fuzzyMatch } from '../utils/searchUtils';
 
@@ -44,7 +44,7 @@ interface ProblemLibraryModalProps {
 }
 
 const ProblemLibraryModal: React.FC<ProblemLibraryModalProps> = ({ isOpen, onClose }) => {
-  const { problemLibrary, addProblemToLibrary, updateProblemLibrary, deleteProblemLibrary } = usePatients();
+  const { problemLibrary, addProblemToLibrary, updateProblemLibrary, deleteProblemLibrary } = usePatientData();
   const { displayName } = useAuth();
   
   const [selectedCategory, setSelectedCategory] = useState<ProblemCategory>('護理');

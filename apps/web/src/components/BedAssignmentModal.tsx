@@ -1,6 +1,6 @@
 import React, { useState, useDeferredValue } from 'react';
 import { X, Bed, User, Search, ArrowRightLeft, Home } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import PatientTooltip from './PatientTooltip';
 import BedNumberImprint from './BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
@@ -12,7 +12,8 @@ interface BedAssignmentModalProps {
 }
 
 const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose }) => {
-  const { patients, stations, beds, assignPatientToBed } = usePatients();
+  const { stations, beds, assignPatientToBed } = usePatientData();
+  const patients = useFilteredPatients();
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);

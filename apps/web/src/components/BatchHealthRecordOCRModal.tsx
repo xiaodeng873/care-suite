@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { Camera, Upload, X, Loader, CheckCircle, AlertTriangle, Save, Trash2, Plus, RefreshCw } from 'lucide-react';
 import { processImageWithGeminiVision } from '../utils/ocrProcessor';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import type { HealthRecord } from '../lib/database';
@@ -60,7 +60,7 @@ const parseNum = (v: string): number | undefined => {
 };
 
 const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ onClose }) => {
-  const { patients, addHealthRecordsForSession } = usePatients();
+  const { patients, addHealthRecordsForSession } = usePatientData();
   const { displayName } = useAuth();
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);

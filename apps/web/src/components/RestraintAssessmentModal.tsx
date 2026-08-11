@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Shield, Calendar, User, FileText, AlertTriangle } from 'lucide-react';
-import { usePatients, type PatientRestraintAssessment } from '../context/PatientContext';
+import { usePatientData, type PatientRestraintAssessment } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 
 interface RestraintAssessmentModalProps {
@@ -11,7 +11,7 @@ interface RestraintAssessmentModalProps {
 }
 
 const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ assessment, onClose, onUpdate, renewFrom }) => {
-  const { patients, addPatientRestraintAssessment, updatePatientRestraintAssessment } = usePatients();
+  const { patients, addPatientRestraintAssessment, updatePatientRestraintAssessment } = usePatientData();
 
   // 香港時區輔助函數
   const getHongKongDate = () => {

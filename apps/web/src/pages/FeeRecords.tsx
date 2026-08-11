@@ -9,7 +9,7 @@ import {
   ChevronDown,
   Loader2,
 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import BedNumberImprint from '../components/BedNumberImprint';
 import PatientAutocomplete from '../components/PatientAutocomplete';
@@ -154,7 +154,8 @@ const recordsToDrafts = (
     });
 
 const FeeRecords: React.FC = () => {
-  const { patients } = usePatients();
+  const {} = usePatientData();
+  const patients = useFilteredPatients();
 
   const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonth());
   const [selectedPatientId, setSelectedPatientId] = useState<number | undefined>(undefined);

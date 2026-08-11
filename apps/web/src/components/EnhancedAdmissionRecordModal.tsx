@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar, Clock, Guitar as Hospital, MapPin, Bed, User, AlertTriangle, Heart, Building2, FileText } from 'lucide-react';
-import { usePatients, type PatientAdmissionRecord, type AdmissionEventType } from '../context/PatientContext';
+import { usePatientData, type PatientAdmissionRecord, type AdmissionEventType } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 
 interface TransferPath {
@@ -32,7 +32,7 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
     addPatientAdmissionRecord, 
     updatePatientAdmissionRecord,
     patientAdmissionRecords 
-  } = usePatients();
+  } = usePatientData();
 
   // 表單狀態
   const [formData, setFormData] = useState({

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { CalendarCheck, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Clock, MapPin, Car, UserCheck, ChevronUp, ChevronDown, Copy, MessageSquare, X, FileText, Printer } from 'lucide-react';
-import { usePatients, type FollowUpAppointment } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type FollowUpAppointment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import FollowUpModal from '../components/FollowUpModal';
 import PatientAutocomplete from '../components/PatientAutocomplete';
@@ -34,7 +34,8 @@ interface AdvancedFilters {
 }
 
 const FollowUpManagement: React.FC = () => {
-  const { followUpAppointments, patients, deleteFollowUpAppointment, batchUpdateFollowUpStatus, loading } = usePatients();
+  const { followUpAppointments, deleteFollowUpAppointment, batchUpdateFollowUpStatus, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<FollowUpAppointment | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');

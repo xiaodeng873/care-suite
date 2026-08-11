@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle, Home, Guitar as Hospital, XCircle, Pill, AlertCircleIcon, Clock, CheckSquare, Users } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { formatDisplayDate } from '../utils/dateFormat';
 import BedNumberImprint from './BedNumberImprint';
 
@@ -20,7 +20,7 @@ const FailureReasonModal: React.FC<FailureReasonModalProps> = ({
   step,
   onConfirm
 }) => {
-  const { patients, prescriptions } = usePatients();
+  const { patients, prescriptions } = usePatientData();
   const [selectedReason, setSelectedReason] = useState<string>('');
   const [customReason, setCustomReason] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);

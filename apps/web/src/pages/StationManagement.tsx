@@ -12,7 +12,7 @@ import {
   CheckCircle,
   X
 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import StationModal from '../components/StationModal';
 import { fuzzyMatch, compareStationNames } from '../utils/searchUtils';
@@ -26,7 +26,7 @@ const StationManagement: React.FC = () => {
     patients, 
     loading, 
     deleteStation 
-  } = usePatients();
+  } = usePatientData();
   
   const [showStationModal, setShowStationModal] = useState(false);
   const [selectedStation, setSelectedStation] = useState<any>(null);

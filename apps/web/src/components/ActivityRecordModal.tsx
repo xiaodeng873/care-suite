@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { X, PartyPopper, Users, Search, CheckSquare, Square, Calendar, AlertTriangle, User, Building2 } from 'lucide-react';
-import { usePatients, type PatientActivityRecord } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type PatientActivityRecord } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 import {
@@ -48,7 +48,8 @@ const makeEmptyActivity = (recorderDefault: string): ActivityState => {
 };
 
 const ActivityRecordModal: React.FC<ActivityRecordModalProps> = ({ onClose, defaultPatientId, record }) => {
-  const { patients, stations, healthAssessments, hospitalEpisodes, addActivityRecords, updateActivityRecord } = usePatients();
+  const { stations, healthAssessments, hospitalEpisodes, addActivityRecords, updateActivityRecord } = usePatientData();
+  const patients = useFilteredPatients();
   const { displayName } = useAuth();
   const isEdit = !!record;
 

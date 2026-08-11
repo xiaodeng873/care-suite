@@ -15,7 +15,7 @@ import {
   Printer,
   AlertTriangle,
 } from 'lucide-react';
-import { usePatients, type PatientActivityRecord } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type PatientActivityRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import ActivityRecordModal from '../components/ActivityRecordModal';
 import ActivityRecordPrintModal from '../components/ActivityRecordPrintModal';
@@ -67,7 +67,8 @@ const activityChips = (record: PatientActivityRecord) => {
 };
 
 const ActivityRecords: React.FC = () => {
-  const { patients, activityRecords, deleteActivityRecord, loading } = usePatients();
+  const { activityRecords, deleteActivityRecord, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [editingRecord, setEditingRecord] = useState<PatientActivityRecord | null>(null);

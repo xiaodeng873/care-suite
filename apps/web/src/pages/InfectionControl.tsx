@@ -15,7 +15,7 @@ import {
   X,
   AlertTriangle
 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import InfectionControlModal from '../components/InfectionControlModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber } from '../utils/searchUtils';
@@ -38,7 +38,7 @@ interface AdvancedFilters {
 }
 
 const InfectionControl: React.FC = () => {
-  const { infectionControlRecords, allPatients, deleteInfectionControlRecord, loading } = usePatients();
+  const { infectionControlRecords, allPatients, deleteInfectionControlRecord, loading } = usePatientData();
   const [showModal, setShowModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<InfectionControlRecord | null>(null);
   const [prefilledPatientId, setPrefilledPatientId] = useState<number | null>(null);

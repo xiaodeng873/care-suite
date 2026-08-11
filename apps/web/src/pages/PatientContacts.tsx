@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { Edit3, Trash2, User, ChevronUp, ChevronDown, Filter, X, Search } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { getPatientContacts, deletePatientContact, PatientContact } from '../lib/database';
 import PatientContactModal from '../components/PatientContactModal';
@@ -23,7 +23,8 @@ interface AdvancedFilters {
 }
 
 const PatientContacts: React.FC = () => {
-  const { patients } = usePatients();
+  const {} = usePatientData();
+  const patients = useFilteredPatients();
   const [contacts, setContacts] = useState<(PatientContact & { patient?: any })[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, ArrowLeft, Lock } from 'lucide-react';
-import { usePatients } from '../../context/PatientContext';
+import { usePatientData } from '../../context/PatientContext';
 import { useAuth } from '../../context/AuthContext';
 import * as db from '../../lib/database';
 import type { Bed, Patient, PatrolRound, DiaperChangeRecord, RestraintObservationRecord, PositionChangeRecord, HygieneRecord, IntakeOutputRecord, PatientCareTab } from '../../lib/database';
@@ -49,7 +49,7 @@ interface ModalState {
 
 const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelectPatient, initialDate }) => {
   const { displayName } = useAuth();
-  const { admissionRecords, hospitalEpisodes, patientRestraintAssessments, restraintObservationRecords, beds, patients } = usePatients();
+  const { admissionRecords, hospitalEpisodes, patientRestraintAssessments, restraintObservationRecords, beds, patients } = usePatientData();
 
   // ─── Today only view ─────────────────────────────────────────
   const today = new Date();

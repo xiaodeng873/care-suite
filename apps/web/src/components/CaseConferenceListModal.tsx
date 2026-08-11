@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { X, Users, Printer, Plus } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { getCarePlanStatus } from '../utils/carePlanStatus';
 import { generateCaseConferenceListHtml } from '../utils/caseConferenceListPrintGenerator';
 import { formatDisplayDate } from '../utils/dateFormat';
@@ -93,7 +93,7 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
   patients,
   onSave,
 }) => {
-  const { updateCarePlan, refreshCarePlanData } = usePatients();
+  const { updateCarePlan, refreshCarePlanData } = usePatientData();
   const [meetingDate, setMeetingDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedPlanIds, setSelectedPlanIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { X, Home, Bed, AlertCircle, CheckCircle } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 
 interface ChangeOriginalBedModalProps {
@@ -9,7 +9,7 @@ interface ChangeOriginalBedModalProps {
 }
 
 const ChangeOriginalBedModal: React.FC<ChangeOriginalBedModalProps> = ({ patient, onClose }) => {
-  const { beds, rooms, stations, changeOriginalBed } = usePatients();
+  const { beds, rooms, stations, changeOriginalBed } = usePatientData();
   const [selectedBedId, setSelectedBedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 

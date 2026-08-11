@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Stethoscope, Calendar, User, FileText } from 'lucide-react';
-import { usePatients, type PatientTubeCareRecord } from '../context/PatientContext';
+import { usePatientData, type PatientTubeCareRecord } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { calculateTubeCareNextDueDate } from '../utils/taskScheduler';
 
@@ -29,7 +29,7 @@ const getHongKongDate = () => {
 };
 
 const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate, renewFrom, defaultCareType }) => {
-  const { patients, addPatientTubeCareRecord, updatePatientTubeCareRecord } = usePatients();
+  const { patients, addPatientTubeCareRecord, updatePatientTubeCareRecord } = usePatientData();
 
   const seed = record ?? renewFrom ?? undefined;
 

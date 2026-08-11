@@ -14,7 +14,7 @@ import {
   ChevronDown,
   X
 } from 'lucide-react';
-import { usePatients, type VaccinationRecord } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type VaccinationRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import VaccinationRecordModal from '../components/VaccinationRecordModal';
 import PatientTooltip from '../components/PatientTooltip';
@@ -40,7 +40,8 @@ interface AdvancedFilters {
 }
 
 const VaccinationRecords: React.FC = () => {
-  const { vaccinationRecords, patients, deleteVaccinationRecord, loading } = usePatients();
+  const { vaccinationRecords, deleteVaccinationRecord, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<number | undefined>();
   const [selectedPatientRecords, setSelectedPatientRecords] = useState<VaccinationRecord[]>([]);

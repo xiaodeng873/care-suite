@@ -16,7 +16,7 @@ import {
   X,
   Printer
 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from '../components/PatientAutocomplete';
 import PatientPrintModal, { PRINT_DOCUMENTS } from '../components/PatientPrintModal';
@@ -82,13 +82,13 @@ const HYGIENE_ITEMS: HygieneItemConfig[] = [
 ];
 const CareRecords: React.FC = () => {
   const {
-    patients,
     patientRestraintAssessments,
     mealGuidances,
     healthAssessments,
     admissionRecords,
     hospitalEpisodes
-  } = usePatients();
+  } = usePatientData();
+  const patients = useFilteredPatients();
   // 本地狀態管理床頭記錄數據
   const [loading, setLoading] = useState(false);
   const [patrolRounds, setPatrolRounds] = useState<PatrolRound[]>([]);

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { User, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Patient } from '../lib/database';
 import { supabase } from '../lib/supabase';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 
 interface PatientInfoCardProps {
@@ -19,7 +19,7 @@ const PatientInfoCard: React.FC<PatientInfoCardProps> = ({
   defaultExpanded = true
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  const { beds } = usePatients();
+  const { beds } = usePatientData();
 
   if (!patient) {
     return (

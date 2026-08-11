@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { Calendar, Plus, Edit3, Trash2, Download, Users, Settings, User, Search, Filter, X, AlertCircle } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { exportCombinedScheduleToExcel, type StationGroup } from '../utils/combinedScheduleExcelGenerator';
 import { printVmoWaitingList, printVmoPrescriptions, type VmoPatientItem } from '../utils/vmoSchedulePrintGenerator';
@@ -19,7 +19,8 @@ import type { ScheduleWithDetails } from '../context/PatientContext';
 import { formatDisplayDate } from '../utils/dateFormat';
 
 const Scheduling: React.FC = () => {
-  const { schedules, deleteSchedule, patients, stations, loading, refreshData } = usePatients();
+  const { schedules, deleteSchedule, stations, loading, refreshData } = usePatientData();
+  const patients = useFilteredPatients();
   const { isFiltered, selectedStationIds } = useStationFilter();
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showPatientModal, setShowPatientModal] = useState(false);

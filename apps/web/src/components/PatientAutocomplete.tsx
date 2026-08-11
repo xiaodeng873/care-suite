@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, User, Search } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { useStation } from '../context/facility';
 import { useStationFilter } from '../context/StationFilterContext';
 import { useDebounce } from '../hooks/useDebounce';
@@ -30,7 +30,8 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
   showStationFilter = false,
   ignoreStationFilter = false,
 }) => {
-  const { patients: filteredPatientsCtx, allPatients, beds } = usePatients();
+  const { allPatients, beds } = usePatientData();
+  const filteredPatientsCtx = useFilteredPatients();
   const patients = ignoreStationFilter ? allPatients : filteredPatientsCtx;
   const { stations } = useStation();
   const { selectedStationIds } = useStationFilter();

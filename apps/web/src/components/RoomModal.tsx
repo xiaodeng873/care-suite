@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, DoorOpen, Building2 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 
 interface RoomModalProps {
   room?: any;
@@ -9,7 +9,7 @@ interface RoomModalProps {
 }
 
 const RoomModal: React.FC<RoomModalProps> = ({ room, preselectedStation, onClose }) => {
-  const { stations, addRoom, updateRoom } = usePatients();
+  const { stations, addRoom, updateRoom } = usePatientData();
 
   const [formData, setFormData] = useState({
     station_id: room?.station_id || preselectedStation?.id || '',

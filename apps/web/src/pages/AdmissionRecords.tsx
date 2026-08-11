@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { Guitar as Hospital, Plus, CreditCard as Edit3, Trash2, Search, Filter, Download, User, Calendar, MapPin, Bed, FileText, ChevronUp, ChevronDown, X, Activity, Printer } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import HospitalEpisodeModal from '../components/HospitalEpisodeModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
@@ -30,7 +30,8 @@ interface AdvancedFilters {
 }
 
 const AdmissionRecords: React.FC = () => {
-  const { hospitalEpisodes, patients, mealGuidances, deleteHospitalEpisode, loading } = usePatients();
+  const { hospitalEpisodes, mealGuidances, deleteHospitalEpisode, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');

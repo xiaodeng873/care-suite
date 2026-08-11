@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Upload, Camera, Trash2, LogOut, LogIn, Calendar } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { type PatientContact, createPatientContact, type VaccinationRecord } from '../lib/database';
 import { formatEnglishGivenName, formatEnglishSurname } from '../utils/nameFormatter';
 import SimpleStationBedSelector from './SimpleStationBedSelector';
@@ -18,7 +18,7 @@ interface PatientModalProps {
 }
 
 const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose }) => {
-  const { addPatient, updatePatient, stations, beds, patients, vaccinationRecords: allVaccinationRecords, addVaccinationRecord, updateVaccinationRecord, deleteVaccinationRecord } = usePatients();
+  const { addPatient, updatePatient, stations, beds, patients, vaccinationRecords: allVaccinationRecords, addVaccinationRecord, updateVaccinationRecord, deleteVaccinationRecord } = usePatientData();
   const [activeSubTab, setActiveSubTab] = useState<'basic' | 'contacts' | 'social' | 'medical' | 'services'>('basic');
   const [activeMainTab, setActiveMainTab] = useState<'personal' | 'nursing'>('personal');
   const { userProfile, user } = useAuth();

@@ -1,6 +1,6 @@
 import React, { useState, useDeferredValue } from 'react';
 import { X, Users, Plus, Search, User } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { getReasonBadgeClass, getReasonIcon } from '../utils/reasonColors';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
@@ -12,7 +12,8 @@ interface PatientSelectModalProps {
 }
 
 const PatientSelectModal: React.FC<PatientSelectModalProps> = ({ scheduleId, onClose }) => {
-  const { patients, schedules, updateSchedule, serviceReasons } = usePatients();
+  const { schedules, updateSchedule, serviceReasons } = usePatientData();
+  const patients = useFilteredPatients();
   const [selectedPatients, setSelectedPatients] = useState<{[key: number]: any}>({});
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);

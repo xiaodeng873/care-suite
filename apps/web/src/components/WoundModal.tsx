@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, MapPin, Calendar, User, AlertCircle } from 'lucide-react';
-import { usePatients, type Wound, type WoundType, type WoundOrigin, type ResponsibleUnit } from '../context/PatientContext';
+import { usePatientData, type Wound, type WoundType, type WoundOrigin, type ResponsibleUnit } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import HumanBodyDiagram from './HumanBodyDiagram';
@@ -36,7 +36,7 @@ const RESPONSIBLE_UNITS: { value: ResponsibleUnit; label: string }[] = [
 ];
 
 const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSave }) => {
-  const { addWound, updateWound, generateWoundCode, patients } = usePatients();
+  const { addWound, updateWound, generateWoundCode, patients } = usePatientData();
   const { displayName } = useAuth();
 
   // 香港時區輔助函數

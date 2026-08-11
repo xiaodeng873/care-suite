@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, ArrowRight, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import PrescriptionEndDateModal from './PrescriptionEndDateModal';
 import { getHongKongNow } from '../utils/prescriptionExpiry';
@@ -14,7 +14,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
   prescription, 
   onClose 
 }) => {
-  const { prescriptions, updatePrescription, patients } = usePatients();
+  const { prescriptions, updatePrescription, patients } = usePatientData();
   const [targetStatus, setTargetStatus] = useState<'active' | 'inactive'>('active');
   const [comparisonResult, setComparisonResult] = useState<any>(null);
   const [selectedAction, setSelectedAction] = useState<'replace' | 'keep_both'>('replace');

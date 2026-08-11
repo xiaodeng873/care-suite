@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Shield, User, Calendar } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { type InfectionControlRecord } from '../lib/database';
 import PatientAutocomplete from './PatientAutocomplete';
 
@@ -17,7 +17,7 @@ const InfectionControlModal: React.FC<InfectionControlModalProps> = ({
   onClose,
   onSave,
 }) => {
-  const { patients, infectionControlRecords, addInfectionControlRecord, updateInfectionControlRecord } = usePatients();
+  const { patients, infectionControlRecords, addInfectionControlRecord, updateInfectionControlRecord } = usePatientData();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<{
     patient_id: number | null;

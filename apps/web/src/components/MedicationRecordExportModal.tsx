@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { X, FileDown, Calendar, Users, CheckSquare, Square, AlertCircle, Pill, Syringe, Package, Building2 } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { exportMedicationRecordToHtml, exportBlankMedicationRecordToHtml } from '../utils/medicationRecordHtmlExporter';
 import { exportMedicationListToHtml, classifyMedicationTerm } from '../utils/medicationListHtmlGenerator';
 import { useStationData } from '../context/facility/StationContext';
@@ -56,7 +56,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   selectedPrescriptionIds = new Set(),
   allPrescriptions = []
 }) => {
-  const { patients, prescriptions } = usePatients();
+  const { prescriptions } = usePatientData();
+  const patients = useFilteredPatients();
 
   const [exportMode, setExportMode] = useState<'batch' | 'batchBlank' | 'current' | 'currentBlank'>(currentPatient ? 'current' : 'batch');
   const [selectedPatientIds, setSelectedPatientIds] = useState<Set<number>>(new Set());

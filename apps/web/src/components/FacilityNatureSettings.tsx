@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, Check, Plus, Trash2 } from 'lucide-react';
 import { useStation } from '../context/facility';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import {
   A1_CONTRACT_POSITIONS,
   DEFAULT_BED_COUNTS,
@@ -66,7 +66,7 @@ const IntInput: React.FC<{
 
 const FacilityNatureSettings: React.FC = () => {
   const { beds } = useStation();
-  const { allPatients } = usePatients();
+  const { allPatients } = usePatientData();
 
   const [activeTab, setActiveTab] = useState(0);
   const [activeNature, setActiveNature] = useState<FacilityNature>('安老院');

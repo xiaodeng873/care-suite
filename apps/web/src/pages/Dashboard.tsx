@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect } from 'react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { useDashboardReady } from '../context/DashboardReadyContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import TaskModal from '../components/TaskModal';
@@ -98,7 +98,9 @@ function pickLatestPerPatient<T extends { patient_id: number; created_at?: strin
   return Array.from(latestPerPatient.values());
 }
 const Dashboard: React.FC = () => {
-  const { patients, schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, patientsWithWounds, activityRecords, beds, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData, refreshWoundData } = usePatients();
+  const patientData = usePatientData();
+  const patients = useFilteredPatients();
+  const { schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, patientsWithWounds, activityRecords, beds, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData, refreshWoundData } = patientData;
   const [showActivityRecordModal, setShowActivityRecordModal] = useState(false);
   const [activityRecordPatientId, setActivityRecordPatientId] = useState<number | undefined>(undefined);
   const [showHealthRecordModal, setShowHealthRecordModal] = useState(false);
@@ -1040,33 +1042,30 @@ const Dashboard: React.FC = () => {
           最後更新: {formatDisplayDateTime(new Date())}
         </div>
       </div>
+      {/* 提醒卡直接做 grid children：卡片無資料時會 return null，
+          外面再包 col-span-1 div 會留低空格位，造成中間間隔 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <div className="col-span-1"><NotesCard /></div>
-        <div className="col-span-1">
-          <MissingRequirementsCard
-            missingTasks={missingTasks}
-            missingMealGuidance={missingMealGuidance}
-            missingDeathDate={missingDeathDate}
-            missingVaccination={missingVaccination}
-            missingHealthAssessment={missingHealthAssessment}
-            missingCarePlan={missingCarePlan}
-            onCreateTask={handleCreateMissingTask}
-            onAddMealGuidance={handleAddMealGuidance}
-            onEditPatient={handleEditPatientForDeathDate}
-            onAddVaccinationRecord={handleAddVaccinationRecord}
-            onAddHealthAssessment={handleAddHealthAssessment}
-            onAddCarePlan={handleAddCarePlan}
-          />
-        </div>
-        <div className="col-span-1"><CarePlanDueReminderCard carePlans={carePlans} patients={patients} /></div>
-        <div className="col-span-1"><MedicationRemindersCard overdueWorkflows={overdueWorkflows} pendingPrescriptions={pendingPrescriptions} lowStockGroups={lowStockGroups} /></div>
-        <div className="col-span-1">
-          <ActivityRecordReminderCard
-            patients={patients}
-            activityRecords={activityRecords}
-            onAddActivityRecord={handleAddActivityRecord}
-          />
-        </div>
+        <NotesCard />
+        <MissingRequirementsCard
+          missingTasks={missingTasks}
+          missingMealGuidance={missingMealGuidance}
+          missingDeathDate={missingDeathDate}
+          missingVaccination={missingVaccination}
+          missingHealthAssessment={missingHealthAssessment}
+          missingCarePlan={missingCarePlan}
+          onCreateTask={handleCreateMissingTask}
+          onAddMealGuidance={handleAddMealGuidance}
+          onEditPatient={handleEditPatientForDeathDate}
+          onAddVaccinationRecord={handleAddVaccinationRecord}
+          onAddHealthAssessment={handleAddHealthAssessment}
+          onAddCarePlan={handleAddCarePlan}
+        />
+        <CarePlanDueReminderCard carePlans={carePlans} patients={patients} />
+        <MedicationRemindersCard overdueWorkflows={overdueWorkflows} pendingPrescriptions={pendingPrescriptions} lowStockGroups={lowStockGroups} />
+        <ActivityRecordReminderCard
+          activityRecords={activityRecords}
+          onAddActivityRecord={handleAddActivityRecord}
+        />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
         <div className="card p-6 lg:p-4 lg:col-span-2">

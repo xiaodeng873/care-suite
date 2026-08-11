@@ -18,7 +18,7 @@ import {
   Filter,
   X,
 } from 'lucide-react';
-import { usePatients, type PatientTubeCareRecord } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type PatientTubeCareRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import TubeCareModal from '../components/TubeCareModal';
 import BedNumberImprint from '../components/BedNumberImprint';
@@ -81,7 +81,8 @@ const detailText = (record: PatientTubeCareRecord) => {
 };
 
 const TubeCareManagement: React.FC = () => {
-  const { patientTubeCareRecords, patients, deletePatientTubeCareRecord, updatePatientTubeCareRecord, loading } = usePatients();
+  const { patientTubeCareRecords, deletePatientTubeCareRecord, updatePatientTubeCareRecord, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<PatientTubeCareRecord | null>(null);
   const [renewFromRecord, setRenewFromRecord] = useState<PatientTubeCareRecord | null>(null);

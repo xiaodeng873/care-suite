@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, MapPin, User, Calendar, Clock, Syringe } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate } from '../utils/dateFormat';
@@ -19,7 +19,7 @@ const InjectionSiteModal: React.FC<InjectionSiteModalProps> = ({
   workflowRecord,
   onSiteSelected
 }) => {
-  const { patients, prescriptions } = usePatients();
+  const { patients, prescriptions } = usePatientData();
   const [selectedArea, setSelectedArea] = useState<string>('');
   const [selectedPosition, setSelectedPosition] = useState<string>('');
   const [notes, setNotes] = useState<string>('');

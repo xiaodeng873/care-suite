@@ -109,6 +109,8 @@ interface MedicalContextType {
   deletedHealthRecords: db.DeletedHealthRecord[];
   isAllHealthRecordsLoaded: boolean;
   healthRecordLoading: boolean;
+  /** 背景補全完整歷史記錄進行中（唔计入統一 loading，唔阻塞登入閘門） */
+  fullHealthRecordsLoading?: boolean;
   addHealthRecord: (record: Omit<db.HealthRecord, '記錄id'>) => Promise<db.HealthRecord>;
   addHealthRecordsForSession: (records: Omit<db.HealthRecord, '記錄id' | '建立時間'>[]) => Promise<db.HealthRecord[]>;
   updateHealthRecord: (record: db.HealthRecord) => Promise<db.HealthRecord>;
@@ -165,6 +167,11 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
   const [isAllHealthRecordsLoaded, setIsAllHealthRecordsLoaded] = useState(false);
   const isAllHealthRecordsLoadedRef = useRef(false);
   const [healthRecordLoading, setHealthRecordLoading] = useState(false);
+  // 背景補全完整歷史記錄嘅獨立 flag：唔计入統一 loading，
+  // 否則登入閘門會被 49k+ 行嘅背景載入再度阻塞
+  const [fullHealthRecordsLoading, setFullHealthRecordsLoading] = useState(false);
+  // 防 StrictMode 雙重 effect / 重複觸發：全量載入進行中唔再開第二個（49k+ 行）
+  const fullHealthRecordsInFlightRef = useRef(false);
 
   // ===== 覆診函數 =====
   const refreshFollowUpData = useCallback(async () => {
@@ -597,7 +604,11 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
     try {
       // 先載入近 180 天記錄讓 Dashboard 快速顯示
       const recentData = await db.getHealthRecords({ daysBack: 180 });
-      setHealthRecords(recentData || []);
+      // 完整記錄已載入/載入緊就唔好用 180 日子集冚蓋，
+      // 否則 race 之後頁面會長期得返一半資料（flag 話已載全但 state 係子集）
+      if (!isAllHealthRecordsLoadedRef.current && !fullHealthRecordsInFlightRef.current) {
+        setHealthRecords(recentData || []);
+      }
     } catch (error) {
       console.error('Error refreshing health record data:', error);
       throw error;
@@ -607,9 +618,10 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
   }, [isAuthenticated]);
 
   const loadFullHealthRecords = useCallback(async () => {
-    if (isAllHealthRecordsLoadedRef.current) return;
+    if (isAllHealthRecordsLoadedRef.current || fullHealthRecordsInFlightRef.current) return;
+    fullHealthRecordsInFlightRef.current = true;
     try {
-      setHealthRecordLoading(true);
+      setFullHealthRecordsLoading(true);
       const allRecords = await db.getHealthRecords();
       setHealthRecords(allRecords);
       setIsAllHealthRecordsLoaded(true);
@@ -618,7 +630,8 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
       console.error('載入完整記錄失敗:', error);
       throw error;
     } finally {
-      setHealthRecordLoading(false);
+      setFullHealthRecordsLoading(false);
+      fullHealthRecordsInFlightRef.current = false;
     }
   }, []);
 
@@ -833,6 +846,7 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
     deletedHealthRecords,
     isAllHealthRecordsLoaded,
     healthRecordLoading,
+    fullHealthRecordsLoading,
     addHealthRecord,
     addHealthRecordsForSession,
     updateHealthRecord,

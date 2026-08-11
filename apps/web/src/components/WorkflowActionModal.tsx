@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -22,7 +22,7 @@ const WorkflowActionModal: React.FC<WorkflowActionModalProps> = ({
   onComplete,
   onFail
 }) => {
-  const { patients, prescriptions } = usePatients();
+  const { patients, prescriptions } = usePatientData();
 
   if (!isOpen) return null;
 

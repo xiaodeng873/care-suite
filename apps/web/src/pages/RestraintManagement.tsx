@@ -21,7 +21,7 @@ import {
   Copy,
   Ban
 } from 'lucide-react';
-import { usePatients, type PatientRestraintAssessment } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type PatientRestraintAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import RestraintAssessmentModal from '../components/RestraintAssessmentModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
@@ -51,7 +51,8 @@ interface AdvancedFilters {
 }
 
 const RestraintManagement: React.FC = () => {
-  const { patientRestraintAssessments, patients, deletePatientRestraintAssessment, updatePatientRestraintAssessment, loading } = usePatients();
+  const { patientRestraintAssessments, deletePatientRestraintAssessment, updatePatientRestraintAssessment, loading } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<PatientRestraintAssessment | null>(null);
   const [renewFromAssessment, setRenewFromAssessment] = useState<PatientRestraintAssessment | null>(null);

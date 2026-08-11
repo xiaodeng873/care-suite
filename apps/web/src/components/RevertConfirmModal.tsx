@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { X, AlertTriangle, Clock, User, Pill, CheckCircle, XCircle } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
 
@@ -20,7 +20,7 @@ const RevertConfirmModal: React.FC<RevertConfirmModalProps> = ({
   step,
   onConfirm
 }) => {
-  const { patients, prescriptions } = usePatients();
+  const { patients, prescriptions } = usePatientData();
 
   const handleConfirmAndClose = useCallback(() => {
     onConfirm();

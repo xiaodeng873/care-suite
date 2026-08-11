@@ -4,7 +4,7 @@ import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, Ca
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { useStationFilter } from '../context/StationFilterContext';
 import type { Station } from '../context/facility';
 import {
@@ -117,7 +117,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const [facilitySettings, setFacilitySettings] = useState<FacilitySettings>(DEFAULT_FACILITY_SETTINGS);
   const { displayName, hasPermission, hasCategoryViewPermission, isDeveloper, userProfile, customLogout } = useAuth();
   const { isNavigating, navigatingTo, isInitialLoad, startNavigation, finishNavigation } = useNavigation();
-  const { loading: patientLoading, stations } = usePatients();
+  const { loading: patientLoading, stations } = usePatientData();
   const { selectedStationIds, setSelectedStationIds, isFiltered } = useStationFilter();
   const location = useLocation();
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});

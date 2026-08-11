@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 
 interface ScheduleModalProps {
   schedule?: any;
@@ -8,7 +8,7 @@ interface ScheduleModalProps {
 }
 
 const ScheduleModal: React.FC<ScheduleModalProps> = ({ schedule, onClose }) => {
-  const { addSchedule, updateSchedule } = usePatients();
+  const { addSchedule, updateSchedule } = usePatientData();
 
   // 香港時區輔助函數
   const getHongKongDate = () => {

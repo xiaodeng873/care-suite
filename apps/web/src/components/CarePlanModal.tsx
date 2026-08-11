@@ -18,7 +18,7 @@ import {
   Search
 } from 'lucide-react';
 import { 
-  usePatients, 
+  usePatientData, 
   type CarePlan, 
   type CarePlanProblem, 
   type CarePlanNursingNeed,
@@ -73,7 +73,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
     getPatientActiveCarePlan,
     replaceActiveCarePlan,
     addPendingCarePlan
-  } = usePatients();
+  } = usePatientData();
   const { displayName, userProfile, isAdmin, isDeveloper } = useAuth();
   const [loading, setLoading] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);

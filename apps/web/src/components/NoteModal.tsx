@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, StickyNote } from 'lucide-react';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 
 interface NoteModalProps {
@@ -9,7 +9,7 @@ interface NoteModalProps {
 }
 
 const NoteModal: React.FC<NoteModalProps> = ({ onClose, note }) => {
-  const { patients, addPatientNote, updatePatientNote } = usePatients();
+  const { patients, addPatientNote, updatePatientNote } = usePatientData();
 
   const isEditMode = !!note;
 

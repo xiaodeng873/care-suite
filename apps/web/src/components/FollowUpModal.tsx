@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, CalendarCheck, Clock, MapPin, User, Car, UserCheck, MessageSquare, Copy } from 'lucide-react';
-import { usePatients, type FollowUpAppointment } from '../context/PatientContext';
+import { usePatientData, type FollowUpAppointment } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import OCRDocumentBlock from './OCRDocumentBlock';
 import { formatDisplayDate } from '../utils/dateFormat';
@@ -12,7 +12,7 @@ interface FollowUpModalProps {
 }
 
 export default function FollowUpModal({ appointment, onClose }: FollowUpModalProps) {
-  const { patients, addFollowUpAppointment, updateFollowUpAppointment } = usePatients();
+  const { patients, addFollowUpAppointment, updateFollowUpAppointment } = usePatientData();
 
   // 香港時區輔助函數
   const getHongKongDate = () => {

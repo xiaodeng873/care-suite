@@ -23,7 +23,7 @@ import {
   Home,
 } from 'lucide-react';
 import * as QRCode from 'qrcode';
-import { usePatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import StationModal from '../components/StationModal';
 import BedModal from '../components/BedModal';
@@ -45,14 +45,14 @@ const StationBedManagement: React.FC = () => {
     stations, 
     rooms,
     beds, 
-    allPatients: patients, 
     infectionControlRecords,
     loading, 
     deleteStation, 
     deleteBed,
     cancelTemporaryTransfer,
     cancelTemporarySwapPair,
-  } = usePatients();
+  } = usePatientData();
+  const patients = useFilteredPatients();
   const [showStationModal, setShowStationModal] = useState(false);
   const [showBedModal, setShowBedModal] = useState(false);
   const [showRoomModal, setShowRoomModal] = useState(false);

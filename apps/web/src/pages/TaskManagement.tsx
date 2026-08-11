@@ -20,7 +20,7 @@ import {
   FileText,
   Stethoscope
 } from 'lucide-react';
-import { usePatients, type PatientHealthTask, type HealthTaskType, type FrequencyUnit } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type PatientHealthTask, type HealthTaskType, type FrequencyUnit } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import TaskModal from '../components/TaskModal';
 import { formatFrequencyDescription, getTaskStatus, isDocumentTask, isNursingTask } from '../utils/taskScheduler';
@@ -50,7 +50,8 @@ interface TaskFilters {
 }
 
 const TaskManagement: React.FC = () => {
-  const { patientHealthTasks, patients, deletePatientHealthTask, loading, healthRecords, refreshHealthTaskData } = usePatients();
+  const { patientHealthTasks, deletePatientHealthTask, loading, healthRecords, refreshHealthTaskData } = usePatientData();
+  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<PatientHealthTask | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
