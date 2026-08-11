@@ -52,6 +52,43 @@ const parseHalf = (s: string): number | null | 'invalid' => {
   return n;
 };
 
+/** 統一格式化未知錯誤為可讀字串（支援 PostgrestError / 嵌套 message） */
+const formatError = (err: unknown): string => {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === 'object') {
+    const e = err as Record<string, unknown>;
+    const msg = e.message;
+    if (typeof msg === 'string' && msg.length > 0) return msg;
+    if (msg && typeof msg === 'object') {
+      try {
+        return JSON.stringify(msg);
+      } catch {
+        return String(msg);
+      }
+    }
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
+};
+
+/** 把 Supabase 錯誤加上步驟上下文，方便定位是哪一句 Bad Request */
+const throwWithContext = (step: string, err: unknown): never => {
+  const base = formatError(err);
+  throw new Error(step + '：' + base);
+};
+/** 把陣列分成每批最多 size 個的小陣列，避免 Supabase .in() URL 過長 */
+function chunk<T>(arr: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
+  return result;
+}
+
 const DETAIL_TYPE_LABELS: Record<UserAnnualLeaveDetail['detail_type'], string> = {
   grant: '獲得',
   usage: '使用',
@@ -297,7 +334,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
         .eq('user_id', user.id)
         .eq('detail_type', 'grant')
         .order('created_at', { ascending: true });
-      if (fetchErr) throw fetchErr;
+      if (fetchErr) throwWithContext(`查詢休息日獲得行(user_id=${user.id})`, fetchErr);
 
       const seenDates = new Set<string>();
       const duplicateIds: string[] = [];
@@ -305,7 +342,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       const keptSystemDates = new Set<string>();
       for (const row of (allGrants ?? []) as { id: string; record_date: string; is_system: boolean }[]) {
         if (seenDates.has(row.record_date)) {
-          // 同一日期已存在，視為重複行
           duplicateIds.push(row.id);
           continue;
         }
@@ -314,7 +350,6 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           if (expectedDates.has(row.record_date)) {
             keptSystemDates.add(row.record_date);
           } else {
-            // 舊起始日或舊每周工作天數遺留的系統行
             duplicateIds.push(row.id);
           }
         } else {
@@ -322,13 +357,15 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
         }
       }
 
-      // 2) 刪除重複行及過期的系統行
+      // 2) 刪除重複行及過期的系統行（分批，避免 .in() URL 過長導致 400）
       if (duplicateIds.length > 0) {
-        const { error: deleteErr } = await supabase
-          .from('user_rest_day_details')
-          .delete()
-          .in('id', duplicateIds);
-        if (deleteErr) throw deleteErr;
+        for (const batch of chunk(duplicateIds, 100)) {
+          const { error: deleteErr } = await supabase
+            .from('user_rest_day_details')
+            .delete()
+            .in('id', batch);
+          if (deleteErr) throwWithContext(`刪除重複休息日獲得行(batch=${batch.length})`, deleteErr);
+        }
       }
 
       // 3) 補回尚未覆蓋的預期系統發放日
@@ -336,33 +373,40 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
         g => !manualDates.has(g.record_date) && !keptSystemDates.has(g.record_date),
       );
       if (missing.length > 0) {
-        const { error } = await supabase.from('user_rest_day_details').insert(
-          missing.map(g => ({
-            user_id: user.id,
-            record_date: g.record_date,
-            detail_type: 'grant',
-            days: g.days,
-            remark: '系統自動發放',
-            is_system: true,
-            created_by: currentUserId,
-          })),
-        );
-        if (error) throw error;
+        const rows = missing.map(g => ({
+          user_id: user.id,
+          record_date: g.record_date,
+          detail_type: 'grant' as const,
+          days: g.days,
+          remark: '系統自動發放',
+          is_system: true,
+          created_by: currentUserId,
+        }));
+        console.log('準備插入休息日獲得行', { user_id: user.id, count: rows.length, sample: rows[0] });
+        for (const batch of chunk(rows, 100)) {
+          const { error } = await supabase.from('user_rest_day_details').insert(batch);
+          if (error) throwWithContext(`插入休息日獲得行(batch=${batch.length}, start=${startDate}, W=${weeklyWorkDays})`, error);
+        }
       }
 
-      // 更新 rest_day_fraction：總累積 fraction 減去已預排的 PRD 數量
+      // 4) 計算已預排 PRD 數量
       const { count: prdCount, error: countErr } = await supabase
         .from('user_leave_records')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('leave_type', 'PRD');
-      if (countErr) throw countErr;
-      const fraction = Math.max(0, parseFloat((totalFraction - (prdCount ?? 0)).toFixed(1)));
+      if (countErr) throwWithContext(`統計 PRD 預排(user_id=${user.id})`, countErr);
+
+      // 5) 更新 rest_day_fraction（只保留小數部分 0.0–0.9，避免 numeric(3,1) overflow）
+      const netFraction = Math.max(0, totalFraction - (prdCount ?? 0));
+      const fraction = parseFloat((netFraction - Math.floor(netFraction)).toFixed(1));
+      const fractionPayload = { rest_day_fraction: fraction, updated_at: new Date().toISOString() };
+      console.log('準備更新 rest_day_fraction', { user_id: user.id, payload: fractionPayload });
       const { error: updateErr } = await supabase
         .from('user_employment_details')
-        .update({ rest_day_fraction: fraction, updated_at: new Date().toISOString() })
+        .update(fractionPayload)
         .eq('user_id', user.id);
-      if (updateErr) throw updateErr;
+      if (updateErr) throwWithContext(`更新 rest_day_fraction(user_id=${user.id}, fraction=${fraction})`, updateErr);
     },
     [user.id, currentUserId],
   );
@@ -406,6 +450,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
   const loadData = useCallback(async () => {
     setLoading(true);
     setMessage(null);
+    const errors: string[] = [];
     try {
       const [
         { data: details, error: e1 },
@@ -433,10 +478,22 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           .order('record_date', { ascending: true })
           .order('created_at', { ascending: true }),
       ]);
-      if (e1) throw e1;
-      if (e2) throw e2;
-      if (e5) throw e5;
-      if (e7) throw e7;
+      if (e1) {
+        console.error('載入僱傭詳情主檔失敗:', e1);
+        errors.push(`主檔：${e1.message}`);
+      }
+      if (e2) {
+        console.error('載入年假明細失敗:', e2);
+        errors.push(`年假：${e2.message}`);
+      }
+      if (e5) {
+        console.error('載入休息日明細失敗:', e5);
+        errors.push(`休息日：${e5.message}`);
+      }
+      if (e7) {
+        console.error('載入公眾假期明細失敗:', e7);
+        errors.push(`公眾假期：${e7.message}`);
+      }
 
       if (details) {
         setWeeklyContractHours(details.weekly_contract_hours?.toString() ?? '');
@@ -473,16 +530,25 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       // lazy 補齊年假獲得行
       const startDate = details?.annual_leave_start_date ?? user.hire_date ?? null;
       const daysPerYear = details?.annual_leave_days_per_year ?? null;
-      if (startDate && daysPerYear) {
-        await materializeGrants(startDate, daysPerYear);
-        const { data: refreshed, error: e4 } = await supabase
-          .from('user_annual_leave_details')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('record_date', { ascending: true })
-          .order('created_at', { ascending: true });
-        if (e4) throw e4;
-        detailRows = (refreshed ?? []) as UserAnnualLeaveDetail[];
+      if (startDate && daysPerYear && errors.length === 0) {
+        try {
+          await materializeGrants(startDate, daysPerYear);
+          const { data: refreshed, error: e4 } = await supabase
+            .from('user_annual_leave_details')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('record_date', { ascending: true })
+            .order('created_at', { ascending: true });
+          if (e4) {
+            console.error('重新載入年假明細失敗:', e4);
+            errors.push(`年假同步：${e4.message}`);
+          } else {
+            detailRows = (refreshed ?? []) as UserAnnualLeaveDetail[];
+          }
+        } catch (err) {
+          console.error('補齊年假獲得行失敗:', err);
+          errors.push(`年假同步：${formatError(err)}`);
+        }
       }
       setLeaveDetails(detailRows);
 
@@ -490,25 +556,36 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       // lazy 補齊休息日獲得行
       const restStart = details?.rest_day_start_date ?? user.hire_date ?? null;
       const workDaysForRest = details?.weekly_work_days ?? null;
-      if (restStart && workDaysForRest) {
-        await materializeRestGrants(restStart, workDaysForRest);
-        const { data: refreshedRest, error: e6 } = await supabase
-          .from('user_rest_day_details')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('record_date', { ascending: true })
-          .order('created_at', { ascending: true });
-        if (e6) throw e6;
-        restDetailRows = (refreshedRest ?? []) as UserRestDayDetail[];
-        // 重新載入 employment details 以取得更新後的 rest_day_fraction
-        const { data: refreshedDetails, error: eDetails } = await supabase
-          .from('user_employment_details')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (eDetails) throw eDetails;
-        if (refreshedDetails) {
-          setRestDayFraction(refreshedDetails.rest_day_fraction ?? 0);
+      if (restStart && workDaysForRest && errors.length === 0) {
+        try {
+          await materializeRestGrants(restStart, workDaysForRest);
+          const { data: refreshedRest, error: e6 } = await supabase
+            .from('user_rest_day_details')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('record_date', { ascending: true })
+            .order('created_at', { ascending: true });
+          if (e6) {
+            console.error('重新載入休息日明細失敗:', e6);
+            errors.push(`休息日同步：${e6.message}`);
+          } else {
+            restDetailRows = (refreshedRest ?? []) as UserRestDayDetail[];
+            // 重新載入 employment details 以取得更新後的 rest_day_fraction
+            const { data: refreshedDetails, error: eDetails } = await supabase
+              .from('user_employment_details')
+              .select('*')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            if (eDetails) {
+              console.error('重新載入休息日 fraction 失敗:', eDetails);
+              errors.push(`休息日 fraction：${eDetails.message}`);
+            } else if (refreshedDetails) {
+              setRestDayFraction(refreshedDetails.rest_day_fraction ?? 0);
+            }
+          }
+        } catch (err) {
+          console.error('補齊休息日獲得行失敗:', err);
+          errors.push(`休息日同步：${formatError(err)}`);
         }
       }
       setRestDetails(restDetailRows);
@@ -517,32 +594,44 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       // lazy 補齊公眾假期獲得行
       const phStart = details?.public_holiday_start_date ?? user.hire_date ?? null;
       const phType = details?.public_holiday_type ?? null;
-      if (phStart && phType) {
-        const today = new Date();
-        const endStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        const holidayCache = await loadPublicHolidaysRange(phStart, endStr, phType);
-        setPublicHolidays(holidayCache);
-        await materializePublicHolidayGrants(phStart, phType, holidayCache);
-        const { data: refreshedPh, error: e8 } = await supabase
-          .from('user_public_holiday_details')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('record_date', { ascending: true })
-          .order('created_at', { ascending: true });
-        if (e8) throw e8;
-        publicHolidayDetailRows = (refreshedPh ?? []) as UserPublicHolidayDetail[];
+      if (phStart && phType && errors.length === 0) {
+        try {
+          const today = new Date();
+          const endStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          const holidayCache = await loadPublicHolidaysRange(phStart, endStr, phType);
+          setPublicHolidays(holidayCache);
+          await materializePublicHolidayGrants(phStart, phType, holidayCache);
+          const { data: refreshedPh, error: e8 } = await supabase
+            .from('user_public_holiday_details')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('record_date', { ascending: true })
+            .order('created_at', { ascending: true });
+          if (e8) {
+            console.error('重新載入公眾假期明細失敗:', e8);
+            errors.push(`公眾假期同步：${e8.message}`);
+          } else {
+            publicHolidayDetailRows = (refreshedPh ?? []) as UserPublicHolidayDetail[];
+          }
+        } catch (err) {
+          console.error('補齊公眾假期獲得行失敗:', err);
+          errors.push(`公眾假期同步：${formatError(err)}`);
+        }
       } else {
         setPublicHolidays([]);
       }
       setPublicHolidayDetails(publicHolidayDetailRows);
+
+      if (errors.length > 0) {
+        setMessage({ type: 'error', text: `載入僱傭詳情部分失敗：${errors.join('；')}` });
+      }
     } catch (err) {
       console.error('載入僱傭詳情失敗:', err);
-      setMessage({ type: 'error', text: '載入僱傭詳情失敗' });
+      setMessage({ type: 'error', text: `載入僱傭詳情失敗：${formatError(err)}` });
     } finally {
       setLoading(false);
     }
   }, [user.id, user.hire_date, materializeGrants, materializeRestGrants, materializePublicHolidayGrants]);
-
   useEffect(() => {
     loadData();
   }, [loadData]);

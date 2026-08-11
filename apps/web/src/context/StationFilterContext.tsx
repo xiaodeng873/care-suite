@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { useStation } from './facility';
 import { supabase } from '../lib/supabase';
@@ -8,6 +8,8 @@ interface StationFilterContextType {
   setSelectedStationIds: (ids: string[]) => void;
   isFiltered: boolean;
 }
+
+const SAVE_DEBOUNCE_MS = 500;
 
 const StationFilterContext = createContext<StationFilterContextType | undefined>(undefined);
 
@@ -19,12 +21,32 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [selectedStationIds, setSelectedStationIdsState] = useState<string[]>([]);
   const [initializedKey, setInitializedKey] = useState<string | null>(null);
+  const pendingIdsRef = useRef<string[] | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushDbUpdate = useCallback((ids: string[]) => {
+    if (!userProfile?.id) return;
+    supabase
+      .from('user_profiles')
+      .update({ preferred_station_ids: ids })
+      .eq('id', userProfile.id)
+      .then(({ error }) => {
+        if (error) console.warn('無法保存居住區偏好設定:', error.message);
+      });
+  }, [userProfile?.id]);
 
   // 初始化：從資料庫或 localStorage 讀取
   useEffect(() => {
     if (!stations.length) return;
     const currentKey = storageKey ?? '__no_user__';
     if (initializedKey === currentKey) return;
+
+    // 初始化時先清空待寫入，避免舊的 debounce 覆蓋新讀取的值
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    pendingIdsRef.current = null;
 
     const allIds = stations.map(s => s.id);
 
@@ -68,13 +90,7 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           // 無論來源是 localStorage 還是預設值，都寫入 DB
           // 確保下次在其他裝置/瀏覽器登入時能從 DB 讀取
-          supabase
-            .from('user_profiles')
-            .update({ preferred_station_ids: selectedIds })
-            .eq('id', userProfile.id)
-            .then(({ error }) => {
-              if (error) console.warn('居住區偏好初始化寫入 DB 失敗:', error.message);
-            });
+          flushDbUpdate(selectedIds);
         }
       }
 
@@ -83,24 +99,47 @@ export const StationFilterProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     loadPreferences();
-  }, [stations, storageKey, userProfile?.id, initializedKey]);
+  }, [stations, storageKey, userProfile?.id, initializedKey, flushDbUpdate]);
 
-  const setSelectedStationIds = useCallback(async (ids: string[]) => {
+  const setSelectedStationIds = useCallback((ids: string[]) => {
     setSelectedStationIdsState(ids);
-    
-    // 同時保存到 localStorage 和資料庫
+
+    // 即時保存到 localStorage
     if (storageKey) {
       localStorage.setItem(storageKey, JSON.stringify(ids));
     }
 
-    if (userProfile?.id) {
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ preferred_station_ids: ids })
-        .eq('id', userProfile.id);
-      if (error) console.warn('無法保存居住區偏好設定:', error.message);
+    // DB 寫入延遲：快速勾選多個居住區時只發一次請求
+    if (!userProfile?.id) return;
+
+    pendingIdsRef.current = ids;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
     }
-  }, [storageKey, userProfile?.id]);
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      const pending = pendingIdsRef.current;
+      pendingIdsRef.current = null;
+      if (pending !== null) {
+        flushDbUpdate(pending);
+      }
+    }, SAVE_DEBOUNCE_MS);
+  }, [storageKey, userProfile?.id, flushDbUpdate]);
+
+  // 登出或切換用戶前，把尚未寫入 DB 的偏好 flush
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      const pending = pendingIdsRef.current;
+      pendingIdsRef.current = null;
+      if (pending !== null) {
+        flushDbUpdate(pending);
+      }
+    };
+  }, [flushDbUpdate]);
 
   const isFiltered = useMemo(() => {
     if (!initializedKey || !stations.length) return false;

@@ -883,7 +883,8 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   const patients = useMemo(() => {
     if (!selectedStationIds.length || !stations.length) return allPatientsData;
     if (selectedStationIds.length >= stations.length) return allPatientsData;
-    return allPatientsData.filter(p => p.station_id && selectedStationIds.includes(p.station_id));
+    const selectedSet = new Set(selectedStationIds);
+    return allPatientsData.filter(p => p.station_id && selectedSet.has(p.station_id));
   }, [allPatientsData, selectedStationIds, stations]);
 
   return (

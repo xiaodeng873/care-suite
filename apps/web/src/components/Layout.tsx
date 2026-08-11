@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CalendarDays, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key, Search, Receipt } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
 import { usePatients } from '../context/PatientContext';
 import { useStationFilter } from '../context/StationFilterContext';
+import type { Station } from '../context/facility';
 import {
   getFacilitySettings,
   DEFAULT_FACILITY_SETTINGS,
@@ -60,6 +61,30 @@ interface LayoutProps {
   onSignOut: () => void;
 }
 
+interface StationFilterItemProps {
+  station: Station;
+  checked: boolean;
+  onChange: (stationId: string, checked: boolean) => void;
+}
+
+const StationFilterItem = memo(function StationFilterItem({
+  station,
+  checked,
+  onChange,
+}: StationFilterItemProps) {
+  return (
+    <label className="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(station.id, e.target.checked)}
+        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+      />
+      <span className="text-sm text-gray-700">{station.name}</span>
+    </label>
+  );
+});
+
 interface NavItem {
   name: string;
   href: string;
@@ -85,6 +110,7 @@ const getPositionLabel = (userProfile: any): string => {
 const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showStationFilter, setShowStationFilter] = useState(false);
+  const [draftStationIds, setDraftStationIds] = useState<string[]>([]);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -97,6 +123,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const stationFilterRef = useRef<HTMLDivElement | null>(null);
+
+  // 用 refs 保存最新值，避免 dropdown flush 時出現 stale closure
+  const draftStationIdsRef = useRef(draftStationIds);
+  useEffect(() => { draftStationIdsRef.current = draftStationIds; }, [draftStationIds]);
+  const selectedStationIdsRef = useRef(selectedStationIds);
+  useEffect(() => { selectedStationIdsRef.current = selectedStationIds; }, [selectedStationIds]);
+  const setSelectedStationIdsRef = useRef(setSelectedStationIds);
+  useEffect(() => { setSelectedStationIdsRef.current = setSelectedStationIds; }, [setSelectedStationIds]);
 
   // 載入院舍名稱
   useEffect(() => {
@@ -114,17 +148,35 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
     }
   }, [isInitialLoad, patientLoading, finishNavigation]);
 
-  // 點擊外部關閉居住區過濾器 dropdown
+  // 居住區過濾器 dropdown：開啟時用 draft 複製目前選擇，關閉時才 flush 回 context
+  // 這樣快速勾選多個居住區時不會每一下都觸發全局重新渲染
   useEffect(() => {
+    if (showStationFilter) {
+      setDraftStationIds(selectedStationIdsRef.current);
+      return;
+    }
+
+    // dropdown 關閉時：如果 draft 有變化，一次性寫回 context
+    const draft = draftStationIdsRef.current;
+    const selected = selectedStationIdsRef.current;
+    const changed =
+      draft.length !== selected.length ||
+      draft.some(id => !selected.includes(id)) ||
+      selected.some(id => !draft.includes(id));
+    if (changed) {
+      setSelectedStationIdsRef.current(draft);
+    }
+  }, [showStationFilter]);
+
+  useEffect(() => {
+    if (!showStationFilter) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (stationFilterRef.current && !stationFilterRef.current.contains(e.target as Node)) {
         setShowStationFilter(false);
       }
     };
-    if (showStationFilter) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showStationFilter]);
 
   // 香港時區輔助函數
@@ -314,6 +366,12 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
     }, 150);
   };
 
+  const handleStationChange = useCallback((stationId: string, checked: boolean) => {
+    setDraftStationIds(prev =>
+      checked ? [...prev, stationId] : prev.filter(id => id !== stationId)
+    );
+  }, []);
+
   const isActive = (path: string) => location.pathname === path;
 
   // 如果正在導航或初始加載，直接顯示全屏加載頁
@@ -449,36 +507,24 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">居住區</span>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => setSelectedStationIds(stations.map(s => s.id))}
+                            onClick={() => setDraftStationIds(stations.map(s => s.id))}
                             className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                           >全選</button>
                           <span className="text-gray-300">|</span>
                           <button
-                            onClick={() => setSelectedStationIds([])}
+                            onClick={() => setDraftStationIds([])}
                             className="text-xs text-gray-500 hover:text-gray-700 font-medium"
                           >清除</button>
                         </div>
                       </div>
                       <div className="py-1 max-h-64 overflow-y-auto">
                         {stations.map(station => (
-                          <label
+                          <StationFilterItem
                             key={station.id}
-                            className="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedStationIds.includes(station.id)}
-                              onChange={e => {
-                                if (e.target.checked) {
-                                  setSelectedStationIds([...selectedStationIds, station.id]);
-                                } else {
-                                  setSelectedStationIds(selectedStationIds.filter(id => id !== station.id));
-                                }
-                              }}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700">{station.name}</span>
-                          </label>
+                            station={station}
+                            checked={draftStationIds.includes(station.id)}
+                            onChange={handleStationChange}
+                          />
                         ))}
                       </div>
                     </div>

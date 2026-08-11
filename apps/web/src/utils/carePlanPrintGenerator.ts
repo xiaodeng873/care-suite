@@ -11,6 +11,7 @@ import {
   getPreviousCarePlanReviewDate,
 } from '../lib/database';
 import { getPrintBedNumber } from './bedTransferUtils';
+import { getFacilitySettings } from './facilitySettings';
 
 /**
  * 個人照顧計劃 (ICP) A4 直向 HTML 列印產生器。
@@ -724,47 +725,86 @@ export function getCarePlanPrintHtml(input: CarePlanPrintInput): string {
   return generateFullHtml(input);
 }
 
+const formatPrintError = (err: unknown): string => {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === 'object') {
+    const msg = (err as Record<string, unknown>).message;
+    if (typeof msg === 'string' && msg.length > 0) return msg;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
+};
+
 /**
  * 列印個人照顧計劃。
  */
 export async function printCarePlan(
   input: Omit<CarePlanPrintInput, 'facilityName' | 'diagnoses' | 'previousReviewDate'>
 ): Promise<void> {
-  const [facilitySettings, diagnoses, previousReviewDate] = await Promise.all([
-    getFacilitySettings(),
-    getDiagnosisRecordsByPatientId(input.patient.院友id),
-    getPreviousCarePlanReviewDate(input.carePlan.id),
-  ]);
+  try {
+    const [facilitySettingsResult, diagnosesResult, previousReviewDateResult] = await Promise.allSettled([
+      getFacilitySettings(),
+      getDiagnosisRecordsByPatientId(input.patient.院友id),
+      getPreviousCarePlanReviewDate(input.carePlan.id),
+    ]);
 
-  const fullInput: CarePlanPrintInput = {
-    ...input,
-    facilityName: facilitySettings.facilityNameZh,
-    diagnoses,
-    previousReviewDate,
-  };
+    const facilityName =
+      facilitySettingsResult.status === 'fulfilled'
+        ? facilitySettingsResult.value.facilityNameZh || ''
+        : '';
+    if (facilitySettingsResult.status === 'rejected') {
+      console.error('載入院舍設定失敗:', facilitySettingsResult.reason);
+    }
 
-  const html = generateFullHtml(fullInput);
+    const diagnoses = diagnosesResult.status === 'fulfilled' ? diagnosesResult.value : [];
+    if (diagnosesResult.status === 'rejected') {
+      console.error('載入診斷失敗:', diagnosesResult.reason);
+    }
 
-  const iframe = document.createElement('iframe');
-  iframe.id = PRINT_FRAME_ID;
-  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';
-  document.body.appendChild(iframe);
+    const previousReviewDate =
+      previousReviewDateResult.status === 'fulfilled' ? previousReviewDateResult.value : null;
+    if (previousReviewDateResult.status === 'rejected') {
+      console.error('載入上次複檢日期失敗:', previousReviewDateResult.reason);
+    }
 
-  const doc = iframe.contentWindow?.document;
-  if (!doc) {
-    console.error('無法建立 iframe 文件');
-    return;
+    const fullInput: CarePlanPrintInput = {
+      ...input,
+      facilityName,
+      diagnoses,
+      previousReviewDate,
+    };
+
+    const html = generateFullHtml(fullInput);
+
+    const iframe = document.createElement('iframe');
+    iframe.id = PRINT_FRAME_ID;
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      console.error('無法建立 iframe 文件');
+      alert('無法建立列印文件');
+      return;
+    }
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+
+    iframe.contentWindow?.addEventListener('afterprint', () => {
+      iframe.remove();
+    });
+  } catch (err) {
+    console.error('列印個人照顧計劃失敗:', err);
+    alert(`列印失敗：${formatPrintError(err)}`);
   }
-  doc.open();
-  doc.write(html);
-  doc.close();
-
-  iframe.contentWindow?.focus();
-  iframe.contentWindow?.print();
-
-  iframe.contentWindow?.addEventListener('afterprint', () => {
-    iframe.remove();
-  });
 }
 
 /**
@@ -775,11 +815,15 @@ export async function printCarePlanById(
   planId: string,
   getCarePlanWithDetails: (id: string) => Promise<CarePlanWithDetails | null>
 ): Promise<void> {
-  const carePlan = await getCarePlanWithDetails(planId);
-  if (!carePlan) {
-    console.error('找不到照顧計劃:', planId);
-    alert('找不到照顧計劃');
-    return;
+  try {
+    const carePlan = await getCarePlanWithDetails(planId);
+    if (!carePlan) {
+      alert('找不到照顧計劃');
+      return;
+    }
+    await printCarePlan({ patient, carePlan });
+  } catch (err) {
+    console.error('載入並列印照顧計劃失敗:', err);
+    alert(`載入並列印照顧計劃失敗：${formatPrintError(err)}`);
   }
-  await printCarePlan({ patient, carePlan });
 }

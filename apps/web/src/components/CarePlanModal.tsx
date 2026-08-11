@@ -668,6 +668,23 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
         }
       }
       
+      // 各專業評估日期不可晚於下次複檢日期；若未計算，則不可晚於計劃日期
+      const effectiveReviewDueDate = currentPlan?.review_due_date || calculatedReviewDueDate || formData.plan_date;
+      for (const pa of professionalAssessments) {
+        if (pa.assessment_date && effectiveReviewDueDate && pa.assessment_date > effectiveReviewDueDate) {
+          alert(`${pa.category}的評估日期不可晚於下次複檢日期（${formatDisplayDate(effectiveReviewDueDate)}）`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 會議日期亦不可晚於下次複檢日期
+      if (caseConference.conference_date && effectiveReviewDueDate && caseConference.conference_date > effectiveReviewDueDate) {
+        alert(`個案會議日期不可晚於下次複檢日期（${formatDisplayDate(effectiveReviewDueDate)}）`);
+        setLoading(false);
+        return;
+      }
+      
       if (currentPlan?.id && !isDuplicate) {
         // 更新現有計劃
         const allReviewed = problemsData.length > 0 && problemsData.every(p => p.outcome_review);
@@ -743,7 +760,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col relative" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col relative overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
@@ -769,8 +786,8 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 px-6 overflow-x-auto">
-          <nav className="flex gap-4 min-w-max">
+        <div className="border-b border-gray-200 px-6 flex-shrink-0">
+          <nav className="flex gap-4 min-w-max overflow-x-auto">
             {tabs.map(tab => (
               <button
                 key={tab.id}
@@ -793,7 +810,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 min-w-0 overflow-x-hidden">
           {loadingDetails ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -1414,6 +1431,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                                 <input
                                   type="date"
                                   value={pa.assessment_date}
+                                  max={currentPlan?.review_due_date || calculatedReviewDueDate || formData.plan_date}
                                   onChange={(e) => handleProfessionalAssessmentChange(pa.category, 'assessment_date', e.target.value)}
                                   className="form-input text-sm w-full"
                                 />
@@ -1671,7 +1689,7 @@ const CarePlanModal: React.FC<CarePlanModalProps> = ({
                           type="date"
                           value={caseConference.conference_date}
                           onChange={(e) => setCaseConference(prev => ({ ...prev, conference_date: e.target.value }))}
-                          max={currentPlan?.review_due_date}
+                          max={currentPlan?.review_due_date || calculatedReviewDueDate || formData.plan_date}
                           className="form-input w-full max-w-xs"
                         />
                       </div>
