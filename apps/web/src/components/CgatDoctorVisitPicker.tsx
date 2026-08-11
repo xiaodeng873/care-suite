@@ -14,6 +14,8 @@ interface CgatDoctorVisitPickerProps {
   /** 已被選用的 CGAT 到診日期 → 用於計算每日已用名額 */
   usedCountByDate: Record<string, number>;
   onSelect: (visitDate: string) => void;
+  /** 到診日期清單被新增/修改/刪除後觸發，等外層可以刷新清單快取 */
+  onScheduleChanged?: () => void;
   onClose: () => void;
 }
 
@@ -22,7 +24,7 @@ const getHongKongDate = () => {
   return new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
 };
 
-const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCountByDate, onSelect, onClose }) => {
+const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCountByDate, onSelect, onScheduleChanged, onClose }) => {
   const [visits, setVisits] = useState<DoctorVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,6 +70,7 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
       }
       resetForm();
       await load();
+      onScheduleChanged?.();
     } catch (e: any) {
       alert(`儲存失敗：${e?.message ?? '請重試'}`);
     } finally {
@@ -86,6 +89,7 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
     const { error } = await supabase.from('doctor_visit_schedule').delete().eq('id', id);
     if (error) { alert(`刪除失敗：${error.message}`); return; }
     await load();
+    onScheduleChanged?.();
   };
 
   const weekday = (d: string) => ['日', '一', '二', '三', '四', '五', '六'][new Date(d + 'T00:00:00').getDay()];

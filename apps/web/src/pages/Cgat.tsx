@@ -27,6 +27,7 @@ import PatientTooltip from '../components/PatientTooltip';
 import { getFeeExemptEligibility } from '../utils/cgatFeeHelper';
 import { printCgatWorksheet } from '../utils/cgatWorksheetGenerator';
 import { printCgatMedicationProxy } from '../utils/cgatMedicationProxyGenerator';
+import { printCgatSummary } from '../utils/cgatSummaryGenerator';
 import type { CgatRecord, Patient } from '../lib/database';
 import { formatDisplayDate } from '../utils/dateFormat';
 import BedNumberImprint from '../components/BedNumberImprint';
@@ -46,7 +47,7 @@ const Cgat: React.FC = () => {
   const { patients, loading } = usePatientData();
   const { user } = useAuth();
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || '';
-  const { cgatRecords, deleteCgatRecord } = useCgat();
+  const { cgatRecords, deleteCgatRecord, visitDates, visitDatesLoaded } = useCgat();
   const [showModal, setShowModal] = useState(false);
   const [showProxyModal, setShowProxyModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
@@ -211,6 +212,11 @@ const Cgat: React.FC = () => {
     }
     return pages;
   };
+  // 到診日期清單（最新 doctor_visit_schedule）；清單未載入前唔做不符判斷，避免誤報
+  const visitDateSet = useMemo(() => new Set(visitDates), [visitDates]);
+  // 記錄嘅診症日期已被刪/被改，對唔上最新 CGAT 到診日期清單
+  const isVisitDateMismatch = (r: CgatRecord) =>
+    visitDatesLoaded && !r.cgat_visit_unknown && !!r.cgat_visit_date && !visitDateSet.has(r.cgat_visit_date);
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -422,6 +428,20 @@ const Cgat: React.FC = () => {
             >
               <Printer className="h-4 w-4" />
               <span>列印診症名單</span>
+            </button>
+            <button
+              onClick={async () => {
+                if (selectedRows.size === 0) {
+                  alert('請先選擇要列印的 CGAT 記錄');
+                  return;
+                }
+                const selected = sortedRecords.filter((r) => selectedRows.has(r.id));
+                await printCgatSummary({ records: selected, patients });
+              }}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印CGAT診症摘要</span>
             </button>
             <button
               onClick={() => {
@@ -713,6 +733,14 @@ const Cgat: React.FC = () => {
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         {record.cgat_visit_unknown ? (
                           <span className="text-red-600">未知</span>
+                        ) : record.cgat_visit_date && isVisitDateMismatch(record) ? (
+                          <div
+                            className="flex flex-col cursor-help"
+                            title="此診症日期已不在最新 CGAT 到診日期清單（已被刪除或更改），請編輯重新選擇日期，或改為未知"
+                          >
+                            <span className="text-red-600">日期不符</span>
+                            <span className="text-xs text-gray-400 line-through">{formatDisplayDate(record.cgat_visit_date)}</span>
+                          </div>
                         ) : record.cgat_visit_date ? (
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-4 w-4 text-gray-400" />

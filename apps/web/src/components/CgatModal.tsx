@@ -16,7 +16,7 @@ interface CgatModalProps {
 
 const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => {
   const { allPatients } = usePatientData();
-  const { cgatRecords, addCgatRecord, updateCgatRecord } = useCgat();
+  const { cgatRecords, addCgatRecord, updateCgatRecord, visitDates, visitDatesLoaded, refreshVisitDates } = useCgat();
 
   // 另存續期：以 renewFrom 內容預填，但視為新增（不帶 id）
   const source = record ?? renewFrom ?? null;
@@ -88,11 +88,17 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
 
   const set = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
 
+  // 所選診症日期已不在最新到診清單（被刪/被改）
+  const isStaleVisitDate = !form.cgat_visit_unknown && !!form.cgat_visit_date &&
+    visitDatesLoaded && !visitDates.includes(form.cgat_visit_date);
+
   const validate = (): string | null => {
     if (!form.patient_id) return '請選擇院友';
     if (form.case_type !== '新症' && form.case_type !== '舊症') return '請選擇個案類型（新症/舊症）';
     if (!form.is_cgas && !form.is_eol) return '請至少選擇一個 CGAS / EOL';
     if (form.pharmacy_arrangement !== '個別取藥' && form.pharmacy_arrangement !== '集體取藥') return '請選擇藥房安排（個別/集體取藥）';
+    // 診症日期必須對上 CGAT 到診日期清單（唔可以自行輸入），或者填未知
+    if (isStaleVisitDate) return '所選診症日期已不在最新 CGAT 到診日期清單，請重新選擇日期，或勾選「未知」';
     return null;
   };
 
@@ -298,9 +304,14 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
                 <label className="form-label">CGAT 到診日期</label>
                 <div className="flex flex-col sm:flex-row sm:items-end gap-3">
                   <div className="flex-1">
-                    <input type="date" className="form-input" value={form.cgat_visit_date}
-                      disabled={form.cgat_visit_unknown}
-                      onChange={(e) => set({ cgat_visit_date: e.target.value })} />
+                    {/* 診症日期只可以由到診日期清單揀，唔可以自行輸入；可填未知 */}
+                    <div className={`form-input bg-gray-50 flex items-center ${isStaleVisitDate ? 'border-red-400 text-red-600' : 'text-gray-900'}`}>
+                      {form.cgat_visit_unknown
+                        ? <span className="text-red-600">未知</span>
+                        : form.cgat_visit_date
+                          ? <span>{form.cgat_visit_date}{isStaleVisitDate && '（已不在到診清單）'}</span>
+                          : <span className="text-gray-400">未選擇</span>}
+                    </div>
                   </div>
                   {!form.cgat_visit_unknown && (
                     <button type="button" onClick={() => setShowVisitPicker(true)} className="btn-secondary whitespace-nowrap">
@@ -316,6 +327,12 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
                     <span>未知</span>
                   </label>
                 </div>
+                {isStaleVisitDate && (
+                  <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    此日期已被刪除或更改，對不上最新到診日期清單，請重新選擇日期，或勾選「未知」。
+                  </p>
+                )}
               </div>
               <div>
                 <label className="form-label">取藥安排</label>
@@ -394,6 +411,7 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
         <CgatDoctorVisitPicker
           usedCountByDate={usedCountByDate}
           onSelect={(d) => { set({ cgat_visit_date: d }); setShowVisitPicker(false); }}
+          onScheduleChanged={() => { refreshVisitDates(); }}
           onClose={() => setShowVisitPicker(false)}
         />
       )}

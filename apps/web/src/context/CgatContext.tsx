@@ -5,11 +5,17 @@
  */
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import * as db from '../lib/database';
+import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
 interface CgatContextType {
   cgatRecords: db.CgatRecord[];
   loading: boolean;
+  /** 最新 CGAT 到診日期清單（doctor_visit_schedule.visit_date） */
+  visitDates: string[];
+  /** 到診日期清單已完成首次載入（未載入前唔好做日期不符判斷，避免誤報） */
+  visitDatesLoaded: boolean;
+  refreshVisitDates: () => Promise<void>;
   fetchCgatRecords: () => Promise<void>;
   addCgatRecord: (record: Omit<db.CgatRecord, 'id' | 'created_at' | 'updated_at'>) => Promise<db.CgatRecord | null>;
   updateCgatRecord: (record: Partial<db.CgatRecord> & { id: string }) => Promise<db.CgatRecord | null>;
@@ -23,12 +29,28 @@ export function CgatProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [cgatRecords, setCgatRecords] = useState<db.CgatRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [visitDates, setVisitDates] = useState<string[]>([]);
+  const [visitDatesLoaded, setVisitDatesLoaded] = useState(false);
+
+  const fetchVisitDates = useCallback(async () => {
+    if (!isAuthenticated()) return;
+    const { data, error } = await supabase
+      .from('doctor_visit_schedule')
+      .select('visit_date')
+      .order('visit_date', { ascending: true });
+    if (error) {
+      console.error('載入 CGAT 到診日期清單失敗:', error);
+      return;
+    }
+    setVisitDates((data || []).map(v => v.visit_date));
+    setVisitDatesLoaded(true);
+  }, [isAuthenticated]);
 
   const fetchCgatRecords = useCallback(async () => {
     if (!isAuthenticated()) return;
     setLoading(true);
     try {
-      const data = await db.getCgatRecords();
+      const [data] = await Promise.all([db.getCgatRecords(), fetchVisitDates()]);
       setCgatRecords(data);
     } catch (error) {
       console.error('載入 CGAT 記錄失敗:', error);
@@ -36,7 +58,7 @@ export function CgatProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchVisitDates]);
 
   const refreshCgatData = useCallback(async () => {
     await fetchCgatRecords();
@@ -86,6 +108,9 @@ export function CgatProvider({ children }: { children: ReactNode }) {
   const value: CgatContextType = {
     cgatRecords,
     loading,
+    visitDates,
+    visitDatesLoaded,
+    refreshVisitDates: fetchVisitDates,
     fetchCgatRecords,
     addCgatRecord,
     updateCgatRecord,

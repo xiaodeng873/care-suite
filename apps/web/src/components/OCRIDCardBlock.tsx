@@ -166,6 +166,7 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
                   id="idcard-file-input"
                   type="file"
                   accept="image/*"
+                  capture="environment"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
