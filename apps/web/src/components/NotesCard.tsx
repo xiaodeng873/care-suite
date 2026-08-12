@@ -75,7 +75,7 @@ const NotesCard: React.FC = () => {
 
   return (
     <>
-      <div className="card p-6">
+      <div className="card p-6 flex flex-col h-full max-h-96">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-100">
@@ -97,7 +97,7 @@ const NotesCard: React.FC = () => {
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto min-h-0 space-y-4">
           {uncompletedNotes.length > 0 ? (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-700">

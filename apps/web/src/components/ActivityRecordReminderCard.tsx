@@ -29,7 +29,7 @@ const ActivityRecordReminderCard: React.FC<ActivityRecordReminderCardProps> = ({
   const { previousMonthYear, previousMonthMonth } = overduePatients[0].info;
 
   return (
-    <div className="card p-6">
+    <div className="card p-6 flex flex-col h-full max-h-96">
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <div className="p-2 rounded-lg bg-pink-100">
           <PartyPopper className="h-6 w-6 text-pink-600" />
@@ -41,7 +41,7 @@ const ActivityRecordReminderCard: React.FC<ActivityRecordReminderCardProps> = ({
           </p>
         </div>
       </div>
-      <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+      <div className="divide-y divide-gray-100 flex-1 overflow-y-auto min-h-0">
         {overduePatients.map(({ patient, info }) => (
           <button
             key={patient.院友id}

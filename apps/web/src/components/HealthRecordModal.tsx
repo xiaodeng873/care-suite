@@ -394,7 +394,12 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
         savedCount = toUpdate.length + toInsert.length + toDelete.length;
       } else {
         console.log('[HealthRecordModal] inserting records:', records);
-        await addHealthRecordsForSession(records as Omit<HealthRecord, '記錄id' | '建立時間'>[]);
+        // 樂觀更新：context 已即時把記錄插入本地 state，不 await 伺服器回應，
+        // 讓 modal 立即關閉、列表即時顯示；失敗時 context 會回滾並在此提示
+        addHealthRecordsForSession(records as Omit<HealthRecord, '記錄id' | '建立時間'>[]).catch(err => {
+          console.error('[HealthRecordModal] 背景儲存失敗:', err);
+          alert(`儲存失敗: ${err instanceof Error ? err.message : '未知錯誤'}`);
+        });
         savedCount = records.length;
       }
       console.log('[HealthRecordModal] saved count:', savedCount);

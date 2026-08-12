@@ -52,14 +52,18 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
     e.stopPropagation();
     setExpandedPatients(prev => {
       const next = new Set(prev);
-      next.has(patientId) ? next.delete(patientId) : next.add(patientId);
+      if (next.has(patientId)) {
+        next.delete(patientId);
+      } else {
+        next.add(patientId);
+      }
       return next;
     });
   };
 
   return (
-    <div className="card p-6 space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="card p-6 flex flex-col h-full max-h-96">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="p-2 rounded-lg bg-amber-100">
           <Clock className="h-6 w-6 text-amber-600" />
         </div>
@@ -75,8 +79,9 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
         </div>
       </div>
 
-      {/* 執核派藥逾期 */}
-      {overdueWorkflows.length > 0 && (
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-6">
+        {/* 執核派藥逾期 */}
+        {overdueWorkflows.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Clock className="h-4 w-4 text-amber-600" />
@@ -247,6 +252,7 @@ const MedicationRemindersCard: React.FC<MedicationRemindersCardProps> = ({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

@@ -65,6 +65,7 @@ export interface Station {
   name: string;
   description?: string;
   code?: string;
+  color?: string;
   created_at: string;
   updated_at: string;
 }

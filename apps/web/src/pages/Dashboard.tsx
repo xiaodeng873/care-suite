@@ -104,6 +104,9 @@ const Dashboard: React.FC = () => {
   const [showActivityRecordModal, setShowActivityRecordModal] = useState(false);
   const [activityRecordPatientId, setActivityRecordPatientId] = useState<number | undefined>(undefined);
   const [showHealthRecordModal, setShowHealthRecordModal] = useState(false);
+  // [防穿透] 記錄監測 modal 關閉時間：快速雙擊「儲存」時，第二下點擊會穿透到底層任務卡片，
+  // 重新打開一個全新表單（看起來就像「表單被清空重置」）
+  const lastHealthModalCloseAtRef = React.useRef(0);
   const [selectedHealthRecordInitialData, setSelectedHealthRecordInitialData] = useState<any>({});
   const [showDocumentTaskModal, setShowDocumentTaskModal] = useState(false);
   const [selectedDocumentTask, setSelectedDocumentTask] = useState<{ task: HealthTask; patient: Patient } | null>(null);
@@ -155,6 +158,10 @@ const Dashboard: React.FC = () => {
     return uniqueTasks;
   }, [patientHealthTasks]);
   const handleTaskClick = (task: HealthTask, date?: string, groupTasks?: HealthTask[]) => {
+    // [防穿透] modal 關閉後 300ms 內忽略開啟請求
+    if (Date.now() - lastHealthModalCloseAtRef.current < 300) {
+      return;
+    }
     const patient = patients.find(p => p.院友id === task.patient_id);
     // 调试：呂葉少芳
     const isLyuPatient = patient?.中文姓名 === '呂葉少芳';
@@ -891,18 +898,16 @@ const Dashboard: React.FC = () => {
     setActivityRecordPatientId(patient.院友id);
     setShowActivityRecordModal(true);
   };
-  const handleTaskCompleted = async (taskId: string, recordDateTime: Date) => {
-    // 1. 立即關閉模態框
-    setShowHealthRecordModal(false);
-    // 2. 立即執行完整的數據同步和刷新
-    try {
-      await syncTaskStatus(taskId);
-      await refreshData();
-    } catch (error) {
-      console.error('同步失敗:', error);
-      // 失敗後也強制刷新
-      await refreshData();
-    }
+  const handleTaskCompleted = (taskId: string) => {
+    // 不再立即關閉 modal，改為背景同步，避免全畫面重整
+    void (async () => {
+      try {
+        await syncTaskStatus(taskId);
+        await refreshHealthTaskData();
+      } catch (error) {
+        console.error('同步失敗:', error);
+      }
+    })();
   };
   // [自動修復機制] 在頁面首次載入時，檢查並修復 next_due_at 過期但有最新記錄的任務
   // 使用 useRef 來追蹤是否已執行過，避免重複執行
@@ -1656,6 +1661,7 @@ const Dashboard: React.FC = () => {
         <HealthRecordModal
           initialData={selectedHealthRecordInitialData}
           onClose={() => {
+            lastHealthModalCloseAtRef.current = Date.now();
             setShowHealthRecordModal(false);
             setSelectedHealthRecordInitialData({});
           }}

@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { X, Building2 } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 
+const PRESET_COLORS = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#ec4899', '#06b6d4', '#6366f1', '#84cc16', '#f97316',
+];
+
 interface StationModalProps {
   station?: any;
   onClose: () => void;
@@ -13,7 +18,8 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
   const [formData, setFormData] = useState({
     name: station?.name || '',
     code: station?.code || '',
-    description: station?.description || ''
+    description: station?.description || '',
+    color: station?.color || ''
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -36,6 +42,7 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
       const payload = {
         ...formData,
         code: formData.code.trim().toUpperCase() || undefined,
+        color: formData.color.trim() || undefined,
       };
       if (station) {
         await updateStation({
@@ -111,6 +118,48 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
               rows={3}
               placeholder="居住區的詳細描述或備註..."
             />
+          </div>
+
+          <div>
+            <label className="form-label">代表顏色</label>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, color: '' }))}
+                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${formData.color ? 'border-gray-300 text-gray-400 hover:border-gray-400' : 'border-blue-500 text-blue-500'}`}
+                title="無顏色"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              {PRESET_COLORS.map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, color: c }))}
+                  className={`w-8 h-8 rounded-full border-2 ${formData.color === c ? 'border-gray-900 ring-2 ring-offset-1 ring-gray-300' : 'border-transparent'}`}
+                  style={{ backgroundColor: c }}
+                  title={c}
+                />
+              ))}
+              <div className="flex items-center gap-2 ml-1">
+                <input
+                  type="color"
+                  value={formData.color || PRESET_COLORS[0]}
+                  onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
+                  className="w-8 h-8 p-0 border-0 rounded-full overflow-hidden cursor-pointer"
+                  title="自訂顏色"
+                />
+                {formData.color && !PRESET_COLORS.includes(formData.color) && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, color: '' }))}
+                    className="text-xs text-gray-500 underline hover:text-gray-700"
+                  >
+                    清除
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 pt-4">

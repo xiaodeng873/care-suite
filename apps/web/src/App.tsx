@@ -108,6 +108,7 @@ const FeeRecords = lazy(() => import('./pages/FeeRecords'));
 const InfectionControl = lazy(() => import('./pages/InfectionControl'));
 const RosterManagement = lazy(() => import('./pages/RosterManagement'));
 
+
 function AppContent() {
   const { user, userProfile, loading: authLoading, authReady, signOut, customLogout, isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);

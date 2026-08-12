@@ -60,8 +60,8 @@ const CarePlanDueReminderCard: React.FC<CarePlanDueReminderCardProps> = ({ careP
   const patientsMap = new Map(patients.map(p => [p.院友id, p]));
 
   return (
-    <div className="card p-6">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="card p-6 flex flex-col h-full max-h-96">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
           <div className="p-2 rounded-lg bg-green-100">
             <ClipboardList className="h-6 w-6 text-green-600" />
           </div>
@@ -73,7 +73,7 @@ const CarePlanDueReminderCard: React.FC<CarePlanDueReminderCardProps> = ({ careP
           </div>
         </div>
 
-      <div className="space-y-2">
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-2">
         {dueThisMonth.slice(0, 5).map(plan => {
           const patient = patientsMap.get(plan.patient_id);
           return (

@@ -647,13 +647,26 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
   }, []);
 
   const addHealthRecordsForSession = useCallback(async (records: Omit<db.HealthRecord, '記錄id' | '建立時間'>[]): Promise<db.HealthRecord[]> => {
+    // 樂觀更新：先以暫時 id 插入本地 state，伺服器回應後替換；失敗則移除暫時記錄
+    const tempRecords = records.map(r => ({
+      ...r,
+      記錄id: `temp-${crypto.randomUUID()}`,
+      建立時間: new Date().toISOString(),
+    })) as db.HealthRecord[];
+    const tempIds = new Set(tempRecords.map(t => t.記錄id));
+    if (tempRecords.length > 0) {
+      setHealthRecords(prev => [...tempRecords, ...prev]);
+    }
     try {
       const newRecords = await db.createHealthRecordsForSession(records);
       if (newRecords.length > 0) {
-        setHealthRecords(prev => [...newRecords, ...prev]);
+        setHealthRecords(prev => [...newRecords, ...prev.filter(r => !tempIds.has(r.記錄id))]);
+      } else {
+        setHealthRecords(prev => prev.filter(r => !tempIds.has(r.記錄id)));
       }
       return newRecords;
     } catch (error) {
+      setHealthRecords(prev => prev.filter(r => !tempIds.has(r.記錄id)));
       console.error('Error adding session health records:', error);
       throw error;
     }

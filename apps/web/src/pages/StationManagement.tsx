@@ -175,7 +175,14 @@ const StationManagement: React.FC = () => {
                       <Building2 className="h-8 w-8 text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-semibold text-gray-900">{station.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-4 h-4 rounded-full border border-gray-200"
+                          style={{ backgroundColor: station.color || 'transparent' }}
+                          title={station.color ? '代表顏色' : '未設定代表顏色'}
+                        />
+                        <h3 className="text-xl font-semibold text-gray-900">{station.name}</h3>
+                      </div>
                       {station.description && (
                         <p className="text-sm text-gray-600 mt-1">{station.description}</p>
                       )}
