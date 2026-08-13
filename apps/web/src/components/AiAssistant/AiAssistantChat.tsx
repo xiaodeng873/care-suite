@@ -325,12 +325,12 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
   return (
     <>
     <div
-      className={`fixed inset-x-3 bottom-3 sm:inset-x-auto sm:bottom-20 sm:right-6 z-[9999] sm:w-96 h-[50dvh] sm:h-[600px] max-h-[50dvh] sm:max-h-[600px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden transition-all duration-150 origin-bottom-right ${
+      className={`fixed inset-x-3 bottom-3 sm:inset-x-auto sm:bottom-20 sm:right-6 z-[9999] sm:w-96 sm:h-[600px] sm:max-h-[600px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden transition-all duration-150 origin-bottom-right ${
         isOpen
           ? 'scale-100 opacity-100 pointer-events-auto'
           : 'scale-95 opacity-0 pointer-events-none'
       }`}
-      style={{ fontFamily: 'inherit' }}
+      style={{ fontFamily: 'inherit', height: '90dvh', maxHeight: '90dvh', minHeight: '90dvh' }}
     >
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pl-4 pr-12 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shrink-0">
