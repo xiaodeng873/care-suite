@@ -1073,7 +1073,7 @@ const Dashboard: React.FC = () => {
         />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
-        <div className="card p-6 lg:p-4 lg:col-span-2">
+        <div className="card p-3 sm:p-4 lg:p-4 lg:col-span-2 w-full">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h2 className="text-lg font-semibold text-gray-900 section-title">監測任務</h2>
             <div className="flex flex-wrap items-center gap-2">
@@ -1106,7 +1106,7 @@ const Dashboard: React.FC = () => {
               return slot.tasks.length > 0 && (
                 <div key={idx}>
                   <h3 className="text-md font-medium text-gray-700 mb-2 time-slot-title">{slot.title}</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2 w-full">
                     {(() => {
                       // 同一院友、同一時間點的多種監測類型整合為一張卡片（逾期與今日未完成合併顯示）
                       const padTime = (t: string) => {
@@ -1162,7 +1162,7 @@ const Dashboard: React.FC = () => {
                         return (
                         <div
                           key={groupKey || rep.id}
-                          className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card`}
+                          className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card w-full`}
                           onClick={() => {
                             // 逾期或有多个未完成日期，弹出小日历以便補回
                             if (hasMultipleDates && patient) {
@@ -1245,7 +1245,7 @@ const Dashboard: React.FC = () => {
               return (
                 <div>
                   <h3 className="text-md font-medium text-gray-700 mb-2 time-slot-title">體溫</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2 w-full">
                     {Array.from(groups.entries())
                       .sort(([ka, ga], [kb, gb]) => {
                         const aOv = ga.some(t => t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) < todayStrCard : false);
@@ -1263,7 +1263,7 @@ const Dashboard: React.FC = () => {
                         return (
                           <div
                             key={groupKey || rep.id}
-                            className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card`}
+                            className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card w-full`}
                             onClick={() => {
                               if (hasMultipleDates && patient) {
                                 setSelectedHistoryTask({ task: rep, patient, initialDate: rep.firstIncompleteDate || null, groupTasks: group });
@@ -1335,7 +1335,7 @@ const Dashboard: React.FC = () => {
               return (
                 <div>
                   <h3 className="text-md font-medium text-gray-700 mb-2 time-slot-title">體重</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2 w-full">
                     {Array.from(groups.entries())
                       .sort(([ka, ga], [kb, gb]) => {
                         const aOv = ga.some(t => t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) < todayStrCard : false);
@@ -1353,7 +1353,7 @@ const Dashboard: React.FC = () => {
                         return (
                           <div
                             key={groupKey || rep.id}
-                            className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card`}
+                            className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card w-full`}
                             onClick={() => {
                               if (hasMultipleDates && patient) {
                                 setSelectedHistoryTask({ task: rep, patient, initialDate: rep.firstIncompleteDate || null, groupTasks: group });
