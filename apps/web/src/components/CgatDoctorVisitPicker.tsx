@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Plus, Trash2, Calendar, Check, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -54,6 +54,9 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
     if (!form.visit_date) { alert('請選擇到診日期'); return; }
     if (!form.doctor_name.trim()) { alert('請輸入醫生姓名'); return; }
     if (!form.available_slots || form.available_slots < 1) { alert('名額必須大於 0'); return; }
+    // 同一到診日期不能重複（排除正在編輯的紀錄本身）
+    const duplicate = visits.find(v => v.visit_date === form.visit_date && v.id !== editingId);
+    if (duplicate) { alert('此到診日期已存在，請選擇其他日期或編輯現有紀錄'); return; }
     setSaving(true);
     try {
       if (editingId) {
@@ -93,6 +96,16 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
   };
 
   const weekday = (d: string) => ['日', '一', '二', '三', '四', '五', '六'][new Date(d + 'T00:00:00').getDay()];
+
+  // 顯示時以日期去重，避免同一日期出現多筆
+  const uniqueVisits = useMemo(() => {
+    const seen = new Set<string>();
+    return visits.filter(v => {
+      if (seen.has(v.visit_date)) return false;
+      seen.add(v.visit_date);
+      return true;
+    });
+  }, [visits]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]" onClick={onClose}>
@@ -144,7 +157,7 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
 
           {loading ? (
             <div className="text-center py-8 text-gray-400"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
-          ) : visits.length === 0 ? (
+          ) : uniqueVisits.length === 0 ? (
             <div className="text-center py-8 text-gray-400">尚無 CGAT到診日期</div>
           ) : (
             <table className="w-full text-sm">
@@ -157,7 +170,7 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
                 </tr>
               </thead>
               <tbody>
-                {visits.map(v => {
+                {uniqueVisits.map(v => {
                   const used = usedCountByDate[v.visit_date] || 0;
                   const remaining = v.available_slots - used;
                   const full = remaining <= 0;

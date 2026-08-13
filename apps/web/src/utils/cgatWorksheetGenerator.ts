@@ -270,10 +270,7 @@ function buildPage(
   <div class="footer-note">
     * 請填上身份證英文字母及首 3 個數字<br>
     ** 請在藥單右上角填上身份代號：<u>TPA</u>-綜援金/院舍券/OALA; <u>GOV</u>-公務員/家屬; <u>HAS</u>-醫管局員工/家屬; <u>WAIVE</u>-醫務社工豁免紙; 其他豁免-(請註明); <u>EP1</u>-自費
-  </div>
-  <div class="footer">
-    <div class="page-num">${pageNum}</div>
-    <div class="doc-code"></div>
+    共${pageNum}/${totalPages}頁
   </div>
 </div>
 `;
@@ -300,10 +297,21 @@ export function generateCgatWorksheetHtml(
   }
 
   const visitDates = Object.keys(grouped).sort();
-  const totalPages = visitDates.length;
 
-  const pages = visitDates.map((date, idx) =>
-    buildPage(grouped[date], patientMap, date, facilityName, facilityPhone, idx + 1, totalPages)
+  // 每頁 5 行分頁
+  const ROWS_PER_PAGE = 5;
+  const chunks: { date: string; records: CgatRecord[] }[] = [];
+  for (const date of visitDates) {
+    const dateRecords = grouped[date];
+    for (let i = 0; i < dateRecords.length; i += ROWS_PER_PAGE) {
+      chunks.push({ date, records: dateRecords.slice(i, i + ROWS_PER_PAGE) });
+    }
+  }
+
+  const totalPages = chunks.length;
+
+  const pages = chunks.map((chunk, idx) =>
+    buildPage(chunk.records, patientMap, chunk.date, facilityName, facilityPhone, idx + 1, totalPages)
   );
 
   return `<!DOCTYPE html>
@@ -395,7 +403,7 @@ export function generateCgatWorksheetHtml(
       vertical-align: middle;
     }
     .data-row { page-break-inside: avoid; break-inside: avoid; }
-    .data-row td { height: 252px; }
+    .data-row td { height: 240px; }
     .footer-note { font-size: 12px; padding-top: 5px; line-height: 1.4; }
     .footer { margin-top: auto; position: relative; height: 30px; display: flex; justify-content: flex-end; }
     .page-num { position: absolute; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; bottom: 0; }
