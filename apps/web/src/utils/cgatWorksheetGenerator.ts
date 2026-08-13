@@ -169,7 +169,11 @@ function buildPage(
   facilityName: string,
   facilityPhone: string,
   pageNum: number,
-  totalPages: number
+  totalPages: number,
+  totalCgasNew: number,
+  totalCgasOld: number,
+  totalEolNew: number,
+  totalEolOld: number
 ): string {
   const sortedRecords = [...records].sort((a, b) => {
     const pa = patientMap.get(a.patient_id);
@@ -179,10 +183,10 @@ function buildPage(
 
   const rows = sortedRecords.map(r => buildRow(r, patientMap.get(r.patient_id))).join('');
 
-  const cgasNew = records.filter(r => r.is_cgas && r.case_type === '新症').length;
-  const cgasOld = records.filter(r => r.is_cgas && r.case_type === '舊症').length;
-  const eolNew = records.filter(r => r.is_eol && r.case_type === '新症').length;
-  const eolOld = records.filter(r => r.is_eol && r.case_type === '舊症').length;
+  const cgasNew = totalCgasNew;
+  const cgasOld = totalCgasOld;
+  const eolNew = totalEolNew;
+  const eolOld = totalEolOld;
 
   return `
 <div class="page">
@@ -310,8 +314,14 @@ export function generateCgatWorksheetHtml(
 
   const totalPages = chunks.length;
 
+  // 統計按總匯入筆數計算
+  const totalCgasNew = records.filter(r => r.is_cgas && r.case_type === '新症').length;
+  const totalCgasOld = records.filter(r => r.is_cgas && r.case_type === '舊症').length;
+  const totalEolNew = records.filter(r => r.is_eol && r.case_type === '新症').length;
+  const totalEolOld = records.filter(r => r.is_eol && r.case_type === '舊症').length;
+
   const pages = chunks.map((chunk, idx) =>
-    buildPage(chunk.records, patientMap, chunk.date, facilityName, facilityPhone, idx + 1, totalPages)
+    buildPage(chunk.records, patientMap, chunk.date, facilityName, facilityPhone, idx + 1, totalPages, totalCgasNew, totalCgasOld, totalEolNew, totalEolOld)
   );
 
   return `<!DOCTYPE html>
