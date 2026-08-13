@@ -14,7 +14,7 @@ export interface FacilitySettings {
 // 只在尚未設定或讀取失敗時作後備使用。
 export const DEFAULT_FACILITY_SETTINGS: FacilitySettings = {
   facilityNameZh: '善頤(福群)護老院',
-  facilityNameEn: 'SeniorCare',
+  facilityNameEn: '',
   facilityAddressZh: '',
   facilityAddressEn: '',
   facilityPhone: '',

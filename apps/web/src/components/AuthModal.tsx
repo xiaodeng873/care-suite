@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, User, Lock, UserCircle, QrCode, Camera, SwitchCamera, AlertCircle } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useAuth } from '../context/AuthContext';
+import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS, type FacilitySettings } from '../utils/facilitySettings';
 
 type LoginMode = 'password' | 'qrcode';
 
@@ -26,6 +27,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const scannerIdRef = useRef('auth-qr-scanner-' + Math.random().toString(36).substr(2, 9));
   
   const { customLogin, qrLogin, signIn } = useAuth();
+  const [facilitySettings, setFacilitySettings] = useState<FacilitySettings>(DEFAULT_FACILITY_SETTINGS);
+
+  useEffect(() => {
+    let cancelled = false;
+    getFacilitySettings().then(s => {
+      if (!cancelled) {
+        setFacilitySettings(s);
+        document.title = s.facilityNameZh || s.facilityNameEn || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   // 清理掃描器
   const cleanupScanner = async () => {
@@ -272,7 +285,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       <div className="bg-white/95 backdrop-blur rounded-xl shadow-2xl w-full max-w-md mx-4 relative z-10">
         {/* 歡迎標題區塊 */}
         <div className="p-6 pb-4 text-center border-b border-gray-100">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">SeniorCare</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">{facilitySettings.facilityNameZh || facilitySettings.facilityNameEn || 'Care Suite'}</h1>
           <p className="text-gray-600">請登入以繼續使用系統</p>
         </div>
         

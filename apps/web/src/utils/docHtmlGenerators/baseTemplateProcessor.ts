@@ -56,7 +56,8 @@ export function processDocHtmlTemplate(
 
   let html = template;
 
-  // 1. 替換院舍名稱（常見寫法）
+  // 1. 替換院舍名稱（常見寫法，含舊範本遺留的 'SeniorCare' 佔位字）
+  // 這裡的 'SeniorCare' 是用來清掃舊 HTML 範本的硬編碼文字，不是當成院舍名稱顯示
   const hardcodedNames = [
     '善頤(福群)護老院',
     '善頤（福群）護老院',

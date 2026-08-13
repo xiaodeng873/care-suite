@@ -113,6 +113,25 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
   const isTypeFixed = !!(record || recordGroup || initialData?.task || initialData?.任務清單 || initialData?.預設監測類型 || initialData?.預設記錄類型);
   const [activeTypes, setActiveTypes] = useState<VitalSignType[]>(initialActiveTypes);
 
+  // 監測項目多選：選取/取消 血壓/脈搏/血含氧量/呼吸 時會同步四項（與任務管理 modal 一致）
+  const boundVitalTypes: VitalSignType[] = ['血壓', '脈搏', '血含氧量', '呼吸'];
+  const toggleVitalType = (type: VitalSignType) => {
+    setActiveTypes(prev => {
+      const selected = prev.includes(type);
+      let next = selected ? prev.filter(t => t !== type) : [...prev, type];
+      if (boundVitalTypes.includes(type)) {
+        if (!selected) {
+          for (const boundType of boundVitalTypes) {
+            if (!next.includes(boundType)) next = [...next, boundType];
+          }
+        } else {
+          next = next.filter(t => !boundVitalTypes.includes(t));
+        }
+      }
+      return next;
+    });
+  };
+
   // 每種監測類型對應其 task id（多任務整合時，各筆記錄寫回各自的任務）
   const typeToTaskId = useMemo(() => {
     const m: Partial<Record<VitalSignType, string>> = {};
@@ -512,7 +531,26 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
                 </div>
               </div>
             </div>
-            {/* 監測項目選擇器已移除：所有呼叫點均由 task/任務清單/預設監測類型預先指定類型 */}
+
+            {!isTypeFixed && (
+              <div>
+                <p className="text-sm text-gray-500 mb-2">監測項目 *（可多選）</p>
+                <div className="flex flex-wrap gap-2">
+                  {ALL_VITAL_TYPES.map(({ type, label, color }) => {
+                    const selected = activeTypes.includes(type);
+                    return (
+                      <button key={type} type="button"
+                        onClick={() => toggleVitalType(type)}
+                        className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-colors ${
+                          selected ? `${color} text-white border-transparent` : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}>
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className={`p-3 rounded-lg border ${currentIsPatientAbsent ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}>
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="isAbsent" checked={formData.isAbsent}

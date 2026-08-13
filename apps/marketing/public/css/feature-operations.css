@@ -1,0 +1,167 @@
+/* ============================================================
+   feature-operations.css — 日常營運功能頁示範樣式
+   只使用 main.css 的設計 tokens（CSS 變數），深淺色模式自動生效。
+   配合 features-demo.css 的共用 class（fd-table、fd-badge 等）。
+   ============================================================ */
+
+/* ---------- 院友日誌 ---------- */
+
+.fo-log-list { display: flex; flex-direction: column; }
+
+.fo-log-item {
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--color-border);
+  font-size: 0.875rem;
+}
+
+.fo-log-time { color: var(--color-text-muted); font-size: 0.8125rem; white-space: nowrap; }
+
+@media (max-width: 560px) {
+  .fo-log-item { grid-template-columns: 1fr; gap: 2px; }
+}
+
+/* ---------- 餐膳指引 ---------- */
+
+.fo-diet-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: baseline;
+}
+
+.fo-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.fo-stat-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  padding: var(--space-3);
+  text-align: center;
+}
+
+.fo-stat-num {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.fo-stat-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* ---------- 雜費記錄 · A4 月結單 ---------- */
+
+.fo-fee-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .fo-fee-layout { grid-template-columns: 1fr; }
+}
+
+.fo-a4 {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4);
+  font-size: 0.8125rem;
+  color: var(--color-text);
+}
+
+.fo-a4 h4 { text-align: center; margin: 0 0 2px; font-size: 0.9375rem; }
+
+.fo-a4-org {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.6875rem;
+  margin-bottom: var(--space-3);
+}
+
+.fo-a4-meta {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  padding: 6px 0;
+  margin-bottom: var(--space-3);
+  font-size: 0.75rem;
+}
+
+.fo-a4 table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.fo-a4 th, .fo-a4 td { padding: 4px 6px; text-align: left; border-bottom: 1px dashed var(--color-border); }
+.fo-a4 td:last-child, .fo-a4 th:last-child { text-align: right; }
+
+.fo-a4-total {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 2px solid var(--color-text);
+}
+
+.fo-a4-foot { margin-top: var(--space-3); font-size: 0.6875rem; color: var(--color-text-subtle); }
+
+/* ---------- 任務管理 ---------- */
+
+.fo-task-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  width: 100%;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.fo-task-item:hover { border-color: var(--color-primary); }
+.fo-task-item.is-done { opacity: 0.75; }
+.fo-task-item.is-done .fo-task-title { text-decoration: line-through; color: var(--color-text-muted); }
+
+.fo-task-title { font-weight: 600; flex: 1; min-width: 140px; }
+.fo-task-meta { font-size: 0.75rem; color: var(--color-text-muted); }
+
+/* ---------- 感染控制 ---------- */
+
+.fo-inf-type {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #fff;
+}
+
+.fo-inf-uri { background: var(--color-danger); }
+.fo-inf-skin { background: var(--color-warning); }
+.fo-inf-uti { background: var(--color-primary); }
+.fo-inf-gi { background: var(--color-success); }
+.fo-inf-scabies { background: var(--color-text-muted); }

@@ -1,4 +1,4 @@
-/* Care Suite Marketing Site — Design System
+/* eHMS Marketing Site — Design System
    Aligned with web app (Tailwind blue/slate palette)
    Auto dark mode via prefers-color-scheme + manual toggle */
 
@@ -397,6 +397,41 @@ ul, ol {
 
 .navbar-brand:hover {
   text-decoration: none;
+}
+
+/* Text logo: eHMS + e-Hostel Management Standard */
+.navbar-brand .brand-logo {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.navbar-brand .brand-word {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #1F3A6E;
+}
+
+.navbar-brand .brand-sub {
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #1F3A6E;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .navbar-brand .brand-word,
+  :root:not(.light) .navbar-brand .brand-sub {
+    color: #93C5FD;
+  }
+}
+
+:root.dark .navbar-brand .brand-word,
+:root.dark .navbar-brand .brand-sub {
+  color: #93C5FD;
 }
 
 .navbar-menu {
@@ -1138,6 +1173,18 @@ ul, ol {
 /* Navbar dropdown for desktop */
 .navbar-dropdown {
   position: relative;
+}
+
+/* Bridge the 8px visual gap between toggle and menu so hover is not lost */
+.navbar-dropdown::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  min-width: 220px;
+  height: 8px;
 }
 
 .navbar-dropdown-menu {

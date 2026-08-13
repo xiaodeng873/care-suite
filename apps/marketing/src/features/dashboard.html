@@ -1,12 +1,14 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <title>主控台 Dashboard — Care Suite 功能介紹</title>
-  <meta name="description" content="Care Suite 主控台：監測任務、待辦事項、藥物提醒、備忘錄與近期覆診，一頁掌握全院狀況。" />
-  <meta property="og:title" content="主控台 Dashboard — Care Suite 功能介紹" />
-  <meta property="og:description" content="監測任務、待辦事項、藥物提醒、備忘錄與近期覆診，一頁掌握全院狀況。" />
+  <title>主控台 Dashboard — eHMS 功能介紹</title>
+  <meta name="description" content="eHMS 主控台：監測任務按時段排列、一鍵生成體溫、藥物提醒、照顧計劃到期、便條與排班衝突提示，登入即見全院今日狀況。" />
+  <meta property="og:title" content="主控台 Dashboard — eHMS 功能介紹" />
+  <meta property="og:description" content="監測任務按時段排列、一鍵生成體溫、藥物提醒、照顧計劃到期、便條與排班衝突提示。" />
   <meta property="og:url" content="/features/dashboard" />
   <!-- INCLUDE: head.html -->
+  <link rel="stylesheet" href="/css/features-demo.css" />
+  <link rel="stylesheet" href="/css/feature-dashboard.css" />
 </head>
 <body>
   <!-- INCLUDE: nav.html -->
@@ -14,7 +16,7 @@
   <header class="page-header">
     <div class="container">
       <h1>主控台 Dashboard</h1>
-      <p>一登入就知道今天該做什麼、什麼快到期、什麼已逾期。把「怕遺漏」變成「看得到」。</p>
+      <p>登入後的第一個畫面：今日監測任務、逾期項目、藥物提醒、照顧計劃到期與便條，全部在同一頁。以下每個示範都可以直接點擊操作。</p>
     </div>
   </header>
 
@@ -22,31 +24,82 @@
 
   <main class="section">
     <div class="container">
-      <div class="feature-detail">
-        <article class="card">
-          <h3 class="card-title">監測任務時段卡與補錄提醒</h3>
-          <p class="pain-point"><strong>痛點：</strong>守則規定特別關顧住客每 2 曆日、其他每 7 曆日健康檢查並保存紀錄。全院幾十張床、多個時段，紙本工作紙做完也不知道誰漏了。</p>
-          <p class="solution"><strong>解決：</strong>監測任務按早、午、晚、夜宵分組卡片顯示，逾期與未完成即時浮現；點卡即可補錄，杜絕甩漏。</p>
-        </article>
-        <article class="card">
-          <h3 class="card-title">待辦事項中心</h3>
-          <p class="pain-point"><strong>痛點：</strong>約束同意書、自行用藥評估、年度體檢、ICP 檢討全部有法定有效期，靠人腦記住十幾張床各自的到期日極易遺漏。</p>
-          <p class="solution"><strong>解決：</strong>約束到期、健康評估到期、傷口評估逾期或 3 日內到期、年度體檢到期、照顧計劃復檢到期，全部自動浮上主頁待辦。</p>
-        </article>
-        <article class="card">
-          <h3 class="card-title">藥物提醒卡</h3>
-          <p class="pain-point"><strong>痛點：</strong>長期藥吃完才發現忘記續藥，院友斷藥屬藥物事故級數風險；新舊處方交接期無人跟進最易出錯。</p>
-          <p class="solution"><strong>解決：</strong>長期藥預計結束前 4 週自動提示續藥；逾期派藥流程、待啟用處方並列提醒。</p>
-        </article>
-        <article class="card">
-          <h3 class="card-title">備忘錄與近期覆診</h3>
-          <p class="pain-point"><strong>痛點：</strong>守則要求以工作紀錄冊讓每更員工記錄院內每日事情、住客異常情況；覆診安排涉及車、人、文件、家屬通知四條線，甩一樣就是投訴。</p>
-          <p class="solution"><strong>解決：</strong>院友級備忘與即將到來的覆診一覽，置於主頁當眼處，交更時一目了然。</p>
-        </article>
+
+      <section class="dbd-section" id="tour-tasks">
+        <h2 class="section-title">監測任務（按時段）</h2>
+        <p class="dbd-lead">主控台把全院的監測任務按「早餐、午餐、晚餐、夜宵、體溫、體重」時段分組。同一院友同一時間的多個監測項目會合併成一張卡，逾期補錄的任務以紅色「逾期」標示排在最前。點任何一張卡即可開啟記錄視窗補錄。</p>
+        <div class="fd-frame">
+          <div class="dbd-panel-head">
+            <h3 class="dbd-panel-title">監測任務</h3>
+            <div class="fd-row">
+              <button type="button" class="btn btn-primary btn-sm" data-dbd="export-worksheet">匯出監測記錄工作紙</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-dbd="scan-worksheet" title="拍照識別監測工作紙">識別工作紙</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-dbd="gen-temp">一鍵生成體溫</button>
+            </div>
+          </div>
+          <div id="dbd-tasks"></div>
+        </div>
+        <p class="fd-hint">試試：點「黃伯強」的紅色逾期卡補錄血糖；再點「一鍵生成體溫」為全院生成今早 08:00 的體溫記錄。</p>
+      </section>
+
+      <section class="dbd-section" id="tour-medication">
+        <h2 class="section-title">藥物管理提醒</h2>
+        <p class="dbd-lead">藥物相關的三類提醒合併在一張卡：「執核派藥逾期」列出仍有逾期流程的院友（可展開逾期日期逐日補回）、「待變更處方」提示新舊處方交接、「藥物庫存見底」按預計結束日期提前提示續藥。點任何一項都會直達對應的處理頁面。</p>
+        <div class="fd-frame">
+          <div id="dbd-meds"></div>
+        </div>
+        <p class="fd-hint">試試：點「陳大文」右邊的箭咀展開逾期日期列表，再點其中一日。</p>
+      </section>
+
+      <section class="dbd-section" id="tour-care">
+        <h2 class="section-title">個人照顧計劃與活動記錄提醒</h2>
+        <p class="dbd-lead">本月到期的個人照顧計劃自動浮上主控台，提醒安排續期；上月參與活動少於 2 次的院友亦會列出，點一下即可補錄活動記錄。</p>
+        <div class="dbd-grid-2">
+          <div class="fd-frame" id="dbd-careplan"></div>
+          <div class="fd-frame" id="dbd-activity"></div>
+        </div>
+        <p class="fd-hint">試試：在「活動記錄提醒」點一位院友，補錄一次活動後該行會即時消失。</p>
+      </section>
+
+      <section class="dbd-section" id="tour-notes">
+        <h2 class="section-title">便條</h2>
+        <p class="dbd-lead">便條相當於院舍的工作紀錄冊：可指定院友、指定日期，交更前把注意事項寫在當眼處。完成的便條會移到「已完成」摺疊區，保留備查。</p>
+        <div class="fd-frame">
+          <div id="dbd-notes"></div>
+        </div>
+        <p class="fd-hint">試試：點「新增便條」寫一張，或用「編輯／完成／刪除」處理現有便條。</p>
+      </section>
+
+      <section class="dbd-section" id="tour-roster">
+        <h2 class="section-title">排班衝突提示</h2>
+        <p class="dbd-lead">更表內被標為「待調整」的班次會以紅色跑馬燈持續提示，滑鼠移上會暫停捲動，點擊該項即在更表標示當日。</p>
+        <div class="fd-frame">
+          <div id="dbd-ticker"></div>
+        </div>
+        <p class="fd-hint">試試：把滑鼠移到紅色提示條上會暫停，點其中一項。</p>
+      </section>
+
+      <section class="dbd-section" id="tour-ocr">
+        <h2 class="section-title">拍照識別監測工作紙</h2>
+        <p class="dbd-lead">打印出來的工作紙填好後，不用逐格輸入：對工作紙拍一張相，系統會辨識欄位並把數值填回對應院友的監測記錄，核對無誤後一鍵寫入。</p>
+        <div class="fd-frame">
+          <div class="fd-row">
+            <button type="button" class="btn btn-primary btn-sm" data-dbd="scan-worksheet">拍攝工作紙</button>
+            <span class="fd-sub">示範會模擬拍攝及辨識過程，不會真的開相機。</span>
+          </div>
+        </div>
+        <p class="fd-hint">試試：點「拍攝工作紙」，辨識完成後核對數值再「確認寫入」。</p>
+      </section>
+
+      <div class="dbd-cta">
+        <p>想在自己的院舍試用主控台？</p>
+        <a class="btn btn-primary" href="https://wa.me/85259288054" target="_blank" rel="noopener">WhatsApp 預約示範</a>
       </div>
+
     </div>
   </main>
 
   <!-- INCLUDE: footer.html -->
+  <script defer src="/js/feature-dashboard.js"></script>
 </body>
 </html>

@@ -136,7 +136,12 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   useEffect(() => {
     let cancelled = false;
     getFacilitySettings()
-      .then(s => { if (!cancelled) setFacilitySettings(s); })
+      .then(s => {
+        if (!cancelled) {
+          setFacilitySettings(s);
+          document.title = s.facilityNameZh || s.facilityNameEn || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
+        }
+      })
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
@@ -408,7 +413,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
               >
                 <Home className="h-6 w-6 text-blue-600" />
                 <span className="text-base font-bold text-gray-900 hidden sm:inline">
-                  {facilitySettings.facilityNameZh || facilitySettings.facilityNameEn || 'SeniorCare'}
+                  {facilitySettings.facilityNameZh || facilitySettings.facilityNameEn || DEFAULT_FACILITY_SETTINGS.facilityNameZh}
                 </span>
               </Link>
 

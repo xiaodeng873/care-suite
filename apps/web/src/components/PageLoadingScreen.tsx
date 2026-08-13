@@ -118,7 +118,7 @@ const BrandBlock: React.FC<{ pageName?: string }> = ({ pageName = '頁面' }) =>
         )}
       </div>
       <h1 className="text-2xl font-bold text-gray-800 mb-1">
-        {settings.facilityNameZh || settings.facilityNameEn || 'SeniorCare'}
+        {settings.facilityNameZh || settings.facilityNameEn || DEFAULT_FACILITY_SETTINGS.facilityNameZh}
       </h1>
       <p className="text-gray-500">正在載入 {pageName}...</p>
     </div>

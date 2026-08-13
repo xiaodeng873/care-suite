@@ -1,0 +1,167 @@
+/* ============================================================
+   feature-printing.css — 列印範本功能頁示範樣式
+   只使用 main.css 的設計 tokens（CSS 變數），深淺色模式自動生效。
+   配合 features-demo.css 的共用 class（fd-doc、fd-table 等）。
+   ============================================================ */
+
+/* ---------- 列印中心 ---------- */
+
+.fp-center {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .fp-center { grid-template-columns: 1fr; }
+}
+
+.fp-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 6px;
+}
+
+.fp-type-btn {
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.fp-type-btn:hover { border-color: var(--color-primary); }
+.fp-type-btn.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  font-weight: 700;
+}
+
+.fp-res-picker {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.fp-res-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  padding: 5px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.fp-res-item:hover { background: var(--color-bg-soft); }
+.fp-res-item input { accent-color: var(--color-primary); }
+
+.fp-preview-stack { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.fp-doc-page { position: relative; }
+
+.fp-doc-page .fp-doc-tag {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 0.6875rem;
+  color: var(--color-text-subtle);
+}
+
+/* ---------- 範本管理 ---------- */
+
+.fp-mgr {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .fp-mgr { grid-template-columns: 1fr; }
+}
+
+.fp-dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  margin-bottom: var(--space-4);
+}
+
+.fp-dropzone:hover { border-color: var(--color-primary); }
+
+.fp-dropzone.is-dragover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.fp-dropzone .fp-drop-icon { font-size: 1.5rem; display: block; margin-bottom: 6px; }
+
+.fp-tpl-group { margin-bottom: var(--space-3); }
+
+.fp-tpl-group-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+
+.fp-tpl-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  margin-bottom: 4px;
+  color: var(--color-text);
+}
+
+.fp-tpl-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.fp-ph-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  padding: var(--space-3);
+}
+
+.fp-ph-panel h4 {
+  margin: 0 0 var(--space-2);
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.fp-ph-panel table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.fp-ph-panel th, .fp-ph-panel td { padding: 4px 6px; text-align: left; border-bottom: 1px dashed var(--color-border); }
+.fp-ph-panel th { color: var(--color-text-muted); font-weight: 600; }
+.fp-ph-panel code {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  background: var(--color-bg-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 1px 4px;
+  color: var(--color-primary);
+}
+
+.fp-ph-hint { font-size: 0.6875rem; color: var(--color-text-subtle); margin-top: var(--space-2); }

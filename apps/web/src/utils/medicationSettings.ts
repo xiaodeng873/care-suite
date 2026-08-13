@@ -2,6 +2,7 @@
 // 同時儲存於 DB (facility_settings.medication_settings) 和 localStorage（快取）。
 
 import { supabase } from '../lib/supabase';
+import { DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 
 export interface MedicationSettingsData {
   劑型: string[];
@@ -173,8 +174,8 @@ export async function saveMedicationSettingsToDB(settings: MedicationSettingsDat
     .from('facility_settings')
     .insert({
       id: 1,
-      facility_name_zh: '善頤 (福群) 護老院',
-      facility_name_en: 'SeniorCare',
+      facility_name_zh: DEFAULT_FACILITY_SETTINGS.facilityNameZh,
+      facility_name_en: DEFAULT_FACILITY_SETTINGS.facilityNameEn,
       facility_phone: '',
       facility_address_zh: '',
       facility_address_en: '',

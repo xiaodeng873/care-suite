@@ -5,7 +5,7 @@
   <path d="M136 180C136 166.745 146.745 156 160 156H180C193.255 156 204 166.745 204 180V204H136V180Z" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M156 204V188C156 182.477 160.477 178 166 178H174C179.523 178 184 182.477 184 188V204" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
   <circle cx="170" cy="170" r="6" fill="white"/>
-  <text x="120" y="300" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', sans-serif" font-size="64" font-weight="800" fill="#1F2937">Care Suite</text>
+  <text x="120" y="300" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', sans-serif" font-size="64" font-weight="800" fill="#1F2937">eHMS</text>
   <text x="120" y="370" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', sans-serif" font-size="32" font-weight="400" fill="#6B7280">由註冊護士打造的院舍管理系統</text>
-  <text x="120" y="430" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', sans-serif" font-size="28" font-weight="400" fill="#0F766E">紙本電子並存 · 無合約綁定 · HK$18/人/月</text>
+  <text x="120" y="430" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', sans-serif" font-size="28" font-weight="400" fill="#0F766E">紙本電子並存 · 無合約綁定 · 首年費用全免</text>
 </svg>

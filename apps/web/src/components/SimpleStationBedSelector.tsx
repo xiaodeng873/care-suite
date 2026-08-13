@@ -29,7 +29,7 @@ const SimpleStationBedSelector: React.FC<SimpleStationBedSelectorProps> = ({
     )
   );
 
-  const handleSeniorCarehange = (stationId: string) => {
+  const handleStationChange = (stationId: string) => {
     onSelectionChange(stationId, '', '');
   };
 
@@ -51,7 +51,7 @@ const SimpleStationBedSelector: React.FC<SimpleStationBedSelectorProps> = ({
           </label>
           <select
             value={selectedStationId}
-            onChange={(e) => handleSeniorCarehange(e.target.value)}
+            onChange={(e) => handleStationChange(e.target.value)}
             className="form-input"
           >
             <option value="">不指派床位</option>
