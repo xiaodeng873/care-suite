@@ -869,6 +869,18 @@ async function handleImageChat(message, imageBase64, imageMimeType, systemPrompt
         if (bestScore < 15) {
           matchedPatient = null;
         }
+        // For ID card (new resident intake): require BOTH HKID and Chinese name exact match
+        // to treat it as an existing resident. Otherwise treat as a new resident.
+        if (analysisResponse.document_type === "id_card") {
+          const exactCandidate = patientMatchCandidates.find((c) => {
+            const dbIdClean = (c.身份證號碼 || "").replace(/[()\s]/g, "").toUpperCase();
+            const cFullName = `${c.中文姓氏 || ""}${c.中文名字 || ""}`;
+            const cName = c.中文姓名 || cFullName;
+            return dbIdClean && dbIdClean === hkidClean && cName && cName === cnClean;
+          });
+          matchedPatient = exactCandidate || null;
+          patientMatchCandidates = matchedPatient ? [matchedPatient] : [];
+        }
       }
     }
   }
@@ -1046,7 +1058,7 @@ async function handleImageChat(message, imageBase64, imageMimeType, systemPrompt
 - 你是在向護理人員（護士/護理員）匯報，不是在對院友本人說話
 - 用第三人稱稱呼院友，例如「王洪晏院友」「該院友」，絕不用「您好」「您的」
 - 不要出現「個人檔案」，這裡叫「系統記錄」或直接說「覆診記錄」「處方記錄」等
-- 語氣專業簡潔，像護理同事之間的工作溝通`;
+- 語氣專業簡潔，像護理同事之間的工作溝通\n- 只輸出自然語言回覆，絕對不要輸出自我檢查清單、核對標記或任務清單格式（例如 "No... Checked.", "✓ 已遵守...", "1. 已確認..." 等）。`;
   if (isWorksheet) {
     const worksheetRecords = Array.isArray(analysisResponse.extracted_data) ? analysisResponse.extracted_data : [];
     summaryPrompt = `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張「監測工作紙」圖片。
@@ -1083,23 +1095,16 @@ ${toneRule}
 
 直接用自然語言回答，不要返回 JSON。`;
   } else if (existingRecords.length > 0) {
-    summaryPrompt = isIdCard ? `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張身份證圖片，希望新增院友。
+    summaryPrompt = isIdCard ? `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張身份證圖片。
 ${toneRule}
 
 已從身份證中提取以下資料：
 ${JSON.stringify(analysisResponse.extracted_data, null, 2)}
 
-系統中已有以下可能匹配的院友記錄：
-${JSON.stringify(existingRecords.slice(0, 10), null, 2)}
+系統中已找到完全匹配的院友記錄：
+${JSON.stringify(existingRecords.slice(0, 5), null, 2)}
 
-請用繁體中文做以下分析：
-1. 列出從身份證中辨識到的資料（中文姓名、英文姓名、身份證號碼、性別、出生日期）
-2. 比對現有院友記錄，判斷此人是否已在系統中
-3. 如果已存在（身份證號碼相同），告知此院友已登記，顯示其床號和在住狀態
-4. 如果不完全匹配（只是姓名相似但身份證不同），告知可能是不同人，建議新增
-5. 如果有需要更新的資料（例如英文姓名有差異），指出差異
-
-直接用自然語言回答，不要返回 JSON。` : `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張「${docLabel}」文件圖片。
+請用繁體中文自然說明：此身份證持有人已存在於系統中，列出其姓名、身份證號碼、床號、在住狀態，並說明無需新增院友。` : `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張「${docLabel}」文件圖片。
 ${toneRule}
 
 已從圖片中提取以下資料：
@@ -1126,8 +1131,7 @@ ${JSON.stringify(analysisResponse.extracted_data, null, 2)}
 
 比對現有院友時發生錯誤：${comparisonError}
 
-請用繁體中文列出從身份證辨識到的資料，並告知無法自動比對是否已存在，詢問是否需要新增此院友。
-直接用自然語言回答，不要返回 JSON。` : `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張「${docLabel}」文件圖片。
+請用繁體中文自然說明從身份證辨識到的資料，並告知系統暫時無法比對，建議稍後再試或人手新增院友。` : `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張「${docLabel}」文件圖片。
 ${toneRule}
 
 已從圖片中提取以下資料：
@@ -1144,13 +1148,9 @@ ${toneRule}
 已從身份證中提取以下資料：
 ${JSON.stringify(analysisResponse.extracted_data, null, 2)}
 
-系統中未找到匹配的院友記錄，此人尚未登記入住。
+系統未找到身份證號碼與中文姓名皆完全匹配的院友記錄，此人應視為尚未登記入住。
 
-請用繁體中文：
-1. 列出從身份證辨識到的完整資料（中文姓名、英文姓名、身份證號碼、性別、出生日期）
-2. 說明此人不在系統中，建議新增為新院友
-
-直接用自然語言回答，不要返回 JSON。` : matchedPatient ? `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張「${docLabel}」文件圖片。
+請用繁體中文自然說明：此身份證持有人不在系統中，建議新增為新院友，並列出辨識到的姓名、身份證號碼、性別及出生日期供護理人員核對。` : matchedPatient ? `你是安老院舍管理系統的 AI 助護。護理人員上傳了一張「${docLabel}」文件圖片。
 ${toneRule}
 
 已從圖片中提取以下資料：
@@ -1181,7 +1181,7 @@ ${JSON.stringify(analysisResponse.extracted_data, null, 2)}
   }
   let summary = analysisResponse.explanation;
   try {
-    const summaryResponse = await callGemini("你是安老院舍管理系統的 AI 助護。你的用戶是院舍的護理人員（護士/護理員），不是院友本人。回覆時必須用第三人稱稱呼院友（例如「XX院友」），絕對不要用「您好」「您的個人檔案」等直接對院友說話的語氣。語氣要專業、簡潔，像在向同事匯報。請用繁體中文做自然語言回覆，不要返回 JSON。", summaryPrompt, [], null, null, 1024);
+    const summaryResponse = await callGemini("你是安老院舍管理系統的 AI 助護。你的用戶是院舍的護理人員（護士/護理員），不是院友本人。回覆時必須用第三人稱稱呼院友（例如「XX院友」），絕對不要用「您好」「您的個人檔案」等直接對院友說話的語氣。語氣要專業、簡潔，像在向同事匯報。請用繁體中文做自然語言回覆，不要返回 JSON，不要輸出任何自我檢查清單或核對標記。", summaryPrompt, [], null, null, 1024);
     if (summaryResponse.type === "answer") {
       summary = summaryResponse.explanation;
     }

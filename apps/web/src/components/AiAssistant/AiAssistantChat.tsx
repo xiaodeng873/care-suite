@@ -325,7 +325,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
   return (
     <>
     <div
-      className={`fixed inset-x-3 bottom-3 sm:inset-x-auto sm:bottom-20 sm:right-6 z-[9999] sm:w-96 h-[70dvh] sm:h-[600px] max-h-[85dvh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden transition-all duration-150 origin-bottom-right ${
+      className={`fixed inset-x-3 bottom-3 sm:inset-x-auto sm:bottom-20 sm:right-6 z-[9999] sm:w-96 h-[50dvh] sm:h-[600px] max-h-[50dvh] sm:max-h-[600px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden transition-all duration-150 origin-bottom-right ${
         isOpen
           ? 'scale-100 opacity-100 pointer-events-auto'
           : 'scale-95 opacity-0 pointer-events-none'
