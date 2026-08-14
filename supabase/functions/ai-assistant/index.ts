@@ -703,6 +703,11 @@ async function handleImageChat(message, imageBase64, imageMimeType, systemPrompt
       }
     });
   }
+  // Steps 2-6: patient matching, record comparison, mutation generation, summary
+  return await buildImageAnalysisResponse(analysisResponse, imageBase64, imageMimeType, userCtx, message);
+
+}
+async function buildImageAnalysisResponse(analysisResponse, imageBase64, imageMimeType, userCtx, message) {
   // Step 2: Smart patient identification — use ALL extracted clues to find matching patient
   let matchedPatient = null;
   let patientMatchCandidates = [];
@@ -1202,9 +1207,92 @@ ${JSON.stringify(analysisResponse.extracted_data, null, 2)}
       } : null,
       existingRecords: existingRecords.slice(0, 5),
       suggestedAction: analysisResponse.suggested_action,
+      imageBase64,
+      imageMimeType,
       ...(pendingMutationData ? { pendingMutation: pendingMutationData } : {})
     }
   });
+}
+// =====================================================
+// Correction Chat Handler (follow-up text correction for previous image analysis)
+// =====================================================
+async function handleCorrectionChat(message, correctionContext, systemPrompt, conversationHistory, userCtx) {
+  const { documentType, extractedData, matchedPatient, imageBase64, imageMimeType } = correctionContext;
+  const docTypeLabels = {
+    followup: "覆診預約",
+    prescription: "處方管理",
+    diagnosis: "診斷記錄",
+    vaccination: "疫苗記錄",
+    id_card: "身份證 / 新增院友",
+    health_worksheet: "監測工作紙",
+    portrait: "院友相片",
+    other: "其他文件"
+  };
+  const docLabel = docTypeLabels[documentType] || "文件";
+  const previousPatientText = matchedPatient
+    ? `\n\n上一輪系統匹配到的院友：${matchedPatient.中文姓名 || ""}（床號：${matchedPatient.床號 || "無"}，在住狀態：${matchedPatient.在住狀態 || "未知"}）。如果用戶指出此匹配錯誤，請以用戶的指示為準，重新提取並匹配。`
+    : "";
+  const correctionPrompt = `用戶想更正剛才分析的${docLabel}圖片結果。請重新檢視圖片，並根據用戶的指示修正提取資料。${previousPatientText}
+
+## 你必須做的事：
+1. 先讀取用戶的更正指示，找出需要修改的欄位（例如院友姓名、床號、日期、藥物名稱等）。
+2. 重新檢視圖片，將用戶更正後的值寫入 extracted_data 的對應欄位。
+3. 如果指示涉及院友身份（例如「院友叫盧渠煥才對」），請把 extracted_data 中的姓名改為「盧渠煥」，並用新姓名重新判斷文件屬於哪位院友。
+4. 文件類型（document_type）原則上保持為 "${documentType || "other"}"，除非用戶明確說「這不是處方，是覆診紙」等才可改變。
+5. 除非用戶說「不要這個欄位」，否則不要隨意刪除原本已提取的欄位。
+
+## 上一輪提取的資料（請在此基礎上修改，不要刪除未修改的資料）：
+${JSON.stringify(extractedData || {}, null, 2)}
+
+## 用戶的更正指示：
+${message || "請重新分析並修正錯誤。"}
+
+## 你必須回傳的嚴格 JSON 格式：
+\`\`\`json
+{
+  "type": "image_analysis",
+  "document_type": "${documentType || "other"}",
+  "extracted_data": { ... },
+  "explanation": "簡短描述你根據用戶指示做了什麼修正",
+  "suggested_action": "compare|insert|update|none",
+  "comparison_query": "..."
+}
+\`\`\`
+
+重要：只輸出上述 JSON，不要輸出任何自然語言解釋、問候或自我檢查清單。`;
+  let analysisResponse;
+  try {
+    const rawResponse = await callGemini(systemPrompt, correctionPrompt, conversationHistory, imageBase64, imageMimeType);
+    if (rawResponse.type === "error") {
+      return jsonResponse({
+        success: true,
+        response: rawResponse
+      });
+    }
+    if (rawResponse.type === "image_analysis") {
+      analysisResponse = rawResponse;
+    } else if (rawResponse.type === "answer" || rawResponse.type === "refused") {
+      return jsonResponse({
+        success: true,
+        response: {
+          type: "error",
+          explanation: rawResponse.explanation || "無法根據指示修正圖片資料，請重新上傳圖片。"
+        }
+      });
+    } else {
+      return await processLLMResponse(rawResponse, message, userCtx);
+    }
+  } catch (err) {
+    console.error("Correction analysis Gemini call error:", err);
+    return jsonResponse({
+      success: true,
+      response: {
+        type: "error",
+        explanation: "圖片分析失敗，AI 服務暫時無法使用。"
+      }
+    });
+  }
+  return await buildImageAnalysisResponse(analysisResponse, imageBase64, imageMimeType, userCtx, message);
 }
 // =====================================================
 // Process LLM Response (shared logic for query/mutation)
@@ -1465,7 +1553,7 @@ Deno.serve(async (req)=>{
 // /chat Handler
 // =====================================================
 async function handleChat(req, userCtx) {
-  const { message, conversationHistory = [], imageBase64, imageMimeType } = await req.json();
+  const { message, conversationHistory = [], imageBase64, imageMimeType, correctionContext } = await req.json();
   if ((!message || typeof message !== "string" || message.trim().length === 0) && !imageBase64) {
     return jsonResponse({
       success: false,
@@ -1511,7 +1599,12 @@ async function handleChat(req, userCtx) {
     }
   }
   // Build system prompt with user context
-  const systemPrompt = buildSystemPrompt(userCtx, !!imageBase64);
+  const hasImage = !!(imageBase64 || (correctionContext && correctionContext.imageBase64));
+  const systemPrompt = buildSystemPrompt(userCtx, hasImage);
+  // Correction path: user follows up with text correction for previous image analysis
+  if (correctionContext && !imageBase64) {
+    return await handleCorrectionChat(message, correctionContext, systemPrompt, conversationHistory, userCtx);
+  }
   // If image is provided, first analyze the image to extract structured data
   if (imageBase64 && imageMimeType) {
     return await handleImageChat(message || "請分析這張圖片", imageBase64, imageMimeType, systemPrompt, conversationHistory, userCtx);

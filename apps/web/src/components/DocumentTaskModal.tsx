@@ -1,23 +1,11 @@
 import React, { useState } from 'react';
 import { X, FileText, Calendar, User, CheckCircle } from 'lucide-react';
 import BedNumberImprint from './BedNumberImprint';
-import type { Patient as DatabasePatient } from '../lib/database';
+import type { Patient as DatabasePatient, PatientHealthTask } from '../lib/database';
 
-interface HealthTask {
-  id: string;
-  patient_id: string;
-  health_record_type: string;
-  notes?: string;
-  next_due_at: string;
-  last_completed_at?: string;
-}
+type HealthTask = PatientHealthTask;
 
-interface Patient {
-  院友id: string;
-  中文姓名: string;
-  床號: string;
-  院友相片?: string;
-}
+type Patient = DatabasePatient;
 
 interface DocumentTaskModalProps {
   task: HealthTask;

@@ -40,7 +40,9 @@ export const OpenFormCard: React.FC<OpenFormCardProps> = ({ prefillData, onOpenF
         ? `開啟監測記錄核對（已預填 ${recordCount} 筆）`
         : prefillData.documentType === 'portrait'
           ? isHypothesis ? '確認設為院友相片' : '設為院友相片'
-          : `開啟${info.label}表單（已預填）`;
+          : patient
+            ? `開啟${info.label}表單（已預填）`
+            : `開啟${info.label}表單（未匹配院友，請手選）`;
 
   return (
     <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-gray-800">
@@ -58,6 +60,12 @@ export const OpenFormCard: React.FC<OpenFormCardProps> = ({ prefillData, onOpenF
       {patient && !isHypothesis && !hasIdCardPhoto && (
         <div className="text-xs text-gray-600 mb-2">
           院友：{patient.中文姓名}{patient.床號 ? <span>（<BedNumberImprint patient={patient as any} size="sm" />）</span> : ''}
+        </div>
+      )}
+
+      {!patient && !['id_card', 'health_worksheet', 'portrait'].includes(prefillData.documentType) && (
+        <div className="text-xs text-amber-700 mb-2">
+          ⚠️ 未自動匹配院友，請在表單中手動選擇院友後再儲存。
         </div>
       )}
 

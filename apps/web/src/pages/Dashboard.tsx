@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect } from 'react';
-import { usePatientData, useFilteredPatients } from '../context/PatientContext';
+import { usePatientData, useFilteredPatients, type Patient, type PatientHealthTask, type FollowUpAppointment } from '../context/PatientContext';
 import { useDashboardReady } from '../context/DashboardReadyContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import TaskModal from '../components/TaskModal';
@@ -37,51 +37,7 @@ import { getMissingMonitoringVitals } from '../utils/monitoringCoverage';
 import { hasInProgressCarePlan } from '../utils/carePlanStatus';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
 
-interface Patient {
-  院友id: string;
-  中文姓名: string;
-  床號: string;
-  院友相片?: string;
-  在住狀態: string;
-  中文姓氏?: string;
-  中文名字?: string;
-  入住日期?: string;
-}
-interface HealthTask {
-  id: string;
-  patient_id: string;
-  health_record_type: string;
-  notes?: string;
-  next_due_at: string;
-  last_completed_at?: string;
-  is_recurring: boolean;
-  frequency_unit?: string;
-  frequency_value?: number;
-  end_date?: string;
-  end_time?: string;
-  specific_days_of_week?: number[];
-  specific_days_of_month?: number[];
-  specific_times?: string[];
-  created_at: string;
-}
-interface FollowUpAppointment {
-  覆診id: string;
-  院友id: string;
-  覆診日期: string;
-  覆診地點: string;
-  覆診專科: string;
-  狀態: string;
-}
-interface HealthRecord {
-  記錄id: string;
-  院友id: string;
-  監測類型: string;
-  記錄日期: string;
-  記錄時間: string;
-  任務id?: string;
-  數值?: number;
-  數值_副?: number;
-}
+type HealthTask = PatientHealthTask;
 // 每位院友只保留最新一筆（以 created_at 比較，null-safe），避免歷史記錄重複計入提醒
 function pickLatestPerPatient<T extends { patient_id: number; created_at?: string | null }>(records: T[]): T[] {
   const latestPerPatient = new Map<number, T>();
@@ -606,7 +562,7 @@ const Dashboard: React.FC = () => {
         temperature.push(task);
         return;
       }
-      if (task.health_record_type === '體重' || task.health_record_type === '體重控制') {
+      if (task.health_record_type === '體重' || (task.health_record_type as string) === '體重控制') {
         weight.push(task);
         return;
       }
@@ -979,9 +935,9 @@ const Dashboard: React.FC = () => {
       setSelectedDocumentTask(null);
       setPatientHealthTasks(prev => {
         if (updatedTask.next_due_at === null) return prev.filter(t => t.id !== taskId);
-        return prev.map(t => t.id === taskId ? updatedTask : t);
+        return prev.map(t => t.id === taskId ? (updatedTask as PatientHealthTask) : t);
       });
-      updatePatientHealthTask(updatedTask).then(() => refreshData()).catch(err => {
+      updatePatientHealthTask(updatedTask as PatientHealthTask).then(() => refreshData()).catch(err => {
         console.error('文件任務更新失敗:', err);
         alert(`文件任務失敗: ${err.message}`);
         return refreshData();
@@ -1654,7 +1610,6 @@ const Dashboard: React.FC = () => {
         <MealGuidanceModal
           guidance={prefilledMealData}
           onClose={() => { setShowMealGuidanceModal(false); setPrefilledMealData(null); }}
-          onUpdate={refreshData}
         />
       )}
       {showHealthRecordModal && (
@@ -1684,11 +1639,11 @@ const Dashboard: React.FC = () => {
           }}
         />
       )}
-      {showDocumentTaskModal && selectedDocumentTask && <DocumentTaskModal isOpen={showDocumentTaskModal} onClose={() => { setShowDocumentTaskModal(false); setSelectedDocumentTask(null); }} task={selectedDocumentTask.task} patient={selectedDocumentTask.patient} onTaskCompleted={handleDocumentTaskCompleted} />}
-      {showFollowUpModal && selectedFollowUp && <FollowUpModal isOpen={showFollowUpModal} onClose={() => { setShowFollowUpModal(false); setSelectedFollowUp(null); }} appointment={selectedFollowUp} onUpdate={refreshData} />}
+      {showDocumentTaskModal && selectedDocumentTask && <DocumentTaskModal onClose={() => { setShowDocumentTaskModal(false); setSelectedDocumentTask(null); }} task={selectedDocumentTask.task} patient={selectedDocumentTask.patient} onTaskCompleted={handleDocumentTaskCompleted} />}
+      {showFollowUpModal && selectedFollowUp && <FollowUpModal onClose={() => { setShowFollowUpModal(false); setSelectedFollowUp(null); }} appointment={selectedFollowUp} />}
       {showRestraintAssessmentModal && <RestraintAssessmentModal onClose={() => { setShowRestraintAssessmentModal(false); setSelectedRestraintAssessment(null); setRenewFromRestraintAssessment(null); }} assessment={selectedRestraintAssessment ?? undefined} renewFrom={renewFromRestraintAssessment} onUpdate={refreshData} />}
       {showTubeCareModal && <TubeCareModal onClose={() => { setShowTubeCareModal(false); setSelectedTubeCareRecord(null); setRenewFromTubeCare(null); }} record={selectedTubeCareRecord ?? undefined} renewFrom={renewFromTubeCare} onUpdate={refreshData} />}
-      {showHealthAssessmentModal && selectedHealthAssessment && <HealthAssessmentModal isOpen={showHealthAssessmentModal} onClose={() => { setShowHealthAssessmentModal(false); setSelectedHealthAssessment(null); }} assessment={selectedHealthAssessment} onUpdate={refreshData} />}
+      {showHealthAssessmentModal && selectedHealthAssessment && <HealthAssessmentModal onClose={() => { setShowHealthAssessmentModal(false); setSelectedHealthAssessment(null); }} assessment={selectedHealthAssessment} />}
       {showActivityRecordModal && (
         <ActivityRecordModal
           onClose={() => { setShowActivityRecordModal(false); setActivityRecordPatientId(undefined); }}

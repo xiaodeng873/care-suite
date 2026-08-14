@@ -75,6 +75,7 @@ interface AiAssistantChatProps {
   messages: AiMessage[];
   isLoading: boolean;
   sendMessage: (content: string, images?: { base64: string; mimeType: string }[]) => void;
+  retryMessage: (messageId: string) => void;
   confirmMutation: (mutationId: string) => void;
   rejectMutation: (mutationId: string) => void;
   clearMessages: () => void;
@@ -90,6 +91,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
   messages,
   isLoading,
   sendMessage,
+  retryMessage,
   confirmMutation,
   rejectMutation,
   clearMessages,
@@ -321,11 +323,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
 
   const handleRetry = (msg: AiMessage) => {
     if (isLoading || msg.role !== 'user') return;
-    const images = (msg.imageUrls || []).map(url => {
-      const match = url.match(/^data:([^;]+);base64,(.+)$/);
-      return match ? { base64: match[2], mimeType: match[1] } : null;
-    }).filter((img): img is { base64: string; mimeType: string } => img !== null);
-    sendMessage(msg.content, images.length > 0 ? images : undefined);
+    retryMessage(msg.id);
   };
 
   return (
