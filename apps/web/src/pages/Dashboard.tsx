@@ -1388,7 +1388,7 @@ const Dashboard: React.FC = () => {
                  const patient = patients.find(p => p.院友id === task.patient_id);
                  const status = getTaskStatus(task);
                  return (
-                    <div key={`${item.type}-${task.id}`} className={`flex flex-wrap items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${item.type === 'nursing' ? 'bg-teal-50 hover:bg-teal-100 border border-teal-200' : 'bg-gray-50 hover:bg-gray-100'}`} onClick={() => handleDocumentTaskClick(task)}>
+                    <div key={`${item.type}-${task.id}`} className={`w-full min-w-0 flex flex-wrap items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${item.type === 'nursing' ? 'bg-teal-50 hover:bg-teal-100 border border-teal-200' : 'bg-gray-50 hover:bg-gray-100'}`} onClick={() => handleDocumentTaskClick(task)}>
                         <div className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center ${item.type === 'nursing' ? 'bg-teal-100' : 'bg-blue-100'}`}>
                            {patient?.院友相片 ? <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" /> : <User className={`h-5 w-5 ${item.type === 'nursing' ? 'text-teal-600' : 'text-blue-600'}`} />}
                         </div>
@@ -1420,7 +1420,7 @@ const Dashboard: React.FC = () => {
                       ? `氧氣喉管${record.oxygen_action ?? ''}`
                       : record.care_type;
                     return (
-                      <div key={`tube-care-${record.id}`} className="flex flex-wrap items-center gap-3 p-3 bg-teal-50 rounded-lg cursor-pointer hover:bg-teal-100 transition-colors border border-teal-200" onClick={() => handleTubeCareClick(record)}>
+                      <div key={`tube-care-${record.id}`} className="w-full min-w-0 flex flex-wrap items-center gap-3 p-3 bg-teal-50 rounded-lg cursor-pointer hover:bg-teal-100 transition-colors border border-teal-200" onClick={() => handleTubeCareClick(record)}>
                         <div className="w-10 h-10 bg-teal-100 rounded-full overflow-hidden flex items-center justify-center">
                           {patient?.院友相片 ? (
                             <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -1448,7 +1448,7 @@ const Dashboard: React.FC = () => {
                     const isOverdue = isRestraintAssessmentOverdue(assessment);
                     const isDueSoon = isRestraintAssessmentDueSoon(assessment);
                     return (
-                      <div key={`restraint-${assessment.id}`} className="flex flex-wrap items-center gap-3 p-3 bg-yellow-50 rounded-lg cursor-pointer hover:bg-yellow-100 transition-colors border border-yellow-200" onClick={() => handleRestraintAssessmentClick(assessment)}>
+                      <div key={`restraint-${assessment.id}`} className="w-full min-w-0 flex flex-wrap items-center gap-3 p-3 bg-yellow-50 rounded-lg cursor-pointer hover:bg-yellow-100 transition-colors border border-yellow-200" onClick={() => handleRestraintAssessmentClick(assessment)}>
                          <div className="w-10 h-10 bg-yellow-100 rounded-full overflow-hidden flex items-center justify-center">
                           {patient?.院友相片 ? (
                             <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -1476,7 +1476,7 @@ const Dashboard: React.FC = () => {
                      const isOverdue = isHealthAssessmentOverdue(assessment);
                     const isDueSoon = isHealthAssessmentDueSoon(assessment);
                     return (
-                      <div key={`health-assessment-${assessment.id}`} className="flex flex-wrap items-center gap-3 p-3 bg-red-50 rounded-lg cursor-pointer hover:bg-red-100 transition-colors border border-red-200" onClick={() => handleHealthAssessmentClick(assessment)}>
+                      <div key={`health-assessment-${assessment.id}`} className="w-full min-w-0 flex flex-wrap items-center gap-3 p-3 bg-red-50 rounded-lg cursor-pointer hover:bg-red-100 transition-colors border border-red-200" onClick={() => handleHealthAssessmentClick(assessment)}>
                          <div className="w-10 h-10 bg-red-100 rounded-full overflow-hidden flex items-center justify-center">
                           {patient?.院友相片 ? (
                             <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -1506,7 +1506,7 @@ const Dashboard: React.FC = () => {
                     const isOverdue = wound.is_overdue;
                     return (
                       <a href="/wound" key={`wound-${wound.id}`} className="block" onClick={e => { e.preventDefault(); setSelectedWoundForAssessment(wound); setShowWoundAssessmentModal(true); }}>
-                        <div className={`flex flex-wrap items-center gap-3 p-3 rounded-lg transition-colors border ${
+                        <div className={`w-full min-w-0 flex flex-wrap items-center gap-3 p-3 rounded-lg transition-colors border ${
                           isOverdue ? 'bg-red-50 hover:bg-red-100 border-red-200' : 'bg-orange-50 hover:bg-orange-100 border-orange-200'
                         }`}>
                           <div className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center ${
@@ -1539,7 +1539,7 @@ const Dashboard: React.FC = () => {
                     const isOverdue = isAnnualCheckupOverdue(checkup);
                     const isDueSoon = isAnnualCheckupDueSoon(checkup);
                     return (
-                      <div key={`annual-checkup-${checkup.id}`} className="flex flex-wrap items-center gap-3 p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors border border-blue-200" onClick={() => handleAnnualCheckupClick(checkup)}>
+                      <div key={`annual-checkup-${checkup.id}`} className="w-full min-w-0 flex flex-wrap items-center gap-3 p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors border border-blue-200" onClick={() => handleAnnualCheckupClick(checkup)}>
                         <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
                           {patient?.院友相片 ? (
                             <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -1577,7 +1577,7 @@ const Dashboard: React.FC = () => {
              {upcomingFollowUps.map(appointment => {
                 const patient = patients.find(p => p.院友id === appointment.院友id);
                 return (
-                   <div key={appointment.覆診id} className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleFollowUpClick(appointment)}>
+                   <div key={appointment.覆診id} className="w-full min-w-0 flex flex-wrap items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleFollowUpClick(appointment)}>
                       <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center task-avatar">
                         {patient?.院友相片 ? <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" /> : <User className="h-5 w-5 text-blue-600" />}
                       </div>
