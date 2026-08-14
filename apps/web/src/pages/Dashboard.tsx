@@ -1162,7 +1162,7 @@ const Dashboard: React.FC = () => {
                         return (
                         <div
                           key={groupKey || rep.id}
-                          className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card w-full`}
+                          className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card w-full min-w-0`}
                           onClick={() => {
                             // 逾期或有多个未完成日期，弹出小日历以便補回
                             if (hasMultipleDates && patient) {
@@ -1179,7 +1179,7 @@ const Dashboard: React.FC = () => {
                             }
                           }}
                         >
-                          <div className="flex flex-wrap items-center gap-3 flex-1">
+                          <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                             <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center task-avatar">
                               {patient?.院友相片 ? (
                                 <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -1187,7 +1187,7 @@ const Dashboard: React.FC = () => {
                                 <User className="h-5 w-5 text-blue-600" />
                               )}
                             </div>
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                                 {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
@@ -1263,7 +1263,7 @@ const Dashboard: React.FC = () => {
                         return (
                           <div
                             key={groupKey || rep.id}
-                            className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card w-full`}
+                            className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card w-full min-w-0`}
                             onClick={() => {
                               if (hasMultipleDates && patient) {
                                 setSelectedHistoryTask({ task: rep, patient, initialDate: rep.firstIncompleteDate || null, groupTasks: group });
@@ -1273,7 +1273,7 @@ const Dashboard: React.FC = () => {
                               }
                             }}
                           >
-                            <div className="flex flex-wrap items-center gap-3 flex-1">
+                            <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                               <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center task-avatar">
                                 {patient?.院友相片 ? (
                                   <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -1281,7 +1281,7 @@ const Dashboard: React.FC = () => {
                                   <User className="h-5 w-5 text-blue-600" />
                                 )}
                               </div>
-                              <div className="flex-1">
+                              <div className="flex-1 min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                                   {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
@@ -1353,7 +1353,7 @@ const Dashboard: React.FC = () => {
                         return (
                           <div
                             key={groupKey || rep.id}
-                            className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card w-full`}
+                            className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 ${slotBgClass} rounded-lg cursor-pointer transition-colors dashboard-task-card w-full min-w-0`}
                             onClick={() => {
                               if (hasMultipleDates && patient) {
                                 setSelectedHistoryTask({ task: rep, patient, initialDate: rep.firstIncompleteDate || null, groupTasks: group });
@@ -1363,7 +1363,7 @@ const Dashboard: React.FC = () => {
                               }
                             }}
                           >
-                            <div className="flex flex-wrap items-center gap-3 flex-1">
+                            <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                               <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center task-avatar">
                                 {patient?.院友相片 ? (
                                   <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" />
@@ -1371,7 +1371,7 @@ const Dashboard: React.FC = () => {
                                   <User className="h-5 w-5 text-blue-600" />
                                 )}
                               </div>
-                              <div className="flex-1">
+                              <div className="flex-1 min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                                   {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
@@ -1436,7 +1436,7 @@ const Dashboard: React.FC = () => {
                         <div className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center ${item.type === 'nursing' ? 'bg-teal-100' : 'bg-blue-100'}`}>
                            {patient?.院友相片 ? <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" /> : <User className={`h-5 w-5 ${item.type === 'nursing' ? 'text-teal-600' : 'text-blue-600'}`} />}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                                 <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                                 {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
@@ -1472,7 +1472,7 @@ const Dashboard: React.FC = () => {
                             <User className="h-5 w-5 text-teal-600" />
                           )}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                             {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
@@ -1500,7 +1500,7 @@ const Dashboard: React.FC = () => {
                             <User className="h-5 w-5 text-yellow-600" />
                           )}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                             {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
@@ -1528,7 +1528,7 @@ const Dashboard: React.FC = () => {
                             <User className="h-5 w-5 text-red-600" />
                           )}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                             {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
@@ -1591,7 +1591,7 @@ const Dashboard: React.FC = () => {
                             <User className="h-5 w-5 text-blue-600" />
                           )}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                             {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}
@@ -1625,7 +1625,7 @@ const Dashboard: React.FC = () => {
                       <div className="w-10 h-10 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center task-avatar">
                         {patient?.院友相片 ? <img src={patient.院友相片} alt={patient.中文姓名} className="w-full h-full object-cover" /> : <User className="h-5 w-5 text-blue-600" />}
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium text-gray-900">{patient ? `${patient.中文姓氏}${patient.中文名字}` : ''}</p>
                           {patient ? <BedNumberImprint patient={patient} beds={beds} size="sm" className="text-xs text-gray-500" /> : <span className="text-xs text-gray-500">—</span>}

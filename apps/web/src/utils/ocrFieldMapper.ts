@@ -159,9 +159,12 @@ export function mapOCRDataToPrescriptionForm(
     }
   }
 
-  if (ocrData.服用時間 && Array.isArray(ocrData.服用時間)) {
-    mappedData.medication_time_slots = ocrData.服用時間;
-    confidences.medication_time_slots = confidenceScores['服用時間'] || 0.85;
+  if (ocrData.服用時間) {
+    const slots = parseTimeSlots(ocrData.服用時間);
+    if (slots.length > 0) {
+      mappedData.medication_time_slots = slots;
+      confidences.medication_time_slots = confidenceScores['服用時間'] || 0.85;
+    }
   }
 
   if (typeof ocrData.需要時 === 'boolean') {
@@ -243,6 +246,21 @@ function parseDate(dateString: string): string | null {
     }
   }
 
+  // 處理兩位年份：DD/MM/YY 或 YY/MM/DD
+  const twoDigitYearMatch = dateString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  if (twoDigitYearMatch) {
+    const [, a, b, yy] = twoDigitYearMatch;
+    const yearNum = parseInt(yy);
+    // 50-99 視為 1900年代，00-49 視為 2000年代
+    const fullYear = yearNum >= 50 ? 1900 + yearNum : 2000 + yearNum;
+    // 若第一組明顯大於 12 則為 DD/MM/YY，否則假設 DD/MM/YY（香港慣例）
+    const dayVal = parseInt(a);
+    const monthVal = parseInt(b);
+    if (dayVal <= 31 && monthVal <= 12) {
+      return `${fullYear}-${String(monthVal).padStart(2, '0')}-${String(dayVal).padStart(2, '0')}`;
+    }
+  }
+
   try {
     const date = new Date(dateString);
     if (!isNaN(date.getTime())) {
@@ -254,8 +272,85 @@ function parseDate(dateString: string): string | null {
   return null;
 }
 
+function parseTimeSlots(value: unknown): string[] {
+  if (!value) return [];
+
+  let tokens: string[] = [];
+  if (Array.isArray(value)) {
+    tokens = value.map(String);
+  } else if (typeof value === 'string') {
+    // 拆開逗號、中文逗號、空格、頓號；先移除外圍括號與引號
+    const cleaned = value
+      .replace(/^[\[(\s"'"`]+|[\])\s"'"`]+$/g, '')
+      .replace(/（/g, '(').replace(/）/g, ')')
+      .replace(/、/g, ',');
+    tokens = cleaned.split(/[,\s]+/).filter(Boolean);
+  } else {
+    return [];
+  }
+
+  const mealTimeMap: Record<string, string> = {
+    '早': '08:00', '早餐': '08:00', '早餐前': '07:00', '早餐後': '09:00',
+    '午': '12:00', '午餐': '12:00', '午餐前': '11:00', '午餐後': '13:00',
+    '下午': '16:00', '下午茶': '15:00',
+    '晚': '18:00', '晚餐': '18:00', '晚餐前': '17:00', '晚餐後': '19:00',
+    '睡前': '22:00', '睡': '22:00',
+    'midnight': '00:00', '午夜': '00:00',
+  };
+
+  const results: string[] = [];
+  for (const raw of tokens) {
+    const token = raw.trim().toLowerCase();
+    if (!token) continue;
+
+    // 已經是 HH:MM
+    if (/^\d{1,2}:\d{2}$/.test(token)) {
+      const [h, m] = token.split(':');
+      results.push(`${String(Number(h)).padStart(2, '0')}:${m}`);
+      continue;
+    }
+
+    // HHMM 格式
+    if (/^\d{4}$/.test(token)) {
+      const h = token.slice(0, 2);
+      const m = token.slice(2, 4);
+      if (Number(h) < 24 && Number(m) < 60) {
+        results.push(`${h}:${m}`);
+      }
+      continue;
+    }
+
+    // AM/PM 格式：8A, 12N, 4P, 8AM, 12pm, 4:30pm
+    const ampmMatch = token.match(/^(\d{1,2})(?::(\d{2}))?(a|p|am|pm|n|noon)$/);
+    if (ampmMatch) {
+      let hour = Number(ampmMatch[1]);
+      const minute = ampmMatch[2] || '00';
+      const meridian = ampmMatch[3];
+      if (['a', 'am'].includes(meridian) && hour === 12) hour = 0;
+      if (['p', 'pm', 'n', 'noon'].includes(meridian) && hour !== 12) hour += 12;
+      if (hour < 24 && Number(minute) < 60) {
+        results.push(`${String(hour).padStart(2, '0')}:${minute}`);
+      }
+      continue;
+    }
+
+    // 餐別/時間關鍵字
+    if (mealTimeMap[token]) {
+      results.push(mealTimeMap[token]);
+      continue;
+    }
+    for (const [key, time] of Object.entries(mealTimeMap)) {
+      if (token.includes(key)) {
+        results.push(time);
+        break;
+      }
+    }
+  }
+
+  return [...new Set(results)].sort();
+}
+
 function parseFrequency(frequencyString: string): {
-  type: string;
   value: number;
   weekdays?: number[];
   oddEven?: string;

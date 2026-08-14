@@ -10,6 +10,7 @@ import VaccinationRecordModal from '../VaccinationRecordModal';
 import PatientModal from '../PatientModal';
 import BatchHealthRecordOCRModal from '../BatchHealthRecordOCRModal';
 import ImageSourcePicker from '../ImageSourcePicker';
+import { mapOCRDataToPrescriptionForm } from '../../utils/ocrFieldMapper';
 import { supabase } from '../../lib/supabase';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -287,18 +288,14 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
   const buildPrescription = (prefill: PrefillData) => {
     const ed = prefill.extractedData;
     const pid = prefill.matchedPatient?.院友id;
+    const { formData: mapped } = mapOCRDataToPrescriptionForm(
+      ed || {},
+      {},
+      prefill.matchedPatient ? [prefill.matchedPatient] : []
+    );
     return {
+      ...mapped,
       patient_id: pid,
-      medication_name: ed.藥物名稱 || ed.medication_name || '',
-      medication_source: ed.藥物來源 || '',
-      dosage_form: ed.劑型 || '',
-      administration_route: ed.服用途徑 || '',
-      dosage_amount: ed.服用份量 || '',
-      dosage_unit: ed.服用單位 || '',
-      daily_frequency: parseInt(ed.服用次數) || 1,
-      duration_days: parseInt(ed.服用日數) || undefined,
-      is_prn: ed.需要時 === true || ed.需要時 === '是' || ed.PRN === true,
-      notes: ed.備註 || '',
     };
   };
 
