@@ -298,6 +298,7 @@ function buildPrescriptionsSection(prescriptions: MedicationPrescription[]): str
       return `<tr>
         <td>${escapeHtml(formatDisplayDate(p.prescription_date))}</td>
         <td>${escapeHtml(p.medication_name)}</td>
+        <td style="text-align:center;">${p.is_prn ? 'PRN' : ''}</td>
         <td>${escapeHtml(p.medication_source)}${p.medication_source_specialty ? ` / ${escapeHtml(p.medication_source_specialty)}` : ''}</td>
       </tr>`;
     })
@@ -305,7 +306,7 @@ function buildPrescriptionsSection(prescriptions: MedicationPrescription[]): str
   return `
     <div class="section-title">現時在服處方</div>
     <table class="data-table compact">
-      <thead><tr><th>處方日期</th><th>藥物名稱</th><th>藥物來源</th></tr></thead>
+      <thead><tr><th>處方日期</th><th>藥物名稱</th><th>PRN</th><th>藥物來源</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;
@@ -435,7 +436,7 @@ function buildInspectionHoldSection(
   }
 
   if (items.length === 0) {
-    return '';
+    return `<div class="section-title">檢測項停服記錄</div><div class="muted">無記錄</div>`;
   }
 
   const rows = items
@@ -459,13 +460,24 @@ function buildInspectionHoldSection(
   `;
 }
 
+function isCgatSource(source?: string, specialty?: string): boolean {
+  if (!source && !specialty) return false;
+  const normalizedSource = (source || '').toLowerCase();
+  const normalizedSpecialty = (specialty || '').toLowerCase();
+  return ['cgat', '社區', '老人', '評估', 'cga'].some(
+    (s) => normalizedSource.includes(s) || normalizedSpecialty.includes(s),
+  );
+}
+
+function isPrnPrescriptionActive(p: MedicationPrescription): boolean {
+  return p.status === 'active';
+}
+
 function buildPrnSection(prescriptions: MedicationPrescription[]): string {
-  const sources = ['社區老人評估小組', 'CGAT'];
   const prns = prescriptions.filter(
     (p) =>
       p.is_prn &&
-      isPrescriptionActive(p) &&
-      sources.some((s) => p.medication_source.includes(s)),
+      isPrnPrescriptionActive(p),
   );
 
   if (prns.length === 0) {
@@ -475,9 +487,10 @@ function buildPrnSection(prescriptions: MedicationPrescription[]): string {
   const rows = prns
     .map((p) => {
       return `<tr>
+        <td>${escapeHtml(formatDisplayDate(p.prescription_date))}</td>
         <td>${escapeHtml(p.medication_name)}</td>
-        <td>${escapeHtml(p.medication_source)}</td>
-        <td><input type="checkbox"></td>
+        <td style="text-align:center;">${p.is_prn ? 'PRN' : ''}</td>
+        <td>${escapeHtml(p.medication_source)}${p.medication_source_specialty ? ` / ${escapeHtml(p.medication_source_specialty)}` : ''}</td>
         <td><input type="checkbox"></td>
         <td><input type="checkbox"></td>
       </tr>`;
@@ -485,9 +498,35 @@ function buildPrnSection(prescriptions: MedicationPrescription[]): string {
     .join('');
 
   return `
-    <div class="section-title">PRN 藥物（仍有餘藥 / 已無餘藥 / 申請停服）</div>
+    <div class="section-title">PRN 藥物（需要補充 / 使用庫存）</div>
     <table class="data-table compact">
-      <thead><tr><th>藥物名稱</th><th>來源</th><th>仍有餘藥</th><th>已無餘藥</th><th>申請停服</th></tr></thead>
+      <thead><tr><th>處方日期</th><th>藥物名稱</th><th>PRN</th><th>藥物來源</th><th>需要補充</th><th>使用庫存</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function buildPrnChangeSection(prescriptions: MedicationPrescription[]): string {
+  const nonPrn = prescriptions.filter((p) => isPrescriptionActive(p) && !p.is_prn);
+  if (nonPrn.length === 0) {
+    return `<div class="section-title">申請改為 PRN 之藥物</div><div class="muted">無記錄</div>`;
+  }
+  const rows = nonPrn
+    .map((p) => {
+      return `<tr>
+        <td>${escapeHtml(formatDisplayDate(p.prescription_date))}</td>
+        <td>${escapeHtml(p.medication_name)}</td>
+        <td style="text-align:center;">${p.is_prn ? 'PRN' : ''}</td>
+        <td>${escapeHtml(p.medication_source)}${p.medication_source_specialty ? ` / ${escapeHtml(p.medication_source_specialty)}` : ''}</td>
+        <td style="text-align:center;"><input type="checkbox"></td>
+      </tr>`;
+    })
+    .join('');
+
+  return `
+    <div class="section-title">申請改為 PRN 之藥物</div>
+    <table class="data-table compact">
+      <thead><tr><th>處方日期</th><th>藥物名稱</th><th>PRN</th><th>藥物來源</th><th>申請改為 PRN</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;
@@ -647,7 +686,7 @@ async function buildPatientPages(
   data: Awaited<ReturnType<typeof fetchSummaryData>>,
   facilityName: string,
   range: { start: string; end: string },
-): Promise<[string, string]> {
+): Promise<string> {
   const healthRecords = data.healthRecords.filter((r) => r.院友id === patient.院友id);
   const prescriptions = data.prescriptions.filter((p) => p.patient_id === patient.院友id);
   const followUps = data.followUps.filter((f) => f.院友id === patient.院友id);
@@ -659,36 +698,28 @@ async function buildPatientPages(
   const styles = buildPageStyles();
 
   const bloodSugarSection = buildBloodSugarSection(healthRecords, range);
-  const page1 = `
+  const inspectionSection = buildInspectionHoldSection(workflowRecords, prescriptions);
+  const page = `
     ${styles}
     <div class="print-page">
       <h1>CGAT 診症摘要</h1>
       ${header}
-      <div class="three-col">
+      <div class="three-col section">
         <div class="col">${buildVitalSetSection(healthRecords, range)}</div>
         <div class="col">${bloodSugarSection || '<div class="card"><div class="section-title">血糖記錄</div><div class="muted">無記錄</div></div>'}</div>
         <div class="col">${buildWeightSection(healthRecords, range)}</div>
       </div>
       <div class="section">${buildPrescriptionsSection(prescriptions)}</div>
       <div class="section">${buildFollowUpsSection(followUps)}</div>
-    </div>
-  `;
-
-  const inspectionSection = buildInspectionHoldSection(workflowRecords, prescriptions);
-  const page2 = `
-    ${styles}
-    <div class="print-page">
-      <h1>CGAT 診症摘要（續）</h1>
-      ${header}
       <div class="section">${buildAdmissionsSection(admissions, episodes, range)}</div>
-      ${inspectionSection ? `<div class="section">${inspectionSection}</div>` : ''}
+      <div class="section">${inspectionSection}</div>
       <div class="section">${buildPrnSection(prescriptions)}</div>
-      <div class="section">${buildHandwrittenSection('申請改為 PRN 之藥物')}</div>
+      <div class="section">${buildPrnChangeSection(prescriptions)}</div>
       <div class="section">${buildHandwrittenSection('備註')}</div>
     </div>
   `;
 
-  return [page1, page2];
+  return page;
 }
 
 export async function printCgatSummary(input: CgatSummaryInput): Promise<void> {
@@ -723,8 +754,8 @@ export async function printCgatSummary(input: CgatSummaryInput): Promise<void> {
     const patient = patientMap.get(patientId);
     if (!patient) continue;
     const patientRecords = grouped.get(patientId) || [];
-    const [page1, page2] = await buildPatientPages(patient, patientRecords, data, facilityName, range);
-    pages.push(page1, page2);
+    const page = await buildPatientPages(patient, patientRecords, data, facilityName, range);
+    pages.push(page);
   }
 
   if (pages.length === 0) {
