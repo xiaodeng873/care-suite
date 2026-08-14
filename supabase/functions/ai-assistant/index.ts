@@ -17,8 +17,9 @@ function getSupabaseClient() {
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
+    realtime: { enabled: false },
   });
 }
 // =====================================================
