@@ -211,10 +211,14 @@ export function useAiAssistant() {
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
+      let errorText = err.message || String(err);
+      if (errorText === 'Failed to fetch' || errorText.includes('NetworkError')) {
+        errorText = '無法連線到 AI 助護服務（Failed to fetch）。可能原因：網路中斷、Supabase Edge Function 未部署，或瀏覽器阻擋跨域請求。請檢查網路連線及 console 錯誤。';
+      }
       const errorMsg: AiMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `抱歉，請求失敗：${err.message}`,
+        content: `抱歉，請求失敗：${errorText}`,
         timestamp: Date.now(),
       };
       setMessages(prev => [...prev, errorMsg]);

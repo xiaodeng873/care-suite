@@ -3,7 +3,7 @@
 // 自然語言 → SQL 查詢/操作 + 權限控制
 // =====================================================
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 import { DB_SCHEMA_SUMMARY } from "./schema-summary.ts";
 import { containsBlockedKeywords, involvesBlockedTables, getRequiredPermissions } from "./permissions-map.ts";
 const corsHeaders = {
