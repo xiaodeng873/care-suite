@@ -111,40 +111,45 @@ export function mapOCRDataToPrescriptionForm(
 
   const specialInstructions = ['搽患處', '貼在皮膚上', '適量', '薄薄一層', '按需要使用'];
 
+  // 服用份量 / 服用單位：優先使用「服用份量」，也接受「服用劑量」別名
+  const dosageAmountSource = ocrData.服用份量 ?? ocrData.服用劑量;
   if (ocrData.特殊用法) {
     mappedData.special_dosage_instruction = ocrData.特殊用法;
     confidences.special_dosage_instruction = confidenceScores['特殊用法'] || 0.85;
-  } else if (ocrData.服用份量 || ocrData.服用單位) {
-    const dosageText = `${ocrData.服用份量 || ''}${ocrData.服用單位 || ''}`;
-    const matchedSpecial = specialInstructions.find(instruction =>
-      dosageText.includes(instruction)
-    );
+  } else if (dosageAmountSource || ocrData.服用單位) {
+    // 若服用劑量包含「每次 X 單位」或「X 單位」，嘗試拆出份量與單位
+    let amount = String(dosageAmountSource || '');
+    let unit = ocrData.服用單位 || '';
+    if (!unit && ocrData.服用劑量) {
+      const doseMatch = String(ocrData.服用劑量).match(/(?:每次|每劑)?\s*(\d+(?:\.\d+)?)\s*(粒|片|膠囊|毫升|滴|口|支|包|茶匙|湯匙|mg|ml|g|mcg|IU)/i);
+      if (doseMatch) {
+        amount = doseMatch[1];
+        unit = doseMatch[2];
+      }
+    }
+    const dosageText = `${amount}${unit}`;
+    const matchedSpecial = specialInstructions.find(instruction => dosageText.includes(instruction));
 
     if (matchedSpecial) {
       mappedData.special_dosage_instruction = matchedSpecial;
       confidences.special_dosage_instruction = (confidenceScores['服用份量'] || confidenceScores['服用單位'] || 0.85) * 0.9;
     } else {
-      if (ocrData.服用份量) {
-        mappedData.dosage_amount = ocrData.服用份量;
-        confidences.dosage_amount = confidenceScores['服用份量'] || 0.85;
+      if (amount) {
+        mappedData.dosage_amount = amount;
+        confidences.dosage_amount = confidenceScores['服用份量'] || confidenceScores['服用劑量'] || 0.85;
       }
-      if (ocrData.服用單位) {
-        mappedData.dosage_unit = ocrData.服用單位;
+      if (unit) {
+        mappedData.dosage_unit = unit;
         confidences.dosage_unit = confidenceScores['服用單位'] || 0.85;
       }
     }
   }
 
-  if (ocrData.服用次數) {
-    const frequency = parseInt(ocrData.服用次數);
-    if (!isNaN(frequency) && frequency > 0) {
-      mappedData.daily_frequency = frequency;
-      confidences.daily_frequency = confidenceScores['服用次數'] || 0.85;
-    }
-  }
-
-  if (ocrData.服用頻率) {
-    const frequencyData = parseFrequency(ocrData.服用頻率);
+  // 服用頻率：接受「服用頻率」或「服用頻率及時間」的文字部分
+  const frequencySource = ocrData.服用頻率 ?? ocrData.服用頻率及時間;
+  if (frequencySource) {
+    const frequencyText = stripTimeFromFrequencyText(String(frequencySource));
+    const frequencyData = parseFrequency(frequencyText);
     if (frequencyData) {
       mappedData.frequency_type = frequencyData.type;
       mappedData.frequency_value = frequencyData.value;
@@ -159,8 +164,23 @@ export function mapOCRDataToPrescriptionForm(
     }
   }
 
+  if (ocrData.服用次數) {
+    const frequency = parseInt(ocrData.服用次數);
+    if (!isNaN(frequency) && frequency > 0) {
+      mappedData.daily_frequency = frequency;
+      confidences.daily_frequency = confidenceScores['服用次數'] || 0.85;
+    }
+  }
+
   if (ocrData.服用時間) {
     const slots = parseTimeSlots(ocrData.服用時間);
+    if (slots.length > 0) {
+      mappedData.medication_time_slots = slots;
+      confidences.medication_time_slots = confidenceScores['服用時間'] || 0.85;
+    }
+  } else if (ocrData.服用頻率及時間) {
+    // 若時間被合併在頻率欄位，嘗試拆出時間
+    const slots = parseTimeSlotsFromCombinedFrequency(String(ocrData.服用頻率及時間));
     if (slots.length > 0) {
       mappedData.medication_time_slots = slots;
       confidences.medication_time_slots = confidenceScores['服用時間'] || 0.85;
@@ -350,7 +370,21 @@ function parseTimeSlots(value: unknown): string[] {
   return [...new Set(results)].sort();
 }
 
+function stripTimeFromFrequencyText(text: string): string {
+  // 移除括號內的時間描述，例如「每日三次（早、午、下午：8A, 12N, 4P)」
+  return text
+    .replace(/[（(].*?[）)]/g, '')
+    .replace(/\s+/g, '')
+    .trim();
+}
+
+function parseTimeSlotsFromCombinedFrequency(text: string): string[] {
+  // 從「服用頻率及時間」合併欄位中拆出時間；保留括號內時間部分
+  return parseTimeSlots(text);
+}
+
 function parseFrequency(frequencyString: string): {
+  type: string;
   value: number;
   weekdays?: number[];
   oddEven?: string;

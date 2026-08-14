@@ -1049,7 +1049,7 @@ const Dashboard: React.FC = () => {
       </div>
       {/* 提醒卡直接做 grid children：卡片無資料時會 return null，
           外面再包 col-span-1 div 會留低空格位，造成中間間隔 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 min-w-0">
         <NotesCard />
         <MissingRequirementsCard
           missingTasks={missingTasks}
@@ -1072,7 +1072,7 @@ const Dashboard: React.FC = () => {
           onAddActivityRecord={handleAddActivityRecord}
         />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 min-w-0">
         <div className="card p-3 sm:p-4 lg:p-4 lg:col-span-2 w-full">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h2 className="text-lg font-semibold text-gray-900 section-title">監測任務</h2>
@@ -1420,7 +1420,7 @@ const Dashboard: React.FC = () => {
             )}
           </div>
         </div>
-        <div className="card p-6 lg:p-4">
+        <div className="card p-6 lg:p-4 w-full min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h2 className="text-lg font-semibold text-gray-900 section-title">待辦事項</h2>
             <Link to="/tasks" className="text-sm text-blue-600 hover:text-blue-700 font-medium">查看全部</Link>
@@ -1612,7 +1612,7 @@ const Dashboard: React.FC = () => {
              })}
 </div>
         </div>
-        <div className="card p-6 lg:p-4">
+        <div className="card p-6 lg:p-4 w-full min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h2 className="text-lg font-semibold text-gray-900 section-title">近期覆診</h2>
             <Link to="/follow-up" className="text-sm text-blue-600 hover:text-blue-700 font-medium">查看全部</Link>

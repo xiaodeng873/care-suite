@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { PRESCRIPTION_OCR_PROMPT_CORE } from '@care-suite/shared';
 
 export interface PromptTemplate {
   id: string;
@@ -186,37 +187,12 @@ export async function saveClassificationRules(rulesContent: string): Promise<boo
 }
 
 function getHardcodedDefaultPrompt(): string {
-  return `你是醫療資料分類的專家，你能從文本中熟練地分辨、提取有效的資料，其他都會自動中文化（藥物名稱以外），數字阿拉伯化
+  // 注意：此 prompt 核心與 supabase/functions/ai-assistant/index.ts 共用 PRESCRIPTION_OCR_PROMPT_CORE
+  return `你是醫療資料分類的專家，你能從文本中熟練地分辨、提取有效的資料，其他都會自動中文化（藥物名稱除外），數字阿拉伯化
 
 請根據以下OCR識別的文本提取處方標籤資訊。
 
-提取時必須嚴格遵守以下規則：
-1. 提取藥物來源時，不要提取完整地址，僅提取藥房名稱或醫生名稱
-2. 如果提取不到院友姓名，必須反覆再尋找，一定會找到，不得留空
-3. 藥物名稱必須包括其劑量（如果標籤上有顯示）
-4. 劑型必須從以下選項中選擇：片劑、膠囊、藥水、注射劑、外用藥膏、滴劑
-5. 服用途徑必須從以下選項中選擇：口服、皮下注射、肌肉注射、外用、滴眼、滴耳、鼻胃管
-6. 服用份量的單位必須從以下選項中選擇：粒、片、膠囊、毫升、滴、口、支、包、茶匙、湯匙、mg、ml、g、mcg、IU
-7. 提取"服用日數"時要附有量詞，例如："5日"
-8. 如果藥物標籤出現"需要時"、"PRN"、"有需要時"等字樣，判定為需要時服藥（true），否則是false
-9. 處方日期、開始日期必須為YYYY-MM-DD格式
-10. 服用時間必須為24小時制HH:MM格式的陣列，例如：["08:00", "14:00", "20:00"]
+${PRESCRIPTION_OCR_PROMPT_CORE}
 
-請以JSON格式返回以下欄位（如果標籤上沒有的欄位，可以省略）：
-{
-  "院友姓名": "陳大文",
-  "處方日期": "2025-04-30",
-  "藥物名稱": "Paracetamol 500mg",
-  "藥物來源": "樂善堂李賢義伉儷社區藥房",
-  "劑型": "片劑",
-  "服用途徑": "口服",
-  "服用份量": "1",
-  "服用單位": "片",
-  "服用次數": "3",
-  "服用日數": "5日",
-  "需要時": false,
-  "備註": "需配合潤滑劑使用",
-  "總數": "15",
-  "服用時間": ["08:00", "14:00", "20:00"]
-}`;
+請以JSON格式返回以下欄位（如果標籤上沒有的欄位，可以省略）。`;
 }
