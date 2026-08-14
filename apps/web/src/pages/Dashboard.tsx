@@ -1049,7 +1049,7 @@ const Dashboard: React.FC = () => {
       </div>
       {/* 提醒卡直接做 grid children：卡片無資料時會 return null，
           外面再包 col-span-1 div 會留低空格位，造成中間間隔 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 min-w-0">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 min-w-0 w-full">
         <NotesCard />
         <MissingRequirementsCard
           missingTasks={missingTasks}
@@ -1072,8 +1072,8 @@ const Dashboard: React.FC = () => {
           onAddActivityRecord={handleAddActivityRecord}
         />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 min-w-0">
-        <div className="card p-3 sm:p-4 lg:p-4 lg:col-span-2 w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 min-w-0 w-full">
+        <div className="card p-3 sm:p-4 lg:p-4 lg:col-span-2 w-full min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h2 className="text-lg font-semibold text-gray-900 section-title">監測任務</h2>
             <div className="flex flex-wrap items-center gap-2">
@@ -1106,7 +1106,7 @@ const Dashboard: React.FC = () => {
               return slot.tasks.length > 0 && (
                 <div key={idx}>
                   <h3 className="text-md font-medium text-gray-700 mb-2 time-slot-title">{slot.title}</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2 w-full">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2 w-full min-w-0">
                     {(() => {
                       // 同一院友、同一時間點的多種監測類型整合為一張卡片（逾期與今日未完成合併顯示）
                       const padTime = (t: string) => {
@@ -1245,7 +1245,7 @@ const Dashboard: React.FC = () => {
               return (
                 <div>
                   <h3 className="text-md font-medium text-gray-700 mb-2 time-slot-title">體溫</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2 w-full">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2 w-full min-w-0">
                     {Array.from(groups.entries())
                       .sort(([ka, ga], [kb, gb]) => {
                         const aOv = ga.some(t => t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) < todayStrCard : false);
@@ -1335,7 +1335,7 @@ const Dashboard: React.FC = () => {
               return (
                 <div>
                   <h3 className="text-md font-medium text-gray-700 mb-2 time-slot-title">體重</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2 w-full">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-2 w-full min-w-0">
                     {Array.from(groups.entries())
                       .sort(([ka, ga], [kb, gb]) => {
                         const aOv = ga.some(t => t.firstIncompleteDate ? formatLocalDate(t.firstIncompleteDate) < todayStrCard : false);
