@@ -10,9 +10,11 @@ interface MessageBubbleProps {
   onOpenForm: (prefillData: PrefillData) => void;
   /** id_card 動作卡專用：該院友「身份證相片」存檔狀態（loading/none/has） */
   idCardPhotoStatus?: 'loading' | 'none' | 'has';
+  onRetry?: (message: AiMessage) => void;
+  isLoading?: boolean;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onConfirm, onReject, onOpenForm, idCardPhotoStatus }) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onConfirm, onReject, onOpenForm, idCardPhotoStatus, onRetry, isLoading }) => {
   const isUser = message.role === 'user';
 
   return (
@@ -38,6 +40,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onConfirm
           </div>
         )}
         <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        {isUser && onRetry && (
+          <button
+            onClick={() => onRetry(message)}
+            disabled={isLoading}
+            className="mt-1 text-xs text-white/80 hover:text-white underline disabled:opacity-50 text-left"
+          >
+            重試
+          </button>
+        )}
         {message.pendingMutation && (
           <ConfirmMutationCard
             mutation={message.pendingMutation}

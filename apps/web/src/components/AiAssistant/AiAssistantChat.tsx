@@ -319,6 +319,15 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
     };
   };
 
+  const handleRetry = (msg: AiMessage) => {
+    if (isLoading || msg.role !== 'user') return;
+    const images = (msg.imageUrls || []).map(url => {
+      const match = url.match(/^data:([^;]+);base64,(.+)$/);
+      return match ? { base64: match[2], mimeType: match[1] } : null;
+    }).filter((img): img is { base64: string; mimeType: string } => img !== null);
+    sendMessage(msg.content, images.length > 0 ? images : undefined);
+  };
+
   return (
     <>
     <div
@@ -381,6 +390,8 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
                   ? idCardPhotoStatus[msg.prefillData.matchedPatient.院友id]
                   : undefined
               }
+              onRetry={handleRetry}
+              isLoading={isLoading}
             />
           ))}
 
