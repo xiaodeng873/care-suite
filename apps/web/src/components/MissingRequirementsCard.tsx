@@ -266,12 +266,12 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
               </div>
             </div>
 
-            {/* 欠缺項目列表 */}
+            {/* 欠缺項目列表：唔再包一層 nowrap 嘅 div，等每個按鈕可以獨立折行 */}
             <div className="flex flex-wrap gap-1.5 pl-14">
               {group.items.map((item, idx) => (
-                <div key={`${item.type}-${idx}`} className="flex space-x-1">
+                <React.Fragment key={`${item.type}-${idx}`}>
                   {renderActionButton(group.patient, item)}
-                </div>
+                </React.Fragment>
               ))}
             </div>
           </div>
