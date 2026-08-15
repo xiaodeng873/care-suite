@@ -62,6 +62,22 @@ const LayoutDebugOverlay: React.FC = () => {
         }
       });
       setLines(out);
+      // 列出所有超出頁面右邊界嘅元素（肇事者），按超出量排序取首 8 個
+      const limit = document.documentElement.clientWidth;
+      const offenders: { right: number; desc: string }[] = [];
+      document.querySelectorAll('body *').forEach(el => {
+        const rect = (el as HTMLElement).getBoundingClientRect();
+        if (rect.right > limit + 1 && rect.width > 0) {
+          const e = el as HTMLElement;
+          const cls = (e.className && typeof e.className === 'string') ? e.className.split(' ').slice(0, 4).join('.') : e.tagName.toLowerCase();
+          const text = (e.textContent || '').trim().slice(0, 12);
+          offenders.push({ right: Math.round(rect.right), desc: `${e.tagName.toLowerCase()}.${cls} "${text}"` });
+        }
+      });
+      offenders.sort((a, b) => b.right - a.right);
+      const seen = new Set<string>();
+      const unique = offenders.filter(o => { if (seen.has(o.desc)) return false; seen.add(o.desc); return true; }).slice(0, 8);
+      setLines([...out, `--- 溢出元素 (limit=${limit}) ---`, ...unique.map(o => `right=${o.right} ${o.desc}`)]);
     };
     const t = setTimeout(measure, 1500);
     window.addEventListener('resize', measure);

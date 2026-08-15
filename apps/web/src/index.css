@@ -755,23 +755,24 @@
     line-height: 1.5rem;
   }
 
-  /* 網格布局優化 - 強制單列 */
+  /* 網格布局優化 - 強制單列（必須用 minmax(0, 1fr)：裸 1fr 等於 minmax(auto, 1fr)，
+     會俾內容嘅 min-content 將欄道撐到闊過容器，導致成版橫向溢出、手機自動縮細顯示） */
   .grid.md\:grid-cols-2,
   .grid.lg\:grid-cols-2,
   .grid.grid-cols-2 {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 
   .grid.md\:grid-cols-3,
   .grid.lg\:grid-cols-3,
   .grid.grid-cols-3 {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 
   .grid.md\:grid-cols-4,
   .grid.lg\:grid-cols-4,
   .grid.grid-cols-4 {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 
   /* 間距優化 */
