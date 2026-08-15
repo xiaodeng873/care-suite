@@ -841,6 +841,7 @@ const PrescriptionManagement: React.FC = () => {
             onTransfer={handleTransfer}
             onStatusChange={handleStatusChange}
             onDelete={handleDelete}
+            onUpdatePrescription={updatePrescription}
             onAddPrescription={(status) => {
               setSelectedPrescription({ patient_id: currentPatient.patient.院友id, status });
               setShowModal(true);
@@ -917,6 +918,7 @@ interface IntegratedPrescriptionCardProps {
   onTransfer: (prescription: any) => void;
   onStatusChange: (prescription: any, targetStatus: 'active' | 'pending_change' | 'inactive') => void;
   onDelete: (id: string) => void;
+  onUpdatePrescription: (prescription: any) => Promise<void>;
   onAddPrescription: (status: 'active' | 'pending_change' | 'inactive') => void;
   deletingIds: Set<string>;
   activeTab: 'active' | 'pending_change' | 'inactive';
@@ -937,6 +939,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
   onTransfer,
   onStatusChange,
   onDelete,
+  onUpdatePrescription,
   onAddPrescription,
   deletingIds,
   activeTab,
@@ -1272,7 +1275,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
 
       <div className="p-6">
         {/* 選取控制 */}
-        {viewMode === 'list' && currentPrescriptions.length > 0 && (
+        {currentPrescriptions.length > 0 && (
           <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex flex-wrap items-center gap-4">
@@ -1307,7 +1310,16 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
 
         <div className="space-y-4 min-h-[400px]">
           {viewMode === 'matrix' && currentPrescriptions.length > 0 ? (
-            <PrescriptionMatrixTable prescriptions={currentPrescriptions} />
+            <PrescriptionMatrixTable
+              prescriptions={currentPrescriptions}
+              onUpdate={onUpdatePrescription}
+              onTransfer={onTransfer}
+              onDelete={onDelete}
+              deletingIds={deletingIds}
+              selectedIds={selectedPrescriptions}
+              onSelect={onSelectRow}
+              onSelectAll={onSelectAll}
+            />
           ) : viewMode === 'list' && currentPrescriptions.length > 0 ? (
             currentPrescriptions.map(prescription => (
               <PrescriptionCard
