@@ -12,6 +12,7 @@ import BatchPrescriptionDateUpdateModal from '../components/BatchPrescriptionDat
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import MedicationRecordExportModal from '../components/MedicationRecordExportModal';
+import PrescriptionMatrixTable from '../components/PrescriptionMatrixTable';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { getHongKongNow, isPrescriptionExpired } from '../utils/prescriptionExpiry';
 import { formatDisplayDate } from '../utils/dateFormat';
@@ -942,6 +943,8 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
   setActiveTab
 }) => {
 
+  const [viewMode, setViewMode] = useState<'list' | 'matrix'>('list');
+
   // 計算當前視圖中的處方
   let currentPrescriptions = currentPatient.prescriptions[activeTab];
   if (selectedRoute !== '全部') {
@@ -1216,7 +1219,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
       {/* 標籤頁內容 */}
       <div className={`${currentTab.bgColor} border-b ${currentTab.borderColor} px-6 py-4`}>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h3 className={`text-lg font-semibold ${currentTab.textColor} flex items-center`}>
+          <h3 className={`text-lg font-semibold ${currentTab.textColor} flex items-center flex-1 min-w-0`}>
             <currentTab.icon className="h-6 w-6 mr-2" />
             {currentTab.label} ({currentTab.count})
             
@@ -1242,6 +1245,21 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
               ))}
             </div>
           </h3>
+          {/* 列表 / 矩陣 檢視切換（表的右上角） */}
+          <div className="flex rounded-lg border border-gray-300 overflow-hidden bg-white shrink-0">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              列表
+            </button>
+            <button
+              onClick={() => setViewMode('matrix')}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'matrix' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              矩陣
+            </button>
+          </div>
           <button
             onClick={() => onAddPrescription(activeTab)}
             className={`${currentTab.buttonColor} p-2 rounded-lg ${currentTab.hoverColor}`}
@@ -1254,7 +1272,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
 
       <div className="p-6">
         {/* 選取控制 */}
-        {currentPrescriptions.length > 0 && (
+        {viewMode === 'list' && currentPrescriptions.length > 0 && (
           <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex flex-wrap items-center gap-4">
@@ -1288,7 +1306,9 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
         )}
 
         <div className="space-y-4 min-h-[400px]">
-          {currentPrescriptions.length > 0 ? (
+          {viewMode === 'matrix' && currentPrescriptions.length > 0 ? (
+            <PrescriptionMatrixTable prescriptions={currentPrescriptions} />
+          ) : viewMode === 'list' && currentPrescriptions.length > 0 ? (
             currentPrescriptions.map(prescription => (
               <PrescriptionCard
                 key={prescription.id}

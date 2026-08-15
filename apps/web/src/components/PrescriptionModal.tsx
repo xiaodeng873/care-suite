@@ -1053,7 +1053,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                         className="form-input"
                         placeholder="1"
                         min="0"
-                        step="0.5"
+                        step="0.25"
                       />
                     </div>
                     <div>

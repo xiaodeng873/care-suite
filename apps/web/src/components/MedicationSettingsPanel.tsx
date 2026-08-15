@@ -10,7 +10,16 @@ import {
   type MedicationSettingsData,
 } from '../utils/medicationSettings';
 
-type StringKey = Exclude<keyof MedicationSettingsData, '每日次數'>;
+type StringKey = Exclude<keyof MedicationSettingsData, '每日次數' | '機構簡稱' | '專科簡稱'>;
+type AbbrKey = '機構簡稱' | '專科簡稱';
+
+// 邊啲清單要有「英文簡稱」欄：醫管局三個機構組 + 專科
+const ABBR_KEY_MAP: Partial<Record<StringKey, AbbrKey>> = {
+  機構_醫管局醫院: '機構簡稱',
+  機構_醫管局門診: '機構簡稱',
+  機構_醫管局精神科: '機構簡稱',
+  專科: '專科簡稱',
+};
 
 const STRING_FIELDS: { key: StringKey; label: string }[] = [
   { key: '劑型', label: '劑型' },
@@ -127,12 +136,33 @@ const MedicationSettingsPanel: React.FC = () => {
     return labels[n] ? `${labels[n]} (每日${n}次)` : `每日${n}次`;
   };
 
+  // ── 英文簡稱 helpers ──────────────────────────────────────────────────────
+  // 輸入時只改本地 state，onBlur 先儲存，避免逐個字打 DB
+  const latestSettings = useRef<MedicationSettingsData>(settings);
+  useEffect(() => { latestSettings.current = settings; }, [settings]);
+
+  const setAbbr = (abbrKey: AbbrKey, item: string, abbr: string) => {
+    setSettings(prev => {
+      const map = { ...(prev[abbrKey] as Record<string, string>) };
+      if (abbr.trim()) map[item] = abbr.trim();
+      else delete map[item];
+      return { ...prev, [abbrKey]: map };
+    });
+  };
+  const persistAbbr = () => {
+    persistSettings(latestSettings.current, '英文簡稱已儲存至資料庫');
+  };
+
   // ── draggable list renderer ───────────────────────────────────────────────
-  const renderDraggableList = (key: StringKey, label: string) => {
+  const renderDraggableList = (key: StringKey, label: string, abbrKey?: AbbrKey) => {
     const list = settings[key] as string[];
+    const abbrMap = abbrKey ? (settings[abbrKey] as Record<string, string>) : null;
     return (
       <div key={key} className="rounded-lg border border-gray-200 bg-white p-4">
-        <h4 className="text-sm font-semibold text-gray-800 mb-3">{label}</h4>
+        <h4 className="text-sm font-semibold text-gray-800 mb-3">
+          {label}
+          {abbrKey && <span className="ml-2 text-xs font-normal text-gray-400">（附英文簡稱欄，用於處方矩陣）</span>}
+        </h4>
 
         {/* 新增 textarea 在列表最頂 */}
         <div className="mb-3">
@@ -169,6 +199,16 @@ const MedicationSettingsPanel: React.FC = () => {
               >
                 <GripVertical className="h-4 w-4 text-gray-300 group-hover:text-gray-500 flex-shrink-0" />
                 <span className="flex-1 text-sm text-gray-700 select-none">{item}</span>
+                {abbrKey && abbrMap && (
+                  <input
+                    type="text"
+                    value={abbrMap[item] ?? ''}
+                    onChange={e => setAbbr(abbrKey, item, e.target.value)}
+                    onBlur={persistAbbr}
+                    placeholder="英文簡稱"
+                    className="w-24 px-2 py-0.5 border border-gray-300 rounded text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 flex-shrink-0"
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => removeStringItem(key, idx)}
@@ -229,7 +269,7 @@ const MedicationSettingsPanel: React.FC = () => {
         </h3>
         <p className="text-xs text-gray-400 mb-3">機構依「醫管局 / 衛生署 / 其他」分組；系統以此判定是否須輸入藥物數量。專科為選填。</p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {SOURCE_FIELDS.map(({ key, label }) => renderDraggableList(key, label))}
+          {SOURCE_FIELDS.map(({ key, label }) => renderDraggableList(key, label, ABBR_KEY_MAP[key]))}
         </div>
       </div>
 
