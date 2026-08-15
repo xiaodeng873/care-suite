@@ -60,17 +60,17 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
     if (extractedData.records && Array.isArray(extractedData.records)) {
       const newItems = extractedData.records.map((record: any) => ({
         id: Date.now().toString() + Math.random(),
-        vaccination_date: record.vaccination_date || getHongKongDate(),
-        vaccine_item: record.vaccine_item || '',
-        vaccination_unit: record.vaccination_unit || ''
+        vaccination_date: record.疫苗接種日期 || record.vaccination_date || getHongKongDate(),
+        vaccine_item: record.疫苗項目 || record.vaccine_item || '',
+        vaccination_unit: record.接種單位 || record.vaccination_unit || ''
       }));
       setVaccinationItems(newItems);
     } else {
       setVaccinationItems([{
         id: Date.now().toString(),
-        vaccination_date: extractedData.vaccination_date || getHongKongDate(),
-        vaccine_item: extractedData.vaccine_item || '',
-        vaccination_unit: extractedData.vaccination_unit || ''
+        vaccination_date: extractedData.疫苗接種日期 || extractedData.vaccination_date || getHongKongDate(),
+        vaccine_item: extractedData.疫苗項目 || extractedData.vaccine_item || '',
+        vaccination_unit: extractedData.接種單位 || extractedData.vaccination_unit || ''
       }]);
     }
   };

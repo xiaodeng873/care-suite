@@ -7,6 +7,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { DB_SCHEMA_SUMMARY } from "./schema-summary.ts";
 import { containsBlockedKeywords, involvesBlockedTables, getRequiredPermissions } from "./permissions-map.ts";
 import { PRESCRIPTION_OCR_PROMPT_CORE } from "./_shared/prescription-ocr-prompt.ts";
+import { FOLLOWUP_OCR_PROMPT_CORE, DIAGNOSIS_OCR_PROMPT_CORE, VACCINATION_OCR_PROMPT_CORE } from "./_shared/document-ocr-prompts.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -443,21 +444,17 @@ ${hasImage ? `
 
 ### 各文件類型需提取的欄位：
 
-#### 覆診預約 (followup)：
-- 院友姓名 / 英文姓名 / 身份證號碼（用於識別院友）
-- 覆診日期、覆診時間、覆診地點、覆診專科
-- 備註
+#### 覆診預約 (followup)（與覆診管理智能識別共用 FOLLOWUP_OCR_PROMPT_CORE）：
+${FOLLOWUP_OCR_PROMPT_CORE}
 
 #### 處方管理 (prescription)（與處方管理智能識別共用 PRESCRIPTION_OCR_PROMPT_CORE）：
 ${PRESCRIPTION_OCR_PROMPT_CORE}
 
-#### 診斷記錄 (diagnosis)：
-- 院友姓名
-- 診斷日期、診斷項目、診斷單位
+#### 診斷記錄 (diagnosis)（與診斷管理智能識別共用 DIAGNOSIS_OCR_PROMPT_CORE）：
+${DIAGNOSIS_OCR_PROMPT_CORE}
 
-#### 疫苗記錄 (vaccination)：
-- 院友姓名
-- 疫苗接種日期、疫苗項目、接種單位
+#### 疫苗記錄 (vaccination)（與疫苗管理智能識別共用 VACCINATION_OCR_PROMPT_CORE）：
+${VACCINATION_OCR_PROMPT_CORE}
 
 #### 新增院友 / 身份證 (id_card)：
 - 中文姓名（完整）
@@ -982,14 +979,15 @@ async function buildImageAnalysisResponse(analysisResponse, imageBase64, imageMi
         tablesInvolved = ["new_medication_prescriptions"];
       }
     } else if (docType === "diagnosis") {
-      const dDate = ed.診斷日期 || "";
-      const dItem = ed.診斷項目 || "";
+      const dDate = ed.診斷日期 || ed.diagnosis_date || "";
+      const dItem = ed.診斷項目 || ed.diagnosis_item || "";
       if (dItem) {
         const cols = ["patient_id", "diagnosis_item"];
         const vals = [`${patientId}`, `'${dItem.replace(/'/g, "''")}'`];
         if (dDate) { cols.push("diagnosis_date"); vals.push(`'${dDate}'`); }
         else { cols.push("diagnosis_date"); vals.push("CURRENT_DATE"); }
-        if (ed.診斷單位) { cols.push("diagnosis_unit"); vals.push(`'${ed.診斷單位.replace(/'/g, "''")}'`); }
+        const dUnit = ed.診斷單位 || ed.diagnosis_unit;
+        if (dUnit) { cols.push("diagnosis_unit"); vals.push(`'${dUnit.replace(/'/g, "''")}'`); }
         if (ed.備註) { cols.push("remarks"); vals.push(`'${ed.備註.replace(/'/g, "''")}'`); }
         insertSql = `INSERT INTO diagnosis_records (${cols.join(", ")}) VALUES (${vals.join(", ")})`;
         mutationExplanation = `為${patientLabel}新增診斷記錄：${dItem}`;
@@ -1003,7 +1001,8 @@ async function buildImageAnalysisResponse(analysisResponse, imageBase64, imageMi
         const vals = [`${patientId}`, `'${vItem.replace(/'/g, "''")}'`];
         if (vDate) { cols.push("vaccination_date"); vals.push(`'${vDate}'`); }
         else { cols.push("vaccination_date"); vals.push("CURRENT_DATE"); }
-        if (ed.接種單位) { cols.push("vaccination_unit"); vals.push(`'${ed.接種單位.replace(/'/g, "''")}'`); }
+        const vUnit = ed.接種單位 || ed.vaccination_unit;
+        if (vUnit) { cols.push("vaccination_unit"); vals.push(`'${vUnit.replace(/'/g, "''")}'`); }
         if (ed.備註) { cols.push("remarks"); vals.push(`'${ed.備註.replace(/'/g, "''")}'`); }
         insertSql = `INSERT INTO vaccination_records (${cols.join(", ")}) VALUES (${vals.join(", ")})`;
         mutationExplanation = `為${patientLabel}新增疫苗記錄：${vItem}`;

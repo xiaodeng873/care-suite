@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, ChevronDown, ChevronUp, Upload, X, Loader, CheckCircle, AlertTriangle, FileText, RefreshCw } from 'lucide-react';
 import { processImageWithGeminiVision, validateImageFile } from '../utils/ocrProcessor';
-import { getDefaultPrompt } from '../utils/promptManager';
+import { FOLLOWUP_OCR_PROMPT_CORE, DIAGNOSIS_OCR_PROMPT_CORE, VACCINATION_OCR_PROMPT_CORE } from '@care-suite/shared';
 import { usePatientData } from '../context/PatientContext';
 import ImageSourcePicker from './ImageSourcePicker';
 
@@ -26,6 +26,25 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
     vaccination: '智能識別疫苗記錄',
     diagnosis: '智能識別診斷記錄',
     followup: '智能識別覆診預約'
+  };
+
+  // 各文件類型嘅識別 prompt 同 AI 助護 Edge Function 共用同一份內核文檔
+  // （packages/shared/src/document-ocr-prompts.ts），兩個端口運作原理一致
+  const documentPromptCores = {
+    vaccination: VACCINATION_OCR_PROMPT_CORE,
+    diagnosis: DIAGNOSIS_OCR_PROMPT_CORE,
+    followup: FOLLOWUP_OCR_PROMPT_CORE
+  };
+
+  const buildDocumentPrompt = (): string => {
+    const label = titles[documentType].replace('智能識別', '');
+    return `你是醫療資料分類的專家，你能從文本中熟練地分辨、提取有效的資料，其他都會自動中文化（藥物名稱除外），數字阿拉伯化
+
+請根據圖片識別的內容提取${label}資訊。
+
+${documentPromptCores[documentType]}
+
+請以JSON格式返回以下欄位（如果文件上沒有的欄位，可以省略）。`;
   };
 
   const descriptions = {
@@ -171,7 +190,7 @@ const OCRDocumentBlock: React.FC<OCRDocumentBlockProps> = ({ documentType, onOCR
       await new Promise(resolve => setTimeout(resolve, 300));
 
       setProcessingStage('正在使用AI視覺識別...');
-      const prompt = await getDefaultPrompt();
+      const prompt = buildDocumentPrompt();
       const result = await processImageWithGeminiVision(selectedFile, prompt, skipCache, undefined);
 
       if (result.success && result.extractedData) {

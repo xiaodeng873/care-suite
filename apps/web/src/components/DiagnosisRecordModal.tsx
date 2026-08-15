@@ -59,17 +59,17 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
     if (extractedData.records && Array.isArray(extractedData.records)) {
       const newItems = extractedData.records.map((record: any) => ({
         id: Date.now().toString() + Math.random(),
-        diagnosis_date: record.diagnosis_date || getHongKongDate(),
-        diagnosis_item: record.diagnosis_item || '',
-        diagnosis_unit: record.diagnosis_unit || ''
+        diagnosis_date: record.診斷日期 || record.diagnosis_date || getHongKongDate(),
+        diagnosis_item: record.診斷項目 || record.diagnosis_item || '',
+        diagnosis_unit: record.診斷單位 || record.diagnosis_unit || ''
       }));
       setDiagnosisItems(newItems);
     } else {
       setDiagnosisItems([{
         id: Date.now().toString(),
-        diagnosis_date: extractedData.diagnosis_date || getHongKongDate(),
-        diagnosis_item: extractedData.diagnosis_item || '',
-        diagnosis_unit: extractedData.diagnosis_unit || ''
+        diagnosis_date: extractedData.診斷日期 || extractedData.diagnosis_date || getHongKongDate(),
+        diagnosis_item: extractedData.診斷項目 || extractedData.diagnosis_item || '',
+        diagnosis_unit: extractedData.診斷單位 || extractedData.diagnosis_unit || ''
       }]);
     }
   };
