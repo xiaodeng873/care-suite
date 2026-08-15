@@ -661,6 +661,16 @@ export const exportRestraintObservationsToExcel = async (
   filename?: string
 ): Promise<void> => {
   try {
+    // 同一院友可能持有多份評估記錄（續期/歷史記錄），但工作表以「床號_姓名」命名，
+    // 重複會令 ExcelJS 拋出 "Worksheet name already exists"。每位院友只保留最新一份評估。
+    const latestByPatient = new Map<number, PatientRestraintAssessment>();
+    for (const record of assessments) {
+      const existing = latestByPatient.get(record.patient_id);
+      if (!existing || (record.updated_at || record.created_at) > (existing.updated_at || existing.created_at)) {
+        latestByPatient.set(record.patient_id, record);
+      }
+    }
+    assessments = Array.from(latestByPatient.values());
     // 從 Supabase 獲取約束物品觀察表範本
     const templatesData = await getTemplatesMetadata();
     const observationTemplate = templatesData.find(t => t.type === 'restraint-observation');
