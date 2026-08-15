@@ -38,6 +38,41 @@ import { hasInProgressCarePlan } from '../utils/carePlanStatus';
 import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
 
 type HealthTask = PatientHealthTask;
+
+// 臨時佈局偵錯工具：只在 URL 帶 ?debugLayout=1 時顯示，用於診斷手機端卡片實際渲染寬度
+const LayoutDebugOverlay: React.FC = () => {
+  const [lines, setLines] = useState<string[]>([]);
+  useEffect(() => {
+    const measure = () => {
+      const out: string[] = [
+        `innerWidth=${window.innerWidth} dpr=${window.devicePixelRatio}`,
+        `docClientWidth=${document.documentElement.clientWidth} bodyScrollWidth=${document.body.scrollWidth}`,
+      ];
+      ['活動記錄提醒', '監測任務', '待辦事項', '近期覆診'].forEach(title => {
+        const h2 = Array.from(document.querySelectorAll('h2')).find(el => el.textContent?.includes(title));
+        const card = h2?.closest('.card') as HTMLElement | null;
+        if (card) {
+          const r = card.getBoundingClientRect();
+          const parent = card.parentElement as HTMLElement;
+          const pcs = getComputedStyle(parent);
+          out.push(`${title}: w=${Math.round(r.width)} left=${Math.round(r.left)} right=${Math.round(r.right)}`);
+          out.push(`  parent: display=${pcs.display} cols=${pcs.gridTemplateColumns} w=${Math.round(parent.getBoundingClientRect().width)}`);
+        } else {
+          out.push(`${title}: 未搵到卡片`);
+        }
+      });
+      setLines(out);
+    };
+    const t = setTimeout(measure, 1500);
+    window.addEventListener('resize', measure);
+    return () => { clearTimeout(t); window.removeEventListener('resize', measure); };
+  }, []);
+  return (
+    <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 99999, background: 'rgba(0,0,0,0.92)', color: '#4ade80', fontSize: 10, padding: 6, whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.4 }}>
+      {lines.join('\n')}
+    </div>
+  );
+};
 // 每位院友只保留最新一筆（以 created_at 比較，null-safe），避免歷史記錄重複計入提醒
 function pickLatestPerPatient<T extends { patient_id: number; created_at?: string | null }>(records: T[]): T[] {
   const latestPerPatient = new Map<number, T>();
@@ -998,6 +1033,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 lg:space-y-4">
+      {new URLSearchParams(window.location.search).has('debugLayout') && <LayoutDebugOverlay />}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="text-sm text-gray-500">
           最後更新: {formatDisplayDateTime(new Date())}
