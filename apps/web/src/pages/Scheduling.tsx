@@ -166,8 +166,10 @@ const Scheduling: React.FC = () => {
   };
 
   const handlePrintPrescriptions = async (schedule: ScheduleWithDetails) => {
-    const items = getValidItems(schedule);
-    if (!items.length) { alert('此排程沒有可列印的院友資料'); return; }
+    const items = getValidItems(schedule).filter(item =>
+      item.reasons?.some(reason => reason.原因名稱 === '申訴不適')
+    );
+    if (!items.length) { alert('此排程沒有看診原因為「申訴不適」的院友，無需列印處方單。'); return; }
     await printVmoPrescriptions(items);
   };
   const handleExportScheduleToExcel = async (schedule: ScheduleWithDetails) => {

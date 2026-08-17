@@ -7,8 +7,8 @@ import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettin
 
 import { formatDisplayDate } from './dateFormat';
 export interface BedListBed {
-  bed_number: string;
-  current_bed_number?: string;
+  bed_number: string;            // 當前床號（顯示主號）
+  original_bed_number?: string;  // 原床號：僅暫時性調動時以小字顯示「原XXX」
   patient?: {
     name: string;
     gender?: string;
@@ -19,7 +19,7 @@ export interface BedListBed {
 }
 
 function isTemporaryBed(bed: BedListBed): boolean {
-  return !!bed.current_bed_number;
+  return !!bed.original_bed_number;
 }
 
 export interface BedListInput {
@@ -149,9 +149,9 @@ export function generateBedListHtml(input: BedListInput): string {
   const renderBedRow = (bed: BedListBed, idx: number): string => {
     const alt = idx % 2 === 1 ? ' br-alt' : '';
     const rowH = getBedRowHeight(bed);
-    // 暫時性調動小字：顯示現床號
+    // 暫時性調動小字：顯示原床號
     const tempBedHtml = isTemporaryBed(bed)
-      ? `<span class="btemp">(暫${bed.current_bed_number})</span>`
+      ? `<span class="btemp">(原${bed.original_bed_number})</span>`
       : '';
     if (!bed.patient) {
       return `<div class="br br-e${alt}" style="height:${rowH.toFixed(1)}mm"><span class="bnum-e">${stripCodePrefix(bed.bed_number)}</span>${tempBedHtml}<span class="bempty-tag">未入住</span></div>`;

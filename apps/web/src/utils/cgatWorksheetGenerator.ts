@@ -82,7 +82,7 @@ function buildRow(record: CgatRecord, patient: Patient | undefined): string {
       <td style="width: 45px; text-align: center; vertical-align: middle;">
         <textarea rows="1" style="text-align:center; writing-mode: vertical-rl; text-orientation: mixed;">${escapeHtml(床號)}</textarea>
       </td>
-      <td style="width: 280px; padding: 6px;">
+      <td style="width: 330px; padding: 6px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
           <span>姓名：</span>
           <div style="flex:1; margin-right:10px;">
@@ -154,8 +154,8 @@ function buildRow(record: CgatRecord, patient: Patient | undefined): string {
           </div>
         </div>
       </td>
-      <td style="width: 150px; padding: 6px;">
-        <div class="check-item"><input type="checkbox" ${checkedAttr(feeExempt)}> 合資格豁免收費</div>
+      <td style="width: 100px; padding: 6px;">
+        <div class="check-item" style="white-space:normal;line-height:1.2;"><input type="checkbox" ${checkedAttr(feeExempt)}> 合資格<br>豁免收費</div>
         <textarea rows="7" style="margin-top: 8px;">${escapeHtml(remarksLines.join('；'))}</textarea>
       </td>
     </tr>
@@ -246,14 +246,14 @@ function buildPage(
             <thead>
               <tr>
                 <th style="width: 45px; text-align: center;">床號 No.</th>
-                <th style="width: 280px; text-align: left; padding-left: 10px;">姓名： &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * ID： xxx(x)</th>
+                <th style="width: 330px; text-align: left; padding-left: 10px;">姓名： &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * ID： xxx(x)</th>
                 <th style="width: 85px;">新症</th>
                 <th style="width: 70px;">舊症</th>
                 <th style="width: 110px;">配藥</th>
                 <th style="width: 45px;">出院</th>
                 <th style="width: 45px;">簽信</th>
                 <th style="width: 105px;">看報告</th>
-                <th style="width: 150px; text-align: left; padding-left: 10px;">備註：</th>
+                <th style="width: 100px; text-align: left; padding-left: 10px;">備註：</th>
               </tr>
             </thead>
           </table>

@@ -1395,7 +1395,8 @@ export const createStation = async (station: Omit<Station, 'id' | 'created_at' |
   return data;
 };
 export const updateStation = async (station: Station): Promise<Station> => {
-  const { data, error } = await supabase.from('stations').update(station).eq('id', station.id).select().single();
+  const { id, ...updateData } = station;
+  const { data, error } = await supabase.from('stations').update(updateData).eq('id', id).select().single();
   if (error) throw error;
   return data;
 };
@@ -1414,7 +1415,8 @@ export const createBed = async (bed: Omit<Bed, 'id' | 'created_at' | 'updated_at
   return data;
 };
 export const updateBed = async (bed: Bed): Promise<Bed> => {
-  const { data, error } = await supabase.from('beds').update(bed).eq('id', bed.id).select().single();
+  const { id, ...updateData } = bed;
+  const { data, error } = await supabase.from('beds').update(updateData).eq('id', id).select().single();
   if (error) throw error;
   return data;
 };
@@ -1433,7 +1435,8 @@ export const createRoom = async (room: Omit<Room, 'id' | 'created_at' | 'updated
   return data;
 };
 export const updateRoom = async (room: Pick<Room, 'id'> & Partial<Room>): Promise<Room> => {
-  const { data, error } = await supabase.from('rooms').update(room).eq('id', room.id).select().single();
+  const { id, ...updateData } = room;
+  const { data, error } = await supabase.from('rooms').update(updateData).eq('id', id).select().single();
   if (error) throw error;
   return data;
 };

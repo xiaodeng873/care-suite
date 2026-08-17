@@ -23,7 +23,7 @@ import {
   Home,
 } from 'lucide-react';
 import * as QRCode from 'qrcode';
-import { usePatientData, useFilteredPatients } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import StationModal from '../components/StationModal';
 import BedModal from '../components/BedModal';
@@ -52,7 +52,7 @@ const StationBedManagement: React.FC = () => {
     cancelTemporaryTransfer,
     cancelTemporarySwapPair,
   } = usePatientData();
-  const patients = useFilteredPatients();
+  const { patients } = usePatientData();
   const [showStationModal, setShowStationModal] = useState(false);
   const [showBedModal, setShowBedModal] = useState(false);
   const [showRoomModal, setShowRoomModal] = useState(false);
@@ -320,13 +320,13 @@ const StationBedManagement: React.FC = () => {
             .filter(r => r.patient_id === patient.院友id && !r.recovery_date)
             .map(r => r.infection_type)
         : null;
-      // 列印床位表以原床為主；暫時性調動者小字顯示現床
+      // 列印床位表以當前床號為主；暫時性調動者小字顯示原床
       const isTemporary = patient && patient.bed_transfer_type === 'temporary' && !!patient.original_bed_number;
-      const bedNumber = patient ? (patient.original_bed_number || patient.床號) : bed.bed_number;
-      const currentBedNumber = isTemporary ? patient.床號 : undefined;
+      const bedNumber = patient ? patient.床號 : bed.bed_number;
+      const originalBedNumber = isTemporary ? (patient.original_bed_number || '') : undefined;
       return {
         bed_number: bedNumber,
-        current_bed_number: currentBedNumber,
+        original_bed_number: originalBedNumber,
         patient: patient
           ? {
               name: `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`.trim() || patient.中文姓名 || '',
@@ -693,13 +693,18 @@ const StationBedManagement: React.FC = () => {
                               <div>
                                 <h3 className="font-medium text-gray-900">
                                   {patient ? (
-                                    <BedNumberImprint patient={patient} beds={beds} size="md" />
+                                    <span className="inline-flex flex-col leading-tight">
+                                      <span className="text-sm">{bed.bed_number}</span>
+                                      {isTemporaryTransfer(patient) && patient.original_bed_number && (
+                                        <span className="text-xs text-gray-500">原{patient.original_bed_number}</span>
+                                      )}
+                                    </span>
                                   ) : (
-                                    `${room.room_number}-${bed.bed_no || bed.bed_number}`
+                                    bed.bed_name || bed.bed_number
                                   )}
                                 </h3>
-                                {bed.bed_name && bed.bed_name !== bed.bed_number && (
-                                  <p className="text-sm text-gray-600">{bed.bed_name}</p>
+                                {!patient && bed.bed_name && bed.bed_name !== bed.bed_number && (
+                                  <p className="text-sm text-gray-600">{bed.bed_number}</p>
                                 )}
                               </div>
                             </div>

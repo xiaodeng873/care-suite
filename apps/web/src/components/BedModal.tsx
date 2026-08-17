@@ -12,7 +12,7 @@ interface BedModalProps {
 const NEW_ROOM = '__new_room__';
 
 const BedModal: React.FC<BedModalProps> = ({ bed, preselectedStation, preselectedRoom, onClose }) => {
-  const { stations, rooms, addBed, updateBed, addRoom } = usePatientData();
+  const { stations, rooms, beds, addBed, updateBed, addRoom } = usePatientData();
 
   const [formData, setFormData] = useState({
     station_id: bed?.station_id || preselectedRoom?.station_id || preselectedStation?.id || '',
@@ -92,6 +92,23 @@ const BedModal: React.FC<BedModalProps> = ({ bed, preselectedStation, preselecte
         ? `${station.code}${roomNumber}-${formData.bed_no.trim()}`
         : `${roomNumber}-${formData.bed_no.trim()}`;
 
+      // 預先檢查同一居住區是否已有相同 bed_number，避免等到 DB 報 duplicate key
+      const duplicate = beds.find((b: any) =>
+        b.id !== bed?.id &&
+        b.station_id === formData.station_id &&
+        b.bed_number === composed
+      );
+      if (duplicate) {
+        const dupRoom = rooms.find((r: any) => r.id === duplicate.room_id);
+        const dupStation = stations.find((s: any) => s.id === duplicate.station_id);
+        alert(
+          `床位編號「${composed}」已存在於「${dupStation?.name || ''}」的「${dupRoom?.room_number || ''}房」。\n\n` +
+          `請到該房間查看或改用其他床號；如要修改現有床位名稱，請直接編輯該床位。`
+        );
+        setSaving(false);
+        return;
+      }
+
       const bedData: any = {
         station_id: formData.station_id,
         room_id: roomId,
@@ -103,17 +120,19 @@ const BedModal: React.FC<BedModalProps> = ({ bed, preselectedStation, preselecte
 
       if (bed) {
         await updateBed({ ...bed, ...bedData });
+        console.log('更新床位成功:', composed, bedData);
       } else {
         await addBed(bedData);
+        console.log('新增床位成功:', composed, bedData);
       }
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('儲存床位失敗:', error);
-      if (error instanceof Error &&
-          (error.message.includes('duplicate key') || error.message.includes('23505'))) {
+      const msg = error?.message || error?.error_description || (typeof error === 'object' ? JSON.stringify(error) : String(error));
+      if (msg.includes('duplicate key') || msg.includes('23505') || msg.includes('unique')) {
         alert('此床位（房間 + 床號）已存在，請使用不同的床號。');
       } else {
-        alert('儲存床位失敗，請重試');
+        alert(`儲存床位失敗：${msg}`);
       }
     } finally {
       setSaving(false);
