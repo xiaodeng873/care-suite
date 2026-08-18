@@ -17,15 +17,14 @@ RETURNS TRIGGER AS $$
 DECLARE
   v_bed_number text;
 BEGIN
-  -- bed_id 變更（包括設為 NULL）時，重新取得對應 bed_number
+  -- bed_id 變更時，重新取得對應 bed_number；清空 bed_id 時保留原 床號，
+  -- 避免違反院友主表.床號 的 NOT NULL 約束。
   IF NEW.bed_id IS DISTINCT FROM OLD.bed_id THEN
     IF NEW.bed_id IS NOT NULL THEN
       SELECT bed_number INTO v_bed_number
       FROM beds
       WHERE id = NEW.bed_id;
       NEW.床號 := v_bed_number;
-    ELSE
-      NEW.床號 := NULL;
     END IF;
   END IF;
   RETURN NEW;

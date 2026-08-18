@@ -2105,9 +2105,23 @@ export const getRecentHealthRecordsByPatient = async (
   return filtered;
 };
 export const getHealthTasks = async (): Promise<PatientHealthTask[]> => {
-  const { data, error } = await supabase.from('patient_health_tasks').select('*').order('next_due_at', { ascending: true });
-  if (error) throw error;
-  return data || [];
+  // Supabase 默認/配置常有 1000 行上限，用分頁確保載入全部任務
+  const all: PatientHealthTask[] = [];
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from('patient_health_tasks')
+      .select('*')
+      .order('next_due_at', { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
 };
 export const createPatientHealthTask = async (task: Omit<PatientHealthTask, 'id' | 'created_at' | 'updated_at'>): Promise<PatientHealthTask> => {
   const { data, error } = await supabase.from('patient_health_tasks').insert([task]).select().single();

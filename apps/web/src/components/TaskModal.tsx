@@ -59,7 +59,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
     switch (type) {
       case '約束物品同意書':
       case '藥物自存同意書': return { unit: 'monthly', value: 6 };
-      case '晩晴計劃': return { unit: 'yearly', value: 1 };
+      case '預設醫療指示': return { unit: 'yearly', value: 1 };
       default: return { unit: 'monthly', value: 1 };
     }
   };
@@ -217,14 +217,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
     }
     try {
       let baseDateTime: Date;
-      let lastCompletedAt: string;
       if (formData.start_date && formData.start_time) {
         baseDateTime = new Date(`${formData.start_date}T${formData.start_time}:00+08:00`);
-        lastCompletedAt = baseDateTime.toISOString();
       } else {
         baseDateTime = new Date();
         baseDateTime.setTime(baseDateTime.getTime() + 8 * 60 * 60 * 1000);
-        lastCompletedAt = baseDateTime.toISOString();
       }
       const baseTaskData = {
         patient_id: parseInt(formData.patient_id),
@@ -233,14 +230,16 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
         specific_times: formData.specific_times ? [formData.specific_times] : ['08:00'],
         specific_days_of_week: formData.specific_days_of_week,
         specific_days_of_month: formData.specific_days_of_month,
-        last_completed_at: lastCompletedAt,
+        // 新建任務不預設 last_completed_at，避免新任務被視為已完成；編輯時保留原值
+        last_completed_at: task && task.id ? (task.last_completed_at || undefined) : undefined,
         start_date: formData.start_date,
-        tube_type: formData.tube_type || null,
-        tube_size: formData.tube_size || null,
+        tube_type: formData.tube_type || undefined,
+        tube_size: formData.tube_size || undefined,
         notes: (formData.notes && formData.notes.trim() !== '') ? formData.notes as MonitoringTaskNotes : null,
         is_recurring: formData.is_recurring,
-        end_date: formData.is_recurring ? null : formData.end_date,
-        end_time: formData.is_recurring ? null : formData.end_time,
+        // undefined 讓 Supabase 使用欄位預設值，同時符合 PatientHealthTask 可選類型
+        end_date: formData.is_recurring ? undefined : formData.end_date,
+        end_time: formData.is_recurring ? undefined : formData.end_time,
       };
       if (task && task.id) {
         // 編輯現有任務：單一類型不變
@@ -276,9 +275,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
   // 為節省篇幅，這部分請使用您現有的 UI 代碼
   const getTypeIcon = (type: HealthTaskType) => {
     switch (type) {
-      case '生命表徵': return <Activity className="h-5 w-5" />;
-      case '血糖控制': return <Droplets className="h-5 w-5" />;
-      case '體重控制': return <Scale className="h-5 w-5" />;
+      case '血壓': return <Activity className="h-5 w-5" />;
+      case '血糖值': return <Droplets className="h-5 w-5" />;
+      case '體重': return <Scale className="h-5 w-5" />;
       case '藥物自存同意書': return <FileText className="h-5 w-5" />;
       case '預設醫療指示': return <FileText className="h-5 w-5" />;
       default: return <CheckSquare className="h-5 w-5" />;
@@ -287,9 +286,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
 
   const getTypeColor = (type: HealthTaskType) => {
     switch (type) {
-      case '生命表徵': return 'text-blue-600';
-      case '血糖控制': return 'text-red-600';
-      case '體重控制': return 'text-green-600';
+      case '血壓': return 'text-blue-600';
+      case '血糖值': return 'text-red-600';
+      case '體重': return 'text-green-600';
       case '藥物自存同意書': return 'text-gray-600';
       case '預設醫療指示': return 'text-pink-600';
       default: return 'text-purple-600';

@@ -637,8 +637,13 @@ const StationBedManagement: React.FC = () => {
                 .filter(b => b.room_id === room.id)
                 .sort((a, b) => (a.bed_no || a.bed_number).localeCompare(b.bed_no || b.bed_number, 'zh-Hant', { numeric: true })),
             }))
-            .filter((g: any) => g.roomBeds.length > 0 || !hasActiveFilters());
-          return (stationBeds.length === 0 && hasActiveFilters()) ? null : (
+            // 無篩選時顯示所有房間；有篩選時顯示有符合床位或房號匹配搜索的房間
+            .filter((g: any) =>
+              g.roomBeds.length > 0 ||
+              !hasActiveFilters() ||
+              (searchTerm && String(g.room.room_number).toLowerCase().includes(searchTerm.toLowerCase()))
+            );
+          return roomGroups.length === 0 ? null : (
             <div key={station.id} className="card">
               <div className="p-6">
                 <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

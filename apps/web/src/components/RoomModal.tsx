@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, DoorOpen, Building2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { X, DoorOpen, Building2, Wand2 } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 
 interface RoomModalProps {
@@ -9,7 +9,7 @@ interface RoomModalProps {
 }
 
 const RoomModal: React.FC<RoomModalProps> = ({ room, preselectedStation, onClose }) => {
-  const { stations, addRoom, updateRoom } = usePatientData();
+  const { stations, rooms, addRoom, updateRoom } = usePatientData();
 
   const [formData, setFormData] = useState({
     station_id: room?.station_id || preselectedStation?.id || '',
@@ -19,6 +19,29 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, preselectedStation, onClose
   const [saving, setSaving] = useState(false);
 
   const station = stations.find((s: any) => s.id === formData.station_id);
+
+  const existingRoomNumbers = useMemo(() => {
+    if (!formData.station_id) return new Set<string>();
+    return new Set(
+      rooms
+        .filter((r: any) => r.station_id === formData.station_id && (!room || r.id !== room.id))
+        .map((r: any) => String(r.room_number).trim())
+    );
+  }, [rooms, formData.station_id, room]);
+
+  const isDuplicate = formData.room_number.trim() !== '' &&
+    existingRoomNumbers.has(formData.room_number.trim());
+
+  const suggestNextRoomNumber = () => {
+    if (!formData.station_id) return;
+    const nums = rooms
+      .filter((r: any) => r.station_id === formData.station_id)
+      .map((r: any) => parseInt(String(r.room_number).trim(), 10))
+      .filter((n: number) => !isNaN(n));
+    let next = 1;
+    while (nums.includes(next)) next++;
+    setFormData(prev => ({ ...prev, room_number: String(next) }));
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -35,6 +58,10 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, preselectedStation, onClose
     }
     if (!formData.room_number.trim()) {
       alert('請輸入房號');
+      return;
+    }
+    if (isDuplicate) {
+      alert('此房號在該居住區已存在，請使用不同的房號。');
       return;
     }
 
@@ -103,17 +130,32 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, preselectedStation, onClose
           </div>
 
           <div>
-            <label className="form-label">房號 *</label>
+            <div className="flex items-center justify-between">
+              <label className="form-label">房號 *</label>
+              {!room && (
+                <button
+                  type="button"
+                  onClick={suggestNextRoomNumber}
+                  className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                >
+                  <Wand2 className="h-3 w-3" />
+                  自動建議下一個可用房號
+                </button>
+              )}
+            </div>
             <input
               type="text"
               name="room_number"
               value={formData.room_number}
               onChange={handleChange}
-              className="form-input"
+              className={`form-input ${isDuplicate ? 'border-red-500 focus:ring-red-500' : ''}`}
               placeholder="例如：202"
               required
             />
-            {station?.code && formData.room_number.trim() && (
+            {isDuplicate && (
+              <p className="text-xs text-red-600 mt-1">此房號在該居住區已存在</p>
+            )}
+            {station?.code && formData.room_number.trim() && !isDuplicate && (
               <p className="text-xs text-gray-500 mt-1">
                 合成床號將以「{station.code}{formData.room_number.trim()}-床號」顯示
               </p>
@@ -133,7 +175,7 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, preselectedStation, onClose
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 pt-4">
-            <button type="submit" className="btn-primary flex-1" disabled={saving}>
+            <button type="submit" className="btn-primary flex-1" disabled={saving || isDuplicate}>
               {saving ? '儲存中…' : (room ? '更新房間' : '建立房間')}
             </button>
             <button type="button" onClick={onClose} className="btn-secondary flex-1">

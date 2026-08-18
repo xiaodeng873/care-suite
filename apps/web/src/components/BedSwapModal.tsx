@@ -277,7 +277,7 @@ const BedSwapModal: React.FC<BedSwapModalProps> = ({ onClose }) => {
                 />
                 <div>
                   <span className="font-medium text-gray-900">暫時性互換</span>
-                  <p className="text-sm text-gray-500">雙方名義上換床，所有頁面跟隨現床，但列印文件仍顯示原床位。</p>
+                  <p className="text-sm text-gray-500">雙方名義上換床，所有頁面跟隨現床，但底層仍是原床位。</p>
                 </div>
               </label>
             </div>

@@ -122,19 +122,22 @@ export function calculateNextDueDate(task: PatientHealthTask, fromDate?: Date): 
     case 'weekly':
       if (task.specific_days_of_week && task.specific_days_of_week.length > 0) {
         const currentDayOfWeek = nextDueDate.getDay();
-        const targetDays = task.specific_days_of_week.map(day => day === 7 ? 0 : day);
-        let daysToAdd = null;
-        for (let i = 1; i <= 7; i++) {
-          const checkDay = (currentDayOfWeek + i) % 7;
-          if (targetDays.includes(checkDay)) {
-            daysToAdd = i;
-            break;
+        const targetDays = task.specific_days_of_week.map(day => day === 7 ? 0 : day).sort((a, b) => a - b);
+        // 如果當天本身就在指定星期中，以當天為下次到期日；否則找下一個最近指定日
+        if (!targetDays.includes(currentDayOfWeek)) {
+          let daysToAdd = null;
+          for (let i = 1; i <= 7; i++) {
+            const checkDay = (currentDayOfWeek + i) % 7;
+            if (targetDays.includes(checkDay)) {
+              daysToAdd = i;
+              break;
+            }
           }
-        }
-        if (daysToAdd !== null) {
-          nextDueDate.setDate(nextDueDate.getDate() + daysToAdd);
-        } else {
-          nextDueDate.setDate(nextDueDate.getDate() + 7);
+          if (daysToAdd !== null) {
+            nextDueDate.setDate(nextDueDate.getDate() + daysToAdd);
+          } else {
+            nextDueDate.setDate(nextDueDate.getDate() + 7);
+          }
         }
       } else {
         nextDueDate.setDate(nextDueDate.getDate() + (task.frequency_value || 1) * 7);
@@ -209,14 +212,14 @@ export async function findFirstMissingDate(
         // - 有 任務id 且等於本任務：精確匹配
         // - 無 任務id（舊記錄）且 院友id+監測類型 匹配：後備匹配
         // [修復] 排除屬於其他任務的記錄，避免誤判為本任務已完成
-        const taskRecords = records.filter(r => {
+        const taskRecords = (records || []).filter((r: any) => {
           if (r.任務id === task.id) return true;
           if (!r.任務id) return r.院友id === task.patient_id && r.監測類型 === task.health_record_type;
           return false;
         });
         // 收集已完成的時間點
         const completedTimes = new Set(
-          taskRecords.map(r => normalizeTime(r.記錄時間))
+          taskRecords.map((r: any) => normalizeTime(r.記錄時間))
         );
         // 檢查每個時間點是否都有記錄
         let allTimesCompleted = true;
@@ -245,7 +248,7 @@ export async function findFirstMissingDate(
           break;
         }
         // [修復] 排除屬於其他任務的記錄
-        const taskRecords = (records || []).filter(r => {
+        const taskRecords = (records || []).filter((r: any) => {
           if (r.任務id === task.id) return true;
           if (!r.任務id) return r.院友id === task.patient_id && r.監測類型 === task.health_record_type;
           return false;
