@@ -19,6 +19,7 @@ import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from '../components/DateInput';
 
 
 type SortField = '院友姓名' | 'diagnosis_date' | 'created_at';
@@ -408,18 +409,14 @@ const DiagnosisRecords: React.FC = () => {
                 <div className="mb-4">
                   <label className="form-label">診斷日期區間</label>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <input
-                      type="date"
-                      value={advancedFilters.startDate}
-                      onChange={(e) => updateAdvancedFilter('startDate', e.target.value)}
+                    <DateInput value={advancedFilters.startDate}
+                      onChange={(value) => updateAdvancedFilter('startDate', value)}
                       className="form-input w-full sm:w-auto"
                       placeholder="開始日期"
                     />
                     <span className="text-gray-500 text-center sm:text-left">至</span>
-                    <input
-                      type="date"
-                      value={advancedFilters.endDate}
-                      onChange={(e) => updateAdvancedFilter('endDate', e.target.value)}
+                    <DateInput value={advancedFilters.endDate}
+                      onChange={(value) => updateAdvancedFilter('endDate', value)}
                       className="form-input w-full sm:w-auto"
                       placeholder="結束日期"
                     />

@@ -3,6 +3,7 @@ import { ArrowRight, Trash2, Plus, X, ChevronUp, ChevronDown } from 'lucide-reac
 import { formatDisplayDate } from '../utils/dateFormat';
 import { getMedicationSettings, INSTITUTION_GROUPS, type MedicationSettingsData } from '../utils/medicationSettings';
 import DrugAutocomplete from './DrugAutocomplete';
+import DateInput from './DateInput';
 
 /**
  * 處方矩陣表格（格仔內直接編輯，唔開 Modal）：
@@ -130,22 +131,36 @@ const TextEditor: React.FC<{
   width?: string;
   onCommit: (value: string) => void;
   close: () => void;
-}> = ({ defaultValue, type = 'text', step, min, width = 'w-28', onCommit, close }) => (
-  <input
-    type={type}
-    step={step}
-    min={min}
-    defaultValue={defaultValue}
-    autoFocus
-    onFocus={(e) => { if (type === 'date') return; e.target.select(); }}
-    className={`${inputCls} ${width}`}
-    onBlur={(e) => { onCommit(e.target.value); close(); }}
-    onKeyDown={(e) => {
-      if (e.key === 'Enter') { onCommit((e.target as HTMLInputElement).value); close(); }
-      if (e.key === 'Escape') close();
-    }}
-  />
-);
+}> = ({ defaultValue, type = 'text', step, min, width = 'w-28', onCommit, close }) => {
+  const [editValue, setEditValue] = useState(defaultValue);
+  if (type === 'date') {
+    return (
+      <DateInput
+        value={editValue}
+        onChange={(value) => setEditValue(value)}
+        onBlur={() => { onCommit(editValue); close(); }}
+        className={`${inputCls} ${width}`}
+        autoFocus
+      />
+    );
+  }
+  return (
+    <input
+      type={type}
+      step={step}
+      min={min}
+      defaultValue={defaultValue}
+      autoFocus
+      onFocus={(e) => { e.target.select(); }}
+      className={`${inputCls} ${width}`}
+      onBlur={(e) => { onCommit(e.target.value); close(); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') { onCommit((e.target as HTMLInputElement).value); close(); }
+        if (e.key === 'Escape') close();
+      }}
+    />
+  );
+};
 
 /** 下拉：選擇即提交 */
 const SelectEditor: React.FC<{

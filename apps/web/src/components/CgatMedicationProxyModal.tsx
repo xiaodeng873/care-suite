@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import React, { useState } from 'react';
+import DateInput from './DateInput';
 
 interface CgatMedicationProxyModalProps {
   onClose: () => void;
@@ -27,12 +28,12 @@ const CgatMedicationProxyModal: React.FC<CgatMedicationProxyModalProps> = ({ onC
         <div className="px-6 py-6 space-y-4">
           <div>
             <label className="form-label">委託書日期</label>
-            <input
-              type="date"
+            <DateInput
+
               value={proxyDate}
-              onChange={(e) => setProxyDate(e.target.value)}
-              className="form-input"
-            />
+
+              className="form-input" onChange={(value) => setProxyDate(value)} />
+            
           </div>
           <div>
             <label className="form-label">前往取藥之職員</label>
@@ -41,8 +42,8 @@ const CgatMedicationProxyModal: React.FC<CgatMedicationProxyModalProps> = ({ onC
               value={proxyPerson}
               onChange={(e) => setProxyPerson(e.target.value)}
               placeholder="請輸入前往取藥之職員姓名"
-              className="form-input"
-            />
+              className="form-input" />
+            
           </div>
           <div>
             <label className="form-label">藥單紙數量</label>
@@ -51,8 +52,8 @@ const CgatMedicationProxyModal: React.FC<CgatMedicationProxyModalProps> = ({ onC
               value={prescriptionPaperCount}
               onChange={(e) => setPrescriptionPaperCount(e.target.value)}
               placeholder="請輸入藥單紙數量"
-              className="form-input"
-            />
+              className="form-input" />
+            
           </div>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 bg-gray-50">
@@ -64,8 +65,8 @@ const CgatMedicationProxyModal: React.FC<CgatMedicationProxyModalProps> = ({ onC
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default CgatMedicationProxyModal;

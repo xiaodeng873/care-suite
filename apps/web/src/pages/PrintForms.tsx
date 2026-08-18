@@ -34,6 +34,7 @@ import { exportPrintFormsToExcel } from '../utils/printFormExcelGenerator';
 import { printDiaperRecordForm } from '../utils/diaperRecordPrintFormHtml';
 import { exportDiaperChangeToExcel } from '../utils/diaperChangeExcelGenerator';
 import { printHygieneRecordForm, type HygieneMonthData } from '../utils/hygieneRecordPrintFormHtml';
+import DateInput from '../components/DateInput';
 type SortField = '床號' | '中文姓名' | '護理等級' | '入住類型' | '在住狀態';
 type SortDirection = 'asc' | 'desc';
 interface AdvancedFilters {
@@ -1311,10 +1312,8 @@ const PrintForms: React.FC = () => {
                   <Calendar className="h-4 w-4 inline mr-1" />
                   開始日期 *
                 </label>
-                <input
-                  type="date"
-                  value={observationDateRange.startDate}
-                  onChange={(e) => setObservationDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                <DateInput value={observationDateRange.startDate}
+                  onChange={(value) => setObservationDateRange(prev => ({ ...prev, startDate: value }))}
                   className="form-input"
                   required
                 />
@@ -1325,10 +1324,8 @@ const PrintForms: React.FC = () => {
                   <Calendar className="h-4 w-4 inline mr-1" />
                   結束日期 *
                 </label>
-                <input
-                  type="date"
-                  value={observationDateRange.endDate}
-                  onChange={(e) => setObservationDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                <DateInput value={observationDateRange.endDate}
+                  onChange={(value) => setObservationDateRange(prev => ({ ...prev, endDate: value }))}
                   className="form-input"
                   required
                 />

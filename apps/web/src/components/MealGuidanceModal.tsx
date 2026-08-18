@@ -3,6 +3,7 @@ import { X, Utensils, Calendar, FileText, Droplets } from 'lucide-react';
 import { usePatientData, type Patient, type MealGuidance, type MealCombinationType, type SpecialDietType } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from './DateInput';
 
 
 interface MealGuidanceModalProps {
@@ -415,13 +416,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
                 <Calendar className="h-4 w-4 inline mr-1" />
                 指引日期
               </label>
-              <input
-                type="date"
-                name="guidance_date"
-                value={formData.guidance_date}
-                onChange={handleChange}
-                className="form-input"
-              />
+              <DateInput name="guidance_date" value={formData.guidance_date} className="form-input" onChange={(value) => setFormData(prev => ({ ...prev, guidance_date: value }))}/>
             </div>
 
             <div>

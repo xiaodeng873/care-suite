@@ -3,6 +3,7 @@ import { X, Printer, Search, CheckSquare, Square, Calendar, Users, AlertTriangle
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 import { printActivityRecordForm } from '../utils/activityRecordPrintFormHtml';
+import DateInput from './DateInput';
 
 interface ActivityRecordPrintModalProps {
   onClose: () => void;
@@ -114,17 +115,15 @@ const ActivityRecordPrintModal: React.FC<ActivityRecordPrintModalProps> = ({ onC
               <Calendar className="w-4 h-4" /> 日期範圍
             </label>
             <div className="flex items-center gap-2">
-              <input
-                type="date"
+              <DateInput
                 value={startDate}
-                onChange={e => setStartDate(e.target.value)}
+                onChange={(value) => setStartDate(value)}
                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1"
               />
               <span className="text-gray-400">至</span>
-              <input
-                type="date"
+              <DateInput
                 value={endDate}
-                onChange={e => setEndDate(e.target.value)}
+                onChange={(value) => setEndDate(value)}
                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1"
               />
             </div>

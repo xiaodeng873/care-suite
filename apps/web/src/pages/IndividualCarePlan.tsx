@@ -34,6 +34,7 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compar
 import { getCarePlanStatus, getCarePlanStatusColor, getCarePlanStatusLabel } from '../utils/carePlanStatus';
 import { formatDisplayDate } from '../utils/dateFormat';
 import { printCarePlanById } from '../utils/carePlanPrintGenerator';
+import DateInput from '../components/DateInput';
 
 
 type SortField = '院友姓名' | 'plan_date' | 'plan_type' | 'review_due_date' | 'created_at';
@@ -701,19 +702,15 @@ const IndividualCarePlan: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">開始日期</label>
-                <input
-                  type="date"
-                  value={advancedFilters.startDate}
-                  onChange={(e) => updateAdvancedFilter('startDate', e.target.value)}
+                <DateInput value={advancedFilters.startDate}
+                  onChange={(value) => updateAdvancedFilter('startDate', value)}
                   className="form-input"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">結束日期</label>
-                <input
-                  type="date"
-                  value={advancedFilters.endDate}
-                  onChange={(e) => updateAdvancedFilter('endDate', e.target.value)}
+                <DateInput value={advancedFilters.endDate}
+                  onChange={(value) => updateAdvancedFilter('endDate', value)}
                   className="form-input"
                 />
               </div>

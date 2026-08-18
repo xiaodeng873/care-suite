@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
 import { X, Save, User, Calendar, FileText, Activity, Brain, Eye, MessageSquare, Utensils, Heart } from 'lucide-react';
 import { usePatientData, type HealthAssessment } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { supabase } from '../lib/supabase';
 import { formatDisplayDate } from '../utils/dateFormat';
+import React, { useState, useEffect } from 'react';
+import DateInput from './DateInput';
 
 
 /** Parse a TEXT column that may contain a JSON array, '、'-delimited string, or already be an array */
@@ -16,7 +17,7 @@ function parseTextToArray(value: unknown): string[] {
       try {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) return parsed.map(String);
-      } catch { /* fall through */ }
+      } catch {/* fall through */}
     }
     return trimmed.split('、').filter(Boolean);
   }
@@ -40,20 +41,20 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
     assessment?.patient_id || defaultPatientId || null
   );
-  
+
   // 計算預設評估日期
   const getDefaultAssessmentDate = (healthAssessments: any[], selectedPatientId: number | null): string => {
     if (assessment) {
       // 編輯模式：使用現有評估日期
       return assessment.assessment_date;
     }
-    
+
     if (selectedPatientId) {
       // 新增模式：查找該院友的最後一次評估
-      const patientAssessments = healthAssessments
-        .filter(a => a.patient_id === selectedPatientId)
-        .sort((a, b) => new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime());
-      
+      const patientAssessments = healthAssessments.
+      filter((a) => a.patient_id === selectedPatientId).
+      sort((a, b) => new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime());
+
       if (patientAssessments.length > 0) {
         // 如果有上次評估，計算6個月後作為預設日期
         const lastAssessment = patientAssessments[0];
@@ -62,22 +63,22 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
         return nextDate.toISOString().split('T')[0];
       }
     }
-    
+
     // 預設為今天
     return new Date().toISOString().split('T')[0];
   };
-  
+
   // 獲取上次評估日期
   const getLastAssessmentDate = (healthAssessments: any[], selectedPatientId: number | null): string | null => {
     if (!selectedPatientId) return null;
-    
-    const patientAssessments = healthAssessments
-      .filter(a => a.patient_id === selectedPatientId && (!assessment || a.id !== assessment.id))
-      .sort((a, b) => new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime());
-    
+
+    const patientAssessments = healthAssessments.
+    filter((a) => a.patient_id === selectedPatientId && (!assessment || a.id !== assessment.id)).
+    sort((a, b) => new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime());
+
     return patientAssessments.length > 0 ? patientAssessments[0].assessment_date : null;
   };
-  
+
   const [formData, setFormData] = useState({
     // smoking_habit: '',
     // smoking_quantity: '', // 每天吸煙支數
@@ -150,8 +151,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
       const assessmentDate = new Date(formData.assessment_date);
       assessmentDate.setMonth(assessmentDate.getMonth() + 6);
       const nextDueDate = assessmentDate.toISOString().split('T')[0];
-      
-      setFormData(prev => ({
+
+      setFormData((prev) => ({
         ...prev,
         next_due_date: nextDueDate
       }));
@@ -164,16 +165,16 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
     if (formData.nutrition_diet.weight) return;
 
     const fetchLatestWeight = async () => {
-      const { data, error } = await supabase
-        .from('健康監測記錄')
-        .select('數值, 記錄日期, 記錄時間')
-        .eq('院友id', selectedPatientId)
-        .eq('監測類型', '體重')
-        .not('數值', 'is', null)
-        .order('記錄日期', { ascending: false })
-        .order('記錄時間', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data, error } = await supabase.
+      from('健康監測記錄').
+      select('數值, 記錄日期, 記錄時間').
+      eq('院友id', selectedPatientId).
+      eq('監測類型', '體重').
+      not('數值', 'is', null).
+      order('記錄日期', { ascending: false }).
+      order('記錄時間', { ascending: false }).
+      limit(1).
+      maybeSingle();
       if (error) {
         console.error('[HealthAssessmentModal] 查詢最近體重失敗:', error);
         return;
@@ -181,7 +182,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
       if (!data) return;
       const latestWeight = (data as any).數值;
       if (latestWeight == null || latestWeight === 0) return;
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         nutrition_diet: {
           ...prev.nutrition_diet,
@@ -264,7 +265,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
       });
     } else if (defaultPatientId) {
       // 新增模式且有預設院友ID時，設定評估日期
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         assessment_date: getDefaultAssessmentDate(healthAssessments, defaultPatientId)
       }));
@@ -273,19 +274,19 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
 
   const updateLimbMovement = (side: 'left' | 'right', value: string, checked: boolean) => {
     const field = side === 'left' ? 'limb_movement_left' : 'limb_movement_right';
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       daily_activities: {
         ...prev.daily_activities,
-        [field]: checked
-          ? [...prev.daily_activities[field], value]
-          : prev.daily_activities[field].filter(item => item !== value)
+        [field]: checked ?
+        [...prev.daily_activities[field], value] :
+        prev.daily_activities[field].filter((item) => item !== value)
       }
     }));
   };
 
   const updateBedridden = (checked: boolean) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       daily_activities: {
         ...prev.daily_activities,
@@ -295,7 +296,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
   };
 
   const updateWheelchair = (checked: boolean) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       daily_activities: {
         ...prev.daily_activities,
@@ -305,23 +306,23 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
   };
 
   const updateConsciousnessCognition = (value: string, checked: boolean) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       consciousness_cognition: (() => {
         const currentCognition = Array.isArray(prev.consciousness_cognition) ? prev.consciousness_cognition : [];
-        let newCognition = checked
-          ? [...currentCognition, value]
-          : currentCognition.filter(item => item !== value);
-        
+        let newCognition = checked ?
+        [...currentCognition, value] :
+        currentCognition.filter((item) => item !== value);
+
         // 互斥邏輯：如果選擇了「無認知能力」，清除其他認知選項
         if (value === '無認知能力' && checked) {
           newCognition = ['無認知能力'];
         }
         // 如果選擇了其他認知能力，移除「無認知能力」
         else if (value !== '無認知能力' && checked && newCognition.includes('無認知能力')) {
-          newCognition = newCognition.filter(item => item !== '無認知能力');
+          newCognition = newCognition.filter((item) => item !== '無認知能力');
         }
-        
+
         return newCognition;
       })()
     }));
@@ -329,7 +330,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedPatientId) {
       alert('請選擇院友');
       return;
@@ -349,12 +350,12 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
       const assessmentData = {
         patient_id: selectedPatientId,
         ...formData,
-        emotional_expression: Array.isArray(formData.emotional_expression)
-          ? (formData.emotional_expression.length > 0 ? formData.emotional_expression.join('、') : '')
-          : (formData.emotional_expression || ''),
-        behavior_expression: Array.isArray(formData.behavior_expression)
-          ? (formData.behavior_expression.length > 0 ? formData.behavior_expression.join('、') : '')
-          : (formData.behavior_expression || ''),
+        emotional_expression: Array.isArray(formData.emotional_expression) ?
+        formData.emotional_expression.length > 0 ? formData.emotional_expression.join('、') : '' :
+        formData.emotional_expression || '',
+        behavior_expression: Array.isArray(formData.behavior_expression) ?
+        formData.behavior_expression.length > 0 ? formData.behavior_expression.join('、') : '' :
+        formData.behavior_expression || '',
         // 將空字串的日期欄位轉換為 null
         next_due_date: formData.next_due_date || null
       };
@@ -367,7 +368,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
       } else {
         await addHealthAssessment(assessmentData);
       }
-      
+
       onClose();
     } catch (error) {
       console.error('保存健康評估失敗:', error);
@@ -378,7 +379,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
   };
 
   const updateDailyActivities = (field: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       daily_activities: {
         ...prev.daily_activities,
@@ -388,7 +389,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
   };
 
   const updateNutritionDiet = (field: string, value: string) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const newNutritionDiet = {
         ...prev.nutrition_diet,
         [field]: value
@@ -408,7 +409,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
   };
 
   const updateVisionHearing = (field: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       vision_hearing: {
         ...prev.vision_hearing,
@@ -418,7 +419,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
   };
 
   const updateBowelBladderControl = (field: string, value: string | boolean) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       bowel_bladder_control: {
         ...prev.bowel_bladder_control,
@@ -428,29 +429,29 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
   };
 
   const updateTreatmentItems = (item: string, checked: boolean) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      treatment_items: checked
-        ? [...prev.treatment_items, item]
-        : prev.treatment_items.filter(i => i !== item)
+      treatment_items: checked ?
+      [...prev.treatment_items, item] :
+      prev.treatment_items.filter((i) => i !== item)
     }));
   };
 
   const updateEmotionalExpression = (item: string, checked: boolean) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      emotional_expression: checked
-        ? [...prev.emotional_expression, item]
-        : prev.emotional_expression.filter(i => i !== item)
+      emotional_expression: checked ?
+      [...prev.emotional_expression, item] :
+      prev.emotional_expression.filter((i) => i !== item)
     }));
   };
 
   const updateBehaviorExpression = (item: string, checked: boolean) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      behavior_expression: checked
-        ? [...prev.behavior_expression, item]
-        : prev.behavior_expression.filter(i => i !== item)
+      behavior_expression: checked ?
+      [...prev.behavior_expression, item] :
+      prev.behavior_expression.filter((i) => i !== item)
     }));
   };
 
@@ -466,20 +467,20 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
             <h2 className="text-xl font-semibold text-gray-900">
               {assessment ? '編輯健康評估' : '新增健康評估'}
             </h2>
-            {assessment && (
-              <span className={`px-3 py-1 text-sm rounded-full ${
-                assessment.status === 'active'
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
+            {assessment &&
+            <span className={`px-3 py-1 text-sm rounded-full ${
+            assessment.status === 'active' ?
+            'bg-green-100 text-green-800' :
+            'bg-gray-100 text-gray-600'}`
+            }>
                 {assessment.status === 'active' ? '生效中' : '已歸檔'}
               </span>
-            )}
+            }
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
+            className="text-gray-400 hover:text-gray-600 transition-colors">
+            
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -500,7 +501,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     setSelectedPatientId(newPatientId);
                     // 當院友改變時，重新計算評估日期
                     if (newPatientId && !assessment) {
-                      setFormData(prev => ({
+                      setFormData((prev) => ({
                         ...prev,
                         assessment_date: getDefaultAssessmentDate(healthAssessments, newPatientId)
                       }));
@@ -508,18 +509,18 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                   }}
                   placeholder="搜尋院友姓名或床號"
                   showResidencyFilter={true}
-                  defaultResidencyStatus="在住"
-                />
+                  defaultResidencyStatus="在住" />
+                
                 
                 {/* 顯示上次評估日期 */}
-                {selectedPatientId && getLastAssessmentDate(healthAssessments, selectedPatientId) && (
-                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                {selectedPatientId && getLastAssessmentDate(healthAssessments, selectedPatientId) &&
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-xs text-blue-800">
                       <Activity className="h-3 w-3 inline mr-1" />
                       上次評估：{formatDisplayDate(getLastAssessmentDate(healthAssessments, selectedPatientId)!)}
                     </p>
                   </div>
-                )}
+                }
               </div>
               
               <div>
@@ -527,22 +528,22 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                   <Calendar className="w-4 h-4 inline mr-1" />
                   評估日期 *
                 </label>
-                <input
-                  type="date"
+                <DateInput
+
                   value={formData.assessment_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, assessment_date: e.target.value }))}
+
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
+                  required onChange={(value) => setFormData((prev) => ({ ...prev, assessment_date: value }))} />
+                
                 
                 {/* 顯示計算說明 */}
-                {selectedPatientId && getLastAssessmentDate(healthAssessments, selectedPatientId) && !assessment && (
-                  <div className="mt-1">
+                {selectedPatientId && getLastAssessmentDate(healthAssessments, selectedPatientId) && !assessment &&
+                <div className="mt-1">
                     <p className="text-xs text-gray-500">
                       💡 系統已自動計算建議評估日期（上次評估 + 6個月）
                     </p>
                   </div>
-                )}
+                }
               </div>
 
               <div>
@@ -553,10 +554,10 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                 <input
                   type="text"
                   value={formData.assessor}
-                  onChange={(e) => setFormData(prev => ({ ...prev, assessor: e.target.value }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, assessor: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="輸入評估人員姓名"
-                />
+                  placeholder="輸入評估人員姓名" />
+                
               </div>
             </div>
 
@@ -567,22 +568,22 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                   <label className="block text-sm font-medium text-blue-800 mb-2">
                     下次評估到期日期
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
+
                     value={formData.next_due_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, next_due_date: e.target.value }))}
-                    className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                  />
+
+                    className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white" onChange={(value) => setFormData((prev) => ({ ...prev, next_due_date: value }))} />
+                  
                 </div>
                 <div className="flex items-center">
                   <div className="text-sm text-blue-700">
                     <p className="font-medium mb-1">💡 智能計算說明</p>
                     <p className="text-xs">自動計算下次評估日期為6個月後</p>
-                    {formData.assessment_date && formData.next_due_date && (
-                      <p className="text-xs mt-1">
+                    {formData.assessment_date && formData.next_due_date &&
+                    <p className="text-xs mt-1">
                         📅 {formatDisplayDate(formData.assessment_date)} → {formatDisplayDate(formData.next_due_date)}
                       </p>
-                    )}
+                    }
                   </div>
                 </div>
               </div>
@@ -610,8 +611,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                       type="checkbox"
                       checked={!!formData.daily_activities.is_bedridden}
                       onChange={(e) => updateBedridden(e.target.checked)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                    
                     <span className="text-sm font-medium text-gray-700">長期臥床</span>
                   </label>
                   <label className="flex flex-wrap items-center gap-2 p-2 border rounded cursor-pointer hover:bg-white transition-colors w-fit">
@@ -619,8 +620,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                       type="checkbox"
                       checked={!!formData.daily_activities.is_wheelchair}
                       onChange={(e) => updateWheelchair(e.target.checked)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                    
                     <span className="text-sm font-medium text-gray-700">長期使用輪椅</span>
                   </label>
                 </div>
@@ -628,33 +629,33 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                   <div>
                     <label className="block text-xs text-gray-600 mb-1">左側</label>
                     <div className="space-y-2">
-                      {['完全正常', '手有障礙', '腳有障礙'].map(option => (
-                        <label key={option} className="flex flex-wrap items-center gap-2 p-2 border rounded cursor-pointer hover:bg-white transition-colors">
+                      {['完全正常', '手有障礙', '腳有障礙'].map((option) =>
+                      <label key={option} className="flex flex-wrap items-center gap-2 p-2 border rounded cursor-pointer hover:bg-white transition-colors">
                           <input
-                            type="checkbox"
-                            checked={formData.daily_activities.limb_movement_left.includes(option)}
-                            onChange={(e) => updateLimbMovement('left', option, e.target.checked)}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
+                          type="checkbox"
+                          checked={formData.daily_activities.limb_movement_left.includes(option)}
+                          onChange={(e) => updateLimbMovement('left', option, e.target.checked)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                        
                           <span className="text-sm text-gray-700">{option}</span>
                         </label>
-                      ))}
+                      )}
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs text-gray-600 mb-1">右側</label>
                     <div className="space-y-2">
-                      {['完全正常', '手有障礙', '腳有障礙'].map(option => (
-                        <label key={option} className="flex flex-wrap items-center gap-2 p-2 border rounded cursor-pointer hover:bg-white transition-colors">
+                      {['完全正常', '手有障礙', '腳有障礙'].map((option) =>
+                      <label key={option} className="flex flex-wrap items-center gap-2 p-2 border rounded cursor-pointer hover:bg-white transition-colors">
                           <input
-                            type="checkbox"
-                            checked={formData.daily_activities.limb_movement_right.includes(option)}
-                            onChange={(e) => updateLimbMovement('right', option, e.target.checked)}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
+                          type="checkbox"
+                          checked={formData.daily_activities.limb_movement_right.includes(option)}
+                          onChange={(e) => updateLimbMovement('right', option, e.target.checked)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                        
                           <span className="text-sm text-gray-700">{option}</span>
                         </label>
-                      ))}
+                      )}
                     </div>
                   </div>
                 </div>
@@ -663,41 +664,41 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
               {/* b-h. 各項自理能力 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { key: 'eating', label: 'b. 飲食' },
-                  { key: 'dressing', label: 'c. 穿衣' },
-                  { key: 'grooming', label: 'd. 梳洗' },
-                  { key: 'walking', label: 'e. 步行' },
-                  { key: 'bed_transfer', label: 'f. 上落床' },
-                  { key: 'bathing', label: 'g. 沐浴' },
-                  { key: 'toileting', label: 'h. 如廁' }
-                ].map(({ key, label }) => (
-                  <div key={key} className="space-y-2">
+                { key: 'eating', label: 'b. 飲食' },
+                { key: 'dressing', label: 'c. 穿衣' },
+                { key: 'grooming', label: 'd. 梳洗' },
+                { key: 'walking', label: 'e. 步行' },
+                { key: 'bed_transfer', label: 'f. 上落床' },
+                { key: 'bathing', label: 'g. 沐浴' },
+                { key: 'toileting', label: 'h. 如廁' }].
+                map(({ key, label }) =>
+                <div key={key} className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">{label}</label>
                     <select
-                      value={formData.daily_activities[key as keyof typeof formData.daily_activities]}
-                      onChange={(e) => updateDailyActivities(key, e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
+                    value={formData.daily_activities[key as keyof typeof formData.daily_activities]}
+                    onChange={(e) => updateDailyActivities(key, e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    
                       <option value="">請選擇</option>
                       <option value="獨立">獨立</option>
                       <option value="需要幫助">需要幫助</option>
                       <option value="完全依賴">完全依賴</option>
                     </select>
-                    {(formData.daily_activities[key as keyof typeof formData.daily_activities] === '需要幫助' || 
-                      formData.daily_activities[key as keyof typeof formData.daily_activities] === '完全依賴') && (
-                      <div>
+                    {(formData.daily_activities[key as keyof typeof formData.daily_activities] === '需要幫助' ||
+                  formData.daily_activities[key as keyof typeof formData.daily_activities] === '完全依賴') &&
+                  <div>
                         <label className="block text-xs text-gray-600 mb-1">需要輔助器種類</label>
                         <input
-                          type="text"
-                          value={formData.daily_activities[`${key}_aid` as keyof typeof formData.daily_activities]}
-                          onChange={(e) => updateDailyActivities(`${key}_aid`, e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="輸入輔助器種類"
-                        />
+                      type="text"
+                      value={formData.daily_activities[`${key}_aid` as keyof typeof formData.daily_activities]}
+                      onChange={(e) => updateDailyActivities(`${key}_aid`, e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="輸入輔助器種類" />
+                    
                       </div>
-                    )}
+                  }
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
@@ -713,8 +714,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                   <select
                     value={formData.nutrition_diet.condition}
                     onChange={(e) => updateNutritionDiet('condition', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    
                     <option value="">請選擇</option>
                     <option value="正常">正常</option>
                     <option value="厭食">厭食</option>
@@ -726,34 +727,34 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     b. 飯餐
-                    {isNasogastricTubeSelected && (
-                      <span className="text-xs text-gray-500 ml-2">（選擇鼻胃管時不可選）</span>
-                    )}
+                    {isNasogastricTubeSelected &&
+                    <span className="text-xs text-gray-500 ml-2">（選擇鼻胃管時不可選）</span>
+                    }
                   </label>
                   <div className="space-y-2">
                     <select
                       value={formData.nutrition_diet.meal_type}
                       onChange={(e) => updateNutritionDiet('meal_type', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      disabled={isNasogastricTubeSelected}
-                    >
+                      disabled={isNasogastricTubeSelected}>
+                      
                       <option value="">請選擇</option>
                       <option value="普通">普通</option>
                       <option value="特別">特別</option>
                     </select>
 
-                    {formData.nutrition_diet.meal_type === '特別' && !isNasogastricTubeSelected && (
-                      <select
-                        value={formData.nutrition_diet.special_diet}
-                        onChange={(e) => updateNutritionDiet('special_diet', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
+                    {formData.nutrition_diet.meal_type === '特別' && !isNasogastricTubeSelected &&
+                    <select
+                      value={formData.nutrition_diet.special_diet}
+                      onChange={(e) => updateNutritionDiet('special_diet', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                      
                         <option value="">請選擇特別餐膳</option>
                         <option value="痛風餐">痛風餐</option>
                         <option value="糖尿餐">糖尿餐</option>
                         <option value="低鹽餐">低鹽餐</option>
                       </select>
-                    )}
+                    }
                   </div>
                 </div>
 
@@ -765,8 +766,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     value={formData.nutrition_diet.height}
                     onChange={(e) => updateNutritionDiet('height', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="例如：1.65"
-                  />
+                    placeholder="例如：1.65" />
+                  
                 </div>
 
                 <div>
@@ -777,8 +778,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     value={formData.nutrition_diet.weight}
                     onChange={(e) => updateNutritionDiet('weight', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="例如：55.5"
-                  />
+                    placeholder="例如：55.5" />
+                  
                 </div>
               </div>
             </div>
@@ -799,8 +800,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     <select
                       value={formData.vision_hearing.left_eye}
                       onChange={(e) => updateVisionHearing('left_eye', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                      
                       <option value="">請選擇</option>
                       <option value="清楚">清楚</option>
                       <option value="視力模糊">視力模糊</option>
@@ -809,29 +810,29 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                       <option value="其他">其他</option>
                     </select>
                     
-                    {formData.vision_hearing.left_eye === '需要輔助器' && (
-                      <div className="mt-2">
+                    {formData.vision_hearing.left_eye === '需要輔助器' &&
+                    <div className="mt-2">
                         <input
-                          type="text"
-                          value={formData.vision_hearing.left_eye_aid}
-                          onChange={(e) => updateVisionHearing('left_eye_aid', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="輸入輔助器種類"
-                        />
+                        type="text"
+                        value={formData.vision_hearing.left_eye_aid}
+                        onChange={(e) => updateVisionHearing('left_eye_aid', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="輸入輔助器種類" />
+                      
                       </div>
-                    )}
+                    }
                     
-                    {formData.vision_hearing.left_eye === '其他' && (
-                      <div className="mt-2">
+                    {formData.vision_hearing.left_eye === '其他' &&
+                    <div className="mt-2">
                         <input
-                          type="text"
-                          value={formData.vision_hearing.left_eye_other}
-                          onChange={(e) => updateVisionHearing('left_eye_other', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="請說明其他情況"
-                        />
+                        type="text"
+                        value={formData.vision_hearing.left_eye_other}
+                        onChange={(e) => updateVisionHearing('left_eye_other', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="請說明其他情況" />
+                      
                       </div>
-                    )}
+                    }
                   </div>
 
                   <div>
@@ -839,8 +840,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     <select
                       value={formData.vision_hearing.right_eye}
                       onChange={(e) => updateVisionHearing('right_eye', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                      
                       <option value="">請選擇</option>
                       <option value="清楚">清楚</option>
                       <option value="視力模糊">視力模糊</option>
@@ -849,29 +850,29 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                       <option value="其他">其他</option>
                     </select>
                     
-                    {formData.vision_hearing.right_eye === '需要輔助器' && (
-                      <div className="mt-2">
+                    {formData.vision_hearing.right_eye === '需要輔助器' &&
+                    <div className="mt-2">
                         <input
-                          type="text"
-                          value={formData.vision_hearing.right_eye_aid}
-                          onChange={(e) => updateVisionHearing('right_eye_aid', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="輸入輔助器種類"
-                        />
+                        type="text"
+                        value={formData.vision_hearing.right_eye_aid}
+                        onChange={(e) => updateVisionHearing('right_eye_aid', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="輸入輔助器種類" />
+                      
                       </div>
-                    )}
+                    }
                     
-                    {formData.vision_hearing.right_eye === '其他' && (
-                      <div className="mt-2">
+                    {formData.vision_hearing.right_eye === '其他' &&
+                    <div className="mt-2">
                         <input
-                          type="text"
-                          value={formData.vision_hearing.right_eye_other}
-                          onChange={(e) => updateVisionHearing('right_eye_other', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="請說明其他情況"
-                        />
+                        type="text"
+                        value={formData.vision_hearing.right_eye_other}
+                        onChange={(e) => updateVisionHearing('right_eye_other', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="請說明其他情況" />
+                      
                       </div>
-                    )}
+                    }
                   </div>
                 </div>
               </div>
@@ -885,8 +886,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     <select
                       value={formData.vision_hearing.left_ear}
                       onChange={(e) => updateVisionHearing('left_ear', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                      
                       <option value="">請選擇</option>
                       <option value="清楚">清楚</option>
                       <option value="聽力衰退">聽力衰退</option>
@@ -895,17 +896,17 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                       <option value="其他">其他</option>
                     </select>
                     
-                    {formData.vision_hearing.left_ear === '其他' && (
-                      <div className="mt-2">
+                    {formData.vision_hearing.left_ear === '其他' &&
+                    <div className="mt-2">
                         <input
-                          type="text"
-                          value={formData.vision_hearing.left_ear_other}
-                          onChange={(e) => updateVisionHearing('left_ear_other', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="請說明其他情況"
-                        />
+                        type="text"
+                        value={formData.vision_hearing.left_ear_other}
+                        onChange={(e) => updateVisionHearing('left_ear_other', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="請說明其他情況" />
+                      
                       </div>
-                    )}
+                    }
                   </div>
 
                   <div>
@@ -913,8 +914,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     <select
                       value={formData.vision_hearing.right_ear}
                       onChange={(e) => updateVisionHearing('right_ear', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                      
                       <option value="">請選擇</option>
                       <option value="清楚">清楚</option>
                       <option value="聽力衰退">聽力衰退</option>
@@ -923,17 +924,17 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                       <option value="其他">其他</option>
                     </select>
                     
-                    {formData.vision_hearing.right_ear === '其他' && (
-                      <div className="mt-2">
+                    {formData.vision_hearing.right_ear === '其他' &&
+                    <div className="mt-2">
                         <input
-                          type="text"
-                          value={formData.vision_hearing.right_ear_other}
-                          onChange={(e) => updateVisionHearing('right_ear_other', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="請說明其他情況"
-                        />
+                        type="text"
+                        value={formData.vision_hearing.right_ear_other}
+                        onChange={(e) => updateVisionHearing('right_ear_other', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="請說明其他情況" />
+                      
                       </div>
-                    )}
+                    }
                   </div>
                 </div>
               </div>
@@ -949,9 +950,9 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                 <div>
                   <select
                     value={formData.communication_ability}
-                    onChange={(e) => setFormData(prev => ({ ...prev, communication_ability: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
+                    onChange={(e) => setFormData((prev) => ({ ...prev, communication_ability: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    
                     <option value="">請選擇</option>
                     <option value="清楚">清楚</option>
                     <option value="含糊">含糊</option>
@@ -960,17 +961,17 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                   </select>
                 </div>
                 
-                {formData.communication_ability === '其他' && (
-                  <div>
+                {formData.communication_ability === '其他' &&
+                <div>
                     <input
-                      type="text"
-                      value={formData.communication_other}
-                      onChange={(e) => setFormData(prev => ({ ...prev, communication_other: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="請說明其他情況"
-                    />
+                    type="text"
+                    value={formData.communication_other}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, communication_other: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="請說明其他情況" />
+                  
                   </div>
-                )}
+                }
               </div>
             </div>
 
@@ -988,21 +989,21 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {['時間認知', '人物認知', '地方認知', '無認知能力'].map(option => (
-                    <label key={option} className={`flex flex-wrap items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
-                      formData.consciousness_cognition.includes(option) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                    }`}>
+                  {['時間認知', '人物認知', '地方認知', '無認知能力'].map((option) =>
+                  <label key={option} className={`flex flex-wrap items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
+                  formData.consciousness_cognition.includes(option) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`
+                  }>
                       <input
-                        type="checkbox"
-                        checked={formData.consciousness_cognition.includes(option)}
-                        onChange={(e) => updateConsciousnessCognition(option, e.target.checked)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
+                      type="checkbox"
+                      checked={formData.consciousness_cognition.includes(option)}
+                      onChange={(e) => updateConsciousnessCognition(option, e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                    
                       <span className={`text-sm font-medium ${
-                        formData.consciousness_cognition.includes(option) ? 'text-blue-800' : 'text-gray-700'
-                      }`}>{option}</span>
+                    formData.consciousness_cognition.includes(option) ? 'text-blue-800' : 'text-gray-700'}`
+                    }>{option}</span>
                     </label>
-                  ))}
+                  )}
                 </div>
                 
                 <label className="flex flex-wrap items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors">
@@ -1010,39 +1011,39 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     type="checkbox"
                     checked={formData.consciousness_cognition.includes('其他')}
                     onChange={(e) => updateConsciousnessCognition('其他', e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                  
                   <span className="text-sm font-medium text-gray-700">其他</span>
                 </label>
                 
-                {formData.consciousness_cognition.includes('其他') && (
-                  <div className="ml-6">
+                {formData.consciousness_cognition.includes('其他') &&
+                <div className="ml-6">
                     <label className="block text-sm font-medium text-gray-700 mb-2">其他情況說明 *</label>
                     <input
-                      type="text"
-                      value={formData.consciousness_other}
-                      onChange={(e) => setFormData(prev => ({ ...prev, consciousness_other: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="請說明其他情況"
-                      required
-                    />
+                    type="text"
+                    value={formData.consciousness_other}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, consciousness_other: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="請說明其他情況"
+                    required />
+                  
                   </div>
-                )}
+                }
                 
                 {/* 顯示已選擇的認知能力 */}
-                {formData.consciousness_cognition.length > 0 && (
-                  <div className="mt-3">
+                {formData.consciousness_cognition.length > 0 &&
+                <div className="mt-3">
                     <label className="block text-sm font-medium text-gray-700 mb-2">已選擇的認知能力：</label>
                     <div className="flex flex-wrap gap-2">
-                      {formData.consciousness_cognition.map(cognition => (
-                        <span key={cognition} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 border border-blue-200">
+                      {formData.consciousness_cognition.map((cognition) =>
+                    <span key={cognition} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 border border-blue-200">
                           {cognition}
                           {cognition === '其他' && formData.consciousness_other && `: ${formData.consciousness_other}`}
                         </span>
-                      ))}
+                    )}
                     </div>
                   </div>
-                )}
+                }
               </div>
             </div>
 
@@ -1055,8 +1056,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                   <select
                     value={formData.bowel_bladder_control.bowel}
                     onChange={(e) => updateBowelBladderControl('bowel', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    
                     <option value="">請選擇</option>
                     <option value="正常">正常</option>
                     <option value="便秘">便秘</option>
@@ -1065,17 +1066,17 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     <option value="需要輔助器">需要輔助器</option>
                   </select>
 
-                  {formData.bowel_bladder_control.bowel === '需要輔助器' && (
-                    <div className="mt-2">
+                  {formData.bowel_bladder_control.bowel === '需要輔助器' &&
+                  <div className="mt-2">
                       <input
-                        type="text"
-                        value={formData.bowel_bladder_control.bowel_aid}
-                        onChange={(e) => updateBowelBladderControl('bowel_aid', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="輸入輔助器種類"
-                      />
+                      type="text"
+                      value={formData.bowel_bladder_control.bowel_aid}
+                      onChange={(e) => updateBowelBladderControl('bowel_aid', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="輸入輔助器種類" />
+                    
                     </div>
-                  )}
+                  }
                 </div>
 
                 <div>
@@ -1083,8 +1084,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                   <select
                     value={formData.bowel_bladder_control.bladder}
                     onChange={(e) => updateBowelBladderControl('bladder', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    
                     <option value="">請選擇</option>
                     <option value="正常">正常</option>
                     <option value="間歇性失禁">間歇性失禁</option>
@@ -1094,17 +1095,17 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     <option value="需要輔助器">需要輔助器</option>
                   </select>
 
-                  {formData.bowel_bladder_control.bladder === '需要輔助器' && (
-                    <div className="mt-2">
+                  {formData.bowel_bladder_control.bladder === '需要輔助器' &&
+                  <div className="mt-2">
                       <input
-                        type="text"
-                        value={formData.bowel_bladder_control.bladder_aid}
-                        onChange={(e) => updateBowelBladderControl('bladder_aid', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="輸入輔助器種類"
-                      />
+                      type="text"
+                      value={formData.bowel_bladder_control.bladder_aid}
+                      onChange={(e) => updateBowelBladderControl('bladder_aid', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="輸入輔助器種類" />
+                    
                     </div>
-                  )}
+                  }
                 </div>
               </div>
 
@@ -1115,8 +1116,8 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                     type="checkbox"
                     checked={formData.bowel_bladder_control.toilet_training}
                     onChange={(e) => updateBowelBladderControl('toilet_training', e.target.checked)}
-                    className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
+                    className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                  
                   <span className="text-sm font-medium text-blue-900">如廁訓練</span>
                 </label>
               </div>
@@ -1127,38 +1128,38 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
               <h3 className="text-lg font-medium text-gray-900 mb-4">9. 治療項目</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  '腹膜/血液透析',
-                  '氧氣治療',
-                  '皮下注射',
-                  '呼吸器',
-                  '化療',
-                  '放射治療'
-                ].map(item => (
-                  <label
-                    key={item}
-                    className={`flex flex-wrap items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
-                      formData.treatment_items.includes(item)
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-gray-200'
-                    }`}
-                  >
+                '腹膜/血液透析',
+                '氧氣治療',
+                '皮下注射',
+                '呼吸器',
+                '化療',
+                '放射治療'].
+                map((item) =>
+                <label
+                  key={item}
+                  className={`flex flex-wrap items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
+                  formData.treatment_items.includes(item) ?
+                  'border-green-500 bg-green-50' :
+                  'border-gray-200'}`
+                  }>
+                  
                     <input
-                      type="checkbox"
-                      checked={formData.treatment_items.includes(item)}
-                      onChange={(e) => updateTreatmentItems(item, e.target.checked)}
-                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                    />
+                    type="checkbox"
+                    checked={formData.treatment_items.includes(item)}
+                    onChange={(e) => updateTreatmentItems(item, e.target.checked)}
+                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded" />
+                  
                     <span
-                      className={`text-sm font-medium ${
-                        formData.treatment_items.includes(item)
-                          ? 'text-green-800'
-                          : 'text-gray-700'
-                      }`}
-                    >
+                    className={`text-sm font-medium ${
+                    formData.treatment_items.includes(item) ?
+                    'text-green-800' :
+                    'text-gray-700'}`
+                    }>
+                    
                       {item}
                     </span>
                   </label>
-                ))}
+                )}
               </div>
             </div>
 
@@ -1171,77 +1172,77 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">情緒 (可複選)</label>
                   <div className="space-y-2">
-                    {['喜樂', '平靜', '冷漠', '抑鬱', '激動', '其他'].map(item => (
-                      <label
-                        key={item}
-                        className={`flex flex-wrap items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
-                          formData.emotional_expression.includes(item)
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200'
-                        }`}
-                      >
+                    {['喜樂', '平靜', '冷漠', '抑鬱', '激動', '其他'].map((item) =>
+                    <label
+                      key={item}
+                      className={`flex flex-wrap items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
+                      formData.emotional_expression.includes(item) ?
+                      'border-blue-500 bg-blue-50' :
+                      'border-gray-200'}`
+                      }>
+                      
                         <input
-                          type="checkbox"
-                          checked={formData.emotional_expression.includes(item)}
-                          onChange={(e) => updateEmotionalExpression(item, e.target.checked)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
+                        type="checkbox"
+                        checked={formData.emotional_expression.includes(item)}
+                        onChange={(e) => updateEmotionalExpression(item, e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                      
                         <span
-                          className={`text-sm font-medium ${
-                            formData.emotional_expression.includes(item)
-                              ? 'text-blue-800'
-                              : 'text-gray-700'
-                          }`}
-                        >
+                        className={`text-sm font-medium ${
+                        formData.emotional_expression.includes(item) ?
+                        'text-blue-800' :
+                        'text-gray-700'}`
+                        }>
+                        
                           {item}
                         </span>
                       </label>
-                    ))}
+                    )}
                   </div>
 
-                  {formData.emotional_expression.includes('其他') && (
-                    <div className="mt-2">
+                  {formData.emotional_expression.includes('其他') &&
+                  <div className="mt-2">
                       <input
-                        type="text"
-                        value={formData.emotional_other}
-                        onChange={(e) => setFormData(prev => ({ ...prev, emotional_other: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="請說明其他情況"
-                      />
+                      type="text"
+                      value={formData.emotional_other}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, emotional_other: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="請說明其他情況" />
+                    
                     </div>
-                  )}
+                  }
                 </div>
 
                 {/* 行為 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">行為 (可複選)</label>
                   <div className="space-y-2">
-                    {['遊走', '逃跑', '暴力', '偷竊', '夢遊', '囤積'].map(item => (
-                      <label
-                        key={item}
-                        className={`flex flex-wrap items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
-                          formData.behavior_expression.includes(item)
-                            ? 'border-purple-500 bg-purple-50'
-                            : 'border-gray-200'
-                        }`}
-                      >
+                    {['遊走', '逃跑', '暴力', '偷竊', '夢遊', '囤積'].map((item) =>
+                    <label
+                      key={item}
+                      className={`flex flex-wrap items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-white transition-colors ${
+                      formData.behavior_expression.includes(item) ?
+                      'border-purple-500 bg-purple-50' :
+                      'border-gray-200'}`
+                      }>
+                      
                         <input
-                          type="checkbox"
-                          checked={formData.behavior_expression.includes(item)}
-                          onChange={(e) => updateBehaviorExpression(item, e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
+                        type="checkbox"
+                        checked={formData.behavior_expression.includes(item)}
+                        onChange={(e) => updateBehaviorExpression(item, e.target.checked)}
+                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
+                      
                         <span
-                          className={`text-sm font-medium ${
-                            formData.behavior_expression.includes(item)
-                              ? 'text-purple-800'
-                              : 'text-gray-700'
-                          }`}
-                        >
+                        className={`text-sm font-medium ${
+                        formData.behavior_expression.includes(item) ?
+                        'text-purple-800' :
+                        'text-gray-700'}`
+                        }>
+                        
                           {item}
                         </span>
                       </label>
-                    ))}
+                    )}
                   </div>
                 </div>
               </div>
@@ -1252,11 +1253,11 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
               <h3 className="text-lg font-medium text-gray-900 mb-4">11. 備註</h3>
               <textarea
                 value={formData.remarks}
-                onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, remarks: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={4}
-                placeholder="其他需要記錄的健康評估資訊"
-              />
+                placeholder="其他需要記錄的健康評估資訊" />
+              
             </div>
           </div>
 
@@ -1265,27 +1266,27 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              
               取消
             </button>
             <button
               type="submit"
-              disabled={loading || (!selectedPatientId && !defaultPatientId)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex flex-wrap items-center gap-2 transition-colors"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
+              disabled={loading || !selectedPatientId && !defaultPatientId}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex flex-wrap items-center gap-2 transition-colors">
+              
+              {loading ?
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> :
+
+              <Save className="w-4 h-4" />
+              }
               <span>{loading ? '保存中...' : '保存'}</span>
             </button>
           </div>
         </form>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default HealthAssessmentModal;

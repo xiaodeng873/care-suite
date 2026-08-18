@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
 import { X, Calendar } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
+import React, { useState, useEffect } from 'react';
+import DateInput from './DateInput';
 
 interface ScheduleModalProps {
   schedule?: any;
@@ -13,7 +14,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ schedule, onClose }) => {
   // 香港時區輔助函數
   const getHongKongDate = () => {
     const now = new Date();
-    const hongKongTime = new Date(now.getTime() + (8 * 60 * 60 * 1000)); // GMT+8
+    const hongKongTime = new Date(now.getTime() + 8 * 60 * 60 * 1000); // GMT+8
     return hongKongTime.toISOString().split('T')[0];
   };
 
@@ -65,8 +66,8 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ schedule, onClose }) => {
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
+            className="text-gray-400 hover:text-gray-600">
+            
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -77,34 +78,34 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ schedule, onClose }) => {
               <Calendar className="h-4 w-4 inline mr-2" />
               到診日期
             </label>
-            <input
-              type="date"
+            <DateInput
+
               value={formData.到診日期}
-              onChange={(e) => setFormData(prev => ({ ...prev, 到診日期: e.target.value }))}
+
               className="form-input"
-              required
-            />
+              required onChange={(value) => setFormData((prev) => ({ ...prev, 到診日期: value }))} />
+            
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 pt-4">
             <button
               type="submit"
-              className="btn-primary flex-1"
-            >
+              className="btn-primary flex-1">
+              
               {schedule ? '更新排程' : '建立排程'}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="btn-secondary flex-1"
-            >
+              className="btn-secondary flex-1">
+              
               取消
             </button>
           </div>
         </form>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default ScheduleModal;

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
 import { X, Shield, User, Calendar } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import { type InfectionControlRecord } from '../lib/database';
 import PatientAutocomplete from './PatientAutocomplete';
+import React, { useState, useEffect } from 'react';
+import DateInput from './DateInput';
 
 interface InfectionControlModalProps {
   record?: InfectionControlRecord | null;
@@ -15,7 +16,7 @@ const InfectionControlModal: React.FC<InfectionControlModalProps> = ({
   record,
   prefilledPatientId,
   onClose,
-  onSave,
+  onSave
 }) => {
   const { patients, infectionControlRecords, addInfectionControlRecord, updateInfectionControlRecord } = usePatientData();
   const [loading, setLoading] = useState(false);
@@ -30,18 +31,18 @@ const InfectionControlModal: React.FC<InfectionControlModalProps> = ({
     infection_type: record?.infection_type || '',
     diagnosis_date: record?.diagnosis_date || '',
     recovery_date: record?.recovery_date || '',
-    notes: record?.notes || '',
+    notes: record?.notes || ''
   });
 
-  const selectedPatient = patients.find(p => p.院友id === formData.patient_id);
+  const selectedPatient = patients.find((p) => p.院友id === formData.patient_id);
 
   const existingInfectionTypes = React.useMemo(() => {
-    const types = new Set(infectionControlRecords.map(r => r.infection_type?.trim()).filter(Boolean) as string[]);
+    const types = new Set(infectionControlRecords.map((r) => r.infection_type?.trim()).filter(Boolean) as string[]);
     return Array.from(types).sort();
   }, [infectionControlRecords]);
 
   const handleChange = (field: keyof typeof formData, value: string | number | null) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,7 +67,7 @@ const InfectionControlModal: React.FC<InfectionControlModalProps> = ({
         infection_type: formData.infection_type.trim(),
         diagnosis_date: formData.diagnosis_date,
         recovery_date: formData.recovery_date || null,
-        notes: formData.notes.trim() || null,
+        notes: formData.notes.trim() || null
       };
 
       if (record) {
@@ -97,8 +98,8 @@ const InfectionControlModal: React.FC<InfectionControlModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
+            className="text-gray-400 hover:text-gray-600 transition-colors">
+            
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -109,31 +110,31 @@ const InfectionControlModal: React.FC<InfectionControlModalProps> = ({
               <span className="text-red-500">*</span>
               <span>院友</span>
             </label>
-            {selectedPatient ? (
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3">
+            {selectedPatient ?
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3">
                 <User className="h-5 w-5 text-gray-400" />
                 <span className="text-sm text-gray-900">
                   {selectedPatient.中文姓氏}{selectedPatient.中文名字} ({selectedPatient.床號})
                 </span>
-                {!record && (
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, patient_id: null }))}
-                    className="text-sm text-blue-600 hover:text-blue-700"
-                  >
+                {!record &&
+              <button
+                type="button"
+                onClick={() => setFormData((prev) => ({ ...prev, patient_id: null }))}
+                className="text-sm text-blue-600 hover:text-blue-700">
+                
                     更改
                   </button>
-                )}
-              </div>
-            ) : (
-              <PatientAutocomplete
-                value=""
-                onChange={(patientIdStr) => handleChange('patient_id', parseInt(patientIdStr, 10) || null)}
-                placeholder="搜索院友姓名或床號..."
-                showResidencyFilter={true}
-                defaultResidencyStatus="在住"
-              />
-            )}
+              }
+              </div> :
+
+            <PatientAutocomplete
+              value=""
+              onChange={(patientIdStr) => handleChange('patient_id', parseInt(patientIdStr, 10) || null)}
+              placeholder="搜索院友姓名或床號..."
+              showResidencyFilter={true}
+              defaultResidencyStatus="在住" />
+
+            }
           </div>
 
           <div>
@@ -146,29 +147,29 @@ const InfectionControlModal: React.FC<InfectionControlModalProps> = ({
               value={formData.infection_type}
               onChange={(e) => handleChange('infection_type', e.target.value)}
               className="form-input"
-              placeholder="例如：MRSA、CPE、VRE"
-            />
-            {existingInfectionTypes.length > 0 && (
-              <div className="mt-2">
+              placeholder="例如：MRSA、CPE、VRE" />
+            
+            {existingInfectionTypes.length > 0 &&
+            <div className="mt-2">
                 <p className="text-xs text-gray-500 mb-1.5">現存品種（點擊快速選擇）：</p>
                 <div className="flex flex-wrap gap-2">
-                  {existingInfectionTypes.map(type => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => handleChange('infection_type', type)}
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                        formData.infection_type === type
-                          ? 'bg-purple-100 text-purple-800 border-purple-300'
-                          : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-purple-50 hover:text-purple-700'
-                      }`}
-                    >
+                  {existingInfectionTypes.map((type) =>
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => handleChange('infection_type', type)}
+                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  formData.infection_type === type ?
+                  'bg-purple-100 text-purple-800 border-purple-300' :
+                  'bg-gray-50 text-gray-700 border-gray-200 hover:bg-purple-50 hover:text-purple-700'}`
+                  }>
+                  
                       {type}
                     </button>
-                  ))}
+                )}
                 </div>
               </div>
-            )}
+            }
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -178,12 +179,12 @@ const InfectionControlModal: React.FC<InfectionControlModalProps> = ({
                 <span className="text-red-500">*</span>
                 <span>確診日期</span>
               </label>
-              <input
-                type="date"
+              <DateInput
+
                 value={formData.diagnosis_date}
-                onChange={(e) => handleChange('diagnosis_date', e.target.value)}
-                className="form-input"
-              />
+
+                className="form-input" onChange={(value) => handleChange('diagnosis_date', value)} />
+              
             </div>
 
             <div>
@@ -191,12 +192,12 @@ const InfectionControlModal: React.FC<InfectionControlModalProps> = ({
                 <Calendar className="h-4 w-4 text-gray-400" />
                 <span>康復日期</span>
               </label>
-              <input
-                type="date"
+              <DateInput
+
                 value={formData.recovery_date}
-                onChange={(e) => handleChange('recovery_date', e.target.value)}
-                className="form-input"
-              />
+
+                className="form-input" onChange={(value) => handleChange('recovery_date', value)} />
+              
               <p className="text-xs text-gray-500 mt-1">如未康復可留空</p>
             </div>
           </div>
@@ -208,8 +209,8 @@ const InfectionControlModal: React.FC<InfectionControlModalProps> = ({
               onChange={(e) => handleChange('notes', e.target.value)}
               className="form-input"
               rows={3}
-              placeholder="輸入備註..."
-            />
+              placeholder="輸入備註..." />
+            
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4 border-t border-gray-200">
@@ -217,22 +218,22 @@ const InfectionControlModal: React.FC<InfectionControlModalProps> = ({
               type="button"
               onClick={onClose}
               className="btn-secondary"
-              disabled={loading}
-            >
+              disabled={loading}>
+              
               取消
             </button>
             <button
               type="submit"
               className="btn-primary"
-              disabled={loading}
-            >
-              {loading ? '儲存中...' : (record ? '更新' : '新增')}
+              disabled={loading}>
+              
+              {loading ? '儲存中...' : record ? '更新' : '新增'}
             </button>
           </div>
         </form>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default InfectionControlModal;

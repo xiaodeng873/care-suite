@@ -34,6 +34,7 @@ import {
   carryForwardRecurringFeeRecordsForPatient,
 } from '../lib/database';
 import type { PrintContentMode } from '../utils/patientPrintBundleGenerator';
+import DateInput from '../components/DateInput';
 
 type SortField =
   | 'record_date'
@@ -720,11 +721,9 @@ const FeeRecords: React.FC = () => {
                       className={`${error ? 'bg-red-50' : ''} ${row.isSaving ? 'opacity-60' : ''}`}
                     >
                       <td className="px-2 py-2 align-top">
-                        <input
-                          ref={(el) => (inputRefs.current[`${row.localId}-record_date`] = el)}
-                          type="date"
+                        <DateInput
                           value={row.record_date}
-                          onChange={(e) => updateDraft(row.localId, { record_date: e.target.value })}
+                          onChange={(value) => updateDraft(row.localId, { record_date: value })}
                           onBlur={() => scheduleSave(row.localId)}
                           onFocus={() => handleFocus(row.localId)}
                           className={inputClass(!!error && !row.record_date)}

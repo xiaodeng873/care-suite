@@ -4,6 +4,7 @@ import { usePatientData, type PatientLog } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import BedNumberImprint from './BedNumberImprint';
+import DateInput from './DateInput';
 
 interface PatientLogModalProps {
   log?: PatientLog;
@@ -187,14 +188,7 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
                 <Calendar className="h-4 w-4 inline mr-1" />
                 記錄日期 *
               </label>
-              <input
-                type="date"
-                name="log_date"
-                value={formData.log_date}
-                onChange={handleChange}
-                className="form-input"
-                required
-              />
+              <DateInput name="log_date" value={formData.log_date} className="form-input" onChange={(value) => setFormData(prev => ({ ...prev, log_date: value }))}/>
             </div>
           </div>
 

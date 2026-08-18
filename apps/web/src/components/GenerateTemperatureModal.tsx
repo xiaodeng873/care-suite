@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
 import { X, Thermometer, CheckSquare, Square } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import { syncTaskStatus } from '../lib/database';
 import type { HealthRecord } from '../lib/database';
 import { isInHospital } from '../utils/careRecordHelper';
+import React, { useMemo, useState } from 'react';
+import DateInput from './DateInput';
 
 interface GenerateTemperatureModalProps {
   onClose: () => void;
@@ -21,14 +22,14 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
     hospitalEpisodes,
     addHealthRecordsForSession,
     refreshData,
-    refreshHealthTaskData,
+    refreshHealthTaskData
   } = usePatientData();
   const patients = useFilteredPatients();
   const { displayName } = useAuth();
 
   const getHongKongDate = () => {
     const now = new Date();
-    const hongKongTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const hongKongTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     return hongKongTime.toISOString().split('T')[0];
   };
   const todayHK = getHongKongDate();
@@ -41,16 +42,16 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
 
   // 當天在住院友（依居住區篩選、床號排序）
   const filteredPatients = useMemo(() => {
-    return patients
-      .filter(p => p.在住狀態 === '在住')
-      .filter(p => (stationFilter === 'all' ? true : p.station_id === stationFilter))
-      .sort((a, b) => (a.床號 || '').localeCompare(b.床號 || '', 'zh-Hant', { numeric: true }));
+    return patients.
+    filter((p) => p.在住狀態 === '在住').
+    filter((p) => stationFilter === 'all' ? true : p.station_id === stationFilter).
+    sort((a, b) => (a.床號 || '').localeCompare(b.床號 || '', 'zh-Hant', { numeric: true }));
   }, [patients, stationFilter]);
 
   // 正在缺席（生效中的缺席事件 或 is_hospitalized 任一為真）
   const isAbsent = useMemo(() => {
     const map = new Map<number, boolean>();
-    patients.forEach(p => {
+    patients.forEach((p) => {
       const absent = isInHospital(p, targetDate, TARGET_TIME, admissionRecords, hospitalEpisodes) || !!p.is_hospitalized;
       map.set(p.院友id, absent);
     });
@@ -60,7 +61,7 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
   // 當天已有體溫記錄者
   const hasTemperatureToday = useMemo(() => {
     const set = new Set<number>();
-    healthRecords.forEach(r => {
+    healthRecords.forEach((r) => {
       if (r.監測類型 === '體溫' && r.記錄日期 === targetDate && r.數值 !== null) {
         set.add(r.院友id);
       }
@@ -70,14 +71,14 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
 
   // 預設勾選 = 在住 且 非缺席 且 當天尚無體溫記錄
   const eligibleIds = useMemo(() => {
-    return filteredPatients
-      .filter(p => !isAbsent.get(p.院友id) && !hasTemperatureToday.has(p.院友id))
-      .map(p => p.院友id);
+    return filteredPatients.
+    filter((p) => !isAbsent.get(p.院友id) && !hasTemperatureToday.has(p.院友id)).
+    map((p) => p.院友id);
   }, [filteredPatients, isAbsent, hasTemperatureToday]);
 
   // 當天有缺席狀態在身的院友：只有「寫入空值 + 無法量度原因」一種處理，checkbox 不容取消
   const forcedIds = useMemo(() => {
-    return new Set(filteredPatients.filter(p => isAbsent.get(p.院友id)).map(p => p.院友id));
+    return new Set(filteredPatients.filter((p) => isAbsent.get(p.院友id)).map((p) => p.院友id));
   }, [filteredPatients, isAbsent]);
 
   const [selectedIds, setSelectedIds] = useState<Set<number> | null>(null);
@@ -94,7 +95,7 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
   const effectiveSelected = useMemo(() => {
     const base = selectedIds ?? new Set<number>(eligibleIds);
     const merged = new Set(base);
-    forcedIds.forEach(id => merged.add(id));
+    forcedIds.forEach((id) => merged.add(id));
     return merged;
   }, [selectedIds, eligibleIds, forcedIds]);
 
@@ -102,22 +103,22 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
     if (forcedIds.has(id)) return; // 缺席院友不容取消勾選
     setSelectedIds(() => {
       const next = new Set(effectiveSelected);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);else next.add(id);
       return next;
     });
   };
-  const selectAll = () => setSelectedIds(new Set(filteredPatients.map(p => p.院友id)));
+  const selectAll = () => setSelectedIds(new Set(filteredPatients.map((p) => p.院友id)));
   const clearAll = () => setSelectedIds(new Set());
   const resetDefault = () => setSelectedIds(new Set(eligibleIds));
   const invertSelection = () => {
     setSelectedIds(() => {
       const next = new Set<number>();
-      filteredPatients.forEach(p => { if (!effectiveSelected.has(p.院友id)) next.add(p.院友id); });
+      filteredPatients.forEach((p) => {if (!effectiveSelected.has(p.院友id)) next.add(p.院友id);});
       return next;
     });
   };
 
-  const allSelected = filteredPatients.length > 0 && filteredPatients.every(p => effectiveSelected.has(p.院友id));
+  const allSelected = filteredPatients.length > 0 && filteredPatients.every((p) => effectiveSelected.has(p.院友id));
 
   const generateRandomTemperature = () => {
     // 隨機 36.0 – 37.1（含），1 位小數
@@ -135,14 +136,14 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
     setSuccess(null);
     try {
       const taskByPatient = new Map<number, string>();
-      patientHealthTasks.forEach(t => {
+      patientHealthTasks.forEach((t) => {
         if (t.health_record_type === '體溫' && !taskByPatient.has(t.patient_id)) {
           taskByPatient.set(t.patient_id, t.id);
         }
       });
 
       // 與主頁監測任務卡片一致：缺席院友寫入空值 + 備註註明無法量度原因，而非略過不寫入
-      const records: Omit<HealthRecord, '記錄id' | '建立時間'>[] = ids.map(id => {
+      const records: Omit<HealthRecord, '記錄id' | '建立時間'>[] = ids.map((id) => {
         const absent = isAbsent.get(id);
         return {
           院友id: id,
@@ -152,7 +153,7 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
           監測類型: '體溫',
           數值: absent ? 0 : generateRandomTemperature(),
           備註: absent ? '無法量度原因: 入院' : undefined,
-          記錄人員: displayName || undefined,
+          記錄人員: displayName || undefined
         };
       });
 
@@ -160,7 +161,7 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
 
       // 與其他監測任務一致：同步各受影響任務的下次到期狀態
       const affectedTaskIds = new Set<string>();
-      records.forEach(r => { if (r.任務id) affectedTaskIds.add(r.任務id); });
+      records.forEach((r) => {if (r.任務id) affectedTaskIds.add(r.任務id);});
       for (const taskId of affectedTaskIds) {
         try {
           await syncTaskStatus(taskId);
@@ -172,12 +173,12 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
       if (refreshHealthTaskData) await refreshHealthTaskData();
       if (refreshData) await refreshData();
 
-      const absentCount = records.filter(r => r.備註?.includes('無法量度')).length;
+      const absentCount = records.filter((r) => r.備註?.includes('無法量度')).length;
       const measuredCount = ids.length - absentCount;
       setSuccess(
-        absentCount > 0
-          ? `已為 ${measuredCount} 位院友生成 ${TARGET_TIME} 體溫記錄，另 ${absentCount} 位缺席院友記為無法量度`
-          : `已為 ${ids.length} 位院友生成 ${TARGET_TIME} 體溫記錄`
+        absentCount > 0 ?
+        `已為 ${measuredCount} 位院友生成 ${TARGET_TIME} 體溫記錄，另 ${absentCount} 位缺席院友記為無法量度` :
+        `已為 ${ids.length} 位院友生成 ${TARGET_TIME} 體溫記錄`
       );
       setTimeout(() => onClose(), 1200);
     } catch (err) {
@@ -210,24 +211,24 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
           {/* 日期選擇 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">生成日期</label>
-            <input
-              type="date"
+            <DateInput
+
               value={targetDate}
-              onChange={e => handleDateChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
+
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" onChange={(value) => handleDateChange(value)} />
+            
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">居住區</label>
             <select
               value={stationFilter}
               onChange={(e) => handleStationChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-            >
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+              
               <option value="all">全部居住區</option>
-              {stations.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
+              {stations.map((s) =>
+              <option key={s.id} value={s.id}>{s.name}</option>
+              )}
             </select>
           </div>
 
@@ -245,58 +246,58 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
               </div>
             </div>
             <div className="border border-gray-200 rounded-md max-h-72 overflow-y-auto divide-y divide-gray-100">
-              {filteredPatients.length === 0 ? (
-                <p className="px-4 py-3 text-sm text-gray-500">沒有符合條件的院友</p>
-              ) : (
-                filteredPatients.map(p => {
-                  const absent = isAbsent.get(p.院友id);
-                  const measured = hasTemperatureToday.has(p.院友id);
-                  const locked = forcedIds.has(p.院友id);
-                  return (
-                    <button
-                      key={p.院友id}
-                      type="button"
-                      onClick={() => toggleOne(p.院友id)}
-                      disabled={locked}
-                      title={locked ? '缺席院友將自動記錄為無法量度，不可取消勾選' : undefined}
-                      className={`w-full px-4 py-2 text-left text-sm flex items-center gap-3 ${locked ? 'cursor-not-allowed bg-purple-50/50' : 'hover:bg-gray-50'}`}
-                    >
-                      {effectiveSelected.has(p.院友id) ? (
-                        <CheckSquare className={`h-4 w-4 flex-shrink-0 ${locked ? 'text-purple-500' : 'text-orange-600'}`} />
-                      ) : (
-                        <Square className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      )}
+              {filteredPatients.length === 0 ?
+              <p className="px-4 py-3 text-sm text-gray-500">沒有符合條件的院友</p> :
+
+              filteredPatients.map((p) => {
+                const absent = isAbsent.get(p.院友id);
+                const measured = hasTemperatureToday.has(p.院友id);
+                const locked = forcedIds.has(p.院友id);
+                return (
+                  <button
+                    key={p.院友id}
+                    type="button"
+                    onClick={() => toggleOne(p.院友id)}
+                    disabled={locked}
+                    title={locked ? '缺席院友將自動記錄為無法量度，不可取消勾選' : undefined}
+                    className={`w-full px-4 py-2 text-left text-sm flex items-center gap-3 ${locked ? 'cursor-not-allowed bg-purple-50/50' : 'hover:bg-gray-50'}`}>
+                    
+                      {effectiveSelected.has(p.院友id) ?
+                    <CheckSquare className={`h-4 w-4 flex-shrink-0 ${locked ? 'text-purple-500' : 'text-orange-600'}`} /> :
+
+                    <Square className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    }
                       <span className="font-mono text-gray-500 w-12">{p.床號}</span>
                       <span className="text-gray-900 flex-1">{p.中文姓名}</span>
-                      {absent && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">缺席．將記為無法量度</span>
-                      )}
-                      {measured && !absent && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">已量度</span>
-                      )}
-                    </button>
-                  );
-                })
-              )}
+                      {absent &&
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">缺席．將記為無法量度</span>
+                    }
+                      {measured && !absent &&
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">已量度</span>
+                    }
+                    </button>);
+
+              })
+              }
             </div>
-            {filteredPatients.length > 0 && (
-              <button type="button" onClick={allSelected ? clearAll : selectAll} className="mt-1 text-xs text-gray-500 hover:text-gray-700">
+            {filteredPatients.length > 0 &&
+            <button type="button" onClick={allSelected ? clearAll : selectAll} className="mt-1 text-xs text-gray-500 hover:text-gray-700">
                 {allSelected ? '取消全選' : '全選'}
               </button>
-            )}
+            }
             <p className="mt-2 text-xs text-gray-500">預設已勾選「在住、當天尚無體溫」之院友；缺席院友一律強制勾選，將寫入空值並於備註註明無法量度原因（不可取消）。</p>
           </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          {error &&
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-sm font-medium text-red-800">{error}</p>
             </div>
-          )}
-          {success && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          }
+          {success &&
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <p className="text-sm font-medium text-green-800">{success}</p>
             </div>
-          )}
+          }
         </div>
 
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 p-6 border-t border-gray-200">
@@ -304,24 +305,24 @@ const GenerateTemperatureModal: React.FC<GenerateTemperatureModalProps> = ({ onC
           <button
             onClick={handleGenerate}
             disabled={isGenerating || effectiveSelected.size === 0}
-            className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:bg-orange-300 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isGenerating ? (
-              <>
+            className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:bg-orange-300 disabled:cursor-not-allowed flex items-center gap-2">
+            
+            {isGenerating ?
+            <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 <span>生成中...</span>
-              </>
-            ) : (
-              <>
+              </> :
+
+            <>
                 <Thermometer className="h-4 w-4" />
                 <span>生成體溫（{effectiveSelected.size}）</span>
               </>
-            )}
+            }
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default GenerateTemperatureModal;

@@ -26,6 +26,7 @@ import PatientTooltip from '../components/PatientTooltip';
 import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 import PatientPrintModal from '../components/PatientPrintModal';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from '../components/DateInput';
 
 
 type SortField = '院友姓名' | 'incident_date' | 'incident_type' | 'location' | 'created_at';
@@ -436,18 +437,14 @@ const IncidentReports: React.FC = () => {
                 <div className="mb-4">
                   <label className="form-label">意外日期區間</label>
                   <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="date"
-                      value={advancedFilters.startDate}
-                      onChange={(e) => updateAdvancedFilter('startDate', e.target.value)}
+                    <DateInput value={advancedFilters.startDate}
+                      onChange={(value) => updateAdvancedFilter('startDate', value)}
                       className="form-input"
                       placeholder="開始日期"
                     />
                     <span className="text-gray-500">至</span>
-                    <input
-                      type="date"
-                      value={advancedFilters.endDate}
-                      onChange={(e) => updateAdvancedFilter('endDate', e.target.value)}
+                    <DateInput value={advancedFilters.endDate}
+                      onChange={(value) => updateAdvancedFilter('endDate', value)}
                       className="form-input"
                       placeholder="結束日期"
                     />

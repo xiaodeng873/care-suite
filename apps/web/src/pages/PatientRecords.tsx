@@ -17,6 +17,7 @@ import type { Patient } from '../lib/database';
 import { buildEpisodeClosurePayloads, isEpisodeUnclosed } from '../utils/dischargeEpisodeClosure';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from '../components/DateInput';
 
 type SortField = '床號' | '中文姓名' | '性別' | '年齡' | '入住日期' | '退住日期' | '在住天數' | '護理等級' | '入住類型' | '在住狀態';
 type SortDirection = 'asc' | 'desc';
@@ -693,18 +694,14 @@ const PatientRecords: React.FC = () => {
                 <div className="mb-4">
                   <label className="form-label">入住日期區間</label>
                   <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="date"
-                      value={advancedFilters.startDate}
-                      onChange={(e) => updateAdvancedFilter('startDate', e.target.value)}
+                    <DateInput value={advancedFilters.startDate}
+                      onChange={(value) => updateAdvancedFilter('startDate', value)}
                       className="form-input"
                       placeholder="開始日期"
                     />
                     <span className="text-gray-500">至</span>
-                    <input
-                      type="date"
-                      value={advancedFilters.endDate}
-                      onChange={(e) => updateAdvancedFilter('endDate', e.target.value)}
+                    <DateInput value={advancedFilters.endDate}
+                      onChange={(value) => updateAdvancedFilter('endDate', value)}
                       className="form-input"
                       placeholder="結束日期"
                     />

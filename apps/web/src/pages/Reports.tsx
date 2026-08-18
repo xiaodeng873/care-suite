@@ -11,7 +11,8 @@ import BedNumberImprint from '../components/BedNumberImprint';
 import { formatFrequencyDescription } from '../utils/taskScheduler';
 import { supabase } from '../lib/supabase';
 import type { Patient, PatientCareTab, Station, PatientTubeCareRecord, MealGuidance } from '../lib/database';
-import { formatDisplayDate, formatDisplayDateTime } from '../utils/dateFormat';
+import { formatDisplayDate, formatDisplayDateTime, formatTimeToHHMM } from '../utils/dateFormat';
+import DateInput from '../components/DateInput';
 
 
 import { getPrintBedNumber } from '../utils/bedTransferUtils';
@@ -594,8 +595,7 @@ const Reports: React.FC = () => {
     const targetDate = reportDate;
     const displayDate = targetDate.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
+    const handleDateChange = (value: string) => {
       if (value) {
         const [year, month, day] = value.split('-').map(Number);
         setReportDate(new Date(year, month - 1, day));
@@ -614,8 +614,7 @@ const Reports: React.FC = () => {
         <div className="flex flex-wrap gap-4 mb-4 print:hidden">
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-sm text-gray-600">報告日期：</label>
-            <input
-              type="date"
+            <DateInput
               value={formatInputDate(reportDate)}
               max={formatInputDate(new Date())}
               onChange={handleDateChange}
@@ -1435,7 +1434,7 @@ const Reports: React.FC = () => {
                               </p>
                               {task.specific_times && Array.isArray(task.specific_times) && task.specific_times.length > 0 && (
                                 <p className="text-sm text-gray-600">
-                                  指定時間：{task.specific_times.join(', ')}
+                                  指定時間：{task.specific_times.map((t) => formatTimeToHHMM(t)).join(', ')}
                                 </p>
                               )}
                               {task.next_due_at && (

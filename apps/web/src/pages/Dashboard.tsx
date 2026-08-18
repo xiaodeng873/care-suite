@@ -35,7 +35,7 @@ import { syncTaskStatus, SYNC_CUTOFF_DATE_STR } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { getMissingMonitoringVitals } from '../utils/monitoringCoverage';
 import { hasInProgressCarePlan } from '../utils/carePlanStatus';
-import { formatDisplayDate , formatDisplayDateTime } from '../utils/dateFormat';
+import { formatDisplayDate , formatDisplayDateTime , formatTimeToHHMM } from '../utils/dateFormat';
 
 type HealthTask = PatientHealthTask;
 
@@ -1125,7 +1125,7 @@ const Dashboard: React.FC = () => {
                         if (t.specific_times && t.specific_times.length > 0) {
                           return t.specific_times.map(normalizeTime).map(padTime).sort()[0];
                         }
-                        return new Date(t.next_due_at).toTimeString().slice(0, 5);
+                        return formatTimeToHHMM(new Date(t.next_due_at));
                       };
                       const groups = new Map<string, typeof slot.tasks>();
                       slot.tasks.forEach(t => {

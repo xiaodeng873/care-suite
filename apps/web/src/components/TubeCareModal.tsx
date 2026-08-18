@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
 import { X, Stethoscope, Calendar, User, FileText } from 'lucide-react';
 import { usePatientData, type PatientTubeCareRecord } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { calculateTubeCareNextDueDate } from '../utils/taskScheduler';
+import React, { useState } from 'react';
+import DateInput from './DateInput';
 
 interface TubeCareModalProps {
   record?: PatientTubeCareRecord;
@@ -44,7 +45,7 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
     cycle_days: (record?.cycle_days ?? renewFrom?.cycle_days ?? STOMA_DEFAULT_CYCLE) as number,
     wash_cycle_days: (record?.wash_cycle_days ?? renewFrom?.wash_cycle_days ?? OXYGEN_DEFAULT_WASH_CYCLE) as number,
     replace_cycle_days: (record?.replace_cycle_days ?? renewFrom?.replace_cycle_days ?? OXYGEN_DEFAULT_REPLACE_CYCLE) as number,
-    notes: record?.notes ?? '',
+    notes: record?.notes ?? ''
   });
 
   const isOxygen = formData.care_type === '氧氣喉管清洗/更換';
@@ -59,10 +60,10 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
       cycle_days: isStoma ? formData.cycle_days : null,
       oxygen_action: isOxygen ? formData.oxygen_action : null,
       wash_cycle_days: isOxygen ? formData.wash_cycle_days : null,
-      replace_cycle_days: isOxygen ? formData.replace_cycle_days : null,
+      replace_cycle_days: isOxygen ? formData.replace_cycle_days : null
     });
     if (calculated) {
-      setFormData(prev => ({ ...prev, next_due_date: calculated }));
+      setFormData((prev) => ({ ...prev, next_due_date: calculated }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.care_type, formData.execution_date, formData.tube_material, formData.cycle_days, formData.oxygen_action, formData.wash_cycle_days, formData.replace_cycle_days]);
@@ -95,7 +96,7 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
         cycle_days: isStoma ? formData.cycle_days : null,
         wash_cycle_days: isOxygen ? formData.wash_cycle_days : null,
         replace_cycle_days: isOxygen ? formData.replace_cycle_days : null,
-        notes: formData.notes || null,
+        notes: formData.notes || null
       } as Omit<PatientTubeCareRecord, 'id' | 'created_at' | 'updated_at'>;
 
       if (record) {
@@ -139,23 +140,23 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
               <User className="h-4 w-4 inline mr-1" />
               院友 *
             </label>
-            {isLocked ? (
-              <div className="form-input bg-gray-100 cursor-not-allowed">
+            {isLocked ?
+            <div className="form-input bg-gray-100 cursor-not-allowed">
                 {(() => {
-                  const pid = record?.patient_id ?? renewFrom?.patient_id;
-                  const p = patients.find(pt => pt.院友id === Number(pid));
-                  return p ? `${p.床號} - ${p.中文姓名}` : '未知院友';
-                })()}
-              </div>
-            ) : (
-              <PatientAutocomplete
-                value={formData.patient_id}
-                onChange={(patientId) => setFormData(prev => ({ ...prev, patient_id: patientId }))}
-                placeholder="搜尋院友..."
-                showResidencyFilter={true}
-                defaultResidencyStatus="在住"
-              />
-            )}
+                const pid = record?.patient_id ?? renewFrom?.patient_id;
+                const p = patients.find((pt) => pt.院友id === Number(pid));
+                return p ? `${p.床號} - ${p.中文姓名}` : '未知院友';
+              })()}
+              </div> :
+
+            <PatientAutocomplete
+              value={formData.patient_id}
+              onChange={(patientId) => setFormData((prev) => ({ ...prev, patient_id: patientId }))}
+              placeholder="搜尋院友..."
+              showResidencyFilter={true}
+              defaultResidencyStatus="在住" />
+
+            }
           </div>
 
           {/* 護理類型 */}
@@ -163,11 +164,11 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
             <label className="form-label">護理類型 *</label>
             <select
               value={formData.care_type}
-              onChange={(e) => setFormData(prev => ({ ...prev, care_type: e.target.value as PatientTubeCareRecord['care_type'] }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, care_type: e.target.value as PatientTubeCareRecord['care_type'] }))}
               className="form-input"
-              disabled={!!record}
-            >
-              {CARE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              disabled={!!record}>
+              
+              {CARE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
 
@@ -177,41 +178,41 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
               <Calendar className="h-4 w-4 inline mr-1" />
               執行日期 *
             </label>
-            <input
-              type="date"
+            <DateInput
+
               value={formData.execution_date}
-              onChange={(e) => setFormData(prev => ({ ...prev, execution_date: e.target.value }))}
+
               className="form-input"
-              required
-            />
+              required onChange={(value) => setFormData((prev) => ({ ...prev, execution_date: value }))} />
+            
           </div>
 
           {/* 導尿管 / 鼻胃飼管設定 */}
-          {!isOxygen && !isStoma && (
-            <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          {!isOxygen && !isStoma &&
+          <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <h4 className="text-sm font-medium text-blue-900">喉管設定</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">喉管類型 *</label>
                   <select
-                    value={formData.tube_material}
-                    onChange={(e) => setFormData(prev => ({ ...prev, tube_material: e.target.value }))}
-                    className="form-input"
-                    required
-                  >
+                  value={formData.tube_material}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, tube_material: e.target.value }))}
+                  className="form-input"
+                  required>
+                  
                     <option value="">請選擇</option>
-                    {TUBE_MATERIALS.map(m => <option key={m} value={m}>{m}</option>)}
+                    {TUBE_MATERIALS.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="form-label">管徑</label>
                   <select
-                    value={formData.tube_size}
-                    onChange={(e) => setFormData(prev => ({ ...prev, tube_size: e.target.value }))}
-                    className="form-input"
-                  >
+                  value={formData.tube_size}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, tube_size: e.target.value }))}
+                  className="form-input">
+                  
                     <option value="">請選擇</option>
-                    {TUBE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+                    {TUBE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>
@@ -220,20 +221,20 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
                 <li>• <strong>Silicon：</strong>每 4 週更換一次（執行日 + 28 天）</li>
               </ul>
             </div>
-          )}
+          }
 
           {/* 氧氣喉管設定 */}
-          {isOxygen && (
-            <div className="space-y-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
+          {isOxygen &&
+          <div className="space-y-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
               <h4 className="text-sm font-medium text-teal-900">氧氣喉管設定（清洗與更換為一套）</h4>
               <div>
                 <label className="form-label">今次動作 *</label>
                 <select
-                  value={formData.oxygen_action as string}
-                  onChange={(e) => setFormData(prev => ({ ...prev, oxygen_action: e.target.value as PatientTubeCareRecord['oxygen_action'] }))}
-                  className="form-input"
-                >
-                  {OXYGEN_ACTIONS.map(a => <option key={a} value={a as string}>{a}</option>)}
+                value={formData.oxygen_action as string}
+                onChange={(e) => setFormData((prev) => ({ ...prev, oxygen_action: e.target.value as PatientTubeCareRecord['oxygen_action'] }))}
+                className="form-input">
+                
+                  {OXYGEN_ACTIONS.map((a) => <option key={a} value={a as string}>{a}</option>)}
                 </select>
                 <p className="text-xs text-teal-700 mt-1">記錄今天實際做了「清洗」還是「更換」。</p>
               </div>
@@ -241,50 +242,50 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
                 <div>
                   <label className="form-label">清洗間隔（天）*</label>
                   <input
-                    type="number"
-                    min={1}
-                    value={formData.wash_cycle_days}
-                    onChange={(e) => setFormData(prev => ({ ...prev, wash_cycle_days: parseInt(e.target.value, 10) || 1 }))}
-                    className="form-input"
-                    required
-                  />
+                  type="number"
+                  min={1}
+                  value={formData.wash_cycle_days}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, wash_cycle_days: parseInt(e.target.value, 10) || 1 }))}
+                  className="form-input"
+                  required />
+                
                 </div>
                 <div>
                   <label className="form-label">更換間隔（天）*</label>
                   <input
-                    type="number"
-                    min={1}
-                    value={formData.replace_cycle_days}
-                    onChange={(e) => setFormData(prev => ({ ...prev, replace_cycle_days: parseInt(e.target.value, 10) || 1 }))}
-                    className="form-input"
-                    required
-                  />
+                  type="number"
+                  min={1}
+                  value={formData.replace_cycle_days}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, replace_cycle_days: parseInt(e.target.value, 10) || 1 }))}
+                  className="form-input"
+                  required />
+                
                 </div>
               </div>
               <p className="text-xs text-teal-700">
                 預設：清洗每 1 天、更換每 7 天，可自由調整。下次到期 = 執行日 + 對應動作間隔；更換時清洗計時會一併歸零。
               </p>
             </div>
-          )}
+          }
 
           {/* 造口袋設定 */}
-          {isStoma && (
-            <div className="space-y-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+          {isStoma &&
+          <div className="space-y-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
               <h4 className="text-sm font-medium text-purple-900">造口袋設定</h4>
               <div>
                 <label className="form-label">更換間隔（天）*</label>
                 <input
-                  type="number"
-                  min={1}
-                  value={formData.cycle_days}
-                  onChange={(e) => setFormData(prev => ({ ...prev, cycle_days: parseInt(e.target.value, 10) || 1 }))}
-                  className="form-input"
-                  required
-                />
+                type="number"
+                min={1}
+                value={formData.cycle_days}
+                onChange={(e) => setFormData((prev) => ({ ...prev, cycle_days: parseInt(e.target.value, 10) || 1 }))}
+                className="form-input"
+                required />
+              
               </div>
               <p className="text-xs text-purple-700">預設每 7 天更換一次，可自由調整。下次到期 = 執行日 + 間隔天數。</p>
             </div>
-          )}
+          }
 
           {/* 下次到期日 */}
           <div>
@@ -292,12 +293,12 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
               <Calendar className="h-4 w-4 inline mr-1" />
               下次到期日
             </label>
-            <input
-              type="date"
+            <DateInput
+
               value={formData.next_due_date}
-              onChange={(e) => setFormData(prev => ({ ...prev, next_due_date: e.target.value }))}
-              className="form-input"
-            />
+
+              className="form-input" onChange={(value) => setFormData((prev) => ({ ...prev, next_due_date: value }))} />
+            
             <p className="text-xs text-gray-500 mt-1">依設定自動計算，亦可手動調整。</p>
           </div>
 
@@ -309,10 +310,10 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
             </label>
             <textarea
               value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
               className="form-input"
-              rows={2}
-            />
+              rows={2} />
+            
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
@@ -321,8 +322,8 @@ const TubeCareModal: React.FC<TubeCareModalProps> = ({ record, onClose, onUpdate
           </div>
         </form>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default TubeCareModal;

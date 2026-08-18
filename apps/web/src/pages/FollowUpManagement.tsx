@@ -14,6 +14,7 @@ import { generateFollowUpRecordWorksheet, type FollowUpRecordData } from '../uti
 import { generateFollowUpBagCover, type FollowUpBagCoverData } from '../utils/followUpBagCoverGenerator';
 import { printFollowUpRecordForms } from '../utils/followUpRecordPrintGenerator';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from '../components/DateInput';
 
 
 type SortField = '覆診日期' | '覆診時間' | '院友姓名' | '覆診地點' | '覆診專科' | '狀態' | '交通安排' | '陪診人員';
@@ -775,18 +776,14 @@ const FollowUpManagement: React.FC = () => {
               <div className="mb-4">
                 <label className="form-label">覆診日期區間</label>
                 <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="date"
-                    value={advancedFilters.startDate}
-                    onChange={(e) => updateAdvancedFilter('startDate', e.target.value)}
+                  <DateInput value={advancedFilters.startDate}
+                    onChange={(value) => updateAdvancedFilter('startDate', value)}
                     className="form-input"
                     placeholder="開始日期"
                   />
                   <span className="text-gray-500">至</span>
-                  <input
-                    type="date"
-                    value={advancedFilters.endDate}
-                    onChange={(e) => updateAdvancedFilter('endDate', e.target.value)}
+                  <DateInput value={advancedFilters.endDate}
+                    onChange={(value) => updateAdvancedFilter('endDate', value)}
                     className="form-input"
                     placeholder="結束日期"
                   />

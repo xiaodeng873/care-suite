@@ -9,6 +9,7 @@ import { getMedicationSettings, INSTITUTION_GROUPS, getInstitutionCategory } fro
 import { computeEstimatedEndDate } from '../utils/estimatedEndDate';
 import { supabase } from '../lib/supabase';
 import PrescriptionLogModal from './PrescriptionLogModal';
+import DateInput from './DateInput';
 
 interface PrescriptionModalProps {
   prescription?: any;
@@ -767,11 +768,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   處方日期 *
                   {renderFieldIndicator('prescription_date')}
                 </label>
-                <input
-                  type="date"
+                <DateInput
                   name="prescription_date"
                   value={formData.prescription_date}
-                  onChange={handleChange}
+                  onChange={(value) => setFormData(prev => ({ ...prev, prescription_date: value }))}
                   className={getFieldClassName('prescription_date', 'form-input')}
                   required
                 />
@@ -831,11 +831,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                     <p className="text-xs text-gray-400 mt-1">入住前 — 以入住日（{admissionDateIso}）作記錄</p>
                   </>
                 ) : (
-                  <input
-                    type="date"
+                  <DateInput
                     name="start_date"
                     value={formData.start_date}
-                    onChange={handleChange}
+                    onChange={(value) => setFormData(prev => ({ ...prev, start_date: value }))}
                     className="form-input"
                     required
                   />
@@ -891,11 +890,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 : <span className="text-xs font-semibold px-2 py-0.5 rounded border bg-green-100 text-green-800 border-green-300">如屬長期藥物無需填寫</span>
               }</label>
                 
-                <input
-                  type="date"
+                <DateInput
                   name="end_date"
                   value={formData.end_date}
-                  onChange={handleChange}
+                  onChange={(value) => setFormData(prev => ({ ...prev, end_date: value }))}
                   className="form-input"
                 />
               </div>
@@ -916,10 +914,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   <Calendar className="h-4 w-4 inline mr-1" />
                   上次服用日期
                 </label>
-                <input
-                  type="date"
+                <DateInput
                   value={lastTakenDate}
                   readOnly
+                  onChange={() => {}}
                   className="form-input bg-gray-50 text-gray-600"
                   title="自動抓取最近完成給藥的日期"
                 />

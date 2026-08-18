@@ -18,6 +18,8 @@ import {
   parseMentalStateAssessment,
   combineMentalStateAssessment,
 } from '../utils/annualHealthCheckupHelper';
+import DateInput from './DateInput';
+
 interface AnnualHealthCheckupModalProps {
   checkup: AnnualHealthCheckup | null;
   onClose: () => void;
@@ -334,21 +336,15 @@ export default function AnnualHealthCheckupModal({ checkup, onClose, onSave, pre
               </div>
               <div>
                 <label className="form-label">上次醫生簽署日期</label>
-                <input
-                  type="date"
+                <DateInput
                   value={formData.last_doctor_signature_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, last_doctor_signature_date: e.target.value }))}
+                  onChange={(value) => setFormData(prev => ({ ...prev, last_doctor_signature_date: value }))}
                   className="form-input"
                 />
               </div>
               <div>
                 <label className="form-label">下次到期日</label>
-                <input
-                  type="date"
-                  value={formData.next_due_date}
-                  readOnly
-                  className="form-input bg-gray-100 cursor-not-allowed"
-                />
+                <DateInput value={formData.next_due_date} className="form-input bg-gray-100 cursor-not-allowed" onChange={() => {}}/>
               </div>
             </div>
           </div>

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
 import { X, StickyNote } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
+import React, { useState } from 'react';
+import DateInput from './DateInput';
 
 interface NoteModalProps {
   onClose: () => void;
@@ -15,7 +16,7 @@ const NoteModal: React.FC<NoteModalProps> = ({ onClose, note }) => {
 
   const getHongKongDate = () => {
     const now = new Date();
-    const hongKongTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const hongKongTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     return hongKongTime.toISOString().split('T')[0];
   };
 
@@ -25,7 +26,7 @@ const NoteModal: React.FC<NoteModalProps> = ({ onClose, note }) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedPatient = patients.find(p => p.院友id.toString() === selectedPatientId);
+  const selectedPatient = patients.find((p) => p.院友id.toString() === selectedPatientId);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -92,8 +93,8 @@ const NoteModal: React.FC<NoteModalProps> = ({ onClose, note }) => {
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
+              className="text-gray-400 hover:text-gray-600">
+              
               <X className="h-6 w-6" />
             </button>
           </div>
@@ -108,36 +109,36 @@ const NoteModal: React.FC<NoteModalProps> = ({ onClose, note }) => {
                 onChange={(id) => setSelectedPatientId(id)}
                 placeholder="搜索院友或留空..."
                 showResidencyFilter={true}
-                defaultResidencyStatus="在住"
-              />
-              {selectedPatient && (
-                <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                defaultResidencyStatus="在住" />
+              
+              {selectedPatient &&
+              <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <span className="text-sm text-gray-600">
                     已選擇: {selectedPatient.床號} - {selectedPatient.中文姓氏}{selectedPatient.中文名字}
                   </span>
                   <button
-                    type="button"
-                    onClick={() => setSelectedPatientId('')}
-                    className="text-sm text-blue-600 hover:text-blue-700"
-                  >
+                  type="button"
+                  onClick={() => setSelectedPatientId('')}
+                  className="text-sm text-blue-600 hover:text-blue-700">
+                  
                     ✕ 清除
                   </button>
                 </div>
-              )}
+              }
             </div>
 
             <div>
               <label className="form-label">指定日期 *</label>
-              <input
-                type="date"
+              <DateInput
+
                 value={noteDate}
-                onChange={(e) => setNoteDate(e.target.value)}
+
                 className={`form-input ${errors.note_date ? 'border-red-500' : ''}`}
-                required
-              />
-              {errors.note_date && (
-                <p className="text-sm text-red-600 mt-1">{errors.note_date}</p>
-              )}
+                required onChange={(value) => setNoteDate(value)} />
+              
+              {errors.note_date &&
+              <p className="text-sm text-red-600 mt-1">{errors.note_date}</p>
+              }
             </div>
 
             <div>
@@ -149,23 +150,23 @@ const NoteModal: React.FC<NoteModalProps> = ({ onClose, note }) => {
                 rows={6}
                 placeholder="輸入便條內容..."
                 className={`form-input ${errors.content ? 'border-red-500' : ''}`}
-                required
-              />
+                required />
+              
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-1">
-                {errors.content && (
-                  <p className="text-sm text-red-600">{errors.content}</p>
-                )}
+                {errors.content &&
+                <p className="text-sm text-red-600">{errors.content}</p>
+                }
                 <p className="text-sm text-gray-500 ml-auto">
                   已輸入: {content.length} / 500 字
                 </p>
               </div>
             </div>
 
-            {errors.submit && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            {errors.submit &&
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-600">{errors.submit}</p>
               </div>
-            )}
+            }
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row gap-2 mt-6">
@@ -173,22 +174,22 @@ const NoteModal: React.FC<NoteModalProps> = ({ onClose, note }) => {
               type="button"
               onClick={onClose}
               className="btn-secondary flex-1"
-              disabled={isSubmitting}
-            >
+              disabled={isSubmitting}>
+              
               取消
             </button>
             <button
               type="submit"
               className="btn-primary flex-1"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? '儲存中...' : (isEditMode ? '更新便條' : '儲存便條')}
+              disabled={isSubmitting}>
+              
+              {isSubmitting ? '儲存中...' : isEditMode ? '更新便條' : '儲存便條'}
             </button>
           </div>
         </form>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default NoteModal;

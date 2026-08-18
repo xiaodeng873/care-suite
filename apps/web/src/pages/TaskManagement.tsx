@@ -29,6 +29,7 @@ import { SYNC_CUTOFF_DATE_STR } from '../lib/database';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
 import BedNumberImprint from '../components/BedNumberImprint';
+import DateInput from '../components/DateInput';
 
 
 type SortField = 'patient_name' | 'health_record_type' | 'frequency' | 'next_due_at' | 'last_completed_at' | 'notes';
@@ -601,18 +602,14 @@ const TaskManagement: React.FC = () => {
               <div className="mb-4">
                 <label className="form-label">到期日期區間</label>
                 <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="date"
-                    value={filters.startDate}
-                    onChange={(e) => updateFilter('startDate', e.target.value)}
+                  <DateInput value={filters.startDate}
+                    onChange={(value) => updateFilter('startDate', value)}
                     className="form-input"
                     placeholder="開始日期"
                   />
                   <span className="text-gray-500">至</span>
-                  <input
-                    type="date"
-                    value={filters.endDate}
-                    onChange={(e) => updateFilter('endDate', e.target.value)}
+                  <DateInput value={filters.endDate}
+                    onChange={(value) => updateFilter('endDate', value)}
                     className="form-input"
                     placeholder="結束日期"
                   />

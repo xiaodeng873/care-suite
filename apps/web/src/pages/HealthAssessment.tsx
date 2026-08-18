@@ -46,6 +46,7 @@ import { syncTaskStatus } from '../lib/database';
 import type { HealthRecord } from '../lib/database';
 import { isVirtualDataEnabled } from '../utils/toolsSettings';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from '../components/DateInput';
 
 type SortField = '記錄日期' | '記錄時間' | '院友姓名' | '監測類型' | '數值';
 type SortDirection = 'asc' | 'desc';
@@ -827,18 +828,14 @@ const HealthAssessment: React.FC = () => {
               <div className="mb-4">
                 <label className="form-label">記錄日期區間</label>
                 <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="date"
-                    value={advancedFilters.startDate}
-                    onChange={(e) => updateAdvancedFilter('startDate', e.target.value)}
+                  <DateInput value={advancedFilters.startDate}
+                    onChange={(value) => updateAdvancedFilter('startDate', value)}
                     className="form-input"
                     placeholder="開始日期"
                   />
                   <span className="text-gray-500">至</span>
-                  <input
-                    type="date"
-                    value={advancedFilters.endDate}
-                    onChange={(e) => updateAdvancedFilter('endDate', e.target.value)}
+                  <DateInput value={advancedFilters.endDate}
+                    onChange={(value) => updateAdvancedFilter('endDate', value)}
                     className="form-input"
                     placeholder="結束日期"
                   />

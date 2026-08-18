@@ -54,6 +54,7 @@ import {
 } from '../utils/workflowStatusHelper';
 import { isQuickSignEnabled } from '../utils/toolsSettings';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from '../components/DateInput';
 
 
 // 判斷是否為注射途徑（涵蓋皮下注射／肌肉注射／舊版「注射」）
@@ -2651,10 +2652,8 @@ const MedicationWorkflow: React.FC = () => {
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                <DateInput value={selectedDate}
+                  onChange={(value) => setSelectedDate(value)}
                   className="form-input flex-1 text-sm"
                 />
                 <button

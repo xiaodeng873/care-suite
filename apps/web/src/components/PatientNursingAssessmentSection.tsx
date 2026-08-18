@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import DateInput from './DateInput';
 
 type NursingAssessmentValue = Record<string, string | boolean>;
 
@@ -13,12 +14,12 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
   value,
   onChange,
   currentUserName,
-  currentUserRank,
+  currentUserRank
 }) => {
   const v = value || {};
 
   const getBool = (key: string) => !!v[key];
-  const getText = (key: string) => (typeof v[key] === 'string' ? v[key] : '');
+  const getText = (key: string) => typeof v[key] === 'string' ? v[key] : '';
 
   const setVal = (key: string, val: string | boolean) => {
     onChange({ ...v, [key]: val });
@@ -46,22 +47,22 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserName, currentUserRank]);
 
-  const Checkbox: React.FC<{ k: string; label: React.ReactNode; disabled?: boolean }> = ({
+  const Checkbox: React.FC<{k: string;label: React.ReactNode;disabled?: boolean;}> = ({
     k,
     label,
-    disabled,
-  }) => (
-    <label className="inline-flex items-center gap-1.5 text-sm text-gray-700 whitespace-nowrap">
+    disabled
+  }) =>
+  <label className="inline-flex items-center gap-1.5 text-sm text-gray-700 whitespace-nowrap">
       <input
-        type="checkbox"
-        checked={getBool(k)}
-        onChange={(e) => setVal(k, e.target.checked)}
-        disabled={disabled}
-        className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 disabled:opacity-50"
-      />
+      type="checkbox"
+      checked={getBool(k)}
+      onChange={(e) => setVal(k, e.target.checked)}
+      disabled={disabled}
+      className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 disabled:opacity-50" />
+    
       <span>{label}</span>
-    </label>
-  );
+    </label>;
+
 
   const TextInput: React.FC<{
     k: string;
@@ -70,48 +71,48 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
     disabled?: boolean;
     type?: 'text' | 'date';
   }> = ({ k, placeholder, className = 'form-input', disabled, type = 'text' }) =>
-    type === 'date' ? (
-      <input
-        type="date"
-        value={getText(k)}
-        onChange={(e) => setVal(k, e.target.value)}
-        disabled={disabled}
-        className={className}
-        placeholder={placeholder}
-      />
-    ) : (
-      <input
-        type="text"
-        value={getText(k)}
-        onChange={(e) => setVal(k, e.target.value)}
-        disabled={disabled}
-        className={className}
-        placeholder={placeholder}
-      />
-    );
+  type === 'date' ?
+  <DateInput
+
+    value={getText(k)}
+
+    disabled={disabled}
+    className={className}
+    placeholder={placeholder} onChange={(value) => setVal(k, value)} /> :
+
+
+  <input
+    type="text"
+    value={getText(k)}
+    onChange={(e) => setVal(k, e.target.value)}
+    disabled={disabled}
+    className={className}
+    placeholder={placeholder} />;
+
+
 
   const CheckboxWithText: React.FC<{
     cbKey: string;
     textKey: string;
     label: React.ReactNode;
     inputClassName?: string;
-  }> = ({ cbKey, textKey, label, inputClassName = 'form-input' }) => (
-    <div className="flex flex-wrap items-center gap-2">
+  }> = ({ cbKey, textKey, label, inputClassName = 'form-input' }) =>
+  <div className="flex flex-wrap items-center gap-2">
       <Checkbox k={cbKey} label={label} />
       <TextInput
-        k={textKey}
-        className={`${inputClassName} flex-1 min-w-[120px]`}
-        disabled={!getBool(cbKey)}
-      />
-    </div>
-  );
+      k={textKey}
+      className={`${inputClassName} flex-1 min-w-[120px]`}
+      disabled={!getBool(cbKey)} />
+    
+    </div>;
 
-  const SectionCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+
+  const SectionCard: React.FC<{title: string;children: React.ReactNode;}> = ({ title, children }) =>
+  <div className="border border-gray-200 rounded-lg p-4 space-y-3">
       <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
       {children}
-    </div>
-  );
+    </div>;
+
 
   return (
     <div className="space-y-6">
@@ -176,43 +177,43 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
           <span className="text-sm font-medium text-gray-700 whitespace-nowrap">視力：</span>
           <Checkbox k="vision_normal" label="正常" />
           <Checkbox k="vision_weak" label="弱視" />
-          {getBool('vision_weak') && (
-            <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+          {getBool('vision_weak') &&
+          <span className="inline-flex items-center gap-2 text-sm text-gray-700">
               (<Checkbox k="vision_weak_l" label="左" />
               <span>/</span>
               <Checkbox k="vision_weak_r" label="右" />)
             </span>
-          )}
+          }
           <Checkbox k="vision_glasses" label="戴眼鏡" />
           <Checkbox k="vision_blind" label="盲" />
-          {getBool('vision_blind') && (
-            <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+          {getBool('vision_blind') &&
+          <span className="inline-flex items-center gap-2 text-sm text-gray-700">
               (<Checkbox k="vision_blind_l" label="左" />
               <span>/</span>
               <Checkbox k="vision_blind_r" label="右" />)
             </span>
-          )}
+          }
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <span className="text-sm font-medium text-gray-700 whitespace-nowrap">聽覺：</span>
           <Checkbox k="hearing_normal" label="正常" />
           <Checkbox k="hearing_weak" label="弱聽" />
-          {getBool('hearing_weak') && (
-            <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+          {getBool('hearing_weak') &&
+          <span className="inline-flex items-center gap-2 text-sm text-gray-700">
               (<Checkbox k="hearing_weak_l" label="左" />
               <span>/</span>
               <Checkbox k="hearing_weak_r" label="右" />)
             </span>
-          )}
+          }
           <Checkbox k="hearing_aid" label="戴助聽器" />
           <Checkbox k="hearing_lost" label="失聽" />
-          {getBool('hearing_lost') && (
-            <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+          {getBool('hearing_lost') &&
+          <span className="inline-flex items-center gap-2 text-sm text-gray-700">
               (<Checkbox k="hearing_lost_l" label="左" />
               <span>/</span>
               <Checkbox k="hearing_lost_r" label="右" />)
             </span>
-          )}
+          }
         </div>
       </SectionCard>
 
@@ -251,15 +252,15 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
           <Checkbox k="teeth_enough" label="足夠" />
           <Checkbox k="teeth_bad" label="欠佳" />
           <Checkbox k="teeth_denture" label="配戴假牙：" />
-          {getBool('teeth_denture') && (
-            <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+          {getBool('teeth_denture') &&
+          <span className="inline-flex items-center gap-2 text-sm text-gray-700">
               上顎 (<Checkbox k="denture_up_fixed" label="固定" />
               <span>/</span>
               <Checkbox k="denture_up_active" label="活動" />) 下顎 (<Checkbox k="denture_down_fixed" label="固定" />
               <span>/</span>
               <Checkbox k="denture_down_active" label="活動" />)
             </span>
-          )}
+          }
         </div>
       </SectionCard>
 
@@ -273,8 +274,8 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
             <TextInput
               k="urine_incont_count"
               className="form-input w-24"
-              disabled={!getBool('urine_incont')}
-            />
+              disabled={!getBool('urine_incont')} />
+            
           </div>
           <CheckboxWithText cbKey="urine_other_cb" textKey="urine_other_text" label="其他：" />
         </div>
@@ -286,16 +287,16 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
             <TextInput
               k="stool_incont_count"
               className="form-input w-24"
-              disabled={!getBool('stool_incont')}
-            />
+              disabled={!getBool('stool_incont')} />
+            
           </div>
           <div className="inline-flex items-center gap-2">
             <Checkbox k="stool_constip" label="便秘(每" />
             <TextInput
               k="stool_constip_days"
               className="form-input w-16 text-center"
-              disabled={!getBool('stool_constip')}
-            />
+              disabled={!getBool('stool_constip')} />
+            
             <span className="text-sm text-gray-700">天一次)</span>
           </div>
         </div>
@@ -309,8 +310,8 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
         <div className="flex flex-wrap items-center gap-4">
           <Checkbox k="move_normal" label="正常" />
           <Checkbox k="move_aid" label="需輔助器" />
-          {getBool('move_aid') && (
-            <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+          {getBool('move_aid') &&
+          <span className="inline-flex items-center gap-2 text-sm text-gray-700">
               (<Checkbox k="aid_stick" label="杖" />
               <span>、</span>
               <Checkbox k="aid_frame" label="圍身架" />
@@ -321,12 +322,12 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
               <span>、其他：</span>
               <TextInput k="move_aid_other" className="form-input w-32" />)
             </span>
-          )}
+          }
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <Checkbox k="move_pain" label="有痛楚" />
-          {getBool('move_pain') && (
-            <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+          {getBool('move_pain') &&
+          <span className="inline-flex items-center gap-2 text-sm text-gray-700">
               (<Checkbox k="pain_move" label="移動時" />
               <span>、</span>
               <Checkbox k="pain_intermit" label="間歇性" />
@@ -335,7 +336,7 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
               <span>、其他：</span>
               <TextInput k="move_pain_other" className="form-input w-32" />)
             </span>
-          )}
+          }
         </div>
       </SectionCard>
 
@@ -344,18 +345,18 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="inline-flex items-center gap-2">
             <Checkbox k="dis_paralysis" label="癱瘓" />
-            {getBool('dis_paralysis') && (
-              <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+            {getBool('dis_paralysis') &&
+            <span className="inline-flex items-center gap-2 text-sm text-gray-700">
                 (<Checkbox k="paralysis_l" label="左" />
                 <span>/</span>
                 <Checkbox k="paralysis_r" label="右" />)
               </span>
-            )}
+            }
           </div>
           <div className="inline-flex items-center gap-2">
             <Checkbox k="dis_weak" label="軟弱" />
-            {getBool('dis_weak') && (
-              <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+            {getBool('dis_weak') &&
+            <span className="inline-flex items-center gap-2 text-sm text-gray-700">
                 (<Checkbox k="weak_l" label="左" />
                 <span>/</span>
                 <Checkbox k="weak_r" label="右" />
@@ -364,12 +365,12 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
                 <span>/</span>
                 <Checkbox k="weak_down" label="下肢" />)
               </span>
-            )}
+            }
           </div>
           <div className="inline-flex items-center gap-2">
             <Checkbox k="dis_atrophy" label="萎縮" />
-            {getBool('dis_atrophy') && (
-              <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+            {getBool('dis_atrophy') &&
+            <span className="inline-flex items-center gap-2 text-sm text-gray-700">
                 (<Checkbox k="atrophy_l" label="左" />
                 <span>/</span>
                 <Checkbox k="atrophy_r" label="右" />
@@ -378,12 +379,12 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
                 <span>/</span>
                 <Checkbox k="atrophy_down" label="下肢" />)
               </span>
-            )}
+            }
           </div>
           <div className="inline-flex items-center gap-2">
             <Checkbox k="dis_deform" label="變形" />
-            {getBool('dis_deform') && (
-              <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+            {getBool('dis_deform') &&
+            <span className="inline-flex items-center gap-2 text-sm text-gray-700">
                 (<Checkbox k="deform_l" label="左" />
                 <span>/</span>
                 <Checkbox k="deform_r" label="右" />
@@ -392,13 +393,13 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
                 <span>/</span>
                 <Checkbox k="deform_down" label="下肢" />)
               </span>
-            )}
+            }
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Checkbox k="dis_amput" label="截肢" />
-          {getBool('dis_amput') && (
-            <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+          {getBool('dis_amput') &&
+          <span className="inline-flex items-center gap-2 text-sm text-gray-700">
               (<Checkbox k="amput_l" label="左" />
               <span>/</span>
               <Checkbox k="amput_r" label="右" />
@@ -407,7 +408,7 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
               <span>/</span>
               <Checkbox k="amput_down" label="下肢" />)
             </span>
-          )}
+          }
           <CheckboxWithText cbKey="dis_other_cb" textKey="dis_other_text" label="其他：" />
         </div>
       </SectionCard>
@@ -419,8 +420,8 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
           <Checkbox k="care_depend" label="完全依靠別人" />
           <Checkbox k="care_assist" label="需協助" />
         </div>
-        {getBool('care_assist') && (
-          <div className="flex flex-wrap items-center gap-2 pl-0 md:pl-4">
+        {getBool('care_assist') &&
+        <div className="flex flex-wrap items-center gap-2 pl-0 md:pl-4">
             <span className="text-sm text-gray-700">(</span>
             <Checkbox k="assist_feed" label="餵食" />
             <span className="text-sm text-gray-700">、</span>
@@ -435,7 +436,7 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
             <CheckboxWithText cbKey="assist_other_cb" textKey="care_assist_other" label="其他：" />
             <span className="text-sm text-gray-700">)</span>
           </div>
-        )}
+        }
       </SectionCard>
 
       {/* 評估員資料 */}
@@ -447,8 +448,8 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
           <TextInput k="assess_date" type="date" placeholder="評估日期" />
         </div>
       </SectionCard>
-    </div>
-  );
+    </div>);
+
 };
 
 export default PatientNursingAssessmentSection;

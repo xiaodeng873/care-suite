@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import ImageSourcePicker from './ImageSourcePicker';
 import type { HealthRecord } from '../lib/database';
+import DateInput from './DateInput';
 
 interface ParsedHealthRecord {
   tempId: string;
@@ -418,10 +419,9 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
                             </td>
                             {/* 日期 */}
                             <td className="px-2 py-2">
-                              <input
-                                type="date"
+                              <DateInput
                                 value={rec.記錄日期}
-                                onChange={e => updateRecord(rec.tempId, { 記錄日期: e.target.value })}
+                                onChange={(value) => updateRecord(rec.tempId, { 記錄日期: value })}
                                 className="form-input text-sm w-full"
                               />
                             </td>

@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
 import { X, FileText } from 'lucide-react';
 import { generateMonitoringTaskWorksheet } from '../utils/monitoringTaskWorksheetGenerator';
 import { usePatientData } from '../context/PatientContext';
+import React, { useState, useMemo } from 'react';
+import DateInput from './DateInput';
 
 interface MonitoringTaskWorksheetModalProps {
   onClose: () => void;
@@ -13,7 +14,7 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
 
   const getHongKongDate = () => {
     const now = new Date();
-    const hongKongTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const hongKongTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     return hongKongTime.toISOString().split('T')[0];
   };
 
@@ -50,9 +51,9 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
 
   const patientIdsForStation = useMemo(() => {
     if (selectedStationId === 'all') return undefined;
-    const ids = patients
-      .filter(p => p.station_id === selectedStationId && p.在住狀態 === '在住')
-      .map(p => p.院友id as number);
+    const ids = patients.
+    filter((p) => p.station_id === selectedStationId && p.在住狀態 === '在住').
+    map((p) => p.院友id as number);
     return new Set(ids);
   }, [selectedStationId, patients]);
 
@@ -87,41 +88,41 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
+            className="text-gray-400 hover:text-gray-600">
+            
             <X className="h-6 w-6" />
           </button>
         </div>
 
         <div className="p-6 space-y-4">
-          {stations.length > 1 && (
-            <div>
+          {stations.length > 1 &&
+          <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 居住區
               </label>
               <select
-                value={selectedStationId}
-                onChange={(e) => setSelectedStationId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
+              value={selectedStationId}
+              onChange={(e) => setSelectedStationId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+              
                 <option value="all">全部居住區</option>
-                {stations.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
+                {stations.map((s) =>
+              <option key={s.id} value={s.id}>{s.name}</option>
+              )}
               </select>
             </div>
-          )}
+          }
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               選擇起始日期
             </label>
-            <input
-              type="date"
+            <DateInput
+
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" onChange={(value) => setStartDate(value)} />
+            
             <p className="mt-1 text-xs text-gray-500">預設為今天</p>
           </div>
 
@@ -130,9 +131,9 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
               將匯出連續4天的工作紙：
             </p>
             <ul className="space-y-1 text-sm text-gray-700">
-              {dates.map((date, index) => (
-                <li key={index}>• {date}</li>
-              ))}
+              {dates.map((date, index) =>
+              <li key={index}>• {date}</li>
+              )}
             </ul>
           </div>
 
@@ -143,48 +144,48 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
             <p className="text-sm text-gray-700 font-mono">{getFileName()}</p>
           </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          {error &&
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <p className="text-sm font-medium text-red-800">{error}</p>
             </div>
-          )}
+          }
 
-          {success && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          {success &&
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <p className="text-sm font-medium text-green-800">工作紙已成功生成！打印視窗已開啟</p>
             </div>
-          )}
+          }
         </div>
 
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 p-6 border-t border-gray-200">
           <button
             onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-            disabled={isGenerating}
-          >
+            disabled={isGenerating}>
+            
             取消
           </button>
           <button
             onClick={handleExport}
             disabled={isGenerating}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed flex flex-wrap items-center gap-2"
-          >
-            {isGenerating ? (
-              <>
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed flex flex-wrap items-center gap-2">
+            
+            {isGenerating ?
+            <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 <span>生成中...</span>
-              </>
-            ) : (
-              <>
+              </> :
+
+            <>
                 <FileText className="h-4 w-4" />
                 <span>確認匯出</span>
               </>
-            )}
+            }
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default MonitoringTaskWorksheetModal;

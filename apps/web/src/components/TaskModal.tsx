@@ -4,6 +4,7 @@ import PatientAutocomplete from './PatientAutocomplete';
 import { usePatientData, type PatientHealthTask, type HealthTaskType, type FrequencyUnit, type MonitoringTaskNotes } from '../context/PatientContext';
 import type { VitalSignType } from '../lib/database';
 import { calculateNextDueDate } from '../utils/taskScheduler';
+import DateInput from './DateInput';
 
 // ===== 監測項目選項 =====
 type TaskCategory = 'monitoring' | 'care' | 'document';
@@ -438,7 +439,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
                 <Calendar className="h-4 w-4 inline mr-1" />
                 上次醫生簽署日期
               </label>
-              <input type="date" name="start_date" value={formData.start_date} onChange={handleChange} className="form-input" />
+              <DateInput name="start_date" value={formData.start_date} onChange={(value) => setFormData(prev => ({ ...prev, start_date: value }))} className="form-input" />
             </div>
           )}
 
@@ -448,7 +449,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
                 <Calendar className="h-4 w-4 inline mr-1" />
                 上次執行日期
               </label>
-              <input type="date" name="start_date" value={formData.start_date} onChange={handleChange} className="form-input" />
+              <DateInput name="start_date" value={formData.start_date} onChange={(value) => setFormData(prev => ({ ...prev, start_date: value }))} className="form-input" />
             </div>
           )}
 
@@ -456,7 +457,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="form-label"><Calendar className="h-4 w-4 inline mr-1" />開始日期</label>
-                <input type="date" name="start_date" value={formData.start_date} onChange={handleChange} className="form-input" />
+                <DateInput name="start_date" value={formData.start_date} onChange={(value) => setFormData(prev => ({ ...prev, start_date: value }))} className="form-input" />
               </div>
               <div>
                 <label className="form-label"><Clock className="h-4 w-4 inline mr-1" />開始時間</label>
@@ -473,7 +474,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
             </div>
             {!formData.is_recurring && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                <div><label className="form-label">結束日期 *</label><input type="date" name="end_date" value={formData.end_date} onChange={handleChange} className="form-input" required={!formData.is_recurring} /></div>
+                <div><label className="form-label">結束日期 *</label><DateInput name="end_date" value={formData.end_date} onChange={(value) => setFormData(prev => ({ ...prev, end_date: value }))} className="form-input" required={!formData.is_recurring} /></div>
                 <div><label className="form-label">結束時間 *</label><input type="time" name="end_time" value={formData.end_time} onChange={handleChange} className="form-input" required={!formData.is_recurring} /></div>
               </div>
             )}

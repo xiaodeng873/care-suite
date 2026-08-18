@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, Trash2, Calendar, Building2, Syringe } from 'lucide-react';
 import { type VaccinationRecord } from '../lib/database';
+import DateInput from './DateInput';
 
 interface PatientMedicalServicesSectionProps {
   formData: any;
@@ -17,7 +18,7 @@ const defaultMedicalServices = {
   cns: false,
   sopc: { enabled: false, detail: '' },
   visiting_doctor: { enabled: false, name: '', phone: '' },
-  family_doctor: { enabled: false, name: '', phone: '' },
+  family_doctor: { enabled: false, name: '', phone: '' }
 };
 
 const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps> = ({
@@ -25,13 +26,13 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
   setFormData,
   patientId,
   vaccinationRecords,
-  onVaccinationRecordsChange,
+  onVaccinationRecordsChange
 }) => {
   const services = { ...defaultMedicalServices, ...(formData.medical_services_json || {}) };
 
   const getHongKongDate = () => {
     const now = new Date();
-    const hongKongTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const hongKongTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     return hongKongTime.toISOString().split('T')[0];
   };
 
@@ -45,7 +46,7 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
       remarks: '',
       created_at: '',
       updated_at: '',
-      created_by: '',
+      created_by: ''
     };
     onVaccinationRecordsChange([...vaccinationRecords, newRecord]);
   };
@@ -56,14 +57,14 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
 
   const updateVaccinationItem = (index: number, field: keyof VaccinationRecord, value: string) => {
     onVaccinationRecordsChange(
-      vaccinationRecords.map((r, i) => (i === index ? { ...r, [field]: value } : r))
+      vaccinationRecords.map((r, i) => i === index ? { ...r, [field]: value } : r)
     );
   };
 
   const updateServices = (updates: Partial<typeof defaultMedicalServices>) => {
     setFormData((prev: any) => ({
       ...prev,
-      medical_services_json: { ...defaultMedicalServices, ...(prev.medical_services_json || {}), ...updates },
+      medical_services_json: { ...defaultMedicalServices, ...(prev.medical_services_json || {}), ...updates }
     }));
   };
 
@@ -85,26 +86,26 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
           <button
             type="button"
             onClick={addVaccinationItem}
-            className="btn-secondary text-sm flex items-center space-x-1"
-          >
+            className="btn-secondary text-sm flex items-center space-x-1">
+            
             <Plus className="h-4 w-4" />
             <span>新增項目</span>
           </button>
         </div>
         <div className="space-y-4">
-          {vaccinationRecords.map((record, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-4">
+          {vaccinationRecords.map((record, index) =>
+          <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
                 <span className="text-sm font-medium text-gray-700">項目 {index + 1}</span>
-                {vaccinationRecords.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeVaccinationItem(index)}
-                    className="text-red-600 hover:text-red-700"
-                  >
+                {vaccinationRecords.length > 1 &&
+              <button
+                type="button"
+                onClick={() => removeVaccinationItem(index)}
+                className="text-red-600 hover:text-red-700">
+                
                     <Trash2 className="h-4 w-4" />
                   </button>
-                )}
+              }
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -113,12 +114,12 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
                     <Calendar className="h-4 w-4 text-gray-400" />
                     <span>注射日期</span>
                   </label>
-                  <input
-                    type="date"
-                    value={record.vaccination_date}
-                    onChange={(e) => updateVaccinationItem(index, 'vaccination_date', e.target.value)}
-                    className="form-input"
-                  />
+                  <DateInput
+
+                  value={record.vaccination_date}
+
+                  className="form-input" onChange={(value) => updateVaccinationItem(index, 'vaccination_date', value)} />
+                
                 </div>
 
                 <div>
@@ -127,12 +128,12 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
                     <span>疫苗項目 / 名稱</span>
                   </label>
                   <input
-                    type="text"
-                    value={record.vaccine_item}
-                    onChange={(e) => updateVaccinationItem(index, 'vaccine_item', e.target.value)}
-                    className="form-input"
-                    placeholder="例如：流感疫苗"
-                  />
+                  type="text"
+                  value={record.vaccine_item}
+                  onChange={(e) => updateVaccinationItem(index, 'vaccine_item', e.target.value)}
+                  className="form-input"
+                  placeholder="例如：流感疫苗" />
+                
                 </div>
 
                 <div>
@@ -141,19 +142,19 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
                     <span>注射單位 / 醫院</span>
                   </label>
                   <input
-                    type="text"
-                    value={record.vaccination_unit}
-                    onChange={(e) => updateVaccinationItem(index, 'vaccination_unit', e.target.value)}
-                    className="form-input"
-                    placeholder="例如：衛生署"
-                  />
+                  type="text"
+                  value={record.vaccination_unit}
+                  onChange={(e) => updateVaccinationItem(index, 'vaccination_unit', e.target.value)}
+                  className="form-input"
+                  placeholder="例如：衛生署" />
+                
                 </div>
               </div>
             </div>
-          ))}
-          {vaccinationRecords.length === 0 && (
-            <div className="text-sm text-gray-500">暫無疫苗記錄</div>
           )}
+          {vaccinationRecords.length === 0 &&
+          <div className="text-sm text-gray-500">暫無疫苗記錄</div>
+          }
         </div>
       </div>
 
@@ -167,20 +168,20 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
               type="checkbox"
               checked={services.geriatric_hospital.enabled}
               onChange={(e) =>
-                updateService('geriatric_hospital', { ...services.geriatric_hospital, enabled: e.target.checked })
+              updateService('geriatric_hospital', { ...services.geriatric_hospital, enabled: e.target.checked })
               }
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+            
             <span className="text-sm text-gray-700">老人日間醫院:</span>
             <input
               type="text"
               value={services.geriatric_hospital.detail}
               onChange={(e) =>
-                updateService('geriatric_hospital', { ...services.geriatric_hospital, detail: e.target.value })
+              updateService('geriatric_hospital', { ...services.geriatric_hospital, detail: e.target.value })
               }
               className="form-input flex-1"
-              placeholder="詳情"
-            />
+              placeholder="詳情" />
+            
           </div>
 
           {/* CGAT */}
@@ -189,16 +190,16 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
               type="checkbox"
               checked={services.cgat.enabled}
               onChange={(e) => updateService('cgat', { ...services.cgat, enabled: e.target.checked })}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+            
             <span className="text-sm text-gray-700">社區老人評估小組(CGAT):</span>
             <input
               type="text"
               value={services.cgat.detail}
               onChange={(e) => updateService('cgat', { ...services.cgat, detail: e.target.value })}
               className="form-input flex-1"
-              placeholder="詳情"
-            />
+              placeholder="詳情" />
+            
           </div>
 
           {/* 普通科門診 */}
@@ -207,16 +208,16 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
               type="checkbox"
               checked={services.gopc.enabled}
               onChange={(e) => updateService('gopc', { ...services.gopc, enabled: e.target.checked })}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+            
             <span className="text-sm text-gray-700">普通科門診:</span>
             <input
               type="text"
               value={services.gopc.detail}
               onChange={(e) => updateService('gopc', { ...services.gopc, detail: e.target.value })}
               className="form-input flex-1"
-              placeholder="詳情"
-            />
+              placeholder="詳情" />
+            
           </div>
 
           {/* CNS */}
@@ -225,8 +226,8 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
               type="checkbox"
               checked={services.cns}
               onChange={(e) => updateService('cns', e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+            
             <span className="text-sm text-gray-700">社康護理服務(CNS)</span>
           </div>
 
@@ -237,8 +238,8 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
                 type="checkbox"
                 checked={services.sopc.enabled}
                 onChange={(e) => updateService('sopc', { ...services.sopc, enabled: e.target.checked })}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+              
               <span className="text-sm text-gray-700">專科門診:</span>
             </div>
             <textarea
@@ -246,8 +247,8 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
               onChange={(e) => updateService('sopc', { ...services.sopc, detail: e.target.value })}
               className="form-input"
               rows={2}
-              placeholder="詳情"
-            />
+              placeholder="詳情" />
+            
           </div>
 
           {/* 到診醫生 */}
@@ -257,34 +258,34 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
                 type="checkbox"
                 checked={services.visiting_doctor.enabled}
                 onChange={(e) =>
-                  updateService('visiting_doctor', { ...services.visiting_doctor, enabled: e.target.checked })
+                updateService('visiting_doctor', { ...services.visiting_doctor, enabled: e.target.checked })
                 }
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+              
               <span className="text-sm font-medium text-gray-700">到診醫生</span>
             </label>
-            {services.visiting_doctor.enabled && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6">
+            {services.visiting_doctor.enabled &&
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6">
                 <input
-                  type="text"
-                  value={services.visiting_doctor.name}
-                  onChange={(e) =>
-                    updateService('visiting_doctor', { ...services.visiting_doctor, name: e.target.value })
-                  }
-                  className="form-input"
-                  placeholder="到診醫生姓名"
-                />
+                type="text"
+                value={services.visiting_doctor.name}
+                onChange={(e) =>
+                updateService('visiting_doctor', { ...services.visiting_doctor, name: e.target.value })
+                }
+                className="form-input"
+                placeholder="到診醫生姓名" />
+              
                 <input
-                  type="tel"
-                  value={services.visiting_doctor.phone}
-                  onChange={(e) =>
-                    updateService('visiting_doctor', { ...services.visiting_doctor, phone: e.target.value })
-                  }
-                  className="form-input"
-                  placeholder="電話"
-                />
+                type="tel"
+                value={services.visiting_doctor.phone}
+                onChange={(e) =>
+                updateService('visiting_doctor', { ...services.visiting_doctor, phone: e.target.value })
+                }
+                className="form-input"
+                placeholder="電話" />
+              
               </div>
-            )}
+            }
           </div>
 
           {/* 家庭醫生 */}
@@ -294,34 +295,34 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
                 type="checkbox"
                 checked={services.family_doctor.enabled}
                 onChange={(e) =>
-                  updateService('family_doctor', { ...services.family_doctor, enabled: e.target.checked })
+                updateService('family_doctor', { ...services.family_doctor, enabled: e.target.checked })
                 }
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+              
               <span className="text-sm font-medium text-gray-700">家庭醫生</span>
             </label>
-            {services.family_doctor.enabled && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6">
+            {services.family_doctor.enabled &&
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6">
                 <input
-                  type="text"
-                  value={services.family_doctor.name}
-                  onChange={(e) =>
-                    updateService('family_doctor', { ...services.family_doctor, name: e.target.value })
-                  }
-                  className="form-input"
-                  placeholder="家庭醫生姓名"
-                />
+                type="text"
+                value={services.family_doctor.name}
+                onChange={(e) =>
+                updateService('family_doctor', { ...services.family_doctor, name: e.target.value })
+                }
+                className="form-input"
+                placeholder="家庭醫生姓名" />
+              
                 <input
-                  type="tel"
-                  value={services.family_doctor.phone}
-                  onChange={(e) =>
-                    updateService('family_doctor', { ...services.family_doctor, phone: e.target.value })
-                  }
-                  className="form-input"
-                  placeholder="電話"
-                />
+                type="tel"
+                value={services.family_doctor.phone}
+                onChange={(e) =>
+                updateService('family_doctor', { ...services.family_doctor, phone: e.target.value })
+                }
+                className="form-input"
+                placeholder="電話" />
+              
               </div>
-            )}
+            }
           </div>
         </div>
       </div>
@@ -336,35 +337,33 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
             value={formData.首次記錄職員姓名}
             onChange={handleChange}
             className="form-input"
-            placeholder="職員姓名"
-          />
+            placeholder="職員姓名" />
+          
           <input
             type="text"
             name="首次記錄職級"
             value={formData.首次記錄職級}
             onChange={handleChange}
             className="form-input"
-            placeholder="職級"
-          />
+            placeholder="職級" />
+          
           <input
             type="text"
             name="首次記錄簽署"
             value={formData.首次記錄簽署}
             onChange={handleChange}
             className="form-input"
-            placeholder="簽署"
-          />
-          <input
-            type="date"
+            placeholder="簽署" />
+          
+          <DateInput
             name="首次記錄日期"
             value={formData.首次記錄日期}
-            onChange={handleChange}
-            className="form-input"
-          />
+            onChange={(value) => setFormData((prev) => ({ ...prev, ['首次記錄日期']: value }))}
+            className="form-input" />
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default PatientMedicalServicesSection;

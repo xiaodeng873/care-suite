@@ -4,6 +4,7 @@ import { usePatientData, type FollowUpAppointment } from '../context/PatientCont
 import PatientAutocomplete from './PatientAutocomplete';
 import OCRDocumentBlock from './OCRDocumentBlock';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from './DateInput';
 
 
 interface FollowUpModalProps {
@@ -254,11 +255,9 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
                 <CalendarCheck className="h-4 w-4 inline mr-1" />
                 覆診日期 *
               </label>
-              <input
-                type="date"
-                name="覆診日期"
+              <DateInput
                 value={formData.覆診日期}
-                onChange={handleChange}
+                onChange={(value) => setFormData(prev => ({ ...prev, 覆診日期: value }))}
                 className="form-input"
                 required
               />

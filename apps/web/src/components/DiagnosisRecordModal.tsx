@@ -4,6 +4,7 @@ import { usePatientData, type DiagnosisRecord } from '../context/PatientContext'
 import PatientAutocomplete from './PatientAutocomplete';
 import OCRDocumentBlock from './OCRDocumentBlock';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from './DateInput';
 
 
 interface DiagnosisRecordModalProps {
@@ -271,11 +272,10 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
                       <span className="text-red-500">*</span>
                       <span>診斷日期</span>
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={item.diagnosis_date}
-                      onChange={(e) => {
-                        updateDiagnosisItem(item.id, 'diagnosis_date', e.target.value);
+                      onChange={(value) => {
+                        updateDiagnosisItem(item.id, 'diagnosis_date', value);
                         setErrors(prev => ({ ...prev, [`diagnosis_date_${index}`]: '' }));
                       }}
                       className={`form-input ${errors[`diagnosis_date_${index}`] ? 'border-red-500' : ''}`}

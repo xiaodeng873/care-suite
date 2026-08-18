@@ -4,6 +4,7 @@ import { usePatientData, type Wound, type WoundType, type WoundOrigin, type Resp
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import HumanBodyDiagram from './HumanBodyDiagram';
+import DateInput from './DateInput';
 
 interface WoundModalProps {
   wound?: Wound | null;
@@ -278,14 +279,7 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
                 <Calendar className="inline h-4 w-4 mr-1" />
                 發現日期 <span className="text-red-500">*</span>
               </label>
-              <input
-                type="date"
-                name="discovery_date"
-                value={formData.discovery_date}
-                onChange={handleChange}
-                className="form-input w-full"
-                required
-              />
+              <DateInput name="discovery_date" value={formData.discovery_date} className="form-input w-full" onChange={(value) => setFormData(prev => ({ ...prev, discovery_date: value }))}/>
             </div>
 
             <div>

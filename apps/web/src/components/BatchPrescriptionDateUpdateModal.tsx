@@ -3,6 +3,7 @@ import { X, Calendar, AlertTriangle, CheckCircle, User, Pill, Clock } from 'luci
 import { usePatientData } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from './DateInput';
 
 
 interface BatchPrescriptionDateUpdateModalProps {
@@ -184,10 +185,9 @@ ${prescriptionsByPatient.map(group =>
                 <label className="form-label">
                   新處方日期 <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
+                <DateInput
                   value={newPrescriptionDate}
-                  onChange={(e) => setNewPrescriptionDate(e.target.value)}
+                  onChange={(value) => setNewPrescriptionDate(value)}
                   className="form-input"
                   required
                 />

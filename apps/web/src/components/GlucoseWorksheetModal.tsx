@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
 import { X, Droplets, CheckSquare, Square, Search } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { generateGlucoseRecordWorksheet } from '../utils/glucoseRecordWorksheetGenerator';
+import React, { useMemo, useState } from 'react';
+import DateInput from './DateInput';
 
 interface GlucoseWorksheetModalProps {
   onClose: () => void;
@@ -14,7 +15,7 @@ const GlucoseWorksheetModal: React.FC<GlucoseWorksheetModalProps> = ({ onClose }
   const getHKDateParts = (date = new Date()) => {
     const formatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Hong_Kong', year: 'numeric', month: '2-digit', day: '2-digit' });
     const parts = formatter.formatToParts(date);
-    const get = (type: string) => parts.find(p => p.type === type)?.value;
+    const get = (type: string) => parts.find((p) => p.type === type)?.value;
     return { year: get('year')!, month: get('month')!, day: get('day')! };
   };
   const getHongKongDate = () => {
@@ -40,48 +41,48 @@ const GlucoseWorksheetModal: React.FC<GlucoseWorksheetModalProps> = ({ onClose }
   const [success, setSuccess] = useState(false);
 
   const filteredPatients = useMemo(() => {
-    return patients
-      .filter(p => (residencyFilter === '在住' ? p.在住狀態 === '在住' : p.在住狀態 === '已退住'))
-      .filter(p => (stationFilter === 'all' ? true : p.station_id === stationFilter))
-      .sort((a, b) => (a.床號 || '').localeCompare(b.床號 || '', 'zh-Hant', { numeric: true }));
+    return patients.
+    filter((p) => residencyFilter === '在住' ? p.在住狀態 === '在住' : p.在住狀態 === '已退住').
+    filter((p) => stationFilter === 'all' ? true : p.station_id === stationFilter).
+    sort((a, b) => (a.床號 || '').localeCompare(b.床號 || '', 'zh-Hant', { numeric: true }));
   }, [patients, residencyFilter, stationFilter]);
 
   const handleQuickSearch = (term: string) => {
     setQuickSearch(term);
     if (!term.trim()) return;
     const t = term.trim().toLowerCase();
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
-      filteredPatients.forEach(p => {
+      filteredPatients.forEach((p) => {
         const name = `${p.中文姓氏 ?? ''}${p.中文名字 ?? ''}${p.中文姓名 ?? ''}`;
         if ((p.床號 || '').toLowerCase().includes(t) || name.includes(t)) next.add(p.院友id);
       });
       return next;
     });
   };
-  const allSelected = filteredPatients.length > 0 && filteredPatients.every(p => selectedIds.has(p.院友id));
-  const displayPatients = quickSearch.trim()
-    ? filteredPatients.filter(p => {
-        const t = quickSearch.trim().toLowerCase();
-        const name = `${p.中文姓氏 ?? ''}${p.中文名字 ?? ''}${p.中文姓名 ?? ''}`;
-        return (p.床號 || '').toLowerCase().includes(t) || name.includes(t);
-      })
-    : filteredPatients;
+  const allSelected = filteredPatients.length > 0 && filteredPatients.every((p) => selectedIds.has(p.院友id));
+  const displayPatients = quickSearch.trim() ?
+  filteredPatients.filter((p) => {
+    const t = quickSearch.trim().toLowerCase();
+    const name = `${p.中文姓氏 ?? ''}${p.中文名字 ?? ''}${p.中文姓名 ?? ''}`;
+    return (p.床號 || '').toLowerCase().includes(t) || name.includes(t);
+  }) :
+  filteredPatients;
 
   const toggleOne = (id: number) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);else next.add(id);
       return next;
     });
   };
   const selectAll = () => {
-    setSelectedIds(new Set(filteredPatients.map(p => p.院友id)));
+    setSelectedIds(new Set(filteredPatients.map((p) => p.院友id)));
   };
   const invertSelection = () => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set<number>();
-      filteredPatients.forEach(p => { if (!prev.has(p.院友id)) next.add(p.院友id); });
+      filteredPatients.forEach((p) => {if (!prev.has(p.院友id)) next.add(p.院友id);});
       return next;
     });
   };
@@ -129,21 +130,21 @@ const GlucoseWorksheetModal: React.FC<GlucoseWorksheetModalProps> = ({ onClose }
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">起始日期</label>
-              <input
-                type="date"
+              <DateInput
+
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
+
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" onChange={(value) => setStartDate(value)} />
+              
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">結束日期</label>
-              <input
-                type="date"
+              <DateInput
+
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
+
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" onChange={(value) => setEndDate(value)} />
+              
             </div>
           </div>
 
@@ -153,12 +154,12 @@ const GlucoseWorksheetModal: React.FC<GlucoseWorksheetModalProps> = ({ onClose }
               <select
                 value={stationFilter}
                 onChange={(e) => setStationFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-              >
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                
                 <option value="all">全部居住區</option>
-                {stations.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
+                {stations.map((s) =>
+                <option key={s.id} value={s.id}>{s.name}</option>
+                )}
               </select>
             </div>
             <div>
@@ -166,8 +167,8 @@ const GlucoseWorksheetModal: React.FC<GlucoseWorksheetModalProps> = ({ onClose }
               <select
                 value={residencyFilter}
                 onChange={(e) => setResidencyFilter(e.target.value as '在住' | '已退住')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-              >
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                
                 <option value="在住">在住</option>
                 <option value="已退住">退住</option>
               </select>
@@ -190,50 +191,50 @@ const GlucoseWorksheetModal: React.FC<GlucoseWorksheetModalProps> = ({ onClose }
               <input
                 type="text"
                 value={quickSearch}
-                onChange={e => handleQuickSearch(e.target.value)}
+                onChange={(e) => handleQuickSearch(e.target.value)}
                 placeholder="輸入姓名或床號自動勾選..."
-                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" />
+              
             </div>
             <div className="border border-gray-200 rounded-md max-h-64 overflow-y-auto divide-y divide-gray-100">
-              {filteredPatients.length === 0 ? (
-                <p className="px-4 py-3 text-sm text-gray-500">沒有符合條件的院友</p>
-              ) : (
-                displayPatients.map(p => (
-                  <button
-                    key={p.院友id}
-                    type="button"
-                    onClick={() => toggleOne(p.院友id)}
-                    className="w-full px-4 py-2 text-left text-sm flex items-center gap-3 hover:bg-gray-50"
-                  >
-                    {selectedIds.has(p.院友id) ? (
-                      <CheckSquare className="h-4 w-4 text-red-600 flex-shrink-0" />
-                    ) : (
-                      <Square className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                    )}
+              {filteredPatients.length === 0 ?
+              <p className="px-4 py-3 text-sm text-gray-500">沒有符合條件的院友</p> :
+
+              displayPatients.map((p) =>
+              <button
+                key={p.院友id}
+                type="button"
+                onClick={() => toggleOne(p.院友id)}
+                className="w-full px-4 py-2 text-left text-sm flex items-center gap-3 hover:bg-gray-50">
+                
+                    {selectedIds.has(p.院友id) ?
+                <CheckSquare className="h-4 w-4 text-red-600 flex-shrink-0" /> :
+
+                <Square className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                }
                     <span className="font-mono text-gray-500 w-12">{p.床號}</span>
                     <span className="text-gray-900">{p.中文姓名}</span>
                   </button>
-                ))
-              )}
+              )
+              }
             </div>
-            {filteredPatients.length > 0 && (
-              <button type="button" onClick={allSelected ? () => setSelectedIds(new Set()) : selectAll} className="mt-1 text-xs text-gray-500 hover:text-gray-700">
+            {filteredPatients.length > 0 &&
+            <button type="button" onClick={allSelected ? () => setSelectedIds(new Set()) : selectAll} className="mt-1 text-xs text-gray-500 hover:text-gray-700">
                 {allSelected ? '取消全選' : '全選'}
               </button>
-            )}
+            }
           </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          {error &&
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-sm font-medium text-red-800">{error}</p>
             </div>
-          )}
-          {success && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          }
+          {success &&
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <p className="text-sm font-medium text-green-800">記錄表已成功生成！打印視窗已開啟</p>
             </div>
-          )}
+          }
         </div>
 
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 p-6 border-t border-gray-200">
@@ -241,24 +242,24 @@ const GlucoseWorksheetModal: React.FC<GlucoseWorksheetModalProps> = ({ onClose }
           <button
             onClick={handleExport}
             disabled={isGenerating}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isGenerating ? (
-              <>
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2">
+            
+            {isGenerating ?
+            <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 <span>生成中...</span>
-              </>
-            ) : (
-              <>
+              </> :
+
+            <>
                 <Droplets className="h-4 w-4" />
                 <span>列印</span>
               </>
-            )}
+            }
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default GlucoseWorksheetModal;

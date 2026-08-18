@@ -34,6 +34,7 @@ import { printRestraintConsentForms } from '../utils/restraintConsentPrintGenera
 import { printRestraintUsageRecords } from '../utils/restraintUsageRecordPrintGenerator';
 import * as db from '../lib/database';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from '../components/DateInput';
 
 
 type SortField = '院友姓名' | 'doctor_signature_date' | 'next_due_date' | 'created_at';
@@ -749,18 +750,14 @@ const RestraintManagement: React.FC = () => {
                 <div className="mb-4">
                   <label className="form-label">簽署日期區間</label>
                   <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="date"
-                      value={advancedFilters.startDate}
-                      onChange={(e) => updateAdvancedFilter('startDate', e.target.value)}
+                    <DateInput value={advancedFilters.startDate}
+                      onChange={(value) => updateAdvancedFilter('startDate', value)}
                       className="form-input"
                       placeholder="開始日期"
                     />
                     <span className="text-gray-500">至</span>
-                    <input
-                      type="date"
-                      value={advancedFilters.endDate}
-                      onChange={(e) => updateAdvancedFilter('endDate', e.target.value)}
+                    <DateInput value={advancedFilters.endDate}
+                      onChange={(value) => updateAdvancedFilter('endDate', value)}
                       className="form-input"
                       placeholder="結束日期"
                     />
@@ -1225,10 +1222,8 @@ const RestraintManagement: React.FC = () => {
                   <Calendar className="h-4 w-4 inline mr-1" />
                   開始日期 *
                 </label>
-                <input
-                  type="date"
-                  value={observationDateRange.startDate}
-                  onChange={(e) => setObservationDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                <DateInput value={observationDateRange.startDate}
+                  onChange={(value) => setObservationDateRange(prev => ({ ...prev, startDate: value }))}
                   className="form-input"
                   required
                 />
@@ -1239,10 +1234,8 @@ const RestraintManagement: React.FC = () => {
                   <Calendar className="h-4 w-4 inline mr-1" />
                   結束日期 *
                 </label>
-                <input
-                  type="date"
-                  value={observationDateRange.endDate}
-                  onChange={(e) => setObservationDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                <DateInput value={observationDateRange.endDate}
+                  onChange={(value) => setObservationDateRange(prev => ({ ...prev, endDate: value }))}
                   className="form-input"
                   required
                 />

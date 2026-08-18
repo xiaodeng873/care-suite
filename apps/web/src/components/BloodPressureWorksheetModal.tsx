@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { X, Activity, CheckSquare, Square, Search } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { generateBloodPressureRecordWorksheet } from '../utils/bloodPressureRecordWorksheetGenerator';
+import DateInput from './DateInput';
 
 interface BloodPressureWorksheetModalProps {
   onClose: () => void;
@@ -121,12 +122,12 @@ const BloodPressureWorksheetModal: React.FC<BloodPressureWorksheetModalProps> = 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">起始日期</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+              <DateInput value={startDate} onChange={(value) => setStartDate(value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">結束日期</label>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+              <DateInput value={endDate} onChange={(value) => setEndDate(value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import HumanBodyDiagram from './HumanBodyDiagram';
 import WoundPhotoUpload from './WoundPhotoUpload';
+import DateInput from './DateInput';
 
 interface WoundAssessmentModalProps {
   assessment?: WoundAssessment | null;
@@ -297,14 +298,7 @@ const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment,
                 <Calendar className="h-4 w-4 inline mr-1" />
                 評估日期 *
               </label>
-              <input
-                type="date"
-                name="assessment_date"
-                value={formData.assessment_date}
-                onChange={handleChange}
-                className="form-input"
-                required
-              />
+              <DateInput name="assessment_date" value={formData.assessment_date} className="form-input" onChange={(value) => setFormData(prev => ({ ...prev, assessment_date: value }))}/>
             </div>
 
             <div>
@@ -312,14 +306,7 @@ const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment,
                 <Calendar className="h-4 w-4 inline mr-1" />
                 下次評估日期
               </label>
-              <input
-                type="date"
-                name="next_assessment_date"
-                value={formData.next_assessment_date}
-                onChange={handleChange}
-                className="form-input bg-gray-50"
-                readOnly
-              />
+              <DateInput name="next_assessment_date" value={formData.next_assessment_date} className="form-input bg-gray-50" onChange={(value) => setFormData(prev => ({ ...prev, next_assessment_date: value }))}/>
               <p className="text-xs text-gray-500 mt-1">
                 自動計算：評估日期 + 7天
               </p>

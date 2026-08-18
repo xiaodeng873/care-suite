@@ -6,6 +6,7 @@ import {
   formatHongKongTime,
   normalizeTime,
 } from '../utils/prescriptionExpiry';
+import DateInput from './DateInput';
 
 interface PrescriptionEndDateResult {
   endDate: string | null;
@@ -193,12 +194,7 @@ const PrescriptionEndDateModal: React.FC<PrescriptionEndDateModalProps> = ({
               <Calendar className="h-4 w-4 inline mr-1" />
               開始日期
             </label>
-            <input
-              type="date"
-              value={prescription?.start_date || ''}
-              className="form-input bg-gray-50"
-              readOnly
-            />
+            <DateInput value={prescription?.start_date || ''} className="form-input bg-gray-50" onChange={() => {}}/>
           </div>
 
           {/* 處方日期（只讀） */}
@@ -207,12 +203,7 @@ const PrescriptionEndDateModal: React.FC<PrescriptionEndDateModalProps> = ({
               <Calendar className="h-4 w-4 inline mr-1" />
               處方日期
             </label>
-            <input
-              type="date"
-              value={prescription?.prescription_date || ''}
-              className="form-input bg-gray-50"
-              readOnly
-            />
+            <DateInput value={prescription?.prescription_date || ''} className="form-input bg-gray-50" onChange={() => {}}/>
           </div>
 
           {/* 結束日期 */}
@@ -221,11 +212,10 @@ const PrescriptionEndDateModal: React.FC<PrescriptionEndDateModalProps> = ({
               <Calendar className="h-4 w-4 inline mr-1" />
               結束日期 {isStopMode && <span className="text-red-500">*</span>}
             </label>
-            <input
-              type="date"
+            <DateInput
               value={endDate}
-              onChange={(e) => {
-                setEndDate(e.target.value);
+              onChange={(value) => {
+                setEndDate(value);
                 setError('');
               }}
               className={`form-input ${error ? 'border-red-300' : ''}`}

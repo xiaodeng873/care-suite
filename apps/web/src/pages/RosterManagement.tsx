@@ -6,7 +6,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import PublicHolidayModal from '../components/PublicHolidayModal';
 import PatientPrintModal from '../components/PatientPrintModal';
 import type { PrintDocumentOptions } from '../components/PatientPrintModal';
-import { formatDisplayDate } from '../utils/dateFormat';
+import { formatDisplayDate, formatTimeToHHMM } from '../utils/dateFormat';
 import ConfirmOverrideModal from '../components/ConfirmOverrideModal';
 import RosterScheduleView from '../components/RosterScheduleView';
 import RosterLeaveModal, { type RosterLeaveModalPayload } from '../components/RosterLeaveModal';
@@ -1634,7 +1634,7 @@ const RosterManagement: React.FC = () => {
                   const station = stations.find((s) => s.id === a.station_id);
                   return (
                     <li key={a.id}>
-                      {station?.name ?? '未分配居住區'} / {a.shift_name} / {a.start_time?.slice(0, 5)}-{a.end_time?.slice(0, 5)}
+                      {station?.name ?? '未分配居住區'} / {a.shift_name} / {formatTimeToHHMM(a.start_time)}-{formatTimeToHHMM(a.end_time)}
                     </li>
                   );
                 })}

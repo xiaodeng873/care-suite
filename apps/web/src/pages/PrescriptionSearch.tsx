@@ -34,6 +34,7 @@ import {
 } from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
 import type { MedicationPrescription } from '../lib/database';
+import DateInput from '../components/DateInput';
 
 type SortField =
   | 'patient'
@@ -588,17 +589,13 @@ const PrescriptionSearch: React.FC = () => {
                   <div>
                     <label className="form-label">處方日期區間</label>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="date"
-                        value={advancedFilters.prescription_date_start}
-                        onChange={(e) => updateAdvancedFilter('prescription_date_start', e.target.value)}
+                      <DateInput value={advancedFilters.prescription_date_start}
+                        onChange={(value) => updateAdvancedFilter('prescription_date_start', value)}
                         className="form-input flex-1"
                       />
                       <span className="text-gray-500">至</span>
-                      <input
-                        type="date"
-                        value={advancedFilters.prescription_date_end}
-                        onChange={(e) => updateAdvancedFilter('prescription_date_end', e.target.value)}
+                      <DateInput value={advancedFilters.prescription_date_end}
+                        onChange={(value) => updateAdvancedFilter('prescription_date_end', value)}
                         className="form-input flex-1"
                       />
                     </div>
@@ -606,17 +603,13 @@ const PrescriptionSearch: React.FC = () => {
                   <div>
                     <label className="form-label">開始日期區間</label>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="date"
-                        value={advancedFilters.start_date_start}
-                        onChange={(e) => updateAdvancedFilter('start_date_start', e.target.value)}
+                      <DateInput value={advancedFilters.start_date_start}
+                        onChange={(value) => updateAdvancedFilter('start_date_start', value)}
                         className="form-input flex-1"
                       />
                       <span className="text-gray-500">至</span>
-                      <input
-                        type="date"
-                        value={advancedFilters.start_date_end}
-                        onChange={(e) => updateAdvancedFilter('start_date_end', e.target.value)}
+                      <DateInput value={advancedFilters.start_date_end}
+                        onChange={(value) => updateAdvancedFilter('start_date_end', value)}
                         className="form-input flex-1"
                       />
                     </div>
@@ -633,19 +626,15 @@ const PrescriptionSearch: React.FC = () => {
                         <option value="has">有結束日期</option>
                         <option value="none">無結束日期</option>
                       </select>
-                      <input
-                        type="date"
-                        value={advancedFilters.end_date_start}
-                        onChange={(e) => updateAdvancedFilter('end_date_start', e.target.value)}
+                      <DateInput value={advancedFilters.end_date_start}
+                        onChange={(value) => updateAdvancedFilter('end_date_start', value)}
                         className="form-input flex-1"
                         disabled={advancedFilters.end_date_type === 'none'}
                         title={advancedFilters.end_date_type === 'none' ? '選擇「無結束日期」時不適用' : ''}
                       />
                       <span className="text-gray-500">至</span>
-                      <input
-                        type="date"
-                        value={advancedFilters.end_date_end}
-                        onChange={(e) => updateAdvancedFilter('end_date_end', e.target.value)}
+                      <DateInput value={advancedFilters.end_date_end}
+                        onChange={(value) => updateAdvancedFilter('end_date_end', value)}
                         className="form-input flex-1"
                         disabled={advancedFilters.end_date_type === 'none'}
                         title={advancedFilters.end_date_type === 'none' ? '選擇「無結束日期」時不適用' : ''}

@@ -1,4 +1,3 @@
-import React, { useMemo, useState } from 'react';
 import { X, Users, Printer, Plus } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import { getCarePlanStatus } from '../utils/carePlanStatus';
@@ -6,11 +5,13 @@ import { generateCaseConferenceListHtml } from '../utils/caseConferenceListPrint
 import { formatDisplayDate } from '../utils/dateFormat';
 import type { CarePlan, Patient } from '../lib/database';
 import BedNumberImprint from './BedNumberImprint';
+import React, { useMemo, useState } from 'react';
+import DateInput from './DateInput';
 import type {
   CaseConferenceGroupInput,
   CaseConferenceRoomInput,
-  CaseConferencePlanInput,
-} from '../utils/caseConferenceListPrintGenerator';
+  CaseConferencePlanInput } from
+'../utils/caseConferenceListPrintGenerator';
 
 interface CaseConferenceListModalProps {
   isOpen: boolean;
@@ -32,23 +33,23 @@ function getRoomNumber(bedNumber: string): string {
 }
 
 function buildPrintGroups(
-  plans: CarePlan[],
-  patients: Patient[]
-): CaseConferenceGroupInput[] {
-  const stationMap = new Map<string, { stationName: string; roomMap: Map<string, CaseConferencePlanInput[]> }>();
+plans: CarePlan[],
+patients: Patient[])
+: CaseConferenceGroupInput[] {
+  const stationMap = new Map<string, {stationName: string;roomMap: Map<string, CaseConferencePlanInput[]>;}>();
 
   for (const plan of plans) {
-    const patient = patients.find(p => p.院友id === plan.patient_id);
+    const patient = patients.find((p) => p.院友id === plan.patient_id);
     const bedNumber = patient?.床號 || '-';
     const stationCode = getStationCode(bedNumber);
     const stationName = `${stationCode}區`;
     const roomNumber = getRoomNumber(bedNumber);
     const patientName = patient?.中文姓名 || '-';
 
-    const professionals = (plan.case_conference_professionals || []).map(p => ({
+    const professionals = (plan.case_conference_professionals || []).map((p) => ({
       category: p.category,
       assessor: p.assessor,
-      assessmentDate: p.assessment_date,
+      assessmentDate: p.assessment_date
     }));
 
     if (!stationMap.has(stationName)) {
@@ -63,23 +64,23 @@ function buildPrintGroups(
       patientName,
       planType: plan.plan_type,
       reviewDueDate: plan.review_due_date || '',
-      professionals,
+      professionals
     });
   }
 
   const groups: CaseConferenceGroupInput[] = [];
   for (const { stationName, roomMap } of stationMap.values()) {
     const roomsArr = Array.from(roomMap.entries()).sort((a, b) =>
-      a[0].localeCompare(b[0], 'zh-Hant', { numeric: true })
+    a[0].localeCompare(b[0], 'zh-Hant', { numeric: true })
     );
     groups.push({
       stationName,
       rooms: roomsArr.map(([roomNumber, roomPlans]) => ({
         roomNumber,
         plans: roomPlans.sort((a, b) =>
-          a.bedNumber.localeCompare(b.bedNumber, 'zh-Hant', { numeric: true })
-        ),
-      })),
+        a.bedNumber.localeCompare(b.bedNumber, 'zh-Hant', { numeric: true })
+        )
+      }))
     });
   }
 
@@ -91,7 +92,7 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
   onClose,
   carePlans,
   patients,
-  onSave,
+  onSave
 }) => {
   const { updateCarePlan, refreshCarePlanData } = usePatientData();
   const [meetingDate, setMeetingDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -99,23 +100,23 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
   const [saving, setSaving] = useState(false);
 
   const activePlans = useMemo(
-    () => carePlans.filter(p => getCarePlanStatus(p) === '生效中'),
+    () => carePlans.filter((p) => getCarePlanStatus(p) === '生效中'),
     [carePlans]
   );
 
   const selectedPlans = useMemo(
-    () => activePlans.filter(p => selectedPlanIds.has(p.id)),
+    () => activePlans.filter((p) => selectedPlanIds.has(p.id)),
     [activePlans, selectedPlanIds]
   );
 
   const otherActiveOptions = useMemo(
-    () => activePlans.filter(p => !selectedPlanIds.has(p.id)),
+    () => activePlans.filter((p) => !selectedPlanIds.has(p.id)),
     [activePlans, selectedPlanIds]
   );
 
   const handleGenerate = () => {
     const ids = new Set<string>();
-    activePlans.forEach(plan => {
+    activePlans.forEach((plan) => {
       if (plan.review_due_date && plan.review_due_date <= meetingDate) {
         ids.add(plan.id);
       }
@@ -124,7 +125,7 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
   };
 
   const togglePlan = (planId: string) => {
-    setSelectedPlanIds(prev => {
+    setSelectedPlanIds((prev) => {
       const next = new Set(prev);
       if (next.has(planId)) {
         next.delete(planId);
@@ -137,14 +138,14 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
 
   const handleAddOther = (planId: string) => {
     if (!planId) return;
-    setSelectedPlanIds(prev => new Set(prev).add(planId));
+    setSelectedPlanIds((prev) => new Set(prev).add(planId));
   };
 
   const handleSelectAll = () => {
-    if (selectedPlanIds.size > 0 && selectedPlans.every(p => selectedPlanIds.has(p.id))) {
+    if (selectedPlanIds.size > 0 && selectedPlans.every((p) => selectedPlanIds.has(p.id))) {
       setSelectedPlanIds(new Set());
     } else {
-      setSelectedPlanIds(new Set(selectedPlans.map(p => p.id)));
+      setSelectedPlanIds(new Set(selectedPlans.map((p) => p.id)));
     }
   };
 
@@ -156,8 +157,8 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
     setSaving(true);
     try {
       await Promise.all(
-        Array.from(selectedPlanIds).map(async planId => {
-          const plan = carePlans.find(p => p.id === planId);
+        Array.from(selectedPlanIds).map(async (planId) => {
+          const plan = carePlans.find((p) => p.id === planId);
           if (!plan) return;
           const updates: Partial<CarePlan> = { case_conference_date: meetingDate };
           if (plan.review_date) {
@@ -182,7 +183,7 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
       alert('請先選擇至少一份 ICP');
       return;
     }
-    const selectedPlans = carePlans.filter(p => selectedPlanIds.has(p.id));
+    const selectedPlans = carePlans.filter((p) => selectedPlanIds.has(p.id));
     const groups = buildPrintGroups(selectedPlans, patients);
     const html = generateCaseConferenceListHtml({ meetingDate, groups });
     const win = window.open('', '_blank');
@@ -210,8 +211,8 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
-            disabled={saving}
-          >
+            disabled={saving}>
+            
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -219,17 +220,17 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
         <div className="px-6 py-4 space-y-4 overflow-y-auto">
           <div className="flex flex-wrap items-center gap-3">
             <label className="text-sm font-medium text-gray-700">會議日期</label>
-            <input
-              type="date"
+            <DateInput
+
               value={meetingDate}
-              onChange={e => setMeetingDate(e.target.value)}
-              className="form-input"
-            />
+
+              className="form-input" onChange={(value) => setMeetingDate(value)} />
+            
             <button
               onClick={handleGenerate}
               className="btn-secondary flex items-center gap-2"
-              disabled={saving}
-            >
+              disabled={saving}>
+              
               <Plus className="h-4 w-4" />
               <span>生成名單</span>
             </button>
@@ -240,18 +241,18 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
               <h4 className="text-sm font-medium text-gray-700">
                 已選 ICP 名單（共 {selectedPlans.length} 份）
               </h4>
-              {selectedPlans.length > 0 && (
-                <label className="inline-flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
+              {selectedPlans.length > 0 &&
+              <label className="inline-flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
                   <input
-                    type="checkbox"
-                    checked={selectedPlanIds.size === selectedPlans.length}
-                    onChange={handleSelectAll}
-                    className="form-checkbox"
-                    disabled={saving}
-                  />
+                  type="checkbox"
+                  checked={selectedPlanIds.size === selectedPlans.length}
+                  onChange={handleSelectAll}
+                  className="form-checkbox"
+                  disabled={saving} />
+                
                   全選
                 </label>
-              )}
+              }
             </div>
             <div className="border border-gray-200 rounded-lg overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
@@ -275,28 +276,28 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {selectedPlans.length === 0 ? (
-                    <tr>
+                  {selectedPlans.length === 0 ?
+                  <tr>
                       <td
-                        colSpan={5}
-                        className="px-4 py-8 text-center text-sm text-gray-500"
-                      >
+                      colSpan={5}
+                      className="px-4 py-8 text-center text-sm text-gray-500">
+                      
                         請選擇會議日期並按「生成名單」，或從下方加入其他生效中 ICP
                       </td>
-                    </tr>
-                  ) : (
-                    selectedPlans.map(plan => {
-                      const patient = patients.find(p => p.院友id === plan.patient_id);
-                      return (
-                        <tr key={plan.id}>
+                    </tr> :
+
+                  selectedPlans.map((plan) => {
+                    const patient = patients.find((p) => p.院友id === plan.patient_id);
+                    return (
+                      <tr key={plan.id}>
                           <td className="px-3 py-2">
                             <input
-                              type="checkbox"
-                              checked={selectedPlanIds.has(plan.id)}
-                              onChange={() => togglePlan(plan.id)}
-                              className="form-checkbox"
-                              disabled={saving}
-                            />
+                            type="checkbox"
+                            checked={selectedPlanIds.has(plan.id)}
+                            onChange={() => togglePlan(plan.id)}
+                            className="form-checkbox"
+                            disabled={saving} />
+                          
                           </td>
                           <td className="px-3 py-2 text-sm text-gray-900">
                             {patient ? <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-900" /> : '-'}
@@ -308,14 +309,14 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
                             {plan.plan_type}
                           </td>
                           <td className="px-3 py-2 text-sm text-gray-900">
-                            {plan.review_due_date
-                              ? formatDisplayDate(`${plan.review_due_date}T00:00:00`)
-                              : '-'}
+                            {plan.review_due_date ?
+                          formatDisplayDate(`${plan.review_due_date}T00:00:00`) :
+                          '-'}
                           </td>
-                        </tr>
-                      );
-                    })
-                  )}
+                        </tr>);
+
+                  })
+                  }
                 </tbody>
               </table>
             </div>
@@ -324,22 +325,22 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
           <div className="flex items-center gap-3">
             <select
               value=""
-              onChange={e => {
+              onChange={(e) => {
                 handleAddOther(e.target.value);
                 e.target.value = '';
               }}
               className="form-select"
-              disabled={saving || otherActiveOptions.length === 0}
-            >
+              disabled={saving || otherActiveOptions.length === 0}>
+              
               <option value="">+ 加入其他生效中 ICP</option>
-              {otherActiveOptions.map(plan => {
-                const patient = patients.find(p => p.院友id === plan.patient_id);
+              {otherActiveOptions.map((plan) => {
+                const patient = patients.find((p) => p.院友id === plan.patient_id);
                 return (
                   <option key={plan.id} value={plan.id}>
                     {patient ? <BedNumberImprint patient={patient} size="sm" className="text-sm" /> : '-'} {patient?.中文姓名 || '-'} · {plan.plan_type}
                     {plan.review_due_date ? `（複檢到期 ${plan.review_due_date}）` : ''}
-                  </option>
-                );
+                  </option>);
+
               })}
             </select>
           </div>
@@ -352,22 +353,22 @@ const CaseConferenceListModal: React.FC<CaseConferenceListModalProps> = ({
           <button
             onClick={handleConfirm}
             className="btn-primary flex items-center gap-2"
-            disabled={saving || selectedPlanIds.size === 0}
-          >
+            disabled={saving || selectedPlanIds.size === 0}>
+            
             {saving ? '儲存中...' : '確定'}
           </button>
           <button
             onClick={handlePrint}
             className="btn-secondary flex items-center gap-2"
-            disabled={saving || selectedPlanIds.size === 0}
-          >
+            disabled={saving || selectedPlanIds.size === 0}>
+            
             <Printer className="h-4 w-4" />
             列印
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default CaseConferenceListModal;

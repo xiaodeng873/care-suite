@@ -18,6 +18,7 @@ import {
   type ToolsSettings,
 } from '../utils/toolsSettings';
 import { getSupabaseUrl, getSupabaseAnonKey } from '../config/supabase.config';
+import DateInput from '../components/DateInput';
 import {
   UserProfile,
   UserRole,
@@ -545,11 +546,10 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">出生日期</label>
-                <input
-                  type="date"
+                <DateInput
                   name="date_of_birth"
                   value={formData.date_of_birth}
-                  onChange={handleChange}
+                  onChange={(value) => setFormData(prev => ({ ...prev, date_of_birth: value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -630,11 +630,10 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">入職日期 *</label>
-                <input
-                  type="date"
+                <DateInput
                   name="hire_date"
                   value={formData.hire_date}
-                  onChange={handleChange}
+                  onChange={(value) => setFormData(prev => ({ ...prev, hire_date: value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   required
                 />

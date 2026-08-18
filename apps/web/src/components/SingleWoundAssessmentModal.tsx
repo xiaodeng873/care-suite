@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import BedNumberImprint from './BedNumberImprint';
 import WoundPhotoUpload from './WoundPhotoUpload';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from './DateInput';
 
 
 interface WoundPhoto {
@@ -328,14 +329,7 @@ const SingleWoundAssessmentModal: React.FC<SingleWoundAssessmentModalProps> = ({
                 <Calendar className="inline h-4 w-4 mr-1" />
                 評估日期 <span className="text-red-500">*</span>
               </label>
-              <input
-                type="date"
-                name="assessment_date"
-                value={formData.assessment_date}
-                onChange={handleChange}
-                className="form-input w-full"
-                required
-              />
+              <DateInput name="assessment_date" value={formData.assessment_date} className="form-input w-full" onChange={(value) => setFormData(prev => ({ ...prev, assessment_date: value }))}/>
             </div>
 
             <div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, FileText, Calendar, User, CheckCircle } from 'lucide-react';
 import BedNumberImprint from './BedNumberImprint';
 import type { Patient as DatabasePatient, PatientHealthTask } from '../lib/database';
+import DateInput from './DateInput';
 
 type HealthTask = PatientHealthTask;
 
@@ -201,10 +202,9 @@ const DocumentTaskModal: React.FC<DocumentTaskModalProps> = ({
               <Calendar className="h-4 w-4 inline mr-1" />
               {getDateLabel(task.health_record_type)} *
             </label>
-            <input
-              type="date"
+            <DateInput
               value={signatureDate}
-              onChange={(e) => setSignatureDate(e.target.value)}
+              onChange={(value) => setSignatureDate(value)}
               className="form-input"
               required
             />
@@ -267,10 +267,9 @@ const DocumentTaskModal: React.FC<DocumentTaskModalProps> = ({
               <Calendar className="h-4 w-4 inline mr-1" />
               下次到期日期
             </label>
-            <input
-              type="date"
+            <DateInput
               value={nextDueDate}
-              onChange={(e) => setNextDueDate(e.target.value)}
+              onChange={(value) => setNextDueDate(value)}
               className="form-input"
               readOnly={needsTubeSettings(task.health_record_type)}
             />

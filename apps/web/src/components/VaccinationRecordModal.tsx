@@ -5,6 +5,7 @@ import PatientAutocomplete from './PatientAutocomplete';
 import BedNumberImprint from './BedNumberImprint';
 import OCRDocumentBlock from './OCRDocumentBlock';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from './DateInput';
 
 
 interface VaccinationRecordModalProps {
@@ -272,11 +273,10 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
                       <span className="text-red-500">*</span>
                       <span>注射日期</span>
                     </label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={item.vaccination_date}
-                      onChange={(e) => {
-                        updateVaccinationItem(item.id, 'vaccination_date', e.target.value);
+                      onChange={(value) => {
+                        updateVaccinationItem(item.id, 'vaccination_date', value);
                         setErrors(prev => ({ ...prev, [`vaccination_date_${index}`]: '' }));
                       }}
                       className={`form-input ${errors[`vaccination_date_${index}`] ? 'border-red-500' : ''}`}

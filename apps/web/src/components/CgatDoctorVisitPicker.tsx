@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Plus, Trash2, Calendar, Check, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import DateInput from './DateInput';
 
 interface DoctorVisit {
   id: string;
@@ -131,8 +132,8 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="form-label text-xs">到診日期</label>
-                  <input type="date" className="form-input" value={form.visit_date}
-                    onChange={(e) => setForm(f => ({ ...f, visit_date: e.target.value }))} />
+                  <DateInput className="form-input" value={form.visit_date}
+                    onChange={(value) => setForm(f => ({ ...f, visit_date: value }))} />
                 </div>
                 <div>
                   <label className="form-label text-xs">醫生姓名</label>

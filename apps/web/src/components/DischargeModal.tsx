@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
 import BedNumberImprint from './BedNumberImprint';
 import { X, LogOut, Calendar, Heart, Home, Hospital, Building2 } from 'lucide-react';
 import { formatDisplayDate } from '../utils/dateFormat';
+import React, { useState } from 'react';
+import DateInput from './DateInput';
 
 
 interface DischargeModalProps {
@@ -60,8 +61,8 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ patient, onClose, onCon
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
+            className="text-gray-400 hover:text-gray-600">
+            
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -69,24 +70,24 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ patient, onClose, onCon
         <div className="mb-4 p-4 bg-gray-50 rounded-lg">
           <div className="flex flex-wrap items-center gap-3">
             <div className="w-12 h-12 bg-blue-100 rounded-full overflow-hidden flex items-center justify-center">
-              {patient.院友相片 ? (
-                <img 
-                  src={patient.院友相片} 
-                  alt={patient.中文姓名} 
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <BedNumberImprint patient={patient} size="sm" className="text-blue-600 font-medium" />
-              )}
+              {patient.院友相片 ?
+              <img
+                src={patient.院友相片}
+                alt={patient.中文姓名}
+                className="w-full h-full object-cover" /> :
+
+
+              <BedNumberImprint patient={patient} size="sm" className="text-blue-600 font-medium" />
+              }
             </div>
             <div>
               <p className="font-medium text-gray-900">{patient.中文姓氏}{patient.中文名字}</p>
               <p className="text-sm text-gray-600">床號: <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-600" /></p>
-              {patient.入住日期 && (
-                <p className="text-sm text-gray-600">
+              {patient.入住日期 &&
+              <p className="text-sm text-gray-600">
                   入住日期: {formatDisplayDate(patient.入住日期)}
                 </p>
-              )}
+              }
             </div>
           </div>
         </div>
@@ -97,109 +98,109 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ patient, onClose, onCon
               <Calendar className="h-4 w-4 inline mr-1" />
               退住日期 *
             </label>
-            <input
-              type="date"
+            <DateInput
+
               value={dischargeDate}
-              onChange={(e) => setDischargeDate(e.target.value)}
+
               className="form-input"
-              required
-            />
+              required onChange={(value) => setDischargeDate(value)} />
+            
           </div>
 
           <div>
             <label className="form-label">退住原因 *</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                dischargeReason === '死亡' ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-gray-300'
-              }`}>
+              dischargeReason === '死亡' ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-gray-300'}`
+              }>
                 <input
                   type="radio"
                   name="discharge_reason"
                   value="死亡"
                   checked={dischargeReason === '死亡'}
                   onChange={(e) => setDischargeReason(e.target.value as any)}
-                  className="mr-2"
-                />
+                  className="mr-2" />
+                
                 <Heart className="h-4 w-4 mr-2 text-red-600" />
                 <span className="text-sm font-medium">死亡</span>
               </label>
               <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                dischargeReason === '回家' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'
-              }`}>
+              dischargeReason === '回家' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`
+              }>
                 <input
                   type="radio"
                   name="discharge_reason"
                   value="回家"
                   checked={dischargeReason === '回家'}
                   onChange={(e) => setDischargeReason(e.target.value as any)}
-                  className="mr-2"
-                />
+                  className="mr-2" />
+                
                 <Home className="h-4 w-4 mr-2 text-green-600" />
                 <span className="text-sm font-medium">回家</span>
               </label>
               <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                dischargeReason === '留醫' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-              }`}>
+              dischargeReason === '留醫' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`
+              }>
                 <input
                   type="radio"
                   name="discharge_reason"
                   value="留醫"
                   checked={dischargeReason === '留醫'}
                   onChange={(e) => setDischargeReason(e.target.value as any)}
-                  className="mr-2"
-                />
+                  className="mr-2" />
+                
                 <Hospital className="h-4 w-4 mr-2 text-blue-600" />
                 <span className="text-sm font-medium">留醫</span>
               </label>
               <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                dischargeReason === '轉往其他機構' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
-              }`}>
+              dischargeReason === '轉往其他機構' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`
+              }>
                 <input
                   type="radio"
                   name="discharge_reason"
                   value="轉往其他機構"
                   checked={dischargeReason === '轉往其他機構'}
                   onChange={(e) => setDischargeReason(e.target.value as any)}
-                  className="mr-2"
-                />
+                  className="mr-2" />
+                
                 <Building2 className="h-4 w-4 mr-2 text-purple-600" />
                 <span className="text-sm font-medium">轉往其他機構</span>
               </label>
             </div>
           </div>
 
-          {dischargeReason === '死亡' && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          {dischargeReason === '死亡' &&
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <label className="form-label">
                 <Calendar className="h-4 w-4 inline mr-1" />
                 死亡日期 *
               </label>
-              <input
-                type="date"
-                value={deathDate}
-                onChange={(e) => setDeathDate(e.target.value)}
-                className="form-input"
-                required
-              />
-            </div>
-          )}
+              <DateInput
 
-          {dischargeReason === '轉往其他機構' && (
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+              value={deathDate}
+
+              className="form-input"
+              required onChange={(value) => setDeathDate(value)} />
+            
+            </div>
+          }
+
+          {dischargeReason === '轉往其他機構' &&
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
               <label className="form-label">
                 <Building2 className="h-4 w-4 inline mr-1" />
                 轉往機構名稱 *
               </label>
               <input
-                type="text"
-                value={transferFacility}
-                onChange={(e) => setTransferFacility(e.target.value)}
-                className="form-input"
-                placeholder="輸入轉往機構名稱"
-                required
-              />
+              type="text"
+              value={transferFacility}
+              onChange={(e) => setTransferFacility(e.target.value)}
+              className="form-input"
+              placeholder="輸入轉往機構名稱"
+              required />
+            
             </div>
-          )}
+          }
 
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
             <p className="text-sm text-orange-800">
@@ -211,22 +212,22 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ patient, onClose, onCon
           <div className="flex flex-col sm:flex-row gap-2 pt-4">
             <button
               type="submit"
-              className="btn-danger flex-1"
-            >
+              className="btn-danger flex-1">
+              
               確認退住
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="btn-secondary flex-1"
-            >
+              className="btn-secondary flex-1">
+              
               取消
             </button>
           </div>
         </form>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default DischargeModal;

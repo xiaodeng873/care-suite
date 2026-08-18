@@ -17,6 +17,7 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from 
 import { useStationFilter } from '../context/StationFilterContext';
 import type { ScheduleWithDetails } from '../context/PatientContext';
 import { formatDisplayDate } from '../utils/dateFormat';
+import DateInput from '../components/DateInput';
 
 const Scheduling: React.FC = () => {
   const { schedules, deleteSchedule, stations, loading, refreshData } = usePatientData();
@@ -304,10 +305,8 @@ const Scheduling: React.FC = () => {
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
+            <DateInput value={dateFilter}
+              onChange={(value) => setDateFilter(value)}
               className="form-input lg:w-40"
               title="按日期篩選"
             />

@@ -106,6 +106,42 @@ export function formatDisplayDateTime(
 }
 
 /**
+ * 格式化時間為 HH:MM（24 小時制）。
+ * 支援 Date、ISO 日期時間字串、純時間字串（HH:MM 或 HH:MM:SS）。
+ * 無效時回傳 fallback（預設空字串）。
+ */
+export function formatTimeToHHMM(
+  value: Date | string | number | undefined | null,
+  fallback = ''
+): string {
+  if (value === undefined || value === null || value === '') return fallback;
+
+  if (value instanceof Date) {
+    return `${pad2(value.getHours())}:${pad2(value.getMinutes())}`;
+  }
+
+  if (typeof value === 'string') {
+    const clean = value.trim();
+    // ISO 日期或日期時間：先嘗試用 Date 解析
+    if (/T|\s/.test(clean)) {
+      const d = parseDate(clean);
+      if (d) return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    }
+    // 純時間：HH:MM 或 HH:MM:SS
+    const match = clean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (match) return `${pad2(Number(match[1]))}:${match[2]}`;
+    return fallback;
+  }
+
+  if (typeof value === 'number') {
+    const d = parseDate(value);
+    if (d) return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  }
+
+  return fallback;
+}
+
+/**
  * 將 DD/MM/YYYY 或 ISO 日期轉為內部 YYYY-MM-DD 格式（供表單/DB 使用）。
  * 無效時回傳空字串。
  */

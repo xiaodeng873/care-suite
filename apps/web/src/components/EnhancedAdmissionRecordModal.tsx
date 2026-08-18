@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar, Clock, Guitar as Hospital, MapPin, Bed, User, AlertTriangle, Heart, Building2, FileText } from 'lucide-react';
 import { usePatientData, type PatientAdmissionRecord, type AdmissionEventType } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
+import React, { useState, useEffect } from 'react';
+import DateInput from './DateInput';
 
 interface TransferPath {
   id: string;
@@ -27,11 +28,11 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
   record,
   onClose
 }) => {
-  const { 
-    patients, 
-    addPatientAdmissionRecord, 
+  const {
+    patients,
+    addPatientAdmissionRecord,
     updatePatientAdmissionRecord,
-    patientAdmissionRecords 
+    patientAdmissionRecords
   } = usePatientData();
 
   // 表單狀態
@@ -66,45 +67,45 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
 
   // 出院安排選項
   const dischargeTypes: DischargeType[] = [
-    {
-      value: 'return_to_facility',
-      label: '返回院舍',
-      description: '院友康復後返回院舍',
-      icon: <Building2 className="h-5 w-5" />
-    },
-    {
-      value: 'home',
-      label: '回家',
-      description: '院友康復後回到原居住地',
-      icon: <Building2 className="h-5 w-5" />
-    },
-    {
-      value: 'transfer_out',
-      label: '轉院至其他機構',
-      description: '轉移至其他醫療或照護機構',
-      icon: <Hospital className="h-5 w-5" />
-    },
-    {
-      value: 'deceased',
-      label: '離世',
-      description: '院友在醫院內離世',
-      icon: <Heart className="h-5 w-5" />
-    }
-  ];
+  {
+    value: 'return_to_facility',
+    label: '返回院舍',
+    description: '院友康復後返回院舍',
+    icon: <Building2 className="h-5 w-5" />
+  },
+  {
+    value: 'home',
+    label: '回家',
+    description: '院友康復後回到原居住地',
+    icon: <Building2 className="h-5 w-5" />
+  },
+  {
+    value: 'transfer_out',
+    label: '轉院至其他機構',
+    description: '轉移至其他醫療或照護機構',
+    icon: <Hospital className="h-5 w-5" />
+  },
+  {
+    value: 'deceased',
+    label: '離世',
+    description: '院友在醫院內離世',
+    icon: <Heart className="h-5 w-5" />
+  }];
+
 
   // 常用醫院列表
   const commonHospitals = [
-    '瑪麗醫院',
-    '伊利沙伯醫院',
-    '廣華醫院',
-    '東華醫院',
-    '律敦治醫院',
-    '聯合醫院',
-    '威爾斯親王醫院',
-    '沙田醫院',
-    '屯門醫院',
-    '天水圍醫院'
-  ];
+  '瑪麗醫院',
+  '伊利沙伯醫院',
+  '廣華醫院',
+  '東華醫院',
+  '律敦治醫院',
+  '聯合醫院',
+  '威爾斯親王醫院',
+  '沙田醫院',
+  '屯門醫院',
+  '天水圍醫院'];
+
 
   // 驗證表單
   const validateForm = () => {
@@ -170,27 +171,27 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
   // 處理表單提交
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     setIsSubmitting(true);
-    
+
     try {
       const submitData = {
         ...formData,
-       event_time: formData.event_time || null,
+        event_time: formData.event_time || null,
         // 將空字串轉換為 null 以避免資料庫錯誤
         date_of_death: formData.date_of_death || null,
-       time_of_death: formData.time_of_death || null,
-        transfer_paths: formData.event_type === 'transfer_out' 
-          ? transferPaths.map(path => ({
-              ...path,
-             transfer_date: path.transfer_date || null,
-             transfer_time: path.transfer_time || null
-            }))
-          : []
+        time_of_death: formData.time_of_death || null,
+        transfer_paths: formData.event_type === 'transfer_out' ?
+        transferPaths.map((path) => ({
+          ...path,
+          transfer_date: path.transfer_date || null,
+          transfer_time: path.transfer_time || null
+        })) :
+        []
       };
 
       if (record) {
@@ -198,7 +199,7 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
       } else {
         await addPatientAdmissionRecord(submitData);
       }
-      
+
       onClose();
     } catch (error) {
       console.error('提交出入院記錄失敗:', error);
@@ -222,13 +223,13 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
 
   // 刪除轉院路徑
   const removeTransferPath = (id: string) => {
-    setTransferPaths(transferPaths.filter(path => path.id !== id));
+    setTransferPaths(transferPaths.filter((path) => path.id !== id));
   };
 
   // 更新轉院路徑
   const updateTransferPath = (id: string, field: keyof TransferPath, value: string) => {
-    setTransferPaths(transferPaths.map(path => 
-      path.id === id ? { ...path, [field]: value } : path
+    setTransferPaths(transferPaths.map((path) =>
+    path.id === id ? { ...path, [field]: value } : path
     ));
   };
 
@@ -264,8 +265,8 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
+            className="text-gray-400 hover:text-gray-600 transition-colors">
+            
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -288,20 +289,20 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                   value={formData.patient_id}
                   onChange={(e) => setFormData({ ...formData, patient_id: parseInt(e.target.value) })}
                   className={`form-input ${errors.patient_id ? 'border-red-300' : ''}`}
-                  required
-                >
+                  required>
+                  
                   <option value={0}>請選擇院友</option>
-                  {patients
-                    .filter(p => p.在住狀態 === '在住')
-                    .map(patient => (
-                      <option key={patient.院友id} value={patient.院友id}>
+                  {patients.
+                  filter((p) => p.在住狀態 === '在住').
+                  map((patient) =>
+                  <option key={patient.院友id} value={patient.院友id}>
                         <BedNumberImprint patient={patient} size="sm" /> - {patient.中文姓氏}{patient.中文名字}
                       </option>
-                    ))}
+                  )}
                 </select>
-                {errors.patient_id && (
-                  <p className="text-red-500 text-sm mt-1">{errors.patient_id}</p>
-                )}
+                {errors.patient_id &&
+                <p className="text-red-500 text-sm mt-1">{errors.patient_id}</p>
+                }
               </div>
 
               {/* 事件類型 */}
@@ -313,8 +314,8 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                   value={formData.event_type}
                   onChange={(e) => {
                     const newEventType = e.target.value as AdmissionEventType;
-                    setFormData({ 
-                      ...formData, 
+                    setFormData({
+                      ...formData,
                       event_type: newEventType,
                       // 重置相關欄位
                       discharge_type: '',
@@ -329,8 +330,8 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                     }
                   }}
                   className="form-input"
-                  required
-                >
+                  required>
+                  
                   <option value="hospital_admission">入院</option>
                   <option value="hospital_discharge">出院</option>
                   <option value="transfer_out">轉院</option>
@@ -344,17 +345,17 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                 </label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="date"
+                  <DateInput
+
                     value={formData.event_date}
-                    onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
+
                     className={`form-input pl-10 ${errors.event_date ? 'border-red-300' : ''}`}
-                    required
-                  />
+                    required onChange={(value) => setFormData({ ...formData, event_date: value })} />
+                  
                 </div>
-                {errors.event_date && (
-                  <p className="text-red-500 text-sm mt-1">{errors.event_date}</p>
-                )}
+                {errors.event_date &&
+                <p className="text-red-500 text-sm mt-1">{errors.event_date}</p>
+                }
               </div>
 
               {/* 事件時間 */}
@@ -369,19 +370,19 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                     value={formData.event_time}
                     onChange={(e) => setFormData({ ...formData, event_time: e.target.value })}
                     className={`form-input pl-10 ${errors.event_time ? 'border-red-300' : ''}`}
-                    required
-                  />
+                    required />
+                  
                 </div>
-                {errors.event_time && (
-                  <p className="text-red-500 text-sm mt-1">{errors.event_time}</p>
-                )}
+                {errors.event_time &&
+                <p className="text-red-500 text-sm mt-1">{errors.event_time}</p>
+                }
               </div>
             </div>
           </div>
 
           {/* 醫院資訊區塊 */}
-          {(formData.event_type === 'hospital_admission' || formData.event_type === 'hospital_discharge') && (
-            <div className="bg-blue-50 rounded-lg p-4">
+          {(formData.event_type === 'hospital_admission' || formData.event_type === 'hospital_discharge') &&
+          <div className="bg-blue-50 rounded-lg p-4">
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                 <Hospital className="h-5 w-5 mr-2 text-blue-600" />
                 醫院資訊
@@ -391,27 +392,27 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                 {/* 醫院名稱 */}
                 <div className="md:col-span-2">
                   <label className="form-label">
-                    {formData.event_type === 'hospital_discharge' && formData.discharge_type === 'transfer_out' 
-                      ? '轉出醫院名稱' 
-                      : '醫院名稱'} 
+                    {formData.event_type === 'hospital_discharge' && formData.discharge_type === 'transfer_out' ?
+                  '轉出醫院名稱' :
+                  '醫院名稱'} 
                     <span className="text-red-500">*</span>
                   </label>
                   <input
-                    list="hospital-list"
-                    value={formData.hospital_name}
-                    onChange={(e) => setFormData({ ...formData, hospital_name: e.target.value })}
-                    className={`form-input ${errors.hospital_name ? 'border-red-300' : ''}`}
-                    placeholder="選擇或輸入醫院名稱"
-                    required
-                  />
+                  list="hospital-list"
+                  value={formData.hospital_name}
+                  onChange={(e) => setFormData({ ...formData, hospital_name: e.target.value })}
+                  className={`form-input ${errors.hospital_name ? 'border-red-300' : ''}`}
+                  placeholder="選擇或輸入醫院名稱"
+                  required />
+                
                   <datalist id="hospital-list">
-                    {commonHospitals.map(hospital => (
-                      <option key={hospital} value={hospital} />
-                    ))}
-                  </datalist>
-                  {errors.hospital_name && (
-                    <p className="text-red-500 text-sm mt-1">{errors.hospital_name}</p>
+                    {commonHospitals.map((hospital) =>
+                  <option key={hospital} value={hospital} />
                   )}
+                  </datalist>
+                  {errors.hospital_name &&
+                <p className="text-red-500 text-sm mt-1">{errors.hospital_name}</p>
+                }
                 </div>
 
                 {/* 病房 */}
@@ -420,12 +421,12 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                   <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
-                      type="text"
-                      value={formData.hospital_ward}
-                      onChange={(e) => setFormData({ ...formData, hospital_ward: e.target.value })}
-                      className="form-input pl-10"
-                      placeholder="例：內科病房"
-                    />
+                    type="text"
+                    value={formData.hospital_ward}
+                    onChange={(e) => setFormData({ ...formData, hospital_ward: e.target.value })}
+                    className="form-input pl-10"
+                    placeholder="例：內科病房" />
+                  
                   </div>
                 </div>
 
@@ -435,45 +436,45 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                   <div className="relative">
                     <Bed className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
-                      type="text"
-                      value={formData.hospital_bed_number}
-                      onChange={(e) => setFormData({ ...formData, hospital_bed_number: e.target.value })}
-                      className="form-input pl-10"
-                      placeholder="例：A01"
-                    />
+                    type="text"
+                    value={formData.hospital_bed_number}
+                    onChange={(e) => setFormData({ ...formData, hospital_bed_number: e.target.value })}
+                    className="form-input pl-10"
+                    placeholder="例：A01" />
+                  
                   </div>
                 </div>
               </div>
             </div>
-          )}
+          }
 
           {/* 出院安排區塊 */}
-          {formData.event_type === 'hospital_discharge' && (
-            <div className="bg-green-50 rounded-lg p-4">
+          {formData.event_type === 'hospital_discharge' &&
+          <div className="bg-green-50 rounded-lg p-4">
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                 <AlertTriangle className="h-5 w-5 mr-2 text-green-600" />
                 出院安排 <span className="text-red-500 ml-1">*</span>
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {dischargeTypes.map(type => (
-                  <label
-                    key={type.value}
-                    className={`relative flex flex-col p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      formData.discharge_type === type.value
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
+                {dischargeTypes.map((type) =>
+              <label
+                key={type.value}
+                className={`relative flex flex-col p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                formData.discharge_type === type.value ?
+                'border-blue-500 bg-blue-50' :
+                'border-gray-200 hover:border-gray-300'}`
+                }>
+                
                     <div className="flex flex-wrap items-center gap-3 mb-2">
                       <input
-                        type="radio"
-                        name="discharge_type"
-                        value={type.value}
-                        checked={formData.discharge_type === type.value}
-                        onChange={(e) => setFormData({ ...formData, discharge_type: e.target.value as any })}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                      />
+                    type="radio"
+                    name="discharge_type"
+                    value={type.value}
+                    checked={formData.discharge_type === type.value}
+                    onChange={(e) => setFormData({ ...formData, discharge_type: e.target.value as any })}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                  
                       <div className="flex flex-wrap items-center gap-2">
                         {type.icon}
                         <span className="font-medium text-gray-900">{type.label}</span>
@@ -481,14 +482,14 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                     </div>
                     <p className="text-sm text-gray-600 ml-7">{type.description}</p>
                   </label>
-                ))}
+              )}
               </div>
             </div>
-          )}
+          }
 
           {/* 離世資訊區塊 */}
-          {formData.event_type === 'hospital_discharge' && formData.discharge_type === 'deceased' && (
-            <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+          {formData.event_type === 'hospital_discharge' && formData.discharge_type === 'deceased' &&
+          <div className="bg-red-50 rounded-lg p-4 border border-red-200">
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                 <Heart className="h-5 w-5 mr-2 text-red-600" />
                 離世資訊
@@ -501,17 +502,17 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                   </label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="date"
-                      value={formData.date_of_death}
-                      onChange={(e) => setFormData({ ...formData, date_of_death: e.target.value })}
-                      className={`form-input pl-10 ${errors.date_of_death ? 'border-red-300' : ''}`}
-                      required
-                    />
+                    <DateInput
+
+                    value={formData.date_of_death}
+
+                    className={`form-input pl-10 ${errors.date_of_death ? 'border-red-300' : ''}`}
+                    required onChange={(value) => setFormData({ ...formData, date_of_death: value })} />
+                  
                   </div>
-                  {errors.date_of_death && (
-                    <p className="text-red-500 text-sm mt-1">{errors.date_of_death}</p>
-                  )}
+                  {errors.date_of_death &&
+                <p className="text-red-500 text-sm mt-1">{errors.date_of_death}</p>
+                }
                 </div>
 
                 <div>
@@ -521,24 +522,24 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                   <div className="relative">
                     <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
-                      type="time"
-                      value={formData.time_of_death}
-                      onChange={(e) => setFormData({ ...formData, time_of_death: e.target.value })}
-                      className={`form-input pl-10 ${errors.time_of_death ? 'border-red-300' : ''}`}
-                      required
-                    />
+                    type="time"
+                    value={formData.time_of_death}
+                    onChange={(e) => setFormData({ ...formData, time_of_death: e.target.value })}
+                    className={`form-input pl-10 ${errors.time_of_death ? 'border-red-300' : ''}`}
+                    required />
+                  
                   </div>
-                  {errors.time_of_death && (
-                    <p className="text-red-500 text-sm mt-1">{errors.time_of_death}</p>
-                  )}
+                  {errors.time_of_death &&
+                <p className="text-red-500 text-sm mt-1">{errors.time_of_death}</p>
+                }
                 </div>
               </div>
             </div>
-          )}
+          }
 
           {/* 轉入機構資訊區塊 */}
-          {formData.event_type === 'hospital_discharge' && formData.discharge_type === 'transfer_out' && (
-            <div className="bg-purple-50 rounded-lg p-4">
+          {formData.event_type === 'hospital_discharge' && formData.discharge_type === 'transfer_out' &&
+          <div className="bg-purple-50 rounded-lg p-4">
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                 <Building2 className="h-5 w-5 mr-2 text-purple-600" />
                 轉入機構資訊
@@ -550,70 +551,70 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                     轉入機構名稱 <span className="text-red-500">*</span>
                   </label>
                   <input
-                    type="text"
-                    value={formData.transfer_to_facility_name}
-                    onChange={(e) => setFormData({ ...formData, transfer_to_facility_name: e.target.value })}
-                    className={`form-input ${errors.transfer_to_facility_name ? 'border-red-300' : ''}`}
-                    placeholder="輸入轉入機構名稱"
-                    required
-                  />
-                  {errors.transfer_to_facility_name && (
-                    <p className="text-red-500 text-sm mt-1">{errors.transfer_to_facility_name}</p>
-                  )}
+                  type="text"
+                  value={formData.transfer_to_facility_name}
+                  onChange={(e) => setFormData({ ...formData, transfer_to_facility_name: e.target.value })}
+                  className={`form-input ${errors.transfer_to_facility_name ? 'border-red-300' : ''}`}
+                  placeholder="輸入轉入機構名稱"
+                  required />
+                
+                  {errors.transfer_to_facility_name &&
+                <p className="text-red-500 text-sm mt-1">{errors.transfer_to_facility_name}</p>
+                }
                 </div>
 
                 <div>
                   <label className="form-label">轉入機構地址</label>
                   <input
-                    type="text"
-                    value={formData.transfer_to_facility_address}
-                    onChange={(e) => setFormData({ ...formData, transfer_to_facility_address: e.target.value })}
-                    className="form-input"
-                    placeholder="輸入轉入機構地址"
-                  />
+                  type="text"
+                  value={formData.transfer_to_facility_address}
+                  onChange={(e) => setFormData({ ...formData, transfer_to_facility_address: e.target.value })}
+                  className="form-input"
+                  placeholder="輸入轉入機構地址" />
+                
                 </div>
               </div>
             </div>
-          )}
+          }
 
           {/* 轉院路徑區塊 */}
-          {formData.event_type === 'transfer_out' && (
-            <div className="bg-blue-50 rounded-lg p-4">
+          {formData.event_type === 'transfer_out' &&
+          <div className="bg-blue-50 rounded-lg p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <h3 className="text-lg font-medium text-gray-900 flex items-center">
                   <Hospital className="h-5 w-5 mr-2 text-blue-600" />
                   轉院路徑 <span className="text-red-500 ml-1">*</span>
                 </h3>
                 <button
-                  type="button"
-                  onClick={addTransferPath}
-                  className="btn-secondary flex flex-wrap items-center gap-2"
-                >
+                type="button"
+                onClick={addTransferPath}
+                className="btn-secondary flex flex-wrap items-center gap-2">
+                
                   <Plus className="h-4 w-4" />
                   <span>新增轉院路徑</span>
                 </button>
               </div>
 
-              {errors.transfer_paths && (
-                <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-md">
+              {errors.transfer_paths &&
+            <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-md">
                   <p className="text-red-700 text-sm">{errors.transfer_paths}</p>
                 </div>
-              )}
+            }
 
               <div className="space-y-4">
-                {transferPaths.map((path, index) => (
-                  <div key={path.id} className="bg-white rounded-lg p-4 border border-gray-200">
+                {transferPaths.map((path, index) =>
+              <div key={path.id} className="bg-white rounded-lg p-4 border border-gray-200">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                       <h4 className="font-medium text-gray-900">轉院路徑 {index + 1}</h4>
-                      {transferPaths.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeTransferPath(path.id)}
-                          className="text-red-600 hover:text-red-700 transition-colors"
-                        >
+                      {transferPaths.length > 1 &&
+                  <button
+                    type="button"
+                    onClick={() => removeTransferPath(path.id)}
+                    className="text-red-600 hover:text-red-700 transition-colors">
+                    
                           <Trash2 className="h-4 w-4" />
                         </button>
-                      )}
+                  }
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -622,37 +623,37 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                           轉院地點 <span className="text-red-500">*</span>
                         </label>
                         <input
-                          list="transfer-hospital-list"
-                          value={path.transfer_location}
-                          onChange={(e) => updateTransferPath(path.id, 'transfer_location', e.target.value)}
-                          className={`form-input ${errors[`transfer_location_${index}`] ? 'border-red-300' : ''}`}
-                          placeholder="輸入轉院醫院名稱"
-                          required
-                        />
+                      list="transfer-hospital-list"
+                      value={path.transfer_location}
+                      onChange={(e) => updateTransferPath(path.id, 'transfer_location', e.target.value)}
+                      className={`form-input ${errors[`transfer_location_${index}`] ? 'border-red-300' : ''}`}
+                      placeholder="輸入轉院醫院名稱"
+                      required />
+                    
                         <datalist id="transfer-hospital-list">
-                          {commonHospitals.map(hospital => (
-                            <option key={hospital} value={hospital} />
-                          ))}
+                          {commonHospitals.map((hospital) =>
+                      <option key={hospital} value={hospital} />
+                      )}
                         </datalist>
-                        {errors[`transfer_location_${index}`] && (
-                          <p className="text-red-500 text-sm mt-1">{errors[`transfer_location_${index}`]}</p>
-                        )}
+                        {errors[`transfer_location_${index}`] &&
+                    <p className="text-red-500 text-sm mt-1">{errors[`transfer_location_${index}`]}</p>
+                    }
                       </div>
 
                       <div>
                         <label className="form-label">
                           轉院日期 <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          type="date"
-                          value={path.transfer_date}
-                          onChange={(e) => updateTransferPath(path.id, 'transfer_date', e.target.value)}
-                          className={`form-input ${errors[`transfer_date_${index}`] ? 'border-red-300' : ''}`}
-                          required
-                        />
-                        {errors[`transfer_date_${index}`] && (
-                          <p className="text-red-500 text-sm mt-1">{errors[`transfer_date_${index}`]}</p>
-                        )}
+                        <DateInput
+
+                      value={path.transfer_date}
+
+                      className={`form-input ${errors[`transfer_date_${index}`] ? 'border-red-300' : ''}`}
+                      required onChange={(value) => updateTransferPath(path.id, 'transfer_date', value)} />
+                    
+                        {errors[`transfer_date_${index}`] &&
+                    <p className="text-red-500 text-sm mt-1">{errors[`transfer_date_${index}`]}</p>
+                    }
                       </div>
 
                       <div>
@@ -660,41 +661,41 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
                           轉院時間 <span className="text-red-500">*</span>
                         </label>
                         <input
-                          type="time"
-                          value={path.transfer_time}
-                          onChange={(e) => updateTransferPath(path.id, 'transfer_time', e.target.value)}
-                          className={`form-input ${errors[`transfer_time_${index}`] ? 'border-red-300' : ''}`}
-                          required
-                        />
-                        {errors[`transfer_time_${index}`] && (
-                          <p className="text-red-500 text-sm mt-1">{errors[`transfer_time_${index}`]}</p>
-                        )}
+                      type="time"
+                      value={path.transfer_time}
+                      onChange={(e) => updateTransferPath(path.id, 'transfer_time', e.target.value)}
+                      className={`form-input ${errors[`transfer_time_${index}`] ? 'border-red-300' : ''}`}
+                      required />
+                    
+                        {errors[`transfer_time_${index}`] &&
+                    <p className="text-red-500 text-sm mt-1">{errors[`transfer_time_${index}`]}</p>
+                    }
                       </div>
 
                       <div className="md:col-span-3">
                         <label className="form-label">轉院備註</label>
                         <textarea
-                          value={path.remarks}
-                          onChange={(e) => updateTransferPath(path.id, 'remarks', e.target.value)}
-                          className="form-input"
-                          rows={2}
-                          placeholder="轉院相關備註..."
-                        />
+                      value={path.remarks}
+                      onChange={(e) => updateTransferPath(path.id, 'remarks', e.target.value)}
+                      className="form-input"
+                      rows={2}
+                      placeholder="轉院相關備註..." />
+                    
                       </div>
                     </div>
                   </div>
-                ))}
+              )}
 
-                {transferPaths.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
+                {transferPaths.length === 0 &&
+              <div className="text-center py-8 text-gray-500">
                     <Hospital className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                     <p>尚未新增轉院路徑</p>
                     <p className="text-sm">點擊上方「新增轉院路徑」按鈕開始記錄</p>
                   </div>
-                )}
+              }
               </div>
             </div>
-          )}
+          }
 
           {/* 備註區塊 */}
           <div className="bg-gray-50 rounded-lg p-4">
@@ -708,8 +709,8 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
               onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
               className="form-input"
               rows={3}
-              placeholder="輸入相關備註或特殊說明..."
-            />
+              placeholder="輸入相關備註或特殊說明..." />
+            
           </div>
 
           {/* 操作按鈕 */}
@@ -718,29 +719,29 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
               type="button"
               onClick={onClose}
               className="btn-secondary"
-              disabled={isSubmitting}
-            >
+              disabled={isSubmitting}>
+              
               取消
             </button>
             <button
               type="submit"
               className={`btn-primary ${currentEventInfo.color.replace('text-', 'bg-').replace('-600', '-600')} hover:${currentEventInfo.color.replace('text-', 'bg-').replace('-600', '-700')}`}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <div className="flex flex-wrap items-center gap-2">
+              disabled={isSubmitting}>
+              
+              {isSubmitting ?
+              <div className="flex flex-wrap items-center gap-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>處理中...</span>
-                </div>
-              ) : (
-                record ? '更新記錄' : '新增記錄'
-              )}
+                </div> :
+
+              record ? '更新記錄' : '新增記錄'
+              }
             </button>
           </div>
         </form>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default EnhancedAdmissionRecordModal;

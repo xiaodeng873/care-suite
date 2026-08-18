@@ -15,11 +15,16 @@ interface DateInputProps {
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
   className?: string;
   id?: string;
   name?: string;
   min?: string;
   max?: string;
+  title?: string;
+  autoFocus?: boolean;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
 }
 
 const DateInput: React.FC<DateInputProps> = ({
@@ -28,11 +33,16 @@ const DateInput: React.FC<DateInputProps> = ({
   placeholder = 'DD/MM/YYYY',
   required,
   disabled,
+  readOnly,
   className = '',
   id,
   name,
   min,
   max,
+  title,
+  autoFocus,
+  onBlur,
+  onFocus,
 }) => {
   const [display, setDisplay] = useState(() => formatDisplayDate(value));
   const [isInvalid, setIsInvalid] = useState(false);
@@ -55,20 +65,21 @@ const DateInput: React.FC<DateInputProps> = ({
     }
   };
 
-  const handleDisplayBlur = () => {
+  const handleDisplayBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     if (!display) {
       setIsInvalid(false);
       onChange('');
-      return;
-    }
-    const iso = parseDisplayDate(display);
-    if (iso) {
-      setDisplay(formatDisplayDate(iso));
-      setIsInvalid(false);
-      onChange(iso);
     } else {
-      setIsInvalid(true);
+      const iso = parseDisplayDate(display);
+      if (iso) {
+        setDisplay(formatDisplayDate(iso));
+        setIsInvalid(false);
+        onChange(iso);
+      } else {
+        setIsInvalid(true);
+      }
     }
+    onBlur?.(e);
   };
 
   const handlePickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,6 +90,7 @@ const DateInput: React.FC<DateInputProps> = ({
   };
 
   const openPicker = () => {
+    if (readOnly || disabled) return;
     dateRef.current?.showPicker?.();
   };
 
@@ -92,22 +104,28 @@ const DateInput: React.FC<DateInputProps> = ({
         value={display}
         onChange={handleDisplayChange}
         onBlur={handleDisplayBlur}
+        onFocus={onFocus}
         placeholder={placeholder}
         required={required}
         disabled={disabled}
+        readOnly={readOnly}
+        autoFocus={autoFocus}
+        title={title}
         className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
           isInvalid ? 'border-red-500 bg-red-50' : 'border-gray-300'
-        } ${disabled ? 'bg-gray-100 opacity-60' : ''} ${className}`}
+        } ${disabled || readOnly ? 'bg-gray-100 opacity-60' : ''} ${className}`}
       />
-      <button
-        type="button"
-        onClick={openPicker}
-        disabled={disabled}
-        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-        aria-label="開啟日曆"
-      >
-        <Calendar className="h-5 w-5" />
-      </button>
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={openPicker}
+          disabled={disabled}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+          aria-label="開啟日曆"
+        >
+          <Calendar className="h-5 w-5" />
+        </button>
+      )}
       <input
         ref={dateRef}
         type="date"

@@ -11,6 +11,7 @@ import BedNumberImprint from './BedNumberImprint';
 import type { VitalSignScanResult } from '../utils/vitalSignOcrParser';
 import { generateVitalSuggestion } from '../utils/healthRecordGenerator';
 import { isVirtualDataEnabled } from '../utils/toolsSettings';
+import DateInput from './DateInput';
 
 const ALL_VITAL_TYPES: { type: VitalSignType; label: string; unit: string; color: string }[] = [
   { type: '血壓',   label: '血壓',   unit: 'mmHg',   color: 'bg-red-500' },
@@ -523,7 +524,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="form-label"><Calendar className="h-4 w-4 inline mr-1" />日期 *</label>
-                  <input type="date" value={formData.記錄日期} onChange={e => setFormData(prev => ({ ...prev, 記錄日期: e.target.value }))} className="form-input" required />
+                  <DateInput value={formData.記錄日期} onChange={(value) => setFormData(prev => ({ ...prev, 記錄日期: value }))} className="form-input" required />
                 </div>
                 <div>
                   <label className="form-label"><Clock className="h-4 w-4 inline mr-1" />時間</label>

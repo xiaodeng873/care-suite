@@ -13,6 +13,7 @@ import {
 } from '../utils/activityRecordStatus';
 import BedNumberImprint from './BedNumberImprint';
 import type { Patient } from '../lib/database';
+import DateInput from './DateInput';
 
 interface ActivityRecordModalProps {
   onClose: () => void;
@@ -288,10 +289,9 @@ const ActivityRecordModal: React.FC<ActivityRecordModalProps> = ({ onClose, defa
                 <Calendar className="h-4 w-4 inline mr-1" />
                 日期 *
               </label>
-              <input
-                type="date"
+              <DateInput
                 value={recordDate}
-                onChange={(e) => setRecordDate(e.target.value)}
+                onChange={(value) => setRecordDate(value)}
                 className="form-input max-w-xs"
                 required
               />
@@ -372,10 +372,9 @@ const ActivityRecordModal: React.FC<ActivityRecordModalProps> = ({ onClose, defa
                     <Calendar className="h-4 w-4 inline mr-1" />
                     日期 *
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={recordDate}
-                    onChange={(e) => setRecordDate(e.target.value)}
+                    onChange={(value) => setRecordDate(value)}
                     className="form-input"
                     required
                   />

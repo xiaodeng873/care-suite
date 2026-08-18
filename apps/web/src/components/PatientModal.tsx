@@ -11,6 +11,7 @@ import PatientMedicalHistorySection from './PatientMedicalHistorySection';
 import PatientMedicalServicesSection from './PatientMedicalServicesSection';
 import { useAuth } from '../context/AuthContext';
 import PatientNursingAssessmentSection from './PatientNursingAssessmentSection';
+import DateInput from './DateInput';
 
 interface PatientModalProps {
   patient?: any;
@@ -34,12 +35,12 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   const { userProfile, user } = useAuth();
   const currentUserName = userProfile?.name_zh || user?.user_metadata?.display_name || user?.email || '';
   const currentUserRank =
-    userProfile?.nursing_position ||
-    userProfile?.allied_health_position ||
-    userProfile?.hygiene_position ||
-    userProfile?.other_position ||
-    userProfile?.department ||
-    '';
+  userProfile?.nursing_position ||
+  userProfile?.allied_health_position ||
+  userProfile?.hygiene_position ||
+  userProfile?.other_position ||
+  userProfile?.department ||
+  '';
 
   // 獲取當天日期作為預設入住日期
   const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -82,7 +83,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     social_status_json: patient?.social_status_json || {},
     medical_history_json: patient?.medical_history_json || {},
     medical_services_json: patient?.medical_services_json || {},
-    nursing_assessment_json: patient?.nursing_assessment_json || {},
+    nursing_assessment_json: patient?.nursing_assessment_json || {}
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(patient?.院友相片 || null);
   const [isUploading, setIsUploading] = useState(false);
@@ -103,9 +104,9 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
   useEffect(() => {
     if (patient?.院友id) {
-      const records = allVaccinationRecords.filter(r => r.patient_id === patient.院友id);
+      const records = allVaccinationRecords.filter((r) => r.patient_id === patient.院友id);
       setVaccinationRecords(records);
-      setInitialVaccinationRecordIds(new Set(records.map(r => r.id)));
+      setInitialVaccinationRecordIds(new Set(records.map((r) => r.id)));
     } else {
       setVaccinationRecords([]);
       setInitialVaccinationRecordIds(new Set());
@@ -120,7 +121,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       return {
         ...prev,
         首次記錄職員姓名: prev.首次記錄職員姓名 || currentUserName || '',
-        首次記錄職級: prev.首次記錄職級 || currentUserRank || '',
+        首次記錄職級: prev.首次記錄職級 || currentUserRank || ''
       };
     });
   }, [currentUserName, currentUserRank]);
@@ -152,7 +153,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
       // 檢查是否包含逗號（SURNAME, Given names 格式）
       if (englishName.includes(',')) {
-        const parts = englishName.split(',').map(p => p.trim());
+        const parts = englishName.split(',').map((p) => p.trim());
         if (parts.length >= 2) {
           updates.英文姓氏 = formatEnglishSurname(parts[0]);
           updates.英文名字 = formatEnglishGivenName(parts[1]);
@@ -175,9 +176,9 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     if (extractedData.身份證號碼) {
       const rawId = String(extractedData.身份證號碼).trim().replace(/[()\s]/g, '').toUpperCase();
       const validId = rawId.replace(/[^A-Z0-9]/g, '').slice(0, 9);
-      updates.身份證號碼 = validId.length >= 8
-        ? validId.slice(0, -1) + '(' + validId.slice(-1) + ')'
-        : validId;
+      updates.身份證號碼 = validId.length >= 8 ?
+      validId.slice(0, -1) + '(' + validId.slice(-1) + ')' :
+      validId;
     }
 
     // 處理出生日期
@@ -194,7 +195,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       }
     }
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       ...updates
     }));
@@ -230,9 +231,9 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   };
 
   const isVoucherAdmission = (admissionType: string) => admissionType === '院舍卷級別0' || admissionType === '院舍卷級別1-7';
-  const hasAdmissionWelfareConflict = (admissionType: string, welfareType: string) => (
-    isVoucherAdmission(admissionType) && welfareType === '綜合社會保障援助'
-  );
+  const hasAdmissionWelfareConflict = (admissionType: string, welfareType: string) =>
+  isVoucherAdmission(admissionType) && welfareType === '綜合社會保障援助';
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -250,7 +251,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     if (name === '入住類型' && hasAdmissionWelfareConflict(updatedValue, socialWelfareType)) {
       setSocialWelfareType('');
       setSocialWelfareSubtype('');
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         入住類型: updatedValue,
         社會福利: { type: '', subtype: '' }
@@ -258,7 +259,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       return;
     }
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: updatedValue
     }));
@@ -266,7 +267,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
   const addAllergy = () => {
     if (newAllergy.trim()) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         藥物敏感: [...prev.藥物敏感, newAllergy.trim()]
       }));
@@ -275,7 +276,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   };
 
   const removeAllergy = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       藥物敏感: prev.藥物敏感.filter((_, i) => i !== index)
     }));
@@ -283,7 +284,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
   const addAdverseReaction = () => {
     if (newAdverseReaction.trim()) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         不良藥物反應: [...prev.不良藥物反應, newAdverseReaction.trim()]
       }));
@@ -292,7 +293,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   };
 
   const removeAdverseReaction = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       不良藥物反應: prev.不良藥物反應.filter((_, i) => i !== index)
     }));
@@ -301,7 +302,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   const handleSocialWelfareChange = (type: string, subtype: string = '') => {
     setSocialWelfareType(type);
     setSocialWelfareSubtype(subtype);
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       入住類型: hasAdmissionWelfareConflict(prev.入住類型, type) ? '' : prev.入住類型,
       社會福利: { type, subtype }
@@ -309,7 +310,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   };
 
   const handleCivilServantChange = (value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       公務員: value
     }));
@@ -335,7 +336,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
           let height = img.height;
 
           if (width > maxWidth) {
-            height = (height * maxWidth) / width;
+            height = height * maxWidth / width;
             width = maxWidth;
           }
 
@@ -363,7 +364,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+    if (file.size > 5 * 1024 * 1024) {// 5MB limit
       alert('圖片大小不能超過 5MB');
       return;
     }
@@ -374,7 +375,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       // 壓縮圖片
       const compressedBase64 = await compressImage(file);
       setPhotoPreview(compressedBase64);
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         院友相片: compressedBase64
       }));
@@ -394,7 +395,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
   const handleRemovePhoto = () => {
     setPhotoPreview(null);
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       院友相片: ''
     }));
@@ -403,12 +404,12 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   const handleCameraCapture = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      
+
       // Create a simple camera capture modal
       const video = document.createElement('video');
       video.srcObject = stream;
       video.autoplay = true;
-      
+
       const modal = document.createElement('div');
       modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
       modal.innerHTML = `
@@ -430,38 +431,38 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
           </div>
         </div>
       `;
-      
+
       document.body.appendChild(modal);
       document.getElementById('video-container')?.appendChild(video);
-      
+
       const closeCamera = () => {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
         document.body.removeChild(modal);
       };
-      
+
       document.getElementById('close-camera')?.addEventListener('click', closeCamera);
       document.getElementById('cancel-btn')?.addEventListener('click', closeCamera);
-      
+
       document.getElementById('capture-btn')?.addEventListener('click', () => {
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        
+
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(video, 0, 0);
           const dataURL = canvas.toDataURL('image/jpeg', 0.8);
-          
+
           setPhotoPreview(dataURL);
-          setFormData(prev => ({
+          setFormData((prev) => ({
             ...prev,
             院友相片: dataURL
           }));
         }
-        
+
         closeCamera();
       });
-      
+
     } catch (error) {
       console.error('無法開啟攝影機:', error);
       alert('無法開啟攝影機，請檢查權限設定');
@@ -512,20 +513,20 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
     // 如果選擇了床位，檢查床位是否已被其他在住院友佔用
     if (finalFormData.bed_id) {
-      const occupyingPatient = patients.find(p => 
-        p.bed_id === finalFormData.bed_id && 
-        p.在住狀態 === '在住' &&
-        // 編輯時排除自己
-        (!patient || p.院友id !== patient.院友id)
+      const occupyingPatient = patients.find((p) =>
+      p.bed_id === finalFormData.bed_id &&
+      p.在住狀態 === '在住' && (
+      // 編輯時排除自己
+      !patient || p.院友id !== patient.院友id)
       );
-      
+
       if (occupyingPatient) {
-        const selectedBed = beds.find(b => b.id === finalFormData.bed_id);
+        const selectedBed = beds.find((b) => b.id === finalFormData.bed_id);
         alert(`床位「${selectedBed?.bed_number || ''}」已被院友「${occupyingPatient.中文姓名 || occupyingPatient.中文姓氏 + occupyingPatient.中文名字}」佔用，請選擇其他床位。`);
         return;
       }
-      
-      const selectedBed = beds.find(b => b.id === finalFormData.bed_id);
+
+      const selectedBed = beds.find((b) => b.id === finalFormData.bed_id);
       if (selectedBed) {
         finalFormData.床號 = selectedBed.bed_number;
       }
@@ -544,9 +545,9 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
     // 合併中文姓名和英文姓名
     const 中文姓名 = (finalFormData.中文姓氏 + finalFormData.中文名字).trim();
-    const 英文姓名 = finalFormData.英文姓氏 && finalFormData.英文名字
-      ? `${finalFormData.英文姓氏.trim()} ${finalFormData.英文名字.trim()}`
-      : finalFormData.英文姓氏 || finalFormData.英文名字 || '';
+    const 英文姓名 = finalFormData.英文姓氏 && finalFormData.英文名字 ?
+    `${finalFormData.英文姓氏.trim()} ${finalFormData.英文名字.trim()}` :
+    finalFormData.英文姓氏 || finalFormData.英文名字 || '';
 
     // Convert empty string date values to null for proper database handling
     const sanitizedFormData = {
@@ -574,7 +575,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       } else {
         const newPatient = await addPatient({
           ...sanitizedFormData,
-          ...(idCardImage ? { 身份證相片: idCardImage } : {}),
+          ...(idCardImage ? { 身份證相片: idCardImage } : {})
         });
         const newPatientId = newPatient.院友id;
 
@@ -586,7 +587,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
               vaccination_date: record.vaccination_date,
               vaccine_item: record.vaccine_item.trim(),
               vaccination_unit: record.vaccination_unit.trim(),
-              remarks: record.remarks || '',
+              remarks: record.remarks || ''
             });
           }
         }
@@ -603,7 +604,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
               電郵: contact.電郵 || '',
               地址: contact.地址 || '',
               備註: contact.備註 || '',
-              is_primary: contact.is_primary,
+              is_primary: contact.is_primary
             });
           }
         }
@@ -611,8 +612,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
       // 編輯模式：同步疫苗記錄
       if (patient && patientIdToUse) {
-        const currentRecordIds = new Set(vaccinationRecords.map(r => r.id).filter(Boolean));
-        const recordsToDelete = Array.from(initialVaccinationRecordIds).filter(id => !currentRecordIds.has(id));
+        const currentRecordIds = new Set(vaccinationRecords.map((r) => r.id).filter(Boolean));
+        const recordsToDelete = Array.from(initialVaccinationRecordIds).filter((id) => !currentRecordIds.has(id));
 
         for (const recordId of recordsToDelete) {
           await deleteVaccinationRecord(recordId);
@@ -630,7 +631,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
               vaccination_date: record.vaccination_date,
               vaccine_item: record.vaccine_item.trim(),
               vaccination_unit: record.vaccination_unit.trim(),
-              remarks: record.remarks || '',
+              remarks: record.remarks || ''
             });
           }
         }
@@ -653,8 +654,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
+              className="text-gray-400 hover:text-gray-600">
+              
               <X className="h-6 w-6" />
             </button>
           </div>
@@ -665,181 +666,181 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
               type="button"
               onClick={() => setActiveMainTab('personal')}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeMainTab === 'personal'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-blue-600'
-              }`}
-            >
+              activeMainTab === 'personal' ?
+              'border-blue-500 text-blue-600' :
+              'border-transparent text-gray-600 hover:text-blue-600'}`
+              }>
+              
               個人及健康記錄
             </button>
             <button
               type="button"
               onClick={() => setActiveMainTab('nursing')}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeMainTab === 'nursing'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-blue-600'
-              }`}
-            >
+              activeMainTab === 'nursing' ?
+              'border-blue-500 text-blue-600' :
+              'border-transparent text-gray-600 hover:text-blue-600'}`
+              }>
+              
               護理評估記錄
             </button>
           </div>
           {/* 二級子標籤頁（僅在個人及健康記錄下顯示） */}
-          {activeMainTab === 'personal' && (
-            <div className="flex flex-wrap gap-1">
+          {activeMainTab === 'personal' &&
+          <div className="flex flex-wrap gap-1">
               {[
-                { key: 'basic', label: '基本資料' },
-                { key: 'contacts', label: '聯絡人' },
-                { key: 'social', label: '社交狀況' },
-                { key: 'medical', label: '病歷' },
-                { key: 'services', label: '醫療與簽署' },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveSubTab(tab.key as any)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeSubTab === tab.key
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
+            { key: 'basic', label: '基本資料' },
+            { key: 'contacts', label: '聯絡人' },
+            { key: 'social', label: '社交狀況' },
+            { key: 'medical', label: '病歷' },
+            { key: 'services', label: '醫療與簽署' }].
+            map((tab) =>
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveSubTab(tab.key as any)}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              activeSubTab === tab.key ?
+              'bg-blue-100 text-blue-700' :
+              'text-gray-600 hover:bg-gray-100'}`
+              }>
+              
                   {tab.label}
                 </button>
-              ))}
+            )}
             </div>
-          )}
+          }
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {activeMainTab === 'personal' && (
-            <>
-              {activeSubTab === 'basic' && (
-          <div className="space-y-4">
+          {activeMainTab === 'personal' &&
+          <>
+              {activeSubTab === 'basic' &&
+            <div className="space-y-4">
           {/* OCR 身份證識別區塊 */}
           <OCRIDCardBlock
-            onOCRComplete={handleOCRComplete}
-            onOCRError={handleOCRError}
-          />
+                onOCRComplete={handleOCRComplete}
+                onOCRError={handleOCRError} />
+              
 
-          {ocrError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+          {ocrError &&
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
               <div className="text-red-600 text-sm">{ocrError}</div>
             </div>
-          )}
+              }
 
           {/* AI 助護帶入的身份證圖：新增提交時一併留檔到「身份證相片」欄 */}
-          {!patient && idCardImage && (
-            <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+          {!patient && idCardImage &&
+              <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
               <img src={idCardImage} alt="身份證圖" className="h-10 rounded border border-gray-200" />
               <span>已附加身份證圖，新增院友後將一併留檔到「身份證相片」欄。</span>
             </div>
-          )}
+              }
 
           {/* 居住區和床位選擇 - 編輯時顯示資訊，新增時可選擇 */}
-          {patient ? (
-            <div>
+          {patient ?
+              <div>
               <label className="form-label">目前床位</label>
               <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                {formData.station_id && formData.bed_id ? (
+                {formData.station_id && formData.bed_id ?
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm text-gray-700">
-                      {stations.find(s => s.id === formData.station_id)?.name} - {formData.床號}
+                      {stations.find((s) => s.id === formData.station_id)?.name} - {formData.床號}
                     </span>
-                  </div>
-                ) : (
+                  </div> :
+
                   <span className="text-sm text-gray-500">未指派床位</span>
-                )}
+                  }
                 <p className="text-xs text-gray-500 mt-1">
                   如需調度床位，請前往「床位管理」頁面進行管理
                 </p>
               </div>
-            </div>
-          ) : (
-            <div>
+            </div> :
+
+              <div>
               <label className="form-label">居住區和床位 (可選)</label>
               <SimpleStationBedSelector
-                selectedStationId={formData.station_id}
-                selectedBedId={formData.bed_id}
-                currentPatientId={patient?.院友id}
-                onSelectionChange={(stationId, bedId, bedNumber) => {
-                  setFormData(prev => ({
-                    ...prev,
-                    station_id: stationId,
-                    bed_id: bedId,
-                    床號: bedNumber,
-                    在住狀態: (stationId && bedId) ? '在住' : '待入住'
-                  }));
-                }}
-              />
+                  selectedStationId={formData.station_id}
+                  selectedBedId={formData.bed_id}
+                  currentPatientId={patient?.院友id}
+                  onSelectionChange={(stationId, bedId, bedNumber) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      station_id: stationId,
+                      bed_id: bedId,
+                      床號: bedNumber,
+                      在住狀態: stationId && bedId ? '在住' : '待入住'
+                    }));
+                  }} />
+                
               <p className="text-xs text-gray-500 mt-1">
                 如不選擇床位，院友狀態將設為「待入住」，可稍後在床位管理頁面指派
               </p>
             </div>
-          )}
+              }
 
           {/* Photo Upload Section */}
           <div>
             <label className="form-label">院友照片</label>
             <div className="flex flex-wrap items-center gap-4">
               <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
-                {photoPreview ? (
-                  <img 
-                    src={photoPreview} 
-                    alt="院友照片" 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <User className="h-12 w-12 text-gray-400" />
-                )}
+                {photoPreview ?
+                    <img
+                      src={photoPreview}
+                      alt="院友照片"
+                      className="w-full h-full object-cover" /> :
+
+
+                    <User className="h-12 w-12 text-gray-400" />
+                    }
               </div>
               <div className="flex flex-col space-y-2">
                 <label className="btn-secondary cursor-pointer flex flex-wrap items-center gap-2">
                   <Upload className="h-4 w-4" />
                   <span>上傳照片</span>
                   <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileInput}
-                    className="hidden"
-                    disabled={isUploading}
-                  />
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileInput}
+                        className="hidden"
+                        disabled={isUploading} />
+                      
                 </label>
                 <button
-                  type="button"
-                  onClick={handleCameraCapture}
-                  className="btn-secondary flex flex-wrap items-center gap-2"
-                >
+                      type="button"
+                      onClick={handleCameraCapture}
+                      className="btn-secondary flex flex-wrap items-center gap-2">
+                      
                   <Camera className="h-4 w-4" />
                   <span>拍攝照片</span>
                 </button>
-                {photoPreview && (
-                  <button
-                    type="button"
-                    onClick={handleRemovePhoto}
-                    className="btn-danger flex flex-wrap items-center gap-2"
-                  >
+                {photoPreview &&
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      className="btn-danger flex flex-wrap items-center gap-2">
+                      
                     <Trash2 className="h-4 w-4" />
                     <span>移除照片</span>
                   </button>
-                )}
+                    }
               </div>
             </div>
-            {isUploading && (
-              <p className="text-sm text-blue-600 mt-2">上傳中...</p>
-            )}
+            {isUploading &&
+                <p className="text-sm text-blue-600 mt-2">上傳中...</p>
+                }
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="form-label">性別</label>
               <select
-                name="性別"
-                value={formData.性別}
-                onChange={handleChange}
-                className="form-input"
-                required
-              >
+                    name="性別"
+                    value={formData.性別}
+                    onChange={handleChange}
+                    className="form-input"
+                    required>
+                    
                 <option value="男">男</option>
                 <option value="女">女</option>
               </select>
@@ -847,38 +848,25 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
             <div>
               <label className="form-label">入住日期</label>
-              <input
-                type="date"
-                name="入住日期"
-                value={formData.入住日期}
-                onChange={handleChange}
-                className="form-input"
-              />
+              <DateInput name="入住日期" value={formData.入住日期} className="form-input" onChange={(value) => setFormData((prev) => ({ ...prev, 入住日期: value }))} />
             </div>
           </div>
 
-          {formData.在住狀態 === '已退住' && (
-            <div className="space-y-4">
+          {formData.在住狀態 === '已退住' &&
+              <div className="space-y-4">
               <div>
                 <label className="form-label">退住日期</label>
-                <input
-                  type="date"
-                  name="退住日期"
-                  value={formData.退住日期}
-                  onChange={handleChange}
-                  className="form-input"
-                  disabled
-                />
+                <DateInput name="退住日期" value={formData.退住日期} className="form-input" onChange={(value) => setFormData((prev) => ({ ...prev, 退住日期: value }))} />
               </div>
 
               <div>
                 <label className="form-label">退住原因</label>
                 <select
-                  name="discharge_reason"
-                  value={formData.discharge_reason}
-                  onChange={handleChange}
-                  className="form-input"
-                >
+                    name="discharge_reason"
+                    value={formData.discharge_reason}
+                    onChange={handleChange}
+                    className="form-input">
+                    
                   <option value="">請選擇</option>
                   <option value="死亡">死亡</option>
                   <option value="回家">回家</option>
@@ -887,20 +875,14 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
                 </select>
               </div>
 
-              {formData.discharge_reason === '死亡' && (
+              {formData.discharge_reason === '死亡' &&
                 <div>
                   <label className="form-label">死亡日期</label>
-                  <input
-                    type="date"
-                    name="death_date"
-                    value={formData.death_date}
-                    onChange={handleChange}
-                    className="form-input"
-                  />
+                  <DateInput name="death_date" value={formData.death_date} className="form-input" onChange={(value) => setFormData((prev) => ({ ...prev, death_date: value }))} />
                 </div>
-              )}
+                }
 
-              {formData.discharge_reason === '轉往其他機構' && (
+              {formData.discharge_reason === '轉往其他機構' &&
                 <div>
                   <label className="form-label">轉往機構名稱</label>
                   <input
@@ -909,70 +891,70 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
                     value={formData.transfer_facility_name}
                     onChange={handleChange}
                     className="form-input"
-                    placeholder="請輸入機構名稱"
-                  />
+                    placeholder="請輸入機構名稱" />
+                  
                 </div>
-              )}
+                }
             </div>
-          )}
+              }
 
           <div>
             <label className="form-label">在住狀態</label>
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <span className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
-                  formData.在住狀態 === '在住' ? 'bg-green-100 text-green-800' :
-                  formData.在住狀態 === '待入住' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
+                    formData.在住狀態 === '在住' ? 'bg-green-100 text-green-800' :
+                    formData.在住狀態 === '待入住' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'}`
+                    }>
                   {formData.在住狀態 || '在住'}
                 </span>
-                {formData.在住狀態 === '在住' && (
-                  <button
-                    type="button"
-                    onClick={() => setShowDischargeModal(true)}
-                    className="btn-danger text-sm flex items-center space-x-1"
-                  >
+                {formData.在住狀態 === '在住' &&
+                    <button
+                      type="button"
+                      onClick={() => setShowDischargeModal(true)}
+                      className="btn-danger text-sm flex items-center space-x-1">
+                      
                     <LogOut className="h-4 w-4" />
                     <span>退住</span>
                   </button>
-                )}
-                {formData.在住狀態 === '待入住' && (
-                  <span className="text-xs text-gray-500">
+                    }
+                {formData.在住狀態 === '待入住' &&
+                    <span className="text-xs text-gray-500">
                     請前往「床位管理」頁面指派床位
                   </span>
-                )}
-                {formData.在住狀態 === '已退住' && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (confirm('確定要取消退住嗎？院友將返回「待入住」狀態。')) {
-                        try {
-                          const updatedPatient = {
-                            ...patient,
-                            退住日期: null,
-                            在住狀態: '待入住',
-                            station_id: null,
-                            bed_id: null,
-                            床號: '待分配',
-                            discharge_reason: null,
-                            death_date: null,
-                            transfer_facility_name: null
-                          };
-                          await updatePatient(updatedPatient);
-                          onClose();
-                        } catch (error) {
-                          console.error('取消退住失敗:', error);
-                          alert('取消退住失敗，請重試');
+                    }
+                {formData.在住狀態 === '已退住' &&
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (confirm('確定要取消退住嗎？院友將返回「待入住」狀態。')) {
+                          try {
+                            const updatedPatient = {
+                              ...patient,
+                              退住日期: null,
+                              在住狀態: '待入住',
+                              station_id: null,
+                              bed_id: null,
+                              床號: '待分配',
+                              discharge_reason: null,
+                              death_date: null,
+                              transfer_facility_name: null
+                            };
+                            await updatePatient(updatedPatient);
+                            onClose();
+                          } catch (error) {
+                            console.error('取消退住失敗:', error);
+                            alert('取消退住失敗，請重試');
+                          }
                         }
-                      }
-                    }}
-                    className="btn-secondary text-sm flex items-center space-x-1"
-                  >
+                      }}
+                      className="btn-secondary text-sm flex items-center space-x-1">
+                      
                     <LogIn className="h-4 w-4" />
                     <span>取消退住</span>
                   </button>
-                )}
+                    }
               </div>
             </div>
           </div>
@@ -981,11 +963,11 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
             <div>
               <label className="form-label">護理等級</label>
               <select
-                name="護理等級"
-                value={formData.護理等級}
-                onChange={handleChange}
-                className="form-input"
-              >
+                    name="護理等級"
+                    value={formData.護理等級}
+                    onChange={handleChange}
+                    className="form-input">
+                    
                 <option value="">請選擇</option>
                 <option value="全護理">全護理</option>
                 <option value="半護理">半護理</option>
@@ -996,11 +978,11 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
             <div>
               <label className="form-label">入住類型</label>
               <select
-                name="入住類型"
-                value={formData.入住類型}
-                onChange={handleChange}
-                className="form-input"
-              >
+                    name="入住類型"
+                    value={formData.入住類型}
+                    onChange={handleChange}
+                    className="form-input">
+                    
                 <option value="">請選擇</option>
                 <option value="私位">私位</option>
                 <option value="買位">買位</option>
@@ -1013,53 +995,53 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
             <div>
               <label className="form-label">社會福利</label>
               <select
-                value={socialWelfareType}
-                onChange={(e) => handleSocialWelfareChange(e.target.value)}
-                className="form-input"
-              >
+                    value={socialWelfareType}
+                    onChange={(e) => handleSocialWelfareChange(e.target.value)}
+                    className="form-input">
+                    
                 <option value="">請選擇社會福利</option>
                 <option value="綜合社會保障援助" disabled={isVoucherAdmission(formData.入住類型)}>綜合社會保障援助</option>
                 <option value="公共福利金計劃">公共福利金計劃</option>
               </select>
               
-              {socialWelfareType === '公共福利金計劃' && (
-                <div className="mt-2">
+              {socialWelfareType === '公共福利金計劃' &&
+                  <div className="mt-2">
                   <select
-                    value={socialWelfareSubtype}
-                    onChange={(e) => handleSocialWelfareChange(socialWelfareType, e.target.value)}
-                    className="form-input"
-                  >
+                      value={socialWelfareSubtype}
+                      onChange={(e) => handleSocialWelfareChange(socialWelfareType, e.target.value)}
+                      className="form-input">
+                      
                     <option value="">選擇項目</option>
-                    {socialWelfareType === '公共福利金計劃' && (
+                    {socialWelfareType === '公共福利金計劃' &&
                       <>
                         <option value="長者生活津貼">長者生活津貼</option>
                         <option value="高齡津貼">高齡津貼</option>
                         <option value="普通傷殘津貼">普通傷殘津貼</option>
                         <option value="高額傷殘津貼">高額傷殘津貼</option>
                       </>
-                    )}
+                      }
                   </select>
                 </div>
-              )}
+                  }
               
-              {(socialWelfareType || socialWelfareSubtype) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
+              {(socialWelfareType || socialWelfareSubtype) &&
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
                   <p className="text-sm text-blue-800">
                     <strong>已選擇：</strong>
                     {socialWelfareType}
                     {socialWelfareSubtype && ` - ${socialWelfareSubtype}`}
                   </p>
                 </div>
-              )}
+                  }
             </div>
 
             <div>
               <label className="form-label">公務員</label>
               <select
-                value={formData.公務員}
-                onChange={(e) => handleCivilServantChange(e.target.value)}
-                className="form-input"
-              >
+                    value={formData.公務員}
+                    onChange={(e) => handleCivilServantChange(e.target.value)}
+                    className="form-input">
+                    
                 <option value="">請選擇</option>
                 <option value="公務員/家屬">公務員/家屬</option>
                 <option value="醫管局員工/家屬">醫管局員工/家屬</option>
@@ -1071,23 +1053,23 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
             <label className="form-label">中文姓名 *</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input
-                type="text"
-                name="中文姓氏"
-                value={formData.中文姓氏}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="姓氏"
-                required
-              />
+                    type="text"
+                    name="中文姓氏"
+                    value={formData.中文姓氏}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="姓氏"
+                    required />
+                  
               <input
-                type="text"
-                name="中文名字"
-                value={formData.中文名字}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="名字"
-                required
-              />
+                    type="text"
+                    name="中文名字"
+                    value={formData.中文名字}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="名字"
+                    required />
+                  
             </div>
           </div>
 
@@ -1095,21 +1077,21 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
             <label className="form-label">英文姓名</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input
-                type="text"
-                name="英文姓氏"
-                value={formData.英文姓氏}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="Surname "
-              />
+                    type="text"
+                    name="英文姓氏"
+                    value={formData.英文姓氏}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="Surname " />
+                  
               <input
-                type="text"
-                name="英文名字"
-                value={formData.英文名字}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="Given Name"
-              />
+                    type="text"
+                    name="英文名字"
+                    value={formData.英文名字}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="Given Name" />
+                  
             </div>
             <p className="text-xs text-gray-500 mt-1">英文姓氏將自動轉為大寫，英文名字每個單字首字母自動大寫。</p>
           </div>
@@ -1118,14 +1100,14 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
             <div>
               <label className="form-label">身份證號碼</label>
               <input
-                type="text"
-                name="身份證號碼"
-                value={formData.身份證號碼}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="A123456(7)"
-                required
-              />
+                    type="text"
+                    name="身份證號碼"
+                    value={formData.身份證號碼}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="A123456(7)"
+                    required />
+                  
               <p className="text-xs text-gray-500 mt-1">最後一碼（校驗碼）會自動加上括號。</p>
             </div>
 
@@ -1135,87 +1117,80 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
                 <div className="flex flex-wrap items-center gap-4">
                   <label className="flex flex-wrap items-center gap-2">
                     <input
-                      type="radio"
-                      name="birthDateType"
-                      value="full"
-                      checked={!formData.出生日期?.endsWith('-01-01')}
-                      onChange={() => {
-                        // 如果當前是年份格式，轉換為完整日期格式
-                        if (formData.出生日期?.endsWith('-01-01')) {
-                          const year = formData.出生日期.split('-')[0];
-                          const today = new Date();
-                          const currentMonth = (today.getMonth() + 1).toString().padStart(2, '0');
-                          const currentDay = today.getDate().toString().padStart(2, '0');
-                          setFormData(prev => ({ 
-                            ...prev, 
-                            出生日期: `${year}-${currentMonth}-${currentDay}` 
-                          }));
-                        }
-                      }}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                    />
+                          type="radio"
+                          name="birthDateType"
+                          value="full"
+                          checked={!formData.出生日期?.endsWith('-01-01')}
+                          onChange={() => {
+                            // 如果當前是年份格式，轉換為完整日期格式
+                            if (formData.出生日期?.endsWith('-01-01')) {
+                              const year = formData.出生日期.split('-')[0];
+                              const today = new Date();
+                              const currentMonth = (today.getMonth() + 1).toString().padStart(2, '0');
+                              const currentDay = today.getDate().toString().padStart(2, '0');
+                              setFormData((prev) => ({
+                                ...prev,
+                                出生日期: `${year}-${currentMonth}-${currentDay}`
+                              }));
+                            }
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
+                        
                     <span className="text-sm text-gray-700">完整日期</span>
                   </label>
                   <label className="flex flex-wrap items-center gap-2">
                     <input
-                      type="radio"
-                      name="birthDateType"
-                      value="yearOnly"
-                      checked={formData.出生日期?.endsWith('-01-01')}
-                      onChange={() => {
-                        // 轉換為年份格式
-                        if (formData.出生日期) {
-                          const year = formData.出生日期.split('-')[0];
-                          setFormData(prev => ({ ...prev, 出生日期: `${year}-01-01` }));
-                        } else {
-                          // 如果沒有日期，設為當前年份
-                          const currentYear = new Date().getFullYear();
-                          setFormData(prev => ({ ...prev, 出生日期: `${currentYear}-01-01` }));
-                        }
-                      }}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                    />
+                          type="radio"
+                          name="birthDateType"
+                          value="yearOnly"
+                          checked={formData.出生日期?.endsWith('-01-01')}
+                          onChange={() => {
+                            // 轉換為年份格式
+                            if (formData.出生日期) {
+                              const year = formData.出生日期.split('-')[0];
+                              setFormData((prev) => ({ ...prev, 出生日期: `${year}-01-01` }));
+                            } else {
+                              // 如果沒有日期，設為當前年份
+                              const currentYear = new Date().getFullYear();
+                              setFormData((prev) => ({ ...prev, 出生日期: `${currentYear}-01-01` }));
+                            }
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
+                        
                     <span className="text-sm text-gray-700">僅年份</span>
                   </label>
                 </div>
                 
-                {formData.出生日期?.endsWith('-01-01') ? (
-                  <div>
+                {formData.出生日期?.endsWith('-01-01') ?
+                    <div>
                     <input
-                      type="number"
-                      value={formData.出生日期 ? formData.出生日期.split('-')[0] : ''}
-                      onChange={(e) => {
-                        const year = e.target.value;
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          出生日期: year ? `${year}-01-01` : '' 
-                        }));
-                      }}
-                      className="form-input"
-                      placeholder="例如：1950"
-                      min="1900"
-                      max={new Date().getFullYear()}
-                      required
-                    />
+                        type="number"
+                        value={formData.出生日期 ? formData.出生日期.split('-')[0] : ''}
+                        onChange={(e) => {
+                          const year = e.target.value;
+                          setFormData((prev) => ({
+                            ...prev,
+                            出生日期: year ? `${year}-01-01` : ''
+                          }));
+                        }}
+                        className="form-input"
+                        placeholder="例如：1950"
+                        min="1900"
+                        max={new Date().getFullYear()}
+                        required />
+                      
                     <p className="text-xs text-gray-500 mt-1">
                       僅輸入出生年份，系統會自動設為該年1月1日
                     </p>
-                  </div>
-                ) : (
-                  <div>
-                    <input
-                      type="date"
-                      name="出生日期"
-                      value={formData.出生日期}
-                      onChange={handleChange}
-                      className="form-input"
-                      required
-                    />
+                  </div> :
+
+                    <div>
+                    <DateInput name="出生日期" value={formData.出生日期} className="form-input" onChange={(value) => setFormData((prev) => ({ ...prev, 出生日期: value }))} />
                     <p className="text-xs text-gray-500 mt-1">
                       輸入完整的出生年月日
                     </p>
                   </div>
-                )}
+                    }
               </div>
             </div>
           </div>
@@ -1224,42 +1199,42 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
             <div>
               <label className="form-label">通訊電話</label>
               <input
-                type="tel"
-                name="通訊電話"
-                value={formData.通訊電話}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="輸入通訊電話"
-              />
+                    type="tel"
+                    name="通訊電話"
+                    value={formData.通訊電話}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="輸入通訊電話" />
+                  
             </div>
             <div>
               <label className="form-label">通訊地址</label>
               <textarea
-                name="通訊地址"
-                value={formData.通訊地址}
-                onChange={handleChange}
-                className="form-input"
-                rows={2}
-                placeholder="輸入通訊地址"
-              />
+                    name="通訊地址"
+                    value={formData.通訊地址}
+                    onChange={handleChange}
+                    className="form-input"
+                    rows={2}
+                    placeholder="輸入通訊地址" />
+                  
             </div>
           </div>
           </div>
-          )}
+            }
 
-          {activeSubTab === 'contacts' && (
+          {activeSubTab === 'contacts' &&
             <PatientContactsSection
               patientId={patient?.院友id}
               pendingContacts={pendingContacts}
-              onPendingContactsChange={setPendingContacts}
-            />
-          )}
+              onPendingContactsChange={setPendingContacts} />
 
-          {activeSubTab === 'social' && (
+            }
+
+          {activeSubTab === 'social' &&
             <PatientSocialStatusSection formData={formData} setFormData={setFormData} />
-          )}
+            }
 
-          {activeSubTab === 'medical' && (
+          {activeSubTab === 'medical' &&
             <PatientMedicalHistorySection
               formData={formData}
               setFormData={setFormData}
@@ -1270,53 +1245,53 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
               newAdverseReaction={newAdverseReaction}
               setNewAdverseReaction={setNewAdverseReaction}
               addAdverseReaction={addAdverseReaction}
-              removeAdverseReaction={removeAdverseReaction}
-            />
-          )}
+              removeAdverseReaction={removeAdverseReaction} />
 
-          {activeSubTab === 'services' && (
+            }
+
+          {activeSubTab === 'services' &&
             <PatientMedicalServicesSection
               formData={formData}
               setFormData={setFormData}
               patientId={patient?.院友id}
               vaccinationRecords={vaccinationRecords}
-              onVaccinationRecordsChange={setVaccinationRecords}
-            />
-          )}
-          </>
-          )}
+              onVaccinationRecordsChange={setVaccinationRecords} />
 
-          {activeMainTab === 'nursing' && (
-            <PatientNursingAssessmentSection
-              value={formData.nursing_assessment_json}
-              onChange={(nursing_assessment_json) =>
-                setFormData((prev) => ({ ...prev, nursing_assessment_json }))
-              }
-              currentUserName={currentUserName}
-              currentUserRank={currentUserRank}
-            />
-          )}
+            }
+          </>
+          }
+
+          {activeMainTab === 'nursing' &&
+          <PatientNursingAssessmentSection
+            value={formData.nursing_assessment_json}
+            onChange={(nursing_assessment_json) =>
+            setFormData((prev) => ({ ...prev, nursing_assessment_json }))
+            }
+            currentUserName={currentUserName}
+            currentUserRank={currentUserRank} />
+
+          }
 
           <div className="flex flex-col sm:flex-row gap-2 pt-4">
             <button
               type="submit"
-              className="btn-primary flex-1"
-            >
+              className="btn-primary flex-1">
+              
               {patient ? '更新院友' : '新增院友'}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="btn-secondary flex-1"
-            >
+              className="btn-secondary flex-1">
+              
               取消
             </button>
           </div>
         </form>
 
         {/* 退住確認模態框 */}
-        {showDischargeModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowDischargeModal(false)}>
+        {showDischargeModal &&
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowDischargeModal(false)}>
             <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <div className="flex flex-wrap items-center gap-3">
@@ -1326,9 +1301,9 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
                   <h3 className="text-xl font-semibold text-gray-900">確認退住</h3>
                 </div>
                 <button
-                  onClick={() => setShowDischargeModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
+                onClick={() => setShowDischargeModal(false)}
+                className="text-gray-400 hover:text-gray-600">
+                
                   <X className="h-6 w-6" />
                 </button>
               </div>
@@ -1344,13 +1319,13 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
                   <Calendar className="h-4 w-4 inline mr-1" />
                   退住日期 *
                 </label>
-                <input
-                  type="date"
-                  value={dischargeDate}
-                  onChange={(e) => setDischargeDate(e.target.value)}
-                  className="form-input"
-                  required
-                />
+                <DateInput
+
+                value={dischargeDate}
+
+                className="form-input"
+                required onChange={(value) => setDischargeDate(value)} />
+              
               </div>
 
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
@@ -1361,48 +1336,48 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
-                  onClick={() => {
-                    if (!dischargeDate) {
-                      alert('請選擇退住日期');
-                      return;
-                    }
-                    if (!dischargeDate) {
-                      alert('請選擇退住日期');
-                      return;
-                    }
-                    setFormData(prev => ({
-                      ...prev,
-                      退住日期: dischargeDate,
-                      在住狀態: '已退住',
-                      last_station_id: prev.station_id || null,
-                      last_bed_id: prev.bed_id || null,
-                      station_id: '',
-                      bed_id: '',
-                      床號: ''
-                    }));
-                    setShowDischargeModal(false);
-                    setDischargeDate('');
-                  }}
-                  className="btn-danger flex-1"
-                >
+                onClick={() => {
+                  if (!dischargeDate) {
+                    alert('請選擇退住日期');
+                    return;
+                  }
+                  if (!dischargeDate) {
+                    alert('請選擇退住日期');
+                    return;
+                  }
+                  setFormData((prev) => ({
+                    ...prev,
+                    退住日期: dischargeDate,
+                    在住狀態: '已退住',
+                    last_station_id: prev.station_id || null,
+                    last_bed_id: prev.bed_id || null,
+                    station_id: '',
+                    bed_id: '',
+                    床號: ''
+                  }));
+                  setShowDischargeModal(false);
+                  setDischargeDate('');
+                }}
+                className="btn-danger flex-1">
+                
                   確認退住
                 </button>
                 <button
-                  onClick={() => {
-                    setShowDischargeModal(false);
-                    setDischargeDate('');
-                  }}
-                  className="btn-secondary flex-1"
-                >
+                onClick={() => {
+                  setShowDischargeModal(false);
+                  setDischargeDate('');
+                }}
+                className="btn-secondary flex-1">
+                
                   取消
                 </button>
               </div>
             </div>
           </div>
-        )}
+        }
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default PatientModal;

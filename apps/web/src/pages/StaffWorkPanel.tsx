@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { Link } from 'react-router-dom';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { formatTimeToHHMM } from '../utils/dateFormat';
 
 interface TaskFilters {
   searchTerm: string;
@@ -444,7 +445,7 @@ const StaffWorkPanel: React.FC = () => {
                         <BedNumberImprint patient={task.patient} size="sm" className="font-medium text-gray-900" /> - {task.patient.中文姓氏}{task.patient.中文名字}
                       </div>
                       <div className="text-sm text-gray-600">
-                        {task.prescription.medication_name} | {task.scheduledTime}
+                        {task.prescription.medication_name} | {formatTimeToHHMM(task.scheduledTime)}
                       </div>
                       {task.prescription.dosage_amount && (
                         <div className="text-xs text-gray-500">

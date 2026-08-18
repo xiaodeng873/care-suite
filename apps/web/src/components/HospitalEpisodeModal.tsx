@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar, Clock, Guitar as Hospital, MapPin, Bed, User, AlertTriangle, Heart, Building2, FileText, Activity } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { formatDisplayDate } from '../utils/dateFormat';
+import React, { useState, useEffect } from 'react';
+import DateInput from './DateInput';
 
 
 interface EpisodeEvent {
@@ -35,13 +36,13 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
   // 香港時區輔助函數
   const getHongKongDate = () => {
     const now = new Date();
-    const hongKongTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const hongKongTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     return hongKongTime.toISOString().split('T')[0];
   };
 
   const getHongKongTime = () => {
     const now = new Date();
-    const hongKongTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const hongKongTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     return hongKongTime.toISOString().split('T')[1].slice(0, 5);
   };
 
@@ -66,24 +67,24 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
 
   const [events, setEvents] = useState<EpisodeEvent[]>(() => {
 
-    
-    if (episode?.episode_events && Array.isArray(episode.episode_events) && episode.episode_events.length > 0) {
-      const processedEvents = episode.episode_events
-        .sort((a: any, b: any) => (a.event_order || 0) - (b.event_order || 0))
-        .map((event: any, index: number) => {
 
-          return {
-            id: event.id || `temp-${Date.now()}-${Math.random()}`,
-            event_type: event.event_type,
-            event_date: event.event_date,
-            event_time: event.event_time || '',
-            hospital_name: event.hospital_name || '',
-            hospital_ward: event.hospital_ward || '',
-            hospital_bed_number: event.hospital_bed_number || '',
-            remarks: event.remarks || '',
-            vacation_end_type: event.vacation_end_type || ''
-          };
-        });
+    if (episode?.episode_events && Array.isArray(episode.episode_events) && episode.episode_events.length > 0) {
+      const processedEvents = episode.episode_events.
+      sort((a: any, b: any) => (a.event_order || 0) - (b.event_order || 0)).
+      map((event: any, index: number) => {
+
+        return {
+          id: event.id || `temp-${Date.now()}-${Math.random()}`,
+          event_type: event.event_type,
+          event_date: event.event_date,
+          event_time: event.event_time || '',
+          hospital_name: event.hospital_name || '',
+          hospital_ward: event.hospital_ward || '',
+          hospital_bed_number: event.hospital_bed_number || '',
+          remarks: event.remarks || '',
+          vacation_end_type: event.vacation_end_type || ''
+        };
+      });
 
       return processedEvents;
     } else {
@@ -114,19 +115,19 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
 
       // 重新載入事件資料
       if (episode.episode_events && Array.isArray(episode.episode_events) && episode.episode_events.length > 0) {
-        const processedEvents = episode.episode_events
-          .sort((a: any, b: any) => (a.event_order || 0) - (b.event_order || 0))
-          .map((event: any) => ({
-            id: event.id || `temp-${Date.now()}-${Math.random()}`,
-            event_type: event.event_type,
-            event_date: event.event_date,
-            event_time: event.event_time || '',
-            hospital_name: event.hospital_name || '',
-            hospital_ward: event.hospital_ward || '',
-            hospital_bed_number: event.hospital_bed_number || '',
-            remarks: event.remarks || '',
-            vacation_end_type: event.vacation_end_type || ''
-          }));
+        const processedEvents = episode.episode_events.
+        sort((a: any, b: any) => (a.event_order || 0) - (b.event_order || 0)).
+        map((event: any) => ({
+          id: event.id || `temp-${Date.now()}-${Math.random()}`,
+          event_type: event.event_type,
+          event_date: event.event_date,
+          event_time: event.event_time || '',
+          hospital_name: event.hospital_name || '',
+          hospital_ward: event.hospital_ward || '',
+          hospital_bed_number: event.hospital_bed_number || '',
+          remarks: event.remarks || '',
+          vacation_end_type: event.vacation_end_type || ''
+        }));
 
         setEvents(processedEvents);
       }
@@ -144,39 +145,39 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
           <span className="text-gray-700">載入中...</span>
         </div>
-      </div>
-    );
+      </div>);
+
   }
 
   // 常用醫院列表
   const commonHospitals = [
-    '瑪麗醫院',
-    '伊利沙伯醫院', 
-    '廣華醫院',
-    '東華醫院',
-    '律敦治醫院',
-    '聯合醫院',
-    '威爾斯親王醫院',
-    '沙田醫院',
-    '屯門醫院',
-    '天水圍醫院'
-  ];
+  '瑪麗醫院',
+  '伊利沙伯醫院',
+  '廣華醫院',
+  '東華醫院',
+  '律敦治醫院',
+  '聯合醫院',
+  '威爾斯親王醫院',
+  '沙田醫院',
+  '屯門醫院',
+  '天水圍醫院'];
+
 
   // 出院類型選項
   const dischargeTypes = [
-    { value: 'return_to_facility', label: '返回院舍', description: '院友康復後返回院舍', icon: <Building2 className="h-5 w-5" /> },
-    { value: 'home', label: '回家', description: '院友康復後回到原居住地', icon: <Building2 className="h-5 w-5" /> },
-    { value: 'transfer_out', label: '轉至其他機構', description: '轉移至其他醫療或照護機構', icon: <MapPin className="h-5 w-5" /> },
-    { value: 'deceased', label: '離世', description: '院友在醫院離世', icon: <Heart className="h-5 w-5" /> }
-  ];
+  { value: 'return_to_facility', label: '返回院舍', description: '院友康復後返回院舍', icon: <Building2 className="h-5 w-5" /> },
+  { value: 'home', label: '回家', description: '院友康復後回到原居住地', icon: <Building2 className="h-5 w-5" /> },
+  { value: 'transfer_out', label: '轉至其他機構', description: '轉移至其他醫療或照護機構', icon: <MapPin className="h-5 w-5" /> },
+  { value: 'deceased', label: '離世', description: '院友在醫院離世', icon: <Heart className="h-5 w-5" /> }];
+
 
   // 渡假結束類型選項
   const vacationEndTypes = [
-    { value: 'return_to_facility', label: '返回院舍', description: '渡假後返回院舍繼續照護', icon: <Building2 className="h-5 w-5" /> },
-    { value: 'home', label: '回到原居住地', description: '渡假後回到原居住地生活', icon: <Building2 className="h-5 w-5" /> },
-    { value: 'transfer_out', label: '轉至其他機構', description: '渡假後轉移至其他照護機構', icon: <MapPin className="h-5 w-5" /> },
-    { value: 'deceased', label: '渡假期間離世', description: '院友在渡假期間離世', icon: <Heart className="h-5 w-5" /> }
-  ];
+  { value: 'return_to_facility', label: '返回院舍', description: '渡假後返回院舍繼續照護', icon: <Building2 className="h-5 w-5" /> },
+  { value: 'home', label: '回到原居住地', description: '渡假後回到原居住地生活', icon: <Building2 className="h-5 w-5" /> },
+  { value: 'transfer_out', label: '轉至其他機構', description: '渡假後轉移至其他照護機構', icon: <MapPin className="h-5 w-5" /> },
+  { value: 'deceased', label: '渡假期間離世', description: '院友在渡假期間離世', icon: <Heart className="h-5 w-5" /> }];
+
 
   // 添加事件
   const addEvent = (eventType: 'admission' | 'transfer' | 'discharge' | 'vacation_start' | 'vacation_end') => {
@@ -195,11 +196,11 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
 
   // 刪除事件
   const removeEvent = (id: string) => {
-    const eventToRemove = events.find(e => e.id === id);
+    const eventToRemove = events.find((e) => e.id === id);
 
     // 如果要刪除入院事件，檢查是否有轉院或出院事件依賴它
     if (eventToRemove?.event_type === 'admission') {
-      const hasTransferOrDischarge = events.some(e => e.event_type === 'transfer' || e.event_type === 'discharge');
+      const hasTransferOrDischarge = events.some((e) => e.event_type === 'transfer' || e.event_type === 'discharge');
       if (hasTransferOrDischarge) {
         alert('有轉院或出院事件時，不能刪除入院事件');
         return;
@@ -208,7 +209,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
 
     // 如果刪除的是出院事件，重置出院相關資料
     if (eventToRemove?.event_type === 'discharge') {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         discharge_type: '',
         discharge_destination: '',
@@ -219,27 +220,27 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
 
     // 如果刪除的是渡假結束事件，重置渡假結束相關資料
     if (eventToRemove?.event_type === 'vacation_end') {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         vacation_end_type: ''
       }));
     }
 
-    setEvents(events.filter(e => e.id !== id));
+    setEvents(events.filter((e) => e.id !== id));
   };
 
   // 更新事件
   const updateEvent = (id: string, field: keyof EpisodeEvent, value: string) => {
-    setEvents(events.map(event => 
-      event.id === id ? { ...event, [field]: value } : event
+    setEvents(events.map((event) =>
+    event.id === id ? { ...event, [field]: value } : event
     ));
   };
 
   // 自動更新主要醫院資訊
   useEffect(() => {
-    const admissionEvent = events.find(e => e.event_type === 'admission');
+    const admissionEvent = events.find((e) => e.event_type === 'admission');
     if (admissionEvent) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         episode_start_date: admissionEvent.event_date,
         primary_hospital: admissionEvent.hospital_name,
@@ -251,15 +252,15 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
 
   // 自動設定住院結束日期
   useEffect(() => {
-    const dischargeEvent = events.find(e => e.event_type === 'discharge');
+    const dischargeEvent = events.find((e) => e.event_type === 'discharge');
     if (dischargeEvent) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         episode_end_date: dischargeEvent.event_date,
         status: 'completed'
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         episode_end_date: '',
         status: 'active'
@@ -282,16 +283,16 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
     }
 
     // 檢查是否有入院事件 - 只有當存在轉院或出院事件時才需要入院事件
-    const admissionEvent = events.find(e => e.event_type === 'admission');
-    const hasTransferOrDischarge = events.some(e => e.event_type === 'transfer' || e.event_type === 'discharge');
+    const admissionEvent = events.find((e) => e.event_type === 'admission');
+    const hasTransferOrDischarge = events.some((e) => e.event_type === 'transfer' || e.event_type === 'discharge');
 
     if (hasTransferOrDischarge && !admissionEvent) {
       newErrors.admission_event = '有轉院或出院事件時，必須先有入院事件';
     }
 
     // 檢查是否有渡假開始事件 - 只有當存在渡假結束事件時才需要渡假開始事件
-    const vacationStartEvent = events.find(e => e.event_type === 'vacation_start');
-    const vacationEndEvent = events.find(e => e.event_type === 'vacation_end');
+    const vacationStartEvent = events.find((e) => e.event_type === 'vacation_start');
+    const vacationEndEvent = events.find((e) => e.event_type === 'vacation_end');
 
     if (vacationEndEvent && !vacationStartEvent) {
       newErrors.vacation_start_event = '有渡假結束事件時，必須先有渡假開始事件';
@@ -310,7 +311,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
     });
 
     // 如果有出院事件，驗證相關資訊
-    const dischargeEvent = events.find(e => e.event_type === 'discharge');
+    const dischargeEvent = events.find((e) => e.event_type === 'discharge');
     if (dischargeEvent) {
       if (!formData.discharge_type) {
         newErrors.discharge_type = '請選擇出院類型';
@@ -340,13 +341,13 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
   // 處理表單提交
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     setIsSubmitting(true);
-    
+
     try {
       // 將空字符串轉換為 null（日期和時間欄位）
       const cleanFormData = {
@@ -362,7 +363,7 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
 
       const submitData = {
         ...cleanFormData,
-        events: events.map(event => {
+        events: events.map((event) => {
           const { id, ...eventData } = event;
           return {
             ...eventData,
@@ -465,8 +466,8 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
+            className="text-gray-400 hover:text-gray-600 transition-colors">
+            
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -490,16 +491,16 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                   onChange={(patientId) => setFormData({ ...formData, patient_id: patientId })}
                   placeholder="搜索院友..."
                   showResidencyFilter={true}
-                  defaultResidencyStatus="在住"
-                />
-                {patients.length === 0 && (
-                  <p className="text-sm text-red-600 mt-1">
+                  defaultResidencyStatus="在住" />
+                
+                {patients.length === 0 &&
+                <p className="text-sm text-red-600 mt-1">
                     沒有可選擇的院友，請先在院友記錄中新增院友
                   </p>
-                )}
-                {errors.patient_id && (
-                  <p className="text-red-500 text-sm mt-1">{errors.patient_id}</p>
-                )}
+                }
+                {errors.patient_id &&
+                <p className="text-red-500 text-sm mt-1">{errors.patient_id}</p>
+                }
               </div>
 
               {/* 住院日期資訊顯示 */}
@@ -511,10 +512,10 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                       <span className="text-blue-700">住院開始：</span>
                       <span className="font-medium text-blue-900">
                         {(() => {
-                          const admissionEvent = events.find(e => e.event_type === 'admission');
-                          return admissionEvent 
-                            ? `${formatDisplayDate(admissionEvent.event_date)} ${admissionEvent.event_time || ''}`
-                            : '待設定入院事件';
+                          const admissionEvent = events.find((e) => e.event_type === 'admission');
+                          return admissionEvent ?
+                          `${formatDisplayDate(admissionEvent.event_date)} ${admissionEvent.event_time || ''}` :
+                          '待設定入院事件';
                         })()}
                       </span>
                     </div>
@@ -522,19 +523,19 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                       <span className="text-blue-700">住院結束：</span>
                       <span className="font-medium text-blue-900">
                         {(() => {
-                          const dischargeEvent = events.find(e => e.event_type === 'discharge');
-                          return dischargeEvent 
-                            ? `${formatDisplayDate(dischargeEvent.event_date)} ${dischargeEvent.event_time || ''}`
-                            : '入院中';
+                          const dischargeEvent = events.find((e) => e.event_type === 'discharge');
+                          return dischargeEvent ?
+                          `${formatDisplayDate(dischargeEvent.event_date)} ${dischargeEvent.event_time || ''}` :
+                          '入院中';
                         })()}
                       </span>
                     </div>
-                    {totalDays && (
-                      <div className="md:col-span-2">
+                    {totalDays &&
+                    <div className="md:col-span-2">
                         <span className="text-blue-700">缺席天數：</span>
                         <span className="font-medium text-blue-900">{totalDays} 天</span>
                       </div>
-                    )}
+                    }
                   </div>
                   <p className="text-xs text-blue-600 mt-2">
                     💡 住院日期自動從入院和出院事件計算
@@ -556,16 +557,16 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                   type="button"
                   onClick={() => addEvent('admission')}
                   className="btn-secondary flex flex-wrap items-center gap-2 text-sm"
-                  disabled={events.some(e => e.event_type === 'admission')}
-                >
+                  disabled={events.some((e) => e.event_type === 'admission')}>
+                  
                   <Plus className="h-4 w-4" />
                   <span>新增入院</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => addEvent('transfer')}
-                  className="btn-secondary flex flex-wrap items-center gap-2 text-sm"
-                >
+                  className="btn-secondary flex flex-wrap items-center gap-2 text-sm">
+                  
                   <Plus className="h-4 w-4" />
                   <span>新增轉院</span>
                 </button>
@@ -573,8 +574,8 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                   type="button"
                   onClick={() => addEvent('discharge')}
                   className="btn-secondary flex flex-wrap items-center gap-2 text-sm"
-                  disabled={events.some(e => e.event_type === 'discharge')}
-                >
+                  disabled={events.some((e) => e.event_type === 'discharge')}>
+                  
                   <Plus className="h-4 w-4" />
                   <span>新增出院</span>
                 </button>
@@ -582,8 +583,8 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                   type="button"
                   onClick={() => addEvent('vacation_start')}
                   className="btn-secondary flex flex-wrap items-center gap-2 text-sm"
-                  disabled={events.some(e => e.event_type === 'vacation_start')}
-                >
+                  disabled={events.some((e) => e.event_type === 'vacation_start')}>
+                  
                   <Plus className="h-4 w-4" />
                   <span>渡假開始</span>
                 </button>
@@ -592,11 +593,11 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                   onClick={() => addEvent('vacation_end')}
                   className="btn-secondary flex flex-wrap items-center gap-2 text-sm"
                   disabled={
-                    events.some(e => e.event_type === 'vacation_end') ||
-                    !events.some(e => e.event_type === 'vacation_start')
+                  events.some((e) => e.event_type === 'vacation_end') ||
+                  !events.some((e) => e.event_type === 'vacation_start')
                   }
-                  title={!events.some(e => e.event_type === 'vacation_start') ? '必須先新增渡假開始事件' : ''}
-                >
+                  title={!events.some((e) => e.event_type === 'vacation_start') ? '必須先新增渡假開始事件' : ''}>
+                  
                   <Plus className="h-4 w-4" />
                   <span>渡假結束</span>
                 </button>
@@ -604,8 +605,8 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
             </div>
 
             {/* 全局錯誤提示 */}
-            {(errors.no_events || errors.admission_event || errors.vacation_start_event) && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            {(errors.no_events || errors.admission_event || errors.vacation_start_event) &&
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
@@ -615,12 +616,12 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                   </div>
                 </div>
               </div>
-            )}
+            }
 
             <div className="space-y-4">
               {events.map((event, index) => {
                 const eventInfo = getEventTypeInfo(event.event_type);
-                
+
                 return (
                   <div key={event.id} className={`${eventInfo.bgColor} ${eventInfo.borderColor} border rounded-lg p-4`}>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
@@ -632,8 +633,8 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                       <button
                         type="button"
                         onClick={() => removeEvent(event.id)}
-                        className="text-red-600 hover:text-red-700 transition-colors"
-                      >
+                        className="text-red-600 hover:text-red-700 transition-colors">
+                        
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -646,59 +647,59 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                         </label>
                         <div className="relative">
                           <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <input
-                            type="date"
+                          <DateInput
+
                             value={event.event_date}
-                            onChange={(e) => updateEvent(event.id, 'event_date', e.target.value)}
+
                             className={`form-input pl-10 ${errors[`event_date_${index}`] ? 'border-red-300' : ''}`}
-                            required
-                          />
+                            required onChange={(value) => updateEvent(event.id, 'event_date', value)} />
+                          
                         </div>
-                        {errors[`event_date_${index}`] && (
-                          <p className="text-red-500 text-sm mt-1">{errors[`event_date_${index}`]}</p>
-                        )}
+                        {errors[`event_date_${index}`] &&
+                        <p className="text-red-500 text-sm mt-1">{errors[`event_date_${index}`]}</p>
+                        }
                       </div>
 
                       {/* 事件時間 */}
-                      {event.event_type !== 'transfer' && (
-                        <div>
+                      {event.event_type !== 'transfer' &&
+                      <div>
                           <label className="form-label">事件時間</label>
                           <div className="relative">
                             <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <input
-                              type="time"
-                              value={event.event_time}
-                              onChange={(e) => updateEvent(event.id, 'event_time', e.target.value)}
-                              className="form-input pl-10"
-                            />
+                            type="time"
+                            value={event.event_time}
+                            onChange={(e) => updateEvent(event.id, 'event_time', e.target.value)}
+                            className="form-input pl-10" />
+                          
                           </div>
                         </div>
-                      )}
+                      }
 
                       {/* 醫院相關欄位 - 只在非渡假事件時顯示 */}
-                      {!event.event_type.startsWith('vacation') && (
-                        <>
+                      {!event.event_type.startsWith('vacation') &&
+                      <>
                           {/* 醫院名稱 - 調整 grid 佈局 */}
                           <div className={event.event_type === 'transfer' ? 'md:col-span-2' : ''}>
                             <label className="form-label">
                               醫院名稱 <span className="text-red-500">*</span>
                             </label>
                             <input
-                              list="hospital-list"
-                              value={event.hospital_name || ''}
-                              onChange={(e) => updateEvent(event.id, 'hospital_name', e.target.value)}
-                              className={`form-input ${errors[`hospital_name_${index}`] ? 'border-red-300' : ''}`}
-                              placeholder="選擇或輸入醫院名稱"
-                              required
-                            />
+                            list="hospital-list"
+                            value={event.hospital_name || ''}
+                            onChange={(e) => updateEvent(event.id, 'hospital_name', e.target.value)}
+                            className={`form-input ${errors[`hospital_name_${index}`] ? 'border-red-300' : ''}`}
+                            placeholder="選擇或輸入醫院名稱"
+                            required />
+                          
                             <datalist id="hospital-list">
-                              {commonHospitals.map(hospital => (
-                                <option key={hospital} value={hospital} />
-                              ))}
-                            </datalist>
-                            {errors[`hospital_name_${index}`] && (
-                              <p className="text-red-500 text-sm mt-1">{errors[`hospital_name_${index}`]}</p>
+                              {commonHospitals.map((hospital) =>
+                            <option key={hospital} value={hospital} />
                             )}
+                            </datalist>
+                            {errors[`hospital_name_${index}`] &&
+                          <p className="text-red-500 text-sm mt-1">{errors[`hospital_name_${index}`]}</p>
+                          }
                           </div>
 
                           {/* 病房 */}
@@ -707,12 +708,12 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                             <div className="relative">
                               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                               <input
-                                type="text"
-                                value={event.hospital_ward || ''}
-                                onChange={(e) => updateEvent(event.id, 'hospital_ward', e.target.value)}
-                                className="form-input pl-10"
-                                placeholder="例：內科病房"
-                              />
+                              type="text"
+                              value={event.hospital_ward || ''}
+                              onChange={(e) => updateEvent(event.id, 'hospital_ward', e.target.value)}
+                              className="form-input pl-10"
+                              placeholder="例：內科病房" />
+                            
                             </div>
                           </div>
 
@@ -722,16 +723,16 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                             <div className="relative">
                               <Bed className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                               <input
-                                type="text"
-                                value={event.hospital_bed_number || ''}
-                                onChange={(e) => updateEvent(event.id, 'hospital_bed_number', e.target.value)}
-                                className="form-input pl-10"
-                                placeholder="例：A01"
-                              />
+                              type="text"
+                              value={event.hospital_bed_number || ''}
+                              onChange={(e) => updateEvent(event.id, 'hospital_bed_number', e.target.value)}
+                              className="form-input pl-10"
+                              placeholder="例：A01" />
+                            
                             </div>
                           </div>
                         </>
-                      )}
+                      }
 
                       {/* 事件備註 */}
                       <div className="md:col-span-3">
@@ -741,35 +742,35 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                           onChange={(e) => updateEvent(event.id, 'remarks', e.target.value)}
                           className="form-input"
                           rows={1}
-                          placeholder="此事件的相關備註..."
-                        />
+                          placeholder="此事件的相關備註..." />
+                        
                       </div>
 
                       {/* 出院類型選擇 - 只在出院事件中顯示 */}
-                      {event.event_type === 'discharge' && (
-                        <div className="md:col-span-3 lg:col-span-4">
+                      {event.event_type === 'discharge' &&
+                      <div className="md:col-span-3 lg:col-span-4">
                           <label className="form-label">
                             出院類型 <span className="text-red-500">*</span>
                           </label>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-2">
-                            {dischargeTypes.map(type => (
-                              <label
-                                key={type.value}
-                                className={`relative flex flex-col p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                                  formData.discharge_type === type.value
-                                    ? 'border-blue-500 bg-blue-50'
-                                    : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                              >
+                            {dischargeTypes.map((type) =>
+                          <label
+                            key={type.value}
+                            className={`relative flex flex-col p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                            formData.discharge_type === type.value ?
+                            'border-blue-500 bg-blue-50' :
+                            'border-gray-200 hover:border-gray-300'}`
+                            }>
+                            
                                 <div className="flex flex-wrap items-center gap-2 mb-1">
                                   <input
-                                    type="radio"
-                                    name="discharge_type"
-                                    value={type.value}
-                                    checked={formData.discharge_type === type.value}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, discharge_type: e.target.value as any }))}
-                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                                  />
+                                type="radio"
+                                name="discharge_type"
+                                value={type.value}
+                                checked={formData.discharge_type === type.value}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, discharge_type: e.target.value as any }))}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                              
                                   <div className="flex items-center space-x-1">
                                     {type.icon}
                                     <span className="font-medium text-gray-900 text-sm">{type.label}</span>
@@ -777,12 +778,12 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                                 </div>
                                 <p className="text-xs text-gray-600 ml-6">{type.description}</p>
                               </label>
-                            ))}
+                          )}
                           </div>
 
                           {/* 離世資訊 */}
-                          {formData.discharge_type === 'deceased' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          {formData.discharge_type === 'deceased' &&
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                               <div className="md:col-span-2">
                                 <h5 className="text-sm font-medium text-red-900 mb-2">離世資訊</h5>
                               </div>
@@ -790,70 +791,70 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                                 <label className="form-label">
                                   離世日期 <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                  type="date"
-                                  value={formData.date_of_death}
-                                  onChange={(e) => setFormData({ ...formData, date_of_death: e.target.value })}
-                                  className={`form-input ${errors.date_of_death ? 'border-red-300' : ''}`}
-                                  required
-                                />
-                                {errors.date_of_death && (
-                                  <p className="text-red-500 text-sm mt-1">{errors.date_of_death}</p>
-                                )}
+                                <DateInput
+
+                              value={formData.date_of_death}
+
+                              className={`form-input ${errors.date_of_death ? 'border-red-300' : ''}`}
+                              required onChange={(value) => setFormData({ ...formData, date_of_death: value })} />
+                            
+                                {errors.date_of_death &&
+                            <p className="text-red-500 text-sm mt-1">{errors.date_of_death}</p>
+                            }
                               </div>
                             </div>
-                          )}
+                        }
 
                           {/* 轉入機構資訊 */}
-                          {formData.discharge_type === 'transfer_out' && (
-                            <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                          {formData.discharge_type === 'transfer_out' &&
+                        <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                               <h5 className="text-sm font-medium text-purple-900 mb-2">轉入機構資訊</h5>
                               <div>
                                 <label className="form-label">
                                   轉入機構名稱 <span className="text-red-500">*</span>
                                 </label>
                                 <input
-                                  type="text"
-                                  value={formData.discharge_destination}
-                                  onChange={(e) => setFormData({ ...formData, discharge_destination: e.target.value })}
-                                  className={`form-input ${errors.discharge_destination ? 'border-red-300' : ''}`}
-                                  placeholder="輸入轉入機構名稱"
-                                  required
-                                />
-                                {errors.discharge_destination && (
-                                  <p className="text-red-500 text-sm mt-1">{errors.discharge_destination}</p>
-                                )}
+                              type="text"
+                              value={formData.discharge_destination}
+                              onChange={(e) => setFormData({ ...formData, discharge_destination: e.target.value })}
+                              className={`form-input ${errors.discharge_destination ? 'border-red-300' : ''}`}
+                              placeholder="輸入轉入機構名稱"
+                              required />
+                            
+                                {errors.discharge_destination &&
+                            <p className="text-red-500 text-sm mt-1">{errors.discharge_destination}</p>
+                            }
                               </div>
                             </div>
-                          )}
+                        }
                         </div>
-                      )}
+                      }
 
                       {/* 渡假結束類型選擇 - 只在渡假結束事件中顯示 */}
-                      {event.event_type === 'vacation_end' && (
-                        <div className="md:col-span-3 lg:col-span-4">
+                      {event.event_type === 'vacation_end' &&
+                      <div className="md:col-span-3 lg:col-span-4">
                           <label className="form-label">
                             渡假結束類型 <span className="text-red-500">*</span>
                           </label>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-2">
-                            {vacationEndTypes.map(type => (
-                              <label
-                                key={type.value}
-                                className={`relative flex flex-col p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                                  formData.vacation_end_type === type.value
-                                    ? 'border-orange-500 bg-orange-50'
-                                    : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                              >
+                            {vacationEndTypes.map((type) =>
+                          <label
+                            key={type.value}
+                            className={`relative flex flex-col p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                            formData.vacation_end_type === type.value ?
+                            'border-orange-500 bg-orange-50' :
+                            'border-gray-200 hover:border-gray-300'}`
+                            }>
+                            
                                 <div className="flex flex-wrap items-center gap-2 mb-1">
                                   <input
-                                    type="radio"
-                                    name="vacation_end_type"
-                                    value={type.value}
-                                    checked={formData.vacation_end_type === type.value}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, vacation_end_type: e.target.value as any }))}
-                                    className="h-4 w-4 text-orange-600 focus:ring-orange-500"
-                                  />
+                                type="radio"
+                                name="vacation_end_type"
+                                value={type.value}
+                                checked={formData.vacation_end_type === type.value}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, vacation_end_type: e.target.value as any }))}
+                                className="h-4 w-4 text-orange-600 focus:ring-orange-500" />
+                              
                                   <div className="flex items-center space-x-1">
                                     {type.icon}
                                     <span className="font-medium text-gray-900 text-sm">{type.label}</span>
@@ -861,24 +862,24 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                                 </div>
                                 <p className="text-xs text-gray-600 ml-6">{type.description}</p>
                               </label>
-                            ))}
-                          </div>
-                          {errors.vacation_end_type && (
-                            <p className="text-red-500 text-sm mt-1">{errors.vacation_end_type}</p>
                           )}
+                          </div>
+                          {errors.vacation_end_type &&
+                        <p className="text-red-500 text-sm mt-1">{errors.vacation_end_type}</p>
+                        }
                         </div>
-                      )}
+                      }
                     </div>
-                  </div>
-                );
+                  </div>);
+
               })}
 
-              {events.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+              {events.length === 0 &&
+              <div className="text-center py-8 text-gray-500">
                   <p className="text-sm">請點擊上方按鈕添加第一個事件</p>
                   <p className="text-xs mt-1">您可以選擇「新增入院」或「新增渡假開始」作為起始事件</p>
                 </div>
-              )}
+              }
             </div>
           </div>
 
@@ -888,29 +889,29 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
               type="button"
               onClick={onClose}
               className="btn-secondary"
-              disabled={isSubmitting}
-            >
+              disabled={isSubmitting}>
+              
               取消
             </button>
             <button
               type="submit"
               className="btn-primary"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <div className="flex flex-wrap items-center gap-2">
+              disabled={isSubmitting}>
+              
+              {isSubmitting ?
+              <div className="flex flex-wrap items-center gap-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>處理中...</span>
-                </div>
-              ) : (
-                episode ? '更新缺席事件' : '新增缺席事件'
-              )}
+                </div> :
+
+              episode ? '更新缺席事件' : '新增缺席事件'
+              }
             </button>
           </div>
         </form>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default HospitalEpisodeModal;

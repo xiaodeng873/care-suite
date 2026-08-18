@@ -1,4 +1,3 @@
-import React, { useState, useMemo } from 'react';
 import { X, User, Pill, Calendar, Stethoscope, DollarSign, FileText, AlertTriangle, Loader2 } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import { useCgat } from '../context/CgatContext';
@@ -7,6 +6,8 @@ import CgatDoctorVisitPicker from './CgatDoctorVisitPicker';
 import { getFeeExemptEligibility, calcCgatFee } from '../utils/cgatFeeHelper';
 import CgatMedicationEndDateTable from './CgatMedicationEndDateTable';
 import type { CgatRecord } from '../lib/database';
+import React, { useState, useMemo } from 'react';
+import DateInput from './DateInput';
 
 interface CgatModalProps {
   record?: CgatRecord | null;
@@ -52,13 +53,13 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
     medication_fee_per_item: source?.medication_fee_per_item ?? 20,
     prescription_count: source?.prescription_count ?? undefined as number | undefined,
     treatment_weeks: source?.treatment_weeks ?? undefined as number | undefined,
-    remarks: source?.remarks ?? '',
+    remarks: source?.remarks ?? ''
   });
   const [saving, setSaving] = useState(false);
   const [showVisitPicker, setShowVisitPicker] = useState(false);
 
   const patient = useMemo(
-    () => allPatients.find(p => String(p.院友id) === String(form.patient_id)),
+    () => allPatients.find((p) => String(p.院友id) === String(form.patient_id)),
     [allPatients, form.patient_id]
   );
 
@@ -83,14 +84,14 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
     consultationFee: Number(form.consultation_fee) || 0,
     medicationFeePerItem: Number(form.medication_fee_per_item) || 0,
     prescriptionCount: form.prescription_count,
-    treatmentWeeks: form.treatment_weeks,
+    treatmentWeeks: form.treatment_weeks
   }), [patient, form.fee_exempted, form.medication_pickup_arrangement, form.consultation_fee, form.medication_fee_per_item, form.prescription_count, form.treatment_weeks]);
 
-  const set = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
+  const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
   // 所選診症日期已不在最新到診清單（被刪/被改）
   const isStaleVisitDate = !form.cgat_visit_unknown && !!form.cgat_visit_date &&
-    visitDatesLoaded && !visitDates.includes(form.cgat_visit_date);
+  visitDatesLoaded && !visitDates.includes(form.cgat_visit_date);
 
   const validate = (): string | null => {
     if (!form.patient_id) return '請選擇院友';
@@ -105,7 +106,7 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const err = validate();
-    if (err) { alert(err); return; }
+    if (err) {alert(err);return;}
     setSaving(true);
     try {
       const payload = {
@@ -126,7 +127,7 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
         report_ct: form.report_ct,
         report_usg: form.report_usg,
         report_other: form.report_other || undefined,
-        cgat_visit_date: form.cgat_visit_unknown ? undefined : (form.cgat_visit_date || undefined),
+        cgat_visit_date: form.cgat_visit_unknown ? undefined : form.cgat_visit_date || undefined,
         cgat_visit_unknown: form.cgat_visit_unknown,
         medication_pickup_arrangement: form.medication_pickup_arrangement as '家人前往' | '院舍代勞' | '每次詢問',
         fee_exempted: form.fee_exempted,
@@ -135,7 +136,7 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
         prescription_count: form.prescription_count ?? undefined,
         treatment_weeks: form.treatment_weeks ?? undefined,
         total_fee: feeResult.skipped ? 0 : feeResult.total,
-        remarks: form.remarks || undefined,
+        remarks: form.remarks || undefined
       };
       if (record) {
         await updateCgatRecord({ id: record.id, ...payload });
@@ -150,9 +151,9 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
     }
   };
 
-  const sectionTitle = (icon: React.ReactNode, text: string) => (
-    <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-3 pb-2 border-b">{icon}{text}</h3>
-  );
+  const sectionTitle = (icon: React.ReactNode, text: string) =>
+  <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-3 pb-2 border-b">{icon}{text}</h3>;
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
@@ -167,33 +168,33 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
           <section>
             {sectionTitle(<User className="h-4 w-4 text-blue-600" />, '選擇院友')}
             <PatientAutocomplete value={form.patient_id} onChange={(id) => set({ patient_id: id })}
-              showResidencyFilter defaultResidencyStatus="在住" ignoreStationFilter />
-            {patient && (
-              <div className="mt-3 bg-gray-50 border rounded-lg p-3 text-sm space-y-1">
-                {patient.入住類型 && (
-                  <div><span className="text-gray-500">入住類型：</span>{patient.入住類型}</div>
-                )}
-                {patient.社會福利?.type && (
-                  <div><span className="text-gray-500">社會福利：</span>{patient.社會福利.type}{patient.社會福利.subtype ? ` - ${patient.社會福利.subtype}` : ''}</div>
-                )}
-                {patient.公務員 && (
-                  <div><span className="text-gray-500">公務員：</span>{patient.公務員}</div>
-                )}
+            showResidencyFilter defaultResidencyStatus="在住" ignoreStationFilter />
+            {patient &&
+            <div className="mt-3 bg-gray-50 border rounded-lg p-3 text-sm space-y-1">
+                {patient.入住類型 &&
+              <div><span className="text-gray-500">入住類型：</span>{patient.入住類型}</div>
+              }
+                {patient.社會福利?.type &&
+              <div><span className="text-gray-500">社會福利：</span>{patient.社會福利.type}{patient.社會福利.subtype ? ` - ${patient.社會福利.subtype}` : ''}</div>
+              }
+                {patient.公務員 &&
+              <div><span className="text-gray-500">公務員：</span>{patient.公務員}</div>
+              }
                 <div className="pt-1">
-                  {eligibility.eligible ? (
-                    <span className="inline-flex items-center gap-1 text-green-700 bg-green-100 px-2 py-1 rounded">
+                  {eligibility.eligible ?
+                <span className="inline-flex items-center gap-1 text-green-700 bg-green-100 px-2 py-1 rounded">
                       ✓ 合資格轄免收費人士（{eligibility.reasons.join('、')}）— 可跳過費用結算
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-gray-500 bg-gray-100 px-2 py-1 rounded">非合資格轄免收費人士</span>
-                  )}
+                    </span> :
+
+                <span className="inline-flex items-center gap-1 text-gray-500 bg-gray-100 px-2 py-1 rounded">非合資格轄免收費人士</span>
+                }
                 </div>
                 <label className="flex items-center gap-2 pt-2 cursor-pointer">
                   <input type="checkbox" checked={form.fee_exempted} onChange={(e) => set({ fee_exempted: e.target.checked })} />
                   <span>一次性豁免（勾選可跳過費用結算）</span>
                 </label>
               </div>
-            )}
+            }
           </section>
 
           {/* ② 個案類型 */}
@@ -201,12 +202,12 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
             {sectionTitle(<FileText className="h-4 w-4 text-blue-600" />, '個案類型')}
             <div className="flex flex-wrap gap-4">
               <div className="flex gap-3">
-                {(['新症', '舊症'] as const).map(t => (
-                  <label key={t} className="flex items-center gap-1.5 cursor-pointer">
+                {(['新症', '舊症'] as const).map((t) =>
+                <label key={t} className="flex items-center gap-1.5 cursor-pointer">
                     <input type="radio" name="case_type" checked={form.case_type === t} onChange={() => set({ case_type: t })} />
                     <span>{t}</span>
                   </label>
-                ))}
+                )}
               </div>
               <div className="flex gap-3 border-l pl-4">
                 <label className="flex items-center gap-1.5 cursor-pointer">
@@ -228,30 +229,30 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
               <div>
                 <label className="form-label">藥完日期</label>
                 <div className="flex gap-2">
-                  <input type="date" className="form-input flex-1" value={form.medication_end_date}
-                    onChange={(e) => set({ medication_end_date: e.target.value })} />
+                  <DateInput className="form-input flex-1" value={form.medication_end_date} onChange={(value) => set({ medication_end_date: value })} />
+                  
                 </div>
                 <div className="mt-2">
                   <CgatMedicationEndDateTable
                     patientId={form.patient_id}
                     selectedDate={form.medication_end_date}
-                    onSelect={(d) => set({ medication_end_date: d })}
-                  />
+                    onSelect={(d) => set({ medication_end_date: d })} />
+                  
                 </div>
-                {form.medication_end_date && (
-                  <p className="text-xs text-gray-600 mt-1">已選藥完日期：<span className="font-medium text-blue-600">{form.medication_end_date}</span></p>
-                )}
+                {form.medication_end_date &&
+                <p className="text-xs text-gray-600 mt-1">已選藥完日期：<span className="font-medium text-blue-600">{form.medication_end_date}</span></p>
+                }
               </div>
               <div>
                 <label className="form-label">藥房安排 *</label>
                 <div className="flex gap-4">
-                  {(['個別取藥', '集體取藥'] as const).map(t => (
-                    <label key={t} className="flex items-center gap-1.5 cursor-pointer">
+                  {(['個別取藥', '集體取藥'] as const).map((t) =>
+                  <label key={t} className="flex items-center gap-1.5 cursor-pointer">
                       <input type="radio" name="pharmacy_arrangement" checked={form.pharmacy_arrangement === t}
-                        onChange={() => set({ pharmacy_arrangement: t })} />
+                    onChange={() => set({ pharmacy_arrangement: t })} />
                       <span>{t}</span>
                     </label>
-                  ))}
+                  )}
                   <label className="flex items-center gap-1.5 cursor-pointer border-l pl-4">
                     <input type="checkbox" checked={form.is_urgent_medication} onChange={(e) => set({ is_urgent_medication: e.target.checked })} />
                     <span>急藥</span>
@@ -281,19 +282,19 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
                 <input type="checkbox" checked={form.reason_view_report} onChange={(e) => set({ reason_view_report: e.target.checked })} /><span>看報告</span>
               </label>
             </div>
-            {form.reason_view_report && (
-              <div className="mt-3 ml-2 pl-4 border-l space-y-2">
+            {form.reason_view_report &&
+            <div className="mt-3 ml-2 pl-4 border-l space-y-2">
                 <div className="flex flex-wrap gap-4">
-                  {([['report_bld', 'Bld'], ['report_xray', 'X-Ray'], ['report_ct', 'CT'], ['report_usg', 'USG']] as const).map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+                  {([['report_bld', 'Bld'], ['report_xray', 'X-Ray'], ['report_ct', 'CT'], ['report_usg', 'USG']] as const).map(([key, label]) =>
+                <label key={key} className="flex items-center gap-1.5 cursor-pointer">
                       <input type="checkbox" checked={form[key] as boolean} onChange={(e) => set({ [key]: e.target.checked } as any)} /><span>{label}</span>
                     </label>
-                  ))}
+                )}
                 </div>
                 <textarea className="form-input" rows={1} placeholder="其他（報告說明）" value={form.report_other}
-                  onChange={(e) => set({ report_other: e.target.value })} />
+              onChange={(e) => set({ report_other: e.target.value })} />
               </div>
-            )}
+            }
           </section>
 
           {/* ⑤ CGAT 到診安排 */}
@@ -306,38 +307,38 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
                   <div className="flex-1">
                     {/* 診症日期只可以由到診日期清單揀，唔可以自行輸入；可填未知 */}
                     <div className={`form-input bg-gray-50 flex items-center ${isStaleVisitDate ? 'border-red-400 text-red-600' : 'text-gray-900'}`}>
-                      {form.cgat_visit_unknown
-                        ? <span className="text-red-600">未知</span>
-                        : form.cgat_visit_date
-                          ? <span>{form.cgat_visit_date}{isStaleVisitDate && '（已不在到診清單）'}</span>
-                          : <span className="text-gray-400">未選擇</span>}
+                      {form.cgat_visit_unknown ?
+                      <span className="text-red-600">未知</span> :
+                      form.cgat_visit_date ?
+                      <span>{form.cgat_visit_date}{isStaleVisitDate && '（已不在到診清單）'}</span> :
+                      <span className="text-gray-400">未選擇</span>}
                     </div>
                   </div>
-                  {!form.cgat_visit_unknown && (
-                    <button type="button" onClick={() => setShowVisitPicker(true)} className="btn-secondary whitespace-nowrap">
+                  {!form.cgat_visit_unknown &&
+                  <button type="button" onClick={() => setShowVisitPicker(true)} className="btn-secondary whitespace-nowrap">
                       選 CGAT 到診日期
                     </button>
-                  )}
+                  }
                   <label className="flex items-center gap-2 pb-2 cursor-pointer">
                     <input type="checkbox" checked={form.cgat_visit_unknown}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        set({ cgat_visit_unknown: checked, cgat_visit_date: checked ? '' : form.cgat_visit_date });
-                      }} />
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      set({ cgat_visit_unknown: checked, cgat_visit_date: checked ? '' : form.cgat_visit_date });
+                    }} />
                     <span>未知</span>
                   </label>
                 </div>
-                {isStaleVisitDate && (
-                  <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                {isStaleVisitDate &&
+                <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
                     此日期已被刪除或更改，對不上最新到診日期清單，請重新選擇日期，或勾選「未知」。
                   </p>
-                )}
+                }
               </div>
               <div>
                 <label className="form-label">取藥安排</label>
                 <select className="form-input" value={form.medication_pickup_arrangement}
-                  onChange={(e) => set({ medication_pickup_arrangement: e.target.value as '家人前往' | '院舍代勞' | '每次詢問' })}>
+                onChange={(e) => set({ medication_pickup_arrangement: e.target.value as '家人前往' | '院舍代勞' | '每次詢問' })}>
                   <option value="家人前往">家人自取</option>
                   <option value="院舍代勞">院舍代勞</option>
                   <option value="每次詢問">每次詢問</option>
@@ -349,32 +350,32 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
           {/* ⑥ 費用結算 */}
           <section>
             {sectionTitle(<DollarSign className="h-4 w-4 text-blue-600" />, '費用結算')}
-            {feeResult.skipped ? (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
+            {feeResult.skipped ?
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
                 跳過費用結算：{feeResult.skipReason}
-              </div>
-            ) : (
-              <div className="space-y-3">
+              </div> :
+
+            <div className="space-y-3">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="form-label text-xs">診金</label>
                     <input type="number" className="form-input" value={form.consultation_fee}
-                      onChange={(e) => set({ consultation_fee: parseFloat(e.target.value) || 0 })} />
+                  onChange={(e) => set({ consultation_fee: parseFloat(e.target.value) || 0 })} />
                   </div>
                   <div>
                     <label className="form-label text-xs">藥費（每處方）</label>
                     <input type="number" className="form-input" value={form.medication_fee_per_item}
-                      onChange={(e) => set({ medication_fee_per_item: parseFloat(e.target.value) || 0 })} />
+                  onChange={(e) => set({ medication_fee_per_item: parseFloat(e.target.value) || 0 })} />
                   </div>
                   <div>
                     <label className="form-label text-xs">處方數量</label>
                     <input type="number" min={0} className="form-input" value={form.prescription_count ?? ''}
-                      onChange={(e) => set({ prescription_count: e.target.value === '' ? undefined : (parseInt(e.target.value) || 0) })} />
+                  onChange={(e) => set({ prescription_count: e.target.value === '' ? undefined : parseInt(e.target.value) || 0 })} />
                   </div>
                   <div>
                     <label className="form-label text-xs">療程（周）</label>
                     <input type="number" min={0} className="form-input" value={form.treatment_weeks ?? ''}
-                      onChange={(e) => set({ treatment_weeks: e.target.value === '' ? undefined : (parseInt(e.target.value) || 0) })} />
+                  onChange={(e) => set({ treatment_weeks: e.target.value === '' ? undefined : parseInt(e.target.value) || 0 })} />
                   </div>
                 </div>
                 <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
@@ -388,7 +389,7 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
                   <div className="text-lg font-bold text-blue-700 mt-1">本次 CGAT 費用：HKD ${feeResult.total}</div>
                 </div>
               </div>
-            )}
+            }
           </section>
 
           {/* 備註 */}
@@ -407,16 +408,16 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
         </div>
       </div>
 
-      {showVisitPicker && (
-        <CgatDoctorVisitPicker
-          usedCountByDate={usedCountByDate}
-          onSelect={(d) => { set({ cgat_visit_date: d }); setShowVisitPicker(false); }}
-          onScheduleChanged={() => { refreshVisitDates(); }}
-          onClose={() => setShowVisitPicker(false)}
-        />
-      )}
-    </div>
-  );
+      {showVisitPicker &&
+      <CgatDoctorVisitPicker
+        usedCountByDate={usedCountByDate}
+        onSelect={(d) => {set({ cgat_visit_date: d });setShowVisitPicker(false);}}
+        onScheduleChanged={() => {refreshVisitDates();}}
+        onClose={() => setShowVisitPicker(false)} />
+
+      }
+    </div>);
+
 };
 
 export default CgatModal;
