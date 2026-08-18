@@ -1544,6 +1544,21 @@ export const assignPatientToBed = async (
   const wasTemporary = patient.bed_transfer_type === 'temporary';
   const oldBedId = patient.bed_id;
 
+  // 防止同一床位被兩位在住院友佔用（自己換到自己床位除外）
+  if (bedId !== oldBedId) {
+    const { data: occupant, error: occupantError } = await supabase
+      .from('院友主表')
+      .select('院友id, 中文姓氏, 中文名字, 床號')
+      .eq('bed_id', bedId)
+      .eq('在住狀態', '在住')
+      .neq('院友id', patientId)
+      .maybeSingle();
+    if (occupantError) throw occupantError;
+    if (occupant) {
+      throw new Error(`床位 ${bed.bed_number} 已被院友 ${occupant.中文姓氏 || ''}${occupant.中文名字 || ''}（${occupant.床號 || ''}）佔用，請先將該院友遷離。`);
+    }
+  }
+
   let updateData: any = {
     bed_id: bed.id,
     station_id: bed.station_id,
@@ -1721,10 +1736,18 @@ export const swapPatientBeds = async (
     }
   }
 
-  const { error: updateError1 } = await supabase.from('院友主表').update(p1Update).eq('院友id', patientId1);
-  if (updateError1) throw updateError1;
+  // 為避免部分唯一索引（在住 + bed_id 唯一）在互換中途觸發 duplicate key，
+  // 先把 patient1 的 bed_id 設為 NULL，再更新 patient2，最後更新 patient1。
+  const { error: clearError1 } = await supabase
+    .from('院友主表')
+    .update({ bed_id: null })
+    .eq('院友id', patientId1);
+  if (clearError1) throw clearError1;
+
   const { error: updateError2 } = await supabase.from('院友主表').update(p2Update).eq('院友id', patientId2);
   if (updateError2) throw updateError2;
+  const { error: updateError1 } = await supabase.from('院友主表').update(p1Update).eq('院友id', patientId1);
+  if (updateError1) throw updateError1;
 };
 export const moveBedToStation = async (bedId: string, newStationId: string): Promise<void> => {
   const { error } = await supabase.from('beds').update({ station_id: newStationId }).eq('id', bedId);

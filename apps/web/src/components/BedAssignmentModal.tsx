@@ -12,8 +12,8 @@ interface BedAssignmentModalProps {
 }
 
 const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose }) => {
-  const { stations, beds, assignPatientToBed } = usePatientData();
-  const patients = useFilteredPatients();
+  const { stations, beds, patients, assignPatientToBed } = usePatientData();
+  const filteredPatients = useFilteredPatients();
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
@@ -23,8 +23,13 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
 
   const isChangingBed = (patient: any) => patient?.bed_id && patient?.在住狀態 === '在住';
 
+  // 檢查此床位是否已被其他在住院友佔用
+  const occupyingPatient = patients.find(p =>
+    p.bed_id === bed.id && p.在住狀態 === '在住' && p.院友id !== selectedPatient?.院友id
+  );
+
   // 篩選可指派的院友（沒有床位或在住狀態為在住的院友）
-  const availablePatients = patients.filter(patient => {
+  const availablePatients = filteredPatients.filter(patient => {
     // 顯示在住和待入住的院友，排除已退住的院友
     if (patient.在住狀態 === '已退住') {
       return false;
@@ -86,6 +91,11 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
                 <p className="text-sm text-gray-600">
                   {station?.name} - {bed.bed_number}
                 </p>
+                {occupyingPatient && (
+                  <p className="text-xs text-red-600 font-medium mt-1">
+                    ⚠️ 此床位已被 {occupyingPatient.中文姓氏 || ''}{occupyingPatient.中文名字 || ''} 佔用，請先遷離該院友。
+                  </p>
+                )}
               </div>
             </div>
             <button
@@ -280,8 +290,9 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
           <div className="flex flex-col sm:flex-row gap-2 pt-6 border-t border-gray-200">
             <button
               onClick={handleAssign}
-              disabled={!selectedPatient}
+              disabled={!selectedPatient || !!occupyingPatient}
               className="btn-primary flex-1"
+              title={occupyingPatient ? `此床位已被 ${occupyingPatient.中文姓氏 || ''}${occupyingPatient.中文名字 || ''} 佔用` : ''}
             >
               確認指派
             </button>
