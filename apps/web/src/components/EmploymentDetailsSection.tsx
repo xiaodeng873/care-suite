@@ -9,7 +9,6 @@ import {
 } from '@care-suite/shared';
 import { supabase } from '../lib/supabase';
 import { useStationData } from '../context/facility/StationContext';
-import { getExpectedAnnualLeaveGrants } from '../utils/annualLeave';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
 import {
@@ -17,7 +16,7 @@ import {
   getExpectedMonthlyRestDays,
   weeklyRestDays,
 } from '../utils/restDays';
-import { getExpectedPublicHolidayGrants, loadPublicHolidaysRange } from '../utils/publicHolidays';
+import { loadPublicHolidaysRange } from '../utils/publicHolidays';
 import { normalizeTime } from '../utils/roster';
 
 // =====================================================
@@ -291,33 +290,15 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
     return list;
   }, [phUnexpiredGrantRows, phUsedHolidayIds, publicHolidays, todayStrForPh]);
 
-  // ----- 年假獲得行 lazy 補齊 -----
+    // ----- 年假獲得行 lazy 補齊（改用原子 RPC 同步，避免併發重複） -----
   const materializeGrants = useCallback(
-    async (startDate: string, daysPerYear: number | null) => {
-      const expected = getExpectedAnnualLeaveGrants(startDate, daysPerYear);
-      if (expected.length === 0) return;
-      // 清理所有系統發放的獲得行，再重新寫入預期日期，避免重複或舊起始日遺留
-      const { error: deleteErr } = await supabase
-        .from('user_annual_leave_details')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('is_system', true)
-        .eq('detail_type', 'grant');
-      if (deleteErr) throw deleteErr;
-      const { error } = await supabase.from('user_annual_leave_details').insert(
-        expected.map(g => ({
-          user_id: user.id,
-          record_date: g.record_date,
-          detail_type: 'grant',
-          days: g.days,
-          remark: '系統自動發放',
-          is_system: true,
-          created_by: currentUserId,
-        })),
-      );
+    async () => {
+      const { error } = await supabase.rpc('sync_annual_leave_grants_for_user', {
+        p_user_id: user.id,
+      });
       if (error) throw error;
     },
-    [user.id, currentUserId],
+    [user.id],
   );
 
   // ----- 休息日獲得行 lazy 補齊（起始日一次 + 逢周日發放整數 DO；fraction 累積） -----
@@ -411,39 +392,15 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
     [user.id, currentUserId],
   );
 
-  // ----- 公眾假期獲得行 lazy 補齊（按單一假期發放，30 天內有效） -----
+  // ----- 公眾假期獲得行 lazy 補齊（改用原子 RPC 同步，避免併發重複） -----
   const materializePublicHolidayGrants = useCallback(
-    async (
-      startDate: string,
-      type: 'PH' | 'SH',
-      holidayCache: PublicHoliday[],
-    ) => {
-      const expected = getExpectedPublicHolidayGrants(startDate, type, holidayCache);
-      if (expected.length === 0) return;
-      // 清理所有系統發放的獲得行，再重新寫入預期假期，避免重複或舊起始日遺留
-      const { error: deleteErr } = await supabase
-        .from('user_public_holiday_details')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('is_system', true)
-        .eq('detail_type', 'grant');
-      if (deleteErr) throw deleteErr;
-      const { error } = await supabase.from('user_public_holiday_details').insert(
-        expected.map(g => ({
-          user_id: user.id,
-          record_date: g.record_date,
-          detail_type: 'grant',
-          days: g.days,
-          remark: g.remark,
-          reference_public_holiday_id: g.reference_public_holiday_id,
-          expiry_date: g.expiry_date,
-          is_system: true,
-          created_by: currentUserId,
-        })),
-      );
+    async () => {
+      const { error } = await supabase.rpc('sync_public_holiday_grants_for_user', {
+        p_user_id: user.id,
+      });
       if (error) throw error;
     },
-    [user.id, currentUserId],
+    [user.id],
   );
 
   // ----- 載入 -----
@@ -532,7 +489,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       const daysPerYear = details?.annual_leave_days_per_year ?? null;
       if (startDate && daysPerYear && errors.length === 0) {
         try {
-          await materializeGrants(startDate, daysPerYear);
+          await materializeGrants();
           const { data: refreshed, error: e4 } = await supabase
             .from('user_annual_leave_details')
             .select('*')
@@ -600,7 +557,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           const endStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
           const holidayCache = await loadPublicHolidaysRange(phStart, endStr, phType);
           setPublicHolidays(holidayCache);
-          await materializePublicHolidayGrants(phStart, phType, holidayCache);
+          await materializePublicHolidayGrants();
           const { data: refreshedPh, error: e8 } = await supabase
             .from('user_public_holiday_details')
             .select('*')
@@ -742,16 +699,13 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
 
       // 按（可能已更改的）起始日補齊系統獲得行
       if (annualLeaveStartDate && parsed['每年年假天數']) {
-        await materializeGrants(annualLeaveStartDate, parsed['每年年假天數']);
+        await materializeGrants();
       }
       if (restDayStartDate && parsed['每周工作天數']) {
         await materializeRestGrants(restDayStartDate, parsed['每周工作天數']);
       }
       if (publicHolidayType && publicHolidayStartDate) {
-        const today = new Date();
-        const endStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        const holidayCache = await loadPublicHolidaysRange(publicHolidayStartDate, endStr, publicHolidayType);
-        await materializePublicHolidayGrants(publicHolidayStartDate, publicHolidayType, holidayCache);
+        await materializePublicHolidayGrants();
       }
 
       setInitialStartDate(annualLeaveStartDate || null);

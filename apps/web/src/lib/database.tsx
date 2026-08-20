@@ -962,9 +962,17 @@ export const deleteDrug = async (id: string): Promise<void> => {
   const { error } = await supabase.from('medication_drug_database').delete().eq('id', id);
   if (error) throw error;
 };
+const normalizeFollowUp = (row: any): FollowUpAppointment => {
+  if (!row) return row;
+  return {
+    ...row,
+    覆診id: row.覆診id || row.id,
+  };
+};
+
 export const getFollowUps = async (options?: { futureOnly?: boolean; daysBack?: number }): Promise<FollowUpAppointment[]> => {
   let query = supabase.from('覆診安排主表').select('*').order('覆診日期', { ascending: true });
-  
+
   if (options?.futureOnly) {
     // 只載入今天及未來的覆診
     const today = new Date().toISOString().split('T')[0];
@@ -975,18 +983,23 @@ export const getFollowUps = async (options?: { futureOnly?: boolean; daysBack?: 
     cutoffDate.setDate(cutoffDate.getDate() - options.daysBack);
     query = query.gte('覆診日期', cutoffDate.toISOString().split('T')[0]);
   }
-  
+
   const { data, error } = await query;
   if (error) throw error;
-  return data || [];
+  return (data || []).map(normalizeFollowUp);
 };
 export const createFollowUp = async (appointment: Omit<FollowUpAppointment, '覆診id' | '創建時間' | '更新時間'>): Promise<FollowUpAppointment> => {
   const { data, error } = await supabase.from('覆診安排主表').insert([appointment]).select().single();
   if (error) throw error;
-  return data;
+  return normalizeFollowUp(data);
 };
 export const updateFollowUp = async (appointment: FollowUpAppointment): Promise<FollowUpAppointment> => {
-  const { 覆診id, ...updateData } = appointment;
+  const raw = appointment as any;
+  const id = raw.覆診id || raw.id;
+  const idColumn = raw.覆診id ? '覆診id' : 'id';
+  if (!id) throw new Error('缺少覆診 ID，無法更新');
+
+  const { 覆診id: _, id: __, ...updateData } = raw;
   // Clean up empty string values by converting them to null
   const cleanedData = { ...updateData };
   Object.keys(cleanedData).forEach(key => {
@@ -994,9 +1007,9 @@ export const updateFollowUp = async (appointment: FollowUpAppointment): Promise<
       cleanedData[key] = null;
     }
   });
-  const { data, error } = await supabase.from('覆診安排主表').update(cleanedData).eq('覆診id', 覆診id).select().single();
+  const { data, error } = await supabase.from('覆診安排主表').update(cleanedData).eq(idColumn, id).select().single();
   if (error) throw error;
-  return data;
+  return normalizeFollowUp(data);
 };
 export const deleteFollowUp = async (id: string): Promise<void> => {
   const { error } = await supabase.from('覆診安排主表').delete().eq('覆診id', id);

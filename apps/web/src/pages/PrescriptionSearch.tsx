@@ -22,7 +22,7 @@ import {
 import { useDebounce } from '../hooks/useDebounce';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
-import PrescriptionDetailModal from '../components/PrescriptionDetailModal';
+import PrescriptionModal from '../components/PrescriptionModal';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import {
@@ -422,7 +422,7 @@ const PrescriptionSearch: React.FC = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">處方搜尋</h1>
-              <p className="text-sm text-gray-600">以處方為單位搜尋，雙擊列開啟詳情</p>
+              <p className="text-sm text-gray-600">以處方為單位搜尋，雙擊列開啟編輯</p>
             </div>
           </div>
           <div className="text-sm text-gray-600">
@@ -683,7 +683,7 @@ const PrescriptionSearch: React.FC = () => {
                     key={prescription.id}
                     className="hover:bg-gray-50 cursor-pointer"
                     onDoubleClick={() => setSelectedPrescription(prescription)}
-                    title="雙擊開啟處方詳情"
+                    title="雙擊開啟處方編輯"
                   >
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
@@ -850,9 +850,8 @@ const PrescriptionSearch: React.FC = () => {
       )}
 
       {selectedPrescription && (
-        <PrescriptionDetailModal
+        <PrescriptionModal
           prescription={selectedPrescription}
-          patient={patients.find(p => p.院友id === selectedPrescription.patient_id)}
           onClose={() => setSelectedPrescription(null)}
         />
       )}

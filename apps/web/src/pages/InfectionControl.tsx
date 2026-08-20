@@ -37,6 +37,14 @@ interface AdvancedFilters {
   recovered: string;
 }
 
+const DEFAULT_ADVANCED_FILTERS: AdvancedFilters = {
+  床號: '',
+  中文姓名: '',
+  infection_type: '',
+  在住狀態: '在住',
+  recovered: '',
+};
+
 const InfectionControl: React.FC = () => {
   const { infectionControlRecords, allPatients, deleteInfectionControlRecord, loading } = usePatientData();
   const [showModal, setShowModal] = useState(false);
@@ -50,13 +58,7 @@ const InfectionControl: React.FC = () => {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
-  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
-    床號: '',
-    中文姓名: '',
-    infection_type: '',
-    在住狀態: '全部',
-    recovered: '',
-  });
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>(DEFAULT_ADVANCED_FILTERS);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
 
@@ -104,7 +106,9 @@ const InfectionControl: React.FC = () => {
   }, [infectionControlRecords, allPatients, advancedFilters, deferredSearch]);
 
   const hasAdvancedFilters = () => {
-    return Object.values(advancedFilters).some(value => value !== '');
+    return Object.entries(advancedFilters).some(
+      ([key, value]) => value !== DEFAULT_ADVANCED_FILTERS[key as keyof AdvancedFilters]
+    );
   };
 
   const updateAdvancedFilter = (field: keyof AdvancedFilters, value: string) => {
@@ -113,13 +117,7 @@ const InfectionControl: React.FC = () => {
 
   const clearFilters = () => {
     setSearchTerm('');
-    setAdvancedFilters({
-      床號: '',
-      中文姓名: '',
-      infection_type: '',
-      在住狀態: '全部',
-      recovered: '',
-    });
+    setAdvancedFilters(DEFAULT_ADVANCED_FILTERS);
   };
 
   const sortedRecords = [...filteredRecords].sort((a, b) => {

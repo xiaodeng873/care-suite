@@ -8,12 +8,19 @@ import DateInput from './DateInput';
 
 
 interface FollowUpModalProps {
-  appointment?: FollowUpAppointment;
+  appointment?: Partial<FollowUpAppointment> | FollowUpAppointment;
   onClose: () => void;
 }
 
+const getInitialStatus = (appointment?: Partial<FollowUpAppointment> | FollowUpAppointment) => {
+  if (appointment?.狀態) return appointment.狀態;
+  const transport = appointment?.交通安排?.trim();
+  const companion = appointment?.陪診人員?.trim();
+  return transport && companion ? '已安排' : '尚未安排';
+};
+
 export default function FollowUpModal({ appointment, onClose }: FollowUpModalProps) {
-  const { patients, addFollowUpAppointment, updateFollowUpAppointment } = usePatientData();
+  const { patients, followUpAppointments, addFollowUpAppointment, updateFollowUpAppointment } = usePatientData();
 
   // 香港時區輔助函數
   const getHongKongDate = () => {
@@ -32,7 +39,7 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
     交通安排: appointment?.交通安排 || '',
     陪診人員: appointment?.陪診人員 || '',
     備註: appointment?.備註 || '',
-    狀態: appointment?.狀態 || '' as '' | '已安排' | '已完成' | '改期' | '取消'
+    狀態: getInitialStatus(appointment)
   });
 
   const [notificationMessage, setNotificationMessage] = useState('');
@@ -98,10 +105,22 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
     '無需陪診'
   ];
 
+  // 交通安排與陪診人員皆有內容時，預設狀態為「已安排」
+  useEffect(() => {
+    const transport = formData.交通安排?.trim();
+    const companion = formData.陪診人員?.trim();
+    setFormData(prev => {
+      if (prev.狀態 === '已完成' || prev.狀態 === '改期' || prev.狀態 === '取消') return prev;
+      const nextStatus = transport && companion ? '已安排' : '尚未安排';
+      if (prev.狀態 === nextStatus) return prev;
+      return { ...prev, 狀態: nextStatus };
+    });
+  }, [formData.交通安排, formData.陪診人員]);
+
   // 更新通知訊息
   useEffect(() => {
     if (formData.院友id && formData.覆診日期 && formData.覆診時間 && formData.覆診地點 && formData.覆診專科) {
-      const patient = patients.find(p => p.院友id === parseInt(formData.院友id));
+      const patient = patients.find(p => p.院友id === parseInt(String(formData.院友id)));
       if (patient) {
         const message = `您好！這是善頤福群護老院C站的信息：${patient.中文姓氏}${patient.中文名字}將於${formatDisplayDate(formData.覆診日期)}的${formData.覆診時間.slice(0, 5)}，於${formData.覆診地點}有${formData.覆診專科}的醫療安排。請問需要輪椅的士代步/陪診員嗎？請盡快告知您的安排，謝謝！`;
         setNotificationMessage(message);
@@ -121,23 +140,23 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // 驗證必填欄位 - 新增覆診地點和覆診專科的驗證
     if (!formData.院友id) {
       alert('請選擇院友');
       return;
     }
-    
+
     if (!formData.覆診日期) {
       alert('請填寫覆診日期');
       return;
     }
-    
+
     if (!formData.覆診地點 || formData.覆診地點.trim() === '') {
       alert('請填寫覆診地點');
       return;
     }
-    
+
     if (!formData.覆診專科 || formData.覆診專科.trim() === '') {
       alert('請填寫覆診專科');
       return;
@@ -150,8 +169,11 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
     }
 
     try {
+      const finalStatus = formData.狀態 || (
+        (formData.交通安排?.trim() && formData.陪診人員?.trim()) ? '已安排' : '尚未安排'
+      );
       const appointmentData = {
-        院友id: parseInt(formData.院友id),
+        院友id: parseInt(String(formData.院友id)),
         覆診日期: formData.覆診日期,
         出發時間: formData.出發時間 || null,
         覆診時間: formData.覆診時間 || null,
@@ -160,20 +182,25 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
         交通安排: formData.交通安排 || null,
         陪診人員: formData.陪診人員 || null,
         備註: formData.備註 || null,
-        狀態: formData.狀態 || null
-      };
+        狀態: finalStatus
+      } as Omit<FollowUpAppointment, '覆診id' | '創建時間' | '更新時間'>;
 
-      if (appointment) {
+      const raw = appointment as any;
+      const existingId = raw?.覆診id || raw?.id;
+
+      if (existingId) {
+        // 編輯現有覆診
         await updateFollowUpAppointment({
-          覆診id: appointment.覆診id,
-          創建時間: appointment.創建時間,
-          更新時間: appointment.更新時間,
+          覆診id: existingId,
+          創建時間: raw.創建時間,
+          更新時間: raw.更新時間,
           ...appointmentData
-        }, true); // 使用樂觀更新
+        } as FollowUpAppointment, true); // 使用樂觀更新
       } else {
+        // 新增覆診（包括 AI 助護 OCR 預填）
         await addFollowUpAppointment(appointmentData);
       }
-      
+
       onClose();
     } catch (error) {
       console.error('儲存覆診安排失敗:', error);

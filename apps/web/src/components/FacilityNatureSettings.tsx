@@ -7,8 +7,6 @@ import {
   DEFAULT_BED_COUNTS,
   DEFAULT_SPECIFIC_HOURS_CONFIG,
   FACILITY_NATURES,
-  GRID_POSITIONS,
-  MIN_DAILY_HOURS_PER_PERSON,
   NATURE_RATIO_POSITIONS,
   NIGHT_ANY_STAFF,
   STATUTORY_RATIOS,
@@ -24,15 +22,13 @@ import {
 } from '../utils/facilityNatureSettings';
 import {
   activeContractNature,
-  computeDualRedLineStaffing,
-  computeStaffingRequirements,
   contractDailyHours,
   contractWeeklyHours,
   ratioHeadcount,
   timeToMinutes,
 } from '../utils/staffingRequirements';
 
-const TABS = ['床位設定', '特定鐘點底線', '買位合約工時', '24小時最低人手'] as const;
+const TABS = ['床位設定', '特定鐘點底線', '買位合約工時', '合規條件總結'] as const;
 
 const INPUT_CLASS =
   'w-24 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm';
@@ -69,7 +65,6 @@ const FacilityNatureSettings: React.FC = () => {
   const { allPatients } = usePatientData();
 
   const [activeTab, setActiveTab] = useState(0);
-  const [activeNature, setActiveNature] = useState<FacilityNature>('安老院');
   const [bedCounts, setBedCounts] = useState<NatureBedCounts>({ ...DEFAULT_BED_COUNTS });
   const [requirements, setRequirements] = useState<NatureRequirements>({});
   const [specific, setSpecific] = useState<SpecificHoursConfig>(DEFAULT_SPECIFIC_HOURS_CONFIG);
@@ -151,6 +146,13 @@ const FacilityNatureSettings: React.FC = () => {
   // -----------------------------------------------------
 
   const handleSave = async () => {
+    if ((bedCounts['甲一買位'] || 0) > 0 && (bedCounts['甲二買位'] || 0) > 0) {
+      setMessage({
+        type: 'error',
+        text: '甲一買位與甲二買位不可同時有床，請只保留其中一種買位宿位。',
+      });
+      return;
+    }
     if (bedCountsTotal !== totalBeds) {
       setMessage({
         type: 'error',
@@ -182,31 +184,6 @@ const FacilityNatureSettings: React.FC = () => {
     }
   };
 
-  // -----------------------------------------------------
-  // 24 小時最低人手（用表單當前值即時預覽）
-  // -----------------------------------------------------
-
-  const staffing = useMemo(
-    () =>
-      computeStaffingRequirements({
-        bedCounts,
-        specific,
-        currentResidents,
-      }),
-    [bedCounts, specific, currentResidents]
-  );
-
-  const dualRedLine = useMemo(
-    () =>
-      computeDualRedLineStaffing({
-        bedCounts,
-        specific,
-        currentResidents,
-        contractHours,
-      }),
-    [bedCounts, specific, currentResidents, contractHours]
-  );
-
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-sm mt-6">
@@ -221,25 +198,6 @@ const FacilityNatureSettings: React.FC = () => {
   // -----------------------------------------------------
   // 各 tab 內容
   // -----------------------------------------------------
-
-  const natureSelector = (
-    <div className="flex flex-wrap gap-2 mb-4">
-      {FACILITY_NATURES.map((nature) => (
-        <button
-          key={nature}
-          type="button"
-          onClick={() => setActiveNature(nature)}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${
-            activeNature === nature
-              ? 'bg-blue-600 text-white border-blue-600'
-              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          {nature}
-        </button>
-      ))}
-    </div>
-  );
 
   const renderBedTab = () => (
     <div className="space-y-4 max-w-xl">
@@ -265,16 +223,15 @@ const FacilityNatureSettings: React.FC = () => {
       >
         三者總和：{bedCountsTotal}（必須等於總床數 {totalBeds}）
       </p>
+      {(bedCounts['甲一買位'] || 0) > 0 && (bedCounts['甲二買位'] || 0) > 0 && (
+        <p className="text-sm text-red-600">
+          甲一買位與甲二買位不可同時有床，請只保留其中一種買位宿位。
+        </p>
+      )}
     </div>
   );
 
   const renderRatioTab = () => {
-    const denominator = currentResidents;
-    const isContractNature = activeNature === '甲一買位';
-    const healthWorkerEquivalents = ratioHeadcount(currentResidents, STATUTORY_RATIOS.healthWorker);
-    const healthWorkerForNature = isContractNature
-      ? Math.max(0, healthWorkerEquivalents - 2)
-      : healthWorkerEquivalents;
     const segs = specific.requirement1.segments;
     const updateSegment = (index: number, field: 'start' | 'end', value: string) => {
       setSpecific((prev) => ({
@@ -377,7 +334,7 @@ const FacilityNatureSettings: React.FC = () => {
             <p className="text-xs text-gray-500 mb-3">
               期間內每 {STATUTORY_RATIOS.healthWorker} 名住客須有 1 名保健員人手；1 名護士（在場及當值）視同 2 名保健員（即 1:60）。
               私安老院及甲二買位完全由保健員達標；甲一買位由護士與保健員混合貢獻，其中需要至少 1 名註冊護士。
-              各性質實際人數見下方「各性質人手換算」及「24小時最低人手」表格。
+              各性質實際人數請見「合規條件總結」。
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -451,19 +408,124 @@ const FacilityNatureSettings: React.FC = () => {
 
           <p className="text-xs text-gray-500 mt-3">
             附表1第5項：每日 {NIGHT_ANY_STAFF.start} 至翌日 {NIGHT_ANY_STAFF.end} 須有 {NIGHT_ANY_STAFF.count}{' '}
-            名員工當值（可以是為遵守其他項目而聘用的人），已反映於「24小時最低人手」表格的「任何員工」欄。
+            名員工當值（可以是為遵守其他項目而聘用的人），已反映於「合規條件總結」的特定鐘點人手要求中。
           </p>
         </div>
 
-        {/* 各職位特定鐘點人手換算（法定比例寫死，向上取整，以全院在住人數計） */}
+      </div>
+    );
+  };
+
+  const renderContractTab = () => {
+    const nature: ContractNature | null = activeContractNature(bedCounts);
+    if (!nature) {
+      return (
+        <div className="max-w-3xl text-sm text-gray-500">
+          「床位設定」中沒有買位宿位（甲一或甲二買位），本院舍無買位合約工時要求。
+        </div>
+      );
+    }
+    const contractBeds = bedCounts[nature] || 0;
+    const overrides = contractHours[nature] ?? {};
+    const updateOverride = (pos: string, value: number | null) => {
+      setContractHours((prev) => {
+        const nextEntry = { ...(prev[nature] ?? {}) };
+        if (value == null) delete nextEntry[pos];
+        else nextEntry[pos] = value;
+        return { ...prev, [nature]: nextEntry };
+      });
+    };
+    return (
+      <div className="space-y-6 max-w-3xl">
         <div>
-          {natureSelector}
+          <p className="text-sm text-gray-600 mb-2">
+            {nature}宿位總數：
+            <span className="font-semibold text-gray-900">{contractBeds}</span>
+          </p>
+          <p className="text-xs text-gray-500">
+            每週合約總工時可直接修改；留空則按每 40 宿位基準換算（主管固定 48 小時/週，不按比例）。
+            每日平均工時目標請見「合規條件總結」。
+          </p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm border border-gray-200">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="border border-gray-200 px-3 py-2 text-left font-medium text-gray-600">職位</th>
+                <th className="border border-gray-200 px-3 py-2 text-center font-medium text-gray-600">每週合約總工時</th>
+              </tr>
+            </thead>
+            <tbody>
+              {A1_CONTRACT_POSITIONS.map((pos) => {
+                const weeklyHours = contractWeeklyHours(pos, nature, contractBeds, overrides);
+                return (
+                  <tr key={pos} className="bg-white">
+                    <td className="border border-gray-200 px-3 py-2 text-gray-700">{pos}</td>
+                    <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
+                      <span className="inline-flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          value={overrides[pos] ?? ''}
+                          placeholder={weeklyHours.toFixed(1)}
+                          onChange={(e) => {
+                            if (e.target.value === '') {
+                              updateOverride(pos, null);
+                              return;
+                            }
+                            const n = parseFloat(e.target.value);
+                            updateOverride(pos, Number.isFinite(n) ? Math.max(0, n) : null);
+                          }}
+                          className={INPUT_CLASS}
+                        />
+                        小時
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderComplianceSummaryTab = () => {
+    const effectiveNature: FacilityNature =
+      (bedCounts['甲一買位'] || 0) > 0
+        ? '甲一買位'
+        : (bedCounts['甲二買位'] || 0) > 0
+          ? '甲二買位'
+          : '安老院';
+    const denominator = currentResidents;
+    const isContractNature = effectiveNature === '甲一買位';
+    const healthWorkerEquivalents = ratioHeadcount(currentResidents, STATUTORY_RATIOS.healthWorker);
+    const healthWorkerForNature = isContractNature
+      ? Math.max(0, healthWorkerEquivalents - 2)
+      : healthWorkerEquivalents;
+    const contractNature: ContractNature | null =
+      effectiveNature === '甲一買位' || effectiveNature === '甲二買位' ? effectiveNature : null;
+    const contractBeds = contractNature ? bedCounts[contractNature] || 0 : 0;
+    const overrides = contractNature ? contractHours[contractNature] ?? {} : {};
+    return (
+      <div className="space-y-8">
+        {/* 特定鐘點人手要求 */}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">特定鐘點人手要求</h3>
+          <p className="text-xs text-gray-500 mb-3">
+            法定比例寫死、向上取整，以全院在住人數計算；護士與保健員在 13 小時時段內混合貢獻。
+          </p>
           <p className="text-sm text-gray-600 mb-4">
+            當前院舍性質：<span className="font-semibold text-gray-900">{effectiveNature}</span>
+            <span className="mx-2 text-gray-300">|</span>
             特定鐘點分母：全院在住{' '}
             <span className="font-semibold text-gray-900">{currentResidents}</span> 人
           </p>
           <div className="space-y-3 max-w-2xl">
-            {NATURE_RATIO_POSITIONS[activeNature].map((position) => {
+            {NATURE_RATIO_POSITIONS[effectiveNature].map((position) => {
               if (position === '主管') {
                 return (
                   <div key={position} className="flex items-center justify-between gap-4">
@@ -499,7 +561,7 @@ const FacilityNatureSettings: React.FC = () => {
                   <div key={position} className="flex items-center justify-between gap-4">
                     <label className="text-sm font-medium text-gray-700">{position}</label>
                     <span className="text-sm text-gray-500">
-                      指明期間 1:{STATUTORY_RATIOS.careWorkerDay}（全院在住 ${currentResidents} 人需{' '}
+                      指明期間 1:{STATUTORY_RATIOS.careWorkerDay}（全院在住 {currentResidents} 人需{' '}
                       {ratioHeadcount(denominator, STATUTORY_RATIOS.careWorkerDay)} 人）；其餘時間 1:
                       {STATUTORY_RATIOS.careWorkerNight}（需{' '}
                       {ratioHeadcount(denominator, STATUTORY_RATIOS.careWorkerNight)} 人）
@@ -512,7 +574,7 @@ const FacilityNatureSettings: React.FC = () => {
                   <div key={position} className="flex items-center justify-between gap-4">
                     <label className="text-sm font-medium text-gray-700">{position}</label>
                     <span className="text-sm text-gray-500">
-                      指明期間 1:{STATUTORY_RATIOS.assistant}（全院在住 ${currentResidents} 人需{' '}
+                      指明期間 1:{STATUTORY_RATIOS.assistant}（全院在住 {currentResidents} 人需{' '}
                       {ratioHeadcount(denominator, STATUTORY_RATIOS.assistant)} 人當值）
                     </span>
                   </div>
@@ -522,231 +584,53 @@ const FacilityNatureSettings: React.FC = () => {
             })}
           </div>
         </div>
-      </div>
-    );
-  };
 
-  const renderContractTab = () => {
-    const nature: ContractNature | null = activeContractNature(bedCounts);
-    if (!nature) {
-      return (
-        <div className="max-w-3xl text-sm text-gray-500">
-          「床位設定」中沒有買位宿位（甲一或甲二買位），本院舍無買位合約工時要求。
-        </div>
-      );
-    }
-    const contractBeds = bedCounts[nature] || 0;
-    const overrides = contractHours[nature] ?? {};
-    const updateOverride = (pos: string, value: number | null) => {
-      setContractHours((prev) => {
-        const nextEntry = { ...(prev[nature] ?? {}) };
-        if (value == null) delete nextEntry[pos];
-        else nextEntry[pos] = value;
-        return { ...prev, [nature]: nextEntry };
-      });
-    };
-    return (
-      <div className="space-y-6 max-w-3xl">
-        <div>
-          <p className="text-sm text-gray-600 mb-2">
-            {nature}宿位總數：
-            <span className="font-semibold text-gray-900">{contractBeds}</span>
-          </p>
-          <p className="text-xs text-gray-500">
-            每週合約總工時可直接修改；留空則按每 40 宿位基準換算（主管固定 48 小時/週，不按比例）。
-            每日平均 = 每週 ÷ 7，向上取整至 0.5 小時。
-          </p>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm border border-gray-200">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="border border-gray-200 px-3 py-2 text-left font-medium text-gray-600">職位</th>
-                <th className="border border-gray-200 px-3 py-2 text-center font-medium text-gray-600">每週合約總工時</th>
-                <th className="border border-gray-200 px-3 py-2 text-center font-medium text-gray-600">每日平均當值總工時</th>
-              </tr>
-            </thead>
-            <tbody>
-              {A1_CONTRACT_POSITIONS.map((pos) => {
-                const weeklyHours = contractWeeklyHours(pos, nature, contractBeds, overrides);
-                const dailyHours = contractDailyHours(pos, nature, contractBeds, overrides);
-                return (
-                  <tr key={pos} className="bg-white">
-                    <td className="border border-gray-200 px-3 py-2 text-gray-700">{pos}</td>
-                    <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
-                      <span className="inline-flex items-center gap-1">
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.5}
-                          value={overrides[pos] ?? ''}
-                          placeholder={weeklyHours.toFixed(1)}
-                          onChange={(e) => {
-                            if (e.target.value === '') {
-                              updateOverride(pos, null);
-                              return;
-                            }
-                            const n = parseFloat(e.target.value);
-                            updateOverride(pos, Number.isFinite(n) ? Math.max(0, n) : null);
-                          }}
-                          className={INPUT_CLASS}
-                        />
-                        小時
-                      </span>
-                    </td>
-                    <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
-                      {dailyHours.toFixed(1)} 小時
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  };
-
-  const a1VoucherBedTotal = bedCounts['甲一買位'] || 0;
-  const healthWorkerEquivalents = ratioHeadcount(currentResidents, STATUTORY_RATIOS.healthWorker);
-  const a1HealthWorkerCount = a1VoucherBedTotal > 0 ? Math.max(0, healthWorkerEquivalents - 2) : 0;
-
-  const renderGridTab = () => (
-    <div className="space-y-4">
-      <p className="text-xs text-gray-500">
-        以表單當前值（未儲存亦會反映）及全院在住 {currentResidents} 人即時計算，法定比例寫死、向上取整。
-        護理員按 10 小時（1:{STATUTORY_RATIOS.careWorkerDay}）／其餘時間（1:{STATUTORY_RATIOS.careWorkerNight}）逐小時填充；
-        助理員按指明期間 11 小時（1:{STATUTORY_RATIOS.assistant}）填充；
-        保健員／護士 13 小時時段以全院在住人數計算；
-        「任何員工」欄為附表1第5項（{NIGHT_ANY_STAFF.start}–翌日 {NIGHT_ANY_STAFF.end} 全院須最少 {NIGHT_ANY_STAFF.count} 名當值，可由其他職位兼任）——只顯示其他職位未湊夠時的差額。
-      </p>
-      {a1VoucherBedTotal > 0 ? (
-        <div className="border border-blue-200 bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-800">
-          全院在住 {currentResidents} 人：連續 13 小時時段（{specific.requirement3.start}–{specific.requirement3.end}）
-          需 {healthWorkerEquivalents} 名保健員，由護士與保健員混合貢獻，其中至少 1 名註冊護士（買位合約要求），其餘由 {a1HealthWorkerCount} 名保健員填補。
-        </div>
-      ) : (
-        bedCountsTotal > 0 && (
-          <div className="border border-blue-200 bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-800">
-            全院在住 {currentResidents} 人：私安老院及甲二買位無護士要求，連續 13 小時時段（{specific.requirement3.start}–{specific.requirement3.end}）
-            完全由保健員按 1:{STATUTORY_RATIOS.healthWorker} 達標，需 {healthWorkerEquivalents} 名。
+        {/* 買位合約每日工時目標 */}
+        {contractNature && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">買位合約每日工時目標</h3>
+            <div className="space-y-4 max-w-3xl">
+              <p className="text-sm text-gray-600">
+                {contractNature}宿位總數：
+                <span className="font-semibold text-gray-900">{contractBeds}</span>
+              </p>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border border-gray-200">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border border-gray-200 px-3 py-2 text-left font-medium text-gray-600">職位</th>
+                      <th className="border border-gray-200 px-3 py-2 text-center font-medium text-gray-600">每週合約總工時</th>
+                      <th className="border border-gray-200 px-3 py-2 text-center font-medium text-gray-600">每日合約總工時</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {A1_CONTRACT_POSITIONS.map((pos) => {
+                      const weeklyHours = contractWeeklyHours(pos, contractNature, contractBeds, overrides);
+                      const dailyHours = contractDailyHours(pos, contractNature, contractBeds, overrides);
+                      return (
+                        <tr key={pos} className="bg-white">
+                          <td className="border border-gray-200 px-3 py-2 text-gray-700">{pos}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
+                            {weeklyHours.toFixed(1)} 小時
+                          </td>
+                          <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
+                            {dailyHours.toFixed(1)} 小時
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-gray-500">
+                每日平均 = 每週 ÷ 7，向上取整至 0.5 小時；此為排班系統的最低工時目標。
+              </p>
+            </div>
           </div>
-        )
-      )}
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-xs border border-gray-200">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-600">
-                小時
-              </th>
-              {GRID_POSITIONS.map((pos) => (
-                <th
-                  key={pos}
-                  className="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-600"
-                >
-                  {pos}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {staffing.grid.map((row, h) => (
-              <tr key={h} className={h % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <td className="border border-gray-200 px-2 py-1 text-gray-700 whitespace-nowrap">
-                  {String(h).padStart(2, '0')}:00
-                </td>
-                {row.map((value, i) => (
-                  <td
-                    key={i}
-                    className={`border border-gray-200 px-2 py-1 text-center ${
-                      value > 0 ? 'text-gray-900 font-medium' : 'text-gray-300'
-                    }`}
-                  >
-                    {value > 0 ? value : '-'}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        )}
       </div>
-
-      {/* 雙紅線總結：特定鐘點人數 + 買位合約時數 */}
-      <div className="mt-6 space-y-4">
-        <h3 className="text-sm font-semibold text-gray-900">雙紅線總結（人數與時數獨立達標）</h3>
-        <p className="text-xs text-gray-500">
-          特定鐘點決定每小時人數（紅線1）；買位合約決定每日總工時（紅線2）。兩者獨立，不可互相抵扣。
-          補足工時只給總量邊界，具體時段由排班系統決定。
-        </p>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-xs border border-gray-200">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-600">職位</th>
-                <th className="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-600">紅線1隱含工時</th>
-                <th className="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-600">紅線2合約目標</th>
-                <th className="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-600">需補足工時</th>
-                <th className="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-600">每日最少總工時</th>
-              </tr>
-            </thead>
-            <tbody>
-              {GRID_POSITIONS.map((pos) => (
-                <tr key={pos} className="bg-white">
-                  <td className="border border-gray-200 px-2 py-1 text-gray-700">{pos}</td>
-                  <td className="border border-gray-200 px-2 py-1 text-center text-gray-700">
-                    {dualRedLine.statutoryImpliedHours[pos] > 0 ? dualRedLine.statutoryImpliedHours[pos].toFixed(1) : '-'}
-                  </td>
-                  <td className="border border-gray-200 px-2 py-1 text-center text-gray-700">
-                    {dualRedLine.contractTargetHours[pos] > 0 ? dualRedLine.contractTargetHours[pos].toFixed(1) : '-'}
-                  </td>
-                  <td className="border border-gray-200 px-2 py-1 text-center text-gray-700">
-                    {dualRedLine.supplementaryHours[pos] > 0 ? dualRedLine.supplementaryHours[pos].toFixed(1) : '-'}
-                  </td>
-                  <td className="border border-gray-200 px-2 py-1 text-center text-gray-900 font-medium">
-                    {dualRedLine.dailyHours[pos] > 0 ? dualRedLine.dailyHours[pos].toFixed(1) : '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-xs border border-gray-200">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="border border-gray-200 px-2 py-1.5 text-left font-medium text-gray-600">職位</th>
-                <th className="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-600">紅線1峰值人數</th>
-                <th className="border border-gray-200 px-2 py-1.5 text-center font-medium text-gray-600">按工時推算人數</th>
-              </tr>
-            </thead>
-            <tbody>
-              {GRID_POSITIONS.map((pos) => (
-                <tr key={pos} className="bg-white">
-                  <td className="border border-gray-200 px-2 py-1 text-gray-700">{pos}</td>
-                  <td className="border border-gray-200 px-2 py-1 text-center text-gray-700">
-                    {dualRedLine.peakHeadcount[pos] > 0 ? dualRedLine.peakHeadcount[pos] : '-'}
-                  </td>
-                  <td className="border border-gray-200 px-2 py-1 text-center text-gray-700">
-                    {dualRedLine.dailyHours[pos] > 0 ? Math.ceil(dualRedLine.dailyHours[pos] / MIN_DAILY_HOURS_PER_PERSON) : '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="border border-green-200 bg-green-50 rounded-lg px-4 py-3 text-sm text-green-800">
-          <p className="font-medium">
-            每日總工時合計：{Object.values(dualRedLine.dailyHours).reduce((sum, h) => sum + h, 0).toFixed(1)} 小時
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm mt-6">
@@ -757,7 +641,7 @@ const FacilityNatureSettings: React.FC = () => {
           <h2 className="text-lg font-medium text-gray-900">院舍性質</h2>
         </div>
         <p className="mt-1 text-sm text-gray-500">
-          設定各院舍性質的床位數與三個特定鐘點，人手向上取整，並預覽 24 小時最低人手要求。
+          設定各院舍性質的床位數與三個特定鐘點，人手向上取整，並預覽合規條件總結。
         </p>
       </div>
 
@@ -788,7 +672,7 @@ const FacilityNatureSettings: React.FC = () => {
         {activeTab === 0 && renderBedTab()}
         {activeTab === 1 && renderRatioTab()}
         {activeTab === 2 && renderContractTab()}
-        {activeTab === 3 && renderGridTab()}
+        {activeTab === 3 && renderComplianceSummaryTab()}
 
         {message && (
           <div
