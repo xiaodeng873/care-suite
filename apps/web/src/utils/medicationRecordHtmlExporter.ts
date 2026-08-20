@@ -78,6 +78,12 @@ const DISPENSE_NOTE_ITEMS: string[] = [
 // 分頁及版面固定規格
 const MAX_PRESCRIPTIONS_PER_PAGE = 5; // 每頁最多處方數
 const MIN_SLOT_ROWS = 4;              // 每個處方最少顯示時段列數（不足補空行）
+
+// 產生鋪滿日格的左下→右上斜線 SVG（避免部分印表機不列印背景圖形）。
+const renderDiagonalSvg = (color: string): string =>
+  `<svg class="mr-diag-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 1 1">`
+  + `<line x1="0" y1="1" x2="1" y2="0" stroke="${color}" stroke-width="0.08" vector-effect="non-scaling-stroke"/>`
+  + `</svg>`;
 const SUMMARY_ROWS_4 = 2;             // 4 行彙總檔：AM/PM 各 2 行（PM 從第 3 行起）
 const SUMMARY_ROWS_6 = 3;             // 6 行彙總檔：AM/PM 各 3 行
 const SUMMARY_ROWS_8 = 4;             // 8 行彙總檔：AM/PM 各 4 行
@@ -634,7 +640,7 @@ const renderBodyTable = (
   const missingSlots = includeBlankRows ? page.fillerCount : 0;
   let fillerBodies = '';
   if (missingSlots > 0) {
-    const dayCells = Array(dayCount).fill('<td class="c-day mr-diag">&nbsp;</td>').join('');
+    const dayCells = Array(dayCount).fill(`<td class="c-day mr-diag">${renderDiagonalSvg('#9aa7b4')}</td>`).join('');
     // c-date 保留 4 行獨立格，行間無橫線；第 1 行「開始日期」、第 3 行「處方日期」作提示文字
     // c-name / c-route 仍以 rowspan=MIN_SLOT_ROWS 合併
     const fillerRow1 = `<tr class="mr-sign-row mr-filler-row">`
@@ -725,7 +731,7 @@ const renderPrescriptionBlock = (
 
   const boundary = getBoundaryCells(prescription, timeSlots, selectedMonth, dayCount);
   // 補白列的日格：白底＋斜線，與空白處方格相同（不用灰格）
-  const padDayCells = Array(dayCount).fill(`<td class="c-day ${diagClass}">&nbsp;</td>`).join('');
+  const padDayCells = Array(dayCount).fill(`<td class="c-day ${diagClass}">${renderDiagonalSvg(isImmediate ? '#334155' : '#9aa7b4')}</td>`).join('');
 
   let isFirstRow = true;
   const leftFor = (): string => {
@@ -926,7 +932,8 @@ const signatureDayCells = (
     }
     const inactiveClass = !inRange ? (isImmediate ? ' mr-inactive-prn' : ' mr-inactive') : '';
     const boundaryClass = isBoundary ? ' mr-boundary' : '';
-    cells += `<td class="c-day ${diagClass}${inactiveClass}${boundaryClass}">${cellInner || '&nbsp;'}</td>`;
+    const diagColor = isImmediate ? '#334155' : '#9aa7b4';
+    cells += `<td class="c-day ${diagClass}${inactiveClass}${boundaryClass}">${renderDiagonalSvg(diagColor)}${cellInner || '&nbsp;'}</td>`;
   }
   return cells;
 };
@@ -1288,22 +1295,15 @@ body {
 .mr-med-test { font-size: 7.2pt; color: #b45309; margin-top: 0.4mm; }
 .mr-med-source { font-size: 7.2pt; color: #475569; margin-top: 0.4mm; }
 
-/* 每個簽署日格的左下→右上斜線（以 SVG 背景繪製，避免 sub-pixel 斷線問題） */
-td.mr-diag {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3Cline x1='0' y1='1' x2='1' y2='0' stroke='%239aa7b4' stroke-width='0.08' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-}
-/* 不在處方有效期內的日格：灰底、移除斜線 */
-td.mr-inactive { background: #e2e8f0 !important; background-image: none !important; }
-/* 即時備藥（preparation_method=immediate）簽署格：深色細斜線提示 */
-td.mr-diag-prn {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3Cline x1='0' y1='1' x2='1' y2='0' stroke='%23334155' stroke-width='0.08' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-}
-/* 即時備藥非有效期日格：空格（無斜線無灰底） */
-td.mr-inactive-prn { background: #e2e8f0 !important; background-image: none !important; }
+/* 每個簽署日格的左下→右上斜線（以 inline SVG 繪製，避免印表機不列印背景圖形） */
+td.mr-diag, td.mr-diag-prn { position: relative; overflow: hidden; }
+.mr-diag-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* 不在處方有效期內的日格：灰底、隱藏斜線 */
+td.mr-inactive { background: #e2e8f0 !important; }
+td.mr-inactive .mr-diag-svg, td.mr-inactive-prn .mr-diag-svg { display: none; }
+/* 即時備藥（preparation_method=immediate）簽署格：深色細斜線提示（由 inline SVG 實現） */
+/* 即時備藥非有效期日格：灰底 */
+td.mr-inactive-prn { background: #e2e8f0 !important; }
 /* ▶/◀ 邊界標記格：紫色提示開始/結束 */
 td.mr-boundary { color: #7c3aed; font-weight: bold; }
 /* 處方列之間加深色分隔線（空白列同樣套用，確保版面統一） */
