@@ -93,8 +93,28 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
       }
     }
 
+    // 輔助：判斷當日是否有該任務/類型的任何記錄（體重等不講求具體時間點的監測）
+    const hasAnyRecordOnDate = () => healthRecords.some(r => {
+      if (r.任務id && r.任務id === task.id) {
+        return r.記錄日期 === dateStr;
+      }
+      const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
+      const typeMatch = r.監測類型 === task.health_record_type;
+      const dateMatch = r.記錄日期 === dateStr;
+      return patientMatch && typeMatch && dateMatch;
+    });
+
     // [修改] 如果指定了 specificTime，只檢查那個時間點
     if (specificTime) {
+      // 體重等不講求具體時間的監測，只要當日有記錄即可
+      if (task.health_record_type === '體重') {
+        if (checkDate > today) return 'future';
+        const isScheduled = isTaskScheduledForDate(task, checkDate);
+        if (hasAnyRecordOnDate() && isScheduled) return 'completed';
+        if (isScheduled) return checkDate.getTime() === today.getTime() ? 'pending' : 'missed';
+        return 'none';
+      }
+
       // [修正] 標準化時間格式為 HH:MM
       const normalizeTime = (time: string) => {
         if (!time) return '';
@@ -146,6 +166,15 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
 
     // [關鍵修正] 對於多時間點任務，需要檢查每個時間點
     if (task.specific_times && task.specific_times.length > 0) {
+      // 體重等不講求具體時間的監測，只要當日有記錄即算完成
+      if (task.health_record_type === '體重') {
+        if (checkDate > today) return 'future';
+        const isScheduled = isTaskScheduledForDate(task, checkDate);
+        if (hasAnyRecordOnDate() && isScheduled) return 'completed';
+        if (isScheduled) return checkDate.getTime() === today.getTime() ? 'pending' : 'missed';
+        return 'none';
+      }
+
       const timeRecords = healthRecords.filter(r => {
         if (r.任務id && r.任務id === task.id) {
           return r.記錄日期 === dateStr;
@@ -165,7 +194,7 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
 
       const completedTimes = new Set(timeRecords.map(r => normalizeTime(r.記錄時間)));
       const normalizedTaskTimes = task.specific_times.map(normalizeTime);
-      const allTimesCompleted = normalizedTaskTimes.every(time => completedTimes.has(time));
+      const allTimesCompleted = normalizedTaskTimes.every((time: string) => completedTimes.has(time));
 
       // 未來日期不顯示為逾期
       if (checkDate > today) {

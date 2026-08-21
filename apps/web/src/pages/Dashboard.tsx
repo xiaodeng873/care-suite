@@ -219,7 +219,7 @@ const Dashboard: React.FC = () => {
           continue;
         }
         let isDateCompleted = false;
-        if (normalizedTaskTimes.length > 0) {
+        if (normalizedTaskTimes.length > 0 && task.health_record_type !== '體重') {
           isDateCompleted = normalizedTaskTimes.every(time =>
             hasRecordWithinTolerance([`${task.id}_${dateStr}`, `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}`], time)
           );
@@ -373,6 +373,11 @@ const Dashboard: React.FC = () => {
     // [關鍵修復] 確保 patient_id 類型一致
     const patientIdStr = task.patient_id?.toString() || '';
     // [修復] 如果任務有多個時間點，需要檢查所有時間點
+    // 體重等不講求具體時間的監測，只要當日有記錄即算完成
+    if (task.health_record_type === '體重') {
+      return recordLookup.has(`${task.id}_${dateStr}`) ||
+             recordLookup.has(`${patientIdStr}_${task.health_record_type}_${dateStr}`);
+    }
     if (task.specific_times && task.specific_times.length > 0) {
       if (timeStr) {
         // 檢查特定時間點（±30 分鐘容差）
@@ -574,7 +579,7 @@ const Dashboard: React.FC = () => {
           continue;
         }
         let isDateCompleted = false;
-        if (normalizedTaskTimes.length > 0) {
+        if (normalizedTaskTimes.length > 0 && task.health_record_type !== '體重') {
           isDateCompleted = normalizedTaskTimes.every(time =>
             hasRecordWithinTolerance([`${task.id}_${dateStr}`, `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}`], time)
           );
