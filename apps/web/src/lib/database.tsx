@@ -878,6 +878,10 @@ export interface MedicationPrescription {
   last_taken_date?: string;
   // 是否在備藥及給藥記錄中顯示上次服用日期
   show_last_taken_in_record?: boolean;
+  // 不可碎藥（顯示時會與藥物資料庫的同名旗標合併判斷）
+  cannot_crush?: boolean;
+  // 不可與中和胃酸藥同服（顯示時會與藥物資料庫的同名旗標合併判斷）
+  no_antacid?: boolean;
   created_at: string;
   updated_at: string;
 }

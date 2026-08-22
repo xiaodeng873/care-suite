@@ -9,6 +9,7 @@ import { formatDisplayDate } from './dateFormat';
 export interface BedListBed {
   bed_number: string;            // 當前床號（顯示主號）
   original_bed_number?: string;  // 原床號：僅暫時性調動時以小字顯示「原XXX」
+  reserved?: boolean;            // 已佔床：院友暫時調往他床，此床為其原床（空置但保留）
   patient?: {
     name: string;
     gender?: string;
@@ -96,7 +97,8 @@ export function generateBedListHtml(input: BedListInput): string {
   /* ── 2. 統計 ── */
   const totalBeds = beds.length;
   const occ       = beds.filter(b => b.patient);
-  const occupiedN = occ.length;
+  const reservedN = beds.filter(b => !b.patient && b.reserved).length;
+  const occupiedN = occ.length + reservedN;  // 暫調院友的原床（已佔床）計入已入住
   const emptyN    = totalBeds - occupiedN;
   const privateN  = occ.filter(b => b.patient?.admissionType === '私位').length;
   const buyN      = occ.filter(b => b.patient?.admissionType === '買位').length;
@@ -154,7 +156,8 @@ export function generateBedListHtml(input: BedListInput): string {
       ? `<span class="btemp">(原${bed.original_bed_number})</span>`
       : '';
     if (!bed.patient) {
-      return `<div class="br br-e${alt}" style="height:${rowH.toFixed(1)}mm"><span class="bnum-e">${stripCodePrefix(bed.bed_number)}</span>${tempBedHtml}<span class="bempty-tag">未入住</span></div>`;
+      const emptyLabel = bed.reserved ? '已佔床' : '未入住';
+      return `<div class="br br-e${alt}" style="height:${rowH.toFixed(1)}mm"><span class="bnum-e">${stripCodePrefix(bed.bed_number)}</span>${tempBedHtml}<span class="bempty-tag">${emptyLabel}</span></div>`;
     }
     const lbl = typeLabel(bed.patient.admissionType);
     const cls = badgeClass(bed.patient.admissionType);

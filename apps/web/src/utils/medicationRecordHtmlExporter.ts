@@ -168,6 +168,23 @@ const fetchLastTakenDatesForPrescriptions = async (
   return map;
 };
 
+/** 藥物名稱 → 藥物資料庫警示旗標（不可碎藥／不可與中和胃酸藥同服），供名稱欄顯示小標籤 */
+const fetchDrugWarningFlags = async (): Promise<Map<string, { cannot_crush: boolean; no_antacid: boolean }>> => {
+  const map = new Map<string, { cannot_crush: boolean; no_antacid: boolean }>();
+  const { data, error } = await supabase
+    .from('medication_drug_database')
+    .select('drug_name, cannot_crush, no_antacid');
+  if (error) {
+    console.warn('查詢藥物警示旗標失敗:', error);
+    return map;
+  }
+  for (const d of data || []) {
+    const name = String(d.drug_name ?? '').trim();
+    if (name) map.set(name, { cannot_crush: !!d.cannot_crush, no_antacid: !!d.no_antacid });
+  }
+  return map;
+};
+
 const buildMedicationRecordHtml = async (
   patients: PatientWithPrescriptions[],
   selectedMonth: string,
@@ -176,6 +193,7 @@ const buildMedicationRecordHtml = async (
   prescriptionSortOrder?: string
 ): Promise<string> => {
   activeFacility = await getFacilitySettings();
+  const drugWarningFlags = await fetchDrugWarningFlags();
   const renderedPages: string[] = [];
 
   for (const patient of patients) {
@@ -184,6 +202,12 @@ const buildMedicationRecordHtml = async (
     const lastTakenMap = await fetchLastTakenDatesForPrescriptions(allPrescriptionIds);
     for (const p of prescriptions) {
       p.last_taken_date = lastTakenMap.get(p.id) || p.last_taken_date || '';
+      // 與藥物資料庫旗標合併（資料庫為準，處方上的旗標保留兼容）
+      const flags = drugWarningFlags.get(String(p.medication_name ?? '').trim());
+      if (flags) {
+        p.cannot_crush = p.cannot_crush || flags.cannot_crush;
+        p.no_antacid = p.no_antacid || flags.no_antacid;
+      }
     }
 
     let workflowRecords: WorkflowRecord[] = [];
@@ -462,90 +486,124 @@ export const resolvePrescriptionTimeSlots = (prescription: MedicationPrescriptio
 };
 
 /**
- * 簽署效益裝箱：直接以「哪幾個時段組放同一頁」為決策單位，
- * 目標是各頁彙總區不同時段數（＝簽署列數）的總和最少，其次頁數最少。
- * 規則：
- * 1. 時段組由大至小處理；整組能放入某頁時，放進「新增時段最少」的頁；
- * 2. 整組放不下時，只允許「零新增時段」（子集）拆分填入現有頁空隙；
- * 3. 仍剩餘的才開新頁（按容量切成整頁）。
+ * 簽署效益裝箱：以「哪幾個時段組放同一頁」為決策單位。
+ * 貪心逐組放置是局部最優、會錯失全域最優（例如詹金花個案：三大單時段組先佔頁，
+ * 令 {08:00,20:00} 無家可歸要多開一頁，合計 8 列；全域最優只需 7 列），
+ * 故改用深度優先搜尋列舉所有「組→頁」整組分配（組數一般 ≤ 8，搜尋空間小）：
+ * 先最小化各頁彙總區不同時段數總和（＝簽署列數），其次頁數最少。
+ * 最後同頁處方按時序（首時段 → 時段組合 → 藥名）排列。
  */
 export const packBlocksForSignatureEfficiency = (
   blocks: PrescriptionBlock[],
   footerLegendMm: number
 ): PrescriptionBlock[][] => {
-  // 依時段集合分組（組內保持原順序）
-  const groups = new Map<string, { slots: string[]; items: PrescriptionBlock[] }>();
-  for (const b of blocks) {
-    const sig = b.timeSlots.join('|');
-    const group = groups.get(sig) ?? { slots: b.timeSlots, items: [] };
-    group.items.push(b);
-    groups.set(sig, group);
-  }
-  const pool = [...groups.values()].sort(
-    (a, b) => b.items.length - a.items.length || a.slots.join('|').localeCompare(b.slots.join('|'))
-  );
+  if (blocks.length === 0) return [];
 
-  const pages: PrescriptionBlock[][] = [];
-  const pageUnions: Set<string>[] = [];
+  const blockMm = new Map<PrescriptionBlock, number>();
+  for (const b of blocks) blockMm.set(b, getBlockHeightMm(b));
 
   const pageUsedMm = (page: PrescriptionBlock[]): number =>
-    page.reduce((sum, b) => sum + getBlockHeightMm(b), 0);
+    page.reduce((sum, b) => sum + (blockMm.get(b) ?? 0), 0);
   const pageCapacityMm = (union: Set<string>): number => {
     const { am, pm } = splitAmPm([...union]);
     return bodyUsableMm(computeSummaryLayout(am, pm).totalRows, footerLegendMm);
   };
-  const addedSlots = (union: Set<string>, slots: string[]): number =>
-    slots.reduce((n, s) => n + (union.has(s) ? 0 : 1), 0);
-  const fitsCount = (page: PrescriptionBlock[], extra: number): boolean =>
-    page.length + extra <= MAX_PRESCRIPTIONS_PER_PAGE;
+  const unionOf = (page: PrescriptionBlock[]): Set<string> =>
+    new Set(page.flatMap((b) => b.timeSlots));
 
-  for (const group of pool) {
-    const groupMm = group.items.reduce((sum, b) => sum + getBlockHeightMm(b), 0);
+  interface Group { slots: string[]; items: PrescriptionBlock[]; mm: number }
 
-    // 1) 整組放入「新增時段最少」的現有頁（平手取較前的頁）
-    let bestPage = -1;
-    let bestAdded = Infinity;
-    for (let i = 0; i < pages.length; i++) {
-      if (!fitsCount(pages[i], group.items.length)) continue;
-      const union = new Set([...pageUnions[i], ...group.slots]);
-      if (pageUsedMm(pages[i]) + groupMm > pageCapacityMm(union)) continue;
-      const added = addedSlots(pageUnions[i], group.slots);
-      if (added < bestAdded) {
-        bestAdded = added;
-        bestPage = i;
-      }
-    }
-    if (bestPage >= 0) {
-      pages[bestPage].push(...group.items);
-      group.slots.forEach((s) => pageUnions[bestPage].add(s));
-      continue;
-    }
-
-    // 2) 零新增時段拆分填入（只有子集組才拆，避免為填縫增加彙總列）
-    const remaining = [...group.items];
-    for (let i = 0; i < pages.length && remaining.length > 0; i++) {
-      if (addedSlots(pageUnions[i], group.slots) !== 0) continue;
-      while (remaining.length > 0 && fitsCount(pages[i], 1)
-        && pageUsedMm(pages[i]) + getBlockHeightMm(remaining[0]) <= pageCapacityMm(pageUnions[i])) {
-        pages[i].push(remaining.shift()!);
-      }
-    }
-
-    // 3) 剩餘開新頁（按容量切成整頁）
-    while (remaining.length > 0) {
-      const page: PrescriptionBlock[] = [];
-      const union = new Set(group.slots);
-      while (remaining.length > 0 && fitsCount(page, 1)
-        && pageUsedMm(page) + getBlockHeightMm(remaining[0]) <= pageCapacityMm(union)) {
-        page.push(remaining.shift()!);
-      }
-      if (page.length === 0) page.push(remaining.shift()!); // 單個超高也要放，不可整頁空
-      pages.push(page);
-      pageUnions.push(new Set(group.slots));
-    }
+  // 依時段集合分組（組內保持原順序）
+  const bySig = new Map<string, Group>();
+  for (const b of blocks) {
+    const sig = b.timeSlots.join('|');
+    const g = bySig.get(sig) ?? { slots: b.timeSlots, items: [], mm: 0 };
+    g.items.push(b);
+    g.mm += blockMm.get(b) ?? 0;
+    bySig.set(sig, g);
   }
 
-  return pages;
+  // 放不進單一新頁的超大組，先按新頁容量切成數段（每段視為一個組）
+  const groups: Group[] = [];
+  for (const g of bySig.values()) {
+    let chunk: PrescriptionBlock[] = [];
+    let chunkMm = 0;
+    const capMm = pageCapacityMm(new Set(g.slots));
+    for (const item of g.items) {
+      const m = blockMm.get(item) ?? 0;
+      if (chunk.length > 0 && (chunk.length >= MAX_PRESCRIPTIONS_PER_PAGE || chunkMm + m > capMm)) {
+        groups.push({ slots: g.slots, items: chunk, mm: chunkMm });
+        chunk = [];
+        chunkMm = 0;
+      }
+      chunk.push(item);
+      chunkMm += m;
+    }
+    if (chunk.length > 0) groups.push({ slots: g.slots, items: chunk, mm: chunkMm });
+  }
+  // 大組優先（搜尋更快收斂），平手按時段字串
+  groups.sort((a, b) => b.items.length - a.items.length || a.slots.join('|').localeCompare(b.slots.join('|')));
+
+  // 同頁按時序排列
+  const sortPageChronologically = (page: PrescriptionBlock[]): PrescriptionBlock[] =>
+    [...page].sort((a, b) => {
+      const tCmp = parseTimeToMinutes(a.timeSlots[0]) - parseTimeToMinutes(b.timeSlots[0]);
+      if (tCmp !== 0) return tCmp;
+      const sigCmp = a.timeSlots.join('|').localeCompare(b.timeSlots.join('|'));
+      if (sigCmp !== 0) return sigCmp;
+      return String(a.prescription.medication_name ?? '').localeCompare(String(b.prescription.medication_name ?? ''));
+    });
+
+  // 極端多時段組的罕見情況：退化为順序貪心，避免搜尋爆炸
+  if (groups.length > 12) {
+    const pages: PrescriptionBlock[][] = [];
+    for (const g of groups) {
+      let placed = false;
+      for (const page of pages) {
+        const newUnion = new Set([...unionOf(page), ...g.slots]);
+        if (page.length + g.items.length <= MAX_PRESCRIPTIONS_PER_PAGE
+          && pageUsedMm(page) + g.mm <= pageCapacityMm(newUnion)) {
+          page.push(...g.items);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) pages.push([...g.items]);
+    }
+    return pages.map(sortPageChronologically);
+  }
+
+  // DFS 列舉所有整組分配，取全域最優
+  let bestPages: PrescriptionBlock[][] | null = null;
+  let bestRows = Infinity;
+
+  const dfs = (gi: number, pages: PrescriptionBlock[][], rowsSoFar: number): void => {
+    // 下界剪枝：各頁聯集只會變大，rowsSoFar 只增不減
+    if (rowsSoFar > bestRows) return;
+    if (bestPages && rowsSoFar === bestRows && pages.length >= bestPages.length) return;
+    if (gi === groups.length) {
+      bestRows = rowsSoFar;
+      bestPages = pages.map((p) => [...p]);
+      return;
+    }
+    const g = groups[gi];
+    for (let i = 0; i < pages.length; i++) {
+      if (pages[i].length + g.items.length > MAX_PRESCRIPTIONS_PER_PAGE) continue;
+      const oldSize = unionOf(pages[i]).size;
+      const newUnion = new Set([...unionOf(pages[i]), ...g.slots]);
+      if (pageUsedMm(pages[i]) + g.mm > pageCapacityMm(newUnion)) continue;
+      pages[i].push(...g.items);
+      dfs(gi + 1, pages, rowsSoFar - oldSize + newUnion.size);
+      pages[i].splice(pages[i].length - g.items.length, g.items.length);
+    }
+    // 開新頁
+    pages.push([...g.items]);
+    dfs(gi + 1, pages, rowsSoFar + g.slots.length);
+    pages.pop();
+  };
+  dfs(0, [], 0);
+
+  return (bestPages ?? []).map(sortPageChronologically);
 };
 
 /**
@@ -790,7 +848,12 @@ const renderPrescriptionBlock = (
   const lastTakenLine = (prescription.show_last_taken_in_record && prescription.last_taken_date)
     ? `<div class="mr-med-last-taken" style="color: #2563eb; font-weight: bold;">上次服用：${formatDisplayDate(prescription.last_taken_date)}</div>`
     : '';
-  const nameInfo = `<div class="mr-med-name">${escapeHtml(prescription.medication_name ?? '')}${termLabel ? `<span class="mr-med-short">${termLabel}</span>` : ''}</div>`
+  // 名稱欄小標籤：不可碎藥／不可與中和胃酸藥同服
+  const warningTags = [
+    prescription.cannot_crush ? '不可碎藥' : '',
+    prescription.no_antacid ? '不可與中和胃酸藥同服' : '',
+  ].filter(Boolean).map((t) => `<span class="mr-med-warning-tag">${t}</span>`).join('');
+  const nameInfo = `<div class="mr-med-name">${escapeHtml(prescription.medication_name ?? '')}${termLabel ? `<span class="mr-med-short">${termLabel}</span>` : ''}${warningTags}</div>`
     + (prescription.dosage_form ? `<div class="mr-med-form">${escapeHtml(String(prescription.dosage_form))}</div>` : '')
     + lastTakenLine
     + (inspectionRequirement ? `<div class="mr-med-test">${escapeHtml(inspectionRequirement)}</div>` : '')
@@ -799,8 +862,7 @@ const renderPrescriptionBlock = (
       return sourceParts.length > 0
         ? `<div class="mr-med-source">來源：${escapeHtml(sourceParts.join(' / '))}</div>`
         : '';
-    })()
-    + (prescription.cannot_crush ? `<div class="mr-med-warning" style="color: #dc2626; font-weight: bold;">⚠️ 不可碎藥</div>` : '');
+    })();
   const routeInfo = [
     prescription.administration_route ?? '',
     getFrequencyDescription(prescription),
@@ -1394,6 +1456,7 @@ body {
 }
 .mr-med-name { font-weight: bold; font-size: 10pt; }
 .mr-med-short { display: inline-block; font-size: 7pt; font-weight: bold; color: #92400e; background: #fef3c7; border: 0.3mm solid #fbbf24; border-radius: 1.5px; padding: 0 2px; margin-top: 0.5mm; }
+.mr-med-warning-tag { display: inline-block; font-size: 7pt; font-weight: bold; color: #dc2626; background: #fee2e2; border: 0.3mm solid #dc2626; border-radius: 1.5px; padding: 0 2px; margin-left: 1px; }
 .mr-med-expiry { display: inline-block; font-size: 6.5pt; font-weight: normal; color: #92400e; margin-left: 1mm; opacity: 0.9; }
 .mr-med-test { font-size: 7.2pt; color: #b45309; margin-top: 0.4mm; }
 .mr-med-source { font-size: 7.2pt; color: #475569; margin-top: 0.4mm; }

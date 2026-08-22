@@ -401,8 +401,18 @@ const MedicationWorkflow: React.FC = () => {
     checkPrescriptionInspectionRules,
     hospitalEpisodes,
     refreshData,
-    loading
+    loading,
+    drugDatabase
   } = usePatientData();
+  // 藥物名稱 → 藥物資料庫旗標（不可碎藥／不可與中和胃酸藥同服），供名稱欄顯示小標籤
+  const drugFlagMap = useMemo(() => {
+    const map = new Map<string, any>();
+    (drugDatabase || []).forEach((d: any) => {
+      const name = String(d?.drug_name ?? '').trim();
+      if (name) map.set(name, d);
+    });
+    return map;
+  }, [drugDatabase]);
   const patients = useFilteredPatients();
   const { displayName, user, userProfile } = useAuth();
   const currentUserId = userProfile?.id || user?.id || null;
@@ -3118,6 +3128,12 @@ const MedicationWorkflow: React.FC = () => {
                                   <div className="space-y-1.5">
                                     <div className="font-medium text-gray-900 dark:text-gray-100 flex flex-wrap items-center gap-2">
                                       <span>{prescription.medication_name}</span>
+                                      {(prescription.cannot_crush || drugFlagMap.get(String(prescription.medication_name ?? '').trim())?.cannot_crush) && (
+                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-700">不可碎藥</span>
+                                      )}
+                                      {(prescription.no_antacid || drugFlagMap.get(String(prescription.medication_name ?? '').trim())?.no_antacid) && (
+                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-700">不可與中和胃酸藥同服</span>
+                                      )}
                                       {prescription.is_long_term === false && (
                                         <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-700">短期藥物</span>
                                       )}
@@ -3151,9 +3167,6 @@ const MedicationWorkflow: React.FC = () => {
                                       )}
                                       {prescription.medication_source && (
                                         <div className="dark:text-gray-300">來源：{prescription.medication_source}</div>
-                                      )}
-                                      {prescription.cannot_crush && (
-                                        <div className="text-red-600 dark:text-red-400 font-medium">⚠️ 不可碎藥</div>
                                       )}
                                       {prescription.preparation_method === 'immediate' && (
                                         <div className="text-blue-600 dark:text-blue-400 font-medium">⚡ 即時備藥</div>

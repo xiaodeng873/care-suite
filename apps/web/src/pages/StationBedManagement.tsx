@@ -324,9 +324,14 @@ const StationBedManagement: React.FC = () => {
       const isTemporary = patient && patient.bed_transfer_type === 'temporary' && !!patient.original_bed_number;
       const bedNumber = patient ? patient.床號 : bed.bed_number;
       const originalBedNumber = isTemporary ? (patient.original_bed_number || '') : undefined;
+      // 已佔床：有院友暫時調出（original_bed_id 指向此床），此床雖空置仍屬佔用
+      const reserved = !patient && (patients || []).some(p =>
+        p.在住狀態 === '在住' && p.bed_transfer_type === 'temporary' && p.original_bed_id === bed.id
+      );
       return {
         bed_number: bedNumber,
         original_bed_number: originalBedNumber,
+        reserved,
         patient: patient
           ? {
               name: `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`.trim() || patient.中文姓名 || '',

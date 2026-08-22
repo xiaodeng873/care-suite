@@ -20,7 +20,8 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
     unit: drug?.unit || '',
     photo_url: drug?.photo_url || '',
     notes: drug?.notes || '',
-    cannot_crush: drug?.cannot_crush || false
+    cannot_crush: drug?.cannot_crush || false,
+    no_antacid: drug?.no_antacid || false
   });
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(drug?.photo_url || null);
@@ -99,7 +100,8 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
         unit: formData.unit.trim() || null,
         photo_url: formData.photo_url || null,
         notes: formData.notes.trim() || null,
-        cannot_crush: formData.cannot_crush
+        cannot_crush: formData.cannot_crush,
+        no_antacid: formData.no_antacid
       };
 
       if (drug?.id) {
@@ -275,6 +277,21 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
             <label className="flex-1 cursor-pointer">
               <span className="font-medium text-gray-900">不可碎藥</span>
               <p className="text-sm text-gray-500 mt-1">若勾選，表示此藥物不可碎藥，須完整服用</p>
+            </label>
+          </div>
+
+          {/* 不可與中和胃酸藥同服 */}
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              name="no_antacid"
+              checked={formData.no_antacid}
+              onChange={handleChange}
+              className="w-5 h-5 rounded border-gray-300 text-blue-600"
+            />
+            <label className="flex-1 cursor-pointer">
+              <span className="font-medium text-gray-900">不可與中和胃酸藥同服</span>
+              <p className="text-sm text-gray-500 mt-1">若勾選，eMAR 及藥紙的藥物名稱欄會顯示提示標籤</p>
             </label>
           </div>
 

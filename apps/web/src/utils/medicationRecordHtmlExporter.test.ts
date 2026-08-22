@@ -25,18 +25,20 @@ const LEI_ORAL = [
   rx('METFORMIN HCL TABLET 250MG', ['08:00', '16:00']),
 ];
 
+// 全域搜尋後 page1 = 五個 {08:00,16:00}；同頁按時序排列，sig 相同再按藥名排序
 const PAGE1_NAMES = [
   'CYANOCOBALAMIN (VIT B12) TABLET 50MCG',
-  'THIAMINE HCL (VIT B1) TABLET 50MG',
   'LISINOPRIL TABLET 5MG',
-  'METFORMIN HCL TABLET 500MG',
   'METFORMIN HCL TABLET 250MG',
+  'METFORMIN HCL TABLET 500MG',
+  'THIAMINE HCL (VIT B1) TABLET 50MG',
 ];
+// page2 = {07:00} 在前，三個 {08:00} 按藥名排序
 const PAGE2_NAMES = [
-  'ENERVON C TABLET',
+  'ALENDRONATE SODIUM TAB (70MG ALENDRONIC ACID)',
   'AMLODIPINE (BESYLATE) TABLET 5MG',
   'CALCIUM（CARBONATE）+VITAMIN D CHEW TAB 1000MG CA+800IU',
-  'ALENDRONATE SODIUM TAB (70MG ALENDRONIC ACID)',
+  'ENERVON C TABLET',
 ];
 
 describe('packBlocksForSignatureEfficiency（雷燕優個案）', () => {
@@ -65,5 +67,42 @@ describe('orderPrescriptionsForSignatureEfficiency（modal 預覽＝列印順序
       ...PAGE2_NAMES,
       'SENNA TABLET 7.5MG',
     ]);
+  });
+});
+
+// 詹金花（C213-2）2026-08 口服處方（真實資料）
+const ZHAN_ORAL = [
+  rx('ATENOLOL TABLET 50MG', ['08:00']),
+  rx('CALCIUM CARBONATE + VITAMIN D (CALCICHEW D3) CHEWABLE TABLET 1000MG CA + 800IU', ['08:00']),
+  rx('ASPIRIN TABLET 80MG', ['08:00']),
+  rx('FRUSEMIDE (FUROSEMIDE) TABLET 40MG', ['08:00']),
+  rx('AMLODIPINE TABLET 5MG', ['20:00']),
+  rx('SENNA TABLET 7.5MG', ['20:00']),
+  rx('SIMVASTATIN TABLET 10MG', ['20:00']),
+  rx('LANSOPRAZOLE ORODISPERSIBLE TAB 30MG', ['07:00']),
+  rx('PARACETAMOL TABLET 500MG', ['08:00', '12:00']),
+  rx('LISINOPRIL TABLET 5MG', ['08:00', '16:00']),
+  rx('ISOSORBIDE MONONITRATE TAB 20MG', ['08:00', '20:00']),
+];
+
+describe('packBlocksForSignatureEfficiency（詹金花個案）', () => {
+  const blocks = ZHAN_ORAL.map((p) => ({ prescription: p, timeSlots: p.medication_time_slots }));
+  const pages = packBlocksForSignatureEfficiency(blocks, 20);
+
+  it('全域最優：3 頁、彙總區不同時段數合計為 6（舊貪心為 8，人手排法為 7）', () => {
+    expect(pages).toHaveLength(3);
+    const total = pages.reduce((n, page) => n + new Set(page.flatMap((b) => b.timeSlots)).size, 0);
+    expect(total).toBe(6);
+  });
+
+  it('每頁內部已按時序排列（首時段分鐘數遞增）', () => {
+    for (const page of pages) {
+      const firsts = page.map((b) => {
+        const [h, m] = b.timeSlots[0].split(':').map(Number);
+        return h * 60 + m;
+      });
+      const sorted = [...firsts].sort((a, b) => a - b);
+      expect(firsts).toEqual(sorted);
+    }
   });
 });
