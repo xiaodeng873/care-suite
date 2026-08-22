@@ -33,7 +33,7 @@ export const INSTITUTION_GROUPS: { label: string; key: keyof MedicationSettingsD
 
 export const DEFAULT_MEDICATION_SETTINGS: MedicationSettingsData = {
   劑型: ['片劑', '膠囊', '藥水', '注射劑', '外用藥膏', '滴劑', '皮膚貼劑'],
-  服用途徑: ['口服', '肌肉注射', '皮下注射', '外用', '滴眼', '滴耳', '鼻胃管', '吸入'],
+  服用途徑: ['口服', '肌肉注射', '皮下注射', '外用', '滴眼', '滴耳', '鼻胃管', '吸入', '舌下', '漱口'],
   服用單位: ['粒', '片', '膠囊', '毫升', '滴', '口', '支', '包', '茶匙', '湯匙', 'mg', 'ml', 'g', 'mcg', 'IU'],
   特殊用法: ['適量', '搽患處', '貼在皮膚上', '薄薄一層', '按需要使用'],
   服用時段: [

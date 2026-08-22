@@ -1568,8 +1568,9 @@ const MedicationWorkflow: React.FC = () => {
     if (prescription?.preparation_method !== 'immediate') {
       return false;
     }
-    // 必須是口服途徑
-    if (prescription?.administration_route !== '口服') {
+    // 必須是口服途徑（含舌下、漱口）
+    const isOral = ['口服','舌下','漱口'].includes(prescription?.administration_route);
+    if (!isOral) {
       return false;
     }
     // 不能有檢測項要求

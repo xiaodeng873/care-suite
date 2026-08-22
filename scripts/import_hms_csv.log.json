@@ -1,0 +1,63 @@
+{
+  "mode": "production",
+  "csvRows": 748,
+  "outOfRange": 0,
+  "noPatient": 0,
+  "prescriptions": 748,
+  "newDrugs": 0,
+  "inspectionRules": [
+    {
+      "row": 65,
+      "patient": "208-1 陳佩卿",
+      "medication": "AMLODIPINE (BESYLATE) TABLET 5MG",
+      "rules": "上壓 lte 130"
+    },
+    {
+      "row": 276,
+      "patient": "219-5 黃桂琴",
+      "medication": "AMLODIPINE (BESYLATE) TABLET 5MG",
+      "rules": "上壓 lt 110"
+    },
+    {
+      "row": 542,
+      "patient": "233-1 沈勇",
+      "medication": "METOPROLOL TARTRATE TABLET 50MG",
+      "rules": "脈搏 lt 55"
+    },
+    {
+      "row": 554,
+      "patient": "233-2 周紹安",
+      "medication": "AMLODIPINE (BESYLATE) TABLET 5MG",
+      "rules": "上壓 lt 120"
+    },
+    {
+      "row": 555,
+      "patient": "233-2 周紹安",
+      "medication": "SPIRONOLACTONE TABLET 25MG",
+      "rules": "上壓 lt 95"
+    },
+    {
+      "row": 671,
+      "patient": "236-4 盧葉慧卿",
+      "medication": "HYDRALAZINE HCL TAB 25MG",
+      "rules": "上壓 lte 110"
+    },
+    {
+      "row": 691,
+      "patient": "237-1 黃逸綺",
+      "medication": "METOPROLOL TARTRATE TABLET 50MG",
+      "rules": "脈搏 lt 60"
+    },
+    {
+      "row": 696,
+      "patient": "237-1 黃逸綺",
+      "medication": "AMLODIPINE (BESYLATE) TABLET 5MG",
+      "rules": "上壓 lt 110"
+    }
+  ],
+  "errors": [],
+  "unknownFreqs": [],
+  "unknownRoutes": [],
+  "unknownSources": [],
+  "createdDrugDetails": []
+}

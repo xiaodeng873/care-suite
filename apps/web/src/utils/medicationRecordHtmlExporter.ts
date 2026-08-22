@@ -84,9 +84,8 @@ const renderDiagonalSvg = (color: string): string =>
   `<svg class="mr-diag-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 1 1">`
   + `<line x1="0" y1="1" x2="1" y2="0" stroke="${color}" stroke-width="0.08" vector-effect="non-scaling-stroke"/>`
   + `</svg>`;
-const SUMMARY_ROWS_4 = 2;             // 4 行彙總檔：AM/PM 各 2 行（PM 從第 3 行起）
-const SUMMARY_ROWS_6 = 3;             // 6 行彙總檔：AM/PM 各 3 行
-const SUMMARY_ROWS_8 = 4;             // 8 行彙總檔：AM/PM 各 4 行
+const SUMMARY_PM_MIN_START_ROW = 3;   // PM 時段最少從第 3 列開始（保留前 2 列給 AM）
+const SUMMARY_MIN_ROWS = 4;           // 彙總區總列永不少於 4 列
 
 export const exportMedicationRecordToHtml = async (
   patients: PatientWithPrescriptions[],
@@ -219,7 +218,8 @@ const preparePages = (
       prescription: rx,
       timeSlots: resolvePrescriptionTimeSlots(rx),
     }));
-    const grouped = paginateBlocks(blocks, includeBlankRows, footerLegendMm);
+    // 空白處方列只影響最後渲染階段，不參與分頁/排序
+    const grouped = paginateBlocks(blocks, footerLegendMm);
     grouped.forEach((pb, i) => {
       // 依本頁實際剩餘高度計算可補的空白處方列數（空白列模式不受每頁 5 個處方上限）
       let fillerCount = 0;
@@ -313,7 +313,6 @@ const getBlockHeightMm = (block: PrescriptionBlock): number => {
 // 每頁至少放 1 個處方（即使超高也不可整頁空）；同時受 MAX_PRESCRIPTIONS_PER_PAGE 上限約束。
 const paginateBlocks = (
   blocks: PrescriptionBlock[],
-  includeBlankRows: boolean,
   footerLegendMm: number,
 ): PrescriptionBlock[][] => {
   const result: PrescriptionBlock[][] = [];
@@ -339,21 +338,14 @@ const paginateBlocks = (
   return result.length > 0 ? result : [[]];
 };
 
-// 彙總區行數配置：4/6/8 三檔，對稱 AM/PM；真實資料超過 8 行檔則按實際擴展。
-const computeSummaryLayout = (am: string[], pm: string[]): { totalRows: number; amRows: number; pmRows: number } => {
-  const amCount = am.length;
-  const pmCount = pm.length;
-  if (amCount <= SUMMARY_ROWS_4 && pmCount <= SUMMARY_ROWS_4) {
-    return { totalRows: SUMMARY_ROWS_4 * 2, amRows: SUMMARY_ROWS_4, pmRows: SUMMARY_ROWS_4 };
-  }
-  if (amCount <= SUMMARY_ROWS_6 && pmCount <= SUMMARY_ROWS_6) {
-    return { totalRows: SUMMARY_ROWS_6 * 2, amRows: SUMMARY_ROWS_6, pmRows: SUMMARY_ROWS_6 };
-  }
-  if (amCount <= SUMMARY_ROWS_8 && pmCount <= SUMMARY_ROWS_8) {
-    return { totalRows: SUMMARY_ROWS_8 * 2, amRows: SUMMARY_ROWS_8, pmRows: SUMMARY_ROWS_8 };
-  }
-  // 極端資料超出標準 8 行檔：按真實時段數延伸，避免截斷。
-  return { totalRows: amCount + pmCount, amRows: amCount, pmRows: pmCount };
+// 彙總區行數配置：按實際 AM/PM 時段數，PM 最少從第 3 列開始，
+// 若上午時段數超過 2 個則順延；不再強制兩邊對稱填滿。
+const computeSummaryLayout = (am: string[], pm: string[]): { totalRows: number; amRows: number; pmRows: number; pmStartRow: number } => {
+  const amRows = am.length;
+  const pmRows = pm.length;
+  const pmStartRow = Math.max(SUMMARY_PM_MIN_START_ROW, amRows + 1);
+  const totalRows = Math.max(pmStartRow + pmRows - 1, amRows, SUMMARY_MIN_ROWS);
+  return { totalRows, amRows, pmRows, pmStartRow };
 };
 
 const summaryRowCount = (blocks: PrescriptionBlock[]): number => {
@@ -523,7 +515,7 @@ const classifyRoute = (prescription: MedicationPrescription): RouteKind => {
   const route = String(prescription.administration_route ?? '').trim();
   if (route.includes('皮下注射')) return 'subcutaneous';
   if (route.includes('注射')) return 'intramuscular'; // 肌肉注射及舊版「注射」
-  if (route === '口服') return 'oral';
+  if (route === '口服' || route === '舌下' || route === '漱口') return 'oral';
   if (!route) return 'oral';
   return 'topical';
 };
@@ -669,11 +661,10 @@ const renderPrescriptionBlock = (
 ): string => {
   const { prescription, timeSlots } = block;
 
-  // 開始日期：若與入住日相同，表示為不詳（入住前已在服，確切日期不明）
-  const startDateLabel =
-    admissionDateIso && toIsoDate(prescription.start_date) === admissionDateIso
-      ? '不詳'
-      : formatDate(prescription.start_date);
+  // 開始日期：CSV 已提供者直接顯示；只有缺值才顯示「不詳」
+  const startDateLabel = prescription.start_date
+    ? formatDate(prescription.start_date)
+    : '不詳';
   const dateInfo = `<div>開始日期：${escapeHtml(startDateLabel)}</div>`
     + `<div>處方日期：${escapeHtml(formatDate(prescription.prescription_date))}</div>`;
   const inspectionRequirement = formatInspectionRequirement(prescription);
@@ -695,7 +686,12 @@ const renderPrescriptionBlock = (
     + (prescription.dosage_form ? `<div class="mr-med-form">${escapeHtml(String(prescription.dosage_form))}</div>` : '')
     + lastTakenLine
     + (inspectionRequirement ? `<div class="mr-med-test">${escapeHtml(inspectionRequirement)}</div>` : '')
-    + (prescription.medication_source ? `<div class="mr-med-source">來源：${escapeHtml(String(prescription.medication_source))}</div>` : '')
+    + (() => {
+      const sourceParts = [prescription.medication_source, prescription.medication_source_specialty].filter(Boolean);
+      return sourceParts.length > 0
+        ? `<div class="mr-med-source">來源：${escapeHtml(sourceParts.join(' / '))}</div>`
+        : '';
+    })()
     + (prescription.cannot_crush ? `<div class="mr-med-warning" style="color: #dc2626; font-weight: bold;">⚠️ 不可碎藥</div>` : '');
   const routeInfo = [
     prescription.administration_route ?? '',
@@ -950,12 +946,11 @@ const renderFooterRegion = (
 ): string => {
   const pageSlots = sortDistinctTimeSlots(page.blocks.flatMap((block) => block.timeSlots));
   const { am: amPageSlots, pm: pmPageSlots } = splitAmPm(pageSlots);
-  const { amRows, pmRows, totalRows } = computeSummaryLayout(amPageSlots, pmPageSlots);
-  const summaryAm = [...amPageSlots];
-  while (summaryAm.length < amRows) summaryAm.push('');
-  const summaryPm = [...pmPageSlots];
-  while (summaryPm.length < pmRows) summaryPm.push('');
-  const summarySlots = [...summaryAm, ...summaryPm];
+  const { amRows, pmRows, totalRows, pmStartRow } = computeSummaryLayout(amPageSlots, pmPageSlots);
+  // 按列號放置 AM/PM 時段：AM 從第 1 列起，PM 從第 pmStartRow 列起，中間留空
+  const summarySlots: string[] = new Array(totalRows).fill('');
+  for (let i = 0; i < amPageSlots.length; i++) summarySlots[i] = amPageSlots[i];
+  for (let i = 0; i < pmPageSlots.length; i++) summarySlots[pmStartRow - 1 + i] = pmPageSlots[i];
 
   const legendCodes = '<div class="mr-legend-codes">'
     + DISPENSE_CODE_ITEMS.map((item) => `<span>${escapeHtml(item)}</span>`).join('')

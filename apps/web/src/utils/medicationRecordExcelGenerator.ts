@@ -166,7 +166,7 @@ export const categorizePrescriptionsByRoute = (prescriptions: any[]) => {
     const route = prescription.administration_route?.trim();
     if (!route) {
       noRoute.push(prescription);
-    } else if (route === '口服') {
+    } else if (route === '口服' || route === '舌下' || route === '漱口') {
       oral.push(prescription);
     } else if (route.includes('注射')) {
       injection.push(prescription);
@@ -729,9 +729,10 @@ const fillPrescriptionData = (
 ): string[] => {
   // B列：藥物名稱 (第1行)
   worksheet.getCell('B' + startRow).value = prescription.medication_name || '';
-  // B列：藥物來源 (第5行)
-  worksheet.getCell('B' + (startRow + 4)).value = prescription.medication_source
-    ? '藥物來源: ' + prescription.medication_source
+  // B列：藥物來源 (第5行)：機構名稱/專科
+  const sourceParts = [prescription.medication_source, prescription.medication_source_specialty].filter(Boolean);
+  worksheet.getCell('B' + (startRow + 4)).value = sourceParts.length > 0
+    ? '藥物來源: ' + sourceParts.join(' / ')
     : '';
   // A列：處方日期
   worksheet.getCell('A' + startRow).value = prescription.prescription_date
