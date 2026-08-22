@@ -1,6 +1,6 @@
 import { X, FileDown, Calendar, Users, CheckSquare, Square, AlertCircle, Pill, Syringe, Package, Building2 } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
-import { exportMedicationRecordToHtml, exportBlankMedicationRecordToHtml } from '../utils/medicationRecordHtmlExporter';
+import { exportMedicationRecordToHtml, exportBlankMedicationRecordToHtml, orderPrescriptionsForSignatureEfficiency } from '../utils/medicationRecordHtmlExporter';
 import { exportMedicationListToHtml, classifyMedicationTerm } from '../utils/medicationListHtmlGenerator';
 import { useStationData } from '../context/facility/StationContext';
 import { supabase } from '../lib/supabase';
@@ -27,12 +27,9 @@ type PrescriptionSortOrder = 'efficiency' | 'name' | 'time' | 'source';
 
 const sortPrescriptionsByOrder = (prescriptions: any[], order: PrescriptionSortOrder): any[] => {
   const sorted = [...prescriptions];
-  const slotSig = (p: any): string => [...(p.medication_time_slots ?? [])].sort().join('|');
   const firstSlot = (p: any): string => [...(p.medication_time_slots ?? [])].sort()[0] ?? '';
   const byName = (a: any, b: any): number =>
   (a.medication_name ?? '').localeCompare(b.medication_name ?? '', 'zh-TW');
-  // 簽署效益：無服用時間點的 PRN 藥物置到最後
-  const isLatePrn = (p: any): boolean => p.is_prn && (p.medication_time_slots ?? []).length === 0;
   switch (order) {
     case 'name':
       return sorted.sort(byName);
@@ -43,16 +40,8 @@ const sortPrescriptionsByOrder = (prescriptions: any[], order: PrescriptionSortO
       (a.medication_source ?? '').localeCompare(b.medication_source ?? '', 'zh-TW') || byName(a, b));
     case 'efficiency':
     default:
-      return sorted.sort((a, b) => {
-        const lateA = isLatePrn(a) ? 1 : 0;
-        const lateB = isLatePrn(b) ? 1 : 0;
-        if (lateA !== lateB) return lateA - lateB;
-        const sigCmp = slotSig(a).localeCompare(slotSig(b));
-        if (sigCmp !== 0) return sigCmp;
-        const fsCmp = firstSlot(a).localeCompare(firstSlot(b));
-        if (fsCmp !== 0) return fsCmp;
-        return byName(a, b);
-      });
+      // 與匯出器共用同一排序：時段重疊高者相鄰（每頁彙總列最少），無時段處方置最後
+      return orderPrescriptionsForSignatureEfficiency(sorted);
   }
 };
 
@@ -242,13 +231,15 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
     currentPatientSelectedPrescriptions.has(p.id) &&
     p.patient_id === currentPatient.patient.院友id
     );
-    return base.filter((p) => {
+    const filtered = base.filter((p) => {
       const term = classifyMedicationTerm(p);
       if (term === 'short' && !includeShortTerm) return false;
       if (term === 'long' && !includeLongTerm) return false;
       return true;
     });
-  }, [exportMode, currentPatient, currentPatientSelectedPrescriptions, allPrescriptions, currentPatientAvailablePrescriptions, includeShortTerm, includeLongTerm]);
+    // 匯出排序必須與 modal 預覽一致（勾選模式下的 base 是未排序的 allPrescriptions）
+    return sortPrescriptionsByOrder(filtered, prescriptionSortOrder);
+  }, [exportMode, currentPatient, currentPatientSelectedPrescriptions, allPrescriptions, currentPatientAvailablePrescriptions, includeShortTerm, includeLongTerm, prescriptionSortOrder]);
 
   const currentRouteStats = useMemo((): RouteStats => {
     if (exportMode !== 'current') return { oral: 0, injection: 0, topical: 0, noRoute: 0 };
@@ -394,7 +385,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
             ...currentPatient.patient,
             prescriptions: currentPatientPrescriptionsToExport
           }],
-          selectedMonth, includeWorkflowRecords, includeBlankRows);
+          selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder);
         }
 
         if (shouldExportPersonalMedicationList) {
@@ -469,7 +460,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         }
 
         if (shouldExportMedicationRecord && selectedPatients.length > 0) {
-          await exportMedicationRecordToHtml(selectedPatients, selectedMonth, includeWorkflowRecords, includeBlankRows);
+          await exportMedicationRecordToHtml(selectedPatients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder);
         }
 
         if (shouldExportPersonalMedicationList) {

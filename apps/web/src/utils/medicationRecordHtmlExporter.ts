@@ -80,9 +80,11 @@ const MAX_PRESCRIPTIONS_PER_PAGE = 5; // 每頁最多處方數
 const MIN_SLOT_ROWS = 4;              // 每個處方最少顯示時段列數（不足補空行）
 
 // 產生鋪滿日格的左下→右上斜線 SVG（避免部分印表機不列印背景圖形）。
+// 線寬 0.8pt（與外框同粗，約 1.07px）；vector-effect=non-scaling-stroke 保證
+// 線寬不隨 viewBox 縮放，印表機不會把亞像素線寬渲染成似有還無的虛線。
 const renderDiagonalSvg = (color: string): string =>
   `<svg class="mr-diag-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 1 1">`
-  + `<line x1="0" y1="1" x2="1" y2="0" stroke="${color}" stroke-width="0.08" vector-effect="non-scaling-stroke"/>`
+  + `<line x1="0" y1="1" x2="1" y2="0" stroke="${color}" stroke-width="0.8pt" vector-effect="non-scaling-stroke"/>`
   + `</svg>`;
 const SUMMARY_PM_MIN_START_ROW = 3;   // PM 時段最少從第 3 列開始（保留前 2 列給 AM）
 const SUMMARY_MIN_ROWS = 4;           // 彙總區總列永不少於 4 列
@@ -91,9 +93,10 @@ export const exportMedicationRecordToHtml = async (
   patients: PatientWithPrescriptions[],
   selectedMonth: string,
   includeWorkflowRecords = false,
-  includeBlankRows = false
+  includeBlankRows = false,
+  prescriptionSortOrder?: string
 ): Promise<void> => {
-  const html = await buildMedicationRecordHtml(patients, selectedMonth, includeWorkflowRecords, includeBlankRows);
+  const html = await buildMedicationRecordHtml(patients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder);
   printViaIframe(html);
 };
 
@@ -102,9 +105,10 @@ export const exportSelectedMedicationRecordToHtml = async (
   prescriptions: MedicationPrescription[],
   selectedMonth: string,
   includeWorkflowRecords = false,
-  includeBlankRows = false
+  includeBlankRows = false,
+  prescriptionSortOrder?: string
 ): Promise<void> => {
-  await exportMedicationRecordToHtml([{ ...patient, prescriptions }], selectedMonth, includeWorkflowRecords, includeBlankRows);
+  await exportMedicationRecordToHtml([{ ...patient, prescriptions }], selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder);
 };
 
 // 空白藥紙 HTML 版：每位院友、每個選定途徑各產生一頁，填入 MAX_PRESCRIPTIONS_PER_PAGE 個空白處方列。
@@ -168,7 +172,8 @@ const buildMedicationRecordHtml = async (
   patients: PatientWithPrescriptions[],
   selectedMonth: string,
   includeWorkflowRecords: boolean,
-  includeBlankRows: boolean
+  includeBlankRows: boolean,
+  prescriptionSortOrder?: string
 ): Promise<string> => {
   activeFacility = await getFacilitySettings();
   const renderedPages: string[] = [];
@@ -189,7 +194,7 @@ const buildMedicationRecordHtml = async (
     const staffMapping = generateStaffCodeMapping(extractStaffNamesFromWorkflowRecords(workflowRecords));
     const staffCount = Object.keys(staffMapping).length;
 
-    for (const page of preparePages(patient, prescriptions, includeBlankRows, staffCount)) {
+    for (const page of preparePages(patient, prescriptions, includeBlankRows, staffCount, prescriptionSortOrder)) {
       renderedPages.push(renderPage(page, selectedMonth, workflowRecords, staffMapping, includeBlankRows));
     }
   }
@@ -202,6 +207,7 @@ const preparePages = (
   prescriptions: MedicationPrescription[],
   includeBlankRows: boolean,
   staffCount: number,
+  prescriptionSortOrder?: string,
 ): PageData[] => {
   const categorized: Record<RouteKind, MedicationPrescription[]> = { oral: [], topical: [], subcutaneous: [], intramuscular: [] };
   for (const prescription of prescriptions) {
@@ -218,10 +224,31 @@ const preparePages = (
       prescription: rx,
       timeSlots: resolvePrescriptionTimeSlots(rx),
     }));
-    // 空白處方列只影響最後渲染階段，不參與分頁/排序
-    const grouped = paginateBlocks(blocks, footerLegendMm);
+
+    let grouped: PrescriptionBlock[][];
+    if (prescriptionSortOrder === 'efficiency') {
+      // 1) 有時段處方：按頁裝箱，直接最小化各頁彙總區不同時段數（＝簽署列數）
+      const scheduled = blocks.filter((b) => b.timeSlots.length > 0);
+      const noSlot = blocks.filter((b) => b.timeSlots.length === 0);
+      grouped = packBlocksForSignatureEfficiency(scheduled, footerLegendMm);
+      // 2) 無時段處方（零彙總列成本）按頁序 first-fit 貪心塞入各頁剩餘空間，置該頁末尾；
+      //    只受 mm 限制，不受 MAX_PRESCRIPTIONS_PER_PAGE 限制；塞不下才開尾頁
+      const remaining: PrescriptionBlock[] = [];
+      for (const block of noSlot) {
+        const blockMm = getBlockHeightMm(block);
+        const target = grouped.find((page) => {
+          const usedMm = page.reduce((sum, b) => sum + getBlockHeightMm(b), 0);
+          return usedMm + blockMm <= bodyUsableMm(summaryRowCount(page), footerLegendMm);
+        });
+        if (target) target.push(block); else remaining.push(block);
+      }
+      if (remaining.length > 0) grouped.push(...paginateBlocks(remaining, footerLegendMm));
+    } else {
+      grouped = paginateBlocks(blocks, footerLegendMm);
+    }
+
     grouped.forEach((pb, i) => {
-      // 依本頁實際剩餘高度計算可補的空白處方列數（空白列模式不受每頁 5 個處方上限）
+      // 空白處方列是最後程序：在最終頁面組成後，依本頁實際剩餘高度計算可補列數
       let fillerCount = 0;
       if (includeBlankRows) {
         const realSumMm = pb.reduce((sum, b) => sum + getBlockHeightMm(b), 0);
@@ -426,36 +453,117 @@ const normalizeTimeSlotValue = (slot: unknown): string => {
   return TIME_SLOT_LABEL_TO_TIME[raw] ?? raw;
 };
 
-const getAutoTimeSlotsForExport = (dailyFrequency: number, mealTiming: string): string[] => {
-  const f = Math.max(1, Number(dailyFrequency) || 1);
-  if (f === 1) {
-    return [normalizeTimeSlotValue(mealTiming) || '08:00'];
-  }
-  if (f === 2) {
-    const first = mealTiming === '早餐前' || mealTiming === '餐前' ? '07:00' : '08:00';
-    return [first, '16:00'];
-  }
-  if (f === 3) {
-    const first = mealTiming === '早餐前' || mealTiming === '餐前' ? '07:00' : '08:00';
-    return [first, '12:00', '16:00'];
-  }
-  if (f === 4) {
-    const first = mealTiming === '早餐前' || mealTiming === '餐前' ? '07:00' : '08:00';
-    return [first, '12:00', '16:00', '20:00'];
-  }
-  return ['08:00'];
-};
-
-const resolvePrescriptionTimeSlots = (prescription: MedicationPrescription): string[] => {
+export const resolvePrescriptionTimeSlots = (prescription: MedicationPrescription): string[] => {
   const rawSlots = Array.isArray(prescription.medication_time_slots)
     ? prescription.medication_time_slots
     : [];
-  const normalizedSlots = sortDistinctTimeSlots(rawSlots.map(normalizeTimeSlotValue).filter(Boolean));
-  if (normalizedSlots.length > 0) return normalizedSlots;
+  // 直接以 medication_time_slots 為準；meal_timing（如「晚上」）不再回填自動時段，兩者無關
+  return sortDistinctTimeSlots(rawSlots.map(normalizeTimeSlotValue).filter(Boolean));
+};
 
-  const mealTiming = String(prescription.meal_timing ?? '').trim();
-  if (!mealTiming) return [];
-  return sortDistinctTimeSlots(getAutoTimeSlotsForExport(Number(prescription.daily_frequency) || 1, mealTiming));
+/**
+ * 簽署效益裝箱：直接以「哪幾個時段組放同一頁」為決策單位，
+ * 目標是各頁彙總區不同時段數（＝簽署列數）的總和最少，其次頁數最少。
+ * 規則：
+ * 1. 時段組由大至小處理；整組能放入某頁時，放進「新增時段最少」的頁；
+ * 2. 整組放不下時，只允許「零新增時段」（子集）拆分填入現有頁空隙；
+ * 3. 仍剩餘的才開新頁（按容量切成整頁）。
+ */
+export const packBlocksForSignatureEfficiency = (
+  blocks: PrescriptionBlock[],
+  footerLegendMm: number
+): PrescriptionBlock[][] => {
+  // 依時段集合分組（組內保持原順序）
+  const groups = new Map<string, { slots: string[]; items: PrescriptionBlock[] }>();
+  for (const b of blocks) {
+    const sig = b.timeSlots.join('|');
+    const group = groups.get(sig) ?? { slots: b.timeSlots, items: [] };
+    group.items.push(b);
+    groups.set(sig, group);
+  }
+  const pool = [...groups.values()].sort(
+    (a, b) => b.items.length - a.items.length || a.slots.join('|').localeCompare(b.slots.join('|'))
+  );
+
+  const pages: PrescriptionBlock[][] = [];
+  const pageUnions: Set<string>[] = [];
+
+  const pageUsedMm = (page: PrescriptionBlock[]): number =>
+    page.reduce((sum, b) => sum + getBlockHeightMm(b), 0);
+  const pageCapacityMm = (union: Set<string>): number => {
+    const { am, pm } = splitAmPm([...union]);
+    return bodyUsableMm(computeSummaryLayout(am, pm).totalRows, footerLegendMm);
+  };
+  const addedSlots = (union: Set<string>, slots: string[]): number =>
+    slots.reduce((n, s) => n + (union.has(s) ? 0 : 1), 0);
+  const fitsCount = (page: PrescriptionBlock[], extra: number): boolean =>
+    page.length + extra <= MAX_PRESCRIPTIONS_PER_PAGE;
+
+  for (const group of pool) {
+    const groupMm = group.items.reduce((sum, b) => sum + getBlockHeightMm(b), 0);
+
+    // 1) 整組放入「新增時段最少」的現有頁（平手取較前的頁）
+    let bestPage = -1;
+    let bestAdded = Infinity;
+    for (let i = 0; i < pages.length; i++) {
+      if (!fitsCount(pages[i], group.items.length)) continue;
+      const union = new Set([...pageUnions[i], ...group.slots]);
+      if (pageUsedMm(pages[i]) + groupMm > pageCapacityMm(union)) continue;
+      const added = addedSlots(pageUnions[i], group.slots);
+      if (added < bestAdded) {
+        bestAdded = added;
+        bestPage = i;
+      }
+    }
+    if (bestPage >= 0) {
+      pages[bestPage].push(...group.items);
+      group.slots.forEach((s) => pageUnions[bestPage].add(s));
+      continue;
+    }
+
+    // 2) 零新增時段拆分填入（只有子集組才拆，避免為填縫增加彙總列）
+    const remaining = [...group.items];
+    for (let i = 0; i < pages.length && remaining.length > 0; i++) {
+      if (addedSlots(pageUnions[i], group.slots) !== 0) continue;
+      while (remaining.length > 0 && fitsCount(pages[i], 1)
+        && pageUsedMm(pages[i]) + getBlockHeightMm(remaining[0]) <= pageCapacityMm(pageUnions[i])) {
+        pages[i].push(remaining.shift()!);
+      }
+    }
+
+    // 3) 剩餘開新頁（按容量切成整頁）
+    while (remaining.length > 0) {
+      const page: PrescriptionBlock[] = [];
+      const union = new Set(group.slots);
+      while (remaining.length > 0 && fitsCount(page, 1)
+        && pageUsedMm(page) + getBlockHeightMm(remaining[0]) <= pageCapacityMm(union)) {
+        page.push(remaining.shift()!);
+      }
+      if (page.length === 0) page.push(remaining.shift()!); // 單個超高也要放，不可整頁空
+      pages.push(page);
+      pageUnions.push(new Set(group.slots));
+    }
+  }
+
+  return pages;
+};
+
+/**
+ * 按簽署效益排序：與匯出分頁共用 packBlocksForSignatureEfficiency 的裝箱結果（展平），
+ * 使 modal 預覽順序＝列印順序。無時段處方（零彙總列成本）排最後，供匯出時貪心填入各頁空隙。
+ */
+export const orderPrescriptionsForSignatureEfficiency = <T>(prescriptions: T[]): T[] => {
+  const withSlots = (prescriptions ?? []).map((p) => ({
+    item: p,
+    slots: resolvePrescriptionTimeSlots(p as MedicationPrescription),
+  }));
+  const noSlot = withSlots.filter((x) => x.slots.length === 0);
+  const blocks = withSlots
+    .filter((x) => x.slots.length > 0)
+    .map((x) => ({ prescription: x.item as MedicationPrescription, timeSlots: x.slots }));
+  // modal 無職員代號資料，以 0 人估算 footer 高度
+  const packed = packBlocksForSignatureEfficiency(blocks, estimateFooterLegendMm(0));
+  return [...packed.flat().map((b) => b.prescription as T), ...noSlot.map((x) => x.item)];
 };
 
 const getMealTimingLabel = (prescription: MedicationPrescription): string => {
@@ -727,7 +835,7 @@ const renderPrescriptionBlock = (
 
   const boundary = getBoundaryCells(prescription, timeSlots, selectedMonth, dayCount);
   // 補白列的日格：白底＋斜線，與空白處方格相同（不用灰格）
-  const padDayCells = Array(dayCount).fill(`<td class="c-day ${diagClass}">${renderDiagonalSvg(isImmediate ? '#334155' : '#9aa7b4')}</td>`).join('');
+  const padDayCells = Array(dayCount).fill(`<td class="c-day ${diagClass}">${renderDiagonalSvg('#9aa7b4')}</td>`).join('');
 
   let isFirstRow = true;
   const leftFor = (): string => {
@@ -928,7 +1036,7 @@ const signatureDayCells = (
     }
     const inactiveClass = !inRange ? (isImmediate ? ' mr-inactive-prn' : ' mr-inactive') : '';
     const boundaryClass = isBoundary ? ' mr-boundary' : '';
-    const diagColor = isImmediate ? '#334155' : '#9aa7b4';
+    const diagColor = '#9aa7b4';
     cells += `<td class="c-day ${diagClass}${inactiveClass}${boundaryClass}">${renderDiagonalSvg(diagColor)}${cellInner || '&nbsp;'}</td>`;
   }
   return cells;

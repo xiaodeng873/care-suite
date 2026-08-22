@@ -317,6 +317,6 @@ export const formatObservationStatus = (status: 'N' | 'P' | 'S'): string => {
   }
 };
 
-export const formatPosition = (position: '左' | '平' | '右'): string => {
+export const formatPosition = (position: '左' | '平' | '右' | '坐'): string => {
   return position;
 };

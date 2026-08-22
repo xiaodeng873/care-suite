@@ -1,0 +1,69 @@
+import { describe, it, expect } from 'vitest';
+import {
+  packBlocksForSignatureEfficiency,
+  orderPrescriptionsForSignatureEfficiency,
+} from './medicationRecordHtmlExporter';
+
+// 雷燕優（C209-1）2026-08 口服處方（真實資料）
+const rx = (name: string, slots: string[]) => ({
+  medication_name: name,
+  administration_route: '口服',
+  medication_time_slots: slots,
+  inspection_rules: [],
+});
+
+const LEI_ORAL = [
+  rx('CYANOCOBALAMIN (VIT B12) TABLET 50MCG', ['08:00', '16:00']),
+  rx('ENERVON C TABLET', ['08:00']),
+  rx('THIAMINE HCL (VIT B1) TABLET 50MG', ['08:00', '16:00']),
+  rx('LISINOPRIL TABLET 5MG', ['08:00', '16:00']),
+  rx('AMLODIPINE (BESYLATE) TABLET 5MG', ['08:00']),
+  rx('SENNA TABLET 7.5MG', []),
+  rx('ALENDRONATE SODIUM TAB (70MG ALENDRONIC ACID)', ['07:00']),
+  rx('CALCIUM（CARBONATE）+VITAMIN D CHEW TAB 1000MG CA+800IU', ['08:00']),
+  rx('METFORMIN HCL TABLET 500MG', ['08:00', '16:00']),
+  rx('METFORMIN HCL TABLET 250MG', ['08:00', '16:00']),
+];
+
+const PAGE1_NAMES = [
+  'CYANOCOBALAMIN (VIT B12) TABLET 50MCG',
+  'THIAMINE HCL (VIT B1) TABLET 50MG',
+  'LISINOPRIL TABLET 5MG',
+  'METFORMIN HCL TABLET 500MG',
+  'METFORMIN HCL TABLET 250MG',
+];
+const PAGE2_NAMES = [
+  'ENERVON C TABLET',
+  'AMLODIPINE (BESYLATE) TABLET 5MG',
+  'CALCIUM（CARBONATE）+VITAMIN D CHEW TAB 1000MG CA+800IU',
+  'ALENDRONATE SODIUM TAB (70MG ALENDRONIC ACID)',
+];
+
+describe('packBlocksForSignatureEfficiency（雷燕優個案）', () => {
+  const scheduled = LEI_ORAL.filter((p) => p.medication_time_slots.length > 0);
+  const blocks = scheduled.map((p) => ({ prescription: p, timeSlots: p.medication_time_slots }));
+  // footerLegendMm=20 等同 estimateFooterLegendMm(0)（無職員代號）
+  const pages = packBlocksForSignatureEfficiency(blocks, 20);
+
+  it('5 個 {08:00,16:00} 處方同頁；{07:00} 與 3 個 {08:00} 同頁', () => {
+    expect(pages).toHaveLength(2);
+    expect(pages[0].map((b) => b.prescription.medication_name)).toEqual(PAGE1_NAMES);
+    expect(pages[1].map((b) => b.prescription.medication_name)).toEqual(PAGE2_NAMES);
+  });
+
+  it('各頁彙總區不同時段數合計為 4（2+2），而非 5（2+3）', () => {
+    const total = pages.reduce((n, page) => n + new Set(page.flatMap((b) => b.timeSlots)).size, 0);
+    expect(total).toBe(4);
+  });
+});
+
+describe('orderPrescriptionsForSignatureEfficiency（modal 預覽＝列印順序）', () => {
+  it('展平順序與分頁一致，無時段處方（SENNA）排最後', () => {
+    const ordered = orderPrescriptionsForSignatureEfficiency(LEI_ORAL);
+    expect(ordered.map((p) => p.medication_name)).toEqual([
+      ...PAGE1_NAMES,
+      ...PAGE2_NAMES,
+      'SENNA TABLET 7.5MG',
+    ]);
+  });
+});

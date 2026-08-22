@@ -51,7 +51,7 @@ export interface PositionChangeRecord {
   patient_id: number;
   change_date: string;   // YYYY-MM-DD
   scheduled_time: string;
-  position: '左' | '平' | '右';
+  position: '左' | '平' | '右' | '坐';
   recorder: string;
   notes?: string;        // 在這裡填「入院／渡假／外出」
   created_at?: string;

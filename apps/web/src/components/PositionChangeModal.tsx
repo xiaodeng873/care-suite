@@ -25,7 +25,7 @@ const PositionChangeModal: React.FC<PositionChangeModalProps> = ({
   onSubmit,
   onDelete
 }) => {
-  const [position, setPosition] = useState<'左' | '平' | '右'>('左');
+  const [position, setPosition] = useState<'左' | '平' | '右' | '坐'>('左');
   const [recorder, setRecorder] = useState('');
   const [notes, setNotes] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -80,7 +80,7 @@ const PositionChangeModal: React.FC<PositionChangeModalProps> = ({
     }
   };
 
-  const getPositionButtonClass = (pos: '左' | '平' | '右') => {
+  const getPositionButtonClass = (pos: '左' | '平' | '右' | '坐') => {
     const baseClass = "flex-1 py-4 px-4 rounded-lg font-medium transition-all duration-200 flex items-center justify-center";
     if (isSpecialStatus) {
       return `${baseClass} bg-gray-100 text-gray-400 cursor-not-allowed opacity-50`;
@@ -170,7 +170,7 @@ const PositionChangeModal: React.FC<PositionChangeModalProps> = ({
               <div>
                 <p className="text-sm font-medium text-blue-900">轉身順序提示</p>
                 <p className="text-sm text-blue-700 mt-1">
-                  左 → 平 → 右 → 左（循環）
+                  左 → 平 → 右 → 左（循環），「坐」可手動選擇
                 </p>
               </div>
             </div>
@@ -204,6 +204,14 @@ const PositionChangeModal: React.FC<PositionChangeModalProps> = ({
                 className={getPositionButtonClass('右')}
               >
                 右
+              </button>
+              <button
+                type="button"
+                onClick={() => setPosition('坐')}
+                disabled={isSpecialStatus}
+                className={getPositionButtonClass('坐')}
+              >
+                坐
               </button>
             </div>
             {!existingRecord && (

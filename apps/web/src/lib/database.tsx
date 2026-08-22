@@ -679,7 +679,7 @@ export interface PositionChangeRecord {
   patient_id: number;
   change_date: string;
   scheduled_time: string;
-  position: '左' | '平' | '右';
+  position: '左' | '平' | '右' | '坐';
   recorder: string;
   notes?: string;
   created_at: string;
