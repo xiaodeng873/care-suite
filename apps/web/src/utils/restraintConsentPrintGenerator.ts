@@ -232,7 +232,7 @@ body {
 .inst-name-box { text-align:center; font-size:16px; font-weight:bold; margin-bottom:5px; }
 .title-section { text-align:center; margin-bottom:10px; flex:1; }
 .title-section h1 { margin:0; font-size:16px; font-weight:bold; letter-spacing:2px; }
-.title-section h2 { margin:4px 0 0 0; font-size:14px; font-weight:bold; display:inline-block; border-bottom:1.5px solid black; padding-bottom:2px; }
+.title-section h2 { margin:4px 0 0 0; font-size:14px; font-weight:bold; display:inline-block; }
 .form-header { display:flex; align-items:flex-start; justify-content:center; margin-bottom:5px; }
 .form-header .title-section { margin-bottom:0; }
 
@@ -313,7 +313,7 @@ table.main-table th, table.main-table td {
 
   <!-- 機構名稱 -->
   <div class="inst-name-box">
-    <div style="display:inline-block; width:350px;">
+    <div style="display:inline-block; width:175px;">
       <input type="text" class="db-input" style="text-align:center;"${val(facilityName)}>
     </div>（安老院名稱）
   </div>
