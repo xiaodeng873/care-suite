@@ -3191,8 +3191,12 @@ const MedicationWorkflow: React.FC = () => {
                                     )}
                                     <div>
                                       {(() => {
-                                        const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
+                                        const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency, is_prn } = prescription;
                                         const perDay = (medication_time_slots?.length) || daily_frequency || frequency_value || 1;
+                                        // PRN 的「隔N日」只是護理安排，處方本身仍是每日，文字須跟處方
+                                        if (is_prn && frequency_type === 'every_x_days') {
+                                          return `每日${perDay}次`;
+                                        }
                                         switch (frequency_type) {
                                           case 'every_x_days': {
                                             const gap = Number(frequency_value) || 1;

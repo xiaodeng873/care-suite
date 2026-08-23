@@ -43,7 +43,7 @@ interface PageData {
   pageIndexInRoute: number;
   pageCountInRoute: number;
   fillerCount: number; // 勾「處方空白列」時，本頁依剩餘空間可補的空白處方區塊數
-  oralQuantityStat?: string; // 口服藥紙第一頁：全部口服藥物（單位「粒」）各時間點數量統計
+  oralQuantityStat?: string; // 口服藥紙每頁：全部口服藥物（單位「粒」）各時間點數量統計
 }
 
 const ROUTE_SUBTITLES: Record<PageRouteKind, string> = {
@@ -284,7 +284,7 @@ const preparePages = (
         patient, routeKind, blocks: pb,
         pageIndexInRoute: i + 1, pageCountInRoute: grouped.length,
         fillerCount,
-        oralQuantityStat: routeKind === 'oral' && i === 0 ? oralQuantityStat : undefined,
+        oralQuantityStat: routeKind === 'oral' ? oralQuantityStat : undefined,
       });
     });
   };
@@ -554,6 +554,18 @@ export const packBlocksForSignatureEfficiency = (
       return String(a.prescription.medication_name ?? '').localeCompare(String(b.prescription.medication_name ?? ''));
     });
 
+  // 頁面層級時序：同頁排完後，取每頁第一列處方的第一個時間點排序，最早的做第一頁；
+  // 全無時段的頁（無時段 PRN 尾頁）排最後，同 key 保持原順序
+  const sortPagesChronologically = (pages: PrescriptionBlock[][]): PrescriptionBlock[][] =>
+    pages
+      .map((page, idx) => ({
+        page,
+        idx,
+        key: page.length > 0 && page[0].timeSlots.length > 0 ? parseTimeToMinutes(page[0].timeSlots[0]) : Infinity,
+      }))
+      .sort((a, b) => a.key - b.key || a.idx - b.idx)
+      .map((x) => x.page);
+
   // 極端多時段組的罕見情況：退化为順序貪心，避免搜尋爆炸
   if (groups.length > 12) {
     const pages: PrescriptionBlock[][] = [];
@@ -570,7 +582,7 @@ export const packBlocksForSignatureEfficiency = (
       }
       if (!placed) pages.push([...g.items]);
     }
-    return pages.map(sortPageChronologically);
+    return sortPagesChronologically(pages.map(sortPageChronologically));
   }
 
   // DFS 列舉所有整組分配，取全域最優
@@ -603,7 +615,7 @@ export const packBlocksForSignatureEfficiency = (
   };
   dfs(0, [], 0);
 
-  return (bestPages ?? []).map(sortPageChronologically);
+  return sortPagesChronologically((bestPages ?? []).map(sortPageChronologically));
 };
 
 /**
@@ -1262,9 +1274,13 @@ const parseTimeToMinutes = (timeStr: string): number => {
 };
 
 const getFrequencyDescription = (prescription: MedicationPrescription): string => {
-  const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
+  const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency, is_prn } = prescription;
   const timeSlotsCount = medication_time_slots?.length ?? 0;
   const perDay = timeSlotsCount || daily_frequency || frequency_value || 1;
+
+  // PRN 的「隔N日」只是護理安排（需要時決定哪天服），處方本身仍是每日，文字須跟處方；
+  // 隔天安排已由日期格的灰化表達，不寫成「隔N日」
+  if (is_prn && frequency_type === 'every_x_days') return `每日${perDay}次`;
 
   switch (frequency_type) {
     case 'every_x_days': {

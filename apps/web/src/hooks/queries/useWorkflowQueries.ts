@@ -720,14 +720,27 @@ export function useUpdateDrug() {
   return useMutation({
     mutationFn: async (drug: any) => {
       const { id, ...updateData } = drug;
+      // 藥名變更需連動所有處方：先取舊名
+      let oldName: string | undefined;
+      if (updateData.drug_name) {
+        const { data: existing } = await supabase
+          .from('medication_drug_database')
+          .select('drug_name')
+          .eq('id', id)
+          .single();
+        oldName = existing?.drug_name;
+      }
       const { error } = await supabase
         .from('medication_drug_database')
         .update({ ...updateData, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
+      await db.cascadeDrugRenameToPrescriptions(oldName, updateData.drug_name);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workflow.drugDatabase.all });
+      // 連動改名後處方快取也要刷新
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflow.prescriptions.all });
     },
   });
 }

@@ -55,7 +55,7 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
 { id: 'bedhead_intake_output', name: '個人出入量記錄表', category: '床頭記錄', defaultChecked: true },
 { id: 'bedhead_hygiene', name: '個人衛生、清潔及大便記錄', category: '床頭記錄', defaultChecked: true },
 { id: 'bedhead_restraint_observation', name: '身體約束物品觀察記錄表', category: '床頭記錄', defaultChecked: true },
-{ id: 'bedhead_position_change', name: '轉身記錄', category: '床頭記錄', defaultChecked: false, disabled: true, disabledHint: '未開放' },
+{ id: 'bedhead_position_change', name: '轉身記錄', category: '床頭記錄', defaultChecked: true },
 { id: 'bedhead_toilet_training', name: '如廁訓練', category: '床頭記錄', defaultChecked: false, disabled: true, disabledHint: '未開放' },
 // 統計報表
 { id: 'meal_statistics_report', name: '餐膳統計報表', category: '統計報表', defaultChecked: false },

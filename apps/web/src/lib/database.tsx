@@ -958,9 +958,29 @@ export const createDrug = async (drug: any): Promise<DrugData> => {
   return data;
 };
 export const updateDrug = async (drug: any): Promise<DrugData> => {
+  // 藥名變更需連動所有處方（兩表無外鍵，只靠名稱對照）：先取舊名
+  let oldName: string | undefined;
+  if (drug.drug_name) {
+    const { data: existing } = await supabase
+      .from('medication_drug_database')
+      .select('drug_name')
+      .eq('id', drug.id)
+      .single();
+    oldName = existing?.drug_name;
+  }
   const { data, error } = await supabase.from('medication_drug_database').update(drug).eq('id', drug.id).select().single();
   if (error) throw error;
+  await cascadeDrugRenameToPrescriptions(oldName, drug.drug_name);
   return data;
+};
+/** 藥物改名連動：所有使用舊藥名的處方（不分有效/停服/歷史）一併改為新名 */
+export const cascadeDrugRenameToPrescriptions = async (oldName?: string, newName?: string): Promise<void> => {
+  if (!oldName || !newName || oldName === newName) return;
+  const { error } = await supabase
+    .from('new_medication_prescriptions')
+    .update({ medication_name: newName })
+    .eq('medication_name', oldName);
+  if (error) throw error;
 };
 export const deleteDrug = async (id: string): Promise<void> => {
   const { error } = await supabase.from('medication_drug_database').delete().eq('id', id);

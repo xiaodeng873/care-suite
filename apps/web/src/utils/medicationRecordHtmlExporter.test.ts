@@ -47,10 +47,10 @@ describe('packBlocksForSignatureEfficiency（雷燕優個案）', () => {
   // footerLegendMm=20 等同 estimateFooterLegendMm(0)（無職員代號）
   const pages = packBlocksForSignatureEfficiency(blocks, 20);
 
-  it('5 個 {08:00,16:00} 處方同頁；{07:00} 與 3 個 {08:00} 同頁', () => {
+  it('頁面按首列處方的第一個時間點排序：{07:00} 頁在 {08:00} 頁之前', () => {
     expect(pages).toHaveLength(2);
-    expect(pages[0].map((b) => b.prescription.medication_name)).toEqual(PAGE1_NAMES);
-    expect(pages[1].map((b) => b.prescription.medication_name)).toEqual(PAGE2_NAMES);
+    expect(pages[0].map((b) => b.prescription.medication_name)).toEqual(PAGE2_NAMES);
+    expect(pages[1].map((b) => b.prescription.medication_name)).toEqual(PAGE1_NAMES);
   });
 
   it('各頁彙總區不同時段數合計為 4（2+2），而非 5（2+3）', () => {
@@ -63,8 +63,8 @@ describe('orderPrescriptionsForSignatureEfficiency（modal 預覽＝列印順序
   it('展平順序與分頁一致，無時段處方（SENNA）排最後', () => {
     const ordered = orderPrescriptionsForSignatureEfficiency(LEI_ORAL);
     expect(ordered.map((p) => p.medication_name)).toEqual([
-      ...PAGE1_NAMES,
       ...PAGE2_NAMES,
+      ...PAGE1_NAMES,
       'SENNA TABLET 7.5MG',
     ]);
   });

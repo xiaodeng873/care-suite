@@ -569,6 +569,26 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
           return mod.generateRestraintObservationRangeHtml(patient, [], null, ctx.startDate, ctx.endDate, true, ctx.facilityName);
         };
       }
+      case 'bedhead_position_change': {
+        const mod = await import('./positionChangeHtmlExporter');
+        return async (ctx) => {
+          const patient = ctxPatient(ctx);
+          if (ctx.contentMode === 'data') {
+            const tabs = await loadPatientCareTabsForPatients([ctx.patient.院友id]);
+            if (!patientHasCareTab(tabs, ctx.patient.院友id, 'position')) return '';
+            const db = await import('../lib/database');
+            const records = await db.getPositionChangeRecordsInDateRange(ctx.startDate, ctx.endDate);
+            const patientRecords = records.filter(r => r.patient_id === ctx.patient.院友id);
+            if (patientRecords.length === 0) return '';
+            return mod.generatePositionChangeRangeHtml(patient, patientRecords, ctx.startDate, ctx.endDate, ctx.facilityName);
+          }
+          // basic：含院友基本資料但無記錄；blank：全空白
+          return mod.generatePositionChangeRangeHtml(
+            ctx.contentMode === 'basic' ? patient : null,
+            [], ctx.startDate, ctx.endDate, ctx.facilityName
+          );
+        };
+      }
       default:
         return null;
     }

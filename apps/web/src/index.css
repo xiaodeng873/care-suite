@@ -921,3 +921,34 @@
     margin-top: 0.75rem;
   }
 }
+
+/* 色輪滑桿（居住區代表顏色）：彩虹漸層軌道 + 圓形滑塊 */
+.hue-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 12px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+  background: linear-gradient(to right,
+    #ff0000 0%, #ffff00 16.67%, #00ff00 33.33%,
+    #00ffff 50%, #0000ff 66.67%, #ff00ff 83.33%, #ff0000 100%);
+}
+.hue-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid #374151;
+  cursor: pointer;
+}
+.hue-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid #374151;
+  cursor: pointer;
+}

@@ -2,10 +2,35 @@ import React, { useState } from 'react';
 import { X, Building2 } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 
-const PRESET_COLORS = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#ec4899', '#06b6d4', '#6366f1', '#84cc16', '#f97316',
-];
+/** 色輪：色相 0–359°（HSL 100% 飽和、50% 明度的純色）→ hex */
+function hueToHex(h: number): string {
+  const x = 1 - Math.abs(((h / 60) % 2) - 1);
+  let r = 0, g = 0, b = 0;
+  if (h < 60) [r, g, b] = [1, x, 0];
+  else if (h < 120) [r, g, b] = [x, 1, 0];
+  else if (h < 180) [r, g, b] = [0, 1, x];
+  else if (h < 240) [r, g, b] = [0, x, 1];
+  else if (h < 300) [r, g, b] = [x, 0, 1];
+  else [r, g, b] = [1, 0, x];
+  const to2 = (v: number) => Math.round(v * 255).toString(16).padStart(2, '0');
+  return `#${to2(r)}${to2(g)}${to2(b)}`;
+}
+
+/** hex → 色輪位置（任何顏色都可推出色相，供滑桿定位） */
+function hexToHue(hex: string): number {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return 0;
+  const n = parseInt(m[1], 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const d = max - min;
+  if (d === 0) return 0;
+  let h: number;
+  if (max === r) h = 60 * (((g - b) / d) % 6);
+  else if (max === g) h = 60 * ((b - r) / d + 2);
+  else h = 60 * ((r - g) / d + 4);
+  return Math.round((h + 360) % 360);
+}
 
 interface StationModalProps {
   station?: any;
@@ -122,43 +147,33 @@ const StationModal: React.FC<StationModalProps> = ({ station, onClose }) => {
 
           <div>
             <label className="form-label">代表顏色</label>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, color: '' }))}
-                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${formData.color ? 'border-gray-300 text-gray-400 hover:border-gray-400' : 'border-blue-500 text-blue-500'}`}
+                className={`w-8 h-8 shrink-0 rounded-full border-2 flex items-center justify-center ${formData.color ? 'border-gray-300 text-gray-400 hover:border-gray-400' : 'border-blue-500 text-blue-500'}`}
                 title="無顏色"
               >
                 <X className="h-4 w-4" />
               </button>
-              {PRESET_COLORS.map(c => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, color: c }))}
-                  className={`w-8 h-8 rounded-full border-2 ${formData.color === c ? 'border-gray-900 ring-2 ring-offset-1 ring-gray-300' : 'border-transparent'}`}
-                  style={{ backgroundColor: c }}
-                  title={c}
-                />
-              ))}
-              <div className="flex items-center gap-2 ml-1">
-                <input
-                  type="color"
-                  value={formData.color || PRESET_COLORS[0]}
-                  onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
-                  className="w-8 h-8 p-0 border-0 rounded-full overflow-hidden cursor-pointer"
-                  title="自訂顏色"
-                />
-                {formData.color && !PRESET_COLORS.includes(formData.color) && (
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, color: '' }))}
-                    className="text-xs text-gray-500 underline hover:text-gray-700"
-                  >
-                    清除
-                  </button>
-                )}
-              </div>
+              <input
+                type="range"
+                min={0}
+                max={359}
+                step={1}
+                value={formData.color ? hexToHue(formData.color) : 0}
+                onChange={(e) => setFormData(prev => ({ ...prev, color: hueToHex(Number(e.target.value)) }))}
+                className="hue-slider flex-1"
+                title="色輪（0–359°）"
+              />
+              <span
+                className={`w-8 h-8 shrink-0 rounded-full border-2 ${formData.color ? 'border-gray-900' : 'border-dashed border-gray-300'}`}
+                style={{ backgroundColor: formData.color || 'transparent' }}
+                title={formData.color || '無顏色'}
+              />
+              <span className="text-xs text-gray-600 w-16 shrink-0 tabular-nums">
+                {formData.color ? `${hexToHue(formData.color)}° ${formData.color}` : '無顏色'}
+              </span>
             </div>
           </div>
 
