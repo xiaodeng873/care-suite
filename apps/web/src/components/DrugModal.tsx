@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Pill, Upload, Camera, Trash2 } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
+import { getMedicationSettings } from '../utils/medicationSettings';
 
 interface DrugModalProps {
   drug?: any;
@@ -26,6 +27,16 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(drug?.photo_url || null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // 藥物設定：使用途徑 / 藥物單位選項與「藥物設定」頁同步
+  const medSettings = useMemo(() => getMedicationSettings(), []);
+  const routeOptions = useMemo(() => {
+    const routes: string[] = [...medSettings.服用途徑];
+    if (formData.administration_route && !routes.includes(formData.administration_route)) {
+      routes.push(formData.administration_route);
+    }
+    return routes;
+  }, [medSettings, formData.administration_route]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -241,14 +252,9 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
                 className="form-input"
               >
                 <option value="">請選擇途徑</option>
-                <option value="口服">口服</option>
-                <option value="皮下注射">皮下注射</option>
-                <option value="肌肉注射">肌肉注射</option>
-                <option value="外用">外用</option>
-                <option value="滴眼">滴眼</option>
-                <option value="滴耳">滴耳</option>
-                <option value="鼻胃管">鼻胃管</option>
-                <option value="吸入">吸入</option>
+                {routeOptions.map((route) => (
+                  <option key={route} value={route}>{route}</option>
+                ))}
               </select>
             </div>
 
@@ -261,7 +267,13 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
                 onChange={handleChange}
                 className="form-input"
                 placeholder="例如：mg、ml、片、滴"
+                list="drug-unit-options"
               />
+              <datalist id="drug-unit-options">
+                {medSettings.服用單位.map((unit) => (
+                  <option key={unit} value={unit} />
+                ))}
+              </datalist>
             </div>
           </div>
 

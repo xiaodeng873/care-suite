@@ -5,11 +5,12 @@ import PatientAutocomplete from './PatientAutocomplete';
 import DrugAutocomplete from './DrugAutocomplete';
 import OCRPrescriptionBlock from './OCRPrescriptionBlock';
 import { mapOCRDataToPrescriptionForm, getConfidenceColor, getConfidenceIcon } from '../utils/ocrFieldMapper';
-import { getMedicationSettings, INSTITUTION_GROUPS, getInstitutionCategory } from '../utils/medicationSettings';
+import { getMedicationSettings, INSTITUTION_GROUPS } from '../utils/medicationSettings';
 import { computeEstimatedEndDate } from '../utils/estimatedEndDate';
 import { supabase } from '../lib/supabase';
 import PrescriptionLogModal from './PrescriptionLogModal';
 import DateInput from './DateInput';
+import InstitutionAutocomplete from './InstitutionAutocomplete';
 
 interface PrescriptionModalProps {
   prescription?: any;
@@ -90,17 +91,6 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
   const selectedPatient = patients.find((p: any) => String(p?.院友id) === String(formData.patient_id));
   const admissionDateIso = normalizeDateToISO(selectedPatient?.入住日期);
 
-  // 所選機構的類別（ha/dh/other），供藥物數量必填判定
-  const institutionCategory = useMemo(
-    () => getInstitutionCategory(formData.medication_source, medSettings),
-    [formData.medication_source, medSettings]
-  );
-  // 是否需要藥物數量（機構屬醫管局/衛生署 且 單位為粒或膠囊）
-  const quantityRequired = useMemo(
-    () => (institutionCategory === 'ha' || institutionCategory === 'dh')
-      && ['粒', '膠囊'].includes(formData.dosage_unit),
-    [institutionCategory, formData.dosage_unit]
-  );
   // 預計結束日期（僅在無明確結束日期時推算）
   const estimatedEndDate = useMemo(
     () => computeEstimatedEndDate({
@@ -398,6 +388,20 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       return;
     }
 
+    // 藥物來源機構必填且必須在清單內（不設即時新增；既有舊值除外）
+    const sourceTrimmed = formData.medication_source.trim();
+    if (!sourceTrimmed) {
+      setValidationError('請選擇藥物來源機構');
+      return;
+    }
+    const isKnownSource = INSTITUTION_GROUPS.some(
+      (g) => ((medSettings[g.key] as string[]) || []).includes(sourceTrimmed)
+    );
+    if (!isKnownSource && sourceTrimmed !== (prescription?.medication_source || '')) {
+      setValidationError('藥物來源機構必須從清單中選擇；如需新增機構，請前往「藥物設定」');
+      return;
+    }
+
     if (formData.frequency_type === 'weekly_days' && formData.specific_weekdays.length === 0) {
       setValidationError('選擇逢星期服時，請至少選擇一個星期幾');
       return;
@@ -465,15 +469,6 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
           );
           return;
         }
-      }
-    }
-
-    // 驗證：機構屬醫管局/衛生署 且 單位為粒/膠囊 時，藥物數量必填
-    if (quantityRequired) {
-      const q = parseFloat(String(formData.medication_quantity));
-      if (!formData.medication_quantity || !Number.isFinite(q) || q <= 0) {
-        setValidationError('此來源（醫管局／衛生署）且單位為粒／膠囊的處方，必須輸入有效的藥物數量才能儲存');
-        return;
       }
     }
 
@@ -696,31 +691,13 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   藥物來源機構 *
                   {renderFieldIndicator('medication_source')}
                 </label>
-                <select
-                  name="medication_source"
+                <InstitutionAutocomplete
                   value={formData.medication_source}
-                  onChange={handleChange}
-                  className={getFieldClassName('medication_source', 'form-input')}
+                  onChange={(v) => setFormData(prev => ({ ...prev, medication_source: v }))}
+                  medSettings={medSettings}
+                  className={getFieldClassName('medication_source', '')}
                   required
-                >
-                  <option value="">— 請選擇機構 —</option>
-                  {INSTITUTION_GROUPS.map((g) => {
-                    const list = (medSettings[g.key] as string[]) || [];
-                    if (list.length === 0) return null;
-                    return (
-                      <optgroup key={g.label} label={g.label}>
-                        {list.map((src) => (
-                          <option key={src} value={src}>{src}</option>
-                        ))}
-                      </optgroup>
-                    );
-                  })}
-                  {/* 舊資料相容：若目前值不在任何清單中，仍可顯示 */}
-                  {formData.medication_source &&
-                    !INSTITUTION_GROUPS.some(g => ((medSettings[g.key] as string[]) || []).includes(formData.medication_source)) && (
-                    <option value={formData.medication_source}>{formData.medication_source}（既有）</option>
-                  )}
-                </select>
+                />
               </div>
 
               <div>
@@ -743,7 +720,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
 
               <div>
                 <label className="form-label">
-                  藥物數量{quantityRequired && ' *'}
+                  藥物數量
                   {renderFieldIndicator('medication_quantity')}
                 </label>
                 <input
@@ -755,11 +732,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   placeholder="例如：30"
                   min="0"
                   step="0.5"
-                  required={quantityRequired}
                 />
-                {quantityRequired && (
-                  <p className="text-xs text-amber-600 mt-1">此來源屬醫管局／衛生署，須輸入藥物數量。</p>
-                )}
               </div>
 
               <div>
