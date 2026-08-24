@@ -4,8 +4,8 @@ import { INSTITUTION_GROUPS } from '../utils/medicationSettings';
 import type { MedicationSettingsData } from '../utils/medicationSettings';
 
 interface InstitutionOption {
-  name: string;       // 中文機構名（儲存值）
-  group: string;      // 分組標題（如「醫管局 — 醫院」）
+  name: string;       // 中文名（儲存值）
+  group?: string;     // 分組標題（如「醫管局 — 醫院」）
   abbr?: string;      // 英文簡稱（如 WTSH）
 }
 
@@ -16,6 +16,10 @@ interface InstitutionAutocompleteProps {
   placeholder?: string;
   className?: string;
   required?: boolean;
+  /** 自訂選項（提供時略過機構分組）；專科等其它清單可重用本組件 */
+  options?: InstitutionOption[];
+  /** 找不到結果時的提示（預設為機構提示） */
+  emptyHint?: string;
 }
 
 /**
@@ -29,6 +33,8 @@ const InstitutionAutocomplete: React.FC<InstitutionAutocompleteProps> = ({
   placeholder = '輸入中文名或英文簡稱搜索…',
   className = '',
   required = false,
+  options,
+  emptyHint = '如需新增機構，請前往「藥物設定」加進清單',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value);
@@ -37,8 +43,9 @@ const InstitutionAutocomplete: React.FC<InstitutionAutocompleteProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // 全部機構選項（含分組與英文簡稱）
+  // 全部選項（預設為機構分組清單，含英文簡稱；可用 options 覆寫）
   const allOptions = useMemo<InstitutionOption[]>(() => {
+    if (options) return options;
     const abbrMap = medSettings.機構簡稱 || {};
     const out: InstitutionOption[] = [];
     for (const g of INSTITUTION_GROUPS) {
@@ -46,7 +53,7 @@ const InstitutionAutocomplete: React.FC<InstitutionAutocompleteProps> = ({
       for (const name of list) out.push({ name, group: g.label, abbr: abbrMap[name] });
     }
     return out;
-  }, [medSettings]);
+  }, [medSettings, options]);
 
   // 過濾：中文名包含關鍵字，或英文簡稱前綴/包含命中（不分大小寫）；簡稱命中排前
   const filteredOptions = useMemo(() => {
@@ -196,14 +203,16 @@ const InstitutionAutocomplete: React.FC<InstitutionAutocompleteProps> = ({
                   {opt.abbr && (
                     <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0">{opt.abbr}</span>
                   )}
-                  <span className="text-xs text-gray-400 flex-shrink-0">{opt.group}</span>
+                  {opt.group && (
+                    <span className="text-xs text-gray-400 flex-shrink-0">{opt.group}</span>
+                  )}
                 </div>
               ))
             ) : (
               <div className="p-4 text-center text-gray-500">
                 <Search className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                 <p className="text-sm">清單中找不到「{searchTerm.trim()}」</p>
-                <p className="text-xs text-gray-400 mt-1">如需新增機構，請前往「藥物設定」加進清單</p>
+                <p className="text-xs text-gray-400 mt-1">{emptyHint}</p>
               </div>
             )}
           </div>

@@ -832,7 +832,7 @@ export interface MedicationInspectionRule {
   updated_at: string;
 }
 // 新增 hourly 以符合前端用法
-export type MedicationFrequencyType = 'daily' | 'every_x_days' | 'every_x_months' | 'weekly_days' | 'odd_even_days' | 'hourly';
+export type MedicationFrequencyType = 'daily' | 'every_x_days' | 'every_x_months' | 'weekly_days' | 'odd_even_days' | 'hourly' | 'each_time';
 export type OddEvenDayType = 'odd' | 'even' | 'none';
 export type PreparationMethodType = 'immediate' | 'advanced' | 'custom';
 export type PrescriptionStatusType = 'active' | 'inactive' | 'pending_change';

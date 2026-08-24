@@ -260,20 +260,20 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
 
             <div>
               <label className="form-label">藥物單位</label>
-              <input
-                type="text"
+              <select
                 name="unit"
                 value={formData.unit}
                 onChange={handleChange}
                 className="form-input"
-                placeholder="例如：mg、ml、片、滴"
-                list="drug-unit-options"
-              />
-              <datalist id="drug-unit-options">
+              >
+                <option value="">請選擇單位</option>
                 {medSettings.服用單位.map((unit) => (
-                  <option key={unit} value={unit} />
+                  <option key={unit} value={unit}>{unit}</option>
                 ))}
-              </datalist>
+                {formData.unit && !medSettings.服用單位.includes(formData.unit) && (
+                  <option value={formData.unit}>{formData.unit}（既有）</option>
+                )}
+              </select>
             </div>
           </div>
 

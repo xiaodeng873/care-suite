@@ -23,6 +23,11 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
   const { addPrescription, updatePrescription, patients } = usePatientData();
   // 每次開啟 modal 時讀取一次（已儲存的設定）
   const medSettings = useMemo(() => getMedicationSettings(), []);
+  // 專科 autocomplete 選項（中文名 + 英文簡稱）
+  const specialtyOptions = useMemo(
+    () => medSettings.專科.map((name) => ({ name, abbr: medSettings.專科簡稱?.[name] })),
+    [medSettings]
+  );
 
   // 香港時區輔助函數
   const getHongKongDate = () => {
@@ -402,6 +407,17 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       return;
     }
 
+    // 藥物來源專科（選填）如有填寫必須在清單內（不設即時新增；既有舊值除外）
+    const specialtyTrimmed = (formData.medication_source_specialty || '').trim();
+    if (
+      specialtyTrimmed
+      && !medSettings.專科.includes(specialtyTrimmed)
+      && specialtyTrimmed !== (prescription?.medication_source_specialty || '')
+    ) {
+      setValidationError('藥物來源專科必須從清單中選擇；如需新增專科，請前往「藥物設定」');
+      return;
+    }
+
     if (formData.frequency_type === 'weekly_days' && formData.specific_weekdays.length === 0) {
       setValidationError('選擇逢星期服時，請至少選擇一個星期幾');
       return;
@@ -417,8 +433,14 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       return;
     }
 
+    // 「無」每日次數只適用於 PRN（需要時服）藥物
+    if (!formData.daily_frequency && !formData.is_prn) {
+      setValidationError('每日服用次數選擇「無」時，必須勾選「需要時 (PRN)」');
+      return;
+    }
+
     // 驗證服用時間點數量與每日服用次數的一致性（矛盾時以 Modal 提醒）
-    const freqLabel = (n: number): string => ({ 1: 'QD（每日1次）', 2: 'BID（每日2次）', 3: 'TID（每日3次）', 4: 'QID（每日4次）' }[n] ?? `每日${n}次`);
+    const freqLabel = (n: number): string => (n === 0 ? '無' : ({ 1: 'QD（每日1次）', 2: 'BID（每日2次）', 3: 'TID（每日3次）', 4: 'QID（每日4次）' }[n] ?? `每日${n}次`));
 
     if (!formData.is_prn) {
       const expectedTimeSlots = formData.daily_frequency || 1;
@@ -705,17 +727,15 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   藥物來源專科
                   {renderFieldIndicator('medication_source_specialty')}
                 </label>
-                <select
-                  name="medication_source_specialty"
+                <InstitutionAutocomplete
                   value={formData.medication_source_specialty}
-                  onChange={handleChange}
-                  className={getFieldClassName('medication_source_specialty', 'form-input')}
-                >
-                  <option value="">— 請選擇專科（選填）—</option>
-                  {medSettings.專科.map((sp) => (
-                    <option key={sp} value={sp}>{sp}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setFormData(prev => ({ ...prev, medication_source_specialty: v }))}
+                  medSettings={medSettings}
+                  options={specialtyOptions}
+                  placeholder="輸入專科中文名或英文簡稱搜索…"
+                  emptyHint="如需新增專科，請前往「藥物設定」加進清單"
+                  className={getFieldClassName('medication_source_specialty', '')}
+                />
               </div>
 
               <div>
@@ -975,6 +995,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   }}
                   className="form-input"
                 >
+                  <option value={0}>無</option>
                   {medSettings.每日次數.map(n => {
                     const labels: Record<number,string> = {1:'QD',2:'BD',3:'TDS',4:'QID'};
                     return <option key={n} value={n}>{labels[n] ? `${labels[n]} (每日${n}次)` : `每日${n}次`}</option>;
@@ -1119,6 +1140,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   <option value="weekly_days">逢星期X服</option>
                   <option value="odd_even_days">單日/雙日服</option>
                   <option value="hourly">每小時</option>
+                  <option value="each_time">每次</option>
                 </select>
               </div>
 

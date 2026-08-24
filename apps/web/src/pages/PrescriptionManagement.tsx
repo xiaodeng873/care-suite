@@ -69,6 +69,8 @@ const getFrequencyDescription = (prescription: any) => {
       return is_odd_even_day === 'odd' ? '單日服' : is_odd_even_day === 'even' ? '雙日服' : '單雙日服';
     case 'hourly':
       return `每${frequency_value}小時服用`;
+    case 'each_time':
+      return '每次服';
     default:
       return getFrequencyAbbreviation(timeSlotsCount);
   }

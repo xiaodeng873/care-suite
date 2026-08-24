@@ -922,6 +922,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                                       case 'odd_even_days':
                                         return prescription.is_odd_even_day === 'odd' ? '單日服' : prescription.is_odd_even_day === 'even' ? '雙日服' : '單雙日服';
                                       case 'hourly':return `每${prescription.frequency_value}小時服用`;
+                                      case 'each_time':return '每次';
                                       default:return getAbbr(timeSlotsCount);
                                     }
                                   };

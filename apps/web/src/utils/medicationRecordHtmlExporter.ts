@@ -875,11 +875,18 @@ const renderPrescriptionBlock = (
         ? `<div class="mr-med-source">來源：${escapeHtml(sourceParts.join(' / '))}</div>`
         : '';
     })();
+  // 「每次」頻率：份量直接併入同一行（如「每次1粒」），不另開一行
+  const isEachTime = prescription.frequency_type === 'each_time';
+  const frequencyLine = isEachTime
+    ? (prescription.special_dosage_instruction
+        ? `每次${prescription.special_dosage_instruction}`
+        : (getDosageText(prescription) || '每次'))
+    : getFrequencyDescription(prescription);
   const routeInfo = [
     prescription.administration_route ?? '',
-    getFrequencyDescription(prescription),
+    frequencyLine,
     mealTimingLabel,
-    getDosageText(prescription),
+    isEachTime ? '' : getDosageText(prescription),
     prescription.is_prn ? '需要時' : '',
   ]
     .filter((line) => line != null && String(line).trim() !== '')
@@ -1297,6 +1304,7 @@ const getFrequencyDescription = (prescription: MedicationPrescription): string =
     case 'odd_even_days':
       return is_odd_even_day === 'odd' ? `單日${perDay}次` : is_odd_even_day === 'even' ? `雙日${perDay}次` : `單雙日${perDay}次`;
     case 'hourly': return `每${frequency_value}小時1次`;
+    case 'each_time': return '每次';
     case 'daily':
     default: return `每日${perDay}次`;
   }

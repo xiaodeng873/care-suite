@@ -16,6 +16,7 @@ const FREQUENCY_TYPE_LABELS: Record<string, string> = {
   weekly_days: '指定星期',
   odd_even_days: '單雙日服',
   hourly: '每X小時服',
+  each_time: '每次',
 };
 
 const PREPARATION_METHOD_LABELS: Record<string, string> = {
