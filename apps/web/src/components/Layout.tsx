@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CalendarDays, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key, Search, Receipt, Baby } from 'lucide-react';
+import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CalendarDays, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key, Search, Receipt, Layers } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
@@ -210,7 +210,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       items: [
         { name: '監測記錄', href: '/health', icon: Activity, feature: 'health_monitoring' },
         { name: '床頭記錄', href: '/care-records', icon: ClipboardCheck, feature: 'care_records' },
-        { name: '尿片記錄', href: '/diaper-usage-records', icon: Baby },
+        { name: '尿片記錄', href: '/diaper-usage-records', icon: Layers },
         { name: '院友日誌', href: '/patient-logs', icon: BookOpen, feature: 'patient_logs' },
         { name: '診斷記錄', href: '/diagnosis-records', icon: FileText, feature: 'diagnosis_records' },
         { name: '疫苗記錄', href: '/vaccination-records', icon: Syringe, feature: 'vaccination_records' },

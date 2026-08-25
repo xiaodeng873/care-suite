@@ -439,6 +439,8 @@ export interface UserShiftAssignment {
   overridden_at?: string | null;
   /** 同班次內多張卡片的顯示排序，數字越小越靠前 */
   sort_order?: number;
+  /** 是否由一鍵排班自動插入；一鍵排空只刪除 is_auto = true 的班次 */
+  is_auto?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -592,6 +594,7 @@ export const PERMISSION_STRUCTURE: Record<PermissionCategory, FeatureDefinition[
     { key: 'task_management', name_zh: '任務管理', route: '/tasks' },
     { key: 'meal_guidance', name_zh: '餐膳指引', route: '/meal-guidance' },
     { key: 'incident_reports', name_zh: '意外事件報告', route: '/incident-reports' },
+    { key: 'roster_management', name_zh: '排班管理', route: '/roster-management' },
   ],
   print: [
     { key: 'print_forms', name_zh: '列印表格', route: '/print-forms' },

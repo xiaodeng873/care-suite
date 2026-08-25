@@ -6,7 +6,6 @@ import {
   A1_CONTRACT_POSITIONS,
   DEFAULT_BED_COUNTS,
   DEFAULT_SPECIFIC_HOURS_CONFIG,
-  FACILITY_NATURES,
   NATURE_RATIO_POSITIONS,
   NIGHT_ANY_STAFF,
   STATUTORY_RATIOS,
@@ -139,8 +138,6 @@ const FacilityNatureSettings: React.FC = () => {
       ? `助理員指明期間必須剛好連續 11 小時（目前 ${(assistantMinutes / 60).toFixed(1)} 小時）`
       : null;
 
-  const bedCountsTotal = FACILITY_NATURES.reduce((sum, n) => sum + (bedCounts[n] || 0), 0);
-
   // -----------------------------------------------------
   // 儲存（全卡片共用，驗證不通過則拒絕）
   // -----------------------------------------------------
@@ -150,13 +147,6 @@ const FacilityNatureSettings: React.FC = () => {
       setMessage({
         type: 'error',
         text: '甲一買位與甲二買位不可同時有床，請只保留其中一種買位宿位。',
-      });
-      return;
-    }
-    if (bedCountsTotal !== totalBeds) {
-      setMessage({
-        type: 'error',
-        text: `三個性質床位數總和（${bedCountsTotal}）必須等於床位管理總床數（${totalBeds}），請先修正「床位設定」`,
       });
       return;
     }
@@ -199,37 +189,35 @@ const FacilityNatureSettings: React.FC = () => {
   // 各 tab 內容
   // -----------------------------------------------------
 
-  const renderBedTab = () => (
-    <div className="space-y-4 max-w-xl">
-      <p className="text-sm text-gray-600">
-        床位管理總床數：<span className="font-semibold text-gray-900">{totalBeds}</span>
-      </p>
-      {FACILITY_NATURES.map((nature) => (
-        <div key={nature} className="flex items-center justify-between gap-4">
-          <label className="text-sm font-medium text-gray-700">
-            {nature}
-            {nature === '安老院' && <span className="text-xs text-gray-400 ml-1">（私位）</span>}
-          </label>
-          <IntInput
-            value={bedCounts[nature]}
-            min={0}
-            placeholder="0"
-            onChange={(v) => setBedCounts((prev) => ({ ...prev, [nature]: v ?? 0 }))}
-          />
-        </div>
-      ))}
-      <p
-        className={`text-sm ${bedCountsTotal === totalBeds ? 'text-green-600' : 'text-red-600'}`}
-      >
-        三者總和：{bedCountsTotal}（必須等於總床數 {totalBeds}）
-      </p>
-      {(bedCounts['甲一買位'] || 0) > 0 && (bedCounts['甲二買位'] || 0) > 0 && (
-        <p className="text-sm text-red-600">
-          甲一買位與甲二買位不可同時有床，請只保留其中一種買位宿位。
+  const renderBedTab = () => {
+    const a1Beds = bedCounts['甲一買位'] || 0;
+    const a2Beds = bedCounts['甲二買位'] || 0;
+    const updateContractBeds = (nature: '甲一買位' | '甲二買位', v: number | null) =>
+      setBedCounts((prev) => ({ ...prev, [nature]: v ?? 0 }));
+    return (
+      <div className="space-y-4 max-w-xl">
+        <p className="text-sm text-gray-600">
+          床位管理總床數：<span className="font-semibold text-gray-900">{totalBeds}</span>
         </p>
-      )}
-    </div>
-  );
+        {(['甲二買位', '甲一買位'] as const).map((nature) => (
+          <div key={nature} className="flex items-center justify-between gap-4">
+            <label className="text-sm font-medium text-gray-700">{nature}</label>
+            <IntInput
+              value={bedCounts[nature]}
+              min={0}
+              placeholder="0"
+              onChange={(v) => updateContractBeds(nature, v)}
+            />
+          </div>
+        ))}
+        {a1Beds > 0 && a2Beds > 0 && (
+          <p className="text-sm text-red-600">
+            甲一買位與甲二買位不可同時有床，請只保留其中一種買位宿位。
+          </p>
+        )}
+      </div>
+    );
+  };
 
   const renderRatioTab = () => {
     const segs = specific.requirement1.segments;
@@ -443,8 +431,8 @@ const FacilityNatureSettings: React.FC = () => {
             <span className="font-semibold text-gray-900">{contractBeds}</span>
           </p>
           <p className="text-xs text-gray-500">
-            每週合約總工時可直接修改；留空則按每 40 宿位基準換算（主管固定 48 小時/週，不按比例）。
-            每日平均工時目標請見「合規條件總結」。
+            每週與每日合約總工時可互相化算（每週＝每日×7；每日＝每週÷7 向上取整至 0.5 小時），改其中一欄另一欄會即時更新；
+            留空則按每 40 宿位基準換算（主管固定 48 小時/週，不按比例）。儲存後排班表即時適用。
           </p>
         </div>
 
@@ -454,11 +442,13 @@ const FacilityNatureSettings: React.FC = () => {
               <tr className="bg-gray-50">
                 <th className="border border-gray-200 px-3 py-2 text-left font-medium text-gray-600">職位</th>
                 <th className="border border-gray-200 px-3 py-2 text-center font-medium text-gray-600">每週合約總工時</th>
+                <th className="border border-gray-200 px-3 py-2 text-center font-medium text-gray-600">每日合約總工時</th>
               </tr>
             </thead>
             <tbody>
               {A1_CONTRACT_POSITIONS.map((pos) => {
                 const weeklyHours = contractWeeklyHours(pos, nature, contractBeds, overrides);
+                const dailyHours = contractDailyHours(pos, nature, contractBeds, overrides);
                 return (
                   <tr key={pos} className="bg-white">
                     <td className="border border-gray-200 px-3 py-2 text-gray-700">{pos}</td>
@@ -477,6 +467,32 @@ const FacilityNatureSettings: React.FC = () => {
                             }
                             const n = parseFloat(e.target.value);
                             updateOverride(pos, Number.isFinite(n) ? Math.max(0, n) : null);
+                          }}
+                          className={INPUT_CLASS}
+                        />
+                        小時
+                      </span>
+                    </td>
+                    <td className="border border-gray-200 px-3 py-2 text-center text-gray-700">
+                      <span className="inline-flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          value={overrides[pos] != null ? dailyHours : ''}
+                          placeholder={dailyHours.toFixed(1)}
+                          onChange={(e) => {
+                            if (e.target.value === '') {
+                              updateOverride(pos, null);
+                              return;
+                            }
+                            const n = parseFloat(e.target.value);
+                            if (!Number.isFinite(n)) {
+                              updateOverride(pos, null);
+                              return;
+                            }
+                            // 每日取整至 0.5 小時後化算為每週（×7）
+                            updateOverride(pos, Math.max(0, (Math.round(n * 2) / 2) * 7));
                           }}
                           className={INPUT_CLASS}
                         />
@@ -684,7 +700,7 @@ const FacilityNatureSettings: React.FC = () => {
           </div>
         )}
 
-        {(activeTab === 0 || activeTab === 1) && (
+        {(activeTab === 0 || activeTab === 1 || activeTab === 2) && (
           <div className="pt-6">
             <button
               type="button"

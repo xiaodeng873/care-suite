@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { UserProfile, UserEmploymentDetails, UserLeaveRecord, PublicHoliday, UserShiftAssignment } from '@care-suite/shared';
 import { LEAVE_TYPE_LABELS, getEmploymentPosition } from '@care-suite/shared';
 import { AlertCircle, ArrowUp, ArrowDown, CheckCircle2 } from 'lucide-react';
-import { getRosterUserBalance, getRosterGroupOptions, buildDailyCompliance, buildPreScheduleDailyCompliance, formatShiftTimeAbbreviation, getShiftEndTime, getAssignmentPositionForTable } from '../utils/roster';
+import { getRosterUserBalance, getRosterGroupOptions, buildDailyCompliance, buildPreScheduleDailyCompliance, formatShiftTimeAbbreviation, getShiftEndTime, getAssignmentPositionForTable, toGridPosition } from '../utils/roster';
 import type { ComplianceRow, PreScheduleSegmentConflict } from '../utils/roster';
 import type { SpecificHoursConfig } from '../utils/facilityNatureSettings';
 import { GRID_POSITIONS } from '../utils/facilityNatureSettings';
@@ -159,6 +159,12 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
     return map;
   }, [leaveRecords]);
 
+  const holidayMap = useMemo(() => {
+    const map = new Map<string, PublicHoliday>();
+    for (const h of publicHolidays) map.set(h.holiday_date, h);
+    return map;
+  }, [publicHolidays]);
+
   const assignmentMap = useMemo(() => {
     const map = new Map<string, UserShiftAssignment[]>();
     for (const assignment of shiftAssignments) {
@@ -171,9 +177,23 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
   }, [shiftAssignments]);
 
   const visibleUsers = useMemo(() => {
-    if (!isAdmin) return users.filter((u) => u.id === currentUserId);
-    if (!positionFilter) return users;
-    return users.filter((u) => userMatchesPositionFilter(u, positionFilter));
+    const base = !isAdmin
+      ? users.filter((u) => u.id === currentUserId)
+      : !positionFilter
+        ? users
+        : users.filter((u) => userMatchesPositionFilter(u, positionFilter));
+    // 按職位排序：註冊護士 > 登記護士 > 保健員 > 其他（同級保持原順序）
+    const rank = (u: UserProfile): number => {
+      const p = getEmploymentPosition(u);
+      if (p === '註冊護士') return 0;
+      if (p === '登記護士') return 1;
+      if (p === '保健員') return 2;
+      return 3;
+    };
+    return base
+      .map((u, i) => ({ u, i }))
+      .sort((a, b) => rank(a.u) - rank(b.u) || a.i - b.i)
+      .map(({ u }) => u);
   }, [users, isAdmin, currentUserId, positionFilter]);
 
   const positionOptions = useMemo(() => getRosterGroupOptions(users), [users]);
@@ -248,6 +268,17 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
     for (const p of Array.from(set).sort()) if (!result.includes(p)) result.push(p);
     return result;
   }, [complianceByDay, dailyRequirements]);
+
+  // 職位過濾同時套用於侯召概覽（只顯示對應職位列；達標數據仍以全體員工計算）
+  const visibleCompliancePositions = useMemo(() => {
+    if (!positionFilter) return compliancePositions;
+    if (positionFilter === '行政' || positionFilter === '庶務') return [];
+    if (positionFilter === '護士/保健員') {
+      return compliancePositions.filter((p) => p === '註冊/登記護士' || p === '保健員');
+    }
+    const grid = toGridPosition(positionFilter);
+    return compliancePositions.filter((p) => p === grid);
+  }, [compliancePositions, positionFilter]);
 
   const handleMoveStation = (index: number, direction: -1 | 1) => {
     const next = [...stationPriority];
@@ -349,7 +380,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {compliancePositions.map((position) => (
+                {visibleCompliancePositions.map((position) => (
                   <tr key={position} className="border-t border-gray-100">
                     <td className="px-2 py-1.5 font-medium text-gray-700 sticky left-0 bg-white">{position}</td>
                     {complianceByDay.map((day) => {
@@ -373,7 +404,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                     })}
                   </tr>
                 ))}
-                {compliancePositions.length === 0 && (
+                {visibleCompliancePositions.length === 0 && (
                   <tr>
                     <td colSpan={daysInMonth + 1} className="px-4 py-4 text-center text-gray-400">
                       暫無職位達標資料
@@ -387,17 +418,17 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
       )}
 
       {/* 員工預排表 */}
-      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+      <div className="max-h-[75vh] overflow-auto border border-gray-200 rounded-lg">
         <table className="min-w-full text-xs">
-          <thead className="bg-gray-50 sticky top-0">
+          <thead className="bg-gray-50">
             <tr>
-              <th className="px-3 py-2 text-left font-medium text-gray-600 sticky left-0 bg-gray-50 min-w-[8rem]">
+              <th className="px-3 py-2 text-left font-medium text-gray-600 sticky top-0 left-0 z-30 bg-gray-50 min-w-[8rem]">
                 員工
               </th>
-              <th className="px-2 py-2 text-left font-medium text-gray-600 sticky left-[8rem] bg-gray-50 min-w-[4rem]">
+              <th className="px-2 py-2 text-left font-medium text-gray-600 sticky top-0 left-[8rem] z-30 bg-gray-50 min-w-[4rem]">
                 累積
               </th>
-              <th className="px-2 py-2 text-left font-medium text-gray-600 bg-gray-50 min-w-[4rem]">
+              <th className="px-2 py-2 text-left font-medium text-gray-600 sticky top-0 z-10 bg-gray-50 min-w-[4rem]">
                 預計{month}月收穫
               </th>
               {Array.from({ length: daysInMonth }, (_, i) => {
@@ -405,15 +436,24 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                 const date = new Date(year, month - 1, d);
                 const weekday = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
                 const isSunday = date.getDay() === 0;
+                const holiday = holidayMap.get(formatDate(year, month, d));
                 return (
                   <th
                     key={d}
-                    className={`px-1 py-2 text-center font-semibold min-w-[3rem] border border-gray-300 bg-white ${
-                      isSunday ? 'text-red-600' : 'text-gray-800'
+                    className={`px-1 py-2 text-center font-semibold min-w-[3rem] border border-gray-300 sticky top-0 z-10 bg-gray-50 ${
+                      isSunday || holiday ? 'text-red-600' : 'text-gray-800'
                     }`}
                   >
                     <div>{d}</div>
                     <div className="text-[10px]">{weekday}</div>
+                    {holiday && (
+                      <div
+                        className="text-[9px] leading-tight text-red-600 font-normal"
+                        title={`${holiday.name}（${holiday.type === 'SH' ? '勞工假期' : '銀行假期'}）`}
+                      >
+                        {holiday.name}
+                      </div>
+                    )}
                   </th>
                 );
               })}

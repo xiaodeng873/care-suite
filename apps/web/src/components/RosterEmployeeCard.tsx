@@ -12,6 +12,7 @@ interface RosterEmployeeCardProps {
   draggable?: boolean;
   onDragStart?: (user: UserProfile) => void;
   onDragEnd?: () => void;
+  onDoubleClick?: () => void;
 }
 
 export const RosterEmployeeCard: React.FC<RosterEmployeeCardProps> = ({
@@ -23,6 +24,7 @@ export const RosterEmployeeCard: React.FC<RosterEmployeeCardProps> = ({
   draggable = true,
   onDragStart,
   onDragEnd,
+  onDoubleClick,
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -77,6 +79,7 @@ export const RosterEmployeeCard: React.FC<RosterEmployeeCardProps> = ({
       draggable={draggable}
       onDragStart={draggable ? handleDragStart : undefined}
       onDragEnd={draggable ? handleDragEnd : undefined}
+      onDoubleClick={onDoubleClick}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
       className="relative flex items-center gap-2 p-2 bg-white border border-gray-200 rounded-lg shadow-sm cursor-move hover:border-blue-400 hover:shadow-md transition-all select-none"

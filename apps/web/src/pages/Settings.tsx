@@ -3,7 +3,6 @@ import { useDebounce } from '../hooks/useDebounce';
 import { Settings as SettingsIcon, Users, Plus, Edit2, Trash2, Key, Check, X, Search, ChevronDown, ChevronRight, QrCode, Building2, Pill, SunMedium, Moon, Wrench } from 'lucide-react';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { UserQRCodeModal } from '../components/UserQRCodeModal';
-import EmploymentDetailsSection from '../components/EmploymentDetailsSection';
 import FacilitySettingsPanel from '../components/FacilitySettingsPanel';
 import FacilityNatureSettings from '../components/FacilityNatureSettings';
 import MedicationSettingsPanel from '../components/MedicationSettingsPanel';
@@ -42,7 +41,6 @@ import {
   PERMISSION_STRUCTURE,
   getPositionsByDepartment,
   DEFAULT_PART_TIME_HOUR_LIMIT,
-  getEmploymentPosition,
 } from '@care-suite/shared';
 
 // =====================================================
@@ -701,11 +699,6 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
             </div>
           </div>
 
-          {/* 僱傭詳情（編輯適用職位用戶時顯示，資料讀寫獨立於用戶表單） */}
-          {user && getEmploymentPosition(user) && (
-            <EmploymentDetailsSection user={user} currentUserId={userProfile?.id ?? null} />
-          )}
-
           {/* 操作按鈕 */}
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4 border-t">
             <button
@@ -1076,6 +1069,7 @@ const Settings: React.FC = () => {
   // 用戶列表狀態
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
   const [filterDepartment, setFilterDepartment] = useState<string>('');
@@ -1120,14 +1114,17 @@ const Settings: React.FC = () => {
       console.error('Fetch users error:', err);
     } finally {
       setLoading(false);
+      setHasLoadedOnce(true);
     }
   }, []);
 
+  // 依賴布林值而非函數引用：AuthContext state 更新只改變函數 identity 時不再重複 fetch
+  const canManage = canManageUsers();
   useEffect(() => {
-    if (canManageUsers()) {
+    if (canManage) {
       fetchUsers();
     }
-  }, [canManageUsers, fetchUsers]);
+  }, [canManage, fetchUsers]);
 
   // 獲取用戶權限
   const fetchUserPermissions = async (userId: string) => {
@@ -1453,7 +1450,8 @@ const Settings: React.FC = () => {
     );
   }
 
-  if (loading) {
+  // 只有首次載入才全頁 Loading；其後 refetch 保留頁面（避免卸載院舍設定令未儲存輸入消失）
+  if (loading && !hasLoadedOnce) {
     return <LoadingScreen pageName="系統設定" />;
   }
 

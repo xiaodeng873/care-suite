@@ -125,7 +125,7 @@ interface LeaveRowModalState {
 const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ user, currentUserId }) => {
   const { stations } = useStationData();
 
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -1069,7 +1069,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
 
   return (
     <div className="border border-gray-200 rounded-lg">
-      {/* 區塊標題（可摺疊，預設摺疊） */}
+      {/* 區塊標題（可摺疊，預設展開） */}
       <button
         type="button"
         onClick={() => setExpanded(prev => !prev)}

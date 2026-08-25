@@ -157,8 +157,11 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     });
   };
   const [autoRosterLoading, setAutoRosterLoading] = useState<string | null>(null);
-  const [autoRosteredDates, setAutoRosteredDates] = useState<Set<string>>(new Set());
-  const [autoRosterIdsByDate, setAutoRosterIdsByDate] = useState<Map<string, string[]>>(new Map());
+  // 「已自動排班」的日期直接由實際資料判斷（is_auto 標記），跨 session／重整後一鍵排空仍有效
+  const autoRosteredDates = useMemo(
+    () => new Set(shiftAssignments.filter((a) => a.is_auto).map((a) => a.work_date)),
+    [shiftAssignments]
+  );
   const [draggedAssignmentId, setDraggedAssignmentId] = useState<string | null>(null);
   const [publicHolidays, setPublicHolidays] = useState<PublicHoliday[]>([]);
   const [conflicts, setConflicts] = useState<AutoRosterConflict[]>([]);
@@ -280,6 +283,10 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
 
   const withoutEndTime = <T extends Record<string, unknown>>(payload: T): Omit<T, 'end_time'> => {
     return Object.fromEntries(Object.entries(payload).filter(([k]) => k !== 'end_time')) as Omit<T, 'end_time'>;
+  };
+
+  const withoutIsAuto = <T extends Record<string, unknown>>(payload: T): Omit<T, 'is_auto'> => {
+    return Object.fromEntries(Object.entries(payload).filter(([k]) => k !== 'is_auto')) as Omit<T, 'is_auto'>;
   };
 
   // 初始化班次設定編輯狀態：所有部門均可選早/日/午/晚四班；單班制部門（行政、專職、庶務）無既有設定時預設只啟用日班
@@ -814,24 +821,15 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     if (!selectedPosition) return;
     setAutoRosterLoading(date);
     try {
-      // 已經自動排班過的日期：再按一下即「一鍵排空」，刪除上次自動插入的班次
+      // 已經自動排班過的日期：再按一下即「一鍵排空」，刪除當日所有 is_auto 班次
       if (autoRosteredDates.has(date)) {
-        const ids = autoRosterIdsByDate.get(date) ?? [];
-        if (ids.length > 0) {
-          const { error } = await supabase.from('user_shift_assignments').delete().in('id', ids);
-          if (error) throw error;
-          await onAssignmentChange();
-        }
-        setAutoRosteredDates((prev) => {
-          const next = new Set(prev);
-          next.delete(date);
-          return next;
-        });
-        setAutoRosterIdsByDate((prev) => {
-          const next = new Map(prev);
-          next.delete(date);
-          return next;
-        });
+        const { error } = await supabase
+          .from('user_shift_assignments')
+          .delete()
+          .eq('work_date', date)
+          .eq('is_auto', true);
+        if (error) throw error;
+        await onAssignmentChange();
         return;
       }
 
@@ -863,27 +861,30 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
             getDailyContractHours(employmentDetails[ins.user_id]),
           ),
           created_by: userProfile?.id ?? null,
+          is_auto: true,
         }));
 
-        const { data, error } = await withEndTimeFallback(
-          async () => await supabase.from('user_shift_assignments').insert(inserts).select('id'),
+        let insertResult = await withEndTimeFallback(
+          async () => await supabase.from('user_shift_assignments').insert(inserts),
           async () =>
             await supabase.from('user_shift_assignments').insert(
               inserts.map((ins) => withoutEndTime(ins)),
-            ).select('id'),
+            ),
         );
-        if (error) throw error;
-
-        setAutoRosteredDates((prev) => {
-          const next = new Set(prev);
-          next.add(date);
-          return next;
-        });
-        setAutoRosterIdsByDate((prev) => {
-          const next = new Map(prev);
-          next.set(date, (data ?? []).map((row) => row.id as string));
-          return next;
-        });
+        // 舊資料庫未加 is_auto 欄位時降級重試（降級插入的班次不支援一鍵排空）
+        if (insertResult.error && isMissingColumnError(insertResult.error, 'is_auto')) {
+          insertResult = await withEndTimeFallback(
+            async () =>
+              await supabase.from('user_shift_assignments').insert(
+                inserts.map((ins) => withoutIsAuto(ins)),
+              ),
+            async () =>
+              await supabase.from('user_shift_assignments').insert(
+                inserts.map((ins) => withoutEndTime(withoutIsAuto(ins))),
+              ),
+          );
+        }
+        if (insertResult.error) throw insertResult.error;
 
         await onAssignmentChange();
       }

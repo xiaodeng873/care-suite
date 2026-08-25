@@ -636,6 +636,11 @@ export interface DiaperUsageRecord {
   daily_max_diaper?: number | null;
   daily_min_core?: number | null;
   daily_max_core?: number | null;
+  // 每次換片用量範圍（生成依據：設定後逐時段在範圍內隨機，取代每日總量分配）
+  per_change_min_diaper?: number | null;
+  per_change_max_diaper?: number | null;
+  per_change_min_core?: number | null;
+  per_change_max_core?: number | null;
   // { "YYYY-MM-DD": { "7AM-11AM": { urine: number, core: number }, ... } }
   generated_data?: Record<string, Record<string, { urine: number; core: number }>>;
   created_at: string;
@@ -3445,6 +3450,19 @@ export const updateDiaperUsageRecord = async (record: DiaperUsageRecord): Promis
 export const deleteDiaperUsageRecord = async (recordId: string): Promise<void> => {
   const { error } = await supabase.from('diaper_usage_records').delete().eq('id', recordId);
   if (error) throw error;
+};
+
+// 清除無效的尿片/片芯數據：無大小便（has_none 或無任何排泄記錄）或備註為入院/渡假/外出的記錄，
+// 其尿片/片芯數應為空（例如被誤插入的虛擬數據）。回傳清除筆數。
+export const clearInvalidDiaperUsageCounts = async (): Promise<number> => {
+  const { data, error } = await supabase
+    .from('diaper_change_records')
+    .update({ urine_count: null, core_count: null })
+    .or('notes.in.(入院,渡假,外出),has_none.eq.true,and(has_urine.eq.false,has_stool.eq.false)')
+    .or('urine_count.not.is.null,core_count.not.is.null')
+    .select('id');
+  if (error) throw error;
+  return data?.length ?? 0;
 };
 
 // User Profiles (staff)

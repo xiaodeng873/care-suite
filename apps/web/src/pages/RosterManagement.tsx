@@ -11,6 +11,7 @@ import ConfirmOverrideModal from '../components/ConfirmOverrideModal';
 import RosterScheduleView from '../components/RosterScheduleView';
 import RosterLeaveModal, { type RosterLeaveModalPayload } from '../components/RosterLeaveModal';
 import RosterEmployeeCard from '../components/RosterEmployeeCard';
+import EmploymentDetailsSection from '../components/EmploymentDetailsSection';
 import RosterScheduleGrid from '../components/RosterScheduleGrid';
 import type {
   PublicHoliday,
@@ -258,6 +259,9 @@ const RosterManagement: React.FC = () => {
     initialDate?: string;
     editingRecord?: UserLeaveRecord;
   } | null>(null);
+
+  // 員工卡片雙擊：僱傭詳情 modal
+  const [employmentModalUser, setEmploymentModalUser] = useState<UserProfile | null>(null);
 
   // 下個月游標（假期預排）
   const now = new Date();
@@ -943,7 +947,7 @@ const RosterManagement: React.FC = () => {
         if (e2) throw e2;
       }
 
-      await loadLeaveData();
+      await loadLeaveData(false);
     } catch (err) {
       console.error('刪除預排失敗:', err);
       throw new Error('刪除預排失敗');
@@ -1107,7 +1111,7 @@ const RosterManagement: React.FC = () => {
       };
     });
 
-    await loadLeaveData();
+    await loadLeaveData(false);
   };
 
   const handleSaveLeave = async (payload: RosterLeaveModalPayload) => {
@@ -1438,6 +1442,7 @@ const RosterManagement: React.FC = () => {
                     draggable={isAdminUser && !!selectedPosition && userCanFillPosition(user, selectedPosition)}
                     onDragStart={() => setDraggedUserId(user.id)}
                     onDragEnd={() => setDraggedUserId(null)}
+                    onDoubleClick={() => setEmploymentModalUser(user)}
                   />
                 );
               })}
@@ -1644,6 +1649,26 @@ const RosterManagement: React.FC = () => {
             </p>
           </div>
         </ConfirmOverrideModal>
+      )}
+
+      {employmentModalUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">僱傭詳情：{employmentModalUser.name_zh}</h3>
+              <button
+                type="button"
+                onClick={() => setEmploymentModalUser(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto">
+              <EmploymentDetailsSection user={employmentModalUser} currentUserId={userProfile?.id ?? null} />
+            </div>
+          </div>
+        </div>
       )}
 
       {preScheduleConflictModalOpen && (

@@ -155,7 +155,7 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
     } else {
       setNotes(value);
       if (['入院', '渡假', '外出'].includes(value)) {
-        // 選擇特殊狀態時清空所有輸入
+        // 選擇特殊狀態時清空所有輸入（尿片/片芯數亦不適用）
         setHasUrine(false);
         setHasStool(false);
         setHasNone(false);
@@ -163,6 +163,8 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
         setStoolColor('');
         setStoolTexture('');
         setStoolAmount('');
+        setUrineCount('');
+        setCoreCount('');
       }
     }
   };
@@ -361,28 +363,18 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               尿片
             </label>
-            <input
-              type="number"
-              value={urineCount}
-              onChange={(e) => setUrineCount(e.target.value)}
-              min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="數量"
-            />
+            <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+              {urineCount !== '' && urineCount !== null && urineCount !== undefined ? urineCount : '—'}
+            </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               片芯
             </label>
-            <input
-              type="number"
-              value={coreCount}
-              onChange={(e) => setCoreCount(e.target.value)}
-              min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="數量"
-            />
+            <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+              {coreCount !== '' && coreCount !== null && coreCount !== undefined ? coreCount : '—'}
+            </div>
           </div>
 
           <div>

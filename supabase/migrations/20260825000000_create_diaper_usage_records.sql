@@ -16,8 +16,30 @@ CREATE TABLE IF NOT EXISTS diaper_usage_records (
   UNIQUE (patient_id, year, month)
 );
 
+-- 每次換片用量範圍（生成依據）
+ALTER TABLE diaper_usage_records ADD COLUMN IF NOT EXISTS per_change_min_diaper integer DEFAULT 0;
+ALTER TABLE diaper_usage_records ADD COLUMN IF NOT EXISTS per_change_max_diaper integer;
+ALTER TABLE diaper_usage_records ADD COLUMN IF NOT EXISTS per_change_min_core integer DEFAULT 0;
+ALTER TABLE diaper_usage_records ADD COLUMN IF NOT EXISTS per_change_max_core integer;
+
 -- 啟用 RLS
 ALTER TABLE diaper_usage_records ENABLE ROW LEVEL SECURITY;
+
+-- 與院內其他表一致：自訂登入（anon key）亦可存取
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'diaper_usage_records'
+    AND policyname = 'Allow all access'
+  ) THEN
+    CREATE POLICY "Allow all access" ON diaper_usage_records
+      FOR ALL
+      TO anon, authenticated
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
 
 -- 創建 RLS 策略（冪等）
 DO $$

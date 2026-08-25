@@ -272,26 +272,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!customToken) return;
 
     const refreshSession = async () => {
-      const isValid = await validateCustomToken(customToken);
-      if (!isValid) {
+      try {
+        const result = await callAuthApi('validate', null, customToken);
+        if (result.success) {
+          // 內容有變才更新 state，避免無謂的全域 re-render
+          setUserProfile((prev) =>
+            JSON.stringify(prev) === JSON.stringify(result.user) ? prev : result.user
+          );
+          const nextPermissions = result.permissions || [];
+          setPermissions((prev) =>
+            JSON.stringify(prev) === JSON.stringify(nextPermissions) ? prev : nextPermissions
+          );
+          return;
+        }
+        // 伺服器明確判定會話無效才登出
         console.warn('Custom token refresh failed, logging out');
         await customLogout();
+      } catch (error) {
+        // 網絡錯誤／回應異常屬暫時性，保留會話，待下次間隔再試
+        console.warn('Custom token refresh request failed (session kept):', error);
       }
     };
 
-    // 每 15 分鐘刷新一次
+    // 每 15 分鐘刷新一次（validate 會順延會話 24 小時，足以保持登入）
     const interval = setInterval(refreshSession, 15 * 60 * 1000);
-    // 頁面重新取得焦點時也刷新
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        refreshSession();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [customToken]);
 

@@ -63,6 +63,50 @@ describe('generateMonthGrid', () => {
     expect(Object.keys(grid['2026-08-15']).length).toBe(DIAPER_CHANGE_SLOTS.length - 1);
   });
 
+  it('被跳過時段的份量會失去：有跳過的月份總量低於無跳過（同一隨機源）', () => {
+    const full = generateMonthGrid({ ...baseParams, rng: seededRng(99) });
+    // 每日跳過一半時段（首 3 個）
+    const skippedSlots = new Set(['7AM-11AM', '11AM-3PM', '3PM-7PM']);
+    const half = generateMonthGrid({
+      ...baseParams,
+      rng: seededRng(99),
+      absenceCheck: (_date, slotTime) => (skippedSlots.has(slotTime) ? '入院' : null),
+    });
+    const sum = (g: typeof full) =>
+      Object.values(g).reduce(
+        (a, slots) => a + Object.values(slots).reduce((b, c) => b + c.urine + c.core, 0),
+        0
+      );
+    const fullSum = sum(full);
+    const halfSum = sum(half);
+    expect(halfSum).toBeLessThan(fullSum);
+    // 大約失去一半份量（允許隨機誤差）
+    expect(halfSum).toBeLessThan(fullSum * 0.75);
+  });
+
+  it('每次換片範圍與每日條件共同生效：每格不超過每次上限、生成的格不少於每次下限，跳過時段仍不生成', () => {
+    const grid = generateMonthGrid({
+      ...baseParams,
+      rng: seededRng(5),
+      perChangeMinDiaper: 1,
+      perChangeMaxDiaper: 2,
+      perChangeMinCore: 0,
+      perChangeMaxCore: 1,
+      absenceCheck: (date, slotTime) =>
+        date === '2026-08-10' ? '入院' : (date === '2026-08-15' && slotTime === '7AM-11AM' ? '無大小便' : null),
+    });
+    expect(grid['2026-08-10']).toBeUndefined();
+    for (const [date, slots] of Object.entries(grid)) {
+      for (const cell of Object.values(slots)) {
+        expect(cell.urine).toBeLessThanOrEqual(2);
+        expect(cell.urine).toBeGreaterThanOrEqual(1); // min=1：生成的格不可為 0
+        expect(cell.core).toBeLessThanOrEqual(1);
+        expect(cell.core).toBeGreaterThanOrEqual(0);
+      }
+      if (date === '2026-08-15') expect(slots['7AM-11AM']).toBeUndefined();
+    }
+  });
+
   it('同一種子結果一致（可重現），不同種子結果不同（自然隨機）', () => {
     const a = generateMonthGrid({ ...baseParams, rng: seededRng(1) });
     const b = generateMonthGrid({ ...baseParams, rng: seededRng(1) });

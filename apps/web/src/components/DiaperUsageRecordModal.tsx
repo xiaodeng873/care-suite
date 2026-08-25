@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Baby, RefreshCw, Download } from 'lucide-react';
+import { X, Layers, RefreshCw, Download } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import * as db from '../lib/database';
 import type { DiaperUsageRecord } from '../lib/database';
 import { DIAPER_CHANGE_SLOTS } from '../utils/careRecordHelper';
-import { daysInMonth, generateMonthGrid, getSlotAbsence } from '../utils/diaperUsageGenerator';
+import { daysInMonth, generateMonthGrid, getSlotAbsence, diaperRecordSkipReason } from '../utils/diaperUsageGenerator';
 import type { DiaperUsageGrid } from '../utils/diaperUsageGenerator';
 
 interface DiaperUsageRecordModalProps {
@@ -58,8 +58,12 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
   const [maxDiaper, setMaxDiaper] = useState<string>(source?.daily_max_diaper != null ? String(source.daily_max_diaper) : '');
   const [minCore, setMinCore] = useState<string>(source?.daily_min_core != null ? String(source.daily_min_core) : '0');
   const [maxCore, setMaxCore] = useState<string>(source?.daily_max_core != null ? String(source.daily_max_core) : '');
+  const [pcMinDiaper, setPcMinDiaper] = useState<string>(source?.per_change_min_diaper != null ? String(source.per_change_min_diaper) : '0');
+  const [pcMaxDiaper, setPcMaxDiaper] = useState<string>(source?.per_change_max_diaper != null ? String(source.per_change_max_diaper) : '');
+  const [pcMinCore, setPcMinCore] = useState<string>(source?.per_change_min_core != null ? String(source.per_change_min_core) : '0');
+  const [pcMaxCore, setPcMaxCore] = useState<string>(source?.per_change_max_core != null ? String(source.per_change_max_core) : '');
   const [grid, setGrid] = useState<EditableGrid>(() => toEditable(record?.generated_data));
-  const [existingSlots, setExistingSlots] = useState<Set<string> | null>(null);
+  const [existingSlots, setExistingSlots] = useState<Map<string, string | null> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isInserting, setIsInserting] = useState(false);
   const [validationError, setValidationError] = useState('');
@@ -78,6 +82,26 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
   const dailyAvgDiaper = monthlyDiaper && Number(monthlyDiaper) > 0 ? (Number(monthlyDiaper) / monthDays).toFixed(1) : '-';
   const dailyAvgCore = monthlyCore && Number(monthlyCore) > 0 ? (Number(monthlyCore) / monthDays).toFixed(1) : '-';
 
+  // 生成合計與每月估算的偏差
+  const generatedTotals = useMemo(() => {
+    let urine = 0;
+    let core = 0;
+    for (const slots of Object.values(grid)) {
+      for (const cell of Object.values(slots)) {
+        urine += cell.urine === '' ? 0 : cell.urine;
+        core += cell.core === '' ? 0 : cell.core;
+      }
+    }
+    return { urine, core };
+  }, [grid]);
+
+  const diffLabel = (total: number, monthly: string): string => {
+    const m = Number(monthly);
+    if (!monthly || m <= 0) return '（無每月估算）';
+    const pct = Math.round(((total - m) / m) * 100);
+    return `（較每月估算 ${pct >= 0 ? '+' : ''}${pct}%）`;
+  };
+
   const monthDates = useMemo(
     () => Array.from({ length: monthDays }, (_, i) =>
       `${year}-${String(month).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`),
@@ -87,17 +111,19 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
   const absenceOf = (date: string, slotTime: string) =>
     patient ? getSlotAbsence(patient, date, slotTime, admissionRecords as any, hospitalEpisodes as any) : null;
 
-  // 該月真實換片記錄的 date|slot 集合；無記錄的時段會跳過生成
-  const loadExistingSlots = async (): Promise<Set<string>> => {
+  // 該月真實換片記錄：date|slot -> 記錄本身的跳過原因（無則為 null，表示可生成）
+  const recordSkipReason = diaperRecordSkipReason;
+
+  const loadExistingSlots = async (): Promise<Map<string, string | null>> => {
     const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
     const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(monthDays).padStart(2, '0')}`;
     const all = await db.getDiaperChangeRecordsInDateRange(monthStart, monthEnd);
-    const set = new Set(
+    const map = new Map<string, string | null>(
       all.filter(r => r.patient_id === Number(patientId))
-        .map(r => `${r.change_date}|${r.time_slot}`)
+        .map(r => [`${r.change_date}|${r.time_slot}`, recordSkipReason(r)] as const)
     );
-    setExistingSlots(set);
-    return set;
+    setExistingSlots(map);
+    return map;
   };
 
   // 院友/年月改變時預載（供表格灰列顯示）
@@ -109,11 +135,15 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId, yearMonth]);
 
-  /** 跳過原因：入院/渡假，或該時段無真實換片記錄 */
+  /** 跳過原因：入院/渡假（episodes）、記錄備註事件、無大小便，或該時段無真實換片記錄 */
   const skipReasonOf = (date: string, slotTime: string): string | null => {
     const absence = absenceOf(date, slotTime);
     if (absence) return absence;
-    if (existingSlots && !existingSlots.has(`${date}|${slotTime}`)) return '無記錄';
+    if (existingSlots) {
+      const key = `${date}|${slotTime}`;
+      if (!existingSlots.has(key)) return '無記錄';
+      return existingSlots.get(key) ?? null;
+    }
     return null;
   };
 
@@ -124,6 +154,8 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
     if (!yearMonth) return '請選擇年月';
     if (maxDiaper !== '' && Number(maxDiaper) < Number(minDiaper || 0)) return '每日最多尿片不可少於每日最少尿片';
     if (maxCore !== '' && Number(maxCore) < Number(minCore || 0)) return '每日最多片芯不可少於每日最少片芯';
+    if (pcMaxDiaper !== '' && Number(pcMaxDiaper) < Number(pcMinDiaper || 0)) return '每次換片最多尿片不可少於最少尿片';
+    if (pcMaxCore !== '' && Number(pcMaxCore) < Number(pcMinCore || 0)) return '每次換片最多片芯不可少於最少片芯';
     return '';
   };
 
@@ -155,10 +187,16 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
       dailyMaxDiaper: maxDiaper === '' ? Number.MAX_SAFE_INTEGER : Number(maxDiaper),
       dailyMinCore: Number(minCore) || 0,
       dailyMaxCore: maxCore === '' ? Number.MAX_SAFE_INTEGER : Number(maxCore),
+      perChangeMinDiaper: pcMinDiaper === '' ? 0 : Number(pcMinDiaper),
+      perChangeMaxDiaper: pcMaxDiaper === '' ? undefined : Number(pcMaxDiaper),
+      perChangeMinCore: pcMinCore === '' ? 0 : Number(pcMinCore),
+      perChangeMaxCore: pcMaxCore === '' ? undefined : Number(pcMaxCore),
       absenceCheck: (date, slotTime) => {
         const absence = absenceOf(date, slotTime);
         if (absence) return absence;
-        return slots!.has(`${date}|${slotTime}`) ? null : '無記錄';
+        const key = `${date}|${slotTime}`;
+        if (!slots!.has(key)) return '無記錄';
+        return slots!.get(key) ?? null;
       },
     });
     setGrid(toEditable(generated));
@@ -188,6 +226,10 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
     daily_max_diaper: maxDiaper === '' ? null : Number(maxDiaper),
     daily_min_core: minCore === '' ? 0 : Number(minCore),
     daily_max_core: maxCore === '' ? null : Number(maxCore),
+    per_change_min_diaper: pcMinDiaper === '' ? 0 : Number(pcMinDiaper),
+    per_change_max_diaper: pcMaxDiaper === '' ? null : Number(pcMaxDiaper),
+    per_change_min_core: pcMinCore === '' ? 0 : Number(pcMinCore),
+    per_change_max_core: pcMaxCore === '' ? null : Number(pcMaxCore),
     generated_data: toStored(grid),
   });
 
@@ -235,15 +277,18 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
       const stored = toStored(grid);
       let updated = 0;
       let skipped = 0;
+      let skippedNotApplicable = 0;
       for (const [date, slots] of Object.entries(stored)) {
         for (const [slot, cell] of Object.entries(slots)) {
           const target = existing.get(`${date}|${slot}`);
           if (!target) { skipped++; continue; }
+          // 事件備註（入院/渡假/外出）或無大小便的記錄不覆蓋
+          if (recordSkipReason(target)) { skippedNotApplicable++; continue; }
           await db.updateDiaperChangeRecord({ ...target, urine_count: cell.urine, core_count: cell.core });
           updated++;
         }
       }
-      alert(`插入完成：已更新 ${updated} 筆真實換片記錄；跳過 ${skipped} 個無記錄時段。`);
+      alert(`插入完成：已更新 ${updated} 筆真實換片記錄；跳過 ${skipped} 個無記錄時段、${skippedNotApplicable} 個無大小便/事件時段。`);
     } catch (error) {
       console.error('插入床頭記錄失敗:', error);
       alert('插入床頭記錄失敗，請重試');
@@ -260,7 +305,7 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <Baby className="h-6 w-6 text-blue-600" />
+              <Layers className="h-6 w-6 text-blue-600" />
             </div>
             <h2 className="text-xl font-bold text-gray-900">
               {record ? '編輯尿片記錄' : '新增尿片記錄'}
@@ -335,10 +380,31 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
                   <input type="number" min="0" value={maxCore} onChange={(e) => setMaxCore(e.target.value)} className="form-input" placeholder="例如 4" />
                 </div>
               </div>
+              <div>
+                <label className="form-label">每次尿片（最少 - 最多）</label>
+                <div className="flex items-center gap-2">
+                  <input type="number" min="0" value={pcMinDiaper} onChange={(e) => setPcMinDiaper(e.target.value)} className="form-input" placeholder="0" />
+                  <span className="text-gray-500">至</span>
+                  <input type="number" min="0" value={pcMaxDiaper} onChange={(e) => setPcMaxDiaper(e.target.value)} className="form-input" placeholder="例如 2" />
+                </div>
+              </div>
+              <div>
+                <label className="form-label">每次片芯（最少 - 最多）</label>
+                <div className="flex items-center gap-2">
+                  <input type="number" min="0" value={pcMinCore} onChange={(e) => setPcMinCore(e.target.value)} className="form-input" placeholder="0" />
+                  <span className="text-gray-500">至</span>
+                  <input type="number" min="0" value={pcMaxCore} onChange={(e) => setPcMaxCore(e.target.value)} className="form-input" placeholder="例如 1" />
+                </div>
+              </div>
             </div>
             <div className="text-sm text-gray-700">
               {year}年{month}月共 {monthDays} 日；估計每天使用量：尿片 <span className="font-medium">{dailyAvgDiaper}</span> 條、片芯 <span className="font-medium">{dailyAvgCore}</span> 條
             </div>
+            {hasGrid && (
+              <div className="text-sm text-gray-700">
+                本次生成合計：尿片 <span className="font-medium">{generatedTotals.urine}</span> 條{diffLabel(generatedTotals.urine, monthlyDiaper)}、片芯 <span className="font-medium">{generatedTotals.core}</span> 條{diffLabel(generatedTotals.core, monthlyCore)}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -364,7 +430,7 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
           {hasGrid && (
             <div className="border border-gray-200 rounded-lg overflow-hidden">
               <div className="bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700">
-                虛擬數據表（可手調；灰列為入院/渡假/無換片記錄，已跳過生成）
+                虛擬數據表（可手調；灰列為入院/渡假/無記錄/無大小便，已跳過生成）
               </div>
               <div className="max-h-96 overflow-y-auto">
                 <table className="w-full divide-y divide-gray-200 text-sm">
