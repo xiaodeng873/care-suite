@@ -694,12 +694,18 @@ const CareRecords: React.FC = () => {
 
                   if (done && record) {
                     // ─── 已填 ───
-                    const diaperContent: string[] = [];
-                    if (record.has_urine) diaperContent.push('小');
-                    if (record.has_stool) diaperContent.push('大');
-                    if (record.has_none) diaperContent.push('無');
-                    cellContent = diaperContent.join('/') || '已記錄';
-                    cellTextColor = 'text-blue-600';
+                    // 備註為入院/渡假/外出（快捷按鈕三選一）時，直接顯示備註
+                    if (record.notes && ['入院', '渡假', '外出'].includes(record.notes)) {
+                      cellContent = record.notes;
+                      cellTextColor = 'text-orange-600';
+                    } else {
+                      const diaperContent: string[] = [];
+                      if (record.has_urine) diaperContent.push('小');
+                      if (record.has_stool) diaperContent.push('大');
+                      if (record.has_none) diaperContent.push('無');
+                      cellContent = diaperContent.join('/') || '已記錄';
+                      cellTextColor = 'text-blue-600';
+                    }
                   } else if (isOverdue) {
                     // ─── 逾期未填 ───
                     cellContent = '未記錄';

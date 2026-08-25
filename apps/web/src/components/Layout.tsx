@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CalendarDays, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key, Search, Receipt } from 'lucide-react';
+import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CalendarDays, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key, Search, Receipt, Baby } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
@@ -25,6 +25,7 @@ const routeNames: Record<string, string> = {
   '/tasks': '任務管理',
   '/meal-guidance': '飲食指導',
   '/patient-logs': '院友日誌',
+  '/diaper-usage-records': '尿片記錄',
   '/restraint': '約束物品',
   '/tube-care': '喉管護理',
   '/admission-records': '入院記錄',
@@ -209,6 +210,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       items: [
         { name: '監測記錄', href: '/health', icon: Activity, feature: 'health_monitoring' },
         { name: '床頭記錄', href: '/care-records', icon: ClipboardCheck, feature: 'care_records' },
+        { name: '尿片記錄', href: '/diaper-usage-records', icon: Baby },
         { name: '院友日誌', href: '/patient-logs', icon: BookOpen, feature: 'patient_logs' },
         { name: '診斷記錄', href: '/diagnosis-records', icon: FileText, feature: 'diagnosis_records' },
         { name: '疫苗記錄', href: '/vaccination-records', icon: Syringe, feature: 'vaccination_records' },

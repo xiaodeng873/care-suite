@@ -624,6 +624,24 @@ export interface DiaperChangeRecord {
   updated_at: string;
 }
 
+// 尿片記錄：院友每月尿片/片芯用量估算與虛擬生成數據
+export interface DiaperUsageRecord {
+  id: string;
+  patient_id: number;
+  year: number;
+  month: number; // 1-12
+  monthly_diaper_estimate?: number | null;
+  monthly_core_estimate?: number | null;
+  daily_min_diaper?: number | null;
+  daily_max_diaper?: number | null;
+  daily_min_core?: number | null;
+  daily_max_core?: number | null;
+  // { "YYYY-MM-DD": { "7AM-11AM": { urine: number, core: number }, ... } }
+  generated_data?: Record<string, Record<string, { urine: number; core: number }>>;
+  created_at: string;
+  updated_at: string;
+}
+
 export type FeeItemCategory = '服務' | '用品';
 export type FeeItemUnit = '次' | '個' | '日' | '月' | '項' | '小時' | '療程';
 
@@ -3404,6 +3422,28 @@ export const updateDiaperChangeRecord = async (record: DiaperChangeRecord): Prom
 };
 export const deleteDiaperChangeRecord = async (recordId: string): Promise<void> => {
   const { error } = await supabase.from('diaper_change_records').delete().eq('id', recordId);
+  if (error) throw error;
+};
+
+// 尿片記錄（每月估算 + 虛擬生成數據）
+export const getDiaperUsageRecords = async (): Promise<DiaperUsageRecord[]> => {
+  const { data, error } = await supabase.from('diaper_usage_records').select('*').order('year', { ascending: false }).order('month', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+export const createDiaperUsageRecord = async (record: Omit<DiaperUsageRecord, 'id' | 'created_at' | 'updated_at'>): Promise<DiaperUsageRecord> => {
+  const { data, error } = await supabase.from('diaper_usage_records').insert([record]).select().single();
+  if (error) throw error;
+  return data;
+};
+export const updateDiaperUsageRecord = async (record: DiaperUsageRecord): Promise<DiaperUsageRecord> => {
+  const { id, created_at, updated_at, ...updateData } = record;
+  const { data, error } = await supabase.from('diaper_usage_records').update({ ...updateData, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+export const deleteDiaperUsageRecord = async (recordId: string): Promise<void> => {
+  const { error } = await supabase.from('diaper_usage_records').delete().eq('id', recordId);
   if (error) throw error;
 };
 
