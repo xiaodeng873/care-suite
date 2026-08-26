@@ -72,6 +72,8 @@ export interface UserProfile {
   /** 次要職位列表（可擔任其他角色） */
   secondary_positions: string[];
   hire_date: string;
+  /** 離職日期（當日起不可排班／預排，儲存時帳戶自動停用） */
+  resignation_date?: string | null;
   employment_type: EmploymentType;
   monthly_hour_limit: number | null;
   role: UserRole;
@@ -344,18 +346,18 @@ export interface UserBalanceAdjustment {
 }
 
 /** 請假類型 */
-export type LeaveType = 'AL' | 'PRD' | 'DO' | 'SL' | 'NPL' | 'PH' | 'SH';
+export type LeaveType = 'AL' | 'PRD' | 'DO' | 'SL' | 'SLN' | 'PH' | 'SH';
 
 /** 請假類型列表 */
-export const LEAVE_TYPES: LeaveType[] = ['AL', 'PRD', 'DO', 'SL', 'NPL', 'PH', 'SH'];
+export const LEAVE_TYPES: LeaveType[] = ['AL', 'PRD', 'DO', 'SL', 'SLN', 'PH', 'SH'];
 
 /** 請假類型中文名稱對照 */
 export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   AL: '年假',
-  PRD: '補休/PRD',
+  PRD: '補休',
   DO: '休息日',
   SL: '病假',
-  NPL: '無薪假',
+  SLN: '無薪假',
   PH: '銀行假期',
   SH: '勞工假期',
 };
@@ -389,6 +391,8 @@ export interface UserLeaveRecord {
   overridden_by: string | null;
   /** override 時間（可 null） */
   overridden_at: string | null;
+  /** true = 一鍵排假產生，可被重排；false = 用戶輸入，不可篡改 */
+  is_auto: boolean;
   remark: string | null;
   created_at: string;
   updated_at: string;
@@ -417,6 +421,8 @@ export interface StationShiftSetting {
   start_time: string;
   is_active: boolean;
   sort_order: number;
+  /** 每班最少人數（一鍵排班時先補到此下限，0 = 不設下限） */
+  min_staff?: number;
   created_at: string;
   updated_at: string;
 }

@@ -51,6 +51,17 @@ const parseHalf = (s: string): number | null | 'invalid' => {
   return n;
 };
 
+/** 特定上班時間輸入正規化：接受 HH:MM / H:MM / HHMM / HMM，統一回傳 HH:MM；空白回 null；格式錯誤回 'invalid' */
+const normalizeWorkStartTimeInput = (raw: string): string | null | 'invalid' => {
+  if (raw.trim() === '') return null;
+  const digits = raw.replace(/\D/g, '');
+  if (!/^\d{3,4}$/.test(digits)) return 'invalid';
+  const hh = parseInt(digits.slice(0, -2), 10);
+  const mm = parseInt(digits.slice(-2), 10);
+  if (hh > 23 || mm > 59) return 'invalid';
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+};
+
 /** 統一格式化未知錯誤為可讀字串（支援 PostgrestError / 嵌套 message） */
 const formatError = (err: unknown): string => {
   if (err instanceof Error) return err.message;
@@ -141,6 +152,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
   const [annualLeaveStartDate, setAnnualLeaveStartDate] = useState(user.hire_date || '');
   const [publicHolidayType, setPublicHolidayType] = useState<'' | 'PH' | 'SH'>('');
   const [publicHolidayStartDate, setPublicHolidayStartDate] = useState(user.hire_date || '');
+  const [resignationDate, setResignationDate] = useState('');
   const [preferredPrimary, setPreferredPrimary] = useState('');
   const [preferredSecondary, setPreferredSecondary] = useState<string[]>([]);
   const [stationsForbidden, setStationsForbidden] = useState<string[]>([]);
@@ -414,6 +426,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
         { data: rows, error: e2 },
         { data: restRows, error: e5 },
         { data: phRows, error: e7 },
+        { data: profileRow, error: e9 },
       ] = await Promise.all([
         supabase.from('user_employment_details').select('*').eq('user_id', user.id).maybeSingle(),
         supabase
@@ -434,6 +447,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           .eq('user_id', user.id)
           .order('record_date', { ascending: true })
           .order('created_at', { ascending: true }),
+        supabase.from('user_profiles').select('resignation_date').eq('id', user.id).maybeSingle(),
       ]);
       if (e1) {
         console.error('載入僱傭詳情主檔失敗:', e1);
@@ -451,6 +465,11 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
         console.error('載入公眾假期明細失敗:', e7);
         errors.push(`公眾假期：${e7.message}`);
       }
+      if (e9) {
+        console.error('載入離職日期失敗:', e9);
+        errors.push(`離職日期：${e9.message}`);
+      }
+      setResignationDate(profileRow?.resignation_date ?? '');
 
       if (details) {
         setWeeklyContractHours(details.weekly_contract_hours?.toString() ?? '');
@@ -619,6 +638,13 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       parsed[label] = p;
     }
 
+    // 特定上班時間：統一為 HH:MM，格式錯誤即拒絕儲存
+    const normalizedWorkStartTime = normalizeWorkStartTimeInput(defaultWorkStartTime);
+    if (normalizedWorkStartTime === 'invalid') {
+      setMessage({ type: 'error', text: '特定上班時間格式應為 HH:MM（例如 07:00）' });
+      return;
+    }
+
     const startChanged = (annualLeaveStartDate || null) !== initialStartDate;
     const hasSystemGrants = leaveDetails.some(d => d.detail_type === 'grant' && d.is_system);
     if (startChanged && hasSystemGrants) {
@@ -680,7 +706,7 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
           user_id: user.id,
           weekly_contract_hours: parsed['每周合約時間'],
           daily_contract_hours: parsed['每天合約工時'],
-          default_work_start_time: normalizeTime(defaultWorkStartTime) || defaultWorkStartTime || null,
+          default_work_start_time: normalizedWorkStartTime,
           weekly_work_days: parsed['每周工作天數'],
           hours_balance: parsed['工時結餘'] ?? 0,
           rest_day_start_date: restDayStartDate || null,
@@ -697,6 +723,24 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       );
       if (error) throw error;
 
+      // 離職日期：寫回 user_profiles；帳戶於離職日當日起才自動停用（儲存時不改動 is_active）
+      const { error: resignError } = await supabase
+        .from('user_profiles')
+        .update({
+          resignation_date: resignationDate || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+      if (resignError) throw resignError;
+    } catch (err) {
+      console.error('儲存僱傭詳情失敗:', err);
+      setMessage({ type: 'error', text: `儲存僱傭詳情失敗：${formatError(err)}` });
+      setSaving(false);
+      return;
+    }
+
+    // 主檔已落庫；以下明細同步／重新載入失敗不影響主檔
+    try {
       // 按（可能已更改的）起始日補齊系統獲得行
       if (annualLeaveStartDate && parsed['每年年假天數']) {
         await materializeGrants();
@@ -713,11 +757,11 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
       setInitialWeeklyWorkDays(weeklyWorkDays || null);
       setInitialPublicHolidayStartDate(publicHolidayStartDate || null);
       setInitialPublicHolidayType(publicHolidayType);
-      setMessage({ type: 'success', text: '僱傭詳情已儲存' });
       await loadData();
+      setMessage({ type: 'success', text: '僱傭詳情已儲存' });
     } catch (err) {
-      console.error('儲存僱傭詳情失敗:', err);
-      setMessage({ type: 'error', text: '儲存僱傭詳情失敗' });
+      console.error('儲存後同步明細失敗:', err);
+      setMessage({ type: 'error', text: `僱傭詳情主檔已儲存，但明細同步失敗：${formatError(err)}` });
     } finally {
       setSaving(false);
     }
@@ -1097,6 +1141,32 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
             <p className="text-sm text-gray-500">載入中...</p>
           ) : (
             <>
+              {/* 0. 僱傭狀態 */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">僱傭狀態</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">入職日期</label>
+                    <input
+                      type="date"
+                      value={user.hire_date ?? ''}
+                      disabled
+                      readOnly
+                      className={`${inputClass} bg-gray-100`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">離職日期</label>
+                    <DateInput
+                      value={resignationDate}
+                      onChange={setResignationDate}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">設定離職日期後帳戶自動停用；當日起排班表及預排表均不可再插入。</p>
+              </div>
+
               {/* 1. 工作時間 */}
               <div>
                 <h4 className="text-sm font-semibold text-gray-900 mb-2">工作時間</h4>
@@ -1107,7 +1177,9 @@ const EmploymentDetailsSection: React.FC<EmploymentDetailsSectionProps> = ({ use
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">特定上班時間</label>
                     <input
-                      type="time"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="HH:MM"
                       value={defaultWorkStartTime}
                       onChange={e => setDefaultWorkStartTime(e.target.value)}
                       className={inputClass}

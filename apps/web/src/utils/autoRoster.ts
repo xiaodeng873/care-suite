@@ -5,8 +5,9 @@ import type {
   UserLeaveRecord,
   StationShiftSetting,
   ShiftName,
+  LeaveType,
 } from '@care-suite/shared';
-import { getEmploymentPosition } from '@care-suite/shared';
+import { getEmploymentPosition, LEAVE_TYPE_LABELS } from '@care-suite/shared';
 import { GRID_POSITIONS } from './facilityNatureSettings';
 import type { SpecificHoursConfig } from './facilityNatureSettings';
 import {
@@ -24,6 +25,7 @@ import {
 } from './roster';
 import type { ComplianceRow } from './roster';
 import type { StaffingResult } from './staffingRequirements';
+import type { AutoRosterPrinciples } from './autoRosterPrinciples';
 
 export interface AutoRosterCandidate {
   user_id: string;
@@ -37,10 +39,15 @@ export interface AutoRosterCandidate {
 
 export interface AutoRosterConflict {
   user_id: string;
+  name_zh: string;
   date: string;
   recordType: 'leave' | 'availability';
+  leaveType: LeaveType | null;
+  availabilityStart: string | null;
+  availabilityEnd: string | null;
   urgency: 'mandatory' | 'preferred';
   description: string;
+  canOverride: boolean;
 }
 
 export interface AutoRosterInput {
@@ -58,6 +65,8 @@ export interface AutoRosterInput {
   specific: SpecificHoursConfig;
   /** 預排記錄，用於排除必須放假/不可用時段及計算衝突 */
   leaveRecords?: UserLeaveRecord[];
+  /** 一鍵排班原則（未提供則全部不啟用） */
+  principles?: AutoRosterPrinciples;
 }
 
 export interface AutoRosterResult {
@@ -162,8 +171,9 @@ function getStationRank(
   stationId: string | null,
   employmentDetails: Record<string, UserEmploymentDetails>,
   baseList: (string | null)[],
+  ignorePreference = false,
 ): number {
-  const list = getUserStationList(userId, employmentDetails, baseList);
+  const list = getUserStationList(userId, employmentDetails, baseList, ignorePreference);
   return list.indexOf(stationId);
 }
 
@@ -451,15 +461,21 @@ function makeMockAssignment(
 /** 依員工偏好居住區產生專屬居住區順序；會排除 stations_forbidden 的居住區：
  * - 有設定 preferred_station 者：先 primary，再 secondary，其餘在後
  * - 無設定偏好者：未分區優先
+ * - ignorePreference（原則3）時：無視偏好，直接用預設順序（仍排除 forbidden）
  */
 function getUserStationList(
   userId: string,
   employmentDetails: Record<string, UserEmploymentDetails>,
   baseList: (string | null)[],
+  ignorePreference = false,
 ): (string | null)[] {
   const details = employmentDetails[userId];
   const forbidden = new Set(details?.stations_forbidden ?? []);
   const isForbidden = (s: string | null) => s !== null && forbidden.has(s);
+
+  if (ignorePreference) {
+    return baseList.filter((s) => !isForbidden(s));
+  }
 
   const prefs: (string | null)[] = [];
   if (details?.preferred_station_primary && !isForbidden(details.preferred_station_primary)) {
@@ -497,7 +513,7 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
   const {
     date,
     position,
-    users,
+    users: allUsers,
     employmentDetails,
     stations,
     stationPriority,
@@ -507,7 +523,11 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
     staffingResult,
     specific,
     leaveRecords,
+    principles,
   } = input;
+  // 離職日期當日起不再參與自動排班
+  const users = allUsers.filter((u) => !u.resignation_date || u.resignation_date > date);
+  const ignorePref = principles?.ignoreStationPreference === true;
 
   const requiredHours = buildRequiredHoursMap(dailyRequirements);
   const requiredHourly = buildRequiredHourly(staffingResult);
@@ -572,6 +592,97 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
     return true;
   });
 
+  // 原則約束輪（在缺口輪之前）：按啟用的原則先排好各居住區早/午班人數結構。
+  // 只計算「居住區」（stationId !== null），未分區不適用。
+  const countBucketAssignees = (stationId: string | null, bucket: ShiftName): number =>
+    simulatedAssignments.filter(
+      (a) =>
+        a.work_date === date &&
+        a.station_id === stationId &&
+        a.shift_name === bucket &&
+        (!a.position || a.position === position),
+    ).length;
+
+  /** 嘗試把一名合資格員工排入指定居住區的指定班別（早班/午班）；無人可排回 false。
+   * 同分時優先「以此居住區為偏好」的員工（原則3 勾選時才無視偏好）。 */
+  const tryAssignToBucket = (stationId: string | null, bucket: ShiftName): boolean => {
+    const shifts = getActiveShifts(shiftSettings, stationId, position).filter(
+      (s) => s.shift_name === bucket,
+    );
+    if (shifts.length === 0) return false;
+
+    let best: {
+      candidate: AutoRosterCandidate;
+      preferredPenalty: number;
+      stationRank: number;
+      startMin: number;
+    } | null = null;
+
+    for (const user of eligibleUsers) {
+      if (assignedUserIds.has(user.id)) continue;
+      if (hasMandatoryLeave(user.id, date, leaveRecords)) continue;
+
+      // 硬性排除：此居住區在員工禁區內（getUserStationList 已排除 forbidden）
+      const userStations = getUserStationList(user.id, employmentDetails, stationList, ignorePref);
+      if (!userStations.includes(stationId)) continue;
+
+      const dailyHours = getDailyContractHours(employmentDetails[user.id]) ?? 8;
+      if (dailyHours <= 0) continue;
+
+      const availability = getAvailabilityWindow(user.id, date, leaveRecords, employmentDetails);
+      const preferredLeave = getPreferredLeave(user.id, date, leaveRecords);
+
+      for (const shift of shifts) {
+        const candidateSpec = getCandidateStartTime(shift, dailyHours, availability);
+        if (!candidateSpec) continue;
+
+        const candidate: AutoRosterCandidate = {
+          user_id: user.id,
+          work_date: date,
+          station_id: stationId,
+          shift_name: shift.shift_name,
+          start_time: candidateSpec.startTime,
+          position,
+        };
+        const preferredPenalty = preferredLeave ? 1 : 0;
+        const stationRank = userStations.indexOf(stationId);
+        const startMin = timeToMinutes(candidateSpec.startTime);
+        const better =
+          !best ||
+          preferredPenalty < best.preferredPenalty ||
+          (preferredPenalty === best.preferredPenalty && stationRank < best.stationRank) ||
+          (preferredPenalty === best.preferredPenalty && stationRank === best.stationRank && startMin < best.startMin);
+        if (better) best = { candidate, preferredPenalty, stationRank, startMin };
+      }
+    }
+
+    if (!best) return false;
+    insertions.push(best.candidate);
+    simulatedAssignments.push(makeMockAssignment(best.candidate, employmentDetails));
+    assignedUserIds.add(best.candidate.user_id);
+    return true;
+  };
+
+  // 每班最少人數（班次設定 min_staff）：在缺口輪之前先把各居住區各班補到下限。
+  // 只計算「居住區」（stationId !== null），未分區不適用。
+  for (const stationId of stationList) {
+    if (stationId === null) continue;
+    const shifts = getActiveShifts(shiftSettings, stationId, position);
+    // 同一班別可能有多行設定，取最大 min_staff 為該班別下限
+    const bucketMin = new Map<ShiftName, number>();
+    for (const s of shifts) {
+      const min = s.min_staff ?? 0;
+      if (min > (bucketMin.get(s.shift_name) ?? 0)) bucketMin.set(s.shift_name, min);
+    }
+    for (const [bucket, min] of bucketMin) {
+      while (countBucketAssignees(stationId, bucket) < min) {
+        if (!tryAssignToBucket(stationId, bucket)) break;
+      }
+    }
+  }
+
+  // 原則2「早班最多 N 名」：上限不用主動補人，在第二輪補班時生效（見 bucketGroup）。
+
   while (true) {
     const currentCompliance = buildDailyCompliance(
       date,
@@ -612,7 +723,7 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
 
       const availability = getAvailabilityWindow(user.id, date, leaveRecords, employmentDetails);
       const preferredLeave = getPreferredLeave(user.id, date, leaveRecords);
-      const userStationList = getUserStationList(user.id, employmentDetails, stationList);
+      const userStationList = getUserStationList(user.id, employmentDetails, stationList, ignorePref);
 
       for (const stationId of userStationList) {
         const shifts = getActiveShifts(shiftSettings, stationId, position);
@@ -675,7 +786,7 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
             candidateSpec.startTime,
             dailyHours,
           );
-          const stationRank = getStationRank(user.id, stationId, employmentDetails, stationList);
+          const stationRank = getStationRank(user.id, stationId, employmentDetails, stationList, ignorePref);
 
           const better =
             !best ||
@@ -713,9 +824,9 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
     if (dailyHours <= 0) continue;
 
     const availability = getAvailabilityWindow(user.id, date, leaveRecords, employmentDetails);
-    const userStationList = getUserStationList(user.id, employmentDetails, stationList);
+    const userStationList = getUserStationList(user.id, employmentDetails, stationList, ignorePref);
 
-    let best: { candidate: AutoRosterCandidate; overlap: number; coverage: number; stationRank: number } | null = null;
+    let best: { candidate: AutoRosterCandidate; overlap: number; bucketGroup: number; bucketCount: number; coverage: number; stationRank: number } | null = null;
     for (const stationId of userStationList) {
       const shifts = getActiveShifts(shiftSettings, stationId, position);
       for (const shift of shifts) {
@@ -739,6 +850,28 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
           position,
         };
         const overlap = candidateSpec.overlap;
+        // 原則2「早班最多 N 名，有餘攤到各區至各區平均，再有餘攤至午班各站」：
+        // group 0 = 未滿 N 的早班（取早班人數最少的區，達至各區平均）；
+        // group 1 = 午班（早班全滿後才攤入，同取人數最少的區）；
+        // group 2 = 已滿 N 的早班；group 3 = 其他班別。
+        let bucketGroup = 0;
+        let bucketCount = 0;
+        if (principles?.earlyExtra.enabled) {
+          const n = principles.earlyExtra.n;
+          const earlyCount = countBucketAssignees(stationId, '早班');
+          if (shift.shift_name === '早班' && earlyCount < n) {
+            bucketGroup = 0;
+            bucketCount = earlyCount;
+          } else if (shift.shift_name === '午班') {
+            bucketGroup = 1;
+            bucketCount = countBucketAssignees(stationId, '午班');
+          } else if (shift.shift_name === '早班') {
+            bucketGroup = 2;
+            bucketCount = earlyCount;
+          } else {
+            bucketGroup = 3;
+          }
+        }
         const coverage = computeRequiredCoverageHours(
           date,
           position,
@@ -746,18 +879,22 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
           candidateSpec.startTime,
           dailyHours,
         );
-        const stationRank = getStationRank(user.id, stationId, employmentDetails, stationList);
+        const stationRank = getStationRank(user.id, stationId, employmentDetails, stationList, ignorePref);
 
         const better =
           !best ||
           overlap > best.overlap ||
-          (overlap === best.overlap && coverage > best.coverage) ||
-          (overlap === best.overlap && coverage === best.coverage && stationRank < best.stationRank) ||
+          (overlap === best.overlap && bucketGroup < best.bucketGroup) ||
+          (overlap === best.overlap && bucketGroup === best.bucketGroup && bucketCount < best.bucketCount) ||
+          (overlap === best.overlap && bucketGroup === best.bucketGroup && bucketCount === best.bucketCount && coverage > best.coverage) ||
+          (overlap === best.overlap && bucketGroup === best.bucketGroup && bucketCount === best.bucketCount && coverage === best.coverage && stationRank < best.stationRank) ||
           (overlap === best.overlap &&
+            bucketGroup === best.bucketGroup &&
+            bucketCount === best.bucketCount &&
             coverage === best.coverage &&
             stationRank === best.stationRank &&
             timeToMinutes(candidateSpec.startTime) < timeToMinutes(best.candidate.start_time));
-        if (better) best = { candidate, overlap, coverage, stationRank };
+        if (better) best = { candidate, overlap, bucketGroup, bucketCount, coverage, stationRank };
       }
     }
 
@@ -765,6 +902,81 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
       insertions.push(best.candidate);
       simulatedAssignments.push(makeMockAssignment(best.candidate, employmentDetails));
       assignedUserIds.add(user.id);
+    }
+  }
+
+  // 第四輪（原則2）：早班超額修正。前面各輪（min_staff 約束輪、紅線缺口輪）不看早班上限，
+  // 可能令某區早班超過 N；此輪把超額的、本次一鍵排班產生的早班人手，
+  // 搬往仍未滿 N 且該員工可合法前往的居住區早班（目標取早班人數最少，再按員工偏好）。
+  // 手動既有班次不搬；無合法目標（如禁區）就保留，上限仍屬軟性。
+  if (principles?.earlyExtra.enabled) {
+    const n = principles.earlyExtra.n;
+    let anyMoved = true;
+    while (anyMoved) {
+      anyMoved = false;
+      for (const fromStation of stationList) {
+        if (fromStation === null) continue;
+        while (countBucketAssignees(fromStation, '早班') > n) {
+          const movable = insertions.filter(
+            (ins) => ins.station_id === fromStation && ins.shift_name === '早班',
+          );
+          let didMove = false;
+          for (const ins of movable) {
+            const user = eligibleUsers.find((u) => u.id === ins.user_id);
+            if (!user) continue;
+            const dailyHours = getDailyContractHours(employmentDetails[user.id]) ?? 8;
+            const availability = getAvailabilityWindow(user.id, date, leaveRecords, employmentDetails);
+            const userStations = getUserStationList(user.id, employmentDetails, stationList, ignorePref);
+            const targets = userStations
+              .filter(
+                (s): s is string =>
+                  s !== null &&
+                  s !== fromStation &&
+                  countBucketAssignees(s, '早班') < n &&
+                  getActiveShifts(shiftSettings, s, position).some((sh) => sh.shift_name === '早班'),
+              )
+              .sort(
+                (a, b) =>
+                  countBucketAssignees(a, '早班') - countBucketAssignees(b, '早班') ||
+                  userStations.indexOf(a) - userStations.indexOf(b),
+              );
+            let target: { stationId: string; startTime: string } | null = null;
+            for (const stationId of targets) {
+              const shifts = getActiveShifts(shiftSettings, stationId, position).filter(
+                (sh) => sh.shift_name === '早班',
+              );
+              for (const shift of shifts) {
+                const spec = getCandidateStartTime(shift, dailyHours, availability);
+                if (spec) {
+                  target = { stationId, startTime: spec.startTime };
+                  break;
+                }
+              }
+              if (target) break;
+            }
+            if (!target) continue;
+
+            ins.station_id = target.stationId;
+            ins.start_time = target.startTime;
+            const mock = simulatedAssignments.find(
+              (a) =>
+                a.id.startsWith('tmp-') &&
+                a.user_id === ins.user_id &&
+                a.work_date === date &&
+                a.shift_name === '早班',
+            );
+            if (mock) {
+              mock.station_id = target.stationId;
+              mock.start_time = target.startTime;
+              mock.end_time = getShiftEndTime(target.startTime, dailyHours);
+            }
+            didMove = true;
+            anyMoved = true;
+            break;
+          }
+          if (!didMove) break;
+        }
+      }
     }
   }
 
@@ -778,22 +990,45 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
     simulatedAssignments,
   );
 
-  // 收集衝突：「希望」放假但被排了班
+  // 收集衝突：列出當天所有影響該職位的預排，並標示可 override 的項目
+  // - availability（特定上班時間）：已自動排入班次者視為已滿足，不列衝突；
+  //   未被排入者也不算衝突（人手已足）。只在真正發生衝突時才列出。
+  // - preferred leave：系統選中該員工時列為衝突，用戶可 override；
+  //   未被選中者仍顯示按鈕，讓用戶取消放假後手動安排。
+  // - mandatory leave：理論上已被排除，若仍有選中則列為不可 override 的衝突。
   const conflicts: AutoRosterConflict[] = [];
-  for (const user of users) {
-    const preferred = getPreferredLeave(user.id, date, leaveRecords);
-    const isAssigned = simulatedAssignments.some(
-      (a) => a.user_id === user.id && a.work_date === date,
-    );
-    if (preferred && isAssigned) {
-      conflicts.push({
-        user_id: user.id,
-        date,
-        recordType: 'leave',
-        urgency: 'preferred',
-        description: `${date}：${user.name_zh} 希望放假`,
-      });
-    }
+  const userMap = new Map(users.map((u) => [u.id, u]));
+  const insertionSet = new Set(insertions.map((ins) => `${ins.user_id}|${ins.work_date}`));
+  for (const record of leaveRecords ?? []) {
+    if (record.leave_date !== date) continue;
+    const user = userMap.get(record.user_id);
+    if (!user) continue;
+    if (!userCanFillPosition(user, position)) continue;
+
+    // availability 已被滿足：系統已排入符合窗口的班次 → 不列衝突
+    if (record.record_type === 'availability') continue;
+
+    const isPreferredLeave = record.record_type === 'leave' && record.urgency === 'preferred';
+    const isMandatoryLeave = record.record_type === 'leave' && record.urgency === 'mandatory';
+    const hasInsertion = insertionSet.has(`${user.id}|${date}`);
+    const canOverride = isPreferredLeave;
+    const leaveLabel = record.leave_type ? LEAVE_TYPE_LABELS[record.leave_type] : '';
+    const desc = `${date}：${user.name_zh} ${leaveLabel}${isMandatoryLeave ? '（必須）' : ''}`;
+
+    if (!hasInsertion && !canOverride) continue;
+
+    conflicts.push({
+      user_id: user.id,
+      name_zh: user.name_zh,
+      date,
+      recordType: record.record_type,
+      leaveType: record.leave_type,
+      availabilityStart: record.availability_start_time,
+      availabilityEnd: record.availability_end_time,
+      urgency: record.urgency,
+      description: desc,
+      canOverride,
+    });
   }
 
   return {

@@ -113,6 +113,20 @@ async function handleLogin(req: LoginRequest) {
     };
   }
 
+  // 離職日當日起帳戶自動停用（香港時區）
+  const hkToday = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+  if (user.resignation_date && user.resignation_date <= hkToday) {
+    await supabase
+      .from("user_profiles")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
+    console.log("Account auto-disabled on resignation date:", user.username);
+    return {
+      success: false,
+      error: "帳號已停用",
+    };
+  }
+
   console.log("User found, comparing password...");
 
   // 驗證密碼
@@ -192,6 +206,20 @@ async function handleQRLogin(req: QRLoginRequest) {
     return {
       success: false,
       error: "二維碼無效或帳號已停用",
+    };
+  }
+
+  // 離職日當日起帳戶自動停用（香港時區）
+  const hkToday = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+  if (user.resignation_date && user.resignation_date <= hkToday) {
+    await supabase
+      .from("user_profiles")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
+    console.log("Account auto-disabled on resignation date:", user.username);
+    return {
+      success: false,
+      error: "帳號已停用",
     };
   }
 

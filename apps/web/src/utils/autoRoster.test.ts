@@ -763,4 +763,284 @@ describe('generateAutoRoster', () => {
     expect(result.insertions[0].station_id).toBeNull();
     expect(result.insertions[0].shift_name).toBe('早班');
   });
+
+  describe('一鍵排班原則', () => {
+    const makeHw = (id: string): UserProfile =>
+      ({
+        ...user,
+        id,
+        username: id,
+        name_zh: `保健員${id}`,
+        nursing_position: '保健員',
+      }) as unknown as UserProfile;
+
+    const makeHwDetails = (id: string, extra?: Partial<UserEmploymentDetails>): UserEmploymentDetails =>
+      ({
+        ...details,
+        id: `d-${id}`,
+        user_id: id,
+        ...extra,
+      }) as unknown as UserEmploymentDetails;
+
+    const earlyShift = (stationId: string, minStaff = 0): StationShiftSetting => ({
+      ...shiftSetting,
+      id: `${stationId}-early`,
+      station_id: stationId,
+      shift_name: '早班',
+      start_time: '07:00',
+      min_staff: minStaff,
+    });
+    const lateShift = (stationId: string, minStaff = 0): StationShiftSetting => ({
+      ...shiftSetting,
+      id: `${stationId}-late`,
+      station_id: stationId,
+      shift_name: '午班',
+      start_time: '14:00',
+      min_staff: minStaff,
+    });
+
+    const zeroStaffing: StaffingResult = {
+      grid: Array.from({ length: 24 }, () => [0, 0, 0, 0, 0, 0, 0]),
+      dailySummaries: [],
+    };
+
+    const hwRequirement = [{ position: '保健員', hours: 8, peakHeadcount: 1 }];
+
+    it('班次設定 min_staff：各居住區早班、午班補到最少人數', () => {
+      const users = ['h1', 'h2', 'h3', 'h4'].map(makeHw);
+      const result = generateAutoRoster({
+        date: '2026-08-02',
+        position: '護士/保健員',
+        users,
+        employmentDetails: Object.fromEntries(users.map((u) => [u.id, makeHwDetails(u.id)])),
+        stations: [
+          { id: 'station-1', name: 'A區' },
+          { id: 'station-2', name: 'B區' },
+        ],
+        stationPriority: ['station-1', 'station-2', null],
+        shiftSettings: [
+          earlyShift('station-1', 1),
+          lateShift('station-1', 1),
+          earlyShift('station-2', 1),
+          lateShift('station-2', 1),
+        ],
+        existingAssignments: [],
+        dailyRequirements: hwRequirement,
+        staffingResult: zeroStaffing,
+        specific,
+      });
+
+      for (const stationId of ['station-1', 'station-2']) {
+        for (const bucket of ['早班', '午班']) {
+          const count = result.insertions.filter(
+            (i) => i.station_id === stationId && i.shift_name === bucket,
+          ).length;
+          expect(count).toBeGreaterThanOrEqual(1);
+        }
+      }
+    });
+
+    it('原則2：早班最多 N 名，有餘攤到各區至各區平均，再有餘攤至午班各站', () => {
+      const users = ['h1', 'h2', 'h3', 'h4'].map(makeHw);
+      const result = generateAutoRoster({
+        date: '2026-08-02',
+        position: '護士/保健員',
+        users,
+        employmentDetails: Object.fromEntries(users.map((u) => [u.id, makeHwDetails(u.id)])),
+        stations: [
+          { id: 'station-1', name: 'A區' },
+          { id: 'station-2', name: 'B區' },
+        ],
+        stationPriority: ['station-1', 'station-2', null],
+        shiftSettings: [
+          earlyShift('station-1'),
+          lateShift('station-1'),
+          earlyShift('station-2'),
+          lateShift('station-2'),
+        ],
+        existingAssignments: [],
+        dailyRequirements: hwRequirement,
+        staffingResult: zeroStaffing,
+        specific,
+        principles: {
+          earlyExtra: { enabled: true, n: 1 },
+          ignoreStationPreference: false,
+        },
+      });
+
+      // 早班每區上限 1：先各區早班補 1（各區平均），再有餘攤至午班各站 → 每區早 1 午 1
+      for (const stationId of ['station-1', 'station-2']) {
+        const early = result.insertions.filter(
+          (i) => i.station_id === stationId && i.shift_name === '早班',
+        ).length;
+        const late = result.insertions.filter(
+          (i) => i.station_id === stationId && i.shift_name === '午班',
+        ).length;
+        expect(early).toBe(1);
+        expect(late).toBe(1);
+      }
+    });
+
+    it('min_staff 約束輪仍尊重偏好居住區（原則3 未勾選時）', () => {
+      const users = ['h1', 'h2', 'h3', 'h4'].map(makeHw);
+      const detailsMap = {
+        h1: makeHwDetails('h1', { preferred_station_primary: 'station-2' } as Partial<UserEmploymentDetails>),
+        h2: makeHwDetails('h2', { preferred_station_primary: 'station-2' } as Partial<UserEmploymentDetails>),
+        h3: makeHwDetails('h3', { preferred_station_primary: 'station-1' } as Partial<UserEmploymentDetails>),
+        h4: makeHwDetails('h4', { preferred_station_primary: 'station-1' } as Partial<UserEmploymentDetails>),
+      };
+      const result = generateAutoRoster({
+        date: '2026-08-02',
+        position: '護士/保健員',
+        users,
+        employmentDetails: detailsMap,
+        stations: [
+          { id: 'station-1', name: 'A區' },
+          { id: 'station-2', name: 'B區' },
+        ],
+        stationPriority: ['station-1', 'station-2', null],
+        shiftSettings: [
+          earlyShift('station-1', 1),
+          lateShift('station-1', 1),
+          earlyShift('station-2', 1),
+          lateShift('station-2', 1),
+        ],
+        existingAssignments: [],
+        dailyRequirements: hwRequirement,
+        staffingResult: zeroStaffing,
+        specific,
+      });
+
+      const stationOf = (userId: string) =>
+        result.insertions.find((i) => i.user_id === userId)?.station_id;
+      expect(stationOf('h1')).toBe('station-2');
+      expect(stationOf('h2')).toBe('station-2');
+      expect(stationOf('h3')).toBe('station-1');
+      expect(stationOf('h4')).toBe('station-1');
+    });
+
+    it('約束輪硬性排除禁區員工（不會被派往不可前往的居住區）', () => {
+      // h1 只可到 station-2（station-1 為禁區）；min_staff 要求兩區各 1 早 1 午
+      const users = ['h1', 'h2', 'h3'].map(makeHw);
+      const detailsMap = {
+        h1: makeHwDetails('h1', { stations_forbidden: ['station-1'] } as Partial<UserEmploymentDetails>),
+        h2: makeHwDetails('h2'),
+        h3: makeHwDetails('h3'),
+      };
+      const result = generateAutoRoster({
+        date: '2026-08-02',
+        position: '護士/保健員',
+        users,
+        employmentDetails: detailsMap,
+        stations: [
+          { id: 'station-1', name: 'A區' },
+          { id: 'station-2', name: 'B區' },
+        ],
+        stationPriority: ['station-1', 'station-2', null],
+        shiftSettings: [
+          earlyShift('station-1', 1),
+          lateShift('station-1', 1),
+          earlyShift('station-2', 1),
+          lateShift('station-2', 1),
+        ],
+        existingAssignments: [],
+        dailyRequirements: hwRequirement,
+        staffingResult: zeroStaffing,
+        specific,
+      });
+
+      const h1Assignment = result.insertions.find((i) => i.user_id === 'h1');
+      // h1 絕不可出現在 station-1
+      expect(h1Assignment?.station_id).not.toBe('station-1');
+      // station-1 的早/午班由其他人補齊
+      for (const bucket of ['早班', '午班']) {
+        const count = result.insertions.filter(
+          (i) => i.station_id === 'station-1' && i.shift_name === bucket,
+        ).length;
+        expect(count).toBeGreaterThanOrEqual(1);
+      }
+    });
+
+    it('原則2 超額修正輪：早班超過 N 的人手被搬往未滿 N 的居住區', () => {
+      // B 站早班 min_staff=3（約束輪會先塞 3 人，超過上限 2），
+      // 修正輪應把 1 名可移的 B 站早班人手搬到未滿額的 C/D 站早班
+      const users = ['h1', 'h2', 'h3', 'h4', 'h5'].map(makeHw);
+      const detailsMap = {
+        h1: makeHwDetails('h1', { stations_forbidden: ['station-c', 'station-d'] } as Partial<UserEmploymentDetails>),
+        h2: makeHwDetails('h2', { preferred_station_primary: 'station-b' } as Partial<UserEmploymentDetails>),
+        h3: makeHwDetails('h3', { preferred_station_primary: 'station-b' } as Partial<UserEmploymentDetails>),
+        h4: makeHwDetails('h4', { preferred_station_primary: 'station-c' } as Partial<UserEmploymentDetails>),
+        h5: makeHwDetails('h5', { preferred_station_primary: 'station-d' } as Partial<UserEmploymentDetails>),
+      };
+      const result = generateAutoRoster({
+        date: '2026-08-02',
+        position: '護士/保健員',
+        users,
+        employmentDetails: detailsMap,
+        stations: [
+          { id: 'station-b', name: 'B區' },
+          { id: 'station-c', name: 'C區' },
+          { id: 'station-d', name: 'D區' },
+        ],
+        stationPriority: ['station-b', 'station-c', 'station-d', null],
+        shiftSettings: [
+          earlyShift('station-b', 3),
+          earlyShift('station-c'),
+          earlyShift('station-d'),
+        ],
+        existingAssignments: [],
+        dailyRequirements: hwRequirement,
+        staffingResult: zeroStaffing,
+        specific,
+        principles: {
+          earlyExtra: { enabled: true, n: 2 },
+          ignoreStationPreference: false,
+        },
+      });
+
+      const earlyAt = (stationId: string) =>
+        result.insertions.filter((i) => i.station_id === stationId && i.shift_name === '早班').length;
+      // 修正後 B 站早班回落至上限 2
+      expect(earlyAt('station-b')).toBe(2);
+      expect(earlyAt('station-c')).toBe(2);
+      expect(earlyAt('station-d')).toBe(1);
+      // 只可到 B 站的 h1 不會被搬走
+      expect(
+        result.insertions.find((i) => i.user_id === 'h1')?.station_id,
+      ).toBe('station-b');
+    });
+
+    it('原則3：無視優先指派居住區', () => {
+      const hw = makeHw('h1');
+      const preferred = makeHwDetails('h1', { preferred_station_primary: 'station-2' } as Partial<UserEmploymentDetails>);
+      const baseInput = {
+        date: '2026-08-02',
+        position: '護士/保健員',
+        users: [hw],
+        employmentDetails: { h1: preferred },
+        stations: [
+          { id: 'station-1', name: 'A區' },
+          { id: 'station-2', name: 'B區' },
+        ],
+        stationPriority: ['station-1', 'station-2', null] as (string | null)[],
+        shiftSettings: [earlyShift('station-1'), earlyShift('station-2')],
+        existingAssignments: [],
+        dailyRequirements: hwRequirement,
+        staffingResult: zeroStaffing,
+        specific,
+      };
+
+      const withPreference = generateAutoRoster(baseInput);
+      expect(withPreference.insertions[0].station_id).toBe('station-2');
+
+      const ignoring = generateAutoRoster({
+        ...baseInput,
+        principles: {
+          earlyExtra: { enabled: false, n: 1 },
+          ignoreStationPreference: true,
+        },
+      });
+      expect(ignoring.insertions[0].station_id).toBe('station-1');
+    });
+  });
 });

@@ -776,7 +776,7 @@ function buildPreScheduleSpecificSlotCompliance(
         const primary = getEmploymentPosition(u);
         if (primary !== '註冊護士') continue;
         const record = dayRecords.get(date)?.get(u.id);
-        if (record) continue;
+        if (record?.record_type === 'leave') continue;
         const dailyHours = getDailyContractHours(employmentDetails[u.id]) ?? 8;
         rnHours += Math.min(dailyHours, 8);
       }
@@ -833,6 +833,13 @@ function buildPreScheduleSpecificSlotCompliance(
   return result;
 }
 
+/** 該日是否在僱傭期內（入職日當日起、離職日前一日為止） */
+export function isUserEmployedOnDate(user: UserProfile, date: string): boolean {
+  if (user.hire_date && date < user.hire_date) return false;
+  if (user.resignation_date && date >= user.resignation_date) return false;
+  return true;
+}
+
 export function buildPreScheduleDailyCompliance(
   date: string,
   requiredHours: Record<string, number>,
@@ -843,18 +850,20 @@ export function buildPreScheduleDailyCompliance(
   leaveRecords: UserLeaveRecord[],
 ): ComplianceRow[] {
   const dayRecords = getDayRecordsMap(leaveRecords);
+  // 入職日前、離職日當日起的員工不計入侯召
+  const employedUsers = users.filter((u) => isUserEmployedOnDate(u, date));
   const availableHours: Record<string, number> = {};
 
   for (const position of Object.keys(requiredHours)) {
     let total = 0;
-    for (const u of users) {
+    for (const u of employedUsers) {
       if (position === '助理員') {
         if (!isAssistantSlotContributor(u)) continue;
       } else if (!canFillPositionInPreSchedule(u, position)) {
         continue;
       }
       const record = dayRecords.get(date)?.get(u.id);
-      if (record) continue;
+      if (record?.record_type === 'leave') continue;
       total += getDailyContractHours(employmentDetails[u.id]) ?? 8;
     }
     availableHours[position] = total;
@@ -864,7 +873,7 @@ export function buildPreScheduleDailyCompliance(
     date,
     requiredHourly,
     specific,
-    users,
+    employedUsers,
     employmentDetails,
     leaveRecords,
   );

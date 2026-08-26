@@ -621,5 +621,32 @@ describe('roster utils', () => {
       expect(careRow.actualSpecificHeadcount).toBe(2);
       expect(careRow.specificSlotOk).toBe(true);
     });
+
+    it('shows availability records as available, not as leave', () => {
+      const users = [
+        { id: 'u1', nursing_position: '註冊護士', secondary_positions: [] },
+        { id: 'u2', nursing_position: '登記護士', secondary_positions: [] },
+      ] as unknown as UserProfile[];
+      const employmentDetails = {
+        u1: { daily_contract_hours: 8 },
+        u2: { daily_contract_hours: 8 },
+      } as unknown as Record<string, UserEmploymentDetails>;
+      const leaves = [
+        { user_id: 'u1', leave_date: '2026-08-02', record_type: 'availability', availability_start_time: '07:00', availability_end_time: '16:00', urgency: 'preferred' },
+        { user_id: 'u2', leave_date: '2026-08-02', record_type: 'leave', leave_type: 'DO', urgency: 'preferred' },
+      ] as unknown as UserLeaveRecord[];
+      const requiredHours = { '註冊/登記護士': 8 };
+      const requiredHourly = { '註冊/登記護士': Array.from({ length: 24 }, () => 0) };
+      const specific = {
+        requirement1: { segments: [{ start: '07:00', end: '17:00' }] },
+        requirement3: { start: '07:00', end: '20:00' },
+        assistantWindow: { start: '07:00', end: '18:00' },
+      };
+      const rows = buildPreScheduleDailyCompliance('2026-08-02', requiredHours, requiredHourly, specific, users, employmentDetails, leaves);
+      const nurseRow = rows.find((r) => r.position === '註冊/登記護士')!;
+      // u1 availability => counted; u2 DO leave => not counted; total 8h => OK
+      expect(nurseRow.actualHours).toBe(8);
+      expect(nurseRow.hoursOk).toBe(true);
+    });
   });
 });

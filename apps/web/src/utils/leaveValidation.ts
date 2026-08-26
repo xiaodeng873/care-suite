@@ -64,12 +64,13 @@ export function validateScheduledLeave(
     availabilityEndTime?: string | null;
   },
   ctx: RosterLeaveContext,
+  excludeId?: string,
 ): string | null {
   if (!isDateInTargetMonth(payload.leaveDate, ctx.year, ctx.month)) {
     return '預排日必須在目標排班月份內';
   }
 
-  if (hasLeaveConflict(payload.leaveDate, ctx.existingLeaves)) {
+  if (hasLeaveConflict(payload.leaveDate, ctx.existingLeaves, excludeId)) {
     return '該員工在目標日期已有預排記錄';
   }
 
@@ -133,7 +134,7 @@ export function validateScheduledLeave(
     }
   }
 
-  // SL / NPL：暫不驗證額度，僅檢查衝突
+  // SL / SLN：暫不驗證額度，僅檢查衝突
   return null;
 }
 
@@ -174,6 +175,6 @@ export function getRosterUsedCounts(leaveRecords: UserLeaveRecord[], year: numbe
     shUsed: leaves.filter((l) => l.leave_type === 'SH' && inMonth(l.leave_date)).length,
     alUsed: leaves.filter((l) => l.leave_type === 'AL' && inMonth(l.leave_date)).length,
     slUsed: leaves.filter((l) => l.leave_type === 'SL' && inMonth(l.leave_date)).length,
-    nplUsed: leaves.filter((l) => l.leave_type === 'NPL' && inMonth(l.leave_date)).length,
+    slnUsed: leaves.filter((l) => l.leave_type === 'SLN' && inMonth(l.leave_date)).length,
   };
 }

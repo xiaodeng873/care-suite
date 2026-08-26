@@ -16,7 +16,13 @@ import RosterConflictModal from './RosterConflictModal';
 import ConfirmOverrideModal from './ConfirmOverrideModal';
 import ConflictTicker from './ConflictTicker';
 import { generateAutoRoster } from '../utils/autoRoster';
-import type { AutoRosterConflict } from '../utils/autoRoster';
+import type { AutoRosterCandidate, AutoRosterConflict } from '../utils/autoRoster';
+import {
+  loadAutoRosterPrinciples,
+  saveAutoRosterPrinciples,
+  getPrinciplesForPosition,
+} from '../utils/autoRosterPrinciples';
+import type { AutoRosterPrinciples, AutoRosterPrinciplesConfig } from '../utils/autoRosterPrinciples';
 import {
   getWeekRange,
   getWeekDays,
@@ -162,10 +168,36 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     () => new Set(shiftAssignments.filter((a) => a.is_auto).map((a) => a.work_date)),
     [shiftAssignments]
   );
+  // 一鍵排班原則（按職位分頁儲存）
+  const [principlesConfig, setPrinciplesConfig] = useState<AutoRosterPrinciplesConfig>({});
+  const [principlesModalOpen, setPrinciplesModalOpen] = useState(false);
+  const [principlesDraft, setPrinciplesDraft] = useState<AutoRosterPrinciples | null>(null);
+  const [savingPrinciples, setSavingPrinciples] = useState(false);
+
+  useEffect(() => {
+    loadAutoRosterPrinciples().then(setPrinciplesConfig);
+  }, []);
+
+  const handleSavePrinciples = async () => {
+    if (!principlesDraft) return;
+    setSavingPrinciples(true);
+    try {
+      const next = { ...principlesConfig, [selectedPosition]: principlesDraft };
+      await saveAutoRosterPrinciples(next);
+      setPrinciplesConfig(next);
+      setPrinciplesModalOpen(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '儲存一鍵排班原則失敗');
+    } finally {
+      setSavingPrinciples(false);
+    }
+  };
   const [draggedAssignmentId, setDraggedAssignmentId] = useState<string | null>(null);
   const [publicHolidays, setPublicHolidays] = useState<PublicHoliday[]>([]);
   const [conflicts, setConflicts] = useState<AutoRosterConflict[]>([]);
   const [conflictModalOpen, setConflictModalOpen] = useState(false);
+  // 有未滿足預排要求時暫存的自動排班結果，按「仍要職員上班」才落庫
+  const [pendingAutoRosterInserts, setPendingAutoRosterInserts] = useState<AutoRosterCandidate[]>([]);
   const [pendingRosterInsert, setPendingRosterInsert] = useState<{
     payload: Record<string, unknown>;
     conflict: UserLeaveRecord;
@@ -311,6 +343,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
           shift_name: d.shift_name,
           start_time: d.start_time,
           is_active: isSingle && d.shift_name === '日班' && !hasExisting,
+          min_staff: 0,
           sort_order: index + 1,
           created_at: '',
           updated_at: '',
@@ -385,6 +418,12 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         return;
       }
     } else {
+      return;
+    }
+
+    // 離職日期當日起不可插入排班
+    if (sourceUser?.resignation_date && sourceUser.resignation_date <= date) {
+      alert(`${sourceUser.name_zh} 的離職日期為 ${sourceUser.resignation_date}，該日起不可插入排班`);
       return;
     }
 
@@ -654,6 +693,17 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
   const confirmInsertAssignment = async () => {
     if (!pendingRosterInsert) return;
     const { payload, conflict } = pendingRosterInsert;
+    // 離職日期當日起不可插入排班
+    const resignUser = users.find((u) => u.id === payload.user_id);
+    if (
+      resignUser?.resignation_date &&
+      typeof payload.work_date === 'string' &&
+      resignUser.resignation_date <= payload.work_date
+    ) {
+      setPendingRosterInsert(null);
+      alert(`${resignUser.name_zh} 的離職日期為 ${resignUser.resignation_date}，該日起不可插入排班`);
+      return;
+    }
     setPendingRosterInsert(null);
     try {
       const targetKey = `${payload.station_id ?? 'unassigned'}|${payload.shift_name}|${payload.work_date}`;
@@ -792,6 +842,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
             shift_name: s.shift_name,
             start_time: normalizeTime(s.start_time) || s.start_time,
             is_active: true,
+            min_staff: s.min_staff ?? 0,
             sort_order: i + 1,
           }));
         if (inserts.length > 0) {
@@ -815,6 +866,47 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     } finally {
       setSavingSettings(false);
     }
+  };
+
+  const insertAutoRosterShifts = async (insertions: AutoRosterCandidate[]) => {
+    const inserts = insertions.map((ins) => ({
+      user_id: ins.user_id,
+      work_date: ins.work_date,
+      station_id: ins.station_id,
+      position: ins.position,
+      shift_name: ins.shift_name,
+      start_time: ins.start_time,
+      end_time: getShiftEndTime(
+        ins.start_time,
+        getDailyContractHours(employmentDetails[ins.user_id]),
+      ),
+      created_by: userProfile?.id ?? null,
+      is_auto: true,
+    }));
+
+    let insertResult = await withEndTimeFallback(
+      async () => await supabase.from('user_shift_assignments').insert(inserts),
+      async () =>
+        await supabase.from('user_shift_assignments').insert(
+          inserts.map((ins) => withoutEndTime(ins)),
+        ),
+    );
+    // 舊資料庫未加 is_auto 欄位時降級重試（降級插入的班次不支援一鍵排空）
+    if (insertResult.error && isMissingColumnError(insertResult.error, 'is_auto')) {
+      insertResult = await withEndTimeFallback(
+        async () =>
+          await supabase.from('user_shift_assignments').insert(
+            inserts.map((ins) => withoutIsAuto(ins)),
+          ),
+        async () =>
+          await supabase.from('user_shift_assignments').insert(
+            inserts.map((ins) => withoutEndTime(withoutIsAuto(ins))),
+          ),
+      );
+    }
+    if (insertResult.error) throw insertResult.error;
+
+    await onAssignmentChange();
   };
 
   const handleAutoRoster = async (date: string) => {
@@ -846,50 +938,21 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         staffingResult,
         specific: specificHours,
         leaveRecords,
+        principles: getPrinciplesForPosition(principlesConfig, selectedPosition),
       });
 
-      if (result.insertions.length > 0) {
-        const inserts = result.insertions.map((ins) => ({
-          user_id: ins.user_id,
-          work_date: ins.work_date,
-          station_id: ins.station_id,
-          position: ins.position,
-          shift_name: ins.shift_name,
-          start_time: ins.start_time,
-          end_time: getShiftEndTime(
-            ins.start_time,
-            getDailyContractHours(employmentDetails[ins.user_id]),
-          ),
-          created_by: userProfile?.id ?? null,
-          is_auto: true,
-        }));
+      // 衝突：只暫存 canOverride 的項目；其餘班次照樣即時插入
+      const overrideConflicts = result.conflicts.filter((c) => c.canOverride);
+      const conflictKeys = new Set(overrideConflicts.map((c) => `${c.user_id}|${c.date}`));
+      const heldInsertions = result.insertions.filter((ins) => conflictKeys.has(`${ins.user_id}|${ins.work_date}`));
+      const okInsertions = result.insertions.filter((ins) => !conflictKeys.has(`${ins.user_id}|${ins.work_date}`));
 
-        let insertResult = await withEndTimeFallback(
-          async () => await supabase.from('user_shift_assignments').insert(inserts),
-          async () =>
-            await supabase.from('user_shift_assignments').insert(
-              inserts.map((ins) => withoutEndTime(ins)),
-            ),
-        );
-        // 舊資料庫未加 is_auto 欄位時降級重試（降級插入的班次不支援一鍵排空）
-        if (insertResult.error && isMissingColumnError(insertResult.error, 'is_auto')) {
-          insertResult = await withEndTimeFallback(
-            async () =>
-              await supabase.from('user_shift_assignments').insert(
-                inserts.map((ins) => withoutIsAuto(ins)),
-              ),
-            async () =>
-              await supabase.from('user_shift_assignments').insert(
-                inserts.map((ins) => withoutEndTime(withoutIsAuto(ins))),
-              ),
-          );
-        }
-        if (insertResult.error) throw insertResult.error;
-
-        await onAssignmentChange();
+      if (okInsertions.length > 0) {
+        await insertAutoRosterShifts(okInsertions);
       }
 
       if (result.conflicts.length > 0) {
+        setPendingAutoRosterInserts(heldInsertions);
         setConflicts(result.conflicts);
         setConflictModalOpen(true);
       }
@@ -901,8 +964,13 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     }
   };
 
-  const handleOverrideConflict = async (userId: string, date: string) => {
+  const handleOverrideConflict = async (conflict: AutoRosterConflict) => {
     try {
+      const { user_id: userId, date, recordType, urgency } = conflict;
+      const canOverride =
+        (recordType === 'leave' && urgency === 'preferred') || recordType === 'availability';
+      if (!canOverride) return;
+
       const { error } = await supabase
         .from('user_leave_records')
         .update({
@@ -912,13 +980,23 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         })
         .eq('user_id', userId)
         .eq('leave_date', date)
-        .eq('record_type', 'leave')
-        .eq('urgency', 'preferred')
+        .eq('record_type', recordType)
         .eq('is_overridden', false);
       if (error) throw error;
 
+      // 把該員工被暫存的班次插入排班表
+      const toInsert = pendingAutoRosterInserts.filter(
+        (ins) => ins.user_id === userId && ins.work_date === date,
+      );
+      if (toInsert.length > 0) {
+        await insertAutoRosterShifts(toInsert);
+        setPendingAutoRosterInserts((prev) =>
+          prev.filter((ins) => !(ins.user_id === userId && ins.work_date === date)),
+        );
+      }
+
       setConflicts((prev) =>
-        prev.filter((c) => !(c.user_id === userId && c.date === date && c.urgency === 'preferred')),
+        prev.filter((c) => !(c.user_id === userId && c.date === date && c.canOverride)),
       );
       onLeaveRecordsChange?.();
     } catch (err) {
@@ -939,6 +1017,14 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     setLocalSettings((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], start_time: startTime };
+      return next;
+    });
+  };
+
+  const updateShiftMinStaff = (index: number, minStaff: number) => {
+    setLocalSettings((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], min_staff: minStaff };
       return next;
     });
   };
@@ -1019,6 +1105,18 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
               <span className="text-xs text-amber-700 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" /> 人手不足
               </span>
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPrinciplesDraft(getPrinciplesForPosition(principlesConfig, selectedPosition));
+                  setPrinciplesModalOpen(true);
+                }}
+                className="text-[10px] px-1.5 py-0.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-100"
+              >
+                原則
+              </button>
             )}
             {canEdit && (
               <button
@@ -1337,12 +1435,102 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         )}
       </div>
 
+      {/* 一鍵排班原則 Modal */}
+      {principlesModalOpen && principlesDraft && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">一鍵排班原則（{selectedPosition}）</h3>
+              <button
+                type="button"
+                onClick={() => setPrinciplesModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto space-y-4">
+              {selectedPosition === '護士/保健員' ? (
+                <>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={principlesDraft.earlyExtra.enabled}
+                      onChange={(e) =>
+                        setPrinciplesDraft((prev) =>
+                          prev && { ...prev, earlyExtra: { ...prev.earlyExtra, enabled: e.target.checked } },
+                        )
+                      }
+                      className="mt-1"
+                    />
+                    <span className="text-sm text-gray-800">
+                      每個居住區，早班最多
+                      <input
+                        type="number"
+                        min={1}
+                        value={principlesDraft.earlyExtra.n}
+                        disabled={!principlesDraft.earlyExtra.enabled}
+                        onChange={(e) => {
+                          const n = Math.max(1, Math.floor(Number(e.target.value) || 1));
+                          setPrinciplesDraft((prev) =>
+                            prev && { ...prev, earlyExtra: { ...prev.earlyExtra, n } },
+                          );
+                        }}
+                        className="mx-1 w-14 px-1 py-0.5 border border-gray-300 rounded text-center disabled:bg-gray-100 disabled:text-gray-400"
+                      />
+                      名護士/保健員，有餘的攤派到各區居住區至各區平均，再有餘攤派至午班各站
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={principlesDraft.ignoreStationPreference}
+                      onChange={(e) =>
+                        setPrinciplesDraft((prev) =>
+                          prev && { ...prev, ignoreStationPreference: e.target.checked },
+                        )
+                      }
+                      className="mt-1"
+                    />
+                    <span className="text-sm text-gray-800">無視優先指派居住區的預設一鍵排班</span>
+                  </label>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">此職位暫無可設定原則。</p>
+              )}
+            </div>
+            {selectedPosition === '護士/保健員' && (
+              <div className="px-5 py-3 border-t flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPrinciplesModalOpen(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSavePrinciples}
+                  disabled={savingPrinciples}
+                  className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {savingPrinciples ? '儲存中…' : '儲存'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 衝突提示 Modal */}
       <RosterConflictModal
         isOpen={conflictModalOpen}
         conflicts={conflicts}
         users={users}
-        onClose={() => setConflictModalOpen(false)}
+        onClose={() => {
+          setConflictModalOpen(false);
+          setPendingAutoRosterInserts([]);
+        }}
         onOverride={canEdit ? handleOverrideConflict : undefined}
       />
 
@@ -1493,6 +1681,17 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                     className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:opacity-50"
                   />
                   <span className="text-xs text-gray-400">開始時間</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={setting.min_staff ?? 0}
+                    onChange={(e) =>
+                      updateShiftMinStaff(index, Math.max(0, Math.floor(Number(e.target.value) || 0)))
+                    }
+                    disabled={!setting.is_active}
+                    className="w-14 px-1 py-1.5 border border-gray-300 rounded-lg text-sm text-center disabled:opacity-50"
+                  />
+                  <span className="text-xs text-gray-400">最少人數</span>
                 </div>
               ))}
               {localSettings.length === 0 && (

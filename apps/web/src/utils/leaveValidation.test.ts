@@ -27,6 +27,7 @@ function makeLeave(
     is_overridden: false,
     overridden_by: null,
     overridden_at: null,
+    is_auto: false,
     remark: null,
     created_at: '',
     updated_at: '',

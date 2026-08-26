@@ -1103,6 +1103,14 @@ const Settings: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
+      // 離職日當日起帳戶自動停用（載入時同步，香港時區）
+      const hkToday = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+      await supabase
+        .from('user_profiles')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('is_active', true)
+        .not('resignation_date', 'is', null)
+        .lte('resignation_date', hkToday);
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')

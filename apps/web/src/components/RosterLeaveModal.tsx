@@ -28,7 +28,7 @@ interface RosterLeaveModalProps {
   context: RosterLeaveContext;
 }
 
-const BASE_LEAVE_OPTIONS: LeaveType[] = ['AL', 'DO', 'PRD', 'SL', 'NPL'];
+const BASE_LEAVE_OPTIONS: LeaveType[] = ['AL', 'DO', 'PRD', 'SL', 'SLN'];
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -147,7 +147,7 @@ export const RosterLeaveModal: React.FC<RosterLeaveModalProps> = ({
       availabilityEndTime: recordType === 'availability' ? availabilityEnd.slice(0, 5) : null,
     };
 
-    const validation = validateScheduledLeave(payload, context);
+    const validation = validateScheduledLeave(payload, context, editingRecord?.id);
     if (validation) {
       setError(validation);
       return;

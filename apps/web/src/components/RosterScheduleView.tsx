@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { UserProfile, UserEmploymentDetails, UserLeaveRecord, PublicHoliday, UserShiftAssignment } from '@care-suite/shared';
 import { LEAVE_TYPE_LABELS, getEmploymentPosition } from '@care-suite/shared';
-import { AlertCircle, ArrowUp, ArrowDown, CheckCircle2 } from 'lucide-react';
-import { getRosterUserBalance, getRosterGroupOptions, buildDailyCompliance, buildPreScheduleDailyCompliance, formatShiftTimeAbbreviation, getShiftEndTime, getAssignmentPositionForTable, toGridPosition } from '../utils/roster';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { getRosterUserBalance, getRosterGroupOptions, buildDailyCompliance, buildPreScheduleDailyCompliance, formatShiftTimeAbbreviation, getShiftEndTime, getAssignmentPositionForTable, toGridPosition, isUserEmployedOnDate } from '../utils/roster';
 import type { ComplianceRow, PreScheduleSegmentConflict } from '../utils/roster';
 import type { SpecificHoursConfig } from '../utils/facilityNatureSettings';
 import { GRID_POSITIONS } from '../utils/facilityNatureSettings';
@@ -26,12 +26,15 @@ interface RosterScheduleViewProps {
   currentUserId: string;
   isAdmin: boolean;
   loading?: boolean;
+  autoLeaveProcessing?: boolean;
   onCellClick: (user: UserProfile, date: string) => void;
   onLeaveClick: (record: UserLeaveRecord) => void;
   onMoveLeave?: (record: UserLeaveRecord, targetDate: string) => void;
   onCheckConflicts?: () => void;
+  onAutoLeave?: (users: UserProfile[]) => void;
   complianceMode?: 'actual' | 'preSchedule';
   preScheduleConflicts?: PreScheduleSegmentConflict[];
+  onEmployeeDoubleClick?: (user: UserProfile) => void;
   getUserFullBalances?: (userId: string) => {
     doBalance: number;
     doAccumulated: number;
@@ -57,7 +60,7 @@ const LEAVE_BADGE_COLORS: Record<NonNullable<UserLeaveRecord['leave_type']>, str
   PRD: 'bg-blue-500',
   DO: 'bg-purple-400',
   SL: 'bg-red-500',
-  NPL: 'bg-gray-400',
+  SLN: 'bg-gray-400',
   PH: 'bg-yellow-400',
   SH: 'bg-pink-400',
 };
@@ -84,7 +87,8 @@ function buildComplianceTooltip(row: ComplianceRow, hasContractHours: boolean): 
   const parts: string[] = [];
   if (hasContractHours) {
     const hoursIcon = row.hoursOk ? '✓' : '⚠';
-    const hoursSuffix = row.hoursOk ? '' : ' 工時不足';
+    const hoursDiff = row.actualHours - row.requiredHours;
+    const hoursSuffix = row.hoursOk ? ` 多出 ${hoursDiff.toFixed(1)} hr` : ` 不足 ${(-hoursDiff).toFixed(1)} hr`;
     parts.push(`工時：${hoursIcon} ${row.actualHours.toFixed(1)}/${row.requiredHours.toFixed(1)} hr${hoursSuffix}`);
   }
   if (row.hasSpecificSlotRequirement) {
@@ -127,16 +131,24 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
   currentUserId,
   isAdmin,
   loading,
+  autoLeaveProcessing,
   onCellClick,
   onLeaveClick,
   onMoveLeave,
   onCheckConflicts,
+  onAutoLeave,
   complianceMode = 'actual',
+  onEmployeeDoubleClick,
   getUserFullBalances,
 }) => {
   const daysInMonth = useMemo(() => new Date(year, month, 0).getDate(), [year, month]);
-  const [positionFilter, setPositionFilter] = useState<string>('');
+  const [positionFilter, setPositionFilter] = useState<string>(() => {
+    const first = getRosterGroupOptions(users)[0] ?? '';
+    return first;
+  });
   const [draggedRecord, setDraggedRecord] = useState<UserLeaveRecord | null>(null);
+  const complianceScrollRef = useRef<HTMLDivElement>(null);
+  const preScheduleScrollRef = useRef<HTMLDivElement>(null);
 
   // 防止拖曳放開時觸發瀏覽器預設導航（導致整頁重新載入）
   useEffect(() => {
@@ -177,11 +189,15 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
   }, [shiftAssignments]);
 
   const visibleUsers = useMemo(() => {
-    const base = !isAdmin
+    // 已離職員工只在仍受僱的月份顯示（保留離職日前的預排記錄可見）
+    const monthStart = formatDate(year, month, 1);
+    const employedInMonth = (u: UserProfile) => u.resignation_date == null || u.resignation_date > monthStart;
+    const base = (!isAdmin
       ? users.filter((u) => u.id === currentUserId)
       : !positionFilter
         ? users
-        : users.filter((u) => userMatchesPositionFilter(u, positionFilter));
+        : users.filter((u) => userMatchesPositionFilter(u, positionFilter))
+    ).filter(employedInMonth);
     // 按職位排序：註冊護士 > 登記護士 > 保健員 > 其他（同級保持原順序）
     const rank = (u: UserProfile): number => {
       const p = getEmploymentPosition(u);
@@ -194,9 +210,14 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
       .map((u, i) => ({ u, i }))
       .sort((a, b) => rank(a.u) - rank(b.u) || a.i - b.i)
       .map(({ u }) => u);
-  }, [users, isAdmin, currentUserId, positionFilter]);
+  }, [users, isAdmin, currentUserId, positionFilter, year, month]);
 
   const positionOptions = useMemo(() => getRosterGroupOptions(users), [users]);
+  useEffect(() => {
+    if (!positionFilter && positionOptions.length > 0) {
+      setPositionFilter(positionOptions[0]);
+    }
+  }, [positionFilter, positionOptions]);
 
   const requiredHoursMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -280,19 +301,6 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
     return compliancePositions.filter((p) => p === grid);
   }, [compliancePositions, positionFilter]);
 
-  const handleMoveStation = (index: number, direction: -1 | 1) => {
-    const next = [...stationPriority];
-    const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target], next[index]];
-    onStationPriorityChange(next);
-  };
-
-  const stationName = (id: string | null) => {
-    if (id === null) return '未分區';
-    return stations.find((s) => s.id === id)?.name ?? id;
-  };
-
   if (loading) {
     return <p className="text-sm text-gray-500">載入中...</p>;
   }
@@ -309,7 +317,6 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
               onChange={(e) => setPositionFilter(e.target.value)}
               className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">全部</option>
               {positionOptions.map((pos) => (
                 <option key={pos} value={pos}>
                   {pos}
@@ -318,44 +325,15 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">居住區優先順序</label>
-            <div className="flex items-center gap-1">
-              {stationPriority.map((id, index) => (
-                <div key={id ?? 'unassigned'} className="flex items-center gap-0.5 bg-gray-100 rounded-lg px-2 py-1">
-                  <span className="text-xs text-gray-700">{stationName(id)}</span>
-                  <div className="flex flex-col ml-1">
-                    <button
-                      type="button"
-                      onClick={() => handleMoveStation(index, -1)}
-                      disabled={index === 0}
-                      className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
-                      title="上移"
-                    >
-                      <ArrowUp className="h-3 w-3" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveStation(index, 1)}
-                      disabled={index === stationPriority.length - 1}
-                      className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
-                      title="下移"
-                    >
-                      <ArrowDown className="h-3 w-3" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {onCheckConflicts && (
+          {onAutoLeave && (
             <button
               type="button"
-              onClick={onCheckConflicts}
-              className="text-sm px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100"
+              onClick={() => onAutoLeave(visibleUsers)}
+              disabled={autoLeaveProcessing}
+              className="ml-auto px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+              title="按當前職位過濾，為尚有餘額的員工自動排盡 DO / PRD / PH；若已有系統安排，再次點擊會取消"
             >
-              檢查衝突
+              一鍵排假
             </button>
           )}
         </div>
@@ -365,15 +343,24 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
       {isAdmin && (
         <div className="border border-gray-200 rounded-lg overflow-hidden">
           <div className="bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">每日職位侯召概覽</div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-xs">
+          <div
+            ref={complianceScrollRef}
+            className="overflow-x-auto"
+            onScroll={(e) => {
+              const other = preScheduleScrollRef.current;
+              if (other && other.scrollLeft !== e.currentTarget.scrollLeft) {
+                other.scrollLeft = e.currentTarget.scrollLeft;
+              }
+            }}
+          >
+            <table className="min-w-full text-xs table-fixed">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
-                  <th className="px-2 py-2 text-left font-medium text-gray-600 sticky left-0 bg-gray-50 min-w-[6rem]">
+                  <th className="px-2 py-2 text-left font-medium text-gray-600 sticky left-0 bg-gray-50 w-[16rem]">
                     職位 \ 日
                   </th>
                   {Array.from({ length: daysInMonth }, (_, i) => (
-                    <th key={i} className="px-1 py-2 text-center font-medium text-gray-600 min-w-[1.8rem]">
+                    <th key={i} className="px-1 py-2 text-center font-medium text-gray-600 w-[4.5rem] border border-transparent">
                       {i + 1}
                     </th>
                   ))}
@@ -390,7 +377,9 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                         <td key={day.date} className="px-1 py-1.5 text-center">
                           {row ? (
                             ok ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-green-500 inline" />
+                              <span title={buildComplianceTooltip(row, hasContractHours)} className="inline-block">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 inline" />
+                              </span>
                             ) : (
                               <span title={buildComplianceTooltip(row, hasContractHours)} className="inline-block">
                                 <AlertCircle className="h-3.5 w-3.5 text-red-500 inline" />
@@ -418,17 +407,26 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
       )}
 
       {/* 員工預排表 */}
-      <div className="max-h-[75vh] overflow-auto border border-gray-200 rounded-lg">
-        <table className="min-w-full text-xs">
+      <div
+        ref={preScheduleScrollRef}
+        className="max-h-[75vh] overflow-auto border border-gray-200 rounded-lg"
+        onScroll={(e) => {
+          const other = complianceScrollRef.current;
+          if (other && other.scrollLeft !== e.currentTarget.scrollLeft) {
+            other.scrollLeft = e.currentTarget.scrollLeft;
+          }
+        }}
+      >
+        <table className="min-w-full text-xs table-fixed">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-3 py-2 text-left font-medium text-gray-600 sticky top-0 left-0 z-30 bg-gray-50 min-w-[8rem]">
+              <th className="px-3 py-2 text-left font-medium text-gray-600 sticky top-0 left-0 z-30 bg-gray-50 w-[8rem]">
                 員工
               </th>
-              <th className="px-2 py-2 text-left font-medium text-gray-600 sticky top-0 left-[8rem] z-30 bg-gray-50 min-w-[4rem]">
+              <th className="px-2 py-2 text-left font-medium text-gray-600 sticky top-0 left-[8rem] z-30 bg-gray-50 w-[4rem]">
                 累積
               </th>
-              <th className="px-2 py-2 text-left font-medium text-gray-600 sticky top-0 z-10 bg-gray-50 min-w-[4rem]">
+              <th className="px-2 py-2 text-left font-medium text-gray-600 sticky top-0 z-10 bg-gray-50 w-[4rem]">
                 預計{month}月收穫
               </th>
               {Array.from({ length: daysInMonth }, (_, i) => {
@@ -440,7 +438,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                 return (
                   <th
                     key={d}
-                    className={`px-1 py-2 text-center font-semibold min-w-[3rem] border border-gray-300 sticky top-0 z-10 bg-gray-50 ${
+                    className={`px-1 py-2 text-center font-semibold w-[4.5rem] border border-gray-300 sticky top-0 z-10 bg-gray-50 ${
                       isSunday || holiday ? 'text-red-600' : 'text-gray-800'
                     }`}
                   >
@@ -481,7 +479,11 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                 : monthly;
               return (
                 <tr key={user.id} className="border-t border-gray-100 hover:bg-gray-50">
-                  <td className="px-3 py-2 font-medium text-gray-900 sticky left-0 bg-white min-w-[8rem]">
+                  <td
+                    className="px-3 py-2 font-medium text-gray-900 sticky left-0 bg-white min-w-[8rem] cursor-pointer hover:bg-gray-100"
+                    onDoubleClick={() => onEmployeeDoubleClick?.(user)}
+                    title={onEmployeeDoubleClick ? '雙擊開啟僱傭詳情' : undefined}
+                  >
                     <div>{user.name_zh}</div>
                     <div className="text-[10px] text-gray-500 font-normal">{userDisplayPositions(user)}</div>
                   </td>
@@ -552,12 +554,15 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                           )
                         : null;
                     const canEdit = isAdmin || user.id === currentUserId;
+                    const hasShiftConflict = record?.is_overridden && assignments.length > 0;
+                    const autoLabel = record?.is_auto ? '【系統安排】' : record ? '【用戶輸入】' : '';
                     const recordTitle = record
                       ? record.record_type === 'leave'
-                        ? `${dateStr} ${record.leave_type ? LEAVE_TYPE_LABELS[record.leave_type] : ''}${record.urgency === 'mandatory' ? '（必須）' : ''}${record.is_overridden ? '【待調整】' : ''}`
-                        : `${dateStr} 特定上班 ${record.availability_start_time}-${record.availability_end_time}${record.urgency === 'mandatory' ? '（必須）' : ''}${record.is_overridden ? '【待調整】' : ''}`
+                        ? `${dateStr} ${record.leave_type ? LEAVE_TYPE_LABELS[record.leave_type] : ''}${record.urgency === 'mandatory' ? '（必須）' : ''}${autoLabel}${hasShiftConflict ? '【待調整】' : ''}`
+                        : `${dateStr} 特定上班 ${record.availability_start_time}-${record.availability_end_time}${record.urgency === 'mandatory' ? '（必須）' : ''}${autoLabel}${hasShiftConflict ? '【待調整】' : ''}`
                       : '';
-                    const isDropTarget = draggedRecord && !record && draggedRecord.user_id === user.id && draggedRecord.leave_date !== dateStr;
+                    const employedOnDate = isUserEmployedOnDate(user, dateStr);
+                    const isDropTarget = employedOnDate && draggedRecord && !record && draggedRecord.user_id === user.id && draggedRecord.leave_date !== dateStr;
                     return (
                       <td
                         key={d}
@@ -577,7 +582,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                           setDraggedRecord(null);
                         }}
                       >
-                        {record ? (
+                        {record && employedOnDate ? (
                           <button
                             type="button"
                             draggable={canEdit}
@@ -590,10 +595,12 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                             onClick={() => canEdit && onLeaveClick(record)}
                             disabled={!canEdit}
                             className={`inline-flex items-center justify-center min-w-[1.75rem] h-6 rounded-sm text-[10px] text-white font-medium hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed ${
-                              record.record_type === 'leave' && record.leave_type
-                                ? LEAVE_BADGE_COLORS[record.leave_type]
-                                : 'bg-blue-400'
-                            } ${record.is_overridden ? 'ring-2 ring-red-400 ring-offset-1' : ''}`}
+                              record.is_auto
+                                ? 'bg-indigo-600'
+                                : record.record_type === 'leave' && record.leave_type
+                                  ? LEAVE_BADGE_COLORS[record.leave_type]
+                                  : 'bg-blue-400'
+                            } ${hasShiftConflict ? 'ring-2 ring-red-400 ring-offset-1' : ''}`}
                             title={recordTitle}
                             aria-label={recordTitle}
                           >
@@ -616,7 +623,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                           >
                             {shiftAbbrev}
                           </span>
-                        ) : (
+                        ) : employedOnDate ? (
                           <button
                             type="button"
                             onClick={() => canEdit && onCellClick(user, dateStr)}
@@ -626,7 +633,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                             }`}
                             aria-label={`${user.name_zh} ${dateStr} 預排`}
                           />
-                        )}
+                        ) : null}
                       </td>
                     );
                   })}

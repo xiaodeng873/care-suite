@@ -52,6 +52,7 @@ import type { StaffingResult } from '../utils/staffingRequirements';
 import { ROSTER_PRINT_DEPARTMENTS } from '../utils/rosterPrintGenerator';
 import type { RosterPrintDocumentId, UserFullBalances } from '../utils/rosterPrintGenerator';
 import { useDebounce } from '../hooks/useDebounce';
+import { generateAutoLeavePlan, type AutoLeavePlan, type UserMonthlyBalances } from '../utils/autoLeave';
 
 type Tab = 'roster' | 'leave' | 'holiday';
 
@@ -278,6 +279,11 @@ const RosterManagement: React.FC = () => {
   const [preScheduleConflicts, setPreScheduleConflicts] = useState<PreScheduleSegmentConflict[]>([]);
   const [preScheduleConflictModalOpen, setPreScheduleConflictModalOpen] = useState(false);
 
+  // 一鍵排假規劃結果與確認 modal
+  const [autoLeavePlan, setAutoLeavePlan] = useState<AutoLeavePlan | null>(null);
+  const [autoLeaveModalOpen, setAutoLeaveModalOpen] = useState(false);
+  const [autoLeaveProcessing, setAutoLeaveProcessing] = useState(false);
+
   // 列印綜合文件（排班管理 tab）
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [pendingLeaveConflict, setPendingLeaveConflict] = useState<{
@@ -297,7 +303,7 @@ const RosterManagement: React.FC = () => {
       const { data: profiles, error: e1 } = await supabase
         .from('user_profiles')
         .select('*')
-        .eq('is_active', true)
+        .or('is_active.eq.true,resignation_date.not.is.null')
         .order('name_zh', { ascending: true });
       if (e1) throw e1;
 
@@ -333,6 +339,27 @@ const RosterManagement: React.FC = () => {
       alert('載入員工失敗');
     });
   }, []);
+
+  // 僱傭詳情 modal 儲存後重新載入，令禁區／特定上班時間等修改即時對排班生效
+  const reloadEmploymentMap = useCallback(async () => {
+    if (users.length === 0) return;
+    const { data: details, error } = await supabase
+      .from('user_employment_details')
+      .select('*')
+      .in('user_id', users.map((u) => u.id));
+    if (error) {
+      console.error('重新載入僱傭詳情失敗:', error);
+      return;
+    }
+    const map: Record<string, UserEmploymentDetails> = {};
+    for (const d of details ?? []) {
+      map[d.user_id] = {
+        ...d,
+        default_work_start_time: normalizeTime(d.default_work_start_time) || d.default_work_start_time,
+      } as UserEmploymentDetails;
+    }
+    setEmploymentMap(map);
+  }, [users]);
 
   // 載入院舍設定並計算每日人手要求（排班表與假期預排頁共用）
   const loadFacilityStaffing = useCallback(async () => {
@@ -903,6 +930,255 @@ const RosterManagement: React.FC = () => {
     ],
   );
 
+  // 取消當月所有系統安排的預排（僅刪除 is_auto=true 的記錄，用戶輸入保留）
+  const cancelAutoLeaveRecords = useCallback(async () => {
+    setAutoLeaveProcessing(true);
+    try {
+      const monthStart = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}-01`;
+      const monthEnd = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}-${new Date(monthCursor.y, monthCursor.m, 0).getDate()}`;
+      const autoRecords = leaveRecords.filter(
+        (l) => l.is_auto && l.leave_date >= monthStart && l.leave_date <= monthEnd,
+      );
+
+      for (const l of autoRecords) {
+        if (l.record_type === 'leave' && l.leave_type === 'DO') {
+          const { error: e2 } = await supabase
+            .from('user_rest_day_details')
+            .delete()
+            .eq('user_id', l.user_id)
+            .eq('record_date', l.leave_date)
+            .eq('detail_type', 'usage')
+            .like('remark', '%一鍵排假 DO%');
+          if (e2) throw e2;
+        } else if (l.record_type === 'leave' && l.leave_type === 'PRD') {
+          const details = employmentMap[l.user_id];
+          if (details) {
+            const newFraction = Math.min(0.9, (details.rest_day_fraction ?? 0) + 1);
+            const { error: e2 } = await supabase
+              .from('user_employment_details')
+              .update({ rest_day_fraction: newFraction, updated_at: new Date().toISOString() })
+              .eq('user_id', l.user_id);
+            if (e2) throw e2;
+          }
+        } else if (l.record_type === 'leave' && (l.leave_type === 'PH' || l.leave_type === 'SH')) {
+          const { error: e2 } = await supabase
+            .from('user_public_holiday_details')
+            .delete()
+            .eq('user_id', l.user_id)
+            .eq('record_date', l.leave_date)
+            .eq('detail_type', 'usage')
+            .like('remark', '%一鍵排假 PH%');
+          if (e2) throw e2;
+        }
+      }
+
+      const autoIds = autoRecords.map((l) => l.id);
+      if (autoIds.length > 0) {
+        const { error: eDel } = await supabase.from('user_leave_records').delete().in('id', autoIds);
+        if (eDel) throw eDel;
+      }
+
+      await reloadEmploymentMap();
+      await loadLeaveData(false);
+
+      setAutoLeaveModalOpen(false);
+      setAutoLeavePlan(null);
+      alert('已取消所有系統安排的預排');
+    } catch (err) {
+      console.error('取消系統預排失敗:', err);
+      alert('取消系統預排失敗');
+    } finally {
+      setAutoLeaveProcessing(false);
+    }
+  }, [monthCursor, leaveRecords, employmentMap, loadLeaveData, reloadEmploymentMap]);
+
+  // 一鍵排假：根據當前職位過濾名單，規劃 DO / PRD / PH 排程；再次點擊則取消既有系統預排
+  const handleAutoLeave = useCallback(
+    async (targetUsers: UserProfile[]) => {
+      if (targetUsers.length === 0) {
+        alert('沒有符合條件的員工');
+        return;
+      }
+
+      const monthStart = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}-01`;
+      const monthEnd = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}-${new Date(monthCursor.y, monthCursor.m, 0).getDate()}`;
+
+      // 若當月已有系統安排的預排，再次點擊即取消並保留用戶輸入
+      const hasAutoRecords = leaveRecords.some(
+        (l) => l.is_auto && l.leave_date >= monthStart && l.leave_date <= monthEnd,
+      );
+      if (hasAutoRecords) {
+        await cancelAutoLeaveRecords();
+        return;
+      }
+
+      const requiredHours: Record<string, number> = {};
+      for (const r of dailyRequirements) {
+        requiredHours[r.position] = r.hours;
+      }
+
+      const requiredHourly: Record<string, number[]> = {};
+      if (staffingResult) {
+        for (let c = 0; c < GRID_POSITIONS.length; c++) {
+          const pos = GRID_POSITIONS[c];
+          requiredHourly[pos] = Array.from({ length: 24 }, (_, h) => staffingResult.grid[h]?.[c] ?? 0);
+        }
+      }
+
+      const plan = generateAutoLeavePlan({
+        year: monthCursor.y,
+        month: monthCursor.m,
+        users: targetUsers,
+        employmentDetails: employmentMap,
+        leaveRecords,
+        shiftAssignments: monthShiftAssignments,
+        publicHolidays,
+        requiredHours,
+        requiredHourly,
+        specificHours,
+        getUserBalances,
+      });
+
+      if (plan.placements.length === 0 && plan.skipped.length === 0) {
+        alert('沒有員工尚有剩餘 DO/PRD/PH 可排');
+        return;
+      }
+
+      setAutoLeavePlan(plan);
+      setAutoLeaveModalOpen(true);
+    },
+    [
+      dailyRequirements,
+      staffingResult,
+      specificHours,
+      monthCursor,
+      employmentMap,
+      leaveRecords,
+      monthShiftAssignments,
+      publicHolidays,
+      getUserBalances,
+      cancelAutoLeaveRecords,
+    ],
+  );
+
+  // 執行一鍵排假：先刪除舊 is_auto 記錄及明細，再插入新規劃
+  const executeAutoLeave = useCallback(async () => {
+    if (!autoLeavePlan) return;
+    setAutoLeaveProcessing(true);
+    try {
+      const monthStart = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}-01`;
+      const monthEnd = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}-${new Date(monthCursor.y, monthCursor.m, 0).getDate()}`;
+
+      const oldAutoRecords = leaveRecords.filter(
+        (l) => l.is_auto && l.leave_date >= monthStart && l.leave_date <= monthEnd,
+      );
+
+      // 還原舊 auto 記錄對應明細（用戶輸入的一律不碰）
+      for (const l of oldAutoRecords) {
+        if (l.record_type === 'leave' && l.leave_type === 'DO') {
+          const { error: e2 } = await supabase
+            .from('user_rest_day_details')
+            .delete()
+            .eq('user_id', l.user_id)
+            .eq('record_date', l.leave_date)
+            .eq('detail_type', 'usage')
+            .like('remark', '%一鍵排假 DO%');
+          if (e2) throw e2;
+        } else if (l.record_type === 'leave' && l.leave_type === 'PRD') {
+          const details = employmentMap[l.user_id];
+          if (details) {
+            const newFraction = Math.min(0.9, (details.rest_day_fraction ?? 0) + 1);
+            const { error: e2 } = await supabase
+              .from('user_employment_details')
+              .update({ rest_day_fraction: newFraction, updated_at: new Date().toISOString() })
+              .eq('user_id', l.user_id);
+            if (e2) throw e2;
+          }
+        } else if (l.record_type === 'leave' && (l.leave_type === 'PH' || l.leave_type === 'SH')) {
+          const { error: e2 } = await supabase
+            .from('user_public_holiday_details')
+            .delete()
+            .eq('user_id', l.user_id)
+            .eq('record_date', l.leave_date)
+            .eq('detail_type', 'usage')
+            .like('remark', '%一鍵排假 PH%');
+          if (e2) throw e2;
+        }
+      }
+
+      const oldAutoIds = oldAutoRecords.map((l) => l.id);
+      if (oldAutoIds.length > 0) {
+        const { error: eDel } = await supabase.from('user_leave_records').delete().in('id', oldAutoIds);
+        if (eDel) throw eDel;
+      }
+
+      // 重新載入僱傭詳情，確保 PRD fraction 為刪除舊 auto 後的最新值
+      await reloadEmploymentMap();
+
+      // 插入新規劃
+      for (const p of autoLeavePlan.placements) {
+        const insertPayload: Record<string, unknown> = {
+          user_id: p.userId,
+          leave_date: p.date,
+          record_type: 'leave',
+          leave_type: p.leaveType,
+          reference_public_holiday_id: p.referencePublicHolidayId ?? null,
+          urgency: 'mandatory',
+          is_auto: true,
+          is_overridden: false,
+        };
+        const { error: e1 } = await supabase.from('user_leave_records').insert(insertPayload).select().single();
+        if (e1) throw e1;
+
+        if (p.leaveType === 'DO') {
+          const { error: e2 } = await supabase.from('user_rest_day_details').insert({
+            user_id: p.userId,
+            record_date: p.date,
+            detail_type: 'usage',
+            days: 1,
+            remark: '一鍵排假 DO',
+            is_system: false,
+          });
+          if (e2) throw e2;
+        } else if (p.leaveType === 'PRD') {
+          const details = employmentMap[p.userId];
+          const newFraction = Math.max(0, (details?.rest_day_fraction ?? 0) - 1);
+          const { error: e2 } = await supabase
+            .from('user_employment_details')
+            .update({ rest_day_fraction: newFraction, updated_at: new Date().toISOString() })
+            .eq('user_id', p.userId);
+          if (e2) throw e2;
+        } else if (p.leaveType === 'PH' || p.leaveType === 'SH') {
+          const holiday = publicHolidays.find((h) => h.id === p.referencePublicHolidayId);
+          const expiryDate = addDays(holiday?.holiday_date ?? p.date, 30);
+          const { error: e2 } = await supabase.from('user_public_holiday_details').insert({
+            user_id: p.userId,
+            record_date: p.date,
+            detail_type: 'usage',
+            days: 1,
+            remark: `一鍵排假 PH: ${p.holidayName || holiday?.name || ''}`,
+            reference_public_holiday_id: p.referencePublicHolidayId,
+            expiry_date: expiryDate,
+            is_system: false,
+          });
+          if (e2) throw e2;
+        }
+      }
+
+      await loadLeaveData(false);
+      await reloadEmploymentMap();
+
+      setAutoLeaveModalOpen(false);
+      setAutoLeavePlan(null);
+      alert('一鍵排假完成');
+    } catch (err) {
+      console.error('一鍵排假失敗:', err);
+      alert('一鍵排假失敗');
+    } finally {
+      setAutoLeaveProcessing(false);
+    }
+  }, [autoLeavePlan, monthCursor, leaveRecords, employmentMap, publicHolidays, loadLeaveData, reloadEmploymentMap]);
+
   const handleCellClick = (user: UserProfile, date: string) => {
     setLeaveModal({ user, initialDate: date });
   };
@@ -965,6 +1241,16 @@ const RosterManagement: React.FC = () => {
       alert('目標日期已有預排記錄');
       return;
     }
+    // 離職日期當日起、入職日期前均不可再輸入預排事件
+    const moveUser = users.find((u) => u.id === record.user_id);
+    if (moveUser?.resignation_date && moveUser.resignation_date <= targetDate) {
+      alert(`${moveUser.name_zh} 的離職日期為 ${moveUser.resignation_date}，該日起不可再輸入預排事件`);
+      return;
+    }
+    if (moveUser?.hire_date && targetDate < moveUser.hire_date) {
+      alert(`${moveUser.name_zh} 的入職日期為 ${moveUser.hire_date}，該日前不可輸入預排事件`);
+      return;
+    }
     try {
       await supabase.from('user_leave_records').update({ leave_date: targetDate, updated_at: new Date().toISOString() }).eq('id', record.id);
 
@@ -997,6 +1283,16 @@ const RosterManagement: React.FC = () => {
   const executeSaveLeave = async (payload: RosterLeaveModalPayload, oldRecord?: UserLeaveRecord) => {
     if (!leaveModal) return;
     const userId = leaveModal.user.id;
+
+    // 離職日期當日起、入職日期前均不可再輸入預排事件
+    if (leaveModal.user.resignation_date && leaveModal.user.resignation_date <= payload.leaveDate) {
+      alert(`${leaveModal.user.name_zh} 的離職日期為 ${leaveModal.user.resignation_date}，該日起不可再輸入預排事件`);
+      return;
+    }
+    if (leaveModal.user.hire_date && payload.leaveDate < leaveModal.user.hire_date) {
+      alert(`${leaveModal.user.name_zh} 的入職日期為 ${leaveModal.user.hire_date}，該日前不可輸入預排事件`);
+      return;
+    }
 
     // 編輯時：先刪除舊記錄及相關明細，再以新資料插入（避免 leave_type / date 改變後明細錯亂）
     if (oldRecord) {
@@ -1282,7 +1578,10 @@ const RosterManagement: React.FC = () => {
   const positionOptions = useMemo(() => getRosterGroupOptions(users), [users]);
 
   const filteredEmployeeCards = useMemo(() => {
-    let list = users;
+    // 已離職員工只在仍受僱的週顯示
+    const { start: cardWeekStart } = getWeekRange(weekAnchor);
+    const cardWeekStartStr = formatDate(cardWeekStart.getFullYear(), cardWeekStart.getMonth() + 1, cardWeekStart.getDate());
+    let list = users.filter((u) => u.resignation_date == null || u.resignation_date > cardWeekStartStr);
     if (deferredSearch.trim()) {
       const term = deferredSearch.toLowerCase();
       list = list.filter(
@@ -1310,7 +1609,7 @@ const RosterManagement: React.FC = () => {
       return 0;
     });
     return list;
-  }, [users, deferredSearch, filterPosition, sortBy, employmentMap]);
+  }, [users, deferredSearch, filterPosition, sortBy, employmentMap, weekAnchor]);
 
   const getBalanceForCard = (user: UserProfile, dateStr: string) => {
     const [y, m] = dateStr.split('-').map(Number);
@@ -1532,13 +1831,16 @@ const RosterManagement: React.FC = () => {
               currentUserId={userProfile?.id ?? ''}
               isAdmin={isAdminUser}
               loading={loading}
+              autoLeaveProcessing={autoLeaveProcessing}
               onCellClick={handleCellClick}
               onLeaveClick={handleLeaveClick}
               onMoveLeave={handleMoveLeave}
               onCheckConflicts={handleCheckConflicts}
+              onAutoLeave={handleAutoLeave}
               complianceMode="preSchedule"
               preScheduleConflicts={preScheduleConflicts}
               getUserFullBalances={getUserBalances}
+              onEmployeeDoubleClick={(user) => setEmploymentModalUser(user)}
             />
           )}
         </div>
@@ -1658,7 +1960,10 @@ const RosterManagement: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900">僱傭詳情：{employmentModalUser.name_zh}</h3>
               <button
                 type="button"
-                onClick={() => setEmploymentModalUser(null)}
+                onClick={() => {
+                  setEmploymentModalUser(null);
+                  reloadEmploymentMap();
+                }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 ×
@@ -1710,6 +2015,98 @@ const RosterManagement: React.FC = () => {
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
                 關閉
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {autoLeaveModalOpen && autoLeavePlan && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">一鍵排假確認</h3>
+              <button
+                type="button"
+                onClick={() => setAutoLeaveModalOpen(false)}
+                disabled={autoLeaveProcessing}
+                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto space-y-4">
+              {autoLeavePlan.placements.length === 0 ? (
+                <p className="text-sm text-gray-600">沒有可新排的天數。</p>
+              ) : (
+                <div className="space-y-2">
+                  <h4 className="font-medium text-gray-800">新排放假</h4>
+                  {(() => {
+                    const byUser = new Map<string, { name: string; byType: Map<string, number> }>();
+                    for (const p of autoLeavePlan.placements) {
+                      const entry = byUser.get(p.userId) || { name: p.userName, byType: new Map<string, number>() };
+                      entry.byType.set(p.leaveType, (entry.byType.get(p.leaveType) || 0) + 1);
+                      byUser.set(p.userId, entry);
+                    }
+                    return Array.from(byUser.entries()).map(([userId, entry]) => (
+                      <div key={userId} className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                        <div className="font-medium text-gray-900">{entry.name}</div>
+                        <div className="text-gray-700">
+                          {Array.from(entry.byType.entries())
+                            .map(([type, count]) => `${type} ${count} 天`)
+                            .join('、')}
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              )}
+
+              {autoLeavePlan.skipped.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium text-gray-800">未能排完</h4>
+                  {autoLeavePlan.skipped.map((s, idx) => (
+                    <div key={idx} className="text-sm bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-yellow-800">
+                      <div className="font-medium">{s.userName}</div>
+                      <div className="text-yellow-700">
+                        {s.leaveType} 剩餘 {s.remainingDays} 天
+                        {s.reason === 'no_eligible_day' ? '（無符合日期）' : '（侯召工時不足）'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {autoLeavePlan.warnings.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium text-red-700">超收穫警告</h4>
+                  {autoLeavePlan.warnings.map((w, idx) => (
+                    <div key={idx} className="text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-800">
+                      <div className="font-medium">{w.userName}</div>
+                      <div className="text-red-700">
+                        {w.leaveType} 預排 {w.plannedDays} 天，當月收穫 {w.expectedDays} 天，超出 {w.plannedDays - w.expectedDays} 天
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAutoLeaveModalOpen(false)}
+                disabled={autoLeaveProcessing}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={executeAutoLeave}
+                disabled={autoLeaveProcessing}
+                className="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {autoLeaveProcessing ? '執行中...' : '確認執行'}
               </button>
             </div>
           </div>

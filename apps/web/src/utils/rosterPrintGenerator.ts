@@ -117,7 +117,7 @@ const LEAVE_BADGE_HEX: Record<string, string> = {
   PRD: '#3b82f6',
   DO: '#c084fc',
   SL: '#ef4444',
-  NPL: '#9ca3af',
+  SLN: '#9ca3af',
   PH: '#facc15',
   SH: '#f472b6',
 };
