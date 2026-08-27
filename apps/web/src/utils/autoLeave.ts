@@ -69,10 +69,18 @@ export interface AutoLeaveSkipped {
   reason: 'no_eligible_day' | 'insufficient_capacity';
 }
 
+export interface AutoLeavePendingAdjustment {
+  userId: string;
+  userName: string;
+  date: string;
+  leaveType: 'AL' | 'PRD' | 'DO' | 'SL' | 'SLN' | 'PH' | 'SH' | null;
+}
+
 export interface AutoLeavePlan {
   placements: AutoLeavePlacement[];
   warnings: AutoLeaveWarning[];
   skipped: AutoLeaveSkipped[];
+  pendingAdjustments: AutoLeavePendingAdjustment[];
 }
 
 /** 以香港時區取得今日 YYYY-MM-DD */
@@ -427,12 +435,32 @@ export function generateAutoLeavePlan(input: AutoLeavePlanInput): AutoLeavePlan 
       year,
       month,
       details?.rest_day_start_date,
+      user.resignation_date,
     );
 
     const plans = buildLeaveTypePlans(user, year, month, leaveRecords, expected, employmentDetails);
     if (plans.length === 0) continue;
 
     placeLeavesForUser(user, plans, candidateDates, state, input, placements, skipped);
+  }
+
+  // 待調整：當月內與班次衝突且未覆蓋的預排
+  const pendingAdjustments: AutoLeavePendingAdjustment[] = [];
+  for (const record of leaveRecords) {
+    if (record.record_type !== 'leave' || !record.leave_type) continue;
+    if (!isDateInTargetMonth(record.leave_date, year, month)) continue;
+    if (record.is_overridden) continue;
+    const hasShift = shiftAssignments.some(
+      (a) => a.user_id === record.user_id && a.work_date === record.leave_date,
+    );
+    if (hasShift) {
+      pendingAdjustments.push({
+        userId: record.user_id,
+        userName: users.find((u) => u.id === record.user_id)?.name_zh ?? record.user_id,
+        date: record.leave_date,
+        leaveType: record.leave_type,
+      });
+    }
   }
 
   // warnings：某員工某假別當月總預排（user-input + 新排）> 當月收穫量
@@ -453,6 +481,7 @@ export function generateAutoLeavePlan(input: AutoLeavePlanInput): AutoLeavePlan 
       year,
       month,
       details?.rest_day_start_date,
+      user.resignation_date,
     );
 
     for (const leaveType of ['DO', 'PRD', 'PH'] as const) {
@@ -475,5 +504,5 @@ export function generateAutoLeavePlan(input: AutoLeavePlanInput): AutoLeavePlan 
     }
   }
 
-  return { placements, warnings, skipped };
+  return { placements, warnings, skipped, pendingAdjustments };
 }

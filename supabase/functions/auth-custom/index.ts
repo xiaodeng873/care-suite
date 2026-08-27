@@ -72,6 +72,16 @@ function generateToken(): string {
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+/** 使用 Web Crypto API 產生 bcrypt salt，避免 bcryptjs 在 Deno Edge Runtime 調用 Node crypto 失敗。
+ * 產出格式：$2a$10$[22 chars from bcrypt base64 alphabet] */
+function generateBcryptSalt(cost = 10): string {
+  const bytes = new Uint8Array(22);
+  crypto.getRandomValues(bytes);
+  const alphabet = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  const salt = Array.from(bytes, (b) => alphabet[b % 64]).join("");
+  return `$2a$${cost.toString().padStart(2, "0")}$${salt}`;
+}
+
 // 創建 Supabase 客戶端
 function getSupabaseClient() {
   return createClient(supabaseUrl, supabaseServiceKey, {
@@ -495,24 +505,33 @@ async function handleChangePassword(req: ChangePasswordRequest) {
     };
   }
 
-  // 加密新密碼並更新
-  const newPasswordHash = bcrypt.hashSync(newPassword, 10);
-  const { error: updateError } = await supabase
-    .from("user_profiles")
-    .update({ password_hash: newPasswordHash })
-    .eq("id", userId);
+  // 加密新密碼並更新（使用 Web Crypto 產生 salt，再交給 bcryptjs 做 hash）
+  try {
+    const salt = generateBcryptSalt(10);
+    const newPasswordHash = bcrypt.hashSync(newPassword, salt);
+    const { error: updateError } = await supabase
+      .from("user_profiles")
+      .update({ password_hash: newPasswordHash })
+      .eq("id", userId);
 
-  if (updateError) {
+    if (updateError) {
+      return {
+        success: false,
+        error: "密碼更新失敗",
+      };
+    }
+
+    return {
+      success: true,
+      message: "密碼已成功更新",
+    };
+  } catch (hashError) {
+    console.error("bcrypt hash error:", hashError);
     return {
       success: false,
-      error: "密碼更新失敗",
+      error: "密碼加密失敗",
     };
   }
-
-  return {
-    success: true,
-    message: "密碼已成功更新",
-  };
 }
 
 // 處理重設密碼請求（管理者/開發者用）
@@ -578,23 +597,32 @@ async function handleResetPassword(req: ResetPasswordRequest, authHeader: string
   }
 
   // 加密新密碼並更新
-  const newPasswordHash = bcrypt.hashSync(newPassword, 10);
-  const { error: updateError } = await supabase
-    .from("user_profiles")
-    .update({ password_hash: newPasswordHash })
-    .eq("id", userId);
+  try {
+    const salt = generateBcryptSalt(10);
+    const newPasswordHash = bcrypt.hashSync(newPassword, salt);
+    const { error: updateError } = await supabase
+      .from("user_profiles")
+      .update({ password_hash: newPasswordHash })
+      .eq("id", userId);
 
-  if (updateError) {
+    if (updateError) {
+      return {
+        success: false,
+        error: "密碼重設失敗",
+      };
+    }
+
+    return {
+      success: true,
+      message: "密碼已成功重設",
+    };
+  } catch (hashError) {
+    console.error("bcrypt hash error:", hashError);
     return {
       success: false,
-      error: "密碼重設失敗",
+      error: "密碼加密失敗",
     };
   }
-
-  return {
-    success: true,
-    message: "密碼已成功重設",
-  };
 }
 
 // 創建新用戶
@@ -693,7 +721,17 @@ async function handleCreateUser(req: CreateUserRequest, authHeader: string) {
   }
 
   // 加密密碼
-  const passwordHash = bcrypt.hashSync(req.password, 10);
+  let passwordHash: string;
+  try {
+    const salt = generateBcryptSalt(10);
+    passwordHash = bcrypt.hashSync(req.password, salt);
+  } catch (hashError) {
+    console.error("bcrypt hash error:", hashError);
+    return {
+      success: false,
+      error: "密碼加密失敗",
+    };
+  }
 
   // 創建用戶
   const { data: newUser, error: createError } = await supabase

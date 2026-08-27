@@ -361,4 +361,57 @@ describe('generateAutoLeavePlan', () => {
     const plan = generateAutoLeavePlan(input);
     expect(plan.placements.filter((p) => p.leaveType === 'PRD')).toHaveLength(2);
   });
+
+  it('列出與班次衝突且未覆蓋的預排作為待調整', () => {
+    const input = makeInput({
+      year: 2026,
+      month: 8,
+      leaveRecords: [baseRecord({ leave_date: '2026-08-10', is_overridden: false })],
+      shiftAssignments: [
+        {
+          id: 'shift-1',
+          user_id: 'user-1',
+          work_date: '2026-08-10',
+          station_id: null,
+          position: '註冊護士',
+          shift_name: '早班',
+          start_time: '07:00',
+          end_time: '15:00',
+          created_by: null,
+          created_at: '',
+          updated_at: '',
+        },
+      ],
+    });
+    const plan = generateAutoLeavePlan(input);
+    expect(plan.pendingAdjustments).toHaveLength(1);
+    expect(plan.pendingAdjustments[0].date).toBe('2026-08-10');
+    expect(plan.pendingAdjustments[0].leaveType).toBe('DO');
+    expect(plan.pendingAdjustments[0].userName).toBe('測試員工');
+  });
+
+  it('已覆蓋的衝突預排不會列入待調整', () => {
+    const input = makeInput({
+      year: 2026,
+      month: 8,
+      leaveRecords: [baseRecord({ leave_date: '2026-08-10', is_overridden: true })],
+      shiftAssignments: [
+        {
+          id: 'shift-1',
+          user_id: 'user-1',
+          work_date: '2026-08-10',
+          station_id: null,
+          position: '註冊護士',
+          shift_name: '早班',
+          start_time: '07:00',
+          end_time: '15:00',
+          created_by: null,
+          created_at: '',
+          updated_at: '',
+        },
+      ],
+    });
+    const plan = generateAutoLeavePlan(input);
+    expect(plan.pendingAdjustments).toHaveLength(0);
+  });
 });

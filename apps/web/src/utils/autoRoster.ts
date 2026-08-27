@@ -22,6 +22,7 @@ import {
   getSpecificWindowsForPosition,
   computeNurseCoverageShiftDayHours,
   formatTime,
+  canFillPositionInPreSchedule,
 } from './roster';
 import type { ComplianceRow } from './roster';
 import type { StaffingResult } from './staffingRequirements';
@@ -109,10 +110,7 @@ function buildRequiredHourly(
 
 function isNurse(user: UserProfile): boolean {
   const primary = getEmploymentPosition(user);
-  if (primary === '註冊護士' || primary === '登記護士') return true;
-  return (user.secondary_positions || []).some(
-    (p) => p === '註冊護士' || p === '登記護士',
-  );
+  return primary === '註冊護士' || primary === '登記護士';
 }
 
 /** 判斷員工是否能擔任目標排班分頁 */
@@ -525,8 +523,10 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
     leaveRecords,
     principles,
   } = input;
-  // 離職日期當日起不再參與自動排班
-  const users = allUsers.filter((u) => !u.resignation_date || u.resignation_date > date);
+  // 入職日前、離職日期當日起不再參與自動排班
+  const users = allUsers.filter(
+    (u) => (!u.hire_date || u.hire_date <= date) && (!u.resignation_date || u.resignation_date > date),
+  );
   const ignorePref = principles?.ignoreStationPreference === true;
 
   const requiredHours = buildRequiredHoursMap(dailyRequirements);
@@ -620,7 +620,7 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
 
     for (const user of eligibleUsers) {
       if (assignedUserIds.has(user.id)) continue;
-      if (hasMandatoryLeave(user.id, date, leaveRecords)) continue;
+      if (isOnLeave(user.id, date, leaveRecords)) continue;
 
       // 硬性排除：此居住區在員工禁區內（getUserStationList 已排除 forbidden）
       const userStations = getUserStationList(user.id, employmentDetails, stationList, ignorePref);
@@ -716,7 +716,7 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
 
     for (const user of eligibleUsers) {
       if (assignedUserIds.has(user.id)) continue;
-      if (hasMandatoryLeave(user.id, date, leaveRecords)) continue;
+      if (isOnLeave(user.id, date, leaveRecords)) continue;
 
       const dailyHours = getDailyContractHours(employmentDetails[user.id]) ?? 8;
       if (dailyHours <= 0) continue;
@@ -990,45 +990,60 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
     simulatedAssignments,
   );
 
-  // 收集衝突：列出當天所有影響該職位的預排，並標示可 override 的項目
-  // - availability（特定上班時間）：已自動排入班次者視為已滿足，不列衝突；
-  //   未被排入者也不算衝突（人手已足）。只在真正發生衝突時才列出。
-  // - preferred leave：系統選中該員工時列為衝突，用戶可 override；
-  //   未被選中者仍顯示按鈕，讓用戶取消放假後手動安排。
+  // 收集衝突：只有目標分頁對應的底層職位最終仍不達標時，才列出衝突。
+  // - 合併分頁（護士/保健員、行政、庶務）要拆開檢查各底層職位，不能只看一個不存在的 '護士/保健員' row。
+  // - 只列出能補充該底層缺口的員工；護士不會出現在保健員缺口的衝突列表。
+  // - availability（特定上班時間）：已自動排入班次者視為已滿足，不列衝突。
+  // - preferred leave：系統選中該員工時列為衝突；未被選中者只在職位仍缺人時顯示按鈕。
   // - mandatory leave：理論上已被排除，若仍有選中則列為不可 override 的衝突。
   const conflicts: AutoRosterConflict[] = [];
-  const userMap = new Map(users.map((u) => [u.id, u]));
-  const insertionSet = new Set(insertions.map((ins) => `${ins.user_id}|${ins.work_date}`));
-  for (const record of leaveRecords ?? []) {
-    if (record.leave_date !== date) continue;
-    const user = userMap.get(record.user_id);
-    if (!user) continue;
-    if (!userCanFillPosition(user, position)) continue;
+  const deficitPositions = new Set<string>();
+  for (const p of getRequirementPositions(position)) {
+    const row = finalCompliance.find((r) => r.position === p);
+    if (row && (!row.hoursOk || !row.specificSlotOk)) {
+      deficitPositions.add(p);
+    }
+  }
 
-    // availability 已被滿足：系統已排入符合窗口的班次 → 不列衝突
-    if (record.record_type === 'availability') continue;
+  if (deficitPositions.size > 0) {
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const insertionSet = new Set(insertions.map((ins) => `${ins.user_id}|${ins.work_date}`));
+    for (const record of leaveRecords ?? []) {
+      if (record.leave_date !== date) continue;
+      const user = userMap.get(record.user_id);
+      if (!user) continue;
 
-    const isPreferredLeave = record.record_type === 'leave' && record.urgency === 'preferred';
-    const isMandatoryLeave = record.record_type === 'leave' && record.urgency === 'mandatory';
-    const hasInsertion = insertionSet.has(`${user.id}|${date}`);
-    const canOverride = isPreferredLeave;
-    const leaveLabel = record.leave_type ? LEAVE_TYPE_LABELS[record.leave_type] : '';
-    const desc = `${date}：${user.name_zh} ${leaveLabel}${isMandatoryLeave ? '（必須）' : ''}`;
+      // availability 已被滿足：系統已排入符合窗口的班次 → 不列衝突
+      if (record.record_type === 'availability') continue;
 
-    if (!hasInsertion && !canOverride) continue;
+      // 只保留能補充任一缺口職位的員工
+      const canFillDeficit = Array.from(deficitPositions).some((p) =>
+        canFillPositionInPreSchedule(user, p),
+      );
+      if (!canFillDeficit) continue;
 
-    conflicts.push({
-      user_id: user.id,
-      name_zh: user.name_zh,
-      date,
-      recordType: record.record_type,
-      leaveType: record.leave_type,
-      availabilityStart: record.availability_start_time,
-      availabilityEnd: record.availability_end_time,
-      urgency: record.urgency,
-      description: desc,
-      canOverride,
-    });
+      const isPreferredLeave = record.record_type === 'leave' && record.urgency === 'preferred';
+      const isMandatoryLeave = record.record_type === 'leave' && record.urgency === 'mandatory';
+      const hasInsertion = insertionSet.has(`${user.id}|${date}`);
+      const canOverride = isPreferredLeave;
+      const leaveLabel = record.leave_type ? LEAVE_TYPE_LABELS[record.leave_type] : '';
+      const desc = `${date}：${user.name_zh} ${leaveLabel}${isMandatoryLeave ? '（必須）' : ''}`;
+
+      if (!hasInsertion && !canOverride) continue;
+
+      conflicts.push({
+        user_id: user.id,
+        name_zh: user.name_zh,
+        date,
+        recordType: record.record_type,
+        leaveType: record.leave_type,
+        availabilityStart: record.availability_start_time,
+        availabilityEnd: record.availability_end_time,
+        urgency: record.urgency,
+        description: desc,
+        canOverride,
+      });
+    }
   }
 
   return {

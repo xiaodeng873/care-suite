@@ -33,7 +33,6 @@ import {
   HYGIENE_POSITIONS,
   ADMIN_POSITIONS,
   GENERAL_AFFAIRS_POSITIONS,
-  ALL_POSITIONS,
   EMPLOYMENT_TYPES,
   USER_ROLE_LABELS,
   PERMISSION_CATEGORY_LABELS,
@@ -110,7 +109,6 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
   const [formData, setFormData] = useState<UserFormData>(initialFormData);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newSecondaryPosition, setNewSecondaryPosition] = useState('');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   useEffect(() => {
@@ -142,7 +140,6 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
       setFormData(initialFormData);
       setAvatarPreview(null);
     }
-    setNewSecondaryPosition('');
     setError(null);
   }, [user, isOpen]);
 
@@ -168,13 +165,6 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
       }));
     }
 
-    // 主要職位變更時，從次要職位移除同值項目（主要與次要職位不可同值）
-    if (['nursing_position', 'allied_health_position', 'hygiene_position', 'other_position'].includes(name) && value) {
-      setFormData(prev => ({
-        ...prev,
-        secondary_positions: prev.secondary_positions.filter(pos => pos !== value),
-      }));
-    }
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,39 +191,6 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
     setAvatarPreview(null);
   };
 
-  // 由部門與各職位欄位推算主要職位（自由輸入部門推算不到則回傳空字串）
-  const getPrimaryPosition = (): string => {
-    const dept = formData.department;
-    if (dept === '護理') return formData.nursing_position;
-    if (dept === '專職') return formData.allied_health_position;
-    if (dept === '衛生') return formData.hygiene_position;
-    if (dept === '行政' || dept === '庶務') return formData.other_position;
-    return '';
-  };
-
-  // 次要職位可選項目：扣除主要職位與已選次要職位
-  const primaryPosition = getPrimaryPosition();
-  const secondaryPositionOptions = ALL_POSITIONS.filter(
-    pos => pos !== primaryPosition && !formData.secondary_positions.includes(pos)
-  );
-
-  const handleAddSecondaryPosition = () => {
-    if (!newSecondaryPosition) return;
-    if (formData.secondary_positions.includes(newSecondaryPosition)) return;
-    setFormData(prev => ({
-      ...prev,
-      secondary_positions: [...prev.secondary_positions, newSecondaryPosition],
-    }));
-    setNewSecondaryPosition('');
-  };
-
-  const handleRemoveSecondaryPosition = (position: string) => {
-    setFormData(prev => ({
-      ...prev,
-      secondary_positions: prev.secondary_positions.filter(pos => pos !== position),
-    }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -254,11 +211,10 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
         throw new Error('密碼長度至少需要 6 個字元');
       }
 
-      // 最終防線：儲存前剔除與主要職位同值或空值的次要職位
-      const primary = getPrimaryPosition();
+      // 次要職位已取消，儲存時清空
       const sanitizedData = {
         ...formData,
-        secondary_positions: formData.secondary_positions.filter(pos => pos && pos !== primary),
+        secondary_positions: [] as string[],
       };
 
       await onSave(sanitizedData);
@@ -574,51 +530,6 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
                 </select>
               </div>
               {getPositionField()}
-            </div>
-
-            {/* 次要職位（可擔任其他角色） */}
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">次要職位（可擔任其他角色）</label>
-              <div className="flex gap-2">
-                <select
-                  value={newSecondaryPosition}
-                  onChange={(e) => setNewSecondaryPosition(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">請選擇次要職位</option>
-                  {secondaryPositionOptions.map((pos: string) => (
-                    <option key={pos} value={pos}>{pos}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={handleAddSecondaryPosition}
-                  disabled={!newSecondaryPosition}
-                  className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  新增
-                </button>
-              </div>
-              {formData.secondary_positions.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.secondary_positions.map((pos: string) => (
-                    <span
-                      key={pos}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-sm text-gray-700 rounded-full"
-                    >
-                      {pos}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSecondaryPosition(pos)}
-                        className="text-gray-400 hover:text-red-500"
-                        title="移除此次要職位"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 
@@ -1181,7 +1092,7 @@ const Settings: React.FC = () => {
         allied_health_position: formData.department === '專職' ? formData.allied_health_position : null,
         hygiene_position: formData.department === '衛生' ? formData.hygiene_position : null,
         other_position: ['行政', '庶務'].includes(formData.department) ? formData.other_position : null,
-        secondary_positions: formData.secondary_positions,
+        secondary_positions: [],
         hire_date: formData.hire_date,
         employment_type: formData.employment_type,
         monthly_hour_limit: formData.employment_type === '兼職' ? formData.monthly_hour_limit : null,
@@ -1248,7 +1159,7 @@ const Settings: React.FC = () => {
           allied_health_position: formData.department === '專職' ? formData.allied_health_position : null,
           hygiene_position: formData.department === '衛生' ? formData.hygiene_position : null,
           other_position: ['行政', '庶務'].includes(formData.department) ? formData.other_position : null,
-          secondary_positions: formData.secondary_positions,
+          secondary_positions: [],
           hire_date: formData.hire_date,
           employment_type: formData.employment_type,
           monthly_hour_limit: formData.employment_type === '兼職' ? formData.monthly_hour_limit : null,
@@ -1797,11 +1708,6 @@ const Settings: React.FC = () => {
                       <div className="text-sm text-gray-900">{user.department}</div>
                       <div className="text-sm text-gray-500">
                         {getPositionDisplay(user)}
-                        {user.secondary_positions && user.secondary_positions.length > 0 && (
-                          <span className="text-xs text-gray-400 ml-1">
-                            兼：{user.secondary_positions.join('、')}
-                          </span>
-                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

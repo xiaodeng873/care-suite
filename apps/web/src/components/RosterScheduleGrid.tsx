@@ -692,7 +692,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
 
   const confirmInsertAssignment = async () => {
     if (!pendingRosterInsert) return;
-    const { payload, conflict } = pendingRosterInsert;
+    const { payload } = pendingRosterInsert;
     // 離職日期當日起不可插入排班
     const resignUser = users.find((u) => u.id === payload.user_id);
     if (
@@ -715,37 +715,8 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
       );
       if (error) throw error;
 
-      // 直接刪除衝突的預排記錄及相關明細
-      if (conflict.record_type === 'leave') {
-        const { error: delError } = await supabase.from('user_leave_records').delete().eq('id', conflict.id);
-        if (delError) throw delError;
-
-        if (conflict.leave_type === 'DO') {
-          await supabase
-            .from('user_rest_day_details')
-            .delete()
-            .eq('user_id', conflict.user_id)
-            .eq('record_date', conflict.leave_date)
-            .eq('detail_type', 'usage');
-        } else if (conflict.leave_type === 'PRD') {
-          const details = employmentDetails[conflict.user_id];
-          const newFraction = Math.max(0, (details?.rest_day_fraction ?? 0) + 1);
-          await supabase
-            .from('user_employment_details')
-            .update({ rest_day_fraction: newFraction, updated_at: new Date().toISOString() })
-            .eq('user_id', conflict.user_id);
-        } else if (conflict.leave_type === 'PH' || conflict.leave_type === 'SH') {
-          await supabase
-            .from('user_public_holiday_details')
-            .delete()
-            .eq('user_id', conflict.user_id)
-            .eq('record_date', conflict.leave_date)
-            .eq('detail_type', 'usage');
-        }
-      }
-
+      // 保留衝突預排，班次與預排同時存在並標為「待調整」，由用戶拖曳預排解決
       onAssignmentChange();
-      onLeaveRecordsChange?.();
     } catch (err) {
       console.error('新增班次失敗:', err);
       alert(getSupabaseErrorMessage(err, '新增班次失敗'));
@@ -966,25 +937,9 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
 
   const handleOverrideConflict = async (conflict: AutoRosterConflict) => {
     try {
-      const { user_id: userId, date, recordType, urgency } = conflict;
-      const canOverride =
-        (recordType === 'leave' && urgency === 'preferred') || recordType === 'availability';
-      if (!canOverride) return;
+      const { user_id: userId, date } = conflict;
 
-      const { error } = await supabase
-        .from('user_leave_records')
-        .update({
-          is_overridden: true,
-          overridden_by: userProfile?.id ?? null,
-          overridden_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId)
-        .eq('leave_date', date)
-        .eq('record_type', recordType)
-        .eq('is_overridden', false);
-      if (error) throw error;
-
-      // 把該員工被暫存的班次插入排班表
+      // 把該員工被暫存的班次插入排班表；保留原有預排，並以「待調整」標記提示用戶
       const toInsert = pendingAutoRosterInserts.filter(
         (ins) => ins.user_id === userId && ins.work_date === date,
       );
@@ -998,7 +953,6 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
       setConflicts((prev) =>
         prev.filter((c) => !(c.user_id === userId && c.date === date && c.canOverride)),
       );
-      onLeaveRecordsChange?.();
     } catch (err) {
       console.error('override 預排失敗:', err);
       alert(getSupabaseErrorMessage(err, 'override 預排失敗'));
@@ -1214,12 +1168,22 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                           {visibleList.map((assignment) => {
                             const user = users.find((u) => u.id === assignment.user_id);
                             if (!user) return null;
+                            const hasLeaveConflict = leaveRecords.some(
+                              (l) =>
+                                l.user_id === assignment.user_id &&
+                                l.leave_date === assignment.work_date &&
+                                !l.is_overridden,
+                            );
                             return (
                               <div
                                 key={assignment.id}
-                                className={`rounded ${assignment.is_overridden ? 'border border-dashed border-red-400 bg-red-50/50 p-0.5' : ''}`}
+                                className={`rounded ${
+                                  assignment.is_overridden || hasLeaveConflict
+                                    ? 'border border-dashed border-red-400 bg-red-50/50 p-0.5'
+                                    : ''
+                                }`}
                               >
-                                {assignment.is_overridden && (
+                                {(assignment.is_overridden || hasLeaveConflict) && (
                                   <div className="text-[10px] text-red-600 font-medium px-1">待調整</div>
                                 )}
                                 <RosterShiftCard
@@ -1565,7 +1529,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
               </li>
             </ul>
             <p className="text-gray-500">
-              點擊「仍要排班」會強制寫入，並直接刪除衝突的預排事件（包括 DO/PRD/PH/SH 的相關額度扣減會自動回復）。
+              點擊「仍要排班」會強制寫入班次；衝突的預排事件會保留並標為「待調整」，可於預排表拖曳至其他日期。
             </p>
           </div>
         </ConfirmOverrideModal>

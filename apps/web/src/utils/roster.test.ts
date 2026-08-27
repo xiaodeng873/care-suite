@@ -88,15 +88,11 @@ describe('roster utils', () => {
       hygiene_position: null,
       allied_health_position: null,
       other_position: null,
-      secondary_positions: ['社工助理'],
+      secondary_positions: [],
     } as unknown as UserProfile;
 
     it('matches primary position', () => {
       expect(getApplicablePosition(user, '護理員')).toBe(true);
-    });
-
-    it('matches secondary position', () => {
-      expect(getApplicablePosition(user, '社工助理')).toBe(true);
     });
 
     it('returns false for non-matching position', () => {
@@ -105,7 +101,7 @@ describe('roster utils', () => {
   });
 
   describe('getUserAllPositions', () => {
-    it('returns primary and secondary positions without duplicates', () => {
+    it('returns only primary position', () => {
       const user = {
         nursing_position: '護理員',
         hygiene_position: null,
@@ -113,7 +109,7 @@ describe('roster utils', () => {
         other_position: null,
         secondary_positions: ['社工助理', '護理員'],
       } as unknown as UserProfile;
-      expect(getUserAllPositions(user)).toEqual(['護理員', '社工助理']);
+      expect(getUserAllPositions(user)).toEqual(['護理員']);
     });
   });
 
@@ -249,12 +245,12 @@ describe('roster utils', () => {
       expect(getAssignmentPositionForTable(hw, '護士/保健員')).toBe('保健員');
     });
 
-    it('returns secondary position when primary does not match table', () => {
+    it('returns null when primary does not match table even with secondary role', () => {
       const user = {
         nursing_position: '主管',
         secondary_positions: ['廚師'],
       } as unknown as UserProfile;
-      expect(getAssignmentPositionForTable(user, '庶務')).toBe('廚師');
+      expect(getAssignmentPositionForTable(user, '庶務')).toBeNull();
     });
 
     it('returns admin primary position for admin table', () => {
@@ -291,13 +287,13 @@ describe('roster utils', () => {
   });
 
   describe('getPositionOptions', () => {
-    it('collects unique positions from primary and secondary roles', () => {
+    it('collects unique positions from primary roles only', () => {
       const users = [
         { nursing_position: '護理員', secondary_positions: ['社工助理'] },
         { nursing_position: '保健員', secondary_positions: [] },
         { nursing_position: '護理員', secondary_positions: ['社工助理', 'invalid'] },
       ] as unknown as UserProfile[];
-      expect(getPositionOptions(users)).toEqual(['保健員', '登記護士', '社工助理', '註冊護士', '護理員']);
+      expect(getPositionOptions(users)).toEqual(['保健員', '登記護士', '註冊護士', '護理員']);
     });
   });
 
@@ -570,9 +566,9 @@ describe('roster utils', () => {
       expect(canFillPositionInPreSchedule(user, '護理員')).toBe(true);
     });
 
-    it('allows nurse to cover health worker', () => {
+    it('does not allow nurse to cover health worker', () => {
       const user = { nursing_position: '註冊護士', secondary_positions: [] } as unknown as UserProfile;
-      expect(canFillPositionInPreSchedule(user, '保健員')).toBe(true);
+      expect(canFillPositionInPreSchedule(user, '保健員')).toBe(false);
     });
 
     it('does not allow health worker to cover nurse', () => {
@@ -582,7 +578,7 @@ describe('roster utils', () => {
   });
 
   describe('getPreScheduleAvailableByShiftHour', () => {
-    it('counts available users per shift hour and treats nurse as 2 health workers', () => {
+    it('counts available users per shift hour without counting nurse as health worker', () => {
       const users = [
         { id: 'u1', nursing_position: '保健員', secondary_positions: [] },
         { id: 'u2', nursing_position: '註冊護士', secondary_positions: [] },
@@ -592,8 +588,8 @@ describe('roster utils', () => {
         { user_id: 'u3', leave_date: '2026-08-02', record_type: 'leave', leave_type: 'AL' },
       ] as unknown as UserLeaveRecord[];
       const { available, equivalent } = getPreScheduleAvailableByShiftHour('2026-08-02', '保健員', users, leaves);
-      expect(available[0]).toBe(2);
-      expect(equivalent[0]).toBe(3);
+      expect(available[0]).toBe(1);
+      expect(equivalent[0]).toBe(1);
     });
   });
 

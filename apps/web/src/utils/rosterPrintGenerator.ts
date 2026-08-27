@@ -149,15 +149,12 @@ const pad2 = (n: number): string => String(n).padStart(2, '0');
 const formatDateStr = (y: number, m: number, d: number): string =>
   `${y}-${pad2(m)}-${pad2(d)}`;
 
-/** 員工姓名下的職位小字：主要職位 + 次要職位 */
+/** 員工姓名下的職位小字：只顯示主要職位 */
 function userDisplayPositions(user: UserProfile): string {
   const primary = getEmploymentPosition(user);
-  const parts: string[] = [];
-  if (primary) parts.push(primary);
-  const secondary = (user.secondary_positions || []).filter((p) => p !== primary);
-  if (secondary.length) parts.push(...secondary);
-  if (parts.length === 0 && user.department) parts.push(user.department);
-  return parts.join('、') || '未設定';
+  if (primary) return primary;
+  if (user.department) return user.department;
+  return '未設定';
 }
 
 /** 該部門適用的員工，按職位優先級 > 入職日期排序 */

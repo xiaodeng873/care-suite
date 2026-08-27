@@ -67,8 +67,10 @@ function computeUserBalancesForMonth(
   publicHolidays: PublicHoliday[],
   restDetailsMap: Record<string, UserRestDayDetail[]>,
   annualDetailsMap: Record<string, UserAnnualLeaveDetail[]>,
+  users?: UserProfile[],
 ): UserFullBalances {
   const details = employmentMap[userId];
+  const user = users?.find((u) => u.id === userId);
   const targetMonthStr = `${year}-${String(month).padStart(2, '0')}`;
   const expected = getRosterExpectedCounts(
     details?.weekly_work_days ?? null,
@@ -76,6 +78,7 @@ function computeUserBalancesForMonth(
     year,
     month,
     details?.rest_day_start_date,
+    user?.resignation_date,
   );
 
   // 預估額度：只對「下一個月或更遠」的目標月顯示，並於「目標月前一個月的 1 日」起出現
@@ -458,6 +461,32 @@ const RosterManagement: React.FC = () => {
     }
   }, [users, weekAnchor]);
 
+  // 同步重新載入當月 monthShiftAssignments，讓假期預排頁的衝突標記即時更新
+  const loadMonthAssignmentsOnly = useCallback(async () => {
+    if (users.length === 0) return;
+    try {
+      const userIds = users.map((u) => u.id);
+      const start = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}-01`;
+      const end = `${monthCursor.y}-${String(monthCursor.m).padStart(2, '0')}-${new Date(monthCursor.y, monthCursor.m, 0).getDate()}`;
+      const { data, error } = await supabase
+        .from('user_shift_assignments')
+        .select('*')
+        .in('user_id', userIds)
+        .gte('work_date', start)
+        .lte('work_date', end);
+      if (error) throw error;
+      setMonthShiftAssignments(
+        (data ?? []).map((a) => ({
+          ...a,
+          start_time: normalizeTime(a.start_time) || a.start_time,
+          end_time: normalizeTime(a.end_time) || a.end_time,
+        })) as UserShiftAssignment[],
+      );
+    } catch (err) {
+      console.error('重新載入月度班次失敗:', err);
+    }
+  }, [users, monthCursor]);
+
   // 拖曳/刪除班次後只靜默重新載入當週 assignments，避免整個排班表閃爍
   const loadAssignmentsOnly = useCallback(async () => {
     if (users.length === 0) return;
@@ -480,11 +509,13 @@ const RosterManagement: React.FC = () => {
           end_time: normalizeTime(a.end_time) || a.end_time,
         })) as UserShiftAssignment[],
       );
+      // 同時刷新月度 assignments，讓假期預排頁的「待調整」紅圈即時出現
+      await loadMonthAssignmentsOnly();
     } catch (err) {
       console.error('重新載入班次失敗:', err);
-      alert('重新載入班次失敗');
+      alert(err instanceof Error ? err.message : '重新載入班次失敗');
     }
-  }, [users, weekAnchor]);
+  }, [users, weekAnchor, loadMonthAssignmentsOnly]);
 
   // 班次設定儲存後靜默重新載入班次設定與當週 assignments
   const reloadShiftSettingsAndAssignments = useCallback(async () => {
@@ -733,6 +764,7 @@ const RosterManagement: React.FC = () => {
             publicHolidays,
             restDetailsMap,
             annualDetailsMap,
+            users,
           ),
         facilityName: settings.facilityNameZh,
       },
@@ -918,6 +950,7 @@ const RosterManagement: React.FC = () => {
         publicHolidays,
         restDetailsMap,
         annualDetailsMap,
+        users,
       ),
     [
       employmentMap,
@@ -927,6 +960,7 @@ const RosterManagement: React.FC = () => {
       annualDetailsMap,
       monthShiftAssignments,
       leaveRecords,
+      users,
     ],
   );
 
@@ -1239,6 +1273,14 @@ const RosterManagement: React.FC = () => {
     );
     if (exists) {
       alert('目標日期已有預排記錄');
+      return;
+    }
+    // 目標日期已有班次時不可移入，避免再次衝突
+    const targetHasShift = monthShiftAssignments.some(
+      (a) => a.user_id === record.user_id && a.work_date === targetDate,
+    );
+    if (targetHasShift) {
+      alert('目標日期已有班次，無法移動預排');
       return;
     }
     // 離職日期當日起、入職日期前均不可再輸入預排事件
@@ -1620,6 +1662,7 @@ const RosterManagement: React.FC = () => {
       y,
       m,
       details?.rest_day_start_date,
+      user.resignation_date,
     );
     const userLeaves = leaveRecords.filter((l) => l.user_id === user.id && l.leave_date === dateStr);
     const used = getRosterUsedCounts(userLeaves, y, m);
@@ -2085,6 +2128,21 @@ const RosterManagement: React.FC = () => {
                       <div className="font-medium">{w.userName}</div>
                       <div className="text-red-700">
                         {w.leaveType} 預排 {w.plannedDays} 天，當月收穫 {w.expectedDays} 天，超出 {w.plannedDays - w.expectedDays} 天
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {autoLeavePlan.pendingAdjustments.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium text-orange-700">待調整</h4>
+                  <p className="text-sm text-gray-600">以下預排與現有班次衝突，請於預排表拖曳至其他日期：</p>
+                  {autoLeavePlan.pendingAdjustments.map((adj, idx) => (
+                    <div key={idx} className="text-sm bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-orange-800">
+                      <div className="font-medium">{adj.userName}</div>
+                      <div className="text-orange-700">
+                        {adj.date} {adj.leaveType ?? ''}
                       </div>
                     </div>
                   ))}

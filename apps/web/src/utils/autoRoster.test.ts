@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateAutoRoster } from './autoRoster';
-import type { UserProfile, UserEmploymentDetails, UserShiftAssignment, StationShiftSetting } from '@care-suite/shared';
+import type { UserProfile, UserEmploymentDetails, UserShiftAssignment, StationShiftSetting, UserLeaveRecord } from '@care-suite/shared';
 import type { SpecificHoursConfig } from './facilityNatureSettings';
 import type { StaffingResult } from './staffingRequirements';
 
@@ -207,6 +207,81 @@ describe('generateAutoRoster', () => {
     const userIds = result.insertions.map((i) => i.user_id).sort();
     expect(userIds).toEqual(['u3', 'u4']);
     expect(result.finalDeficit).toBe(0);
+  });
+
+  it('lists only health workers in conflicts when only health worker hours are short', () => {
+    const rn: UserProfile = {
+      ...user,
+      id: 'u3',
+      username: 'u3',
+      name_zh: '張護士',
+      nursing_position: '註冊護士',
+      other_position: null,
+      department: 'nursing',
+    } as unknown as UserProfile;
+    const hw: UserProfile = {
+      ...user,
+      id: 'u4',
+      username: 'u4',
+      name_zh: '張保健',
+      nursing_position: '保健員',
+      other_position: null,
+      department: 'nursing',
+    } as unknown as UserProfile;
+    const rnDetails: UserEmploymentDetails = { ...details, user_id: 'u3', id: 'd3', daily_contract_hours: 13 } as unknown as UserEmploymentDetails;
+    const hwDetails: UserEmploymentDetails = { ...details, user_id: 'u4', id: 'd4', daily_contract_hours: 13 } as unknown as UserEmploymentDetails;
+    const mergedShift: StationShiftSetting = {
+      ...shiftSetting,
+      id: 's3',
+      position: '護士/保健員',
+    } as unknown as StationShiftSetting;
+    const healthWorkerStaffing: StaffingResult = {
+      grid: Array.from({ length: 24 }, () => [0, 0, 0, 0, 0, 0, 0]),
+      dailySummaries: [],
+    };
+    for (let h = 7; h < 15; h++) {
+      healthWorkerStaffing.grid[h][2] = 1; // 保健員 07-15 需要 1 人
+    }
+
+    const leaveRecord = (userId: string): UserLeaveRecord => ({
+      id: `l-${userId}`,
+      user_id: userId,
+      leave_date: '2026-08-02',
+      record_type: 'leave',
+      leave_type: 'DO',
+      reference_public_holiday_id: null,
+      urgency: 'preferred',
+      availability_start_time: null,
+      availability_end_time: null,
+      is_overridden: false,
+      overridden_by: null,
+      overridden_at: null,
+      is_auto: false,
+      remark: null,
+      created_at: '',
+      updated_at: '',
+    });
+
+    const result = generateAutoRoster({
+      date: '2026-08-02',
+      position: '護士/保健員',
+      users: [rn, hw],
+      employmentDetails: { u3: rnDetails, u4: hwDetails },
+      stations: [{ id: 'station-1', name: 'A區' }],
+      shiftSettings: [mergedShift],
+      existingAssignments: [],
+      dailyRequirements: [
+        { position: '保健員', hours: 8, peakHeadcount: 1 },
+      ],
+      staffingResult: healthWorkerStaffing,
+      specific,
+      leaveRecords: [leaveRecord('u3'), leaveRecord('u4')],
+    });
+
+    expect(result.insertions.length).toBe(0);
+    expect(result.finalDeficit).toBeGreaterThan(0);
+    expect(result.conflicts.length).toBe(1);
+    expect(result.conflicts[0].user_id).toBe('u4');
   });
 
   it('uses station preference as tie-breaker when shifts are equally valuable', () => {
@@ -460,6 +535,72 @@ describe('generateAutoRoster', () => {
       existingAssignments: [existing],
       dailyRequirements: [
         { position: '護理員', hours: 16, peakHeadcount: 2 },
+      ],
+      staffingResult,
+      specific,
+    });
+
+    expect(result.insertions.length).toBe(0);
+    expect(result.finalDeficit).toBeGreaterThan(0);
+  });
+
+  it('does not insert a user on preferred leave for the date', () => {
+    const leaveRecord: UserLeaveRecord = {
+      id: 'l1',
+      user_id: 'u1',
+      leave_date: '2026-08-02',
+      record_type: 'leave',
+      leave_type: 'DO',
+      reference_public_holiday_id: null,
+      urgency: 'preferred',
+      availability_start_time: null,
+      availability_end_time: null,
+      is_overridden: false,
+      overridden_by: null,
+      overridden_at: null,
+      is_auto: false,
+      remark: null,
+      created_at: '',
+      updated_at: '',
+    };
+    const result = generateAutoRoster({
+      date: '2026-08-02',
+      position: '護理員',
+      users: [user],
+      employmentDetails: { u1: details },
+      stations: [{ id: 'station-1', name: 'A區' }],
+      shiftSettings: [shiftSetting],
+      existingAssignments: [],
+      dailyRequirements: [
+        { position: '護理員', hours: 8, peakHeadcount: 1 },
+      ],
+      staffingResult,
+      specific,
+      leaveRecords: [leaveRecord],
+    });
+
+    expect(result.insertions.length).toBe(0);
+    expect(result.finalDeficit).toBeGreaterThan(0);
+  });
+
+  it('does not insert a user whose hire_date is after the date', () => {
+    const futureUser: UserProfile = {
+      ...user,
+      id: 'u2',
+      username: 'u2',
+      name_zh: '李護理',
+      hire_date: '2026-08-10',
+    } as unknown as UserProfile;
+    const result = generateAutoRoster({
+      date: '2026-08-02',
+      position: '護理員',
+      users: [futureUser],
+      employmentDetails: { u2: { ...details, user_id: 'u2', id: 'd2' } as unknown as UserEmploymentDetails },
+      stations: [{ id: 'station-1', name: 'A區' }],
+      shiftSettings: [shiftSetting],
+      existingAssignments: [],
+      dailyRequirements: [
+        { position: '護理員', hours: 8, peakHeadcount: 1 },
       ],
       staffingResult,
       specific,

@@ -138,19 +138,22 @@ export function validateScheduledLeave(
   return null;
 }
 
-/** 計算目標月份的預估 DO / PRD 天數與 PH / SH 數目 */
+/** 計算目標月份的預估 DO / PRD 天數與 PH / SH 數目
+ *  restDayEndDate：離職日（當日起不再計算），只計算到離職日前一日 */
 export function getRosterExpectedCounts(
   weeklyWorkDays: number | null,
   publicHolidays: PublicHoliday[],
   year: number,
   month: number,
   restDayStartDate?: string | null,
+  restDayEndDate?: string | null,
 ) {
   const rest = getExpectedMonthlyRestDays(
     weeklyWorkDays ?? 0,
     year,
     month,
     restDayStartDate ?? undefined,
+    restDayEndDate ?? undefined,
   );
   const ph = getPublicHolidaysForMonth(publicHolidays, year, month, 'PH');
   const sh = getPublicHolidaysForMonth(publicHolidays, year, month, 'SH');

@@ -463,9 +463,9 @@ export interface UserAbsenceRecord {
 }
 
 /** 判斷用戶職位是否適用僱傭詳情；回傳對應職位，不適用回傳 null。
- *  主要職位不適用時，會繼續檢查次要職位（secondary_positions）。 */
+ * 只認主要職位，不再使用次要職位（secondary_positions）。 */
 export function getEmploymentPosition(
-  profile: Pick<UserProfile, 'nursing_position' | 'hygiene_position' | 'allied_health_position' | 'other_position'> & { secondary_positions?: string[] | null } | null | undefined
+  profile: Pick<UserProfile, 'nursing_position' | 'hygiene_position' | 'allied_health_position' | 'other_position'> | null | undefined
 ): EmploymentPosition | null {
   if (!profile) return null;
   if (profile.other_position === '主管') return '主管';
@@ -486,31 +486,6 @@ export function getEmploymentPosition(
   if (profile.allied_health_position === '職業治療師助理') return '職業治療師助理';
   if (profile.allied_health_position === '言語治療師') return '言語治療師';
   if (profile.allied_health_position === '言語治療師助理') return '言語治療師助理';
-
-  // 主要職位不適用時，檢查次要職位（按僱傭詳情適用職位順序取第一個）
-  const secondaryPositions = profile.secondary_positions || [];
-  const applicablePositions: EmploymentPosition[] = [
-    '主管',
-    '文員',
-    '會計',
-    '註冊護士',
-    '登記護士',
-    '保健員',
-    '護理員',
-    '物理治療師',
-    '物理治療師助理',
-    '職業治療師',
-    '職業治療師助理',
-    '言語治療師',
-    '言語治療師助理',
-    '社工助理',
-    '社工',
-    '廚師',
-    '清潔員',
-  ];
-  for (const position of applicablePositions) {
-    if (secondaryPositions.includes(position)) return position;
-  }
 
   return null;
 }

@@ -10,6 +10,13 @@
 /** 星期幾：0 = 星期日，1 = 星期一，…，6 = 星期六 */
 type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
+/** 日期加減天數，回傳 YYYY-MM-DD */
+function addDays(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d + days);
+  return formatDate(date.getFullYear(), date.getMonth() + 1, date.getDate());
+}
+
 /** 系統應發放的一筆休息日（DO）獲得行 */
 export interface ExpectedRestDayGrant {
   /** 發放日期（YYYY-MM-DD） */
@@ -146,12 +153,14 @@ export function getExpectedRestDayGrants(
   return { grants, totalFraction: parseFloat(totalFraction.toFixed(1)) };
 }
 
-/** 預期某月 DO / PRD 獲得量（只計當月，不累積） */
+/** 預期某月 DO / PRD 獲得量（只計當月，不累積）
+ *  endDate：離職日（當日起不再計算），只計算到 endDate 前一日 */
 export function getExpectedMonthlyRestDays(
   weeklyWorkDays: number,
   year: number,
   month: number,
   startDate?: string,
+  endDate?: string,
 ): { doDays: number; prdDays: number; totalFraction: number; leftoverFraction: number } {
   if (!weeklyWorkDays || weeklyWorkDays <= 0 || weeklyWorkDays > 6 || !startDate) {
     return { doDays: 0, prdDays: 0, totalFraction: 0, leftoverFraction: 0 };
@@ -161,6 +170,11 @@ export function getExpectedMonthlyRestDays(
   const monthStart = formatDate(year, month, 1);
   const monthEnd = formatDate(year, month, daysInMonth);
   const effectiveStart = startDate > monthStart ? startDate : monthStart;
+  const effectiveEnd = endDate && endDate < monthEnd ? addDays(endDate, -1) : monthEnd;
+
+  if (effectiveStart > effectiveEnd) {
+    return { doDays: 0, prdDays: 0, totalFraction: 0, leftoverFraction: 0 };
+  }
 
   const dist = getRestDayDistribution(weeklyWorkDays);
 
@@ -168,11 +182,11 @@ export function getExpectedMonthlyRestDays(
   let totalFraction = 0;
 
   for (const dayOfWeek of dist.integerDays) {
-    doDays += countDaysOfWeekInRange(dayOfWeek, effectiveStart, monthEnd);
+    doDays += countDaysOfWeekInRange(dayOfWeek, effectiveStart, effectiveEnd);
   }
 
   if (dist.fractionDay && dist.fraction > 0) {
-    const fractionCount = countDaysOfWeekInRange(dist.fractionDay, effectiveStart, monthEnd);
+    const fractionCount = countDaysOfWeekInRange(dist.fractionDay, effectiveStart, effectiveEnd);
     totalFraction = parseFloat((dist.fraction * fractionCount).toFixed(1));
   }
 

@@ -102,9 +102,7 @@ export function getApplicablePosition(
   user: UserProfile,
   position: EmploymentPosition,
 ): boolean {
-  const primary = getEmploymentPosition(user);
-  if (primary === position) return true;
-  return (user.secondary_positions || []).includes(position);
+  return getEmploymentPosition(user) === position;
 }
 
 export function getUserDisplayPosition(user: UserProfile): string {
@@ -115,9 +113,7 @@ export function getUserDisplayPosition(user: UserProfile): string {
 
 export function getUserAllPositions(user: UserProfile): string[] {
   const primary = getEmploymentPosition(user);
-  const secondary = user.secondary_positions || [];
-  if (!primary) return secondary;
-  return [primary, ...secondary.filter((p) => p !== primary)];
+  return primary ? [primary] : [];
 }
 
 export function getDailyContractHours(
@@ -178,6 +174,7 @@ export function getRosterUserBalance(
   publicHolidays: PublicHoliday[],
   year: number,
   month: number,
+  resignationDate?: string | null,
 ): RosterUserBalance {
   const details = employmentMap[userId];
   const userLeaves = leaveRecords.filter((l) => l.user_id === userId);
@@ -187,6 +184,7 @@ export function getRosterUserBalance(
     year,
     month,
     details?.rest_day_start_date,
+    resignationDate,
   );
   const used = getRosterUsedCounts(userLeaves, year, month);
 
@@ -336,11 +334,6 @@ export function getPositionOptions(users: UserProfile[]): EmploymentPosition[] {
   for (const user of users) {
     const primary = getEmploymentPosition(user);
     if (primary) set.add(primary);
-    for (const pos of user.secondary_positions || []) {
-      if (APPLICABLE_POSITIONS.includes(pos as EmploymentPosition)) {
-        set.add(pos as EmploymentPosition);
-      }
-    }
   }
   return Array.from(set).sort();
 }
@@ -353,9 +346,6 @@ export function getGridPositionOptions(users: UserProfile[]): string[] {
   for (const user of users) {
     const primary = getEmploymentPosition(user);
     if (primary) set.add(toGridPosition(primary));
-    for (const pos of user.secondary_positions || []) {
-      set.add(toGridPosition(pos));
-    }
   }
   return GRID_POSITION_ORDER.filter((p) => set.has(p));
 }
@@ -403,42 +393,32 @@ const ADMIN_POSITIONS_SET = new Set<string>(['主管', '文員', '會計', '社�
 const GENERAL_AFFAIRS_POSITIONS_SET = new Set<string>(['廚師', '清潔員']);
 
 /** 回傳把員工派入目標排班分頁時應儲存的實際職位；無法填入則回傳 null。
- * 護士/保健員表：護士與保健員均可填入；護士自然可貢獻保健員特定鐘點（由底層等效邏輯處理）。
- * 行政/庶務表：以部門 primary 優先，其次找匹配的次要職位。
- * 專職/護理員：直接比對 primary 或 secondary。 */
+ * 只以主要職位判斷，不再使用次要職位。 */
 export function getAssignmentPositionForTable(
   user: UserProfile,
   table: string,
 ): string | null {
   const primary = getEmploymentPosition(user);
-  const secondary = user.secondary_positions || [];
+  if (!primary) return null;
 
   if (table === '護士/保健員') {
-    if (primary && NURSE_HEALTH_WORKER_TABLE_POSITIONS.has(primary)) return primary;
-    const match = secondary.find((p) => NURSE_HEALTH_WORKER_TABLE_POSITIONS.has(p));
-    return match || null;
+    return NURSE_HEALTH_WORKER_TABLE_POSITIONS.has(primary) ? primary : null;
   }
 
   if (table === '行政') {
-    if (primary && ADMIN_POSITIONS_SET.has(primary)) return primary;
-    const match = secondary.find((p) => ADMIN_POSITIONS_SET.has(p));
-    return match || null;
+    return ADMIN_POSITIONS_SET.has(primary) ? primary : null;
   }
 
   if (table === '庶務') {
-    if (primary && GENERAL_AFFAIRS_POSITIONS_SET.has(primary)) return primary;
-    const match = secondary.find((p) => GENERAL_AFFAIRS_POSITIONS_SET.has(p));
-    return match || null;
+    return GENERAL_AFFAIRS_POSITIONS_SET.has(primary) ? primary : null;
   }
 
   if (table === '護理員') {
-    if (primary === '護理員') return '護理員';
-    return secondary.find((p) => p === '護理員') || null;
+    return primary === '護理員' ? '護理員' : null;
   }
 
   // 專職各崗位獨立分頁
-  if (primary === table) return primary;
-  return secondary.find((p) => p === table) || null;
+  return primary === table ? primary : null;
 }
 
 /** 回傳排班表頂部職位分頁選項；護士/保健員合併為一頁，行政（含社工）、庶務各自合併，專職崗位各自獨立 */
@@ -455,17 +435,6 @@ export function getRosterGroupOptions(users: UserProfile[]): string[] {
         set.add('護士/保健員');
       } else {
         set.add(primary);
-      }
-    }
-    for (const pos of user.secondary_positions || []) {
-      if (ADMIN_POSITIONS_SET.has(pos)) {
-        set.add('行政');
-      } else if (GENERAL_AFFAIRS_POSITIONS_SET.has(pos)) {
-        set.add('庶務');
-      } else if (NURSE_HEALTH_WORKER_TABLE_POSITIONS.has(pos)) {
-        set.add('護士/保健員');
-      } else if (APPLICABLE_POSITIONS.includes(pos as EmploymentPosition)) {
-        set.add(pos);
       }
     }
   }
@@ -636,15 +605,6 @@ export function canFillPositionInPreSchedule(
   const primary = getEmploymentPosition(user);
   if (primary === position) return true;
   if (toGridPosition(primary) === position) return true;
-  if ((user.secondary_positions || []).some((p) => p === position || toGridPosition(p) === position)) return true;
-  if (
-    position === '保健員' &&
-    (primary === '註冊護士' ||
-      primary === '登記護士' ||
-      (user.secondary_positions || []).some((p) => p === '註冊護士' || p === '登記護士'))
-  ) {
-    return true;
-  }
   if (position === '助理員') {
     return isAssistantSlotContributor(user);
   }

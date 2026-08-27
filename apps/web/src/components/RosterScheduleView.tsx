@@ -105,12 +105,9 @@ function buildComplianceTooltip(row: ComplianceRow, hasContractHours: boolean): 
 
 function userDisplayPositions(user: UserProfile): string {
   const primary = getEmploymentPosition(user);
-  const parts: string[] = [];
-  if (primary) parts.push(primary);
-  const secondary = (user.secondary_positions || []).filter((p) => p !== primary);
-  if (secondary.length) parts.push(...secondary);
-  if (parts.length === 0 && user.department) parts.push(user.department);
-  return parts.join('、') || '未設定';
+  if (primary) return primary;
+  if (user.department) return user.department;
+  return '未設定';
 }
 
 export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
@@ -373,10 +370,16 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                     {complianceByDay.map((day) => {
                       const row = day.rows.find((r) => r.position === position);
                       const ok = !row || (hasContractHours ? row.hoursOk && row.specificSlotOk : row.specificSlotOk);
+                      const surplus = row ? row.actualHours - row.requiredHours : 0;
+                      const isBlue = !!row && ok && surplus >= 9;
                       return (
                         <td key={day.date} className="px-1 py-1.5 text-center">
                           {row ? (
-                            ok ? (
+                            isBlue ? (
+                              <span title={buildComplianceTooltip(row, hasContractHours)} className="inline-block">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 inline" />
+                              </span>
+                            ) : ok ? (
                               <span title={buildComplianceTooltip(row, hasContractHours)} className="inline-block">
                                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500 inline" />
                               </span>
@@ -467,7 +470,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
             )}
             {visibleUsers.map((user) => {
               const full = getUserFullBalances?.(user.id);
-              const monthly = getRosterUserBalance(user.id, employmentDetails, leaveRecords, publicHolidays, year, month);
+              const monthly = getRosterUserBalance(user.id, employmentDetails, leaveRecords, publicHolidays, year, month, user.resignation_date);
               const balance = full
                 ? {
                     doBalance: full.doBalance,
@@ -554,7 +557,8 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                           )
                         : null;
                     const canEdit = isAdmin || user.id === currentUserId;
-                    const hasShiftConflict = record?.is_overridden && assignments.length > 0;
+                    // 待調整：預排存在 + 未覆蓋 + 同天有班次（用戶可拖曳該預排到無班次/無預排的日期）
+                    const hasShiftConflict = !!record && !record.is_overridden && assignments.length > 0;
                     const autoLabel = record?.is_auto ? '【系統安排】' : record ? '【用戶輸入】' : '';
                     const recordTitle = record
                       ? record.record_type === 'leave'
@@ -562,7 +566,14 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                         : `${dateStr} 特定上班 ${record.availability_start_time}-${record.availability_end_time}${record.urgency === 'mandatory' ? '（必須）' : ''}${autoLabel}${hasShiftConflict ? '【待調整】' : ''}`
                       : '';
                     const employedOnDate = isUserEmployedOnDate(user, dateStr);
-                    const isDropTarget = employedOnDate && draggedRecord && !record && draggedRecord.user_id === user.id && draggedRecord.leave_date !== dateStr;
+                    // 拖曳放下條件：在職、目標格無預排、目標日無班次、非原日期
+                    const isDropTarget =
+                      employedOnDate &&
+                      draggedRecord &&
+                      !record &&
+                      assignments.length === 0 &&
+                      draggedRecord.user_id === user.id &&
+                      draggedRecord.leave_date !== dateStr;
                     return (
                       <td
                         key={d}
