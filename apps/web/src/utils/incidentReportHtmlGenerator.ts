@@ -107,7 +107,8 @@ function getFieldValue(report: IncidentReport, patient: Patient, field: string):
       return report.prevention_methods || '';
 
     case 'reporter_signature':
-      return report.reporter_signature || '';
+      // 填報人簽名欄只保留底線，不印姓名
+      return '';
     case 'reporter_signature_name':
       return report.reporter_signature || '';
     case 'reporter_position':

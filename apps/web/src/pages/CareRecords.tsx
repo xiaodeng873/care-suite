@@ -781,11 +781,18 @@ const CareRecords: React.FC = () => {
 
                   if (done && record) {
                     // ─── 已填 ───
-                    cellContent = record.observation_status === 'N' ? '正常' :
-                                  record.observation_status === 'P' ? '異常' :
-                                  record.observation_status === 'S' ? '暫停' : '已觀察';
-                    cellTextColor = record.observation_status === 'N' ? 'text-green-600' :
-                                    record.observation_status === 'P' ? 'text-red-600' : 'text-orange-600';
+                    const specialNotes = ['入院', '渡假', '外出'];
+                    const isSpecial = record.notes && specialNotes.includes(record.notes);
+                    if (isSpecial) {
+                      cellContent = record.notes;
+                      cellTextColor = 'text-blue-600';
+                    } else {
+                      cellContent = record.observation_status === 'N' ? '正常' :
+                                    record.observation_status === 'P' ? '異常' :
+                                    record.observation_status === 'S' ? '暫停' : '已觀察';
+                      cellTextColor = record.observation_status === 'N' ? 'text-green-600' :
+                                      record.observation_status === 'P' ? 'text-red-600' : 'text-orange-600';
+                    }
                   } else if (isOverdue) {
                     // ─── 逾期未填 ───
                     cellContent = '未記錄';

@@ -1,6 +1,6 @@
 import { X, FileDown, Calendar, Users, CheckSquare, Square, AlertCircle, Pill, Syringe, Package, Building2 } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
-import { exportMedicationRecordToHtml, exportBlankMedicationRecordToHtml, orderPrescriptionsForSignatureEfficiency } from '../utils/medicationRecordHtmlExporter';
+import { exportMedicationRecordToHtml, exportBlankMedicationRecordToHtml, orderPrescriptionsForSignatureEfficiency, type MedicationRecordTemplate } from '../utils/medicationRecordHtmlExporter';
 import { exportMedicationListToHtml, classifyMedicationTerm } from '../utils/medicationListHtmlGenerator';
 import { useStationData } from '../context/facility/StationContext';
 import { supabase } from '../lib/supabase';
@@ -78,6 +78,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   const [batchRouteFilter, setBatchRouteFilter] = useState<Set<string>>(new Set());
   const [prescriptionSortOrder, setPrescriptionSortOrder] = useState<PrescriptionSortOrder>('efficiency');
   const [includeBlankRows, setIncludeBlankRows] = useState(false);
+  const [recordTemplate, setRecordTemplate] = useState<MedicationRecordTemplate>('template2');
   // 個人藥物記錄日期範圍（不受月份局限）
   const [listStartDate, setListStartDate] = useState<string>(() => {
     const now = new Date();
@@ -385,7 +386,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
             ...currentPatient.patient,
             prescriptions: currentPatientPrescriptionsToExport
           }],
-          selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder);
+          selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate);
         }
 
         if (shouldExportPersonalMedicationList) {
@@ -460,7 +461,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         }
 
         if (shouldExportMedicationRecord && selectedPatients.length > 0) {
-          await exportMedicationRecordToHtml(selectedPatients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder);
+          await exportMedicationRecordToHtml(selectedPatients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate);
         }
 
         if (shouldExportPersonalMedicationList) {
@@ -601,7 +602,19 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="form-input" />
-              
+
+              <div className="mt-4">
+                <label className="form-label flex flex-wrap items-center gap-2">
+                  <span>選擇模板</span>
+                </label>
+                <select
+                  value={recordTemplate}
+                  onChange={(e) => setRecordTemplate(e.target.value as MedicationRecordTemplate)}
+                  className="form-input text-sm py-1 px-2 h-9">
+                  <option value="template1">模板1：簽署指引 → 院友相片 → 彙總區</option>
+                  <option value="template2">模板2：院友相片在頂部（現有設計）</option>
+                </select>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-8 items-start">

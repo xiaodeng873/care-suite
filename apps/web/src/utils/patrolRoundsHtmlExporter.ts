@@ -84,12 +84,22 @@ html, body {
 .card-table tr:last-child td { border-bottom: none; }
 
 .db-text-cell { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 10px; text-align: center; outline: none; display: block; box-sizing: border-box; padding: 0; }
+.fit-text { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 10px; line-height: 1; box-sizing: border-box; padding: 0; }
 `.trim();
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const esc = (s: unknown) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** 將任意時間字串規範為 HH:MM */
+function formatTime(value: string | undefined): string {
+  if (!value) return '';
+  const m = value.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return value;
+  const h = m[1].padStart(2, '0');
+  return `${h}:${m[2]}`;
+}
 
 function dateRange(start: string, end: string): string[] {
   const dates: string[] = [];
@@ -114,11 +124,11 @@ function buildCard(date: string, roundMap: Map<string, PatrolRoundRecord>): stri
   const rows = TIME_SLOTS.map(ts => {
     const r = roundMap.get(ts);
     // 時間欄只顯示實際巡房時間；若無記錄則留空
-    const timeDisplay = r?.patrol_time ?? '';
+    const timeDisplay = formatTime(r?.patrol_time);
     return `<tr>
-      <td><input class="db-text-cell" value="${esc(timeDisplay)}" readonly></td>
-      <td><input class="db-text-cell" value="${esc(r?.recorder ?? '')}" readonly></td>
-      <td><input class="db-text-cell" value="${esc(r?.co_signer ?? '')}" readonly></td>
+      <td><div class="fit-text">${esc(timeDisplay)}</div></td>
+      <td><div class="fit-text">${esc(r?.recorder ?? '')}</div></td>
+      <td><div class="fit-text">${esc(r?.co_signer ?? '')}</div></td>
     </tr>`;
   }).join('');
 
@@ -170,6 +180,29 @@ function buildPage(
 </div>`;
 }
 
+const FIT_TEXT_SCRIPT = `
+function fitPatrolText() {
+  document.querySelectorAll('.fit-text').forEach(function (el) {
+    var text = (el.textContent || '').trim();
+    if (!text) return;
+    var size = 10;
+    el.style.fontSize = size + 'px';
+    // 只在真正溢出時縮小，且不低於 8px，避免過小難以閱讀
+    while (el.scrollWidth > el.clientWidth && size > 8) {
+      size -= 0.5;
+      el.style.fontSize = size + 'px';
+    }
+    // 縮到最小仍溢出時用刪節號，避免破壞版面
+    if (el.scrollWidth > el.clientWidth) {
+      el.style.overflow = 'hidden';
+      el.style.textOverflow = 'ellipsis';
+    }
+  });
+}
+if (document.readyState === 'complete') fitPatrolText();
+window.addEventListener('load', fitPatrolText);
+`.trim();
+
 function buildDocument(pages: string[], facilityName: string): string {
   return `<!DOCTYPE html>
 <html lang="zh-HK">
@@ -180,6 +213,7 @@ function buildDocument(pages: string[], facilityName: string): string {
 </head>
 <body>
 ${pages.join('\n')}
+<script>${FIT_TEXT_SCRIPT}</script>
 </body>
 </html>`;
 }

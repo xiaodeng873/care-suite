@@ -28,6 +28,9 @@ let activeFacility: FacilitySettings = DEFAULT_FACILITY_SETTINGS;
 
 type RouteKind = 'oral' | 'topical' | 'subcutaneous' | 'intramuscular'; // 處方分類（保留細分）
 type PageRouteKind = 'oral' | 'topical' | 'injection';                  // 藥紙頁面：皮下+肌肉合併為 injection
+export type MedicationRecordTemplate = 'template1' | 'template2';
+// template1: 簽署指引 → 院友相片 → 彙總區（相片在彙總區）
+// template2: 院友相片在頂部標題區（現有設計）
 type MedicationPrescription = Record<string, any>;
 type PatientWithPrescriptions = Record<string, any> & { prescriptions?: MedicationPrescription[] };
 
@@ -94,9 +97,10 @@ export const exportMedicationRecordToHtml = async (
   selectedMonth: string,
   includeWorkflowRecords = false,
   includeBlankRows = false,
-  prescriptionSortOrder?: string
+  prescriptionSortOrder?: string,
+  template: MedicationRecordTemplate = 'template2'
 ): Promise<void> => {
-  const html = await buildMedicationRecordHtml(patients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder);
+  const html = await buildMedicationRecordHtml(patients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, template);
   printViaIframe(html);
 };
 
@@ -106,9 +110,10 @@ export const exportSelectedMedicationRecordToHtml = async (
   selectedMonth: string,
   includeWorkflowRecords = false,
   includeBlankRows = false,
-  prescriptionSortOrder?: string
+  prescriptionSortOrder?: string,
+  template: MedicationRecordTemplate = 'template2'
 ): Promise<void> => {
-  await exportMedicationRecordToHtml([{ ...patient, prescriptions }], selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder);
+  await exportMedicationRecordToHtml([{ ...patient, prescriptions }], selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, template);
 };
 
 // 空白藥紙 HTML 版：每位院友、每個選定途徑各產生一頁，填入 MAX_PRESCRIPTIONS_PER_PAGE 個空白處方列。
@@ -190,7 +195,8 @@ const buildMedicationRecordHtml = async (
   selectedMonth: string,
   includeWorkflowRecords: boolean,
   includeBlankRows: boolean,
-  prescriptionSortOrder?: string
+  prescriptionSortOrder?: string,
+  template: MedicationRecordTemplate = 'template2'
 ): Promise<string> => {
   activeFacility = await getFacilitySettings();
   const drugWarningFlags = await fetchDrugWarningFlags();
@@ -219,7 +225,7 @@ const buildMedicationRecordHtml = async (
     const staffCount = Object.keys(staffMapping).length;
 
     for (const page of preparePages(patient, prescriptions, includeBlankRows, staffCount, prescriptionSortOrder)) {
-      renderedPages.push(renderPage(page, selectedMonth, workflowRecords, staffMapping, includeBlankRows));
+      renderedPages.push(renderPage(page, selectedMonth, workflowRecords, staffMapping, includeBlankRows, template));
     }
   }
 
@@ -709,17 +715,18 @@ const renderPage = (
   selectedMonth: string,
   workflowRecords: WorkflowRecord[],
   staffMapping: StaffCodeMapping,
-  includeBlankRows: boolean
+  includeBlankRows: boolean,
+  template: MedicationRecordTemplate = 'template2'
 ): string => {
   const dayCount = getDaysInMonth(selectedMonth);
   const pageLabel = `${ROUTE_SHEET_LABELS[page.routeKind]} 共${page.pageIndexInRoute}/${page.pageCountInRoute}頁`;
 
   return '<section class="mr-page">'
     + '<div class="mr-punch-zone" aria-hidden="true"><div class="mr-punch-hole"></div><div class="mr-punch-hole"></div></div>'
-    + renderHeaderRegion(page.patient, page.routeKind, selectedMonth)
+    + renderHeaderRegion(page.patient, page.routeKind, selectedMonth, template)
     + `<div class="mr-body">${renderBodyTable(page, selectedMonth, dayCount, workflowRecords, staffMapping, includeBlankRows)}</div>`
     + '<div class="mr-top-spacer"></div>'
-    + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel)
+    + renderFooterRegion(page, selectedMonth, dayCount, workflowRecords, staffMapping, pageLabel, template)
     + '</section>';
 };
 
@@ -730,7 +737,7 @@ const formatYearMonth = (selectedMonth: string): string => {
   return `${year}年${month}月`;
 };
 
-const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRouteKind, selectedMonth: string): string => {
+const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRouteKind, selectedMonth: string, template: MedicationRecordTemplate = 'template2'): string => {
   const name = patient.中文姓氏 != null || patient.中文名字 != null
     ? `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`
     : (patient.中文姓名 ?? '');
@@ -743,6 +750,30 @@ const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRo
 
   const facilityNameZh = activeFacility.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
 
+  if (template === 'template1') {
+    // 模板1：院友相片放在彙總區，頂部標題區不顯示相片
+    return '<header class="mr-header">'
+      + '<table class="mr-header-table"><colgroup>'
+        + '<col class="mr-hc-title">'
+        + '<col class="mr-hc-info"><col class="mr-hc-info"><col class="mr-hc-react">'
+      + '</colgroup><tbody>'
+        + '<tr>'
+          + `<td class="mr-h-title"><div class="mr-org">${escapeHtml(facilityNameZh)}</div><div class="mr-doc">個人備藥及給藥記錄</div></td>`
+          + infoCell('院友姓名', name)
+          + infoCell('院號', getPrintBedNumber(patient))
+          + reactCell('藥物過敏反應', allergyText)
+        + '</tr>'
+        + '<tr>'
+          + `<td class="mr-h-subtitle"><div class="mr-subtitle">${escapeHtml(formatYearMonth(selectedMonth))} ${escapeHtml(ROUTE_SUBTITLES[routeKind])}</div></td>`
+          + infoCell('性別 / 年齡', formatGenderAge(patient))
+          + infoCell('出生日期', formatDate(patient.出生日期))
+          + reactCell('藥物不良反應', adverseDrugReactionText)
+        + '</tr>'
+      + '</tbody></table>'
+    + '</header>';
+  }
+
+  // 模板2（現有設計）：院友相片在頂部標題區
   return '<header class="mr-header">'
     + '<table class="mr-header-table"><colgroup>'
       + '<col class="mr-hc-title"><col class="mr-hc-photo">'
@@ -1137,7 +1168,8 @@ const renderFooterRegion = (
   dayCount: number,
   workflowRecords: WorkflowRecord[],
   staffMapping: StaffCodeMapping,
-  pageLabel: string
+  pageLabel: string,
+  template: MedicationRecordTemplate = 'template2'
 ): string => {
   const pageSlots = sortDistinctTimeSlots(page.blocks.flatMap((block) => block.timeSlots));
   const { am: amPageSlots, pm: pmPageSlots } = splitAmPm(pageSlots);
@@ -1166,17 +1198,29 @@ const renderFooterRegion = (
     + staffCodesHtml
     + (page.oralQuantityStat ? `<div class="mr-legend-qty">${escapeHtml(page.oralQuantityStat)}</div>` : '');
 
+  const photo = page.patient.院友相片;
+  const photoHtml = photo
+    ? `<img class="mr-photo" src="${escapeAttr(String(photo))}" alt="">`
+    : '<div class="mr-photo mr-photo-empty">相片</div>';
+
   const rows: string[] = [];
   let labelEmitted = false;
+  let photoEmitted = false;
   for (const slot of summarySlots) {
-    const labelCell = labelEmitted
-      ? ''
-      : `<td class="mr-sum-label" colspan="3" rowspan="${totalRows}"><div class="mr-legend-wrap">${legendHtml}</div></td>`;
-    labelEmitted = true;
+    let leftCells = '';
+    if (!labelEmitted) {
+      if (template === 'template1') {
+        leftCells = `<td class="mr-sum-label" colspan="2" rowspan="${totalRows}"><div class="mr-legend-wrap">${legendHtml}</div></td>`
+          + `<td class="mr-sum-photo" rowspan="${totalRows}">${photoHtml}</td>`;
+      } else {
+        leftCells = `<td class="mr-sum-label" colspan="3" rowspan="${totalRows}"><div class="mr-legend-wrap">${legendHtml}</div></td>`;
+      }
+      labelEmitted = true;
+    }
 
     const timeCell = `<td class="c-time">${escapeHtml(formatTimeSlot(slot))}</td>`;
     const dayCells = dispenseDayCells(page.blocks, slot, selectedMonth, dayCount, workflowRecords, staffMapping);
-    rows.push(`<tr class="mr-sum-row">${labelCell}${timeCell}${dayCells}</tr>`);
+    rows.push(`<tr class="mr-sum-row">${leftCells}${timeCell}${dayCells}</tr>`);
 
   }
 
@@ -1547,6 +1591,30 @@ td.mr-filler-nobt { border-top: none !important; }
 .mr-legend-codes span { margin-right: 2.4mm; white-space: nowrap; }
 .mr-staff-codes span { margin-right: 2.4mm; white-space: nowrap; }
 .mr-legend-note { font-size: 7pt; line-height: 1.3; color: #64748b; margin-top: 0.3mm; }
+.mr-grid td.mr-sum-label { padding: 0.4mm 1mm; }
+.mr-grid td.mr-sum-photo {
+  background: #fff;
+  vertical-align: middle;
+  text-align: center;
+  padding: 0.5mm;
+  width: 26mm;
+}
+.mr-grid td.mr-sum-photo .mr-photo {
+  width: 100%;
+  height: auto;
+  max-height: 26mm;
+  object-fit: contain;
+  border: 0.5pt solid #9aa7b4;
+  border-radius: 1.2mm;
+}
+.mr-grid td.mr-sum-photo .mr-photo-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26mm;
+  font-size: 9pt;
+  color: #888;
+}
 .mr-grid td.mr-sum-label .mr-legend-wrap { display: flex; flex-direction: column; height: 100%; }
 .mr-legend-qty { margin-top: auto; padding-top: 1mm; font-size: 7.6pt; font-weight: bold; color: #0f2740; }
 .mr-sum-row td.c-time { font-size: 8pt; }

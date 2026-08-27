@@ -4,6 +4,13 @@ import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettin
 import { formatDisplayDate } from './dateFormat';
 import { getPrintBedNumber } from './bedTransferUtils';
 
+function formatTime(value: string | undefined | null): string {
+  if (!value) return '';
+  const m = value.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return value;
+  return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
+
 // 生成意外經過摘要 (不含日期、時間、院友名，因其他欄位已有)
 const generateIncidentSummary = (patient: Patient, report: IncidentReport): string => {
   let summary = '';
@@ -131,7 +138,7 @@ export const generateIncidentReportPrintHTML = (
           const incidentDate = report.incident_date
             ? formatDisplayDate(report.incident_date)
             : '';
-          const incidentTime = report.incident_time || '';
+          const incidentTime = formatTime(report.incident_time);
 
           // 事件欄：使用意外經過摘要
           const eventSummary = generateIncidentSummary(patient, report);
