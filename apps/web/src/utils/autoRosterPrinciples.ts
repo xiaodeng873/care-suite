@@ -5,14 +5,17 @@ import { supabase } from '../lib/supabase';
 // =====================================================
 
 export interface AutoRosterPrinciples {
-  /** 原則2：每個居住區，早班最多 N 名，有餘的攤派到各區至各區平均，再有餘攤派至午班各站 */
+  /** 原則2：每個居住區，早班最多 N 名，有餘的攤派到午班 */
   earlyExtra: { enabled: boolean; n: number };
+  /** 原則2 延伸：每個居住區，午班也最多 N 名 */
+  afternoonMax: { enabled: boolean; n: number };
   /** 原則3：無視優先指派居住區的預設一鍵排班（預設不勾選） */
   ignoreStationPreference: boolean;
 }
 
 export const DEFAULT_AUTO_ROSTER_PRINCIPLES: AutoRosterPrinciples = {
   earlyExtra: { enabled: false, n: 1 },
+  afternoonMax: { enabled: false, n: 1 },
   ignoreStationPreference: false,
 };
 
@@ -26,13 +29,22 @@ const toPositiveInt = (v: unknown, fallback: number): number => {
 
 function sanitizeOne(raw: unknown): AutoRosterPrinciples {
   const d = DEFAULT_AUTO_ROSTER_PRINCIPLES;
-  if (!raw || typeof raw !== 'object') return { earlyExtra: { ...d.earlyExtra }, ignoreStationPreference: d.ignoreStationPreference };
+  if (!raw || typeof raw !== 'object') return {
+    earlyExtra: { ...d.earlyExtra },
+    afternoonMax: { ...d.afternoonMax },
+    ignoreStationPreference: d.ignoreStationPreference,
+  };
   const r = raw as Record<string, unknown>;
   const extra = (r.earlyExtra ?? {}) as Record<string, unknown>;
+  const afternoon = (r.afternoonMax ?? {}) as Record<string, unknown>;
   return {
     earlyExtra: {
       enabled: extra.enabled === true,
       n: toPositiveInt(extra.n, d.earlyExtra.n),
+    },
+    afternoonMax: {
+      enabled: afternoon.enabled === true,
+      n: toPositiveInt(afternoon.n, d.afternoonMax.n),
     },
     ignoreStationPreference: r.ignoreStationPreference === true,
   };

@@ -66,7 +66,7 @@ export interface AutoLeaveSkipped {
   userName: string;
   leaveType: 'DO' | 'PRD' | 'PH';
   remainingDays: number;
-  reason: 'no_eligible_day' | 'insufficient_capacity';
+  reason: 'no_eligible_day' | 'insufficient_capacity' | 'no_eligible_holiday';
 }
 
 export interface AutoLeavePendingAdjustment {
@@ -148,12 +148,15 @@ function getEligibleHolidays(
       .map((l) => l.reference_public_holiday_id!),
   );
 
+  const placementMonth = placementDate.slice(0, 7);
+
   return publicHolidays
     .filter((h) => {
       if (h.type !== 'PH') return false;
       const expiry = addDays(h.holiday_date, 30);
       if (expiry < placementDate) return false;
-      if (h.holiday_date > placementDate) return false;
+      // 放寬：當月任何一天都可以放 PH，不限於公眾假期當日或之後
+      if (h.holiday_date.slice(0, 7) !== placementMonth) return false;
       if (usedIds.has(h.id)) return false;
       return true;
     })
@@ -234,6 +237,28 @@ function buildLeaveTypePlans(
 ): LeaveTypePlan[] {
   const plans: LeaveTypePlan[] = [];
 
+  // PH（只對 public_holiday_type='PH' 的員工；有 30 日過期最急，優先排）
+  // 若該員工當月已有 SH 預排，視為 SH 型員工，不再排 PH
+  const details = employmentDetails[user.id];
+  const hasSHInMonth = leaveRecords.some(
+    (l) =>
+      l.user_id === user.id &&
+      l.record_type === 'leave' &&
+      l.leave_type === 'SH' &&
+      isDateInTargetMonth(l.leave_date, year, month),
+  );
+  if (details?.public_holiday_type === 'PH' && !hasSHInMonth) {
+    const phUserInputCount = getExistingRecordCount(user.id, 'PH', year, month, leaveRecords, false);
+    const phTarget = Math.max(0, expected.phExpected - phUserInputCount);
+    if (phTarget > 0) {
+      plans.push({
+        leaveType: 'PH',
+        targetDays: phTarget,
+        expectedDays: expected.phExpected,
+      });
+    }
+  }
+
   // DO
   const doUserInputCount = getExistingRecordCount(user.id, 'DO', year, month, leaveRecords, false);
   const doTarget = Math.max(0, expected.doExpected - doUserInputCount);
@@ -254,20 +279,6 @@ function buildLeaveTypePlans(
       targetDays: prdTarget,
       expectedDays: expected.prdExpected,
     });
-  }
-
-  // PH（只對 public_holiday_type='PH' 的員工）
-  const details = employmentDetails[user.id];
-  if (details?.public_holiday_type === 'PH') {
-    const phUserInputCount = getExistingRecordCount(user.id, 'PH', year, month, leaveRecords, false);
-    const phTarget = Math.max(0, expected.phExpected - phUserInputCount);
-    if (phTarget > 0) {
-      plans.push({
-        leaveType: 'PH',
-        targetDays: phTarget,
-        expectedDays: expected.phExpected,
-      });
-    }
   }
 
   return plans;
@@ -304,6 +315,7 @@ function placeLeavesForUser(
 
     let placed = 0;
     let capacityInsufficient = false;
+    let noEligibleHoliday = false;
 
     for (const { date, row } of scoredDates) {
       if (remaining <= 0) break;
@@ -329,7 +341,10 @@ function placeLeavesForUser(
 
       if (plan.leaveType === 'PH') {
         const holidays = getEligibleHolidays(user.id, date, publicHolidays, input.leaveRecords);
-        if (holidays.length === 0) continue;
+        if (holidays.length === 0) {
+          noEligibleHoliday = true;
+          continue;
+        }
         referencePublicHolidayId = holidays[0].id;
         holidayName = holidays[0].name;
       }
@@ -349,12 +364,17 @@ function placeLeavesForUser(
     }
 
     if (remaining > 0) {
+      let reason: AutoLeaveSkipped['reason'] =
+        scoredDates.length === 0 ? 'no_eligible_day' : 'insufficient_capacity';
+      if (plan.leaveType === 'PH' && noEligibleHoliday && !capacityInsufficient) {
+        reason = 'no_eligible_holiday';
+      }
       skipped.push({
         userId: user.id,
         userName: user.name_zh,
         leaveType: plan.leaveType,
         remainingDays: remaining,
-        reason: scoredDates.length === 0 ? 'no_eligible_day' : 'insufficient_capacity',
+        reason,
       });
     }
   }

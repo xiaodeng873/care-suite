@@ -840,13 +840,12 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     if (!selectedPosition) return;
     setAutoRosterLoading(date);
     try {
-      // 已經自動排班過的日期：再按一下即「一鍵排空」，刪除當日所有 is_auto 班次
+      // 已經自動排班過的日期：再按一下即「一鍵排空」，刪除當日所有班次
       if (autoRosteredDates.has(date)) {
         const { error } = await supabase
           .from('user_shift_assignments')
           .delete()
-          .eq('work_date', date)
-          .eq('is_auto', true);
+          .eq('work_date', date);
         if (error) throw error;
         await onAssignmentChange();
         return;
@@ -1488,6 +1487,35 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                         className="mx-1 w-14 px-1 py-0.5 border border-gray-300 rounded text-center disabled:bg-gray-100 disabled:text-gray-400"
                       />
                       名護士/保健員，有餘的攤派到午班
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={principlesDraft.afternoonMax.enabled}
+                      onChange={(e) =>
+                        setPrinciplesDraft((prev) =>
+                          prev && { ...prev, afternoonMax: { ...prev.afternoonMax, enabled: e.target.checked } },
+                        )
+                      }
+                      className="mt-1"
+                    />
+                    <span className="text-sm text-gray-800">
+                      每個居住區，午班最多
+                      <input
+                        type="number"
+                        min={1}
+                        value={principlesDraft.afternoonMax.n}
+                        disabled={!principlesDraft.afternoonMax.enabled}
+                        onChange={(e) => {
+                          const n = Math.max(1, Math.floor(Number(e.target.value) || 1));
+                          setPrinciplesDraft((prev) =>
+                            prev && { ...prev, afternoonMax: { ...prev.afternoonMax, n } },
+                          );
+                        }}
+                        className="mx-1 w-14 px-1 py-0.5 border border-gray-300 rounded text-center disabled:bg-gray-100 disabled:text-gray-400"
+                      />
+                      名護士/保健員
                     </span>
                   </label>
                   <label className="flex items-start gap-2">

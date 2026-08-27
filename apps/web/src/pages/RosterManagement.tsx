@@ -2127,7 +2127,11 @@ const RosterManagement: React.FC = () => {
                       <div className="font-medium">{s.userName}</div>
                       <div className="text-yellow-700">
                         {s.leaveType} 剩餘 {s.remainingDays} 天
-                        {s.reason === 'no_eligible_day' ? '（無符合日期）' : '（侯召工時不足）'}
+                        {s.reason === 'no_eligible_day'
+                          ? '（無符合日期）'
+                          : s.reason === 'no_eligible_holiday'
+                            ? '（無合資格公眾假期）'
+                            : '（侯召工時不足）'}
                       </div>
                     </div>
                   ))}

@@ -588,10 +588,10 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
 
   const insertions: AutoRosterCandidate[] = [];
   const simulatedAssignments: UserShiftAssignment[] = [...existingAssignments];
-  const assignedUserIds = new Set<string>();
-  for (const a of existingAssignments) {
-    if (a.work_date === date) assignedUserIds.add(a.user_id);
-  }
+
+  /** 員工在當日已排了多少班次（含既有手動班次與本次自動插入的班次）。 */
+  const countUserShiftsOnDate = (userId: string): number =>
+    simulatedAssignments.filter((a) => a.work_date === date && a.user_id === userId).length;
 
   const initialCompliance = buildDailyCompliance(
     date,
@@ -647,8 +647,9 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
     } | null = null;
 
     for (const user of eligibleUsers) {
-      if (assignedUserIds.has(user.id)) continue;
       if (isOnLeave(user.id, date, leaveRecords)) continue;
+      // 自動排班：同一人當日最多一班
+      if (countUserShiftsOnDate(user.id) >= 1) continue;
 
       // 硬性排除：此居住區在員工禁區內（getUserStationList 已排除 forbidden）
       const userStations = getUserStationList(user.id, employmentDetails, stationList, ignorePref);
@@ -672,7 +673,7 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
           start_time: candidateSpec.startTime,
           position,
         };
-        // 自動排班：同一人當日最多一班
+        // 自動排班：同一人當日最多一班，時間不可重疊
         if (candidateOverlapsExisting(candidate, dailyHours, simulatedAssignments, employmentDetails)) continue;
 
         const preferredPenalty = preferredLeave ? 1 : 0;
@@ -690,7 +691,6 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
     if (!best) return false;
     insertions.push(best.candidate);
     simulatedAssignments.push(makeMockAssignment(best.candidate, employmentDetails));
-    assignedUserIds.add(best.candidate.user_id);
     return true;
   };
 
@@ -746,8 +746,9 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
     } | null = null;
 
     for (const user of eligibleUsers) {
-      if (assignedUserIds.has(user.id)) continue;
       if (isOnLeave(user.id, date, leaveRecords)) continue;
+      // 自動排班：同一人當日最多一班（已有班次者不論手動/自動都不再排）
+      if (countUserShiftsOnDate(user.id) >= 1) continue;
 
       const dailyHours = getDailyContractHours(employmentDetails[user.id]) ?? 8;
       if (dailyHours <= 0) continue;
@@ -774,7 +775,7 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
             position,
           };
 
-          // 自動排班：同一人當日最多一班
+          // 自動排班：同一人當日最多一班，時間不可重疊
           if (candidateOverlapsExisting(candidate, dailyHours, simulatedAssignments, employmentDetails)) continue;
 
           const mockAssignment = makeMockAssignment(candidate, employmentDetails);
@@ -835,17 +836,16 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
 
     insertions.push(best.candidate);
     simulatedAssignments.push(makeMockAssignment(best.candidate, employmentDetails));
-    assignedUserIds.add(best.candidate.user_id);
   }
 
   // 第二輪：為當日尚未排班的正職員工補上班次（考慮所有居住區與班次）。
-  // 自動排班：同一人當日最多一班；手動拖曳才允許第二個非重疊班次。
+  // 自動排班：同一人當日最多一班。
   // 「達標就停」不代表多餘人手可隨便塞：先選覆蓋最多「有需求小時」的班次（窗口內優先），
   // 再按居住區偏好、班次 start_time 排序，避免溢出人手被塞進窗口以外的班次。
   for (const user of eligibleUsers) {
-    if (assignedUserIds.has(user.id)) continue;
     if (!isFullTime(user)) continue;
     if (isOnLeave(user.id, date, leaveRecords)) continue;
+    if (countUserShiftsOnDate(user.id) >= 1) continue;
 
     const dailyHours = getDailyContractHours(employmentDetails[user.id]) ?? 8;
     if (dailyHours <= 0) continue;
@@ -924,80 +924,132 @@ export function generateAutoRoster(input: AutoRosterInput): AutoRosterResult {
     if (best) {
       insertions.push(best.candidate);
       simulatedAssignments.push(makeMockAssignment(best.candidate, employmentDetails));
-      assignedUserIds.add(best.candidate.user_id);
     }
   }
 
-  // 第四輪（原則2）：早班超額修正。前面各輪（min_staff 約束輪、紅線缺口輪）不看早班上限，
-  // 可能令某區早班超過 N；此輪把超額的、本次一鍵排班產生的早班人手，
-  // 搬往仍未滿 N 且該員工可合法前往的居住區早班（目標取早班人數最少，再按員工偏好）。
-  // 手動既有班次不搬；無合法目標（如禁區）就保留，上限仍屬軟性。
+  // 第四輪（原則2）：早班超額修正。前面各輪可能令某區早班超過 N；
+  // 先把超額的、本次一鍵排班產生的早班人手搬往午班（同區優先，再按員工偏好），
+  // 若啟用午班上限，再把午班超額搬往其他區的午班。
+  // 手動既有班次不搬；無合法目標就保留，上限仍屬軟性。
   if (principles?.earlyExtra.enabled) {
-    const n = principles.earlyExtra.n;
+    const morningN = principles.earlyExtra.n;
+    const afternoonN = principles?.afternoonMax?.enabled ? principles.afternoonMax.n : Infinity;
+
+    /** 幫單一 insertion 尋找合法目標班別（bucket）與居住區。
+     * @param excludeSource true 時排除來源居住區（用於午班→午班搬遷）。 */
+    const findBucketTarget = (
+      ins: AutoRosterCandidate,
+      sourceStation: string,
+      targetBucket: ShiftName,
+      cap: number,
+      excludeSource: boolean,
+    ): { stationId: string; startTime: string } | null => {
+      const user = eligibleUsers.find((u) => u.id === ins.user_id);
+      if (!user) return null;
+      const dailyHours = getDailyContractHours(employmentDetails[user.id]) ?? 8;
+      const availability = getAvailabilityWindow(user.id, date, leaveRecords, employmentDetails);
+      const userStations = getUserStationList(user.id, employmentDetails, stationList, ignorePref);
+      const targets = userStations
+        .filter(
+          (s): s is string =>
+            s !== null &&
+            (s !== sourceStation || !excludeSource) &&
+            countBucketAssignees(s, targetBucket) < cap &&
+            getActiveShifts(shiftSettings, s, position).some((sh) => sh.shift_name === targetBucket),
+        )
+        .sort(
+          (a, b) =>
+            countBucketAssignees(a, targetBucket) - countBucketAssignees(b, targetBucket) ||
+            userStations.indexOf(a) - userStations.indexOf(b),
+        );
+      for (const stationId of targets) {
+        const shifts = getActiveShifts(shiftSettings, stationId, position).filter(
+          (sh) => sh.shift_name === targetBucket,
+        );
+        for (const shift of shifts) {
+          const spec = getCandidateStartTime(shift, dailyHours, availability);
+          if (spec) {
+            return { stationId, startTime: spec.startTime };
+          }
+        }
+      }
+      return null;
+    };
+
+    /** 把 insertion 及對應 mock assignment 搬到指定班別/居住區。 */
+    const moveInsertion = (
+      ins: AutoRosterCandidate,
+      targetBucket: ShiftName,
+      target: { stationId: string; startTime: string },
+    ) => {
+      const dailyHours = getDailyContractHours(employmentDetails[ins.user_id]) ?? 8;
+      const oldShiftName = ins.shift_name;
+      const oldStationId = ins.station_id;
+      ins.shift_name = targetBucket;
+      ins.station_id = target.stationId;
+      ins.start_time = target.startTime;
+      const mock = simulatedAssignments.find(
+        (a) =>
+          a.id.startsWith('tmp-') &&
+          a.user_id === ins.user_id &&
+          a.work_date === date &&
+          a.shift_name === oldShiftName &&
+          a.station_id === oldStationId,
+      );
+      if (mock) {
+        mock.shift_name = targetBucket;
+        mock.station_id = target.stationId;
+        mock.start_time = target.startTime;
+        mock.end_time = getShiftEndTime(target.startTime, dailyHours);
+      }
+    };
+
+    // 4a：把早班超額搬到午班。
     let anyMoved = true;
     while (anyMoved) {
       anyMoved = false;
       for (const fromStation of stationList) {
         if (fromStation === null) continue;
-        while (countBucketAssignees(fromStation, '早班') > n) {
+        while (countBucketAssignees(fromStation, '早班') > morningN) {
           const movable = insertions.filter(
             (ins) => ins.station_id === fromStation && ins.shift_name === '早班',
           );
           let didMove = false;
           for (const ins of movable) {
-            const user = eligibleUsers.find((u) => u.id === ins.user_id);
-            if (!user) continue;
-            const dailyHours = getDailyContractHours(employmentDetails[user.id]) ?? 8;
-            const availability = getAvailabilityWindow(user.id, date, leaveRecords, employmentDetails);
-            const userStations = getUserStationList(user.id, employmentDetails, stationList, ignorePref);
-            const targets = userStations
-              .filter(
-                (s): s is string =>
-                  s !== null &&
-                  s !== fromStation &&
-                  countBucketAssignees(s, '早班') < n &&
-                  getActiveShifts(shiftSettings, s, position).some((sh) => sh.shift_name === '早班'),
-              )
-              .sort(
-                (a, b) =>
-                  countBucketAssignees(a, '早班') - countBucketAssignees(b, '早班') ||
-                  userStations.indexOf(a) - userStations.indexOf(b),
-              );
-            let target: { stationId: string; startTime: string } | null = null;
-            for (const stationId of targets) {
-              const shifts = getActiveShifts(shiftSettings, stationId, position).filter(
-                (sh) => sh.shift_name === '早班',
-              );
-              for (const shift of shifts) {
-                const spec = getCandidateStartTime(shift, dailyHours, availability);
-                if (spec) {
-                  target = { stationId, startTime: spec.startTime };
-                  break;
-                }
-              }
-              if (target) break;
-            }
+            const target = findBucketTarget(ins, fromStation, '午班', afternoonN, false);
             if (!target) continue;
-
-            ins.station_id = target.stationId;
-            ins.start_time = target.startTime;
-            const mock = simulatedAssignments.find(
-              (a) =>
-                a.id.startsWith('tmp-') &&
-                a.user_id === ins.user_id &&
-                a.work_date === date &&
-                a.shift_name === '早班',
-            );
-            if (mock) {
-              mock.station_id = target.stationId;
-              mock.start_time = target.startTime;
-              mock.end_time = getShiftEndTime(target.startTime, dailyHours);
-            }
+            moveInsertion(ins, '午班', target);
             didMove = true;
             anyMoved = true;
             break;
           }
           if (!didMove) break;
+        }
+      }
+    }
+
+    // 4b：若啟用午班上限，把午班超額搬到其他區午班。
+    if (principles.afternoonMax?.enabled) {
+      let anyAfternoonMoved = true;
+      while (anyAfternoonMoved) {
+        anyAfternoonMoved = false;
+        for (const fromStation of stationList) {
+          if (fromStation === null) continue;
+          while (countBucketAssignees(fromStation, '午班') > afternoonN) {
+            const movable = insertions.filter(
+              (ins) => ins.station_id === fromStation && ins.shift_name === '午班',
+            );
+            let didMove = false;
+            for (const ins of movable) {
+              const target = findBucketTarget(ins, fromStation, '午班', afternoonN, true);
+              if (!target) continue;
+              moveInsertion(ins, '午班', target);
+              didMove = true;
+              anyAfternoonMoved = true;
+              break;
+            }
+            if (!didMove) break;
+          }
         }
       }
     }

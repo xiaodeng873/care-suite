@@ -1005,6 +1005,7 @@ describe('generateAutoRoster', () => {
         specific,
         principles: {
           earlyExtra: { enabled: true, n: 1 },
+          afternoonMax: { enabled: false, n: 1 },
           ignoreStationPreference: false,
         },
       });
@@ -1102,9 +1103,10 @@ describe('generateAutoRoster', () => {
       }
     });
 
-    it('原則2 超額修正輪：早班超過 N 的人手被搬往未滿 N 的居住區', () => {
+    it('原則2 超額修正輪：早班超過 N 的人手先被搬往同區午班，再搬到其他區午班', () => {
       // B 站早班 min_staff=3（約束輪會先塞 3 人，超過上限 2），
-      // 修正輪應把 1 名可移的 B 站早班人手搬到未滿額的 C/D 站早班
+      // 修正輪先把 1 名可移的 B 站早班人手搬到 B 站午班；
+      // 若啟用午班上限且仍超額，再搬往其他區午班。
       const users = ['h1', 'h2', 'h3', 'h4', 'h5'].map(makeHw);
       const detailsMap = {
         h1: makeHwDetails('h1', { stations_forbidden: ['station-c', 'station-d'] } as Partial<UserEmploymentDetails>),
@@ -1126,8 +1128,11 @@ describe('generateAutoRoster', () => {
         stationPriority: ['station-b', 'station-c', 'station-d', null],
         shiftSettings: [
           earlyShift('station-b', 3),
+          lateShift('station-b'),
           earlyShift('station-c'),
+          lateShift('station-c'),
           earlyShift('station-d'),
+          lateShift('station-d'),
         ],
         existingAssignments: [],
         dailyRequirements: hwRequirement,
@@ -1135,17 +1140,20 @@ describe('generateAutoRoster', () => {
         specific,
         principles: {
           earlyExtra: { enabled: true, n: 2 },
+          afternoonMax: { enabled: false, n: 1 },
           ignoreStationPreference: false,
         },
       });
 
-      const earlyAt = (stationId: string) =>
-        result.insertions.filter((i) => i.station_id === stationId && i.shift_name === '早班').length;
-      // 修正後 B 站早班回落至上限 2
-      expect(earlyAt('station-b')).toBe(2);
-      expect(earlyAt('station-c')).toBe(2);
-      expect(earlyAt('station-d')).toBe(1);
-      // 只可到 B 站的 h1 不會被搬走
+      const at = (stationId: string, bucket: string) =>
+        result.insertions.filter((i) => i.station_id === stationId && i.shift_name === bucket).length;
+      // 修正後 B 站早班回落至上限 2，超額者搬到 B 站午班
+      expect(at('station-b', '早班')).toBe(2);
+      expect(at('station-b', '午班')).toBe(1);
+      // C/D 各保留 1 名早班
+      expect(at('station-c', '早班')).toBe(1);
+      expect(at('station-d', '早班')).toBe(1);
+      // 只可到 B 站的 h1 不會被搬到 C/D
       expect(
         result.insertions.find((i) => i.user_id === 'h1')?.station_id,
       ).toBe('station-b');
@@ -1178,6 +1186,7 @@ describe('generateAutoRoster', () => {
         ...baseInput,
         principles: {
           earlyExtra: { enabled: false, n: 1 },
+          afternoonMax: { enabled: false, n: 1 },
           ignoreStationPreference: true,
         },
       });
