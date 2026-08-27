@@ -3134,14 +3134,8 @@ const MedicationWorkflow: React.FC = () => {
                                       {(prescription.no_antacid || drugFlagMap.get(String(prescription.medication_name ?? '').trim())?.no_antacid) && (
                                         <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-700">不可與中和胃酸藥同服</span>
                                       )}
-                                      {prescription.is_long_term === false && (
+                                      {prescription.status === 'active' && prescription.end_date && !isPrescriptionExpired(prescription) && (
                                         <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-700">短期藥物</span>
-                                      )}
-                                      {prescription.status === 'active' && prescription.end_date && prescription.is_long_term !== false && !isPrescriptionExpired(prescription) && (
-                                        <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-300 dark:bg-orange-900 dark:text-orange-200 dark:border-orange-700">
-                                          即將停用處方
-                                          <span className="ml-1 text-[10px] font-normal opacity-80">預計:{prescription.end_date}</span>
-                                        </span>
                                       )}
                                       {prescription.status === 'active' && prescription.end_date && isPrescriptionExpired(prescription) && (
                                         <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-800 border border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-700">已逾期</span>
@@ -3192,7 +3186,7 @@ const MedicationWorkflow: React.FC = () => {
                                     <div>
                                       {(() => {
                                         const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency, is_prn } = prescription;
-                                        const perDay = (medication_time_slots?.length) || daily_frequency || frequency_value || 1;
+                                        const perDay = daily_frequency || (medication_time_slots?.length) || frequency_value || 1;
                                         // PRN 的「隔N日」只是護理安排，處方本身仍是每日，文字須跟處方
                                         if (is_prn && frequency_type === 'every_x_days') {
                                           return `每日${perDay}次`;

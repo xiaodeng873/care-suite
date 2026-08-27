@@ -38,10 +38,17 @@ const getStatusLabel = (status: PrescriptionStatus) => {
   }
 };
 
+const isOralRoute = (route: string | undefined): boolean => {
+  if (!route) return false;
+  const r = route.trim().toLowerCase();
+  return r === '口服' || r.includes('舌下') || r.includes('漱口') || r === 'sl' || r.includes('sublingual');
+};
+
 const getFrequencyDescription = (prescription: any) => {
-  const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, meal_timing } = prescription;
-  
-  // 根據服用時間點數量顯示標準縮寫
+  const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
+
+  // 頻率以處方登記的每日次數為準，沒有才按服用時間點數目推算；
+  // PRN 常見 TDS 只設一個時間點，此時仍應顯示 TDS（每日3次）。
   const getFrequencyAbbreviation = (count: number): string => {
     switch (count) {
       case 1: return 'QD';
@@ -51,28 +58,30 @@ const getFrequencyDescription = (prescription: any) => {
       default: return `${count}次/日`;
     }
   };
-  
+
   const timeSlotsCount = medication_time_slots?.length || 0;
-  
+  const perDay = daily_frequency || timeSlotsCount || frequency_value || 1;
+
   switch (frequency_type) {
     case 'daily':
-      return getFrequencyAbbreviation(timeSlotsCount);
+      return getFrequencyAbbreviation(perDay);
     case 'every_x_days':
-      return `隔${frequency_value}日服`;
+      return `隔${frequency_value}日${perDay}次`;
     case 'every_x_months':
-      return `隔${frequency_value}月服`;
-    case 'weekly_days':
+      return `隔${frequency_value}月${perDay}次`;
+    case 'weekly_days': {
       const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
       const days = specific_weekdays?.map((day: number) => dayNames[day === 7 ? 0 : day]).join('、') || '';
-      return `逢${days}服`;
+      return `逢${days}${perDay}次`;
+    }
     case 'odd_even_days':
-      return is_odd_even_day === 'odd' ? '單日服' : is_odd_even_day === 'even' ? '雙日服' : '單雙日服';
+      return is_odd_even_day === 'odd' ? `單日${perDay}次` : is_odd_even_day === 'even' ? `雙日${perDay}次` : `單雙日${perDay}次`;
     case 'hourly':
-      return `每${frequency_value}小時服用`;
+      return `每${frequency_value}小時1次`;
     case 'each_time':
       return '每次服';
     default:
-      return getFrequencyAbbreviation(timeSlotsCount);
+      return getFrequencyAbbreviation(perDay);
   }
 };
 
@@ -203,7 +212,7 @@ const PrescriptionManagement: React.FC = () => {
   const routeStatistics = useMemo(() => {
     const currentPrescriptions = currentPatient ? 
       currentPatient.prescriptions[activeTab] : [];
-    const isOralRoute = (route: string | undefined) => route === '口服' || route === '舌下' || route === '漱口';
+
     
     // 應用途徑過濾：注射包含所有注射類（皮下、肌肉等），外用為非口服（含舌下、漱口）/注射
     let filteredPrescriptions = currentPrescriptions;
@@ -223,8 +232,8 @@ const PrescriptionManagement: React.FC = () => {
 
     return {
       全部: currentPrescriptions.length,
-      口服: currentPrescriptions.filter(p => p.administration_route === '口服' || p.administration_route === '舌下' || p.administration_route === '漱口').length,
-      外用: currentPrescriptions.filter(p => p.administration_route && p.administration_route !== '口服' && p.administration_route !== '舌下' && p.administration_route !== '漱口' && !p.administration_route.includes('注射')).length,
+      口服: currentPrescriptions.filter(p => isOralRoute(p.administration_route)).length,
+      外用: currentPrescriptions.filter(p => p.administration_route && !isOralRoute(p.administration_route) && !p.administration_route.includes('注射')).length,
       注射: currentPrescriptions.filter(p => p.administration_route && p.administration_route.includes('注射')).length,
       filtered: filteredPrescriptions.length
     };
@@ -336,7 +345,7 @@ const PrescriptionManagement: React.FC = () => {
     const currentPrescriptions = currentPatient ? 
       currentPatient.prescriptions[activeTab] : [];
     
-    const isOralRoute = (route: string | undefined) => route === '口服' || route === '舌下' || route === '漱口';
+
     // 應用途徑過濾：注射包含所有注射類（皮下、肌肉等），外用為非口服（含舌下、漱口）/注射
     let filteredPrescriptions = currentPrescriptions;
     if (selectedRoute !== '全部') {
@@ -372,7 +381,7 @@ const PrescriptionManagement: React.FC = () => {
     const currentPrescriptions = currentPatient ? 
       currentPatient.prescriptions[activeTab] : [];
     
-    const isOralRoute = (route: string | undefined) => route === '口服' || route === '舌下' || route === '漱口';
+
     // 應用途徑過濾：注射包含所有注射類（皮下、肌肉等），外用為非口服（含舌下、漱口）/注射
     let filteredPrescriptions = currentPrescriptions;
     if (selectedRoute !== '全部') {
@@ -961,7 +970,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
 
   // 計算當前視圖中的處方
   let currentPrescriptions = currentPatient.prescriptions[activeTab];
-  const isOralRoute = (route: string | undefined) => route === '口服' || route === '舌下' || route === '漱口';
+
   if (selectedRoute !== '全部') {
     if (selectedRoute === '外用') {
       currentPrescriptions = currentPrescriptions.filter(p =>
@@ -1068,11 +1077,8 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-1">
               <h5 className="font-medium text-gray-900 text-lg truncate flex items-center gap-2">
                 <span className="truncate">{prescription.medication_name}</span>
-                {prescription.is_long_term === false && (
+                {prescription.status === 'active' && prescription.end_date && !isPrescriptionExpired(prescription) && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300 shrink-0">短期藥物</span>
-                )}
-                {prescription.status === 'active' && prescription.end_date && prescription.is_long_term !== false && !isPrescriptionExpired(prescription) && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 border border-orange-300 shrink-0">即將停用處方</span>
                 )}
               </h5>
             </div>

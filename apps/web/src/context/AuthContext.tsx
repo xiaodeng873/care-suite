@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       'Content-Type': 'application/json',
       'apikey': supabaseAnonKey,
     };
-    
+
     // 對於需要認證的操作，使用提供的 token
     // 對於公開操作（如 login, qr-login），使用 anon key 作為 Bearer token
     if (token) {
@@ -134,14 +134,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 公開端點使用 anon key 繞過認證
       headers['Authorization'] = `Bearer ${supabaseAnonKey}`;
     }
-    
-    const response = await fetch(`${AUTH_FUNCTION_URL}/${action}`, {
-      method: 'POST',
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    
-    return response.json();
+
+    try {
+      const response = await fetch(`${AUTH_FUNCTION_URL}/${action}`, {
+        method: 'POST',
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      const text = await response.text();
+      try {
+        return JSON.parse(text);
+      } catch {
+        throw new Error(response.ok ? text : `伺服器回應 ${response.status}: ${text}`);
+      }
+    } catch (error) {
+      console.error(`Auth API error (${action}):`, error);
+      throw error instanceof Error ? error : new Error('無法連線到認證伺服器');
+    }
   };
 
   // 驗證自訂 token

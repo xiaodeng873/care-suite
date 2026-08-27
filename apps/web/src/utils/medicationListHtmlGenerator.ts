@@ -117,19 +117,21 @@ function formatHKID(id?: string): string {
 function getFrequencyDescription(p: MedicationPrescription): string {
   const slots = p.medication_time_slots ?? [];
   const dailyCount = (count: number): string => `每日${count}次`;
+  // 頻率以每日次數為準，沒有才按服用時間點數目推算（PRN 可每日3次但只設一個時間點）
+  const perDay = p.daily_frequency || slots.length || p.frequency_value || 1;
   switch (p.frequency_type) {
-    case 'daily': return dailyCount(slots.length || p.daily_frequency || 1);
-    case 'every_x_days': return `隔${p.frequency_value}日服`;
-    case 'every_x_months': return `隔${p.frequency_value}月服`;
+    case 'daily': return dailyCount(perDay);
+    case 'every_x_days': return `隔${p.frequency_value}日${perDay}次`;
+    case 'every_x_months': return `隔${p.frequency_value}月${perDay}次`;
     case 'weekly_days': {
       const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
       const days = p.specific_weekdays?.map(day => dayNames[day === 7 ? 0 : day]).join('、') || '';
-      return `逢${days}服`;
+      return `逢${days}${perDay}次`;
     }
     case 'odd_even_days':
-      return p.is_odd_even_day === 'odd' ? '單日服' : p.is_odd_even_day === 'even' ? '雙日服' : '單雙日服';
-    case 'hourly': return `每${p.frequency_value}小時服用`;
-    default: return dailyCount(slots.length || 1);
+      return p.is_odd_even_day === 'odd' ? `單日${perDay}次` : p.is_odd_even_day === 'even' ? `雙日${perDay}次` : `單雙日${perDay}次`;
+    case 'hourly': return `每${p.frequency_value}小時1次`;
+    default: return dailyCount(perDay);
   }
 }
 
@@ -180,17 +182,8 @@ function formatNoticeCell(p: MedicationPrescription): string {
 }
 
 function classifyMedicationTerm(p: MedicationPrescription): MedicationTermType {
-  // 優先使用首次登記時標記的長期/短期屬性
-  if (typeof p.is_long_term === 'boolean') {
-    return p.is_long_term ? 'long' : 'short';
-  }
-  // 向後兼容：舊記錄未設定 is_long_term 時，依 migration 邏輯推斷
-  // end_date 為 null 且 estimated_end_date 存在 → 長期；
-  // 否則有 end_date 但無 estimated_end_date → 短期；
-  // 兩者皆無則預設長期。
-  if (!p.end_date && p.estimated_end_date) return 'long';
-  if (p.end_date && !p.estimated_end_date) return 'short';
-  return 'long';
+  // 用戶定義：有結束日期的就是短期，沒有結束日期的就是長期。
+  return p.end_date ? 'short' : 'long';
 }
 
 function isPrescriptionInDateRange(p: MedicationPrescription, startDate?: string, endDate?: string): boolean {

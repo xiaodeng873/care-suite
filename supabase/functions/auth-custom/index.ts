@@ -4,8 +4,8 @@
 // =====================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import bcrypt from "npm:bcryptjs@2.4.3";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +16,10 @@ const corsHeaders = {
 // 從環境變數獲取 Supabase 配置
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+}
 
 // Session 有效期（10 年，近似永不過期）
 const SESSION_EXPIRY_HOURS = 24 * 365 * 10;
@@ -72,18 +76,11 @@ function generateToken(): string {
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-/** 使用 Web Crypto API 產生 bcrypt salt，避免 bcryptjs 在 Deno Edge Runtime 調用 Node crypto 失敗。
- * 產出格式：$2a$10$[22 chars from bcrypt base64 alphabet] */
-function generateBcryptSalt(cost = 10): string {
-  const bytes = new Uint8Array(22);
-  crypto.getRandomValues(bytes);
-  const alphabet = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  const salt = Array.from(bytes, (b) => alphabet[b % 64]).join("");
-  return `$2a$${cost.toString().padStart(2, "0")}$${salt}`;
-}
-
 // 創建 Supabase 客戶端
 function getSupabaseClient() {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  }
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
@@ -505,10 +502,9 @@ async function handleChangePassword(req: ChangePasswordRequest) {
     };
   }
 
-  // 加密新密碼並更新（使用 Web Crypto 產生 salt，再交給 bcryptjs 做 hash）
+  // 加密新密碼並更新
   try {
-    const salt = generateBcryptSalt(10);
-    const newPasswordHash = bcrypt.hashSync(newPassword, salt);
+    const newPasswordHash = bcrypt.hashSync(newPassword);
     const { error: updateError } = await supabase
       .from("user_profiles")
       .update({ password_hash: newPasswordHash })
@@ -598,8 +594,7 @@ async function handleResetPassword(req: ResetPasswordRequest, authHeader: string
 
   // 加密新密碼並更新
   try {
-    const salt = generateBcryptSalt(10);
-    const newPasswordHash = bcrypt.hashSync(newPassword, salt);
+    const newPasswordHash = bcrypt.hashSync(newPassword);
     const { error: updateError } = await supabase
       .from("user_profiles")
       .update({ password_hash: newPasswordHash })
@@ -723,8 +718,7 @@ async function handleCreateUser(req: CreateUserRequest, authHeader: string) {
   // 加密密碼
   let passwordHash: string;
   try {
-    const salt = generateBcryptSalt(10);
-    passwordHash = bcrypt.hashSync(req.password, salt);
+    passwordHash = bcrypt.hashSync(req.password);
   } catch (hashError) {
     console.error("bcrypt hash error:", hashError);
     return {

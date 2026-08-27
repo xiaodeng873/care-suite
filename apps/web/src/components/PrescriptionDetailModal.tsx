@@ -31,7 +31,7 @@ const getStatusLabel = (status: PrescriptionStatus) => {
 };
 
 const getFrequencyDescription = (prescription: MedicationPrescription) => {
-  const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, meal_timing } = prescription;
+  const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
 
   const getFrequencyAbbreviation = (count: number): string => {
     switch (count) {
@@ -44,27 +44,28 @@ const getFrequencyDescription = (prescription: MedicationPrescription) => {
   };
 
   const timeSlotsCount = medication_time_slots?.length || 0;
+  const perDay = daily_frequency || timeSlotsCount || frequency_value || 1;
 
   switch (frequency_type) {
     case 'daily':
-      return getFrequencyAbbreviation(timeSlotsCount);
+      return getFrequencyAbbreviation(perDay);
     case 'every_x_days':
-      return `隔${frequency_value}日服`;
+      return `隔${frequency_value}日${perDay}次`;
     case 'every_x_months':
-      return `隔${frequency_value}月服`;
+      return `隔${frequency_value}月${perDay}次`;
     case 'weekly_days': {
       const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
       const days = specific_weekdays?.map((day: number) => dayNames[day === 7 ? 0 : day]).join('、') || '';
-      return `逢${days}服`;
+      return `逢${days}${perDay}次`;
     }
     case 'odd_even_days':
-      return is_odd_even_day === 'odd' ? '單日服' : is_odd_even_day === 'even' ? '雙日服' : '單雙日服';
+      return is_odd_even_day === 'odd' ? `單日${perDay}次` : is_odd_even_day === 'even' ? `雙日${perDay}次` : `單雙日${perDay}次`;
     case 'hourly':
-      return `每${frequency_value}小時服用`;
+      return `每${frequency_value}小時1次`;
     case 'each_time':
       return '每次服';
     default:
-      return getFrequencyAbbreviation(timeSlotsCount);
+      return getFrequencyAbbreviation(perDay);
   }
 };
 

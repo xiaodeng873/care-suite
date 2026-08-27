@@ -690,10 +690,16 @@ const computeOralQuantityStat = (oralPrescriptions: MedicationPrescription[]): s
 };
 
 const classifyRoute = (prescription: MedicationPrescription): RouteKind => {
-  const route = String(prescription.administration_route ?? '').trim();
+  const route = String(prescription.administration_route ?? '').trim().toLowerCase();
   if (route.includes('皮下注射')) return 'subcutaneous';
   if (route.includes('注射')) return 'intramuscular'; // 肌肉注射及舊版「注射」
-  if (route === '口服' || route === '舌下' || route === '漱口') return 'oral';
+  if (
+    route === '口服' ||
+    route.includes('舌下') ||
+    route.includes('漱口') ||
+    route === 'sl' ||
+    route.includes('sublingual')
+  ) return 'oral';
   if (!route) return 'oral';
   return 'topical';
 };
@@ -848,13 +854,13 @@ const renderPrescriptionBlock = (
   const inspectionRequirement = formatInspectionRequirement(prescription);
   const mealTimingLabel = getMealTimingLabel(prescription);
   const termLabel = (() => {
-    if (prescription.is_long_term === false) return '短期藥物';
-    if (prescription.status === 'active' && prescription.end_date && prescription.is_long_term !== false) {
+    // 用戶定義：有結束日期的就是短期，沒有結束日期的就是長期。
+    if (prescription.status === 'inactive') return '停用處方';
+    if (prescription.status === 'active' && prescription.end_date) {
       return isPrescriptionExpired(prescription)
         ? '已逾期'
-        : `即將停用處方<small class="mr-med-expiry">預計：${escapeHtml(String(prescription.end_date))}</small>`;
+        : '短期藥物';
     }
-    if (prescription.status === 'inactive') return '停用處方';
     return '';
   })();
   const lastTakenLine = (prescription.show_last_taken_in_record && prescription.last_taken_date)
@@ -1283,7 +1289,9 @@ const parseTimeToMinutes = (timeStr: string): number => {
 const getFrequencyDescription = (prescription: MedicationPrescription): string => {
   const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency, is_prn } = prescription;
   const timeSlotsCount = medication_time_slots?.length ?? 0;
-  const perDay = timeSlotsCount || daily_frequency || frequency_value || 1;
+  // 頻率以處方登記的每日次數為準，沒有才按服用時間點數目推算；
+  // PRN 常見 TDS 只設一個時間點，此時仍應顯示 TDS（每日3次）。
+  const perDay = daily_frequency || timeSlotsCount || frequency_value || 1;
 
   // PRN 的「隔N日」只是護理安排（需要時決定哪天服），處方本身仍是每日，文字須跟處方；
   // 隔天安排已由日期格的灰化表達，不寫成「隔N日」
