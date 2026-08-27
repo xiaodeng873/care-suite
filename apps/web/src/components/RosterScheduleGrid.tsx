@@ -939,7 +939,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     try {
       const { user_id: userId, date } = conflict;
 
-      // 把該員工被暫存的班次插入排班表；保留原有預排，並以「待調整」標記提示用戶
+      // 1. 先把該員工被暫存的班次插入排班表（如有的話）
       const toInsert = pendingAutoRosterInserts.filter(
         (ins) => ins.user_id === userId && ins.work_date === date,
       );
@@ -950,8 +950,63 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         );
       }
 
+      // 2. 把衝突的預排標記為 overridden（無論是 leave 還是 availability）
+      const matchingRecord = leaveRecords.find(
+        (r) =>
+          r.user_id === userId &&
+          r.leave_date === date &&
+          r.record_type === conflict.recordType &&
+          !r.is_overridden,
+      );
+      if (matchingRecord?.id) {
+        const { error: updateError } = await supabase
+          .from('user_leave_records')
+          .update({ is_overridden: true })
+          .eq('id', matchingRecord.id);
+        if (updateError) throw updateError;
+        onLeaveRecordsChange?.();
+      }
+
+      // 3. 用 overridden 後的預排重新跑一次自動排班，找尋該員工當日的班次
+      const overriddenLeaveRecords = leaveRecords.map((r) =>
+        r.user_id === userId && r.leave_date === date && r.record_type === conflict.recordType && !r.is_overridden
+          ? { ...r, is_overridden: true }
+          : r,
+      );
+      const rerun = generateAutoRoster({
+        date,
+        position: selectedPosition,
+        users,
+        employmentDetails,
+        stations,
+        stationPriority,
+        shiftSettings,
+        existingAssignments: shiftAssignments,
+        dailyRequirements,
+        staffingResult,
+        specific: specificHours,
+        leaveRecords: overriddenLeaveRecords,
+        principles: getPrinciplesForPosition(principlesConfig, selectedPosition),
+      });
+
+      // 4. 若系統為該員工找到可插入班次，立即插入
+      const existingKeys = new Set(
+        shiftAssignments.map((a) => `${a.user_id}|${a.work_date}|${a.station_id ?? 'null'}|${a.shift_name}|${a.start_time}`),
+      );
+      const userInsertions = rerun.insertions.filter(
+        (ins) => ins.user_id === userId && ins.work_date === date,
+      );
+      const newInsertions = userInsertions.filter(
+        (ins) =>
+          !existingKeys.has(`${ins.user_id}|${ins.work_date}|${ins.station_id ?? 'null'}|${ins.shift_name}|${ins.start_time}`),
+      );
+      if (newInsertions.length > 0) {
+        await insertAutoRosterShifts(newInsertions);
+      }
+
+      // 5. 從衝突列表移除該員工當日記錄
       setConflicts((prev) =>
-        prev.filter((c) => !(c.user_id === userId && c.date === date && c.canOverride)),
+        prev.filter((c) => !(c.user_id === userId && c.date === date)),
       );
     } catch (err) {
       console.error('override 預排失敗:', err);

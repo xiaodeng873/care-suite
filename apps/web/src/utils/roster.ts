@@ -542,7 +542,13 @@ export function summarizeDailyShiftByPosition(
     // 例如：護士替補保健員班次時，算入保健員人手，但工時歸入護士
     const headcountPosition = getAssignmentGridPosition(a, user);
     const hoursPosition = getSpecificSlotPosition(user);
-    const hours = getDailyContractHours(employmentDetails[a.user_id]) ?? 8;
+    // 工時以卡片實際時間為準，用戶可調整結束時間來實現加班；
+    // 沒有結束時間時才退回每日合約工時。
+    const contractHours = getDailyContractHours(employmentDetails[a.user_id]) ?? 8;
+    const startMin = timeToMinutes(a.start_time);
+    let endMin = a.end_time ? timeToMinutes(a.end_time) : startMin + contractHours * 60;
+    if (endMin <= startMin) endMin += 1440;
+    const actualHours = (endMin - startMin) / 60;
 
     const headcountEntry = summary[headcountPosition] || { headcount: 0, hours: 0 };
     headcountEntry.headcount += 1;
@@ -550,7 +556,7 @@ export function summarizeDailyShiftByPosition(
 
     if (hoursPosition) {
       const hoursEntry = summary[hoursPosition] || { headcount: 0, hours: 0 };
-      hoursEntry.hours += hours;
+      hoursEntry.hours += actualHours;
       summary[hoursPosition] = hoursEntry;
     }
   }
