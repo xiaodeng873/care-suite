@@ -1296,6 +1296,20 @@ const RosterManagement: React.FC = () => {
     try {
       await supabase.from('user_leave_records').update({ leave_date: targetDate, updated_at: new Date().toISOString() }).eq('id', record.id);
 
+      // 若原日期已無任何該員工預排，清除原日期班次的「待調整」標記
+      const oldDate = record.leave_date;
+      const stillHasLeaveOnOldDate = leaveRecords.some(
+        (l) => l.user_id === record.user_id && l.leave_date === oldDate && l.id !== record.id,
+      );
+      if (!stillHasLeaveOnOldDate) {
+        await supabase
+          .from('user_shift_assignments')
+          .update({ is_overridden: false })
+          .eq('user_id', record.user_id)
+          .eq('work_date', oldDate)
+          .eq('is_overridden', true);
+      }
+
       if (record.record_type === 'leave' && record.leave_type === 'DO') {
         await supabase
           .from('user_rest_day_details')

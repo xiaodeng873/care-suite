@@ -16,7 +16,14 @@ import RosterConflictModal from './RosterConflictModal';
 import ConfirmOverrideModal from './ConfirmOverrideModal';
 import ConflictTicker from './ConflictTicker';
 import { generateAutoRoster } from '../utils/autoRoster';
-import type { AutoRosterCandidate, AutoRosterConflict } from '../utils/autoRoster';
+import type { AutoRosterConflict } from '../utils/autoRoster';
+import {
+  getActiveShifts,
+  getCandidateStartTime,
+  getUserStationList,
+  candidateOverlapsExisting,
+  getAvailabilityWindow,
+} from '../utils/autoRoster';
 import {
   loadAutoRosterPrinciples,
   saveAutoRosterPrinciples,
@@ -150,6 +157,15 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
   const canEdit = isAdmin();
   const { start, end } = useMemo(() => getWeekRange(weekAnchor), [weekAnchor]);
   const days = useMemo(() => getWeekDays(weekAnchor), [weekAnchor]);
+  const leaveConflictKeySet = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of leaveRecords) {
+      if (r.record_type === 'leave' && r.leave_type) {
+        set.add(`${r.user_id}|${r.leave_date}`);
+      }
+    }
+    return set;
+  }, [leaveRecords]);
   const [editingStation, setEditingStation] = useState<Station | { id: null; name: string } | null>(null);
   const [localSettings, setLocalSettings] = useState<StationShiftSetting[]>([]);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -196,8 +212,6 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
   const [publicHolidays, setPublicHolidays] = useState<PublicHoliday[]>([]);
   const [conflicts, setConflicts] = useState<AutoRosterConflict[]>([]);
   const [conflictModalOpen, setConflictModalOpen] = useState(false);
-  // 有未滿足預排要求時暫存的自動排班結果，按「仍要職員上班」才落庫
-  const [pendingAutoRosterInserts, setPendingAutoRosterInserts] = useState<AutoRosterCandidate[]>([]);
   const [pendingRosterInsert, setPendingRosterInsert] = useState<{
     payload: Record<string, unknown>;
     conflict: UserLeaveRecord;
@@ -228,8 +242,8 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
   const [dragOverItem, setDragOverItem] = useState<{ id: string; insertBefore: boolean } | null>(null);
 
   const overriddenAssignments = useMemo(
-    () => shiftAssignments.filter((a) => a.is_overridden),
-    [shiftAssignments],
+    () => shiftAssignments.filter((a) => leaveConflictKeySet.has(`${a.user_id}|${a.work_date}`)),
+    [shiftAssignments, leaveConflictKeySet],
   );
 
   const tickerItems = useMemo(() => {
@@ -418,12 +432,6 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         return;
       }
     } else {
-      return;
-    }
-
-    // 離職日期當日起不可插入排班
-    if (sourceUser?.resignation_date && sourceUser.resignation_date <= date) {
-      alert(`${sourceUser.name_zh} 的離職日期為 ${sourceUser.resignation_date}，該日起不可插入排班`);
       return;
     }
 
@@ -692,30 +700,19 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
 
   const confirmInsertAssignment = async () => {
     if (!pendingRosterInsert) return;
-    const { payload } = pendingRosterInsert;
-    // 離職日期當日起不可插入排班
-    const resignUser = users.find((u) => u.id === payload.user_id);
-    if (
-      resignUser?.resignation_date &&
-      typeof payload.work_date === 'string' &&
-      resignUser.resignation_date <= payload.work_date
-    ) {
-      setPendingRosterInsert(null);
-      alert(`${resignUser.name_zh} 的離職日期為 ${resignUser.resignation_date}，該日起不可插入排班`);
-      return;
-    }
+    const { payload, conflict } = pendingRosterInsert;
     setPendingRosterInsert(null);
     try {
       const targetKey = `${payload.station_id ?? 'unassigned'}|${payload.shift_name}|${payload.work_date}`;
       const existingCount = assignmentMap.byKey.get(targetKey)?.length ?? 0;
-      const payloadWithSort = { ...payload, sort_order: existingCount };
+      const payloadWithSort = { ...payload, sort_order: existingCount, is_auto: true, is_overridden: true };
       const { error } = await withEndTimeFallback(
         async () => await supabase.from('user_shift_assignments').insert(payloadWithSort),
         async () => await supabase.from('user_shift_assignments').insert(withoutEndTime(payloadWithSort)),
       );
       if (error) throw error;
 
-      // 保留衝突預排，班次與預排同時存在並標為「待調整」，由用戶拖曳預排解決
+      // 保留衝突的預排記錄；班次標記為待調整，讓用戶在預排表拖曳解決衝突
       onAssignmentChange();
     } catch (err) {
       console.error('新增班次失敗:', err);
@@ -839,47 +836,6 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
     }
   };
 
-  const insertAutoRosterShifts = async (insertions: AutoRosterCandidate[]) => {
-    const inserts = insertions.map((ins) => ({
-      user_id: ins.user_id,
-      work_date: ins.work_date,
-      station_id: ins.station_id,
-      position: ins.position,
-      shift_name: ins.shift_name,
-      start_time: ins.start_time,
-      end_time: getShiftEndTime(
-        ins.start_time,
-        getDailyContractHours(employmentDetails[ins.user_id]),
-      ),
-      created_by: userProfile?.id ?? null,
-      is_auto: true,
-    }));
-
-    let insertResult = await withEndTimeFallback(
-      async () => await supabase.from('user_shift_assignments').insert(inserts),
-      async () =>
-        await supabase.from('user_shift_assignments').insert(
-          inserts.map((ins) => withoutEndTime(ins)),
-        ),
-    );
-    // 舊資料庫未加 is_auto 欄位時降級重試（降級插入的班次不支援一鍵排空）
-    if (insertResult.error && isMissingColumnError(insertResult.error, 'is_auto')) {
-      insertResult = await withEndTimeFallback(
-        async () =>
-          await supabase.from('user_shift_assignments').insert(
-            inserts.map((ins) => withoutIsAuto(ins)),
-          ),
-        async () =>
-          await supabase.from('user_shift_assignments').insert(
-            inserts.map((ins) => withoutEndTime(withoutIsAuto(ins))),
-          ),
-      );
-    }
-    if (insertResult.error) throw insertResult.error;
-
-    await onAssignmentChange();
-  };
-
   const handleAutoRoster = async (date: string) => {
     if (!selectedPosition) return;
     setAutoRosterLoading(date);
@@ -912,18 +868,48 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         principles: getPrinciplesForPosition(principlesConfig, selectedPosition),
       });
 
-      // 衝突：只暫存 canOverride 的項目；其餘班次照樣即時插入
-      const overrideConflicts = result.conflicts.filter((c) => c.canOverride);
-      const conflictKeys = new Set(overrideConflicts.map((c) => `${c.user_id}|${c.date}`));
-      const heldInsertions = result.insertions.filter((ins) => conflictKeys.has(`${ins.user_id}|${ins.work_date}`));
-      const okInsertions = result.insertions.filter((ins) => !conflictKeys.has(`${ins.user_id}|${ins.work_date}`));
+      if (result.insertions.length > 0) {
+        const inserts = result.insertions.map((ins) => ({
+          user_id: ins.user_id,
+          work_date: ins.work_date,
+          station_id: ins.station_id,
+          position: ins.position,
+          shift_name: ins.shift_name,
+          start_time: ins.start_time,
+          end_time: getShiftEndTime(
+            ins.start_time,
+            getDailyContractHours(employmentDetails[ins.user_id]),
+          ),
+          created_by: userProfile?.id ?? null,
+          is_auto: true,
+        }));
 
-      if (okInsertions.length > 0) {
-        await insertAutoRosterShifts(okInsertions);
+        let insertResult = await withEndTimeFallback(
+          async () => await supabase.from('user_shift_assignments').insert(inserts),
+          async () =>
+            await supabase.from('user_shift_assignments').insert(
+              inserts.map((ins) => withoutEndTime(ins)),
+            ),
+        );
+        // 舊資料庫未加 is_auto 欄位時降級重試（降級插入的班次不支援一鍵排空）
+        if (insertResult.error && isMissingColumnError(insertResult.error, 'is_auto')) {
+          insertResult = await withEndTimeFallback(
+            async () =>
+              await supabase.from('user_shift_assignments').insert(
+                inserts.map((ins) => withoutIsAuto(ins)),
+              ),
+            async () =>
+              await supabase.from('user_shift_assignments').insert(
+                inserts.map((ins) => withoutEndTime(withoutIsAuto(ins))),
+              ),
+          );
+        }
+        if (insertResult.error) throw insertResult.error;
+
+        await onAssignmentChange();
       }
 
       if (result.conflicts.length > 0) {
-        setPendingAutoRosterInserts(heldInsertions);
         setConflicts(result.conflicts);
         setConflictModalOpen(true);
       }
@@ -937,77 +923,91 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
 
   const handleOverrideConflict = async (conflict: AutoRosterConflict) => {
     try {
-      const { user_id: userId, date } = conflict;
-
-      // 1. 先把該員工被暫存的班次插入排班表（如有的話）
-      const toInsert = pendingAutoRosterInserts.filter(
-        (ins) => ins.user_id === userId && ins.work_date === date,
-      );
-      if (toInsert.length > 0) {
-        await insertAutoRosterShifts(toInsert);
-        setPendingAutoRosterInserts((prev) =>
-          prev.filter((ins) => !(ins.user_id === userId && ins.work_date === date)),
+      // 仍要職員上班：插入系統原本建議的班次，若無則尋找第一個合法班次；不刪除預排事件
+      let proposed = conflict.proposedShift;
+      if (!proposed) {
+        const user = users.find((u) => u.id === conflict.user_id);
+        if (!user || !userCanFillPosition(user, selectedPosition)) {
+          alert('該員工不適合此職位，無法插入班次。');
+          return;
+        }
+        const dailyHours = getDailyContractHours(employmentDetails[conflict.user_id]) ?? 8;
+        if (dailyHours <= 0) {
+          alert('該員工每日工時不正確，無法插入班次。');
+          return;
+        }
+        const stationList =
+          stationPriority?.length > 0
+            ? [...stationPriority]
+            : [...stations.map((s) => s.id), null];
+        const ignorePref =
+          getPrinciplesForPosition(principlesConfig, selectedPosition)?.ignoreStationPreference ?? false;
+        const availability = getAvailabilityWindow(
+          conflict.user_id,
+          conflict.date,
+          leaveRecords,
+          employmentDetails,
         );
+        const userStations = getUserStationList(
+          conflict.user_id,
+          employmentDetails,
+          stationList,
+          ignorePref,
+        );
+        for (const stationId of userStations) {
+          const shifts = getActiveShifts(shiftSettings, stationId, selectedPosition);
+          for (const shift of shifts) {
+            const spec = getCandidateStartTime(shift, dailyHours, availability);
+            if (!spec) continue;
+            const candidate = {
+              user_id: conflict.user_id,
+              work_date: conflict.date,
+              station_id: stationId,
+              shift_name: shift.shift_name,
+              start_time: spec.startTime,
+              position: selectedPosition,
+            };
+            if (
+              candidateOverlapsExisting(candidate, dailyHours, shiftAssignments, employmentDetails)
+            ) {
+              continue;
+            }
+            proposed = candidate;
+            break;
+          }
+          if (proposed) break;
+        }
+        if (!proposed) {
+          alert('找不到與該員工可用時間及現有班次不衝突的合法班次。');
+          return;
+        }
       }
 
-      // 2. 把衝突的預排標記為 overridden（無論是 leave 還是 availability）
-      const matchingRecord = leaveRecords.find(
-        (r) =>
-          r.user_id === userId &&
-          r.leave_date === date &&
-          r.record_type === conflict.recordType &&
-          !r.is_overridden,
+      const payload = {
+        user_id: proposed.user_id,
+        work_date: proposed.work_date,
+        station_id: proposed.station_id,
+        position: proposed.position,
+        shift_name: proposed.shift_name,
+        start_time: proposed.start_time,
+        end_time: getShiftEndTime(
+          proposed.start_time,
+          getDailyContractHours(employmentDetails[proposed.user_id]),
+        ),
+        created_by: userProfile?.id ?? null,
+        is_auto: true,
+        is_overridden: true,
+      };
+      const { error } = await withEndTimeFallback(
+        async () => await supabase.from('user_shift_assignments').insert(payload),
+        async () => await supabase.from('user_shift_assignments').insert(withoutEndTime(payload)),
       );
-      if (matchingRecord?.id) {
-        const { error: updateError } = await supabase
-          .from('user_leave_records')
-          .update({ is_overridden: true })
-          .eq('id', matchingRecord.id);
-        if (updateError) throw updateError;
-        onLeaveRecordsChange?.();
-      }
+      if (error) throw error;
 
-      // 3. 用 overridden 後的預排重新跑一次自動排班，找尋該員工當日的班次
-      const overriddenLeaveRecords = leaveRecords.map((r) =>
-        r.user_id === userId && r.leave_date === date && r.record_type === conflict.recordType && !r.is_overridden
-          ? { ...r, is_overridden: true }
-          : r,
-      );
-      const rerun = generateAutoRoster({
-        date,
-        position: selectedPosition,
-        users,
-        employmentDetails,
-        stations,
-        stationPriority,
-        shiftSettings,
-        existingAssignments: shiftAssignments,
-        dailyRequirements,
-        staffingResult,
-        specific: specificHours,
-        leaveRecords: overriddenLeaveRecords,
-        principles: getPrinciplesForPosition(principlesConfig, selectedPosition),
-      });
-
-      // 4. 若系統為該員工找到可插入班次，立即插入
-      const existingKeys = new Set(
-        shiftAssignments.map((a) => `${a.user_id}|${a.work_date}|${a.station_id ?? 'null'}|${a.shift_name}|${a.start_time}`),
-      );
-      const userInsertions = rerun.insertions.filter(
-        (ins) => ins.user_id === userId && ins.work_date === date,
-      );
-      const newInsertions = userInsertions.filter(
-        (ins) =>
-          !existingKeys.has(`${ins.user_id}|${ins.work_date}|${ins.station_id ?? 'null'}|${ins.shift_name}|${ins.start_time}`),
-      );
-      if (newInsertions.length > 0) {
-        await insertAutoRosterShifts(newInsertions);
-      }
-
-      // 5. 從衝突列表移除該員工當日記錄
       setConflicts((prev) =>
-        prev.filter((c) => !(c.user_id === userId && c.date === date)),
+        prev.filter((c) => !(c.user_id === conflict.user_id && c.date === conflict.date)),
       );
+      onAssignmentChange();
     } catch (err) {
       console.error('override 預排失敗:', err);
       alert(getSupabaseErrorMessage(err, 'override 預排失敗'));
@@ -1223,24 +1223,14 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                           {visibleList.map((assignment) => {
                             const user = users.find((u) => u.id === assignment.user_id);
                             if (!user) return null;
-                            const hasLeaveConflict = leaveRecords.some(
-                              (l) =>
-                                l.user_id === assignment.user_id &&
-                                l.leave_date === assignment.work_date &&
-                                !l.is_overridden,
+                            const hasLeaveConflict = leaveConflictKeySet.has(
+                              `${assignment.user_id}|${assignment.work_date}`,
                             );
                             return (
                               <div
                                 key={assignment.id}
-                                className={`rounded ${
-                                  assignment.is_overridden || hasLeaveConflict
-                                    ? 'border border-dashed border-red-400 bg-red-50/50 p-0.5'
-                                    : ''
-                                }`}
+                                className={`rounded ${hasLeaveConflict ? 'border border-dashed border-red-400 bg-red-50/50 p-0.5' : ''}`}
                               >
-                                {(assignment.is_overridden || hasLeaveConflict) && (
-                                  <div className="text-[10px] text-red-600 font-medium px-1">待調整</div>
-                                )}
                                 <RosterShiftCard
                                   user={user}
                                   assignment={assignment}
@@ -1497,7 +1487,7 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                         }}
                         className="mx-1 w-14 px-1 py-0.5 border border-gray-300 rounded text-center disabled:bg-gray-100 disabled:text-gray-400"
                       />
-                      名護士/保健員，有餘的攤派到各區居住區至各區平均，再有餘攤派至午班各站
+                      名護士/保健員，有餘的攤派到午班
                     </span>
                   </label>
                   <label className="flex items-start gap-2">
@@ -1548,7 +1538,6 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
         users={users}
         onClose={() => {
           setConflictModalOpen(false);
-          setPendingAutoRosterInserts([]);
         }}
         onOverride={canEdit ? handleOverrideConflict : undefined}
       />
@@ -1579,12 +1568,12 @@ export const RosterScheduleGrid: React.FC<RosterScheduleGridProps> = ({
                 {pendingRosterInsert.conflict.record_type === 'leave'
                   ? pendingRosterInsert.conflict.leave_type
                     ? LEAVE_TYPE_LABELS[pendingRosterInsert.conflict.leave_type]
-                    : '放假'
+                    : '休假'
                   : `特定上班 ${pendingRosterInsert.conflict.availability_start_time}-${pendingRosterInsert.conflict.availability_end_time}`}
               </li>
             </ul>
             <p className="text-gray-500">
-              點擊「仍要排班」會強制寫入班次；衝突的預排事件會保留並標為「待調整」，可於預排表拖曳至其他日期。
+              點擊「仍要排班」會強制寫入班次，但不會刪除預排事件。系統會標記該班次為待調整，請於預排表拖曳預排至其他日期以解決衝突。
             </p>
           </div>
         </ConfirmOverrideModal>

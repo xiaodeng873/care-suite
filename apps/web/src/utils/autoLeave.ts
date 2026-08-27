@@ -444,12 +444,11 @@ export function generateAutoLeavePlan(input: AutoLeavePlanInput): AutoLeavePlan 
     placeLeavesForUser(user, plans, candidateDates, state, input, placements, skipped);
   }
 
-  // 待調整：當月內與班次衝突且未覆蓋的預排
+  // 待調整：當月內與班次衝突的預排（仍要職員上班不代表衝突已解決，衝突根源仍存在）
   const pendingAdjustments: AutoLeavePendingAdjustment[] = [];
   for (const record of leaveRecords) {
     if (record.record_type !== 'leave' || !record.leave_type) continue;
     if (!isDateInTargetMonth(record.leave_date, year, month)) continue;
-    if (record.is_overridden) continue;
     const hasShift = shiftAssignments.some(
       (a) => a.user_id === record.user_id && a.work_date === record.leave_date,
     );

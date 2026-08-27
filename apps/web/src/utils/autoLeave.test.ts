@@ -390,7 +390,7 @@ describe('generateAutoLeavePlan', () => {
     expect(plan.pendingAdjustments[0].userName).toBe('測試員工');
   });
 
-  it('已覆蓋的衝突預排不會列入待調整', () => {
+  it('已覆蓋的衝突預排仍會列入待調整', () => {
     const input = makeInput({
       year: 2026,
       month: 8,
@@ -412,6 +412,7 @@ describe('generateAutoLeavePlan', () => {
       ],
     });
     const plan = generateAutoLeavePlan(input);
-    expect(plan.pendingAdjustments).toHaveLength(0);
+    expect(plan.pendingAdjustments).toHaveLength(1);
+    expect(plan.pendingAdjustments[0].date).toBe('2026-08-10');
   });
 });

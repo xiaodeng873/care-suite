@@ -1184,4 +1184,40 @@ describe('generateAutoRoster', () => {
       expect(ignoring.insertions[0].station_id).toBe('station-1');
     });
   });
+
+  it('does not auto-assign a second shift to the same user on the same day', () => {
+    const morningShift: StationShiftSetting = {
+      ...shiftSetting,
+      id: 's-morning',
+      station_id: 'station-a',
+      shift_name: '早班',
+      start_time: '07:00',
+    } as unknown as StationShiftSetting;
+    const eveningShift: StationShiftSetting = {
+      ...shiftSetting,
+      id: 's-evening',
+      station_id: 'station-a',
+      shift_name: '晚班',
+      start_time: '16:00',
+      sort_order: 2,
+    } as unknown as StationShiftSetting;
+    // 護理員需要 16 小時；自動排班同一人一天最多一班，因此不會把兩班都排給同一人
+    const result = generateAutoRoster({
+      date: '2026-08-02',
+      position: '護理員',
+      users: [user],
+      employmentDetails: { u1: details },
+      stations: [{ id: 'station-a', name: 'A區' }],
+      shiftSettings: [morningShift, eveningShift],
+      existingAssignments: [],
+      dailyRequirements: [
+        { position: '護理員', hours: 16, peakHeadcount: 1 },
+      ],
+      staffingResult,
+      specific,
+    });
+
+    expect(result.insertions.length).toBe(1);
+    expect(result.insertions[0].user_id).toBe('u1');
+  });
 });

@@ -557,8 +557,8 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                           )
                         : null;
                     const canEdit = isAdmin || user.id === currentUserId;
-                    // 待調整：預排存在 + 未覆蓋 + 同天有班次（用戶可拖曳該預排到無班次/無預排的日期）
-                    const hasShiftConflict = !!record && !record.is_overridden && assignments.length > 0;
+                    // 待調整：預排存在 + 同天有班次，即表示兩者衝突；「仍要排班」並未解決根源，紅框持續提醒
+                    const hasShiftConflict = !!record && assignments.length > 0;
                     const autoLabel = record?.is_auto ? '【系統安排】' : record ? '【用戶輸入】' : '';
                     const recordTitle = record
                       ? record.record_type === 'leave'
