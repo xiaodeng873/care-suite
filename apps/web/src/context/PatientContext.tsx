@@ -568,6 +568,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
   // 防抖計時器
   const refreshDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastRefreshTimeRef = useRef<number>(0);
+  const patientPhotoLoadRef = useRef<Promise<Map<number, string | null>> | null>(null);
   const DEBOUNCE_DELAY = 500; // 500ms 防抖延遲
   // 資料狀態
   const [allPatientsData, setAllPatientsData] = useState<db.Patient[]>([]);
@@ -665,13 +666,21 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       setAllPatientsData(patientsData);
       setInfectionControlRecords(infectionData);
       setLoading(false);
-      db.getPatientPhotos()
+      // 避免短時間內多次觸發 refreshData 時產生多個並行的相片載入請求，
+      // 造成資料庫壓力與 statement_timeout。
+      if (!patientPhotoLoadRef.current) {
+        patientPhotoLoadRef.current = db.getPatientPhotos();
+      }
+      patientPhotoLoadRef.current
         .then(photoMap => {
           setAllPatientsData(prev => prev.map(p =>
             photoMap.has(p.院友id) ? { ...p, 院友相片: photoMap.get(p.院友id) ?? undefined } : p
           ));
         })
-        .catch(err => console.warn('背景載入院友相片失敗:', err));
+        .catch(err => {
+          console.warn('背景載入院友相片失敗:', err);
+          patientPhotoLoadRef.current = null;
+        });
     } catch (error) {
       console.error('刷新數據失敗:', error);
       setLoading(false);
@@ -710,6 +719,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     
     if (!authenticated) {
       setAllPatientsData([]);
+      patientPhotoLoadRef.current = null;
       // stations 和 beds 現在由 SeniorCareontext 管理，無需在此清空
       // schedules 現在由 ScheduleContext 管理，無需在此清空
       // serviceReasons 現在由 ServiceReasonContext 管理，無需在此清空

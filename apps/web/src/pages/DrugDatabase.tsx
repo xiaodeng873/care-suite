@@ -19,14 +19,15 @@ import { usePatientData } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import DrugModal from '../components/DrugModal';
 import { fuzzyMatch, drugSearchScore } from '../utils/searchUtils';
+import { getMedicationSettings } from '../utils/medicationSettings';
 
-type SortField = 'drug_name' | 'drug_code' | 'drug_type' | 'administration_route' | 'created_at';
+type SortField = 'drug_name' | 'drug_code' | 'dosage_form' | 'administration_route' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 
 interface AdvancedFilters {
   drug_name: string;
   drug_code: string;
-  drug_type: string;
+  dosage_form: string;
   administration_route: string;
   unit: string;
   notes: string;
@@ -34,6 +35,7 @@ interface AdvancedFilters {
 
 const DrugDatabase: React.FC = () => {
   const { drugDatabase, deleteDrug, loading } = usePatientData();
+  const medSettings = useMemo(() => getMedicationSettings(), []);
   const [showModal, setShowModal] = useState(false);
   const [selectedDrug, setSelectedDrug] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,7 +49,7 @@ const DrugDatabase: React.FC = () => {
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
     drug_name: '',
     drug_code: '',
-    drug_type: '',
+    dosage_form: '',
     administration_route: '',
     unit: '',
     notes: ''
@@ -73,7 +75,7 @@ const DrugDatabase: React.FC = () => {
     if (advancedFilters.drug_code && !fuzzyMatch(drug.drug_code, advancedFilters.drug_code)) {
       return false;
     }
-    if (advancedFilters.drug_type && drug.drug_type !== advancedFilters.drug_type) {
+    if (advancedFilters.dosage_form && drug.dosage_form !== advancedFilters.dosage_form) {
       return false;
     }
     if (advancedFilters.administration_route && drug.administration_route !== advancedFilters.administration_route) {
@@ -111,7 +113,7 @@ const DrugDatabase: React.FC = () => {
     setAdvancedFilters({
       drug_name: '',
       drug_code: '',
-      drug_type: '',
+      dosage_form: '',
       administration_route: '',
       unit: '',
       notes: ''
@@ -136,9 +138,9 @@ const DrugDatabase: React.FC = () => {
         valueA = a.drug_code || '';
         valueB = b.drug_code || '';
         break;
-      case 'drug_type':
-        valueA = a.drug_type || '';
-        valueB = b.drug_type || '';
+      case 'dosage_form':
+        valueA = a.dosage_form || '';
+        valueB = b.dosage_form || '';
         break;
       case 'administration_route':
         valueA = a.administration_route || '';
@@ -371,17 +373,16 @@ const DrugDatabase: React.FC = () => {
                   </div>
                   
                   <div>
-                    <label className="form-label">藥物類型</label>
+                    <label className="form-label">藥物劑型</label>
                     <select
-                      value={advancedFilters.drug_type}
-                      onChange={(e) => updateAdvancedFilter('drug_type', e.target.value)}
+                      value={advancedFilters.dosage_form}
+                      onChange={(e) => updateAdvancedFilter('dosage_form', e.target.value)}
                       className="form-input"
                     >
-                      <option value="">所有類型</option>
-                      <option value="西藥">西藥</option>
-                      <option value="中藥">中藥</option>
-                      <option value="保健品">保健品</option>
-                      <option value="外用藥">外用藥</option>
+                      <option value="">所有劑型</option>
+                      {medSettings.劑型.map((form) => (
+                        <option key={form} value={form}>{form}</option>
+                      ))}
                     </select>
                   </div>
                   
@@ -478,7 +479,7 @@ const DrugDatabase: React.FC = () => {
                   </th>
                   <SortableHeader field="drug_name">藥物名稱</SortableHeader>
                   <SortableHeader field="drug_code">藥物編號</SortableHeader>
-                  <SortableHeader field="drug_type">藥物類型</SortableHeader>
+                  <SortableHeader field="dosage_form">藥物劑型</SortableHeader>
                   <SortableHeader field="administration_route">使用途徑</SortableHeader>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     藥物單位
@@ -526,7 +527,7 @@ const DrugDatabase: React.FC = () => {
                       {drug.drug_code || '-'}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {drug.drug_type || '-'}
+                      {drug.dosage_form || '-'}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                       {drug.administration_route || '-'}

@@ -73,10 +73,7 @@ const DISPENSE_CODE_ITEMS: string[] = [
   'R＝拒絕一種或以上藥物',
   'O＝其他（請註明）',
 ];
-const DISPENSE_NOTE_ITEMS: string[] = [
-  'R 或 O 請通知護士／保健員作出跟進並作適當記錄',
-  '處方日期＝該藥物第一次被處方的使用日期',
-];
+const DISPENSE_NOTE_ITEMS: string[] = [];
 
 // 分頁及版面固定規格
 const MAX_PRESCRIPTIONS_PER_PAGE = 5; // 每頁最多處方數
@@ -430,7 +427,7 @@ const formatInspectionRequirement = (prescription: MedicationPrescription): stri
     const action = INSPECTION_ACTION_LABELS[rule.action_if_met ?? ''] ?? '';
     return action ? `${condition} ${action}` : condition;
   });
-  return `服藥前檢測：${parts.join('、')}`;
+  return `服藥前檢測：${parts.join('或')}`;
 };
 
 const parseInspectionResult = (record: WorkflowRecord | null): any => {
@@ -667,6 +664,7 @@ const formatSlotShortLabel = (slot: string): string => {
   if (!match) return slot;
   const hour = parseInt(match[1], 10);
   const minute = match[2];
+  if (hour === 12 && minute === '00') return '12N';
   const suffix = hour < 12 ? 'A' : 'P';
   let hour12 = hour % 12;
   if (hour12 === 0) hour12 = 12;
@@ -751,23 +749,27 @@ const renderHeaderRegion = (patient: PatientWithPrescriptions, routeKind: PageRo
   const facilityNameZh = activeFacility.facilityNameZh || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
 
   if (template === 'template1') {
-    // 模板1：院友相片放在彙總區，頂部標題區不顯示相片
+    // 模板1：保留原有 col 寬度，只把「院友資料」與「過敏/不良反應」的欄寬交換
+    // colgroup 順序調為 react（剩餘）/ title（94mm）/ info（42mm）/ info（42mm）
+    // 左=過敏/不良反應（兩個獨立 td，與右區同樣有橫向分格），中=院舍/年月，右=院友資料
+    const reactInfoCell = (label: string, value: string) =>
+      `<span class="mr-info-label">${escapeHtml(label)}：</span><span>${escapeHtml(value)}</span>`;
     return '<header class="mr-header">'
-      + '<table class="mr-header-table"><colgroup>'
+      + '<table class="mr-header-table mr-header-template1"><colgroup>'
+        + '<col class="mr-hc-react">'
         + '<col class="mr-hc-title">'
-        + '<col class="mr-hc-info"><col class="mr-hc-info"><col class="mr-hc-react">'
+        + '<col class="mr-hc-info"><col class="mr-hc-info">'
       + '</colgroup><tbody>'
         + '<tr>'
-          + `<td class="mr-h-title"><div class="mr-org">${escapeHtml(facilityNameZh)}</div><div class="mr-doc">個人備藥及給藥記錄</div></td>`
+          + `<td class="mr-h-react">${reactInfoCell('藥物過敏反應', allergyText)}</td>`
+          + `<td class="mr-h-title" rowspan="2"><div class="mr-org">${escapeHtml(facilityNameZh)}</div><div class="mr-doc">個人備藥及給藥記錄</div><div class="mr-subtitle">${escapeHtml(formatYearMonth(selectedMonth))} ${escapeHtml(ROUTE_SUBTITLES[routeKind])}</div></td>`
           + infoCell('院友姓名', name)
           + infoCell('院號', getPrintBedNumber(patient))
-          + reactCell('藥物過敏反應', allergyText)
         + '</tr>'
         + '<tr>'
-          + `<td class="mr-h-subtitle"><div class="mr-subtitle">${escapeHtml(formatYearMonth(selectedMonth))} ${escapeHtml(ROUTE_SUBTITLES[routeKind])}</div></td>`
+          + `<td class="mr-h-react">${reactInfoCell('藥物不良反應', adverseDrugReactionText)}</td>`
           + infoCell('性別 / 年齡', formatGenderAge(patient))
           + infoCell('出生日期', formatDate(patient.出生日期))
-          + reactCell('藥物不良反應', adverseDrugReactionText)
         + '</tr>'
       + '</tbody></table>'
     + '</header>';
@@ -912,19 +914,17 @@ const renderPrescriptionBlock = (
         ? `<div class="mr-med-source">來源：${escapeHtml(sourceParts.join(' / '))}</div>`
         : '';
     })();
-  // 「每次」頻率：份量直接併入同一行（如「每次1粒」），不另開一行
+  // 「每次」頻率：份量與特殊用法合併在同一行（如「每次1粒 / 按照醫生指示用」）
   const isEachTime = prescription.frequency_type === 'each_time';
   const frequencyLine = isEachTime
-    ? (prescription.special_dosage_instruction
-        ? `每次${prescription.special_dosage_instruction}`
-        : (getDosageText(prescription) || '每次'))
+    ? (getDosageText(prescription) || '每次')
     : getFrequencyDescription(prescription);
   const routeInfo = [
     prescription.administration_route ?? '',
-    frequencyLine,
-    mealTimingLabel,
-    isEachTime ? '' : getDosageText(prescription),
     prescription.is_prn ? '需要時' : '',
+    mealTimingLabel,
+    frequencyLine,
+    isEachTime ? '' : getDosageText(prescription),
   ]
     .filter((line) => line != null && String(line).trim() !== '')
     .map((line) => `<div>${escapeHtml(String(line))}</div>`)
@@ -1363,14 +1363,17 @@ const getFrequencyDescription = (prescription: MedicationPrescription): string =
 };
 
 const getDosageText = (prescription: MedicationPrescription): string => {
-  if (prescription.special_dosage_instruction) return prescription.special_dosage_instruction;
+  const parts: string[] = [];
   if (prescription.dosage_amount) {
     const amt = String(prescription.dosage_amount);
     const unit = prescription.dosage_unit ?? '';
     const dosage = /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + unit : amt;
-    return `每次${dosage}`;
+    parts.push(`每次${dosage}`);
   }
-  return '';
+  if (prescription.special_dosage_instruction) {
+    parts.push(prescription.special_dosage_instruction);
+  }
+  return parts.join(' / ');
 };
 
 // 純「日期範圍」判斷：只看 start_date/end_date + start_time/end_time，不看服藥頻率。
@@ -1503,6 +1506,10 @@ body {
 .mr-h-info { font-size: 9pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mr-h-react { white-space: normal; word-break: break-word; }
 .mr-info-label { font-weight: bold; }
+
+/* template1 表頭：左過敏/不良反應，中院舍/年月，右院友資料；保留原有 col 寬度 */
+.mr-header-template1 .mr-h-title { vertical-align: middle; }
+.mr-header-template1 .mr-h-react { font-size: 9pt; }
 
 /* 共用格線表 */
 .mr-grid { width: 100%; border-collapse: collapse; table-layout: fixed; border: 0.8pt solid #2f3a45; }

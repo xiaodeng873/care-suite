@@ -195,18 +195,21 @@ const PrescriptionManagement: React.FC = () => {
     return summaries.sort((a, b) => a.patient.床號.localeCompare(b.patient.床號, 'zh-Hant', { numeric: true }));
   }, [patients, prescriptions]);
 
+  // 根據在住狀態篩選後的院友清單（下拉、導航、當前院友都共用）
+  const visiblePatientSummaries = useMemo(() => {
+    if (patientFilters.residencyStatus === '全部') return patientPrescriptionSummaries;
+    return patientPrescriptionSummaries.filter(s => s.patient.在住狀態 === patientFilters.residencyStatus);
+  }, [patientPrescriptionSummaries, patientFilters.residencyStatus]);
+
   // Get current patient
   const currentPatient = useMemo(() => {
     if (patientFilters.selectedPatientId) {
-      return patientPrescriptionSummaries.find(s => s.patient.院友id.toString() === patientFilters.selectedPatientId);
+      return visiblePatientSummaries.find(s => s.patient.院友id.toString() === patientFilters.selectedPatientId)
+        || visiblePatientSummaries[0]
+        || null;
     }
-    // 先篩選出在住院友，再按床號排序後取第一個院友
-    const activeSummaries = patientPrescriptionSummaries.filter(s => s.patient.在住狀態 === '在住');
-    const sortedSummaries = [...activeSummaries].sort((a, b) => 
-      a.patient.床號.localeCompare(b.patient.床號, 'zh-Hant', { numeric: true })
-    );
-    return sortedSummaries[currentPatientIndex] || null;
-  }, [patientPrescriptionSummaries, currentPatientIndex, patientFilters.selectedPatientId]);
+    return visiblePatientSummaries[currentPatientIndex] || visiblePatientSummaries[0] || null;
+  }, [visiblePatientSummaries, currentPatientIndex, patientFilters.selectedPatientId]);
 
   // 計算處方途徑統計
   const routeStatistics = useMemo(() => {
@@ -272,27 +275,26 @@ const PrescriptionManagement: React.FC = () => {
     setSelectedRows(new Set());
   }, [currentPatient?.patient.院友id]);
 
+  // 在住狀態篩選改變且沒有指定院友時，重置瀏覽位置到第一個
+  React.useEffect(() => {
+    if (!patientFilters.selectedPatientId) {
+      setCurrentPatientIndex(0);
+    }
+  }, [patientFilters.residencyStatus]);
+
   // Filter patients for dropdown
   const filteredPatientsForDropdown = useMemo(() => {
-    return patientPrescriptionSummaries.filter(summary => {
-      // 先根據在住狀態篩選
-      if (patientFilters.residencyStatus !== '全部' && summary.patient.在住狀態 !== patientFilters.residencyStatus) {
-        return false;
-      }
-      
-      // 再根據搜索條件篩選
-      if (!patientFilters.searchTerm) return true;
+    if (!patientFilters.searchTerm) return visiblePatientSummaries;
 
-      const searchTerm = patientFilters.searchTerm;
+    const searchTerm = patientFilters.searchTerm;
 
-      return (
-        matchBedNumber(summary.patient.床號, searchTerm) ||
-        matchChineseName(summary.patient.中文姓氏, summary.patient.中文名字, summary.patient.中文姓名, searchTerm) ||
-        matchEnglishName(summary.patient.英文姓氏, summary.patient.英文名字, summary.patient.英文姓名, searchTerm) ||
-        fuzzyMatch(summary.patient.身份證號碼, searchTerm)
-      );
-    });
-  }, [patientPrescriptionSummaries, patientFilters.searchTerm, patientFilters.residencyStatus]);
+    return visiblePatientSummaries.filter(summary =>
+      matchBedNumber(summary.patient.床號, searchTerm) ||
+      matchChineseName(summary.patient.中文姓氏, summary.patient.中文名字, summary.patient.中文姓名, searchTerm) ||
+      matchEnglishName(summary.patient.英文姓氏, summary.patient.英文名字, summary.patient.英文姓名, searchTerm) ||
+      fuzzyMatch(summary.patient.身份證號碼, searchTerm)
+    );
+  }, [visiblePatientSummaries, patientFilters.searchTerm]);
 
   if (loading) {
     return <LoadingScreen pageName="處方管理" />;
@@ -302,22 +304,22 @@ const PrescriptionManagement: React.FC = () => {
   const goToPreviousPatient = () => {
     if (patientFilters.selectedPatientId) {
       // If using dropdown selection, find current index and go to previous
-      const currentIndex = patientPrescriptionSummaries.findIndex(s => s.patient.院友id.toString() === patientFilters.selectedPatientId);
-      const newIndex = currentIndex > 0 ? currentIndex - 1 : patientPrescriptionSummaries.length - 1;
-      setPatientFilters(prev => ({ ...prev, selectedPatientId: patientPrescriptionSummaries[newIndex].patient.院友id.toString() }));
+      const currentIndex = visiblePatientSummaries.findIndex(s => s.patient.院友id.toString() === patientFilters.selectedPatientId);
+      const newIndex = currentIndex > 0 ? currentIndex - 1 : visiblePatientSummaries.length - 1;
+      setPatientFilters(prev => ({ ...prev, selectedPatientId: visiblePatientSummaries[newIndex].patient.院友id.toString() }));
     } else {
-      setCurrentPatientIndex(prev => prev > 0 ? prev - 1 : patientPrescriptionSummaries.length - 1);
+      setCurrentPatientIndex(prev => prev > 0 ? prev - 1 : visiblePatientSummaries.length - 1);
     }
   };
 
   const goToNextPatient = () => {
     if (patientFilters.selectedPatientId) {
       // If using dropdown selection, find current index and go to next
-      const currentIndex = patientPrescriptionSummaries.findIndex(s => s.patient.院友id.toString() === patientFilters.selectedPatientId);
-      const newIndex = currentIndex < patientPrescriptionSummaries.length - 1 ? currentIndex + 1 : 0;
-      setPatientFilters(prev => ({ ...prev, selectedPatientId: patientPrescriptionSummaries[newIndex].patient.院友id.toString() }));
+      const currentIndex = visiblePatientSummaries.findIndex(s => s.patient.院友id.toString() === patientFilters.selectedPatientId);
+      const newIndex = currentIndex < visiblePatientSummaries.length - 1 ? currentIndex + 1 : 0;
+      setPatientFilters(prev => ({ ...prev, selectedPatientId: visiblePatientSummaries[newIndex].patient.院友id.toString() }));
     } else {
-      setCurrentPatientIndex(prev => prev < patientPrescriptionSummaries.length - 1 ? prev + 1 : 0);
+      setCurrentPatientIndex(prev => prev < visiblePatientSummaries.length - 1 ? prev + 1 : 0);
     }
   };
 
@@ -704,7 +706,7 @@ const PrescriptionManagement: React.FC = () => {
                 <button
                   onClick={goToPreviousPatient}
                   className="btn-secondary flex flex-wrap items-center gap-2"
-                  disabled={patientPrescriptionSummaries.length <= 1}
+                  disabled={visiblePatientSummaries.length <= 1}
                 >
                   <ChevronLeft className="h-4 w-4" />
                   <span>上一位</span>
@@ -712,7 +714,7 @@ const PrescriptionManagement: React.FC = () => {
                 <button
                   onClick={goToNextPatient}
                   className="btn-secondary flex flex-wrap items-center gap-2"
-                  disabled={patientPrescriptionSummaries.length <= 1}
+                  disabled={visiblePatientSummaries.length <= 1}
                 >
                   <span>下一位</span>
                   <ChevronRight className="h-4 w-4" />
@@ -723,8 +725,8 @@ const PrescriptionManagement: React.FC = () => {
             {/* 頁面指示器 */}
             <div className="text-sm text-gray-600">
               第 {(patientFilters.selectedPatientId ? 
-                patientPrescriptionSummaries.findIndex(s => s.patient.院友id.toString() === patientFilters.selectedPatientId) + 1 :
-                currentPatientIndex + 1)} / {patientPrescriptionSummaries.length} 位院友
+                visiblePatientSummaries.findIndex(s => s.patient.院友id.toString() === patientFilters.selectedPatientId) + 1 :
+                Math.min(currentPatientIndex + 1, visiblePatientSummaries.length))} / {visiblePatientSummaries.length} 位院友
               {patientFilters.residencyStatus !== '全部' && (
                 <span className="ml-2 text-xs text-blue-600">
                   (僅顯示{patientFilters.residencyStatus}院友)

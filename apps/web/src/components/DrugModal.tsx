@@ -16,7 +16,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     drug_name: drug?.drug_name || '',
     drug_code: drug?.drug_code || '',
-    drug_type: drug?.drug_type || '',
+    dosage_form: drug?.dosage_form || '',
     administration_route: drug?.administration_route || '',
     unit: drug?.unit || '',
     photo_url: drug?.photo_url || '',
@@ -106,7 +106,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
         ...formData,
         drug_name: formData.drug_name.trim(),
         drug_code: formData.drug_code.trim() || null,
-        drug_type: formData.drug_type || null,
+        dosage_form: formData.dosage_form || null,
         administration_route: formData.administration_route || null,
         unit: formData.unit.trim() || null,
         photo_url: formData.photo_url || null,
@@ -228,18 +228,20 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
             </div>
 
             <div>
-              <label className="form-label">藥物類型</label>
+              <label className="form-label">藥物劑型</label>
               <select
-                name="drug_type"
-                value={formData.drug_type}
+                name="dosage_form"
+                value={formData.dosage_form}
                 onChange={handleChange}
                 className="form-input"
               >
-                <option value="">請選擇類型</option>
-                <option value="西藥">西藥</option>
-                <option value="中藥">中藥</option>
-                <option value="保健品">保健品</option>
-                <option value="外用藥">外用藥</option>
+                <option value="">請選擇劑型</option>
+                {medSettings.劑型.map((form) => (
+                  <option key={form} value={form}>{form}</option>
+                ))}
+                {formData.dosage_form && !medSettings.劑型.includes(formData.dosage_form) && (
+                  <option value={formData.dosage_form}>{formData.dosage_form}（既有）</option>
+                )}
               </select>
             </div>
 

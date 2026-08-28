@@ -78,7 +78,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       dosage_amount: prescription?.dosage_amount || '',
       dosage_unit: prescription?.dosage_unit || '',
       special_dosage_instruction: prescription?.special_dosage_instruction || '',
-      daily_frequency: prescription?.daily_frequency || 1,
+      daily_frequency: prescription?.daily_frequency ?? 1,
       frequency_type: prescription?.frequency_type || 'daily',
       frequency_value: prescription?.frequency_value || 1,
       specific_weekdays: prescription?.specific_weekdays || [],
@@ -601,7 +601,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">
@@ -704,6 +704,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                       ...prev,
                       medication_name: drugName,
                       dosage_form: drugData?.dosage_form || prev.dosage_form,
+                      dosage_unit: drugData?.unit || prev.dosage_unit,
                       administration_route: drugData?.administration_route || prev.administration_route
                     }));
                   }}
@@ -1007,78 +1008,48 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 </select>
               </div>
 
-              {/* 服用份量/單位 與 特殊用法 互斥選擇 */}
+              {/* 服用份量/單位 與 特殊用法 可同時並存 */}
               <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-4">
-                  <label className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="radio"
-                      name="dosage_type"
-                      checked={!formData.special_dosage_instruction}
-                      onChange={() => setFormData(prev => ({ ...prev, special_dosage_instruction: '' }))}
-                      className="form-radio"
-                    />
-                    <span className="text-sm font-medium">使用份量和單位</span>
-                  </label>
-                  <label className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="radio"
-                      name="dosage_type"
-                      checked={!!formData.special_dosage_instruction}
-                      onChange={() => setFormData(prev => ({
-                        ...prev,
-                        special_dosage_instruction: '適量',
-                        dosage_amount: '',
-                        dosage_unit: ''
-                      }))}
-                      className="form-radio"
-                    />
-                    <span className="text-sm font-medium">使用特殊用法</span>
-                  </label>
-                </div>
-
-                {!formData.special_dosage_instruction ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <label className="form-label">服用份量</label>
-                      <input
-                        type="number"
-                        name="dosage_amount"
-                        value={formData.dosage_amount}
-                        onChange={handleChange}
-                        className="form-input"
-                        placeholder="1"
-                        min="0.25"
-                        step="0.25"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label">單位</label>
-                      <select
-                        name="dosage_unit"
-                        value={formData.dosage_unit}
-                        onChange={handleChange}
-                        className="form-input"
-                      >
-                        <option value="">請選擇單位</option>
-                        {medSettings.服用單位.map(v => <option key={v} value={v}>{v}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
-                    <label className="form-label">特殊用法</label>
+                    <label className="form-label">服用份量</label>
+                    <input
+                      type="number"
+                      name="dosage_amount"
+                      value={formData.dosage_amount}
+                      onChange={handleChange}
+                      className="form-input"
+                      placeholder="1"
+                      min="0.25"
+                      step="0.25"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">單位</label>
                     <select
-                      name="special_dosage_instruction"
-                      value={formData.special_dosage_instruction}
+                      name="dosage_unit"
+                      value={formData.dosage_unit}
                       onChange={handleChange}
                       className="form-input"
                     >
-                      <option value="適量">適量</option>
-                      {medSettings.特殊用法.filter(v => v !== '適量').map(v => <option key={v} value={v}>{v}</option>)}
+                      <option value="">請選擇單位</option>
+                      {medSettings.服用單位.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                   </div>
-                )}
+                </div>
+
+                <div>
+                  <label className="form-label">特殊用法</label>
+                  <select
+                    name="special_dosage_instruction"
+                    value={formData.special_dosage_instruction}
+                    onChange={handleChange}
+                    className="form-input"
+                  >
+                    <option value="">無</option>
+                    {medSettings.特殊用法.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
               </div>
 
               <div>

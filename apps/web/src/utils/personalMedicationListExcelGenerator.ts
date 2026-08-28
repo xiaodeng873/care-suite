@@ -218,7 +218,8 @@ const formatMedicationDetails = (prescription: any): string[] => {
   }
   if (prescription.dosage_amount && prescription.dosage_unit) {
     details.push(`${prescription.dosage_amount}${prescription.dosage_unit}`);
-  } else if (prescription.special_dosage_instruction) {
+  }
+  if (prescription.special_dosage_instruction) {
     details.push(prescription.special_dosage_instruction);
   }
   const frequencyDesc = getFrequencyDescription(prescription);

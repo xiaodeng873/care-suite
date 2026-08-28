@@ -213,8 +213,8 @@ const DrugAutocomplete: React.FC<DrugAutocompleteProps> = ({
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2 mt-1">
-                      {drug.drug_type && (
-                        <span className="text-xs text-gray-500">{drug.drug_type}</span>
+                      {drug.dosage_form && (
+                        <span className="text-xs text-gray-500">{drug.dosage_form}</span>
                       )}
                       {drug.administration_route && (
                         <span className="text-xs text-gray-500">• {drug.administration_route}</span>

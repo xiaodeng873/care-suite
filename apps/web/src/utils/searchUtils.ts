@@ -340,14 +340,14 @@ export function drugMatchScore(target: string | null | undefined, search: string
  * 藥物多欄位相關性評分（取各欄位最高分；drug_name 為主）
  */
 export function drugSearchScore(
-  drug: { drug_name?: string | null; drug_code?: string | null; drug_type?: string | null; administration_route?: string | null; unit?: string | null; notes?: string | null },
+  drug: { drug_name?: string | null; drug_code?: string | null; dosage_form?: string | null; administration_route?: string | null; unit?: string | null; notes?: string | null },
   search: string
 ): number {
   if (!search) return 0;
   return Math.max(
     drugMatchScore(drug.drug_name, search),
     drugMatchScore(drug.drug_code, search),
-    drugMatchScore(drug.drug_type, search),
+    drugMatchScore(drug.dosage_form, search),
     drugMatchScore(drug.administration_route, search),
     drugMatchScore(drug.unit, search),
     drugMatchScore(drug.notes, search)

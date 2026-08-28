@@ -746,11 +746,14 @@ const fillPrescriptionData = (
   worksheet.getCell('J' + (startRow + 1)).value = frequencyDesc;
   // J列：服用份量 (第3行)
   let dosageText = '';
-  if (prescription.special_dosage_instruction) {
-    dosageText = prescription.special_dosage_instruction;
-  } else if (prescription.dosage_amount) {
-    dosageText = '每次' + prescription.dosage_amount + (prescription.dosage_unit || '');
+  const dosageParts: string[] = [];
+  if (prescription.dosage_amount) {
+    dosageParts.push('每次' + prescription.dosage_amount + (prescription.dosage_unit || ''));
   }
+  if (prescription.special_dosage_instruction) {
+    dosageParts.push(prescription.special_dosage_instruction);
+  }
+  dosageText = dosageParts.join(' / ');
   worksheet.getCell('J' + (startRow + 2)).value = dosageText;
   // J列：需要時 (第4行)
   worksheet.getCell('J' + (startRow + 3)).value = prescription.is_prn ? '需要時' : '';

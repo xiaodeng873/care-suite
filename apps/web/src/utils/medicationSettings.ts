@@ -35,7 +35,7 @@ export const DEFAULT_MEDICATION_SETTINGS: MedicationSettingsData = {
   劑型: ['片劑', '膠囊', '藥水', '注射劑', '外用藥膏', '滴劑', '皮膚貼劑'],
   服用途徑: ['口服', '肌肉注射', '皮下注射', '外用', '滴眼', '滴耳', '鼻胃管', '吸入', '舌下', '漱口'],
   服用單位: ['粒', '片', '膠囊', '毫升', '滴', '口', '支', '包', '茶匙', '湯匙', 'mg', 'ml', 'g', 'mcg', 'IU'],
-  特殊用法: ['適量', '搽患處', '貼在皮膚上', '薄薄一層', '按需要使用'],
+  特殊用法: ['適量', '搽患處', '貼在皮膚上', '薄薄一層', '按需要使用', '按照醫生指示用'],
   服用時段: [
     '餐前', '進餐時', '餐後',
     '早餐前', '早餐時', '早餐後',
@@ -143,11 +143,23 @@ export function getMedicationSettings(): MedicationSettingsData {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_MEDICATION_SETTINGS };
     const parsed = JSON.parse(raw) as Partial<MedicationSettingsData>;
-    // Merge with defaults to handle schema additions gracefully
-    return {
-      ...DEFAULT_MEDICATION_SETTINGS,
-      ...parsed,
-    };
+    // Merge with defaults：陣列欄位取聯集（去重），物件欄位合併，其餘 parsed 優先
+    const merged: any = { ...DEFAULT_MEDICATION_SETTINGS };
+    for (const key of Object.keys(DEFAULT_MEDICATION_SETTINGS)) {
+      const defaultValue = (DEFAULT_MEDICATION_SETTINGS as any)[key];
+      const parsedValue = (parsed as any)[key];
+      if (Array.isArray(defaultValue) && Array.isArray(parsedValue)) {
+        merged[key] = [...new Set([...defaultValue, ...parsedValue])];
+      } else if (
+        typeof defaultValue === 'object' && defaultValue !== null && !Array.isArray(defaultValue) &&
+        typeof parsedValue === 'object' && parsedValue !== null && !Array.isArray(parsedValue)
+      ) {
+        merged[key] = { ...defaultValue, ...parsedValue };
+      } else if (parsedValue !== undefined) {
+        merged[key] = parsedValue;
+      }
+    }
+    return merged as MedicationSettingsData;
   } catch {
     return { ...DEFAULT_MEDICATION_SETTINGS };
   }

@@ -3214,16 +3214,17 @@ const MedicationWorkflow: React.FC = () => {
                                       <div>{prescription.meal_timing}</div>
                                     )}
                                     {(() => {
-                                      if ((prescription as any).special_dosage_instruction) {
-                                        return <div>{(prescription as any).special_dosage_instruction}</div>;
-                                      }
+                                      const parts: string[] = [];
                                       if (prescription.dosage_amount) {
                                         const amt = String(prescription.dosage_amount);
                                         const unit = prescription.dosage_unit ?? '';
                                         const dosage = /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + unit : amt;
-                                        return <div>每次{dosage}</div>;
+                                        parts.push(`每次${dosage}`);
                                       }
-                                      return null;
+                                      if ((prescription as any).special_dosage_instruction) {
+                                        parts.push((prescription as any).special_dosage_instruction);
+                                      }
+                                      return parts.length > 0 ? <div>{parts.join(' / ')}</div> : null;
                                     })()}
                                     {prescription.is_prn && (
                                       <div className="text-red-600 font-medium">需要時</div>

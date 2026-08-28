@@ -78,7 +78,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   const [batchRouteFilter, setBatchRouteFilter] = useState<Set<string>>(new Set());
   const [prescriptionSortOrder, setPrescriptionSortOrder] = useState<PrescriptionSortOrder>('efficiency');
   const [includeBlankRows, setIncludeBlankRows] = useState(false);
-  const [recordTemplate, setRecordTemplate] = useState<MedicationRecordTemplate>('template2');
+  const [recordTemplate, setRecordTemplate] = useState<MedicationRecordTemplate>('template1');
   // 個人藥物記錄日期範圍（不受月份局限）
   const [listStartDate, setListStartDate] = useState<string>(() => {
     const now = new Date();

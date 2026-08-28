@@ -141,7 +141,8 @@ function formatDrugCell(p: MedicationPrescription): string {
   if (p.dosage_form) parts.push(escapeHtml(p.dosage_form));
   if (p.dosage_amount != null && p.dosage_amount !== '') {
     parts.push(`${escapeHtml(String(p.dosage_amount))}${escapeHtml(p.dosage_unit ?? '')}`);
-  } else if (p.special_dosage_instruction) {
+  }
+  if (p.special_dosage_instruction) {
     parts.push(escapeHtml(p.special_dosage_instruction));
   }
   const freq = getFrequencyDescription(p);

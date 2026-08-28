@@ -834,7 +834,9 @@ export interface DrugData {
   id: string;
   drug_name: string;
   drug_code?: string;
+  /** @deprecated 藥物類型欄位已改為 dosage_form，保留僅供向後兼容 */
   drug_type?: string;
+  dosage_form?: string;
   administration_route?: string;
   unit?: string;
   photo_url?: string;
@@ -1363,19 +1365,33 @@ export const getPatientsLight = async (): Promise<Patient[]> => {
   }));
 };
 
-// 背景補載全部院友相片：院友id → 院友相片
-// 改用分頁並行載入，避免 base64 相片積累後單次 SELECT 超過 statement_timeout。
+// 背景補載有相片的院友：院友id → 院友相片
+// 改用分頁並行載入，並只撈有相片的列，避免 base64 相片積累後單次 SELECT 超過 statement_timeout。
+// 若首次逾時，會自動縮小分頁重試一次。
 export const getPatientPhotos = async (): Promise<Map<number, string | null>> => {
-  const PHOTO_PAGE_SIZE = 300;
-  const data = await fetchAllPagesParallel(async (from, to, withCount) => {
-    const { data, error, count } = await supabase
-      .from('院友主表')
-      .select('院友id, 院友相片', withCount ? { count: 'exact' } : undefined)
-      .order('院友id', { ascending: true })
-      .range(from, to);
-    return { data, error, count };
-  }, PHOTO_PAGE_SIZE);
-  return new Map((data || []).map((p: any) => [p.院友id, p.院友相片]));
+  const loadPhotos = async (pageSize: number) => {
+    const data = await fetchAllPagesParallel(async (from, to, withCount) => {
+      const { data, error, count } = await supabase
+        .from('院友主表')
+        .select('院友id, 院友相片', withCount ? { count: 'exact' } : undefined)
+        .not('院友相片', 'is', null)
+        .order('院友id', { ascending: true })
+        .range(from, to);
+      return { data, error, count };
+    }, pageSize);
+    return new Map((data || []).map((p: any) => [p.院友id, p.院友相片]));
+  };
+
+  try {
+    return await loadPhotos(100);
+  } catch (err: any) {
+    if (err?.code === '57014') {
+      console.warn('載入院友相片首次逾時，改用更細分頁重試');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return await loadPhotos(50);
+    }
+    throw err;
+  }
 };
 export const createPatient = async (patient: Omit<Patient, '院友id'>): Promise<Patient> => {
   // 清理空字符串，將其轉換為 null
@@ -2956,7 +2972,7 @@ export const recordDailySystemTaskCompletion = async (taskName: string, taskDate
 export const searchDrugs = async (searchTerm: string): Promise<DrugData[]> => {
   let query = supabase.from('medication_drug_database').select('*').order('drug_name', { ascending: true });
   if (searchTerm.trim()) {
-    query = query.or(`drug_name.ilike.%${searchTerm}%,drug_code.ilike.%${searchTerm}%,drug_type.ilike.%${searchTerm}%,administration_route.ilike.%${searchTerm}%,unit.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
+    query = query.or(`drug_name.ilike.%${searchTerm}%,drug_code.ilike.%${searchTerm}%,dosage_form.ilike.%${searchTerm}%,administration_route.ilike.%${searchTerm}%,unit.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
   }
   const { data, error } = await query;
   if (error) throw error;

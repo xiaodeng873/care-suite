@@ -109,14 +109,16 @@ export function mapOCRDataToPrescriptionForm(
     confidences.administration_route = confidenceScores['服用途徑'] || 0.85;
   }
 
-  const specialInstructions = ['搽患處', '貼在皮膚上', '適量', '薄薄一層', '按需要使用'];
+  const specialInstructions = ['搽患處', '貼在皮膚上', '適量', '薄薄一層', '按需要使用', '按照醫生指示用'];
 
   // 服用份量 / 服用單位：優先使用「服用份量」，也接受「服用劑量」別名
+  // 特殊用法與份量/單位不再互斥，兩者可同時並存
   const dosageAmountSource = ocrData.服用份量 ?? ocrData.服用劑量;
   if (ocrData.特殊用法) {
     mappedData.special_dosage_instruction = ocrData.特殊用法;
     confidences.special_dosage_instruction = confidenceScores['特殊用法'] || 0.85;
-  } else if (dosageAmountSource || ocrData.服用單位) {
+  }
+  if (dosageAmountSource || ocrData.服用單位) {
     // 若服用劑量包含「每次 X 單位」或「X 單位」，嘗試拆出份量與單位
     let amount = String(dosageAmountSource || '');
     let unit = ocrData.服用單位 || '';
@@ -133,15 +135,14 @@ export function mapOCRDataToPrescriptionForm(
     if (matchedSpecial) {
       mappedData.special_dosage_instruction = matchedSpecial;
       confidences.special_dosage_instruction = (confidenceScores['服用份量'] || confidenceScores['服用單位'] || 0.85) * 0.9;
-    } else {
-      if (amount) {
-        mappedData.dosage_amount = amount;
-        confidences.dosage_amount = confidenceScores['服用份量'] || confidenceScores['服用劑量'] || 0.85;
-      }
-      if (unit) {
-        mappedData.dosage_unit = unit;
-        confidences.dosage_unit = confidenceScores['服用單位'] || 0.85;
-      }
+    }
+    if (amount) {
+      mappedData.dosage_amount = amount;
+      confidences.dosage_amount = confidenceScores['服用份量'] || confidenceScores['服用劑量'] || 0.85;
+    }
+    if (unit) {
+      mappedData.dosage_unit = unit;
+      confidences.dosage_unit = confidenceScores['服用單位'] || 0.85;
     }
   }
 
