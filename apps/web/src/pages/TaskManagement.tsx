@@ -32,7 +32,7 @@ import BedNumberImprint from '../components/BedNumberImprint';
 import DateInput from '../components/DateInput';
 
 
-type SortField = 'patient_name' | 'health_record_type' | 'frequency' | 'next_due_at' | 'last_completed_at' | 'notes';
+type SortField = 'patient_name' | 'health_record_type' | 'frequency' | 'next_due_at' | 'last_completed_at' | 'created_at' | 'notes';
 type SortDirection = 'asc' | 'desc';
 
 interface TaskFilters {
@@ -264,6 +264,10 @@ const TaskManagement: React.FC = () => {
           valueA = a.last_completed_at ? new Date(a.last_completed_at).getTime() : 0;
           valueB = b.last_completed_at ? new Date(b.last_completed_at).getTime() : 0;
           break;
+        case 'created_at':
+          valueA = new Date(a.created_at).getTime();
+          valueB = new Date(b.created_at).getTime();
+          break;
         case 'notes':
           valueA = a.notes || '';
           valueB = b.notes || '';
@@ -320,9 +324,9 @@ const TaskManagement: React.FC = () => {
       overdue: patientHealthTasks.filter(task => getTaskStatus(task, recordLookup, todayStr) === 'overdue').length,
       pending: patientHealthTasks.filter(task => getTaskStatus(task, recordLookup, todayStr) === 'pending').length,
       dueSoon: patientHealthTasks.filter(task => getTaskStatus(task, recordLookup, todayStr) === 'due_soon').length,
-      vitalSigns: patientHealthTasks.filter(task => task.health_record_type === '生命表徵').length,
-      bloodSugar: patientHealthTasks.filter(task => task.health_record_type === '血糖控制').length,
-      weight: patientHealthTasks.filter(task => task.health_record_type === '體重控制').length,
+      vitalSigns: patientHealthTasks.filter(task => (task.health_record_type as string) === '生命表徵').length,
+      bloodSugar: patientHealthTasks.filter(task => (task.health_record_type as string) === '血糖控制').length,
+      weight: patientHealthTasks.filter(task => (task.health_record_type as string) === '體重控制').length,
       scheduled: scheduledTasks.length
     };
   }, [patientHealthTasks, recordLookup, scheduledTasks]);
@@ -457,7 +461,7 @@ const TaskManagement: React.FC = () => {
     setSelectedRows(newSelected);
   };
 
-  const getTypeIcon = (type: HealthTaskType) => {
+  const getTypeIcon = (type: string) => {
     switch (type) {
       case '生命表徵': return <Activity className="h-4 w-4" />;
       case '血糖控制': return <Droplets className="h-4 w-4" />;
@@ -468,7 +472,7 @@ const TaskManagement: React.FC = () => {
     }
   };
 
-  const getTypeColor = (type: HealthTaskType) => {
+  const getTypeColor = (type: string) => {
     switch (type) {
       case '生命表徵': return 'bg-blue-100 text-blue-800';
       case '血糖控制': return 'bg-red-100 text-red-800';

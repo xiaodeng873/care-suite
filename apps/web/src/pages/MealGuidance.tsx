@@ -1106,7 +1106,7 @@ const MealGuidance: React.FC = () => {
 
       {showModal && (
         <MealGuidanceModal
-          guidance={selectedGuidance}
+          guidance={selectedGuidance || undefined}
           onClose={() => {
             setShowModal(false);
             setSelectedGuidance(null);

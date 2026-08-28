@@ -397,7 +397,7 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
       editor: (p, commit) => (
         <CompositeBox close={close}>
           <input
-            type="number" min="0" step="0.25"
+            type="number" min="0.25" step="0.25"
             defaultValue={p.dosage_amount ?? ''}
             autoFocus
             className={`${inputCls} w-16`}

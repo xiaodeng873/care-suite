@@ -308,7 +308,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
 
     try {
       const assessmentData = {
-        patient_id: parseInt(formData.patient_id),
+        patient_id: parseInt(String(formData.patient_id)),
         doctor_signature_date: formData.doctor_signature_date || null,
         next_due_date: formData.next_due_date || null,
         risk_factors: formData.risk_factors,
@@ -322,9 +322,9 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
         await updatePatientRestraintAssessment({
           id: assessment.id,
           ...assessmentData
-        });
+        } as any);
       } else {
-        await addPatientRestraintAssessment(assessmentData);
+        await addPatientRestraintAssessment(assessmentData as any);
       }
 
       onUpdate?.();

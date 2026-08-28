@@ -32,8 +32,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -122,19 +122,19 @@ export const extractVitalSignTemplateFormat = async (templateFile: File): Promis
       }
       // 提取邊框（僅表頭）
       if (cell.border && row <= 5) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       // 提取填充
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       // 提取數字格式
       if (cell.numFmt) {
@@ -175,7 +175,7 @@ export const extractVitalSignTemplateFormat = async (templateFile: File): Promis
     if (extractedTemplate.images.length === 0) {
       console.warn('範本中未找到有效圖片');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('提取圖片失敗:', error);
     extractedTemplate.images = [];
   }
@@ -199,7 +199,8 @@ const applyVitalSignTemplateFormat = (
   patient: {
     床號: string;
     original_bed_number?: string;
-    中文姓名: string;
+    中文姓氏: string;
+    中文名字: string;
     性別: string;
     出生日期: string;
   },
@@ -237,11 +238,11 @@ const applyVitalSignTemplateFormat = (
       }
       // 應用邊框
       if (cellData.border) {
-        cell.border = { ...cellData.border };
+        (cell.border as any) = { ...cellData.border };
       }
       // 應用填充
       if (cellData.fill) {
-        cell.fill = { ...cellData.fill };
+        (cell.fill as any) = { ...cellData.fill };
       }
       // 應用數字格式
       if (cellData.numFmt) {
@@ -252,7 +253,7 @@ const applyVitalSignTemplateFormat = (
   // Step 4: 設置 L5 和 M5 的右邊框為黑色細邊框
   ['L', 'M'].forEach(col => {
     const lm5Cell = worksheet.getCell(`${col}5`);
-    lm5Cell.border = {
+    (lm5Cell.border as any) = {
       ...lm5Cell.border,
       right: { style: 'thin', color: { argb: 'FF000000' } }
     };
@@ -279,7 +280,7 @@ const applyVitalSignTemplateFormat = (
         extension: img.extension as 'png' | 'jpeg' | 'gif'
       });
       worksheet.addImage(imageId, img.range);
-    } catch (error) {
+    } catch (error: any) {
       console.error(`應用圖片失敗 (範圍=${img.range}):`, error);
     }
   });
@@ -307,7 +308,7 @@ const applyVitalSignTemplateFormat = (
       worksheet.mergeCells(`C${rowIndex}:E${rowIndex}`);
       worksheet.mergeCells(`F${rowIndex}:H${rowIndex}`);
       worksheet.mergeCells(`L${rowIndex}:M${rowIndex}`);
-    } catch (error) {
+    } catch (error: any) {
       console.warn(`硬編碼合併儲存格失敗 (行=${rowIndex}):`, error);
     }
     // 硬編碼四邊黑色細邊框（A 到 M）並設置置中
@@ -315,7 +316,7 @@ const applyVitalSignTemplateFormat = (
     dataColumns.forEach(col => {
       const cell = worksheet.getCell(`${col}${rowIndex}`);
       if (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'].includes(col)) {
-        cell.border = {
+        (cell.border as any) = {
           top: { style: 'thin', color: { argb: 'FF000000' } },
           left: { style: 'thin', color: { argb: 'FF000000' } },
           bottom: { style: 'thin', color: { argb: 'FF000000' } },
@@ -366,7 +367,7 @@ const applyVitalSignTemplateFormat = (
   // Step 9: 設置動態列印範圍
   const lastRow = 6 + records.length - 1;
   const printArea = `A1:M${lastRow}`;
-  worksheet.pageSetup = {
+  (worksheet.pageSetup as any) = {
     ...template.printSettings,
     printArea: printArea
   };
@@ -472,7 +473,7 @@ export const exportVitalSignsToExcel = async (
     // 創建工作簿並匯出
     const workbook = await createVitalSignWorkbook(sheetsConfig);
     await saveExcelFile(workbook, finalFilename);
-  } catch (error) {
+  } catch (error: any) {
     console.error('匯出生命表徵失敗:', error);
     throw error;
   }
@@ -524,7 +525,7 @@ const exportVitalSignsToExcelSimple = async (
     titleCell.value = `${patient.中文姓氏}${patient.中文名字} 生命表徵觀察記錄表`;
     titleCell.font = { size: 16, bold: true };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = {
+    (titleCell.fill as any) = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FFE6F7FF' }
@@ -544,14 +545,14 @@ const exportVitalSignsToExcelSimple = async (
       const cell = headerRow.getCell(index + 1);
       cell.value = header;
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = {
+      (cell.fill as any) = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: 'FF70AD47' }
       };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
       if (index < 13) { // A 到 M
-        cell.border = {
+        (cell.border as any) = {
           top: { style: 'thin', color: { argb: 'FF000000' } },
           left: { style: 'thin', color: { argb: 'FF000000' } },
           bottom: { style: 'thin', color: { argb: 'FF000000' } },
@@ -559,7 +560,7 @@ const exportVitalSignsToExcelSimple = async (
         };
       }
       if (index === 11 || index === 12) { // L5, M5
-        cell.border = {
+        (cell.border as any) = {
           ...cell.border,
           right: { style: 'thin', color: { argb: 'FF000000' } }
         };
@@ -576,7 +577,7 @@ const exportVitalSignsToExcelSimple = async (
     );
     sortedRecords.forEach((record, index) => {
       const rowIndex = 6 + index;
-      const row = worksheet.getOrCreateRow(rowIndex);
+      const row = (worksheet as any).getOrCreateRow(rowIndex);
       row.height = 22;
       // 硬編碼合併儲存格
       worksheet.mergeCells(`C${rowIndex}:E${rowIndex}`);
@@ -586,7 +587,7 @@ const exportVitalSignsToExcelSimple = async (
       for (let col = 1; col <= 16; col++) {
         const cell = row.getCell(col);
         if (col <= 13) { // A 到 M
-          cell.border = {
+          (cell.border as any) = {
             top: { style: 'thin', color: { argb: 'FF000000' } },
             left: { style: 'thin', color: { argb: 'FF000000' } },
             bottom: { style: 'thin', color: { argb: 'FF000000' } },
@@ -630,7 +631,7 @@ const exportVitalSignsToExcelSimple = async (
         cell.value = value;
         // 交替行顏色
         if (index % 2 === 1 && colIndex < 13) {
-          cell.fill = {
+          (cell.fill as any) = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: 'FFF8F9FA' }

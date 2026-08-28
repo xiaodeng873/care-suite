@@ -33,8 +33,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -116,19 +116,19 @@ export const extractWaitingListTemplateFormat = async (templateFile: File): Prom
       }
       // Extract border
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       // Extract fill
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       // Extract number format
       if (cell.numFmt) {
@@ -178,11 +178,11 @@ export const applyWaitingListTemplateFormat = (
     }
     // Apply border
     if (cellData.border) {
-      cell.border = { ...cellData.border };
+      (cell.border as any) = { ...cellData.border };
     }
     // Apply fill
     if (cellData.fill) {
-      cell.fill = { ...cellData.fill };
+      (cell.fill as any) = { ...cellData.fill };
     }
     // Apply number format
     if (cellData.numFmt) {
@@ -240,8 +240,8 @@ export const applyWaitingListTemplateFormat = (
   // Step 6: Copy print settings from template
   if (template.printSettings) {
     try {
-      worksheet.pageSetup = { ...template.printSettings };
-    } catch (error) {
+      (worksheet.pageSetup as any) = { ...template.printSettings };
+    } catch (error: any) {
       console.warn('複製列印設定失敗:', error);
     }
   }
@@ -274,8 +274,8 @@ export const exportWaitingListToExcel = async (
 ): Promise<void> => {
   try {
     // 從 Supabase 獲取候診記錄表範本
-    worksheet.getCell('AF1').value = `${patient.中文姓氏}${patient.中文名字}` || '';
-    const waitingListTemplate = templatesData.find(t => t.type === 'waiting-list');
+    const templatesData = await getTemplatesMetadata();
+    const waitingListTemplate = templatesData.find((t: any) => t.type === 'waiting-list');
     if (!waitingListTemplate) {
       // 如果沒有範本，使用原來的簡單匯出方式
       await exportWaitingListToExcelSimple(patients, filename, title);
@@ -313,7 +313,7 @@ export const exportWaitingListToExcel = async (
     // 創建工作簿並匯出
     const workbook = await createWaitingListWorkbook(sheetsConfig);
     await saveExcelFile(workbook, finalFilename);
-  } catch (error) {
+  } catch (error: any) {
     console.error('匯出候診記錄表失敗:', error);
     throw error;
   }
@@ -348,7 +348,7 @@ const exportWaitingListToExcelSimple = async (
     titleCell.value = title;
     titleCell.font = { size: 16, bold: true };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = {
+    (titleCell.fill as any) = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FFE6F7FF' }
@@ -372,13 +372,13 @@ const exportWaitingListToExcelSimple = async (
     const cell = headerRowObj.getCell(index + 1);
     cell.value = header;
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    cell.fill = {
+    (cell.fill as any) = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FF70AD47' }
     };
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    cell.border = {
+    (cell.border as any) = {
       top: { style: 'thin' },
       left: { style: 'thin' },
       bottom: { style: 'thin' },
@@ -388,7 +388,7 @@ const exportWaitingListToExcelSimple = async (
   // 資料行
   patients.forEach((patient, index) => {
     const rowIndex = headerRow + 1 + index;
-    const row = worksheet.getOrCreateRow(rowIndex);
+    const row = (worksheet as any).getOrCreateRow(rowIndex);
     const values = [
       getPrintBedNumber(patient),
       `${patient.中文姓氏}${patient.中文名字}`,
@@ -406,7 +406,7 @@ const exportWaitingListToExcelSimple = async (
     values.forEach((value, colIndex) => {
       const cell = row.getCell(colIndex + 1);
       cell.value = value;
-      cell.border = {
+      (cell.border as any) = {
         top: { style: 'thin' },
         left: { style: 'thin' },
         bottom: { style: 'thin' },
@@ -414,7 +414,7 @@ const exportWaitingListToExcelSimple = async (
       };
       // 交替行顏色
       if (index % 2 === 1) {
-        cell.fill = {
+        (cell.fill as any) = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFF8F9FA' }

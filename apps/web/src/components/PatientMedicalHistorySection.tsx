@@ -62,7 +62,7 @@ const PatientMedicalHistorySection: React.FC<PatientMedicalHistorySectionProps> 
   addAdverseReaction,
   removeAdverseReaction
 }) => {
-  const history = { ...defaultMedicalHistory, ...(formData.medical_history_json || {}) };
+  const history = { ...defaultMedicalHistory, ...(formData.medical_history_json || {}) } as typeof defaultMedicalHistory;
 
   const updateHistory = (updates: Partial<typeof defaultMedicalHistory>) => {
     setFormData((prev: any) => ({

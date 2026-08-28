@@ -80,12 +80,12 @@ ${documentPromptCores[documentType]}
     if (file) loadFile(file);
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
 

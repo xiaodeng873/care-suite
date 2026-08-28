@@ -326,7 +326,7 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelec
   const handleHygieneSubmit = (data: any) =>
     wrapSave(async () => {
       const converted = { ...data, status_notes: data.status_notes ? s2t(data.status_notes) : data.status_notes };
-      if (modal?.existing) await db.updateHygieneRecord({ ...modal.existing, ...converted });
+      if (modal?.existing) await db.updateHygieneRecord(modal.existing.id, converted);
       else await db.createHygieneRecord(converted);
       closeModal(); loadData();
     });
@@ -496,38 +496,39 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelec
 
                   if (done && existingRecord) {
                     // ─── 已填 ───
+                    const r = existingRecord as any;
                     switch (activeTab) {
                       case 'patrol':
-                        cellContent = existingRecord.notes || '已巡';
-                        cellTextColor = existingRecord.notes ? 'text-orange-600' : 'text-green-600';
+                        cellContent = r.notes || '已巡';
+                        cellTextColor = r.notes ? 'text-orange-600' : 'text-green-600';
                         break;
                       case 'diaper':
                         const diaperContent: string[] = [];
-                        if (existingRecord.has_urine) diaperContent.push('小');
-                        if (existingRecord.has_stool) diaperContent.push('大');
-                        if (existingRecord.has_none) diaperContent.push('無');
-                        cellContent = existingRecord.notes || diaperContent.join('/');
-                        cellTextColor = existingRecord.notes ? 'text-orange-600' : 'text-blue-600';
+                        if (r.has_urine) diaperContent.push('小');
+                        if (r.has_stool) diaperContent.push('大');
+                        if (r.has_none) diaperContent.push('無');
+                        cellContent = r.notes || diaperContent.join('/');
+                        cellTextColor = r.notes ? 'text-orange-600' : 'text-blue-600';
                         break;
                       case 'intake_output':
-                        cellContent = existingRecord.notes || '已記錄';
-                        cellTextColor = existingRecord.notes ? 'text-orange-600' : 'text-blue-600';
+                        cellContent = r.notes || '已記錄';
+                        cellTextColor = r.notes ? 'text-orange-600' : 'text-blue-600';
                         break;
                       case 'restraint':
-                        cellContent = existingRecord.notes || 
-                          (existingRecord.observation_status === 'N' ? '正常' :
-                           existingRecord.observation_status === 'P' ? '異常' :
-                           existingRecord.observation_status === 'S' ? '暫停' : '已觀察');
-                        cellTextColor = existingRecord.notes ? 'text-orange-600' : 'text-blue-600';
+                        cellContent = r.notes ||
+                          (r.observation_status === 'N' ? '正常' :
+                           r.observation_status === 'P' ? '異常' :
+                           r.observation_status === 'S' ? '暫停' : '已觀察');
+                        cellTextColor = r.notes ? 'text-orange-600' : 'text-blue-600';
                         break;
                       case 'position':
-                        cellContent = existingRecord.notes || (existingRecord.position || '已記錄');
-                        cellTextColor = existingRecord.notes ? 'text-orange-600' : 'text-blue-600';
+                        cellContent = r.notes || (r.position || '已記錄');
+                        cellTextColor = r.notes ? 'text-orange-600' : 'text-blue-600';
                         break;
                       case 'hygiene':
                         // 檢查是否有任何卫生项目記錄
-                        const hasAnyHygieneItem = existingRecord.status_notes || 
-                          (existingRecord.care_items && Object.values(existingRecord.care_items).some(v => v));
+                        const hasAnyHygieneItem = r.status_notes ||
+                          (r.care_items && Object.values(r.care_items).some((v: any) => v));
                         cellContent = '已完成';
                         cellTextColor = 'text-green-600';
                         break;

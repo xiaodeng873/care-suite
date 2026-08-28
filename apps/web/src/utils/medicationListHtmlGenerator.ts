@@ -34,7 +34,7 @@ interface MedicationPrescription {
   inspection_rules?: Array<{
     vital_sign_type?: string;
     condition_operator?: string;
-    condition_value?: string;
+    condition_value?: string | number;
     action_if_met?: string;
   }>;
 }

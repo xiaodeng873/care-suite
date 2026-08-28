@@ -122,7 +122,7 @@ export function useDrugDatabase() {
     queryKey: queryKeys.workflow.drugDatabase.all,
     queryFn: async () => {
       // 分頁查詢以支持超過 1000 筆的藥物記錄
-      let allData = [];
+      let allData: any[] = [];
       let pageNo = 0;
       const PAGE_SIZE = 1000;
 

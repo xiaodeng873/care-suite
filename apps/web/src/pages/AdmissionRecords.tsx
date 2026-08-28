@@ -681,13 +681,13 @@ const AdmissionRecords: React.FC = () => {
 
       if (hasDischargeType && hasVacationEndType) {
         return {
-          primary: getDischargeTypeLabel(episode.discharge_type),
-          secondary: getVacationEndTypeLabel(dynamicStatus.vacationEndType)
+          primary: getDischargeTypeLabel(episode.discharge_type as string),
+          secondary: getVacationEndTypeLabel(dynamicStatus.vacationEndType as string)
         };
       } else if (hasDischargeType) {
-        return { primary: getDischargeTypeLabel(episode.discharge_type) };
+        return { primary: getDischargeTypeLabel(episode.discharge_type as string) };
       } else if (hasVacationEndType) {
-        return { primary: getVacationEndTypeLabel(dynamicStatus.vacationEndType) };
+        return { primary: getVacationEndTypeLabel(dynamicStatus.vacationEndType as string) };
       }
       return { primary: '未安排' };
     }

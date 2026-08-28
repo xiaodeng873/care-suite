@@ -9,8 +9,8 @@ import {
 } from './bedTransferUtils';
 
 const beds: Bed[] = [
-  { id: 'bed-a', station_id: 's1', bed_number: 'A101-1', is_occupied: true, qr_code_id: 'q1', room_id: 'r1', bed_no: '1' },
-  { id: 'bed-b', station_id: 's1', bed_number: 'A102-2', is_occupied: true, qr_code_id: 'q2', room_id: 'r1', bed_no: '2' },
+  { id: 'bed-a', station_id: 's1', bed_number: 'A101-1', is_occupied: true, qr_code_id: 'q1', room_id: 'r1', bed_no: '1', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'bed-b', station_id: 's1', bed_number: 'A102-2', is_occupied: true, qr_code_id: 'q2', room_id: 'r1', bed_no: '2', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ];
 
 const makePatient = (overrides: Partial<Patient> = {}): Patient =>

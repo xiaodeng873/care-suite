@@ -191,7 +191,7 @@ const ActivityRecordModal: React.FC<ActivityRecordModalProps> = ({ onClose, defa
     const absence = absenceMap[patientId] ?? { is_absent: false, absence_reason: '' };
     const isAbsent = absence.is_absent;
     const absenceReason = absence.absence_reason || '住院/外出';
-    const payload: Omit<PatientActivityRecord, 'id' | 'created_at' | 'updated_at'> = {
+    const payload = {
       patient_id: patientId,
       record_date: recordDate,
       other_activity: isAbsent ? '' : (sharedActivity.other_activity || ''),
@@ -199,9 +199,9 @@ const ActivityRecordModal: React.FC<ActivityRecordModalProps> = ({ onClose, defa
       is_absent: isAbsent,
       absence_reason: isAbsent ? absenceReason : '',
       recorder: sharedActivity.recorder || '',
-    };
+    } as Omit<PatientActivityRecord, 'id' | 'created_at' | 'updated_at'>;
     ACTIVITY_BOOLEAN_FIELDS.forEach(f => {
-      (payload as unknown as Record<ActivityBooleanField, boolean>)[f] = isAbsent ? false : !!sharedActivity[f];
+      payload[f] = isAbsent ? false : !!sharedActivity[f];
     });
     return payload;
   };

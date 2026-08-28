@@ -40,11 +40,11 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ schedule, onClose }) => {
         await updateSchedule({
           排程id: schedule.排程id,
           到診日期: formData.到診日期
-        });
+        } as any);
       } else {
         await addSchedule({
           到診日期: formData.到診日期
-        });
+        } as any);
       }
       onClose();
     } catch (err: any) {

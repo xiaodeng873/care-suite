@@ -27,8 +27,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -75,7 +75,7 @@ const extractBedLayoutTemplateFormat = async (templateFile: File): Promise<Extra
     }
   };
   // 動態檢測工作表範圍
-  const dimension = worksheet.dimension;
+  const dimension = (worksheet as any).dimension;
   const maxCol = dimension?.right || 50;
   const maxRow = dimension?.bottom || 100;
   // Extract column widths
@@ -105,11 +105,11 @@ const extractBedLayoutTemplateFormat = async (templateFile: File): Promise<Extra
   try {
     const rowBreaks: number[] = [];
     const colBreaks: number[] = [];
-    if (worksheet.rowBreaks && Array.isArray(worksheet.rowBreaks)) {
-      rowBreaks.push(...worksheet.rowBreaks);
+    if ((worksheet as any).rowBreaks && Array.isArray((worksheet as any).rowBreaks)) {
+      rowBreaks.push(...(worksheet as any).rowBreaks);
     }
-    if (worksheet.colBreaks && Array.isArray(worksheet.colBreaks)) {
-      colBreaks.push(...worksheet.colBreaks);
+    if ((worksheet as any).colBreaks && Array.isArray((worksheet as any).colBreaks)) {
+      colBreaks.push(...(worksheet as any).colBreaks);
     }
     if ((worksheet as any).model?.rowBreaks) {
       const modelRowBreaks = (worksheet as any).model.rowBreaks;
@@ -129,7 +129,7 @@ const extractBedLayoutTemplateFormat = async (templateFile: File): Promise<Extra
       rowBreaks: extractedTemplate.pageBreaks!.rowBreaks.length,
       colBreaks: extractedTemplate.pageBreaks!.colBreaks.length
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('提取分頁符失敗:', error);
     extractedTemplate.pageBreaks = { rowBreaks: [], colBreaks: [] };
   }
@@ -155,19 +155,19 @@ const extractBedLayoutTemplateFormat = async (templateFile: File): Promise<Extra
       }
       // Extract border
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       // Extract fill
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       // Extract number format
       if (cell.numFmt) {
@@ -202,7 +202,7 @@ const extractBedLayoutTemplateFormat = async (templateFile: File): Promise<Extra
         }
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('提取圖片失敗:', error);
     extractedTemplate.images = [];
   }
@@ -257,18 +257,18 @@ const applyBedLayoutTemplateFormat = (
       }
       // Apply border
       if (cellData.border) {
-        cell.border = { ...cellData.border };
+        (cell.border as any) = { ...cellData.border };
       }
       // Apply fill
       if (cellData.fill) {
-        cell.fill = { ...cellData.fill };
+        (cell.fill as any) = { ...cellData.fill };
       }
       // Apply number format
       if (cellData.numFmt) {
         cell.numFmt = cellData.numFmt;
       }
       appliedCells++;
-    } catch (error) {
+    } catch (error: any) {
       console.warn(`應用儲存格 ${address} 樣式失敗:`, error);
     }
   });
@@ -291,7 +291,7 @@ const applyBedLayoutTemplateFormat = (
           extension: img.extension as 'png' | 'jpeg' | 'gif'
         });
         worksheet.addImage(imageId, img.range);
-      } catch (error) {
+      } catch (error: any) {
         console.error(`應用圖片失敗 (範圍=${img.range}):`, error);
       }
     });
@@ -302,8 +302,8 @@ const applyBedLayoutTemplateFormat = (
       if (template.pageBreaks.rowBreaks && template.pageBreaks.rowBreaks.length > 0) {
         template.pageBreaks.rowBreaks.forEach(rowNum => {
           try {
-            worksheet.addPageBreak(rowNum, 0);
-          } catch (error) {
+            (worksheet as any).addPageBreak(rowNum, 0);
+          } catch (error: any) {
             console.warn(`添加行分頁符失敗 (第 ${rowNum} 行):`, error);
           }
         });
@@ -311,13 +311,13 @@ const applyBedLayoutTemplateFormat = (
       if (template.pageBreaks.colBreaks && template.pageBreaks.colBreaks.length > 0) {
         template.pageBreaks.colBreaks.forEach(colNum => {
           try {
-            worksheet.addPageBreak(0, colNum);
-          } catch (error) {
+            (worksheet as any).addPageBreak(0, colNum);
+          } catch (error: any) {
             console.warn(`添加欄分頁符失敗 (第 ${colNum} 欄):`, error);
           }
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('應用分頁符失敗:', error);
     }
   }
@@ -361,14 +361,14 @@ const applyBedLayoutTemplateFormat = (
     if (targetCell && bed.院友姓名) {
       try {
         worksheet.getCell(targetCell).value = bed.院友姓名;
-      } catch (error) {
+      } catch (error: any) {
         console.warn(`填入 ${targetCell} 失敗:`, error);
       }
     } else if (targetCell) {
       // 空置床位，填入空字串
       try {
         worksheet.getCell(targetCell).value = '';
-      } catch (error) {
+      } catch (error: any) {
         console.warn(`填入 ${targetCell} 失敗:`, error);
       }
     } else {
@@ -402,7 +402,7 @@ const applyBedLayoutTemplateFormat = (
     statisticsMappings.forEach(mapping => {
       try {
         worksheet.getCell(mapping.cell).value = mapping.value;
-      } catch (error) {
+      } catch (error: any) {
         console.warn(`填入統計 ${mapping.cell} 失敗:`, error);
       }
     });
@@ -411,15 +411,15 @@ const applyBedLayoutTemplateFormat = (
       const today = new Date();
       const printDate = `${today.getFullYear()}年${(today.getMonth() + 1).toString().padStart(2, '0')}月${today.getDate().toString().padStart(2, '0')}日`;
       worksheet.getCell('Q28').value = printDate;
-    } catch (error) {
+    } catch (error: any) {
       console.warn('填入列印日期失敗:', error);
     }
   }
   // Step 9: Apply print settings
   if (template.printSettings) {
     try {
-      worksheet.pageSetup = { ...template.printSettings };
-    } catch (error) {
+      (worksheet.pageSetup as any) = { ...template.printSettings };
+    } catch (error: any) {
       console.warn('應用列印設定失敗:', error);
     }
   }
@@ -511,7 +511,7 @@ export const exportBedLayoutToExcel = async (
     // 創建工作簿並匯出
     const workbook = await createBedLayoutWorkbook(sheetsConfig);
     await saveExcelFile(workbook, finalFilename);
-  } catch (error) {
+  } catch (error: any) {
     console.error('匯出床位表失敗:', error);
     throw error;
   }
@@ -551,7 +551,7 @@ const exportBedLayoutToExcelSimple = async (
     titleCell.value = `${station.name} 床位表`;
     titleCell.font = { size: 16, bold: true };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = {
+    (titleCell.fill as any) = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FFE6F7FF' }
@@ -572,13 +572,13 @@ const exportBedLayoutToExcelSimple = async (
       const cell = headerRow.getCell(index + 1);
       cell.value = header;
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = {
+      (cell.fill as any) = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: 'FF4472C4' }
       };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = {
+      (cell.border as any) = {
         top: { style: 'thin' },
         left: { style: 'thin' },
         bottom: { style: 'thin' },
@@ -612,7 +612,7 @@ const exportBedLayoutToExcelSimple = async (
       values.forEach((value, colIndex) => {
         const cell = row.getCell(colIndex + 1);
         cell.value = value;
-        cell.border = {
+        (cell.border as any) = {
           top: { style: 'thin' },
           left: { style: 'thin' },
           bottom: { style: 'thin' },
@@ -620,14 +620,14 @@ const exportBedLayoutToExcelSimple = async (
         };
         // 空置床位使用不同顏色
         if (!patient) {
-          cell.fill = {
+          (cell.fill as any) = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: 'FFFFF0F0' } // 淺紅色
           };
         } else if (index % 2 === 1) {
           // 已佔用床位的交替行顏色
-          cell.fill = {
+          (cell.fill as any) = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: 'FFF8F9FA' }

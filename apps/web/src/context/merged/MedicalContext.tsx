@@ -735,7 +735,7 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
 
   const batchDeleteDuplicateRecords = useCallback(async (duplicateRecordIds: number[], deletedBy?: string): Promise<void> => {
     try {
-      await db.batchMoveDuplicatesToRecycleBin(duplicateRecordIds, deletedBy);
+      await db.batchMoveDuplicatesToRecycleBin(duplicateRecordIds.map(String), deletedBy);
       await refreshHealthRecordData();
     } catch (error) {
       console.error('Error batch deleting duplicate records:', error);

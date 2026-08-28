@@ -13,7 +13,7 @@ interface TransferPath {
 }
 
 interface DischargeType {
-  value: 'home' | 'transfer_out' | 'deceased';
+  value: 'home' | 'return_to_facility' | 'transfer_out' | 'deceased';
   label: string;
   description: string;
   icon: React.ReactNode;
@@ -195,9 +195,9 @@ const EnhancedAdmissionRecordModal: React.FC<EnhancedAdmissionRecordModalProps> 
       };
 
       if (record) {
-        await updatePatientAdmissionRecord({ ...submitData, id: record.id });
+        await updatePatientAdmissionRecord({ ...submitData, id: record.id } as any);
       } else {
-        await addPatientAdmissionRecord(submitData);
+        await addPatientAdmissionRecord(submitData as any);
       }
 
       onClose();

@@ -171,7 +171,7 @@ const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment,
     const currentDressings = wounds[index].dressings;
     const newDressings = checked
       ? [...currentDressings, dressing]
-      : currentDressings.filter(d => d !== dressing);
+      : currentDressings.filter((d: string) => d !== dressing);
     updateWound(index, 'dressings', newDressings);
   };
 
@@ -185,7 +185,7 @@ const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment,
 
     try {
       const assessmentData = {
-        patient_id: parseInt(formData.patient_id),
+        patient_id: parseInt(String(formData.patient_id)),
         assessment_date: formData.assessment_date,
         next_assessment_date: formData.next_assessment_date || null,
         assessor: formData.assessor || null,
@@ -222,9 +222,9 @@ const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment,
         await updateWoundAssessment({
           id: assessment.id,
           ...assessmentData
-        });
+        } as any);
       } else {
-        await addWoundAssessment(assessmentData);
+        await addWoundAssessment(assessmentData as any);
       }
       
       onClose();
@@ -738,7 +738,7 @@ const WoundAssessmentModal: React.FC<WoundAssessmentModalProps> = ({ assessment,
                       
                       {wound.dressings.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
-                          {wound.dressings.map(dressing => (
+                          {wound.dressings.map((dressing: string) => (
                             <span key={dressing} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
                               {dressing}
                             </span>

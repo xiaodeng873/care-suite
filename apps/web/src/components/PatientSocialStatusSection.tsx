@@ -30,7 +30,7 @@ const PatientSocialStatusSection: React.FC<PatientSocialStatusSectionProps> = ({
   formData,
   setFormData,
 }) => {
-  const status = { ...defaultSocialStatus, ...(formData.social_status_json || {}) };
+  const status = { ...defaultSocialStatus, ...(formData.social_status_json || {}) } as typeof defaultSocialStatus;
 
   const updateStatus = (updates: Partial<typeof defaultSocialStatus>) => {
     setFormData((prev: any) => ({

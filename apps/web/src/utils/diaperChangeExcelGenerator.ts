@@ -26,8 +26,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -72,7 +72,7 @@ export const extractDiaperChangeTemplateFormat = async (templateFile: File): Pro
     throw new Error('找不到工作表');
   }
   // 使用固定範圍 A1:AE140 來確保所有行都被處理
-  const dimension = worksheet.dimension;
+  const dimension = (worksheet as any).dimension;
   const extractedTemplate: ExtractedTemplate = {
     columnWidths: [],
     rowHeights: [],
@@ -119,11 +119,11 @@ export const extractDiaperChangeTemplateFormat = async (templateFile: File): Pro
     const rowBreaks: number[] = [];
     const colBreaks: number[] = [];
     // Multiple methods to extract page breaks
-    if (worksheet.rowBreaks && Array.isArray(worksheet.rowBreaks)) {
-      rowBreaks.push(...worksheet.rowBreaks);
+    if ((worksheet as any).rowBreaks && Array.isArray((worksheet as any).rowBreaks)) {
+      rowBreaks.push(...(worksheet as any).rowBreaks);
     }
-    if (worksheet.colBreaks && Array.isArray(worksheet.colBreaks)) {
-      colBreaks.push(...worksheet.colBreaks);
+    if ((worksheet as any).colBreaks && Array.isArray((worksheet as any).colBreaks)) {
+      colBreaks.push(...(worksheet as any).colBreaks);
     }
     if ((worksheet as any).model?.rowBreaks) {
       const modelRowBreaks = (worksheet as any).model.rowBreaks;
@@ -143,7 +143,7 @@ export const extractDiaperChangeTemplateFormat = async (templateFile: File): Pro
       rowBreaks: extractedTemplate.pageBreaks!.rowBreaks.length,
       colBreaks: extractedTemplate.pageBreaks!.colBreaks.length
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Worker: 提取分頁符失敗:', error);
     extractedTemplate.pageBreaks = { rowBreaks: [], colBreaks: [] };
   }
@@ -174,19 +174,19 @@ export const extractDiaperChangeTemplateFormat = async (templateFile: File): Pro
       }
       // Extract border
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       // Extract fill
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       // Extract number format
       if (cell.numFmt) {
@@ -227,9 +227,10 @@ const applyDiaperChangeTemplateFormat = (
   let appliedCells = 0;
   let problemCells = 0;
   Object.entries(template.cellData).forEach(([address, cellData]) => {
+    let rowNum = 0;
     try {
       const cell = worksheet.getCell(address);
-      const rowNum = parseInt(address.match(/\d+/)?.[0] || '0');
+      rowNum = parseInt(address.match(/\d+/)?.[0] || '0');
       // Apply value
       if (cellData.value !== undefined) {
         cell.value = cellData.value;
@@ -258,7 +259,7 @@ const applyDiaperChangeTemplateFormat = (
       // 特別關注第100行以後的儲存格
       if (rowNum >= 100) {
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ 應用儲存格 ${address} 樣式失敗:`, error);
       if (rowNum >= 100) {
         problemCells++;
@@ -285,8 +286,8 @@ const applyDiaperChangeTemplateFormat = (
       if (template.pageBreaks.rowBreaks && template.pageBreaks.rowBreaks.length > 0) {
         template.pageBreaks.rowBreaks.forEach(rowNum => {
           try {
-            worksheet.addPageBreak(rowNum, 0);
-          } catch (error) {
+            (worksheet as any).addPageBreak(rowNum, 0);
+          } catch (error: any) {
             console.warn(`添加行分頁符失敗 (第 ${rowNum} 行):`, error);
           }
         });
@@ -294,13 +295,13 @@ const applyDiaperChangeTemplateFormat = (
       if (template.pageBreaks.colBreaks && template.pageBreaks.colBreaks.length > 0) {
         template.pageBreaks.colBreaks.forEach(colNum => {
           try {
-            worksheet.addPageBreak(0, colNum);
-          } catch (error) {
+            (worksheet as any).addPageBreak(0, colNum);
+          } catch (error: any) {
             console.warn(`添加欄分頁符失敗 (第 ${colNum} 欄):`, error);
           }
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('應用分頁符失敗:', error);
     }
   }
@@ -336,7 +337,7 @@ const applyDiaperChangeTemplateFormat = (
       delete (worksheet as any).model.colBreaks;
     }
     // 設定頁面配置，避免自動分頁
-    worksheet.pageSetup = {
+    (worksheet.pageSetup as any) = {
       orientation: 'landscape',
       paperSize: 9, // A4
       printArea: 'A1:AE140',
@@ -371,7 +372,7 @@ const applyDiaperChangeTemplateFormat = (
     console.log('實際 colBreaks:', (worksheet as any).colBreaks);
     console.log('model rowBreaks:', (worksheet as any).model?.rowBreaks);
     console.log('model colBreaks:', (worksheet as any).model?.colBreaks);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 強制設定分頁符失敗:', error);
   }
   if (template.printSettings) {
@@ -393,7 +394,7 @@ const applyDiaperChangeTemplateFormat = (
           footer: 0
         }
       };
-      worksheet.pageSetup = {
+      (worksheet.pageSetup as any) = {
         ...template.printSettings,
         ...customSettings // 覆蓋範本設定
       };
@@ -402,7 +403,7 @@ const applyDiaperChangeTemplateFormat = (
     }
   } else {
     // 如果沒有範本設定，使用預設設定
-    worksheet.pageSetup = {
+    (worksheet.pageSetup as any) = {
       orientation: 'portrait',
       paperSize: 9,
       printArea: 'A1:AE140',

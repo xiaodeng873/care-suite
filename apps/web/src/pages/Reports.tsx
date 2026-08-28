@@ -525,8 +525,8 @@ const Reports: React.FC = () => {
     const fullCare女Patients = activePatients.filter(p => p.護理等級 === '全護理' && p.性別 === '女');
     const semiCare男Patients = activePatients.filter(p => p.護理等級 === '半護理' && p.性別 === '男');
     const semiCare女Patients = activePatients.filter(p => p.護理等級 === '半護理' && p.性別 === '女');
-    const convalescent男Patients = activePatients.filter(p => p.護理等級 === '療養級' && p.性別 === '男');
-    const convalescent女Patients = activePatients.filter(p => p.護理等級 === '療養級' && p.性別 === '女');
+    const convalescent男Patients = activePatients.filter(p => (p.護理等級 as string) === '療養級' && p.性別 === '男');
+    const convalescent女Patients = activePatients.filter(p => (p.護理等級 as string) === '療養級' && p.性別 === '女');
 
     return {
       admissionTypeStats,

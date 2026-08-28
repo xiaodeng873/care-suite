@@ -4,6 +4,7 @@ import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettin
 import { getMealGuidances, getTubeCareRecords, getPrescriptions, getDiagnosisRecordsByPatientId, getPatientContacts, getHealthTasks, getRestraintAssessments } from '../lib/database';
 import { calcAge } from './cgatFeeHelper';
 import { getPrintBedNumber } from './bedTransferUtils';
+import { formatDisplayDate } from './dateFormat';
 
 const escapeHtml = (text: string | number | undefined | null): string => {
   if (text == null || text === '') return '';

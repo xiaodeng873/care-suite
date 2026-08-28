@@ -3,7 +3,7 @@
  * 用於檢查年度體檢和約束物品評估的到期狀態
  */
 
-import type { Patient, PatientRestraintAssessment, ScheduleWithDetails } from '../lib/database';
+import type { Patient, PatientRestraintAssessment } from '../lib/database';
 import { getPrintBedNumber } from './bedTransferUtils';
 
 
@@ -29,7 +29,7 @@ export interface DueItem {
 const isScheduledSince = (
   patient: Patient,
   reasons: string[],
-  schedules: ScheduleWithDetails[],
+  schedules: any[],
   sinceDate: Date | null
 ): boolean => {
   // 如果沒有起始日期，我們無法可靠地判斷，直接返回 false
@@ -47,9 +47,9 @@ const isScheduledSince = (
   });
 
   for (const schedule of relevantSchedules) {
-    const patientInSchedule = schedule.院友列表.find(item => item.院友id === patient.院友id);
+    const patientInSchedule = schedule.院友列表.find((item: any) => item.院友id === patient.院友id);
     if (patientInSchedule && patientInSchedule.reasons) {
-      const hasMatchingReason = patientInSchedule.reasons.some(r => reasons.includes(r.原因名稱));
+      const hasMatchingReason = patientInSchedule.reasons.some((r: any) => reasons.includes(r.原因名稱));
       if (hasMatchingReason) {
         return true; // 找到匹配的排程
       }
@@ -66,7 +66,7 @@ const isScheduledSince = (
 export const checkAnnualHealthCheckupDue = (
   patient: Patient,
   lastCheckupDate: string | null,
-  schedules: ScheduleWithDetails[],
+  schedules: any[],
   reminderDays: number = 14
 ): DueItem | null => {
   let baseDate: Date;
@@ -119,7 +119,7 @@ export const checkAnnualHealthCheckupDue = (
 export const checkRestraintAssessmentDue = (
   patient: Patient,
   lastAssessment: PatientRestraintAssessment | null,
-  schedules: ScheduleWithDetails[],
+  schedules: any[],
   reminderDays: number = 14
 ): DueItem | null => {
   if (!lastAssessment) {

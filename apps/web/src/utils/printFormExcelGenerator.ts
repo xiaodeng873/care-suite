@@ -14,8 +14,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -72,7 +72,7 @@ export const extractPrintFormTemplateFormat = async (templateFile: File): Promis
     }
   };
   // 動態檢測工作表範圍
-  const dimension = worksheet.dimension;
+  const dimension = (worksheet as any).dimension;
   const maxCol = dimension?.right || 50;
   const maxRow = dimension?.bottom || 100;
   // Extract column widths
@@ -103,11 +103,11 @@ export const extractPrintFormTemplateFormat = async (templateFile: File): Promis
     const rowBreaks: number[] = [];
     const colBreaks: number[] = [];
     // Multiple methods to extract page breaks
-    if (worksheet.rowBreaks && Array.isArray(worksheet.rowBreaks)) {
-      rowBreaks.push(...worksheet.rowBreaks);
+    if ((worksheet as any).rowBreaks && Array.isArray((worksheet as any).rowBreaks)) {
+      rowBreaks.push(...(worksheet as any).rowBreaks);
     }
-    if (worksheet.colBreaks && Array.isArray(worksheet.colBreaks)) {
-      colBreaks.push(...worksheet.colBreaks);
+    if ((worksheet as any).colBreaks && Array.isArray((worksheet as any).colBreaks)) {
+      colBreaks.push(...(worksheet as any).colBreaks);
     }
     if ((worksheet as any).model?.rowBreaks) {
       const modelRowBreaks = (worksheet as any).model.rowBreaks;
@@ -127,7 +127,7 @@ export const extractPrintFormTemplateFormat = async (templateFile: File): Promis
       rowBreaks: extractedTemplate.pageBreaks!.rowBreaks.length,
       colBreaks: extractedTemplate.pageBreaks!.colBreaks.length
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('提取分頁符失敗:', error);
     extractedTemplate.pageBreaks = { rowBreaks: [], colBreaks: [] };
   }
@@ -153,19 +153,19 @@ export const extractPrintFormTemplateFormat = async (templateFile: File): Promis
       }
       // Extract border
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       // Extract fill
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       // Extract number format
       if (cell.numFmt) {
@@ -200,7 +200,7 @@ export const extractPrintFormTemplateFormat = async (templateFile: File): Promis
         }
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('提取圖片失敗:', error);
     extractedTemplate.images = [];
   }
@@ -265,18 +265,18 @@ const applyPrintFormTemplateFormat = (
       }
       // Apply border
       if (cellData.border) {
-        cell.border = { ...cellData.border };
+        (cell.border as any) = { ...cellData.border };
       }
       // Apply fill
       if (cellData.fill) {
-        cell.fill = { ...cellData.fill };
+        (cell.fill as any) = { ...cellData.fill };
       }
       // Apply number format
       if (cellData.numFmt) {
         cell.numFmt = cellData.numFmt;
       }
       appliedCells++;
-    } catch (error) {
+    } catch (error: any) {
       console.warn(`應用儲存格 ${address} 樣式失敗:`, error);
     }
   });
@@ -299,7 +299,7 @@ const applyPrintFormTemplateFormat = (
           extension: img.extension as 'png' | 'jpeg' | 'gif'
         });
         worksheet.addImage(imageId, img.range);
-      } catch (error) {
+      } catch (error: any) {
         console.error(`應用圖片失敗 (範圍=${img.range}):`, error);
       }
     });
@@ -310,8 +310,8 @@ const applyPrintFormTemplateFormat = (
       if (template.pageBreaks.rowBreaks && template.pageBreaks.rowBreaks.length > 0) {
         template.pageBreaks.rowBreaks.forEach(rowNum => {
           try {
-            worksheet.addPageBreak(rowNum, 0);
-          } catch (error) {
+            (worksheet as any).addPageBreak(rowNum, 0);
+          } catch (error: any) {
             console.warn(`添加行分頁符失敗 (第 ${rowNum} 行):`, error);
           }
         });
@@ -319,13 +319,13 @@ const applyPrintFormTemplateFormat = (
       if (template.pageBreaks.colBreaks && template.pageBreaks.colBreaks.length > 0) {
         template.pageBreaks.colBreaks.forEach(colNum => {
           try {
-            worksheet.addPageBreak(0, colNum);
-          } catch (error) {
+            (worksheet as any).addPageBreak(0, colNum);
+          } catch (error: any) {
             console.warn(`添加欄分頁符失敗 (第 ${colNum} 欄):`, error);
           }
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('應用分頁符失敗:', error);
     }
   }
@@ -364,15 +364,15 @@ const applyPrintFormTemplateFormat = (
             currentValue === '' || currentValue.trim() === ''))) {
         cell.value = mapping.value;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.warn(`填入 ${mapping.cell} 失敗:`, error);
     }
   });
   // Step 8: Apply print settings
   if (template.printSettings) {
     try {
-      worksheet.pageSetup = { ...template.printSettings };
-    } catch (error) {
+      (worksheet.pageSetup as any) = { ...template.printSettings };
+    } catch (error: any) {
       console.warn('應用列印設定失敗:', error);
     }
   }
@@ -445,7 +445,7 @@ export const exportPrintFormsToExcel = async (
     // 創建工作簿並匯出
     const workbook = await createPrintFormWorkbook(sheetsConfig);
     await saveExcelFile(workbook, finalFilename);
-  } catch (error) {
+  } catch (error: any) {
     console.error('匯出列印表格失敗:', error);
     throw error;
   }

@@ -17,7 +17,7 @@ import { extractMedicationRecordTemplateFormat } from '../utils/medicationRecord
 import { extractPersonalMedicationListTemplateFormat } from '../utils/personalMedicationListExcelGenerator';
 import { extractAnnualHealthCheckupTemplateFormat } from '../utils/annualHealthCheckupExcelGenerator';
 import { formatDisplayDateTime } from '../utils/dateFormat';
-type TemplateType = 'waiting-list' | 'prescription' | 'medication-record' | 'personal-medication-list' | 'consent-form' | 'vital-signs' | 'blood-sugar' | 'weight-control' | 'follow-up-list' | 'restraint-observation' | 'diaper-change-record' | 'personal-hygiene-record' | 'admission-layout' | 'annual-health-checkup' | 'incident-report';
+type TemplateType = 'waiting-list' | 'prescription' | 'medication-record' | 'personal-medication-list' | 'consent-form' | 'vital-signs' | 'blood-sugar' | 'weight-control' | 'follow-up-list' | 'restraint-observation' | 'diaper-change-record' | 'personal-hygiene-record' | 'admission-layout' | 'annual-health-checkup' | 'incident-report' | 'bed-layout';
 interface TemplateMetadata {
   id: number;
   name: string;
@@ -344,6 +344,7 @@ const TemplateManagement: React.FC = () => {
       'personal-medication-list': 'bg-violet-100 text-violet-800',
       'admission-layout': 'bg-amber-100 text-amber-800',
       'bed-layout': 'bg-emerald-100 text-emerald-800',
+      'annual-health-checkup': 'bg-sky-100 text-sky-800',
       'incident-report': 'bg-rose-100 text-rose-800'
     };
     return colorMap[type] || 'bg-gray-100 text-gray-800';

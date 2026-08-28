@@ -178,7 +178,7 @@ export interface FollowUpAppointment {
   更新時間: string;
 }
 export type MealCombinationType = '正飯+正餸' | '正飯+碎餸' | '正飯+糊餸' | '軟飯+正餸' | '軟飯+碎餸' | '軟飯+糊餸' | '糊飯+糊餸' | '不適用';
-export type SpecialDietType = '糖尿餐' | '痛風餐' | '低鹽餐' | '鼻胃飼' | '雞蛋';
+export type SpecialDietType = '糖尿餐' | '痛風餐' | '低鹽餐' | '鼻胃飼' | '雞蛋' | '素食';
 export interface MealGuidance {
   id: string;
   patient_id: number;
@@ -1091,7 +1091,7 @@ export const updatePrescription = async (prescription: Partial<MedicationPrescri
   // 不可為 NULL 的文字欄位：空字串需保留（轉成 null 會違反 NOT NULL 限制）
   const notNullTextColumns = new Set(['medication_source', 'medication_name']);
   // Clean up empty string values by converting them to null
-  const cleanedData = { ...updateData };
+  const cleanedData = { ...updateData } as Record<string, any>;
   Object.keys(cleanedData).forEach(key => {
     if (cleanedData[key] === '' && !notNullTextColumns.has(key)) {
       cleanedData[key] = null;
@@ -1371,7 +1371,7 @@ export const getPatientPhotos = async (): Promise<Map<number, string | null>> =>
 };
 export const createPatient = async (patient: Omit<Patient, '院友id'>): Promise<Patient> => {
   // 清理空字符串，將其轉換為 null
-  const cleanedPatient = { ...patient };
+  const cleanedPatient = { ...patient } as Record<string, any>;
   Object.keys(cleanedPatient).forEach(key => {
     if (cleanedPatient[key] === '') cleanedPatient[key] = null;
   });
@@ -1392,7 +1392,7 @@ export const createPatient = async (patient: Omit<Patient, '院友id'>): Promise
     const { data: existingPatients, error: checkError } = await supabase
       .from('院友主表')
       .select('院友id, 中文姓名, 床號, 在住狀態, 身份證號碼')
-      .not('身份證號碼', 'is', null);
+      .not('身份證號碼', 'is', null) as { data: Partial<Patient>[] | null; error: any };
 
     if (checkError) throw checkError;
 
@@ -1413,7 +1413,7 @@ export const createPatient = async (patient: Omit<Patient, '院友id'>): Promise
   return data;
 };
 export const updatePatient = async (patient: Patient): Promise<Patient> => {
-  const cleanedPatient = { ...patient };
+  const cleanedPatient = { ...patient } as Record<string, any>;
   Object.keys(cleanedPatient).forEach(key => {
     if (cleanedPatient[key] === '') cleanedPatient[key] = null;
   });
@@ -1597,7 +1597,7 @@ export const assignPatientToBed = async (
   const [{ data: bed, error: bedError }, { data: patient, error: patientError }] = await Promise.all([
     supabase.from('beds').select('id, station_id, bed_number').eq('id', bedId).single(),
     supabase.from('院友主表').select('院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type, 在住狀態').eq('院友id', patientId).single()
-  ]);
+  ]) as [{ data: Partial<Bed>; error: any }, { data: Partial<Patient>; error: any }];
   if (bedError) throw bedError;
   if (patientError) throw patientError;
 
@@ -1612,7 +1612,7 @@ export const assignPatientToBed = async (
       .eq('bed_id', bedId)
       .eq('在住狀態', '在住')
       .neq('院友id', patientId)
-      .maybeSingle();
+      .maybeSingle() as { data: Partial<Patient> | null; error: any };
     if (occupantError) throw occupantError;
     if (occupant) {
       throw new Error(`床位 ${bed.bed_number} 已被院友 ${occupant.中文姓氏 || ''}${occupant.中文名字 || ''}（${occupant.床號 || ''}）佔用，請先將該院友遷離。`);
@@ -1680,7 +1680,7 @@ export const endTemporaryTransfer = async (patientId: number): Promise<void> => 
     .from('院友主表')
     .select('院友id, bed_id, station_id, 床號, original_bed_id, original_station_id')
     .eq('院友id', patientId)
-    .single();
+    .single() as { data: Partial<Patient>; error: any };
   if (patientError) throw patientError;
   if (!patient.original_bed_id) throw new Error('沒有原床位');
 
@@ -1737,7 +1737,7 @@ export const swapPatientBeds = async (
   const { data: patients, error: fetchError } = await supabase
     .from('院友主表')
     .select('院友id, bed_id, station_id, 床號, original_bed_id, original_station_id, bed_transfer_type')
-    .in('院友id', [patientId1, patientId2]);
+    .in('院友id', [patientId1, patientId2]) as { data: Partial<Patient>[] | null; error: any };
   if (fetchError) throw fetchError;
   const patient1 = patients?.find(p => p.院友id === patientId1);
   const patient2 = patients?.find(p => p.院友id === patientId2);
@@ -1920,7 +1920,7 @@ export const getScheduleDetails = async (scheduleId: number): Promise<ScheduleDe
   const { data: reasonRelations, error: reasonRelError } = await supabase
     .from('到診院友_看診原因')
     .select('細項id, 原因id')
-    .in('細項id', detailIds);
+    .in('細項id', detailIds) as { data: { 細項id: number; 原因id: number }[] | null; error: any };
   
   if (reasonRelError) throw reasonRelError;
   
@@ -1984,7 +1984,7 @@ export const deletePatientSchedulesAfterDate = async (patientId: number, afterDa
   const { data: futureSchedules, error: scheduleError } = await supabase
     .from('到診排程主表')
     .select('排程id')
-    .gt('到診日期', afterDate);
+    .gt('到診日期', afterDate) as { data: { 排程id: number }[] | null; error: any };
   
   if (scheduleError) throw scheduleError;
   if (!futureSchedules || futureSchedules.length === 0) return { deletedCount: 0 };
@@ -2081,7 +2081,7 @@ export const getHealthRecords = async (options?: { limit?: number; daysBack?: nu
 export const createHealthRecord = async (record: Omit<HealthRecord, '記錄id' | '建立時間'>): Promise<HealthRecord> => {
   const { data, error } = await supabase.from('健康監測記錄').insert([record]).select('記錄id').single();
   if (error) { console.error('Error creating health record:', error); throw error; }
-  return { ...record, ...data } as HealthRecord;
+  return { ...record, ...(data as Record<string, any>) } as HealthRecord;
 };
 
 /** 批量建立同一 session 的多筆 narrow 記錄（動態 modal submit 用，相同 記錄日期/記錄時間）*/
@@ -2263,7 +2263,7 @@ export const createRestraintAssessment = async (assessment: Omit<PatientRestrain
 };
 export const updateRestraintAssessment = async (assessment: PatientRestraintAssessment): Promise<PatientRestraintAssessment> => {
   // Clean up empty string values by converting them to null
-  const cleanedAssessment = { ...assessment };
+  const cleanedAssessment = { ...assessment } as Record<string, any>;
   Object.keys(cleanedAssessment).forEach(key => {
     if (cleanedAssessment[key] === '') {
       cleanedAssessment[key] = null;
@@ -2271,7 +2271,7 @@ export const updateRestraintAssessment = async (assessment: PatientRestraintAsse
   });
   const { error } = await supabase.from('patient_restraint_assessments').update(cleanedAssessment).eq('id', cleanedAssessment.id);
   if (error) throw error;
-  return cleanedAssessment;
+  return cleanedAssessment as PatientRestraintAssessment;
 };
 export const deleteRestraintAssessment = async (assessmentId: string): Promise<void> => {
   const { error } = await supabase.from('patient_restraint_assessments').delete().eq('id', assessmentId);
@@ -2448,13 +2448,13 @@ export const getPatientsWithWounds = async (): Promise<PatientWithWounds[]> => {
         .select('院友id, 床號, 中文姓氏, 中文名字, original_bed_id')
         .eq('在住狀態', '在住'),
       getBeds(),
-    ]);
+    ]) as [{ data: Partial<Patient>[] | null; error: any }, Bed[]];
     if (patientsError) throw patientsError;
     const bedMap = new Map(beds.map(b => [b.id, b.bed_number]));
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     // 組合數據
-    const result: PatientWithWounds[] = (patients || []).map(patient => {
+    const result = (patients || []).map(patient => {
       const patientWounds = (wounds || []).filter(w => w.patient_id === patient.院友id);
       const woundsWithAssessments: WoundWithAssessments[] = patientWounds.map(wound => {
         const woundAssessments = (assessments || []).filter(a => a.wound_id === wound.id);
@@ -2493,7 +2493,7 @@ export const getPatientsWithWounds = async (): Promise<PatientWithWounds[]> => {
         healed_wound_count: woundsWithAssessments.filter(w => w.status === 'healed').length,
         overdue_assessment_count: woundsWithAssessments.filter(w => w.is_overdue).length
       };
-    });
+    }) as PatientWithWounds[];
     return result.filter(p => p.wounds.length > 0);
   } catch (err: any) {
     console.warn('獲取病人傷口數據失敗:', err?.message);
@@ -3955,17 +3955,17 @@ export const syncTaskStatus = async (taskId: string) => {
     .or(`任務id.eq.${taskId},and(院友id.eq.${task.patient_id},監測類型.eq.${task.health_record_type})`)
     .order('記錄日期', { ascending: false })
     .order('記錄時間', { ascending: false })
-    .limit(1);
+    .limit(1) as { data: Partial<HealthRecord>[] | null; error: any };
   const latestRecord = latestRecords && latestRecords.length > 0 ? latestRecords[0] : null;
   let updates = {};
   if (latestRecord) {
-    const recordDate = new Date(latestRecord.記錄日期);
+    const recordDate = new Date(latestRecord.記錄日期!);
     if (recordDate <= SYNC_CUTOFF_DATE) {
       return;
     }
-    const lastCompletedAt = new Date(`${latestRecord.記錄日期}T${latestRecord.記錄時間}`);
+    const lastCompletedAt = new Date(`${latestRecord.記錄日期!}T${latestRecord.記錄時間!}`);
     const { findFirstMissingDate } = await import('../utils/taskScheduler');
-    const startDate = new Date(latestRecord.記錄日期);
+    const startDate = new Date(latestRecord.記錄日期!);
     startDate.setDate(startDate.getDate() - 14);
     startDate.setHours(0, 0, 0, 0);
     if (startDate < SYNC_CUTOFF_DATE) {
@@ -4543,7 +4543,7 @@ export const getIncidentPresetOptions = async (optionType: 'immediate_improvemen
     .from('incident_preset_options')
     .select('*')
     .eq('option_type', optionType)
-    .order('display_order', { ascending: true });
+    .order('display_order', { ascending: true }) as { data: IncidentPresetOption[] | null; error: any };
   
   console.log(`Query result for ${optionType}:`, { data, error: error ? { code: error.code, message: error.message, details: error.details, status: error.status } : null });
   
@@ -4570,7 +4570,7 @@ export const createIncidentPresetOption = async (optionType: 'immediate_improvem
         display_order: displayOrder || 999
       })
       .select()
-      .single();
+      .single() as { data: IncidentPresetOption | null; error: any };
     
     if (error) {
       const errorMsg = `[${error.code || 'UNKNOWN'}] ${error.message} (status: ${error.status}). Details: ${error.details || 'N/A'}`;
@@ -4596,7 +4596,7 @@ export const deleteIncidentPresetOption = async (id: string): Promise<boolean> =
     const { error } = await supabase
       .from('incident_preset_options')
       .delete()
-      .eq('id', id);
+      .eq('id', id) as { data: any; error: any };
     
     if (error) {
       const errorMsg = `[${error.code || 'UNKNOWN'}] ${error.message} (status: ${error.status}). Details: ${error.details || 'N/A'}`;

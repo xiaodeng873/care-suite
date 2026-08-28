@@ -1,4 +1,3 @@
-import { HealthRecord } from '../lib/database';
 export interface GeneratedHealthData {
   血壓收縮壓?: string;
   血壓舒張壓?: string;
@@ -22,7 +21,7 @@ const generateRandomOffset = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
 };
 export const generateHealthRecordSuggestions = (
-  recentRecords: HealthRecord[],
+  recentRecords: any[],
   recordType: '生命表徵' | '血糖控制' | '體重控制'
 ): GeneratorResult => {
   if (!recentRecords || recentRecords.length === 0) {
@@ -113,7 +112,7 @@ export const generateHealthRecordSuggestions = (
       data: result,
       recordCount: recentRecords.length
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('[healthRecordGenerator] 生成錯誤:', error);
     return {
       success: false,

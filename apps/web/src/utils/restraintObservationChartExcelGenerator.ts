@@ -35,8 +35,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -132,7 +132,7 @@ export const extractRestraintObservationTemplateFormat = async (templateFile: Fi
       delete (worksheet as any).model.colBreaks;
     }
     // 設定頁面配置，完全禁用自動分頁和適應頁面功能
-    worksheet.pageSetup = {
+    (worksheet.pageSetup as any) = {
       orientation: 'landscape',
       paperSize: 9, // A4
       printArea: 'A1:AL108',
@@ -163,7 +163,7 @@ export const extractRestraintObservationTemplateFormat = async (templateFile: Fi
     console.log('實際 colBreaks:', (worksheet as any).colBreaks);
     console.log('model rowBreaks:', (worksheet as any).model?.rowBreaks);
     console.log('model colBreaks:', (worksheet as any).model?.colBreaks);
-  } catch (error) {
+  } catch (error: any) {
     console.error('提取分頁符失敗:', error);
     // 即使提取失敗，也設定我們需要的分頁符
     extractedTemplate.pageBreaks = { 
@@ -193,19 +193,19 @@ export const extractRestraintObservationTemplateFormat = async (templateFile: Fi
       }
       // Extract border
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       // Extract fill
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       // Extract number format
       if (cell.numFmt) {
@@ -289,7 +289,6 @@ const applyRestraintObservationTemplateFormat = (
     性別: string;
     身份證號碼: string;
     出生日期: string;
-    身份證號碼: string;
   },
   assessment: RestraintObservationExportData,
   startDate: string,
@@ -341,7 +340,7 @@ const applyRestraintObservationTemplateFormat = (
   for (let row = 1; row <= 108; row++) {
     for (let col = 1; col <= 38; col++) { // AL is column 38
       const cell = worksheet.getCell(row, col);
-      cell.border = {
+      (cell.border as any) = {
         top: { style: 'thin', color: { argb: 'FF000000' } },
         left: { style: 'thin', color: { argb: 'FF000000' } },
         bottom: { style: 'thin', color: { argb: 'FF000000' } },
@@ -379,11 +378,11 @@ const applyRestraintObservationTemplateFormat = (
     }
     // Apply border
     if (cellData.border) {
-      cell.border = { ...cellData.border };
+      (cell.border as any) = { ...cellData.border };
     }
     // Apply fill
     if (cellData.fill) {
-      cell.fill = { ...cellData.fill };
+      (cell.fill as any) = { ...cellData.fill };
     }
     // Apply number format
     if (cellData.numFmt) {
@@ -398,7 +397,7 @@ const applyRestraintObservationTemplateFormat = (
       }
     if (appliedCellCount % 500 === 0) {
     }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ 應用儲存格 ${address} 失敗:`, error);
       if (isProblemArea) {
         console.error(`❌ 問題區域儲存格 ${address} 應用失敗:`, error);
@@ -567,18 +566,18 @@ const applyRestraintObservationTemplateFormat = (
     // 設定行分頁符：在第54行後分頁
     try {
       worksheet.getRow(54).addPageBreak();
-    } catch (error) {
+    } catch (error: any) {
       console.warn('❌ 行分頁符設定失敗:', error);
     }
     // 設定欄分頁符：在S欄後分頁
     try {
       worksheet.getColumn('S').addPageBreak();
-    } catch (error) {
+    } catch (error: any) {
       console.warn('❌ 欄分頁符設定失敗:', error);
     }
     // 驗證分頁符設定
-    console.log('worksheet.rowBreaks:', (worksheet as any).rowBreaks);
-    console.log('worksheet.colBreaks:', (worksheet as any).colBreaks);
+    console.log('(worksheet as any).rowBreaks:', (worksheet as any).rowBreaks);
+    console.log('(worksheet as any).colBreaks:', (worksheet as any).colBreaks);
     console.log('model.rowBreaks:', (worksheet as any).model?.rowBreaks);
     console.log('model.colBreaks:', (worksheet as any).model?.colBreaks);
   // Step 11: 完全忽略範本分頁符，只設定指定位置的分頁符
@@ -591,7 +590,7 @@ const applyRestraintObservationTemplateFormat = (
       delete (worksheet as any).model.colBreaks;
     }
     // 設定頁面配置，使用適應頁面來避免自動分頁
-    worksheet.pageSetup = {
+    (worksheet.pageSetup as any) = {
       orientation: 'portrait',
       paperSize: 9, // A4
       printArea: 'A1:AL108',
@@ -620,7 +619,7 @@ const applyRestraintObservationTemplateFormat = (
     // 驗證最終分頁符設定
     console.log('實際設定的 rowBreaks:', (worksheet as any).rowBreaks);
     console.log('實際設定的 colBreaks:', (worksheet as any).colBreaks);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 強制設定分頁符失敗:', error);
   }
 };
@@ -727,7 +726,7 @@ export const exportRestraintObservationsToExcel = async (
     // 創建工作簿並匯出
     const workbook = await createRestraintObservationWorkbook(sheetsConfig);
     await saveExcelFile(workbook, finalFilename);
-  } catch (error) {
+  } catch (error: any) {
     console.error('匯出約束物品觀察表失敗:', error);
     throw error;
   }
@@ -771,7 +770,7 @@ const exportRestraintObservationsToExcelSimple = async (
     titleCell.value = `${patient.中文姓氏}${patient.中文名字} 約束物品觀察表 (${formatDateToChinese(startDate)} 至 ${formatDateToChinese(endDate)})`;
     titleCell.font = { size: 16, bold: true };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = {
+    (titleCell.fill as any) = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FFFFD700' }
@@ -791,13 +790,13 @@ const exportRestraintObservationsToExcelSimple = async (
       const cell = headerRow.getCell(index + 1);
       cell.value = header;
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = {
+      (cell.fill as any) = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: 'FFFF8C00' }
       };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = {
+      (cell.border as any) = {
         top: { style: 'thin' },
         left: { style: 'thin' },
         bottom: { style: 'thin' },
@@ -826,7 +825,7 @@ const exportRestraintObservationsToExcelSimple = async (
             values.forEach((value, colIndex) => {
               const cell = row.getCell(colIndex + 1);
               cell.value = value;
-              cell.border = {
+              (cell.border as any) = {
                 top: { style: 'thin' },
                 left: { style: 'thin' },
                 bottom: { style: 'thin' },
@@ -834,7 +833,7 @@ const exportRestraintObservationsToExcelSimple = async (
               };
               // 交替行顏色
               if (day % 2 === 1) {
-                cell.fill = {
+                (cell.fill as any) = {
                   type: 'pattern',
                   pattern: 'solid',
                   fgColor: { argb: 'FFFFF8DC' }

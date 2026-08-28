@@ -229,7 +229,7 @@ export async function getLatestHealthReadings(patientId: number): Promise<Latest
       .order('記錄日期', { ascending: false })
       .order('記錄時間', { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle() as any;
 
     if (vitalSignRecords) {
       if (vitalSignRecords.數值) {
@@ -249,7 +249,7 @@ export async function getLatestHealthReadings(patientId: number): Promise<Latest
       .order('記錄日期', { ascending: false })
       .order('記錄時間', { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle() as any;
 
     if (bodyWeightRecord && bodyWeightRecord.數值) {
       result.body_weight = bodyWeightRecord.數值;
@@ -264,12 +264,12 @@ export async function getLatestHealthReadings(patientId: number): Promise<Latest
       .order('記錄日期', { ascending: false })
       .order('記錄時間', { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle() as any;
 
     if (pulseRecord && pulseRecord.數值) {
       result.pulse = pulseRecord.數值;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching latest health readings:', error);
   }
 

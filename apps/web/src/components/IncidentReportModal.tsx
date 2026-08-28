@@ -86,12 +86,12 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
   const relationshipOptions = ['保證人', '監護人', '家人', '其他'];
   const hospitalTreatmentOptions = ['照X光', '預防破傷風針注射', '洗傷口', '縫針', '不需要留醫', '返回護理院/家', '其他治療(例如藥物等)', '醫院留醫'];
 
-  const handleCheckboxChange = (category: string, option: string, checked: boolean) => {
+  const handleCheckboxChange = (category: string, option: string, value: boolean | string) => {
     setFormData((prev) => {
-      const newCategoryData = { ...prev[category] };
+      const newCategoryData = { ...(prev as any)[category] } as Record<string, boolean | string>;
 
       // 如果選擇「不適用」，清空其他所有選項
-      if (option === '不適用' && checked) {
+      if (option === '不適用' && value === true) {
         // 清空該類別的所有其他選項
         Object.keys(newCategoryData).forEach((key) => {
           if (key !== '不適用') {
@@ -101,13 +101,13 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
         newCategoryData['不適用'] = true;
       }
       // 如果選擇其他選項，取消「不適用」
-      else if (option !== '不適用' && checked && newCategoryData['不適用']) {
+      else if (option !== '不適用' && value === true && newCategoryData['不適用']) {
         newCategoryData['不適用'] = false;
         newCategoryData[option] = true;
       }
       // 正常處理
       else {
-        newCategoryData[option] = checked;
+        newCategoryData[option] = value;
       }
 
       return {
@@ -162,7 +162,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
       const currentLimbs = prev.limb_movement?.abnormal_limbs || [];
       const newLimbs = checked ?
       [...currentLimbs, limb] :
-      currentLimbs.filter((l) => l !== limb);
+      currentLimbs.filter((l: string) => l !== limb);
 
       return {
         ...prev,
@@ -559,9 +559,9 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
           id: report.id,
           created_at: report.created_at,
           updated_at: report.updated_at
-        });
+        } as any);
       } else {
-        await addIncidentReport(reportData);
+        await addIncidentReport(reportData as any);
       }
 
       onClose();

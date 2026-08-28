@@ -421,7 +421,7 @@ function buildInspectionHoldSection(
   }> = [];
 
   for (const r of workflowRecords) {
-    const result = parseInspectionResult(r);
+    const result = parseInspectionResult(r) as any;
     if (!result || result.canDispense !== false || !result.blockedRules || result.blockedRules.length === 0) continue;
     const p = prescriptionMap.get(r.prescription_id);
     for (const rule of result.blockedRules) {

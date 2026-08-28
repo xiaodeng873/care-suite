@@ -278,7 +278,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   const removeAllergy = (index: number) => {
     setFormData((prev) => ({
       ...prev,
-      藥物敏感: prev.藥物敏感.filter((_, i) => i !== index)
+      藥物敏感: prev.藥物敏感.filter((_: string, i: number) => i !== index)
     }));
   };
 
@@ -295,7 +295,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   const removeAdverseReaction = (index: number) => {
     setFormData((prev) => ({
       ...prev,
-      不良藥物反應: prev.不良藥物反應.filter((_, i) => i !== index)
+      不良藥物反應: prev.不良藥物反應.filter((_: string, i: number) => i !== index)
     }));
   };
 
@@ -551,7 +551,6 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
     // Convert empty string date values to null for proper database handling
     const sanitizedFormData = {
-      在住狀態: finalFormData.在住狀態,
       ...finalFormData,
       中文姓名,
       英文姓名: 英文姓名 || null,

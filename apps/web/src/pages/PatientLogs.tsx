@@ -884,7 +884,7 @@ const PatientLogs: React.FC = () => {
 
       {showModal && (
         <PatientLogModal
-          log={selectedLog}
+          log={selectedLog || undefined}
           onClose={() => {
             setShowModal(false);
             setSelectedLog(null);

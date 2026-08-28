@@ -28,6 +28,11 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
     return patient ? `${patient.中文姓氏}${patient.中文名字}` : '未知';
   };
 
+  const getPatientBedNumber = (patientId: number) => {
+    const patient = patients.find(p => p.院友id === patientId);
+    return patient?.床號 || '未知';
+  };
+
   const formatRecordValues = (record: HealthRecord): string[] => {
     if (record.監測類型 === '血壓') return [`血壓: ${record.數值}/${record.數值_副} mmHg`];
     if (record.監測類型 === '脈搏') return [`脈搏: ${record.數值} /min`];
@@ -65,7 +70,7 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
       duplicateGroups.forEach(group => {
         if (selectedGroups.has(group.key)) {
           group.duplicateRecords.forEach(record => {
-            recordIds.push(record.記錄id);
+            recordIds.push(record.記錄id as any);
           });
         }
       });
@@ -214,8 +219,8 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                           <div className="w-24 text-green-700 font-medium">✓ 保留:</div>
                           <div className="text-gray-600">
                             記錄 #{group.keepRecord.記錄id} (建立於{' '}
-                            {group.keepRecord.created_at
-                              ? formatDisplayDateTime(group.keepRecord.created_at)
+                            {(group.keepRecord as any).created_at
+                              ? formatDisplayDateTime((group.keepRecord as any).created_at)
                               : '未知時間'}
                             )
                           </div>
@@ -228,8 +233,8 @@ const DeduplicateRecordsModal: React.FC<DeduplicateRecordsModalProps> = ({
                             </div>
                             <div className="text-gray-600">
                               記錄 #{record.記錄id} (建立於{' '}
-                              {record.created_at
-                                ? formatDisplayDateTime(record.created_at)
+                              {(record as any).created_at
+                                ? formatDisplayDateTime((record as any).created_at)
                                 : '未知時間'}
                               )
                             </div>

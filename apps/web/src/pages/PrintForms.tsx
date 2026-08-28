@@ -224,7 +224,8 @@ const PrintForms: React.FC = () => {
       入住類型: '',
       在住狀態: '在住',
       性別: '',
-      社會福利: ''
+      社會福利: '',
+      公務員: ''
     });
   };
   const sortedPatients = [...filteredPatients].sort((a, b) => {
@@ -239,10 +240,6 @@ const PrintForms: React.FC = () => {
     let valueA: string | number = '';
     let valueB: string | number = '';
     switch (sortField) {
-      case '床號':
-        valueA = a.床號;
-        valueB = b.床號;
-        break;
       case '中文姓名':
         valueA = `${a.中文姓氏 || ''}${a.中文名字 || ''}`;
         valueB = `${b.中文姓氏 || ''}${b.中文名字 || ''}`;

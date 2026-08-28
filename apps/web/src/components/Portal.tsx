@@ -27,5 +27,5 @@ export function Portal({ children, container }: PortalProps) {
 
   const targetContainer = container || defaultContainer.current;
 
-  return createPortal(children, targetContainer);
+  return createPortal(children, targetContainer as Element);
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { UserProfile, StationShiftSetting, UserShiftAssignment, UserEmploymentDetails } from '@care-suite/shared';
+import type { UserProfile, StationShiftSetting, UserShiftAssignment, UserEmploymentDetails, UserLeaveRecord } from '@care-suite/shared';
 import {
   getWeekRange,
   getWeekDays,
@@ -130,9 +130,9 @@ describe('roster utils', () => {
   describe('buildShiftAssignmentMap', () => {
     it('groups assignments by station/shift/date and by user/date', () => {
       const assignments: UserShiftAssignment[] = [
-        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
-        { id: '2', user_id: 'u2', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
-        { id: '3', user_id: 'u1', work_date: '2026-08-03', station_id: null, shift_name: '午班', start_time: '15:00', created_by: null, created_at: '', updated_at: '' },
+        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, created_by: null, created_at: '', updated_at: '' },
+        { id: '2', user_id: 'u2', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, created_by: null, created_at: '', updated_at: '' },
+        { id: '3', user_id: 'u1', work_date: '2026-08-03', station_id: null, shift_name: '午班', start_time: '15:00', end_time: null, created_by: null, created_at: '', updated_at: '' },
       ];
       const { byKey, byUserDate } = buildShiftAssignmentMap(assignments);
       expect(byKey.get('s1|早班|2026-08-02')).toHaveLength(2);
@@ -144,10 +144,10 @@ describe('roster utils', () => {
 
     it('sorts by position priority and hire date when sort_order is uniform', () => {
       const assignments: UserShiftAssignment[] = [
-        { id: 'hw', user_id: 'u_hw', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '保健員', created_by: null, created_at: 'a', updated_at: '' },
-        { id: 'en_old', user_id: 'u_en_old', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '登記護士', created_by: null, created_at: 'b', updated_at: '' },
-        { id: 'rn', user_id: 'u_rn', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '註冊護士', created_by: null, created_at: 'c', updated_at: '' },
-        { id: 'en_new', user_id: 'u_en_new', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '登記護士', created_by: null, created_at: 'd', updated_at: '' },
+        { id: 'hw', user_id: 'u_hw', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, position: '保健員', created_by: null, created_at: 'a', updated_at: '' },
+        { id: 'en_old', user_id: 'u_en_old', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, position: '登記護士', created_by: null, created_at: 'b', updated_at: '' },
+        { id: 'rn', user_id: 'u_rn', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, position: '註冊護士', created_by: null, created_at: 'c', updated_at: '' },
+        { id: 'en_new', user_id: 'u_en_new', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, position: '登記護士', created_by: null, created_at: 'd', updated_at: '' },
       ];
       const users = [
         { id: 'u_hw', hire_date: '2020-01-01', nursing_position: '保健員', secondary_positions: [] },
@@ -162,9 +162,9 @@ describe('roster utils', () => {
 
     it('sort_order only overrides order within the same position priority', () => {
       const assignments: UserShiftAssignment[] = [
-        { id: 'rn', user_id: 'u_rn', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '註冊護士', sort_order: 3, created_by: null, created_at: '', updated_at: '' },
-        { id: 'hw', user_id: 'u_hw', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '保健員', sort_order: 1, created_by: null, created_at: '', updated_at: '' },
-        { id: 'en', user_id: 'u_en', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '登記護士', sort_order: 2, created_by: null, created_at: '', updated_at: '' },
+        { id: 'rn', user_id: 'u_rn', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, position: '註冊護士', sort_order: 3, created_by: null, created_at: '', updated_at: '' },
+        { id: 'hw', user_id: 'u_hw', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, position: '保健員', sort_order: 1, created_by: null, created_at: '', updated_at: '' },
+        { id: 'en', user_id: 'u_en', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, position: '登記護士', sort_order: 2, created_by: null, created_at: '', updated_at: '' },
       ];
       const { byKey } = buildShiftAssignmentMap(assignments, []);
       const list = byKey.get('s1|早班|2026-08-02')!;
@@ -174,8 +174,8 @@ describe('roster utils', () => {
 
     it('sort_order overrides hire_date within the same position', () => {
       const assignments: UserShiftAssignment[] = [
-        { id: 'en_new', user_id: 'u_en_new', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '登記護士', sort_order: 0, created_by: null, created_at: 'a', updated_at: '' },
-        { id: 'en_old', user_id: 'u_en_old', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', position: '登記護士', sort_order: 1, created_by: null, created_at: 'b', updated_at: '' },
+        { id: 'en_new', user_id: 'u_en_new', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, position: '登記護士', sort_order: 0, created_by: null, created_at: 'a', updated_at: '' },
+        { id: 'en_old', user_id: 'u_en_old', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, position: '登記護士', sort_order: 1, created_by: null, created_at: 'b', updated_at: '' },
       ];
       const users = [
         { id: 'u_en_new', hire_date: '2021-01-01', nursing_position: '登記護士', secondary_positions: [] },
@@ -318,9 +318,9 @@ describe('roster utils', () => {
         u3: { daily_contract_hours: 8 },
       } as unknown as Record<string, UserEmploymentDetails>;
       const assignments: UserShiftAssignment[] = [
-        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
-        { id: '2', user_id: 'u2', work_date: '2026-08-02', station_id: 's1', shift_name: '午班', start_time: '15:00', created_by: null, created_at: '', updated_at: '' },
-        { id: '3', user_id: 'u3', work_date: '2026-08-02', station_id: 's1', shift_name: '晚班', start_time: '22:00', created_by: null, created_at: '', updated_at: '' },
+        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, created_by: null, created_at: '', updated_at: '' },
+        { id: '2', user_id: 'u2', work_date: '2026-08-02', station_id: 's1', shift_name: '午班', start_time: '15:00', end_time: null, created_by: null, created_at: '', updated_at: '' },
+        { id: '3', user_id: 'u3', work_date: '2026-08-02', station_id: 's1', shift_name: '晚班', start_time: '22:00', end_time: null, created_by: null, created_at: '', updated_at: '' },
       ];
       const summary = summarizeDailyShiftByPosition('2026-08-02', users, employmentDetails, assignments);
       expect(summary['護理員']).toEqual({ headcount: 2, hours: 14 });
@@ -342,10 +342,10 @@ describe('roster utils', () => {
         u4: { daily_contract_hours: 8 },
       } as unknown as Record<string, UserEmploymentDetails>;
       const assignments: UserShiftAssignment[] = [
-        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
-        { id: '2', user_id: 'u2', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
-        { id: '3', user_id: 'u3', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
-        { id: '4', user_id: 'u4', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
+        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, created_by: null, created_at: '', updated_at: '' },
+        { id: '2', user_id: 'u2', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, created_by: null, created_at: '', updated_at: '' },
+        { id: '3', user_id: 'u3', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, created_by: null, created_at: '', updated_at: '' },
+        { id: '4', user_id: 'u4', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, created_by: null, created_at: '', updated_at: '' },
       ];
       const summary = summarizeDailyShiftByPosition('2026-08-02', users, employmentDetails, assignments);
       expect(summary['助理員']).toEqual({ headcount: 0, hours: 24 });
@@ -361,7 +361,7 @@ describe('roster utils', () => {
       ] as unknown as UserProfile[];
       const employmentDetails = { u1: { daily_contract_hours: 8 } } as unknown as Record<string, UserEmploymentDetails>;
       const assignments: UserShiftAssignment[] = [
-        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', position: '保健員', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
+        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', position: '保健員', shift_name: '早班', start_time: '07:00', end_time: null, created_by: null, created_at: '', updated_at: '' },
       ];
       const summary = summarizeDailyShiftByPosition('2026-08-02', users, employmentDetails, assignments);
       expect(summary['保健員']).toEqual({ headcount: 1, hours: 0 });
@@ -376,7 +376,7 @@ describe('roster utils', () => {
       ] as unknown as UserProfile[];
       const employmentDetails = { u1: { daily_contract_hours: 8 } } as unknown as Record<string, UserEmploymentDetails>;
       const assignments: UserShiftAssignment[] = [
-        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', created_by: null, created_at: '', updated_at: '' },
+        { id: '1', user_id: 'u1', work_date: '2026-08-02', station_id: 's1', shift_name: '早班', start_time: '07:00', end_time: null, created_by: null, created_at: '', updated_at: '' },
       ];
       const requiredHours = { 護理員: 16 };
       const requiredHourly = {

@@ -246,7 +246,7 @@ const StationBedManagement: React.FC = () => {
       return;
     }
     try {
-      const result = await cancelTemporaryTransfer(patient.院友id);
+      const result = await cancelTemporaryTransfer(patient.院友id) as any;
       if (result.success) {
         alert('已取消暫時性調動並返回原床');
       } else if (result.reason === 'mutual_swap_detected' && result.partner_patient_id) {

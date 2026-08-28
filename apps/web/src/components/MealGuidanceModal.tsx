@@ -22,7 +22,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
   };
 
   const [formData, setFormData] = useState({
-    patient_id: guidance?.patient_id || '',
+    patient_id: guidance?.patient_id?.toString() || '',
     meal_combination: guidance?.meal_combination || '正飯+正餸' as MealCombinationType,
     special_diets: guidance?.special_diets || [] as SpecialDietType[],
     needs_thickener: guidance?.needs_thickener || false,
@@ -173,10 +173,10 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
         await updateMealGuidance({
           ...guidance,
           ...guidanceData
-        });
+        } as any);
       } else {
         // Create new guidance
-        await addMealGuidance(guidanceData);
+        await addMealGuidance(guidanceData as any);
       }
       
       onClose();

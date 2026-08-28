@@ -107,7 +107,7 @@ const fetchInResidencePatients = async (patientIds?: number[]): Promise<PatientR
     console.error('讀取院友失敗:', error);
     throw error;
   }
-  return (data ?? []) as PatientRow[];
+  return (data ?? []) as unknown as PatientRow[];
 };
 
 // 取得指定日期範圍內的所有體溫記錄（分頁抓取以避開 Supabase 1000 列限制）
@@ -132,7 +132,7 @@ const fetchTemperatureRecords = async (startDate: string, endDate: string): Prom
       throw error;
     }
 
-    const rows = (data ?? []) as TempRecord[];
+    const rows = (data ?? []) as unknown as TempRecord[];
     if (rows.length === 0) break;
     all.push(...rows);
     if (rows.length < PAGE_SIZE) break;

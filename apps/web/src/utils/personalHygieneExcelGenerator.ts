@@ -28,8 +28,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -98,7 +98,7 @@ const extractPersonalHygieneTemplateFormat = async (templateFile: File): Promise
     }
   };
   // 動態檢測工作表範圍，但最少使用 A1:AL40
-  const dimension = worksheet.dimension;
+  const dimension = (worksheet as any).dimension;
   const maxCol = Math.max(dimension?.right || 38, 38); // AL = 38
   const maxRow = Math.max(dimension?.bottom || 40, 40);
   // Extract column widths (A to AL = 1 to 38)
@@ -129,11 +129,11 @@ const extractPersonalHygieneTemplateFormat = async (templateFile: File): Promise
     const rowBreaks: number[] = [];
     const colBreaks: number[] = [];
     // Multiple methods to extract page breaks
-    if (worksheet.rowBreaks && Array.isArray(worksheet.rowBreaks)) {
-      rowBreaks.push(...worksheet.rowBreaks);
+    if ((worksheet as any).rowBreaks && Array.isArray((worksheet as any).rowBreaks)) {
+      rowBreaks.push(...(worksheet as any).rowBreaks);
     }
-    if (worksheet.colBreaks && Array.isArray(worksheet.colBreaks)) {
-      colBreaks.push(...worksheet.colBreaks);
+    if ((worksheet as any).colBreaks && Array.isArray((worksheet as any).colBreaks)) {
+      colBreaks.push(...(worksheet as any).colBreaks);
     }
     if ((worksheet as any).model?.rowBreaks) {
       const modelRowBreaks = (worksheet as any).model.rowBreaks;
@@ -153,7 +153,7 @@ const extractPersonalHygieneTemplateFormat = async (templateFile: File): Promise
       rowBreaks: extractedTemplate.pageBreaks!.rowBreaks.length,
       colBreaks: extractedTemplate.pageBreaks!.colBreaks.length
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('提取分頁符失敗:', error);
     extractedTemplate.pageBreaks = { rowBreaks: [], colBreaks: [] };
   }
@@ -179,19 +179,19 @@ const extractPersonalHygieneTemplateFormat = async (templateFile: File): Promise
       }
       // Extract border
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       // Extract fill
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       // Extract number format
       if (cell.numFmt) {
@@ -226,7 +226,7 @@ const extractPersonalHygieneTemplateFormat = async (templateFile: File): Promise
         }
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('提取圖片失敗:', error);
     extractedTemplate.images = [];
   }
@@ -281,18 +281,18 @@ const applyPersonalHygieneTemplateFormat = (
       }
       // Apply border
       if (cellData.border) {
-        cell.border = { ...cellData.border };
+        (cell.border as any) = { ...cellData.border };
       }
       // Apply fill
       if (cellData.fill) {
-        cell.fill = { ...cellData.fill };
+        (cell.fill as any) = { ...cellData.fill };
       }
       // Apply number format
       if (cellData.numFmt) {
         cell.numFmt = cellData.numFmt;
       }
       appliedCells++;
-    } catch (error) {
+    } catch (error: any) {
       console.warn(`應用儲存格 ${address} 樣式失敗:`, error);
     }
   });
@@ -315,7 +315,7 @@ const applyPersonalHygieneTemplateFormat = (
           extension: img.extension as 'png' | 'jpeg' | 'gif'
         });
         worksheet.addImage(imageId, img.range);
-      } catch (error) {
+      } catch (error: any) {
         console.error(`應用圖片失敗 (範圍=${img.range}):`, error);
       }
     });
@@ -357,7 +357,7 @@ const applyPersonalHygieneTemplateFormat = (
       delete (worksheet as any).model.colBreaks;
     }
     // 設定頁面配置
-    worksheet.pageSetup = {
+    (worksheet.pageSetup as any) = {
       orientation: 'portrait',
       paperSize: 9, // A4
       printArea: 'A1:AL40',
@@ -385,7 +385,7 @@ const applyPersonalHygieneTemplateFormat = (
     }
     (worksheet as any).model.colBreaks = [19];
     (worksheet as any).model.rowBreaks = [];
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 設定分頁符失敗:', error);
   }
 };
@@ -457,7 +457,7 @@ export const exportPersonalHygieneToExcel = async (
     // 創建工作簿並匯出
     const workbook = await createPersonalHygieneWorkbook(sheetsConfig);
     await saveExcelFile(workbook, finalFilename);
-  } catch (error) {
+  } catch (error: any) {
     console.error('匯出個人衛生記錄失敗:', error);
     throw error;
   }

@@ -72,7 +72,7 @@ export function generateIntakeOutputHtml(input: IntakeOutputHtmlInput): string {
 
   // 渲染資料行
   const dataRows = CLINICAL_SLOTS.map(slot => {
-    const r = rowMap.get(slot) ?? {};
+    const r: any = rowMap.get(slot) ?? {};
     const bevMl  = r.beverage_ml  != null ? String(r.beverage_ml)  : '';
     const tubeMl = r.tube_ml      != null ? String(r.tube_ml)      : '';
     const gMl    = r.gastric_ml   != null ? String(r.gastric_ml)   : '';

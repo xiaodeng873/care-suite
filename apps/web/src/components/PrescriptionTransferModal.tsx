@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, ArrowRight, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
+import { type PrescriptionActivityActionType } from '../lib/database';
 import BedNumberImprint from './BedNumberImprint';
 import PrescriptionEndDateModal from './PrescriptionEndDateModal';
 import { getHongKongNow } from '../utils/prescriptionExpiry';
@@ -172,7 +173,7 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
         ? (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}`)
         : undefined;
       const replaceMeta = isReplace
-        ? { actionType: 'replace', groupId: replaceGroupId }
+        ? { actionType: 'replace' as PrescriptionActivityActionType, groupId: replaceGroupId }
         : undefined;
 
       // 更新處方

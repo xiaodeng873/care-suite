@@ -1,4 +1,15 @@
 {
   "extends": "./tsconfig.base.json",
-  "compilerOptions": {}
+  "compilerOptions": {},
+  "include": [
+    "apps/web/src",
+    "packages/shared/src"
+  ],
+  "exclude": [
+    "node_modules",
+    "supabase/functions",
+    "scripts",
+    ".tmp",
+    ".expo"
+  ]
 }

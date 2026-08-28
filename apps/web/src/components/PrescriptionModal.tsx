@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase';
 import PrescriptionLogModal from './PrescriptionLogModal';
 import DateInput from './DateInput';
 import InstitutionAutocomplete from './InstitutionAutocomplete';
+import { type MedicationInspectionRule } from '../lib/database';
 
 interface PrescriptionModalProps {
   prescription?: any;
@@ -113,7 +114,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     [formData.prescription_date, formData.end_date, formData.medication_quantity, formData.dosage_amount, formData.daily_frequency, formData.medication_time_slots, formData.frequency_type, formData.frequency_value, formData.specific_weekdays, formData.is_odd_even_day]
   );
 
-  const [inspectionRules, setInspectionRules] = useState(
+  const [inspectionRules, setInspectionRules] = useState<MedicationInspectionRule[]>(
     prescription?.inspection_rules || []
   );
 
@@ -174,7 +175,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       ...prev,
       specific_weekdays: checked
         ? [...prev.specific_weekdays, day].sort()
-        : prev.specific_weekdays.filter(d => d !== day)
+        : prev.specific_weekdays.filter((d: number) => d !== day)
     }));
   };
 
@@ -252,7 +253,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     if (validationError) setValidationError('');
     setFormData(prev => ({
       ...prev,
-      medication_time_slots: prev.medication_time_slots.filter(slot => slot !== timeSlot)
+      medication_time_slots: prev.medication_time_slots.filter((slot: string) => slot !== timeSlot)
     }));
   };
 
@@ -302,7 +303,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       condition_operator: 'gt',
       condition_value: 0,
       action_if_met: 'block_dispensing'
-    }]);
+    } as MedicationInspectionRule]);
   };
 
   const removeInspectionRule = (index: number) => {
@@ -504,8 +505,9 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       }
     }
 
+    let prescriptionData: any;
     try {
-      const prescriptionData = {
+      prescriptionData = {
         patient_id: formData.patient_id,
         medication_name: formData.medication_name,
         medication_source: formData.medication_source,
@@ -537,15 +539,15 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         status: formData.status,
         notes: formData.notes,
         is_long_term: prescription && prescription.id ? (prescription.is_long_term ?? !prescription.end_date) : !formData.end_date,
-        inspection_rules: inspectionRules.filter(rule =>
+        inspection_rules: inspectionRules.filter((rule: MedicationInspectionRule) =>
           rule.vital_sign_type && rule.condition_operator && rule.condition_value
         )
       };
 
       // Clean up undefined fields and empty strings for numeric fields
       Object.keys(prescriptionData).forEach(key => {
-        if (prescriptionData[key] === undefined) {
-          delete prescriptionData[key];
+        if ((prescriptionData as any)[key] === undefined) {
+          delete (prescriptionData as any)[key];
         }
       });
 
@@ -1044,7 +1046,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                         onChange={handleChange}
                         className="form-input"
                         placeholder="1"
-                        min="0"
+                        min="0.25"
                         step="0.25"
                       />
                     </div>
@@ -1255,7 +1257,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 <div className="space-y-2">
                   <p className="text-sm text-gray-600">已設定的服用時間：</p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {formData.medication_time_slots.map((timeSlot, index) => (
+                    {formData.medication_time_slots.map((timeSlot: string, index: number) => (
                       <div
                         key={timeSlot}
                         className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-2 bg-white border border-yellow-300 rounded-lg"
@@ -1302,7 +1304,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
 
             {inspectionRules.length > 0 ? (
               <div className="space-y-3">
-                {inspectionRules.map((rule, index) => (
+                {inspectionRules.map((rule: MedicationInspectionRule, index: number) => (
                   <div key={index} className="bg-white border border-orange-200 rounded-lg p-3">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                       <h4 className="font-medium text-gray-900">檢測項 {index + 1}</h4>

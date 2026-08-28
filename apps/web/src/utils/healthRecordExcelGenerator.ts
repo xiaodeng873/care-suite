@@ -33,8 +33,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -54,6 +54,27 @@ interface SheetConfig {
   records: HealthRecordExportData[];
   recordType: '生命表徵' | '血糖控制' | '體重控制';
 }
+interface BodyweightExportData {
+  記錄id?: number;
+  床號: string;
+  中文姓氏: string;
+  中文名字: string;
+  中文姓名?: string;
+  記錄日期: string;
+  記錄時間: string;
+  體重?: number;
+  備註?: string;
+  記錄人員?: string;
+}
+const getTargetCell = (col: string, row: number): string => {
+  if (['F', 'G', 'H'].includes(col)) {
+    return `F${row}`;
+  }
+  if (['L', 'M'].includes(col)) {
+    return `L${row}`;
+  }
+  return `${col}${row}`;
+};
 // 從範本文件提取格式
 const extractHealthRecordTemplateFormat = async (templateFile: File): Promise<ExtractedTemplate> => {
   const workbook = new ExcelJS.Workbook();
@@ -111,19 +132,19 @@ const extractHealthRecordTemplateFormat = async (templateFile: File): Promise<Ex
       }
       // Extract border
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       // Extract fill
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       // Extract number format
       if (cell.numFmt) {
@@ -181,11 +202,11 @@ const applyHealthRecordTemplateFormat = (
     }
     // Apply border
     if (cellData.border) {
-      cell.border = { ...cellData.border };
+      (cell.border as any) = { ...cellData.border };
     }
     // Apply fill
     if (cellData.fill) {
-      cell.fill = { ...cellData.fill };
+      (cell.fill as any) = { ...cellData.fill };
     }
     // Apply number format
     if (cellData.numFmt) {
@@ -226,16 +247,6 @@ const applyHealthRecordTemplateFormat = (
     }
     // 根據記錄類型填入不同欄位
     if (recordType === '生命表徵') {
-      // 填充資料，考慮硬編碼合併儲存格
-      const getTargetCell = (col: string, row: number): string => {
-        if (['F', 'G', 'H'].includes(col)) {
-          return `F${row}`;
-        }
-        if (['L', 'M'].includes(col)) {
-          return `L${row}`;
-        }
-        return `${col}${row}`;
-      };
       // A: 日期
       worksheet.getCell(`A${rowIndex}`).value = record.記錄日期 || '';
       // B: 時間
@@ -268,14 +279,14 @@ const applyHealthRecordTemplateFormat = (
       try {
         worksheet.mergeCells(`F${rowIndex}:H${rowIndex}`);
         worksheet.mergeCells(`L${rowIndex}:M${rowIndex}`);
-      } catch (error) {
+      } catch (error: any) {
         console.warn(`硬編碼合併儲存格失敗 (行=${rowIndex}):`, error);
       }
       // 硬編碼四邊黑色細邊框（A 到 M）並設置對齊
       const dataColumns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'];
       dataColumns.forEach(col => {
         const cell = worksheet.getCell(`${col}${rowIndex}`);
-        cell.border = {
+        (cell.border as any) = {
           top: { style: 'thin', color: { argb: 'FF000000' } },
           left: { style: 'thin', color: { argb: 'FF000000' } },
           bottom: { style: 'thin', color: { argb: 'FF000000' } },
@@ -323,8 +334,8 @@ const applyHealthRecordTemplateFormat = (
   // Step 7: Copy print settings from template
   if (template.printSettings) {
     try {
-      worksheet.pageSetup = { ...template.printSettings };
-    } catch (error) {
+      (worksheet.pageSetup as any) = { ...template.printSettings };
+    } catch (error: any) {
       console.warn('複製列印設定失敗:', error);
     }
   }
@@ -376,7 +387,7 @@ const createHealthRecordWorkbook = async (
         config.records, 
         config.recordType
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ 創建工作表 ${config.name} 失敗:`, error);
       // 不要因為單個工作表失敗就停止整個匯出
       // 創建一個簡單的錯誤工作表
@@ -446,7 +457,7 @@ export const exportHealthRecordsToExcel = async (
           new URL('../workers/healthRecordExportWorker.ts', import.meta.url),
           { type: 'module' }
         );
-      } catch (error) {
+      } catch (error: any) {
         clearTimeout(timeout);
         console.error('Failed to create worker:', error);
         reject(new Error('無法建立背景處理程序'));
@@ -483,7 +494,7 @@ export const exportHealthRecordsToExcel = async (
                   }
                 }, 1000);
                 resolve();
-              } catch (error) {
+              } catch (error: any) {
                 clearTimeout(timeout);
                 console.error('💥 檔案下載失敗:', error);
                 if (worker) {
@@ -501,7 +512,7 @@ export const exportHealthRecordsToExcel = async (
               reject(new Error(payload.error));
               break;
           }
-        } catch (error) {
+        } catch (error: any) {
           clearTimeout(timeout);
           console.error('🔥 處理 Worker 訊息時發生錯誤:', error);
           if (worker) {
@@ -545,7 +556,7 @@ export const exportHealthRecordsToExcel = async (
         }
       });
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 匯出監測記錄失敗:', error);
     throw error;
   }
@@ -638,7 +649,7 @@ const exportHealthRecordsToExcelSimple = async (
       titleCell.value = `${patient.中文姓氏}${patient.中文名字} 生命表徵觀察記錄表`;
       titleCell.font = { size: 16, bold: true };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      titleCell.fill = {
+      (titleCell.fill as any) = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: 'FFE6F7FF' }
@@ -672,14 +683,14 @@ const exportHealthRecordsToExcelSimple = async (
         const cell = headerRow.getCell(index + 1);
         cell.value = header;
         cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.fill = {
+        (cell.fill as any) = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FF70AD47' }
         };
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
         if (index < 13) { // A 到 M
-          cell.border = {
+          (cell.border as any) = {
             top: { style: 'thin', color: { argb: 'FF000000' } },
             left: { style: 'thin', color: { argb: 'FF000000' } },
             bottom: { style: 'thin', color: { argb: 'FF000000' } },
@@ -687,7 +698,7 @@ const exportHealthRecordsToExcelSimple = async (
           };
         }
         if (index === 12) { // M5
-          cell.border = {
+          (cell.border as any) = {
             ...cell.border,
             right: { style: 'thin', color: { argb: 'FF000000' } }
           };
@@ -711,7 +722,7 @@ const exportHealthRecordsToExcelSimple = async (
         // 硬編碼邊框（A 到 M）並設置置中
         for (let col = 1; col <= 13; col++) {
           const cell = row.getCell(col);
-          cell.border = {
+          (cell.border as any) = {
             top: { style: 'thin', color: { argb: 'FF000000' } },
             left: { style: 'thin', color: { argb: 'FF000000' } },
             bottom: { style: 'thin', color: { argb: 'FF000000' } },
@@ -747,7 +758,7 @@ const exportHealthRecordsToExcelSimple = async (
           cell.value = value;
           // 交替行顏色
           if (index % 2 === 1 && colIndex < 13) {
-            cell.fill = {
+            (cell.fill as any) = {
               type: 'pattern',
               pattern: 'solid',
               fgColor: { argb: 'FFF8F9FA' }
@@ -771,7 +782,7 @@ const exportHealthRecordsToExcelSimple = async (
     titleCell.value = `${patient.中文姓氏}${patient.中文名字} ${recordType}觀察記錄表`;
     titleCell.font = { size: 16, bold: true };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = {
+    (titleCell.fill as any) = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FFE6F7FF' }
@@ -790,13 +801,13 @@ const exportHealthRecordsToExcelSimple = async (
       const cell = headerRow.getCell(index + 1);
       cell.value = header;
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = {
+      (cell.fill as any) = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: 'FF70AD47' }
       };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = {
+      (cell.border as any) = {
         top: { style: 'thin' },
         left: { style: 'thin' },
         bottom: { style: 'thin' },
@@ -810,7 +821,7 @@ const exportHealthRecordsToExcelSimple = async (
     );
     sortedRecords.forEach((record, index) => {
       const rowIndex = 6 + index;
-      const row = worksheet.getOrCreateRow(rowIndex);
+      const row = (worksheet as any).getOrCreateRow(rowIndex);
       let values: any[] = [index + 1, new Date(record.記錄日期).toLocaleDateString('zh-TW')];
       if (recordType !== '體重控制') {
         values.push(record.記錄時間.slice(0, 5));
@@ -842,7 +853,7 @@ const exportHealthRecordsToExcelSimple = async (
       values.forEach((value, colIndex) => {
         const cell = row.getCell(colIndex + 1);
         cell.value = value;
-        cell.border = {
+        (cell.border as any) = {
           top: { style: 'thin' },
           left: { style: 'thin' },
           bottom: { style: 'thin' },
@@ -850,7 +861,7 @@ const exportHealthRecordsToExcelSimple = async (
         };
         // 交替行顏色
         if (index % 2 === 1) {
-          cell.fill = {
+          (cell.fill as any) = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: 'FFF8F9FA' }
@@ -910,7 +921,7 @@ const exportBodyweightToExcelSimple = async (
     titleCell.value = `${patient.中文姓氏}${patient.中文名字} 體重記錄表`;
     titleCell.font = { size: 16, bold: true };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = {
+    (titleCell.fill as any) = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FFE6F7FF' }
@@ -943,13 +954,13 @@ const exportBodyweightToExcelSimple = async (
       const cell = headerRow.getCell(index + 1);
       cell.value = header;
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = {
+      (cell.fill as any) = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: 'FF70AD47' }
       };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = {
+      (cell.border as any) = {
         top: { style: 'thin', color: { argb: 'FF000000' } },
         left: { style: 'thin', color: { argb: 'FF000000' } },
         bottom: { style: 'thin', color: { argb: 'FF000000' } },
@@ -976,7 +987,7 @@ const exportBodyweightToExcelSimple = async (
       // 硬編碼邊框（A 到 L）並設置置中
       for (let col = 1; col <= 12; col++) {
         const cell = row.getCell(col);
-        cell.border = {
+        (cell.border as any) = {
           top: { style: 'thin', color: { argb: 'FF000000' } },
           left: { style: 'thin', color: { argb: 'FF000000' } },
           bottom: { style: 'thin', color: { argb: 'FF000000' } },
@@ -1008,7 +1019,7 @@ const exportBodyweightToExcelSimple = async (
         cell.value = value;
         // 交替行顏色
         if (index % 2 === 1 && colIndex < 12) {
-          cell.fill = {
+          (cell.fill as any) = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: 'FFF8F9FA' }

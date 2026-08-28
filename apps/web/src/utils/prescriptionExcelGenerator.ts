@@ -36,8 +36,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -118,19 +118,19 @@ export const extractPrescriptionTemplateFormat = async (templateFile: File): Pro
       }
       // Extract border
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       // Extract fill
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       // Extract number format
       if (cell.numFmt) {
@@ -179,11 +179,11 @@ export const applyPrescriptionTemplateFormat = (
     }
     // Apply border
     if (cellData.border) {
-      cell.border = { ...cellData.border };
+      (cell.border as any) = { ...cellData.border };
     }
     // Apply fill
     if (cellData.fill) {
-      cell.fill = { ...cellData.fill };
+      (cell.fill as any) = { ...cellData.fill };
     }
     // Apply number format
     if (cellData.numFmt) {
@@ -222,8 +222,8 @@ export const applyPrescriptionTemplateFormat = (
   // Step 6: Copy print settings from template
   if (template.printSettings) {
     try {
-      worksheet.pageSetup = { ...template.printSettings };
-    } catch (error) {
+      (worksheet.pageSetup as any) = { ...template.printSettings };
+    } catch (error: any) {
       console.warn('複製列印設定失敗:', error);
     }
   }
@@ -239,7 +239,7 @@ const bottomBorderStyle = {
 for (let row = 1; row <= 49; row++) {
   const cell = worksheet.getCell(`L${row}`);
   const existingBorder = cell.border || {};
-  cell.border = {
+  (cell.border as any) = {
     ...existingBorder,
     right: existingBorder.right || rightBorderStyle
   };
@@ -247,14 +247,14 @@ for (let row = 1; row <= 49; row++) {
 // 為 D4 加上 thin black bottom border
 const cellD4 = worksheet.getCell('D4');
 const borderD4 = cellD4.border || {};
-cellD4.border = {
+(cellD4.border as any) = {
   ...borderD4,
   bottom: bottomBorderStyle
 };
 // 為 A9 加上 thin black bottom border
 const cellA9 = worksheet.getCell('A9');
 const borderA9 = cellA9.border || {};
-cellA9.border = {
+(cellA9.border as any) = {
   ...borderA9,
   bottom: bottomBorderStyle
 };
@@ -269,7 +269,7 @@ for (let row = 14; row <= 44; row++) {
   // Log existing border for debugging
   console.log(`G${row} 現有邊框:`, JSON.stringify(existingBorder));
   // Forcefully apply the left border
-  cell.border = {
+  (cell.border as any) = {
     top: existingBorder.top || undefined,
     right: existingBorder.right || undefined,
     bottom: existingBorder.bottom || undefined,
@@ -346,7 +346,7 @@ export const exportPrescriptionsToExcel = async (
     // 創建工作簿並匯出
     const workbook = await createPrescriptionWorkbook(sheetsConfig);
     await saveExcelFile(workbook, finalFilename);
-  } catch (error) {
+  } catch (error: any) {
     console.error('匯出處方箋失敗:', error);
     throw error;
   }
@@ -381,7 +381,7 @@ const exportPrescriptionsToExcelSimple = async (
     titleCell.value = title;
     titleCell.font = { size: 16, bold: true };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = {
+    (titleCell.fill as any) = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FFE6F3FF' }
@@ -405,13 +405,13 @@ const exportPrescriptionsToExcelSimple = async (
     const cell = headerRowObj.getCell(index + 1);
     cell.value = header;
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    cell.fill = {
+    (cell.fill as any) = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FF4472C4' }
     };
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    cell.border = {
+    (cell.border as any) = {
       top: { style: 'thin' },
       left: { style: 'thin' },
       bottom: { style: 'thin' },
@@ -421,7 +421,7 @@ const exportPrescriptionsToExcelSimple = async (
   // 資料行
   prescriptions.forEach((prescription, index) => {
     const rowIndex = headerRow + 1 + index;
-    const row = worksheet.getOrCreateRow(rowIndex);
+    const row = (worksheet as any).getOrCreateRow(rowIndex);
     const values = [
       getPrintBedNumber(prescription),
       `${prescription.中文姓氏}${prescription.中文名字}`,
@@ -439,7 +439,7 @@ const exportPrescriptionsToExcelSimple = async (
     values.forEach((value, colIndex) => {
       const cell = row.getCell(colIndex + 1);
       cell.value = value;
-      cell.border = {
+      (cell.border as any) = {
         top: { style: 'thin' },
         left: { style: 'thin' },
         bottom: { style: 'thin' },
@@ -447,7 +447,7 @@ const exportPrescriptionsToExcelSimple = async (
       };
       // 交替行顏色
       if (index % 2 === 1) {
-        cell.fill = {
+        (cell.fill as any) = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFF8F9FA' }

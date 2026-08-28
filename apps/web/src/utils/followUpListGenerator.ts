@@ -33,8 +33,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -121,19 +121,19 @@ export const extractFollowUpTemplateFormat = async (templateFile: File): Promise
       }
       // Extract border
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       // Extract fill
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       // Extract number format
       if (cell.numFmt) {
@@ -196,19 +196,19 @@ export const extractFollowUpTemplateFormat = async (templateFile: File): Promise
       }
       // Extract border
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       // Extract fill
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       // Extract number format
       if (cell.numFmt) {
@@ -265,7 +265,7 @@ const formatTimeToHHMM = (timeStr: string): string => {
     if (!isNaN(date.getTime())) {
       return date.toTimeString().slice(0, 5);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.warn('無法解析時間格式:', timeStr);
   }
   return timeStr;
@@ -305,11 +305,11 @@ const applyFollowUpTemplateFormat = (
     }
     // Apply border
     if (cellData.border) {
-      cell.border = { ...cellData.border };
+      (cell.border as any) = { ...cellData.border };
     }
     // Apply fill
     if (cellData.fill) {
-      cell.fill = { ...cellData.fill };
+      (cell.fill as any) = { ...cellData.fill };
     }
     // Apply number format
     if (cellData.numFmt) {
@@ -354,8 +354,8 @@ const applyFollowUpTemplateFormat = (
   // Step 6: Copy print settings from template
   if (template.printSettings) {
     try {
-      worksheet.pageSetup = { ...template.printSettings };
-    } catch (error) {
+      (worksheet.pageSetup as any) = { ...template.printSettings };
+    } catch (error: any) {
       console.warn('複製列印設定失敗:', error);
     }
   }
@@ -394,19 +394,19 @@ const applyCoverTemplateFormat = (
     }
     // Apply border
     if (cellData.border) {
-      cell.border = {
+      (cell.border as any) = {
         top: cellData.border.top ? { ...cellData.border.top } : undefined,
         left: cellData.border.left ? { ...cellData.border.left } : undefined,
         bottom: cellData.border.bottom ? { ...cellData.border.bottom } : undefined,
         right: cellData.border.right ? { ...cellData.border.right } : undefined,
         diagonal: cellData.border.diagonal ? { ...cellData.border.diagonal } : undefined,
-        diagonalUp: cellData.border.diagonalUp,
-        diagonalDown: cellData.border.diagonalDown
+        diagonalUp: (cellData.border as any).diagonalUp,
+        diagonalDown: (cellData.border as any).diagonalDown
       };
     }
     // Apply fill
     if (cellData.fill) {
-      cell.fill = { ...cellData.fill };
+      (cell.fill as any) = { ...cellData.fill };
     }
     // Apply number format
     if (cellData.numFmt) {
@@ -424,17 +424,17 @@ const applyCoverTemplateFormat = (
   // Step 5: Set print settings
   if (template.printSettings) {
     try {
-      worksheet.pageSetup = {
+      (worksheet.pageSetup as any) = {
         ...template.printSettings,
         paperSize: 9,
         orientation: 'landscape',
         printArea: 'A1:Q17,A18:Q34,A35:Q50,A52:Q68'
       };
-    } catch (error) {
+    } catch (error: any) {
       console.warn('複製列印設定失敗:', error);
     }
   } else {
-    worksheet.pageSetup = {
+    (worksheet.pageSetup as any) = {
       paperSize: 9,
       orientation: 'landscape',
       printArea: 'A1:Q17,A18:Q34,A35:Q50,A52:Q68'
@@ -495,7 +495,7 @@ export const exportFollowUpListToExcel = async (
     // 創建工作簿並匯出
     const workbook = await createFollowUpWorkbook(appointments, followUpSheet, coverSheet);
     await saveExcelFile(workbook, finalFilename);
-  } catch (error) {
+  } catch (error: any) {
     console.error('匯出覆診記錄表失敗:', error);
     throw error;
   }
@@ -530,13 +530,13 @@ const exportFollowUpListToExcelSimple = async (
     const cell = headerRow.getCell(index + 1);
     cell.value = header;
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    cell.fill = {
+    (cell.fill as any) = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FF4472C4' }
     };
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    cell.border = {
+    (cell.border as any) = {
       top: { style: 'thin' },
       left: { style: 'thin' },
       bottom: { style: 'thin' },
@@ -567,7 +567,7 @@ const exportFollowUpListToExcelSimple = async (
     values.forEach((value, colIndex) => {
       const cell = row.getCell(colIndex + 1);
       cell.value = value;
-      cell.border = {
+      (cell.border as any) = {
         top: { style: 'thin' },
         left: { style: 'thin' },
         bottom: { style: 'thin' },
@@ -575,7 +575,7 @@ const exportFollowUpListToExcelSimple = async (
       };
       // 交替行顏色
       if (index % 2 === 1) {
-        cell.fill = {
+        (cell.fill as any) = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFF8F9FA' }

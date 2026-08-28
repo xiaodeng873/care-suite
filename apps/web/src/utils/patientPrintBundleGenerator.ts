@@ -177,7 +177,7 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
           const patient = ctxPatient(ctx);
           if (ctx.contentMode !== 'data') {
             const blankAppointment = { 院友id: ctx.patient.院友id } as FollowUpAppointment;
-            return mod.generateFollowUpRecordFormsHtml([blankAppointment], [patient], '', ctx.facilityName);
+            return (mod.generateFollowUpRecordFormsHtml as any)([blankAppointment], [patient], '', ctx.facilityName);
           }
           const db = await import('../lib/database');
           const appointments = await db.getFollowUps();
@@ -187,7 +187,7 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
             return (!ctx.startDate || d >= ctx.startDate) && (!ctx.endDate || d <= ctx.endDate);
           });
           if (filtered.length === 0) return '';
-          return mod.generateFollowUpRecordFormsHtml(filtered, [patient], '', ctx.facilityName);
+          return (mod.generateFollowUpRecordFormsHtml as any)(filtered, [patient], '', ctx.facilityName);
         };
       }
       case 'restraint_usage_common': {
@@ -592,7 +592,7 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
       default:
         return null;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error(`載入 generator ${id} 失敗:`, error);
     return async () => `<div class="print-page"><h1>${PRINT_DOCUMENTS.find(d => d.id === id)?.name || id}</h1><p>載入失敗</p></div>`;
   }
@@ -680,7 +680,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
         } else if (contentMode === 'data' && !isBedhead) {
           skipped.push(`${docName}（${patientName}）`);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(`產生 ${docId} 失敗:`, error);
         failed.push(`${docName}（${patientName}）`);
       }
@@ -707,7 +707,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
         facilityName,
       });
       pages.push(feeHtml);
-    } catch (error) {
+    } catch (error: any) {
       console.error('產生雜費記錄報表失敗:', error);
       failed.push('雜費記錄報表');
     }
@@ -738,7 +738,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
       } else {
         skipped.push('疫苗接種記錄（日期範圍內沒有記錄）');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('產生疫苗接種記錄 Excel 失敗:', error);
       failed.push('疫苗接種記錄');
     }
@@ -814,13 +814,13 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
             separateSheetsPerStation: printOptions?.separateSheetsPerStation ?? false,
           });
           excelGenerated = true;
-        } catch (error) {
+        } catch (error: any) {
           console.error(`產生統計報表 ${documentId} 失敗:`, error);
           const docName = PRINT_DOCUMENTS.find(d => d.id === documentId)?.name || documentId;
           failed.push(docName);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('產生統計報表 Excel 失敗:', error);
       failed.push('統計報表');
     }

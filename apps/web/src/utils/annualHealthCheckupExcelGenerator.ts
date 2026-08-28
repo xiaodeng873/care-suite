@@ -24,8 +24,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -90,11 +90,11 @@ const extractSheetFormat = async (worksheet: ExcelJS.Worksheet): Promise<Extract
   try {
     const rowBreaks: number[] = [];
     const colBreaks: number[] = [];
-    if (worksheet.rowBreaks && Array.isArray(worksheet.rowBreaks)) {
-      rowBreaks.push(...worksheet.rowBreaks);
+    if ((worksheet as any).rowBreaks && Array.isArray((worksheet as any).rowBreaks)) {
+      rowBreaks.push(...(worksheet as any).rowBreaks);
     }
-    if (worksheet.colBreaks && Array.isArray(worksheet.colBreaks)) {
-      colBreaks.push(...worksheet.colBreaks);
+    if ((worksheet as any).colBreaks && Array.isArray((worksheet as any).colBreaks)) {
+      colBreaks.push(...(worksheet as any).colBreaks);
     }
     if ((worksheet as any).model?.rowBreaks) {
       const modelRowBreaks = (worksheet as any).model.rowBreaks;
@@ -110,7 +110,7 @@ const extractSheetFormat = async (worksheet: ExcelJS.Worksheet): Promise<Extract
     }
     extractedTemplate.pageBreaks!.rowBreaks = [...new Set(rowBreaks)];
     extractedTemplate.pageBreaks!.colBreaks = [...new Set(colBreaks)];
-  } catch (error) {
+  } catch (error: any) {
     console.error('提取分頁符失敗:', error);
     extractedTemplate.pageBreaks = { rowBreaks: [], colBreaks: [] };
   }
@@ -130,18 +130,18 @@ const extractSheetFormat = async (worksheet: ExcelJS.Worksheet): Promise<Extract
         cellData.alignment = { ...cell.alignment };
       }
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       if (cell.numFmt) {
         cellData.numFmt = cell.numFmt;
@@ -240,7 +240,7 @@ const applyTemplateFormat = (
     }
   });
   if (template.printSettings) {
-    worksheet.pageSetup = { ...template.printSettings };
+    (worksheet.pageSetup as any) = { ...template.printSettings };
   }
   if (template.headerFooter) {
     worksheet.headerFooter = {
@@ -254,10 +254,10 @@ const applyTemplateFormat = (
   }
   if (template.pageBreaks) {
     if (template.pageBreaks.rowBreaks && template.pageBreaks.rowBreaks.length > 0) {
-      worksheet.rowBreaks = template.pageBreaks.rowBreaks.map(br => ({ id: br, max: 16383, man: true }));
+      (worksheet as any).rowBreaks = template.pageBreaks.rowBreaks.map(br => ({ id: br, max: 16383, man: true }));
     }
     if (template.pageBreaks.colBreaks && template.pageBreaks.colBreaks.length > 0) {
-      worksheet.colBreaks = template.pageBreaks.colBreaks.map(br => ({ id: br, max: 1048575, man: true }));
+      (worksheet as any).colBreaks = template.pageBreaks.colBreaks.map(br => ({ id: br, max: 1048575, man: true }));
     }
   }
 };
@@ -458,7 +458,7 @@ const applyP4Template = (
     worksheet.getCell('A9').value = '☑';
   }
   const a2Cell = worksheet.getCell('A2');
-  a2Cell.border = {
+  (a2Cell.border as any) = {
     ...a2Cell.border,
     right: { style: 'thin' }
   };

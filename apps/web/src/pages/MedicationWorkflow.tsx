@@ -3214,8 +3214,8 @@ const MedicationWorkflow: React.FC = () => {
                                       <div>{prescription.meal_timing}</div>
                                     )}
                                     {(() => {
-                                      if (prescription.special_dosage_instruction) {
-                                        return <div>{prescription.special_dosage_instruction}</div>;
+                                      if ((prescription as any).special_dosage_instruction) {
+                                        return <div>{(prescription as any).special_dosage_instruction}</div>;
                                       }
                                       if (prescription.dosage_amount) {
                                         const amt = String(prescription.dosage_amount);

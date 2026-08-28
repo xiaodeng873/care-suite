@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Calendar, Plus, Trash2, AlertCircle, Loader2 } from 'lucide-react';
 import BedNumberImprint from './BedNumberImprint';
-import { usePatientData } from '../context/PatientContext';
+import { usePatientData, type ScheduleWithDetails } from '../context/PatientContext';
+import { type ScheduleDetail, type ServiceReason } from '../lib/database';
 import PatientAutocomplete from './PatientAutocomplete';
 import PatientTooltip from './PatientTooltip';
 import { getReasonBadgeClass } from '../utils/reasonColors';
@@ -10,7 +11,7 @@ import { formatDisplayDate } from '../utils/dateFormat';
 
 
 interface ScheduleDetailModalProps {
-  schedule: db.ScheduleWithDetails;
+  schedule: ScheduleWithDetails;
   onClose: () => void;
   onUpdate?: () => void;
 }
@@ -20,8 +21,8 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
   onClose,
   onUpdate
 }) => {
-  const [patientItems, setPatientItems] = useState<db.ScheduleDetail[]>([]);
-  const [allReasons, setAllReasons] = useState<db.ServiceReason[]>([]);
+  const [patientItems, setPatientItems] = useState<ScheduleDetail[]>([]);
+  const [allReasons, setAllReasons] = useState<ServiceReason[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [newPatientId, setNewPatientId] = useState<string>('');
@@ -62,10 +63,11 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
         .eq('排程id', schedule.排程id);
       
       if (error) throw error;
-      
-      const updatedItems = (data || []).map(item => ({
+
+      const rawData = data as any[];
+      const updatedItems: ScheduleDetail[] = (rawData || []).map((item: any) => ({
         ...item,
-        reasons: item.到診院友_看診原因?.map(r => r.看診原因選項) || []
+        reasons: item.到診院友_看診原因?.map((r: any) => r.看診原因選項) || []
       }));
       
       setPatientItems(updatedItems);
@@ -153,7 +155,7 @@ const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
         症狀說明: item.症狀說明 || '',
         備註: item.備註 || '',
         reasonIds: selectedReasonIds
-      });
+      }) as any;
 
       if (result.error) {
         console.error('更新失敗，錯誤:', result.error.message);

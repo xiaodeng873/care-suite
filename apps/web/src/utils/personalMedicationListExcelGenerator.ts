@@ -11,8 +11,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -73,18 +73,18 @@ const extractSheetFormat = async (worksheet: ExcelJS.Worksheet): Promise<Extract
         cellData.alignment = { ...cell.alignment };
       }
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       if (cell.numFmt) {
         cellData.numFmt = cell.numFmt;
@@ -139,7 +139,7 @@ const deepCopyRange = (
   }
   Object.entries(template.cellData).forEach(([address, cellData]) => {
     const cell = worksheet.getCell(address);
-    const rowNum = cell.row;
+    const rowNum = Number(cell.row);
     if (rowNum === sourceRow) {
       const colLetter = address.replace(/\d+/, '');
       const targetAddress = colLetter + targetRow;
@@ -395,7 +395,7 @@ export const applyPersonalMedicationListTemplate = async (
         const targetRow = pageStartRow + headerRow - 1;
         Object.entries(template.cellData).forEach(([address, cellData]) => {
           const cell = worksheet.getCell(address);
-          if (cell.row === headerRow) {
+          if (Number(cell.row) === headerRow) {
             const colLetter = address.replace(/\d+/, '');
             const targetCell = worksheet.getCell(colLetter + targetRow);
             // Always copy value to preserve template defaults (including A6 and I7)
@@ -511,7 +511,7 @@ export const applyPersonalMedicationListTemplate = async (
     }
   });
   if (template.printSettings) {
-    worksheet.pageSetup = {
+    (worksheet.pageSetup as any) = {
       ...template.printSettings,
       printTitlesRow: '1:7'
     };

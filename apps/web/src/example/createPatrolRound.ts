@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-import type { PatrolRound } from "@shared";
+import type { PatrolRound } from "@care-suite/shared";
 export async function createPatrolRound() {
   const payload: PatrolRound = {
     patient_id: 123,

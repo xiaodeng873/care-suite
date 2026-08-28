@@ -169,6 +169,7 @@ const PatientRecords: React.FC = () => {
       入住類型: '',
       在住狀態: '在住', // 清除後恢復預設為「在住」
       社會福利: '',
+      公務員: '',
       藥物敏感: '',
       不良藥物反應: '',
       startDate: '',
@@ -191,10 +192,6 @@ const PatientRecords: React.FC = () => {
     let valueB: string | number = '';
     
     switch (sortField) {
-      case '床號':
-        valueA = a.床號;
-        valueB = b.床號;
-        break;
       case '中文姓名':
         valueA = `${a.中文姓氏 || ''}${a.中文名字 || ''}`;
         valueB = `${b.中文姓氏 || ''}${b.中文名字 || ''}`;

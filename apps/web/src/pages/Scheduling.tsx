@@ -589,8 +589,6 @@ const Scheduling: React.FC = () => {
             setShowScheduleModal(false);
             setSelectedSchedule(null);
           }}
-          onUpdate={refreshData}
-          onDelete={deleteSchedule}
         />
       )}
       {/* 刪除確認 Modal（非空排程） */}
@@ -666,7 +664,6 @@ const Scheduling: React.FC = () => {
             setShowPatientModal(false);
             setSelectedScheduleId(null);
           }}
-          onUpdate={refreshData}
         />
       )}
     </div>

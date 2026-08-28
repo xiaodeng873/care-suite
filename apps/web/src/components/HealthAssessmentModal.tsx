@@ -1,5 +1,6 @@
 import { X, Save, User, Calendar, FileText, Activity, Brain, Eye, MessageSquare, Utensils, Heart } from 'lucide-react';
-import { usePatientData, type HealthAssessment } from '../context/PatientContext';
+import { usePatientData } from '../context/PatientContext';
+import { type HealthAssessment } from '../lib/database';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { supabase } from '../lib/supabase';
@@ -80,16 +81,16 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
   };
 
   const [formData, setFormData] = useState({
-    // smoking_habit: '',
-    // smoking_quantity: '', // 每天吸煙支數
-    // drinking_habit: '',
-    // drinking_quantity: '', // 每天飲酒罐數
+    smoking_habit: '',
+    smoking_quantity: '', // 每天吸煙支數
+    drinking_habit: '',
+    drinking_quantity: '', // 每天飲酒罐數
     daily_activities: {
       // max_activity: '',
       is_bedridden: false, // 長期臥床
       is_wheelchair: false, // 長期使用輪椅
-      limb_movement_left: [], // 改為陣列支援複選
-      limb_movement_right: [], // 改為陣列支援複選
+      limb_movement_left: [] as string[], // 改為陣列支援複選
+      limb_movement_right: [] as string[], // 改為陣列支援複選
       eating: '',
       eating_aid: '',
       dressing: '',
@@ -126,7 +127,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
     },
     communication_ability: '',
     communication_other: '',
-    consciousness_cognition: [],
+    consciousness_cognition: [] as string[],
     consciousness_other: '',
     bowel_bladder_control: {
       bowel: '',
@@ -135,11 +136,11 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
       bladder_aid: '',
       toilet_training: false
     },
-    treatment_items: [],
-    emotional_expression: [],
-    behavior_expression: [],
+    treatment_items: [] as string[],
+    emotional_expression: [] as string[],
+    behavior_expression: [] as string[],
     emotional_other: '',
-    // remarks: '',
+    remarks: '',
     assessment_date: getDefaultAssessmentDate(healthAssessments, selectedPatientId),
     assessor: '',
     next_due_date: ''
@@ -364,9 +365,9 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
         await updateHealthAssessment({
           ...assessment,
           ...assessmentData
-        });
+        } as any);
       } else {
-        await addHealthAssessment(assessmentData);
+        await addHealthAssessment(assessmentData as any);
       }
 
       onClose();
@@ -675,7 +676,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                 <div key={key} className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">{label}</label>
                     <select
-                    value={formData.daily_activities[key as keyof typeof formData.daily_activities]}
+                    value={formData.daily_activities[key as keyof typeof formData.daily_activities] as string}
                     onChange={(e) => updateDailyActivities(key, e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                     
@@ -690,7 +691,7 @@ const HealthAssessmentModal: React.FC<HealthAssessmentModalProps> = ({
                         <label className="block text-xs text-gray-600 mb-1">需要輔助器種類</label>
                         <input
                       type="text"
-                      value={formData.daily_activities[`${key}_aid` as keyof typeof formData.daily_activities]}
+                      value={formData.daily_activities[`${key}_aid` as keyof typeof formData.daily_activities] as string}
                       onChange={(e) => updateDailyActivities(`${key}_aid`, e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="輸入輔助器種類" />

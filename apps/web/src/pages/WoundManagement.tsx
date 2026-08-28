@@ -218,8 +218,8 @@ const WoundManagement: React.FC = () => {
         valueB = b.stage || '';
         break;
       case 'infection':
-        valueA = a.infection;
-        valueB = b.infection;
+        valueA = a.infection || '';
+        valueB = b.infection || '';
         break;
       case 'assessor':
         valueA = a.assessor || '';
@@ -300,7 +300,7 @@ const WoundManagement: React.FC = () => {
       created_at: undefined,
       updated_at: undefined
     };
-    setSelectedAssessment(newAssessment);
+    setSelectedAssessment(newAssessment as any);
     setShowModal(true);
   };
 
@@ -402,7 +402,7 @@ const WoundManagement: React.FC = () => {
         評估日期: formatDisplayDate(assessment.assessment_date),
         下次評估日期: assessment.next_assessment_date ? formatDisplayDate(assessment.next_assessment_date) : '',
         評估者: assessment.assessor || '',
-        傷口位置: `${assessment.wound_location.side === 'front' ? '前側' : '後側'} (${assessment.wound_location.x}, ${assessment.wound_location.y})`,
+        傷口位置: `${(assessment as any).wound_location.side === 'front' ? '前側' : '後側'} (${(assessment as any).wound_location.x}, ${(assessment as any).wound_location.y})`,
         面積: assessment.area_length && assessment.area_width ? `${assessment.area_length} x ${assessment.area_width}${assessment.area_depth ? ` x ${assessment.area_depth}` : ''} cm` : '',
         階段: assessment.stage || '',
         相片數量: assessment.wound_photos ? assessment.wound_photos.length : 0,
@@ -415,7 +415,7 @@ const WoundManagement: React.FC = () => {
         周邊皮膚狀況: assessment.surrounding_skin_condition || '',
         周邊皮膚顏色: assessment.surrounding_skin_color || '',
         洗劑: assessment.cleanser === '其他' ? assessment.cleanser_other : assessment.cleanser,
-        敷料: assessment.dressings.length > 0 ? assessment.dressings.join(', ') + (assessment.dressing_other ? `, ${assessment.dressing_other}` : '') : '',
+        敷料: (assessment.dressings || []).length > 0 ? (assessment.dressings || []).join(', ') + (assessment.dressing_other ? `, ${assessment.dressing_other}` : '') : '',
         備註: assessment.remarks || '',
         建立日期: formatDisplayDate(assessment.created_at)
       };

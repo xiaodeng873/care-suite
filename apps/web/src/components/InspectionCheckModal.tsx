@@ -401,7 +401,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <h3 className="text-lg font-medium text-orange-900 mb-3">此處方的檢測規則</h3>
               <div className="space-y-2">
-                {prescription.inspection_rules.map((rule: any, index: number) => (
+                {(prescription?.inspection_rules || []).map((rule: any, index: number) => (
                   <div key={index} className="flex flex-wrap items-center gap-2 text-sm">
                     {getVitalSignIcon(rule.vital_sign_type)}
                     <span className="font-medium">{rule.vital_sign_type}</span>
@@ -426,7 +426,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {prescription.inspection_rules.map((rule: any, index: number) => {
+                {(prescription?.inspection_rules || []).map((rule: any, index: number) => {
                   const matchedData = matchedRecords[rule.vital_sign_type];
                   const isMatched = matchedData?.isMatched || false;
                   const record = matchedData?.record;

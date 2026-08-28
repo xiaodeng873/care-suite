@@ -130,7 +130,7 @@ const fetchInResidencePatients = async (patientIds?: number[]): Promise<PatientR
     console.error('讀取院友失敗:', error);
     throw error;
   }
-  return (data ?? []) as PatientRow[];
+  return (data ?? []) as unknown as PatientRow[];
 };
 
 // 取得指定日期範圍內、指定監測類型的記錄（分頁抓取以避開 Supabase 1000 列限制）
@@ -163,7 +163,7 @@ const fetchVitalRecords = async (
       throw error;
     }
 
-    const rows = (data ?? []) as RawVitalRecord[];
+    const rows = (data ?? []) as unknown as RawVitalRecord[];
     if (rows.length === 0) break;
     all.push(...rows);
     if (rows.length < PAGE_SIZE) break;

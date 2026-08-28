@@ -1155,7 +1155,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
               {prescription.medication_time_slots && prescription.medication_time_slots.length > 0 && (
                 <div className="flex items-center space-x-1">
                   <span className="text-gray-500">時間:</span>
-                  <span className="font-medium">{prescription.medication_time_slots.map((t) => formatTimeToHHMM(t)).join(', ')}</span>
+                  <span className="font-medium">{prescription.medication_time_slots.map((t: string) => formatTimeToHHMM(t)).join(', ')}</span>
                 </div>
               )}
               {prescription.notes && (

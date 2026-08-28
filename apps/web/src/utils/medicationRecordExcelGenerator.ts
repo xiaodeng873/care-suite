@@ -24,8 +24,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -90,11 +90,11 @@ const extractSheetFormat = async (worksheet: ExcelJS.Worksheet): Promise<Extract
   try {
     const rowBreaks: number[] = [];
     const colBreaks: number[] = [];
-    if (worksheet.rowBreaks && Array.isArray(worksheet.rowBreaks)) {
-      rowBreaks.push(...worksheet.rowBreaks);
+    if ((worksheet as any).rowBreaks && Array.isArray((worksheet as any).rowBreaks)) {
+      rowBreaks.push(...(worksheet as any).rowBreaks);
     }
-    if (worksheet.colBreaks && Array.isArray(worksheet.colBreaks)) {
-      colBreaks.push(...worksheet.colBreaks);
+    if ((worksheet as any).colBreaks && Array.isArray((worksheet as any).colBreaks)) {
+      colBreaks.push(...(worksheet as any).colBreaks);
     }
     if ((worksheet as any).model?.rowBreaks) {
       const modelRowBreaks = (worksheet as any).model.rowBreaks;
@@ -110,7 +110,7 @@ const extractSheetFormat = async (worksheet: ExcelJS.Worksheet): Promise<Extract
     }
     extractedTemplate.pageBreaks!.rowBreaks = [...new Set(rowBreaks)];
     extractedTemplate.pageBreaks!.colBreaks = [...new Set(colBreaks)];
-  } catch (error) {
+  } catch (error: any) {
     console.error('提取分頁符失敗:', error);
     extractedTemplate.pageBreaks = { rowBreaks: [], colBreaks: [] };
   }
@@ -133,18 +133,18 @@ const extractSheetFormat = async (worksheet: ExcelJS.Worksheet): Promise<Extract
         cellData.alignment = { ...cell.alignment };
       }
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       if (cell.numFmt) {
         cellData.numFmt = cell.numFmt;
@@ -263,7 +263,7 @@ const deepCopyRange = (
   // 複製儲存格內容和格式
   Object.entries(template.cellData).forEach(([address, cellData]) => {
     const cell = worksheet.getCell(address);
-    const rowNum = cell.row;
+    const rowNum = Number(cell.row);
     if (rowNum >= startRow && rowNum <= endRow) {
       const offset = targetStartRow - startRow;
       const targetRow = rowNum + offset;
@@ -501,8 +501,8 @@ const applyMedicationRecordTemplate = async (
       worksheet.addImage(imageId, {
         tl: { col: 9.05, row: 31.05 },  // J32 左上角略微內縮 (J=9)
         br: { col: 11, row: 36.95 }     // K37 右下角 (K列末尾=11)
-      });
-    } catch (error) {
+      } as any);
+    } catch (error: any) {
       console.error('插入患者相片失敗:', error);
     }
   }
@@ -578,7 +578,7 @@ const applyMedicationRecordTemplate = async (
   }
   // 設定列印設定
   if (template.printSettings) {
-    worksheet.pageSetup = {
+    (worksheet.pageSetup as any) = {
       ...template.printSettings,
       printTitlesRow: '1:6'  // 設定第1-6列為列印標題
     };
@@ -611,7 +611,7 @@ const fixCellBorders = (worksheet: ExcelJS.Worksheet, startRow: number): void =>
   // 修復 B1 的右邊框（只在第一頁）
   if (startRow === 7) {
     const b1 = worksheet.getCell('B1');
-    b1.border = {
+    (b1.border as any) = {
       ...b1.border,
       right: thinBorder
     };
@@ -621,7 +621,7 @@ const fixCellBorders = (worksheet: ExcelJS.Worksheet, startRow: number): void =>
   for (let i = 0; i < 5; i++) {
     const jRow = startRow + (i * 5) + 1; // +1 是服用頻率那一格
     const jCell = worksheet.getCell('J' + jRow);
-    jCell.border = {
+    (jCell.border as any) = {
       ...jCell.border,
       right: thinBorder
     };
@@ -629,7 +629,7 @@ const fixCellBorders = (worksheet: ExcelJS.Worksheet, startRow: number): void =>
   // 修復 A32 的下邊框（只在第一頁）
   if (startRow === 7) {
     const a32 = worksheet.getCell('A32');
-    a32.border = {
+    (a32.border as any) = {
       ...a32.border,
       bottom: thinBorder
     };
@@ -637,7 +637,7 @@ const fixCellBorders = (worksheet: ExcelJS.Worksheet, startRow: number): void =>
     // 後續頁的 A32 對應位置
     const a32Row = startRow + 25; // 32 - 7 = 25
     const a32Cell = worksheet.getCell('A' + a32Row);
-    a32Cell.border = {
+    (a32Cell.border as any) = {
       ...a32Cell.border,
       bottom: thinBorder
     };
@@ -649,7 +649,7 @@ const fixCellBorders = (worksheet: ExcelJS.Worksheet, startRow: number): void =>
   // 修復右邊框 (K列)
   for (let row = signatureBlockStartRow; row <= signatureBlockEndRow; row++) {
     const kCell = worksheet.getCell('K' + row);
-    kCell.border = {
+    (kCell.border as any) = {
       ...kCell.border,
       right: thinBorder
     };
@@ -657,7 +657,7 @@ const fixCellBorders = (worksheet: ExcelJS.Worksheet, startRow: number): void =>
   // 修復下邊框 (H, I, J, K 列的最後一行)
   for (const col of ['H', 'I', 'J', 'K']) {
     const cell = worksheet.getCell(col + signatureBlockEndRow);
-    cell.border = {
+    (cell.border as any) = {
       ...cell.border,
       bottom: thinBorder
     };
@@ -821,14 +821,14 @@ const fillPrescriptionData = (
         const isWithinRange = isDateInPrescriptionRange(dateStr, timeSlot, prescription);
         if (!isWithinRange) {
           // 填充灰色背景
-          cell.fill = {
+          (cell.fill as any) = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: 'FFD3D3D3' }
           };
           // 移除斜線格式
           if (cell.border) {
-            cell.border = {
+            (cell.border as any) = {
               top: cell.border.top,
               left: cell.border.left,
               bottom: cell.border.bottom,
@@ -847,14 +847,14 @@ const fillPrescriptionData = (
         const cellAddress = columnLetter + timeSlotRow;
         const cell = worksheet.getCell(cellAddress);
         // 填充灰色背景
-        cell.fill = {
+        (cell.fill as any) = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFD3D3D3' }
         };
         // 移除斜線格式
         if (cell.border) {
-          cell.border = {
+          (cell.border as any) = {
             top: cell.border.top,
             left: cell.border.left,
             bottom: cell.border.bottom,
@@ -952,7 +952,7 @@ const fillWorkflowRecordsForPage = (
         if (isSelfCare) {
           // 移除斜線格式
           if (cell.border) {
-            cell.border = {
+            (cell.border as any) = {
               top: cell.border.top,
               left: cell.border.left,
               bottom: cell.border.bottom,
@@ -987,7 +987,7 @@ const fillWorkflowRecordsForPage = (
           if (isSpecialCode) {
             if (cell.border) {
               // 保留其他邊框，移除對角線邊框
-              cell.border = {
+              (cell.border as any) = {
                 top: cell.border.top,
                 left: cell.border.left,
                 bottom: cell.border.bottom,
@@ -1012,14 +1012,14 @@ const fillWorkflowRecordsForPage = (
         const cellAddress = columnLetter + recordRow;
         const cell = worksheet.getCell(cellAddress);
         // 填充灰色背景
-        cell.fill = {
+        (cell.fill as any) = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFD3D3D3' }
         };
         // 移除斜線格式
         if (cell.border) {
-          cell.border = {
+          (cell.border as any) = {
             top: cell.border.top,
             left: cell.border.left,
             bottom: cell.border.bottom,
@@ -1086,7 +1086,7 @@ const fillWorkflowRecordsForPage = (
         if (isSpecialCode) {
           if (cell.border) {
             // 保留其他邊框，移除對角線邊框
-            cell.border = {
+            (cell.border as any) = {
               top: cell.border.top,
               left: cell.border.left,
               bottom: cell.border.bottom,
@@ -1102,14 +1102,14 @@ const fillWorkflowRecordsForPage = (
         cell.value = dispenseContent;
       } else if (shouldBeGray) {
         // 如果所有處方都不在範圍內，填充灰色背景
-        cell.fill = {
+        (cell.fill as any) = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFD3D3D3' }
         };
         // 移除斜線格式
         if (cell.border) {
-          cell.border = {
+          (cell.border as any) = {
             top: cell.border.top,
             left: cell.border.left,
             bottom: cell.border.bottom,
@@ -1128,14 +1128,14 @@ const fillWorkflowRecordsForPage = (
       const cellAddress = columnLetter + summaryRow;
       const cell = worksheet.getCell(cellAddress);
       // 填充灰色背景
-      cell.fill = {
+      (cell.fill as any) = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: 'FFD3D3D3' }
       };
       // 移除斜線格式
       if (cell.border) {
-        cell.border = {
+        (cell.border as any) = {
           top: cell.border.top,
           left: cell.border.left,
           bottom: cell.border.bottom,
@@ -1494,8 +1494,8 @@ const applyBlankMedicationRecordTemplate = async (
       worksheet.addImage(imageId, {
         tl: { col: 7, row: 31 },
         br: { col: 10, row: 36 }
-      });
-    } catch (error) {
+      } as any);
+    } catch (error: any) {
       console.warn('無法載入院友相片:', error);
     }
   }

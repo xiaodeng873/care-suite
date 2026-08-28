@@ -35,8 +35,8 @@ interface ExtractedTemplate {
       value?: any;
       font?: Partial<ExcelJS.Font>;
       alignment?: Partial<ExcelJS.Alignment>;
-      border?: Partial<ExcelJS.Borders>;
-      fill?: Partial<ExcelJS.Fill>;
+      border?: any;
+      fill?: any;
       numFmt?: string;
     };
   };
@@ -136,7 +136,7 @@ export const extractRestraintConsentTemplateFormat = async (templateFile: File):
     // 只設定我們需要的分頁符：第49行後
     extractedTemplate.pageBreaks!.rowBreaks = [49];
     extractedTemplate.pageBreaks!.colBreaks = [];
-  } catch (error) {
+  } catch (error: any) {
     console.error('提取分頁符失敗:', error);
     extractedTemplate.pageBreaks = { rowBreaks: [49], colBreaks: [] };
   }
@@ -166,19 +166,19 @@ export const extractRestraintConsentTemplateFormat = async (templateFile: File):
       }
       // Extract border
       if (cell.border) {
-        cellData.border = {
+        (cellData.border as any) = {
           top: cell.border.top ? { ...cell.border.top } : undefined,
           left: cell.border.left ? { ...cell.border.left } : undefined,
           bottom: cell.border.bottom ? { ...cell.border.bottom } : undefined,
           right: cell.border.right ? { ...cell.border.right } : undefined,
           diagonal: cell.border.diagonal ? { ...cell.border.diagonal } : undefined,
-          diagonalUp: cell.border.diagonalUp,
-          diagonalDown: cell.border.diagonalDown
+          diagonalUp: (cell.border as any).diagonalUp,
+          diagonalDown: (cell.border as any).diagonalDown
         };
       }
       // Extract fill
       if (cell.fill) {
-        cellData.fill = { ...cell.fill };
+        (cellData.fill as any) = { ...cell.fill };
       }
       // Extract number format
       if (cell.numFmt) {
@@ -261,7 +261,7 @@ export const extractRestraintConsentTemplateFormat = async (templateFile: File):
     if (extractedTemplate.images.length === 0) {
       console.warn('範本中未找到有效圖片');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('提取圖片失敗:', error);
     extractedTemplate.images = [];
   }
@@ -347,9 +347,11 @@ const applyRestraintConsentTemplateFormat = (
     const colMatch = address.match(/^([A-Z]+)/);
     const rowMatch = address.match(/(\d+)$/);
     let isProblemArea = false;
+    let col = '';
+    let rowNum = 0;
     if (colMatch && rowMatch) {
-      const col = colMatch[1];
-      const rowNum = parseInt(rowMatch[1]);
+      col = colMatch[1];
+      rowNum = parseInt(rowMatch[1]);
       isProblemArea = (col >= 'P' && rowNum >= 50) || (col > 'P');
     }
     const cell = worksheet.getCell(address);
@@ -376,11 +378,11 @@ const applyRestraintConsentTemplateFormat = (
       }
       // Apply border
       if (cellData.border) {
-        cell.border = { ...cellData.border };
+        (cell.border as any) = { ...cellData.border };
       }
       // Apply fill
       if (cellData.fill) {
-        cell.fill = { ...cellData.fill };
+        (cell.fill as any) = { ...cellData.fill };
       }
       // Apply number format
       if (cellData.numFmt) {
@@ -395,7 +397,7 @@ const applyRestraintConsentTemplateFormat = (
       }
       if (appliedCellCount % 500 === 0) {
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ 應用儲存格 ${address} 失敗:`, error);
       if (isProblemArea) {
         console.error(`❌ 問題區域儲存格 ${address} 應用失敗 (行${rowNum},欄${col}):`, error);
@@ -659,7 +661,7 @@ const applyRestraintConsentTemplateFormat = (
         extension: img.extension as 'png' | 'jpeg' | 'gif'
       });
       worksheet.addImage(imageId, img.range);
-    } catch (error) {
+    } catch (error: any) {
       console.error(`應用圖片失敗 (範圍=${img.range}):`, error);
     }
   });
@@ -667,8 +669,8 @@ const applyRestraintConsentTemplateFormat = (
   if (template.printSettings) {
     try {
       console.log('將要應用的列印設定:', JSON.stringify(template.printSettings, null, 2));
-      worksheet.pageSetup = { ...template.printSettings };
-    } catch (error) {
+      (worksheet.pageSetup as any) = { ...template.printSettings };
+    } catch (error: any) {
       console.warn('複製列印設定失敗:', error);
     }
   }
@@ -683,7 +685,7 @@ const applyRestraintConsentTemplateFormat = (
       delete (worksheet as any).model.colBreaks;
     }
     // 設定頁面配置，避免自動分頁
-    worksheet.pageSetup = {
+    (worksheet.pageSetup as any) = {
       orientation: 'portrait',
       paperSize: 9, // A4
       printArea: 'A1:X110',
@@ -710,9 +712,9 @@ const applyRestraintConsentTemplateFormat = (
     (worksheet as any).model.rowBreaks = [49];
     (worksheet as any).model.colBreaks = [];
     // 最終驗證
-    console.log('worksheet.rowBreaks:', (worksheet as any).rowBreaks);
-    console.log('worksheet.colBreaks:', (worksheet as any).colBreaks);
-  } catch (error) {
+    console.log('(worksheet as any).rowBreaks:', (worksheet as any).rowBreaks);
+    console.log('(worksheet as any).colBreaks:', (worksheet as any).colBreaks);
+  } catch (error: any) {
     console.error('❌ 應用分頁符失敗:', error);
   }
 };
@@ -785,7 +787,7 @@ export const exportRestraintConsentsToExcel = async (
     // 創建工作簿並匯出
     const workbook = await createRestraintConsentWorkbook(sheetsConfig);
     await saveExcelFile(workbook, finalFilename);
-  } catch (error) {
+  } catch (error: any) {
     console.error('匯出約束物品同意書失敗:', error);
     throw error;
   }
@@ -824,7 +826,7 @@ const exportRestraintConsentsToExcelSimple = async (
     titleCell.value = `${patient.中文姓氏}${patient.中文名字} 約束物品同意書`;
     titleCell.font = { size: 16, bold: true };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = {
+    (titleCell.fill as any) = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FFFFD700' }
@@ -844,13 +846,13 @@ const exportRestraintConsentsToExcelSimple = async (
       const cell = headerRow.getCell(index + 1);
       cell.value = header;
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = {
+      (cell.fill as any) = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: 'FFFF8C00' }
       };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = {
+      (cell.border as any) = {
         top: { style: 'thin' },
         left: { style: 'thin' },
         bottom: { style: 'thin' },
@@ -868,7 +870,7 @@ const exportRestraintConsentsToExcelSimple = async (
           values.forEach((value, colIndex) => {
             const cell = row.getCell(colIndex + 1);
             cell.value = value;
-            cell.border = {
+            (cell.border as any) = {
               top: { style: 'thin' },
               left: { style: 'thin' },
               bottom: { style: 'thin' },
@@ -893,7 +895,7 @@ const exportRestraintConsentsToExcelSimple = async (
           values.forEach((value, colIndex) => {
             const cell = row.getCell(colIndex + 1);
             cell.value = value;
-            cell.border = {
+            (cell.border as any) = {
               top: { style: 'thin' },
               left: { style: 'thin' },
               bottom: { style: 'thin' },

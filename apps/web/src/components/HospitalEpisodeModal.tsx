@@ -16,6 +16,8 @@ interface EpisodeEvent {
   hospital_bed_number?: string;
   remarks?: string;
   vacation_end_type?: string;
+  vacation_destination?: string;
+  vacation_contact?: string;
 }
 
 interface HospitalEpisodeModalProps {

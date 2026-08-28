@@ -32,9 +32,9 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
   };
 
   const [formData, setFormData] = useState({
-    patient_id: log?.patient_id || defaultPatientId || '',
+    patient_id: log?.patient_id?.toString() || defaultPatientId || '',
     log_date: log?.log_date || getHongKongDate(),
-    log_type: log?.log_type || defaultLogType || '日常護理' as '日常護理' | '文件簽署' | '入院/出院' | '入住/退住' | '醫生到診' | '意外事故' | '覆診返藥' | '其他',
+    log_type: log?.log_type?.toString() || defaultLogType || '日常護理',
     content: log?.content || defaultContent || '',
     recorder: log?.recorder || displayName || user?.email || ''
   });
@@ -77,7 +77,7 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
       const logData = {
         patient_id: parseInt(formData.patient_id),
         log_date: formData.log_date,
-        log_type: formData.log_type,
+        log_type: formData.log_type as PatientLog['log_type'],
         content: formData.content.trim(),
         recorder: formData.recorder || user?.email || '未知'
       };
@@ -86,9 +86,9 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
         await updatePatientLog({
           ...log,
           ...logData
-        });
+        } as PatientLog);
       } else {
-        await addPatientLog(logData);
+        await addPatientLog(logData as any);
       }
       
       return true;

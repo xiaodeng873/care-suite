@@ -39,7 +39,7 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
     if (file) loadFile(file);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (file) loadFile(file);
