@@ -144,7 +144,9 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     } else if (type === 'number') {
       setFormData(prev => ({
         ...prev,
-        [name]: parseInt(value) || 1
+        [name]: (name === 'dosage_amount' || name === 'medication_quantity')
+          ? (parseFloat(value) || 1)
+          : (parseInt(value) || 1)
       }));
     } else {
       setFormData(prev => {
