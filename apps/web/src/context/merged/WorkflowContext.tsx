@@ -18,6 +18,7 @@ import { useAuth } from '../AuthContext';
 import { queryKeys } from '../../lib/queryClient';
 import { generateWorkflowRecordsClient } from '../../utils/workflowGenerator';
 import { diffPrescriptions } from '../../utils/prescriptionActivityLog';
+import { SYNC_CUTOFF_DATE_STR } from '../../lib/database';
 
 // 回溯生成範圍：由處方開始日到今天 + 30 天
 const WORKFLOW_HORIZON_DAYS = 30;
@@ -34,6 +35,18 @@ const backfillWorkflowForPrescription = (created: any) => {
     console.warn('觸發處方回溯生成失敗:', err);
   }
 };
+
+// 全局重新整理時只載入 SYNC_CUTOFF_DATE 至未來 30 天的 workflow records，
+// 避免隨資料量增加而導致全表 SELECT 逾時。
+const WORKFLOW_REFRESH_DAYS_AHEAD = 30;
+const getWorkflowRefreshDateRange = () => {
+  const today = new Date();
+  const to = new Date(today.getTime() + WORKFLOW_REFRESH_DAYS_AHEAD * 24 * 60 * 60 * 1000);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return { fromDate: SYNC_CUTOFF_DATE_STR, toDate: fmt(to) };
+};
+
 import {
   useSchedules,
   useDoctorVisitSchedule,
@@ -343,8 +356,10 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
     try {
       const validPatientId = (patientId !== undefined && patientId !== null && !isNaN(patientId) && patientId > 0) ? patientId : null;
       const validScheduledDate = (scheduledDate && typeof scheduledDate === 'string' && scheduledDate.trim() !== '' && scheduledDate !== 'undefined') ? scheduledDate.trim() : null;
+      const { fromDate, toDate } = getWorkflowRefreshDateRange();
       // 分頁並行載入，避免 Supabase 預設 1000 筆上限截斷資料
       // （否則按 scheduled_time 排序時，晚時段如 20:00 的記錄會被切掉，導致提醒卡片遺漏院友）
+      // 當沒有指定 scheduledDate 時，只載入 SYNC_CUTOFF_DATE 至未來 30 天，防止全表掃描逾時。
       const queryData: any[] = await db.fetchAllPagesParallel(async (from, to, withCount) => {
         let query = supabase
           .from('medication_workflow_records')
@@ -354,6 +369,8 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
         }
         if (validScheduledDate !== null) {
           query = query.eq('scheduled_date', validScheduledDate);
+        } else {
+          query = query.gte('scheduled_date', fromDate).lte('scheduled_date', toDate);
         }
         return await query
           .order('scheduled_date')

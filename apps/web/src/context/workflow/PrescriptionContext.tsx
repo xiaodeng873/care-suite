@@ -15,6 +15,7 @@ import { useAuth } from '../AuthContext';
 import { generateWorkflowRecordsClient } from '../../utils/workflowGenerator';
 import { diffPrescriptions } from '../../utils/prescriptionActivityLog';
 import { normalizeTime } from '../../utils/prescriptionExpiry';
+import { SYNC_CUTOFF_DATE_STR } from '../../lib/database';
 
 // 處方日誌：高階操作可傳入的 meta（覆寫 action_type、綁定 group、標記還原來源）
 export interface PrescriptionLogMeta {
@@ -25,6 +26,18 @@ export interface PrescriptionLogMeta {
 
 // 回溯生成範圍：由處方開始日到今天 + 14 天
 const WORKFLOW_HORIZON_DAYS = 14;
+
+// 全局重新整理時只載入 SYNC_CUTOFF_DATE 至未來 14 天的 workflow records，
+// 避免隨資料量增加而導致全表 SELECT 逾時。
+const WORKFLOW_REFRESH_DAYS_AHEAD = 14;
+const getWorkflowRefreshDateRange = () => {
+  const today = new Date();
+  const to = new Date(today.getTime() + WORKFLOW_REFRESH_DAYS_AHEAD * 24 * 60 * 60 * 1000);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return { fromDate: SYNC_CUTOFF_DATE_STR, toDate: fmt(to) };
+};
+
 const backfillWorkflowForPrescription = (created: any) => {
   try {
     if (!created || created.status !== 'active' || !created.start_date) return;
@@ -249,17 +262,25 @@ export function PrescriptionProvider({ children }: PrescriptionProviderProps) {
     try {
       const validPatientId = (patientId !== undefined && patientId !== null && !isNaN(patientId) && patientId > 0) ? patientId : null;
       const validScheduledDate = (scheduledDate && typeof scheduledDate === 'string' && scheduledDate.trim() !== '' && scheduledDate !== 'undefined') ? scheduledDate.trim() : null;
-      let query = supabase.from('medication_workflow_records').select('*');
-      if (validPatientId !== null) {
-        query = query.eq('patient_id', validPatientId);
-      }
-      if (validScheduledDate !== null) {
-        query = query.eq('scheduled_date', validScheduledDate);
-      }
-      const { data: queryData, error: queryError } = await query.order('scheduled_time');
-      if (queryError) {
-        throw new Error(`查詢工作流程記錄失敗: ${queryError.message}`);
-      }
+      const { fromDate, toDate } = getWorkflowRefreshDateRange();
+      const queryData = await db.fetchAllPagesParallel(async (from, to, withCount) => {
+        let query = supabase
+          .from('medication_workflow_records')
+          .select('*', withCount ? { count: 'exact' } : undefined);
+        if (validPatientId !== null) {
+          query = query.eq('patient_id', validPatientId);
+        }
+        if (validScheduledDate !== null) {
+          query = query.eq('scheduled_date', validScheduledDate);
+        } else {
+          query = query.gte('scheduled_date', fromDate).lte('scheduled_date', toDate);
+        }
+        return await query
+          .order('scheduled_date')
+          .order('scheduled_time')
+          .order('id')
+          .range(from, to);
+      });
       if (!skipStateUpdate) {
         setPrescriptionWorkflowRecords(queryData || []);
       }
