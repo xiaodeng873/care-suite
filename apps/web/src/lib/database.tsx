@@ -1364,9 +1364,17 @@ export const getPatientsLight = async (): Promise<Patient[]> => {
 };
 
 // 背景補載全部院友相片：院友id → 院友相片
+// 改用分頁並行載入，避免 base64 相片積累後單次 SELECT 超過 statement_timeout。
 export const getPatientPhotos = async (): Promise<Map<number, string | null>> => {
-  const { data, error } = await supabase.from('院友主表').select('院友id, 院友相片');
-  if (error) throw error;
+  const PHOTO_PAGE_SIZE = 300;
+  const data = await fetchAllPagesParallel(async (from, to, withCount) => {
+    const { data, error, count } = await supabase
+      .from('院友主表')
+      .select('院友id, 院友相片', withCount ? { count: 'exact' } : undefined)
+      .order('院友id', { ascending: true })
+      .range(from, to);
+    return { data, error, count };
+  }, PHOTO_PAGE_SIZE);
   return new Map((data || []).map((p: any) => [p.院友id, p.院友相片]));
 };
 export const createPatient = async (patient: Omit<Patient, '院友id'>): Promise<Patient> => {
