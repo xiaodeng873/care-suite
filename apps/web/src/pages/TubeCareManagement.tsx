@@ -175,57 +175,64 @@ const TubeCareManagement: React.FC = () => {
     });
   };
 
-  const sortedRecords = [...filteredRecords].sort((a, b) => {
-    const patientA = patients.find(p => p.院友id === a.patient_id);
-    const patientB = patients.find(p => p.院友id === b.patient_id);
-
-    let valueA: string | number = '';
-    let valueB: string | number = '';
-
-    switch (sortField) {
-      case '院友姓名': {
-        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
-        return sortDirection === 'asc' ? bedCmp : -bedCmp;
-      }
-      case 'execution_date':
-        valueA = new Date(a.execution_date).getTime();
-        valueB = new Date(b.execution_date).getTime();
-        break;
-      case 'next_due_date':
-        valueA = a.next_due_date ? new Date(a.next_due_date).getTime() : 0;
-        valueB = b.next_due_date ? new Date(b.next_due_date).getTime() : 0;
-        break;
-      case 'created_at':
-        valueA = new Date(a.created_at).getTime();
-        valueB = new Date(b.created_at).getTime();
-        break;
-    }
-
-    if (typeof valueA === 'string' && typeof valueB === 'string') {
-      valueA = (valueA as string).toLowerCase();
-      valueB = (valueB as string).toLowerCase();
-    }
-
-    if (sortDirection === 'asc') {
-      return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
-    } else {
-      return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
-    }
-  });
-
-  // 依 patient_id 分組，組內依 created_at desc
+  // 依 patient_id 分組，組內依執行日期 desc 排列（最新執行在前，即「當前記錄」；created_at 僅作後備）
+  // 組排序以當前記錄為準，不可混用舊記錄日期：next_due_date 升序即自然得出 已逾期 > 即將到期 > 有效
   const groupedRecords = (() => {
-    const seen = new Set<number>();
-    const groups: { patientId: number; records: PatientTubeCareRecord[] }[] = [];
-    sortedRecords.forEach(r => {
-      if (!seen.has(r.patient_id)) {
-        seen.add(r.patient_id);
-        groups.push({ patientId: r.patient_id, records: [r] });
-      } else {
-        groups.find(g => g.patientId === r.patient_id)!.records.push(r);
-      }
+    const map = new Map<number, PatientTubeCareRecord[]>();
+    filteredRecords.forEach(r => {
+      if (!map.has(r.patient_id)) map.set(r.patient_id, []);
+      map.get(r.patient_id)!.push(r);
     });
-    groups.forEach(g => g.records.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    const groups = [...map.entries()].map(([patientId, records]) => ({
+      patientId,
+      records: records.sort((a, b) => {
+        const ea = a.execution_date ? new Date(a.execution_date).getTime() : 0;
+        const eb = b.execution_date ? new Date(b.execution_date).getTime() : 0;
+        if (eb !== ea) return eb - ea;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }),
+    }));
+    groups.sort((a, b) => {
+      const ca = a.records[0];
+      const cb = b.records[0];
+      const patientA = patients.find(p => p.院友id === a.patientId);
+      const patientB = patients.find(p => p.院友id === b.patientId);
+      let valueA: string | number = '';
+      let valueB: string | number = '';
+      switch (sortField) {
+        case '院友姓名': {
+          const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+          return sortDirection === 'asc' ? bedCmp : -bedCmp;
+        }
+        case 'execution_date':
+          valueA = new Date(ca.execution_date).getTime();
+          valueB = new Date(cb.execution_date).getTime();
+          break;
+        case 'next_due_date':
+          valueA = ca.next_due_date ? new Date(ca.next_due_date).getTime() : 0;
+          valueB = cb.next_due_date ? new Date(cb.next_due_date).getTime() : 0;
+          break;
+        case 'created_at':
+          valueA = new Date(ca.created_at).getTime();
+          valueB = new Date(cb.created_at).getTime();
+          break;
+      }
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        valueA = (valueA as string).toLowerCase();
+        valueB = (valueB as string).toLowerCase();
+      }
+      let result: number;
+      if (sortDirection === 'asc') {
+        result = valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+      } else {
+        result = valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
+      }
+      if (result !== 0) return result;
+      // 打和後備：執行日期較新者在前
+      const sigA = ca.execution_date ? new Date(ca.execution_date).getTime() : 0;
+      const sigB = cb.execution_date ? new Date(cb.execution_date).getTime() : 0;
+      return sigB - sigA;
+    });
     return groups;
   })();
 

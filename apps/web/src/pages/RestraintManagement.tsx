@@ -193,57 +193,64 @@ const RestraintManagement: React.FC = () => {
     });
   };
 
-  const sortedAssessments = [...filteredAssessments].sort((a, b) => {
-    const patientA = patients.find(p => p.院友id === a.patient_id);
-    const patientB = patients.find(p => p.院友id === b.patient_id);
-    
-    let valueA: string | number = '';
-    let valueB: string | number = '';
-    
-    switch (sortField) {
-      case '院友姓名': {
-        const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
-        return sortDirection === 'asc' ? bedCmp : -bedCmp;
-      }
-      case 'doctor_signature_date':
-        valueA = a.doctor_signature_date ? new Date(a.doctor_signature_date).getTime() : 0;
-        valueB = b.doctor_signature_date ? new Date(b.doctor_signature_date).getTime() : 0;
-        break;
-      case 'next_due_date':
-        valueA = a.next_due_date ? new Date(a.next_due_date).getTime() : 0;
-        valueB = b.next_due_date ? new Date(b.next_due_date).getTime() : 0;
-        break;
-      case 'created_at':
-        valueA = new Date(a.created_at).getTime();
-        valueB = new Date(b.created_at).getTime();
-        break;
-    }
-    
-    if (typeof valueA === 'string' && typeof valueB === 'string') {
-      valueA = (valueA as string).toLowerCase();
-      valueB = (valueB as string).toLowerCase();
-    }
-    
-    if (sortDirection === 'asc') {
-      return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
-    } else {
-      return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
-    }
-  });
-
-  // 依 patient_id 分組，組內依 created_at desc
+  // 依 patient_id 分組，組內依醫生簽署日期 desc 排列（最新簽署在前，即「當前記錄」；created_at 僅作後備）
+  // 組排序以當前記錄為準，不可混用舊記錄日期：next_due_date 升序即自然得出 已逾期 > 即將到期 > 有效
   const groupedAssessments = (() => {
-    const seen = new Set<number>();
-    const groups: { patientId: number; assessments: PatientRestraintAssessment[] }[] = [];
-    sortedAssessments.forEach(a => {
-      if (!seen.has(a.patient_id)) {
-        seen.add(a.patient_id);
-        groups.push({ patientId: a.patient_id, assessments: [a] });
-      } else {
-        groups.find(g => g.patientId === a.patient_id)!.assessments.push(a);
-      }
+    const map = new Map<number, PatientRestraintAssessment[]>();
+    filteredAssessments.forEach(a => {
+      if (!map.has(a.patient_id)) map.set(a.patient_id, []);
+      map.get(a.patient_id)!.push(a);
     });
-    groups.forEach(g => g.assessments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    const groups = [...map.entries()].map(([patientId, assessments]) => ({
+      patientId,
+      assessments: assessments.sort((a, b) => {
+        const sa = a.doctor_signature_date ? new Date(a.doctor_signature_date).getTime() : 0;
+        const sb = b.doctor_signature_date ? new Date(b.doctor_signature_date).getTime() : 0;
+        if (sb !== sa) return sb - sa;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }),
+    }));
+    groups.sort((a, b) => {
+      const ca = a.assessments[0];
+      const cb = b.assessments[0];
+      const patientA = patients.find(p => p.院友id === a.patientId);
+      const patientB = patients.find(p => p.院友id === b.patientId);
+      let valueA: string | number = '';
+      let valueB: string | number = '';
+      switch (sortField) {
+        case '院友姓名': {
+          const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
+          return sortDirection === 'asc' ? bedCmp : -bedCmp;
+        }
+        case 'doctor_signature_date':
+          valueA = ca.doctor_signature_date ? new Date(ca.doctor_signature_date).getTime() : 0;
+          valueB = cb.doctor_signature_date ? new Date(cb.doctor_signature_date).getTime() : 0;
+          break;
+        case 'next_due_date':
+          valueA = ca.next_due_date ? new Date(ca.next_due_date).getTime() : 0;
+          valueB = cb.next_due_date ? new Date(cb.next_due_date).getTime() : 0;
+          break;
+        case 'created_at':
+          valueA = new Date(ca.created_at).getTime();
+          valueB = new Date(cb.created_at).getTime();
+          break;
+      }
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        valueA = (valueA as string).toLowerCase();
+        valueB = (valueB as string).toLowerCase();
+      }
+      let result: number;
+      if (sortDirection === 'asc') {
+        result = valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+      } else {
+        result = valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
+      }
+      if (result !== 0) return result;
+      // 打和後備：簽署日期較新者在前
+      const sigA = ca.doctor_signature_date ? new Date(ca.doctor_signature_date).getTime() : 0;
+      const sigB = cb.doctor_signature_date ? new Date(cb.doctor_signature_date).getTime() : 0;
+      return sigB - sigA;
+    });
     return groups;
   })();
   const totalItems = groupedAssessments.length;

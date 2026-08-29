@@ -162,7 +162,7 @@ const AnnualHealthCheckup: React.FC = () => {
       在住狀態: '在住'
     });
   };
-  // 依 patient_id 分組，組內依 created_at desc 排列（最新在前，即「當前記錄」）
+  // 依 patient_id 分組，組內依醫生簽署日期 desc 排列（最新簽署在前，即「當前記錄」）
   // 組排序以當前記錄為準：next_due_date 升序即自然得出 已逾期 > 即將到期 > 有效
   const groupedCheckups = (() => {
     const map = new Map<number, AnnualHealthCheckup[]>();
@@ -172,7 +172,13 @@ const AnnualHealthCheckup: React.FC = () => {
     });
     const groups = [...map.entries()].map(([patientId, checkups]) => ({
       patientId,
-      checkups: checkups.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+      checkups: checkups.sort((a, b) => {
+        // 以醫生簽署日期判斷當前記錄（created_at 多為同日批次，不可靠，僅作後備）
+        const sa = a.last_doctor_signature_date ? new Date(a.last_doctor_signature_date).getTime() : 0;
+        const sb = b.last_doctor_signature_date ? new Date(b.last_doctor_signature_date).getTime() : 0;
+        if (sb !== sa) return sb - sa;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }),
     }));
     groups.sort((a, b) => {
       const ca = a.checkups[0];
@@ -203,11 +209,17 @@ const AnnualHealthCheckup: React.FC = () => {
         valueA = valueA.toLowerCase();
         valueB = valueB.toLowerCase();
       }
+      let result: number;
       if (sortDirection === 'asc') {
-        return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+        result = valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
       } else {
-        return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
+        result = valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
       }
+      if (result !== 0) return result;
+      // 打和後備：簽署日期較新者在前
+      const sigA = ca.last_doctor_signature_date ? new Date(ca.last_doctor_signature_date).getTime() : 0;
+      const sigB = cb.last_doctor_signature_date ? new Date(cb.last_doctor_signature_date).getTime() : 0;
+      return sigB - sigA;
     });
     return groups;
   })();
