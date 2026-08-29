@@ -64,6 +64,31 @@ const renderEmptyRow = (): string => `
 
 // ── 主 HTML 產生函數 ──────────────────────────────────────────────────────────
 
+const SUGGESTED_TO_TYPE_MAP: Record<string, string> = {
+  '約束衣': '約束衣',
+  '約束腰帶': '約束腰帶',
+  '手腕帶': '手腕帶',
+  '約束手套/連指手套': '約束手套',
+  '防滑褲/防滑褲帶': '防滑褲帶',
+  '枱板': '枱板',
+  '其他：': '其他',
+};
+
+const deriveTypesFromSuggestedRestraints = (suggestedRestraints: Record<string, any>): Record<string, boolean | string> => {
+  const types: Record<string, boolean | string> = {};
+  Object.entries(SUGGESTED_TO_TYPE_MAP).forEach(([suggestedKey, typeKey]) => {
+    const config = suggestedRestraints?.[suggestedKey];
+    if (config?.checked) {
+      types[typeKey] = true;
+      if (suggestedKey === '其他：') {
+        const otherText = config?.otherRestraintType?.trim?.() || '';
+        if (otherText) types[`${typeKey}_text`] = otherText;
+      }
+    }
+  });
+  return types;
+};
+
 export const generateRestraintUsageRecordHtml = (
   assessments: PatientRestraintAssessment[],
   patient: Patient,
@@ -71,10 +96,28 @@ export const generateRestraintUsageRecordHtml = (
 ): string => {
   const patientName = `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}` || patient.中文姓名;
 
-  // 取所有有 usage_record 的評估，按 start_date 升序
+  // 把每份評估轉成使用紀錄：有 usage_record 則用之；否則以醫生簽署日期產生預設紀錄。
+  // 種類欄若未填，再根據「約束物品建議」連動補上。
   const usageRows = assessments
-    .filter(a => a.usage_record)
-    .map(a => a.usage_record)
+    .map(a => {
+      const base = a.usage_record ? { ...a.usage_record } : {
+        start_date: a.doctor_signature_date || '',
+        end_date: a.next_due_date || '',
+        doctor: '',
+        reasons: {},
+        types: {},
+        observations: { '血液循環': true, '呼吸狀況': true, '精神狀況': true, '皮膚狀況': true, '姿勢舒適': true }
+      };
+      const hasAnyType = Object.keys(base.types || {}).some(k => !k.endsWith('_text') && base.types[k] === true);
+      if (!hasAnyType) {
+        base.types = deriveTypesFromSuggestedRestraints(a.suggested_restraints || {});
+      }
+      if (!base.end_date) {
+        base.end_date = a.next_due_date || '';
+      }
+      return base;
+    })
+    .filter(a => a.start_date)
     .sort((a, b) => {
       const da = a.start_date || '';
       const db_ = b.start_date || '';

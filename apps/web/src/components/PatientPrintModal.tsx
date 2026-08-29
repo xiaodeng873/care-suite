@@ -44,6 +44,7 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
 { id: 'blood_sugar_record', name: '院友血糖記錄', category: '常用表格', defaultChecked: false },
 { id: 'nursing_treatment', name: '護理及治療記錄', category: '常用表格', defaultChecked: true },
 { id: 'wound_assessment', name: '傷口評估記錄表', category: '常用表格', defaultChecked: false },
+{ id: 'meal_guidance_card', name: '餐膳指引卡片', category: '常用表格', defaultChecked: false },
 { id: 'restraint_usage_common', name: '使用約束物品紀錄', category: '常用表格', defaultChecked: false },
 { id: 'restraint_consent', name: '使用約束措施的評估及同意書', category: '常用表格', defaultChecked: false },
 { id: 'accident_report', name: '意外事件報告', category: '常用表格', defaultChecked: false },

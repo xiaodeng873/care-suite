@@ -15,7 +15,8 @@ import {
   ChevronUp,
   ChevronDown,
   X,
-  BarChart3
+  BarChart3,
+  Printer
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type MealGuidance, type MealCombinationType, type SpecialDietType } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -26,6 +27,8 @@ import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
+import PatientPrintModal from '../components/PatientPrintModal';
+import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 
 
 type SortField = '院友姓名' | 'meal_combination' | 'guidance_date' | 'guidance_source' | 'created_at';
@@ -47,6 +50,7 @@ const MealGuidance: React.FC = () => {
   const { mealGuidances, deleteMealGuidance, loading } = usePatientData();
   const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [selectedGuidance, setSelectedGuidance] = useState<MealGuidance | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
@@ -494,10 +498,16 @@ const MealGuidance: React.FC = () => {
                 onClick={handleExportSelected}
                 className="btn-secondary flex flex-wrap items-center gap-2"
               >
-                <Download className="h-4 w-4" />
-                <span>匯出選定記錄</span>
+                <Download className="h-4 w-4" />                <span>匯出選定記錄</span>
               </button>
             )}
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印</span>
+            </button>
             <button
               onClick={() => {
                 setSelectedGuidance(null);
@@ -1110,6 +1120,32 @@ const MealGuidance: React.FC = () => {
           onClose={() => {
             setShowModal(false);
             setSelectedGuidance(null);
+          }}
+        />
+      )}
+
+      {showPrintModal && (
+        <PatientPrintModal
+          patients={patients}
+          initialTab="常用表格"
+          initialSelectedDocumentIds={['meal_guidance_card']}
+          onClose={() => setShowPrintModal(false)}
+          onPrint={async (selectedPatients, documentIds, startDate, endDate, contentMode, printOptions) => {
+            setShowPrintModal(false);
+            try {
+              await generatePatientPrintBundle({
+                patients: selectedPatients,
+                documentIds,
+                startDate,
+                endDate,
+                contentMode,
+                printOptions,
+                mealGuidances,
+              });
+            } catch (error) {
+              console.error('列印失敗:', error);
+              alert('列印失敗，請稍後再試');
+            }
           }}
         />
       )}

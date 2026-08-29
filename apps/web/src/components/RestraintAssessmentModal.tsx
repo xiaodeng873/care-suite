@@ -21,22 +21,53 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
     return hongKongTime.toISOString().split('T')[0];
   };
 
+  // 約束物品建議與使用紀錄「種類」的對應
+  const SUGGESTED_TO_TYPE_MAP: Record<string, string> = {
+    '約束衣': '約束衣',
+    '約束腰帶': '約束腰帶',
+    '手腕帶': '手腕帶',
+    '約束手套/連指手套': '約束手套',
+    '防滑褲/防滑褲帶': '防滑褲帶',
+    '枱板': '枱板',
+    '其他：': '其他',
+  };
+
+  const deriveTypesFromSuggestedRestraints = (suggestedRestraints: Record<string, any>): Record<string, boolean | string> => {
+    const types: Record<string, boolean | string> = {};
+    Object.entries(SUGGESTED_TO_TYPE_MAP).forEach(([suggestedKey, typeKey]) => {
+      const config = suggestedRestraints?.[suggestedKey];
+      if (config?.checked) {
+        types[typeKey] = true;
+        if (suggestedKey === '其他：') {
+          const otherText = config?.otherRestraintType?.trim?.() || '';
+          if (otherText) types[`${typeKey}_text`] = otherText;
+        }
+      }
+    });
+    return types;
+  };
+
+  const initialSuggestedRestraints = assessment?.suggested_restraints || (renewFrom?.suggested_restraints ?? {});
+  const initialUsageRecord = assessment?.usage_record || {
+    start_date: assessment?.doctor_signature_date || renewFrom?.doctor_signature_date || '',
+    end_date: '',
+    doctor: '',
+    reasons: {} as Record<string, boolean | string>,
+    types: {} as Record<string, boolean | string>,
+    observations: { '血液循環': true, '呼吸狀況': true, '精神狀況': true, '皮膚狀況': true, '姿勢舒適': true } as Record<string, boolean | string>
+  };
+  // 種類與上方約束物品建議連動
+  initialUsageRecord.types = deriveTypesFromSuggestedRestraints(initialSuggestedRestraints);
+
   const [formData, setFormData] = useState({
     patient_id: assessment?.patient_id || (renewFrom ? renewFrom.patient_id : '') as string | number,
     doctor_signature_date: assessment?.doctor_signature_date || '',
     next_due_date: assessment?.next_due_date || '',
     risk_factors: assessment?.risk_factors || (renewFrom?.risk_factors ?? {}),
     alternatives: assessment?.alternatives || (renewFrom?.alternatives ?? {}),
-    suggested_restraints: assessment?.suggested_restraints || (renewFrom?.suggested_restraints ?? {}),
+    suggested_restraints: initialSuggestedRestraints,
     other_restraint_notes: assessment?.other_restraint_notes || renewFrom?.other_restraint_notes || '',
-    usage_record: assessment?.usage_record || {
-      start_date: assessment?.doctor_signature_date || renewFrom?.doctor_signature_date || '',
-      end_date: '',
-      doctor: '',
-      reasons: {} as Record<string, boolean | string>,
-      types: {} as Record<string, boolean | string>,
-      observations: { '血液循環': true, '呼吸狀況': true, '精神狀況': true, '皮膚狀況': true, '姿勢舒適': true } as Record<string, boolean | string>
-    }
+    usage_record: initialUsageRecord
   });
 
   // 計算下次到期日期（醫生簽署日期 + 6個月）
@@ -48,17 +79,19 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
     return date.toISOString().split('T')[0];
   };
 
-  // 當醫生簽署日期改變時，自動計算下次到期日期
+  // 當醫生簽署日期改變時，自動計算下次到期日期；
+  // 使用紀錄的開始日期等同醫生簽署日期，結束日期預設為下次到期日期（若用戶已填則保留）
   React.useEffect(() => {
     if (formData.doctor_signature_date) {
       const calculatedDueDate = calculateNextDueDate(formData.doctor_signature_date);
       setFormData((prev) => ({
         ...prev,
         next_due_date: calculatedDueDate,
-        // 開始日期預填醫生簽署日期（僅當尚未填寫時）
-        usage_record: prev.usage_record?.start_date ?
-        prev.usage_record :
-        { ...prev.usage_record, start_date: formData.doctor_signature_date }
+        usage_record: {
+          ...prev.usage_record,
+          start_date: formData.doctor_signature_date,
+          end_date: prev.usage_record?.end_date || calculatedDueDate
+        }
       }));
     }
   }, [formData.doctor_signature_date]);
@@ -248,9 +281,14 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
         ...newRestraints[restraint],
         [field]: value
       };
+      const newTypes = deriveTypesFromSuggestedRestraints(newRestraints);
       return {
         ...prev,
-        suggested_restraints: newRestraints
+        suggested_restraints: newRestraints,
+        usage_record: {
+          ...prev.usage_record,
+          types: newTypes
+        }
       };
     });
   };
@@ -303,6 +341,20 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
     const otherRestraint = formData.suggested_restraints['其他：'] as any;
     if (otherRestraint?.checked && !otherRestraint?.otherRestraintType?.trim()) {
       alert('請輸入其他約束物品類型');
+      return;
+    }
+
+    // 使用紀錄：原因至少勾選一項
+    const hasAnyReason = Object.entries(formData.usage_record?.reasons || {})
+      .some(([key, value]) => value === true && !key.endsWith('_text'));
+    if (!hasAnyReason) {
+      alert('請至少勾選一個使用原因');
+      return;
+    }
+
+    // 使用紀錄：處方醫生必填
+    if (!formData.usage_record?.doctor?.trim()) {
+      alert('請輸入處方醫生');
       return;
     }
 
@@ -833,8 +885,11 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
 
                     value={formData.usage_record?.start_date || ''}
 
-                    className="form-input" onChange={(value) => setFormData((prev) => ({ ...prev, usage_record: { ...prev.usage_record, start_date: value } }))} />
+                    disabled
+                    title="開始日期等同醫生簽署日期，會自動連動"
+                    className="form-input bg-gray-100 cursor-not-allowed" onChange={(value) => setFormData((prev) => ({ ...prev, usage_record: { ...prev.usage_record, start_date: value } }))} />
                   
+                  <p className="text-xs text-gray-500 mt-1">等同醫生簽署日期</p>
                 </div>
                 <div>
                   <label className="form-label">結束日期</label>
@@ -847,9 +902,10 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
                 </div>
               </div>
               <div>
-                <label className="form-label">處方醫生</label>
+                <label className="form-label">處方醫生 <span className="text-red-600">*</span></label>
                 <input
                   type="text"
+                  required
                   value={formData.usage_record?.doctor || ''}
                   onChange={(e) => setFormData((prev) => ({ ...prev, usage_record: { ...prev.usage_record, doctor: e.target.value } }))}
                   className="form-input"
@@ -858,7 +914,7 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
               </div>
               {/* 原因 */}
               <div>
-                <label className="form-label font-medium">原因（可多選）</label>
+                <label className="form-label font-medium">原因（可多選）<span className="text-red-600">*</span></label>
                 <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
                   {['自身安全', '維持治療', '防止跌倒', '免傷害他人'].map((r) =>
                   <label key={r} className="flex items-center gap-2">

@@ -162,53 +162,53 @@ const AnnualHealthCheckup: React.FC = () => {
       在住狀態: '在住'
     });
   };
-  const sortedCheckups = [...filteredCheckups].sort((a, b) => {
-    const patientA = patients.find(p => p.院友id === a.patient_id);
-    const patientB = patients.find(p => p.院友id === b.patient_id);
-    let valueA: string | number = '';
-    let valueB: string | number = '';
-    switch (sortField) {
-      case '院友姓名':
-        valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
-        valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
-        break;
-      case 'last_doctor_signature_date':
-        valueA = a.last_doctor_signature_date ? new Date(a.last_doctor_signature_date).getTime() : 0;
-        valueB = b.last_doctor_signature_date ? new Date(b.last_doctor_signature_date).getTime() : 0;
-        break;
-      case 'next_due_date':
-        valueA = a.next_due_date ? new Date(a.next_due_date).getTime() : 0;
-        valueB = b.next_due_date ? new Date(b.next_due_date).getTime() : 0;
-        break;
-      case 'created_at':
-        valueA = new Date(a.created_at).getTime();
-        valueB = new Date(b.created_at).getTime();
-        break;
-    }
-    if (typeof valueA === 'string' && typeof valueB === 'string') {
-      valueA = valueA.toLowerCase();
-      valueB = valueB.toLowerCase();
-    }
-    if (sortDirection === 'asc') {
-      return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
-    } else {
-      return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
-    }
-  });
-  // 依 patient_id 分組，組內依 created_at desc 排列（最新在前）
+  // 依 patient_id 分組，組內依 created_at desc 排列（最新在前，即「當前記錄」）
+  // 組排序以當前記錄為準：next_due_date 升序即自然得出 已逾期 > 即將到期 > 有效
   const groupedCheckups = (() => {
-    const seen = new Set<number>();
-    const groups: { patientId: number; checkups: AnnualHealthCheckup[] }[] = [];
-    sortedCheckups.forEach(c => {
-      if (!seen.has(c.patient_id)) {
-        seen.add(c.patient_id);
-        groups.push({ patientId: c.patient_id, checkups: [c] });
+    const map = new Map<number, AnnualHealthCheckup[]>();
+    filteredCheckups.forEach(c => {
+      if (!map.has(c.patient_id)) map.set(c.patient_id, []);
+      map.get(c.patient_id)!.push(c);
+    });
+    const groups = [...map.entries()].map(([patientId, checkups]) => ({
+      patientId,
+      checkups: checkups.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    }));
+    groups.sort((a, b) => {
+      const ca = a.checkups[0];
+      const cb = b.checkups[0];
+      const patientA = patients.find(p => p.院友id === a.patientId);
+      const patientB = patients.find(p => p.院友id === b.patientId);
+      let valueA: string | number = '';
+      let valueB: string | number = '';
+      switch (sortField) {
+        case '院友姓名':
+          valueA = `${patientA?.中文姓氏 || ''}${patientA?.中文名字 || ''}`;
+          valueB = `${patientB?.中文姓氏 || ''}${patientB?.中文名字 || ''}`;
+          break;
+        case 'last_doctor_signature_date':
+          valueA = ca.last_doctor_signature_date ? new Date(ca.last_doctor_signature_date).getTime() : 0;
+          valueB = cb.last_doctor_signature_date ? new Date(cb.last_doctor_signature_date).getTime() : 0;
+          break;
+        case 'next_due_date':
+          valueA = ca.next_due_date ? new Date(ca.next_due_date).getTime() : 0;
+          valueB = cb.next_due_date ? new Date(cb.next_due_date).getTime() : 0;
+          break;
+        case 'created_at':
+          valueA = new Date(ca.created_at).getTime();
+          valueB = new Date(cb.created_at).getTime();
+          break;
+      }
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        valueA = valueA.toLowerCase();
+        valueB = valueB.toLowerCase();
+      }
+      if (sortDirection === 'asc') {
+        return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
       } else {
-        groups.find(g => g.patientId === c.patient_id)!.checkups.push(c);
+        return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
       }
     });
-    // 組內依 created_at desc 排列
-    groups.forEach(g => g.checkups.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
     return groups;
   })();
   const totalItems = groupedCheckups.length;

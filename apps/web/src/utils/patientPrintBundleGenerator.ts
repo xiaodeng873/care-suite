@@ -51,6 +51,9 @@ export interface DocumentGeneratorContext {
   facilityName: string;
   contentMode: PrintContentMode;
   printOptions?: PrintDocumentOptions;
+  allPatients?: Patient[];
+  stations?: Station[];
+  mealGuidances?: MealGuidance[];
 }
 
 type DocumentGenerator = (ctx: DocumentGeneratorContext) => Promise<string | string[]>;
@@ -331,6 +334,15 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
           const longTerm = (prescriptions || []).filter(p => mod.classifyMedicationTerm(p) === 'long');
           if (longTerm.length === 0) return '';
           return mod.generateMedicationListHtml([{ ...patient, prescriptions: longTerm }], { startDate: ctx.startDate || undefined, endDate: ctx.endDate || undefined, termType: 'long' });
+        };
+      }
+      case 'meal_guidance_card': {
+        const mod = await import('./mealGuidanceCardPrintGenerator');
+        return async (ctx) => {
+          const patients = ctx.allPatients || [ctx.patient];
+          const mealGuidances = ctx.mealGuidances || [];
+          const stations = ctx.stations || [];
+          return mod.generateMealGuidanceCardHtml({ patients, mealGuidances, stations });
         };
       }
       case 'temperature_record': {
@@ -636,8 +648,9 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
   // Excel 匯出文件（疫苗接種記錄 + 統計報表）與 HTML 文件分開處理
   const hasVaccinationRecord = sortedDocumentIds.includes('vaccination_record');
   const hasFeeStatisticsReport = sortedDocumentIds.includes('fee_statistics_report');
+  const hasMealGuidanceCard = sortedDocumentIds.includes('meal_guidance_card');
   const statisticsDocumentIds = sortedDocumentIds.filter(id => STATISTICS_REPORT_IDS.has(id)) as StatisticsReportDocumentId[];
-  const htmlDocumentIds = sortedDocumentIds.filter(id => id !== 'vaccination_record' && id !== 'fee_statistics_report' && !STATISTICS_REPORT_IDS.has(id));
+  const htmlDocumentIds = sortedDocumentIds.filter(id => id !== 'vaccination_record' && id !== 'fee_statistics_report' && !STATISTICS_REPORT_IDS.has(id) && id !== 'meal_guidance_card');
 
   const pages: string[] = [];
   const skipped: string[] = [];
@@ -660,6 +673,9 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
           facilityName,
           contentMode,
           printOptions,
+          allPatients: patients,
+          stations: options.stations,
+          mealGuidances: options.mealGuidances,
         });
         // 「含既有輸入內容」模式：有內容則印內容，無內容則回退印基本資料
         // 床頭記錄除外：data 模式下院友沒有該 tab 或沒有記錄時必須整份跳過，不回退
@@ -671,6 +687,9 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
             facilityName,
             contentMode: 'basic',
             printOptions,
+            allPatients: patients,
+            stations: options.stations,
+            mealGuidances: options.mealGuidances,
           });
         }
         if (Array.isArray(html)) {
@@ -684,6 +703,47 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
         console.error(`產生 ${docId} 失敗:`, error);
         failed.push(`${docName}（${patientName}）`);
       }
+    }
+  }
+
+  if (hasMealGuidanceCard) {
+    try {
+      const patientIds = patients.map(p => p.院友id);
+      let stations = options.stations || [];
+      if (stations.length === 0) {
+        const { data, error } = await supabase.from('stations').select('*').order('created_at', { ascending: true });
+        if (error) throw error;
+        stations = (data || []) as Station[];
+      }
+      let mealGuidances = options.mealGuidances || [];
+      if (mealGuidances.length === 0) {
+        const { data, error } = await supabase.from('meal_guidance').select('*').in('patient_id', patientIds);
+        if (error) throw error;
+        mealGuidances = (data || []) as MealGuidance[];
+      }
+      const generator = await getGenerator('meal_guidance_card');
+      if (generator) {
+        const firstPatient = patients[0];
+        const html = await generator({
+          patient: firstPatient,
+          startDate: startDate || firstPatient?.入住日期 || '',
+          endDate,
+          facilityName,
+          contentMode,
+          printOptions,
+          allPatients: patients,
+          stations,
+          mealGuidances,
+        });
+        if (Array.isArray(html)) {
+          pages.push(...html.filter(Boolean));
+        } else if (html) {
+          pages.push(html);
+        }
+      }
+    } catch (error: any) {
+      console.error('產生餐膳指引卡片失敗:', error);
+      failed.push('餐膳指引卡片');
     }
   }
 
