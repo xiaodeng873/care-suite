@@ -7,6 +7,10 @@
   <meta property="og:description" content="生命表徵、床頭記錄、院友日誌、診斷與疫苗。" />
   <meta property="og:url" content="/features/records" />
   <!-- INCLUDE: head.html -->
+  <link rel="stylesheet" href="/css/features-demo.css" />
+  <link rel="stylesheet" href="/css/webapp-components.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
   <!-- INCLUDE: nav.html -->
@@ -27,31 +31,39 @@
           <h3 class="card-title">監測記錄（生命表徵）+ 儀器拍照讀數</h3>
           <p class="pain-point"><strong>痛點：</strong>逐個讀數、逐個手打入電腦是每日最重複的勞動，打錯的監測數據直接影響派藥安全。</p>
           <p class="solution"><strong>解決：</strong>血壓計、血糖儀屏幕拍照 AI 自動讀數；批量補錄、Excel 匯出、誤刪回收站還原、重複記錄去重。</p>
+          <div class="fd-frame mt-4" id="demo-vitals"></div>
         </article>
         <article class="card">
-          <h3 class="card-title">體重變化自動警示</h3>
+          <h3 class="card-title">體重變化自動計算</h3>
           <p class="pain-point"><strong>痛點：</strong>守則訂明體重 1 個月內跌逾 5% 或 6 個月內跌逾 10%，須徵詢醫護意見；紙本記錄下，體重無聲無息地跌，沒有人發覺。</p>
-          <p class="solution"><strong>解決：</strong>體重變化百分比自動計算並警示，越過守則界線即時浮現。</p>
+          <p class="solution"><strong>解決：</strong>體重變化百分比自動計算（與上次記錄比較）；每月報表自動統計月內體重跌逾 5% 的院友。</p>
+          <div class="fd-frame mt-4" id="x-weight"></div>
         </article>
         <article class="card">
-          <h3 class="card-title">床頭記錄七大類</h3>
+          <h3 class="card-title">床頭記錄六大類</h3>
           <p class="pain-point"><strong>痛點：</strong>沐浴、剃鬚、口腔清潔、換片、約束觀察、轉身、餵食管記錄全是檢查必看，紙本易漏簽漏填。</p>
-          <p class="solution"><strong>解決：</strong>巡房、換片、出入量、約束觀察、轉身、如廁訓練、衛生記錄七大分頁，每項有時間、有記錄人，檢查時即時出到。</p>
+          <p class="solution"><strong>解決：</strong>巡房、換片、出入量、約束觀察、轉身、衛生記錄六大分頁（如廁訓練分頁即將推出），每項有時間、有記錄人，檢查時即時出到。</p>
+          <div class="fd-frame mt-4" id="x-bedside"></div>
         </article>
         <article class="card">
           <h3 class="card-title">院友日誌</h3>
           <p class="pain-point"><strong>痛點：</strong>住客患病、受傷或健康轉變時須立即評估、安排診治、通知家人並記入紀錄；散亂的即興記錄難以分類、難以檢索。</p>
           <p class="solution"><strong>解決：</strong>日誌分類色標、記錄人員署名、列印護理及治療記錄、CSV 匯出。</p>
+          <div class="fd-frame mt-4" id="x-patient-log"></div>
         </article>
         <article class="card">
           <h3 class="card-title">診斷記錄 / 疫苗記錄（文件掃描開單）</h3>
           <p class="pain-point"><strong>痛點：</strong>打完季節性流感針幾十支，逐張針卡手抄入系統，慢而且錯。</p>
           <p class="solution"><strong>解決：</strong>掃描針卡、診斷文件 OCR 自動開單，項目、單位、日期自動預填，核對即入。</p>
+          <div class="fd-frame mt-4" id="x-vax-ocr"></div>
         </article>
       </div>
     </div>
   </main>
 
   <!-- INCLUDE: footer.html -->
+  <script>window.addEventListener('load', function(){ if (typeof lucide !== 'undefined') lucide.createIcons(); });</script>
+  <script defer src="/js/features-demo.js"></script>
+  <script defer src="/js/features-demo-care.js"></script>
 </body>
 </html>

@@ -7,6 +7,7 @@ import OCRPrescriptionBlock from './OCRPrescriptionBlock';
 import { mapOCRDataToPrescriptionForm, getConfidenceColor, getConfidenceIcon } from '../utils/ocrFieldMapper';
 import { getMedicationSettings, INSTITUTION_GROUPS } from '../utils/medicationSettings';
 import { computeEstimatedEndDate } from '../utils/estimatedEndDate';
+import { computeNextDoseFromLastTaken } from '../utils/prescriptionSchedule';
 import { supabase } from '../lib/supabase';
 import PrescriptionLogModal from './PrescriptionLogModal';
 import DateInput from './DateInput';
@@ -114,12 +115,17 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
     [formData.prescription_date, formData.end_date, formData.medication_quantity, formData.dosage_amount, formData.daily_frequency, formData.medication_time_slots, formData.frequency_type, formData.frequency_value, formData.specific_weekdays, formData.is_odd_even_day]
   );
 
+  // 間隔型頻率（隔X日/隔X星期/隔X月）：由上次服用日期推算下次服用日期
+  const nextDoseDate = useMemo(
+    () => computeNextDoseFromLastTaken(formData.frequency_type, formData.frequency_value, formData.last_taken_date),
+    [formData.frequency_type, formData.frequency_value, formData.last_taken_date]
+  );
+
   const [inspectionRules, setInspectionRules] = useState<MedicationInspectionRule[]>(
     prescription?.inspection_rules || []
   );
 
   const [newTimeSlot, setNewTimeSlot] = useState('');
-  const [lastTakenDate, setLastTakenDate] = useState<string>(prescription?.last_taken_date || '');
 
   const [ocrFilledFields, setOcrFilledFields] = useState<Set<string>>(new Set());
   const [fieldConfidences, setFieldConfidences] = useState<Record<string, number>>({});
@@ -291,7 +297,6 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         return;
       }
       if (data && data.length > 0) {
-        setLastTakenDate(data[0].scheduled_date);
         setFormData(prev => ({ ...prev, last_taken_date: data[0].scheduled_date }));
       }
     };
@@ -428,6 +433,11 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
 
     if (formData.frequency_type === 'every_x_days' && formData.frequency_value < 1) {
       setValidationError('隔日服的天數必須大於0');
+      return;
+    }
+
+    if (formData.frequency_type === 'every_x_weeks' && formData.frequency_value < 1) {
+      setValidationError('隔星期服的星期數必須大於0');
       return;
     }
 
@@ -913,12 +923,18 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   上次服用日期
                 </label>
                 <DateInput
-                  value={lastTakenDate}
-                  readOnly
-                  onChange={() => {}}
-                  className="form-input bg-gray-50 text-gray-600"
-                  title="自動抓取最近完成給藥的日期"
+                  value={formData.last_taken_date}
+                  onChange={(value) => {
+                    setFormData(prev => ({ ...prev, last_taken_date: value }));
+                  }}
+                  className="form-input"
+                  title="可手動輸入；有完成給藥記錄時會自動帶出最近一次日期"
                 />
+                {nextDoseDate && (
+                  <p className="text-xs font-semibold text-blue-700 mt-1">
+                    下次服用日期：{nextDoseDate}
+                  </p>
+                )}
               </div>
 
               <div className="md:col-span-2">
@@ -1110,21 +1126,24 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   required
                 >
                   <option value="daily">每日服</option>
-                  <option value="every_x_days">隔X日服</option>
-                  <option value="every_x_months">隔X月服</option>
-                  <option value="weekly_days">逢星期X服</option>
+                  <option value="every_x_days">隔N日服</option>
+                  <option value="every_x_weeks">隔N星期服</option>
+                  <option value="every_x_months">隔N月服</option>
+                  <option value="weekly_days">逢星期N服</option>
                   <option value="odd_even_days">單日/雙日服</option>
                   <option value="hourly">每小時</option>
                   <option value="each_time">每次</option>
                 </select>
               </div>
 
-              {(formData.frequency_type === 'every_x_days' || 
-                formData.frequency_type === 'every_x_months' || 
+              {(formData.frequency_type === 'every_x_days' ||
+                formData.frequency_type === 'every_x_weeks' ||
+                formData.frequency_type === 'every_x_months' ||
                 formData.frequency_type === 'hourly') && (
                 <div>
                   <label className="form-label">
                     {formData.frequency_type === 'every_x_days' && '間隔天數'}
+                    {formData.frequency_type === 'every_x_weeks' && '間隔星期數'}
                     {formData.frequency_type === 'every_x_months' && '間隔月數'}
                     {formData.frequency_type === 'hourly' && '服用次數'}
                   </label>
@@ -1342,7 +1361,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                           className="form-input"
                         >
                           <option value="block_dispensing">停服</option>
-                          <option value="warning_only">僅警告</option>
+                          <option value="warning_only">警告</option>
                         </select>
                       </div>
                     </div>

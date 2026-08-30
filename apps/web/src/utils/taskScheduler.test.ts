@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateNextDueDate } from './taskScheduler';
+import { calculateNextDueDate, getFirstIncompleteMonitoringDate } from './taskScheduler';
 import type { PatientHealthTask } from '../lib/database';
 
 const baseTask = (overrides: Partial<PatientHealthTask> = {}): PatientHealthTask => ({
@@ -49,5 +49,25 @@ describe('calculateNextDueDate', () => {
     const result = calculateNextDueDate(task, saturday);
     expect(result.getDay()).toBe(0); // 週日
     expect(result.getDate()).toBe(16);
+  });
+
+  it('每月 1 日的體重任務，在 8 月 31 日仍能找到 8 月 1 日未完成的記錄', () => {
+    const task: PatientHealthTask = {
+      ...baseTask({
+        health_record_type: '體重',
+        frequency_unit: 'monthly',
+        frequency_value: 1,
+        specific_times: ['08:00'],
+        specific_days_of_month: [1],
+        start_date: '2026-07-01',
+        last_completed_at: '2026-07-31T16:00:00Z',
+        next_due_at: '2026-08-01T00:00:00Z',
+      }),
+    };
+    const today = new Date('2026-08-31T10:00:00+08:00');
+    const result = getFirstIncompleteMonitoringDate(task, new Set(), today.toISOString().split('T')[0]);
+    expect(result).not.toBeNull();
+    expect(result!.getDate()).toBe(1);
+    expect(result!.getMonth()).toBe(7); // 8 月（0-based）
   });
 });

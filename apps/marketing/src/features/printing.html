@@ -7,6 +7,10 @@
   <meta property="og:description" content="約 40 種社署格式表格、自訂範本引擎、院舍自訂頁首。" />
   <meta property="og:url" content="/features/printing" />
   <!-- INCLUDE: head.html -->
+  <link rel="stylesheet" href="/css/features-demo.css" />
+  <link rel="stylesheet" href="/css/webapp-components.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
   <!-- INCLUDE: nav.html -->
@@ -14,7 +18,7 @@
   <header class="page-header">
     <div class="container">
       <h1>列印範本</h1>
-      <p>社署檢查要紙本？我們支援空白表格、含資料列印，還有院舍自己的 Excel/Word 範本。</p>
+      <p>社署檢查要紙本？我們支援空白表格、含資料列印，還有院舍自己的 Excel 範本（意外事件報告另支援 Word 範本）。</p>
     </div>
   </header>
 
@@ -27,21 +31,27 @@
           <h3 class="card-title">院友文件套裝約 40 種</h3>
           <p class="pain-point"><strong>痛點：</strong>社署檢查、醫院交接、家屬查閱都要紙本；手抄一份文件半小時，抄錯還要重來。</p>
           <p class="solution"><strong>解決：</strong>約 40 種表格可選「含基本資料 / 含既有內容 / 空白」列印，未電子化院舍即時可用。</p>
+          <div class="fd-frame mt-4" id="demo-print"></div>
         </article>
         <article class="card">
-          <h3 class="card-title">自訂範本引擎（17 種類型）</h3>
+          <h3 class="card-title">自訂範本引擎（16 種類型）</h3>
           <p class="pain-point"><strong>痛點：</strong>每間院舍有自己沿用多年的表格格式，轉系統最大阻力就是「我們的表格怎麼辦」。</p>
-          <p class="solution"><strong>解決：</strong>上傳自己的 Excel/Word 範本，系統填入數據批量生成（每位院友一個工作表），系統遷就你的範本。</p>
+          <p class="solution"><strong>解決：</strong>上傳自己的 Excel 範本（意外事件報告另支援 Word 範本），系統填入數據批量生成（每位院友一個工作表），系統遷就你的範本。</p>
+          <div class="fd-frame mt-4" id="x-template"></div>
         </article>
         <article class="card">
           <h3 class="card-title">院舍自訂頁首</h3>
           <p class="pain-point"><strong>痛點：</strong>對外文件要有院舍名稱、地址、標誌才正式；手改每份文件的頁首費時且不一致。</p>
           <p class="solution"><strong>解決：</strong>中英文院舍名稱、地址、電話、標誌一次設定，套用至所有列印文件。</p>
+          <div class="fd-frame mt-4" id="x-letterhead"></div>
         </article>
       </div>
     </div>
   </main>
 
   <!-- INCLUDE: footer.html -->
+  <script>window.addEventListener('load', function(){ if (typeof lucide !== 'undefined') lucide.createIcons(); });</script>
+  <script defer src="/js/features-demo.js"></script>
+  <script defer src="/js/features-demo-admin.js"></script>
 </body>
 </html>

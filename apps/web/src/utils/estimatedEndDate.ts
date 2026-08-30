@@ -37,6 +37,8 @@ export function computeDailyAverageUsage(rx: EstimatablePrescription): number {
       return dosage * dailyFreq;
     case 'every_x_days':
       return (dosage * dailyFreq) / (freqValue > 0 ? freqValue : 1);
+    case 'every_x_weeks':
+      return (dosage * dailyFreq) / ((freqValue > 0 ? freqValue : 1) * 7);
     case 'odd_even_days':
       return (dosage * dailyFreq) / 2;
     case 'weekly_days': {

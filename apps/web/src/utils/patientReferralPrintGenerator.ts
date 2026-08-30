@@ -194,6 +194,9 @@ const formatFrequency = (p: MedicationPrescription): string => {
     case 'every_x_days':
       parts.push(p.frequency_value ? `每${p.frequency_value}天` : '每X天');
       break;
+    case 'every_x_weeks':
+      parts.push(p.frequency_value ? `每${p.frequency_value}星期` : '每X星期');
+      break;
     case 'every_x_months':
       parts.push(p.frequency_value ? `每${p.frequency_value}月` : '每X月');
       break;
@@ -356,11 +359,16 @@ const specialDietSection = (mealGuidance?: MealGuidance) => {
 const thickenerSection = (mealGuidance?: MealGuidance) => {
   const has = !!mealGuidance?.needs_thickener;
   const amount = mealGuidance?.thickener_amount || '';
+  const formula = mealGuidance?.thickener_formula || '';
   return `
   ${sectionHeader('8', '凝固粉 Thickener')}
   <div class="checkbox-grid four-cols">
     ${checkbox('沒有', !has)}
     ${checkbox('有', has)}
+    <div class="thickener-amount">
+      <span class="info-label">配方：</span>
+      <input type="text" class="db-line-input" value="${escapeHtml(formula)}" readonly>
+    </div>
     <div class="thickener-amount">
       <span class="info-label">分量：</span>
       <input type="text" class="db-line-input" value="${escapeHtml(amount)}" readonly>

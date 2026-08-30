@@ -51,6 +51,8 @@ const getFrequencyDescription = (prescription: MedicationPrescription) => {
       return getFrequencyAbbreviation(perDay);
     case 'every_x_days':
       return `隔${frequency_value}日${perDay}次`;
+    case 'every_x_weeks':
+      return `隔${frequency_value}星期${perDay}次`;
     case 'every_x_months':
       return `隔${frequency_value}月${perDay}次`;
     case 'weekly_days': {
@@ -78,7 +80,7 @@ const operatorLabels: Record<string, string> = {
 
 const actionLabels: Record<string, string> = {
   block_dispensing: '停服',
-  warning_only: '僅警告',
+  warning_only: '警告',
 };
 
 const preparationLabels: Record<string, string> = {

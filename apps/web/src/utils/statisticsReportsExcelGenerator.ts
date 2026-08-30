@@ -305,7 +305,7 @@ export async function exportMealStatisticsToExcel(options: MealStatisticsReportO
           patientDisplayName(patient),
           g.meal_combination || '',
           (g.special_diets || []).join('、'),
-          g.needs_thickener ? '是' : '否',
+          g.needs_thickener ? `是${g.thickener_formula ? `（${g.thickener_formula}）` : ''}` : '否',
           g.egg_quantity ?? '',
           g.special_diets?.includes('鼻胃飼') ? '是' : '否',
           g.remarks || ''

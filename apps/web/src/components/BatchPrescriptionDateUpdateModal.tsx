@@ -223,7 +223,7 @@ ${prescriptionsByPatient.map(group =>
                     </div>
                     {newMedicationSource && (
                       <div className="text-sm font-semibold text-green-600">
-                        來源：{newMedicationSource}
+                        藥物來源：{newMedicationSource}
                       </div>
                     )}
                   </div>
@@ -305,6 +305,7 @@ ${prescriptionsByPatient.map(group =>
                                 <span>
                                   {prescription.frequency_type === 'daily' ? '每日' : 
                                    prescription.frequency_type === 'every_x_days' ? `隔${prescription.frequency_value}日` :
+                                   prescription.frequency_type === 'every_x_weeks' ? `隔${prescription.frequency_value}星期` :
                                    prescription.frequency_type}
                                 </span>
                               </div>
@@ -317,13 +318,13 @@ ${prescriptionsByPatient.map(group =>
                             </div>
                             {prescription.medication_source && (
                               <div className="text-xs text-gray-500 mt-1">
-                                來源：{prescription.medication_source}
+                                藥物來源：{prescription.medication_source}
                               </div>
                             )}
                             <div className="text-xs text-blue-600 mt-1">
                               → 日期：{newPrescriptionDate ? formatDisplayDate(newPrescriptionDate) : '待設定'}
                               {newMedicationSource && (
-                                <div>→ 來源：{newMedicationSource}</div>
+                                <div>→ 藥物來源：{newMedicationSource}</div>
                               )}
                             </div>
                           </div>

@@ -11,11 +11,12 @@ export const PRESCRIPTION_STATUS_LABELS: Record<string, string> = {
 
 const FREQUENCY_TYPE_LABELS: Record<string, string> = {
   daily: '每日服',
-  every_x_days: '隔X日服',
-  every_x_months: '隔X月服',
+  every_x_days: '隔N日服',
+  every_x_weeks: '隔N星期服',
+  every_x_months: '隔N月服',
   weekly_days: '指定星期',
   odd_even_days: '單雙日服',
-  hourly: '每X小時服',
+  hourly: '每N小時服',
   each_time: '每次',
 };
 

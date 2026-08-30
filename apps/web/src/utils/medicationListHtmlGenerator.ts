@@ -122,6 +122,7 @@ function getFrequencyDescription(p: MedicationPrescription): string {
   switch (p.frequency_type) {
     case 'daily': return dailyCount(perDay);
     case 'every_x_days': return `隔${p.frequency_value}日${perDay}次`;
+    case 'every_x_weeks': return `隔${p.frequency_value}星期${perDay}次`;
     case 'every_x_months': return `隔${p.frequency_value}月${perDay}次`;
     case 'weekly_days': {
       const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
@@ -163,7 +164,7 @@ function formatInspectionRules(p: MedicationPrescription): string {
   };
   const actionMap: Record<string, string> = {
     block_dispensing: '停服',
-    warning_only: '僅警告',
+    warning_only: '警告',
   };
   return p.inspection_rules.map(r => {
     const op = opMap[r.condition_operator ?? ''] ?? '';

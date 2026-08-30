@@ -229,6 +229,8 @@ const getFrequencyDescription = (prescription: any): string => {
       return getFrequencyAbbreviation(perDay);
     case 'every_x_days':
       return '隔' + frequency_value + '日' + perDay + '次';
+    case 'every_x_weeks':
+      return '隔' + frequency_value + '星期' + perDay + '次';
     case 'every_x_months':
       return '隔' + frequency_value + '月' + perDay + '次';
     case 'weekly_days':

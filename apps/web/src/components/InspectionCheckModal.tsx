@@ -413,7 +413,7 @@ const InspectionCheckModal: React.FC<InspectionCheckModalProps> = ({
                     </span>
                     <span className="font-medium">{rule.condition_value}</span>
                     <span className="text-orange-700">
-                      → {rule.action_if_met === 'block_dispensing' ? '停服' : '僅警告'}
+                      → {rule.action_if_met === 'block_dispensing' ? '停服' : '警告'}
                     </span>
                   </div>
                 ))}

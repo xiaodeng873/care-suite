@@ -28,6 +28,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
     needs_thickener: guidance?.needs_thickener || false,
     needs_feeding: guidance?.needs_feeding || false,
     thickener_amount: guidance?.thickener_amount || '',
+    thickener_formula: guidance?.thickener_formula || '普遍配方',
     egg_quantity: guidance?.egg_quantity?.toString() || '',
     tube_feeding_brand: guidance?.tube_feeding_brand || '',
     tube_feeding_daily_amount_ml: guidance?.tube_feeding_daily_amount_ml?.toString() || '',
@@ -115,6 +116,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
             needs_thickener: existingGuidance.needs_thickener || false,
             needs_feeding: existingGuidance.needs_feeding || false,
             thickener_amount: existingGuidance.thickener_amount || '',
+            thickener_formula: existingGuidance.thickener_formula || '普遍配方',
             egg_quantity: existingGuidance.egg_quantity?.toString() || '',
             tube_feeding_brand: existingGuidance.tube_feeding_brand || '',
             tube_feeding_daily_amount_ml: existingGuidance.tube_feeding_daily_amount_ml?.toString() || '',
@@ -160,6 +162,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
         needs_thickener: formData.needs_thickener,
         needs_feeding: formData.needs_feeding,
         thickener_amount: formData.needs_thickener ? formData.thickener_amount : null,
+        thickener_formula: formData.needs_thickener ? formData.thickener_formula : null,
         egg_quantity: formData.special_diets.includes('雞蛋') ? parseInt(formData.egg_quantity) : null,
         tube_feeding_brand: formData.special_diets.includes('鼻胃飼') ? formData.tube_feeding_brand : null,
         tube_feeding_daily_amount_ml: formData.special_diets.includes('鼻胃飼') ? parseInt(formData.tube_feeding_daily_amount_ml) : null,
@@ -391,20 +394,49 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
             </div>
 
             {formData.needs_thickener && (
-              <div className="ml-7">
-                <label className="form-label">凝固粉分量 *</label>
-                <input
-                  type="text"
-                  name="thickener_amount"
-                  value={formData.thickener_amount}
-                  onChange={handleChange}
-                  className="form-input"
-                  placeholder="例如：1茶匙、2包、適量"
-                  required={formData.needs_thickener}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  請輸入具體的凝固粉使用分量
-                </p>
+              <div className="ml-7 space-y-3">
+                <div>
+                  <label className="form-label">凝固粉配方 *</label>
+                  <div className="flex flex-wrap items-center gap-4 mt-1">
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="radio"
+                        name="thickener_formula"
+                        value="普遍配方"
+                        checked={formData.thickener_formula === '普遍配方'}
+                        onChange={handleChange}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      普遍配方
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="radio"
+                        name="thickener_formula"
+                        value="清透配方"
+                        checked={formData.thickener_formula === '清透配方'}
+                        onChange={handleChange}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      清透配方
+                    </label>
+                  </div>
+                </div>
+                <div>
+                  <label className="form-label">凝固粉分量 *</label>
+                  <input
+                    type="text"
+                    name="thickener_amount"
+                    value={formData.thickener_amount}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="例如：1茶匙、2包、適量"
+                    required={formData.needs_thickener}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    請輸入具體的凝固粉使用分量
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -476,7 +508,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-gray-600">凝固粉:</span>
                   <span className="font-medium text-blue-600">
-                    {formData.thickener_amount || '待填寫分量'}
+                    {formData.thickener_amount || '待填寫分量'}（{formData.thickener_formula}）
                   </span>
                 </div>
               )}

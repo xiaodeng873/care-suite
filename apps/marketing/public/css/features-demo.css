@@ -237,6 +237,16 @@
   to { top: 100%; }
 }
 
+@keyframes scan {
+  from { top: 0%; }
+  to { top: 100%; }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 /* ---------- 1. 監測任務卡片 ---------- */
 
 .fd-slot-title {

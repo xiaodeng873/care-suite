@@ -187,6 +187,7 @@ export interface MealGuidance {
   needs_thickener: boolean;
   needs_feeding?: boolean;
   thickener_amount?: string;
+  thickener_formula?: string;
   egg_quantity?: number;
   tube_feeding_brand?: string;
   tube_feeding_daily_amount_ml?: number;
@@ -857,7 +858,7 @@ export interface MedicationInspectionRule {
   updated_at: string;
 }
 // 新增 hourly 以符合前端用法
-export type MedicationFrequencyType = 'daily' | 'every_x_days' | 'every_x_months' | 'weekly_days' | 'odd_even_days' | 'hourly' | 'each_time';
+export type MedicationFrequencyType = 'daily' | 'every_x_days' | 'every_x_weeks' | 'every_x_months' | 'weekly_days' | 'odd_even_days' | 'hourly' | 'each_time';
 export type OddEvenDayType = 'odd' | 'even' | 'none';
 export type PreparationMethodType = 'immediate' | 'advanced' | 'custom';
 export type PrescriptionStatusType = 'active' | 'inactive' | 'pending_change';
@@ -1366,32 +1367,56 @@ export const getPatientsLight = async (): Promise<Patient[]> => {
 };
 
 // 背景補載有相片的院友：院友id → 院友相片
-// 改用分頁並行載入，並只撈有相片的列，避免 base64 相片積累後單次 SELECT 超過 statement_timeout。
-// 若首次逾時，會自動縮小分頁重試一次。
+// 相片總量只有幾 MB，逾時主因係 app 啟動時大量重型查詢並發，DB 被擠爆；
+// 所以用呢度「順序細頁 + 指數退避重試」策略，唔再並行轟炸，等啟動高峰過後自然成功。
 export const getPatientPhotos = async (): Promise<Map<number, string | null>> => {
-  const loadPhotos = async (pageSize: number) => {
-    const data = await fetchAllPagesParallel(async (from, to, withCount) => {
-      const { data, error, count } = await supabase
-        .from('院友主表')
-        .select('院友id, 院友相片', withCount ? { count: 'exact' } : undefined)
-        .not('院友相片', 'is', null)
-        .order('院友id', { ascending: true })
-        .range(from, to);
-      return { data, error, count };
-    }, pageSize);
-    return new Map((data || []).map((p: any) => [p.院友id, p.院友相片]));
+  const fetchPage = async (from: number, to: number) => {
+    const { data, error } = await supabase
+      .from('院友主表')
+      .select('院友id, 院友相片')
+      .not('院友相片', 'is', null)
+      .order('院友id', { ascending: true })
+      .range(from, to);
+    if (error) throw error;
+    return data || [];
   };
 
-  try {
-    return await loadPhotos(100);
-  } catch (err: any) {
-    if (err?.code === '57014') {
-      console.warn('載入院友相片首次逾時，改用更細分頁重試');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return await loadPhotos(50);
+  const isTimeout = (err: any) =>
+    err?.code === '57014' || /statement timeout|timeout/i.test(err?.message || '');
+
+  // 逐頁順序載入；每頁失敗會以退避重試，頁大小逐步縮細
+  const loadPhotos = async (pageSize: number): Promise<Map<number, string | null>> => {
+    const map = new Map<number, string | null>();
+    let from = 0;
+    for (;;) {
+      const rows = await fetchPage(from, from + pageSize - 1);
+      for (const p of rows as any[]) map.set(p.院友id, p.院友相片);
+      if (rows.length < pageSize) break;
+      from += pageSize;
     }
-    throw err;
+    return map;
+  };
+
+  const attempts: Array<{ pageSize: number; delayMs: number }> = [
+    { pageSize: 50, delayMs: 0 },
+    { pageSize: 25, delayMs: 3000 },
+    { pageSize: 10, delayMs: 8000 },
+  ];
+
+  let lastErr: any = null;
+  for (const attempt of attempts) {
+    try {
+      if (attempt.delayMs > 0) {
+        console.warn(`載入院友相片逾時，${attempt.delayMs / 1000}s 後改用每頁 ${attempt.pageSize} 筆重試`);
+        await new Promise(resolve => setTimeout(resolve, attempt.delayMs));
+      }
+      return await loadPhotos(attempt.pageSize);
+    } catch (err: any) {
+      lastErr = err;
+      if (!isTimeout(err)) throw err;
+    }
   }
+  throw lastErr;
 };
 export const createPatient = async (patient: Omit<Patient, '院友id'>): Promise<Patient> => {
   // 清理空字符串，將其轉換為 null
@@ -2061,7 +2086,7 @@ export const fetchAllPagesParallel = async (
   return all;
 };
 
-export const getHealthRecords = async (options?: { limit?: number; daysBack?: number }): Promise<HealthRecord[]> => {
+export const getHealthRecords = async (options?: { limit?: number; daysBack?: number; sequential?: boolean }): Promise<HealthRecord[]> => {
   if (options?.limit !== undefined) {
     const { data, error } = await supabase
       .from('健康監測記錄')
@@ -2091,7 +2116,7 @@ export const getHealthRecords = async (options?: { limit?: number; daysBack?: nu
     )) as HealthRecord[];
   }
 
-  return (await fetchAllPagesParallel(async (from, to, withCount) =>
+  const fetchAllPagesQuery = async (from: number, to: number, withCount: boolean) =>
     await supabase
       .from('健康監測記錄')
       .select('*', withCount ? { count: 'exact' } : undefined)
@@ -2099,8 +2124,25 @@ export const getHealthRecords = async (options?: { limit?: number; daysBack?: nu
       .order('記錄時間', { ascending: false })
       // 同上：唯一 tiebreaker 保證分頁穩定
       .order('記錄id', { ascending: false })
-      .range(from, to)
-  )) as HealthRecord[];
+      .range(from, to);
+
+  // sequential 模式：順序逐頁載入 + 頁間喘息，畀啟動關鍵查詢先用 DB（避免全表掃描轟炸導致 statement timeout）
+  if (options?.sequential) {
+    const pageSize = 1000;
+    const first = await fetchAllPagesQuery(0, pageSize - 1, true);
+    if (first.error) throw first.error;
+    const all = [...(first.data || [])];
+    const total = first.count ?? all.length;
+    for (let from = pageSize; from < total; from += pageSize) {
+      await new Promise(resolve => setTimeout(resolve, 250));
+      const page = await fetchAllPagesQuery(from, from + pageSize - 1, false);
+      if (page.error) throw page.error;
+      all.push(...(page.data || []));
+    }
+    return all as HealthRecord[];
+  }
+
+  return (await fetchAllPagesParallel(fetchAllPagesQuery)) as HealthRecord[];
 };
 export const createHealthRecord = async (record: Omit<HealthRecord, '記錄id' | '建立時間'>): Promise<HealthRecord> => {
   const { data, error } = await supabase.from('健康監測記錄').insert([record]).select('記錄id').single();
@@ -3153,14 +3195,32 @@ export const getMedicationWorkflowRecords = async (filters?: any): Promise<Medic
   if (error) throw error;
   return data || [];
 };
+// 給藥完成時同步處方的上次服用日期（自動覆蓋手入值；只向前推，不被舊日期回推）
+const syncPrescriptionLastTakenDate = async (workflowRecord: any): Promise<void> => {
+  try {
+    if (!workflowRecord || workflowRecord.dispensing_status !== 'completed') return;
+    const { prescription_id, scheduled_date } = workflowRecord;
+    if (!prescription_id || !scheduled_date) return;
+    const { error } = await supabase
+      .from('new_medication_prescriptions')
+      .update({ last_taken_date: scheduled_date })
+      .eq('id', prescription_id)
+      .or(`last_taken_date.is.null,last_taken_date.lt.${scheduled_date}`);
+    if (error) console.warn('同步上次服用日期失敗:', error);
+  } catch (err) {
+    console.warn('同步上次服用日期失敗:', err);
+  }
+};
 export const createMedicationWorkflowRecord = async (record: any): Promise<MedicationWorkflowRecord> => {
   const { data, error } = await supabase.from('medication_workflow_records').insert([record]).select().single();
   if (error) throw error;
+  await syncPrescriptionLastTakenDate(data);
   return data;
 };
 export const updateMedicationWorkflowRecord = async (record: MedicationWorkflowRecord): Promise<MedicationWorkflowRecord> => {
   const { data, error } = await supabase.from('medication_workflow_records').update(record).eq('id', record.id).select().single();
   if (error) throw error;
+  await syncPrescriptionLastTakenDate(data);
   return data;
 };
 export const deleteMedicationWorkflowRecord = async (recordId: string): Promise<void> => {

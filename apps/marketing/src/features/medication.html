@@ -7,6 +7,10 @@
   <meta property="og:description" content="eMAR 三簽、處方流轉、派藥前安全檢測、不可磨碎藥標記。" />
   <meta property="og:url" content="/features/medication" />
   <!-- INCLUDE: head.html -->
+  <link rel="stylesheet" href="/css/features-demo.css" />
+  <link rel="stylesheet" href="/css/webapp-components.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
   <!-- INCLUDE: nav.html -->
@@ -22,44 +26,50 @@
 
   <main class="section">
     <div class="container">
-      <div class="scene-image" style="margin-bottom: 48px;" aria-label="派藥場景">
-        <img src="/images/scenes/medication-dispense.svg" alt="吉卜力風格插圖：護士在院舍派藥給長者" width="800" height="500" loading="lazy" />
-      </div>
       <div class="feature-detail">
         <article class="card">
-          <h3 class="card-title">處方管理三態流轉（處方箋 OCR 錄入）</h3>
+          <h3 class="card-title">處方管理三態流轉（處方標籤 AI 錄入）</h3>
           <p class="pain-point"><strong>痛點：</strong>處方如有改變須即日更新藥物紀錄，新舊處方交接期最易派錯藥。</p>
-          <p class="solution"><strong>解決：</strong>處方分在服/待變更/停用三態，到期待停處方自動轉停用；掃描處方箋 OCR 自動錄入。</p>
+          <p class="solution"><strong>解決：</strong>處方分在服/待變更/停用三態，到期待停處方自動轉停用；上傳處方標籤圖片 AI 識別，核對後填入處方資料。</p>
+          <div class="fd-frame mt-4" id="x-rx-ocr"></div>
         </article>
         <article class="card">
           <h3 class="card-title">eMAR 藥物工作流程（三簽制度）</h3>
           <p class="pain-point"><strong>痛點：</strong>守則要求備藥執行三核五對、雙人執核、即時簽署、不可預簽代簽，紙本難以追溯。</p>
-          <p class="solution"><strong>解決：</strong>執藥 → 核藥 → 派藥三階段電子簽署，掃 QR 碼確認院友，撤銷退回必須填寫原因留痕。</p>
+          <p class="solution"><strong>解決：</strong>執藥 → 核藥 → 派藥三階段電子簽署，掃 QR 碼確認院友，撤銷簽署需經確認。</p>
+          <div class="fd-frame mt-4" id="demo-emar"></div>
         </article>
         <article class="card">
           <h3 class="card-title">派藥前安全檢測</h3>
           <p class="pain-point"><strong>痛點：</strong>血壓低於標準仍照派血壓藥、血糖異常仍照派糖尿藥，是真實發生過的藥物事故。</p>
           <p class="solution"><strong>解決：</strong>按處方檢測規則自動核對血壓/血糖等監測記錄，不符合安全條件即阻止派藥。</p>
+          <div class="fd-frame mt-4" id="x-safety"></div>
         </article>
         <article class="card">
           <h3 class="card-title">PRN 需要時給藥、注射藥管理</h3>
           <p class="pain-point"><strong>痛點：</strong>「需要時用」藥物同樣受五對與記錄要求規管；注射屬特別護理工作，權責不清就是事故溫床。</p>
           <p class="solution"><strong>解決：</strong>PRN 給藥程序三簽一次完成；注射藥三簽 + 注射位置記錄，僅註冊/登記護士及保健員可簽署。</p>
+          <div class="fd-frame mt-4" id="x-prn"></div>
         </article>
         <article class="card">
           <h3 class="card-title">不可磨碎藥標記</h3>
           <p class="pain-point"><strong>痛點：</strong>緩釋藥磨碎後等同過量，為吞咽困難院友碎藥是日常，風險無處不在。</p>
           <p class="solution"><strong>解決：</strong>藥物資料庫標記不可磨碎藥 + 院友層面「需要碎藥」開關；eMAR 及列印文件當眼處顯示警示。</p>
+          <div class="fd-frame mt-4" id="x-nocrush"></div>
         </article>
         <article class="card">
           <h3 class="card-title">處方搜尋與上次服用日期</h3>
           <p class="pain-point"><strong>痛點：</strong>院友一多，要快速找出某位院友的某張處方或確認最後服用日期，逐頁翻查極慢。</p>
           <p class="solution"><strong>解決：</strong>新增處方搜尋頁，按院友、藥名、狀態快速定位；記錄最後服用日期與可見性設定，減少畫面雜訊。</p>
+          <div class="fd-frame mt-4" id="x-rx-search"></div>
         </article>
       </div>
     </div>
   </main>
 
   <!-- INCLUDE: footer.html -->
+  <script>window.addEventListener('load', function(){ if (typeof lucide !== 'undefined') lucide.createIcons(); });</script>
+  <script defer src="/js/features-demo.js"></script>
+  <script defer src="/js/features-demo-clinical.js"></script>
 </body>
 </html>

@@ -10,7 +10,7 @@
  * - 背景更新
  * - 樂觀更新
  */
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import * as db from '../../lib/database';
 import { supabase } from '../../lib/supabase';
@@ -397,14 +397,16 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
       queryClient.invalidateQueries({ queryKey: queryKeys.workflow.prescriptions.all }),
       queryClient.invalidateQueries({ queryKey: queryKeys.workflow.drugDatabase.all }),
       queryClient.invalidateQueries({ queryKey: queryKeys.workflow.timeSlots.all }),
-      fetchPrescriptionWorkflowRecordsInternal(undefined, undefined, false),
     ]);
   }, [queryClient]);
 
   const addPrescription = useCallback(async (prescription: any, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => {
     try {
       const created = await db.createPrescription(prescription);
-      await logPrescriptionActivity({
+      // 即時更新本地快取（伺服器已確認嘅 row），UI 唔使等全量 refresh
+      queryClient.setQueryData(queryKeys.workflow.prescriptions.all, (prev: db.MedicationPrescription[] | undefined) => [...(prev || []), created]);
+      // 日誌、全量 refresh、回溯生成全部改為背景執行，唔阻塞 UI
+      void logPrescriptionActivity({
         patient_id: Number(created.patient_id),
         prescription_id: created.id,
         medication_name: created.medication_name,
@@ -417,14 +419,14 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
         restored_from_log_id: logMeta?.restoredFromLogId || null,
         group_id: logMeta?.groupId || null,
       });
-      await refreshPrescriptionData();
+      void refreshPrescriptionData().catch(err => console.warn('背景刷新處方資料失敗:', err));
       // Plan A: 建立處方後，背景回溯生成工作流程記錄（由開始日起），避免翻頁時才慢慢生成
       backfillWorkflowForPrescription(created);
     } catch (error) {
       console.error('Error adding prescription:', error);
       throw error;
     }
-  }, [refreshPrescriptionData, logPrescriptionActivity]);
+  }, [refreshPrescriptionData, queryClient, logPrescriptionActivity]);
 
   const updatePrescription = useCallback(async (prescription: any, logMeta?: { actionType?: db.PrescriptionActivityActionType; groupId?: string; restoredFromLogId?: string }) => {
     try {
@@ -435,11 +437,15 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
       const allPrescriptions: db.MedicationPrescription[] = queryClient.getQueryData(queryKeys.workflow.prescriptions.all) || [];
       const oldPrescription = allPrescriptions.find((p: any) => p.id === prescription.id);
       const updated = await db.updatePrescription(prescription);
+      // 即時更新本地快取，UI 唔使等全量 refresh
+      queryClient.setQueryData(queryKeys.workflow.prescriptions.all, (prev: db.MedicationPrescription[] | undefined) =>
+        (prev || []).map((p: any) => (p.id === updated.id ? updated : p)));
       const fieldChanges = diffPrescriptions(oldPrescription, updated);
       const statusChanged = !!oldPrescription && oldPrescription.status !== updated.status;
       const resolvedActionType: db.PrescriptionActivityActionType =
         logMeta?.actionType || (statusChanged ? 'status_change' : 'update');
-      await logPrescriptionActivity({
+      // 日誌、全量 refresh、回溯生成全部改為背景執行，唔阻塞 UI
+      void logPrescriptionActivity({
         patient_id: Number(updated.patient_id),
         prescription_id: updated.id,
         medication_name: updated.medication_name,
@@ -452,7 +458,7 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
         restored_from_log_id: logMeta?.restoredFromLogId || null,
         group_id: logMeta?.groupId || null,
       });
-      await refreshPrescriptionData();
+      void refreshPrescriptionData().catch(err => console.warn('背景刷新處方資料失敗:', err));
       // Plan A: 處方轉為 active（啟用/編輯）後，背景回溯生成工作流程記錄
       backfillWorkflowForPrescription(updated);
     } catch (error) {
@@ -466,8 +472,12 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
       const allPrescriptions: db.MedicationPrescription[] = queryClient.getQueryData(queryKeys.workflow.prescriptions.all) || [];
       const oldPrescription = allPrescriptions.find((p: any) => String(p.id) === String(id));
       await db.deletePrescription(id);
+      // 即時更新本地快取，UI 唔使等全量 refresh
+      queryClient.setQueryData(queryKeys.workflow.prescriptions.all, (prev: db.MedicationPrescription[] | undefined) =>
+        (prev || []).filter((p: any) => String(p.id) !== String(id)));
       if (oldPrescription) {
-        await logPrescriptionActivity({
+        // 日誌同全量 refresh 改為背景執行，唔阻塞 UI
+        void logPrescriptionActivity({
           patient_id: Number(oldPrescription.patient_id),
           prescription_id: String(oldPrescription.id),
           medication_name: oldPrescription.medication_name,
@@ -481,7 +491,7 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
           group_id: logMeta?.groupId || null,
         });
       }
-      await refreshPrescriptionData();
+      void refreshPrescriptionData().catch(err => console.warn('背景刷新處方資料失敗:', err));
     } catch (error) {
       console.error('Error deleting prescription:', error);
       throw error;
@@ -500,28 +510,44 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
     await deleteDrugMutation.mutateAsync(id);
   }, [deleteDrugMutation]);
 
+  // 公開版：純查詢，永遠唔覆蓋全局態（全局態係局部 cache，消費者應用返今次查詢結果）
   const fetchPrescriptionWorkflowRecords = useCallback(async (patientId?: number, scheduledDate?: string): Promise<PrescriptionWorkflowRecord[]> => {
-    return fetchPrescriptionWorkflowRecordsInternal(patientId, scheduledDate, false);
+    return fetchPrescriptionWorkflowRecordsInternal(patientId, scheduledDate, true);
+  }, []);
+
+  // 全局態係「近期接觸過嘅記錄」局部 cache：mutation 後 upsert 伺服器回傳嘅完整 row，
+  // 唔再全量 reload（全量載入 6 萬筆係啟動風暴主因）
+  const upsertWorkflowRecord = useCallback((row: PrescriptionWorkflowRecord) => {
+    setPrescriptionWorkflowRecords(prev => {
+      const idx = prev.findIndex(r => r.id === row.id);
+      if (idx >= 0) {
+        const next = prev.slice();
+        next[idx] = { ...next[idx], ...row };
+        return next;
+      }
+      return [...prev, row];
+    });
   }, []);
 
   const createPrescriptionWorkflowRecord = useCallback(async (recordData: Omit<PrescriptionWorkflowRecord, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      await db.createMedicationWorkflowRecord(recordData);
+      const created = await db.createMedicationWorkflowRecord(recordData);
+      upsertWorkflowRecord(created as unknown as PrescriptionWorkflowRecord);
     } catch (error) {
       console.error('Error creating prescription workflow record:', error);
       throw error;
     }
-  }, []);
+  }, [upsertWorkflowRecord]);
 
   const updatePrescriptionWorkflowRecord = useCallback(async (recordId: string, updateData: Partial<PrescriptionWorkflowRecord>) => {
     try {
-      await db.updateMedicationWorkflowRecord({ id: recordId, ...updateData } as any);
-      await fetchPrescriptionWorkflowRecordsInternal();
+      const updated = await db.updateMedicationWorkflowRecord({ id: recordId, ...updateData } as any);
+      upsertWorkflowRecord(updated as unknown as PrescriptionWorkflowRecord);
     } catch (error) {
       console.error('Error updating prescription workflow record:', error);
       throw error;
     }
-  }, []);
+  }, [upsertWorkflowRecord]);
 
   const prepareMedication = useCallback(async (
     recordId: string,
@@ -537,15 +563,13 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
         preparation_staff: staffId,
         preparation_time: new Date().toISOString()
       };
-      await db.updateMedicationWorkflowRecord({ id: recordId, ...updateData } as any);
-      setPrescriptionWorkflowRecords(prev =>
-        prev.map(r => r.id === recordId ? { ...r, ...updateData } : r)
-      );
+      const updated = await db.updateMedicationWorkflowRecord({ id: recordId, ...updateData } as any);
+      upsertWorkflowRecord(updated as unknown as PrescriptionWorkflowRecord);
     } catch (error) {
       console.error('執藥操作失敗:', error);
       throw error;
     }
-  }, []);
+  }, [upsertWorkflowRecord]);
 
   const verifyMedication = useCallback(async (
     recordId: string,
@@ -561,15 +585,13 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
         verification_staff: staffId,
         verification_time: new Date().toISOString()
       };
-      await db.updateMedicationWorkflowRecord({ id: recordId, ...updateData } as any);
-      setPrescriptionWorkflowRecords(prev =>
-        prev.map(r => r.id === recordId ? { ...r, ...updateData } : r)
-      );
+      const updated = await db.updateMedicationWorkflowRecord({ id: recordId, ...updateData } as any);
+      upsertWorkflowRecord(updated as unknown as PrescriptionWorkflowRecord);
     } catch (error) {
       console.error('核藥操作失敗:', error);
       throw error;
     }
-  }, []);
+  }, [upsertWorkflowRecord]);
 
   const dispenseMedication = useCallback(async (
     recordId: string,
@@ -603,15 +625,13 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
       if (inspectionCheckResult) {
         updateData.inspection_check_result = inspectionCheckResult;
       }
-      await db.updateMedicationWorkflowRecord({ id: recordId, ...updateData } as any);
-      setPrescriptionWorkflowRecords(prev =>
-        prev.map(r => r.id === recordId ? { ...r, ...updateData } : r)
-      );
+      const updated = await db.updateMedicationWorkflowRecord({ id: recordId, ...updateData } as any);
+      upsertWorkflowRecord(updated as unknown as PrescriptionWorkflowRecord);
     } catch (error) {
       console.error('派藥操作失敗:', error);
       throw error;
     }
-  }, []);
+  }, [upsertWorkflowRecord]);
 
   const revertPrescriptionWorkflowStep = useCallback(async (
     recordId: string,
@@ -638,15 +658,13 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
         updateData.notes = null;
         updateData.inspection_check_result = null;
       }
-      await db.updateMedicationWorkflowRecord({ id: recordId, ...updateData } as any);
-      setPrescriptionWorkflowRecords(prev =>
-        prev.map(r => r.id === recordId ? { ...r, ...updateData } : r)
-      );
+      const updated = await db.updateMedicationWorkflowRecord({ id: recordId, ...updateData } as any);
+      upsertWorkflowRecord(updated as unknown as PrescriptionWorkflowRecord);
     } catch (error) {
       console.error('撤銷步驟失敗:', error);
       throw error;
     }
-  }, []);
+  }, [upsertWorkflowRecord]);
 
   const checkPrescriptionInspectionRules = useCallback(async (
     prescriptionId: string,
@@ -731,17 +749,23 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
     customReason?: string
   ) => {
     try {
-      const records = prescriptionWorkflowRecords.filter(
-        r => r.patient_id === patientId && r.scheduled_date === date && r.scheduled_time === time && r.dispensing_status === 'pending'
-      );
+      // 全局態而家係局部 cache，唔保證有齊當日記錄；即場查 DB 先至可靠
+      const { data, error } = await supabase
+        .from('medication_workflow_records')
+        .select('id')
+        .eq('patient_id', patientId)
+        .eq('scheduled_date', date)
+        .eq('scheduled_time', time)
+        .eq('dispensing_status', 'pending');
+      if (error) throw error;
       await Promise.all(
-        records.map(record => dispenseMedication(record.id, displayName || '未知', reason, customReason, patientId, date))
+        (data || []).map(record => dispenseMedication(record.id, displayName || '未知', reason, customReason, patientId, date))
       );
     } catch (error) {
       console.error('批量設定派藥失敗:', error);
       throw error;
     }
-  }, [prescriptionWorkflowRecords, displayName, dispenseMedication]);
+  }, [displayName, dispenseMedication]);
 
   const loadPrescriptionTimeSlotDefinitions = async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.workflow.timeSlots.all });
@@ -772,17 +796,6 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
       refreshPrescriptionData(),
     ]);
   }, [isAuthenticated, refreshScheduleData, refreshPrescriptionData]);
-
-  // ===== 初始載入工作流程記錄（React Query 自動處理其他數據）=====
-  useEffect(() => {
-    if (!isAuthenticated()) return;
-    // 只需載入工作流程記錄，其他數據由 React Query 自動管理
-    // 延遲 2 秒開始：此 fetch 唔阻塞登入閘門，等閘門關鍵請求先用盡頻寬
-    const timer = setTimeout(() => {
-      fetchPrescriptionWorkflowRecordsInternal(undefined, undefined, false);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [isAuthenticated]);
 
   // ===== 統一 loading 狀態 =====
   const loading = scheduleLoading || prescriptionLoading;

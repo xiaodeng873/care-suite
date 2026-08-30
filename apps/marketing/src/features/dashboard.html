@@ -2,21 +2,36 @@
 <html lang="zh-Hant">
 <head>
   <title>主控台 Dashboard — eHMS 功能介紹</title>
-  <meta name="description" content="eHMS 主控台：監測任務按時段排列、一鍵生成體溫、藥物提醒、照顧計劃到期、便條與排班衝突提示，登入即見全院今日狀況。" />
+  <meta name="description" content="eHMS 主控台：監測任務按時段分組、逾期補錄、藥物管理提醒、照顧計劃與活動記錄提醒、便條，登入即見全院今日狀況。" />
   <meta property="og:title" content="主控台 Dashboard — eHMS 功能介紹" />
-  <meta property="og:description" content="監測任務按時段排列、一鍵生成體溫、藥物提醒、照顧計劃到期、便條與排班衝突提示。" />
+  <meta property="og:description" content="監測任務按時段分組、逾期補錄、藥物管理提醒、照顧計劃與活動記錄提醒、便條。" />
   <meta property="og:url" content="/features/dashboard" />
   <!-- INCLUDE: head.html -->
+  <script>
+    tailwind = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <link rel="stylesheet" href="/css/features-demo.css" />
+  <link rel="stylesheet" href="/css/webapp-components.css" />
   <link rel="stylesheet" href="/css/feature-dashboard.css" />
 </head>
-<body>
+<body class="bg-gray-50 text-gray-900">
   <!-- INCLUDE: nav.html -->
 
   <header class="page-header">
     <div class="container">
       <h1>主控台 Dashboard</h1>
-      <p>登入後的第一個畫面：今日監測任務、逾期項目、藥物提醒、照顧計劃到期與便條，全部在同一頁。以下每個示範都可以直接點擊操作。</p>
+      <p>登入後的第一個畫面：今日監測任務、藥物管理提醒、照顧計劃與活動記錄提醒、便條，全部在同一頁。以下示範按真實系統的主控台製作，每個都可以直接點擊操作。</p>
     </div>
   </header>
 
@@ -25,70 +40,195 @@
   <main class="section">
     <div class="container">
 
-      <section class="dbd-section" id="tour-tasks">
-        <h2 class="section-title">監測任務（按時段）</h2>
-        <p class="dbd-lead">主控台把全院的監測任務按「早餐、午餐、晚餐、夜宵、體溫、體重」時段分組。同一院友同一時間的多個監測項目會合併成一張卡，逾期補錄的任務以紅色「逾期」標示排在最前。點任何一張卡即可開啟記錄視窗補錄。</p>
-        <div class="fd-frame">
-          <div class="dbd-panel-head">
-            <h3 class="dbd-panel-title">監測任務</h3>
-            <div class="fd-row">
-              <button type="button" class="btn btn-primary btn-sm" data-dbd="export-worksheet">匯出監測記錄工作紙</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-dbd="scan-worksheet" title="拍照識別監測工作紙">識別工作紙</button>
-              <button type="button" class="btn btn-secondary btn-sm" data-dbd="gen-temp">一鍵生成體溫</button>
+      <!-- 提醒卡列：對照 Dashboard.tsx:1065-1087 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 min-w-0 w-full mb-6 lg:mb-4">
+
+        <!-- 便條：對照 NotesCard.tsx -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col h-full max-h-96" id="tour-notes">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="p-2 rounded-lg bg-blue-100">
+                <i data-lucide="sticky-note" class="h-6 w-6 text-blue-600"></i>
+              </div>
+              <div>
+                <h2 class="text-lg font-semibold text-gray-900">便條</h2>
+                <p class="text-sm text-gray-600">未完成 <span id="notes-uncompleted-count">2</span> · 已完成 <span id="notes-completed-count">1</span></p>
+              </div>
+            </div>
+            <button type="button" id="note-add-btn" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
+              <i data-lucide="plus" class="h-4 w-4"></i>
+              <span>新增</span>
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto min-h-0 space-y-4" id="notes-list">
+            <div class="space-y-3" id="notes-uncompleted">
+              <div class="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-700">
+                <i data-lucide="sticky-note" class="h-4 w-4"></i>
+                <span>未完成 (<span class="notes-uncompleted-count">2</span>)</span>
+              </div>
+              <!-- 便條項目由 JS 注入 -->
+            </div>
+            <div class="border-t border-gray-200 pt-4 hidden" id="notes-completed-wrap">
+              <button type="button" id="notes-completed-toggle" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full text-sm font-medium text-gray-700 hover:text-gray-900">
+                <div class="flex flex-wrap items-center gap-2">
+                  <i data-lucide="check" class="h-4 w-4"></i>
+                  <span>已完成 (<span class="notes-completed-count">1</span>)</span>
+                </div>
+                <i data-lucide="chevron-down" class="h-4 w-4 toggle-icon"></i>
+              </button>
+              <div class="mt-3 space-y-2 hidden" id="notes-completed"></div>
             </div>
           </div>
-          <div id="dbd-tasks"></div>
         </div>
-        <p class="fd-hint">試試：點「黃伯強」的紅色逾期卡補錄血糖；再點「一鍵生成體溫」為全院生成今早 08:00 的體溫記錄。</p>
-      </section>
 
-      <section class="dbd-section" id="tour-medication">
-        <h2 class="section-title">藥物管理提醒</h2>
-        <p class="dbd-lead">藥物相關的三類提醒合併在一張卡：「執核派藥逾期」列出仍有逾期流程的院友（可展開逾期日期逐日補回）、「待變更處方」提示新舊處方交接、「藥物庫存見底」按預計結束日期提前提示續藥。點任何一項都會直達對應的處理頁面。</p>
-        <div class="fd-frame">
-          <div id="dbd-meds"></div>
-        </div>
-        <p class="fd-hint">試試：點「陳大文」右邊的箭咀展開逾期日期列表，再點其中一日。</p>
-      </section>
-
-      <section class="dbd-section" id="tour-care">
-        <h2 class="section-title">個人照顧計劃與活動記錄提醒</h2>
-        <p class="dbd-lead">本月到期的個人照顧計劃自動浮上主控台，提醒安排續期；上月參與活動少於 2 次的院友亦會列出，點一下即可補錄活動記錄。</p>
-        <div class="dbd-grid-2">
-          <div class="fd-frame" id="dbd-careplan"></div>
-          <div class="fd-frame" id="dbd-activity"></div>
-        </div>
-        <p class="fd-hint">試試：在「活動記錄提醒」點一位院友，補錄一次活動後該行會即時消失。</p>
-      </section>
-
-      <section class="dbd-section" id="tour-notes">
-        <h2 class="section-title">便條</h2>
-        <p class="dbd-lead">便條相當於院舍的工作紀錄冊：可指定院友、指定日期，交更前把注意事項寫在當眼處。完成的便條會移到「已完成」摺疊區，保留備查。</p>
-        <div class="fd-frame">
-          <div id="dbd-notes"></div>
-        </div>
-        <p class="fd-hint">試試：點「新增便條」寫一張，或用「編輯／完成／刪除」處理現有便條。</p>
-      </section>
-
-      <section class="dbd-section" id="tour-roster">
-        <h2 class="section-title">排班衝突提示</h2>
-        <p class="dbd-lead">更表內被標為「待調整」的班次會以紅色跑馬燈持續提示，滑鼠移上會暫停捲動，點擊該項即在更表標示當日。</p>
-        <div class="fd-frame">
-          <div id="dbd-ticker"></div>
-        </div>
-        <p class="fd-hint">試試：把滑鼠移到紅色提示條上會暫停，點其中一項。</p>
-      </section>
-
-      <section class="dbd-section" id="tour-ocr">
-        <h2 class="section-title">拍照識別監測工作紙</h2>
-        <p class="dbd-lead">打印出來的工作紙填好後，不用逐格輸入：對工作紙拍一張相，系統會辨識欄位並把數值填回對應院友的監測記錄，核對無誤後一鍵寫入。</p>
-        <div class="fd-frame">
-          <div class="fd-row">
-            <button type="button" class="btn btn-primary btn-sm" data-dbd="scan-worksheet">拍攝工作紙</button>
-            <span class="fd-sub">示範會模擬拍攝及辨識過程，不會真的開相機。</span>
+        <!-- 個人照顧計劃提醒：對照 CarePlanDueReminderCard.tsx -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col h-full max-h-96" id="tour-careplan">
+          <div class="flex flex-wrap items-center gap-3 mb-4">
+            <div class="p-2 rounded-lg bg-green-100">
+              <i data-lucide="clipboard-list" class="h-6 w-6 text-green-600"></i>
+            </div>
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">個人照顧計劃提醒</h2>
+              <p class="text-sm text-gray-600">本月有 <span id="careplan-count">2</span> 份照顧計劃即將到期，請安排續期</p>
+            </div>
+          </div>
+          <div class="flex-1 overflow-y-auto min-h-0 space-y-2" id="careplan-list">
+            <!-- 項目由 JS 注入 -->
           </div>
         </div>
-        <p class="fd-hint">試試：點「拍攝工作紙」，辨識完成後核對數值再「確認寫入」。</p>
+
+        <!-- 藥物管理提醒：對照 MedicationRemindersCard.tsx -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col h-full max-h-96" id="tour-medication">
+          <div class="flex flex-wrap items-center gap-3 mb-4">
+            <div class="p-2 rounded-lg bg-amber-100">
+              <i data-lucide="clock" class="h-6 w-6 text-amber-600"></i>
+            </div>
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">藥物管理提醒</h2>
+              <p class="text-sm text-gray-600">2 位逾期執核 · 1 位待變更處方</p>
+            </div>
+          </div>
+          <div class="flex-1 overflow-y-auto min-h-0 space-y-6" id="medication-list">
+            <!-- 項目由 JS 注入 -->
+          </div>
+        </div>
+
+        <!-- 活動記錄提醒：對照 ActivityRecordReminderCard.tsx -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col h-full max-h-96" id="tour-activity">
+          <div class="flex flex-wrap items-center gap-3 mb-3">
+            <div class="p-2 rounded-lg bg-pink-100">
+              <i data-lucide="party-popper" class="h-6 w-6 text-pink-600"></i>
+            </div>
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">活動記錄提醒</h2>
+              <p class="text-sm text-gray-600"><span id="activity-month">2026</span>年<span id="activity-month-num">7</span>月參與活動少於 2 次，共 <span id="activity-count">2</span> 位院友</p>
+            </div>
+          </div>
+          <div class="divide-y divide-gray-100 flex-1 overflow-y-auto min-h-0" id="activity-list">
+            <!-- 項目由 JS 注入 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 監測任務：對照 Dashboard.tsx:1088-1434 -->
+      <section class="dbd-section mb-6" id="tour-tasks">
+        <h2 class="section-title">監測任務（按時段）</h2>
+        <p class="dbd-lead">主控台把全院未完成的監測任務按時段分組：「早餐 07:00–09:59、午餐 10:00–12:59、晚餐 13:00–17:59、夜宵 18:00–20:00」，體溫與體重則各自獨立成區。同一院友、同一時間點的多個監測項目會合併成一張卡，卡上註明項目數量、備註（如「服藥前」「注射前」）及頻率；有早於今日仍未補錄的記錄時，卡片會標上紅色「逾期」。點擊逾期卡會先開月曆選擇補錄日期，其餘卡片則直接開啟記錄視窗，同時間的多個項目可一併輸入；完成後該卡即從主控台消失。</p>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col w-full min-w-0">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 section-title">監測任務</h2>
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" id="export-worksheet-btn" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
+                <i data-lucide="file-text" class="h-4 w-4"></i>
+                <span>匯出監測記錄工作紙</span>
+              </button>
+              <button type="button" id="scan-worksheet-btn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50" title="拍照識別監測工作紙">
+                <i data-lucide="camera" class="h-4 w-4"></i>
+                <span class="hidden sm:inline">識別工作紙</span>
+              </button>
+              <a href="%APP_URL%/tasks" class="text-sm text-blue-600 hover:text-blue-700 font-medium">查看全部</a>
+            </div>
+          </div>
+          <div class="space-y-6 lg:space-y-3" id="monitoring-tasks">
+            <!-- 時段與卡片由 JS 注入 -->
+          </div>
+        </div>
+        <p class="fd-hint">試試：點「黃伯強」的紅色逾期卡，先在月曆揀返逾期日期再補錄；再點「匯出監測記錄工作紙」看看匯出選項。</p>
+      </section>
+
+      <!-- 拍照識別監測工作紙：對照 BatchHealthRecordOCRModal.tsx -->
+      <section class="dbd-section mb-6" id="tour-ocr">
+        <h2 class="section-title">拍照識別監測工作紙</h2>
+        <p class="dbd-lead">打印出來的工作紙填好後，不用逐格輸入：對工作紙拍照或從相簿選圖（支援多張），按「開始識別」後系統會用 AI 辨識每行的血壓（收縮壓／舒張壓）、脈搏及血糖，並按床號或姓名自動配對院友。辨識結果會列出在核對表，每個欄位都可修改，也可刪除多餘的行或新增空白列；核對無誤後可逐行儲存，或「批量儲存全部」一次過寫入。</p>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col w-full min-w-0">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 section-title">拍照識別監測工作紙</h2>
+          </div>
+          <div class="fd-row mb-4">
+            <button type="button" id="ocr-open-btn" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
+              <i data-lucide="camera" class="h-4 w-4"></i>
+              <span>拍攝工作紙</span>
+            </button>
+            <span class="fd-sub">示範會模擬拍攝及 AI 辨識過程，不會真的開相機。</span>
+          </div>
+          <div id="ocr-preview-area" class="hidden">
+            <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors mb-4" id="ocr-upload-zone">
+              <i data-lucide="upload" class="h-8 w-8 text-gray-400 mx-auto mb-2"></i>
+              <p class="text-sm text-gray-600">點擊拍照或選擇相簿圖片（相簿支援多張），亦可拖放圖片到此</p>
+              <p class="text-xs text-gray-400 mt-1">支援 JPG、PNG</p>
+            </div>
+            <div class="flex flex-wrap gap-3 mb-4 hidden" id="ocr-thumbs"></div>
+            <div class="flex flex-wrap gap-3 mb-4">
+              <button type="button" id="ocr-recognize-btn" class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                <i data-lucide="camera" class="h-4 w-4"></i>
+                <span>開始識別</span>
+              </button>
+              <button type="button" id="ocr-add-row-btn" class="hidden inline-flex items-center gap-2 px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50">
+                <i data-lucide="plus" class="h-4 w-4"></i>
+                <span>新增空白列</span>
+              </button>
+              <button type="button" id="ocr-save-all-btn" class="hidden inline-flex items-center gap-2 px-3 py-2 rounded-md bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 ml-auto">
+                <i data-lucide="save" class="h-4 w-4"></i>
+                <span>批量儲存全部</span>
+              </button>
+            </div>
+            <div id="ocr-processing" class="hidden text-center py-6">
+              <i data-lucide="loader" class="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2"></i>
+              <p class="text-sm text-gray-600">正在分析圖片…</p>
+            </div>
+            <div id="ocr-result-msg" class="hidden flex items-center gap-2 text-sm px-4 py-3 rounded-lg border mb-4"></div>
+            <div id="ocr-review-table" class="hidden overflow-x-auto rounded-lg border border-gray-200">
+              <table class="min-w-full text-sm">
+                <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+                  <tr>
+                    <th class="px-3 py-2.5 text-left font-medium min-w-[160px]">院友</th>
+                    <th class="px-2 py-2.5 text-left font-medium min-w-[110px]">日期</th>
+                    <th class="px-2 py-2.5 text-left font-medium min-w-[80px]">時間</th>
+                    <th class="px-2 py-2.5 text-right font-medium min-w-[65px]">收縮壓</th>
+                    <th class="px-2 py-2.5 text-right font-medium min-w-[65px]">舒張壓</th>
+                    <th class="px-2 py-2.5 text-right font-medium min-w-[60px]">脈搏</th>
+                    <th class="px-2 py-2.5 text-right font-medium min-w-[70px]">血糖</th>
+                    <th class="px-2 py-2.5 text-left font-medium min-w-[100px]">備註</th>
+                    <th class="px-2 py-2.5 text-center font-medium min-w-[80px]">操作</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100" id="ocr-review-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <p class="fd-hint">試試：點「拍攝工作紙」，在核對表改一個數值，再按「批量儲存全部」。</p>
+      </section>
+
+      <!-- 更表衝突提示說明：舊版「排班衝突提示」在真實 Dashboard 不存在，改為說明 -->
+      <section class="dbd-section mb-6" id="tour-conflict-note">
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+          <i data-lucide="info" class="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5"></i>
+          <div>
+            <h3 class="text-sm font-semibold text-amber-900">更表衝突提示只在排班表頁出現</h3>
+            <p class="text-sm text-amber-800 mt-1">主控台不會顯示排班衝突跑馬燈；如需查看人手或更表衝突，請前往「排班表」頁面。</p>
+          </div>
+        </div>
       </section>
 
       <div class="dbd-cta">
@@ -99,7 +239,20 @@
     </div>
   </main>
 
+  <!-- 共用 Modal 容器 -->
+  <div id="modal-root" class="hidden fixed inset-0 bg-black bg-opacity-50 items-start justify-center p-4 z-50 overflow-y-auto" aria-hidden="true">
+    <div class="bg-white rounded-lg w-full max-w-2xl my-6 shadow-xl relative" id="modal-panel" role="dialog" aria-modal="true">
+      <button type="button" id="modal-close" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+        <i data-lucide="x" class="h-6 w-6"></i>
+      </button>
+      <div id="modal-body" class="p-6"></div>
+    </div>
+  </div>
+
   <!-- INCLUDE: footer.html -->
+  <script>
+    window.addEventListener('load', function(){ if (typeof lucide !== 'undefined') lucide.createIcons(); });
+  </script>
   <script defer src="/js/feature-dashboard.js"></script>
 </body>
 </html>

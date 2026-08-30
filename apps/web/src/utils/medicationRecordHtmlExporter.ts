@@ -1337,15 +1337,19 @@ const getFrequencyDescription = (prescription: MedicationPrescription): string =
   // PRN 常見 TDS 只設一個時間點，此時仍應顯示 TDS（每日3次）。
   const perDay = daily_frequency || timeSlotsCount || frequency_value || 1;
 
-  // PRN 的「隔N日」只是護理安排（需要時決定哪天服），處方本身仍是每日，文字須跟處方；
+  // PRN 的「隔N日/隔N星期」只是護理安排（需要時決定哪天服），處方本身仍是每日，文字須跟處方；
   // 隔天安排已由日期格的灰化表達，不寫成「隔N日」
-  if (is_prn && frequency_type === 'every_x_days') return `每日${perDay}次`;
+  if (is_prn && (frequency_type === 'every_x_days' || frequency_type === 'every_x_weeks')) return `每日${perDay}次`;
 
   switch (frequency_type) {
     case 'every_x_days': {
       const gap = Number(frequency_value) || 1;
       const gapLabel = gap === 1 ? '隔日' : `隔${gap}日`;
       return `${gapLabel}${perDay}次`;
+    }
+    case 'every_x_weeks': {
+      const gap = Number(frequency_value) || 1;
+      return `隔${gap}星期${perDay}次`;
     }
     case 'every_x_months': return `隔${frequency_value}月${perDay}次`;
     case 'weekly_days': {

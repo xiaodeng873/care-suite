@@ -7,6 +7,10 @@
   <meta property="og:description" content="從入住到退住，建立完整院友檔案，QR Code 身份確認，聯絡人 WhatsApp 直連。" />
   <meta property="og:url" content="/features/residents" />
   <!-- INCLUDE: head.html -->
+  <link rel="stylesheet" href="/css/features-demo.css" />
+  <link rel="stylesheet" href="/css/webapp-components.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
   <!-- INCLUDE: nav.html -->
@@ -27,31 +31,39 @@
           <h3 class="card-title">入住登記（身份證 OCR 開檔）</h3>
           <p class="pain-point"><strong>痛點：</strong>新入住時要簽訂入住協議、點算託管財物、建立健康檔案，逐隻字把身份證資料打入電腦易錯又費時。</p>
           <p class="solution"><strong>解決：</strong>掃描身份證 OCR 自動預填開檔，完整院友檔案（個人資料、病史、藥物敏感、聯絡人）一次建立。</p>
+          <div class="fd-frame mt-4" id="demo-ocr"></div>
         </article>
         <article class="card">
           <h3 class="card-title">退住管理</h3>
           <p class="pain-point"><strong>痛點：</strong>院友退住後，系統若仍當他排候醫生到診、住院事件未閉合，後續名單全盤出錯；死亡及離院紀錄屬守則要求備存的法定紀錄。</p>
           <p class="solution"><strong>解決：</strong>退住時自動取消之後的醫生到診排程、自動閉合住院事件；在住天數自動計算。</p>
+          <div class="fd-frame mt-4" id="x-discharge"></div>
         </article>
         <article class="card">
           <h3 class="card-title">院友 QR Code</h3>
           <p class="pain-point"><strong>痛點：</strong>守則要求給藥前確認院友身份，靠認樣認名揀人終有一次揀錯，給錯藥就是藥物事故。</p>
-          <p class="solution"><strong>解決：</strong>每位院友可生成及列印 QR Code，派藥、床頭記錄前掃碼確認「這位就是這位」，杜絕張冠李戴。</p>
+          <p class="solution"><strong>解決：</strong>每位院友可生成及下載 QR Code（PNG），派藥前掃描院友 QR 確認身份；床頭記錄則掃描床位 QR 直達該床記錄，杜絕張冠李戴。</p>
+          <div class="fd-frame mt-4" id="x-resident-qr"></div>
         </article>
         <article class="card">
           <h3 class="card-title">聯絡人管理 + WhatsApp 直連</h3>
           <p class="pain-point"><strong>痛點：</strong>住客患病或發生意外時須通知家人，每次找電話要翻文件夾，覆診安排要逐句重複解釋，講完也沒有紀錄。</p>
-          <p class="solution"><strong>解決：</strong>每位院友多個聯絡人，一鍵開啟 WhatsApp 對話（自動補 +852）；覆診訊息有預填範本一鍵複製發給家屬。</p>
+          <p class="solution"><strong>解決：</strong>每位院友多個聯絡人；院友 tooltip 一鍵開啟與第一聯絡人的 WhatsApp 對話（自動補 +852）；覆診訊息有預填範本，一鍵複製後貼到 WhatsApp 發給家屬。</p>
+          <div class="fd-frame mt-4" id="x-contacts"></div>
         </article>
         <article class="card">
           <h3 class="card-title">藥物敏感篩選、CSV 匯出</h3>
           <p class="pain-point"><strong>痛點：</strong>藥物敏感史是「個人藥物紀錄」的法定必填項，備藥給藥前必須核對。</p>
-          <p class="solution"><strong>解決：</strong>院友列表一鍵篩出藥物敏感院友；名單可匯出 CSV，方便核對與交更。</p>
+          <p class="solution"><strong>解決：</strong>可按敏感藥名搜尋篩選院友；勾選院友後名單可匯出 CSV，方便核對與交更。</p>
+          <div class="fd-frame mt-4" id="x-allergy"></div>
         </article>
       </div>
     </div>
   </main>
 
   <!-- INCLUDE: footer.html -->
+  <script>window.addEventListener('load', function(){ if (typeof lucide !== 'undefined') lucide.createIcons(); });</script>
+  <script defer src="/js/features-demo.js"></script>
+  <script defer src="/js/features-demo-care.js"></script>
 </body>
 </html>

@@ -27,7 +27,8 @@ const renderMealInfo = (g: MealGuidance | undefined): string => {
 
   if (g.needs_thickener) {
     const amount = g.thickener_amount ? esc(g.thickener_amount) : '需要';
-    lines.push(`<div class="mg-line"><span class="mg-label">凝固粉：</span>${amount}</div>`);
+    const formula = g.thickener_formula ? `（${esc(g.thickener_formula)}）` : '';
+    lines.push(`<div class="mg-line"><span class="mg-label">凝固粉：</span>${amount}${formula}</div>`);
   }
 
   if (g.needs_feeding) {

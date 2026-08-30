@@ -8,6 +8,9 @@
   <meta property="og:url" content="/features" />
   <!-- INCLUDE: head.html -->
   <link rel="stylesheet" href="/css/features-demo.css" />
+  <link rel="stylesheet" href="/css/webapp-components.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
   <!-- INCLUDE: nav.html -->
@@ -102,9 +105,9 @@
       <div class="container">
         <p class="fd-kicker">AI 工具</p>
         <h2 class="section-title">AI 助手</h2>
-        <p class="section-subtitle">用日常說話查數據、辦事情：「今日仲有邊個未量體溫？」即問即答；「幫陳大文加個覆診」會先出確認卡，你核對無誤才執行。亦可以上傳處方紙相片，AI 辨識藥名劑量並與現有處方比對。</p>
+        <p class="section-subtitle">用日常說話查數據、辦事情：「今日仲有邊個未量體溫？」即問即答；「幫陳大文加個覆診」會先出確認卡，你核對無誤才執行。</p>
         <div class="fd-frame" id="demo-ai"></div>
-        <p class="fd-hint">試試：輸入「今日仲有邊個未量體溫？」、「幫陳大文加個覆診」，或按「上傳處方紙相片」。</p>
+        <p class="fd-hint">試試：輸入「今日仲有邊個未量體溫？」或「幫陳大文加個覆診」，看看 AI 如何回應。</p>
       </div>
     </section>
 
@@ -165,6 +168,7 @@
   </main>
 
   <!-- INCLUDE: footer.html -->
+  <script>window.addEventListener('load', function(){ if (typeof lucide !== 'undefined') lucide.createIcons(); });</script>
   <script defer src="/js/features-demo.js"></script>
 </body>
 </html>

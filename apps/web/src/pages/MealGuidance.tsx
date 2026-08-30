@@ -383,7 +383,7 @@ const MealGuidance: React.FC = () => {
         餐膳組合: guidance.meal_combination,
         特殊餐膳: guidance.special_diets.join(', ') || '無',
         需要凝固粉: guidance.needs_thickener ? '是' : '否',
-        凝固粉分量: guidance.thickener_amount || '',
+        凝固粉分量: guidance.thickener_amount ? `${guidance.thickener_amount}${guidance.thickener_formula ? `（${guidance.thickener_formula}）` : ''}` : '',
         雞蛋數目: guidance.egg_quantity || '',
         備註: guidance.remarks || '',
         指引日期: guidance.guidance_date ? formatDisplayDate(guidance.guidance_date) : '',
@@ -959,7 +959,7 @@ const MealGuidance: React.FC = () => {
                           <div className="flex items-center space-x-1">
                             <Droplets className="h-4 w-4 text-blue-600" />
                             <span className="text-blue-600 font-medium">
-                              {guidance.thickener_amount || '是'}
+                              {guidance.thickener_amount || '是'}{guidance.thickener_formula ? `（${guidance.thickener_formula}）` : ''}
                             </span>
                           </div>
                         ) : (

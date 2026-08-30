@@ -115,6 +115,8 @@ const PrescriptionTransferModal: React.FC<PrescriptionTransferModalProps> = ({
         return '每日服';
       case 'every_x_days':
         return `隔${frequency_value}日服`;
+      case 'every_x_weeks':
+        return `隔${frequency_value}星期服`;
       case 'every_x_months':
         return `隔${frequency_value}月服`;
       case 'weekly_days':

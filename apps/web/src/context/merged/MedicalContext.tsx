@@ -622,7 +622,7 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
     fullHealthRecordsInFlightRef.current = true;
     try {
       setFullHealthRecordsLoading(true);
-      const allRecords = await db.getHealthRecords();
+      const allRecords = await db.getHealthRecords({ sequential: true });
       setHealthRecords(allRecords);
       setIsAllHealthRecordsLoaded(true);
       isAllHealthRecordsLoadedRef.current = true;
@@ -793,10 +793,10 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
       fetchHospitalOutreachRecords().catch(err => console.warn('外展記錄載入失敗:', err));
     }, 500);
 
-    // 背景補全全部健康記錄
+    // 背景補全全部健康記錄（延後到啟動風暴過後，並用順序分頁溫和載入）
     setTimeout(() => {
       loadFullHealthRecords().catch(err => console.warn('背景加載完整健康記錄失敗:', err));
-    }, 1500);
+    }, 8000);
   }, [isAuthenticated, refreshFollowUpData, refreshWoundData, refreshHealthRecordData, refreshDiagnosisData, fetchHospitalOutreachRecords, loadFullHealthRecords]);
 
   // ===== 統一 loading 狀態 =====

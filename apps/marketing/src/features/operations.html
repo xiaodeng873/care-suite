@@ -7,6 +7,10 @@
   <meta property="og:description" content="缺席管理、任務排程、餐膳指引、意外事件、感染控制。" />
   <meta property="og:url" content="/features/operations" />
   <!-- INCLUDE: head.html -->
+  <link rel="stylesheet" href="/css/features-demo.css" />
+  <link rel="stylesheet" href="/css/webapp-components.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
   <!-- INCLUDE: nav.html -->
@@ -27,31 +31,39 @@
           <h3 class="card-title">缺席管理（入出院 / 渡假）</h3>
           <p class="pain-point"><strong>痛點：</strong>院友入住醫院期間，全院日常記錄若照樣產生，就是虛假紀錄；出入院來去亦須有跡可循。</p>
           <p class="solution"><strong>解決：</strong>住院/渡假中/已出院/渡假結束動態狀態；主要醫院、病房、床號記錄；一鍵生成體溫記錄時缺席院友自動留白加備註。</p>
+          <div class="fd-frame mt-4" id="x-absence"></div>
         </article>
         <article class="card">
           <h3 class="card-title">任務管理</h3>
           <p class="pain-point"><strong>痛點：</strong>「逢星期二量體重」「每月第一星期驗血糖」這些院舍自訂規矩，靠白板與記性，換更就斷層。</p>
-          <p class="solution"><strong>解決：</strong>自訂監測任務（每週/每月、指定星期幾、時間點）；逾期計數與篩選；任務歷史；按床號/類型搜尋。</p>
+          <p class="solution"><strong>解決：</strong>自訂監測任務（每週/每月、指定星期幾、時間點）；逾期計數與篩選；按床號/類型搜尋；主頁設歷史日曆查閱任務執行紀錄。</p>
+          <div class="fd-frame mt-4" id="x-tasks"></div>
         </article>
         <article class="card">
           <h3 class="card-title">餐膳指引</h3>
           <p class="pain-point"><strong>痛點：</strong>廚房每日要知道幾多個糖尿餐、幾多個要凝固粉，口頭通知必定甩漏，派錯餐可以出人命。</p>
-          <p class="solution"><strong>解決：</strong>特殊餐膳、凝固粉分量、雞蛋數目、指引出處一頁管理；廚房用統計自動生成。</p>
+          <p class="solution"><strong>解決：</strong>特殊餐膳、凝固粉配方及分量、雞蛋數目、指引出處一頁管理；廚房用統計自動生成。</p>
+          <div class="fd-frame mt-4" id="x-meal"></div>
         </article>
         <article class="card">
           <h3 class="card-title">意外事件報告</h3>
           <p class="pain-point"><strong>痛點：</strong>意外報告是日後法律程序的關鍵文件，遲寫、漏寫、格式不對，院舍都處於下風。</p>
-          <p class="solution"><strong>解決：</strong>日期時間即時記錄；列印個人意外事件記錄表；可用院舍自訂 Word 範本匯出 .docx，格式與既有文件一致。</p>
+          <p class="solution"><strong>解決：</strong>日期時間即時記錄；可列印個人意外事件記錄表（HTML 列印）。</p>
+          <div class="fd-frame mt-4" id="x-incident"></div>
         </article>
         <article class="card">
           <h3 class="card-title">感染控制</h3>
           <p class="pain-point"><strong>痛點：</strong>爆發時第一個問題就是「現在幾多人中招」，答不出就是失控。</p>
           <p class="solution"><strong>解決：</strong>按感染性質動態統計活躍院友人數卡片，一開即答；進階篩選與批量操作。</p>
+          <div class="fd-frame mt-4" id="x-infection"></div>
         </article>
       </div>
     </div>
   </main>
 
   <!-- INCLUDE: footer.html -->
+  <script>window.addEventListener('load', function(){ if (typeof lucide !== 'undefined') lucide.createIcons(); });</script>
+  <script defer src="/js/features-demo.js"></script>
+  <script defer src="/js/features-demo-admin.js"></script>
 </body>
 </html>

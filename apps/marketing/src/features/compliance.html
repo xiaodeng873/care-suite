@@ -7,6 +7,10 @@
   <meta property="og:description" content="年度體檢、健康評估、ICP、約束、傷口管理。" />
   <meta property="og:url" content="/features/compliance" />
   <!-- INCLUDE: head.html -->
+  <link rel="stylesheet" href="/css/features-demo.css" />
+  <link rel="stylesheet" href="/css/webapp-components.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
   <!-- INCLUDE: nav.html -->
@@ -27,31 +31,39 @@
           <h3 class="card-title">年度體檢</h3>
           <p class="pain-point"><strong>痛點：</strong>每名住客每 12 個月最少接受 1 次註冊醫生健康檢查，漏做就是違例。</p>
           <p class="solution"><strong>解決：</strong>安老院住客體格檢驗報告書雙語表格，到期標示與主頁提醒，一鍵續期、列印、Excel 匯出。</p>
+          <div class="fd-frame mt-4" id="x-checkup"></div>
         </article>
         <article class="card">
           <h3 class="card-title">健康評估</h3>
           <p class="pain-point"><strong>痛點：</strong>守則要求住客健康狀況持續評估並更新個人健康及護理紀錄，定期評估到期無人提醒就會斷檔。</p>
           <p class="solution"><strong>解決：</strong>每 6 個月建議評估日期自動推算；複製上次評估開新檔；active/archived 狀態管理；列印及 CSV 匯出。</p>
+          <div class="fd-frame mt-4" id="x-assess"></div>
         </article>
         <article class="card">
           <h3 class="card-title">個人照顧計劃（ICP）與個案會議</h3>
           <p class="pain-point"><strong>痛點：</strong>ICP 最怕「不知道寫什麼」與「忘記何時檢討」，個案會議紀錄散亂。</p>
-          <p class="solution"><strong>解決：</strong>內建問題庫、各專業問題統計、復檢到期提醒；個案會議名單與跟進事項讓 ICP 持續運作。</p>
+          <p class="solution"><strong>解決：</strong>問題庫管理（院舍自建，按七大專業分類）、各專業問題統計、復檢到期提醒；個案會議名單讓 ICP 持續運作。</p>
+          <div class="fd-frame mt-4" id="x-icp"></div>
         </article>
         <article class="card">
           <h3 class="card-title">約束物品管理</h3>
           <p class="pain-point"><strong>痛點：</strong>約束是社署重點監管項目，同意書過期一天、觀察漏簽一格都是督察缺失。</p>
           <p class="solution"><strong>解決：</strong>評估及同意書電子化，到期自動提醒；約束觀察記錄表可 Excel 匯出 + 列印，項目與同意書一致。</p>
+          <div class="fd-frame mt-4" id="x-restraint"></div>
         </article>
         <article class="card">
           <h3 class="card-title">傷口管理</h3>
           <p class="pain-point"><strong>痛點：</strong>壓瘡惡化是院舍常見法律風險，有沒有持續評估與跟進，全靠紀錄證明。</p>
           <p class="solution"><strong>解決：</strong>傷口狀態流轉、每週評估頻率監察、人體圖標註位置、照片上傳、列印評估記錄表，證明院舍有跟進。</p>
+          <div class="fd-frame mt-4" id="demo-wound"></div>
         </article>
       </div>
     </div>
   </main>
 
   <!-- INCLUDE: footer.html -->
+  <script>window.addEventListener('load', function(){ if (typeof lucide !== 'undefined') lucide.createIcons(); });</script>
+  <script defer src="/js/features-demo.js"></script>
+  <script defer src="/js/features-demo-clinical.js"></script>
 </body>
 </html>

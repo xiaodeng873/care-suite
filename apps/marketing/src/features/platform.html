@@ -2,11 +2,15 @@
 <html lang="zh-Hant">
 <head>
   <title>全平台 — eHMS 功能介紹</title>
-  <meta name="description" content="eHMS 全平台：網頁版與手機瀏覽器直接使用，無需安裝 app，另有原生 App 供選擇。" />
+  <meta name="description" content="eHMS 全平台：網頁版與手機瀏覽器直接使用，無需安裝 app，原生 App 規劃中。" />
   <meta property="og:title" content="全平台 — eHMS 功能介紹" />
   <meta property="og:description" content="網頁版與手機瀏覽器直接使用，無需安裝 app。" />
   <meta property="og:url" content="/features/platform" />
   <!-- INCLUDE: head.html -->
+  <link rel="stylesheet" href="/css/features-demo.css" />
+  <link rel="stylesheet" href="/css/webapp-components.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
   <!-- INCLUDE: nav.html -->
@@ -27,21 +31,26 @@
           <h3 class="card-title">網頁版 + 手機瀏覽器即用</h3>
           <p class="pain-point"><strong>痛點：</strong>要求安裝指定 app 是推行殺手；IT 支援幾乎為零的院舍，裝機、更新、權限樣樣是障礙。</p>
           <p class="solution"><strong>解決：</strong>採用業界頂尖的 React 技術打造，網頁與手機瀏覽器無礙使用 — 任何手機、平板、電腦，有瀏覽器就用得，帳密即登，無需安裝 app。</p>
+          <div class="fd-frame mt-4" id="demo-mobile"></div>
         </article>
         <article class="card">
           <h3 class="card-title">iPad 與手機優化</h3>
           <p class="pain-point"><strong>痛點：</strong>前線多用 iPad，數字輸入頻繁；夜班環境光暗，介面刺眼。</p>
           <p class="solution"><strong>解決：</strong>iPad 數字鍵盤、響應式布局、深色模式，讓不同裝置與環境下都能順暢操作。</p>
+          <div class="fd-frame mt-4" id="x-responsive"></div>
         </article>
         <article class="card">
-          <h3 class="card-title">原生 App（測試中）</h3>
+          <h3 class="card-title">原生 App（規劃中）</h3>
           <p class="pain-point"><strong>痛點：</strong>部分院舍希望有獨立 app 圖標，方便員工一鍵開啟。</p>
-          <p class="solution"><strong>解決：</strong>另有原生 App 供選擇，與網頁版數據互通，員工可按需要安裝。</p>
+          <p class="solution"><strong>解決：</strong>原生 App 正在規劃中，日後與網頁版數據互通，員工可按需要安裝。</p>
         </article>
       </div>
     </div>
   </main>
 
   <!-- INCLUDE: footer.html -->
+  <script>window.addEventListener('load', function(){ if (typeof lucide !== 'undefined') lucide.createIcons(); });</script>
+  <script defer src="/js/features-demo.js"></script>
+  <script defer src="/js/features-demo-admin.js"></script>
 </body>
 </html>

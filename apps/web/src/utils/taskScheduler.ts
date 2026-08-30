@@ -481,7 +481,9 @@ export function getFirstIncompleteMonitoringDate(task: PatientHealthTask, record
   if (taskStartDate) taskStartDate.setHours(0, 0, 0, 0);
   const normalizedTaskTimes = (task as any).specific_times?.map(normalize) || [];
   let firstIncomplete: Date | null = null;
-  for (let i = 0; i <= 28; i++) {
+  // [修正] 掃描窗口由 28 天改為 60 天，與 Dashboard.urgentMonitoringTasks 一致，
+  // 避免月週期任務（如每月 1 日體重）在月底被遺漏。
+  for (let i = 0; i <= 60; i++) {
     const checkDate = new Date(today);
     checkDate.setDate(checkDate.getDate() - i);
     const dateStr = fmt(checkDate);

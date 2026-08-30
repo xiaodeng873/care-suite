@@ -17,6 +17,7 @@ interface Prescription {
   medication_time_slots: string[];
   start_date: string;
   end_date?: string;
+  last_taken_date?: string;
   status: string;
 }
 
@@ -298,6 +299,16 @@ Deno.serve(async (req: Request) => {
   }
 });
 
+// 間隔型頻率（隔X日/隔X星期/隔X月）的週期錨點：
+// 目標日 ≥ 上次服用日 → 以上次服用日重定週期；否則沿用開始日期（與前端 prescriptionSchedule.ts 一致）
+function pickIntervalAnchor(prescription: Prescription, startDate: Date, targetDate: Date): Date {
+  if (!prescription.last_taken_date) return startDate;
+  const [y, m, d] = prescription.last_taken_date.split('-').map(Number);
+  const lastTaken = new Date(y, m - 1, d);
+  if (lastTaken < startDate) return startDate;
+  return targetDate >= lastTaken ? lastTaken : startDate;
+}
+
 function checkMedicationSchedule(prescription: Prescription, targetDate: Date): boolean {
   const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day } = prescription;
   const startDate = new Date(prescription.start_date);
@@ -309,12 +320,20 @@ function checkMedicationSchedule(prescription: Prescription, targetDate: Date): 
 
     case 'every_x_days':
       const targetDateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-      const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-      const daysDiff = Math.floor((targetDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+      const anchorDays = pickIntervalAnchor(prescription, new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()), targetDateOnly);
+      const daysDiff = Math.floor((targetDateOnly.getTime() - anchorDays.getTime()) / (1000 * 60 * 60 * 24));
       // 「間隔X日」：frequency_value=N 表示跳過 N 天 → 週期 = N+1
       const interval = (frequency_value || 1) + 1;
       const shouldTake = daysDiff >= 0 && daysDiff % interval === 0;
       return shouldTake;
+
+    case 'every_x_weeks':
+      const targetDateOnlyW = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+      const anchorWeeks = pickIntervalAnchor(prescription, new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()), targetDateOnlyW);
+      const daysDiffW = Math.floor((targetDateOnlyW.getTime() - anchorWeeks.getTime()) / (1000 * 60 * 60 * 24));
+      // 「間隔X星期」：frequency_value=N 表示跳過 N 星期 → 週期 = (N+1)×7 天
+      const intervalW = ((frequency_value || 1) + 1) * 7;
+      return daysDiffW >= 0 && daysDiffW % intervalW === 0;
 
     case 'weekly_days':
       const dayOfWeek = targetDate.getDay();
@@ -334,11 +353,12 @@ function checkMedicationSchedule(prescription: Prescription, targetDate: Date): 
       return oddEvenResult;
 
     case 'every_x_months':
-      const monthsDiff = (targetDate.getFullYear() - startDate.getFullYear()) * 12 +
-                        (targetDate.getMonth() - startDate.getMonth());
+      const anchorMonths = pickIntervalAnchor(prescription, startDate, targetDate);
+      const monthsDiff = (targetDate.getFullYear() - anchorMonths.getFullYear()) * 12 +
+                        (targetDate.getMonth() - anchorMonths.getMonth());
       const monthInterval = (frequency_value || 1) + 1; // 間隔X月 = 週期 X+1 月
       const monthResult = monthsDiff >= 0 && monthsDiff % monthInterval === 0 &&
-             targetDate.getDate() === startDate.getDate();
+             targetDate.getDate() === anchorMonths.getDate();
       return monthResult;
 
     default:

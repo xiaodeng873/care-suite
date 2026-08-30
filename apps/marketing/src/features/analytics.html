@@ -7,6 +7,10 @@
   <meta property="og:description" content="尿布統計、費用記錄，協助主管掌握日常開支與護理趨勢。" />
   <meta property="og:url" content="/features/analytics" />
   <!-- INCLUDE: head.html -->
+  <link rel="stylesheet" href="/css/features-demo.css" />
+  <link rel="stylesheet" href="/css/webapp-components.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
   <!-- INCLUDE: nav.html -->
@@ -26,17 +30,22 @@
         <article class="card">
           <h3 class="card-title">尿布統計</h3>
           <p class="pain-point"><strong>痛點：</strong>院舍每天記錄換片次數，但護理主管難以快速掌握哪位院友換片頻率異常，異常可能是泌尿感染或皮膚問題的前兆。</p>
-          <p class="solution"><strong>解決：</strong>按院友、時間段彙總換片記錄，協助主管及早發現異常並調整護理計劃。</p>
+          <p class="solution"><strong>解決：</strong>按院友、月份彙總換片記錄，可匯出 Excel 報表。</p>
+          <div class="fd-frame mt-4" id="demo-reports"></div>
         </article>
         <article class="card">
           <h3 class="card-title">費用記錄</h3>
-          <p class="pain-point"><strong>痛點：</strong>院舍的雜項收費、押金、代墊費用等，若無統一記錄，對帳時容易遺漏，家屬查詢也難以即時回應。</p>
-          <p class="solution"><strong>解決：</strong>統整院友相關費用資料，方便查閱與對帳，減少財務糾紛。</p>
+          <p class="pain-point"><strong>痛點：</strong>院舍的雜項收費，若無統一記錄，對帳時容易遺漏，家屬查詢也難以即時回應。</p>
+          <p class="solution"><strong>解決：</strong>統整院友雜項收費，方便查閱與對帳。</p>
+          <div class="fd-frame mt-4" id="x-fees"></div>
         </article>
       </div>
     </div>
   </main>
 
   <!-- INCLUDE: footer.html -->
+  <script>window.addEventListener('load', function(){ if (typeof lucide !== 'undefined') lucide.createIcons(); });</script>
+  <script defer src="/js/features-demo.js"></script>
+  <script defer src="/js/features-demo-admin.js"></script>
 </body>
 </html>

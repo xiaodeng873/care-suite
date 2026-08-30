@@ -6,7 +6,6 @@ import TaskModal from '../components/TaskModal';
 import { Hop as Home, Users, Calendar, Heart, SquareCheck as CheckSquare, TriangleAlert as AlertTriangle, Clock, TrendingUp, TrendingDown, Activity, Droplets, Scale, FileText, Stethoscope, Shield, CalendarCheck, Utensils, BookOpen, Guitar as Hospital, Pill, Building2, X, User, ArrowRight, Repeat, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isTaskOverdue, isTaskPendingToday, isTaskDueSoon, getTaskStatus, isDocumentTask, isMonitoringTask, isNursingTask, isRestraintAssessmentOverdue, isRestraintAssessmentDueSoon, isHealthAssessmentOverdue, isHealthAssessmentDueSoon, isTubeCareOverdue, isTubeCareDueSoon, calculateNextDueDate, isTaskScheduledForDate, formatFrequencyDescription, findFirstMissingDate } from '../utils/taskScheduler';
-import { getPatientsWithOverdueWorkflow } from '../utils/workflowStatusHelper';
 import { computeEstimatedEndDate, daysUntil } from '../utils/estimatedEndDate';
 import HealthRecordModal from '../components/HealthRecordModal';
 import MealGuidanceModal from '../components/MealGuidanceModal';
@@ -191,7 +190,9 @@ const Dashboard: React.FC = () => {
       const normalizedTaskTimes = task.specific_times?.map(normalizeTime) || [];
       if (isLyuPatient) {
       }
-      for (let i = 0; i <= 28; i++) {
+      // [修正] 掃描窗口由 28 天改為 60 天：每月 1 日的體重等月週期任務，
+      // 在月底時可逾時 30 天，28 天會錯過，導致卡片在主控台消失。
+      for (let i = 0; i <= 60; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(checkDate.getDate() - i);
         const dateStr = formatLocalDate(checkDate);
@@ -469,17 +470,39 @@ const Dashboard: React.FC = () => {
       .filter(patient => patient.在住狀態 === '在住' && !hasInProgressCarePlan(carePlans, Number(patient.院友id)))
       .map(patient => ({ patient, missingInfo: '個人護理計劃' }));
   }, [patients, carePlans]);
-  const overdueWorkflows = useMemo(() => {
-    const result = getPatientsWithOverdueWorkflow(prescriptionWorkflowRecords, patients, prescriptions);
-    return result.map(({ patient, overdueCount, overdueDates }) => {
-      const dates: { [date: string]: number } = {};
-      overdueDates.forEach(date => {
-        const count = prescriptionWorkflowRecords.filter(r => r.patient_id === patient.院友id && r.scheduled_date === date && (r.preparation_status === 'pending' || r.verification_status === 'pending' || r.dispensing_status === 'pending')).length;
-        dates[date] = count;
-      });
-      return { patient, overdueCount, dates };
+  // 逾期工作流程統計改由 server 端 RPC 聚合（每院友一行），
+  // 唔再靠全量下載 6 萬筆 workflow records 落 client 計算
+  const [overdueWorkflowStats, setOverdueWorkflowStats] = useState<Array<{
+    patient_id: number;
+    overdue_count: number;
+    earliest_date: string;
+    dates: { [date: string]: number };
+  }>>([]);
+  useEffect(() => {
+    let cancelled = false;
+    supabase.rpc("get_overdue_workflow_counts").then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) {
+        console.error("載入逾期工作流程統計失敗:", error);
+        return;
+      }
+      setOverdueWorkflowStats((data as any) || []);
     });
-  }, [prescriptionWorkflowRecords, patients, prescriptions]);
+    return () => { cancelled = true; };
+    // prescriptionWorkflowRecords 變動（派藥/執藥操作）時重新聚合
+  }, [prescriptionWorkflowRecords]);
+  const overdueWorkflows = useMemo(() => {
+    const patientsMapById = new Map(patients.map(p => [parseInt(String(p.院友id)), p]));
+    return overdueWorkflowStats
+      .map(stat => ({ patient: patientsMapById.get(stat.patient_id), overdueCount: Number(stat.overdue_count), dates: stat.dates || {}, earliestDate: stat.earliest_date }))
+      .filter(item => item.patient && item.patient.在住狀態 === "在住")
+      .sort((a, b) => {
+        const dateCompare = String(a.earliestDate).localeCompare(String(b.earliestDate));
+        if (dateCompare !== 0) return dateCompare;
+        return b.overdueCount - a.overdueCount;
+      })
+      .map(({ patient, overdueCount, dates }) => ({ patient: patient!, overdueCount, dates }));
+  }, [overdueWorkflowStats, patients]);
   const pendingPrescriptions = useMemo(() => {
     return patients.filter(p => p.在住狀態 === '在住').map(patient => {
         const count = prescriptions.filter(pr => pr.patient_id === patient.院友id && pr.status === 'pending_change').length;
@@ -559,7 +582,9 @@ const Dashboard: React.FC = () => {
       const normalizedTaskTimes = task.specific_times?.map(normalizeTime) || [];
       let firstIncompleteDate: Date | null = null;
       const incompleteDates: Date[] = [];
-      for (let i = 0; i <= 28; i++) {
+      // [修正] 掃描窗口由 28 天改為 60 天：每月 1 日的體重等月週期任務，
+      // 在月底時可逾時 30 天，28 天會錯過，導致卡片在主控台消失。
+      for (let i = 0; i <= 60; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(checkDate.getDate() - i);
         const dateStr = formatLocalDate(checkDate);

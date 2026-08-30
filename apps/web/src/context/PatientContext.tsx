@@ -668,8 +668,13 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       setLoading(false);
       // 避免短時間內多次觸發 refreshData 時產生多個並行的相片載入請求，
       // 造成資料庫壓力與 statement_timeout。
+      // 延後 3 秒先開始載入，等 app 啟動嗰陣嘅重型查詢高峰過咗先撈相片。
       if (!patientPhotoLoadRef.current) {
-        patientPhotoLoadRef.current = db.getPatientPhotos();
+        patientPhotoLoadRef.current = new Promise((resolve, reject) => {
+          setTimeout(() => {
+            db.getPatientPhotos().then(resolve, reject);
+          }, 3000);
+        });
       }
       patientPhotoLoadRef.current
         .then(photoMap => {

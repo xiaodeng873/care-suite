@@ -80,7 +80,7 @@ const PREPARATION_MAP: Record<string, string> = {
 
 const INSPECTION_SIGNS = ['上壓', '下壓', '脈搏', '血糖值', '呼吸', '血含氧量', '體溫'];
 const OP_MAP: Record<string, string> = { gt: '>', lt: '<', gte: '≥', lte: '≤' };
-const ACTION_MAP: Record<string, string> = { block_dispensing: '停服', warning_only: '僅警告' };
+const ACTION_MAP: Record<string, string> = { block_dispensing: '停服', warning_only: '警告' };
 
 /** 份量 + 單位（純數字先合併單位） */
 const dosageText = (p: any): string => {
@@ -559,7 +559,7 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
                   onChange={(e) => setRules(rules.map((x, j) => (j === i ? { ...x, action_if_met: e.target.value } : x)))}
                 >
                   <option value="block_dispensing">停服</option>
-                  <option value="warning_only">僅警告</option>
+                  <option value="warning_only">警告</option>
                 </select>
                 <button
                   type="button"

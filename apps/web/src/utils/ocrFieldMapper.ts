@@ -404,6 +404,12 @@ function parseFrequency(frequencyString: string): {
     return { type: 'every_x_days', value: days };
   }
 
+  const everyXWeeksMatch = freq.match(/每(\d+)(?:星期|週|周)|每隔(\d+)(?:星期|週|周)|every\s*(\d+)\s*weeks?/i);
+  if (everyXWeeksMatch) {
+    const weeks = parseInt(everyXWeeksMatch[1] || everyXWeeksMatch[2] || everyXWeeksMatch[3]);
+    return { type: 'every_x_weeks', value: weeks };
+  }
+
   const everyXMonthsMatch = freq.match(/每(\d+)月|每隔(\d+)月|every\s*(\d+)\s*months?/i);
   if (everyXMonthsMatch) {
     const months = parseInt(everyXMonthsMatch[1] || everyXMonthsMatch[2] || everyXMonthsMatch[3]);

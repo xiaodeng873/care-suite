@@ -31,7 +31,6 @@ interface TaskFilters {
 const StaffWorkPanel: React.FC = () => {
   const { 
     prescriptions, 
-    prescriptionWorkflowRecords,
     fetchPrescriptionWorkflowRecords,
     loading 
   } = usePatientData();
@@ -47,18 +46,14 @@ const StaffWorkPanel: React.FC = () => {
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // 今日記錄放本地 state：fetch 只回傳結果，唔再寫入全局 cache（避免覆蓋其他頁面）
+  const [todayRecords, setTodayRecords] = useState<any[]>([]);
 
   // 載入今天的所有工作流程記錄
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
-    fetchPrescriptionWorkflowRecords(undefined, today);
+    fetchPrescriptionWorkflowRecords(undefined, today).then(setTodayRecords);
   }, [fetchPrescriptionWorkflowRecords]);
-
-  // 獲取今天的工作流程記錄
-  const todayRecords = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    return prescriptionWorkflowRecords.filter(r => r.scheduled_date === today);
-  }, [prescriptionWorkflowRecords]);
 
   // 生成待辦任務列表
   const pendingTasks = useMemo(() => {
@@ -190,7 +185,8 @@ const StaffWorkPanel: React.FC = () => {
     setRefreshing(true);
     try {
       const today = new Date().toISOString().split('T')[0];
-      await fetchPrescriptionWorkflowRecords(undefined, today);
+      const records = await fetchPrescriptionWorkflowRecords(undefined, today);
+      setTodayRecords(records);
     } catch (error) {
       console.error('刷新數據失敗:', error);
     } finally {
