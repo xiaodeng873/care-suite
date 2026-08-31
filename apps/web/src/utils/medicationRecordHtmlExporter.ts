@@ -914,17 +914,26 @@ const renderPrescriptionBlock = (
         ? `<div class="mr-med-source">來源：${escapeHtml(sourceParts.join(' / '))}</div>`
         : '';
     })();
-  // 「每次」頻率：份量與特殊用法合併在同一行（如「每次1粒 / 按照醫生指示用」）
-  const isEachTime = prescription.frequency_type === 'each_time';
-  const frequencyLine = isEachTime
-    ? (getDosageText(prescription) || '每次')
+  // 途徑 / 次數：route、PRN、meal timing、頻率、特殊用法、劑量各佔一行
+  // 每日服用次數為「無」(0) 或頻率類型為「每次」時，不顯示頻率類型
+  const frequencyLine = (prescription.daily_frequency === 0 || prescription.daily_frequency == null || prescription.frequency_type === 'each_time')
+    ? ''
     : getFrequencyDescription(prescription);
+  const specialLine = prescription.special_dosage_instruction?.trim();
+  const dosageLine = (() => {
+    if (!prescription.dosage_amount) return '';
+    const amt = String(prescription.dosage_amount);
+    const unit = prescription.dosage_unit ?? '';
+    const dosage = /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + unit : amt;
+    return `每次${dosage}`;
+  })();
   const routeInfo = [
     prescription.administration_route ?? '',
     prescription.is_prn ? '需要時' : '',
     mealTimingLabel,
     frequencyLine,
-    isEachTime ? '' : getDosageText(prescription),
+    specialLine || '',
+    dosageLine,
   ]
     .filter((line) => line != null && String(line).trim() !== '')
     .map((line) => `<div>${escapeHtml(String(line))}</div>`)
@@ -1140,10 +1149,15 @@ const signatureDayCells = (
     let isBoundary = false;
     const inRange = slot && isDateInPrescriptionRange(dateStr, slot, prescription);
     if (inRange) {
-      const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
-      const { prep, verify } = getWorkflowCellParts(record, staffMapping);
-      cellInner = (prep ? `<span class="mr-cell-prep">${escapeHtml(prep)}</span>` : '')
-        + (verify ? `<span class="mr-cell-verify">${escapeHtml(verify)}</span>` : '');
+      if (prescription.preparation_method === 'custom') {
+        // 自理處方無需執核簽署，執/核兩格均標示「S」與彙總區一致
+        cellInner = '<span class="mr-cell-prep">S</span><span class="mr-cell-verify">S</span>';
+      } else {
+        const record = getWorkflowRecordForPrescriptionDateTimeSlot(workflowRecords, prescription.id, dateStr, slot);
+        const { prep, verify } = getWorkflowCellParts(record, staffMapping);
+        cellInner = (prep ? `<span class="mr-cell-prep">${escapeHtml(prep)}</span>` : '')
+          + (verify ? `<span class="mr-cell-verify">${escapeHtml(verify)}</span>` : '');
+      }
     } else {
       const key = `${dateStr}__${slot}`;
       if (boundary.before.has(key)) {
@@ -1337,21 +1351,21 @@ const getFrequencyDescription = (prescription: MedicationPrescription): string =
   // PRN 常見 TDS 只設一個時間點，此時仍應顯示 TDS（每日3次）。
   const perDay = daily_frequency || timeSlotsCount || frequency_value || 1;
 
-  // PRN 的「隔N日/隔N星期」只是護理安排（需要時決定哪天服），處方本身仍是每日，文字須跟處方；
-  // 隔天安排已由日期格的灰化表達，不寫成「隔N日」
+  // PRN 的「每N日/每N星期」只是護理安排（需要時決定哪天服），處方本身仍是每日，文字須跟處方；
+  // 非服藥日安排已由日期格的灰化表達。
   if (is_prn && (frequency_type === 'every_x_days' || frequency_type === 'every_x_weeks')) return `每日${perDay}次`;
 
   switch (frequency_type) {
     case 'every_x_days': {
       const gap = Number(frequency_value) || 1;
-      const gapLabel = gap === 1 ? '隔日' : `隔${gap}日`;
+      const gapLabel = gap === 1 ? '每日' : `每${gap}日`;
       return `${gapLabel}${perDay}次`;
     }
     case 'every_x_weeks': {
       const gap = Number(frequency_value) || 1;
-      return `隔${gap}星期${perDay}次`;
+      return `每${gap}星期${perDay}次`;
     }
-    case 'every_x_months': return `隔${frequency_value}月${perDay}次`;
+    case 'every_x_months': return `每${frequency_value}月${perDay}次`;
     case 'weekly_days': {
       const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
       const days = specific_weekdays?.map((day: number) => dayNames[day === 7 ? 0 : day]).join('、') ?? '';
@@ -1366,19 +1380,7 @@ const getFrequencyDescription = (prescription: MedicationPrescription): string =
   }
 };
 
-const getDosageText = (prescription: MedicationPrescription): string => {
-  const parts: string[] = [];
-  if (prescription.dosage_amount) {
-    const amt = String(prescription.dosage_amount);
-    const unit = prescription.dosage_unit ?? '';
-    const dosage = /^\d+(\.\d+)?$/.test(amt.trim()) ? amt + unit : amt;
-    parts.push(`每次${dosage}`);
-  }
-  if (prescription.special_dosage_instruction) {
-    parts.push(prescription.special_dosage_instruction);
-  }
-  return parts.join(' / ');
-};
+
 
 // 純「日期範圍」判斷：只看 start_date/end_date + start_time/end_time，不看服藥頻率。
 // 供 ▶/◀ 邊界標記使用（邊界代表處方起訖，非個別服藥日）。
@@ -1405,7 +1407,7 @@ const isDateInPrescriptionDateRange = (dateStr: string, timeSlot: string | undef
 const isDateInPrescriptionRange = (dateStr: string, timeSlot: string | undefined, prescription: MedicationPrescription): boolean => {
   // 先過日期範圍（起訖 + 起訖時間）
   if (!isDateInPrescriptionDateRange(dateStr, timeSlot, prescription)) return false;
-  // 再過頻率規則：非服藥日（隔日/隔月/逢星期/單雙日）須灰掉
+  // 再過頻率規則：非服藥日（每N日/每N月/逢星期/單雙日）須灰掉
   if (!isPrescriptionScheduledOnDate(prescription, dateStr)) return false;
   return true;
 };

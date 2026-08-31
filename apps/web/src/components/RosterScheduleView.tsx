@@ -32,6 +32,7 @@ interface RosterScheduleViewProps {
   onMoveLeave?: (record: UserLeaveRecord, targetDate: string) => void;
   onCheckConflicts?: () => void;
   onAutoLeave?: (users: UserProfile[]) => void;
+  onOcrRecognize?: () => void;
   complianceMode?: 'actual' | 'preSchedule';
   preScheduleConflicts?: PreScheduleSegmentConflict[];
   onEmployeeDoubleClick?: (user: UserProfile) => void;
@@ -134,6 +135,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
   onMoveLeave,
   onCheckConflicts,
   onAutoLeave,
+  onOcrRecognize,
   complianceMode = 'actual',
   onEmployeeDoubleClick,
   getUserFullBalances,
@@ -195,7 +197,11 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
         ? users
         : users.filter((u) => userMatchesPositionFilter(u, positionFilter))
     ).filter(employedInMonth);
-    // 按職位排序：註冊護士 > 登記護士 > 保健員 > 其他（同級保持原順序）
+    // 排序：有優先指派居住區者排最前（按 stationPriority 次序），再按職位 註冊護士 > 登記護士 > 保健員 > 其他，最後入職日期
+    const stationOrder = new Map<string, number>();
+    stationPriority.forEach((sid, idx) => {
+      if (sid && !stationOrder.has(sid)) stationOrder.set(sid, idx);
+    });
     const rank = (u: UserProfile): number => {
       const p = getEmploymentPosition(u);
       if (p === '註冊護士') return 0;
@@ -205,9 +211,22 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
     };
     return base
       .map((u, i) => ({ u, i }))
-      .sort((a, b) => rank(a.u) - rank(b.u) || a.i - b.i)
+      .sort((a, b) => {
+        const stationA = employmentDetails[a.u.id]?.preferred_station_primary || null;
+        const stationB = employmentDetails[b.u.id]?.preferred_station_primary || null;
+        const hasA = stationA ? 0 : 1;
+        const hasB = stationB ? 0 : 1;
+        if (hasA !== hasB) return hasA - hasB;
+        const orderA = stationA ? (stationOrder.get(stationA) ?? 999) : 999;
+        const orderB = stationB ? (stationOrder.get(stationB) ?? 999) : 999;
+        if (orderA !== orderB) return orderA - orderB;
+        const rankDiff = rank(a.u) - rank(b.u);
+        if (rankDiff !== 0) return rankDiff;
+        const hireDiff = (a.u.hire_date || '9999-12-31').localeCompare(b.u.hire_date || '9999-12-31');
+        return hireDiff !== 0 ? hireDiff : a.i - b.i;
+      })
       .map(({ u }) => u);
-  }, [users, isAdmin, currentUserId, positionFilter, year, month]);
+  }, [users, isAdmin, currentUserId, positionFilter, year, month, stationPriority, employmentDetails]);
 
   const positionOptions = useMemo(() => getRosterGroupOptions(users), [users]);
   useEffect(() => {
@@ -302,6 +321,13 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
     return <p className="text-sm text-gray-500">載入中...</p>;
   }
 
+  /** 員工的優先指派居住區名稱 */
+  const getUserStationName = (user: UserProfile): string => {
+    const stationId = employmentDetails[user.id]?.preferred_station_primary;
+    if (!stationId) return '—';
+    return stations.find((s) => s.id === stationId)?.name || '—';
+  };
+
   return (
     <div className="space-y-4">
       {/* 主管控制列 */}
@@ -331,6 +357,17 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
               title="按當前職位過濾，為尚有餘額的員工自動排盡 DO / PRD / PH；若已有系統安排，再次點擊會取消"
             >
               一鍵排假
+            </button>
+          )}
+
+          {onOcrRecognize && (
+            <button
+              type="button"
+              onClick={onOcrRecognize}
+              className={`${onAutoLeave ? '' : 'ml-auto'} px-3 py-1.5 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500`}
+              title="上傳手寫假期預排表相片，經 AI 識別後自動填入預排"
+            >
+              識別預排表
             </button>
           )}
         </div>
@@ -426,7 +463,10 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
               <th className="px-3 py-2 text-left font-medium text-gray-600 sticky top-0 left-0 z-30 bg-gray-50 w-[8rem]">
                 員工
               </th>
-              <th className="px-2 py-2 text-left font-medium text-gray-600 sticky top-0 left-[8rem] z-30 bg-gray-50 w-[4rem]">
+              <th className="px-2 py-2 text-left font-medium text-gray-600 sticky top-0 left-[8rem] z-30 bg-gray-50 w-[3rem]">
+                居住區
+              </th>
+              <th className="px-2 py-2 text-left font-medium text-gray-600 sticky top-0 left-[11rem] z-30 bg-gray-50 w-[4rem]">
                 累積
               </th>
               <th className="px-2 py-2 text-left font-medium text-gray-600 sticky top-0 z-10 bg-gray-50 w-[4rem]">
@@ -463,7 +503,7 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
           <tbody>
             {visibleUsers.length === 0 && (
               <tr>
-                <td colSpan={daysInMonth + 3} className="px-4 py-6 text-center text-gray-400">
+                <td colSpan={daysInMonth + 4} className="px-4 py-6 text-center text-gray-400">
                   暫無適用職位員工
                 </td>
               </tr>
@@ -490,7 +530,10 @@ export const RosterScheduleView: React.FC<RosterScheduleViewProps> = ({
                     <div>{user.name_zh}</div>
                     <div className="text-[10px] text-gray-500 font-normal">{userDisplayPositions(user)}</div>
                   </td>
-                  <td className="px-2 py-2 text-gray-600 sticky left-[8rem] bg-white min-w-[4rem]">
+                  <td className="px-2 py-2 text-gray-600 sticky left-[8rem] bg-white min-w-[3rem]">
+                    {getUserStationName(user)}
+                  </td>
+                  <td className="px-2 py-2 text-gray-600 sticky left-[11rem] bg-white min-w-[4rem]">
                     {full ? (
                       isPartTime(user) ? (
                         <span className="text-gray-400">兼職不適用</span>

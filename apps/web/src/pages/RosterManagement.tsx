@@ -10,6 +10,7 @@ import { formatDisplayDate, formatTimeToHHMM } from '../utils/dateFormat';
 import ConfirmOverrideModal from '../components/ConfirmOverrideModal';
 import RosterScheduleView from '../components/RosterScheduleView';
 import RosterLeaveModal, { type RosterLeaveModalPayload } from '../components/RosterLeaveModal';
+import PreScheduleOcrModal, { type OcrEntry } from '../components/PreScheduleOcrModal';
 import RosterEmployeeCard from '../components/RosterEmployeeCard';
 import EmploymentDetailsSection from '../components/EmploymentDetailsSection';
 import RosterScheduleGrid from '../components/RosterScheduleGrid';
@@ -286,6 +287,9 @@ const RosterManagement: React.FC = () => {
   const [autoLeavePlan, setAutoLeavePlan] = useState<AutoLeavePlan | null>(null);
   const [autoLeaveModalOpen, setAutoLeaveModalOpen] = useState(false);
   const [autoLeaveProcessing, setAutoLeaveProcessing] = useState(false);
+
+  // OCR 識別預排表 modal
+  const [ocrModalOpen, setOcrModalOpen] = useState(false);
 
   // 列印綜合文件（排班管理 tab）
   const [printModalOpen, setPrintModalOpen] = useState(false);
@@ -740,6 +744,7 @@ const RosterManagement: React.FC = () => {
         users: printUsers,
         employmentDetails: employmentMap,
         stations,
+        stationPriority,
         shiftSettings,
         weekAnchor,
         weekAssignments: shiftAssignments,
@@ -1385,6 +1390,15 @@ const RosterManagement: React.FC = () => {
       setLeaveRecords((prev) => prev.filter((l) => l.id !== oldRecord.id));
     }
 
+    await createLeaveRecordWithDetails(userId, payload);
+    await loadLeaveData(false);
+  };
+
+  // 插入 user_leave_records 並寫入對應明細表（DO/PRD/PH/SH），同步樂觀更新本地 state
+  const createLeaveRecordWithDetails = async (
+    userId: string,
+    payload: RosterLeaveModalPayload,
+  ): Promise<void> => {
     const insertPayload: Record<string, unknown> = {
       user_id: userId,
       leave_date: payload.leaveDate,
@@ -1462,8 +1476,102 @@ const RosterManagement: React.FC = () => {
         [userId]: { ...details, rest_day_fraction: Math.max(0, details.rest_day_fraction - 1) },
       };
     });
+  };
+
+  // OCR 識別預排表：批次寫入識別結果，逐條略過不適用的項目，最後統一回報
+  const applyOcrEntries = async (entries: OcrEntry[]) => {
+    // 已使用的公眾假期須按員工各自計算（與 RosterLeaveModal 的 usedHolidayIds 語義一致），
+    // 並疊加本批次已分配的假期
+    const usedHolidayIdsByUser = new Map<string, Set<string>>();
+    const getUsedHolidayIds = (userId: string): Set<string> => {
+      let set = usedHolidayIdsByUser.get(userId);
+      if (!set) {
+        set = new Set<string>();
+        for (const l of leaveRecords) {
+          if (
+            l.user_id === userId &&
+            l.record_type === 'leave' &&
+            !l.is_overridden &&
+            (l.leave_type === 'PH' || l.leave_type === 'SH') &&
+            l.reference_public_holiday_id
+          ) {
+            set.add(l.reference_public_holiday_id);
+          }
+        }
+        usedHolidayIdsByUser.set(userId, set);
+      }
+      return set;
+    };
+    // 本批次已寫入的 user|date，避免批次內重複
+    const written = new Set<string>();
+    let added = 0;
+    const skipped: string[] = [];
+
+    for (const entry of entries) {
+      const user = users.find((u) => u.id === entry.userId);
+      const label = `${user?.name_zh ?? entry.userId} ${entry.date}`;
+      if (!user) {
+        skipped.push(`${label}：找不到員工`);
+        continue;
+      }
+      if (user.resignation_date && user.resignation_date <= entry.date) {
+        skipped.push(`${label}：該日已離職（離職日期 ${user.resignation_date}）`);
+        continue;
+      }
+      if (user.hire_date && entry.date < user.hire_date) {
+        skipped.push(`${label}：該日尚未入職（入職日期 ${user.hire_date}）`);
+        continue;
+      }
+      const key = `${entry.userId}|${entry.date}`;
+      if (
+        written.has(key) ||
+        leaveRecords.some((l) => l.user_id === entry.userId && l.leave_date === entry.date)
+      ) {
+        skipped.push(`${label}：當日已有預排記錄`);
+        continue;
+      }
+      if (monthShiftAssignments.some((a) => a.user_id === entry.userId && a.work_date === entry.date)) {
+        skipped.push(`${label}：當日已有班次`);
+        continue;
+      }
+
+      let referencePublicHolidayId: string | null = null;
+      if (entry.leaveType === 'PH' || entry.leaveType === 'SH') {
+        const usedIds = getUsedHolidayIds(entry.userId);
+        const holiday = publicHolidays.find(
+          (h) => h.type === entry.leaveType && !usedIds.has(h.id),
+        );
+        if (holiday) {
+          referencePublicHolidayId = holiday.id;
+          usedIds.add(holiday.id);
+        }
+      }
+
+      try {
+        await createLeaveRecordWithDetails(entry.userId, {
+          leaveDate: entry.date,
+          recordType: 'leave',
+          leaveType: entry.leaveType,
+          urgency: 'preferred',
+          referencePublicHolidayId,
+        });
+        written.add(key);
+        added++;
+      } catch (err) {
+        console.error('OCR 預排寫入失敗:', err);
+        skipped.push(`${label}：寫入失敗`);
+      }
+    }
 
     await loadLeaveData(false);
+    await reloadEmploymentMap();
+
+    const lines = [`已加入 ${added} 筆`];
+    if (skipped.length > 0) {
+      lines.push(`略過 ${skipped.length} 筆：`);
+      for (const s of skipped) lines.push(`- ${s}`);
+    }
+    alert(lines.join('\n'));
   };
 
   const handleSaveLeave = async (payload: RosterLeaveModalPayload) => {
@@ -1894,6 +2002,7 @@ const RosterManagement: React.FC = () => {
               onMoveLeave={handleMoveLeave}
               onCheckConflicts={handleCheckConflicts}
               onAutoLeave={handleAutoLeave}
+              onOcrRecognize={() => setOcrModalOpen(true)}
               complianceMode="preSchedule"
               preScheduleConflicts={preScheduleConflicts}
               getUserFullBalances={getUserBalances}
@@ -1971,6 +2080,15 @@ const RosterManagement: React.FC = () => {
           context={leaveModalContext}
         />
       )}
+
+      <PreScheduleOcrModal
+        isOpen={ocrModalOpen}
+        onClose={() => setOcrModalOpen(false)}
+        users={users}
+        year={monthCursor.y}
+        month={monthCursor.m}
+        onApply={applyOcrEntries}
+      />
 
       {pendingLeaveConflict && (
         <ConfirmOverrideModal

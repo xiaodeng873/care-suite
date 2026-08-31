@@ -1,11 +1,12 @@
 // 處方服藥日排程判斷（統一邏輯）
 // ─────────────────────────────────────────────────────────────
-// 「間隔天數 / 間隔星期數 / 間隔月數」語意（與處方 Modal 標籤一致）：
-//   frequency_value = N 代表「跳過 N 天/星期/月」，即服藥週期 = N + 1。
-//   例：間隔天數 = 1（隔日服）→ 週期 2 天 → 服藥日 start, start+2, start+4 …
-//       間隔天數 = 2（隔2日服）→ 週期 3 天 → 服藥日 start, start+3, start+6 …
+// 「每 N 天 / 每 N 星期 / 每 N 月」語意（與處方 Modal 標籤一致）：
+//   frequency_value = N 代表「每 N 天/星期/月服一次」，即服藥週期 = N。
+//   例：每 1 日 = 每日服（週期 1 天）→ 服藥日 start, start+1, start+2 …
+//       每 2 日 = 隔日服（週期 2 天）→ 服藥日 start, start+2, start+4 …
+//       每 3 月 = 每三個月服（週期 3 月）→ 服藥日 start, start+3月, start+6月 …
 //
-// 週期錨點（隔X日 / 隔X星期 / 隔X月）：
+// 週期錨點（每N日 / 每N星期 / 每N月）：
 //   有 last_taken_date 時，目標日 ≥ 上次服用日 → 以上次服用日為錨點（下次 = 錨點 + 週期）；
 //   目標日 < 上次服用日（歷史段）→ 沿用 start_date 週期，保持過往記錄不變。
 // ─────────────────────────────────────────────────────────────
@@ -30,6 +31,7 @@ const DAY_MS = 1000 * 60 * 60 * 24;
 /**
  * 間隔型頻率的週期錨點：目標日在上次服用日或之後，以上次服用日重定週期；
  * 否則沿用開始日期。last_taken_date 早於 start_date 視為手入錯誤，忽略。
+ * 週期 = frequency_value（N），即「每 N 天/星期/月」服一次。
  */
 const pickIntervalAnchor = (
   prescription: SchedulablePrescription,
@@ -68,8 +70,7 @@ export function isPrescriptionScheduledOnDate(
     case 'every_x_days': {
       const anchor = pickIntervalAnchor(prescription, start, target);
       if (!anchor) return true; // 無開始日則無法推算週期，退化為每日
-      const gap = Number(prescription.frequency_value) || 1;
-      const period = gap + 1; // 週期 = 間隔 + 1
+      const period = Number(prescription.frequency_value) || 1; // 每 N 天
       const daysDiff = Math.floor((target.getTime() - anchor.getTime()) / DAY_MS);
       return daysDiff >= 0 && daysDiff % period === 0;
     }
@@ -77,8 +78,8 @@ export function isPrescriptionScheduledOnDate(
     case 'every_x_weeks': {
       const anchor = pickIntervalAnchor(prescription, start, target);
       if (!anchor) return true;
-      const gap = Number(prescription.frequency_value) || 1;
-      const periodDays = (gap + 1) * 7; // 週期 = (間隔星期數 + 1) × 7 天
+      const periodWeeks = Number(prescription.frequency_value) || 1; // 每 N 星期
+      const periodDays = periodWeeks * 7;
       const daysDiff = Math.floor((target.getTime() - anchor.getTime()) / DAY_MS);
       return daysDiff >= 0 && daysDiff % periodDays === 0;
     }
@@ -86,8 +87,7 @@ export function isPrescriptionScheduledOnDate(
     case 'every_x_months': {
       const anchor = pickIntervalAnchor(prescription, start, target);
       if (!anchor) return true;
-      const gap = Number(prescription.frequency_value) || 1;
-      const period = gap + 1; // 週期 = 間隔 + 1
+      const period = Number(prescription.frequency_value) || 1; // 每 N 月
       const monthsDiff = (target.getFullYear() - anchor.getFullYear()) * 12
         + (target.getMonth() - anchor.getMonth());
       return monthsDiff >= 0
@@ -114,7 +114,7 @@ export function isPrescriptionScheduledOnDate(
 }
 
 /**
- * 由上次服用日期推算下次服用日期（僅間隔型頻率：隔X日 / 隔X星期 / 隔X月）。
+ * 由上次服用日期推算下次服用日期（僅間隔型頻率：每N日 / 每N星期 / 每N月）。
  * 回傳 ISO 日期字串（YYYY-MM-DD）；非間隔型或缺資料時回傳 ''。
  */
 export function computeNextDoseFromLastTaken(
@@ -123,7 +123,7 @@ export function computeNextDoseFromLastTaken(
   lastTakenDate: string | null | undefined
 ): string {
   if (!lastTakenDate) return '';
-  const gap = Number(frequencyValue) || 1;
+  const period = Number(frequencyValue) || 1;
   const anchor = toDateOnly(lastTakenDate);
   const fmt = (d: Date): string =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -131,17 +131,17 @@ export function computeNextDoseFromLastTaken(
   switch (frequencyType) {
     case 'every_x_days': {
       const next = new Date(anchor);
-      next.setDate(next.getDate() + (gap + 1));
+      next.setDate(next.getDate() + period);
       return fmt(next);
     }
     case 'every_x_weeks': {
       const next = new Date(anchor);
-      next.setDate(next.getDate() + (gap + 1) * 7);
+      next.setDate(next.getDate() + period * 7);
       return fmt(next);
     }
     case 'every_x_months': {
       const next = new Date(anchor);
-      next.setMonth(next.getMonth() + (gap + 1));
+      next.setMonth(next.getMonth() + period);
       return fmt(next);
     }
     default:

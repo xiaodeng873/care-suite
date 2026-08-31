@@ -304,8 +304,8 @@ ${prescriptionsByPatient.map(group =>
                                 )}
                                 <span>
                                   {prescription.frequency_type === 'daily' ? '每日' : 
-                                   prescription.frequency_type === 'every_x_days' ? `隔${prescription.frequency_value}日` :
-                                   prescription.frequency_type === 'every_x_weeks' ? `隔${prescription.frequency_value}星期` :
+                                   prescription.frequency_type === 'every_x_days' ? `每${prescription.frequency_value}日` :
+                                   prescription.frequency_type === 'every_x_weeks' ? `每${prescription.frequency_value}星期` :
                                    prescription.frequency_type}
                                 </span>
                               </div>

@@ -638,7 +638,7 @@ const FeeRecords: React.FC = () => {
             </button>
             <button
               onClick={handlePrint}
-              className="btn-primary flex items-center gap-2"
+              className="btn-secondary flex items-center gap-2"
             >
               <Printer className="h-4 w-4" />
               <span>列印</span>

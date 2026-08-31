@@ -68,6 +68,7 @@ export interface RosterPrintInput {
   users: UserProfile[];
   employmentDetails: Record<string, UserEmploymentDetails>;
   stations: { id: string; name: string }[];
+  stationPriority: (string | null)[];
   shiftSettings: StationShiftSetting[];
   /** 排班表當前週（週日至週六） */
   weekAnchor: Date;
@@ -157,17 +158,42 @@ function userDisplayPositions(user: UserProfile): string {
   return '未設定';
 }
 
-/** 該部門適用的員工，按職位優先級 > 入職日期排序 */
+/** 該部門適用的員工，按優先指派居住區 > 居住區次序 > 職位優先級 > 入職日期排序 */
 function departmentUsers(input: RosterPrintInput, department: string): UserProfile[] {
   const users = input.users.filter((u) => getAssignmentPositionForTable(u, department) !== null);
+  const stationOrder = new Map<string | null, number>();
+  input.stationPriority.forEach((sid, idx) => {
+    if (sid && !stationOrder.has(sid)) stationOrder.set(sid, idx);
+  });
+  const positionRank = (u: UserProfile): number => {
+    const p = getEmploymentPosition(u);
+    if (p === '註冊護士') return 0;
+    if (p === '登記護士') return 1;
+    if (p === '保健員') return 2;
+    return 3;
+  };
   return users.sort((a, b) => {
-    const posA = getAssignmentPositionForTable(a, department) as keyof typeof POSITION_DISPLAY_PRIORITY | null;
-    const posB = getAssignmentPositionForTable(b, department) as keyof typeof POSITION_DISPLAY_PRIORITY | null;
-    const priA = posA && posA in POSITION_DISPLAY_PRIORITY ? POSITION_DISPLAY_PRIORITY[posA] : 99;
-    const priB = posB && posB in POSITION_DISPLAY_PRIORITY ? POSITION_DISPLAY_PRIORITY[posB] : 99;
+    const stationA = input.employmentDetails[a.id]?.preferred_station_primary || null;
+    const stationB = input.employmentDetails[b.id]?.preferred_station_primary || null;
+    const hasStationA = stationA ? 0 : 1;
+    const hasStationB = stationB ? 0 : 1;
+    if (hasStationA !== hasStationB) return hasStationA - hasStationB;
+    const orderA = stationA ? (stationOrder.get(stationA) ?? 999) : 999;
+    const orderB = stationB ? (stationOrder.get(stationB) ?? 999) : 999;
+    if (orderA !== orderB) return orderA - orderB;
+    const priA = positionRank(a);
+    const priB = positionRank(b);
     if (priA !== priB) return priA - priB;
     return (a.hire_date || '9999-12-31').localeCompare(b.hire_date || '9999-12-31');
   });
+}
+
+/** 員工的居住區名稱（用於預排表新增欄位） */
+function getUserStationName(input: RosterPrintInput, user: UserProfile): string {
+  const stationId = input.employmentDetails[user.id]?.preferred_station_primary;
+  if (!stationId) return '—';
+  const station = input.stations.find((s) => s.id === stationId);
+  return station?.name || '—';
 }
 
 function pageStyles(orientation: 'landscape' | 'portrait' = 'landscape'): string {
@@ -362,6 +388,7 @@ function buildPreSchedulePage(
     }).join('');
 
     return `<tr style="height: ${rowHeight};">
+      <td>${escapeHtml(getUserStationName(input, user))}</td>
       <td><div class="rp-name">${escapeHtml(user.name_zh)}</div><div class="rp-pos">${escapeHtml(userDisplayPositions(user))}</div></td>
       ${balanceCells}
       ${dayCells}
@@ -370,9 +397,10 @@ function buildPreSchedulePage(
 
   function buildTableBody(chunkUsers: UserProfile[]): string {
     if (chunkUsers.length === 0) {
-      return `<tr><td colspan="${daysInMonth + 1 + (includeBalance ? 2 : 0)}" style="text-align: center; color: #9ca3af; padding: 8px;">暫無適用職位員工</td></tr>`;
+      return `<tr><td colspan="${daysInMonth + 2 + (includeBalance ? 2 : 0)}" style="text-align: center; color: #9ca3af; padding: 8px;">暫無適用職位員工</td></tr>`;
     }
-    const rowHeight = `${(PRE_SCHEDULE_CONTENT_HEIGHT_MM / chunkUsers.length).toFixed(1)}mm`;
+    // 固定列高：即使最後一頁未滿 18 列，行高仍與滿頁時一致，不再撐滿整頁
+    const rowHeight = `${(PRE_SCHEDULE_CONTENT_HEIGHT_MM / PRE_SCHEDULE_MAX_ROWS_PER_PAGE).toFixed(1)}mm`;
     return chunkUsers.map((user) => buildUserRow(user, rowHeight)).join('');
   }
 
@@ -386,6 +414,7 @@ function buildPreSchedulePage(
       <table class="rp-table rp-pre-schedule">
         <thead>
           <tr>
+            <th style="width: 5%;">居住區</th>
             <th style="width: 7%;">員工</th>
             ${balanceHeaders}
             ${dayHeaders}

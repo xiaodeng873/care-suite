@@ -3187,20 +3187,20 @@ const MedicationWorkflow: React.FC = () => {
                                       {(() => {
                                         const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency, is_prn } = prescription;
                                         const perDay = daily_frequency || (medication_time_slots?.length) || frequency_value || 1;
-                                        // PRN 的「隔N日/隔N星期」只是護理安排，處方本身仍是每日，文字須跟處方
+                                        // PRN 的「每N日/每N星期」只是護理安排，處方本身仍是每日，文字須跟處方
                                         if (is_prn && (frequency_type === 'every_x_days' || frequency_type === 'every_x_weeks')) {
                                           return `每日${perDay}次`;
                                         }
                                         switch (frequency_type) {
                                           case 'every_x_days': {
                                             const gap = Number(frequency_value) || 1;
-                                            return `${gap === 1 ? '隔日' : `隔${gap}日`}${perDay}次`;
+                                            return `${gap === 1 ? '每日' : `每${gap}日`}${perDay}次`;
                                           }
                                           case 'every_x_weeks': {
                                             const gap = Number(frequency_value) || 1;
-                                            return `隔${gap}星期${perDay}次`;
+                                            return `每${gap}星期${perDay}次`;
                                           }
-                                          case 'every_x_months': return `隔${frequency_value}月${perDay}次`;
+                                          case 'every_x_months': return `每${frequency_value}月${perDay}次`;
                                           case 'weekly_days': {
                                             const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
                                             const days = specific_weekdays?.map((d: number) => dayNames[d === 7 ? 0 : d]).join('、') ?? '';

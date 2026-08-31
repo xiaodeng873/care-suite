@@ -649,7 +649,7 @@ export interface DiaperUsageRecord {
 }
 
 export type FeeItemCategory = '服務' | '用品';
-export type FeeItemUnit = '次' | '個' | '日' | '月' | '項' | '小時' | '療程';
+export type FeeItemUnit = '次' | '個' | '日' | '月' | '項' | '小時' | '療程' | '程';
 
 export interface FeeItem {
   id: string;
@@ -658,6 +658,7 @@ export interface FeeItem {
   category: FeeItemCategory;
   unit: FeeItemUnit;
   unit_price: number;
+  is_reimbursement?: boolean;
   description?: string | null;
   is_active: boolean;
   display_order: number;

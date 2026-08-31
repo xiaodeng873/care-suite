@@ -172,15 +172,15 @@ function shouldTakeMedicationOnDate(prescription: any, targetDate: Date): boolea
       const targetDateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
       const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
       const daysDiff = Math.floor((targetDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-      // 「間隔X日」= 週期 X+1 天；隔1日(隔日服)=週期2；隔2日=週期3
-      const interval = (frequency_value || 1) + 1;
+      // 「每 X 日」= 週期 X 天；每1日=每日；每2日=隔日
+      const interval = frequency_value || 1;
       return daysDiff >= 0 && daysDiff % interval === 0;
     case 'every_x_weeks':
       const targetDateOnlyW = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
       const startDateOnlyW = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
       const daysDiffW = Math.floor((targetDateOnlyW.getTime() - startDateOnlyW.getTime()) / (1000 * 60 * 60 * 24));
-      // 「間隔X星期」= 週期 (X+1)×7 天
-      const intervalW = ((frequency_value || 1) + 1) * 7;
+      // 「每 X 星期」= 週期 X×7 天
+      const intervalW = (frequency_value || 1) * 7;
       return daysDiffW >= 0 && daysDiffW % intervalW === 0;
     case 'weekly_days':
       const dayOfWeek = targetDate.getDay();
@@ -197,7 +197,7 @@ function shouldTakeMedicationOnDate(prescription: any, targetDate: Date): boolea
     case 'every_x_months':
       const monthsDiff = (targetDate.getFullYear() - startDate.getFullYear()) * 12 +
                         (targetDate.getMonth() - startDate.getMonth());
-      const monthInterval = (frequency_value || 1) + 1; // 間隔X月 = 週期 X+1 月
+      const monthInterval = frequency_value || 1; // 每 X 月
       return monthsDiff >= 0 && monthsDiff % monthInterval === 0 &&
              targetDate.getDate() === startDate.getDate();
     default:

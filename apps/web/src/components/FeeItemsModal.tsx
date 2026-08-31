@@ -24,7 +24,7 @@ interface DraftRow extends FeeItem {
 
 const CATEGORIES: FeeItemCategory[] = ['服務', '用品'];
 
-const UNITS: FeeItemUnit[] = ['次', '個', '日', '月', '項', '小時', '療程'];
+const UNITS: FeeItemUnit[] = ['次', '個', '日', '月', '項', '小時', '療程', '程'];
 
 const createBlankRow = async (): Promise<DraftRow> => ({
   id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -33,6 +33,7 @@ const createBlankRow = async (): Promise<DraftRow> => ({
   category: '服務',
   unit: '次',
   unit_price: 0,
+  is_reimbursement: false,
   description: '',
   is_active: true,
   display_order: 0,
@@ -113,7 +114,7 @@ const FeeItemsModal: React.FC<FeeItemsModalProps> = ({ onClose }) => {
   const validateRow = (row: DraftRow): string | null => {
     if (!row.code.trim()) return '請輸入編號';
     if (!row.name_zh.trim()) return '請輸入名稱';
-    if (Number.isNaN(Number(row.unit_price))) return '請輸入有效單價';
+    if (!row.is_reimbursement && Number.isNaN(Number(row.unit_price))) return '請輸入有效單價';
     if (findDuplicateCode(row.code, row.id)) return '編號與其他項目重複';
     return null;
   };
@@ -133,7 +134,8 @@ const FeeItemsModal: React.FC<FeeItemsModalProps> = ({ onClose }) => {
         name_zh: row.name_zh.trim(),
         category: row.category,
         unit: row.unit,
-        unit_price: Number(row.unit_price),
+        unit_price: row.is_reimbursement ? 0 : Number(row.unit_price),
+        is_reimbursement: row.is_reimbursement || false,
         description: row.description?.trim() || null,
         is_active: row.is_active,
         display_order: Number(row.display_order) || 0,
@@ -149,9 +151,10 @@ const FeeItemsModal: React.FC<FeeItemsModalProps> = ({ onClose }) => {
       }
 
       await loadItems();
-    } catch (error) {
+    } catch (error: any) {
       console.error('儲存收費項目失敗:', error);
-      alert('儲存收費項目失敗，請重試');
+      const message = error?.message || error?.error_description || '儲存收費項目失敗，請重試';
+      alert(message);
       setDrafts(prev => prev.map(d => (d.id === row.id ? { ...d, saving: false } : d)));
     }
   };
@@ -278,15 +281,40 @@ const FeeItemsModal: React.FC<FeeItemsModalProps> = ({ onClose }) => {
                         </select>
                       </td>
                       <td className="px-3 py-2 align-top">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={row.unit_price}
-                          onChange={(e) => updateDraft(row.id, 'unit_price', e.target.value)}
-                          className="form-input text-sm py-1"
-                          disabled={row.saving}
-                        />
+                        <div className="flex flex-col gap-1">
+                          <select
+                            value={row.is_reimbursement ? 'reimbursement' : 'fixed'}
+                            onChange={(e) => {
+                              const mode = e.target.value;
+                              setDrafts(prev => prev.map(d => {
+                                if (d.id !== row.id) return d;
+                                return {
+                                  ...d,
+                                  is_reimbursement: mode === 'reimbursement',
+                                  unit_price: mode === 'reimbursement' ? 0 : d.unit_price,
+                                };
+                              }));
+                            }}
+                            className="form-input text-sm py-1"
+                            disabled={row.saving}
+                          >
+                            <option value="fixed">固定單價</option>
+                            <option value="reimbursement">實報實銷</option>
+                          </select>
+                          {!row.is_reimbursement ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={row.unit_price}
+                              onChange={(e) => updateDraft(row.id, 'unit_price', e.target.value)}
+                              className="form-input text-sm py-1"
+                              disabled={row.saving}
+                            />
+                          ) : (
+                            <span className="text-sm text-gray-500 py-1">—</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2 align-top">
                         <input

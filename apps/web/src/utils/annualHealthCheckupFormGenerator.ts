@@ -38,6 +38,18 @@ interface MedicationPrescription {
   medication_time_slots?: string[];
   meal_timing?: string;
   status: string;
+  medication_source?: string;
+  medication_source_specialty?: string;
+  prescription_date?: string;
+  start_date?: string;
+  end_date?: string;
+  special_dosage_instruction?: string;
+  inspection_rules?: Array<{
+    vital_sign_type?: string;
+    condition_operator?: string;
+    condition_value?: string | number;
+    action_if_met?: string;
+  }>;
 }
 // 計算年齡
 const calculateAge = (birthDate?: string): string => {
@@ -56,7 +68,7 @@ export const getActivePrescriptions = async (patientId: number): Promise<Medicat
   try {
     const { data, error } = await supabase
       .from('new_medication_prescriptions')
-      .select('id, medication_name, dosage_form, administration_route, dosage_amount, dosage_unit, daily_frequency, frequency_type, frequency_value, is_prn, medication_time_slots, meal_timing, status')
+      .select('id, medication_name, dosage_form, administration_route, dosage_amount, dosage_unit, daily_frequency, frequency_type, frequency_value, is_prn, medication_time_slots, meal_timing, status, medication_source, medication_source_specialty, prescription_date, start_date, end_date, special_dosage_instruction, inspection_rules')
       .eq('patient_id', patientId)
       .eq('status', 'active')
       .order('created_at', { ascending: false });

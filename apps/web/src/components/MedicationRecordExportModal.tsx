@@ -926,9 +926,9 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                                     };
                                     switch (prescription.frequency_type) {
                                       case 'daily':return getAbbr(timeSlotsCount);
-                                      case 'every_x_days':return `隔${prescription.frequency_value}日服`;
-                                      case 'every_x_weeks':return `隔${prescription.frequency_value}星期服`;
-                                      case 'every_x_months':return `隔${prescription.frequency_value}月服`;
+                                      case 'every_x_days':return `每${prescription.frequency_value}日服`;
+                                      case 'every_x_weeks':return `每${prescription.frequency_value}星期服`;
+                                      case 'every_x_months':return `每${prescription.frequency_value}月服`;
                                       case 'weekly_days':
                                         const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
                                         const days = prescription.specific_weekdays?.map((day: number) => dayNames[day === 7 ? 0 : day]).join('、') || '';
