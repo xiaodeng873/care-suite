@@ -177,17 +177,23 @@ export function matchBedNumber(bed: string | null | undefined, search: string): 
 }
 
 /**
- * 院友搜尋排序比較：優先床號配對位置，再床號自然排序。
+ * 院友搜尋排序比較：優先床號（含原床號）配對位置，再床號自然排序。
  * 用於 sorting 表格與 autocomplete，需先以 search 過濾後套用。
  */
 export function comparePatientsForSearch(
-  a: { 床號?: string | null },
-  b: { 床號?: string | null },
+  a: { 床號?: string | null; original_bed_number?: string | null },
+  b: { 床號?: string | null; original_bed_number?: string | null },
   search: string
 ): number {
   if (search) {
-    const ra = bedMatchRank(a.床號, search);
-    const rb = bedMatchRank(b.床號, search);
+    const ra = Math.min(
+      bedMatchRank(a.床號, search),
+      bedMatchRank(a.original_bed_number, search)
+    );
+    const rb = Math.min(
+      bedMatchRank(b.床號, search),
+      bedMatchRank(b.original_bed_number, search)
+    );
     // 兩者皆無床號命中：不介入排序，交由表頭欄決定
     if (ra < 0 && rb < 0) return 0;
     const sa = ra < 0 ? Number.MAX_SAFE_INTEGER : ra;

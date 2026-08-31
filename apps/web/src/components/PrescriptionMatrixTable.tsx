@@ -448,9 +448,9 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
               onChange={(e) => commit({ frequency_type: e.target.value })}
             >
               <option value="daily">每日服</option>
-              <option value="every_x_days">隔N日服</option>
-              <option value="every_x_weeks">隔N週服</option>
-              <option value="every_x_months">隔N月服</option>
+              <option value="every_x_days">每N日服</option>
+              <option value="every_x_weeks">每N週服</option>
+              <option value="every_x_months">每N月服</option>
               <option value="weekly_days">逢星期N服</option>
               <option value="odd_even_days">單日/雙日服</option>
               <option value="hourly">每小時</option>

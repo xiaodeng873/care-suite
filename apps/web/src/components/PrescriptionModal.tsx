@@ -1126,10 +1126,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   required
                 >
                   <option value="daily">每日服</option>
-                  <option value="every_x_days">隔N日服</option>
-                  <option value="every_x_weeks">隔N星期服</option>
-                  <option value="every_x_months">隔N月服</option>
-                  <option value="weekly_days">逢星期N服</option>
+                  <option value="every_x_days">每N日服</option>
+                  <option value="every_x_weeks">每N週服</option>
+                  <option value="every_x_months">每N月服</option>
+                  <option value="weekly_days">逢週N服</option>
                   <option value="odd_even_days">單日/雙日服</option>
                   <option value="hourly">每小時</option>
                   <option value="each_time">每次</option>
@@ -1143,8 +1143,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                 <div>
                   <label className="form-label">
                     {formData.frequency_type === 'every_x_days' && '間隔天數'}
-                    {formData.frequency_type === 'every_x_weeks' && '間隔星期數'}
-                    {formData.frequency_type === 'every_x_months' && '間隔月數'}
+                    {formData.frequency_type === 'every_x_weeks' && '週數'}
+                    {formData.frequency_type === 'every_x_months' && '月數'}
                     {formData.frequency_type === 'hourly' && '服用次數'}
                   </label>
                   <input
