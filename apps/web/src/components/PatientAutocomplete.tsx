@@ -6,7 +6,7 @@ import { useStationFilter } from '../context/StationFilterContext';
 import { useDebounce } from '../hooks/useDebounce';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import BedNumberImprint from './BedNumberImprint';
-import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
 
 interface PatientAutocompleteProps {
   value: string | number;
@@ -71,8 +71,7 @@ const PatientAutocomplete: React.FC<PatientAutocompleteProps> = ({
       if (!debouncedSearch) return true;
 
       return (
-        matchBedNumber(patient.床號, debouncedSearch) ||
-        matchBedNumber(patient.original_bed_number, debouncedSearch) ||
+        matchPatientBedNumber(patient, debouncedSearch) ||
         matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, debouncedSearch) ||
         matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, debouncedSearch) ||
         fuzzyMatch(patient.身份證號碼, debouncedSearch)

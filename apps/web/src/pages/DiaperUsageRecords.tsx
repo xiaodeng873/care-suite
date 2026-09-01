@@ -20,7 +20,7 @@ import {
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import DiaperUsageRecordModal from '../components/DiaperUsageRecordModal';
-import { matchChineseName, matchEnglishName, matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
+import { matchChineseName, matchEnglishName, matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import * as db from '../lib/database';
@@ -77,7 +77,7 @@ const DiaperUsageRecords: React.FC = () => {
       return (
         matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, term) ||
         matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, term) ||
-        matchBedNumber(patient.床號, term)
+        matchPatientBedNumber(patient, term)
       );
     });
   }, [records, patients, deferredSearch]);

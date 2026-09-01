@@ -4,6 +4,8 @@ import { usePatientData } from '../context/PatientContext';
 import BedNumberImprint from './BedNumberImprint';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from './DateInput';
+import InstitutionAutocomplete from './InstitutionAutocomplete';
+import { getMedicationSettings } from '../utils/medicationSettings';
 
 
 interface BatchPrescriptionDateUpdateModalProps {
@@ -20,7 +22,15 @@ const BatchPrescriptionDateUpdateModal: React.FC<BatchPrescriptionDateUpdateModa
   const { prescriptions, patients, updatePrescription } = usePatientData();
   const [newPrescriptionDate, setNewPrescriptionDate] = useState('');
   const [newMedicationSource, setNewMedicationSource] = useState('');
+  const [newMedicationSourceSpecialty, setNewMedicationSourceSpecialty] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 讀取真實藥物設定，以取得機構與專科清單
+  const medSettings = useMemo(() => getMedicationSettings(), []);
+  const specialtyOptions = useMemo(
+    () => medSettings.專科.map((name) => ({ name, abbr: medSettings.專科簡稱?.[name] })),
+    [medSettings]
+  );
 
   // 香港時區輔助函數
   const getHongKongDate = () => {
@@ -78,11 +88,14 @@ const BatchPrescriptionDateUpdateModal: React.FC<BatchPrescriptionDateUpdateModa
     if (newMedicationSource) {
       updateFields.push('藥物來源');
     }
+    if (newMedicationSourceSpecialty) {
+      updateFields.push('專科');
+    }
 
     const confirmMessage = `確定要將 ${selectedPrescriptions.length} 個處方的${updateFields.join('和')}更新嗎？
 
 更新內容：
-• 處方日期：${formatDisplayDate(newPrescriptionDate)}${newMedicationSource ? `\n• 藥物來源：${newMedicationSource}` : ''}
+• 處方日期：${formatDisplayDate(newPrescriptionDate)}${newMedicationSource ? `\n• 藥物來源：${newMedicationSource}` : ''}${newMedicationSourceSpecialty ? `\n• 專科：${newMedicationSourceSpecialty}` : ''}
 
 此操作將影響：
 ${prescriptionsByPatient.map(group => 
@@ -114,9 +127,12 @@ ${prescriptionsByPatient.map(group =>
             prescription_date: newPrescriptionDate
           };
 
-          // 如果有選擇新的藥物來源，也一併更新
+          // 如果有選擇新的藥物來源 / 專科，也一併更新
           if (newMedicationSource) {
             updateData.medication_source = newMedicationSource;
+          }
+          if (newMedicationSourceSpecialty) {
+            updateData.medication_source_specialty = newMedicationSourceSpecialty;
           }
 
           await updatePrescription(updateData, { actionType: 'batch_date_update', groupId: batchGroupId });
@@ -197,23 +213,30 @@ ${prescriptionsByPatient.map(group =>
                 <label className="form-label">
                   新藥物來源 (可選)
                 </label>
-                <select
+                <InstitutionAutocomplete
                   value={newMedicationSource}
-                  onChange={(e) => setNewMedicationSource(e.target.value)}
+                  onChange={(v) => setNewMedicationSource(v)}
+                  medSettings={medSettings}
+                  placeholder="不更新藥物來源"
                   className="form-input"
-                >
-                  <option value="">不更新藥物來源</option>
-                  <option value="醫院">醫院</option>
-                  <option value="診所">診所</option>
-                  <option value="藥房">藥房</option>
-                  <option value="專科門診">專科門診</option>
-                  <option value="急症室">急症室</option>
-                  <option value="社康護士">社康護士</option>
-                  <option value="家庭醫生">家庭醫生</option>
-                  <option value="其他">其他</option>
-                </select>
+                />
               </div>
-              
+
+              <div>
+                <label className="form-label">
+                  新專科 (可選)
+                </label>
+                <InstitutionAutocomplete
+                  value={newMedicationSourceSpecialty}
+                  onChange={(v) => setNewMedicationSourceSpecialty(v)}
+                  medSettings={medSettings}
+                  options={specialtyOptions}
+                  placeholder="不更新專科"
+                  emptyHint="如需新增專科，請前往「藥物設定」加進清單"
+                  className="form-input"
+                />
+              </div>
+
               <div className="flex items-end">
                 <div className="text-sm text-gray-600">
                   <div className="font-medium mb-1">將更新為：</div>
@@ -224,6 +247,11 @@ ${prescriptionsByPatient.map(group =>
                     {newMedicationSource && (
                       <div className="text-sm font-semibold text-green-600">
                         藥物來源：{newMedicationSource}
+                      </div>
+                    )}
+                    {newMedicationSourceSpecialty && (
+                      <div className="text-sm font-semibold text-green-600">
+                        專科：{newMedicationSourceSpecialty}
                       </div>
                     )}
                   </div>
@@ -241,6 +269,7 @@ ${prescriptionsByPatient.map(group =>
                 <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
                   <li>處方日期更新後將影響處方的時間記錄和工作流程</li>
                   {newMedicationSource && <li>藥物來源更新後將影響處方的來源追蹤</li>}
+                  {newMedicationSourceSpecialty && <li>專科更新後將影響處方的來源專科</li>}
                   <li>此操作無法復原，請確認日期正確</li>
                   <li>建議在更新前備份重要資料</li>
                   <li>更新後請檢查相關的藥物工作流程記錄</li>
@@ -321,10 +350,18 @@ ${prescriptionsByPatient.map(group =>
                                 藥物來源：{prescription.medication_source}
                               </div>
                             )}
+                            {prescription.medication_source_specialty && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                專科：{prescription.medication_source_specialty}
+                              </div>
+                            )}
                             <div className="text-xs text-blue-600 mt-1">
                               → 日期：{newPrescriptionDate ? formatDisplayDate(newPrescriptionDate) : '待設定'}
                               {newMedicationSource && (
                                 <div>→ 藥物來源：{newMedicationSource}</div>
+                              )}
+                              {newMedicationSourceSpecialty && (
+                                <div>→ 專科：{newMedicationSourceSpecialty}</div>
                               )}
                             </div>
                           </div>

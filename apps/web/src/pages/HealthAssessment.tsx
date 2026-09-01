@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import {
   Heart,
@@ -163,7 +163,7 @@ const HealthAssessment: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && !matchBedNumber(patient?.床號, advancedFilters.床號)) {
+    if (advancedFilters.床號 && !matchPatientBedNumber(patient, advancedFilters.床號)) {
       return false;
     }
     if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
@@ -192,7 +192,7 @@ const HealthAssessment: React.FC = () => {
       matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, deferredSearch) ||
                          matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, deferredSearch) ||
                          fuzzyMatch(patient?.身份證號碼, deferredSearch) ||
-                         matchBedNumber(patient?.床號, deferredSearch) ||
+                         matchPatientBedNumber(patient, deferredSearch) ||
                          fuzzyMatch(record.備註, deferredSearch) ||
                          fuzzyMatch(formatDisplayDate(record.記錄日期), deferredSearch) ||
                          false;

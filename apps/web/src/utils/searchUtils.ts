@@ -177,6 +177,16 @@ export function matchBedNumber(bed: string | null | undefined, search: string): 
 }
 
 /**
+ * 是否配對院友床號（現床號或原床號）
+ */
+export function matchPatientBedNumber(
+  patient: { 床號?: string | null; original_bed_number?: string | null } | null | undefined,
+  search: string
+): boolean {
+  return matchBedNumber(patient?.床號, search) || matchBedNumber(patient?.original_bed_number, search);
+}
+
+/**
  * 院友搜尋排序比較：優先床號（含原床號）配對位置，再床號自然排序。
  * 用於 sorting 表格與 autocomplete，需先以 search 過濾後套用。
  */

@@ -4,7 +4,7 @@ import { exportMedicationRecordToHtml, exportBlankMedicationRecordToHtml, orderP
 import { exportMedicationListToHtml, classifyMedicationTerm } from '../utils/medicationListHtmlGenerator';
 import { useStationData } from '../context/facility/StationContext';
 import { supabase } from '../lib/supabase';
-import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
 import BedNumberImprint from './BedNumberImprint';
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import DateInput from './DateInput';
@@ -109,7 +109,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
       return (
         matchChineseName(p.中文姓氏, p.中文名字, p.中文姓名, deferredSearch) ||
         matchEnglishName(p.英文姓氏, p.英文名字, p.英文姓名, deferredSearch) ||
-        matchBedNumber(p.床號, deferredSearch) ||
+        matchPatientBedNumber(p, deferredSearch) ||
         fuzzyMatch(p.身份證號碼, deferredSearch));
 
     }).sort((a, b) => comparePatientsForSearch(a, b, deferredSearch));

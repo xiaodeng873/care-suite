@@ -21,7 +21,7 @@ import ActivityRecordModal from '../components/ActivityRecordModal';
 import ActivityRecordPrintModal from '../components/ActivityRecordPrintModal';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
-import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
 import {
   ACTIVITY_CATEGORY_GROUPS,
@@ -115,7 +115,7 @@ const ActivityRecords: React.FC = () => {
       if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient.在住狀態 !== advancedFilters.在住狀態) {
         return false;
       }
-      if (advancedFilters.床號 && !matchBedNumber(patient.床號, advancedFilters.床號)) return false;
+      if (advancedFilters.床號 && !matchPatientBedNumber(patient, advancedFilters.床號)) return false;
       if (advancedFilters.中文姓名 && !matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名)) return false;
       if (advancedFilters.狀態) {
         const overdueInfo = getActivityRecordOverdueInfo(patient.院友id, activityRecords);
@@ -127,7 +127,7 @@ const ActivityRecords: React.FC = () => {
         return (
           matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, term) ||
           matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, term) ||
-          matchBedNumber(patient.床號, term)
+          matchPatientBedNumber(patient, term)
         );
       }
       return true;

@@ -26,7 +26,7 @@ import TaskModal from '../components/TaskModal';
 import { formatFrequencyDescription, getTaskStatus, isDocumentTask, isNursingTask } from '../utils/taskScheduler';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { SYNC_CUTOFF_DATE_STR } from '../lib/database';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
 import BedNumberImprint from '../components/BedNumberImprint';
 import DateInput from '../components/DateInput';
@@ -127,7 +127,7 @@ const TaskManagement: React.FC = () => {
       if (deferredFilters.在住狀態 && deferredFilters.在住狀態 !== '全部' && patient?.在住狀態 !== deferredFilters.在住狀態) {
         return false;
       }
-      if (deferredFilters.床號 && !matchBedNumber(patient?.床號, deferredFilters.床號)) {
+      if (deferredFilters.床號 && !matchPatientBedNumber(patient, deferredFilters.床號)) {
         return false;
       }
       if (deferredFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, deferredFilters.中文姓名)) {
@@ -161,7 +161,7 @@ const TaskManagement: React.FC = () => {
       let matchesSearch = true;
       if (deferredFilters.searchTerm) {
         matchesSearch = 
-        matchBedNumber(patient?.床號, deferredFilters.searchTerm) ||
+        matchPatientBedNumber(patient, deferredFilters.searchTerm) ||
         matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, deferredFilters.searchTerm) ||
         matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, deferredFilters.searchTerm) ||
         fuzzyMatch(patient?.身份證號碼, deferredFilters.searchTerm) ||

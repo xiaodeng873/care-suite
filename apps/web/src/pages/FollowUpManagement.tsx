@@ -5,7 +5,7 @@ import { usePatientData, useFilteredPatients, type FollowUpAppointment } from '.
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import FollowUpModal from '../components/FollowUpModal';
 import PatientAutocomplete from '../components/PatientAutocomplete';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
@@ -86,7 +86,7 @@ const FollowUpManagement: React.FC = () => {
     if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient && patient.在住狀態 !== advancedFilters.在住狀態) {
       return false;
     }
-    if (advancedFilters.床號 && patient && !matchBedNumber(patient.床號, advancedFilters.床號)) {
+    if (advancedFilters.床號 && patient && !matchPatientBedNumber(patient, advancedFilters.床號)) {
       return false;
     }
     if (advancedFilters.中文姓名 && patient && !matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名)) {
@@ -124,7 +124,7 @@ const FollowUpManagement: React.FC = () => {
       matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, deferredSearch) ||
                          matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, deferredSearch) ||
                          fuzzyMatch(patient?.身份證號碼, deferredSearch) ||
-                         matchBedNumber(patient?.床號, deferredSearch) ||
+                         matchPatientBedNumber(patient, deferredSearch) ||
                          fuzzyMatch(appointment.覆診地點, deferredSearch) ||
                          fuzzyMatch(appointment.覆診專科, deferredSearch) ||
                          fuzzyMatch(appointment.備註, deferredSearch) ||

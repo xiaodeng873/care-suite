@@ -30,8 +30,7 @@ import {
   matchChineseName,
   matchEnglishName,
   matchBedNumber,
-  compareBedNumbers
-} from '../utils/searchUtils';
+  compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
 import type { MedicationPrescription } from '../lib/database';
 import DateInput from '../components/DateInput';
@@ -198,7 +197,7 @@ const PrescriptionSearch: React.FC = () => {
       if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
         return false;
       }
-      if (advancedFilters.床號 && !matchBedNumber(patient?.床號, advancedFilters.床號)) {
+      if (advancedFilters.床號 && !matchPatientBedNumber(patient, advancedFilters.床號)) {
         return false;
       }
       if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
@@ -265,7 +264,7 @@ const PrescriptionSearch: React.FC = () => {
           matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, search) ||
           matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, search) ||
           fuzzyMatch(patient?.身份證號碼, search) ||
-          matchBedNumber(patient?.床號, search);
+          matchPatientBedNumber(patient, search);
 
         const matchesPrescription =
           fuzzyMatch(prescription.medication_name, search) ||

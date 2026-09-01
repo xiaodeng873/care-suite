@@ -17,7 +17,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useAuth } from '../context/AuthContext';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { Link } from 'react-router-dom';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, matchPatientBedNumber} from '../utils/searchUtils';
 import { formatTimeToHHMM } from '../utils/dateFormat';
 
 interface TaskFilters {
@@ -151,7 +151,7 @@ const StaffWorkPanel: React.FC = () => {
           matchChineseName(task.patient.中文姓氏, task.patient.中文名字, task.patient.中文姓名, filters.searchTerm) ||
           matchEnglishName(task.patient.英文姓氏, task.patient.英文名字, task.patient.英文姓名, filters.searchTerm) ||
           fuzzyMatch(task.patient.身份證號碼, filters.searchTerm) ||
-          matchBedNumber(task.patient.床號, filters.searchTerm) ||
+          matchPatientBedNumber(task.patient, filters.searchTerm) ||
           fuzzyMatch(task.prescription.medication_name, filters.searchTerm) ||
           fuzzyMatch(task.label, filters.searchTerm)
         );

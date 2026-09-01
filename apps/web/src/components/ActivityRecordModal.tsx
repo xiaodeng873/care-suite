@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { X, PartyPopper, Users, Search, CheckSquare, Square, Calendar, AlertTriangle, User, Building2 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type PatientActivityRecord } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
-import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
 import {
   ACTIVITY_CATEGORY_GROUPS,
   ACTIVITY_BOOLEAN_FIELDS,
@@ -106,7 +106,7 @@ const ActivityRecordModal: React.FC<ActivityRecordModalProps> = ({ onClose, defa
     return stationFilteredPatients.filter(p =>
       matchChineseName(p.中文姓氏, p.中文名字, p.中文姓名, deferredSearch) ||
       matchEnglishName(p.英文姓氏, p.英文名字, p.英文姓名, deferredSearch) ||
-      matchBedNumber(p.床號, deferredSearch) ||
+      matchPatientBedNumber(p, deferredSearch) ||
       fuzzyMatch(p.身份證號碼, deferredSearch)
     ).sort((a, b) => comparePatientsForSearch(a, b, deferredSearch));
   }, [stationFilteredPatients, deferredSearch]);

@@ -7,7 +7,7 @@ import { getPatientContacts, deletePatientContact, PatientContact } from '../lib
 import PatientContactModal from '../components/PatientContactModal';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 
 type SortField = '床號' | '中文姓名' | '在住狀態';
 type SortDirection = 'asc' | 'desc';
@@ -83,7 +83,7 @@ const PatientContacts: React.FC = () => {
   }, {} as Record<number, PatientContact[]>), [contacts]);
 
   const filteredPatients = useMemo(() => patients.filter(patient => {
-    if (advancedFilters.床號 && !matchBedNumber(patient.床號, advancedFilters.床號)) {
+    if (advancedFilters.床號 && !matchPatientBedNumber(patient, advancedFilters.床號)) {
       return false;
     }
     if (advancedFilters.中文姓名 && !matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名)) {
@@ -98,7 +98,7 @@ const PatientContacts: React.FC = () => {
       const patientContacts = contactsByPatient[patient.院友id] || [];
       matchesSearch = matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch) ||
                       matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch) ||
-                      matchBedNumber(patient.床號, deferredSearch) ||
+                      matchPatientBedNumber(patient, deferredSearch) ||
                       patientContacts.some(c =>
                         fuzzyMatch(c.聯絡人姓名, deferredSearch) ||
                         fuzzyMatch(c.關係, deferredSearch) ||

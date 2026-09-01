@@ -17,7 +17,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import DiagnosisRecordModal from '../components/DiagnosisRecordModal';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
 
@@ -116,14 +116,14 @@ const DiagnosisRecords: React.FC = () => {
       matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch) ||
       matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch) ||
       fuzzyMatch(patient.身份證號碼, deferredSearch) ||
-      matchBedNumber(patient.床號, deferredSearch) ||
+      matchPatientBedNumber(patient, deferredSearch) ||
       group.records.some(r =>
         fuzzyMatch(r.diagnosis_item, deferredSearch) ||
         fuzzyMatch(r.diagnosis_unit, deferredSearch)
       );
 
     const matchesBedNumber = !advancedFilters.床號 ||
-      matchBedNumber(patient.床號, advancedFilters.床號);
+      matchPatientBedNumber(patient, advancedFilters.床號);
 
     const matchesName = !advancedFilters.中文姓名 ||
       matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, advancedFilters.中文姓名);

@@ -46,6 +46,10 @@ export function getRootBedId(patient: Patient): string | undefined {
   return patient.original_bed_id;
 }
 
+export function getPatientHomeStationId(patient: { original_station_id?: string | null; station_id?: string | null }): string | null | undefined {
+  return patient.original_station_id || patient.station_id;
+}
+
 export interface BedTransferActor {
   user_id?: string;
   username?: string;

@@ -35,11 +35,11 @@ import BedNumberImprint from '../components/BedNumberImprint';
 import BedTransferLogModal from '../components/BedTransferLogModal';
 import ChangeOriginalBedModal from '../components/ChangeOriginalBedModal';
 import StationManagementModal from '../components/StationManagementModal';
-import { isTemporaryTransfer, getRootBedNumber } from '../utils/bedTransferUtils';
+import { isTemporaryTransfer, getRootBedNumber, getPatientHomeStationId } from '../utils/bedTransferUtils';
 import { printBedList } from '../utils/bedListHtmlGenerator';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from '../utils/facilitySettings';
 import { supabase } from '../lib/supabase';
-import { fuzzyMatch, matchChineseName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName , matchBedNumber, matchPatientBedNumber} from '../utils/searchUtils';
 const StationBedManagement: React.FC = () => {
   const { 
     stations, 
@@ -130,20 +130,12 @@ const StationBedManagement: React.FC = () => {
   // 獲取每個站的統計資訊
   const getStationStats = (stationId: string) => {
     const stationBeds = beds.filter(bed => bed.station_id === stationId);
-    // 計算實際佔用的床位數量 - 只計算有在住院友的床位
-    let occupiedCount = 0;
-    let availableCount = 0;
-    stationBeds.forEach(bed => {
-      // 檢查此床位是否有在住院友
-      const hasResidentPatient = patients.some(patient => 
-        patient.bed_id === bed.id && patient.在住狀態 === '在住'
-      );
-      if (hasResidentPatient) {
-        occupiedCount++;
-      } else {
-        availableCount++;
-      }
-    });
+    // 只計算「原居住區」屬於本站的住院者
+    const homePatients = patients.filter(patient =>
+      patient.在住狀態 === '在住' && getPatientHomeStationId(patient) === stationId
+    );
+    const occupiedCount = homePatients.length;
+    const availableCount = Math.max(0, stationBeds.length - occupiedCount);
     return {
       totalBeds: stationBeds.length,
       occupiedBeds: occupiedCount,
@@ -179,7 +171,7 @@ const StationBedManagement: React.FC = () => {
         fuzzyMatch(bed.bed_name, searchTerm) ||
         fuzzyMatch(station?.name, searchTerm) ||
         matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
-        matchBedNumber(patient?.床號, searchTerm)
+        matchPatientBedNumber(patient, searchTerm)
       );
     }
     return true;
@@ -309,7 +301,7 @@ const StationBedManagement: React.FC = () => {
       .sort((a, b) => a.bed_number.localeCompare(b.bed_number, 'zh-Hant', { numeric: true }));
 
     const stationPatients = (patients || []).filter(p =>
-      p.在住狀態 === '在住' && stationBeds.some(b => b.id === p.bed_id)
+      p.在住狀態 === '在住' && getPatientHomeStationId(p) === stationId
     );
     const stationPatientIds = stationPatients.map(p => p.院友id);
 
@@ -422,9 +414,7 @@ const StationBedManagement: React.FC = () => {
     };
 
     // ── 過去 24 小時 ──
-    const allStationPats = (patients || []).filter(p =>
-      p.station_id === stationId || stationBeds.some(b => b.id === p.bed_id)
-    );
+    const allStationPats = (patients || []).filter(p => getPatientHomeStationId(p) === stationId);
     const newAdmissions = allStationPats.filter(p => {
       if (!p.入住日期) return false;
       return parseDateOnly(p.入住日期).getTime() === todayStart.getTime();
@@ -439,6 +429,7 @@ const StationBedManagement: React.FC = () => {
     }).length;
     const monthlyDeaths = (patients || []).filter(p => {
       if (!p.death_date || p.discharge_reason !== '死亡') return false;
+      if (getPatientHomeStationId(p) !== stationId) return false;
       return parseDateOnly(p.death_date) >= monthStart;
     }).length;
 
@@ -555,7 +546,7 @@ const StationBedManagement: React.FC = () => {
         ) : (
           stations.map(station => {
             const stats = getStationStats(station.id);
-            const stationPatients = patients.filter(p => p.station_id === station.id && p.在住狀態 === '在住');
+            const stationPatients = patients.filter(p => p.在住狀態 === '在住' && getPatientHomeStationId(p) === station.id);
             // 性別統計
             const maleCount = stationPatients.filter(p => p.性別 === '男').length;
             const femaleCount = stationPatients.filter(p => p.性別 === '女').length;

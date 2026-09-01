@@ -3,7 +3,7 @@ import { X, Bed, User, Search, ArrowRightLeft, Home } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import PatientTooltip from './PatientTooltip';
 import BedNumberImprint from './BedNumberImprint';
-import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
 import type { BedTransferType } from '../lib/database';
 
 interface BedAssignmentModalProps {
@@ -40,7 +40,7 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
       const matchesSearch = (
         matchChineseName(patient.中文姓氏, patient.中文名字, patient.中文姓名, deferredSearch) ||
         matchEnglishName(patient.英文姓氏, patient.英文名字, patient.英文姓名, deferredSearch) ||
-        matchBedNumber(patient.床號, deferredSearch) ||
+        matchPatientBedNumber(patient, deferredSearch) ||
         fuzzyMatch(patient.身份證號碼, deferredSearch)
       );
       

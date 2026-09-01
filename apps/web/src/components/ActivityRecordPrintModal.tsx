@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useDeferredValue } from 'react';
 import { X, Printer, Search, CheckSquare, Square, Calendar, Users, AlertTriangle } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
-import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
 import { printActivityRecordForm } from '../utils/activityRecordPrintFormHtml';
 import DateInput from './DateInput';
 
@@ -41,7 +41,7 @@ const ActivityRecordPrintModal: React.FC<ActivityRecordPrintModalProps> = ({ onC
       .filter(p =>
         matchChineseName(p.中文姓氏, p.中文名字, p.中文姓名, deferredSearch) ||
         matchEnglishName(p.英文姓氏, p.英文名字, p.英文姓名, deferredSearch) ||
-        matchBedNumber(p.床號, deferredSearch) ||
+        matchPatientBedNumber(p, deferredSearch) ||
         fuzzyMatch(p.身份證號碼, deferredSearch)
       )
       .sort((a, b) => comparePatientsForSearch(a, b, deferredSearch));

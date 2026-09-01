@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, matchPatientBedNumber} from '../utils/searchUtils';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useSearchParams } from 'react-router-dom';
 import { Pill, Plus, Trash2, Search, Filter, Download, User, Calendar, AlertTriangle, CheckCircle, ArrowRight, X, ChevronUp, ChevronDown, Settings, FileText, Activity, ChevronRight, ChevronLeft, Heart, Shield, History } from 'lucide-react';
@@ -291,7 +291,7 @@ const PrescriptionManagement: React.FC = () => {
     const searchTerm = patientFilters.searchTerm;
 
     return visiblePatientSummaries.filter(summary =>
-      matchBedNumber(summary.patient.床號, searchTerm) ||
+      matchPatientBedNumber(summary.patient, searchTerm) ||
       matchChineseName(summary.patient.中文姓氏, summary.patient.中文名字, summary.patient.中文姓名, searchTerm) ||
       matchEnglishName(summary.patient.英文姓氏, summary.patient.英文名字, summary.patient.英文姓名, searchTerm) ||
       fuzzyMatch(summary.patient.身份證號碼, searchTerm)

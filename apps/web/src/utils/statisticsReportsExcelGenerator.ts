@@ -78,7 +78,7 @@ function patientDisplayName(patient: Patient | undefined): string {
 }
 
 function getReportStationId(p: Patient): string | null | undefined {
-  if (p.在住狀態 === '在住') return p.station_id;
+  if (p.在住狀態 === '在住') return p.original_station_id || p.station_id;
   return p.last_station_id || p.station_id;
 }
 

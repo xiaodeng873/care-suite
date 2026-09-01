@@ -23,7 +23,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientTooltip from '../components/PatientTooltip';
 import WoundModal from '../components/WoundModal';
 import SingleWoundAssessmentModal from '../components/SingleWoundAssessmentModal';
-import { fuzzyMatch, matchBedNumber, matchChineseName } from '../utils/searchUtils';
+import { fuzzyMatch, matchBedNumber, matchChineseName, matchPatientBedNumber} from '../utils/searchUtils';
 import { printWoundAssessment, saveWoundAssessmentHtml } from '../utils/woundAssessmentPrintGenerator';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -167,7 +167,7 @@ const WoundManagementNew: React.FC = () => {
       if (deferredFilters.在住狀態 && deferredFilters.在住狀態 !== '全部') {
         if (patient?.在住狀態 !== deferredFilters.在住狀態) continue;
       }
-      if (deferredFilters.床號 && !matchBedNumber(pd.bed_number, deferredFilters.床號)) continue;
+      if (deferredFilters.床號 && !matchPatientBedNumber(patient, deferredFilters.床號)) continue;
       if (deferredFilters.中文姓名 && !matchChineseName(
         patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, deferredFilters.中文姓名
       )) continue;
@@ -182,7 +182,7 @@ const WoundManagementNew: React.FC = () => {
           const s = deferredFilters.searchTerm;
           if (
             !fuzzyMatch(pd.patient_name, s) &&
-            !matchBedNumber(pd.bed_number, s) &&
+            !matchPatientBedNumber(patient, s) &&
             !fuzzyMatch(wound.wound_code, s) &&
             !fuzzyMatch(wound.wound_name, s)
           ) continue;

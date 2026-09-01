@@ -18,7 +18,7 @@ import {
 import { usePatientData } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import InfectionControlModal from '../components/InfectionControlModal';
-import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, matchPatientBedNumber} from '../utils/searchUtils';
 import { getInfectionTypeColors } from '../utils/infectionTypeColors';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
@@ -78,7 +78,7 @@ const InfectionControl: React.FC = () => {
       if (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '全部' && patient?.在住狀態 !== advancedFilters.在住狀態) {
         return false;
       }
-      if (advancedFilters.床號 && !matchBedNumber(patient?.床號, advancedFilters.床號)) {
+      if (advancedFilters.床號 && !matchPatientBedNumber(patient, advancedFilters.床號)) {
         return false;
       }
       if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
@@ -98,7 +98,7 @@ const InfectionControl: React.FC = () => {
         matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, search) ||
                        matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, search) ||
                        fuzzyMatch(patient?.身份證號碼, search) ||
-                       matchBedNumber(patient?.床號, search) ||
+                       matchPatientBedNumber(patient, search) ||
                        fuzzyMatch(record.infection_type, search);
       }
       return matchesSearch;

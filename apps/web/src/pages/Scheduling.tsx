@@ -13,7 +13,7 @@ import { getReasonBadgeClass, getReasonIcon } from '../utils/reasonColors';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { checkAnnualHealthCheckupDue, checkRestraintAssessmentDue, DueItem } from '../utils/scheduleDueChecker';
 import { supabase } from '../lib/supabase';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, matchPatientBedNumber} from '../utils/searchUtils';
 import { useStationFilter } from '../context/StationFilterContext';
 import type { ScheduleWithDetails } from '../context/PatientContext';
 import { formatDisplayDate } from '../utils/dateFormat';
@@ -244,7 +244,7 @@ const Scheduling: React.FC = () => {
         return (
           matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
           matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
-          matchBedNumber(patient?.床號, searchTerm) ||
+          matchPatientBedNumber(patient, searchTerm) ||
           fuzzyMatch(patient?.身份證號碼, searchTerm) ||
           fuzzyMatch(item.症狀說明, searchTerm) ||
           fuzzyMatch(item.備註, searchTerm) ||

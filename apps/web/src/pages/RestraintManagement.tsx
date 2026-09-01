@@ -24,7 +24,7 @@ import {
 import { usePatientData, useFilteredPatients, type PatientRestraintAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import RestraintAssessmentModal from '../components/RestraintAssessmentModal';
-import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers } from '../utils/searchUtils';
+import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { exportRestraintConsentsToExcel } from '../utils/restraintConsentExcelGenerator';
@@ -124,7 +124,7 @@ const RestraintManagement: React.FC = () => {
     } else {
       if (assessment.is_terminated) return false;
     }
-    if (advancedFilters.床號 && !matchBedNumber(patient?.床號, advancedFilters.床號)) {
+    if (advancedFilters.床號 && !matchPatientBedNumber(patient, advancedFilters.床號)) {
       return false;
     }
     if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
@@ -160,7 +160,7 @@ const RestraintManagement: React.FC = () => {
       matchesSearch = matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, searchTerm) ||
                          matchEnglishName(patient?.英文姓氏, patient?.英文名字, patient?.英文姓名, searchTerm) ||
                          fuzzyMatch(patient?.身份證號碼, searchTerm) ||
-                         matchBedNumber(patient?.床號, searchTerm) ||
+                         matchPatientBedNumber(patient, searchTerm) ||
                          fuzzyMatch(assessment.other_restraint_notes, searchTerm);
     }
     
