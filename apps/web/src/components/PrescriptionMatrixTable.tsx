@@ -1,7 +1,7 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Trash2, Plus, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { formatDisplayDate } from '../utils/dateFormat';
-import { getMedicationSettings, INSTITUTION_GROUPS, type MedicationSettingsData } from '../utils/medicationSettings';
+import { getMedicationSettings, getMedicationSettingsFromDB, INSTITUTION_GROUPS, type MedicationSettingsData } from '../utils/medicationSettings';
 import DrugAutocomplete from './DrugAutocomplete';
 import DateInput from './DateInput';
 
@@ -259,7 +259,10 @@ interface PrescriptionMatrixTableProps {
 }
 
 const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ prescriptions, onUpdate, onTransfer, onDelete, deletingIds, selectedIds, onSelect, onSelectAll }) => {
-  const settings = getMedicationSettings();
+  const [settings, setSettings] = useState<MedicationSettingsData>(() => getMedicationSettings());
+  useEffect(() => {
+    getMedicationSettingsFromDB().then(setSettings).catch(() => {});
+  }, []);
   const sourceAbbrs = settings.機構簡稱 || {};
   const specialtyAbbrs = settings.專科簡稱 || {};
   const ctx: MatrixCtx = { settings };

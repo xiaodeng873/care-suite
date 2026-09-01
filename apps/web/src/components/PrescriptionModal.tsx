@@ -5,7 +5,7 @@ import PatientAutocomplete from './PatientAutocomplete';
 import DrugAutocomplete from './DrugAutocomplete';
 import OCRPrescriptionBlock from './OCRPrescriptionBlock';
 import { mapOCRDataToPrescriptionForm, getConfidenceColor, getConfidenceIcon } from '../utils/ocrFieldMapper';
-import { getMedicationSettings, INSTITUTION_GROUPS } from '../utils/medicationSettings';
+import { getMedicationSettings, getMedicationSettingsFromDB, INSTITUTION_GROUPS, type MedicationSettingsData } from '../utils/medicationSettings';
 import { computeEstimatedEndDate } from '../utils/estimatedEndDate';
 import { computeNextDoseFromLastTaken } from '../utils/prescriptionSchedule';
 import { supabase } from '../lib/supabase';
@@ -23,8 +23,11 @@ const LAST_RX_KEY = (patientId: string | number) => `care_suite_last_rx_${patien
 
 const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onClose }) => {
   const { addPrescription, updatePrescription, patients } = usePatientData();
-  // 每次開啟 modal 時讀取一次（已儲存的設定）
-  const medSettings = useMemo(() => getMedicationSettings(), []);
+  // 每次開啟 modal 時先讀 localStorage，再從 DB 拉最新藥物設定，確保跨裝置同步
+  const [medSettings, setMedSettings] = useState<MedicationSettingsData>(() => getMedicationSettings());
+  useEffect(() => {
+    getMedicationSettingsFromDB().then(setMedSettings).catch(() => {});
+  }, []);
   // 專科 autocomplete 選項（中文名 + 英文簡稱）
   const specialtyOptions = useMemo(
     () => medSettings.專科.map((name) => ({ name, abbr: medSettings.專科簡稱?.[name] })),
