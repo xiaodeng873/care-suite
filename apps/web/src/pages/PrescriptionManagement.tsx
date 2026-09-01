@@ -1087,10 +1087,10 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-1">
-              <h5 className="font-medium text-gray-900 text-lg flex items-center gap-2">
-                <span className="break-words sm:truncate">{prescription.medication_name}</span>
+              <h5 className="font-medium text-gray-900 text-lg block sm:flex sm:items-center gap-0 sm:gap-2">
+                <span className="break-words [word-break:normal] sm:min-w-0 sm:truncate">{prescription.medication_name}</span>
                 {prescription.status === 'active' && prescription.end_date && !isPrescriptionExpired(prescription) && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300 shrink-0">短期藥物</span>
+                  <span className="inline-flex items-center ml-2 sm:ml-0 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300 align-middle shrink-0">短期藥物</span>
                 )}
               </h5>
             </div>
