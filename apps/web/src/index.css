@@ -695,10 +695,14 @@
 
 /* 手機直向模式響應式樣式 */
 @media (max-width: 640px) {
-  /* 模態框容器優化 */
+  /* 模態框容器優化：手機直向時高模態框內部可滾動，避免按鈕被擠出畫面 */
+  .fixed.inset-0 {
+    overflow-y: auto;
+  }
   .fixed.inset-0 > div {
     margin: 0.5rem;
-    max-height: 95vh;
+    max-height: 90vh;
+    overflow-y: auto;
   }
 
   /* 按鈕響應式優化 */

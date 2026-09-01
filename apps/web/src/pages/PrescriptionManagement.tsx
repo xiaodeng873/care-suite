@@ -44,6 +44,14 @@ const isOralRoute = (route: string | undefined): boolean => {
   return r === '口服' || r.includes('舌下') || r.includes('漱口') || r === 'sl' || r.includes('sublingual');
 };
 
+// 列表模式卡片顏色跟隨途徑分類 Tab：口服藍、外用綠、注射紅
+const getRouteColorClass = (route: string | undefined): string => {
+  if (!route) return 'bg-gray-50 text-gray-800 border-gray-200 hover:bg-gray-100';
+  if (isOralRoute(route)) return 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200';
+  if (route.includes('注射')) return 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200';
+  return 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200';
+};
+
 const getFrequencyDescription = (prescription: any) => {
   const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
 
@@ -1061,7 +1069,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
 
     return (
       <div 
-        className={`border rounded-lg p-4 ${getStatusColor(status)} hover:shadow-sm transition-all duration-200 cursor-pointer ${
+        className={`border rounded-lg p-4 ${getRouteColorClass(prescription.administration_route)} hover:shadow-sm transition-all duration-200 cursor-pointer ${
           isSelected ? 'ring-2 ring-blue-500 border-blue-300' : ''
         }`}
         onClick={handleCardClick}

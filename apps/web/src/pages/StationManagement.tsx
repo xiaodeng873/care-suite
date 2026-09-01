@@ -36,16 +36,33 @@ const StationManagement: React.FC = () => {
     return <LoadingScreen pageName="站別管理" />;
   }
 
-  // 獲取每個站的統計資訊
+  // 按原床號歸屬居住區
+  const getPatientHomeStationId = (patient: any) =>
+    patient.original_station_id || patient.station_id;
+
+  // 獲取每個站的統計資訊：只計「原屬本站且現正佔用本站床位」的院友（含站內暫調）
   const getStationStats = (stationId: string) => {
     const stationBeds = beds.filter(bed => bed.station_id === stationId);
-    const occupiedBeds = stationBeds.filter(bed => bed.is_occupied);
-    const stationPatients = patients.filter(p => p.station_id === stationId && p.在住狀態 === '在住');
-    
+    const stationBedIds = new Set(stationBeds.map(b => b.id));
+    const stationPatients = patients.filter(p =>
+      p.在住狀態 === '在住' &&
+      p.bed_id &&
+      stationBedIds.has(p.bed_id) &&
+      getPatientHomeStationId(p) === stationId
+    );
+    const occupiedBeds = stationBeds.filter(bed => {
+      const currentPatient = patients.find(p =>
+        p.bed_id === bed.id &&
+        p.在住狀態 === '在住' &&
+        getPatientHomeStationId(p) === stationId
+      );
+      return !!currentPatient;
+    });
+
     return {
       totalBeds: stationBeds.length,
       occupiedBeds: occupiedBeds.length,
-      availableBeds: stationBeds.length - occupiedBeds.length,
+      availableBeds: Math.max(0, stationBeds.length - occupiedBeds.length),
       totalPatients: stationPatients.length,
       occupancyRate: stationBeds.length > 0 ? (occupiedBeds.length / stationBeds.length * 100).toFixed(1) : '0'
     };

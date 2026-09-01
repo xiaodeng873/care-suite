@@ -1137,7 +1137,11 @@ export const PatientFilterProvider: React.FC<{ children: ReactNode }> = ({ child
     if (!selectedStationIds.length || !stations.length) return allPatients;
     if (selectedStationIds.length >= stations.length) return allPatients;
     const selectedSet = new Set(selectedStationIds);
-    return allPatients.filter(p => p.station_id && selectedSet.has(p.station_id));
+    return allPatients.filter(p => {
+      // 已退住院友以其最後居住區歸屬，避免被過濾器濾走
+      const stationId = p.station_id || p.last_station_id;
+      return stationId && selectedSet.has(stationId);
+    });
   }, [allPatients, stations, selectedStationIds]);
 
   const filterValue = useMemo(() => ({ patients }), [patients]);

@@ -20,31 +20,41 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'stations' | 'beds'>('stations');
 
+  // 按原床號歸屬居住區
+  const getPatientHomeStationId = (patient: any) =>
+    patient.original_station_id || patient.station_id;
+
   // 獲取床位上的院友
   const getPatientInBed = (bedId: string) => {
     return patients.find(patient => patient.bed_id === bedId && patient.在住狀態 === '在住');
   };
 
-  // 獲取居住區統計資訊
+  // 獲取居住區統計資訊（跟原床號）
   const getStationStats = (stationId: string) => {
     const stationBeds = beds.filter(bed => bed.station_id === stationId);
-    
+    const stationBedIds = new Set(stationBeds.map(b => b.id));
+    const stationPatients = patients.filter(p =>
+      p.在住狀態 === '在住' &&
+      p.bed_id &&
+      stationBedIds.has(p.bed_id) &&
+      getPatientHomeStationId(p) === stationId
+    );
+
     let occupiedCount = 0;
     let availableCount = 0;
-    
     stationBeds.forEach(bed => {
-      // 檢查此床位是否有在住院友
-      const hasResidentPatient = patients.some(patient => 
-        patient.bed_id === bed.id && patient.在住狀態 === '在住'
+      const currentPatient = patients.find(p =>
+        p.bed_id === bed.id &&
+        p.在住狀態 === '在住' &&
+        getPatientHomeStationId(p) === stationId
       );
-      
-      if (hasResidentPatient) {
+      if (currentPatient) {
         occupiedCount++;
       } else {
         availableCount++;
       }
     });
-    
+
     return {
       totalBeds: stationBeds.length,
       occupiedBeds: occupiedCount,

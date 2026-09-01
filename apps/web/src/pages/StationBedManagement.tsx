@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Building2,
   Bed,
@@ -35,7 +35,7 @@ import BedNumberImprint from '../components/BedNumberImprint';
 import BedTransferLogModal from '../components/BedTransferLogModal';
 import ChangeOriginalBedModal from '../components/ChangeOriginalBedModal';
 import StationManagementModal from '../components/StationManagementModal';
-import { isTemporaryTransfer, getRootBedNumber, getPatientHomeStationId } from '../utils/bedTransferUtils';
+import { isTemporaryTransfer, getRootBedNumber } from '../utils/bedTransferUtils';
 import { printBedList } from '../utils/bedListHtmlGenerator';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from '../utils/facilitySettings';
 import { supabase } from '../lib/supabase';
@@ -127,14 +127,26 @@ const StationBedManagement: React.FC = () => {
   if (loading) {
     return <LoadingScreen pageName="床位管理" />;
   }
-  // 獲取每個站的統計資訊
+  // 按原床號歸屬居住區；原床位所屬居住區優先於 original_station_id
+  const getPatientHomeStationIdLocal = (patient: any) => {
+    if (patient.original_bed_id) {
+      const originalBed = beds.find(b => b.id === patient.original_bed_id);
+      if (originalBed) return originalBed.station_id;
+    }
+    return patient.original_station_id || patient.station_id;
+  };
+
+  // 獲取每個站的統計資訊：只計「原屬本站且現正佔用本站床位」的院友
   const getStationStats = (stationId: string) => {
     const stationBeds = beds.filter(bed => bed.station_id === stationId);
-    // 只計算「原居住區」屬於本站的住院者
-    const homePatients = patients.filter(patient =>
-      patient.在住狀態 === '在住' && getPatientHomeStationId(patient) === stationId
-    );
-    const occupiedCount = homePatients.length;
+    const stationBedIds = new Set(stationBeds.map(b => b.id));
+    // 已入住 = 原屬本站且現正佔用本站床位（含站內暫調）
+    const occupiedCount = patients.filter(p =>
+      p.在住狀態 === '在住' &&
+      p.bed_id &&
+      stationBedIds.has(p.bed_id) &&
+      getPatientHomeStationIdLocal(p) === stationId
+    ).length;
     const availableCount = Math.max(0, stationBeds.length - occupiedCount);
     return {
       totalBeds: stationBeds.length,
@@ -143,11 +155,43 @@ const StationBedManagement: React.FC = () => {
       occupancyRate: stationBeds.length > 0 ? (occupiedCount / stationBeds.length * 100).toFixed(1) : '0'
     };
   };
-  // 獲取床位上的院友
+
+  // 診斷：列出各站被計入的院友，方便驗證原床號歸屬（只印一次）
+  const diagnosticLogged = useRef(false);
+  useEffect(() => {
+    if (diagnosticLogged.current || !patients.length || !beds.length || !stations.length) return;
+    diagnosticLogged.current = true;
+    stations.forEach(station => {
+      const stationBedIds = new Set(beds.filter(b => b.station_id === station.id).map(b => b.id));
+      // 床位表計入的院友：原屬本站且現正佔用本站床位（含站內暫調）
+      const countedPatients = patients.filter(p =>
+        p.在住狀態 === '在住' &&
+        p.bed_id &&
+        stationBedIds.has(p.bed_id) &&
+        getPatientHomeStationIdLocal(p) === station.id
+      );
+      // 暫調入站：原屬他站但現佔用本站床位的院友
+      const tempInPatients = patients.filter(p =>
+        p.在住狀態 === '在住' &&
+        p.bed_id &&
+        stationBedIds.has(p.bed_id) &&
+        getPatientHomeStationIdLocal(p) !== station.id
+      );
+      console.log(`[床位表診斷] ${station.name}: 已入住=${countedPatients.length}, 暫調入站=${tempInPatients.length}`, {
+        已入住: countedPatients.map(p => ({ id: p.院友id, name: p.中文姓名, bed: p.床號, transferType: p.bed_transfer_type })),
+        暫調入站: tempInPatients.map(p => ({ id: p.院友id, name: p.中文姓名, bed: p.床號, originalStationId: p.original_station_id, originalBedId: p.original_bed_id })),
+      });
+    });
+  }, [patients, beds, stations]);
+  // 獲取床位上的院友（床位表顯示原屬本站且現正佔用本站床位的院友，含站內暫調）
   const getPatientInBed = (bedId: string) => {
-    return patients.find(patient => 
-      patient.bed_id === bedId && patient.在住狀態 === '在住'
-    );
+    const patient = patients.find(p => p.bed_id === bedId && p.在住狀態 === '在住');
+    if (!patient) return undefined;
+    const bed = beds.find(b => b.id === bedId);
+    if (!bed) return undefined;
+    // 若院友的原居住區不是本站，即暫調來本站，不顯示
+    if (getPatientHomeStationIdLocal(patient) !== bed.station_id) return undefined;
+    return patient;
   };
   // 篩選床位
   const filteredBeds = beds.filter(bed => {
@@ -301,12 +345,18 @@ const StationBedManagement: React.FC = () => {
       .sort((a, b) => a.bed_number.localeCompare(b.bed_number, 'zh-Hant', { numeric: true }));
 
     const stationPatients = (patients || []).filter(p =>
-      p.在住狀態 === '在住' && getPatientHomeStationId(p) === stationId
+      p.在住狀態 === '在住' &&
+      p.bed_id &&
+      stationBeds.some(b => b.id === p.bed_id) &&
+      getPatientHomeStationIdLocal(p) === stationId
     );
     const stationPatientIds = stationPatients.map(p => p.院友id);
 
     const bedList = stationBeds.map(bed => {
-      const patient = patients.find(p => p.bed_id === bed.id && p.在住狀態 === '在住');
+      // 列印床位表只顯示原屬本站且現正佔用本站床位的院友（含站內暫調）
+      const patient = patients.find(p =>
+        p.bed_id === bed.id && p.在住狀態 === '在住' && getPatientHomeStationIdLocal(p) === stationId
+      );
       const patientInfections = patient
         ? infectionControlRecords
             .filter(r => r.patient_id === patient.院友id && !r.recovery_date)
@@ -318,7 +368,10 @@ const StationBedManagement: React.FC = () => {
       const originalBedNumber = isTemporary ? (patient.original_bed_number || '') : undefined;
       // 已佔床：有院友暫時調出（original_bed_id 指向此床），此床雖空置仍屬佔用
       const reserved = !patient && (patients || []).some(p =>
-        p.在住狀態 === '在住' && p.bed_transfer_type === 'temporary' && p.original_bed_id === bed.id
+        p.在住狀態 === '在住' &&
+        getPatientHomeStationIdLocal(p) === stationId &&
+        p.bed_transfer_type === 'temporary' &&
+        p.original_bed_id === bed.id
       );
       return {
         bed_number: bedNumber,
@@ -414,7 +467,12 @@ const StationBedManagement: React.FC = () => {
     };
 
     // ── 過去 24 小時 ──
-    const allStationPats = (patients || []).filter(p => getPatientHomeStationId(p) === stationId);
+    const allStationPats = (patients || []).filter(p =>
+      p.在住狀態 === '在住' &&
+      p.bed_id &&
+      stationBeds.some(b => b.id === p.bed_id) &&
+      getPatientHomeStationIdLocal(p) === stationId
+    );
     const newAdmissions = allStationPats.filter(p => {
       if (!p.入住日期) return false;
       return parseDateOnly(p.入住日期).getTime() === todayStart.getTime();
@@ -429,7 +487,7 @@ const StationBedManagement: React.FC = () => {
     }).length;
     const monthlyDeaths = (patients || []).filter(p => {
       if (!p.death_date || p.discharge_reason !== '死亡') return false;
-      if (getPatientHomeStationId(p) !== stationId) return false;
+      if (getPatientHomeStationIdLocal(p) !== stationId) return false;
       return parseDateOnly(p.death_date) >= monthStart;
     }).length;
 
@@ -546,7 +604,13 @@ const StationBedManagement: React.FC = () => {
         ) : (
           stations.map(station => {
             const stats = getStationStats(station.id);
-            const stationPatients = patients.filter(p => p.在住狀態 === '在住' && getPatientHomeStationId(p) === station.id);
+            const stationBedIds = new Set(beds.filter(b => b.station_id === station.id).map(b => b.id));
+            const stationPatients = patients.filter(p =>
+              p.在住狀態 === '在住' &&
+              p.bed_id &&
+              stationBedIds.has(p.bed_id) &&
+              getPatientHomeStationIdLocal(p) === station.id
+            );
             // 性別統計
             const maleCount = stationPatients.filter(p => p.性別 === '男').length;
             const femaleCount = stationPatients.filter(p => p.性別 === '女').length;

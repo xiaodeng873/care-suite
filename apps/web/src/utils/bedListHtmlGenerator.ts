@@ -98,8 +98,9 @@ export function generateBedListHtml(input: BedListInput): string {
   const totalBeds = beds.length;
   const occ       = beds.filter(b => b.patient);
   const reservedN = beds.filter(b => !b.patient && b.reserved).length;
-  const occupiedN = occ.length + reservedN;  // 暫調院友的原床（已佔床）計入已入住
-  const emptyN    = totalBeds - occupiedN;
+  // 已入住只計現正佔用床位的院友，暫調院友的原床（reserved）不計入
+  const occupiedN = occ.length;
+  const emptyN    = totalBeds - occupiedN - reservedN;
   const privateN  = occ.filter(b => b.patient?.admissionType === '私位').length;
   const buyN      = occ.filter(b => b.patient?.admissionType === '買位').length;
   const vouN      = occ.filter(b => b.patient?.admissionType === '院舍卷級別0' || b.patient?.admissionType === '院舍卷級別1-7').length;

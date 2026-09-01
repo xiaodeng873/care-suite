@@ -143,13 +143,14 @@ export function getMedicationSettings(): MedicationSettingsData {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_MEDICATION_SETTINGS };
     const parsed = JSON.parse(raw) as Partial<MedicationSettingsData>;
-    // Merge with defaults：陣列欄位取聯集（去重），物件欄位合併，其餘 parsed 優先
+    // Merge with defaults：藥物設定為清單唯一依歸，陣列欄位直接用 stored 值；
+    // 僅在 stored 為空陣列時 fallback 至預設值，物件欄位合併，其餘 parsed 優先
     const merged: any = { ...DEFAULT_MEDICATION_SETTINGS };
     for (const key of Object.keys(DEFAULT_MEDICATION_SETTINGS)) {
       const defaultValue = (DEFAULT_MEDICATION_SETTINGS as any)[key];
       const parsedValue = (parsed as any)[key];
       if (Array.isArray(defaultValue) && Array.isArray(parsedValue)) {
-        merged[key] = [...new Set([...defaultValue, ...parsedValue])];
+        merged[key] = parsedValue.length > 0 ? parsedValue : [...defaultValue];
       } else if (
         typeof defaultValue === 'object' && defaultValue !== null && !Array.isArray(defaultValue) &&
         typeof parsedValue === 'object' && parsedValue !== null && !Array.isArray(parsedValue)
