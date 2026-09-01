@@ -21,6 +21,7 @@ import { LoadingScreen } from './components/PageLoadingScreen';
 import { NavigationProvider } from './context/NavigationContext';
 import { AiAssistantButton } from './components/AiAssistant';
 import { ThemeProvider } from './context/ThemeContext';
+import { getMedicationSettingsFromDB } from './utils/medicationSettings';
 import './App.css';
 
 // 路由名稱對照表
@@ -272,6 +273,11 @@ function AuthenticatedContent({
       setShowInitialLoadingScreen(false);
     }
   }, [showInitialLoadingScreen, allDataLoaded, hasEssentialData, isDashboardReady, fallbackTimeout, minTimeElapsed, setShowInitialLoadingScreen]);
+
+  // 啟動時從 DB 同步藥物設定到 localStorage，確保各裝置清單一致
+  useEffect(() => {
+    getMedicationSettingsFromDB().catch(() => {});
+  }, []);
 
   // 護理員走獨立 NurseApp，跳過 Loading Screen 和 Layout
   if (userProfile?.nursing_position === '護理員') {
