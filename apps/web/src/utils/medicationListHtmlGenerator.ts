@@ -365,11 +365,11 @@ function assembleDocument(pages: string[], usedTemplates: string[]): string {
     .long-term-box, .short-term-box { position: absolute; left: 0; top: 0; margin-left: 0; border: 2px solid black; padding: 5px 15px; font-size: 22px; font-weight: bold; }
     .page-num { font-size: 24px !important; }
     .doc-code { font-size: 11px !important; align-self: flex-end; }
-    /* 覆蓋：藥物敏感「如有」輸入框加長，支援兩行小字 */
+    /* 覆蓋：藥物敏感「如有」輸入框加長，字體與表頭其他內容一致 */
     .allergy-textarea {
       width: 160px !important;
       min-height: 28px;
-      font-size: 7.5px !important;
+      font-size: 15px !important;
       line-height: 1.2;
       vertical-align: bottom;
       resize: none;
@@ -502,7 +502,7 @@ function scopeCssForAttachment(css: string): string {
 .medication-attachment .allergy-textarea {
   width: 160px !important;
   min-height: 28px;
-  font-size: 7.5px !important;
+  font-size: 15px !important;
   line-height: 1.2;
   vertical-align: bottom;
   resize: none;
