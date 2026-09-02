@@ -139,18 +139,16 @@ function getFrequencyDescription(p: MedicationPrescription): string {
 function formatDrugCell(p: MedicationPrescription): string {
   const parts: string[] = [];
   if (p.medication_name) parts.push(escapeHtml(p.medication_name));
+  if (p.administration_route) parts.push(escapeHtml(p.administration_route));
   if (p.dosage_form) parts.push(escapeHtml(p.dosage_form));
-  if (p.dosage_amount != null && p.dosage_amount !== '') {
-    parts.push(`${escapeHtml(String(p.dosage_amount))}${escapeHtml(p.dosage_unit ?? '')}`);
-  }
-  if (p.special_dosage_instruction) {
-    parts.push(escapeHtml(p.special_dosage_instruction));
-  }
+  if (p.meal_timing) parts.push(escapeHtml(p.meal_timing));
+  if (p.special_dosage_instruction) parts.push(escapeHtml(p.special_dosage_instruction));
+  if (p.is_prn) parts.push('需要時');
   const freq = getFrequencyDescription(p);
   if (freq) parts.push(escapeHtml(freq));
-  if (p.meal_timing) parts.push(escapeHtml(p.meal_timing));
-  if (p.administration_route) parts.push(escapeHtml(p.administration_route));
-  if (p.is_prn) parts.push('需要時');
+  if (p.dosage_amount != null && p.dosage_amount !== '') {
+    parts.push(`每次${escapeHtml(String(p.dosage_amount))}${escapeHtml(p.dosage_unit ?? '')}`);
+  }
   const inspection = formatInspectionRules(p);
   if (inspection) parts.push(escapeHtml(inspection));
   return parts.join(',');
