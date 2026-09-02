@@ -521,16 +521,27 @@ function scopeCssForAttachment(css: string): string {
     .replace(/body\b/g, '.medication-attachment')
     + `
 /* Attachment overrides to match standalone medication-list rendering */
+.medication-attachment .header-section { position: relative; }
+.medication-attachment .long-term-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin-left: 0;
+  border: 2px solid black;
+  padding: 5px 15px;
+  font-size: 22px;
+  font-weight: bold;
+}
 .medication-attachment .title-box { margin-right: 0 !important; }
 .medication-attachment .col-drug { width: 45% !important; }
 .medication-attachment .col-notice { width: 11% !important; }
 .medication-attachment .allergy-textarea {
-  width: calc(100% - 10px) !important;
+  width: 250px !important;
+  margin-right: 20px !important;
   font-size: 15px !important;
   line-height: 1.2;
   padding: 0 5px;
   vertical-align: baseline;
-  margin-right: 10px;
   box-sizing: border-box;
 }
 .medication-attachment .id-number-cell {
@@ -545,15 +556,7 @@ function scopeCssForAttachment(css: string): string {
   padding: 0 2px;
   border-bottom: 1px solid black !important;
 }
-.medication-attachment .allergy-textarea {
-  width: 250px !important;
-  margin-right: 20px !important;
-  font-size: 15px !important;
-  line-height: 1.2;
-  padding: 0 5px;
-  vertical-align: baseline;
-  box-sizing: border-box;
-}`;
+`;
 }
 
 export async function generateMedicationListAttachment(
