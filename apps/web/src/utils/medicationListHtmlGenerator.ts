@@ -319,11 +319,17 @@ function renderPage(
   );
   html = html.replace(
     /<input type="checkbox" class="db-checkbox">如有：\s*<input type="text" class="db-line-input" style="width: 80px;">/,
-    `<input type="checkbox" class="db-checkbox" ${isNKDA ? '' : 'checked'}>如有：<input type="text" class="db-line-input allergy-textarea" style="width: 160px;" value="${escapeHtml(allergyText)}">`
+    `<input type="checkbox" class="db-checkbox" ${isNKDA ? '' : 'checked'}>如有：<input type="text" class="db-line-input allergy-textarea" value="${escapeHtml(allergyText)}">`
   );
+  // 身份證號碼欄寬度調整：須足夠容納「身份證號碼：」標籤 + 號碼，避免內容溢位蓋到藥物敏感底線
   html = html.replace(
-    /<td style="text-align: right; padding-right: 15px;">\s*身份證號碼：<input type="text" class="db-line-input" style="width: 200px;">\s*<\/td>/,
-    `<td style="text-align: right; padding-right: 15px;">身份證號碼：<input type="text" class="db-line-input" style="width: 200px;" value="${escapeHtml(hkid)}"></td>`
+    /<col style="width: 250px;"> <!-- 藥物敏感 -->\s*<col style="width: auto;">  <!-- 身份證號 -->/,
+    `<col style="width: auto;"> <!-- 藥物敏感 --><col style="width: 240px;"> <!-- 身份證號 -->`
+  );
+  // 身份證號碼「標籤」無底線；「號碼」本身用 span 加底線，寬度按內容，不觸碰標籤
+  html = html.replace(
+    /<td\s+style="text-align:\s*right;\s*padding-right:\s*15px;?">\s*身份證號碼：\s*<input\s+type="text"\s+class="db-line-input"\s+style="width:\s*200px;?">\s*<\/td>/i,
+    `<td style="text-align: right; padding-right: 15px;" class="id-number-cell">身份證號碼：<span class="id-number-text">${escapeHtml(hkid)}</span></td>`
   );
 
   // Replace main table rows
@@ -371,13 +377,28 @@ function assembleDocument(pages: string[], usedTemplates: string[]): string {
     .long-term-box, .short-term-box { position: absolute; left: 0; top: 0; margin-left: 0; border: 2px solid black; padding: 5px 15px; font-size: 22px; font-weight: bold; }
     .page-num { font-size: 24px !important; }
     .doc-code { font-size: 11px !important; align-self: flex-end; }
-    /* 覆蓋：藥物敏感「如有」輸入框加長，字體與表頭其他內容一致 */
+    /* 身份證號碼欄：標籤無底線，號碼本身保留底線，與標籤留小間距 */
+    .id-number-cell {
+      border: none !important;
+      background-color: #fff;
+    }
+    .id-number-text {
+      display: inline-block;
+      font-size: 15px;
+      text-align: left;
+      margin-left: 3px;
+      padding: 0 2px;
+      border-bottom: 1px solid black !important;
+    }
+    /* 藥物敏感「如有」底線長度固定，不會因欄寬自動延伸而蓋過身份證號碼欄 */
     .allergy-textarea {
-      width: 160px !important;
+      width: 340px !important;
+      margin-right: 20px !important;
       font-size: 15px !important;
       line-height: 1.2;
       padding: 0 5px;
       vertical-align: baseline;
+      box-sizing: border-box;
     }
     .print-page { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; }
     .print-page .container { display: flex; flex-direction: column; }
@@ -504,11 +525,34 @@ function scopeCssForAttachment(css: string): string {
 .medication-attachment .col-drug { width: 45% !important; }
 .medication-attachment .col-notice { width: 11% !important; }
 .medication-attachment .allergy-textarea {
-  width: 160px !important;
+  width: calc(100% - 10px) !important;
   font-size: 15px !important;
   line-height: 1.2;
   padding: 0 5px;
   vertical-align: baseline;
+  margin-right: 10px;
+  box-sizing: border-box;
+}
+.medication-attachment .id-number-cell {
+  border: none !important;
+  background-color: #fff;
+}
+.medication-attachment .id-number-text {
+  display: inline-block;
+  font-size: 15px;
+  text-align: left;
+  margin-left: 3px;
+  padding: 0 2px;
+  border-bottom: 1px solid black !important;
+}
+.medication-attachment .allergy-textarea {
+  width: 250px !important;
+  margin-right: 20px !important;
+  font-size: 15px !important;
+  line-height: 1.2;
+  padding: 0 5px;
+  vertical-align: baseline;
+  box-sizing: border-box;
 }`;
 }
 
