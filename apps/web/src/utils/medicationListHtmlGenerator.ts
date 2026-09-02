@@ -168,10 +168,21 @@ function formatInspectionRules(p: MedicationPrescription): string {
     block_dispensing: '停服',
     warning_only: '警告',
   };
+  const unitMap: Record<string, string> = {
+    上壓: 'mmHg',
+    下壓: 'mmHg',
+    脈搏: '/min',
+    血糖值: 'mmol/L',
+    呼吸: '/min',
+    血含氧量: '%',
+    體溫: '°C',
+  };
   return p.inspection_rules.map(r => {
     const op = opMap[r.condition_operator ?? ''] ?? '';
     const action = actionMap[r.action_if_met ?? ''] ?? r.action_if_met ?? '';
-    return `${r.vital_sign_type ?? ''}${op}${r.condition_value ?? ''}${action}`;
+    const unit = unitMap[r.vital_sign_type ?? ''] ?? '';
+    const value = r.condition_value ?? '';
+    return `${r.vital_sign_type ?? ''}${op}${value}${unit}時${action}`;
   }).join(',');
 }
 
