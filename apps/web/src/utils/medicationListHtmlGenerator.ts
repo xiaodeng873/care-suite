@@ -299,10 +299,10 @@ function renderPage(
     /<td>性別\/年齡：<\/td>\s*<td><input type="text" class="db-line-input"><\/td>/,
     `<td>性別/年齡：</td><td><input type="text" class="db-line-input" value="${escapeHtml(formatGenderAge(patient))}"></td>`
   );
-  // 右上角「頁數」欄顯示固定靜態頁碼 2
+  // 右上角「頁數」欄顯示該院友的總頁數
   html = html.replace(
     /<td>頁數：<\/td>\s*<td><input type="text" class="db-line-input"><\/td>/,
-    `<td>頁數：</td><td><input type="text" class="db-line-input" value="2"></td>`
+    `<td>頁數：</td><td><input type="text" class="db-line-input" value="${totalPages}"></td>`
   );
 
   // Replace allergy info
