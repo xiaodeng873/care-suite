@@ -151,6 +151,8 @@ function formatDrugCell(p: MedicationPrescription): string {
   if (p.meal_timing) parts.push(escapeHtml(p.meal_timing));
   if (p.administration_route) parts.push(escapeHtml(p.administration_route));
   if (p.is_prn) parts.push('需要時');
+  const inspection = formatInspectionRules(p);
+  if (inspection) parts.push(escapeHtml(inspection));
   return parts.join(',');
 }
 
@@ -175,8 +177,6 @@ function formatInspectionRules(p: MedicationPrescription): string {
 
 function formatNoticeCell(p: MedicationPrescription): string {
   const parts: string[] = [];
-  const inspection = formatInspectionRules(p);
-  if (inspection) parts.push(inspection);
   if (p.cannot_crush) parts.push('不可碎藥');
   if (p.special_dosage_instruction) parts.push(escapeHtml(p.special_dosage_instruction));
   if (p.notes) parts.push(escapeHtml(p.notes));
