@@ -24,6 +24,7 @@ interface MedicationPrescription {
   is_prn?: boolean;
   cannot_crush?: boolean;
   medication_source?: string;
+  medication_source_specialty?: string;
   prescription_date?: string;
   start_date?: string;
   end_date?: string;
@@ -216,10 +217,15 @@ function isPrescriptionInDateRange(p: MedicationPrescription, startDate?: string
   return true;
 }
 
+function formatSourceCell(p: MedicationPrescription): string {
+  const parts = [p.medication_source, p.medication_source_specialty].filter(Boolean);
+  return parts.join('/');
+}
+
 function renderMedicationRow(p: MedicationPrescription): string {
   return `<tr class="data-row">
     <td><textarea class="db-text-cell">${formatDrugCell(p)}</textarea></td>
-    <td><textarea class="db-text-cell" style="text-align:center;">${escapeHtml(p.medication_source ?? '')}</textarea></td>
+    <td><textarea class="db-text-cell" style="text-align:center;">${escapeHtml(formatSourceCell(p))}</textarea></td>
     <td><input type="text" class="db-text-cell" style="text-align:center;" value="${escapeHtml(formatDate(p.start_date || p.prescription_date))}"></td>
     <td><input type="text" class="db-text-cell" style="text-align:center;" value="${escapeHtml(p.end_date ? formatDate(p.end_date) : '')}"></td>
     <td><textarea class="db-text-cell">${formatNoticeCell(p)}</textarea></td>
@@ -368,12 +374,10 @@ function assembleDocument(pages: string[], usedTemplates: string[]): string {
     /* 覆蓋：藥物敏感「如有」輸入框加長，字體與表頭其他內容一致 */
     .allergy-textarea {
       width: 160px !important;
-      min-height: 28px;
       font-size: 15px !important;
       line-height: 1.2;
-      vertical-align: bottom;
-      resize: none;
-      overflow: hidden;
+      padding: 0 5px;
+      vertical-align: baseline;
     }
     .print-page { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; }
     .print-page .container { display: flex; flex-direction: column; }
@@ -501,12 +505,10 @@ function scopeCssForAttachment(css: string): string {
 .medication-attachment .col-notice { width: 11% !important; }
 .medication-attachment .allergy-textarea {
   width: 160px !important;
-  min-height: 28px;
   font-size: 15px !important;
   line-height: 1.2;
-  vertical-align: bottom;
-  resize: none;
-  overflow: hidden;
+  padding: 0 5px;
+  vertical-align: baseline;
 }`;
 }
 
