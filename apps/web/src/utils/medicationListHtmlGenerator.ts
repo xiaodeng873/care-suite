@@ -313,7 +313,7 @@ function renderPage(
   );
   html = html.replace(
     /<input type="checkbox" class="db-checkbox">如有：\s*<input type="text" class="db-line-input" style="width: 80px;">/,
-    `<input type="checkbox" class="db-checkbox" ${isNKDA ? '' : 'checked'}>如有：<textarea class="db-line-input allergy-textarea" rows="2" style="width: 160px;">${escapeHtml(allergyText)}</textarea>`
+    `<input type="checkbox" class="db-checkbox" ${isNKDA ? '' : 'checked'}>如有：<input type="text" class="db-line-input allergy-textarea" style="width: 160px;" value="${escapeHtml(allergyText)}">`
   );
   html = html.replace(
     /<td style="text-align: right; padding-right: 15px;">\s*身份證號碼：<input type="text" class="db-line-input" style="width: 200px;">\s*<\/td>/,
