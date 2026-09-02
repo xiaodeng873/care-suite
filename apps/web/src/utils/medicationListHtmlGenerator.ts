@@ -187,12 +187,8 @@ function formatInspectionRules(p: MedicationPrescription): string {
 }
 
 function formatNoticeCell(p: MedicationPrescription): string {
-  const parts: string[] = [];
-  if (p.cannot_crush) parts.push('不可碎藥');
-  if (p.special_dosage_instruction) parts.push(escapeHtml(p.special_dosage_instruction));
-  if (p.notes) parts.push(escapeHtml(p.notes));
-  if (p.special_instructions) parts.push(escapeHtml(p.special_instructions));
-  return parts.join(',');
+  // 暫時留空，待需求確認後再映射內容
+  return '';
 }
 
 function classifyMedicationTerm(p: MedicationPrescription): MedicationTermType {
