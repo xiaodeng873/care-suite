@@ -99,6 +99,8 @@ export const generateMedicalExaminationFormHTML = async (
       : Array.from({ length: p.daily_frequency || 1 }, (_, i) => `${i + 1}`)
   }));
   const medicationAttachment = await generateMedicationListAttachment(patient, adaptedPrescriptions);
+  const seriousIllnessDisplay = checkup.serious_illness_details || '';
+
   const medicationPages = medicationAttachment.pages.map((page, index) => {
     const isLast = index === medicationAttachment.pages.length - 1;
     return `<div class="page" style="page-break-after: ${isLast ? 'auto' : 'always'};"><div class="medication-attachment">${page}</div></div>`;
@@ -199,7 +201,7 @@ export const generateMedicalExaminationFormHTML = async (
     </tr>
     <tr>
       <td style="border:none; padding:5px;"></td>
-      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${checkup.serious_illness_details || ''}</div></td>
+      <td colspan="2" style="border:none; padding:5px;"><div style="border-bottom:1px solid #000; min-height:16px;">${seriousIllnessDisplay || ''}</div></td>
     </tr>
     <tr>
       <td style="border:none; padding:5px;">(2)</td>

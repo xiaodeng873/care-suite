@@ -112,14 +112,12 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
 
     diagnosisItems.forEach((item, index) => {
       if (!item.diagnosis_date) {
-        newErrors[`diagnosis_date_${index}`] = '請選擇診斷日期';
+        newErrors[`diagnosis_date_${index}`] = '請選擇或填寫診斷日期';
       }
       if (!item.diagnosis_item.trim()) {
         newErrors[`diagnosis_item_${index}`] = '請輸入診斷項目';
       }
-      if (!item.diagnosis_unit.trim()) {
-        newErrors[`diagnosis_unit_${index}`] = '請輸入診斷單位';
-      }
+
     });
 
     setErrors(newErrors);
@@ -225,7 +223,7 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
                 {existingRecords.map((record, index) => (
                   <div key={index} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                     <span className="text-gray-600 whitespace-nowrap">
-                      {formatDisplayDate(record.diagnosis_date)}
+                      {record.diagnosis_date === '不詳' ? '不詳' : formatDisplayDate(record.diagnosis_date)}
                     </span>
                     <span className="text-gray-900 font-medium min-w-0 break-words">{record.diagnosis_item}</span>
                     <span className="text-gray-600 min-w-0 break-words">{record.diagnosis_unit}</span>
@@ -269,17 +267,38 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
                   <div>
                     <label className="form-label flex flex-wrap items-center gap-2">
                       <Calendar className="h-4 w-4 text-gray-400" />
-                      <span className="text-red-500">*</span>
                       <span>診斷日期</span>
                     </label>
-                    <DateInput
-                      value={item.diagnosis_date}
-                      onChange={(value) => {
-                        updateDiagnosisItem(item.id, 'diagnosis_date', value);
-                        setErrors(prev => ({ ...prev, [`diagnosis_date_${index}`]: '' }));
-                      }}
-                      className={`form-input ${errors[`diagnosis_date_${index}`] ? 'border-red-500' : ''}`}
-                    />
+                    {item.diagnosis_date === '不詳' ? (
+                      <input
+                        type="text"
+                        value="不詳"
+                        disabled
+                        className="form-input bg-gray-100 opacity-60"
+                      />
+                    ) : (
+                      <DateInput
+                        value={item.diagnosis_date}
+                        onChange={(value) => {
+                          updateDiagnosisItem(item.id, 'diagnosis_date', value);
+                          setErrors(prev => ({ ...prev, [`diagnosis_date_${index}`]: '' }));
+                        }}
+                        className={`form-input ${errors[`diagnosis_date_${index}`] ? 'border-red-500' : ''}`}
+                      />
+                    )}
+                    <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={item.diagnosis_date === '不詳'}
+                        onChange={(e) => {
+                          const isUnknown = e.target.checked;
+                          updateDiagnosisItem(item.id, 'diagnosis_date', isUnknown ? '不詳' : getHongKongDate());
+                          setErrors(prev => ({ ...prev, [`diagnosis_date_${index}`]: '' }));
+                        }}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      日期不詳
+                    </label>
                     {errors[`diagnosis_date_${index}`] && (
                       <p className="mt-1 text-sm text-red-600">{errors[`diagnosis_date_${index}`]}</p>
                     )}
@@ -309,7 +328,6 @@ const DiagnosisRecordModal: React.FC<DiagnosisRecordModalProps> = ({
                   <div>
                     <label className="form-label flex flex-wrap items-center gap-2">
                       <Building2 className="h-4 w-4 text-gray-400" />
-                      <span className="text-red-500">*</span>
                       <span>診斷單位 / 醫院</span>
                     </label>
                     <input

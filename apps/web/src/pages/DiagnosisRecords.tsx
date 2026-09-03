@@ -104,9 +104,13 @@ const DiagnosisRecords: React.FC = () => {
     }, {} as Record<number, DiagnosisRecord[]>);
     const patientGroups = Object.entries(groupedByPatient).map(([patientId, records]) => ({
       patientId: parseInt(patientId),
-      records: records.sort((a, b) =>
-        new Date(b.diagnosis_date).getTime() - new Date(a.diagnosis_date).getTime()
-      )
+      records: records.sort((a, b) => {
+        if (a.diagnosis_date === '不詳' || b.diagnosis_date === '不詳') {
+          if (a.diagnosis_date === b.diagnosis_date) return 0;
+          return a.diagnosis_date === '不詳' ? 1 : -1;
+        }
+        return new Date(b.diagnosis_date).getTime() - new Date(a.diagnosis_date).getTime();
+      })
     }));
     return patientGroups.filter(group => {
     const patient = patients.find(p => p.院友id === group.patientId);
@@ -631,7 +635,7 @@ const DiagnosisRecords: React.FC = () => {
                                   className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                 />
                                 <span className="text-xs text-gray-600 min-w-[80px]">
-                                  {formatDisplayDate(record.diagnosis_date)}
+                                  {record.diagnosis_date === '不詳' ? '不詳' : formatDisplayDate(record.diagnosis_date)}
                                 </span>
                                 <span className="text-sm text-gray-900 font-medium flex-1">
                                   {record.diagnosis_item}
