@@ -8,6 +8,7 @@ import { queryClient } from './lib/queryClient';
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
+import { DeveloperFacilityGate } from './components/DeveloperFacilityGate';
 import { PatientProvider, usePatientData, PatientFilterProvider } from './context/PatientContext';
 import { CgatProvider } from './context/CgatContext';
 import { StationProvider } from './context/facility';
@@ -115,7 +116,7 @@ const RosterManagement = lazy(() => import('./pages/RosterManagement'));
 
 
 function AppContent() {
-  const { user, userProfile, loading: authLoading, authReady, signOut, customLogout, isAuthenticated } = useAuth();
+  const { user, userProfile, loading: authLoading, authReady, signOut, customLogout, isAuthenticated, devFacilityChosen } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showInitialLoadingScreen, setShowInitialLoadingScreen] = useState(false);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
@@ -168,6 +169,12 @@ function AppContent() {
         />
       </div>
     );
+  }
+
+  // 開發者院舍間門：未選定院舍前不得進入系統（不預設行為）
+  const isDeveloperUser = !!user && !userProfile;
+  if (isDeveloperUser && !devFacilityChosen) {
+    return <DeveloperFacilityGate />;
   }
 
   // 登入成功後的初始加載頁面 - 將由 AuthenticatedContent 組件處理
