@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { createClient, User, Session } from '@supabase/supabase-js';
 import { getSupabaseUrl, getSupabaseAnonKey } from '../config/supabase.config';
+import { supabase as dbClient } from '../lib/supabase';
 import type {
   UserProfile,
   UserRole,
@@ -67,6 +68,10 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+
+  // 開發者選院舍（facility_id 為 null = 維運模式，跨院舍）
+  fetchFacilities: () => Promise<{ id: number; name: string }[]>;
+  selectFacility: (facilityId: number | null) => Promise<{ error: any }>;
   
   // 自訂認證方法（主管/員工用）
   customLogin: (username: string, password: string) => Promise<{ error: any }>;
@@ -326,6 +331,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearInterval(interval);
     };
   }, [customToken]);
+
+  // 獲取院舍列表（開發者選院舍登入用；走 lib dbClient 以帶上 dbToken）
+  const fetchFacilities = async (): Promise<{ id: number; name: string }[]> => {
+    const { data, error } = await dbClient.from('facilities').select('id, name').order('id');
+    if (error) {
+      console.error('Fetch facilities error:', error);
+      return [];
+    }
+    return data || [];
+  };
+
+  // 開發者選定院舍：重發鎖定該院舍的 dbToken（null = 維運模式）
+  const selectFacility = async (facilityId: number | null): Promise<{ error: any }> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        return { error: '登入狀態失效，請重新登入' };
+      }
+      const result = await callAuthApi('db-token', { facility_id: facilityId }, session.access_token);
+      if (result?.success && result.dbToken) {
+        saveDbToken(result.dbToken);
+        return { error: null };
+      }
+      return { error: result?.error || '切換院舍失敗' };
+    } catch (error) {
+      console.error('Select facility error:', error);
+      return { error: '切換院舍失敗，請稍後再試' };
+    }
+  };
 
   // Supabase Auth 登入（開發者用）
   const signIn = async (email: string, password: string) => {
@@ -633,6 +667,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signIn,
       signUp,
       signOut,
+      fetchFacilities,
+      selectFacility,
       customLogin,
       qrLogin,
       customLogout,

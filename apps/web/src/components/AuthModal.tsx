@@ -26,8 +26,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const scannerIdRef = useRef('auth-qr-scanner-' + Math.random().toString(36).substr(2, 9));
   
-  const { customLogin, qrLogin, signIn } = useAuth();
+  const { customLogin, qrLogin, signIn, fetchFacilities, selectFacility } = useAuth();
   const [facilitySettings, setFacilitySettings] = useState<FacilitySettings>(DEFAULT_FACILITY_SETTINGS);
+
+  // 開發者選院舍狀態
+  const [selectingFacility, setSelectingFacility] = useState(false);
+  const [facilities, setFacilities] = useState<{ id: number; name: string }[]>([]);
+  const [facilityLoadingId, setFacilityLoadingId] = useState<number | 'all' | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +66,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     if (!isOpen) {
       cleanupScanner();
       setLoginMode('password');
+      setSelectingFacility(false);
+      setFacilityLoadingId(null);
       setUsername('');
       setPassword('');
       setError('');
@@ -113,9 +120,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         if (error) {
           setError(error.message || '登入失敗');
         } else {
-          onClose();
-          setUsername('');
-          setPassword('');
+          // Developer: choose facility before entering
+          const list = await fetchFacilities();
+          if (list.length === 0) {
+            onClose();
+            setUsername('');
+            setPassword('');
+            return;
+          }
+          setFacilities(list);
+          setSelectingFacility(true);
+          setLoading(false);
+          return;
         }
       } else {
         // 員工/主管使用自訂認證
@@ -132,6 +148,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       setError('發生未知錯誤');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 開發者選定院舍（null = 維運模式）
+  const handleSelectFacility = async (id: number | null) => {
+    setFacilityLoadingId(id === null ? 'all' : id);
+    setError('');
+    try {
+      const { error } = await selectFacility(id);
+      if (error) {
+        setError(typeof error === 'string' ? error : '切換院舍失敗');
+        return;
+      }
+      onClose();
+      setUsername('');
+      setPassword('');
+      setSelectingFacility(false);
+    } finally {
+      setFacilityLoadingId(null);
     }
   };
 
@@ -332,7 +367,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {loginMode === 'password' ? (
+          {selectingFacility ? (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600 text-center">請選擇要管理的院舍，登入後只會看到該院舍的資料</p>
+              {facilities.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  disabled={facilityLoadingId !== null}
+                  onClick={() => handleSelectFacility(f.id)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-left hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50 transition-colors"
+                >
+                  {facilityLoadingId === f.id ? '處理中...' : f.name}
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={facilityLoadingId !== null}
+                onClick={() => handleSelectFacility(null)}
+                className="w-full px-4 py-3 border border-dashed border-gray-400 rounded-lg text-left text-gray-600 hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50 transition-colors"
+              >
+                {facilityLoadingId === 'all' ? '處理中...' : '全部院舍（維運模式）'}
+              </button>
+            </div>
+          ) : loginMode === 'password' ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

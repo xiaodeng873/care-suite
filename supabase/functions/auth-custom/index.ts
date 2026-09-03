@@ -438,7 +438,8 @@ async function handleLogout(token: string) {
 }
 
 // 簽發資料庫存取 token（自訂 session token 或 Supabase Auth JWT 皆可）
-async function handleDbToken(authHeader: string) {
+// developer 可透過 facility_id 參數鎖定某一院舍（選院舍登入）；其他用戶一律用本人院舍
+async function handleDbToken(authHeader: string, req: { facility_id?: number | null } = {}) {
   const supabase = getSupabaseClient();
   const token = authHeader?.replace("Bearer ", "");
   if (!token) {
@@ -475,10 +476,28 @@ async function handleDbToken(authHeader: string) {
     return { success: false, error: "會話無效或已過期" };
   }
 
+  // developer 可用 facility_id 參數鎖定院舍（選院舍登入）；其他用戶一律用本人院舍
+  let facilityId: number | null = profile.facility_id ?? null;
+  if (profile.role === "developer") {
+    if (req.facility_id != null) {
+      const { data: fac } = await supabase
+        .from("facilities")
+        .select("id")
+        .eq("id", req.facility_id)
+        .single();
+      if (!fac) {
+        return { success: false, error: "院舍不存在" };
+      }
+      facilityId = req.facility_id;
+    } else {
+      facilityId = null; // 未指定 = 維運模式（跨院舍）
+    }
+  }
+
   // 與現有 session 有效期一致：10 年
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + SESSION_EXPIRY_HOURS);
-  const dbToken = await signDbToken(profile, expiresAt);
+  const dbToken = await signDbToken({ ...profile, facility_id: facilityId }, expiresAt);
 
   if (!dbToken) {
     return { success: false, error: "無法簽發資料庫存取 token" };
@@ -924,7 +943,8 @@ Deno.serve(async (req: Request) => {
         break;
       }
       case "db-token": {
-        result = await handleDbToken(authHeader);
+        const body = await req.json().catch(() => ({}));
+        result = await handleDbToken(authHeader, body);
         break;
       }
       case "change-password": {
