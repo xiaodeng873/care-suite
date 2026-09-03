@@ -7,6 +7,7 @@ interface AssessmentContextType {
   // State
   healthAssessments: db.HealthAssessment[];
   patientRestraintAssessments: db.PatientRestraintAssessment[];
+  patientEveningCarePlans: db.PatientEveningCarePlan[];
   annualHealthCheckups: any[];
   
   // Health Assessment CRUD
@@ -18,6 +19,11 @@ interface AssessmentContextType {
   addPatientRestraintAssessment: (assessment: Omit<db.PatientRestraintAssessment, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updatePatientRestraintAssessment: (assessment: db.PatientRestraintAssessment) => Promise<void>;
   deletePatientRestraintAssessment: (id: string) => Promise<void>;
+
+  // Patient Evening Care Plan CRUD
+  addPatientEveningCarePlan: (plan: Omit<db.PatientEveningCarePlan, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updatePatientEveningCarePlan: (plan: db.PatientEveningCarePlan) => Promise<void>;
+  deletePatientEveningCarePlan: (id: string) => Promise<void>;
   
   // Annual Health Checkup CRUD
   addAnnualHealthCheckup: (checkup: any) => Promise<void>;
@@ -40,6 +46,7 @@ export const AssessmentProvider: React.FC<AssessmentProviderProps> = ({ children
   // State
   const [healthAssessments, setHealthAssessments] = useState<db.HealthAssessment[]>([]);
   const [patientRestraintAssessments, setPatientRestraintAssessments] = useState<db.PatientRestraintAssessment[]>([]);
+  const [patientEveningCarePlans, setPatientEveningCarePlans] = useState<db.PatientEveningCarePlan[]>([]);
   const [annualHealthCheckups, setAnnualHealthCheckups] = useState<any[]>([]);
 
   // Refresh assessment data
@@ -49,15 +56,18 @@ export const AssessmentProvider: React.FC<AssessmentProviderProps> = ({ children
       const [
         healthAssessmentsData,
         patientRestraintAssessmentsData,
+        patientEveningCarePlansData,
         annualHealthCheckupsData
       ] = await Promise.all([
         db.getHealthAssessments('all'),
         db.getRestraintAssessments(),
+        db.getEveningCarePlans(),
         db.getAnnualHealthCheckups()
       ]);
-      
+
       setHealthAssessments(healthAssessmentsData);
       setPatientRestraintAssessments(patientRestraintAssessmentsData);
+      setPatientEveningCarePlans(patientEveningCarePlansData);
       setAnnualHealthCheckups(annualHealthCheckupsData || []);
     } catch (error) {
       console.error('刷新評估數據失敗:', error);
@@ -126,6 +136,37 @@ export const AssessmentProvider: React.FC<AssessmentProviderProps> = ({ children
     }
   };
 
+  // Patient Evening Care Plan CRUD
+  const addPatientEveningCarePlan = async (plan: Omit<db.PatientEveningCarePlan, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      await db.createEveningCarePlan(plan);
+      await refreshAssessmentData();
+    } catch (error) {
+      console.error('Error adding patient evening care plan:', error);
+      throw error;
+    }
+  };
+
+  const updatePatientEveningCarePlan = async (plan: db.PatientEveningCarePlan) => {
+    try {
+      await db.updateEveningCarePlan(plan);
+      await refreshAssessmentData();
+    } catch (error) {
+      console.error('Error updating patient evening care plan:', error);
+      throw error;
+    }
+  };
+
+  const deletePatientEveningCarePlan = async (id: string) => {
+    try {
+      await db.deleteEveningCarePlan(id);
+      await refreshAssessmentData();
+    } catch (error) {
+      console.error('Error deleting patient evening care plan:', error);
+      throw error;
+    }
+  };
+
   // Annual Health Checkup CRUD
   const addAnnualHealthCheckup = async (checkup: any) => {
     try {
@@ -165,6 +206,7 @@ export const AssessmentProvider: React.FC<AssessmentProviderProps> = ({ children
     // State
     healthAssessments,
     patientRestraintAssessments,
+    patientEveningCarePlans,
     annualHealthCheckups,
     // Health Assessment CRUD
     addHealthAssessment,
@@ -174,6 +216,10 @@ export const AssessmentProvider: React.FC<AssessmentProviderProps> = ({ children
     addPatientRestraintAssessment,
     updatePatientRestraintAssessment,
     deletePatientRestraintAssessment,
+    // Patient Evening Care Plan CRUD
+    addPatientEveningCarePlan,
+    updatePatientEveningCarePlan,
+    deletePatientEveningCarePlan,
     // Annual Health Checkup CRUD
     addAnnualHealthCheckup,
     updateAnnualHealthCheckup,
@@ -200,10 +246,11 @@ export const useAssessment = (): AssessmentContextType => {
 
 // Data-only hook (for components that only need read access)
 export const useAssessmentData = () => {
-  const { 
-    healthAssessments, 
-    patientRestraintAssessments, 
-    annualHealthCheckups 
+  const {
+    healthAssessments,
+    patientRestraintAssessments,
+    patientEveningCarePlans,
+    annualHealthCheckups
   } = useAssessment();
-  return { healthAssessments, patientRestraintAssessments, annualHealthCheckups };
+  return { healthAssessments, patientRestraintAssessments, patientEveningCarePlans, annualHealthCheckups };
 };

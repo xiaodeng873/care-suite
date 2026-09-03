@@ -53,7 +53,7 @@ const AdmissionRecords: React.FC = () => {
     備註: '',
     startDate: '',
     endDate: '',
-    在住狀態: '在住'
+    在住狀態: '全部'
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [showPrintDropdown, setShowPrintDropdown] = useState(false);
@@ -152,7 +152,9 @@ const AdmissionRecords: React.FC = () => {
   }, [hospitalEpisodes, patients, advancedFilters, deferredSearch]);
 
   const hasAdvancedFilters = () => {
-    return Object.values(advancedFilters).some(value => value !== '');
+    return Object.entries(advancedFilters).some(
+      ([key, value]) => value !== '' && !(key === '在住狀態' && value === '全部')
+    );
   };
 
   const updateAdvancedFilter = (field: keyof AdvancedFilters, value: string) => {
@@ -174,7 +176,7 @@ const AdmissionRecords: React.FC = () => {
       備註: '',
       startDate: '',
       endDate: '',
-      在住狀態: '在住'
+      在住狀態: '全部'
     });
   };
 

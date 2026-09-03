@@ -46,7 +46,7 @@ async function callGemini(url: string, payload: unknown): Promise<any> {
       body: JSON.stringify(payload),
     });
   } catch {
-    throw new APIError(502, "NETWORK_ERROR", "無法連接到 Gemini 服務，請檢查網路狀態。");
+    throw new APIError(502, "NETWORK_ERROR", "無法連接到 AI 識別服務，請檢查網路狀態後再試。");
   }
 
   if (!response.ok) {
@@ -64,24 +64,24 @@ async function callGemini(url: string, payload: unknown): Promise<any> {
       throw new APIError(
         400,
         "GEMINI_API_KEY_INVALID",
-        "Gemini 金鑰無效：Supabase 的 GEMINI_API_KEY 與有效金鑰不符（常見原因：貼上時夾帶空白/換行、含引號、金鑰已重新產生或屬於其他專案）。"
+        "AI 服務金鑰無效：後台設定的金鑰與有效金鑰不符（常見原因：貼上時夾帶空白/換行、含引號、金鑰已重新產生或屬於其他專案）。請聯絡系統管理員。"
       );
     }
 
     switch (response.status) {
       case 400:
-        throw new APIError(400, "GEMINI_BAD_REQUEST", `請求格式被 Gemini 拒絕: ${errorMsg}`);
+        throw new APIError(400, "GEMINI_BAD_REQUEST", "請求格式被 AI 服務拒絕，請重試或改用手動輸入。");
       case 403:
-        throw new APIError(403, "GEMINI_FORBIDDEN", "API 金鑰權限不足或已被停用，請至 Google AI Studio 確認金鑰狀態。");
+        throw new APIError(403, "GEMINI_FORBIDDEN", "API 金鑰權限不足或已被停用，請聯絡系統管理員確認金鑰狀態。");
       case 404:
-        throw new APIError(500, "GEMINI_MODEL_NOT_FOUND", `找不到指定模型或 API 版本不匹配，請檢查 GEMINI_MODEL 及 GEMINI_API_VERSION 環境變數。原始錯誤: ${errorMsg}`);
+        throw new APIError(500, "GEMINI_MODEL_NOT_FOUND", "找不到指定的 AI 模型或 API 版本不匹配，請聯絡系統管理員檢查後台模型設定。");
       case 429:
-        throw new APIError(429, "GEMINI_QUOTA_EXCEEDED", "Gemini API 請求頻率過高或每日配額耗盡，請稍後再試。");
+        throw new APIError(429, "GEMINI_QUOTA_EXCEEDED", "AI 服務請求頻率過高或每日配額耗盡，請稍後再試。");
       case 500:
       case 503:
-        throw new APIError(502, "GEMINI_DOWN", "Gemini 伺服器目前異常，請稍後再試。");
+        throw new APIError(502, "GEMINI_DOWN", "AI 伺服器目前異常，請稍後再試。");
       default:
-        throw new APIError(response.status, "UPSTREAM_ERROR", `上游服務錯誤 (${response.status}): ${errorMsg}`);
+        throw new APIError(response.status, "UPSTREAM_ERROR", `識別服務回傳錯誤 (${response.status})，請稍後再試。`);
     }
   }
 
@@ -107,7 +107,7 @@ Deno.serve(async (req: Request) => {
       throw new APIError(
         500,
         "AUTH_MISSING_KEY",
-        "系統環境變數遺失，無法驗證 API 金鑰。請在 Supabase Dashboard → Edge Functions → Secrets 中設定 GEMINI_API_KEY。"
+        "系統服務設定遺失，無法驗證 API 金鑰。請聯絡系統管理員於後台設定 AI 服務金鑰。"
       );
     }
 

@@ -841,7 +841,7 @@ describe('generateAutoRoster', () => {
     expect(result.insertions.every((i) => i.station_id === 'station-a')).toBe(true);
     expect(result.insertions.some((i) => i.station_id === null)).toBe(false);
     expect(result.finalDeficit).toBe(0);
-    // RN 07:00-18:00 累積當值必須達標
+    // RN 07:00-22:00 累積當值必須達標
     const nurseRow = result.finalCompliance.find((r) => r.position === '註冊/登記護士')!;
     expect(nurseRow.specificSlotOk).toBe(true);
   });

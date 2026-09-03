@@ -246,6 +246,18 @@ export interface PatientRestraintAssessment {
   created_at: string;
   updated_at: string;
 }
+export interface PatientEveningCarePlan {
+  id: string;
+  patient_id: number;
+  acp_date?: string;
+  amd_date?: string;
+  dnacpr_date?: string;
+  notes?: string;
+  is_terminated?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+export type EveningCareDocumentType = 'ACP' | 'AMD' | 'DNACPR';
 export type TubeCareType = '導尿管更換' | '鼻胃飼管更換' | '氧氣喉管清洗/更換' | '造口袋更換';
 export type OxygenAction = '清洗' | '更換';
 export interface PatientTubeCareRecord {
@@ -2342,6 +2354,32 @@ export const updateRestraintAssessment = async (assessment: PatientRestraintAsse
 };
 export const deleteRestraintAssessment = async (assessmentId: string): Promise<void> => {
   const { error } = await supabase.from('patient_restraint_assessments').delete().eq('id', assessmentId);
+  if (error) throw error;
+};
+export const getEveningCarePlans = async (): Promise<PatientEveningCarePlan[]> => {
+  const { data, error } = await supabase.from('patient_evening_care_plans').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+export const createEveningCarePlan = async (plan: Omit<PatientEveningCarePlan, 'id' | 'created_at' | 'updated_at'>): Promise<PatientEveningCarePlan> => {
+  const { data, error } = await supabase.from('patient_evening_care_plans').insert([plan]).select().single();
+  if (error) throw error;
+  return data;
+};
+export const updateEveningCarePlan = async (plan: PatientEveningCarePlan): Promise<PatientEveningCarePlan> => {
+  // Clean up empty string values by converting them to null
+  const cleanedPlan = { ...plan } as Record<string, any>;
+  Object.keys(cleanedPlan).forEach(key => {
+    if (cleanedPlan[key] === '') {
+      cleanedPlan[key] = null;
+    }
+  });
+  const { error } = await supabase.from('patient_evening_care_plans').update(cleanedPlan).eq('id', cleanedPlan.id);
+  if (error) throw error;
+  return cleanedPlan as PatientEveningCarePlan;
+};
+export const deleteEveningCarePlan = async (planId: string): Promise<void> => {
+  const { error } = await supabase.from('patient_evening_care_plans').delete().eq('id', planId);
   if (error) throw error;
 };
 export const getTubeCareRecords = async (): Promise<PatientTubeCareRecord[]> => {

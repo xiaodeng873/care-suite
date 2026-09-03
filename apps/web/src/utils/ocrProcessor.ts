@@ -100,11 +100,11 @@ export function mapGeminiErrorToChinese(code: string, rawMsg?: string): string {
     case 'GEMINI_QUOTA_EXCEEDED':
       return 'AI 服務繁忙或每日配額已用罄，請稍後再試。';
     case 'AUTH_MISSING_KEY':
-      return '系統未設定 API 金鑰（GEMINI_API_KEY 遺失），請聯絡系統管理員。';
+      return '系統未設定 AI 服務金鑰，請聯絡系統管理員。';
     case 'GEMINI_API_KEY_INVALID':
-      return 'Gemini API 金鑰無效：請在 Supabase 重新設定 GEMINI_API_KEY，注意勿夾帶空白、換行或引號，並確認金鑰未被重新產生。';
+      return 'AI 服務金鑰無效：請聯絡系統管理員重新設定，注意勿夾帶空白、換行或引號，並確認金鑰未被重新產生。';
     case 'GEMINI_FORBIDDEN':
-      return 'API 金鑰失效或權限不足，請至 Google AI Studio 確認金鑰狀態。';
+      return 'AI 服務金鑰失效或權限不足，請聯絡系統管理員確認金鑰狀態。';
     case 'GEMINI_MODEL_NOT_FOUND':
       return 'AI 模型設定錯誤（找不到指定模型或 API 版本不符），請聯絡系統管理員。';
     case 'GEMINI_BAD_REQUEST':
@@ -131,7 +131,7 @@ export function mapGeminiErrorToChinese(code: string, rawMsg?: string): string {
     case 'INTERNAL_SERVER_ERROR':
       return 'AI 服務發生未預期的系統錯誤，請稍後再試或聯絡系統管理員。';
     case 'EDGE_NON_2XX':
-      return '無法連線到 AI 辨識服務（Edge Function 無回應），請稍後再試或聯絡系統管理員。';
+      return '無法連線到 AI 辨識服務（服務暫無回應），請稍後再試或聯絡系統管理員。';
     default:
       return rawMsg || 'AI 視覺識別失敗，請重試或手動輸入。';
   }
@@ -175,7 +175,7 @@ export async function processImageWithGeminiVision(
     }
     const startTime = Date.now();
     const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-    const { data, error } = await supabase.functions.invoke('gemini-vision-extract', {
+    const { data, error } = await supabase.functions.invoke('vision-extract', {
       body: {
         imageBase64,
         mimeType,

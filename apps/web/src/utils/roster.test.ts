@@ -479,11 +479,12 @@ describe('roster utils', () => {
       expect(healthWorkerRow.specificSlotOk).toBe(false);
       const nurseRow = rows.find((r) => r.position === '註冊/登記護士')!;
       expect(nurseRow.requiredSpecificHeadcount).toBe(8);
-      expect(nurseRow.actualSpecificHeadcount).toBe(11);
+      // 班次 07:00-20:00 全數落在 07:00-22:00 窗口內
+      expect(nurseRow.actualSpecificHeadcount).toBe(13);
       expect(nurseRow.specificSlotOk).toBe(true);
     });
 
-    it('flags A1 nurse coverage as not ok when fewer than 8 hours within 07:00-18:00', () => {
+    it('flags A1 nurse coverage as not ok when fewer than 8 hours within 07:00-22:00', () => {
       const users = [
         { id: 'u1', nursing_position: '註冊護士', secondary_positions: [] },
       ] as unknown as UserProfile[];
@@ -506,7 +507,7 @@ describe('roster utils', () => {
       expect(nurseRow.specificSlotOk).toBe(false);
     });
 
-    it('stacks multiple RN duty hours within 07:00-18:00 toward the 8-hour requirement', () => {
+    it('stacks multiple RN duty hours within 07:00-22:00 toward the 8-hour requirement', () => {
       const users = [
         { id: 'u1', nursing_position: '註冊護士', secondary_positions: [] },
         { id: 'u2', nursing_position: '註冊護士', secondary_positions: [] },
@@ -556,7 +557,7 @@ describe('roster utils', () => {
       expect(nurseRow.requiredSpecificHeadcount).toBe(8);
       expect(nurseRow.actualSpecificHeadcount).toBe(0);
       expect(nurseRow.specificSlotOk).toBe(false);
-      expect(nurseRow.specificSegments[0]?.label).toBe('註冊護士 07:00-18:00');
+      expect(nurseRow.specificSegments[0]?.label).toBe('註冊護士 07:00-22:00');
     });
   });
 

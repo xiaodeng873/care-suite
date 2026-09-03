@@ -16,9 +16,62 @@ const corsHeaders = {
 // 從環境變數獲取 Supabase 配置
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+// 專案 JWT secret，用於簽發帶 facility_id claim 的資料庫存取 token
+const jwtSecret = Deno.env.get("JWT_SECRET") ?? "";
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+}
+if (!jwtSecret) {
+  console.error("Missing JWT_SECRET (db token will not be issued)");
+}
+
+// =====================================================
+// 資料庫存取 JWT（HS256）
+// PostgREST 會以專案 JWT secret 驗證，RLS 由 facility_id / user_role claim 判斷
+// =====================================================
+
+function base64url(data: Uint8Array | string): string {
+  const bytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function hmacSign(message: string, secret: string): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message)));
+}
+
+// 簽發資料庫存取 token；exp 為 epoch 秒
+async function signDbToken(
+  user: { id: string; facility_id: number | null; role: string },
+  expiresAt: Date
+): Promise<string | null> {
+  if (!jwtSecret) return null;
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = base64url(
+    JSON.stringify({
+      aud: "authenticated",
+      iss: "supabase",
+      role: "authenticated",
+      sub: user.id,
+      user_id: user.id,
+      facility_id: user.facility_id ?? null,
+      user_role: user.role,
+      iat: now,
+      exp: Math.floor(expiresAt.getTime() / 1000),
+    })
+  );
+  const signature = base64url(await hmacSign(`${header}.${payload}`, jwtSecret));
+  return `${header}.${payload}.${signature}`;
 }
 
 // Session 有效期（10 年，近似永不過期）
@@ -59,6 +112,7 @@ interface CreateUserRequest {
   monthly_hour_limit?: number;
   role: string;
   created_by?: string;
+  facility_id?: number | null;
 }
 
 interface QRLoginRequest {
@@ -176,10 +230,14 @@ async function handleLogin(req: LoginRequest) {
   // 返回用戶資料（不含密碼）
   const { password_hash, ...userWithoutPassword } = user;
 
+  // 簽發資料庫存取 token（RLS tenant 隔離用）
+  const dbToken = await signDbToken(user, expiresAt);
+
   return {
     success: true,
     user: userWithoutPassword,
     token,
+    dbToken,
     expiresAt: expiresAt.toISOString(),
     permissions: permissions || [],
   };
@@ -260,10 +318,14 @@ async function handleQRLogin(req: QRLoginRequest) {
   // 返回用戶資料（不含密碼）
   const { password_hash, ...userWithoutPassword } = user;
 
+  // 簽發資料庫存取 token（RLS tenant 隔離用）
+  const dbToken = await signDbToken(user, expiresAt);
+
   return {
     success: true,
     user: userWithoutPassword,
     token,
+    dbToken,
     expiresAt: expiresAt.toISOString(),
     permissions: permissions || [],
   };
@@ -375,6 +437,56 @@ async function handleLogout(token: string) {
   };
 }
 
+// 簽發資料庫存取 token（自訂 session token 或 Supabase Auth JWT 皆可）
+async function handleDbToken(authHeader: string) {
+  const supabase = getSupabaseClient();
+  const token = authHeader?.replace("Bearer ", "");
+  if (!token) {
+    return { success: false, error: "未授權" };
+  }
+
+  // 1. 嘗試自訂 session token
+  const { data: session } = await supabase
+    .from("user_sessions")
+    .select("*, user_profiles(*)")
+    .eq("token", token)
+    .gt("expires_at", new Date().toISOString())
+    .single();
+
+  let profile: { id: string; facility_id: number | null; role: string } | null = null;
+
+  if (session?.user_profiles) {
+    profile = session.user_profiles;
+  } else {
+    // 2. 嘗試 Supabase Auth JWT（開發者）
+    const { data: { user } } = await supabase.auth.getUser(token);
+    if (user) {
+      const { data: p } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("auth_user_id", user.id)
+        .single();
+      // 無對應 profile 的 Auth 用戶視為開發者（與 create-user 邏輯一致）
+      profile = p ?? { id: user.id, facility_id: null, role: "developer" };
+    }
+  }
+
+  if (!profile) {
+    return { success: false, error: "會話無效或已過期" };
+  }
+
+  // 與現有 session 有效期一致：10 年
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + SESSION_EXPIRY_HOURS);
+  const dbToken = await signDbToken(profile, expiresAt);
+
+  if (!dbToken) {
+    return { success: false, error: "無法簽發資料庫存取 token" };
+  }
+
+  return { success: true, dbToken, expiresAt: expiresAt.toISOString() };
+}
+
 // 驗證 session token
 async function handleValidateSession(token: string) {
   const supabase = getSupabaseClient();
@@ -412,9 +524,13 @@ async function handleValidateSession(token: string) {
 
   const { password_hash, ...userWithoutPassword } = session.user_profiles;
 
+  // 會話已順延，重新簽發資料庫存取 token
+  const dbToken = await signDbToken(session.user_profiles, newExpiry);
+
   return {
     success: true,
     user: userWithoutPassword,
+    dbToken,
     permissions: permissions || [],
   };
 }
@@ -663,6 +779,10 @@ async function handleCreateUser(req: CreateUserRequest, authHeader: string) {
     // 自訂認證用戶
     operatorRole = session.user_profiles.role;
     operatorUserId = session.user_id;
+    // 非開發者管理員只能在自己院舍開戶
+    if (operatorRole !== "developer") {
+      req.facility_id = session.user_profiles.facility_id;
+    }
   } else {
     // 可能是 Supabase Auth 用戶（開發者），嘗試驗證 JWT
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
@@ -748,6 +868,7 @@ async function handleCreateUser(req: CreateUserRequest, authHeader: string) {
       monthly_hour_limit: req.employment_type === "兼職" ? (req.monthly_hour_limit || 68) : null,
       role: req.role,
       created_by: operatorUserId,
+      facility_id: req.facility_id ?? null,
     })
     .select()
     .single();
@@ -800,6 +921,10 @@ Deno.serve(async (req: Request) => {
       case "validate": {
         const token = authHeader.replace("Bearer ", "");
         result = await handleValidateSession(token);
+        break;
+      }
+      case "db-token": {
+        result = await handleDbToken(authHeader);
         break;
       }
       case "change-password": {

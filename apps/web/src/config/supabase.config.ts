@@ -36,7 +36,7 @@ export function getSupabaseUrl(): string {
 
   if (isBoltDatabaseUrl(envUrl)) {
     console.warn(
-      '⚠️ 檢測到 Bolt.new 自動注入的資料庫 URL，已自動切換為您的 Supabase 配置'
+      '⚠️ 檢測到 Bolt.new 自動注入的資料庫 URL，已自動切換為正確的資料庫配置'
     );
   }
 
@@ -70,26 +70,26 @@ export function validateSupabaseConfig(): { valid: boolean; message: string } {
   if (!url || !key) {
     return {
       valid: false,
-      message: 'Supabase 配置缺失'
+      message: '資料庫配置缺失'
     };
   }
 
   if (isBoltDatabaseUrl(url)) {
     return {
       valid: false,
-      message: '檢測到 Bolt Database URL，但無法找到正確的 Supabase 配置'
+      message: '檢測到 Bolt Database URL，但無法找到正確的資料庫配置'
     };
   }
 
   if (!url.includes('supabase.co')) {
     return {
       valid: false,
-      message: 'Supabase URL 格式不正確'
+      message: '資料庫 URL 格式不正確'
     };
   }
 
   return {
     valid: true,
-    message: 'Supabase 配置正確'
+    message: '資料庫配置正確'
   };
 }

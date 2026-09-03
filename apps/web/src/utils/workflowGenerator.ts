@@ -93,7 +93,7 @@ export async function generateDailyWorkflowRecords(
   if (!supabaseUrl || !supabaseAnonKey) {
     return {
       success: false,
-      message: 'Supabase 環境變數未設定',
+      message: '資料庫連線設定未就緒',
       recordsGenerated: 0
     };
   }

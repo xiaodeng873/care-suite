@@ -16,7 +16,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: false,
     persistSession: false,
     detectSessionInUrl: false,
-    storageKey: 'care_suite_supabase_auth',
+    storageKey: 'care_suite_auth',
   }
 });
 
@@ -26,6 +26,18 @@ const AUTH_FUNCTION_URL = `${supabaseUrl}/functions/v1/auth-custom`;
 // 本地存儲鍵
 const CUSTOM_TOKEN_KEY = 'care_suite_custom_token';
 const CUSTOM_USER_KEY = 'care_suite_custom_user';
+// 資料庫存取 token（RLS 院舍隔離用，由認證服務簽發）
+const DB_TOKEN_KEY = 'care_suite_db_token';
+
+const saveDbToken = (dbToken?: string | null) => {
+  if (dbToken) {
+    localStorage.setItem(DB_TOKEN_KEY, dbToken);
+  }
+};
+
+const clearDbToken = () => {
+  localStorage.removeItem(DB_TOKEN_KEY);
+};
 
 /** 用戶權限項目 */
 export interface UserPermissionItem {
@@ -163,6 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCustomToken(token);
         setPermissions(result.permissions || []);
         setDisplayName(getUserDisplayName(null, result.user));
+        saveDbToken(result.dbToken);
         return true;
       }
       return false;
@@ -190,6 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Token 無效，清除
             localStorage.removeItem(CUSTOM_TOKEN_KEY);
             localStorage.removeItem(CUSTOM_USER_KEY);
+            clearDbToken();
           }
         }
 
@@ -209,7 +223,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.warn('Auth session error:', error);
             // 如果是 refresh token 錯誤，清除本地存儲的 session
             if (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token')) {
-              console.warn('Clearing invalid Supabase session');
+              console.warn('Clearing invalid auth session');
               await supabase.auth.signOut();
               setSession(null);
               setUser(null);
@@ -285,6 +299,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const result = await callAuthApi('validate', null, customToken);
         if (result.success) {
+          saveDbToken(result.dbToken);
           // 內容有變才更新 state，避免無謂的全域 re-render
           setUserProfile((prev) =>
             JSON.stringify(prev) === JSON.stringify(result.user) ? prev : result.user
@@ -318,6 +333,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       password,
     });
+    if (!error) {
+      // 取得資料庫存取 token（RLS 院舍隔離用，開發者角色可跨院舍）
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          const result = await callAuthApi('db-token', null, session.access_token);
+          saveDbToken(result?.dbToken);
+        }
+      } catch (dbTokenError) {
+        console.error('Failed to get db token:', dbTokenError);
+      }
+    }
     return { error };
   };
 
@@ -332,6 +359,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Supabase Auth 登出
   const signOut = async () => {
+    clearDbToken();
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -369,6 +397,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCustomToken(result.token);
         setPermissions(result.permissions || []);
         setDisplayName(getUserDisplayName(null, result.user));
+        saveDbToken(result.dbToken);
         
         // 保存到本地存儲
         localStorage.setItem(CUSTOM_TOKEN_KEY, result.token);
@@ -394,6 +423,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCustomToken(result.token);
         setPermissions(result.permissions || []);
         setDisplayName(getUserDisplayName(null, result.user));
+        saveDbToken(result.dbToken);
         
         // 保存到本地存儲
         localStorage.setItem(CUSTOM_TOKEN_KEY, result.token);
@@ -427,6 +457,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setDisplayName(null);
       localStorage.removeItem(CUSTOM_TOKEN_KEY);
       localStorage.removeItem(CUSTOM_USER_KEY);
+      clearDbToken();
     }
   };
 

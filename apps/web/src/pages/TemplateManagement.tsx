@@ -259,12 +259,12 @@ const TemplateManagement: React.FC = () => {
       if (error instanceof Error) {
         const msg = error.message;
         if (msg.includes('Bucket not found')) {
-          errorMessage += '\n\nStorage Bucket "templates" 不存在。\n請到 Supabase Dashboard → Storage 建立名為 "templates" 的 bucket（設為 public）。';
+          errorMessage += '\n\nStorage Bucket "templates" 不存在。\n請到雲端資料庫後台 → Storage 建立名為 "templates" 的 bucket（設為 public）。';
         } else if (msg.includes('row-level security policy') || msg.includes('security') || msg.includes('violates')) {
           // 顯示是 Storage 還是 Metadata 階段的錯誤
           const step = msg.includes('[Storage上傳]') ? 'Storage 上傳' : msg.includes('[Metadata寫入]') ? 'Metadata 寫入' : '未知步驟';
           errorMessage += `\n\n${step}時遇到 RLS 權限問題。`;
-          errorMessage += '\n\n請到 Supabase Dashboard → SQL Editor 執行以下指令：';
+          errorMessage += '\n\n請到雲端資料庫後台 → SQL Editor 執行以下指令：';
           errorMessage += '\n\n-- 檢查 storage policies';
           errorMessage += '\nSELECT policyname, cmd, qual, with_check FROM pg_policies WHERE tablename = \x27objects\x27 AND schemaname = \x27storage\x27;';
           errorMessage += '\n\n-- 檢查 templates_metadata policies';

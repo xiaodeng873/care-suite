@@ -65,6 +65,7 @@ interface RecordsContextType {
   // ===== 評估 =====
   healthAssessments: db.HealthAssessment[];
   patientRestraintAssessments: db.PatientRestraintAssessment[];
+  patientEveningCarePlans: db.PatientEveningCarePlan[];
   patientTubeCareRecords: db.PatientTubeCareRecord[];
   annualHealthCheckups: any[];
   assessmentLoading: boolean;
@@ -74,6 +75,9 @@ interface RecordsContextType {
   addPatientRestraintAssessment: (assessment: Omit<db.PatientRestraintAssessment, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updatePatientRestraintAssessment: (assessment: db.PatientRestraintAssessment) => Promise<void>;
   deletePatientRestraintAssessment: (id: string) => Promise<void>;
+  addPatientEveningCarePlan: (plan: Omit<db.PatientEveningCarePlan, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updatePatientEveningCarePlan: (plan: db.PatientEveningCarePlan) => Promise<void>;
+  deletePatientEveningCarePlan: (id: string) => Promise<void>;
   addPatientTubeCareRecord: (record: Omit<db.PatientTubeCareRecord, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updatePatientTubeCareRecord: (record: db.PatientTubeCareRecord) => Promise<void>;
   deletePatientTubeCareRecord: (id: string) => Promise<void>;
@@ -180,6 +184,7 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
   // ===== 評估狀態 =====
   const [healthAssessments, setHealthAssessments] = useState<db.HealthAssessment[]>([]);
   const [patientRestraintAssessments, setPatientRestraintAssessments] = useState<db.PatientRestraintAssessment[]>([]);
+  const [patientEveningCarePlans, setPatientEveningCarePlans] = useState<db.PatientEveningCarePlan[]>([]);
   const [patientTubeCareRecords, setPatientTubeCareRecords] = useState<db.PatientTubeCareRecord[]>([]);
   const [annualHealthCheckups, setAnnualHealthCheckups] = useState<any[]>([]);
   const [assessmentLoading, setAssessmentLoading] = useState(false);
@@ -342,11 +347,12 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
     if (!isAuthenticated()) return;
     setAssessmentLoading(true);
     try {
-      const [healthAssessmentsData, patientRestraintAssessmentsData, annualHealthCheckupsData, tubeCareRecordsData] = await Promise.all([
-        db.getHealthAssessments('all'), db.getRestraintAssessments(), db.getAnnualHealthCheckups(), db.getTubeCareRecords()
+      const [healthAssessmentsData, patientRestraintAssessmentsData, patientEveningCarePlansData, annualHealthCheckupsData, tubeCareRecordsData] = await Promise.all([
+        db.getHealthAssessments('all'), db.getRestraintAssessments(), db.getEveningCarePlans(), db.getAnnualHealthCheckups(), db.getTubeCareRecords()
       ]);
       setHealthAssessments(healthAssessmentsData);
       setPatientRestraintAssessments(patientRestraintAssessmentsData);
+      setPatientEveningCarePlans(patientEveningCarePlansData);
       setAnnualHealthCheckups(annualHealthCheckupsData || []);
       setPatientTubeCareRecords(tubeCareRecordsData || []);
     } catch (error) {
@@ -362,6 +368,9 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
   const addPatientRestraintAssessment = useCallback(async (assessment: Omit<db.PatientRestraintAssessment, 'id' | 'created_at' | 'updated_at'>) => { await db.createRestraintAssessment(assessment); await refreshAssessmentData(); }, [refreshAssessmentData]);
   const updatePatientRestraintAssessment = useCallback(async (assessment: db.PatientRestraintAssessment) => { await db.updateRestraintAssessment(assessment); await refreshAssessmentData(); }, [refreshAssessmentData]);
   const deletePatientRestraintAssessment = useCallback(async (id: string) => { await db.deleteRestraintAssessment(id); await refreshAssessmentData(); }, [refreshAssessmentData]);
+  const addPatientEveningCarePlan = useCallback(async (plan: Omit<db.PatientEveningCarePlan, 'id' | 'created_at' | 'updated_at'>) => { await db.createEveningCarePlan(plan); await refreshAssessmentData(); }, [refreshAssessmentData]);
+  const updatePatientEveningCarePlan = useCallback(async (plan: db.PatientEveningCarePlan) => { await db.updateEveningCarePlan(plan); await refreshAssessmentData(); }, [refreshAssessmentData]);
+  const deletePatientEveningCarePlan = useCallback(async (id: string) => { await db.deleteEveningCarePlan(id); await refreshAssessmentData(); }, [refreshAssessmentData]);
   const addPatientTubeCareRecord = useCallback(async (record: Omit<db.PatientTubeCareRecord, 'id' | 'created_at' | 'updated_at'>) => { await db.createTubeCareRecord(record); await refreshAssessmentData(); }, [refreshAssessmentData]);
   const updatePatientTubeCareRecord = useCallback(async (record: db.PatientTubeCareRecord) => { await db.updateTubeCareRecord(record); await refreshAssessmentData(); }, [refreshAssessmentData]);
   const deletePatientTubeCareRecord = useCallback(async (id: string) => { await db.deleteTubeCareRecord(id); await refreshAssessmentData(); }, [refreshAssessmentData]);
@@ -583,9 +592,10 @@ export function RecordsProvider({ children }: RecordsProviderProps) {
     createPositionChangeRecord, deletePositionChangeRecord, refreshCareRecordsData,
     
     // 評估
-    healthAssessments, patientRestraintAssessments, annualHealthCheckups, assessmentLoading,
+    healthAssessments, patientRestraintAssessments, patientEveningCarePlans, annualHealthCheckups, assessmentLoading,
     addHealthAssessment, updateHealthAssessment, deleteHealthAssessment,
     addPatientRestraintAssessment, updatePatientRestraintAssessment, deletePatientRestraintAssessment,
+    addPatientEveningCarePlan, updatePatientEveningCarePlan, deletePatientEveningCarePlan,
     patientTubeCareRecords, addPatientTubeCareRecord, updatePatientTubeCareRecord, deletePatientTubeCareRecord,
     addAnnualHealthCheckup, updateAnnualHealthCheckup, deleteAnnualHealthCheckup, refreshAssessmentData,
     
@@ -665,10 +675,12 @@ export function useCareRecords() {
 export function useAssessment() {
   const ctx = useRecords();
   return {
-    healthAssessments: ctx.healthAssessments, patientRestraintAssessments: ctx.patientRestraintAssessments, annualHealthCheckups: ctx.annualHealthCheckups,
+    healthAssessments: ctx.healthAssessments, patientRestraintAssessments: ctx.patientRestraintAssessments, patientEveningCarePlans: ctx.patientEveningCarePlans, annualHealthCheckups: ctx.annualHealthCheckups,
     addHealthAssessment: ctx.addHealthAssessment, updateHealthAssessment: ctx.updateHealthAssessment, deleteHealthAssessment: ctx.deleteHealthAssessment,
     addPatientRestraintAssessment: ctx.addPatientRestraintAssessment, updatePatientRestraintAssessment: ctx.updatePatientRestraintAssessment,
     deletePatientRestraintAssessment: ctx.deletePatientRestraintAssessment, addAnnualHealthCheckup: ctx.addAnnualHealthCheckup,
+    addPatientEveningCarePlan: ctx.addPatientEveningCarePlan, updatePatientEveningCarePlan: ctx.updatePatientEveningCarePlan,
+    deletePatientEveningCarePlan: ctx.deletePatientEveningCarePlan,
     patientTubeCareRecords: ctx.patientTubeCareRecords, addPatientTubeCareRecord: ctx.addPatientTubeCareRecord,
     updatePatientTubeCareRecord: ctx.updatePatientTubeCareRecord, deletePatientTubeCareRecord: ctx.deletePatientTubeCareRecord,
     updateAnnualHealthCheckup: ctx.updateAnnualHealthCheckup, deleteAnnualHealthCheckup: ctx.deleteAnnualHealthCheckup, refreshAssessmentData: ctx.refreshAssessmentData,

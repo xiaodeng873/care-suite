@@ -214,7 +214,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
         setPreventionMethodsOptions(preventionOptions);
       } catch (error) {
         console.error('載入預設選項失敗:', error);
-        alert(`預設選項載入失敗：${error instanceof Error ? error.message : '請確保 Supabase 表格已創建'}`);
+        alert(`預設選項載入失敗：${error instanceof Error ? error.message : '請聯絡系統管理員檢查資料庫設定'}`);
       }
     };
 

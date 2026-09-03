@@ -34,7 +34,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'supabase-vendor': ['@supabase/supabase-js'],
+          'data-vendor': ['@supabase/supabase-js'],
           'excel-vendor': ['@zurmokeeper/exceljs', 'file-saver']
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',

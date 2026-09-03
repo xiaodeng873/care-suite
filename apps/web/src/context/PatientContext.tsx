@@ -20,7 +20,7 @@ import {
   useHealthTask, useAdmission, useServiceReason, useDailySystemTask, useActivityRecord
 } from './merged/RecordsContext';
 // Re-export types from database module
-export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, ResponsibleUnit, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote, CarePlan, CarePlanProblem, CarePlanNursingNeed, CarePlanWithDetails, ProblemLibrary, NursingNeedItem, PlanType, ProblemCategory, OutcomeReview, CaseConferenceProfessional, MedicationPrescription, PatientTubeCareRecord, TubeCareType, OxygenAction, PatientActivityRecord, BedTransferType, BedTransferLogEntry } from '../lib/database';
+export type { Patient, HealthRecord, PatientHealthTask, HealthTaskType, FrequencyUnit, MonitoringTaskNotes, FollowUpAppointment, MealGuidance, MealCombinationType, SpecialDietType, PatientLog, PatientRestraintAssessment, PatientEveningCarePlan, WoundAssessment, Wound, WoundWithAssessments, PatientWithWounds, WoundType, WoundOrigin, WoundStatus, WoundAssessmentStatus, ResponsibleUnit, PatientAdmissionRecord, AdmissionEventType, DailySystemTask, DeletedHealthRecord, DuplicateRecordGroup, IncidentReport, DiagnosisRecord, VaccinationRecord, PatientNote, CarePlan, CarePlanProblem, CarePlanNursingNeed, CarePlanWithDetails, ProblemLibrary, NursingNeedItem, PlanType, ProblemCategory, OutcomeReview, CaseConferenceProfessional, MedicationPrescription, PatientTubeCareRecord, TubeCareType, OxygenAction, PatientActivityRecord, BedTransferType, BedTransferLogEntry } from '../lib/database';
 // Re-export Station types for backward compatibility
 export type { Station, Room, Bed } from './facility';
 // Re-export Schedule types for backward compatibility (from merged context)
@@ -46,6 +46,7 @@ interface PatientContextType {
   patientLogs: db.PatientLog[];
   patientHealthTasks: db.PatientHealthTask[];
   patientRestraintAssessments: db.PatientRestraintAssessment[];
+  patientEveningCarePlans: db.PatientEveningCarePlan[];
   patientTubeCareRecords: db.PatientTubeCareRecord[];
   healthAssessments: db.HealthAssessment[];
   woundAssessments: db.WoundAssessment[];
@@ -144,6 +145,9 @@ interface PatientContextType {
   addPatientRestraintAssessment: (assessment: Omit<db.PatientRestraintAssessment, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updatePatientRestraintAssessment: (assessment: db.PatientRestraintAssessment) => Promise<void>;
   deletePatientRestraintAssessment: (id: string) => Promise<void>;
+  addPatientEveningCarePlan: (plan: Omit<db.PatientEveningCarePlan, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updatePatientEveningCarePlan: (plan: db.PatientEveningCarePlan) => Promise<void>;
+  deletePatientEveningCarePlan: (id: string) => Promise<void>;
   addPatientTubeCareRecord: (record: Omit<db.PatientTubeCareRecord, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updatePatientTubeCareRecord: (record: db.PatientTubeCareRecord) => Promise<void>;
   deletePatientTubeCareRecord: (id: string) => Promise<void>;
@@ -465,6 +469,10 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     addPatientRestraintAssessment,
     updatePatientRestraintAssessment,
     deletePatientRestraintAssessment,
+    patientEveningCarePlans,
+    addPatientEveningCarePlan,
+    updatePatientEveningCarePlan,
+    deletePatientEveningCarePlan,
     patientTubeCareRecords,
     addPatientTubeCareRecord,
     updatePatientTubeCareRecord,
@@ -922,6 +930,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       patientLogs,
       patientHealthTasks,
       patientRestraintAssessments,
+      patientEveningCarePlans,
       patientTubeCareRecords,
       healthAssessments,
       woundAssessments,
@@ -980,6 +989,9 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       addPatientRestraintAssessment,
       updatePatientRestraintAssessment,
       deletePatientRestraintAssessment,
+      addPatientEveningCarePlan,
+      updatePatientEveningCarePlan,
+      deletePatientEveningCarePlan,
       addPatientTubeCareRecord,
       updatePatientTubeCareRecord,
       deletePatientTubeCareRecord,

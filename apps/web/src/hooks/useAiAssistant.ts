@@ -264,7 +264,7 @@ export function useAiAssistant() {
       if (err.name === 'AbortError') return;
       let errorText = err.message || String(err);
       if (errorText === 'Failed to fetch' || errorText.includes('NetworkError')) {
-        errorText = '無法連線到 AI 助護服務（Failed to fetch）。可能原因：網路中斷、Supabase Edge Function 未部署，或瀏覽器阻擋跨域請求。請檢查網路連線及 console 錯誤。';
+        errorText = '無法連線到 AI 助護服務。可能原因：網路中斷、AI 服務未部署，或瀏覽器阻擋跨域請求。請檢查網路連線及 console 錯誤。';
       }
       const errorMsg: AiMessage = {
         id: crypto.randomUUID(),

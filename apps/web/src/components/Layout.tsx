@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CalendarDays, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key, Search, Receipt, Layers } from 'lucide-react';
+import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CalendarDays, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key, Search, Receipt, Layers, HeartHandshake } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
@@ -244,6 +244,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
         { name: '健康評估', href: '/health-assessments', icon: UserSearch, feature: 'health_assessment' },
         { name: '個人照顧計劃', href: '/individual-care-plan', icon: ClipboardList, feature: 'care_plan' },
         { name: '約束物品', href: '/restraint', icon: Shield, feature: 'restraint' },
+        { name: '晚晴計劃', href: '/evening-care-plan', icon: HeartHandshake, feature: 'evening_care_plan' },
         { name: '喉管護理', href: '/tube-care', icon: Stethoscope, feature: 'tube_care' },
         { name: '傷口管理', href: '/wound', icon: Scissors, feature: 'wound_management' },
         { name: '活動記錄', href: '/activity-records', icon: PartyPopper, feature: 'activity_records' },

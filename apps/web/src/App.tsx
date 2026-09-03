@@ -34,6 +34,7 @@ const routeNames: Record<string, string> = {
   '/meal-guidance': '飲食指導',
   '/patient-logs': '院友日誌',
   '/restraint': '約束物品',
+  '/evening-care-plan': '晚晴計劃',
   '/tube-care': '喉管護理',
   '/admission-records': '入院記錄',
   '/print-forms': '列印表格',
@@ -87,6 +88,7 @@ const TaskManagement = lazy(() => import('./pages/TaskManagement'));
 const MealGuidance = lazy(() => import('./pages/MealGuidance'));
 const PatientLogs = lazy(() => import('./pages/PatientLogs'));
 const RestraintManagement = lazy(() => import('./pages/RestraintManagement'));
+const EveningCarePlanManagement = lazy(() => import('./pages/EveningCarePlanManagement'));
 const TubeCareManagement = lazy(() => import('./pages/TubeCareManagement'));
 const AdmissionRecords = lazy(() => import('./pages/AdmissionRecords'));
 const PrintForms = lazy(() => import('./pages/PrintForms'));
@@ -302,6 +304,7 @@ function AuthenticatedContent({
             <Route path="/meal-guidance" element={<MealGuidance />} />
             <Route path="/patient-logs" element={<PatientLogs />} />
             <Route path="/restraint" element={<RestraintManagement />} />
+            <Route path="/evening-care-plan" element={<EveningCarePlanManagement />} />
             <Route path="/tube-care" element={<TubeCareManagement />} />
             <Route path="/admission-records" element={<AdmissionRecords />} />
             <Route path="/print-forms" element={<PrintForms />} />

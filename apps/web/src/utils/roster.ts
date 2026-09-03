@@ -575,7 +575,7 @@ export interface SpecificSlotCompliance {
   actualMinHeadcount: number;
   ok: boolean;
   segments: SpecificSlotSegment[];
-  /** true = 此項為甲一買位合約要求（RN 07:00-18:00 累積 8 小時），並非特定鐘點 */
+  /** true = 此項為甲一買位合約要求（RN 07:00-22:00 累積 8 小時），並非特定鐘點 */
   isA1Contract?: boolean;
 }
 
@@ -729,7 +729,7 @@ function buildPreScheduleSpecificSlotCompliance(
   const shiftDayRequired = getShiftDayRequiredHourly(date, requiredHourly);
   const result: Record<string, SpecificSlotCompliance> = {};
   const isA1Facility = Math.max(...(requiredHourly['註冊/登記護士'] ?? [])) > 0;
-  const nurseWindow: TimeSegment = { start: '07:00', end: '18:00' };
+  const nurseWindow: TimeSegment = { start: '07:00', end: '22:00' };
 
   for (const position of Object.keys(requiredHourly)) {
     const windows = getSpecificWindowsForPosition(position, specific);
@@ -1036,7 +1036,7 @@ export function getShiftDayActualHourly(
   return { actual, equivalent };
 }
 
-/** 計算排班日 date 內 07:00-18:00 註冊護士的累積當值小時數。
+/** 計算排班日 date 內 07:00-22:00 註冊護士的累積當值小時數。
  * 甲一買位合約要求：窗口內累積不少於 8 小時當值即可，不要求 RN 覆蓋整個窗口；
  * 多名 RN 的當值時間可疊加（例如兩名 RN 各 4 小時亦合格）。 */
 export function computeNurseCoverageShiftDayHours(
@@ -1048,7 +1048,7 @@ export function computeNurseCoverageShiftDayHours(
   const dayStart = getShiftDayStart(date);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const windowStart = new Date(`${date}T07:00:00`);
-  const windowEnd = new Date(`${date}T18:00:00`);
+  const windowEnd = new Date(`${date}T22:00:00`);
   let totalMinutes = 0;
 
   for (const a of assignments) {
@@ -1101,13 +1101,13 @@ export function buildSpecificSlotCompliance(
 
   const result: Record<string, SpecificSlotCompliance> = {};
   const isA1Facility = Math.max(...(requiredHourly['註冊/登記護士'] ?? [])) > 0;
-  const nurseWindow: TimeSegment = { start: '07:00', end: '18:00' };
+  const nurseWindow: TimeSegment = { start: '07:00', end: '22:00' };
 
   for (const position of Object.keys(requiredHourly)) {
     const windows = getSpecificWindowsForPosition(position, specific);
     if (windows.length === 0) continue;
 
-    // 甲一買位：只有註冊護士（RN）可貢獻 07:00-18:00 內累積不少於 8 小時；登記護士（EN）只計工時，不計此項
+    // 甲一買位：只有註冊護士（RN）可貢獻 07:00-22:00 內累積不少於 8 小時；登記護士（EN）只計工時，不計此項
     if (position === '註冊/登記護士' && isA1Facility) {
       const actualHours = computeNurseCoverageShiftDayHours(date, assignments, users, employmentDetails);
       result[position] = {
