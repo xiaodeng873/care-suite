@@ -49,10 +49,11 @@ async function hmacSign(message: string, secret: string): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message)));
 }
 
-// 簽發資料庫存取 token；exp 為 epoch 秒
+// 簽發資料庫存取 token；exp 為 epoch 秒，epoch 為院舍登入權杖版號（中止登入後舊 token 失效）
 async function signDbToken(
   user: { id: string; facility_id: number | null; role: string },
-  expiresAt: Date
+  expiresAt: Date,
+  facilityEpoch: number = 0
 ): Promise<string | null> {
   if (!jwtSecret) return null;
   const now = Math.floor(Date.now() / 1000);
@@ -66,12 +67,35 @@ async function signDbToken(
       user_id: user.id,
       facility_id: user.facility_id ?? null,
       user_role: user.role,
+      epoch: facilityEpoch,
       iat: now,
       exp: Math.floor(expiresAt.getTime() / 1000),
     })
   );
   const signature = base64url(await hmacSign(`${header}.${payload}`, jwtSecret));
   return `${header}.${payload}.${signature}`;
+}
+
+// 查院舍登入權杖版號（無院舍 / 找不到 = 0）
+async function getFacilityEpoch(supabase: any, facilityId: number | null): Promise<number> {
+  if (facilityId == null) return 0;
+  const { data } = await supabase
+    .from("facilities")
+    .select("auth_epoch")
+    .eq("id", facilityId)
+    .single();
+  return data?.auth_epoch ?? 0;
+}
+
+// 院舍是否可登入（不存在或已停用 = false）
+async function isFacilityActive(supabase: any, facilityId: number | null): Promise<boolean> {
+  if (facilityId == null) return true;
+  const { data } = await supabase
+    .from("facilities")
+    .select("is_active")
+    .eq("id", facilityId)
+    .single();
+  return data?.is_active === true;
 }
 
 // Session 有效期（10 年，近似永不過期）
@@ -200,6 +224,11 @@ async function handleLogin(req: LoginRequest) {
     };
   }
 
+  // 院舍已停用（中止登入）時拒絕
+  if (!(await isFacilityActive(supabase, user.facility_id))) {
+    return { success: false, error: "院舍已停用，請聯絡系統管理員" };
+  }
+
   console.log("Password valid, creating session...");
 
   // 生成 session token
@@ -231,7 +260,7 @@ async function handleLogin(req: LoginRequest) {
   const { password_hash, ...userWithoutPassword } = user;
 
   // 簽發資料庫存取 token（RLS tenant 隔離用）
-  const dbToken = await signDbToken(user, expiresAt);
+  const dbToken = await signDbToken(user, expiresAt, await getFacilityEpoch(supabase, user.facility_id));
 
   return {
     success: true,
@@ -290,6 +319,12 @@ async function handleQRLogin(req: QRLoginRequest) {
 
   console.log("User found via QR code, creating session...");
 
+  // 院舍已停用（中止登入）時拒絕
+  if (!(await isFacilityActive(supabase, user.facility_id))) {
+    return { success: false, error: "院舍已停用，請聯絡系統管理員" };
+  }
+
+
   // 生成 session token
   const token = generateToken();
   const expiresAt = new Date();
@@ -319,7 +354,7 @@ async function handleQRLogin(req: QRLoginRequest) {
   const { password_hash, ...userWithoutPassword } = user;
 
   // 簽發資料庫存取 token（RLS tenant 隔離用）
-  const dbToken = await signDbToken(user, expiresAt);
+  const dbToken = await signDbToken(user, expiresAt, await getFacilityEpoch(supabase, user.facility_id));
 
   return {
     success: true,
@@ -494,10 +529,19 @@ async function handleDbToken(authHeader: string, req: { facility_id?: number | n
     }
   }
 
+  // 選定的院舍已停用時拒絕簽發
+  if (facilityId != null && !(await isFacilityActive(supabase, facilityId))) {
+    return { success: false, error: "院舍已停用，請聯絡系統管理員" };
+  }
+
   // 與現有 session 有效期一致：10 年
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + SESSION_EXPIRY_HOURS);
-  const dbToken = await signDbToken({ ...profile, facility_id: facilityId }, expiresAt);
+  const dbToken = await signDbToken(
+    { ...profile, facility_id: facilityId },
+    expiresAt,
+    await getFacilityEpoch(supabase, facilityId)
+  );
 
   if (!dbToken) {
     return { success: false, error: "無法簽發資料庫存取 token" };
@@ -525,6 +569,11 @@ async function handleValidateSession(token: string) {
     };
   }
 
+  // 院舍已停用（中止登入）時拒絕
+  if (!(await isFacilityActive(supabase, session.user_profiles?.facility_id))) {
+    return { success: false, error: "院舍已停用，請聯絡系統管理員" };
+  }
+
   // 每次驗證時自動延長 24 小時，避免使用者因長時間未重新載入頁面而被登出
   const newExpiry = new Date();
   newExpiry.setHours(newExpiry.getHours() + SESSION_EXPIRY_HOURS);
@@ -544,7 +593,11 @@ async function handleValidateSession(token: string) {
   const { password_hash, ...userWithoutPassword } = session.user_profiles;
 
   // 會話已順延，重新簽發資料庫存取 token
-  const dbToken = await signDbToken(session.user_profiles, newExpiry);
+  const dbToken = await signDbToken(
+    session.user_profiles,
+    newExpiry,
+    await getFacilityEpoch(supabase, session.user_profiles?.facility_id)
+  );
 
   return {
     success: true,

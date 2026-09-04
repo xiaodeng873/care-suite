@@ -141,6 +141,8 @@ export function useAiAssistant() {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${authToken}`,
+            // 用戶 dbToken：後端以其身份執行 SQL，RLS tenant 隔離才生效
+            'X-Db-Token': localStorage.getItem('care_suite_db_token') || '',
           },
           body: JSON.stringify({
             message: messageText,
@@ -312,6 +314,8 @@ export function useAiAssistant() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`,
+          // 用戶 dbToken：後端以其身份執行 SQL，RLS tenant 隔離才生效
+          'X-Db-Token': localStorage.getItem('care_suite_db_token') || '',
         },
         body: JSON.stringify({ mutationId }),
       });

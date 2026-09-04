@@ -90,7 +90,10 @@ export async function generateDailyWorkflowRecords(
 ): Promise<{ success: boolean; message: string; recordsGenerated: number }> {
   const supabaseUrl = getSupabaseUrl();
   const supabaseAnonKey = getSupabaseAnonKey();
-  if (!supabaseUrl || !supabaseAnonKey) {
+  // dbToken 未簽發完成前（登入競態視窗）直接跳過：edge function 無 token 會 401，
+  // 呢個係背景同步，下一個觸發點會再補
+  const dbToken = localStorage.getItem('care_suite_db_token');
+  if (!supabaseUrl || !supabaseAnonKey || !dbToken) {
     return {
       success: false,
       message: '資料庫連線設定未就緒',
@@ -104,12 +107,12 @@ export async function generateDailyWorkflowRecords(
     if (patientId) {
       params.append('patient_id', patientId.toString());
     }
-    console.log('發送請求到:', `${functionUrl}?${params.toString()}`);
     const response = await fetch(`${functionUrl}?${params.toString()}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${supabaseAnonKey}`,
         'Content-Type': 'application/json',
+        'X-Db-Token': dbToken,
       },
     }).catch(fetchError => {
       console.error('Fetch 請求失敗:', fetchError);

@@ -121,9 +121,6 @@ const FacilitySettingsPanel: React.FC = () => {
           <Building2 className="h-5 w-5 text-gray-500" />
           <h2 className="text-lg font-medium text-gray-900">院舍設定</h2>
         </div>
-        <p className="mt-1 text-sm text-gray-500">
-          院舍名稱與標誌會套用至列印匯出（例如「個人備藥及給藥記錄」）的頁首。
-        </p>
       </div>
 
       <div className="p-6 space-y-6 max-w-2xl">

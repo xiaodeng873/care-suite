@@ -11,15 +11,33 @@ import { FOLLOWUP_OCR_PROMPT_CORE, DIAGNOSIS_OCR_PROMPT_CORE, VACCINATION_OCR_PR
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, apikey"
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, apikey, X-Db-Token"
 };
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 function getSupabaseClient() {
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
+    },
+    realtime: { enabled: false },
+  });
+}
+// 以用戶本人的 dbToken 建立的 client：RLS tenant 隔離對 AI 產生的 SQL 同樣生效
+// （exec_sql_readonly / exec_sql_mutation 已改為 SECURITY INVOKER）
+function getUserDbClient(dbToken: string | null) {
+  if (!dbToken) return null;
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+    global: {
+      headers: {
+        Authorization: `Bearer ${dbToken}`,
+      },
     },
     realtime: { enabled: false },
   });
@@ -636,8 +654,12 @@ function generateQueryResultSummary(data: any[], originalExplanation: string = "
   return summary;
 }
 
-async function executeQuery(sql, params = []) {
-  const supabase = getSupabaseClient();
+async function executeQuery(sql, params = [], userCtx = null) {
+  // 用戶 dbToken 缺失時直接拒絕（fail closed），避免 service role 繞過 tenant 隔離
+  const supabase = getUserDbClient(userCtx?.dbToken);
+  if (!supabase) {
+    return { data: null, error: "缺少資料庫權杖，請重新登入後再試" };
+  }
   try {
     // Use rpc to execute raw SQL via a custom function, or use the REST API
     // Since we have service role, we can use supabase.rpc or direct query
@@ -801,7 +823,7 @@ async function buildImageAnalysisResponse(analysisResponse, imageBase64, imageMi
     if (conditions.length > 0) {
       const patientSql = `SELECT "院友id", "中文姓名", "中文姓氏", "中文名字", "英文姓名", "英文姓氏", "英文名字", "身份證號碼", "性別", "出生日期", "在住狀態", "床號" FROM "院友主表" WHERE ${conditions.join(" OR ")} LIMIT 20`;
       console.log("Patient match SQL:", patientSql);
-      const { data: patientData, error: patientError } = await executeQuery(patientSql);
+      const { data: patientData, error: patientError } = await executeQuery(patientSql, [], userCtx);
       if (!patientError && patientData && patientData.length > 0) {
         patientMatchCandidates = patientData;
         // Score each candidate — partial/obscured clues accumulate
@@ -905,7 +927,7 @@ async function buildImageAnalysisResponse(analysisResponse, imageBase64, imageMi
       recordSql = `SELECT id, vaccination_date, vaccine_item, vaccination_unit FROM vaccination_records WHERE patient_id = ${patientId} ORDER BY vaccination_date DESC LIMIT 10`;
     }
     if (recordSql) {
-      const { data, error } = await executeQuery(recordSql);
+      const { data, error } = await executeQuery(recordSql, [], userCtx);
       if (error) {
         comparisonError = error;
       } else {
@@ -919,7 +941,7 @@ async function buildImageAnalysisResponse(analysisResponse, imageBase64, imageMi
     // Fallback: if patient not matched, try the LLM-generated comparison query
     const sql = analysisResponse.comparison_query;
     if (sql.trim().toUpperCase().startsWith("SELECT") && !containsBlockedKeywords(sql)) {
-      const { data, error } = await executeQuery(sql);
+      const { data, error } = await executeQuery(sql, [], userCtx);
       if (error) {
         comparisonError = error;
       } else {
@@ -1350,7 +1372,7 @@ async function processLLMResponse(llmResponse, message, userCtx) {
   }
   // Handle query
   if (llmResponse.type === "query" && llmResponse.sql) {
-    const { data, error } = await executeQuery(llmResponse.sql, llmResponse.params || []);
+    const { data, error } = await executeQuery(llmResponse.sql, llmResponse.params || [], userCtx);
     if (error) {
       return jsonResponse({
         success: true,
@@ -1452,6 +1474,8 @@ Deno.serve(async (req)=>{
     }
     // Validate user
     userCtx = await validateToken(token);
+    // 帶上用戶的 dbToken：之後所有資料查詢/操作都用它執行，RLS tenant 隔離才生效
+    userCtx.dbToken = req.headers.get("X-Db-Token") || null;
     if (!userCtx) {
       return jsonResponse({
         success: false,
@@ -1676,7 +1700,7 @@ async function handleChat(req, userCtx) {
   }
   // Handle query (SELECT) — execute immediately
   if (llmResponse.type === "query" && llmResponse.sql) {
-    const { data, error } = await executeQuery(llmResponse.sql, llmResponse.params || []);
+    const { data, error } = await executeQuery(llmResponse.sql, llmResponse.params || [], userCtx);
     if (error) {
       return jsonResponse({
         success: true,
@@ -1787,9 +1811,16 @@ async function handleConfirmMutation(req, userCtx) {
       }, 403);
     }
   }
-  // Execute the mutation
+  // Execute the mutation — 用戶本人的 dbToken 執行，RLS tenant 隔離生效
   try {
-    const { data, error } = await supabase.rpc("exec_sql_mutation", {
+    const userDb = getUserDbClient(userCtx?.dbToken);
+    if (!userDb) {
+      return jsonResponse({
+        success: false,
+        error: "缺少資料庫權杖，請重新登入後再試"
+      }, 401);
+    }
+    const { data, error } = await userDb.rpc("exec_sql_mutation", {
       query_text: substituteParams(normalizeSql(mutation.sql_statement), mutation.sql_params || []),
       query_params: JSON.stringify([])
     });

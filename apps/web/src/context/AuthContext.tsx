@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { createClient, User, Session } from '@supabase/supabase-js';
 import { getSupabaseUrl, getSupabaseAnonKey } from '../config/supabase.config';
 import { supabase as dbClient } from '../lib/supabase';
+import { queryClient } from '../lib/queryClient';
+import { clearFacilitySettingsCache } from '../utils/facilitySettings';
 import type {
   UserProfile,
   UserRole,
@@ -40,6 +42,17 @@ const clearDbToken = () => {
   localStorage.removeItem(DB_TOKEN_KEY);
 };
 
+// 從 dbToken 解出 facility_id（切換院舍後用來重置整個資料樹的 key）
+const parseFacilityIdFromToken = (token?: string | null): number | null => {
+  try {
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload.facility_id === 'number' ? payload.facility_id : null;
+  } catch {
+    return null;
+  }
+};
+
 /** 用戶權限項目 */
 export interface UserPermissionItem {
   category: PermissionCategory;
@@ -70,9 +83,17 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 
   // 開發者選院舍（facility_id 為 null = 維運模式，跨院舍）
-  fetchFacilities: () => Promise<{ id: number; name: string }[]>;
+  fetchFacilities: () => Promise<{ id: number; name: string; is_active: boolean }[]>;
   selectFacility: (facilityId: number | null) => Promise<{ error: any }>;
   createFacility: (name: string) => Promise<{ id: number | null; error: any }>;
+  // 開發者院舍管理：中止/恢復登入、刪除（僅空院舍）
+  suspendFacility: (facilityId: number) => Promise<{ error: any }>;
+  resumeFacility: (facilityId: number) => Promise<{ error: any }>;
+  deleteFacility: (facilityId: number) => Promise<{ error: any }>;
+  // 當前 dbToken 對應的院舍 id（App 層用佢重掛資料樹）
+  dbFacilityId: number | null;
+  // dbToken 已簽發並寫入 localStorage（閘門等 RPC 必須等呢個 flag 先好發請求）
+  dbTokenReady: boolean;
   // 開發者是否已在本工作階段選定院舍（App 層閘門用）
   devFacilityChosen: boolean;
   
@@ -119,6 +140,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [displayName, setDisplayName] = useState<string | null>(null);
   // 開發者選院舍閘門：每次工作階段必須選擇一次，不得預設
   const [devFacilityChosen, setDevFacilityChosen] = useState(false);
+  // 當前 dbToken 對應的院舍 id；切換時 App 用佢做 key 重掛成棵資料樹，杜絕舊院舍資料殘留
+  const [dbFacilityId, setDbFacilityId] = useState<number | null>(() =>
+    parseFacilityIdFromToken(localStorage.getItem(DB_TOKEN_KEY))
+  );
+  const [dbTokenReady, setDbTokenReady] = useState<boolean>(() => !!localStorage.getItem(DB_TOKEN_KEY));
 
   // 計算角色
   const role: UserRole | null = userProfile?.role || (user ? 'developer' : null);
@@ -186,6 +212,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setPermissions(result.permissions || []);
         setDisplayName(getUserDisplayName(null, result.user));
         saveDbToken(result.dbToken);
+        setDbFacilityId(parseFacilityIdFromToken(result.dbToken));
+        setDbTokenReady(true);
         return true;
       }
       return false;
@@ -214,6 +242,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.removeItem(CUSTOM_TOKEN_KEY);
             localStorage.removeItem(CUSTOM_USER_KEY);
             clearDbToken();
+            setDbFacilityId(null);
+            setDbTokenReady(false);
           }
         }
 
@@ -310,6 +340,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const result = await callAuthApi('validate', null, customToken);
         if (result.success) {
           saveDbToken(result.dbToken);
+          setDbFacilityId(parseFacilityIdFromToken(result.dbToken));
+          setDbTokenReady(true);
           // 內容有變才更新 state，避免無謂的全域 re-render
           setUserProfile((prev) =>
             JSON.stringify(prev) === JSON.stringify(result.user) ? prev : result.user
@@ -338,20 +370,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [customToken]);
 
   // 獲取院舍列表（開發者選院舍登入用；走 lib dbClient 以帶上 dbToken）
-  // 顯示名稱優先取院舍設定 facility_settings.facility_name_zh，缺失時用 facilities.name
-  const fetchFacilities = async (): Promise<{ id: number; name: string }[]> => {
-    const { data, error } = await dbClient
-      .from('facilities')
-      .select('id, name, facility_settings(facility_name_zh)')
-      .order('id');
-    if (error) {
-      console.error('Fetch facilities error:', error);
-      return [];
+  // 顯示名稱取院舍設定 facility_settings.facility_name_zh，由 RPC 以 SECURITY DEFINER
+  // 讀取（developer 未選院舍 token 的 facility_id claim 為 NULL，直接 join 會被 RLS 擋）
+  const fetchFacilities = async (): Promise<{ id: number; name: string; is_active: boolean }[]> => {
+    // 偶發 statement timeout / 網絡抖動：重試 3 次，避免列表誤判為空
+    let lastError: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data, error } = await dbClient.rpc('get_facility_directory');
+      if (!error) {
+        return (data || []).map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          is_active: row.is_active !== false,
+        }));
+      }
+      lastError = error;
+      console.error(`Fetch facilities error (attempt ${attempt + 1}):`, error);
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+      }
     }
-    return (data || []).map((row: any) => {
-      const fs = Array.isArray(row.facility_settings) ? row.facility_settings[0] : row.facility_settings;
-      return { id: row.id, name: fs?.facility_name_zh || row.name };
-    });
+    throw lastError ?? new Error('載入院舍列表失敗');
   };
 
   // 新增院舍（開發者用）：建 facilities + 院舍設定列，回傳新院舍 id
@@ -383,7 +422,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Create facility_settings error:', settingsError);
       // 設定列建立失敗不阻斷，名稱仍可用 facilities.name 顯示
     }
+    // 開通複製：以 facility 1 為種，複製參考資料（藥物庫、ICP問題庫、收費項目等）給新院舍
+    const { error: provisionError } = await dbClient.rpc('provision_facility', {
+      p_new_facility_id: fac.id,
+    });
+    if (provisionError) {
+      console.error('Provision facility error:', provisionError);
+      return { id: fac.id, error: '院舍已建立，但複製參考資料失敗: ' + (provisionError.message || '未知錯誤') };
+    }
     return { id: fac.id, error: null };
+  };
+
+  // 中止院舍所有用戶登入：停用院舍 + 作廢所有已簽發 dbToken（auth_epoch+1）+ 清除該院舍用戶的登入 session
+  const suspendFacility = async (facilityId: number): Promise<{ error: any }> => {
+    try {
+      const { data: fac, error: readError } = await dbClient
+        .from('facilities')
+        .select('id, auth_epoch')
+        .eq('id', facilityId)
+        .single();
+      if (readError || !fac) return { error: '院舍不存在' };
+
+      const { error: updateError } = await dbClient
+        .from('facilities')
+        .update({ is_active: false, auth_epoch: (fac.auth_epoch ?? 0) + 1 })
+        .eq('id', facilityId);
+      if (updateError) return { error: '停用院舍失敗: ' + (updateError.message || '未知錯誤') };
+
+      const { data: users } = await dbClient
+        .from('user_profiles')
+        .select('id')
+        .eq('facility_id', facilityId);
+      const userIds = (users || []).map((u: any) => u.id);
+      if (userIds.length > 0) {
+        await dbClient.from('user_sessions').delete().in('user_id', userIds);
+      }
+      return { error: null };
+    } catch (e: any) {
+      console.error('Suspend facility error:', e);
+      return { error: '停用院舍失敗，請稍後再試' };
+    }
+  };
+
+  // 恢復院舍登入（用戶需重新登入，舊 dbToken 維持失效）
+  const resumeFacility = async (facilityId: number): Promise<{ error: any }> => {
+    const { error } = await dbClient
+      .from('facilities')
+      .update({ is_active: true })
+      .eq('id', facilityId);
+    if (error) return { error: '恢復院舍失敗: ' + (error.message || '未知錯誤') };
+    return { error: null };
+  };
+
+  // 刪除院舍：連同該院舍所有用戶及記錄一併刪除（DB 端 delete_facility_cascade 整體執行，失敗自動回滾）
+  const deleteFacility = async (facilityId: number): Promise<{ error: any }> => {
+    try {
+      const { error } = await dbClient.rpc('delete_facility_cascade', {
+        p_facility_id: facilityId,
+      });
+      if (error) return { error: '刪除院舍失敗: ' + (error.message || '未知錯誤') };
+      return { error: null };
+    } catch (e: any) {
+      console.error('Delete facility error:', e);
+      return { error: '刪除院舍失敗，請稍後再試' };
+    }
   };
 
   // 開發者選定院舍：重發鎖定該院舍的 dbToken（null = 維運模式）
@@ -396,6 +498,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await callAuthApi('db-token', { facility_id: facilityId }, session.access_token);
       if (result?.success && result.dbToken) {
         saveDbToken(result.dbToken);
+        setDbFacilityId(parseFacilityIdFromToken(result.dbToken));
+        setDbTokenReady(true);
+        // 清掉舊院舍的快取資料與設定，避免切換後仍顯示上一間院舍的數據/名稱
+        queryClient.clear();
+        clearFacilitySettingsCache();
         setDevFacilityChosen(true);
         return { error: null };
       }
@@ -426,6 +533,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return { error: '無法建立資料庫連線權限，請重試（' + (result?.error || '未知錯誤') + '）' };
         }
         saveDbToken(result.dbToken);
+        setDbFacilityId(parseFacilityIdFromToken(result.dbToken));
+        setDbTokenReady(true);
       } catch (dbTokenError) {
         console.error('Failed to get db token:', dbTokenError);
         return { error: '無法建立資料庫連線權限，請稍後再試' };
@@ -446,6 +555,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Supabase Auth 登出
   const signOut = async () => {
     clearDbToken();
+    setDbFacilityId(null);
+    setDbTokenReady(false);
     setDevFacilityChosen(false);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -485,6 +596,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setPermissions(result.permissions || []);
         setDisplayName(getUserDisplayName(null, result.user));
         saveDbToken(result.dbToken);
+        setDbFacilityId(parseFacilityIdFromToken(result.dbToken));
+        setDbTokenReady(true);
         
         // 保存到本地存儲
         localStorage.setItem(CUSTOM_TOKEN_KEY, result.token);
@@ -511,6 +624,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setPermissions(result.permissions || []);
         setDisplayName(getUserDisplayName(null, result.user));
         saveDbToken(result.dbToken);
+        setDbFacilityId(parseFacilityIdFromToken(result.dbToken));
+        setDbTokenReady(true);
         
         // 保存到本地存儲
         localStorage.setItem(CUSTOM_TOKEN_KEY, result.token);
@@ -546,6 +661,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem(CUSTOM_TOKEN_KEY);
       localStorage.removeItem(CUSTOM_USER_KEY);
       clearDbToken();
+      setDbFacilityId(null);
+      setDbTokenReady(false);
     }
   };
 
@@ -724,7 +841,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       fetchFacilities,
       selectFacility,
       createFacility,
+      suspendFacility,
+      resumeFacility,
+      deleteFacility,
       devFacilityChosen,
+      dbFacilityId,
+      dbTokenReady,
       customLogin,
       qrLogin,
       customLogout,

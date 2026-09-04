@@ -1343,7 +1343,7 @@ export const getPatients = async (): Promise<Patient[]> => {
 // 身份證相片只喺留檔時寫入，日常畫面毋需讀取，故唔補載。
 // ⚠️ 院友主表 新增欄位時請同步加入此清單；dev 模式會自動對比並 console.warn。
 // （PostgREST 唔支援排除欄位語法，OpenAPI spec endpoint 又只限 service_role，所以只能列明。）
-const PATIENTS_LIGHT_COLUMNS = '院友id,床號,中文姓名,英文姓名,性別,身份證號碼,出生日期,藥物敏感,不良藥物反應,感染控制,入住日期,退住日期,護理等級,入住類型,社會福利,在住狀態,中文姓氏,中文名字,英文姓氏,英文名字,station_id,bed_id,is_hospitalized,discharge_reason,death_date,transfer_facility_name,needs_medication_crushing,qr_code_id,公務員,通訊電話,通訊地址,教育程度,從前主要職業,宗教信仰,婚姻狀況,首次記錄職員姓名,首次記錄職級,首次記錄簽署,首次記錄日期,social_status_json,medical_history_json,vaccination_records_json,medical_services_json,nursing_assessment_json,last_station_id,last_bed_id,original_bed_id,original_station_id,bed_transfer_type,temporary_transfer_started_at';
+const PATIENTS_LIGHT_COLUMNS = '院友id,床號,中文姓名,英文姓名,性別,身份證號碼,出生日期,藥物敏感,不良藥物反應,感染控制,入住日期,退住日期,護理等級,入住類型,社會福利,在住狀態,中文姓氏,中文名字,英文姓氏,英文名字,station_id,bed_id,is_hospitalized,discharge_reason,death_date,transfer_facility_name,needs_medication_crushing,qr_code_id,公務員,通訊電話,通訊地址,教育程度,從前主要職業,宗教信仰,婚姻狀況,首次記錄職員姓名,首次記錄職級,首次記錄簽署,首次記錄日期,social_status_json,medical_history_json,vaccination_records_json,medical_services_json,nursing_assessment_json,last_station_id,last_bed_id,original_bed_id,original_station_id,bed_transfer_type,temporary_transfer_started_at,facility_id';
 
 // dev-only：對比遠端實際欄位同 light 清單，新增欄位漏咗更新時及早警告
 let patientsLightColumnsChecked = false;
@@ -3608,6 +3608,7 @@ export interface UserProfile {
   role: string;
   is_active: boolean;
   auth_user_id?: string | null;
+  facility_id?: number | null;
   created_by?: string | null;
   created_at: string;
   updated_at: string;

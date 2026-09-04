@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { getCurrentFacilityId } from './facilitySettings';
 
 // =====================================================
 // 一鍵排班原則（按職位分頁儲存於 facility_settings.auto_roster_principles）
@@ -69,11 +70,12 @@ export function getPrinciplesForPosition(
 
 /** 讀取一鍵排班原則。讀取失敗或欄位缺失時回落空設定（全部用預設值）。 */
 export async function loadAutoRosterPrinciples(): Promise<AutoRosterPrinciplesConfig> {
-  const { data, error } = await supabase
+  const facilityId = getCurrentFacilityId();
+  let q = supabase
     .from('facility_settings')
-    .select('auto_roster_principles')
-    .eq('id', 1)
-    .maybeSingle();
+    .select('auto_roster_principles');
+  q = facilityId != null ? q.eq('facility_id', facilityId) : q.eq('id', 1);
+  const { data, error } = await q.maybeSingle();
 
   if (error) {
     console.warn('讀取一鍵排班原則失敗，使用預設值:', error.message);
@@ -84,13 +86,15 @@ export async function loadAutoRosterPrinciples(): Promise<AutoRosterPrinciplesCo
 
 /** 儲存一鍵排班原則（整份設定一併更新） */
 export async function saveAutoRosterPrinciples(config: AutoRosterPrinciplesConfig): Promise<void> {
-  const { error } = await supabase
+  const facilityId = getCurrentFacilityId();
+  let q = supabase
     .from('facility_settings')
     .update({
       auto_roster_principles: config,
       updated_at: new Date().toISOString(),
-    })
-    .eq('id', 1);
+    });
+  q = facilityId != null ? q.eq('facility_id', facilityId) : q.eq('id', 1);
+  const { error } = await q;
 
   if (error) {
     throw new Error(`儲存一鍵排班原則失敗：${error.message}`);

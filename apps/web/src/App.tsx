@@ -116,7 +116,7 @@ const RosterManagement = lazy(() => import('./pages/RosterManagement'));
 
 
 function AppContent() {
-  const { user, userProfile, loading: authLoading, authReady, signOut, customLogout, isAuthenticated, devFacilityChosen } = useAuth();
+  const { user, userProfile, loading: authLoading, authReady, signOut, customLogout, isAuthenticated, devFacilityChosen, dbTokenReady } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showInitialLoadingScreen, setShowInitialLoadingScreen] = useState(false);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
@@ -174,6 +174,17 @@ function AppContent() {
   // 開發者院舍間門：未選定院舍前不得進入系統（不預設行為）
   const isDeveloperUser = !!user && !userProfile;
   if (isDeveloperUser && !devFacilityChosen) {
+    // dbToken 未簽發完成前顯示等待中：閘門 RPC 必須帶住 dbToken，否則會以 anon 身份被拒（42501）
+    if (!dbTokenReady) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">準備院舍列表中...</p>
+          </div>
+        </div>
+      );
+    }
     return <DeveloperFacilityGate />;
   }
 
@@ -265,17 +276,26 @@ function AuthenticatedContent({
         setFallbackTimeout(true);
       }, 8000);
       
-      return () => clearTimeout(fallbackTimer);
+      // 強制退出（最後防線）：10 秒後無論任何狀態直接移除 loading 畫面，
+      // 唔再依賴 canHide effect 或其他 state（切換院舍重掛後 state 重置可能令 canHide 條件永遠唔齊），
+      // 保證用戶一定可以進入系統
+      const hardTimer = setTimeout(() => {
+        console.log('[Loading] Hard timeout - force hide loading screen');
+        setShowInitialLoadingScreen(false);
+      }, 10000);
+      
+      return () => { clearTimeout(fallbackTimer); clearTimeout(hardTimer); };
     }
   }, [showInitialLoadingScreen, resetDashboardReady]);
   
   // 當數據加載完成、(Dashboard 準備完成 或 備用超時) 且最短時間已過，隱藏加載頁面
   useEffect(() => {
+    // 快速通道：全部資料就緒 + Dashboard 報告 ready
+    // 保證通道：8 秒 fallback 一到就放行（不再依賴 allDataLoaded / hasEssentialData），
+    // 避免任何一個 context 超時或報錯時永遠卡在 loading 頁
     const canHide = showInitialLoadingScreen && 
-                    allDataLoaded && 
-                    hasEssentialData && 
-                    minTimeElapsed && 
-                    (isDashboardReady || fallbackTimeout);
+                    (fallbackTimeout ||
+                     (minTimeElapsed && allDataLoaded && hasEssentialData && isDashboardReady));
     
     if (canHide) {
       console.log('[Loading] Hiding loading screen', { isDashboardReady, fallbackTimeout });
@@ -352,11 +372,19 @@ function AuthenticatedContent({
   );
 }
 
+// 以當前院舍 id 做 key：切換院舍時整棵資料樹（所有 Context）重掛，
+// 強制用新 dbToken 重新載入，杜絕閘門/登入階段用無指定 token 載入嘅舊院舍資料殘留
+function FacilityScoped({ children }: { children: React.ReactNode }) {
+  const { dbFacilityId } = useAuth();
+  return <React.Fragment key={dbFacilityId ?? 'ops'}>{children}</React.Fragment>;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <DashboardReadyProvider>
         <AuthProvider>
+          <FacilityScoped>
           <ThemeProvider>
           <StationProvider>
             <StationFilterProvider>
@@ -376,6 +404,7 @@ function App() {
             </StationFilterProvider>
           </StationProvider>
           </ThemeProvider>
+          </FacilityScoped>
         </AuthProvider>
       </DashboardReadyProvider>
       {/* React Query DevTools - 僅開發環境顯示 */}

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { getCurrentFacilityId } from './facilitySettings';
 
 // =====================================================
 // 院舍性質類型定義
@@ -264,7 +265,7 @@ function sanitizeSpecific(raw: unknown): SpecificHoursConfig {
 }
 
 // =====================================================
-// 讀寫 facility_settings（單列 id = 1）
+// 讀寫 facility_settings（當前院舍的列；developer 維運模式沿用 id = 1）
 // =====================================================
 
 /**
@@ -272,11 +273,16 @@ function sanitizeSpecific(raw: unknown): SpecificHoursConfig {
  * （床位數全 0、requirements 空、specific 用預設）。
  */
 export async function loadFacilityNatureSettings(): Promise<FacilityNatureSettings> {
-  const { data, error } = await supabase
+  const facilityId = getCurrentFacilityId();
+  let query = supabase
     .from('facility_settings')
-    .select('nature_bed_counts, nature_requirements, specific_hours_config, contract_hours_config')
-    .eq('id', 1)
-    .maybeSingle();
+    .select('nature_bed_counts, nature_requirements, specific_hours_config, contract_hours_config');
+  if (facilityId != null) {
+    query = query.eq('facility_id', facilityId);
+  } else {
+    query = query.eq('id', 1);
+  }
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     console.warn('讀取院舍性質設定失敗，使用預設值:', error.message);
@@ -292,7 +298,8 @@ export async function loadFacilityNatureSettings(): Promise<FacilityNatureSettin
 
 /** 儲存院舍性質設定（四欄一併更新）。床位總和等驗證在元件層完成。 */
 export async function saveFacilityNatureSettings(settings: FacilityNatureSettings): Promise<void> {
-  const { error } = await supabase
+  const facilityId = getCurrentFacilityId();
+  let query = supabase
     .from('facility_settings')
     .update({
       nature_bed_counts: settings.bedCounts,
@@ -300,8 +307,13 @@ export async function saveFacilityNatureSettings(settings: FacilityNatureSetting
       specific_hours_config: settings.specific,
       contract_hours_config: settings.contractHours,
       updated_at: new Date().toISOString(),
-    })
-    .eq('id', 1);
+    });
+  if (facilityId != null) {
+    query = query.eq('facility_id', facilityId);
+  } else {
+    query = query.eq('id', 1);
+  }
+  const { error } = await query;
 
   if (error) {
     throw new Error(`儲存院舍性質設定失敗：${error.message}`);

@@ -30,7 +30,7 @@ interface TemplateMetadata {
   extracted_format: any;
 }
 const TemplateManagement: React.FC = () => {
-  const { isAdmin, isDeveloper, verifyPassword } = useAuth();
+  const { isAdmin, isDeveloper, verifyPassword, userProfile } = useAuth();
   const [templates, setTemplates] = useState<TemplateMetadata[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -228,7 +228,8 @@ const TemplateManagement: React.FC = () => {
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const sanitizedFilename = sanitizeFilename(file.name);
-      const storagePath = `${selectedType}/${timestamp}_${sanitizedFilename}`;
+      // 院舍前綴：storage 政策只容許寫入本院舍 fac{facility_id}/ 前綴路徑
+      const storagePath = `fac${userProfile?.facility_id ?? 0}/${selectedType}/${timestamp}_${sanitizedFilename}`;
       const uploadedPath = await uploadTemplateFile(file, storagePath);
       if (!uploadedPath) {
         throw new Error('檔案上傳失敗');

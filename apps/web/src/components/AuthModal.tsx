@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, User, Lock, UserCircle, QrCode, Camera, SwitchCamera, AlertCircle } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useAuth } from '../context/AuthContext';
-import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS, type FacilitySettings } from '../utils/facilitySettings';
 
 type LoginMode = 'password' | 'qrcode';
 
@@ -30,18 +29,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const scannerIdRef = useRef('auth-qr-scanner-' + Math.random().toString(36).substr(2, 9));
   
   const { customLogin, qrLogin, signIn } = useAuth();
-  const [facilitySettings, setFacilitySettings] = useState<FacilitySettings>(DEFAULT_FACILITY_SETTINGS);
 
-
+  // 登入口統一用 eHMS 品牌，不顯示個別院舍名稱；不預讀院舍設定（避免快取污染切換後的顯示）
   useEffect(() => {
-    let cancelled = false;
-    getFacilitySettings().then(s => {
-      if (!cancelled) {
-        setFacilitySettings(s);
-        document.title = s.facilityNameZh || s.facilityNameEn || DEFAULT_FACILITY_SETTINGS.facilityNameZh;
-      }
-    }).catch(() => {});
-    return () => { cancelled = true; };
+    document.title = 'eHMS 院舍管理系統';
   }, []);
 
   // 清理掃描器
@@ -290,7 +281,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       <div className="bg-white/95 backdrop-blur rounded-xl shadow-2xl w-full max-w-md mx-4 relative z-10">
         {/* 歡迎標題區塊 */}
         <div className="p-6 pb-4 text-center border-b border-gray-100">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">{facilitySettings.facilityNameZh || facilitySettings.facilityNameEn || 'Care Suite'}</h1>
+          {/* eHMS 品牌標題（款式同 landing page 左上角，不顯示個別院舍名稱） */}
+          <div className="mb-2">
+            <span
+              className="text-3xl font-extrabold tracking-tight"
+              style={{ color: '#1F3A6E', letterSpacing: '-0.02em' }}
+            >
+              eHMS
+            </span>
+            <div
+              className="text-[0.55rem] font-semibold whitespace-nowrap"
+              style={{ color: '#1F3A6E', opacity: 0.85, letterSpacing: '0.04em' }}
+            >
+              e-Hostel Management Standard
+            </div>
+          </div>
           <p className="text-gray-600">請登入以繼續使用系統</p>
         </div>
         

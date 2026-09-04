@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { Edit3, Trash2, User, ChevronUp, ChevronDown, Filter, X, Search } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
@@ -72,6 +72,10 @@ const PatientContacts: React.FC = () => {
   useEffect(() => {
     if (patients.length > 0) {
       fetchContacts();
+    } else {
+      // 0 院友（如空院舍）時都要解除 loading，否則永遠卡住
+      setContacts([]);
+      setLoading(false);
     }
   }, [patients]);
 
@@ -332,10 +336,9 @@ const PatientContacts: React.FC = () => {
                 const hasContacts = filteredPatientContacts.length > 0;
 
                 return (
-                  <>
+                  <Fragment key={`patient-${patient.院友id}`}>
                     {/* 院友主列 */}
                     <tr
-                      key={`patient-${patient.院友id}`}
                       className={`hover:bg-blue-50 cursor-pointer ${isExpanded ? 'bg-blue-50' : ''}`}
                       onClick={() => toggleExpand(patient.院友id)}
                     >
@@ -446,7 +449,7 @@ const PatientContacts: React.FC = () => {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>

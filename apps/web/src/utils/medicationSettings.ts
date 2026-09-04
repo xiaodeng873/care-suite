@@ -2,7 +2,7 @@
 // 同時儲存於 DB (facility_settings.medication_settings) 和 localStorage（快取）。
 
 import { supabase } from '../lib/supabase';
-import { DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+import { DEFAULT_FACILITY_SETTINGS, getCurrentFacilityId } from './facilitySettings';
 
 export interface MedicationSettingsData {
   劑型: string[];
@@ -136,11 +136,16 @@ export const DEFAULT_MEDICATION_SETTINGS: MedicationSettingsData = {
   },
 };
 
-const STORAGE_KEY = 'care_suite_medication_settings';
+// localStorage 按院舍分鍵，避免 A 院快取流落 B 院
+const STORAGE_KEY_BASE = 'care_suite_medication_settings';
+function storageKey(): string {
+  const fid = getCurrentFacilityId();
+  return fid != null ? `${STORAGE_KEY_BASE}_fac${fid}` : STORAGE_KEY_BASE;
+}
 
 export function getMedicationSettings(): MedicationSettingsData {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return { ...DEFAULT_MEDICATION_SETTINGS };
     const parsed = JSON.parse(raw) as Partial<MedicationSettingsData>;
     // Merge with defaults：藥物設定為清單唯一依歸，陣列欄位直接用 stored 值；
@@ -167,11 +172,11 @@ export function getMedicationSettings(): MedicationSettingsData {
 }
 
 export function saveMedicationSettings(settings: MedicationSettingsData): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  localStorage.setItem(storageKey(), JSON.stringify(settings));
 }
 
 export function resetMedicationSettings(): MedicationSettingsData {
-  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(storageKey());
   return { ...DEFAULT_MEDICATION_SETTINGS };
 }
 
@@ -182,18 +187,19 @@ export function resetMedicationSettings(): MedicationSettingsData {
  */
 export async function getMedicationSettingsFromDB(): Promise<MedicationSettingsData> {
   try {
-    const { data, error } = await supabase
+    const facilityId = getCurrentFacilityId();
+    let q = supabase
       .from('facility_settings')
-      .select('medication_settings')
-      .eq('id', 1)
-      .maybeSingle();
+      .select('medication_settings');
+    q = facilityId != null ? q.eq('facility_id', facilityId) : q.eq('id', 1);
+    const { data, error } = await q.maybeSingle();
     if (!error && data?.medication_settings) {
       const merged: MedicationSettingsData = {
         ...DEFAULT_MEDICATION_SETTINGS,
         ...(data.medication_settings as Partial<MedicationSettingsData>),
       };
       // 同步更新 localStorage 快取
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      localStorage.setItem(storageKey(), JSON.stringify(merged));
       return merged;
     }
   } catch (e) {
@@ -212,11 +218,12 @@ export async function saveMedicationSettingsToDB(settings: MedicationSettingsDat
   const now = new Date().toISOString();
 
   // 1. 先嘗試只更新 medication_settings（不覆蓋其他院舍欄位）
-  const { data: updated, error: updateError } = await supabase
+  const facilityId = getCurrentFacilityId();
+  let upd = supabase
     .from('facility_settings')
-    .update({ medication_settings: settings, updated_at: now })
-    .eq('id', 1)
-    .select();
+    .update({ medication_settings: settings, updated_at: now });
+  upd = facilityId != null ? upd.eq('facility_id', facilityId) : upd.eq('id', 1);
+  const { data: updated, error: updateError } = await upd.select();
 
   console.log('[medicationSettings] update result:', { updated, updateError });
 
@@ -225,16 +232,16 @@ export async function saveMedicationSettingsToDB(settings: MedicationSettingsDat
   }
 
   if (updated && updated.length > 0) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    localStorage.setItem(storageKey(), JSON.stringify(settings));
     console.log('[medicationSettings] existing row updated, localStorage updated');
     return;
   }
 
-  // 2. 沒有 id=1 的列，才插入新列（帶上所有 NOT NULL 預設值）
+  // 2. 沒有該院舍的列，才插入新列（帶上所有 NOT NULL 預設值；不寫死 id）
   const { data: inserted, error: insertError } = await supabase
     .from('facility_settings')
     .insert({
-      id: 1,
+      ...(facilityId != null ? { facility_id: facilityId } : { id: 1 }),
       facility_name_zh: DEFAULT_FACILITY_SETTINGS.facilityNameZh,
       facility_name_en: DEFAULT_FACILITY_SETTINGS.facilityNameEn,
       facility_phone: '',
@@ -252,7 +259,7 @@ export async function saveMedicationSettingsToDB(settings: MedicationSettingsDat
     throw new Error(`儲存藥物設定失敗：${insertError.message}`);
   }
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  localStorage.setItem(storageKey(), JSON.stringify(settings));
   console.log('[medicationSettings] new row inserted, localStorage updated');
 }
 

@@ -79,6 +79,8 @@ export interface UserProfile {
   role: UserRole;
   is_active: boolean;
   auth_user_id: string | null;
+  /** 所屬院舍（多租戶隔離用） */
+  facility_id?: number | null;
   login_qr_code_id: string; // 用戶登入二維碼識別碼
   /** 大頭照 URL（Supabase Storage avatars bucket） */
   avatar_url: string | null;

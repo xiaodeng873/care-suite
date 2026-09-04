@@ -3,7 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Db-Token",
 };
 
 interface Prescription {
@@ -41,9 +41,23 @@ Deno.serve(async (req: Request) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+
+    // 必須帶上用戶本人的 dbToken，以用戶身份執行，RLS tenant 隔離才生效
+    // 沒有 dbToken 一律拒絕（fail closed），不得用 service role 繞過院舍隔離
+    const dbToken = req.headers.get('X-Db-Token');
+    if (!dbToken) {
+      return new Response(
+        JSON.stringify({ success: false, error: '未授權：缺少 X-Db-Token' }),
+        { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { headers: { Authorization: `Bearer ${dbToken}` } },
+      realtime: { enabled: false },
+    });
 
     const url = new URL(req.url);
     const targetDate = url.searchParams.get('date') || new Date().toISOString().split('T')[0];

@@ -1042,6 +1042,9 @@ const Settings: React.FC = () => {
   useEffect(() => {
     if (canManage) {
       fetchUsers();
+    } else {
+      // 無用戶管理權限嘅帳號永遠唔會跑 fetchUsers，都要解除 loading 閘門
+      setHasLoadedOnce(true);
     }
   }, [canManage, fetchUsers]);
 

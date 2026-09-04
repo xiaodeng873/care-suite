@@ -760,9 +760,11 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
         await refreshDataRef.current();
         setDataLoaded(true);
         
-        // 在背景執行工作流程生成（不阻塞 UI）
-        generateDailyWorkflowRecords(new Date().toISOString().split('T')[0])
-          .catch(err => console.warn('Background workflow generation failed:', err));
+        // 在背景執行工作流程生成（不阻塞 UI；dbToken 未簽發完成前跳過，避免 401 噪音）
+        if (localStorage.getItem('care_suite_db_token')) {
+          generateDailyWorkflowRecords(new Date().toISOString().split('T')[0])
+            .catch(err => console.warn('Background workflow generation failed:', err));
+        }
       } catch (error) {
         console.error('Error initializing data:', error);
         try {
