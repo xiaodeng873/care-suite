@@ -19,6 +19,7 @@ import {
   Printer
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type MealGuidance, type MealCombinationType, type SpecialDietType } from '../context/PatientContext';
+import { useMeal } from '../context/records/MealContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import MealGuidanceModal from '../components/MealGuidanceModal';
 import PatientTooltip from '../components/PatientTooltip';
@@ -28,6 +29,7 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compar
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
 import PatientPrintModal from '../components/PatientPrintModal';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 
 
@@ -48,9 +50,11 @@ interface AdvancedFilters {
 
 const MealGuidance: React.FC = () => {
   const { mealGuidances, deleteMealGuidance, loading } = usePatientData();
+  const { refreshMealData } = useMeal();
   const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [selectedGuidance, setSelectedGuidance] = useState<MealGuidance | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
@@ -517,6 +521,14 @@ const MealGuidance: React.FC = () => {
             >
               <Plus className="h-4 w-4" />
               <span>新增餐膳指引</span>
+            </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
             </button>
           </div>
         </div>
@@ -1147,6 +1159,24 @@ const MealGuidance: React.FC = () => {
               alert('列印失敗，請稍後再試');
             }
           }}
+        />
+      )}
+
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['meal_guidance']}
+          title="餐膳指引回收筒"
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'meal_combination', label: '餐膳組合' },
+            { key: 'special_diets', label: '特殊餐膳' },
+            { key: 'guidance_source', label: '指引出處' },
+            { key: 'thickener_amount', label: '凝固粉分量' },
+            { key: 'remarks', label: '備註' },
+          ]}
+          dateField="guidance_date"
+          onRestored={() => refreshMealData()}
+          onClose={() => setShowRecycleBin(false)}
         />
       )}
     </div>

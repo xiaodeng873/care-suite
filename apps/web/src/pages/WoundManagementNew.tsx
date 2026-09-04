@@ -23,6 +23,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import PatientTooltip from '../components/PatientTooltip';
 import WoundModal from '../components/WoundModal';
 import SingleWoundAssessmentModal from '../components/SingleWoundAssessmentModal';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 import { fuzzyMatch, matchBedNumber, matchChineseName, matchPatientBedNumber} from '../utils/searchUtils';
 import { printWoundAssessment, saveWoundAssessmentHtml } from '../utils/woundAssessmentPrintGenerator';
 import { formatDisplayDate } from '../utils/dateFormat';
@@ -151,6 +152,7 @@ const WoundManagementNew: React.FC = () => {
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
   const [assessmentWound, setAssessmentWound]       = useState<Wound | null>(null);
   const [selectedAssessment, setSelectedAssessment] = useState<WoundAssessment | null>(null);
+  const [showRecycleBin, setShowRecycleBin]           = useState(false);
   const [deletingIds, setDeletingIds]               = useState<Set<string>>(new Set());
 
   // reset page on filter/sort change
@@ -504,13 +506,23 @@ const WoundManagementNew: React.FC = () => {
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">傷口管理</h1>
-          <button
-            onClick={() => handleAddWound()}
-            className="btn-primary flex flex-wrap items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            <span>新增傷口</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleAddWound()}
+              className="btn-primary flex flex-wrap items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>新增傷口</span>
+            </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1107,6 +1119,24 @@ const WoundManagementNew: React.FC = () => {
           assessment={selectedAssessment}
           onClose={() => { setShowAssessmentModal(false); setAssessmentWound(null); setSelectedAssessment(null); }}
           onSave={() => refreshWoundData()}
+        />
+      )}
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['wounds', 'wound_assessments']}
+          title="傷口管理回收筒"
+          tableLabels={{ wounds: '傷口', wound_assessments: '傷口評估' }}
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'wound_code', label: '傷口代號' },
+            { key: 'wound_name', label: '傷口名稱' },
+            { key: 'wound_type', label: '傷口類型' },
+            { key: 'wound_origin', label: '傷口來源' },
+            { key: 'wound_status', label: '傷口狀態' },
+          ]}
+          dateField="discovery_date"
+          onRestored={() => refreshWoundData()}
+          onClose={() => setShowRecycleBin(false)}
         />
       )}
     </div>

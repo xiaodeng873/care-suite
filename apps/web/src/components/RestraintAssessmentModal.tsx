@@ -344,6 +344,25 @@ const RestraintAssessmentModal: React.FC<RestraintAssessmentModalProps> = ({ ass
       return;
     }
 
+    // 每個已勾選嘅約束物品：必須揀使用情況，同埋時段四項（日間／晚上／全日／其他）至少一項有勾選或有內容
+    for (const [restraintName, config] of Object.entries(formData.suggested_restraints)) {
+      const cfg = config as any;
+      if (!cfg?.checked) continue;
+      if (!cfg?.usageConditions) {
+        alert(`「${restraintName}」已勾選，請選擇使用約束物品情況`);
+        return;
+      }
+      const hasTimePeriod =
+        cfg?.dayTime === true ||
+        cfg?.nightTime === true ||
+        cfg?.allDay === true ||
+        (typeof cfg?.otherTime === 'string' && cfg.otherTime.trim() !== '');
+      if (!hasTimePeriod) {
+        alert(`「${restraintName}」已勾選，請在使用約束物品的時段至少勾選一項（日間／晚上／全日）或填寫其他時段`);
+        return;
+      }
+    }
+
     // 使用紀錄：原因至少勾選一項
     const hasAnyReason = Object.entries(formData.usage_record?.reasons || {})
       .some(([key, value]) => value === true && !key.endsWith('_text'));

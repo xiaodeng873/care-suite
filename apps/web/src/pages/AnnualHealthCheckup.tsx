@@ -38,6 +38,8 @@ import { printMedicalExaminationForm } from '../utils/annualHealthCheckupFormGen
 import { getTemplatesMetadata } from '../lib/database';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
+import { useAssessment } from '../context/merged/RecordsContext';
 
 type SortField = '院友姓名' | 'last_doctor_signature_date' | 'next_due_date' | 'created_at';
 type SortDirection = 'asc' | 'desc';
@@ -51,10 +53,12 @@ interface AdvancedFilters {
   在住狀態: string;
 }
 const AnnualHealthCheckup: React.FC = () => {
-  const { annualHealthCheckups, prescriptions, deleteAnnualHealthCheckup, loading } = usePatientData();  const patients = useFilteredPatients();
+  const { annualHealthCheckups, prescriptions, deleteAnnualHealthCheckup, loading } = usePatientData();
+  const { refreshAssessmentData } = useAssessment();  const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedCheckup, setSelectedCheckup] = useState<AnnualHealthCheckup | null>(null);
   const [renewFromCheckup, setRenewFromCheckup] = useState<AnnualHealthCheckup | null>(null);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -483,6 +487,14 @@ const AnnualHealthCheckup: React.FC = () => {
             >
               <Plus className="h-4 w-4" />
               <span>新增年度體檢</span>
+            </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
             </button>
           </div>
         </div>
@@ -928,6 +940,21 @@ const AnnualHealthCheckup: React.FC = () => {
             setSelectedCheckup(null);
             setRenewFromCheckup(null);
           }}
+        />
+      )}
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['annual_health_checkups']}
+          title="年度體檢回收筒"
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'last_doctor_signature_date', label: '醫生簽署日期' },
+            { key: 'next_due_date', label: '下次到期日' },
+            { key: 'created_at', label: '建立日期' }
+          ]}
+          dateField="last_doctor_signature_date"
+          onRestored={() => { refreshAssessmentData(); }}
+          onClose={() => setShowRecycleBin(false)}
         />
       )}
     </div>

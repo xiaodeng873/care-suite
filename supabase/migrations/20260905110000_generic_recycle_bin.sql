@@ -50,22 +50,16 @@ LANGUAGE sql STABLE AS $$
   ]::text[])
 $$;
 
--- 目標資料列嘅 facility_id（表冇 facility_id 欄時回傳 jwt claim）
-CREATE OR REPLACE FUNCTION public.recycle_row_facility(p_table text, p_id text) RETURNS integer
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
-DECLARE
-  v_facility integer;
-  v_has_facility_col boolean;
-BEGIN
-  SELECT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = p_table AND column_name = 'facility_id'
-  ) INTO v_has_facility_col;
-  IF v_has_facility_col THEN
-    EXECUTE format('SELECT facility_id FROM %I WHERE ctid = (SELECT ctid FROM %I WHERE %s LIMIT 1)', p_table, p_table, 'true') INTO v_facility;
-  END IF;
-  RETURN COALESCE(v_facility, public.jwt_facility_id());
-END;
+-- 搵表嘅主鍵欄名（全部目標表都係單欄主鍵；覆診安排主表主鍵係「覆診id」）
+CREATE OR REPLACE FUNCTION public.recycle_pk_column(p_table text) RETURNS text
+LANGUAGE sql STABLE AS $$
+  SELECT a.attname
+  FROM pg_index i
+  JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY (i.indkey)
+  WHERE i.indrelid = format('%I.%I', 'public', p_table)::regclass
+    AND i.indisprimary
+  ORDER BY a.attnum
+  LIMIT 1
 $$;
 
 -- 軟刪除：搬原始列入回收筒，再刪原表列
@@ -75,12 +69,18 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_row jsonb;
   v_facility integer;
+  v_pk text;
 BEGIN
   IF NOT public.recycle_allowed_table(p_table) THEN
     RAISE EXCEPTION '表 % 不在回收白名單內', p_table;
   END IF;
 
-  EXECUTE format('SELECT to_jsonb(t) FROM (SELECT * FROM %I WHERE id::text = $1) t', p_table)
+  v_pk := public.recycle_pk_column(p_table);
+  IF v_pk IS NULL THEN
+    RAISE EXCEPTION '表 % 沒有主鍵，無法回收', p_table;
+  END IF;
+
+  EXECUTE format('SELECT to_jsonb(t) FROM (SELECT * FROM %I WHERE %I::text = $1) t', p_table, v_pk)
     INTO v_row
     USING p_id;
   IF v_row IS NULL THEN
@@ -99,7 +99,7 @@ BEGIN
   INSERT INTO deleted_records (original_table, original_id, data, deleted_by, deletion_reason, facility_id)
   VALUES (p_table, p_id, v_row, auth.jwt() ->> 'user_name', COALESCE(NULLIF(p_reason, ''), '手動刪除'), v_facility);
 
-  EXECUTE format('DELETE FROM %I WHERE id::text = $1', p_table) USING p_id;
+  EXECUTE format('DELETE FROM %I WHERE %I::text = $1', p_table, v_pk) USING p_id;
 END;
 $$;
 

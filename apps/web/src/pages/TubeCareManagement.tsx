@@ -19,8 +19,10 @@ import {
   X,
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type PatientTubeCareRecord } from '../context/PatientContext';
+import { useAssessment } from '../context/merged/RecordsContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import TubeCareModal from '../components/TubeCareModal';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 import BedNumberImprint from '../components/BedNumberImprint';
 import PatientTooltip from '../components/PatientTooltip';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
@@ -84,7 +86,9 @@ const detailText = (record: PatientTubeCareRecord) => {
 const TubeCareManagement: React.FC = () => {
   const { patientTubeCareRecords, deletePatientTubeCareRecord, updatePatientTubeCareRecord, loading } = usePatientData();
   const patients = useFilteredPatients();
+  const { refreshAssessmentData } = useAssessment();
   const [showModal, setShowModal] = useState(false);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<PatientTubeCareRecord | null>(null);
   const [renewFromRecord, setRenewFromRecord] = useState<PatientTubeCareRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -423,6 +427,14 @@ const TubeCareManagement: React.FC = () => {
             <button onClick={handleAdd} className="btn-primary flex flex-wrap items-center gap-2">
               <Plus className="h-4 w-4" />
               <span>新增記錄</span>
+            </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
             </button>
           </div>
         </div>
@@ -787,6 +799,25 @@ const TubeCareManagement: React.FC = () => {
             setSelectedRecord(null);
             setRenewFromRecord(null);
           }}
+        />
+      )}
+
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['patient_tube_care_records']}
+          title="喉管護理回收筒"
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'care_type', label: '護理類型' },
+            { key: 'tube_material', label: '喉管物料' },
+            { key: 'tube_size', label: '喉管尺寸' },
+            { key: 'execution_date', label: '執行日期' },
+            { key: 'next_due_date', label: '下次到期日期' },
+            { key: 'notes', label: '備註' },
+          ]}
+          dateField="execution_date"
+          onRestored={() => { refreshAssessmentData(); }}
+          onClose={() => setShowRecycleBin(false)}
         />
       )}
     </div>

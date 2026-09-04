@@ -24,6 +24,8 @@ import {
 import { usePatientData, useFilteredPatients, type PatientRestraintAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import RestraintAssessmentModal from '../components/RestraintAssessmentModal';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
+import { useAssessment } from '../context/merged/RecordsContext';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
@@ -53,6 +55,7 @@ interface AdvancedFilters {
 
 const RestraintManagement: React.FC = () => {
   const { patientRestraintAssessments, deletePatientRestraintAssessment, updatePatientRestraintAssessment, loading } = usePatientData();
+  const { refreshAssessmentData } = useAssessment();
   const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<PatientRestraintAssessment | null>(null);
@@ -84,6 +87,7 @@ const RestraintManagement: React.FC = () => {
     endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 預設一週後
   });
   const [observationIncludeDayNumber, setObservationIncludeDayNumber] = useState(true);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
 
   // Reset to first page when filters change
   React.useEffect(() => {
@@ -699,6 +703,14 @@ const RestraintManagement: React.FC = () => {
             >
               <Plus className="h-4 w-4" />
               <span>新增約束物品評估</span>
+            </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
             </button>
           </div>
         </div>
@@ -1357,6 +1369,23 @@ const RestraintManagement: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['patient_restraint_assessments']}
+          title="約束物品回收筒"
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'doctor_signature_date', label: '醫生簽署日期' },
+            { key: 'next_due_date', label: '下次到期日' },
+            { key: 'is_terminated', label: '已終止' },
+            { key: 'other_restraint_notes', label: '其他備註' },
+          ]}
+          dateField="doctor_signature_date"
+          onRestored={() => refreshAssessmentData()}
+          onClose={() => setShowRecycleBin(false)}
+        />
       )}
     </div>
   );

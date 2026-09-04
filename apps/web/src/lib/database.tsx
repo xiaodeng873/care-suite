@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { softDeleteRecord } from './recycleBin';
 import { calculateNextDueDate } from '../utils/taskScheduler';
 // [新增] 全域導出 CUTOFF 日期字串
 export const SYNC_CUTOFF_DATE_STR = '2025-12-01';
@@ -1091,8 +1092,8 @@ export const updateFollowUp = async (appointment: FollowUpAppointment): Promise<
   return normalizeFollowUp(data);
 };
 export const deleteFollowUp = async (id: string): Promise<void> => {
-  const { error } = await supabase.from('覆診安排主表').delete().eq('覆診id', id);
-  if (error) throw error;
+  // 軟刪除：搬入通用回收筒（白名單表 覆診安排主表，主鍵 覆診id）
+  await softDeleteRecord('覆診安排主表', id);
 };
 export const getPrescriptions = async (patientId?: number): Promise<MedicationPrescription[]> => {
   const PAGE_SIZE = 1000;
@@ -2316,8 +2317,7 @@ export const updateMealGuidance = async (guidance: MealGuidance): Promise<MealGu
   return data;
 };
 export const deleteMealGuidance = async (guidanceId: string): Promise<void> => {
-  const { error } = await supabase.from('meal_guidance').delete().eq('id', guidanceId);
-  if (error) throw error;
+  await softDeleteRecord('meal_guidance', guidanceId);
 };
 export const getPatientLogs = async (options?: { daysBack?: number }): Promise<PatientLog[]> => {
   let query = supabase.from('patient_logs').select('*').order('log_date', { ascending: false }).order('created_at', { ascending: false });
@@ -2369,8 +2369,7 @@ export const updateRestraintAssessment = async (assessment: PatientRestraintAsse
   return cleanedAssessment as PatientRestraintAssessment;
 };
 export const deleteRestraintAssessment = async (assessmentId: string): Promise<void> => {
-  const { error } = await supabase.from('patient_restraint_assessments').delete().eq('id', assessmentId);
-  if (error) throw error;
+  await softDeleteRecord('patient_restraint_assessments', assessmentId);
 };
 export const getEveningCarePlans = async (): Promise<PatientEveningCarePlan[]> => {
   const { data, error } = await supabase.from('patient_evening_care_plans').select('*').order('created_at', { ascending: false });
@@ -2395,8 +2394,7 @@ export const updateEveningCarePlan = async (plan: PatientEveningCarePlan): Promi
   return cleanedPlan as PatientEveningCarePlan;
 };
 export const deleteEveningCarePlan = async (planId: string): Promise<void> => {
-  const { error } = await supabase.from('patient_evening_care_plans').delete().eq('id', planId);
-  if (error) throw error;
+  await softDeleteRecord('patient_evening_care_plans', planId);
 };
 export const getTubeCareRecords = async (): Promise<PatientTubeCareRecord[]> => {
   const { data, error } = await supabase.from('patient_tube_care_records').select('*').order('execution_date', { ascending: false });
@@ -2420,8 +2418,7 @@ export const updateTubeCareRecord = async (record: PatientTubeCareRecord): Promi
   return cleaned;
 };
 export const deleteTubeCareRecord = async (recordId: string): Promise<void> => {
-  const { error } = await supabase.from('patient_tube_care_records').delete().eq('id', recordId);
-  if (error) throw error;
+  await softDeleteRecord('patient_tube_care_records', recordId);
 };
 export const getHealthAssessments = async (statusFilter: 'active' | 'archived' | 'all' = 'active'): Promise<HealthAssessment[]> => {
   let query = supabase.from('health_assessments').select('*');
@@ -2458,8 +2455,7 @@ export const updateHealthAssessment = async (assessment: HealthAssessment): Prom
   return assessment;
 };
 export const deleteHealthAssessment = async (assessmentId: string): Promise<void> => {
-  const { error } = await supabase.from('health_assessments').delete().eq('id', assessmentId);
-  if (error) throw error;
+  await softDeleteRecord('health_assessments', assessmentId);
 };
 // ============================================
 // 傷口主表 CRUD 操作
@@ -2698,26 +2694,21 @@ export const updateWound = async (wound: Partial<Wound> & { id: string }): Promi
 // 刪除傷口（同時刪除相關評估記錄）
 export const deleteWound = async (woundId: string): Promise<boolean> => {
   try {
-    // 先刪除相關評估記錄
-    const { error: assessmentError } = await supabase
+    // 先將相關評估記錄搬入回收筒（每筆獨立回收筒記錄，可個別還原）
+    const { data: assessments, error: fetchError } = await supabase
       .from('wound_assessments')
-      .delete()
+      .select('id')
       .eq('wound_id', woundId);
-    if (assessmentError && assessmentError.code !== '42P01') {
-      throw assessmentError;
+    if (fetchError && fetchError.code !== '42P01') {
+      throw fetchError;
     }
-    // 再刪除傷口
-    const { error } = await supabase
-      .from('wounds')
-      .delete()
-      .eq('id', woundId);
-    if (error) {
-      if (error.code === '42P01' || error.message?.includes('does not exist')) {
-        console.warn('wounds 表尚未創建，請執行數據庫遷移');
-        return false;
+    if (assessments) {
+      for (const assessment of assessments) {
+        await softDeleteRecord('wound_assessments', assessment.id);
       }
-      throw error;
     }
+    // 再將傷口搬入回收筒
+    await softDeleteRecord('wounds', woundId);
     return true;
   } catch (err: any) {
     console.error('刪除傷口失敗:', err?.message);
@@ -2957,8 +2948,7 @@ export const updateWoundAssessment = async (assessment: WoundAssessment): Promis
   return data;
 };
 export const deleteWoundAssessment = async (assessmentId: string): Promise<void> => {
-  const { error } = await supabase.from('wound_assessments').delete().eq('id', assessmentId);
-  if (error) throw error;
+  await softDeleteRecord('wound_assessments', assessmentId);
 };
 export const getPatientAdmissionRecords = async (): Promise<PatientAdmissionRecord[]> => {
   const { data, error } = await supabase.from('patient_admission_records').select('*').order('event_date', { ascending: false });
@@ -3039,8 +3029,7 @@ export const updateHospitalEpisode = async (episode: any): Promise<any> => {
   return data;
 };
 export const deleteHospitalEpisode = async (episodeId: string): Promise<void> => {
-  const { error } = await supabase.from('hospital_episodes').delete().eq('id', episodeId);
-  if (error) throw error;
+  await softDeleteRecord('hospital_episodes', episodeId);
 };
 export const createEpisodeEvent = async (event: any): Promise<any> => {
   const { data, error } = await supabase.from('episode_events').insert([event]).select().single();
@@ -3372,8 +3361,7 @@ export const updateAnnualHealthCheckup = async (checkup: any): Promise<any> => {
   return data;
 };
 export const deleteAnnualHealthCheckup = async (checkupId: string): Promise<void> => {
-  const { error } = await supabase.from('annual_health_checkups').delete().eq('id', checkupId);
-  if (error) throw error;
+  await softDeleteRecord('annual_health_checkups', checkupId);
 };
 export const getIncidentReports = async (): Promise<IncidentReport[]> => {
   const { data, error } = await supabase.from('incident_reports').select('*').order('incident_date', { ascending: false });
@@ -3392,8 +3380,7 @@ export const updateIncidentReport = async (report: IncidentReport): Promise<Inci
   return data;
 };
 export const deleteIncidentReport = async (reportId: string): Promise<void> => {
-  const { error } = await supabase.from('incident_reports').delete().eq('id', reportId);
-  if (error) throw error;
+  await softDeleteRecord('incident_reports', reportId);
 };
 export const getDiagnosisRecords = async (): Promise<DiagnosisRecord[]> => {
   const { data, error } = await supabase.from('diagnosis_records').select('*').order('diagnosis_date', { ascending: false });
@@ -3457,8 +3444,7 @@ export const updateInfectionControlRecord = async (record: InfectionControlRecor
   return data;
 };
 export const deleteInfectionControlRecord = async (recordId: string): Promise<void> => {
-  const { error } = await supabase.from('infection_control_records').delete().eq('id', recordId);
-  if (error) throw error;
+  await softDeleteRecord('infection_control_records', recordId);
 };
 export const getPatientNotes = async (options?: { incompleteOnly?: boolean; daysBack?: number }): Promise<PatientNote[]> => {
   let query = supabase.from('patient_notes').select('*').order('is_completed', { ascending: true }).order('note_date', { ascending: false });
@@ -4513,11 +4499,7 @@ export const archiveCarePlan = async (planId: string): Promise<void> => {
 };
 // 刪除計劃
 export const deleteCarePlan = async (planId: string): Promise<void> => {
-  const { error } = await supabase
-    .from('care_plans')
-    .delete()
-    .eq('id', planId);
-  if (error) throw error;
+  await softDeleteRecord('care_plans', planId);
 };
 
 // 取得院友目前生效中的 ICP（未過期）

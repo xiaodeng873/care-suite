@@ -29,6 +29,7 @@ import ProblemLibraryModal from '../components/ProblemLibraryModal';
 import CaseConferenceListModal from '../components/CaseConferenceListModal';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 import { useAuth } from '../context/AuthContext';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import { getCarePlanStatus, getCarePlanStatusColor, getCarePlanStatusLabel } from '../utils/carePlanStatus';
@@ -51,12 +52,13 @@ interface AdvancedFilters {
 }
 
 const IndividualCarePlan: React.FC = () => {
-  const { carePlans, deleteCarePlan, duplicateCarePlan, loading, getCarePlanWithDetails } = usePatientData();
+  const { carePlans, deleteCarePlan, duplicateCarePlan, loading, getCarePlanWithDetails, refreshCarePlanData } = usePatientData();
   const patients = useFilteredPatients();
   const { displayName } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [showProblemLibraryModal, setShowProblemLibraryModal] = useState(false);
   const [showConferenceModal, setShowConferenceModal] = useState(false);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<CarePlan | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
@@ -589,6 +591,14 @@ const IndividualCarePlan: React.FC = () => {
               <Plus className="h-4 w-4" />
               <span>新增計劃</span>
             </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
+            </button>
           </div>
         </div>
 
@@ -997,6 +1007,26 @@ const IndividualCarePlan: React.FC = () => {
             第 {currentPage} / {totalPages} 頁
           </div>
         </div>
+      )}
+
+      {/* 回收筒 Modal */}
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['care_plans']}
+          title="個人照顧計劃回收筒"
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'plan_type', label: '計劃類型' },
+            { key: 'plan_date', label: '計劃日期' },
+            { key: 'review_due_date', label: '復檢到期日' },
+            { key: 'case_conference_date', label: '會議日期' },
+            { key: 'created_by', label: '建立人' },
+            { key: 'remarks', label: '備註' }
+          ]}
+          dateField="plan_date"
+          onRestored={() => { refreshCarePlanData(); }}
+          onClose={() => setShowRecycleBin(false)}
+        />
       )}
 
       {/* Modal */}

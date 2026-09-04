@@ -22,6 +22,7 @@ import { usePatientData, useFilteredPatients, type IncidentReport } from '../con
 import BedNumberImprint from '../components/BedNumberImprint';
 import IncidentReportModal from '../components/IncidentReportModal';
 import PatientTooltip from '../components/PatientTooltip';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 
 import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 import PatientPrintModal from '../components/PatientPrintModal';
@@ -43,7 +44,7 @@ interface AdvancedFilters {
 }
 
 const IncidentReports: React.FC = () => {
-  const { incidentReports, deleteIncidentReport, loading } = usePatientData();
+  const { incidentReports, deleteIncidentReport, refreshData, loading } = usePatientData();
   const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState<IncidentReport | null>(null);
@@ -54,6 +55,7 @@ const IncidentReports: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
@@ -380,6 +382,14 @@ const IncidentReports: React.FC = () => {
               >
                 <Plus className="h-4 w-4" />
                 <span>新增意外事件報告</span>
+              </button>
+              <button
+                onClick={() => setShowRecycleBin(true)}
+                className="btn-secondary flex items-center gap-2"
+                title="回收筒"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>回收筒</span>
               </button>
             </div>
           </div>
@@ -838,6 +848,23 @@ const IncidentReports: React.FC = () => {
             });
             setShowPrintModal(false);
           }}
+        />
+      )}
+
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['incident_reports']}
+          title="意外事件回收筒"
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'incident_date', label: '意外日期' },
+            { key: 'incident_type', label: '事故性質' },
+            { key: 'location', label: '地點' },
+            { key: 'reporter_signature', label: '填報人' },
+          ]}
+          dateField="incident_date"
+          onRestored={refreshData}
+          onClose={() => setShowRecycleBin(false)}
         />
       )}
     </div>

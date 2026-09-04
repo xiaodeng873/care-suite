@@ -21,9 +21,11 @@ import {
   Printer
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
+import { useAssessment } from '../context/merged/RecordsContext';
 import type { HealthAssessment } from '../lib/database';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import HealthAssessmentModal from '../components/HealthAssessmentModal';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
@@ -53,8 +55,10 @@ interface AdvancedFilters {
 
 const HealthAssessments: React.FC = () => {
   const { healthAssessments, deleteHealthAssessment, loading } = usePatientData();
+  const { refreshAssessmentData } = useAssessment();
   const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<HealthAssessment | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
@@ -565,6 +569,14 @@ const HealthAssessments: React.FC = () => {
               <Plus className="h-4 w-4" />
               <span>新增健康評估</span>
             </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1024,6 +1036,24 @@ const HealthAssessments: React.FC = () => {
             第 {currentPage} / {totalPages} 頁
           </div>
         </div>
+      )}
+
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['health_assessments']}
+          title="健康評估回收筒"
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'assessment_date', label: '評估日期' },
+            { key: 'next_due_date', label: '下次評估日期' },
+            { key: 'assessor', label: '評估人員' },
+            { key: 'status', label: '狀態' },
+            { key: 'remarks', label: '備註' }
+          ]}
+          dateField="assessment_date"
+          onRestored={() => { refreshAssessmentData(); }}
+          onClose={() => setShowRecycleBin(false)}
+        />
       )}
 
       {showModal && (

@@ -18,6 +18,7 @@ import {
 import { usePatientData } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import InfectionControlModal from '../components/InfectionControlModal';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, matchPatientBedNumber} from '../utils/searchUtils';
 import { getInfectionTypeColors } from '../utils/infectionTypeColors';
 import PatientTooltip from '../components/PatientTooltip';
@@ -46,8 +47,9 @@ const DEFAULT_ADVANCED_FILTERS: AdvancedFilters = {
 };
 
 const InfectionControl: React.FC = () => {
-  const { infectionControlRecords, allPatients, deleteInfectionControlRecord, loading } = usePatientData();
+  const { infectionControlRecords, allPatients, deleteInfectionControlRecord, refreshData, loading } = usePatientData();
   const [showModal, setShowModal] = useState(false);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<InfectionControlRecord | null>(null);
   const [prefilledPatientId, setPrefilledPatientId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -353,13 +355,23 @@ const InfectionControl: React.FC = () => {
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">感染控制</h1>
-          <button
-            onClick={() => handleAdd()}
-            className="btn-primary flex flex-wrap items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            <span>新增感染控制記錄</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => handleAdd()}
+              className="btn-primary flex flex-wrap items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>新增感染控制記錄</span>
+            </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -813,6 +825,23 @@ const InfectionControl: React.FC = () => {
             setSelectedRecord(null);
             setPrefilledPatientId(null);
           }}
+        />
+      )}
+
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['infection_control_records']}
+          title="感染控制回收筒"
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'infection_type', label: '感染性質' },
+            { key: 'diagnosis_date', label: '確診日期' },
+            { key: 'recovery_date', label: '康復日期' },
+            { key: 'notes', label: '備註' },
+          ]}
+          dateField="diagnosis_date"
+          onRestored={refreshData}
+          onClose={() => setShowRecycleBin(false)}
         />
       )}
     </div>

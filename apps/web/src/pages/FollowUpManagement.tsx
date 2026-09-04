@@ -15,6 +15,7 @@ import { generateFollowUpBagCover, type FollowUpBagCoverData } from '../utils/fo
 import { printFollowUpRecordForms } from '../utils/followUpRecordPrintGenerator';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 
 
 type SortField = '覆診日期' | '覆診時間' | '院友姓名' | '覆診地點' | '覆診專科' | '狀態' | '交通安排' | '陪診人員';
@@ -35,7 +36,7 @@ interface AdvancedFilters {
 }
 
 const FollowUpManagement: React.FC = () => {
-  const { followUpAppointments, deleteFollowUpAppointment, batchUpdateFollowUpStatus, loading } = usePatientData();
+  const { followUpAppointments, deleteFollowUpAppointment, batchUpdateFollowUpStatus, loading, refreshData } = usePatientData();
   const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<FollowUpAppointment | undefined>(undefined);
@@ -63,6 +64,7 @@ const FollowUpManagement: React.FC = () => {
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [printPatientId, setPrintPatientId] = useState('');
 
   // Reset to first page when filters change
@@ -722,6 +724,14 @@ const FollowUpManagement: React.FC = () => {
               <Plus className="h-4 w-4" />
               <span>新增覆診安排</span>
             </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1312,6 +1322,24 @@ const FollowUpManagement: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['覆診安排主表']}
+          title="覆診管理回收筒"
+          patientIdFields={['院友id']}
+          summaryFields={[
+            { key: '覆診地點', label: '覆診地點' },
+            { key: '覆診專科', label: '覆診專科' },
+            { key: '覆診時間', label: '覆診時間' },
+            { key: '交通安排', label: '交通安排' },
+            { key: '陪診人員', label: '陪診人員' },
+            { key: '狀態', label: '狀態' }
+          ]}
+          dateField="覆診日期"
+          onRestored={() => { refreshData(); }}
+          onClose={() => setShowRecycleBin(false)}
+        />
       )}
     </div>
   );

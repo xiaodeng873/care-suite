@@ -4,6 +4,8 @@ import { Guitar as Hospital, Plus, CreditCard as Edit3, Trash2, Search, Filter, 
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import HospitalEpisodeModal from '../components/HospitalEpisodeModal';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
+import { useAdmission } from '../context/merged/RecordsContext';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
@@ -33,6 +35,8 @@ interface AdvancedFilters {
 const AdmissionRecords: React.FC = () => {
   const { hospitalEpisodes, mealGuidances, deleteHospitalEpisode, loading } = usePatientData();
   const patients = useFilteredPatients();
+  const { refreshAdmissionData } = useAdmission();
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -778,6 +782,14 @@ const AdmissionRecords: React.FC = () => {
               <Plus className="h-4 w-4" />
               <span>新增缺席事件</span>
             </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1357,6 +1369,24 @@ const AdmissionRecords: React.FC = () => {
             setShowModal(false);
             setSelectedEpisode(null);
           }}
+        />
+      )}
+
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['hospital_episodes']}
+          title="缺席管理回收筒"
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'episode_start_date', label: '缺席開始日期' },
+            { key: 'primary_hospital', label: '主要醫院' },
+            { key: 'primary_ward', label: '主要病房' },
+            { key: 'discharge_type', label: '出院安排' },
+            { key: 'remarks', label: '備註' },
+          ]}
+          dateField="episode_start_date"
+          onRestored={() => refreshAdmissionData()}
+          onClose={() => setShowRecycleBin(false)}
         />
       )}
     </div>

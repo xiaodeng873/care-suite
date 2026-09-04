@@ -20,9 +20,11 @@ import {
   Ban
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type PatientEveningCarePlan } from '../context/PatientContext';
+import { useAssessment } from '../context/merged/RecordsContext';
 import { getEveningCareExpiryDate } from '../lib/database';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import EveningCarePlanModal from '../components/EveningCarePlanModal';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName , compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
@@ -46,10 +48,12 @@ interface AdvancedFilters {
 
 const EveningCarePlanManagement: React.FC = () => {
   const { patientEveningCarePlans, deletePatientEveningCarePlan, updatePatientEveningCarePlan, loading } = usePatientData();
+  const { refreshAssessmentData } = useAssessment();
   const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PatientEveningCarePlan | null>(null);
   const [renewFromPlan, setRenewFromPlan] = useState<PatientEveningCarePlan | null>(null);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDebounce(searchTerm, 200);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -527,6 +531,14 @@ const EveningCarePlanManagement: React.FC = () => {
               <Plus className="h-4 w-4" />
               <span>新增晚晴計劃記錄</span>
             </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1001,6 +1013,24 @@ const EveningCarePlanManagement: React.FC = () => {
             setSelectedPlan(null);
             setRenewFromPlan(null);
           }}
+        />
+      )}
+
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['patient_evening_care_plans']}
+          title="晚晴計劃回收筒"
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'acp_sign_date', label: 'ACP 簽署日期' },
+            { key: 'amd_sign_date', label: 'AMD 簽署日期' },
+            { key: 'dnacpr_sign_date', label: 'DNACPR 簽署日期' },
+            { key: 'is_terminated', label: '終止狀態' },
+            { key: 'notes', label: '備註' },
+          ]}
+          dateField="created_at"
+          onRestored={() => refreshAssessmentData()}
+          onClose={() => setShowRecycleBin(false)}
         />
       )}
     </div>
