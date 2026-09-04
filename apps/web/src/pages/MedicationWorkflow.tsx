@@ -968,7 +968,8 @@ const MedicationWorkflow: React.FC = () => {
   // 依步驟過濾處方：
   //  - 即時備藥只在「派藥」頁顯示；「執藥」「核藥」頁排除即時備藥
   //  - 無時間點的需要時(PRN)處方只在「派藥」頁顯示（執/核頁連唯讀都不顯示）
-  //  - 排序：恆常處方維持原順序在上，無時間點 PRN 自動置底並按藥物名稱排序
+  //  - 排序：有時間點嘅按最早服用時間點升序（相同時間點按藥名）；
+  //    無時間點嘅（含 PRN）全部置底，按藥物名稱字母序
   const filteredPrescriptions = useMemo(() => {
     const list = activePrescriptions.filter(p => {
       if (workflowStep !== 'dispensing' && p.preparation_method === 'immediate') {
@@ -979,11 +980,24 @@ const MedicationWorkflow: React.FC = () => {
       }
       return true;
     });
-    const regular = list.filter(p => !isPrnNoSlot(p));
-    const prnBottom = list
-      .filter(p => isPrnNoSlot(p))
-      .sort((a, b) => String(a.medication_name || '').localeCompare(String(b.medication_name || ''), 'zh-Hant'));
-    return [...regular, ...prnBottom];
+    // 最早服用時間點（"HH:MM" 字串可直接比較）；無時間點回傳 null
+    const earliestSlot = (p: any): string | null => {
+      const slots = (p.medication_time_slots || []).filter(Boolean);
+      if (slots.length === 0) return null;
+      return slots.reduce((min: string, s: string) => (s < min ? s : min));
+    };
+    const byName = (a: any, b: any) =>
+      String(a.medication_name || '').localeCompare(String(b.medication_name || ''), 'zh-Hant');
+    const withSlots = list
+      .filter(p => earliestSlot(p) !== null)
+      .sort((a, b) => {
+        const c = String(earliestSlot(a)).localeCompare(String(earliestSlot(b)));
+        return c !== 0 ? c : byName(a, b);
+      });
+    const noSlot = list
+      .filter(p => earliestSlot(p) === null)
+      .sort(byName);
+    return [...withSlots, ...noSlot];
   }, [activePrescriptions, workflowStep]);
   // 計算每個日期的逾期未完成流程狀態（用於紅點提示，使用樂觀更新記錄）
   const dateOverdueStatus = useMemo(() => {

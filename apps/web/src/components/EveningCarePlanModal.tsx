@@ -1,5 +1,6 @@
 import { X, HeartHandshake, Calendar, User, FileText } from 'lucide-react';
 import { usePatientData, type PatientEveningCarePlan } from '../context/PatientContext';
+import { getEveningCareExpiryDate } from '../lib/database';
 import PatientAutocomplete from './PatientAutocomplete';
 import React, { useState } from 'react';
 import DateInput from './DateInput';
@@ -11,14 +12,29 @@ interface EveningCarePlanModalProps {
   renewFrom?: PatientEveningCarePlan | null;
 }
 
+// 三份文件各自獨立區塊：每份一個醫生簽署日期，到期日 = 簽署日期 + 1 年（同一行顯示）
+const DOCUMENTS = [
+  { key: 'acp_sign_date', label: 'ACP', fullName: '預設照顧計劃' },
+  { key: 'amd_sign_date', label: 'AMD', fullName: '預設醫療指示' },
+  { key: 'dnacpr_sign_date', label: 'DNACPR', fullName: '不作心肺復甦法' },
+] as const;
+
+type DocumentKey = (typeof DOCUMENTS)[number]['key'];
+
 const EveningCarePlanModal: React.FC<EveningCarePlanModalProps> = ({ plan, onClose, onUpdate, renewFrom }) => {
   const { patients, addPatientEveningCarePlan, updatePatientEveningCarePlan } = usePatientData();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    patient_id: string | number;
+    acp_sign_date: string;
+    amd_sign_date: string;
+    dnacpr_sign_date: string;
+    notes: string;
+  }>({
     patient_id: plan?.patient_id || (renewFrom ? renewFrom.patient_id : '') as string | number,
-    acp_date: plan?.acp_date || renewFrom?.acp_date || '',
-    amd_date: plan?.amd_date || renewFrom?.amd_date || '',
-    dnacpr_date: plan?.dnacpr_date || renewFrom?.dnacpr_date || '',
+    acp_sign_date: plan?.acp_sign_date || renewFrom?.acp_sign_date || '',
+    amd_sign_date: plan?.amd_sign_date || renewFrom?.amd_sign_date || '',
+    dnacpr_sign_date: plan?.dnacpr_sign_date || renewFrom?.dnacpr_sign_date || '',
     notes: plan?.notes || renewFrom?.notes || ''
   });
 
@@ -30,18 +46,18 @@ const EveningCarePlanModal: React.FC<EveningCarePlanModalProps> = ({ plan, onClo
       return;
     }
 
-    // 必須至少填寫一份文件日期
-    if (!formData.acp_date && !formData.amd_date && !formData.dnacpr_date) {
-      alert('請至少填寫一份文件日期');
+    // 必須至少填寫一份文件嘅醫生簽署日期
+    if (!formData.acp_sign_date && !formData.amd_sign_date && !formData.dnacpr_sign_date) {
+      alert('請至少填寫一份文件的醫生簽署日期');
       return;
     }
 
     try {
       const planData = {
         patient_id: parseInt(String(formData.patient_id)),
-        acp_date: formData.acp_date || null,
-        amd_date: formData.amd_date || null,
-        dnacpr_date: formData.dnacpr_date || null,
+        acp_sign_date: formData.acp_sign_date || null,
+        amd_sign_date: formData.amd_sign_date || null,
+        dnacpr_sign_date: formData.dnacpr_sign_date || null,
         notes: formData.notes || null
       };
 
@@ -126,55 +142,39 @@ const EveningCarePlanModal: React.FC<EveningCarePlanModalProps> = ({ plan, onClo
             </div>
           </div>
 
-          {/* 文件到期日 */}
+          {/* 三份文件：各自獨立區塊；每份一個醫生簽署日期，到期日 = 簽署日期 + 1 年 */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900 flex items-center">
               <Calendar className="h-5 w-5 mr-2 text-purple-600" />
-              文件到期日（至少填寫一份）
+              醫生簽署日期（三份文件各自獨立，至少填寫一份）
             </h3>
 
-            <div className="border rounded-lg p-4 bg-gray-50">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="form-label">
-                    <Calendar className="h-4 w-4 inline mr-1" />
-                    ACP 到期日
-                  </label>
-                  <DateInput
-
-                    value={formData.acp_date}
-
-                    className="form-input" onChange={(value) => setFormData((prev) => ({ ...prev, acp_date: value }))} />
-
+            {DOCUMENTS.map((doc) => {
+              const signDate = formData[doc.key];
+              const expiryDate = getEveningCareExpiryDate(signDate);
+              return (
+                <div key={doc.key} className="border rounded-lg p-4 bg-gray-50">
+                  <div className="font-medium text-gray-900 mb-3">
+                    {doc.label}
+                    <span className="ml-2 text-sm font-normal text-gray-500">{doc.fullName}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <div className="flex items-center gap-2 flex-1">
+                      <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <DateInput
+                        value={signDate}
+                        className="form-input flex-1"
+                        onChange={(value) => setFormData((prev) => ({ ...prev, [doc.key]: value }))} />
+                    </div>
+                    {expiryDate && (
+                      <div className="text-sm text-gray-600 sm:pl-2 flex-shrink-0">
+                        到期日：<span className="font-medium text-gray-900">{expiryDate.split('-').reverse().join('/')}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                <div>
-                  <label className="form-label">
-                    <Calendar className="h-4 w-4 inline mr-1" />
-                    AMD 到期日
-                  </label>
-                  <DateInput
-
-                    value={formData.amd_date}
-
-                    className="form-input" onChange={(value) => setFormData((prev) => ({ ...prev, amd_date: value }))} />
-
-                </div>
-
-                <div>
-                  <label className="form-label">
-                    <Calendar className="h-4 w-4 inline mr-1" />
-                    DNACPR 到期日
-                  </label>
-                  <DateInput
-
-                    value={formData.dnacpr_date}
-
-                    className="form-input" onChange={(value) => setFormData((prev) => ({ ...prev, dnacpr_date: value }))} />
-
-                </div>
-              </div>
-            </div>
+              );
+            })}
           </div>
 
           {/* 提交按鈕 */}

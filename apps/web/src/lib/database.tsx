@@ -249,15 +249,31 @@ export interface PatientRestraintAssessment {
 export interface PatientEveningCarePlan {
   id: string;
   patient_id: number;
-  acp_date?: string;
-  amd_date?: string;
-  dnacpr_date?: string;
+  /** ACP 醫生簽署日期（"YYYY-MM-DD"；到期日 = 簽署日期 + 1 年） */
+  acp_sign_date?: string;
+  /** AMD 醫生簽署日期 */
+  amd_sign_date?: string;
+  /** DNACPR 醫生簽署日期 */
+  dnacpr_sign_date?: string;
   notes?: string;
   is_terminated?: boolean;
   created_at: string;
   updated_at: string;
 }
 export type EveningCareDocumentType = 'ACP' | 'AMD' | 'DNACPR';
+// 晚晴計劃文件到期日 = 醫生簽署日期 + 1 年（2/29 簽署 → 翌年 2/28）
+export const getEveningCareExpiryDate = (signDate?: string): string | undefined => {
+  if (!signDate) return undefined;
+  const [y, m, d] = signDate.split('-').map(Number);
+  if (!y || !m || !d) return undefined;
+  const result = new Date(y + 1, m - 1, d);
+  // 閏年 2/29：加一年後月份會移位（變 3/1），夾返做 2/28
+  if (result.getMonth() !== m - 1) {
+    result.setDate(0);
+  }
+  const fmt = (n: number) => String(n).padStart(2, '0');
+  return `${result.getFullYear()}-${fmt(result.getMonth() + 1)}-${fmt(result.getDate())}`;
+};
 export type TubeCareType = '導尿管更換' | '鼻胃飼管更換' | '氧氣喉管清洗/更換' | '造口袋更換';
 export type OxygenAction = '清洗' | '更換';
 export interface PatientTubeCareRecord {

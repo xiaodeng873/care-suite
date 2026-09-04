@@ -20,6 +20,7 @@ import {
   Ban
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type PatientEveningCarePlan } from '../context/PatientContext';
+import { getEveningCareExpiryDate } from '../lib/database';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import EveningCarePlanModal from '../components/EveningCarePlanModal';
 import { fuzzyMatch, matchChineseName, matchEnglishName , compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
@@ -79,16 +80,22 @@ const EveningCarePlanManagement: React.FC = () => {
     return <LoadingScreen pageName="晚晴計劃" />;
   }
 
-  const planDates = (plan: PatientEveningCarePlan): (string | undefined)[] =>
-    [plan.acp_date, plan.amd_date, plan.dnacpr_date];
+  // 三份文件嘅醫生簽署日期（狀態判斷用到期日 = 簽署日期 + 1 年）
+  const planDates = (plan: PatientEveningCarePlan): string[] =>
+    [plan.acp_sign_date, plan.amd_sign_date, plan.dnacpr_sign_date].filter((d): d is string => !!d);
+
+  // 三份文件各自的到期日
+  const planExpiryDates = (plan: PatientEveningCarePlan): string[] =>
+    planDates(plan)
+      .map(d => getEveningCareExpiryDate(d))
+      .filter((d): d is string => !!d);
 
   const hasDocuments = (plan: PatientEveningCarePlan): boolean =>
-    planDates(plan).some(d => !!d);
+    planDates(plan).length > 0;
 
-  // 最早到期日 = 三個日期中最早者
+  // 最早到期日 = 三份文件到期日中最早者
   const earliestDate = (plan: PatientEveningCarePlan): number => {
-    const times = planDates(plan)
-      .filter((d): d is string => !!d)
+    const times = planExpiryDates(plan)
       .map(d => new Date(d).getTime());
     return times.length ? Math.min(...times) : 0;
   };
@@ -108,12 +115,12 @@ const EveningCarePlanManagement: React.FC = () => {
     return daysDiff <= 30 && daysDiff > 0;
   };
 
-  // 記錄層級逾期（任一日逾期）
+  // 記錄層級逾期（任一份文件到期日逾期）
   const isOverdue = (plan: PatientEveningCarePlan): boolean =>
-    planDates(plan).some(d => isDateOverdue(d));
+    planExpiryDates(plan).some(d => isDateOverdue(d));
 
   const isDueSoon = (plan: PatientEveningCarePlan): boolean =>
-    planDates(plan).some(d => isDateDueSoon(d));
+    planExpiryDates(plan).some(d => isDateDueSoon(d));
 
   const filteredPlans = useMemo(() => {
     const searchTerm = deferredSearch;
@@ -470,20 +477,39 @@ const EveningCarePlanManagement: React.FC = () => {
     </th>
   );
 
-  const renderDateCell = (dateStr?: string) => (
-    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-      {dateStr ? (
+  // 每格顯示：醫生簽署日期 → 推算到期日（同一行）；到期日決定顏色（逾期紅／即將到期橙）
+  const renderSignDatesCell = (signDate?: string) => {
+    if (!signDate) {
+      return (
+        <td className="px-4 py-4 whitespace-nowrap text-sm">
+          <span className="text-gray-500">-</span>
+        </td>
+      );
+    }
+    const expiryDate = getEveningCareExpiryDate(signDate);
+    return (
+      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
         <div className="flex items-center space-x-1">
           <Calendar className="h-4 w-4 text-gray-400" />
-          <span className={isDateOverdue(dateStr) ? 'text-red-600 font-medium' : isDateDueSoon(dateStr) ? 'text-orange-600 font-medium' : ''}>
-            {formatDisplayDate(dateStr)}
-          </span>
+          <span>{formatDisplayDate(signDate)}</span>
         </div>
-      ) : (
-        <span className="text-gray-500">-</span>
-      )}
-    </td>
-  );
+        {expiryDate && (
+          <div className="flex items-center space-x-1 mt-0.5">
+            <span className="text-gray-400 text-xs">→</span>
+            <span className={
+              isDateOverdue(expiryDate)
+                ? 'text-red-600 font-medium'
+                : isDateDueSoon(expiryDate)
+                  ? 'text-orange-600 font-medium'
+                  : 'text-gray-500'
+            }>
+              到期 {formatDisplayDate(expiryDate)}
+            </span>
+          </div>
+        )}
+      </td>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -797,9 +823,9 @@ const EveningCarePlanManagement: React.FC = () => {
                           </td>
                         </>
                       )}
-                      {renderDateCell(plan.acp_date)}
-                      {renderDateCell(plan.amd_date)}
-                      {renderDateCell(plan.dnacpr_date)}
+                      {renderSignDatesCell(plan.acp_sign_date)}
+                      {renderSignDatesCell(plan.amd_sign_date)}
+                      {renderSignDatesCell(plan.dnacpr_sign_date)}
                       <td className="px-4 py-4 whitespace-nowrap">
                         {planIndex === 0
                           ? getStatusBadge(plan)
