@@ -563,7 +563,7 @@ const AdmissionRecords: React.FC = () => {
       case 'return_to_facility': return '返回院舍';
       case 'home': return '回家';
       case 'transfer_out': return '轉至其他機構';
-      case 'deceased': return '院內離世';
+      case 'deceased': return '離世';
       default: return type;
     }
   };

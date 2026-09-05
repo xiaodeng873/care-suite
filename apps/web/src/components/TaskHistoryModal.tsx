@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { isTaskScheduledForDate } from '../utils/taskScheduler';
+import { isTaskScheduledForDate, taskRecordVitalTypes } from '../utils/taskScheduler';
 
 interface TaskHistoryModalProps {
   task: any;
@@ -99,7 +99,7 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
         return r.記錄日期 === dateStr;
       }
       const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
-      const typeMatch = r.監測類型 === task.health_record_type;
+      const typeMatch = taskRecordVitalTypes(task.health_record_type).includes(r.監測類型);
       const dateMatch = r.記錄日期 === dateStr;
       return patientMatch && typeMatch && dateMatch;
     });
@@ -130,7 +130,7 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
           return r.記錄日期 === dateStr && normalizedRecordTime === normalizedSpecificTime;
         }
         const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
-        const typeMatch = r.監測類型 === task.health_record_type;
+        const typeMatch = taskRecordVitalTypes(task.health_record_type).includes(r.監測類型);
         const dateMatch = r.記錄日期 === dateStr;
         const timeMatch = normalizedRecordTime === normalizedSpecificTime;
 
@@ -180,7 +180,7 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
           return r.記錄日期 === dateStr;
         }
         const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
-        const typeMatch = r.監測類型 === task.health_record_type;
+        const typeMatch = taskRecordVitalTypes(task.health_record_type).includes(r.監測類型);
         const dateMatch = r.記錄日期 === dateStr;
 
         return patientMatch && typeMatch && dateMatch;
@@ -226,7 +226,7 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
         }
         // [增強] 更容錯的匹配邏輯
         const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
-        const typeMatch = r.監測類型 === task.health_record_type;
+        const typeMatch = taskRecordVitalTypes(task.health_record_type).includes(r.監測類型);
         const dateMatch = r.記錄日期 === dateStr;
 
         return patientMatch && typeMatch && dateMatch;
