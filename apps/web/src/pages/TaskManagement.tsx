@@ -18,12 +18,14 @@ import {
   ChevronUp,
   ChevronDown,
   FileText,
-  Stethoscope
+  Stethoscope,
+  Ban
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type PatientHealthTask, type HealthTaskType, type FrequencyUnit } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import TaskModal from '../components/TaskModal';
 import { formatFrequencyDescription, getTaskStatus, isDocumentTask, isNursingTask } from '../utils/taskScheduler';
+import { getExemptedMonitoringTaskIds } from '../utils/monitoringCoverage';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { SYNC_CUTOFF_DATE_STR } from '../lib/database';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
@@ -53,6 +55,13 @@ interface TaskFilters {
 const TaskManagement: React.FC = () => {
   const { patientHealthTasks, deletePatientHealthTask, loading, healthRecords, refreshHealthTaskData } = usePatientData();
   const patients = useFilteredPatients();
+
+  // 豁免狀態的每週監測任務：同一院友同一項生命表徵已有密過每週一次任務時，
+  // 其 7 天循環任務自動豁免（灰色顯示、不列入工作表），密任務消失後自動恢復
+  const exemptedTaskIds = useMemo(
+    () => getExemptedMonitoringTaskIds(patientHealthTasks),
+    [patientHealthTasks]
+  );
   const [showModal, setShowModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<PatientHealthTask | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -374,6 +383,7 @@ const TaskManagement: React.FC = () => {
   };
 
   const handleEdit = (task: PatientHealthTask) => {
+    if (exemptedTaskIds.has(task.id)) return;
     setSelectedTask(task);
     setShowModal(true);
   };
@@ -484,6 +494,14 @@ const TaskManagement: React.FC = () => {
   };
 
   const getStatusBadge = (task: PatientHealthTask) => {
+    if (exemptedTaskIds.has(task.id)) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-500">
+          <Ban className="h-3 w-3 mr-1" />
+          已豁免
+        </span>
+      );
+    }
     const todayStr = new Date().toISOString().split('T')[0];
     const status = getTaskStatus(task, recordLookup, todayStr);
     
@@ -865,8 +883,8 @@ const TaskManagement: React.FC = () => {
                       {displayTasks.map(task => (
                         <tr
                           key={task.id}
-                          className={`hover:bg-gray-50 ${selectedRows.has(task.id) ? 'bg-blue-50' : ''}`}
-                          onDoubleClick={() => handleEdit(task)}
+                          className={`hover:bg-gray-50 ${selectedRows.has(task.id) ? 'bg-blue-50' : ''} ${exemptedTaskIds.has(task.id) ? 'opacity-50 bg-gray-50 hover:bg-gray-50' : ''}`}
+                          onDoubleClick={() => !exemptedTaskIds.has(task.id) && handleEdit(task)}
                         >
                           <td className="px-4 py-4 whitespace-nowrap pl-8">
                             <input
@@ -915,7 +933,7 @@ const TaskManagement: React.FC = () => {
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-wrap gap-2">
-                          <button onClick={() => handleEdit(task)} className="text-blue-600 hover:text-blue-900" title="編輯" disabled={deletingIds.has(task.id)}>
+                          <button onClick={() => handleEdit(task)} className="text-blue-600 hover:text-blue-900 disabled:opacity-30 disabled:cursor-not-allowed" title={exemptedTaskIds.has(task.id) ? '已豁免（密過每週一次任務存在中）' : '編輯'} disabled={deletingIds.has(task.id) || exemptedTaskIds.has(task.id)}>
                             <Edit3 className="h-4 w-4" />
                           </button>
                           <button onClick={() => handleDelete(task.id)} className="text-red-600 hover:text-red-900" title="刪除" disabled={deletingIds.has(task.id)}>

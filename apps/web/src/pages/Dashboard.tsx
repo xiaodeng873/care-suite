@@ -32,7 +32,7 @@ import SingleWoundAssessmentModal from '../components/SingleWoundAssessmentModal
 import BedNumberImprint from '../components/BedNumberImprint';
 import { syncTaskStatus, SYNC_CUTOFF_DATE_STR } from '../lib/database';
 import { supabase } from '../lib/supabase';
-import { getMissingMonitoringVitals } from '../utils/monitoringCoverage';
+import { getMissingMonitoringVitals, getExemptedMonitoringTaskIds } from '../utils/monitoringCoverage';
 import { hasInProgressCarePlan } from '../utils/carePlanStatus';
 import { formatDisplayDate , formatDisplayDateTime , formatTimeToHHMM } from '../utils/dateFormat';
 
@@ -437,6 +437,11 @@ const Dashboard: React.FC = () => {
     const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return daysDiff <= 14 && daysDiff > 0;
   };
+  const exemptedMonitoringTaskIds = useMemo(
+    () => getExemptedMonitoringTaskIds(patientHealthTasks),
+    [patientHealthTasks]
+  );
+
   const missingTasks = useMemo(() => {
     const result: { patient: any; missingTaskTypes: string[] }[] = [];
     patients.forEach(patient => {
@@ -446,11 +451,11 @@ const Dashboard: React.FC = () => {
       if (!hasAnnualCheckup) missing.push('年度體檢');
       // 依頻率規則檢查欠缺的必要生命表徵任務
       // （血壓/脈搏/血含氧量/呼吸：每周；體溫：每天）
-      getMissingMonitoringVitals(patientTasks).forEach(vital => missing.push(vital));
+      getMissingMonitoringVitals(patientTasks, exemptedMonitoringTaskIds).forEach(vital => missing.push(vital));
       if (missing.length > 0) result.push({ patient, missingTaskTypes: missing });
     });
     return result;
-  }, [patients, patientHealthTasks, annualHealthCheckups]);
+  }, [patients, patientHealthTasks, annualHealthCheckups, exemptedMonitoringTaskIds]);
   const missingMealGuidance = useMemo(() => {
     return patients.filter(patient => !mealGuidances.some(guidance => guidance.patient_id === patient.院友id));
   }, [patients, mealGuidances]);

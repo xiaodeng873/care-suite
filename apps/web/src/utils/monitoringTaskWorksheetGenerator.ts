@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { isTaskScheduledForDate } from './taskScheduler';
+import { getExemptedMonitoringTaskIds } from './monitoringCoverage';
 import { formatDisplayDate } from './dateFormat';
 interface MonitoringTask {
   床號: string;
@@ -68,6 +69,8 @@ const fetchTasksForDate = async (targetDate: Date, patientIds?: Set<number>): Pr
     晚餐: [],
     宵夜: []
   };
+  // 豁免狀態的每週監測任務（同一院友同一項已有密過每週一次任務）不列入工作紙
+  const exemptedTaskIds = getExemptedMonitoringTaskIds(allTasks || []);
   const targetDateCopy = new Date(targetDate);
   targetDateCopy.setHours(0, 0, 0, 0);
   const seen = new Set<string>();
@@ -86,6 +89,7 @@ const fetchTasksForDate = async (targetDate: Date, patientIds?: Set<number>): Pr
   allTasks?.forEach((task: any) => {
     if (task.院友主表.在住狀態 !== '在住') return;
     if (patientIds && !patientIds.has(task.patient_id)) return;
+    if (exemptedTaskIds.has(task.id)) return;
     const isScheduled = isTaskScheduledForDate(task, targetDateCopy);
     if (!isScheduled) return;
     const taskType = WORKSHEET_CATEGORY_MAP[task.health_record_type as string];
