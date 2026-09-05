@@ -5,7 +5,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import TaskModal from '../components/TaskModal';
 import { Hop as Home, Users, Calendar, Heart, SquareCheck as CheckSquare, TriangleAlert as AlertTriangle, Clock, TrendingUp, TrendingDown, Activity, Droplets, Scale, FileText, Stethoscope, Shield, CalendarCheck, Utensils, BookOpen, Guitar as Hospital, Pill, Building2, X, User, ArrowRight, Repeat, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { isTaskOverdue, isTaskPendingToday, isTaskDueSoon, getTaskStatus, isDocumentTask, isMonitoringTask, isNursingTask, isRestraintAssessmentOverdue, isRestraintAssessmentDueSoon, isHealthAssessmentOverdue, isHealthAssessmentDueSoon, isTubeCareOverdue, isTubeCareDueSoon, calculateNextDueDate, isTaskScheduledForDate, formatFrequencyDescription, findFirstMissingDate } from '../utils/taskScheduler';
+import { isTaskOverdue, isTaskPendingToday, isTaskDueSoon, getTaskStatus, isDocumentTask, isMonitoringTask, isNursingTask, isRestraintAssessmentOverdue, isRestraintAssessmentDueSoon, isHealthAssessmentOverdue, isHealthAssessmentDueSoon, isTubeCareOverdue, isTubeCareDueSoon, calculateNextDueDate, isTaskScheduledForDate, formatFrequencyDescription, findFirstMissingDate, taskHasRecordLookup, taskRecordVitalTypes } from '../utils/taskScheduler';
 import { computeEstimatedEndDate, daysUntil } from '../utils/estimatedEndDate';
 import HealthRecordModal from '../components/HealthRecordModal';
 import MealGuidanceModal from '../components/MealGuidanceModal';
@@ -222,12 +222,10 @@ const Dashboard: React.FC = () => {
         let isDateCompleted = false;
         if (normalizedTaskTimes.length > 0 && task.health_record_type !== '體重') {
           isDateCompleted = normalizedTaskTimes.every(time =>
-            hasRecordWithinTolerance([`${task.id}_${dateStr}`, `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}`], time)
+            hasRecordWithinTolerance([`${task.id}_${dateStr}`, ...taskRecordVitalTypes(task.health_record_type).map(tp => `${task.patient_id?.toString()}_${tp}_${dateStr}`)], time)
           );
         } else {
-          const keyWithTaskId = `${task.id}_${dateStr}`;
-          const keyWithPatientId = `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}`;
-          isDateCompleted = recordLookup.has(keyWithTaskId) || recordLookup.has(keyWithPatientId);
+          isDateCompleted = taskHasRecordLookup(task, recordLookup, dateStr);
         }
         if (!isDateCompleted) {
           targetDate = dateStr;
@@ -249,7 +247,7 @@ const Dashboard: React.FC = () => {
           return r.記錄日期 === targetDate;
         }
         return r.院友id.toString() === task.patient_id.toString() &&
-               r.監測類型 === task.health_record_type &&
+               taskRecordVitalTypes(task.health_record_type).includes(r.監測類型) &&
                r.記錄日期 === targetDate;
       });
       const completedTimes = new Set(dateRecords.map(r => normalizeTime(r.記錄時間)));
@@ -373,6 +371,8 @@ const Dashboard: React.FC = () => {
   const hasRecordForDateTime = (task: HealthTask, dateStr: string, timeStr?: string) => {
     // [關鍵修復] 確保 patient_id 類型一致
     const patientIdStr = task.patient_id?.toString() || '';
+    // 「生命表徵」合併任務：四項記錄任一命中即算完成
+    const typeKeys = taskRecordVitalTypes(task.health_record_type).map(tp => `${patientIdStr}_${tp}_${dateStr}`);
     // [修復] 如果任務有多個時間點，需要檢查所有時間點
     // 體重等不講求具體時間的監測，只要當日有記錄即算完成
     if (task.health_record_type === '體重') {
@@ -382,21 +382,21 @@ const Dashboard: React.FC = () => {
     if (task.specific_times && task.specific_times.length > 0) {
       if (timeStr) {
         // 檢查特定時間點（±30 分鐘容差）
-        return hasRecordWithinTolerance([`${task.id}_${dateStr}`, `${patientIdStr}_${task.health_record_type}_${dateStr}`], timeStr);
+        return hasRecordWithinTolerance([`${task.id}_${dateStr}`, ...typeKeys], timeStr);
       } else {
         // 檢查所有時間點是否都完成（±30 分鐘容差）
         return task.specific_times.every(time =>
-          hasRecordWithinTolerance([`${task.id}_${dateStr}`, `${patientIdStr}_${task.health_record_type}_${dateStr}`], time)
+          hasRecordWithinTolerance([`${task.id}_${dateStr}`, ...typeKeys], time)
         );
       }
     } else {
       if (timeStr) {
         // 有時間但任務沒有定義時間點（±30 分鐘容差）
-        return hasRecordWithinTolerance([`${task.id}_${dateStr}`, `${patientIdStr}_${task.health_record_type}_${dateStr}`], timeStr);
+        return hasRecordWithinTolerance([`${task.id}_${dateStr}`, ...typeKeys], timeStr);
       } else {
         // 檢查整天（不分時間）
         return recordLookup.has(`${task.id}_${dateStr}`) ||
-               recordLookup.has(`${patientIdStr}_${task.health_record_type}_${dateStr}`);
+               typeKeys.some(k => recordLookup.has(k));
       }
     }
   };
@@ -611,12 +611,10 @@ const Dashboard: React.FC = () => {
         let isDateCompleted = false;
         if (normalizedTaskTimes.length > 0 && task.health_record_type !== '體重') {
           isDateCompleted = normalizedTaskTimes.every(time =>
-            hasRecordWithinTolerance([`${task.id}_${dateStr}`, `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}`], time)
+            hasRecordWithinTolerance([`${task.id}_${dateStr}`, ...taskRecordVitalTypes(task.health_record_type).map(tp => `${task.patient_id?.toString()}_${tp}_${dateStr}`)], time)
           );
         } else {
-          const keyWithTaskId = `${task.id}_${dateStr}`;
-          const keyWithPatientId = `${task.patient_id?.toString()}_${task.health_record_type}_${dateStr}`;
-          isDateCompleted = recordLookup.has(keyWithTaskId) || recordLookup.has(keyWithPatientId);
+          isDateCompleted = taskHasRecordLookup(task, recordLookup, dateStr);
         }
         if (!isDateCompleted) {
           const incompleteDate = new Date(checkDate);
@@ -980,7 +978,7 @@ const Dashboard: React.FC = () => {
         const taskRecords = healthRecords.filter(r => {
           if (r.任務id === task.id) return true;
           return r.院友id?.toString() === task.patient_id?.toString() &&
-                 r.監測類型 === task.health_record_type;
+                 taskRecordVitalTypes(task.health_record_type).includes(r.監測類型);
         });
         if (taskRecords.length === 0) continue;
         const latestRecordDate = taskRecords.reduce((latest, r) => {

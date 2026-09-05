@@ -198,8 +198,8 @@ export interface MealGuidance {
   created_at: string;
   updated_at: string;
 }
-/** 所有任務類型（VitalSignType 為其子集，監測任務用）*/
-export type HealthTaskType = VitalSignType | '約束物品同意書' | '年度體檢' | '導尿管更換' | '鼻胃飼管更換' | '傷口換症' | '藥物自存同意書' | '預設醫療指示' | '氧氣喉管清洗/更換';
+/** 所有任務類型（VitalSignType 為其子集，監測任務用；'生命表徵' 為四項合一的合併任務）*/
+export type HealthTaskType = '生命表徵' | VitalSignType | '約束物品同意書' | '年度體檢' | '導尿管更換' | '鼻胃飼管更換' | '傷口換症' | '藥物自存同意書' | '預設醫療指示' | '氧氣喉管清洗/更換';
 export type FrequencyUnit = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type MonitoringTaskNotes = '注射前' | '服藥前' | '定期' | '特別關顧' | '社康';
 export interface PatientHealthTask {

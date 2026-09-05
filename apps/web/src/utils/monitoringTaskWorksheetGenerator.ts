@@ -48,7 +48,7 @@ const WORKSHEET_CATEGORY_MAP: Record<string, '生命表徵' | '血糖控制'> = 
 // 會令整個查詢拋出 22P02 enum 錯誤，導致工作紙空白。
 // 體溫、體重不納入工作紙（體溫改由一鍵生成體溫流程處理）。
 const MONITORING_WORKSHEET_TYPES = [
-  '血壓', '脈搏', '血含氧量', '呼吸', '血糖值',
+  '生命表徵', '血壓', '脈搏', '血含氧量', '呼吸', '血糖值',
 ];
 const fetchTasksForDate = async (targetDate: Date, patientIds?: Set<number>): Promise<TimeSlotTasks> => {
   const { data: allTasks, error } = await supabase

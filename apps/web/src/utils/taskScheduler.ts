@@ -13,6 +13,23 @@ const MONITORING_TASK_TYPES = new Set([
 export function isMonitoringTask(taskType: string): boolean {
   return MONITORING_TASK_TYPES.has(taskType);
 }
+// 「生命表徵」合併任務涵蓋的四項監測類型（記錄仍以逐項保存，完成判定四項任一命中即可）
+export const VITAL_SIGN_GROUP_TYPES: readonly string[] = ['血壓', '脈搏', '血含氧量', '呼吸'];
+
+// 任務完成判定適用的監測類型清單：合併任務對應四項，其他任務為自身類型
+export function taskRecordVitalTypes(taskType: string): string[] {
+  return taskType === '生命表徵' ? [...VITAL_SIGN_GROUP_TYPES] : [taskType];
+}
+
+// recordLookup 命中檢查：先按任務 id，後備按 院友+監測類型（合併任務四項任一命中即可）
+export function taskHasRecordLookup(task: PatientHealthTask, recordLookup: Set<string>, dateStr: string, timeStr?: string): boolean {
+  const suffix = timeStr ? `_${timeStr}` : '';
+  if (recordLookup.has(`${task.id}_${dateStr}${suffix}`)) return true;
+  const pid = task.patient_id?.toString() || '';
+  return taskRecordVitalTypes(task.health_record_type).some(
+    (tp) => recordLookup.has(`${pid}_${tp}_${dateStr}${suffix}`)
+  );
+}
 // 判斷是否為護理任務
 export function isNursingTask(taskType: string): boolean {
   // 導尿管更換、鼻胃飼管更換 已移至「喉管護理」獨立管理；此處只保留 傷口換症
@@ -184,6 +201,16 @@ export async function findFirstMissingDate(
   supabase: any,
   maxDaysToCheck: number = 90
 ): Promise<Date> {
+  // 「生命表徵」合併任務：以四項中任何一項記錄視為完成
+  const matchTypes = taskRecordVitalTypes(task.health_record_type);
+  const typeClause = matchTypes.length === 1
+    ? `監測類型.eq.${matchTypes[0]}`
+    : `監測類型.in.(${matchTypes.join(',')})`;
+  const recordMatchesTask = (r: any) => {
+    if (r.任務id === task.id) return true;
+    if (!r.任務id) return r.院友id === task.patient_id && matchTypes.includes(r.監測類型);
+    return false;
+  };
   const checkDate = new Date(startDate);
   checkDate.setHours(0, 0, 0, 0);
   let daysChecked = 0;
@@ -204,7 +231,7 @@ export async function findFirstMissingDate(
           .from('健康監測記錄')
           .select('記錄id, 記錄時間, 院友id, 監測類型, 任務id')
           .eq('記錄日期', dateStr)
-          .or(`任務id.eq.${task.id},and(院友id.eq.${task.patient_id},監測類型.eq.${task.health_record_type})`);
+          .or(`任務id.eq.${task.id},and(院友id.eq.${task.patient_id},${typeClause})`);
         if (error) {
           break;
         }
@@ -212,11 +239,7 @@ export async function findFirstMissingDate(
         // - 有 任務id 且等於本任務：精確匹配
         // - 無 任務id（舊記錄）且 院友id+監測類型 匹配：後備匹配
         // [修復] 排除屬於其他任務的記錄，避免誤判為本任務已完成
-        const taskRecords = (records || []).filter((r: any) => {
-          if (r.任務id === task.id) return true;
-          if (!r.任務id) return r.院友id === task.patient_id && r.監測類型 === task.health_record_type;
-          return false;
-        });
+        const taskRecords = (records || []).filter(recordMatchesTask);
         // 收集已完成的時間點
         const completedTimes = new Set(
           taskRecords.map((r: any) => normalizeTime(r.記錄時間))
@@ -243,16 +266,12 @@ export async function findFirstMissingDate(
           .from('健康監測記錄')
           .select('記錄id, 任務id, 院友id, 監測類型')
           .eq('記錄日期', dateStr)
-          .or(`任務id.eq.${task.id},and(院友id.eq.${task.patient_id},監測類型.eq.${task.health_record_type})`);
+          .or(`任務id.eq.${task.id},and(院友id.eq.${task.patient_id},${typeClause})`);
         if (error) {
           break;
         }
         // [修復] 排除屬於其他任務的記錄
-        const taskRecords = (records || []).filter((r: any) => {
-          if (r.任務id === task.id) return true;
-          if (!r.任務id) return r.院友id === task.patient_id && r.監測類型 === task.health_record_type;
-          return false;
-        });
+        const taskRecords = (records || []).filter(recordMatchesTask);
         if (taskRecords.length === 0) {
           if (task.specific_times && task.specific_times.length > 0) {
             const timeStr = task.specific_times[0];
@@ -293,24 +312,18 @@ export function isTaskOverdue(task: PatientHealthTask, recordLookup?: Set<string
       const normalizeTime = (time: string) => time ? time.substring(0, 5) : '';
       const dueTimeStr = dueDate.toTimeString().substring(0, 5); // HH:MM
       const normalizedDueTime = normalizeTime(dueTimeStr);
-      const keyWithTime = `${task.id}_${dueDateStr}_${normalizedDueTime}`;
-      const keyWithTimePatient = `${task.patient_id}_${task.health_record_type}_${dueDateStr}_${normalizedDueTime}`;
-      if (recordLookup.has(keyWithTime) || recordLookup.has(keyWithTimePatient)) {
+      if (taskHasRecordLookup(task, recordLookup, dueDateStr, normalizedDueTime)) {
         return false; // next_due_at 指向的時間點已完成，不算逾期
       }
     } else {
       // 單時間點或無時間點任務
-      const dueKey = `${task.id}_${dueDateStr}`;
-      const dueKeyPatient = `${task.patient_id}_${task.health_record_type}_${dueDateStr}`;
-      if (recordLookup.has(dueKey) || recordLookup.has(dueKeyPatient)) {
+      if (taskHasRecordLookup(task, recordLookup, dueDateStr)) {
         return false; // next_due_at 指向的日期已完成，不算逾期
       }
     }
     // 另外檢查今天是否已完成（額外保險）
     if (todayStr) {
-      const todayKey = `${task.id}_${todayStr}`;
-      const todayKeyPatient = `${task.patient_id}_${task.health_record_type}_${todayStr}`;
-      if (recordLookup.has(todayKey) || recordLookup.has(todayKeyPatient)) {
+      if (taskHasRecordLookup(task, recordLookup, todayStr)) {
         return false; // 今天已完成，不算逾期
       }
     }
@@ -352,24 +365,18 @@ export function isTaskPendingToday(task: PatientHealthTask, recordLookup?: Set<s
       const normalizeTime = (time: string) => time ? time.substring(0, 5) : '';
       const dueTimeStr = dueDate.toTimeString().substring(0, 5); // HH:MM
       const normalizedDueTime = normalizeTime(dueTimeStr);
-      const keyWithTime = `${task.id}_${dueDateStr}_${normalizedDueTime}`;
-      const keyWithTimePatient = `${task.patient_id}_${task.health_record_type}_${dueDateStr}_${normalizedDueTime}`;
-      if (recordLookup.has(keyWithTime) || recordLookup.has(keyWithTimePatient)) {
+      if (taskHasRecordLookup(task, recordLookup, dueDateStr, normalizedDueTime)) {
         return false; // next_due_at 指向的時間點已完成，不算待辦
       }
     } else {
       // 單時間點或無時間點任務
-      const dueKey = `${task.id}_${dueDateStr}`;
-      const dueKeyPatient = `${task.patient_id}_${task.health_record_type}_${dueDateStr}`;
-      if (recordLookup.has(dueKey) || recordLookup.has(dueKeyPatient)) {
+      if (taskHasRecordLookup(task, recordLookup, dueDateStr)) {
         return false; // next_due_at 指向的日期已完成，不算待辦
       }
     }
     // 另外檢查今天是否已完成（額外保險）
     if (todayStr) {
-      const todayKey = `${task.id}_${todayStr}`;
-      const todayKeyPatient = `${task.patient_id}_${task.health_record_type}_${todayStr}`;
-      if (recordLookup.has(todayKey) || recordLookup.has(todayKeyPatient)) {
+      if (taskHasRecordLookup(task, recordLookup, todayStr)) {
         return false; // 今天已完成，不算待辦
       }
     }
@@ -494,11 +501,9 @@ export function getFirstIncompleteMonitoringDate(task: PatientHealthTask, record
     if (recordLookup) {
       if (normalizedTaskTimes.length > 0) {
         completed = normalizedTaskTimes.every((time: string) =>
-          recordLookup.has(`${task.id}_${dateStr}_${time}`) ||
-          recordLookup.has(`${task.patient_id}_${task.health_record_type}_${dateStr}_${time}`));
+          taskHasRecordLookup(task, recordLookup, dateStr, time));
       } else {
-        completed = recordLookup.has(`${task.id}_${dateStr}`) ||
-          recordLookup.has(`${task.patient_id}_${task.health_record_type}_${dateStr}`);
+        completed = taskHasRecordLookup(task, recordLookup, dateStr);
       }
     }
     if (!completed) firstIncomplete = new Date(checkDate); // 持續覆寫：循環從今天往回扫描，最後賦値 = 最早未完成日期

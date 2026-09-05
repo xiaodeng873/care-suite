@@ -23,8 +23,9 @@ export const MONITORING_COVERAGE_REQUIREMENTS: CoverageRequirement[] = [
 // 舊版「生命表徵」合併任務視為涵蓋以下逐項生命表徵
 const LEGACY_VITALS_COVERED = new Set(['血壓', '脈搏', '血含氧量', '呼吸', '體溫']);
 
-// 可參與「密過每週一次」豁免機制的四項生命表徵（每週規則適用者）
-const EXEMPTABLE_VITALS = new Set(['血壓', '脈搏', '血含氧量', '呼吸']);
+// 可參與「密過每週一次」豁免機制的監測任務類型（每週規則適用者；
+// 「生命表徵」為四項合一的合併任務，一併適用）
+const EXEMPTABLE_VITALS = new Set(['血壓', '脈搏', '血含氧量', '呼吸', '生命表徵']);
 
 /**
  * 任務的循環間隔（天），直接由循環單位及次數決定，不做任何推算。

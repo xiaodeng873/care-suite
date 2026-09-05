@@ -24,7 +24,7 @@ const isVitalSignType = (t: string | undefined | null): t is VitalSignType =>
   !!t && VITAL_SIGN_TYPE_SET.has(t);
 
 const getTaskCategory = (type?: HealthTaskType | null): TaskCategory => {
-  if (!type || isVitalSignType(type)) return 'monitoring';
+  if (!type || type === '生命表徵' || isVitalSignType(type)) return 'monitoring';
   if (['導尿管更換', '鼻胃飼管更換', '傷口換症', '氧氣喉管清洗/更換'].includes(type)) return 'care';
   return 'document';
 };
@@ -79,8 +79,16 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate, prefill 
   const [taskCategory, setTaskCategory] = useState<TaskCategory>(initialCategory);
   // 監測任務：多選chip
   const [selectedVitalTypes, setSelectedVitalTypes] = useState<VitalSignType[]>(
-    isVitalSignType(task?.health_record_type) ? [task!.health_record_type as VitalSignType] : (prefill ? [prefill.vitalType] : [])
+    task?.health_record_type === '生命表徵'
+      ? ['血壓', '脈搏', '血含氧量', '呼吸']
+      : (isVitalSignType(task?.health_record_type) ? [task!.health_record_type as VitalSignType] : (prefill ? [prefill.vitalType] : []))
   );
+
+  // 四項綁定的監測項目儲存時合併為單一「生命表徵」任務
+  const effectiveMonitoringType = (): HealthTaskType =>
+    selectedVitalTypes.some(t => ['血壓', '脈搏', '血含氧量', '呼吸'].includes(t))
+      ? '生命表徵'
+      : (selectedVitalTypes[0] ?? task?.health_record_type ?? '生命表徵');
 
   // 特別關顧：與 notes 同步
   const [isSpecialCare, setIsSpecialCare] = useState(() => task?.notes === '特別關顧');
@@ -103,7 +111,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate, prefill 
 
   const [formData, setFormData] = useState({
     patient_id: task?.patient_id?.toString() || (prefill ? String(prefill.patient_id) : ''),
-    health_record_type: (task && !isVitalSignType(task.health_record_type)
+    health_record_type: (task && !isVitalSignType(task.health_record_type) && task.health_record_type !== '生命表徵'
       ? task.health_record_type
       : '傷口換症') as HealthTaskType,
     frequency_unit: task?.frequency_unit || defaultFrequency.unit,
@@ -182,7 +190,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate, prefill 
   const hasAnyFieldChanged = () => {
     if (!task) return false;
     const currentHealthRecordType = taskCategory === 'monitoring'
-      ? (selectedVitalTypes[0] ?? task.health_record_type)
+      ? effectiveMonitoringType()
       : formData.health_record_type;
     if (currentHealthRecordType !== task.health_record_type) return true;
     if (formData.patient_id !== task.patient_id?.toString()) return true;
@@ -252,7 +260,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate, prefill 
       if (task && task.id) {
         // 編輯現有任務：單一類型不變
         const editType = taskCategory === 'monitoring'
-          ? (selectedVitalTypes[0] ?? task.health_record_type)
+          ? effectiveMonitoringType()
           : formData.health_record_type;
         const mockTask: PatientHealthTask = { ...task, ...baseTaskData, health_record_type: editType, next_due_at: '' };
         const nextDueAt = calculateNextDueDate(mockTask, baseDateTime);
@@ -260,7 +268,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate, prefill 
       } else {
         // 新建任務：監測類可多種類型同時建立
         const typesToCreate: HealthTaskType[] = taskCategory === 'monitoring'
-          ? selectedVitalTypes
+          ? [effectiveMonitoringType()]
           : [formData.health_record_type];
         for (const healthType of typesToCreate) {
           const mockTask: PatientHealthTask = {

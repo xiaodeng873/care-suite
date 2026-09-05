@@ -1,5 +1,6 @@
 import type { MedicationPrescription, PatientHealthTask, InspectionVitalSignType } from '../lib/database';
 import type { VitalSignType } from '../lib/database';
+import { VITAL_SIGN_GROUP_TYPES } from './taskScheduler';
 
 // 處方檢測項條件 → 監測任務類型對照（上壓/下壓 都對應血壓任務）
 export const RULE_TO_TASK_TYPE: Record<InspectionVitalSignType, VitalSignType> = {
@@ -39,7 +40,10 @@ const taskMatches = (
   timeSlot: string
 ): boolean => {
   if (task.patient_id !== patientId) return false;
-  if (task.health_record_type !== taskType) return false;
+  // 「生命表徵」合併任務涵蓋四項，視為符合任何一項的檢測條件
+  if (task.health_record_type === '生命表徵'
+    ? !VITAL_SIGN_GROUP_TYPES.includes(taskType)
+    : task.health_record_type !== taskType) return false;
   if (task.is_recurring === false) return false;
   if (task.notes !== '服藥前' && task.notes !== '注射前') return false;
   const times = task.specific_times || [];

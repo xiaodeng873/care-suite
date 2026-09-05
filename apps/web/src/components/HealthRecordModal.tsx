@@ -69,7 +69,7 @@ const getInitialActiveTypes = (
   // 多任務整合：同院友同時間點的多種監測類型一起輸入
   if (initialData?.任務清單 && initialData.任務清單.length > 0) {
     const types = initialData.任務清單
-      .map(t => t.health_record_type)
+      .flatMap(t => t.health_record_type === '生命表徵' ? ['血壓', '脈搏', '血含氧量', '呼吸'] : [t.health_record_type])
       .filter(isVitalSignType);
     if (types.length > 0) {
       const order = ALL_VITAL_TYPES.map(v => v.type);
@@ -77,6 +77,7 @@ const getInitialActiveTypes = (
     }
   }
   const taskType = initialData?.task?.health_record_type;
+  if (taskType === '生命表徵') return ['血壓', '脈搏', '血含氧量', '呼吸'];
   if (taskType && isVitalSignType(taskType)) return [taskType];
   if (initialData?.預設監測類型) return [initialData.預設監測類型];
   const old = initialData?.預設記錄類型;
@@ -137,10 +138,20 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
   const typeToTaskId = useMemo(() => {
     const m: Partial<Record<VitalSignType, string>> = {};
     initialData?.任務清單?.forEach(t => {
-      if (isVitalSignType(t.health_record_type)) m[t.health_record_type] = t.id;
+      if (t.health_record_type === '生命表徵') {
+        (['血壓', '脈搏', '血含氧量', '呼吸'] as VitalSignType[]).forEach(tp => { m[tp] = t.id; });
+      } else if (isVitalSignType(t.health_record_type)) {
+        m[t.health_record_type] = t.id;
+      }
     });
-    if (initialData?.task && isVitalSignType(initialData.task.health_record_type) && !m[initialData.task.health_record_type]) {
-      m[initialData.task.health_record_type] = initialData.task.id;
+    const singleTask = initialData?.task;
+    if (singleTask) {
+      const tt = singleTask.health_record_type;
+      if (tt === '生命表徵') {
+        (['血壓', '脈搏', '血含氧量', '呼吸'] as VitalSignType[]).forEach(tp => { if (m[tp] === undefined) m[tp] = singleTask.id; });
+      } else if (isVitalSignType(tt) && !m[tt]) {
+        m[tt] = singleTask.id;
+      }
     }
     // 整列編輯：從各筆現有記錄取出 任務id
     recordGroup?.forEach(r => {
@@ -156,10 +167,20 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
   const taskNoteByType = useMemo(() => {
     const m: Partial<Record<VitalSignType, string | null | undefined>> = {};
     initialData?.任務清單?.forEach(t => {
-      if (isVitalSignType(t.health_record_type)) m[t.health_record_type] = t.notes;
+      if (t.health_record_type === '生命表徵') {
+        (['血壓', '脈搏', '血含氧量', '呼吸'] as VitalSignType[]).forEach(tp => { m[tp] = t.notes; });
+      } else if (isVitalSignType(t.health_record_type)) {
+        m[t.health_record_type] = t.notes;
+      }
     });
-    if (initialData?.task && isVitalSignType(initialData.task.health_record_type) && m[initialData.task.health_record_type] === undefined) {
-      m[initialData.task.health_record_type] = initialData.task.notes;
+    const singleTask = initialData?.task;
+    if (singleTask) {
+      const tt = singleTask.health_record_type;
+      if (tt === '生命表徵') {
+        (['血壓', '脈搏', '血含氧量', '呼吸'] as VitalSignType[]).forEach(tp => { if (m[tp] === undefined) m[tp] = singleTask.notes; });
+      } else if (isVitalSignType(tt) && m[tt] === undefined) {
+        m[tt] = singleTask.notes;
+      }
     }
     return m;
   // eslint-disable-next-line react-hooks/exhaustive-deps
