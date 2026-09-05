@@ -39,7 +39,7 @@ const PrescriptionMonitoringReminderModal: React.FC<PrescriptionMonitoringRemind
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">監測任務提醒</h2>
                   <p className="text-sm text-gray-600 mt-1">
-                    以下在服處方設有檢測項條件，但未找到對應「服藥前」循環監測任務
+                    以下在服處方設有檢測項條件，但未找到對應「服藥前／注射前」循環監測任務
                   </p>
                 </div>
               </div>
@@ -76,7 +76,7 @@ const PrescriptionMonitoringReminderModal: React.FC<PrescriptionMonitoringRemind
                           <span>服藥時間點：{item.timeSlot}</span>
                         </div>
                         <p className="text-xs text-gray-500">
-                          對應任務：{item.taskType}・每天・{item.timeSlot}・備註「服藥前」（{item.timeSlot} 或前半小時均可）
+                          對應任務：{item.taskType}・每天・{item.timeSlot}・備註「服藥前」或「注射前」（{item.timeSlot} 或前半小時均可）
                         </p>
                       </div>
                       <button
@@ -110,7 +110,7 @@ const PrescriptionMonitoringReminderModal: React.FC<PrescriptionMonitoringRemind
             patient_id: creatingItem.patientId,
             vitalType: creatingItem.taskType,
             specificTime: creatingItem.timeSlot,
-            notes: '服藥前',
+            notes: creatingItem.administrationRoute?.includes('注') ? '注射前' : '服藥前',
           }}
           onClose={() => setCreatingItem(null)}
           onUpdate={() => {

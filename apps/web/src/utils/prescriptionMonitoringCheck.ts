@@ -17,6 +17,7 @@ export interface MissingMonitoringTask {
   patientId: number;
   medicationName: string;
   prescriptionId: string;
+  administrationRoute?: string;
   ruleVitalSign: InspectionVitalSignType;
   taskType: VitalSignType;
   timeSlot: string;
@@ -29,7 +30,7 @@ export const minus30Minutes = (time: string): string => {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 };
 
-// 現有任務是否符合：同一院友、同一監測類型、循環任務、備註「服藥前」、
+// 現有任務是否符合：同一院友、同一監測類型、循環任務、備註「服藥前」或「注射前」、
 // 特定時間 = 服藥時間點正點 或 前半個小時
 const taskMatches = (
   task: PatientHealthTask,
@@ -40,7 +41,7 @@ const taskMatches = (
   if (task.patient_id !== patientId) return false;
   if (task.health_record_type !== taskType) return false;
   if (task.is_recurring === false) return false;
-  if (task.notes !== '服藥前') return false;
+  if (task.notes !== '服藥前' && task.notes !== '注射前') return false;
   const times = task.specific_times || [];
   return times.some((t) => t === timeSlot || t === minus30Minutes(timeSlot));
 };
@@ -76,6 +77,7 @@ export const findMissingMonitoringTasks = (
             patientId: rx.patient_id,
             medicationName: rx.medication_name,
             prescriptionId: rx.id,
+            administrationRoute: rx.administration_route,
             ruleVitalSign: rule.vital_sign_type,
             taskType,
             timeSlot: slot,
