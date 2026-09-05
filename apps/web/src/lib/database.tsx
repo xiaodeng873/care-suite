@@ -3404,8 +3404,7 @@ export const updateDiagnosisRecord = async (record: DiagnosisRecord): Promise<Di
   return data;
 };
 export const deleteDiagnosisRecord = async (recordId: string): Promise<void> => {
-  const { error } = await supabase.from('diagnosis_records').delete().eq('id', recordId);
-  if (error) throw error;
+  await softDeleteRecord('diagnosis_records', recordId);
 };
 export const getVaccinationRecords = async (): Promise<VaccinationRecord[]> => {
   const { data, error } = await supabase.from('vaccination_records').select('*').order('vaccination_date', { ascending: false });
@@ -3424,8 +3423,7 @@ export const updateVaccinationRecord = async (record: VaccinationRecord): Promis
   return data;
 };
 export const deleteVaccinationRecord = async (recordId: string): Promise<void> => {
-  const { error } = await supabase.from('vaccination_records').delete().eq('id', recordId);
-  if (error) throw error;
+  await softDeleteRecord('vaccination_records', recordId);
 };
 export const getInfectionControlRecords = async (): Promise<InfectionControlRecord[]> => {
   const { data, error } = await supabase.from('infection_control_records').select('*').order('diagnosis_date', { ascending: false });

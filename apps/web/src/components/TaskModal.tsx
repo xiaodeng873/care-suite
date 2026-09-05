@@ -35,9 +35,16 @@ interface TaskModalProps {
   // 為了相容性，這裡可以接受 patient 但主要由內部 autocomplete 控制
   patient?: any; 
   onUpdate?: () => void;
+  // 預填（新建任務用，例如由處方監測提醒打開）：院友、監測項目、特定時間、備註
+  prefill?: {
+    patient_id: number;
+    vitalType: VitalSignType;
+    specificTime: string;
+    notes: string;
+  };
 }
 
-const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate, prefill }) => {
   const { addPatientHealthTask, updatePatientHealthTask, refreshData } = usePatientData();
 
   // 香港時區輔助函數
@@ -72,7 +79,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
   const [taskCategory, setTaskCategory] = useState<TaskCategory>(initialCategory);
   // 監測任務：多選chip
   const [selectedVitalTypes, setSelectedVitalTypes] = useState<VitalSignType[]>(
-    isVitalSignType(task?.health_record_type) ? [task!.health_record_type as VitalSignType] : []
+    isVitalSignType(task?.health_record_type) ? [task!.health_record_type as VitalSignType] : (prefill ? [prefill.vitalType] : [])
   );
 
   // 特別關顧：與 notes 同步
@@ -95,16 +102,16 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate }) => {
   };
 
   const [formData, setFormData] = useState({
-    patient_id: task?.patient_id?.toString() || '',
+    patient_id: task?.patient_id?.toString() || (prefill ? String(prefill.patient_id) : ''),
     health_record_type: (task && !isVitalSignType(task.health_record_type)
       ? task.health_record_type
       : '傷口換症') as HealthTaskType,
     frequency_unit: task?.frequency_unit || defaultFrequency.unit,
     frequency_value: task?.frequency_value || defaultFrequency.value,
-    specific_times: task?.specific_times?.[0] || '',
+    specific_times: task?.specific_times?.[0] || prefill?.specificTime || '',
     specific_days_of_week: task?.specific_days_of_week || [],
     specific_days_of_month: task?.specific_days_of_month || [],
-    notes: task?.notes || '',
+    notes: task?.notes || prefill?.notes || '',
     last_completed_at: task?.last_completed_at || '',
     is_recurring: task?.is_recurring ?? true,
     end_date: task?.end_date || '',

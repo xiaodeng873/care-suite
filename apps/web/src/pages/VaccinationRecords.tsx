@@ -17,6 +17,8 @@ import {
 import { usePatientData, useFilteredPatients, type VaccinationRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import VaccinationRecordModal from '../components/VaccinationRecordModal';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
+import { useMedical } from '../context/merged/MedicalContext';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import PatientPrintModal from '../components/PatientPrintModal';
@@ -42,6 +44,8 @@ interface AdvancedFilters {
 
 const VaccinationRecords: React.FC = () => {
   const { vaccinationRecords, deleteVaccinationRecord, loading } = usePatientData();
+  const { refreshDiagnosisData } = useMedical();
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<number | undefined>();
@@ -369,6 +373,14 @@ const VaccinationRecords: React.FC = () => {
             >
               <Plus className="h-4 w-4" />
               <span>新增疫苗記錄</span>
+            </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
             </button>
           </div>
         </div>
@@ -801,6 +813,23 @@ const VaccinationRecords: React.FC = () => {
               alert('列印失敗，請稍後再試');
             }
           }}
+        />
+      )}
+
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['vaccination_records']}
+          title="疫苗記錄回收筒"
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'vaccination_date', label: '疫苗日期' },
+            { key: 'vaccine_item', label: '疫苗名稱' },
+            { key: 'vaccination_unit', label: '接種單位' },
+            { key: 'remarks', label: '備註' }
+          ]}
+          dateField="vaccination_date"
+          onRestored={() => { refreshDiagnosisData(); }}
+          onClose={() => setShowRecycleBin(false)}
         />
       )}
     </div>

@@ -15,6 +15,8 @@ import {
 import { usePatientData, useFilteredPatients, type DiagnosisRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import DiagnosisRecordModal from '../components/DiagnosisRecordModal';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
+import { useMedical } from '../context/merged/MedicalContext';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
@@ -37,6 +39,8 @@ interface AdvancedFilters {
 
 const DiagnosisRecords: React.FC = () => {
   const { diagnosisRecords, deleteDiagnosisRecord, loading } = usePatientData();
+  const { refreshDiagnosisData } = useMedical();
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const patients = useFilteredPatients();
 
   const [showModal, setShowModal] = useState(false);
@@ -349,6 +353,7 @@ const DiagnosisRecords: React.FC = () => {
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">診斷記錄</h1>
+          <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => {
               setSelectedPatientId(undefined);
@@ -360,6 +365,15 @@ const DiagnosisRecords: React.FC = () => {
             <Plus className="h-4 w-4" />
             <span>新增診斷記錄</span>
           </button>
+          <button
+            onClick={() => setShowRecycleBin(true)}
+            className="btn-secondary flex items-center gap-2"
+            title="回收筒"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>回收筒</span>
+          </button>
+          </div>
         </div>
       </div>
 
@@ -765,6 +779,23 @@ const DiagnosisRecords: React.FC = () => {
             setSelectedPatientId(undefined);
             setSelectedPatientRecords([]);
           }}
+        />
+      )}
+
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['diagnosis_records']}
+          title="診斷記錄回收筒"
+          patientIdFields={['patient_id']}
+          summaryFields={[
+            { key: 'diagnosis_date', label: '診斷日期' },
+            { key: 'diagnosis_item', label: '診斷內容' },
+            { key: 'diagnosis_unit', label: '診斷單位 / 醫院' },
+            { key: 'remarks', label: '備註' }
+          ]}
+          dateField="diagnosis_date"
+          onRestored={() => { refreshDiagnosisData(); }}
+          onClose={() => setShowRecycleBin(false)}
         />
       )}
     </div>

@@ -13,6 +13,8 @@ import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import MedicationRecordExportModal from '../components/MedicationRecordExportModal';
 import PrescriptionMatrixTable from '../components/PrescriptionMatrixTable';
+import PrescriptionMonitoringReminderModal from '../components/PrescriptionMonitoringReminderModal';
+import { findMissingMonitoringTasks } from '../utils/prescriptionMonitoringCheck';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { getHongKongNow, isPrescriptionExpired } from '../utils/prescriptionExpiry';
 import { formatDisplayDate, formatTimeToHHMM } from '../utils/dateFormat';
@@ -112,7 +114,7 @@ interface PatientDropdownFilters {
 }
 
 const PrescriptionManagement: React.FC = () => {
-  const { prescriptions, deletePrescription, updatePrescription, loading } = usePatientData();
+  const { prescriptions, deletePrescription, updatePrescription, loading, patientHealthTasks, refreshHealthTaskData } = usePatientData();
   const patients = useFilteredPatients();
   const { refreshPrescriptionData } = useWorkflow();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -131,6 +133,27 @@ const PrescriptionManagement: React.FC = () => {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [showBatchUpdateModal, setShowBatchUpdateModal] = useState(false);
   const [showActivityLog, setShowActivityLog] = useState(false);
+
+  // 監測任務提醒：每次進入頁面都提醒一次——在服處方有檢測項條件，但院友欠對應「服藥前」循環監測任務
+  const [showMonitoringReminder, setShowMonitoringReminder] = useState(false);
+  const monitoringRemindedRef = useRef(false);
+  const missingMonitoringItems = useMemo(
+    () => findMissingMonitoringTasks(prescriptions || [], patientHealthTasks || []),
+    [prescriptions, patientHealthTasks]
+  );
+  // 每次進入頁面（loading 完成時）有欠缺即彈，唔使用 ref 擋——每次導覽入嚟都提醒一次
+  useEffect(() => {
+    if (!loading && missingMonitoringItems.length > 0) {
+      setShowMonitoringReminder(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+  // 頁內觸發（待變更→在服）後嘅重檢：用 ref 防止同一事件重複彈
+  useEffect(() => {
+    if (loading || missingMonitoringItems.length === 0 || monitoringRemindedRef.current) return;
+    monitoringRemindedRef.current = true;
+    setShowMonitoringReminder(true);
+  }, [loading, missingMonitoringItems]);
   const [showMedicationRecordExportModal, setShowMedicationRecordExportModal] = useState(false);
 
   // 掛載時自動刷新處方資料，確保匯入後最新資料可見
@@ -441,6 +464,10 @@ const PrescriptionManagement: React.FC = () => {
   const handleStatusChange = async (prescription: any, targetStatus: 'active' | 'pending_change' | 'inactive') => {
     try {
       await updatePrescription({ id: prescription.id, status: targetStatus });
+      if (targetStatus === 'active') {
+        // 待變更 → 在服：重新觸發監測任務欠缺檢查（每個觸發事件提醒一次）
+        monitoringRemindedRef.current = false;
+      }
     } catch (error) {
       console.error('更新處方狀態失敗:', error);
       alert('更新處方狀態失敗，請重試');
@@ -929,6 +956,14 @@ const PrescriptionManagement: React.FC = () => {
         <PrescriptionActivityLogModal
           patient={currentPatient.patient}
           onClose={() => setShowActivityLog(false)}
+        />
+      )}
+
+      {showMonitoringReminder && missingMonitoringItems.length > 0 && (
+        <PrescriptionMonitoringReminderModal
+          items={missingMonitoringItems}
+          onClose={() => setShowMonitoringReminder(false)}
+          onTaskCreated={() => { refreshHealthTaskData(); }}
         />
       )}
     </div>
