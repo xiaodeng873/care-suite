@@ -9,7 +9,7 @@
 ### 1. 智能識別處方標籤
 - **圖片上傳**：支援拖放或點擊上傳，接受JPG、PNG、WEBP格式
 - **自動壓縮**：自動優化圖片大小，提升處理速度
-- **OCR文字識別**：使用Google Cloud Vision API進行高精度文字識別
+- **OCR文字識別**：使用Google Gemini Vision直接辨識圖片文字（無須獨立OCR服務）
 - **AI智能擷取**：使用Google Gemini AI根據prompt提取結構化資料
 
 ### 2. Prompt管理系統
@@ -67,8 +67,7 @@
 
 ### 後端架構
 - **Supabase Edge Functions**：作為API代理，保護Google API金鑰
-  - `vision-ocr`：處理Google Cloud Vision API呼叫
-  - `gemini-extract`：處理Google Gemini AI呼叫
+  - `vision-extract`：處理Google Gemini AI呼叫（文字識別 + 結構化提取，單一函數完成）
 - **資料庫表**：
   - `ocr_prompt_templates`：系統預設prompt模板
   - `user_ocr_prompts`：用戶自訂prompt

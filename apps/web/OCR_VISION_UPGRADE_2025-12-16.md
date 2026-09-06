@@ -32,7 +32,7 @@
 
 ### 第二部分：後端 Edge Function 優化（已完成）
 
-#### gemini-vision-extract Edge Function 增強
+#### vision-extract Edge Function 增強
 - ✅ 新增 `fetchWithRetry` 重試機制（最多 3 次）
 - ✅ 遇到 429 錯誤自動重試，採用指數退避策略（1秒 → 2秒 → 3秒）
 - ✅ 雙重請求間加入 1 秒延遲，避免觸發速率限制
@@ -42,7 +42,7 @@
 
 ## 技術改進對比
 
-### 舊架構（兩階段處理）
+### 舊架構（兩階段處理，已廢棄；vision-ocr 與 gemini-extract 均已刪除，現由單一 vision-extract 取代）
 ```
 用戶上傳圖片
     ↓
@@ -63,7 +63,7 @@
 ```
 用戶上傳圖片
     ↓
-直接調用 gemini-vision-extract Edge Function
+直接調用 vision-extract Edge Function
 （Gemini 直接「看」圖片，提取結構化數據）
     ↓
 返回結果

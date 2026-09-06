@@ -32,7 +32,7 @@ at parseTimeMarker (BatchHealthRecordOCRModal.tsx:181:26)
 
 ### 1. 增加 Token 限制
 
-**Gemini Edge Function (`supabase/functions/gemini-extract/index.ts`):**
+**Gemini Edge Function (`supabase/functions/vision-extract/index.ts`):**
 
 ```typescript
 generationConfig: {
@@ -68,7 +68,7 @@ maxOutputTokens: 1024,  // 從 512 增加到 1024
 
 ### 3. 增加截斷檢測
 
-**gemini-extract/index.ts:**
+**vision-extract/index.ts:**
 
 ```typescript
 const candidate = geminiData.candidates[0];
@@ -227,7 +227,7 @@ const parsedRecords = records.map((record: any, index: number) => {
 
 ### 4. 檢查 Edge Function 日誌
 
-前往 Supabase Dashboard → Edge Functions → gemini-extract → Logs
+前往 Supabase Dashboard → Edge Functions → vision-extract → Logs
 
 查看：
 - API 調用是否成功
@@ -254,7 +254,7 @@ const parsedRecords = records.map((record: any, index: number) => {
 
 ## 相關文件
 
-- `supabase/functions/gemini-extract/index.ts` - Edge Function
+- `supabase/functions/vision-extract/index.ts` - Edge Function
 - `src/components/BatchHealthRecordOCRModal.tsx` - 批量OCR Modal
 - `BATCH_OCR_TROUBLESHOOTING.md` - 故障排除指南
 - `OCR_FEATURE_README.md` - OCR功能說明

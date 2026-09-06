@@ -52,7 +52,7 @@
 3. 如配額用盡，等待重置或升級計劃
 
 #### B. 驗證API Key
-1. 檢查 `supabase/functions/gemini-extract/index.ts` 中的 `GOOGLE_GEMINI_API_KEY`
+1. 檢查 `supabase/functions/vision-extract/index.ts` 中的 `GEMINI_API_KEY`
 2. 確保API Key有效且未過期
 3. 測試API Key：
 ```bash
@@ -182,6 +182,6 @@ AI返回的JSON結構與預期不符
 ### Edge Function日誌
 在Supabase Dashboard查看：
 1. 進入 Functions 頁面
-2. 選擇 `gemini-extract`
+2. 選擇 `vision-extract`
 3. 查看 Logs 標籤
 4. 檢查詳細錯誤信息
