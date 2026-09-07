@@ -247,8 +247,12 @@ const getFrequencyDescription = (prescription: any): string => {
   switch (frequency_type) {
     case 'daily':
       return getFrequencyAbbreviation(perDay);
-    case 'every_x_days':
-      return '每' + frequency_value + '日' + perDay + '次';
+    case 'every_x_days': {
+      const gap = Number(frequency_value) || 1;
+      if (gap === 1) return getFrequencyAbbreviation(perDay);
+      if (gap === 2) return perDay === 1 ? '隔日' : '隔日' + perDay + '次';
+      return '每' + gap + '日' + perDay + '次';
+    }
     case 'every_x_weeks':
       return '每' + frequency_value + '星期' + perDay + '次';
     case 'every_x_months':

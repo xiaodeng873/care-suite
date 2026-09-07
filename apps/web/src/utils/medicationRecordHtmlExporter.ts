@@ -15,6 +15,7 @@ import {
 } from './facilitySettings';
 import { isPrescriptionScheduledOnDate } from './prescriptionSchedule';
 import { isPrescriptionExpired, isPrescriptionAboutToExpire } from './prescriptionExpiry';
+import { formatMealTiming } from './mealTiming';
 
 import { formatDisplayDate } from './dateFormat';
 import { getPrintBedNumber } from './bedTransferUtils';
@@ -640,8 +641,8 @@ export const orderPrescriptionsForSignatureEfficiency = <T>(prescriptions: T[]):
 };
 
 const getMealTimingLabel = (prescription: MedicationPrescription): string => {
-  const raw = String(prescription.meal_timing ?? '').trim();
-  if (raw) return raw;
+  const combined = formatMealTiming(prescription.meal_timing, prescription.meal_timing_2);
+  if (combined) return combined;
 
   const rawSlots = Array.isArray(prescription.medication_time_slots)
     ? prescription.medication_time_slots
@@ -672,23 +673,38 @@ const formatSlotShortLabel = (slot: string): string => {
 };
 
 // 統計全部口服藥物中單位為「粒」的藥物，於各時間點的總數量（如：藥物數量統計 8A(10) 10A(5.5) 4P(6)）
+// 非每日頻率（隔日/每N日/逢星期/單雙日等）的藥物只計入「可能總量」；
+// 某時間點兩數不同時以「必定/可能」範圍顯示（如 8A(7/8)），相同時維持單一數字。
+// PRN 不計入必定總量：只有設定了服用時間點才計入可能總量（需要時先決定當日是否服用）。
 const computeOralQuantityStat = (oralPrescriptions: MedicationPrescription[]): string => {
-  const totals = new Map<string, number>();
+  const certainTotals = new Map<string, number>();
+  const possibleTotals = new Map<string, number>();
   for (const rx of oralPrescriptions) {
     const unit = String(rx.dosage_unit ?? '').trim();
     if (unit !== '粒') continue;
     const amount = parseFloat(String(rx.dosage_amount ?? ''));
     if (!Number.isFinite(amount) || amount <= 0) continue;
+    const freqType = rx.frequency_type ?? 'daily';
+    const isCertain = !rx.is_prn && (
+      freqType === 'daily'
+      || freqType === 'each_time'
+      || (freqType === 'every_x_days' && (Number(rx.frequency_value) || 1) === 1)
+    );
     for (const slot of resolvePrescriptionTimeSlots(rx)) {
-      totals.set(slot, (totals.get(slot) ?? 0) + amount);
+      if (isCertain) {
+        certainTotals.set(slot, (certainTotals.get(slot) ?? 0) + amount);
+      }
+      possibleTotals.set(slot, (possibleTotals.get(slot) ?? 0) + amount);
     }
   }
-  if (totals.size === 0) return '';
-  const sortedSlots = [...totals.keys()].sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b));
+  if (possibleTotals.size === 0) return '';
+  const fmtQty = (n: number): string => Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(2)));
+  const sortedSlots = [...possibleTotals.keys()].sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b));
   const parts = sortedSlots.map((slot) => {
-    const total = totals.get(slot) ?? 0;
-    const totalStr = Number.isInteger(total) ? String(total) : String(parseFloat(total.toFixed(2)));
-    return `${formatSlotShortLabel(slot)}(${totalStr})`;
+    const min = certainTotals.get(slot) ?? 0;
+    const max = possibleTotals.get(slot) ?? 0;
+    const qtyStr = min === max ? fmtQty(max) : `${fmtQty(min)}/${fmtQty(max)}`;
+    return `${formatSlotShortLabel(slot)}(${qtyStr})`;
   });
   return `藥物數量統計 ${parts.join(' ')}`;
 };
@@ -1358,8 +1374,9 @@ const getFrequencyDescription = (prescription: MedicationPrescription): string =
   switch (frequency_type) {
     case 'every_x_days': {
       const gap = Number(frequency_value) || 1;
-      const gapLabel = gap === 1 ? '每日' : `每${gap}日`;
-      return `${gapLabel}${perDay}次`;
+      if (gap === 1) return `每日${perDay}次`;
+      if (gap === 2) return perDay === 1 ? '隔日' : `隔日${perDay}次`;
+      return `每${gap}日${perDay}次`;
     }
     case 'every_x_weeks': {
       const gap = Number(frequency_value) || 1;

@@ -6,6 +6,8 @@ interface TaskHistoryModalProps {
   task: any;
   patient: any;
   healthRecords: any[];
+  /** 監測記錄載入失敗（資料庫暫時斷線）：不顯示逾期狀態，避免誤導補錄 */
+  recordsLoadFailed?: boolean;
   initialDate?: Date | null;
   cutoffDateStr?: string;
   specificTime?: string;  // [新增] 如果指定，只檢查這個時間點
@@ -17,6 +19,7 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
   task,
   patient,
   healthRecords,
+  recordsLoadFailed,
   initialDate,
   cutoffDateStr,
   specificTime,
@@ -26,6 +29,9 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
   if (!task || !patient) {
     return null;
   }
+
+  // [DEBUG-db9a] 小日曆打開時記錄數據量，判斷「全部逾期」是空數據還是匹配邏輯問題
+  console.warn(`[DEBUG-db9a] 小日曆打開: 類型=${task?.health_record_type} 記錄數=${healthRecords?.length ?? 'null'} 載入失敗=${!!recordsLoadFailed}`);
 
   // [新增] ESC 鍵關閉功能
   useEffect(() => {
@@ -61,6 +67,11 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
     const checkDate = new Date(year, month, day);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    // 監測記錄載入失敗：唔判定逾期，避免誤導補錄
+    if (recordsLoadFailed) {
+      return checkDate.getTime() > today.getTime() ? 'future' : 'unknown';
+    }
 
     // 輔助函數：正確格式化本地日期為 YYYY-MM-DD（避免時區偏移）
     const formatLocalDate = (date: Date): string => {
@@ -292,6 +303,7 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
           break;
         case 'future':
         case 'none':
+        case 'unknown':
         default:
           statusStyle = 'text-gray-300 cursor-default';
           break;
@@ -328,7 +340,11 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
             <h3 className="font-semibold text-gray-900 text-sm">
               {patient?.中文姓氏}{patient?.中文名字} - {task?.health_record_type}
             </h3>
-            <p className="text-xs text-gray-500">點擊紅色日期進行補錄</p>
+            {recordsLoadFailed ? (
+              <p className="text-xs text-amber-600">監測記錄載入失敗，無法判斷完成狀態，請返回主控台重試。</p>
+            ) : (
+              <p className="text-xs text-gray-500">點擊紅色日期進行補錄</p>
+            )}
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200">
             <X className="h-5 w-5" />

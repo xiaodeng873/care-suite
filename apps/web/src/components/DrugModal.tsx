@@ -22,7 +22,12 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
     photo_url: drug?.photo_url || '',
     notes: drug?.notes || '',
     cannot_crush: drug?.cannot_crush || false,
-    no_antacid: drug?.no_antacid || false
+    no_antacid: drug?.no_antacid || false,
+    special_dosage_instruction: drug?.special_dosage_instruction || '',
+    meal_timing_1: drug?.meal_timing_1 || '',
+    meal_timing_2: drug?.meal_timing_2 || '',
+    is_diabetic_drug: drug?.is_diabetic_drug || false,
+    is_antihypertensive_drug: drug?.is_antihypertensive_drug || false
   });
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(drug?.photo_url || null);
@@ -112,7 +117,12 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
         photo_url: formData.photo_url || null,
         notes: formData.notes.trim() || null,
         cannot_crush: formData.cannot_crush,
-        no_antacid: formData.no_antacid
+        no_antacid: formData.no_antacid,
+        special_dosage_instruction: formData.special_dosage_instruction || null,
+        meal_timing_1: formData.meal_timing_1 || null,
+        meal_timing_2: formData.meal_timing_2 || null,
+        is_diabetic_drug: formData.is_diabetic_drug,
+        is_antihypertensive_drug: formData.is_antihypertensive_drug
       };
 
       if (drug?.id) {
@@ -136,7 +146,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
   return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">
@@ -277,6 +287,51 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
                 )}
               </select>
             </div>
+
+            <div>
+              <label className="form-label">特殊用法（新增處方時預填）</label>
+              <select
+                name="special_dosage_instruction"
+                value={formData.special_dosage_instruction}
+                onChange={handleChange}
+                className="form-input"
+              >
+                <option value="">無</option>
+                {medSettings.特殊用法.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="form-label">服用時段1（新增處方時預填）</label>
+              <select
+                name="meal_timing_1"
+                value={formData.meal_timing_1}
+                onChange={handleChange}
+                className="form-input"
+              >
+                <option value="">無</option>
+                {medSettings.服用時段.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="form-label">服用時段2（新增處方時預填）</label>
+              <select
+                name="meal_timing_2"
+                value={formData.meal_timing_2}
+                onChange={handleChange}
+                className="form-input"
+              >
+                <option value="">無</option>
+                {medSettings.服用時段.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* 不可碎藥 */}
@@ -306,6 +361,36 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
             <label className="flex-1 cursor-pointer">
               <span className="font-medium text-gray-900">不可與中和胃酸藥同服</span>
               <p className="text-sm text-gray-500 mt-1">若勾選，eMAR 及藥紙的藥物名稱欄會顯示提示標籤</p>
+            </label>
+          </div>
+
+          {/* 糖尿病藥物 */}
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              name="is_diabetic_drug"
+              checked={formData.is_diabetic_drug}
+              onChange={handleChange}
+              className="w-5 h-5 rounded border-gray-300 text-blue-600"
+            />
+            <label className="flex-1 cursor-pointer">
+              <span className="font-medium text-gray-900">糖尿病藥物</span>
+              <p className="text-sm text-gray-500 mt-1">新增或調整劑量後，系統會提醒新增血糖值監測任務</p>
+            </label>
+          </div>
+
+          {/* 降血壓藥物 */}
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              name="is_antihypertensive_drug"
+              checked={formData.is_antihypertensive_drug}
+              onChange={handleChange}
+              className="w-5 h-5 rounded border-gray-300 text-blue-600"
+            />
+            <label className="flex-1 cursor-pointer">
+              <span className="font-medium text-gray-900">降血壓藥物</span>
+              <p className="text-sm text-gray-500 mt-1">新增或調整劑量後，系統會提醒新增生命表徵監測任務</p>
             </label>
           </div>
 

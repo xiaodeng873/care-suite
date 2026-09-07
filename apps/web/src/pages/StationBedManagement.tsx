@@ -136,9 +136,13 @@ const StationBedManagement: React.FC = () => {
     return patient.original_station_id || patient.station_id;
   };
 
+  // 隔離病房：不計入院舍房間及床位總數
+  const isolationRoomIds = new Set(rooms.filter(r => r.is_isolation).map(r => r.id));
+  const isCountableBed = (bed: any) => !bed.room_id || !isolationRoomIds.has(bed.room_id);
+
   // 獲取每個站的統計資訊：只計「原屬本站且現正佔用本站床位」的院友
   const getStationStats = (stationId: string) => {
-    const stationBeds = beds.filter(bed => bed.station_id === stationId);
+    const stationBeds = beds.filter(bed => bed.station_id === stationId && isCountableBed(bed));
     const stationBedIds = new Set(stationBeds.map(b => b.id));
     // 已入住 = 原屬本站且現正佔用本站床位（含站內暫調）
     const occupiedCount = patients.filter(p =>
@@ -377,6 +381,7 @@ const StationBedManagement: React.FC = () => {
         bed_number: bedNumber,
         original_bed_number: originalBedNumber,
         reserved,
+        exclude_from_total: !!(bed.room_id && isolationRoomIds.has(bed.room_id)),
         patient: patient
           ? {
               name: `${patient.中文姓氏 ?? ''}${patient.中文名字 ?? ''}`.trim() || patient.中文姓名 || '',
@@ -710,7 +715,7 @@ const StationBedManagement: React.FC = () => {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-lg font-semibold text-gray-900">{station.name}</h2>
-                      <span className="text-xs text-gray-500">{stationRooms.length} 房 · {stationBeds.length} 床</span>
+                      <span className="text-xs text-gray-500">{stationRooms.filter((r: any) => !r.is_isolation).length} 房 · {stationBeds.filter(isCountableBed).length} 床</span>
                     </div>
                     {station.description && (
                       <p className="text-sm text-gray-600 mt-1">{station.description}</p>
@@ -732,13 +737,26 @@ const StationBedManagement: React.FC = () => {
                             <DoorOpen className="h-5 w-5 text-indigo-600" />
                             <h3 className="font-semibold text-gray-900">{room.room_number} 房</h3>
                             <span className="text-xs text-gray-500">({roomBeds.length} 床)</span>
+                            {room.is_isolation && (
+                              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-300">
+                                隔離病房
+                              </span>
+                            )}
                           </div>
-                          <button
-                            onClick={() => { setSelectedStation(station); setSelectedRoom(room); setSelectedBed(null); setShowBedModal(true); }}
-                            className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-                          >
-                            <Plus className="h-3.5 w-3.5" /> 新增床位
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => { setSelectedStation(station); setSelectedRoom(room); setShowRoomModal(true); }}
+                              className="text-sm text-gray-600 hover:text-gray-800 font-medium flex items-center gap-1"
+                            >
+                              <Edit3 className="h-3.5 w-3.5" /> 編輯房間
+                            </button>
+                            <button
+                              onClick={() => { setSelectedStation(station); setSelectedRoom(room); setSelectedBed(null); setShowBedModal(true); }}
+                              className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                            >
+                              <Plus className="h-3.5 w-3.5" /> 新增床位
+                            </button>
+                          </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                           {roomBeds.map((bed: any) => {

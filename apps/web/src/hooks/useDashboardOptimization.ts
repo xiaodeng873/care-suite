@@ -171,10 +171,10 @@ export const useTaskFilters = (
       const timeB = new Date(b.next_due_at).getTime();
       if (timeA === timeB) {
         const priority: Record<string, number> = {
-          '注射前': 1, '服藥前': 2, '社康': 3, '特別關顧': 4, '定期': 5
+          '注射前': 1, '服藥前': 2, '特別關顧': 3, '定期': 4
         };
-        const priorityA = a.notes ? priority[a.notes] || 5 : 5;
-        const priorityB = b.notes ? priority[b.notes] || 5 : 5;
+        const priorityA = a.notes ? priority[a.notes] || 4 : 4;
+        const priorityB = b.notes ? priority[b.notes] || 4 : 4;
         return priorityA - priorityB;
       }
       return timeA - timeB;

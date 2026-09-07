@@ -12,7 +12,7 @@ interface StationManagementModalProps {
 }
 
 const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose }) => {
-  const { stations, beds, patients, deleteStation, deleteBed } = usePatientData();
+  const { stations, rooms, beds, patients, deleteStation, deleteBed } = usePatientData();
   const [showStationModal, setShowStationModal] = useState(false);
   const [showBedModal, setShowBedModal] = useState(false);
   const [selectedStation, setSelectedStation] = useState<any>(null);
@@ -29,9 +29,10 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
     return patients.find(patient => patient.bed_id === bedId && patient.在住狀態 === '在住');
   };
 
-  // 獲取居住區統計資訊（跟原床號）
+  // 獲取居住區統計資訊（跟原床號）；隔離病房不計入床位總數
   const getStationStats = (stationId: string) => {
-    const stationBeds = beds.filter(bed => bed.station_id === stationId);
+    const isolationRoomIds = new Set(rooms.filter((r: any) => r.is_isolation).map((r: any) => r.id));
+    const stationBeds = beds.filter(bed => bed.station_id === stationId && (!bed.room_id || !isolationRoomIds.has(bed.room_id)));
     const stationBedIds = new Set(stationBeds.map(b => b.id));
     const stationPatients = patients.filter(p =>
       p.在住狀態 === '在住' &&
@@ -151,7 +152,7 @@ const StationManagementModal: React.FC<StationManagementModalProps> = ({ onClose
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">

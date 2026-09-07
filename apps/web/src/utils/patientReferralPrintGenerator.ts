@@ -5,6 +5,7 @@ import { getMealGuidances, getTubeCareRecords, getPrescriptions, getDiagnosisRec
 import { calcAge } from './cgatFeeHelper';
 import { getPrintBedNumber } from './bedTransferUtils';
 import { formatDisplayDate } from './dateFormat';
+import { formatMealTiming } from './mealTiming';
 
 const escapeHtml = (text: string | number | undefined | null): string => {
   if (text == null || text === '') return '';
@@ -215,7 +216,8 @@ const formatFrequency = (p: MedicationPrescription): string => {
   if (p.medication_time_slots && p.medication_time_slots.length > 0) {
     parts.push(p.medication_time_slots.join(','));
   }
-  if (p.meal_timing) parts.push(p.meal_timing);
+  const mealTimingLabel = formatMealTiming(p.meal_timing, p.meal_timing_2);
+  if (mealTimingLabel) parts.push(mealTimingLabel);
   return parts.join(' ');
 };
 

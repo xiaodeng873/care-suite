@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, matchPatientBedNumber} from '../utils/searchUtils';
+import { formatMealTiming } from '../utils/mealTiming';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useSearchParams } from 'react-router-dom';
 import { Pill, Plus, Trash2, Search, Filter, Download, User, Calendar, AlertTriangle, CheckCircle, ArrowRight, X, ChevronUp, ChevronDown, Settings, FileText, Activity, ChevronRight, ChevronLeft, Heart, Shield, History } from 'lucide-react';
@@ -14,7 +15,13 @@ import BedNumberImprint from '../components/BedNumberImprint';
 import MedicationRecordExportModal from '../components/MedicationRecordExportModal';
 import PrescriptionMatrixTable from '../components/PrescriptionMatrixTable';
 import PrescriptionMonitoringReminderModal from '../components/PrescriptionMonitoringReminderModal';
+import DrugAdjustmentReminderModal from '../components/DrugAdjustmentReminderModal';
 import { findMissingMonitoringTasks } from '../utils/prescriptionMonitoringCheck';
+import {
+  findDrugAdjustmentReminders,
+  getDismissedDrugAdjustKeys,
+  type DrugAdjustmentReminderItem,
+} from '../utils/drugAdjustmentCheck';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { getHongKongNow, isPrescriptionExpired } from '../utils/prescriptionExpiry';
 import { formatDisplayDate, formatTimeToHHMM } from '../utils/dateFormat';
@@ -114,7 +121,7 @@ interface PatientDropdownFilters {
 }
 
 const PrescriptionManagement: React.FC = () => {
-  const { prescriptions, deletePrescription, updatePrescription, loading, patientHealthTasks, refreshHealthTaskData } = usePatientData();
+  const { prescriptions, deletePrescription, updatePrescription, loading, patientHealthTasks, refreshHealthTaskData, drugDatabase } = usePatientData();
   const patients = useFilteredPatients();
   const { refreshPrescriptionData } = useWorkflow();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -154,6 +161,29 @@ const PrescriptionManagement: React.FC = () => {
     monitoringRemindedRef.current = true;
     setShowMonitoringReminder(true);
   }, [loading, missingMonitoringItems]);
+
+  // 藥物調節監測提醒：糖尿病／降血壓標籤藥的在服處方，欠對應「藥物調節」監測任務
+  const [showDrugAdjustReminder, setShowDrugAdjustReminder] = useState(false);
+  const drugAdjustRemindedRef = useRef(false);
+  const [drugAdjustDismissed, setDrugAdjustDismissed] = useState<Set<string>>(() => getDismissedDrugAdjustKeys());
+  const [drugAdjustSaveItems, setDrugAdjustSaveItems] = useState<DrugAdjustmentReminderItem[]>([]);
+  const drugAdjustItems = useMemo(
+    () => findDrugAdjustmentReminders(prescriptions || [], patientHealthTasks || [], drugDatabase || [], drugAdjustDismissed),
+    [prescriptions, patientHealthTasks, drugDatabase, drugAdjustDismissed]
+  );
+  // 每次進入頁面（loading 完成時）有欠缺即彈——用戶只撳取消的話，下次進入照樣提醒
+  useEffect(() => {
+    if (!loading && drugAdjustItems.length > 0) {
+      setShowDrugAdjustReminder(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+  // 頁內資料變化（新增/調劑量）後嘅重檢：用 ref 防止同一事件重複彈
+  useEffect(() => {
+    if (loading || drugAdjustItems.length === 0 || drugAdjustRemindedRef.current) return;
+    drugAdjustRemindedRef.current = true;
+    setShowDrugAdjustReminder(true);
+  }, [loading, drugAdjustItems]);
   const [showMedicationRecordExportModal, setShowMedicationRecordExportModal] = useState(false);
 
   // 掛載時自動刷新處方資料，確保匯入後最新資料可見
@@ -566,6 +596,7 @@ const PrescriptionManagement: React.FC = () => {
               setShowModal(false);
               setSelectedPrescription(null);
             }}
+            onDrugAdjustmentTrigger={(items) => setDrugAdjustSaveItems(items)}
           />
         )}
       </div>
@@ -930,6 +961,7 @@ const PrescriptionManagement: React.FC = () => {
             setShowModal(false);
             setSelectedPrescription(null);
           }}
+          onDrugAdjustmentTrigger={(items) => setDrugAdjustSaveItems(items)}
         />
       )}
 
@@ -963,6 +995,27 @@ const PrescriptionManagement: React.FC = () => {
         <PrescriptionMonitoringReminderModal
           items={missingMonitoringItems}
           onClose={() => setShowMonitoringReminder(false)}
+          onTaskCreated={() => { refreshHealthTaskData(); }}
+        />
+      )}
+
+      {showDrugAdjustReminder && drugAdjustItems.length > 0 && drugAdjustSaveItems.length === 0 && (
+        <DrugAdjustmentReminderModal
+          items={drugAdjustItems}
+          onClose={() => setShowDrugAdjustReminder(false)}
+          onDismissed={() => setDrugAdjustDismissed(getDismissedDrugAdjustKeys())}
+          onTaskCreated={() => { refreshHealthTaskData(); }}
+        />
+      )}
+
+      {drugAdjustSaveItems.length > 0 && (
+        <DrugAdjustmentReminderModal
+          items={drugAdjustSaveItems}
+          onClose={() => setDrugAdjustSaveItems([])}
+          onDismissed={() => {
+            setDrugAdjustDismissed(getDismissedDrugAdjustKeys());
+            setDrugAdjustSaveItems([]);
+          }}
           onTaskCreated={() => { refreshHealthTaskData(); }}
         />
       )}
@@ -1180,10 +1233,10 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
                   <span className="font-medium">{formatDisplayDate(prescription.prescription_date)}</span>
                 </div>
               )}
-              {prescription.meal_timing && (
+              {formatMealTiming(prescription.meal_timing, prescription.meal_timing_2) && (
                 <div className="flex items-center space-x-1">
                   <span className="text-gray-500">時段:</span>
-                  <span className="font-medium">{prescription.meal_timing}</span>
+                  <span className="font-medium">{formatMealTiming(prescription.meal_timing, prescription.meal_timing_2)}</span>
                 </div>
               )}
               {prescription.preparation_method && (

@@ -75,6 +75,7 @@ export interface Room {
   station_id: string;
   room_number: string;
   description?: string;
+  is_isolation?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -201,7 +202,7 @@ export interface MealGuidance {
 /** 所有任務類型（VitalSignType 為其子集，監測任務用；'生命表徵' 為四項合一的合併任務）*/
 export type HealthTaskType = '生命表徵' | VitalSignType | '約束物品同意書' | '年度體檢' | '導尿管更換' | '鼻胃飼管更換' | '傷口換症' | '藥物自存同意書' | '預設醫療指示' | '氧氣喉管清洗/更換';
 export type FrequencyUnit = 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-export type MonitoringTaskNotes = '注射前' | '服藥前' | '定期' | '特別關顧' | '社康';
+export type MonitoringTaskNotes = '注射前' | '服藥前' | '定期' | '特別關顧' | '藥物調節' | '異常監察' | '最近出院';
 export interface PatientHealthTask {
   id: string;
   patient_id: number;
@@ -872,6 +873,16 @@ export interface DrugData {
   unit?: string;
   photo_url?: string;
   notes?: string;
+  // 預設特殊用法（新增處方時自動帶入）
+  special_dosage_instruction?: string;
+  // 預設服用時段1（新增處方時自動帶入）
+  meal_timing_1?: string;
+  // 預設服用時段2（新增處方時自動帶入）
+  meal_timing_2?: string;
+  // 糖尿病藥物標籤（新增/調整劑量後提醒新增血糖值監測任務）
+  is_diabetic_drug?: boolean;
+  // 降血壓藥物標籤（新增/調整劑量後提醒新增生命表徵監測任務）
+  is_antihypertensive_drug?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -914,8 +925,10 @@ export interface MedicationPrescription {
   daily_frequency?: number;
   is_prn: boolean;
   medication_time_slots?: string[];
-  // 餐次描述
+  // 餐次描述（服用時段1，與服用時段2以「或」連接，任一時段給服皆合處方要求）
   meal_timing?: string;
+  // 服用時段2（可留空）
+  meal_timing_2?: string;
   notes?: string;
   preparation_method: PreparationMethodType;
   status: PrescriptionStatusType;
@@ -2114,6 +2127,28 @@ export const fetchAllPagesParallel = async (
     }
   }
   return all;
+};
+
+/** 關鍵查詢退避重試：statement timeout (57014)、連線瞬斷等暫時性錯誤自動重試 */
+export const withRetry = async <T,>(
+  fn: () => Promise<T>,
+  attempts = 3,
+  baseDelayMs = 1000,
+): Promise<T> => {
+  let lastError: any;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      const code = error?.code ?? '';
+      const message = String(error?.message ?? '');
+      const transient = code === '57014' || code === '08P01' || /timeout|ECONNRESET|network|fetch failed/i.test(message);
+      if (!transient || i === attempts - 1) throw error;
+      await new Promise(res => setTimeout(res, baseDelayMs * Math.pow(2, i)));
+    }
+  }
+  throw lastError;
 };
 
 export const getHealthRecords = async (options?: { limit?: number; daysBack?: number; sequential?: boolean }): Promise<HealthRecord[]> => {

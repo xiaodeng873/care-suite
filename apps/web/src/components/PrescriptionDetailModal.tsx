@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { X, Pill, User, Calendar, Clock, AlertTriangle, Stethoscope, FlaskConical, Beaker, CheckCircle, Ban } from 'lucide-react';
 import type { Patient, MedicationPrescription } from '../lib/database';
 import { formatDisplayDate, calculateAge } from '../utils/dateFormat';
+import { formatMealTiming } from '../utils/mealTiming';
 import BedNumberImprint from './BedNumberImprint';
 
 interface PrescriptionDetailModalProps {
@@ -49,8 +50,12 @@ const getFrequencyDescription = (prescription: MedicationPrescription) => {
   switch (frequency_type) {
     case 'daily':
       return getFrequencyAbbreviation(perDay);
-    case 'every_x_days':
-      return `隔${frequency_value}日${perDay}次`;
+    case 'every_x_days': {
+      const gap = Number(frequency_value) || 1;
+      if (gap === 1) return getFrequencyAbbreviation(perDay);
+      if (gap === 2) return perDay === 1 ? '隔日' : `隔日${perDay}次`;
+      return `隔${gap}日${perDay}次`;
+    }
     case 'every_x_weeks':
       return `隔${frequency_value}星期${perDay}次`;
     case 'every_x_months':
@@ -108,7 +113,7 @@ const PrescriptionDetailModal: React.FC<PrescriptionDetailModalProps> = ({ presc
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">
@@ -179,7 +184,7 @@ const PrescriptionDetailModal: React.FC<PrescriptionDetailModalProps> = ({ presc
               {infoRow(<Stethoscope className="h-4 w-4" />, '服用途徑', prescription.administration_route)}
               {infoRow(<Beaker className="h-4 w-4" />, '劑量 / 單位', `${prescription.dosage_amount || ''} ${prescription.dosage_unit || ''}`.trim() || '-')}
               {infoRow(<Clock className="h-4 w-4" />, '頻次', frequencyDesc)}
-              {infoRow(<Clock className="h-4 w-4" />, '服用時段', prescription.meal_timing)}
+              {infoRow(<Clock className="h-4 w-4" />, '服用時段', formatMealTiming(prescription.meal_timing, prescription.meal_timing_2))}
               {infoRow(<FlaskConical className="h-4 w-4" />, '備藥方式', prescription.preparation_method ? preparationLabels[prescription.preparation_method] : '-')}
               {infoRow(<CheckCircle className="h-4 w-4" />, '需要時 (PRN)', prescription.is_prn ? '是' : '否')}
             </div>

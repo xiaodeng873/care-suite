@@ -216,7 +216,7 @@ const WoundModal: React.FC<WoundModalProps> = ({ wound, patientId, onClose, onSa
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <div className="p-2 rounded-lg bg-red-100">

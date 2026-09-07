@@ -41,6 +41,8 @@ interface PatientContextType {
   drugDatabase: any[];
   serviceReasons: db.ServiceReason[];
   healthRecords: db.HealthRecord[];
+  /** 監測記錄載入失敗（資料庫暫時斷線），避免 UI 把失敗誤當無記錄 */
+  healthRecordLoadFailed: boolean;
   followUpAppointments: db.FollowUpAppointment[];
   mealGuidances: db.MealGuidance[];
   patientLogs: db.PatientLog[];
@@ -442,6 +444,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     healthRecords,
     deletedHealthRecords,
     isAllHealthRecordsLoaded,
+    healthRecordLoadFailed,
     addHealthRecord,
     addHealthRecordsForSession,
     updateHealthRecord,
@@ -927,6 +930,7 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       drugDatabase,
       serviceReasons,
       healthRecords,
+      healthRecordLoadFailed,
       followUpAppointments,
       mealGuidances,
       patientLogs,

@@ -112,7 +112,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
       }}
     >
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-t-xl">
+        <div className="sticky top-0 z-10 bg-white border-b px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-t-xl">
           <div className="flex items-center gap-2">
             <Key className="h-5 w-5 text-blue-600" />
             <h2 className="text-xl font-semibold text-gray-900">重設密碼</h2>

@@ -45,6 +45,9 @@ import { Portal } from '../components/Portal';
 import { generateDailyWorkflowRecords, generateBatchWorkflowRecords, generateWorkflowRecordsClient } from '../utils/workflowGenerator';
 import { diagnoseWorkflowDisplayIssue } from '../utils/diagnoseTool';
 import { isPrescriptionScheduledOnDate } from '../utils/prescriptionSchedule';
+import { formatMealTiming } from '../utils/mealTiming';
+import DrugAdjustmentReminderModal from '../components/DrugAdjustmentReminderModal';
+import { type DrugAdjustmentReminderItem } from '../utils/drugAdjustmentCheck';
 import { isPrescriptionExpired, isPrescriptionValidAt, normalizeTime, prescriptionOverlapsDateRange } from '../utils/prescriptionExpiry';
 import { supabase } from '../lib/supabase';
 import { getPatientByQrCodeId, getPatientWorkflowSettings, updatePatientBatchCutoffTime } from '../lib/database';
@@ -448,6 +451,8 @@ const MedicationWorkflow: React.FC = () => {
   const [prnModalDefaultTime, setPrnModalDefaultTime] = useState('');
   const [showQRScannerModal, setShowQRScannerModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  // 藥物調節監測提醒：由處方編輯模態框儲存後觸發
+  const [drugAdjustSaveItems, setDrugAdjustSaveItems] = useState<DrugAdjustmentReminderItem[]>([]);
   const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
   const [selectedWorkflowRecord, setSelectedWorkflowRecord] = useState<any>(null);
   const [selectedStep, setSelectedStep] = useState<string>('');
@@ -3208,7 +3213,9 @@ const MedicationWorkflow: React.FC = () => {
                                         switch (frequency_type) {
                                           case 'every_x_days': {
                                             const gap = Number(frequency_value) || 1;
-                                            return `${gap === 1 ? '每日' : `每${gap}日`}${perDay}次`;
+                                            if (gap === 1) return `每日${perDay}次`;
+                                            if (gap === 2) return perDay === 1 ? '隔日' : `隔日${perDay}次`;
+                                            return `每${gap}日${perDay}次`;
                                           }
                                           case 'every_x_weeks': {
                                             const gap = Number(frequency_value) || 1;
@@ -3228,8 +3235,8 @@ const MedicationWorkflow: React.FC = () => {
                                         }
                                       })()}
                                     </div>
-                                    {prescription.meal_timing && (
-                                      <div>{prescription.meal_timing}</div>
+                                    {formatMealTiming(prescription.meal_timing, prescription.meal_timing_2) && (
+                                      <div>{formatMealTiming(prescription.meal_timing, prescription.meal_timing_2)}</div>
                                     )}
                                     {(() => {
                                       const parts: string[] = [];
@@ -3419,6 +3426,16 @@ const MedicationWorkflow: React.FC = () => {
             setShowModal(false);
             setSelectedPrescription(null);
           }}
+          onDrugAdjustmentTrigger={(items) => setDrugAdjustSaveItems(items)}
+        />
+      )}
+      {/* 藥物調節監測提醒（劑量新增/調整後） */}
+      {drugAdjustSaveItems.length > 0 && (
+        <DrugAdjustmentReminderModal
+          items={drugAdjustSaveItems}
+          onClose={() => setDrugAdjustSaveItems([])}
+          onDismissed={() => setDrugAdjustSaveItems([])}
+          onTaskCreated={() => { refreshData(); }}
         />
       )}
       {/* 檢測項檢查模態框 */}

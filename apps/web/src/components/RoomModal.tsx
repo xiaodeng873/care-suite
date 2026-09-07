@@ -14,7 +14,8 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, preselectedStation, onClose
   const [formData, setFormData] = useState({
     station_id: room?.station_id || preselectedStation?.id || '',
     room_number: room?.room_number || '',
-    description: room?.description || ''
+    description: room?.description || '',
+    is_isolation: room?.is_isolation || false
   });
   const [saving, setSaving] = useState(false);
 
@@ -70,7 +71,8 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, preselectedStation, onClose
       const payload = {
         station_id: formData.station_id,
         room_number: formData.room_number.trim(),
-        description: formData.description.trim() || undefined
+        description: formData.description.trim() || undefined,
+        is_isolation: formData.is_isolation
       };
       if (room) {
         await updateRoom({ id: room.id, ...payload });
@@ -172,6 +174,19 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, preselectedStation, onClose
               rows={2}
               placeholder="房間備註（可選）"
             />
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="is_isolation"
+                checked={formData.is_isolation}
+                onChange={(e) => setFormData(prev => ({ ...prev, is_isolation: e.target.checked }))}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="text-sm text-gray-700">隔離病房</span>
+            </label>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 pt-4">

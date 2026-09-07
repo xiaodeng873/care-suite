@@ -35,12 +35,18 @@ interface TaskModalProps {
   // 為了相容性，這裡可以接受 patient 但主要由內部 autocomplete 控制
   patient?: any; 
   onUpdate?: () => void;
-  // 預填（新建任務用，例如由處方監測提醒打開）：院友、監測項目、特定時間、備註
+  // 預填（新建任務用，例如由處方監測提醒打開）：院友、監測項目、特定時間、備註；
+  // 可選：非循環限期任務（藥物調節）的完整預填
   prefill?: {
     patient_id: number;
     vitalType: VitalSignType;
     specificTime: string;
     notes: string;
+    isRecurring?: boolean;
+    startDate?: string; // YYYY-MM-DD
+    endDate?: string;   // YYYY-MM-DD
+    frequencyUnit?: FrequencyUnit;
+    frequencyValue?: number;
   };
 }
 
@@ -114,21 +120,21 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate, prefill 
     health_record_type: (task && !isVitalSignType(task.health_record_type) && task.health_record_type !== '生命表徵'
       ? task.health_record_type
       : '傷口換症') as HealthTaskType,
-    frequency_unit: task?.frequency_unit || defaultFrequency.unit,
-    frequency_value: task?.frequency_value || defaultFrequency.value,
+    frequency_unit: task?.frequency_unit || prefill?.frequencyUnit || defaultFrequency.unit,
+    frequency_value: task?.frequency_value || prefill?.frequencyValue || defaultFrequency.value,
     specific_times: task?.specific_times?.[0] || prefill?.specificTime || '',
     specific_days_of_week: task?.specific_days_of_week || [],
     specific_days_of_month: task?.specific_days_of_month || [],
     notes: task?.notes || prefill?.notes || '',
     last_completed_at: task?.last_completed_at || '',
-    is_recurring: task?.is_recurring ?? true,
-    end_date: task?.end_date || '',
+    is_recurring: task?.is_recurring ?? prefill?.isRecurring ?? true,
+    end_date: task?.end_date || prefill?.endDate || '',
     end_time: task?.end_time || '',
     tube_type: task?.tube_type || '',
     tube_size: task?.tube_size || '',
     start_date: task?.start_date
       ? new Date(task.start_date).toISOString().split('T')[0]
-      : getHongKongDate(),
+      : (prefill?.startDate || getHongKongDate()),
     start_time: task?.start_date
       ? new Date(task.start_date).toTimeString().slice(0, 5)
       : getHongKongTime(),
@@ -312,7 +318,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate, prefill 
   };
 
   const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
-  const noteOptions = ['注射前', '服藥前', '定期', '特別關顧', '社康'];
+  const noteOptions = ['注射前', '服藥前', '定期', '特別關顧', '藥物調節', '異常監察', '最近出院'];
   const timeOptions = Array.from({ length: 48 }, (_, i) => {
     const hours = Math.floor(i / 2).toString().padStart(2, '0');
     const minutes = (i % 2 === 0) ? '00' : '30';
@@ -322,7 +328,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate, prefill 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <div className={`p-2 rounded-lg ${taskCategory === 'monitoring' ? 'text-blue-600' : getTypeColor(formData.health_record_type)} bg-opacity-10`}>

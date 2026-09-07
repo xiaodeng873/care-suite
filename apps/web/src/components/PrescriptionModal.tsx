@@ -13,16 +13,19 @@ import PrescriptionLogModal from './PrescriptionLogModal';
 import DateInput from './DateInput';
 import InstitutionAutocomplete from './InstitutionAutocomplete';
 import { type MedicationInspectionRule } from '../lib/database';
+import { getDrugAdjustmentTriggersForSave, type DrugAdjustmentReminderItem } from '../utils/drugAdjustmentCheck';
 
 interface PrescriptionModalProps {
   prescription?: any;
   onClose: () => void;
+  // 儲存後若觸發糖尿病／降血壓藥物調節提醒，由此回調通知上層
+  onDrugAdjustmentTrigger?: (items: DrugAdjustmentReminderItem[]) => void;
 }
 
 const LAST_RX_KEY = (patientId: string | number) => `care_suite_last_rx_${patientId}`;
 
-const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onClose }) => {
-  const { addPrescription, updatePrescription, patients } = usePatientData();
+const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onClose, onDrugAdjustmentTrigger }) => {
+  const { addPrescription, updatePrescription, patients, prescriptions, drugDatabase } = usePatientData();
   // 每次開啟 modal 時先讀 localStorage，再從 DB 拉最新藥物設定，確保跨裝置同步
   const [medSettings, setMedSettings] = useState<MedicationSettingsData>(() => getMedicationSettings());
   useEffect(() => {
@@ -89,6 +92,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       is_odd_even_day: prescription?.is_odd_even_day || 'none',
       medication_time_slots: prescription?.medication_time_slots || [],
       meal_timing: prescription?.meal_timing || '',
+      meal_timing_2: prescription?.meal_timing_2 || '',
       is_prn: prescription?.is_prn || false,
       preparation_method: prescription?.preparation_method || 'advanced',
       status: prescription?.status || 'pending_change',
@@ -549,6 +553,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         is_odd_even_day: formData.is_odd_even_day,
         medication_time_slots: formData.medication_time_slots,
         meal_timing: formData.meal_timing,
+        meal_timing_2: formData.meal_timing_2,
         is_prn: formData.is_prn,
         preparation_method: formData.preparation_method,
         status: formData.status,
@@ -584,7 +589,22 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
           } catch { /* ignore quota errors */ }
         }
       }
-      
+
+      // 糖尿病／降血壓藥物：新增或調整劑量後觸發藥物調節監測提醒
+      const drugAdjustTriggers = getDrugAdjustmentTriggersForSave({
+        isNew: !(prescription && prescription.id),
+        patientId: Number(formData.patient_id) || 0,
+        medicationName: formData.medication_name,
+        newDosageAmount: formData.dosage_amount,
+        newDosageUnit: formData.dosage_unit,
+        originalDosageAmount: prescription?.dosage_amount,
+        originalDosageUnit: prescription?.dosage_unit,
+        originalStatus: prescription?.status,
+        prescriptions: prescriptions || [],
+        drugDatabase: drugDatabase || [],
+      });
+      if (drugAdjustTriggers.length > 0) onDrugAdjustmentTrigger?.(drugAdjustTriggers);
+
       onClose();
     } catch (error: any) {
       // 若 DB 欄位不存在（migration 未套用），退回不含新欄位重試
@@ -718,7 +738,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                       medication_name: drugName,
                       dosage_form: drugData?.dosage_form || prev.dosage_form,
                       dosage_unit: drugData?.unit || prev.dosage_unit,
-                      administration_route: drugData?.administration_route || prev.administration_route
+                      administration_route: drugData?.administration_route || prev.administration_route,
+                      special_dosage_instruction: drugData?.special_dosage_instruction || prev.special_dosage_instruction,
+                      meal_timing: drugData?.meal_timing_1 || prev.meal_timing,
+                      meal_timing_2: drugData?.meal_timing_2 || prev.meal_timing_2
                     }));
                   }}
                   placeholder="搜索或輸入藥物名稱..."
@@ -1072,16 +1095,28 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
               </div>
 
               <div>
-                <label className="form-label">服用時段</label>
-                <select
-                  name="meal_timing"
-                  value={formData.meal_timing}
-                  onChange={handleChange}
-                  className="form-input"
-                >
-                  <option value="">請選擇時段</option>
-                  {medSettings.服用時段.map(v => <option key={v} value={v}>{v}</option>)}
-                </select>
+                <label className="form-label">服用時段（任一時段給服皆合處方要求）</label>
+                <div className="flex items-center gap-2">
+                  <select
+                    name="meal_timing"
+                    value={formData.meal_timing}
+                    onChange={handleChange}
+                    className="form-input flex-1"
+                  >
+                    <option value="">時段1</option>
+                    {medSettings.服用時段.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                  <span className="text-sm text-gray-500 whitespace-nowrap">或</span>
+                  <select
+                    name="meal_timing_2"
+                    value={formData.meal_timing_2}
+                    onChange={handleChange}
+                    className="form-input flex-1"
+                  >
+                    <option value="">時段2（可留空）</option>
+                    {medSettings.服用時段.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">

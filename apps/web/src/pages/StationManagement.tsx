@@ -22,6 +22,7 @@ import { formatDisplayDate } from '../utils/dateFormat';
 const StationManagement: React.FC = () => {
   const { 
     stations, 
+    rooms,
     beds, 
     patients, 
     loading, 
@@ -41,8 +42,10 @@ const StationManagement: React.FC = () => {
     patient.original_station_id || patient.station_id;
 
   // 獲取每個站的統計資訊：只計「原屬本站且現正佔用本站床位」的院友（含站內暫調）
+  // 隔離病房不計入床位總數
   const getStationStats = (stationId: string) => {
-    const stationBeds = beds.filter(bed => bed.station_id === stationId);
+    const isolationRoomIds = new Set(rooms.filter((r: any) => r.is_isolation).map((r: any) => r.id));
+    const stationBeds = beds.filter(bed => bed.station_id === stationId && (!bed.room_id || !isolationRoomIds.has(bed.room_id)));
     const stationBedIds = new Set(stationBeds.map(b => b.id));
     const stationPatients = patients.filter(p =>
       p.在住狀態 === '在住' &&

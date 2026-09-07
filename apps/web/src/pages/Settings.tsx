@@ -373,7 +373,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
       }}
     >
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="sticky top-0 z-10 bg-white border-b px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-xl font-semibold text-gray-900">
             {user ? '編輯用戶' : '新增用戶'}
           </h2>
@@ -771,7 +771,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
       }}
     >
       <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="sticky top-0 z-10 bg-white border-b px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">權限設定</h2>
             <p className="text-sm text-gray-500">用戶：{user.name_zh}</p>

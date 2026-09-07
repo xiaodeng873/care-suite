@@ -65,7 +65,7 @@ const ChangeOriginalBedModal: React.FC<ChangeOriginalBedModalProps> = ({ patient
         className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-indigo-100">

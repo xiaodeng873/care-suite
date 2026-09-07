@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Trash2, Plus, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { formatDisplayDate } from '../utils/dateFormat';
+import { formatMealTiming } from '../utils/mealTiming';
 import { getMedicationSettings, getMedicationSettingsFromDB, INSTITUTION_GROUPS, type MedicationSettingsData } from '../utils/medicationSettings';
 import DrugAutocomplete from './DrugAutocomplete';
 import DateInput from './DateInput';
@@ -419,7 +420,7 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
       ),
     },
     { key: 'special', label: '特殊', render: (p) => p.special_dosage_instruction || '—', editor: selectFromList('special_dosage_instruction', '特殊用法') },
-    { key: 'timing', label: '時段', render: (p) => p.meal_timing || '—', editor: selectFromList('meal_timing', '服用時段') },
+    { key: 'timing', label: '時段', render: (p) => formatMealTiming(p.meal_timing, p.meal_timing_2) || '—', editor: selectFromList('meal_timing', '服用時段') },
     {
       key: 'prn', label: 'PRN',
       render: (p, _c) => null, // 用自定義 cell（常駐 checkbox）

@@ -1270,7 +1270,7 @@ const FollowUpManagement: React.FC = () => {
             className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+            <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h2 className="text-xl font-semibold text-gray-900">列印個人覆診記錄表</h2>
                 <button

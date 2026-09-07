@@ -17,9 +17,15 @@ const isUsingCustomAuth = () => {
 const DB_TOKEN_KEY = 'care_suite_db_token';
 
 // 每次請求時動態注入 Authorization，確保使用最新的 db token
+let noTokenWarnCount = 0;
 const dbFetch: typeof fetch = (input, init) => {
   const dbToken = localStorage.getItem(DB_TOKEN_KEY);
   if (!dbToken) {
+    // [DEBUG-db9a] 登入後仍無 dbToken 的請求 = RLS 以 anon 身份過濾，可能靜默回空
+    if (noTokenWarnCount < 5 && typeof input === 'string' && input.includes('/rest/v1/')) {
+      noTokenWarnCount++;
+      console.warn(`[DEBUG-db9a] 請求無 dbToken（${noTokenWarnCount}/5）: ${input.split('?')[0].split('/rest/v1/')[1]}`);
+    }
     return fetch(input, init);
   }
   const headers = new Headers(init?.headers);

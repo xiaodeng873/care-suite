@@ -6,6 +6,7 @@ import { useStationData } from '../context/facility/StationContext';
 import { supabase } from '../lib/supabase';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
 import BedNumberImprint from './BedNumberImprint';
+import { formatMealTiming } from '../utils/mealTiming';
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import DateInput from './DateInput';
 
@@ -955,10 +956,10 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                                           </span>
                                         </div>
                                 }
-                                      {prescription.meal_timing &&
+                                      {formatMealTiming(prescription.meal_timing, prescription.meal_timing_2) &&
                                 <div className="flex items-baseline">
                                           <span className="font-medium text-gray-900 mr-1.5">用法：</span>
-                                          <span className="text-gray-800">{prescription.meal_timing}</span>
+                                          <span className="text-gray-800">{formatMealTiming(prescription.meal_timing, prescription.meal_timing_2)}</span>
                                         </div>
                                 }
                                       {prescription.preparation_method &&

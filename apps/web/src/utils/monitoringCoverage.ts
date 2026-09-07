@@ -42,10 +42,28 @@ export function taskIntervalDays(task: any): number {
   return Infinity;
 }
 
-/** 是否「密過每週一次」的循環任務（間隔少於 7 天）。非循環任務不算。 */
+// 香港今日日期（YYYY-MM-DD），用於判斷非循環限期任務是否處於生效期內
+function getTodayHK(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
+}
+
+/** 非循環限期任務是否處於生效期內（今日介乎開始與結束日期，含首尾；缺邊界視為開放） */
+function isNonRecurringTaskActive(task: any, todayStr: string): boolean {
+  const start = String(task?.start_date ?? '').slice(0, 10);
+  const end = String(task?.end_date ?? '').slice(0, 10);
+  if (start && todayStr < start) return false;
+  if (end && todayStr > end) return false;
+  return true;
+}
+
+/** 是否「密過每週一次」的任務（間隔少於 7 天）。
+ *  循環任務直接計；非循環限期任務（如「藥物調節」一週監測）只在生效期內計。 */
 export function isDenseMonitoringTask(task: any): boolean {
-  if (task?.is_recurring === false) return false;
-  return taskIntervalDays(task) < 7;
+  if (taskIntervalDays(task) >= 7) return false;
+  if (task?.is_recurring === false) {
+    return isNonRecurringTaskActive(task, getTodayHK());
+  }
+  return true;
 }
 
 /** 是否每週一次的可被豁免任務（間距剛好 7 天的循環任務）。 */
@@ -57,8 +75,9 @@ function isWeeklyScaleTask(task: any): boolean {
 /**
  * 計算所有處於豁免狀態的監測任務 id。
  * 規則：四味之一、間距剛好 7 天（每週 1 次或每 7 日 1 次），
- * 而同一院友同一項生命表徵已存在任何密過每週一次的循環任務。
- * 豁免狀態即時推算，不寫入資料庫；密任務被刪除或改疏後自動解除。
+ * 而同一院友同一項生命表徵已存在任何密過每週一次的任務
+ * （循環任務，或生效期內的非循環限期任務如「藥物調節」）。
+ * 豁免狀態即時推算，不寫入資料庫；密任務被刪除、改疏或限期結束後自動解除。
  */
 export function getExemptedMonitoringTaskIds(allTasks: any[]): Set<string> {
   const exempted = new Set<string>();

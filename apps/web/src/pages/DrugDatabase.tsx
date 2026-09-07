@@ -485,6 +485,9 @@ const DrugDatabase: React.FC = () => {
                     藥物單位
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    標籤
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     備註
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -534,6 +537,17 @@ const DrugDatabase: React.FC = () => {
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                       {drug.unit || '-'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      <div className="flex flex-wrap gap-1">
+                        {drug.is_diabetic_drug && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">糖尿病藥物</span>
+                        )}
+                        {drug.is_antihypertensive_drug && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-800">降血壓藥物</span>
+                        )}
+                        {!drug.is_diabetic_drug && !drug.is_antihypertensive_drug && '-'}
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-900 max-w-xs">
                       <div className="truncate" title={drug.notes || ''}>

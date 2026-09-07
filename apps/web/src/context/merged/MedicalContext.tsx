@@ -109,6 +109,8 @@ interface MedicalContextType {
   deletedHealthRecords: db.DeletedHealthRecord[];
   isAllHealthRecordsLoaded: boolean;
   healthRecordLoading: boolean;
+  /** 最近一次的監測記錄載入失敗（與資料庫暫時斷線），UI 應提示重試而非當作無記錄 */
+  healthRecordLoadFailed: boolean;
   /** 背景補全完整歷史記錄進行中（唔计入統一 loading，唔阻塞登入閘門） */
   fullHealthRecordsLoading?: boolean;
   addHealthRecord: (record: Omit<db.HealthRecord, '記錄id'>) => Promise<db.HealthRecord>;
@@ -167,6 +169,8 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
   const [isAllHealthRecordsLoaded, setIsAllHealthRecordsLoaded] = useState(false);
   const isAllHealthRecordsLoadedRef = useRef(false);
   const [healthRecordLoading, setHealthRecordLoading] = useState(false);
+  // 監測記錄載入失敗標記：失敗時 UI 顯示提示，避免把「載入失敗」誤當「無記錄」（小日曆全紅）
+  const [healthRecordLoadFailed, setHealthRecordLoadFailed] = useState(false);
   // 背景補全完整歷史記錄嘅獨立 flag：唔计入統一 loading，
   // 否則登入閘門會被 49k+ 行嘅背景載入再度阻塞
   const [fullHealthRecordsLoading, setFullHealthRecordsLoading] = useState(false);
@@ -602,15 +606,23 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
     if (!isAuthenticated()) return;
     setHealthRecordLoading(true);
     try {
-      // 先載入近 180 天記錄讓 Dashboard 快速顯示
-      const recentData = await db.getHealthRecords({ daysBack: 180 });
+      // 先載入近 180 天記錄讓 Dashboard 快速顯示（statement timeout 等暫時性錯誤自動退避重試）
+      const recentData = await db.withRetry(() => db.getHealthRecords({ daysBack: 180 }), 3);
+      // [DEBUG-db9a] 區分「載入失敗」vs「靜默回空」（RLS/院舍不符會 0 行無錯誤）
+      try {
+        const t = localStorage.getItem('care_suite_db_token');
+        const facilityId = t ? JSON.parse(atob(t.split('.')[1] || ''))?.facility_id : null;
+        console.warn(`[DEBUG-db9a] 監測記錄載入完成 rows=${recentData?.length ?? 'null'} facility=${facilityId} epoch=${t ? JSON.parse(atob(t.split('.')[1] || ''))?.epoch : null}`);
+      } catch { /* 診斷日誌失敗不影響功能 */ }
       // 完整記錄已載入/載入緊就唔好用 180 日子集冚蓋，
       // 否則 race 之後頁面會長期得返一半資料（flag 話已載全但 state 係子集）
       if (!isAllHealthRecordsLoadedRef.current && !fullHealthRecordsInFlightRef.current) {
         setHealthRecords(recentData || []);
       }
+      setHealthRecordLoadFailed(false);
     } catch (error) {
-      console.error('Error refreshing health record data:', error);
+      console.error(`[DEBUG-db9a] 監測記錄載入失敗: code=${(error as any)?.code ?? 'none'} message=${String((error as any)?.message ?? '').slice(0, 120)}`);
+      setHealthRecordLoadFailed(true);
       throw error;
     } finally {
       setHealthRecordLoading(false);
@@ -622,12 +634,14 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
     fullHealthRecordsInFlightRef.current = true;
     try {
       setFullHealthRecordsLoading(true);
-      const allRecords = await db.getHealthRecords({ sequential: true });
+      const allRecords = await db.withRetry(() => db.getHealthRecords({ sequential: true }), 2);
       setHealthRecords(allRecords);
       setIsAllHealthRecordsLoaded(true);
       isAllHealthRecordsLoadedRef.current = true;
+      setHealthRecordLoadFailed(false);
     } catch (error) {
       console.error('載入完整記錄失敗:', error);
+      setHealthRecordLoadFailed(true);
       throw error;
     } finally {
       setFullHealthRecordsLoading(false);
@@ -793,10 +807,10 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
       fetchHospitalOutreachRecords().catch(err => console.warn('外展記錄載入失敗:', err));
     }, 500);
 
-    // 背景補全全部健康記錄（延後到啟動風暴過後，並用順序分頁溫和載入）
+    // 背景補全全部健康記錄（延後到啟動風暴過後，並用順序分頁溫和載入；加隨機抖動避免集中）
     setTimeout(() => {
       loadFullHealthRecords().catch(err => console.warn('背景加載完整健康記錄失敗:', err));
-    }, 8000);
+    }, 15000 + Math.random() * 10000);
   }, [isAuthenticated, refreshFollowUpData, refreshWoundData, refreshHealthRecordData, refreshDiagnosisData, fetchHospitalOutreachRecords, loadFullHealthRecords]);
 
   // ===== 統一 loading 狀態 =====
@@ -859,6 +873,7 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
     deletedHealthRecords,
     isAllHealthRecordsLoaded,
     healthRecordLoading,
+    healthRecordLoadFailed,
     fullHealthRecordsLoading,
     addHealthRecord,
     addHealthRecordsForSession,
@@ -1000,6 +1015,7 @@ export function useHealthRecord() {
     deletedHealthRecords: ctx.deletedHealthRecords,
     isAllHealthRecordsLoaded: ctx.isAllHealthRecordsLoaded,
     loading: ctx.healthRecordLoading,
+    healthRecordLoadFailed: ctx.healthRecordLoadFailed,
     addHealthRecord: ctx.addHealthRecord,
     addHealthRecordsForSession: ctx.addHealthRecordsForSession,
     updateHealthRecord: ctx.updateHealthRecord,

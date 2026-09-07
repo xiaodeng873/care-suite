@@ -1653,7 +1653,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
         {showImmediateOptionsModal &&
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-96 overflow-y-auto">
-              <div className="sticky top-0 flex justify-between items-center p-4 border-b bg-white">
+              <div className="sticky top-0 z-10 flex justify-between items-center p-4 border-b bg-white">
                 <h3 className="text-lg font-medium">院方的即時改善行動</h3>
                 <button onClick={() => setShowImmediateOptionsModal(false)} className="text-gray-400 hover:text-gray-600">
                   <X className="h-6 w-6" />
@@ -1750,7 +1750,7 @@ const IncidentReportModal: React.FC<IncidentReportModalProps> = ({ report, onClo
         {showPreventionOptionsModal &&
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-96 overflow-y-auto">
-              <div className="sticky top-0 flex justify-between items-center p-4 border-b bg-white">
+              <div className="sticky top-0 z-10 flex justify-between items-center p-4 border-b bg-white">
                 <h3 className="text-lg font-medium">院方預防意外再次發生的方法</h3>
                 <button onClick={() => setShowPreventionOptionsModal(false)} className="text-gray-400 hover:text-gray-600">
                   <X className="h-6 w-6" />

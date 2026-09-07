@@ -577,7 +577,7 @@ const HealthAssessment: React.FC = () => {
     if (difference === 0) return '無變化';
     const percentage = (difference / previousRecord.體重!) * 100;
     const sign = difference > 0 ? '+' : '';
-    return `${sign}${difference.toFixed(1)}kg (${sign}${percentage.toFixed(1)}%)`;
+    return `${sign}${percentage.toFixed(1)}%`;
   };
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode }> = ({ field, children }) => (
     <th 
@@ -986,6 +986,7 @@ const HealthAssessment: React.FC = () => {
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">呼吸</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">血糖值</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">體重</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">淨變化</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">備註</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                 </tr>
@@ -1043,7 +1044,7 @@ const HealthAssessment: React.FC = () => {
                         {group.記錄時間 && group.記錄時間 !== '00:00' && (
                           <div className="text-xs text-gray-500 flex items-center">
                             <Clock className="h-3 w-3 mr-1" />
-                            {new Date(`2000-01-01T${group.記錄時間}`).toLocaleTimeString('zh-TW', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                            {group.記錄時間.slice(0, 5)}
                           </div>
                         )}
                       </td>
@@ -1054,6 +1055,15 @@ const HealthAssessment: React.FC = () => {
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{fmt('呼吸')}</td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{fmt('血糖值')}</td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{fmt('體重')}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {(() => {
+                          const wr = group.byType['體重'];
+                          if (!wr || wr.數值 == null || (wr.數值 === 0 && wr.備註?.includes('無法量度'))) return '-';
+                          const change = calculateWeightChange(wr.數值, group.院友id, group.記錄日期);
+                          const color = change.startsWith('+') ? 'text-green-600' : change.startsWith('-') ? 'text-red-600' : 'text-gray-500';
+                          return <span className={color}>{change}</span>;
+                        })()}
+                      </td>
                       <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">{group.備註 || '-'}</td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex flex-wrap gap-2">

@@ -1,4 +1,5 @@
 import { formatDisplayDate } from './dateFormat';
+import { formatMealTiming } from './mealTiming';
 import shortTermTemplate from '../../../../upload/doc_html/院友服用藥物一覽表（短期藥）.html?raw';
 import longTermTemplate from '../../../../upload/doc_html/院友服用藥物一覽表（長期藥）.html?raw';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
@@ -20,6 +21,7 @@ interface MedicationPrescription {
   is_odd_even_day?: string;
   medication_time_slots?: string[];
   meal_timing?: string;
+  meal_timing_2?: string;
   special_dosage_instruction?: string;
   is_prn?: boolean;
   cannot_crush?: boolean;
@@ -122,7 +124,12 @@ function getFrequencyDescription(p: MedicationPrescription): string {
   const perDay = p.daily_frequency || slots.length || p.frequency_value || 1;
   switch (p.frequency_type) {
     case 'daily': return dailyCount(perDay);
-    case 'every_x_days': return `每${p.frequency_value}日${perDay}次`;
+    case 'every_x_days': {
+      const gap = Number(p.frequency_value) || 1;
+      if (gap === 1) return dailyCount(perDay);
+      if (gap === 2) return perDay === 1 ? '隔日' : `隔日${perDay}次`;
+      return `每${gap}日${perDay}次`;
+    }
     case 'every_x_weeks': return `每${p.frequency_value}星期${perDay}次`;
     case 'every_x_months': return `每${p.frequency_value}月${perDay}次`;
     case 'weekly_days': {
@@ -142,7 +149,8 @@ function formatDrugCell(p: MedicationPrescription): string {
   if (p.medication_name) parts.push(escapeHtml(p.medication_name));
   if (p.administration_route) parts.push(escapeHtml(p.administration_route));
   if (p.dosage_form) parts.push(escapeHtml(p.dosage_form));
-  if (p.meal_timing) parts.push(escapeHtml(p.meal_timing));
+  const mealTimingLabel = formatMealTiming(p.meal_timing, p.meal_timing_2);
+  if (mealTimingLabel) parts.push(escapeHtml(mealTimingLabel));
   if (p.special_dosage_instruction) parts.push(escapeHtml(p.special_dosage_instruction));
   if (p.is_prn) parts.push('需要時');
   const freq = getFrequencyDescription(p);

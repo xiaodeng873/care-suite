@@ -308,7 +308,7 @@ const PatientContactsSection: React.FC<PatientContactsSectionProps> = ({
           }}
         >
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-4">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+            <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 className="text-xl font-semibold text-gray-900">
                   {editingId ? '編輯聯絡人' : '新增聯絡人'}

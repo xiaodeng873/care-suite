@@ -10,6 +10,7 @@ export interface BedListBed {
   bed_number: string;            // 當前床號（顯示主號）
   original_bed_number?: string;  // 原床號：僅暫時性調動時以小字顯示「原XXX」
   reserved?: boolean;            // 已佔床：院友暫時調往他床，此床為其原床（空置但保留）
+  exclude_from_total?: boolean;  // 隔離病房的床：不計入床位統計（總床位/已入住/未入住）
   patient?: {
     name: string;
     gender?: string;
@@ -95,11 +96,13 @@ export function generateBedListHtml(input: BedListInput): string {
   const rooms = Array.from(roomMap.entries());
 
   /* ── 2. 統計 ── */
-  const totalBeds = beds.length;
+  // 隔離病房的床不計入床位統計；人數統計（入住類型/護理等級）仍計算所有院友
+  const countable = beds.filter(b => !b.exclude_from_total);
+  const totalBeds = countable.length;
   const occ       = beds.filter(b => b.patient);
-  const reservedN = beds.filter(b => !b.patient && b.reserved).length;
+  const reservedN = countable.filter(b => !b.patient && b.reserved).length;
   // 已入住只計現正佔用床位的院友，暫調院友的原床（reserved）不計入
-  const occupiedN = occ.length;
+  const occupiedN = countable.filter(b => b.patient).length;
   const emptyN    = totalBeds - occupiedN - reservedN;
   const privateN  = occ.filter(b => b.patient?.admissionType === '私位').length;
   const buyN      = occ.filter(b => b.patient?.admissionType === '買位').length;

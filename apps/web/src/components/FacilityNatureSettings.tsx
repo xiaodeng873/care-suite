@@ -60,7 +60,7 @@ const IntInput: React.FC<{
 );
 
 const FacilityNatureSettings: React.FC = () => {
-  const { beds } = useStation();
+  const { beds, rooms } = useStation();
   const { allPatients } = usePatientData();
 
   const [activeTab, setActiveTab] = useState(0);
@@ -72,7 +72,11 @@ const FacilityNatureSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const totalBeds = beds.length;
+  // 隔離病房不計入總床數
+  const totalBeds = useMemo(() => {
+    const isolationRoomIds = new Set(rooms.filter((r) => r.is_isolation).map((r) => r.id));
+    return beds.filter((b) => !b.room_id || !isolationRoomIds.has(b.room_id)).length;
+  }, [beds, rooms]);
   const currentResidents = useMemo(
     () => allPatients.filter((p) => p.在住狀態 === '在住').length,
     [allPatients]

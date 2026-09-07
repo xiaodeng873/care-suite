@@ -106,7 +106,7 @@ function pickLatestPerPatient<T extends { patient_id: number; created_at?: strin
 const Dashboard: React.FC = () => {
   const patientData = usePatientData();
   const patients = useFilteredPatients();
-  const { schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, patientsWithWounds, activityRecords, beds, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData, refreshWoundData } = patientData;
+  const { schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, healthRecordLoadFailed, refreshHealthData, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, patientsWithWounds, activityRecords, beds, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData, refreshWoundData } = patientData;
   const [showActivityRecordModal, setShowActivityRecordModal] = useState(false);
   const [activityRecordPatientId, setActivityRecordPatientId] = useState<number | undefined>(undefined);
   const [showHealthRecordModal, setShowHealthRecordModal] = useState(false);
@@ -1040,7 +1040,8 @@ const Dashboard: React.FC = () => {
       case '注射前': return 'bg-red-500 text-white';
       case '定期': return 'bg-green-500 text-white';
       case '特別關顧': return 'bg-orange-500 text-white';
-      case '社康': return 'bg-purple-500 text-white';
+      case '異常監察': return 'bg-purple-500 text-white';
+      case '最近出院': return 'bg-teal-500 text-white';
       default: return 'bg-gray-500 text-white';
     }
   };
@@ -1083,6 +1084,23 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6 lg:space-y-4">
       {new URLSearchParams(window.location.search).has('debugLayout') && <LayoutDebugOverlay />}
+      {/* 監測記錄載入失敗提示：避免把「資料庫暫時斷線」誤當「無記錄」顯示 */}
+      {healthRecordLoadFailed && healthRecords.length === 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-red-600" />
+            <span className="text-sm text-red-700">
+              健康監測記錄載入失敗（資料庫暫時斷線），任務狀態及小日曆可能顯示異常。
+            </span>
+          </div>
+          <button
+            onClick={() => refreshHealthData().catch(() => {})}
+            className="text-sm font-medium text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-md"
+          >
+            重新載入
+          </button>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="text-sm text-gray-500">
           最後更新: {formatDisplayDateTime(new Date())}
@@ -1714,6 +1732,7 @@ const Dashboard: React.FC = () => {
           task={selectedHistoryTask.task}
           patient={selectedHistoryTask.patient}
           healthRecords={healthRecords}
+          recordsLoadFailed={healthRecordLoadFailed}
           initialDate={selectedHistoryTask.initialDate}
           cutoffDateStr={selectedHistoryTask.patient.入住日期 || SYNC_CUTOFF_DATE_STR}
           onClose={() => setShowHistoryModal(false)}
