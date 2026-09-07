@@ -27,7 +27,8 @@ import {
   Copy,
   MoreVertical,
   Thermometer,
-  Printer
+  Printer,
+  ScanLine
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, DuplicateRecordGroup } from '../context/PatientContext';
 import HealthRecordModal from '../components/HealthRecordModal';
@@ -48,6 +49,7 @@ import { isVirtualDataEnabled } from '../utils/toolsSettings';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
 import BatchWeightEntryModal from '../components/BatchWeightEntryModal';
+import BatchHealthRecordOCRModal from '../components/BatchHealthRecordOCRModal';
 
 type SortField = '記錄日期' | '記錄時間' | '院友姓名' | '監測類型' | '數值';
 type SortDirection = 'asc' | 'desc';
@@ -116,6 +118,7 @@ const HealthAssessment: React.FC = () => {
   const [showBloodPressureModal, setShowBloodPressureModal] = useState(false);
   const [showGenerateTemperatureModal, setShowGenerateTemperatureModal] = useState(false);
   const [showBatchWeightModal, setShowBatchWeightModal] = useState(false);
+  const [showOCRModal, setShowOCRModal] = useState(false);
   const [virtualDataEnabled, setVirtualDataEnabled] = useState(isVirtualDataEnabled());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -774,6 +777,16 @@ const HealthAssessment: React.FC = () => {
                       </button>
                       <button
                         onClick={() => {
+                          setShowOCRModal(true);
+                          setShowMoreMenu(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
+                      >
+                        <ScanLine className="h-4 w-4" />
+                        <span>識別監測工作紙</span>
+                      </button>
+                      <button
+                        onClick={() => {
                           setShowRecycleBin(true);
                           setShowMoreMenu(false);
                         }}
@@ -1281,6 +1294,9 @@ const HealthAssessment: React.FC = () => {
         <BatchWeightEntryModal
           onClose={() => setShowBatchWeightModal(false)}
         />
+      )}
+      {showOCRModal && (
+        <BatchHealthRecordOCRModal onClose={() => setShowOCRModal(false)} />
       )}
       {showGenerateTemperatureModal && (
         <GenerateTemperatureModal

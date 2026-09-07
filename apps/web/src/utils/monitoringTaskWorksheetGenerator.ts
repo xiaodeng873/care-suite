@@ -17,6 +17,7 @@ interface TimeSlotTasks {
 }
 interface DayData {
   date: string;
+  dateShort: string;
   weekday: string;
   tasks: TimeSlotTasks;
 }
@@ -144,6 +145,7 @@ export const generateMonitoringTaskWorksheet = async (startDate: Date, patientId
     });
     daysData.push({
       date: formatDisplayDate(targetDate),
+      dateShort: `${String(targetDate.getDate()).padStart(2, '0')}/${String(targetDate.getMonth() + 1).padStart(2, '0')}/${targetDate.getFullYear()}`,
       weekday: getWeekdayName(targetDate),
       tasks
     });
@@ -320,7 +322,6 @@ const generateA5PageContent = (
   totalPages: number,
   isLeftHalf: boolean
 ): string => {
-  const dayNum = day.date.match(/(\d+)日/)?.[1] || '';
   let slotsHTML = '';
   for (const slot of pageContent.slots) {
     slotsHTML += `
@@ -341,7 +342,7 @@ const generateA5PageContent = (
     </div>
     <div class="header-line-main"></div>
     ${slotsHTML}
-    <div class="page-number-inline">${dayNum}日 - 第${pageNumber}頁${totalPages > 1 ? ` / 共${totalPages}頁` : ''}</div>
+    <div class="page-number-inline">${day.dateShort}-${day.weekday}-第${pageNumber}/${totalPages}頁</div>
     ${isLeftHalf ? '<div class="print-note">雙面列印：長邊翻轉</div>' : ''}
   `;
 };

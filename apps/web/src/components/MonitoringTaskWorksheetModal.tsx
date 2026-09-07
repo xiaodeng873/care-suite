@@ -63,7 +63,21 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
     setSuccess(false);
     try {
       const date = new Date(startDate);
-      await generateMonitoringTaskWorksheet(date, patientIdsForStation);
+      if (selectedStationId === 'all' && stations.length > 1) {
+        // 全部居住區：逐個居住區各生成一份，不可混在一起
+        for (const s of stations) {
+          const ids = new Set(
+            patients
+              .filter((p) => p.station_id === s.id && p.在住狀態 === '在住')
+              .map((p) => p.院友id as number)
+          );
+          await generateMonitoringTaskWorksheet(date, ids);
+          // 等待上一份打印視窗初始化後再生成下一份，避免打印對話框重疊
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      } else {
+        await generateMonitoringTaskWorksheet(date, patientIdsForStation);
+      }
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {
