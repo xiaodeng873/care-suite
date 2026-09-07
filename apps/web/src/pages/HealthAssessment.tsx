@@ -47,6 +47,7 @@ import type { HealthRecord } from '../lib/database';
 import { isVirtualDataEnabled } from '../utils/toolsSettings';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
+import BatchWeightEntryModal from '../components/BatchWeightEntryModal';
 
 type SortField = '記錄日期' | '記錄時間' | '院友姓名' | '監測類型' | '數值';
 type SortDirection = 'asc' | 'desc';
@@ -68,13 +69,32 @@ const HealthAssessment: React.FC = () => {
     findDuplicateHealthRecords,
     batchDeleteDuplicateRecords,
     refreshData,
-    loadFullHealthRecords
+    loadFullHealthRecords,
+    healthRecordLoadFailed,
+    refreshHealthRecordData
   } = usePatientData();
   const patients = useFilteredPatients();
   // [新增] 進入頁面時，觸發載入完整歷史記錄
   useEffect(() => {
-    loadFullHealthRecords();
+    loadFullHealthRecords().catch(() => {
+      // 失敗交由下方自動重試機制處理
+    });
   }, [loadFullHealthRecords]);
+  // 載入失敗自動重試：登入後資料庫繁忙（statement timeout）會令首次載入失敗，
+  // 自動退避重試最多 3 次，成功即停
+  const autoRetryCountRef = React.useRef(0);
+  useEffect(() => {
+    if (!healthRecordLoadFailed) {
+      autoRetryCountRef.current = 0;
+      return;
+    }
+    if (autoRetryCountRef.current >= 3) return;
+    autoRetryCountRef.current += 1;
+    const timer = setTimeout(() => {
+      loadFullHealthRecords().catch(() => {});
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, [healthRecordLoadFailed, loadFullHealthRecords]);
   const [showModal, setShowModal] = useState(false);
   const [selectedRecordGroup, setSelectedRecordGroup] = useState<HealthRecord[] | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,6 +115,7 @@ const HealthAssessment: React.FC = () => {
   const [showGlucoseModal, setShowGlucoseModal] = useState(false);
   const [showBloodPressureModal, setShowBloodPressureModal] = useState(false);
   const [showGenerateTemperatureModal, setShowGenerateTemperatureModal] = useState(false);
+  const [showBatchWeightModal, setShowBatchWeightModal] = useState(false);
   const [virtualDataEnabled, setVirtualDataEnabled] = useState(isVirtualDataEnabled());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -743,6 +764,16 @@ const HealthAssessment: React.FC = () => {
                       </button>
                       <button
                         onClick={() => {
+                          setShowBatchWeightModal(true);
+                          setShowMoreMenu(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
+                      >
+                        <Scale className="h-4 w-4" />
+                        <span>批量輸入體重</span>
+                      </button>
+                      <button
+                        onClick={() => {
                           setShowRecycleBin(true);
                           setShowMoreMenu(false);
                         }}
@@ -1099,12 +1130,26 @@ const HealthAssessment: React.FC = () => {
           <div className="text-center py-12">
             <Heart className="h-24 w-24 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || hasAdvancedFilters() ? '找不到符合條件的記錄' : '暫無監測記錄'}
+              {healthRecordLoadFailed && !searchTerm && !hasAdvancedFilters()
+                ? '暫時連接不到資料庫，未能載入監測記錄'
+                : searchTerm || hasAdvancedFilters() ? '找不到符合條件的記錄' : '暫無監測記錄'}
             </h3>
             <p className="text-gray-600 mb-4">
-              {searchTerm || hasAdvancedFilters() ? '請嘗試調整搜索條件' : '開始記錄院友的健康狀況'}
+              {healthRecordLoadFailed && !searchTerm && !hasAdvancedFilters()
+                ? '系統會自動重試；如持續失敗請檢查網絡後按下方重試'
+                : searchTerm || hasAdvancedFilters() ? '請嘗試調整搜索條件' : '開始記錄院友的健康狀況'}
             </p>
-            {!searchTerm && !hasAdvancedFilters() ? (
+            {healthRecordLoadFailed && !searchTerm && !hasAdvancedFilters() ? (
+              <button
+                onClick={() => {
+                  autoRetryCountRef.current = 0;
+                  loadFullHealthRecords().catch(() => {});
+                }}
+                className="btn-primary"
+              >
+                重新載入
+              </button>
+            ) : !searchTerm && !hasAdvancedFilters() ? (
               <button
                 onClick={() => setShowModal(true)}
                 className="btn-primary"
@@ -1230,6 +1275,11 @@ const HealthAssessment: React.FC = () => {
       {showBloodPressureModal && (
         <BloodPressureWorksheetModal
           onClose={() => setShowBloodPressureModal(false)}
+        />
+      )}
+      {showBatchWeightModal && (
+        <BatchWeightEntryModal
+          onClose={() => setShowBatchWeightModal(false)}
         />
       )}
       {showGenerateTemperatureModal && (

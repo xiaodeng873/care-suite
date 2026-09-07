@@ -27,6 +27,7 @@ import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
+import { getAllPatientContacts, type PatientContact } from '../lib/database';
 
 
 type SortField = '院友姓名' | 'vaccination_date' | 'created_at';
@@ -36,11 +37,18 @@ interface AdvancedFilters {
   床號: string;
   中文姓名: string;
   vaccine_item: string;
-  vaccination_unit: string;
   startDate: string;
   endDate: string;
   在住狀態: string;
 }
+
+// 電話號碼轉 WhatsApp 連結；8 位數字視為香港號碼，補 852 區號
+const toWhatsAppUrl = (phone: string): string | null => {
+  const digits = phone.replace(/\D/g, '');
+  if (!digits) return null;
+  const intl = digits.length === 8 ? `852${digits}` : digits;
+  return `https://wa.me/${intl}`;
+};
 
 const VaccinationRecords: React.FC = () => {
   const { vaccinationRecords, deleteVaccinationRecord, loading } = usePatientData();
@@ -62,17 +70,31 @@ const VaccinationRecords: React.FC = () => {
     床號: '',
     中文姓名: '',
     vaccine_item: '',
-    vaccination_unit: '',
     startDate: '',
     endDate: '',
     在住狀態: '在住'
   });
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [contactsByPatient, setContactsByPatient] = useState<Record<number, PatientContact[]>>({});
 
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
+
+  // 意向查詢：一次性載入全院聯絡人，按院友分組
+  React.useEffect(() => {
+    getAllPatientContacts()
+      .then(list => {
+        const map: Record<number, PatientContact[]> = {};
+        for (const c of list) {
+          if (!map[c.院友id]) map[c.院友id] = [];
+          map[c.院友id].push(c);
+        }
+        setContactsByPatient(map);
+      })
+      .catch(err => console.error('載入院友聯絡人失敗:', err));
+  }, []);
 
   if (loading) {
     return <LoadingScreen pageName="疫苗記錄" />;
@@ -80,7 +102,7 @@ const VaccinationRecords: React.FC = () => {
 
   const hasAdvancedFilters = () => {
     return advancedFilters.床號 || advancedFilters.中文姓名 || advancedFilters.vaccine_item ||
-           advancedFilters.vaccination_unit || advancedFilters.startDate || advancedFilters.endDate ||
+           advancedFilters.startDate || advancedFilters.endDate ||
            (advancedFilters.在住狀態 && advancedFilters.在住狀態 !== '');
   };
 
@@ -97,12 +119,19 @@ const VaccinationRecords: React.FC = () => {
       床號: '',
       中文姓名: '',
       vaccine_item: '',
-      vaccination_unit: '',
       startDate: '',
       endDate: '',
       在住狀態: '在住'
     });
   };
+
+  const [expandedPatientIds, setExpandedPatientIds] = useState<Set<number>>(new Set());
+
+  // 主表格欄位：每種疫苗佔一欄（按中文排序）
+  const vaccineItems = useMemo(() => {
+    const items = [...new Set(vaccinationRecords.map(r => (r.vaccine_item || '').trim()).filter(Boolean))];
+    return items.sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+  }, [vaccinationRecords]);
 
   const filteredPatientGroups = useMemo(() => {
     const groupedByPatient = vaccinationRecords.reduce((acc, record) => {
@@ -127,8 +156,7 @@ const VaccinationRecords: React.FC = () => {
       fuzzyMatch(patient.身份證號碼, deferredSearch) ||
       matchPatientBedNumber(patient, deferredSearch) ||
       group.records.some(r =>
-        fuzzyMatch(r.vaccine_item, deferredSearch) ||
-        fuzzyMatch(r.vaccination_unit, deferredSearch)
+        fuzzyMatch(r.vaccine_item, deferredSearch)
       );
 
     const matchesBedNumber = !advancedFilters.床號 ||
@@ -139,9 +167,6 @@ const VaccinationRecords: React.FC = () => {
 
     const matchesVaccineItem = !advancedFilters.vaccine_item ||
       group.records.some(r => fuzzyMatch(r.vaccine_item, advancedFilters.vaccine_item));
-
-    const matchesVaccinationUnit = !advancedFilters.vaccination_unit ||
-      group.records.some(r => fuzzyMatch(r.vaccination_unit, advancedFilters.vaccination_unit));
 
     const matchesResidencyStatus = !advancedFilters.在住狀態 ||
       patient.在住狀態 === advancedFilters.在住狀態;
@@ -157,7 +182,7 @@ const VaccinationRecords: React.FC = () => {
     }
 
     return matchesSearch && matchesBedNumber && matchesName && matchesVaccineItem &&
-           matchesVaccinationUnit && matchesResidencyStatus && matchesDateRange;
+           matchesResidencyStatus && matchesDateRange;
     });
   }, [vaccinationRecords, patients, advancedFilters, deferredSearch]);
 
@@ -302,16 +327,6 @@ const VaccinationRecords: React.FC = () => {
     }
   };
 
-  const handleSelectRow = (recordId: string) => {
-    const newSelected = new Set(selectedRows);
-    if (newSelected.has(recordId)) {
-      newSelected.delete(recordId);
-    } else {
-      newSelected.add(recordId);
-    }
-    setSelectedRows(newSelected);
-  };
-
   const handleSelectAll = () => {
     const allRecordIds = paginatedPatientGroups.flatMap(g => g.records.map(r => r.id));
     if (selectedRows.size === allRecordIds.length) {
@@ -394,7 +409,7 @@ const VaccinationRecords: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="搜索院友姓名、床號、疫苗項目或醫院..."
+                  placeholder="搜索院友姓名、床號或疫苗項目..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="form-input pl-10"
@@ -485,17 +500,6 @@ const VaccinationRecords: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="form-label">注射單位</label>
-                    <input
-                      type="text"
-                      value={advancedFilters.vaccination_unit}
-                      onChange={(e) => updateAdvancedFilter('vaccination_unit', e.target.value)}
-                      className="form-input"
-                      placeholder="輸入醫院名稱"
-                    />
-                  </div>
-
-                  <div>
                     <label className="form-label">在住狀態</label>
                     <select
                       value={advancedFilters.在住狀態}
@@ -559,9 +563,9 @@ const VaccinationRecords: React.FC = () => {
 
       <div className="card overflow-hidden">
         {paginatedPatientGroups.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[calc(100vh-22rem)]">
             <table className="w-full min-w-[768px] divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   <th className="px-4 py-3 text-left">
                     <input
@@ -572,10 +576,15 @@ const VaccinationRecords: React.FC = () => {
                     />
                   </th>
                   <SortableHeader field="院友姓名">院友</SortableHeader>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    疫苗記錄 (日期 | 項目 | 單位)
-                  </th>
+                  {vaccineItems.map(item => (
+                    <th key={item} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                      {item}
+                    </th>
+                  ))}
                   <SortableHeader field="created_at">最新建立</SortableHeader>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    意向查詢
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     操作
                   </th>
@@ -634,55 +643,90 @@ const VaccinationRecords: React.FC = () => {
                                 <p className="text-sm text-gray-500">床號: <BedNumberImprint patient={patient} size="sm" className="text-sm text-gray-500" /></p>
                                 <p className="text-xs text-green-600">共 {group.records.length} 筆記錄</p>
                               </div>
+                              <button
+                                onClick={() => {
+                                  const newSet = new Set(expandedPatientIds);
+                                  if (newSet.has(group.patientId)) newSet.delete(group.patientId);
+                                  else newSet.add(group.patientId);
+                                  setExpandedPatientIds(newSet);
+                                }}
+                                className="ml-auto p-1 text-gray-400 hover:text-gray-600"
+                                title={expandedPatientIds.has(group.patientId) ? '收合歷史注射日期' : '展開全部注射日期'}
+                              >
+                                {expandedPatientIds.has(group.patientId) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                              </button>
                             </div>
                           </PatientTooltip>
                         ) : (
                           <span className="text-gray-400">院友已刪除</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="space-y-2">
-                          {group.records.map((record, index) => {
-                            const isDeleting = deletingIds.has(record.id);
-                            return (
-                              <div
-                                key={record.id}
-                                className={`flex flex-wrap items-center gap-2 p-2 rounded ${
-                                  selectedRows.has(record.id) ? 'bg-green-50' : 'bg-gray-50'
-                                } ${isDeleting ? 'opacity-50' : ''}`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={selectedRows.has(record.id)}
-                                  onChange={() => handleSelectRow(record.id)}
-                                  className="h-3 w-3 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                                />
-                                <span className="text-xs text-gray-600 min-w-[80px]">
-                                  {formatDisplayDate(record.vaccination_date)}
-                                </span>
-                                <span className="text-sm text-gray-900 font-medium flex-1">
-                                  {record.vaccine_item}
-                                </span>
-                                <span className="text-xs text-gray-600">
-                                  {record.vaccination_unit}
-                                </span>
-                                <button
-                                  onClick={() => handleDelete(record.id)}
-                                  className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                  title="刪除此記錄"
-                                  disabled={isDeleting}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
+                      {vaccineItems.map(item => {
+                        const itemRecords = group.records.filter(r => (r.vaccine_item || '').trim() === item);
+                        const isExpanded = expandedPatientIds.has(group.patientId);
+                        const isDeletingAny = itemRecords.some(r => deletingIds.has(r.id));
+                        return (
+                          <td key={item} className={`px-4 py-3 align-top ${isDeletingAny ? 'opacity-50' : ''}`}>
+                            {itemRecords.length === 0 ? (
+                              <span className="text-gray-300">—</span>
+                            ) : isExpanded ? (
+                              <div className="space-y-1">
+                                {itemRecords.map(record => (
+                                  <div key={record.id} className="flex items-center gap-1">
+                                    <span className={`text-xs ${record.id === itemRecords[0].id ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
+                                      {formatDisplayDate(record.vaccination_date)}
+                                    </span>
+                                    <button
+                                      onClick={() => handleDelete(record.id)}
+                                      className="p-0.5 text-red-600 hover:bg-red-50 rounded"
+                                      title="刪除此記錄"
+                                      disabled={deletingIds.has(record.id)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ))}
                               </div>
-                            );
-                          })}
-                        </div>
-                      </td>
+                            ) : (
+                              <span className="text-sm font-medium text-gray-900">
+                                {formatDisplayDate(itemRecords[0].vaccination_date)}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
                       <td className="px-4 py-3 align-top">
                         <span className="text-gray-600 text-sm">
                           {formatDisplayDate(group.records[0].created_at)}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        {(contactsByPatient[group.patientId] || []).length > 0 ? (
+                          <div className="space-y-1">
+                            {contactsByPatient[group.patientId].map(c => (
+                              <div key={c.id} className="text-sm">
+                                <span className="text-gray-900">{c.聯絡人姓名}</span>
+                                {c.關係 && <span className="text-gray-500">（{c.關係}）</span>}
+                                {c.聯絡電話 && (
+                                  <>
+                                    <span className="text-gray-400"> · </span>
+                                    <a
+                                      href={toWhatsAppUrl(c.聯絡電話) || '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                                      title="開啟 WhatsApp"
+                                    >
+                                      {c.聯絡電話}
+                                    </a>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 align-top">
                         <button
@@ -824,7 +868,6 @@ const VaccinationRecords: React.FC = () => {
           summaryFields={[
             { key: 'vaccination_date', label: '疫苗日期' },
             { key: 'vaccine_item', label: '疫苗名稱' },
-            { key: 'vaccination_unit', label: '接種單位' },
             { key: 'remarks', label: '備註' }
           ]}
           dateField="vaccination_date"

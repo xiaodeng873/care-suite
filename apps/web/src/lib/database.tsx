@@ -988,6 +988,8 @@ export interface PatientNote {
   updated_at: string;
   created_by?: string;
 }
+/** 聯絡人聯絡用途選項（付款保證人等同舊制「第一聯絡人」） */
+export const CONTACT_PURPOSE_OPTIONS = ['付款保證人', '照顧保證人', '緊急聯絡人', '社署監護人', '社署受委人', '其他'] as const;
 export interface PatientContact {
   id: string;
   院友id: number;
@@ -998,7 +1000,10 @@ export interface PatientContact {
   電郵?: string;
   地址?: string;
   備註?: string;
+  /** @deprecated 以 purposes 取代；保留僅作舊資料相容 */
   is_primary: boolean;
+  /** 聯絡用途標籤（多選） */
+  purposes?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -4152,10 +4157,27 @@ export const getPatientContacts = async (patientId: number): Promise<PatientCont
     .from('patient_contacts')
     .select('*')
     .eq('院友id', patientId)
-    .order('is_primary', { ascending: false })
     .order('created_at', { ascending: true });
   if (error) throw error;
-  return data || [];
+  // 付款保證人（第一聯絡人）排最前，其餘按建立時間
+  return (data || []).sort((a, b) => {
+    const ap = a.purposes?.includes('付款保證人') ? 0 : 1;
+    const bp = b.purposes?.includes('付款保證人') ? 0 : 1;
+    return ap - bp;
+  });
+};
+// 批量取得全院聯絡人（供主表格一次性展示，避免 N+1 查詢）
+export const getAllPatientContacts = async (): Promise<PatientContact[]> => {
+  const { data, error } = await supabase
+    .from('patient_contacts')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data || []).sort((a, b) => {
+    const ap = a.purposes?.includes('付款保證人') ? 0 : 1;
+    const bp = b.purposes?.includes('付款保證人') ? 0 : 1;
+    return ap - bp;
+  });
 };
 export const createPatientContact = async (
   contact: Omit<PatientContact, 'id' | 'created_at' | 'updated_at'>
@@ -4184,22 +4206,6 @@ export const deletePatientContact = async (contactId: string): Promise<void> => 
   const { error } = await supabase
     .from('patient_contacts')
     .delete()
-    .eq('id', contactId);
-  if (error) throw error;
-};
-export const setPrimaryContact = async (
-  patientId: number,
-  contactId: string
-): Promise<void> => {
-  // 先將該院友的所有聯絡人設為非主要
-  await supabase
-    .from('patient_contacts')
-    .update({ is_primary: false })
-    .eq('院友id', patientId);
-  // 再將指定聯絡人設為主要
-  const { error } = await supabase
-    .from('patient_contacts')
-    .update({ is_primary: true })
     .eq('id', contactId);
   if (error) throw error;
 };

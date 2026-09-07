@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Syringe, Calendar, Building2, Plus, Trash2 } from 'lucide-react';
+import { X, Syringe, Calendar, Plus, Trash2 } from 'lucide-react';
 import { usePatientData, type VaccinationRecord } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import BedNumberImprint from './BedNumberImprint';
@@ -19,7 +19,6 @@ interface VaccinationItem {
   id: string;
   vaccination_date: string;
   vaccine_item: string;
-  vaccination_unit: string;
 }
 
 const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
@@ -43,8 +42,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
     {
       id: Date.now().toString(),
       vaccination_date: prefilledData?.vaccination_date || getHongKongDate(),
-      vaccine_item: prefilledData?.vaccine_item || '',
-      vaccination_unit: prefilledData?.vaccination_unit || ''
+      vaccine_item: prefilledData?.vaccine_item || ''
     }
   ]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -62,16 +60,14 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
       const newItems = extractedData.records.map((record: any) => ({
         id: Date.now().toString() + Math.random(),
         vaccination_date: record.疫苗接種日期 || record.vaccination_date || getHongKongDate(),
-        vaccine_item: record.疫苗項目 || record.vaccine_item || '',
-        vaccination_unit: record.接種單位 || record.vaccination_unit || ''
+        vaccine_item: record.疫苗項目 || record.vaccine_item || ''
       }));
       setVaccinationItems(newItems);
     } else {
       setVaccinationItems([{
         id: Date.now().toString(),
         vaccination_date: extractedData.疫苗接種日期 || extractedData.vaccination_date || getHongKongDate(),
-        vaccine_item: extractedData.疫苗項目 || extractedData.vaccine_item || '',
-        vaccination_unit: extractedData.接種單位 || extractedData.vaccination_unit || ''
+        vaccine_item: extractedData.疫苗項目 || extractedData.vaccine_item || ''
       }]);
     }
   };
@@ -86,8 +82,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
       {
         id: Date.now().toString(),
         vaccination_date: getHongKongDate(),
-        vaccine_item: '',
-        vaccination_unit: ''
+        vaccine_item: ''
       }
     ]);
   };
@@ -118,9 +113,6 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
       if (!item.vaccine_item.trim()) {
         newErrors[`vaccine_item_${index}`] = '請輸入疫苗項目';
       }
-      if (!item.vaccination_unit.trim()) {
-        newErrors[`vaccination_unit_${index}`] = '請輸入注射單位';
-      }
     });
 
     setErrors(newErrors);
@@ -142,7 +134,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
           patient_id: selectedPatientId!,
           vaccination_date: item.vaccination_date,
           vaccine_item: item.vaccine_item.trim(),
-          vaccination_unit: item.vaccination_unit.trim(),
+          vaccination_unit: '',
           remarks: ''
         };
 
@@ -229,7 +221,6 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
                       {formatDisplayDate(record.vaccination_date)}
                     </span>
                     <span className="text-gray-900 font-medium">{record.vaccine_item}</span>
-                    <span className="text-gray-600">{record.vaccination_unit}</span>
                   </div>
                 ))}
               </div>
@@ -266,7 +257,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="form-label flex flex-wrap items-center gap-2">
                       <Calendar className="h-4 w-4 text-gray-400" />
@@ -304,27 +295,6 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
                     />
                     {errors[`vaccine_item_${index}`] && (
                       <p className="mt-1 text-sm text-red-600">{errors[`vaccine_item_${index}`]}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="form-label flex flex-wrap items-center gap-2">
-                      <Building2 className="h-4 w-4 text-gray-400" />
-                      <span className="text-red-500">*</span>
-                      <span>注射單位 / 醫院</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={item.vaccination_unit}
-                      onChange={(e) => {
-                        updateVaccinationItem(item.id, 'vaccination_unit', e.target.value);
-                        setErrors(prev => ({ ...prev, [`vaccination_unit_${index}`]: '' }));
-                      }}
-                      className={`form-input ${errors[`vaccination_unit_${index}`] ? 'border-red-500' : ''}`}
-                      placeholder="例如：衛生署"
-                    />
-                    {errors[`vaccination_unit_${index}`] && (
-                      <p className="mt-1 text-sm text-red-600">{errors[`vaccination_unit_${index}`]}</p>
                     )}
                   </div>
                 </div>

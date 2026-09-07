@@ -1,16 +1,35 @@
-import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { Edit3, Trash2, User, ChevronUp, ChevronDown, Filter, X, Search } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
-import { getPatientContacts, deletePatientContact, PatientContact } from '../lib/database';
+import { getPatientContacts, deletePatientContact, PatientContact, CONTACT_PURPOSE_OPTIONS } from '../lib/database';
 import PatientContactModal from '../components/PatientContactModal';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 
-type SortField = '床號' | '中文姓名' | '在住狀態';
+type SortField = '床號' | '中文姓名';
 type SortDirection = 'asc' | 'desc';
+
+// 電話號碼轉 WhatsApp 連結；8 位數字視為香港號碼，補 852 區號
+const toWhatsAppUrl = (phone: string): string | null => {
+  const digits = phone.replace(/\D/g, '');
+  if (!digits) return null;
+  const intl = digits.length === 8 ? `852${digits}` : digits;
+  return `https://wa.me/${intl}`;
+};
+
+// 各聯絡用途標籤配色
+const PURPOSE_TAG_COLORS: Record<string, string> = {
+  '付款保證人': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  '照顧保證人': 'bg-blue-50 text-blue-700 border-blue-200',
+  '緊急聯絡人': 'bg-rose-50 text-rose-700 border-rose-200',
+  '社署監護人': 'bg-purple-50 text-purple-700 border-purple-200',
+  '社署受委人': 'bg-amber-50 text-amber-700 border-amber-200',
+  '其他': 'bg-gray-50 text-gray-600 border-gray-200',
+};
+const purposeTagColor = (p: string) => PURPOSE_TAG_COLORS[p] || 'bg-gray-50 text-gray-600 border-gray-200';
 
 interface AdvancedFilters {
   床號: string;
@@ -45,9 +64,13 @@ const PatientContacts: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [expandedPatients, setExpandedPatients] = useState<Set<number>>(new Set());
+  // 只有首次載入才顯示全頁 loading；之後 patients reference 變動
+  // （背景載入相片、居住區過濾切換、資料刷新）一律靜默更新
+  const isFirstLoadRef = useRef(true);
 
-  const fetchContacts = async () => {
-    setLoading(true);
+  // silent=true 時背景重新整理（不顯示全頁 loading，供新增/刪除後使用）
+  const fetchContacts = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       // 使用 Promise.all 並行請求所有院友的聯絡人資料
       const contactPromises = patients.map(p => 
@@ -71,11 +94,13 @@ const PatientContacts: React.FC = () => {
 
   useEffect(() => {
     if (patients.length > 0) {
-      fetchContacts();
+      fetchContacts(isFirstLoadRef.current ? false : true);
+      isFirstLoadRef.current = false;
     } else {
       // 0 院友（如空院舍）時都要解除 loading，否則永遠卡住
       setContacts([]);
       setLoading(false);
+      isFirstLoadRef.current = false;
     }
   }, [patients]);
 
@@ -131,10 +156,6 @@ const PatientContacts: React.FC = () => {
         valueA = `${a.中文姓氏 || ''}${a.中文名字 || ''}`;
         valueB = `${b.中文姓氏 || ''}${b.中文名字 || ''}`;
         break;
-      case '在住狀態':
-        valueA = a.在住狀態 || '';
-        valueB = b.在住狀態 || '';
-        break;
     }
 
     if (typeof valueA === 'string' && typeof valueB === 'string') {
@@ -186,7 +207,7 @@ const PatientContacts: React.FC = () => {
     if (window.confirm(`確定要刪除聯絡人 ${contact.聯絡人姓名} 嗎？`)) {
       try {
         await deletePatientContact(contact.id);
-        await fetchContacts();
+        await fetchContacts(true);
       } catch (error) {
         console.error('Error deleting contact:', error);
         alert('刪除失敗');
@@ -317,7 +338,6 @@ const PatientContacts: React.FC = () => {
               <tr>
                 <th className="w-8 px-2 py-3"></th>
                 <SortableHeader field="床號">院友</SortableHeader>
-                <SortableHeader field="在住狀態">在住狀態</SortableHeader>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">聯絡人數</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
               </tr>
@@ -363,16 +383,6 @@ const PatientContacts: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          patient.在住狀態 === '在住' ? 'bg-green-100 text-green-800' :
-                          patient.在住狀態 === '已退住' ? 'bg-gray-100 text-gray-800' :
-                          patient.在住狀態 === '待入住' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          {patient.在住狀態 || '在住'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                           hasContacts ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
                         }`}>
@@ -397,7 +407,7 @@ const PatientContacts: React.FC = () => {
                     {/* 展開後的聯絡人明細 */}
                     {isExpanded && (
                       <tr key={`contacts-${patient.院友id}`}>
-                        <td colSpan={5} className="px-0 py-0 bg-blue-50">
+                        <td colSpan={4} className="px-0 py-0 bg-blue-50">
                           {!hasContacts ? (
                             <div className="px-12 py-3 text-sm text-gray-400">此院友尚無聯絡人記錄</div>
                           ) : (
@@ -406,6 +416,7 @@ const PatientContacts: React.FC = () => {
                                 <tr className="bg-blue-100">
                                   <th className="px-12 py-2 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">聯絡人姓名</th>
                                   <th className="px-4 py-2 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">關係</th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">聯絡用途</th>
                                   <th className="px-4 py-2 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">電話</th>
                                   <th className="px-4 py-2 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">地址</th>
                                   <th className="px-4 py-2 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">備註</th>
@@ -417,7 +428,35 @@ const PatientContacts: React.FC = () => {
                                   <tr key={contact.id} className="hover:bg-blue-100 group">
                                     <td className="px-12 py-2 text-sm text-gray-900">{contact.聯絡人姓名 || '-'}</td>
                                     <td className="px-4 py-2 text-sm text-gray-600">{contact.關係 || '-'}</td>
-                                    <td className="px-4 py-2 text-sm text-gray-900">{contact.聯絡電話 || '-'}</td>
+                                    <td className="px-4 py-2">
+                                      {(contact.purposes || []).length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                          {[...(contact.purposes || [])]
+                                            .sort((x, y) => CONTACT_PURPOSE_OPTIONS.indexOf(x) - CONTACT_PURPOSE_OPTIONS.indexOf(y))
+                                            .map(p => (
+                                              <span key={p} className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${purposeTagColor(p)}`}>
+                                                {p}
+                                              </span>
+                                            ))}
+                                        </div>
+                                      ) : (
+                                        <span className="text-sm text-gray-400">-</span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-2 text-sm text-gray-900">
+                                      {contact.聯絡電話 ? (
+                                        <a
+                                          href={toWhatsAppUrl(contact.聯絡電話) || '#'}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={e => e.stopPropagation()}
+                                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                                          title="開啟 WhatsApp"
+                                        >
+                                          {contact.聯絡電話}
+                                        </a>
+                                      ) : '-'}
+                                    </td>
                                     <td className="px-4 py-2 text-sm text-gray-600">{contact.地址 || '-'}</td>
                                     <td className="px-4 py-2 text-sm text-gray-500">{contact.備註 || '-'}</td>
                                     <td className="px-4 py-2 whitespace-nowrap text-sm">
@@ -461,7 +500,7 @@ const PatientContacts: React.FC = () => {
         <PatientContactModal
           contact={selectedContact}
           onClose={() => setShowModal(false)}
-          onSaved={fetchContacts}
+          onSaved={() => fetchContacts(true)}
           defaultPatientId={modalPatientId || undefined}
         />
       )}

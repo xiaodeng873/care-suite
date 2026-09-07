@@ -128,7 +128,7 @@ const topExtraBlock = (contacts: PatientContact[], advanceDirectiveTasks: Patien
     ? contacts.map(c => {
         const parts = [c.聯絡人姓名, c.關係, c.聯絡電話].filter(Boolean);
         let text = parts.join(' / ');
-        if (c.is_primary) text += ' [第一聯絡人]';
+        if (c.purposes?.length) text += ` [${c.purposes.join('、')}]`;
         return text;
       }).join('；')
     : '';

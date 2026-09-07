@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Star, X } from 'lucide-react';
-import { getPatientContacts, createPatientContact, updatePatientContact, deletePatientContact, setPrimaryContact, PatientContact } from '../lib/database';
+import { Plus, Trash2, X } from 'lucide-react';
+import { getPatientContacts, createPatientContact, updatePatientContact, deletePatientContact, PatientContact, CONTACT_PURPOSE_OPTIONS } from '../lib/database';
 
 interface PatientContactsSectionProps {
   patientId?: number;
@@ -25,7 +25,7 @@ const PatientContactsSection: React.FC<PatientContactsSectionProps> = ({
     電郵: '',
     地址: '',
     備註: '',
-    is_emergency: false,
+    purposes: [] as string[],
   });
 
   useEffect(() => {
@@ -59,7 +59,7 @@ const PatientContactsSection: React.FC<PatientContactsSectionProps> = ({
 
     const payload = {
       ...formData,
-      is_primary: formData.is_emergency,
+      is_primary: false,
     };
 
     try {
@@ -76,7 +76,6 @@ const PatientContactsSection: React.FC<PatientContactsSectionProps> = ({
           await createPatientContact({
             院友id: patientId,
             ...payload,
-            is_primary: contacts.length === 0 ? true : formData.is_emergency,
           });
         }
         resetForm();
@@ -93,7 +92,6 @@ const PatientContactsSection: React.FC<PatientContactsSectionProps> = ({
             id: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             院友id: 0,
             ...payload,
-            is_primary: contacts.length === 0 ? true : formData.is_emergency,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
@@ -133,7 +131,7 @@ const PatientContactsSection: React.FC<PatientContactsSectionProps> = ({
       電郵: contact.電郵 || '',
       地址: contact.地址 || '',
       備註: contact.備註 || '',
-      is_emergency: contact.is_primary || false,
+      purposes: contact.purposes || [],
     });
     setShowModal(true);
   };
@@ -156,25 +154,6 @@ const PatientContactsSection: React.FC<PatientContactsSectionProps> = ({
     }
   };
 
-  const handleSetPrimary = async (id: string) => {
-    try {
-      if (patientId) {
-        await setPrimaryContact(patientId, id);
-        await loadContacts();
-      } else {
-        const nextContacts = contacts.map(c => ({
-          ...c,
-          is_primary: c.id === id,
-        }));
-        setContacts(nextContacts);
-        onPendingContactsChange?.(nextContacts);
-      }
-    } catch (error) {
-      console.error('設定緊急聯絡人失敗:', error);
-      alert('設定緊急聯絡人失敗');
-    }
-  };
-
   const resetForm = () => {
     setEditingId(null);
     setFormData({
@@ -185,7 +164,7 @@ const PatientContactsSection: React.FC<PatientContactsSectionProps> = ({
       電郵: '',
       地址: '',
       備註: '',
-      is_emergency: false,
+      purposes: [],
     });
   };
 
@@ -226,75 +205,72 @@ const PatientContactsSection: React.FC<PatientContactsSectionProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {contacts.map((contact) => (
-              <div
-                key={contact.id}
-                className={`border rounded-lg p-4 ${
-                  contact.is_primary ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <h4 className="font-medium text-gray-900">{contact.聯絡人姓名}</h4>
-                      {contact.is_primary && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          <Star className="h-3 w-3 mr-1 fill-current" />
-                          第一聯絡人
-                        </span>
-                      )}
+            {contacts.map((contact) => {
+              const isPayer = contact.purposes?.includes('付款保證人') || false;
+              return (
+                <div
+                  key={contact.id}
+                  className={`border rounded-lg p-4 ${
+                    isPayer ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <h4 className="font-medium text-gray-900">{contact.聯絡人姓名}</h4>
+                        {(contact.purposes || []).map(p => (
+                          <span
+                            key={p}
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                              p === '付款保證人' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {p}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="space-y-1 text-sm text-gray-600">
+                        {contact.身份證號碼 && (
+                          <div>身份證號碼：{contact.身份證號碼}</div>
+                        )}
+                        {contact.關係 && (
+                          <div className="font-medium text-gray-700">關係：{contact.關係}</div>
+                        )}
+                        {contact.聯絡電話 && (
+                          <div>電話：{contact.聯絡電話}</div>
+                        )}
+                        {contact.電郵 && (
+                          <div>電郵：{contact.電郵}</div>
+                        )}
+                        {contact.地址 && (
+                          <div>地址：{contact.地址}</div>
+                        )}
+                        {contact.備註 && (
+                          <div className="text-gray-500">備註：{contact.備註}</div>
+                        )}
+                      </div>
                     </div>
-                    <div className="space-y-1 text-sm text-gray-600">
-                      {contact.身份證號碼 && (
-                        <div>身份證號碼：{contact.身份證號碼}</div>
-                      )}
-                      {contact.關係 && (
-                        <div className="font-medium text-gray-700">關係：{contact.關係}</div>
-                      )}
-                      {contact.聯絡電話 && (
-                        <div>電話：{contact.聯絡電話}</div>
-                      )}
-                      {contact.電郵 && (
-                        <div>電郵：{contact.電郵}</div>
-                      )}
-                      {contact.地址 && (
-                        <div>地址：{contact.地址}</div>
-                      )}
-                      {contact.備註 && (
-                        <div className="text-gray-500">備註：{contact.備註}</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-col space-y-2 ml-4">
-                    {!contact.is_primary && (
+                    <div className="flex flex-col space-y-2 ml-4">
                       <button
                         type="button"
-                        onClick={() => handleSetPrimary(contact.id)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                        title="設為第一聯絡人"
+                        onClick={() => handleEdit(contact)}
+                        className="text-gray-600 hover:text-gray-800 text-sm"
                       >
-                        <Star className="h-4 w-4" />
+                        編輯
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(contact)}
-                      className="text-gray-600 hover:text-gray-800 text-sm"
-                    >
-                      編輯
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(contact.id)}
-                      className="text-red-600 hover:text-red-800"
-                      title="刪除"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(contact.id)}
+                        className="text-red-600 hover:text-red-800"
+                        title="刪除"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -401,15 +377,36 @@ const PatientContactsSection: React.FC<PatientContactsSectionProps> = ({
                 />
               </div>
 
-              <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                <input
-                  type="checkbox"
-                  checked={formData.is_emergency}
-                  onChange={(e) => setFormData({ ...formData, is_emergency: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <span className="text-sm font-medium text-gray-700">第一聯絡人</span>
-              </label>
+              <div>
+                <label className="form-label">聯絡用途（可多選）</label>
+                <div className="flex flex-wrap gap-2">
+                  {CONTACT_PURPOSE_OPTIONS.map(p => (
+                    <label
+                      key={p}
+                      className={`px-3 py-1.5 border rounded-full text-sm cursor-pointer select-none ${
+                        formData.purposes.includes(p)
+                          ? 'bg-blue-50 border-blue-500 text-blue-700'
+                          : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="hidden"
+                        checked={formData.purposes.includes(p)}
+                        onChange={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            purposes: prev.purposes.includes(p)
+                              ? prev.purposes.filter(x => x !== p)
+                              : [...prev.purposes, p],
+                          }));
+                        }}
+                      />
+                      {p}
+                    </label>
+                  ))}
+                </div>
+              </div>
 
               <div className="flex flex-col sm:flex-row gap-2 pt-4">
                 <button type="button" onClick={saveContact} className="btn-primary flex-1">

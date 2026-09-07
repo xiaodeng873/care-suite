@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Star, X } from 'lucide-react';
-import { getPatientContacts, createPatientContact, updatePatientContact, deletePatientContact, setPrimaryContact, PatientContact } from '../lib/database';
+import { Plus, Trash2, X } from 'lucide-react';
+import { getPatientContacts, createPatientContact, updatePatientContact, deletePatientContact, PatientContact, CONTACT_PURPOSE_OPTIONS } from '../lib/database';
 
 interface PatientContactsTabProps {
   patientId: number;
@@ -18,6 +18,7 @@ const PatientContactsTab: React.FC<PatientContactsTabProps> = ({ patientId }) =>
     電郵: '',
     地址: '',
     備註: '',
+    purposes: [] as string[],
   });
 
   useEffect(() => {
@@ -39,7 +40,7 @@ const PatientContactsTab: React.FC<PatientContactsTabProps> = ({ patientId }) =>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.聯絡人姓名.trim()) {
       alert('請輸入聯絡人姓名');
       return;
@@ -58,10 +59,10 @@ const PatientContactsTab: React.FC<PatientContactsTabProps> = ({ patientId }) =>
         await createPatientContact({
           院友id: patientId,
           ...formData,
-          is_primary: contacts.length === 0, // 第一個聯絡人自動設為第一
+          is_primary: false,
         });
       }
-      
+
       resetForm();
       await loadContacts();
       setShowModal(false);
@@ -80,6 +81,7 @@ const PatientContactsTab: React.FC<PatientContactsTabProps> = ({ patientId }) =>
       電郵: contact.電郵 || '',
       地址: contact.地址 || '',
       備註: contact.備註 || '',
+      purposes: contact.purposes || [],
     });
     setShowModal(true);
   };
@@ -96,16 +98,6 @@ const PatientContactsTab: React.FC<PatientContactsTabProps> = ({ patientId }) =>
     }
   };
 
-  const handleSetPrimary = async (id: string) => {
-    try {
-      await setPrimaryContact(patientId, id);
-      await loadContacts();
-    } catch (error) {
-      console.error('設定第一聯絡人失敗:', error);
-      alert('設定第一聯絡人失敗');
-    }
-  };
-
   const resetForm = () => {
     setEditingId(null);
     setFormData({
@@ -115,6 +107,7 @@ const PatientContactsTab: React.FC<PatientContactsTabProps> = ({ patientId }) =>
       電郵: '',
       地址: '',
       備註: '',
+      purposes: [],
     });
   };
 
@@ -154,76 +147,74 @@ const PatientContactsTab: React.FC<PatientContactsTabProps> = ({ patientId }) =>
           </div>
         ) : (
           <div className="space-y-3">
-            {contacts.map((contact) => (
-              <div
-                key={contact.id}
-                className={`border rounded-lg p-4 ${
-                  contact.is_primary ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <h4 className="font-medium text-gray-900">{contact.聯絡人姓名}</h4>
-                      {contact.is_primary && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          <Star className="h-3 w-3 mr-1 fill-current" />
-                          第一聯絡人
-                        </span>
-                      )}
+            {contacts.map((contact) => {
+              const isPayer = contact.purposes?.includes('付款保證人') || false;
+              return (
+                <div
+                  key={contact.id}
+                  className={`border rounded-lg p-4 ${
+                    isPayer ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <h4 className="font-medium text-gray-900">{contact.聯絡人姓名}</h4>
+                        {(contact.purposes || []).map(p => (
+                          <span
+                            key={p}
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                              p === '付款保證人' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {p}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="space-y-1 text-sm text-gray-600">
+                        {contact.關係 && (
+                          <div className="font-medium text-gray-700">關係：{contact.關係}</div>
+                        )}
+                        {contact.聯絡電話 && (
+                          <div>電話：{contact.聯絡電話}</div>
+                        )}
+                        {contact.電郵 && (
+                          <div>電郵：{contact.電郵}</div>
+                        )}
+                        {contact.地址 && (
+                          <div>地址：{contact.地址}</div>
+                        )}
+                        {contact.備註 && (
+                          <div className="text-gray-500">備註：{contact.備註}</div>
+                        )}
+                      </div>
                     </div>
-                    <div className="space-y-1 text-sm text-gray-600">
-                      {contact.關係 && (
-                        <div className="font-medium text-gray-700">關係：{contact.關係}</div>
-                      )}
-                      {contact.聯絡電話 && (
-                        <div>電話：{contact.聯絡電話}</div>
-                      )}
-                      {contact.電郵 && (
-                        <div>電郵：{contact.電郵}</div>
-                      )}
-                      {contact.地址 && (
-                        <div>地址：{contact.地址}</div>
-                      )}
-                      {contact.備註 && (
-                        <div className="text-gray-500">備註：{contact.備註}</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-col space-y-2 ml-4">
-                    {!contact.is_primary && (
+                    <div className="flex flex-col space-y-2 ml-4">
                       <button
-                        onClick={() => handleSetPrimary(contact.id)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                        title="設為第一聯絡人"
+                        onClick={() => handleEdit(contact)}
+                        className="text-gray-600 hover:text-gray-800 text-sm"
                       >
-                        <Star className="h-4 w-4" />
+                        編輯
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleEdit(contact)}
-                      className="text-gray-600 hover:text-gray-800 text-sm"
-                    >
-                      編輯
-                    </button>
-                    <button
-                      onClick={() => handleDelete(contact.id)}
-                      className="text-red-600 hover:text-red-800"
-                      title="刪除"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                      <button
+                        onClick={() => handleDelete(contact.id)}
+                        className="text-red-600 hover:text-red-800"
+                        title="刪除"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
       {/* 新增/編輯聯絡人模態框 */}
       {showModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
           onClick={(e) => {
             if (e.target === e.currentTarget) handleCloseModal();
@@ -308,6 +299,37 @@ const PatientContactsTab: React.FC<PatientContactsTabProps> = ({ patientId }) =>
                   className="form-input"
                   rows={2}
                 />
+              </div>
+
+              <div>
+                <label className="form-label">聯絡用途（可多選）</label>
+                <div className="flex flex-wrap gap-2">
+                  {CONTACT_PURPOSE_OPTIONS.map(p => (
+                    <label
+                      key={p}
+                      className={`px-3 py-1.5 border rounded-full text-sm cursor-pointer select-none ${
+                        formData.purposes.includes(p)
+                          ? 'bg-blue-50 border-blue-500 text-blue-700'
+                          : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="hidden"
+                        checked={formData.purposes.includes(p)}
+                        onChange={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            purposes: prev.purposes.includes(p)
+                              ? prev.purposes.filter(x => x !== p)
+                              : [...prev.purposes, p],
+                          }));
+                        }}
+                      />
+                      {p}
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2 pt-4">

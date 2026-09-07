@@ -603,7 +603,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
               電郵: contact.電郵 || '',
               地址: contact.地址 || '',
               備註: contact.備註 || '',
-              is_primary: contact.is_primary
+              is_primary: contact.is_primary,
+              purposes: contact.purposes || []
             });
           }
         }

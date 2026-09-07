@@ -1155,9 +1155,15 @@ export const PatientFilterProvider: React.FC<{ children: ReactNode }> = ({ child
     if (!selectedStationIds.length || !stations.length) return allPatients;
     if (selectedStationIds.length >= stations.length) return allPatients;
     const selectedSet = new Set(selectedStationIds);
+    const stationIdByCode = new Map(stations.map(s => [(s.code || '').toUpperCase(), s.id]));
     return allPatients.filter(p => {
-      // 已退住院友以其最後居住區歸屬，避免被過濾器濾走
-      const stationId = p.station_id || p.last_station_id;
+      // 已退住院友以其最後居住區歸屬，避免被過濾器濾走；
+      // 舊資料 last_station_id 為空時，以退住時床號首碼對應居住區代號
+      let stationId = p.station_id || p.last_station_id;
+      if (!stationId) {
+        const code = (p.床號 || '').trim().charAt(0).toUpperCase();
+        stationId = stationIdByCode.get(code);
+      }
       return stationId && selectedSet.has(stationId);
     });
   }, [allPatients, stations, selectedStationIds]);

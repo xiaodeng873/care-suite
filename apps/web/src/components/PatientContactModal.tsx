@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save } from 'lucide-react';
 import type { PatientContact } from '../lib/database';
-import { getPatientContacts, createPatientContact, updatePatientContact } from '../lib/database';
+import { getPatientContacts, createPatientContact, updatePatientContact, CONTACT_PURPOSE_OPTIONS } from '../lib/database';
 import PatientAutocomplete from './PatientAutocomplete';
 import { usePatientData } from '../context/PatientContext';
 
@@ -114,6 +114,35 @@ const PatientContactModal: React.FC<PatientContactModalProps> = ({ contact, onCl
                 <div className="md:col-span-2">
                   <label className="form-label">備註</label>
                   <input name="備註" className="form-input w-full" value={form.備註 || ''} onChange={handleChange} />
+                </div>
+              </div>
+              <div>
+                <label className="form-label">聯絡用途（可多選）</label>
+                <div className="flex flex-wrap gap-2">
+                  {CONTACT_PURPOSE_OPTIONS.map(p => {
+                    const selected = (form.purposes || []).includes(p);
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() =>
+                          setForm(f => ({
+                            ...f,
+                            purposes: selected
+                              ? (f.purposes || []).filter(x => x !== p)
+                              : [...(f.purposes || []), p],
+                          }))
+                        }
+                        className={`px-3 py-1.5 border rounded-full text-sm select-none ${
+                          selected
+                            ? 'bg-blue-50 border-blue-500 text-blue-700'
+                            : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 pt-4">
