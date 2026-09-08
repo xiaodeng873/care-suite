@@ -56,6 +56,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     英文名字: patient?.英文名字 || '',
     性別: patient?.性別 || '男',
     身份證號碼: patient?.身份證號碼 || '',
+    身份證簽發日期: patient?.身份證簽發日期 || '',
     藥物敏感: patient?.藥物敏感 || [],
     不良藥物反應: patient?.不良藥物反應 || [],
     出生日期: patient?.出生日期 || '',
@@ -555,6 +556,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       中文姓名,
       英文姓名: 英文姓名 || null,
       出生日期: finalFormData.出生日期 || null,
+      身份證簽發日期: finalFormData.身份證簽發日期 || null,
       入住日期: finalFormData.入住日期 || null,
       退住日期: finalFormData.退住日期 || null,
       護理等級: finalFormData.護理等級 || null,
@@ -1109,6 +1111,11 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
                     required />
                   
               <p className="text-xs text-gray-500 mt-1">最後一碼（校驗碼）會自動加上括號。</p>
+            </div>
+
+            <div>
+              <label className="form-label">身份證簽發日期</label>
+              <DateInput name="身份證簽發日期" value={formData.身份證簽發日期} className="form-input" onChange={(value) => setFormData((prev) => ({ ...prev, 身份證簽發日期: value }))} />
             </div>
 
             <div>

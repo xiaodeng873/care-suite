@@ -16,8 +16,8 @@ import { supabase } from '../../lib/supabase';
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const VALID_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
-/** 把 base64 圖片壓縮為 JPEG data URL（院友相片慣例：最寬 400px、JPEG 0.85；文件留檔用 maxWidth 1200 保持可讀） */
-const compressImageDataUrl = (base64: string, mimeType: string, maxWidth = 400): Promise<string> => {
+/** 把 base64 圖片壓縮為 JPEG data URL（按長邊縮放；院友相片慣例 400px、文件 1200px 保持可讀） */
+const compressImageDataUrl = (base64: string, mimeType: string, maxDim = 400): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -29,9 +29,11 @@ const compressImageDataUrl = (base64: string, mimeType: string, maxWidth = 400):
       }
       let width = img.width;
       let height = img.height;
-      if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
+      const longEdge = Math.max(width, height);
+      if (longEdge > maxDim) {
+        const scale = maxDim / longEdge;
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
       }
       canvas.width = width;
       canvas.height = height;
@@ -49,24 +51,28 @@ interface PendingImage {
   mimeType: string;
 }
 
-const readImageFile = (file: File): Promise<PendingImage | null> => {
+/** 讀取並預處理壓縮：長邊 1600px、JPEG 0.85。大幅加快上傳及 Gemini 處理，文件文字仍保持可讀 */
+const readImageFile = async (file: File): Promise<PendingImage | null> => {
   if (!VALID_IMAGE_TYPES.includes(file.type)) {
     alert('不支援的圖片格式，請使用 JPG、PNG 或 WEBP');
-    return Promise.resolve(null);
+    return null;
   }
   if (file.size > MAX_IMAGE_SIZE) {
     alert('圖片檔案過大，請選擇小於 5MB 的圖片');
-    return Promise.resolve(null);
+    return null;
   }
-  return new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      resolve({ preview: dataUrl, base64: dataUrl.split(',')[1], mimeType: file.type });
-    };
-    reader.onerror = () => resolve(null);
-    reader.readAsDataURL(file);
-  });
+  try {
+    const rawDataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('圖片讀取失敗'));
+      reader.readAsDataURL(file);
+    });
+    const compressed = await compressImageDataUrl(rawDataUrl.split(',')[1], file.type, 1600);
+    return { preview: compressed, base64: compressed.split(',')[1], mimeType: 'image/jpeg' };
+  } catch {
+    return null;
+  }
 };
 
 interface AiAssistantChatProps {

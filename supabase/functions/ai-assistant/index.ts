@@ -792,7 +792,33 @@ async function buildImageAnalysisResponse(analysisResponse, imageBase64, imageMi
     const hkidRealSegments = hkidClean.replace(/X+/gi, "|").split("|").filter(s => s.length >= 3);
     // Also get all real digits for scoring
     const hkidRealChars = hkidClean.replace(/X/gi, "");
-    console.log("Patient clues — CN:", chineseName, "cnSurname:", cnSurname, "cnClean:", cnClean, "EN:", englishName, "enSurname:", enSurname, "HKID:", hkid, "hkidSegments:", hkidRealSegments);
+    // Age clue — either an explicit age or derived from an extracted DOB
+    const parseDob = (s) => {
+      if (!s || typeof s !== "string") return null;
+      const m = s.match(/(\d{4})\s*[年\-\/\.]\s*(\d{1,2})\s*[月\-\/\.]\s*(\d{1,2})/);
+      if (m) return { y: parseInt(m[1], 10), mo: parseInt(m[2], 10), d: parseInt(m[3], 10) };
+      const iso = s.match(/(\d{4})-(\d{2})-(\d{2})/) || s.match(/(\d{4})(\d{2})(\d{2})/);
+      if (iso) return { y: parseInt(iso[1], 10), mo: parseInt(iso[2], 10), d: parseInt(iso[3], 10) };
+      return null;
+    };
+    const ageFromDob = (y, mo, d) => {
+      if (!y || y < 1900 || y > new Date().getFullYear()) return null;
+      const now = new Date();
+      let age = now.getFullYear() - y;
+      if (now.getMonth() + 1 < mo || (now.getMonth() + 1 === mo && now.getDate() < d)) age--;
+      return age;
+    };
+    let docAge: number | null = null;
+    const docAgeRaw = ed.年齡 || ed.age;
+    if (docAgeRaw != null && String(docAgeRaw).trim() !== "") {
+      const parsedAge = parseInt(String(docAgeRaw).replace(/[^0-9]/g, ""), 10);
+      if (!isNaN(parsedAge) && parsedAge > 0 && parsedAge < 150) docAge = parsedAge;
+    }
+    if (docAge == null) {
+      const dob = parseDob(ed.出生日期 || ed.生日 || ed.DOB || "");
+      if (dob) docAge = ageFromDob(dob.y, dob.mo, dob.d);
+    }
+    console.log("Patient clues — CN:", chineseName, "cnSurname:", cnSurname, "cnClean:", cnClean, "EN:", englishName, "enSurname:", enSurname, "HKID:", hkid, "hkidSegments:", hkidRealSegments, "docAge:", docAge);
     // Build a comprehensive patient search query using OR conditions
     const conditions: string[] = [];
     // HKID — search each real segment
@@ -812,37 +838,51 @@ async function buildImageAnalysisResponse(analysisResponse, imageBase64, imageMi
     if (cnSurname && cnClean.length < 2) {
       conditions.push(`"中文姓氏" = '${cnSurname}'`);
     }
-    // English surname
+    // English name — only enter the candidate pool when a given-name part also
+    // matches; surname-only conditions pull in every resident sharing that
+    // surname. Surname alone remains a scoring signal below.
     if (enSurname && enSurname.length >= 2) {
-      conditions.push(`UPPER("英文姓氏") = '${enSurname.toUpperCase()}'`);
+      const enSur = enSurname.toUpperCase().replace(/'/g, "''");
       if (enGivenParts.length > 0) {
-        conditions.push(`(UPPER("英文姓氏") = '${enSurname.toUpperCase()}' AND UPPER("英文名字") LIKE '%${enGivenParts.join("%").toUpperCase()}%')`);
+        const givenConds = enGivenParts.map(p => `UPPER("英文名字") LIKE '%${p.toUpperCase().replace(/'/g, "''")}%'`).join(" OR ");
+        conditions.push(`(UPPER("英文姓氏") = '${enSur}' AND (${givenConds}))`);
+        const givenFullConds = enGivenParts.map(p => `UPPER("英文姓名") LIKE '%${p.toUpperCase().replace(/'/g, "''")}%'`).join(" OR ");
+        conditions.push(`(UPPER("英文姓名") LIKE '%${enSur}%' AND (${givenFullConds}))`);
       }
-      conditions.push(`"英文姓名" ILIKE '%${enSurname}%'`);
     }
     if (conditions.length > 0) {
-      const patientSql = `SELECT "院友id", "中文姓名", "中文姓氏", "中文名字", "英文姓名", "英文姓氏", "英文名字", "身份證號碼", "性別", "出生日期", "在住狀態", "床號" FROM "院友主表" WHERE ${conditions.join(" OR ")} LIMIT 20`;
+      // ORDER BY surfaces exact name / HKID matches first so a wide OR pool can
+      // never push the true resident past the LIMIT
+      const cnExactEsc = (cnClean.length >= 2 ? cnClean : "").replace(/'/g, "''");
+      const hkidEsc = hkidClean.replace(/'/g, "''");
+      const patientSql = `SELECT "院友id", "中文姓名", "中文姓氏", "中文名字", "英文姓名", "英文姓氏", "英文名字", "身份證號碼", "性別", "出生日期", "在住狀態", "床號" FROM "院友主表" WHERE ${conditions.join(" OR ")} ORDER BY CASE WHEN '${cnExactEsc}' <> '' AND "中文姓名" = '${cnExactEsc}' THEN 0 ELSE 1 END, CASE WHEN '${hkidEsc}' <> '' AND REPLACE(REPLACE("身份證號碼", '(', ''), ')', '') = '${hkidEsc}' THEN 0 ELSE 1 END, "院友id" LIMIT 50`;
       console.log("Patient match SQL:", patientSql);
       const { data: patientData, error: patientError } = await executeQuery(patientSql, [], userCtx);
       if (!patientError && patientData && patientData.length > 0) {
         patientMatchCandidates = patientData;
-        // Score each candidate — partial/obscured clues accumulate
+        // Score each candidate — partial/obscured clues accumulate.
+        // strongMatch marks candidates with at least one unambiguous signal
+        // (HKID / bed / full or partial name). Matches built from surname-only
+        // or EN-surname-only signals are too weak to auto-identify a resident.
         let bestScore = 0;
+        let bestStrong = false;
         for (const candidate of patientData){
           let score = 0;
+          let strongMatch = false;
           const cFullName = `${candidate.中文姓氏 || ""}${candidate.中文名字 || ""}`;
           const cName = candidate.中文姓名 || cFullName;
           const dbIdClean = (candidate.身份證號碼 || "").replace(/[()\s]/g, "").toUpperCase();
           // --- HKID scoring ---
           if (hkidRealChars.length >= 3 && dbIdClean) {
             // Exact full match (no placeholders)
-            if (hkidClean === dbIdClean) { score += 100; }
+            if (hkidClean === dbIdClean) { score += 100; strongMatch = true; }
             else {
               // Check each real segment against DB HKID
               for (const seg of hkidRealSegments) {
                 if (dbIdClean.includes(seg)) {
                   // Longer segment = stronger signal
                   score += seg.length >= 5 ? 60 : seg.length >= 4 ? 45 : 30;
+                  strongMatch = true;
                   break; // Count best segment only
                 }
               }
@@ -852,8 +892,8 @@ async function buildImageAnalysisResponse(analysisResponse, imageBase64, imageMi
                 for (let i = 0; i < hkidClean.length && i < dbIdClean.length; i++) {
                   if (hkidClean[i] !== "X" && hkidClean[i] === dbIdClean[i]) posMatch++;
                 }
-                if (posMatch >= 4) score += 50;
-                else if (posMatch >= 3) score += 35;
+                if (posMatch >= 4) { score += 50; strongMatch = true; }
+                else if (posMatch >= 3) { score += 35; strongMatch = true; }
                 else if (posMatch >= 2) score += 20;
               }
             }
@@ -861,34 +901,59 @@ async function buildImageAnalysisResponse(analysisResponse, imageBase64, imageMi
           // --- Bed number scoring ---
           if (bedNo && (candidate.床號 || "").toUpperCase() === bedNo.toUpperCase()) {
             score += 40;
+            strongMatch = true;
           }
-          // --- Chinese name scoring ---
+          // --- Chinese name scoring (surname and given name scored separately) ---
+          if (cnSurname && (candidate.中文姓氏 === cnSurname || cName.charAt(0) === cnSurname)) score += 10;
           if (cnClean && cName) {
-            if (cName === cnClean) score += 50;
-            else if (cnClean.length >= 2 && (cName.includes(cnClean) || cnClean.includes(cName))) score += 30;
-            else if (cnSurname && (candidate.中文姓氏 === cnSurname || cName.charAt(0) === cnSurname)) score += 15;
+            if (cName === cnClean) { score += 40; strongMatch = true; } // surname+given exact = 50 total
+            else if (cnClean.length >= 2 && (cName.includes(cnClean) || cnClean.includes(cName))) { score += 20; strongMatch = true; } // 30 total
+            else {
+              // Given-name characters matched even though the full name differs
+              const cnGiven = cnClean.substring(1);
+              if (cnGiven.length >= 1 && candidate.中文名字 && candidate.中文名字.includes(cnGiven)) score += 20;
+            }
           }
-          // --- English name scoring ---
+          // --- English name scoring (surname and given name scored separately) ---
           if (enSurname) {
             const dbSurname = (candidate.英文姓氏 || "").toUpperCase();
             const dbGiven = (candidate.英文名字 || "").toUpperCase();
-            if (dbSurname === enSurname.toUpperCase()) score += 30;
-            else if (dbSurname.includes(enSurname.toUpperCase()) || enSurname.toUpperCase().includes(dbSurname)) score += 20;
+            const surnameMatched = dbSurname === enSurname.toUpperCase();
+            if (surnameMatched) score += 15;
+            else if (dbSurname.length > 0 && (dbSurname.includes(enSurname.toUpperCase()) || enSurname.toUpperCase().includes(dbSurname))) score += 10;
             for (const gp of enGivenParts) {
-              if (dbGiven.includes(gp.toUpperCase())) { score += 15; break; }
+              if (dbGiven.includes(gp.toUpperCase())) {
+                score += 15;
+                if (surnameMatched) strongMatch = true;
+                break;
+              }
             }
           }
-          console.log(`Patient ${candidate.院友id} ${candidate.中文姓名} score: ${score}`);
+          // --- Age scoring (explicit age or DOB; ±1 year counts as a match) ---
+          if (docAge != null && candidate.出生日期) {
+            const candDob = parseDob(String(candidate.出生日期));
+            if (candDob) {
+              const candAge = ageFromDob(candDob.y, candDob.mo, candDob.d);
+              if (candAge != null) {
+                const ageDiff = Math.abs(candAge - docAge);
+                if (ageDiff <= 1) score += 20;
+                else if (ageDiff <= 2) score += 10;
+              }
+            }
+          }
+          console.log(`Patient ${candidate.院友id} ${candidate.中文姓名} score: ${score} strong: ${strongMatch}`);
           // Prefer 在住 patients when scores are tied
           if (score > bestScore || (score === bestScore && candidate.在住狀態 === "在住" && matchedPatient?.在住狀態 !== "在住")) {
             bestScore = score;
+            bestStrong = strongMatch;
             matchedPatient = candidate;
           }
         }
-        console.log("Best match score:", bestScore, "patient:", matchedPatient?.中文姓名);
-        // Threshold: surname(15) + EN surname(30) = 45 is a strong partial match
-        // Single surname only (15) is too weak unless combined with other clues
-        if (bestScore < 15) {
+        console.log("Best match score:", bestScore, "strong:", bestStrong, "patient:", matchedPatient?.中文姓名);
+        // Threshold: accept only when at least one strong signal matched —
+        // surname-only (15) or EN-surname-only (30/20) must never auto-identify
+        // a resident, otherwise two residents sharing a surname get cross-matched
+        if (bestScore < 15 || !bestStrong) {
           matchedPatient = null;
         }
         // For ID card (new resident intake): require BOTH HKID and Chinese name exact match

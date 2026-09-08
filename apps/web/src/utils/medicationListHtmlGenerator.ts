@@ -22,6 +22,7 @@ interface MedicationPrescription {
   medication_time_slots?: string[];
   meal_timing?: string;
   meal_timing_2?: string;
+  meal_timing_connector?: '或' | '及';
   special_dosage_instruction?: string;
   is_prn?: boolean;
   cannot_crush?: boolean;
@@ -149,7 +150,7 @@ function formatDrugCell(p: MedicationPrescription): string {
   if (p.medication_name) parts.push(escapeHtml(p.medication_name));
   if (p.administration_route) parts.push(escapeHtml(p.administration_route));
   if (p.dosage_form) parts.push(escapeHtml(p.dosage_form));
-  const mealTimingLabel = formatMealTiming(p.meal_timing, p.meal_timing_2);
+  const mealTimingLabel = formatMealTiming(p.meal_timing, p.meal_timing_2, p.meal_timing_connector);
   if (mealTimingLabel) parts.push(escapeHtml(mealTimingLabel));
   if (p.special_dosage_instruction) parts.push(escapeHtml(p.special_dosage_instruction));
   if (p.is_prn) parts.push('需要時');

@@ -956,10 +956,10 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                                           </span>
                                         </div>
                                 }
-                                      {formatMealTiming(prescription.meal_timing, prescription.meal_timing_2) &&
+                                      {formatMealTiming(prescription.meal_timing, prescription.meal_timing_2, prescription.meal_timing_connector) &&
                                 <div className="flex items-baseline">
                                           <span className="font-medium text-gray-900 mr-1.5">用法：</span>
-                                          <span className="text-gray-800">{formatMealTiming(prescription.meal_timing, prescription.meal_timing_2)}</span>
+                                          <span className="text-gray-800">{formatMealTiming(prescription.meal_timing, prescription.meal_timing_2, prescription.meal_timing_connector)}</span>
                                         </div>
                                 }
                                       {prescription.preparation_method &&

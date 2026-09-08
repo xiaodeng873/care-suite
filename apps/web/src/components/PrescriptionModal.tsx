@@ -93,6 +93,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
       medication_time_slots: prescription?.medication_time_slots || [],
       meal_timing: prescription?.meal_timing || '',
       meal_timing_2: prescription?.meal_timing_2 || '',
+      meal_timing_connector: prescription?.meal_timing_connector || '或',
       is_prn: prescription?.is_prn || false,
       preparation_method: prescription?.preparation_method || 'advanced',
       status: prescription?.status || 'pending_change',
@@ -554,6 +555,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
         medication_time_slots: formData.medication_time_slots,
         meal_timing: formData.meal_timing,
         meal_timing_2: formData.meal_timing_2,
+        meal_timing_connector: formData.meal_timing_connector,
         is_prn: formData.is_prn,
         preparation_method: formData.preparation_method,
         status: formData.status,
@@ -741,7 +743,8 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                       administration_route: drugData?.administration_route || prev.administration_route,
                       special_dosage_instruction: drugData?.special_dosage_instruction || prev.special_dosage_instruction,
                       meal_timing: drugData?.meal_timing_1 || prev.meal_timing,
-                      meal_timing_2: drugData?.meal_timing_2 || prev.meal_timing_2
+                      meal_timing_2: drugData?.meal_timing_2 || prev.meal_timing_2,
+                      meal_timing_connector: drugData?.meal_timing_connector || prev.meal_timing_connector
                     }));
                   }}
                   placeholder="搜索或輸入藥物名稱..."
@@ -1095,7 +1098,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
               </div>
 
               <div>
-                <label className="form-label">服用時段（任一時段給服皆合處方要求）</label>
+                <label className="form-label">服用時段（「或」=任一時段給服皆合處方要求；「及」=兩時段皆需給服）</label>
                 <div className="flex items-center gap-2">
                   <select
                     name="meal_timing"
@@ -1106,7 +1109,16 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                     <option value="">時段1</option>
                     {medSettings.服用時段.map(v => <option key={v} value={v}>{v}</option>)}
                   </select>
-                  <span className="text-sm text-gray-500 whitespace-nowrap">或</span>
+                  <select
+                    name="meal_timing_connector"
+                    value={formData.meal_timing_connector}
+                    onChange={handleChange}
+                    className="form-input w-20"
+                    title="時段連接詞"
+                  >
+                    <option value="或">或</option>
+                    <option value="及">及</option>
+                  </select>
                   <select
                     name="meal_timing_2"
                     value={formData.meal_timing_2}

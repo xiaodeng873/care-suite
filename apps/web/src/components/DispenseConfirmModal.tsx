@@ -208,10 +208,10 @@ const DispenseConfirmModal: React.FC<DispenseConfirmModalProps> = ({
                   {formatDisplayDate(workflowRecord.scheduled_date)} {workflowRecord.scheduled_time}
                 </div>
               </div>
-              {formatMealTiming(prescription?.meal_timing, prescription?.meal_timing_2) && (
+              {formatMealTiming(prescription?.meal_timing, prescription?.meal_timing_2, prescription?.meal_timing_connector) && (
                 <div>
                   <div className="text-gray-500 mb-1">用藥時機</div>
-                  <div className="font-medium text-gray-900">{formatMealTiming(prescription?.meal_timing, prescription?.meal_timing_2)}</div>
+                  <div className="font-medium text-gray-900">{formatMealTiming(prescription?.meal_timing, prescription?.meal_timing_2, prescription?.meal_timing_connector)}</div>
                 </div>
               )}
               {isImmediatePreparation && (

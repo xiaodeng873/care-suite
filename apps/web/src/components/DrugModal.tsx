@@ -26,6 +26,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
     special_dosage_instruction: drug?.special_dosage_instruction || '',
     meal_timing_1: drug?.meal_timing_1 || '',
     meal_timing_2: drug?.meal_timing_2 || '',
+    meal_timing_connector: drug?.meal_timing_connector || '或',
     is_diabetic_drug: drug?.is_diabetic_drug || false,
     is_antihypertensive_drug: drug?.is_antihypertensive_drug || false
   });
@@ -121,6 +122,7 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
         special_dosage_instruction: formData.special_dosage_instruction || null,
         meal_timing_1: formData.meal_timing_1 || null,
         meal_timing_2: formData.meal_timing_2 || null,
+        meal_timing_connector: formData.meal_timing_connector || '或',
         is_diabetic_drug: formData.is_diabetic_drug,
         is_antihypertensive_drug: formData.is_antihypertensive_drug
       };
@@ -330,6 +332,19 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
                 {medSettings.服用時段.map((v) => (
                   <option key={v} value={v}>{v}</option>
                 ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="form-label">時段連接詞（新增處方時預填）</label>
+              <select
+                name="meal_timing_connector"
+                value={formData.meal_timing_connector}
+                onChange={handleChange}
+                className="form-input"
+              >
+                <option value="或">或（任一時段給服皆合處方要求）</option>
+                <option value="及">及（兩時段皆需給服）</option>
               </select>
             </div>
           </div>

@@ -216,7 +216,7 @@ const formatFrequency = (p: MedicationPrescription): string => {
   if (p.medication_time_slots && p.medication_time_slots.length > 0) {
     parts.push(p.medication_time_slots.join(','));
   }
-  const mealTimingLabel = formatMealTiming(p.meal_timing, p.meal_timing_2);
+  const mealTimingLabel = formatMealTiming(p.meal_timing, p.meal_timing_2, p.meal_timing_connector);
   if (mealTimingLabel) parts.push(mealTimingLabel);
   return parts.join(' ');
 };

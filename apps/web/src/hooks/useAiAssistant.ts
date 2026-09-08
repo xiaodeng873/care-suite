@@ -125,41 +125,62 @@ export function useAiAssistant() {
       .map(m => ({ role: m.role, content: m.content }));
 
     abortRef.current = new AbortController();
+    const abortController = abortRef.current;
 
-    // 多圖時逐張送出，每張獨立分析並回覆（後端一次處理一張）
+    // 多圖時並行送出，全部回來後按原順序顯示（後端一次處理一張，彼此獨立）
     const targets: ({ base64: string; mimeType: string } | undefined)[] = imageList ?? [undefined];
     const total = targets.length;
 
     try {
-      for (let i = 0; i < total; i++) {
-        const image = targets[i];
+      const settled = await Promise.all(targets.map(async (image, i) => {
         const messageText = content.trim()
           || (image ? (total > 1 ? `請分析這張圖片（第 ${i + 1}/${total} 張）` : '請分析這張圖片') : '');
 
-        const res = await fetch(`${AI_FUNCTION_URL}/chat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-            // 用戶 dbToken：後端以其身份執行 SQL，RLS tenant 隔離才生效
-            'X-Db-Token': localStorage.getItem('care_suite_db_token') || '',
-          },
-          body: JSON.stringify({
-            message: messageText,
-            conversationHistory: recentHistory,
-            ...(image ? { imageBase64: image.base64, imageMimeType: image.mimeType } : {}),
-            ...(correctionContext ? { correctionContext } : {}),
-          }),
-          signal: abortRef.current.signal,
-        });
+        try {
+          const res = await fetch(`${AI_FUNCTION_URL}/chat`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`,
+              // 用戶 dbToken：後端以其身份執行 SQL，RLS tenant 隔離才生效
+              'X-Db-Token': localStorage.getItem('care_suite_db_token') || '',
+            },
+            body: JSON.stringify({
+              message: messageText,
+              conversationHistory: recentHistory,
+              ...(image ? { imageBase64: image.base64, imageMimeType: image.mimeType } : {}),
+              ...(correctionContext ? { correctionContext } : {}),
+            }),
+            signal: abortController.signal,
+          });
 
-        const data = await res.json();
+          const data = await res.json();
 
-        if (!res.ok) {
-          throw new Error(data.error || `HTTP ${res.status}`);
+          if (!res.ok) {
+            throw new Error(data.error || `HTTP ${res.status}`);
+          }
+
+          return { ok: true as const, index: i, image, data };
+        } catch (err: any) {
+          if (err?.name === 'AbortError') throw err;
+          return { ok: false as const, index: i, error: err?.message || String(err) };
         }
+      }));
 
-        const resp = data.response;
+      for (const r of settled) {
+        if (!r.ok) {
+          // 單張失敗不影響其他圖片的結果
+          setMessages(prev => [...prev, {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: (total > 1 ? `【第 ${r.index + 1}/${total} 張】` : '') + `抱歉，請求失敗：${r.error}`,
+            timestamp: Date.now(),
+          }]);
+          continue;
+        }
+        const i = r.index;
+        const image = r.image;
+        const resp = r.data.response;
 
         // 解析後端回應類型
         let replyText = resp?.explanation || '（無回應）';

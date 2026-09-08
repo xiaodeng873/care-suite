@@ -420,7 +420,39 @@ const PrescriptionMatrixTable: React.FC<PrescriptionMatrixTableProps> = ({ presc
       ),
     },
     { key: 'special', label: '特殊', render: (p) => p.special_dosage_instruction || '—', editor: selectFromList('special_dosage_instruction', '特殊用法') },
-    { key: 'timing', label: '時段', render: (p) => formatMealTiming(p.meal_timing, p.meal_timing_2) || '—', editor: selectFromList('meal_timing', '服用時段') },
+    {
+      key: 'timing', label: '時段',
+      render: (p) => formatMealTiming(p.meal_timing, p.meal_timing_2, p.meal_timing_connector) || '—',
+      editor: (p, commit, done, c) => (
+        <CompositeBox close={done}>
+          <select
+            value={p.meal_timing || ''}
+            autoFocus
+            className={inputCls}
+            onChange={(e) => commit({ meal_timing: e.target.value || null })}
+          >
+            <option value="">時段1</option>
+            {((c.settings.服用時段 as string[]) || []).map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+          <select
+            value={p.meal_timing_connector || '或'}
+            className={inputCls}
+            onChange={(e) => commit({ meal_timing_connector: e.target.value || null })}
+          >
+            <option value="或">或</option>
+            <option value="及">及</option>
+          </select>
+          <select
+            value={p.meal_timing_2 || ''}
+            className={inputCls}
+            onChange={(e) => commit({ meal_timing_2: e.target.value || null })}
+          >
+            <option value="">時段2</option>
+            {((c.settings.服用時段 as string[]) || []).map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </CompositeBox>
+      ),
+    },
     {
       key: 'prn', label: 'PRN',
       render: (p, _c) => null, // 用自定義 cell（常駐 checkbox）

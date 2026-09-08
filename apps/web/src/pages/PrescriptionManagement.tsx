@@ -1233,10 +1233,10 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
                   <span className="font-medium">{formatDisplayDate(prescription.prescription_date)}</span>
                 </div>
               )}
-              {formatMealTiming(prescription.meal_timing, prescription.meal_timing_2) && (
+              {formatMealTiming(prescription.meal_timing, prescription.meal_timing_2, prescription.meal_timing_connector) && (
                 <div className="flex items-center space-x-1">
                   <span className="text-gray-500">時段:</span>
-                  <span className="font-medium">{formatMealTiming(prescription.meal_timing, prescription.meal_timing_2)}</span>
+                  <span className="font-medium">{formatMealTiming(prescription.meal_timing, prescription.meal_timing_2, prescription.meal_timing_connector)}</span>
                 </div>
               )}
               {prescription.preparation_method && (

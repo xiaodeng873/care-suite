@@ -15,6 +15,7 @@ export interface Patient {
   英文名字?: string;
   性別: '男' | '女';
   身份證號碼: string;
+  身份證簽發日期?: string;
   出生日期?: string;
   院友相片?: string;
   身份證相片?: string;
@@ -879,6 +880,8 @@ export interface DrugData {
   meal_timing_1?: string;
   // 預設服用時段2（新增處方時自動帶入）
   meal_timing_2?: string;
+  // 預設時段連接詞（「或」/「及」，新增處方時自動帶入）
+  meal_timing_connector?: '或' | '及';
   // 糖尿病藥物標籤（新增/調整劑量後提醒新增血糖值監測任務）
   is_diabetic_drug?: boolean;
   // 降血壓藥物標籤（新增/調整劑量後提醒新增生命表徵監測任務）
@@ -925,10 +928,12 @@ export interface MedicationPrescription {
   daily_frequency?: number;
   is_prn: boolean;
   medication_time_slots?: string[];
-  // 餐次描述（服用時段1，與服用時段2以「或」連接，任一時段給服皆合處方要求）
+  // 餐次描述（服用時段1，與服用時段2以連接詞連接，預設「或」，可選「及」）
   meal_timing?: string;
   // 服用時段2（可留空）
   meal_timing_2?: string;
+  // 服用時段連接詞（「或」=任一時段給服皆合處方要求；「及」=兩時段皆需給服）
+  meal_timing_connector?: '或' | '及';
   notes?: string;
   preparation_method: PreparationMethodType;
   status: PrescriptionStatusType;
@@ -1378,7 +1383,7 @@ export const getPatients = async (): Promise<Patient[]> => {
 // 身份證相片只喺留檔時寫入，日常畫面毋需讀取，故唔補載。
 // ⚠️ 院友主表 新增欄位時請同步加入此清單；dev 模式會自動對比並 console.warn。
 // （PostgREST 唔支援排除欄位語法，OpenAPI spec endpoint 又只限 service_role，所以只能列明。）
-const PATIENTS_LIGHT_COLUMNS = '院友id,床號,中文姓名,英文姓名,性別,身份證號碼,出生日期,藥物敏感,不良藥物反應,感染控制,入住日期,退住日期,護理等級,入住類型,社會福利,在住狀態,中文姓氏,中文名字,英文姓氏,英文名字,station_id,bed_id,is_hospitalized,discharge_reason,death_date,transfer_facility_name,needs_medication_crushing,qr_code_id,公務員,通訊電話,通訊地址,教育程度,從前主要職業,宗教信仰,婚姻狀況,首次記錄職員姓名,首次記錄職級,首次記錄簽署,首次記錄日期,social_status_json,medical_history_json,vaccination_records_json,medical_services_json,nursing_assessment_json,last_station_id,last_bed_id,original_bed_id,original_station_id,bed_transfer_type,temporary_transfer_started_at,facility_id';
+const PATIENTS_LIGHT_COLUMNS = '院友id,床號,中文姓名,英文姓名,性別,身份證號碼,身份證簽發日期,出生日期,藥物敏感,不良藥物反應,感染控制,入住日期,退住日期,護理等級,入住類型,社會福利,在住狀態,中文姓氏,中文名字,英文姓氏,英文名字,station_id,bed_id,is_hospitalized,discharge_reason,death_date,transfer_facility_name,needs_medication_crushing,qr_code_id,公務員,通訊電話,通訊地址,教育程度,從前主要職業,宗教信仰,婚姻狀況,首次記錄職員姓名,首次記錄職級,首次記錄簽署,首次記錄日期,social_status_json,medical_history_json,vaccination_records_json,medical_services_json,nursing_assessment_json,last_station_id,last_bed_id,original_bed_id,original_station_id,bed_transfer_type,temporary_transfer_started_at,facility_id';
 
 // dev-only：對比遠端實際欄位同 light 清單，新增欄位漏咗更新時及早警告
 let patientsLightColumnsChecked = false;

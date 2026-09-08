@@ -641,7 +641,7 @@ export const orderPrescriptionsForSignatureEfficiency = <T>(prescriptions: T[]):
 };
 
 const getMealTimingLabel = (prescription: MedicationPrescription): string => {
-  const combined = formatMealTiming(prescription.meal_timing, prescription.meal_timing_2);
+  const combined = formatMealTiming(prescription.meal_timing, prescription.meal_timing_2, prescription.meal_timing_connector);
   if (combined) return combined;
 
   const rawSlots = Array.isArray(prescription.medication_time_slots)

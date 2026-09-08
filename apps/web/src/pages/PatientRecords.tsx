@@ -472,6 +472,7 @@ const PatientRecords: React.FC = () => {
       英文姓名: getFormattedEnglishName(patient.英文姓氏, patient.英文名字) || patient.英文姓名 || '',
       性別: patient.性別,
       身份證號碼: patient.身份證號碼,
+      身份證簽發日期: patient.身份證簽發日期 ? formatDisplayDate(patient.身份證簽發日期) : '',
       出生日期: patient.出生日期 ? formatDisplayDate(patient.出生日期) : '',
       年齡: patient.出生日期 ? Math.floor((Date.now() - new Date(patient.出生日期).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : '',
       入住日期: patient.入住日期 ? formatDisplayDate(patient.入住日期) : '',
@@ -485,7 +486,7 @@ const PatientRecords: React.FC = () => {
       不良藥物反應: Array.isArray(patient.不良藥物反應) ? patient.不良藥物反應.join(', ') : (patient.不良藥物反應 || '')
     }));
 
-    const headers = ['床號', '中文姓名', '英文姓名', '性別', '身份證號碼', '出生日期', '年齡', '入住日期', '退住日期', '護理等級', '入住類型', '在住狀態', '社會福利', '公務員', '藥物敏感', '不良藥物反應'];
+    const headers = ['床號', '中文姓名', '英文姓名', '性別', '身份證號碼', '身份證簽發日期', '出生日期', '年齡', '入住日期', '退住日期', '護理等級', '入住類型', '在住狀態', '社會福利', '公務員', '藥物敏感', '不良藥物反應'];
     const csvContent = [
       `"院友記錄"`,
       `"生成日期: ${formatDisplayDate(new Date())}"`,

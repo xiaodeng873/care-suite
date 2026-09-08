@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, CalendarCheck, Clock, MapPin, User, Car, UserCheck, MessageSquare, Copy } from 'lucide-react';
 import { usePatientData, type FollowUpAppointment } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import OCRDocumentBlock from './OCRDocumentBlock';
+import InstitutionAutocomplete from './InstitutionAutocomplete';
+import { getMedicationSettings } from '../utils/medicationSettings';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from './DateInput';
 
@@ -76,17 +78,8 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
     setOcrError(error);
   };
 
-  // 醫院名稱選項
-  const hospitalOptions = [
-    '廣華醫院',
-    '伊利沙伯醫院',
-    '九龍醫院',
-    '葵涌醫院',
-    '瑪嘉烈醫院',
-    '威爾斯醫院',
-    '聯合醫院',
-    '明愛醫院'
-  ];
+  // 醫院／機構選項：重用藥物來源機構清單（藥物設定），可輸入中文名或英文簡稱搜索
+  const medSettings = useMemo(() => getMedicationSettings(), []);
 
   // 交通安排選項
   const transportOptions = [
@@ -329,20 +322,15 @@ export default function FollowUpModal({ appointment, onClose }: FollowUpModalPro
                 <MapPin className="h-4 w-4 inline mr-1" />
                 覆診地點 *
               </label>
-              <input
-                list="hospital-options"
-                name="覆診地點"
+              <InstitutionAutocomplete
                 value={formData.覆診地點}
-                onChange={handleChange}
+                onChange={(v) => setFormData(prev => ({ ...prev, 覆診地點: v }))}
+                medSettings={medSettings}
                 className="form-input"
-                placeholder="選擇或輸入醫院名稱"
+                placeholder="輸入中文名或英文簡稱搜索…"
+                emptyHint="清單以外的地點可直接輸入任意名稱"
                 required
               />
-              <datalist id="hospital-options">
-                {hospitalOptions.map(hospital => (
-                  <option key={hospital} value={hospital} className={hospital === '尚未安排' ? 'text-red-600' : ''} />
-                ))}
-              </datalist>
             </div>
 
             <div>

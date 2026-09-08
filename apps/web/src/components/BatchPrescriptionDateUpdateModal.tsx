@@ -259,25 +259,6 @@ ${prescriptionsByPatient.map(group =>
               </div>
             </div>
           </div>
-
-          {/* 安全提示 */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
-              <div>
-                <h4 className="text-sm font-medium text-yellow-900 mb-2">重要提醒</h4>
-                <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
-                  <li>處方日期更新後將影響處方的時間記錄和工作流程</li>
-                  {newMedicationSource && <li>藥物來源更新後將影響處方的來源追蹤</li>}
-                  {newMedicationSourceSpecialty && <li>專科更新後將影響處方的來源專科</li>}
-                  <li>此操作無法復原，請確認日期正確</li>
-                  <li>建議在更新前備份重要資料</li>
-                  <li>更新後請檢查相關的藥物工作流程記錄</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
           {/* 處方預覽 */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900 flex items-center">
