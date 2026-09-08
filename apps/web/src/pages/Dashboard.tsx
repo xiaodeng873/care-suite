@@ -105,6 +105,8 @@ function pickLatestPerPatient<T extends { patient_id: number; created_at?: strin
 }
 const Dashboard: React.FC = () => {
   const patientData = usePatientData();
+  // [DEBUG-db9a] 標記畫面讀緊邊個 MedicalContext 實例，同 setHealthRecords 嘅實例比對
+  (window as any).__dbgMedId = (patientData as any).__debugInstanceId;
   const patients = useFilteredPatients();
   const { schedules, prescriptions, followUpAppointments, patientHealthTasks, setPatientHealthTasks, healthRecords, healthRecordLoadFailed, refreshHealthData, patientRestraintAssessments, patientTubeCareRecords, healthAssessments, mealGuidances, prescriptionWorkflowRecords, annualHealthCheckups, vaccinationRecords, carePlans, patientsWithWounds, activityRecords, beds, loading, updatePatientHealthTask, refreshData, refreshHealthTaskData, refreshWoundData } = patientData;
   const [showActivityRecordModal, setShowActivityRecordModal] = useState(false);
@@ -190,9 +192,8 @@ const Dashboard: React.FC = () => {
       const normalizedTaskTimes = task.specific_times?.map(normalizeTime) || [];
       if (isLyuPatient) {
       }
-      // [修正] 掃描窗口由 28 天改為 60 天：每月 1 日的體重等月週期任務，
-      // 在月底時可逾時 30 天，28 天會錯過，導致卡片在主控台消失。
-      for (let i = 0; i <= 60; i++) {
+      // [修正] 追溯政策：28 天外唔算欠、唔需要補錄，掃描窗口與 MedicalContext 首載窗口（28 天）一致
+      for (let i = 0; i <= 28; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(checkDate.getDate() - i);
         const dateStr = formatLocalDate(checkDate);
@@ -587,9 +588,8 @@ const Dashboard: React.FC = () => {
       const normalizedTaskTimes = task.specific_times?.map(normalizeTime) || [];
       let firstIncompleteDate: Date | null = null;
       const incompleteDates: Date[] = [];
-      // [修正] 掃描窗口由 28 天改為 60 天：每月 1 日的體重等月週期任務，
-      // 在月底時可逾時 30 天，28 天會錯過，導致卡片在主控台消失。
-      for (let i = 0; i <= 60; i++) {
+      // [修正] 追溯政策：28 天外唔算欠、唔需要補錄，掃描窗口與 MedicalContext 首載窗口（28 天）一致
+      for (let i = 0; i <= 28; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(checkDate.getDate() - i);
         const dateStr = formatLocalDate(checkDate);

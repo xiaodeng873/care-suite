@@ -30,7 +30,10 @@ const dbFetch: typeof fetch = (input, init) => {
   }
   const headers = new Headers(init?.headers);
   headers.set('Authorization', `Bearer ${dbToken}`);
-  return fetch(input, { ...init, headers });
+  // 30 秒逾時：斷網 / stalled connection 會令 fetch 永久掛起，
+  // 之前全量載入 hang 死令「進行中」標記永不解除，180 天結果長期被擋 → 小日曆 0 行
+  const signal = init?.signal ?? AbortSignal.timeout(30000);
+  return fetch(input, { ...init, headers, signal });
 };
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

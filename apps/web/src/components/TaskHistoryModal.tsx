@@ -31,7 +31,7 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
   }
 
   // [DEBUG-db9a] 小日曆打開時記錄數據量，判斷「全部逾期」是空數據還是匹配邏輯問題
-  console.warn(`[DEBUG-db9a] 小日曆打開: 類型=${task?.health_record_type} 記錄數=${healthRecords?.length ?? 'null'} 載入失敗=${!!recordsLoadFailed}`);
+  console.warn(`[DEBUG-db9a] 小日曆打開: 類型=${task?.health_record_type} 記錄數=${healthRecords?.length ?? 'null'} 載入失敗=${!!recordsLoadFailed} 讀取實例=${(window as any).__dbgMedId ?? '?'} 最近set實例=${(window as any).__dbgMedSetId ?? '無'} set行數=${(window as any).__dbgMedSetRows ?? '?'}`);
 
   // [新增] ESC 鍵關閉功能
   useEffect(() => {
@@ -71,6 +71,14 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
     // 監測記錄載入失敗：唔判定逾期，避免誤導補錄
     if (recordsLoadFailed) {
       return checkDate.getTime() > today.getTime() ? 'future' : 'unknown';
+    }
+
+    // [修正] 追溯政策：28 天外嘅日子唔追溯、唔算欠、唔需要補錄，
+    // 一律唔顯示狀態（同任務卡片嘅 28 天掃描窗口一致），避免「連不上就當逾期」
+    {
+      const windowStart = new Date(today);
+      windowStart.setDate(windowStart.getDate() - 28);
+      if (checkDate < windowStart) return 'none';
     }
 
     // 輔助函數：正確格式化本地日期為 YYYY-MM-DD（避免時區偏移）

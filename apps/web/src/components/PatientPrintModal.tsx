@@ -88,8 +88,8 @@ export interface PrintDocumentOptions {
   feeSkipEmptyPatients?: boolean;
   /** 排班管理：要列印的部門 */
   rosterDepartments?: string[];
-  /** 排班管理：每部門各一份 HTML 或綜合一份 */
-  rosterOutputMode?: 'separate' | 'combined';
+  /** 排班管理：每部門各一份 HTML、綜合一份，或假期預排表按居住區各一份 */
+  rosterOutputMode?: 'separate' | 'combined' | 'by_station';
   /** 排班管理：預排表是否列印累積欄 */
   rosterIncludeBalance?: boolean;
   /** 排班管理：排班表是否列印達標檢查 */
@@ -200,7 +200,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
 
   // 排班管理 tab 選項
   const [rosterDepartments, setRosterDepartments] = useState<Set<string>>(() => new Set(ROSTER_PRINT_DEPARTMENTS));
-  const [rosterOutputMode, setRosterOutputMode] = useState<'separate' | 'combined'>('combined');
+  const [rosterOutputMode, setRosterOutputMode] = useState<'separate' | 'combined' | 'by_station'>('combined');
   const [rosterIncludeBalance, setRosterIncludeBalance] = useState(true);
   const [rosterIncludeCompliance, setRosterIncludeCompliance] = useState(false);
   // 排班管理 tab：列印月份（YYYY-MM，預設當月）
@@ -478,6 +478,17 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
                   className="h-4 w-4" />
                 
                   綜合一份 HTML
+                </label>
+                <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                  <input
+                  type="radio"
+                  name="roster-output-mode"
+                  value="by_station"
+                  checked={rosterOutputMode === 'by_station'}
+                  onChange={() => setRosterOutputMode('by_station')}
+                  className="h-4 w-4" />
+
+                  按居住區各一份（假期預排表）
                 </label>
               </div>
               <div className="flex items-center gap-4">

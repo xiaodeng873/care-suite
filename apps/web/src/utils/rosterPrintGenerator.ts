@@ -8,6 +8,8 @@
  * 輸出模式：
  * - separate：每個（文件 × 部門）一份輸出
  * - combined：每份文件一份輸出，部門各佔一個 print-page
+ * - by_station：假期預排表按優先指派居住區分拆（行政不受此限，維持每部門一份）；
+ *   排班表不適用，退回 separate 行為
  *
  * 所有頁面統一 A4 landscape，配合 printUtils.printGroupedHtml 列印。
  */
@@ -95,7 +97,7 @@ export interface RosterPrintInput {
 export interface RosterPrintRequest {
   documents: RosterPrintDocumentId[];
   departments: string[];
-  outputMode: 'separate' | 'combined';
+  outputMode: 'separate' | 'combined' | 'by_station';
   includeBalance: boolean;
   includeCompliance: boolean;
 }
@@ -274,10 +276,11 @@ function pageShell(
   return `${pageStyles(orientation)}<div class="print-page">${content}${footer}</div>`;
 }
 
-function headerHtml(input: RosterPrintInput, docName: string, period: string, department: string): string {
+function headerHtml(input: RosterPrintInput, docName: string, period: string, department: string, stationName?: string): string {
+  const deptLabel = stationName ? `${department}｜${stationName}` : department;
   return `<div class="rp-header">
     <h1>${escapeHtml(input.facilityName)}</h1>
-    <h2>${escapeHtml(docName)}（${escapeHtml(department)}）</h2>
+    <h2>${escapeHtml(docName)}（${escapeHtml(deptLabel)}）</h2>
     <div class="rp-period">${escapeHtml(period)}</div>
   </div>`;
 }
@@ -301,10 +304,12 @@ function buildPreSchedulePage(
   input: RosterPrintInput,
   department: string,
   includeBalance: boolean,
+  restrictUsers?: UserProfile[],
+  stationName?: string,
 ): string[] {
   const { year, month } = input;
   const daysInMonth = new Date(year, month, 0).getDate();
-  const users = departmentUsers(input, department);
+  const users = restrictUsers ?? departmentUsers(input, department);
   const period = `${year}年${month}月`;
 
   const leaveMap = new Map<string, UserLeaveRecord>();
@@ -410,7 +415,7 @@ function buildPreSchedulePage(
   return chunks.map((chunk, idx) => {
     const pageNumber = idx + 1;
     const rows = buildTableBody(chunk);
-    const content = `${headerHtml(input, DOCUMENT_NAMES.roster_pre_schedule, period, department)}
+    const content = `${headerHtml(input, DOCUMENT_NAMES.roster_pre_schedule, period, department, stationName)}
       <table class="rp-table rp-pre-schedule">
         <thead>
           <tr>
@@ -642,7 +647,8 @@ function buildMonthSplit(
 
 /**
  * 依 request 產生每份輸出 HTML 文件的 pages（每頁一個 print-page div）與標題。
- * separate：每個（文件 × 部門）一個 entry；combined：每個文件一個 entry，部門各佔一頁。
+ * separate：每個（文件 × 部門）一個 entry；combined：每個文件一個 entry，部門各佔一頁；
+ * by_station：假期預排表按優先指派居住區分拆（行政除外），排班表退回 separate。
  */
 export function generateRosterPrintPages(
   input: RosterPrintInput,
@@ -661,7 +667,42 @@ export function generateRosterPrintPages(
   const files: RosterPrintFile[] = [];
   for (const docId of request.documents) {
     const docName = DOCUMENT_NAMES[docId];
-    if (request.outputMode === 'separate') {
+    if (request.outputMode === 'by_station' && docId === 'roster_pre_schedule') {
+      // 按優先指派居住區分拆：護士/保健員、護理員、庶務各站獨立一份；
+      // 行政不存在優先指派居住區，不受此限，維持每部門一份
+      for (const department of request.departments) {
+        if (department === '行政') {
+          files.push({
+            title: `${docName}（${department}）`,
+            pages: buildPage(docId, department),
+          });
+          continue;
+        }
+        const deptUsers = departmentUsers(input, department);
+        const groups = new Map<string | null, UserProfile[]>();
+        for (const u of deptUsers) {
+          const sid = input.employmentDetails[u.id]?.preferred_station_primary || null;
+          const list = groups.get(sid) ?? [];
+          list.push(u);
+          groups.set(sid, list);
+        }
+        // 居住區次序跟隨 stationPriority，未分區排最後
+        const orderedStationIds: (string | null)[] = input.stationPriority.filter(
+          (sid): sid is string => !!sid && groups.has(sid),
+        );
+        if (groups.has(null)) orderedStationIds.push(null);
+        for (const sid of orderedStationIds) {
+          const stationName = sid
+            ? (input.stations.find((s) => s.id === sid)?.name ?? '未知居住區')
+            : '未分區';
+          files.push({
+            title: `${docName}（${department}｜${stationName}）`,
+            pages: buildPreSchedulePage(input, department, request.includeBalance, groups.get(sid), stationName),
+          });
+        }
+      }
+    } else if (request.outputMode === 'separate' || request.outputMode === 'by_station') {
+      // by_station 對排班表不適用，退回 separate
       for (const department of request.departments) {
         files.push({
           title: `${docName}（${department}）`,

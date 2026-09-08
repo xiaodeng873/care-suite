@@ -299,22 +299,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
 
     // 監聽 Supabase Auth 狀態變化
+    // 注意：visibility 切換會觸發 supabase-js 的 _recoverAndRefresh，重複廣播同一 session；
+    // 每次 setUser 都係新物件 → isAuthenticated 換身份 → 所有資料 Context 的 effect 連環重跑，
+    // 造成查詢風暴（statement timeout 元兇之一）。access_token 無變就跳過。
+    let lastAccessToken: string | null = null;
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (mounted) {
           // 處理 token 刷新失敗的情況
           if (event === 'TOKEN_REFRESHED' && !session) {
             console.warn('Token refresh failed, clearing session');
+            lastAccessToken = null;
             setSession(null);
             setUser(null);
             setDisplayName(null);
             setPermissions([]);
           } else if (event === 'SIGNED_OUT') {
+            lastAccessToken = null;
             setSession(null);
             setUser(null);
             setDisplayName(null);
             setPermissions([]);
           } else {
+            const token = session?.access_token ?? null;
+            if (token && token === lastAccessToken) {
+              // 同一 session 重複廣播：不更新 state，避免下游資料 effect 風暴
+              setAuthReady(true);
+              return;
+            }
+            lastAccessToken = token;
             setSession(session);
             setUser(session?.user ?? null);
             setDisplayName(getUserDisplayName(session?.user ?? null, userProfile));
@@ -804,10 +817,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return permissions.some(p => p.category === category && p.action === 'view');
   }, [user, userProfile, permissions]);
 
-  // 是否已認證
+  // 是否已認證：必須連資料庫令牌（RLS 院舍隔離用）都簽發好才算數。
+  // 否則登入流程中 setUser 先行、dbToken 未簽發的窗口期會掛起整棵資料樹，
+  // 所有 Context 以匿名身份查詢，被 RLS 靜默過濾成 0 行（無錯誤碼），
+  // 造成「日誌話載入完成、畫面卻一片空白／小日曆 0 記錄」
   const isAuthenticated = useCallback((): boolean => {
-    return !!(user || userProfile);
-  }, [user, userProfile]);
+    return !!(user || userProfile) && dbTokenReady;
+  }, [user, userProfile, dbTokenReady]);
 
   // 是否為開發者
   const isDeveloper = useCallback((): boolean => {

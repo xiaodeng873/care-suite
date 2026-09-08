@@ -2156,7 +2156,7 @@ export const withRetry = async <T,>(
   throw lastError;
 };
 
-export const getHealthRecords = async (options?: { limit?: number; daysBack?: number; sequential?: boolean }): Promise<HealthRecord[]> => {
+export const getHealthRecords = async (options?: { limit?: number; daysBack?: number; sequential?: boolean; onPage?: (rows: HealthRecord[]) => void; startDate?: string; endDate?: string }): Promise<HealthRecord[]> => {
   if (options?.limit !== undefined) {
     const { data, error } = await supabase
       .from('健康監測記錄')
@@ -2186,30 +2186,45 @@ export const getHealthRecords = async (options?: { limit?: number; daysBack?: nu
     )) as HealthRecord[];
   }
 
-  const fetchAllPagesQuery = async (from: number, to: number, withCount: boolean) =>
-    await supabase
-      .from('健康監測記錄')
-      .select('*', withCount ? { count: 'exact' } : undefined)
-      .order('記錄日期', { ascending: false })
-      .order('記錄時間', { ascending: false })
-      // 同上：唯一 tiebreaker 保證分頁穩定
-      .order('記錄id', { ascending: false })
-      .range(from, to);
-
-  // sequential 模式：順序逐頁載入 + 頁間喘息，畀啟動關鍵查詢先用 DB（避免全表掃描轟炸導致 statement timeout）
+  // sequential 模式：keyset 游標分頁（記錄日期,記錄時間,記錄id），順序向後拉。
+  // offset 分頁（.range）頁深愈大 DB 要重掃前面所有行，資料增長會愈來愈慢甚至
+  // statement timeout；keyset 每頁成本恒定。每頁經 onPage 漸進交出，
+  // 歷史畫面唔使等成個全量完成先用到。
   if (options?.sequential) {
     const pageSize = 1000;
-    const first = await fetchAllPagesQuery(0, pageSize - 1, true);
-    if (first.error) throw first.error;
-    const all = [...(first.data || [])];
-    const total = first.count ?? all.length;
-    for (let from = pageSize; from < total; from += pageSize) {
+    const all: HealthRecord[] = [];
+    let cursor: { d: string; t: string; id: string } | null = null;
+    for (;;) {
+      let q = supabase
+        .from('健康監測記錄')
+        .select('*')
+        .order('記錄日期', { ascending: false })
+        .order('記錄時間', { ascending: false })
+        .order('記錄id', { ascending: false })
+        .limit(pageSize);
+      if (options?.startDate) q = q.gte('記錄日期', options.startDate);
+      if (options?.endDate) q = q.lte('記錄日期', options.endDate);
+      if (cursor) {
+        // (date,time,id) 三元組 keyset：date < D OR (date = D AND time < T)
+        // OR (date = D AND time = T AND id < I)，與排序完全一致，唔會重複/漏行
+        q = q.or(
+          `記錄日期.lt.${cursor.d},` +
+          `and(記錄日期.eq.${cursor.d},記錄時間.lt.${cursor.t}),` +
+          `and(記錄日期.eq.${cursor.d},記錄時間.eq.${cursor.t},記錄id.lt.${cursor.id})`
+        );
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      const rows = (data || []) as HealthRecord[];
+      all.push(...rows);
+      options?.onPage?.(rows);
+      if (rows.length < pageSize) break;
+      const last = rows[rows.length - 1];
+      cursor = { d: last.記錄日期, t: last.記錄時間, id: last.記錄id };
+      // 頁間喘息：畀啟動關鍵查詢先用 DB（避免全表掃描轟炸導致 statement timeout）
       await new Promise(resolve => setTimeout(resolve, 250));
-      const page = await fetchAllPagesQuery(from, from + pageSize - 1, false);
-      if (page.error) throw page.error;
-      all.push(...(page.data || []));
     }
-    return all as HealthRecord[];
+    return all;
   }
 
   return (await fetchAllPagesParallel(fetchAllPagesQuery)) as HealthRecord[];

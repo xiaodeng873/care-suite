@@ -376,7 +376,14 @@ function AuthenticatedContent({
 // 強制用新 dbToken 重新載入，杜絕閘門/登入階段用無指定 token 載入嘅舊院舍資料殘留
 function FacilityScoped({ children }: { children: React.ReactNode }) {
   const { dbFacilityId } = useAuth();
-  return <React.Fragment key={dbFacilityId ?? 'ops'}>{children}</React.Fragment>;
+  // [DEBUG-db9a] 記錄院舍 key 變化：每次變化 = 全棵資料樹重掛 = 所有 Context 重新載入
+  const facilityKey = dbFacilityId ?? 'ops';
+  const prevFacilityKeyRef = React.useRef(facilityKey);
+  if (prevFacilityKeyRef.current !== facilityKey) {
+    prevFacilityKeyRef.current = facilityKey;
+    console.warn(`[DEBUG-db9a] FacilityScoped 重掛 key=${facilityKey}`);
+  }
+  return <React.Fragment key={facilityKey}>{children}</React.Fragment>;
 }
 
 function App() {

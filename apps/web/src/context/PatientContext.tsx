@@ -43,6 +43,10 @@ interface PatientContextType {
   healthRecords: db.HealthRecord[];
   /** 監測記錄載入失敗（資料庫暫時斷線），避免 UI 把失敗誤當無記錄 */
   healthRecordLoadFailed: boolean;
+  /** 全量監測記錄是否已載完（未載完時首載窗口外的日子不應判逾期） */
+  isAllHealthRecordsLoaded: boolean;
+  /** [DEBUG-db9a] 上游 MedicalContext 實例編號（診斷孤兒 setState） */
+  __debugInstanceId?: number;
   followUpAppointments: db.FollowUpAppointment[];
   mealGuidances: db.MealGuidance[];
   patientLogs: db.PatientLog[];
@@ -250,6 +254,10 @@ interface PatientContextType {
   batchDeleteDuplicateRecords: (duplicateRecordIds: number[], deletedBy?: string) => Promise<void>;
   // [新增] 載入所有歷史記錄
   loadFullHealthRecords: () => Promise<void>;
+  /** [第二階] 已載記錄嘅最早日期（YYYY-MM-DD，null = 近一年窗口未載完）；更舊嘅用 ensureHealthRecordsFloor 按需拉 */
+  healthRecordsFloorDate: string | null;
+  /** [第二階] 按需向舊推窗口：確保 state 有早過 targetDate 嘅記錄（冪等） */
+  ensureHealthRecordsFloor: (targetDate: string) => Promise<void>;
   // 個人照顧計劃 (ICP) 相關函數
   addCarePlan: (
     plan: Omit<db.CarePlan, 'id' | 'created_at' | 'updated_at' | 'review_due_date'>,
@@ -456,6 +464,9 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
     batchDeleteDuplicateRecords,
     loadFullHealthRecords,
     refreshHealthRecordData,
+    healthRecordsFloorDate,
+    ensureHealthRecordsFloor,
+    __debugInstanceId: medicalInstanceId,
   } = useHealthRecord();
   
   // 向後兼容：別名 refreshHealthData 到 refreshHealthRecordData
@@ -931,6 +942,8 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       serviceReasons,
       healthRecords,
       healthRecordLoadFailed,
+      isAllHealthRecordsLoaded,
+      __debugInstanceId: medicalInstanceId,
       followUpAppointments,
       mealGuidances,
       patientLogs,
@@ -1117,6 +1130,8 @@ export const PatientProvider: React.FC<PatientProviderProps> = ({ children }) =>
       batchDeleteDuplicateRecords,
       // [新增] 載入完整記錄
       loadFullHealthRecords,
+      healthRecordsFloorDate,
+      ensureHealthRecordsFloor,
       // 個人照顧計劃 (ICP) 相關
       carePlans,
       problemLibrary,

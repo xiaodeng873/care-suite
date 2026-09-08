@@ -73,7 +73,9 @@ const HealthAssessment: React.FC = () => {
     refreshData,
     loadFullHealthRecords,
     healthRecordLoadFailed,
-    refreshHealthRecordData
+    refreshHealthRecordData,
+    healthRecordsFloorDate,
+    ensureHealthRecordsFloor
   } = usePatientData();
   const patients = useFilteredPatients();
   // [新增] 進入頁面時，觸發載入完整歷史記錄
@@ -176,6 +178,23 @@ const HealthAssessment: React.FC = () => {
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, advancedFilters, sortField, sortDirection]);
+
+  // [第二階] 篩選範圍早過內存窗口（近一年）時，按需由 DB 拉舊記錄併入全局 state。
+  // 拉完 healthRecords 更新會觸發下方 filteredRecords 重算，篩選結果自動補齊。
+  const floorExtendRequestedRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    const start = advancedFilters.startDate;
+    if (!start || !healthRecordsFloorDate) return;
+    if (start >= healthRecordsFloorDate) {
+      floorExtendRequestedRef.current = null;
+      return;
+    }
+    if (floorExtendRequestedRef.current === start) return; // 同一目標已請求緊，唔重複
+    floorExtendRequestedRef.current = start;
+    ensureHealthRecordsFloor(start).catch(() => {
+      floorExtendRequestedRef.current = null; // 失敗放行，下次 filter 變動會重試
+    });
+  }, [advancedFilters.startDate, healthRecordsFloorDate, ensureHealthRecordsFloor]);
 
   if (loading) {
     return <LoadingScreen pageName="監測記錄" />;
@@ -966,7 +985,7 @@ const HealthAssessment: React.FC = () => {
           )}
         </div>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600">
-            <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 筆監測記錄 (共 {healthRecords.length} 筆)</span>
+            <span>顯示 {startIndex + 1}-{Math.min(endIndex, totalItems)} / {totalItems} 筆監測記錄 (已載入 {healthRecords.length} 筆；篩選更早日期會自動由資料庫載入)</span>
             {(searchTerm || hasAdvancedFilters()) && (
               <span className="text-blue-600">已套用篩選條件</span>
             )}

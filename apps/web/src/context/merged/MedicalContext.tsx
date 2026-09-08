@@ -123,6 +123,10 @@ interface MedicalContextType {
   findDuplicateHealthRecords: () => Promise<db.DuplicateRecordGroup[]>;
   batchDeleteDuplicateRecords: (duplicateRecordIds: number[], deletedBy?: string) => Promise<void>;
   loadFullHealthRecords: () => Promise<void>;
+  /** [第二階] 已載記錄嘅最早日期（YYYY-MM-DD，null = 近一年窗口未載完）；更舊嘅用 ensureHealthRecordsFloor 按需拉 */
+  healthRecordsFloorDate: string | null;
+  /** [第二階] 按需向舊推窗口：確保 state 有早過 targetDate 嘅記錄（冪等，可並發安全調用） */
+  ensureHealthRecordsFloor: (targetDate: string) => Promise<void>;
   refreshHealthRecordData: () => Promise<void>;
   
   // ===== 統一加載狀態 =====
@@ -130,7 +134,13 @@ interface MedicalContextType {
   
   // ===== 統一刷新 =====
   refreshAllMedicalData: () => Promise<void>;
+
+  // [DEBUG-db9a] 診斷用：本 Provider 實例編號（追蹤孤兒 setState）
+  __debugInstanceId?: number;
 }
+
+// [DEBUG-db9a] 全域實例計數器
+let medicalCtxSeq = 0;
 
 // ========== Context 創建 ==========
 const MedicalContext = createContext<MedicalContextType | undefined>(undefined);
@@ -176,6 +186,19 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
   const [fullHealthRecordsLoading, setFullHealthRecordsLoading] = useState(false);
   // 防 StrictMode 雙重 effect / 重複觸發：全量載入進行中唔再開第二個（49k+ 行）
   const fullHealthRecordsInFlightRef = useRef(false);
+  // [第二階] 已載記錄嘅最早日期（YYYY-MM-DD，null = 未開始/未知）：
+  // 背景全量淨載近 1 年，floor = 今日-365；ensureHealthRecordsFloor 按需向舊推
+  const [healthRecordsFloorDate, setHealthRecordsFloorDate] = useState<string | null>(null);
+  const healthRecordsFloorDateRef = useRef<string | null>(null);
+  const floorExtendInFlightRef = useRef(false);
+  // [DEBUG-db9a] 實例標記：追蹤「setState 落到邊個實例」vs「畫面讀緊邊個實例」，
+  // 診斷 FacilityScoped 重掛後舊實例 setState 被丟棄嘅孤兒問題
+  const instanceIdRef = useRef(++medicalCtxSeq);
+  const markSet = (rows: number, where: string) => {
+    (window as any).__dbgMedSetId = instanceIdRef.current;
+    (window as any).__dbgMedSetRows = rows;
+    console.warn(`[DEBUG-db9a] [實例${instanceIdRef.current}] ${where} setHealthRecords rows=${rows}`);
+  };
 
   // ===== 覆診函數 =====
   const refreshFollowUpData = useCallback(async () => {
@@ -601,53 +624,203 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
   }, [refreshWoundData]);
 
   // ===== 健康記錄函數 =====
-  // 初始載入近 180 天記錄（快速），HealthAssessment 頁面按需補全所有記錄
+  // dbToken 指紋：fetch 派發前捕獲，await 回來後比對「院舍｜epoch」。
+  // 令牌中途會被更換（登入簽發多次、切院舍重發）；同院舍同 epoch 嘅新 JWT（
+  // 定時刷新重簽）RLS 視野完全一致，結果照用；院舍/epoch 變咗先算過期。
+  const currentTokenContext = (): string => {
+    try {
+      const t = localStorage.getItem('care_suite_db_token');
+      if (!t) return 'none';
+      const p = JSON.parse(atob(t.split('.')[1] || ''));
+      return `${p.facility_id ?? '?'}|${p.epoch ?? '?'}`;
+    } catch {
+      return 'unknown';
+    }
+  };
+  // 登入期間令牌會連環簽發（db-token → selectFacility），風暴可能持續幾秒：
+  // 每次過期都稍等再用當前令牌重試，直到有一次用「落定後嘅令牌」完成
+  const TOKEN_SETTLE_DELAY_MS = 1200;
+  const TOKEN_SETTLE_MAX_ATTEMPTS = 6;
+  // [第二階] 背景全量窗口：淨載近 1 年；更舊嘅記錄由 ensureHealthRecordsFloor 按需拉
+  const FULL_LOAD_WINDOW_DAYS = 365;
+  // 以 記錄id 去重合併（漸進全量 / refresh merge / floor 擴展共用）
+  const mergeRecordsById = (prev: db.HealthRecord[], rows: db.HealthRecord[]): db.HealthRecord[] => {
+    if (rows.length === 0) return prev;
+    const ids = new Set(prev.map(r => r.記錄id));
+    const fresh = rows.filter(r => !ids.has(r.記錄id));
+    return fresh.length ? [...prev, ...fresh] : prev;
+  };
+  const formatLocalDateStr = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  // 初始載入近 28 天記錄（快速），HealthAssessment 頁面按需補全所有記錄
   const refreshHealthRecordData = useCallback(async () => {
     if (!isAuthenticated()) return;
-    setHealthRecordLoading(true);
-    try {
-      // 先載入近 180 天記錄讓 Dashboard 快速顯示（statement timeout 等暫時性錯誤自動退避重試）
-      const recentData = await db.withRetry(() => db.getHealthRecords({ daysBack: 180 }), 3);
-      // [DEBUG-db9a] 區分「載入失敗」vs「靜默回空」（RLS/院舍不符會 0 行無錯誤）
-      try {
-        const t = localStorage.getItem('care_suite_db_token');
-        const facilityId = t ? JSON.parse(atob(t.split('.')[1] || ''))?.facility_id : null;
-        console.warn(`[DEBUG-db9a] 監測記錄載入完成 rows=${recentData?.length ?? 'null'} facility=${facilityId} epoch=${t ? JSON.parse(atob(t.split('.')[1] || ''))?.epoch : null}`);
-      } catch { /* 診斷日誌失敗不影響功能 */ }
-      // 完整記錄已載入/載入緊就唔好用 180 日子集冚蓋，
-      // 否則 race 之後頁面會長期得返一半資料（flag 話已載全但 state 係子集）
-      if (!isAllHealthRecordsLoadedRef.current && !fullHealthRecordsInFlightRef.current) {
-        setHealthRecords(recentData || []);
+    for (let attempt = 0; attempt < TOKEN_SETTLE_MAX_ATTEMPTS; attempt++) {
+      const tokenCtx = currentTokenContext();
+      if (tokenCtx === 'none') {
+        // 無令牌不查：anon 身份會被 RLS 靜默過濾成 0 行，setState 後等同「假裝載入完成」
+        console.warn('[DEBUG-db9a] 跳過監測記錄載入：無 dbToken，等待令牌簽發後補載');
+        return;
       }
-      setHealthRecordLoadFailed(false);
-    } catch (error) {
-      console.error(`[DEBUG-db9a] 監測記錄載入失敗: code=${(error as any)?.code ?? 'none'} message=${String((error as any)?.message ?? '').slice(0, 120)}`);
-      setHealthRecordLoadFailed(true);
-      throw error;
-    } finally {
-      setHealthRecordLoading(false);
+      setHealthRecordLoading(true);
+      try {
+        // 先載入近 28 天記錄讓 Dashboard 快速顯示（statement timeout 等暫時性錯誤自動退避重試）；
+        // 28 天以外嘅歷史由背景全量載入補齊（小日曆舊月份補錄會喺全量完成後可用）
+        const recentData = await db.withRetry(() => db.getHealthRecords({ daysBack: 28 }), 3);
+        // [DEBUG-db9a] 區分「載入失敗」vs「靜默回空」（RLS/院舍不符會 0 行無錯誤）
+        try {
+          const t = localStorage.getItem('care_suite_db_token');
+          const facilityId = t ? JSON.parse(atob(t.split('.')[1] || ''))?.facility_id : null;
+          console.warn(`[DEBUG-db9a] [實例${instanceIdRef.current}] 監測記錄載入完成 rows=${recentData?.length ?? 'null'} facility=${facilityId} epoch=${t ? JSON.parse(atob(t.split('.')[1] || ''))?.epoch : null} 嘗試${attempt + 1}/${TOKEN_SETTLE_MAX_ATTEMPTS}`);
+        } catch { /* 診斷日誌失敗不影響功能 */ }
+        // 令牌已被更換（登入連環簽發/切院舍）：結果屬於舊上下文，稍候用新令牌重試
+        if (currentTokenContext() !== tokenCtx) {
+          console.warn(`[DEBUG-db9a] [實例${instanceIdRef.current}] 監測記錄結果已過期（${tokenCtx} → ${currentTokenContext()}），稍候重試`);
+          await new Promise((r) => setTimeout(r, TOKEN_SETTLE_DELAY_MS));
+          continue;
+        }
+        // 完整記錄「已載入」先好跳過：flag 同 setHealthRecords(all) 係同一個微任務原子寫入，
+        // refresh 喺任何一刻檢查 flag 都唔會出現「flag 話全、state 係子集」。
+        // 全量「載入緊」時改為 merge（唔係覆寫）：state 已有 28 天 + 漸進合併緊嘅歷史頁，
+        // 覆寫會冇咗已 merge 嘅舊頁（cursor 已行過，唔會重拉）。refresh 失敗/靜默回空
+        // 都保留 prev，唔會「由有變無」。
+        if (fullHealthRecordsInFlightRef.current) {
+          setHealthRecords(prev => {
+            const recentIds = new Set((recentData || []).map(r => r.記錄id));
+            const keep = prev.filter(r => !recentIds.has(r.記錄id));
+            markSet((recentData?.length ?? 0) + keep.length, 'refresh(全量merge)');
+            return [...(recentData || []), ...keep];
+          });
+        } else if (!isAllHealthRecordsLoadedRef.current) {
+          if ((recentData?.length ?? 0) === 0) {
+            setHealthRecords(prev => {
+              if (prev.length > 0) {
+                console.warn(`[DEBUG-db9a] [實例${instanceIdRef.current}] 監測記錄靜默回空（0 行），保留舊資料 ${prev.length} 行`);
+                return prev;
+              }
+              markSet(0, 'refresh(空)');
+              return recentData || [];
+            });
+          } else {
+            markSet(recentData?.length ?? 0, 'refresh');
+            setHealthRecords(recentData || []);
+          }
+        } else {
+          console.warn(`[DEBUG-db9a] [實例${instanceIdRef.current}] refresh 結果被 guard 跳過（完整記錄已載入）rows=${recentData?.length ?? 0}`);
+        }
+        setHealthRecordLoadFailed(false);
+        return;
+      } catch (error) {
+        console.error(`[DEBUG-db9a] 監測記錄載入失敗: code=${(error as any)?.code ?? 'none'} message=${String((error as any)?.message ?? '').slice(0, 120)}`);
+        setHealthRecordLoadFailed(true);
+        throw error;
+      } finally {
+        setHealthRecordLoading(false);
+      }
     }
   }, [isAuthenticated]);
 
   const loadFullHealthRecords = useCallback(async () => {
     if (isAllHealthRecordsLoadedRef.current || fullHealthRecordsInFlightRef.current) return;
-    fullHealthRecordsInFlightRef.current = true;
-    try {
-      setFullHealthRecordsLoading(true);
-      const allRecords = await db.withRetry(() => db.getHealthRecords({ sequential: true }), 2);
-      setHealthRecords(allRecords);
-      setIsAllHealthRecordsLoaded(true);
-      isAllHealthRecordsLoadedRef.current = true;
-      setHealthRecordLoadFailed(false);
-    } catch (error) {
-      console.error('載入完整記錄失敗:', error);
-      setHealthRecordLoadFailed(true);
-      throw error;
-    } finally {
-      setFullHealthRecordsLoading(false);
-      fullHealthRecordsInFlightRef.current = false;
+    for (let attempt = 0; attempt < TOKEN_SETTLE_MAX_ATTEMPTS; attempt++) {
+      const tokenCtx = currentTokenContext();
+      if (tokenCtx === 'none') {
+        console.warn('[DEBUG-db9a] 跳過完整監測記錄載入：無 dbToken');
+        return;
+      }
+      fullHealthRecordsInFlightRef.current = true;
+      try {
+        setFullHealthRecordsLoading(true);
+        // [第二階] 背景全量淨載近 1 年（FULL_LOAD_WINDOW_DAYS），更舊由 ensureHealthRecordsFloor 按需拉。
+        // keyset 分頁逐頁漸進 merge：歷史畫面唔使等成個窗口載完先用到；
+        // 以 記錄id 去重（withRetry 重試由頭拉都冇所謂，merge 係冪等）
+        const allRecords = await db.withRetry(() => db.getHealthRecords({
+          sequential: true,
+          daysBack: FULL_LOAD_WINDOW_DAYS,
+          onPage: (rows) => {
+            if (rows.length === 0) return;
+            setHealthRecords(prev => {
+              const merged = mergeRecordsById(prev, rows);
+              if (merged !== prev) markSet(merged.length, 'full(漸進)');
+              return merged;
+            });
+          },
+        }), 2);
+        // 令牌已被更換（登入連環簽發/切院舍）：結果屬於舊上下文，稍候用新令牌重試
+        if (currentTokenContext() !== tokenCtx) {
+          console.warn(`[DEBUG-db9a] [實例${instanceIdRef.current}] 完整監測記錄結果已過期（${tokenCtx} → ${currentTokenContext()}），稍候重試`);
+          await new Promise((r) => setTimeout(r, TOKEN_SETTLE_DELAY_MS));
+          continue;
+        }
+        markSet(allRecords?.length ?? 0, 'full(近一年)');
+        setHealthRecords(allRecords);
+        // 窗口下緣 = 今日 - 365 日；之後 ensureHealthRecordsFloor 可以由呢度向舊推
+        const floor = new Date();
+        floor.setHours(0, 0, 0, 0);
+        floor.setDate(floor.getDate() - FULL_LOAD_WINDOW_DAYS);
+        healthRecordsFloorDateRef.current = formatLocalDateStr(floor);
+        setHealthRecordsFloorDate(healthRecordsFloorDateRef.current);
+        setIsAllHealthRecordsLoaded(true);
+        isAllHealthRecordsLoadedRef.current = true;
+        setHealthRecordLoadFailed(false);
+        return;
+      } catch (error) {
+        console.error('載入完整記錄失敗:', error);
+        setHealthRecordLoadFailed(true);
+        throw error;
+      } finally {
+        setFullHealthRecordsLoading(false);
+        fullHealthRecordsInFlightRef.current = false;
+      }
     }
   }, []);
+
+  // [第二階] 按需向舊推窗口：篩選/畫面需要早過 floor 嘅記錄時先拉 [targetDate, floor) 併入 state。
+  // 冚唥呼叫方共用同一個 state，拉一次所有畫面都用到。合併冪等，重複/並發都安全。
+  const ensureHealthRecordsFloor = useCallback(async (targetDate: string) => {
+    if (!isAuthenticated()) return;
+    const floor = healthRecordsFloorDateRef.current;
+    if (floor === null || targetDate >= floor) return;
+    if (floorExtendInFlightRef.current) return;
+    // 已載窗口係 [floor, 今日]，舊段係 [targetDate, floor-1]（避免重複）
+    const dayBefore = new Date(floor + 'T00:00:00');
+    dayBefore.setDate(dayBefore.getDate() - 1);
+    const endStr = formatLocalDateStr(dayBefore);
+    const tokenCtx = currentTokenContext();
+    if (tokenCtx === 'none') return;
+    floorExtendInFlightRef.current = true;
+    try {
+      await db.withRetry(() => db.getHealthRecords({
+        sequential: true,
+        startDate: targetDate,
+        endDate: endStr,
+        onPage: (rows) => {
+          if (rows.length === 0) return;
+          setHealthRecords(prev => {
+            const merged = mergeRecordsById(prev, rows);
+            if (merged !== prev) markSet(merged.length, 'floor擴展');
+            return merged;
+          });
+        },
+      }), 2);
+      // 令牌已換（切院舍/重登）：唔 commit floor（合併嘅舊院資料會隨重掛丟棄，無害）
+      if (currentTokenContext() !== tokenCtx) {
+        console.warn(`[DEBUG-db9a] [實例${instanceIdRef.current}] floor 擴展結果已過期（${tokenCtx} → ${currentTokenContext()}），唔 commit floor`);
+        return;
+      }
+      healthRecordsFloorDateRef.current = targetDate;
+      setHealthRecordsFloorDate(targetDate);
+    } catch (error) {
+      console.warn('擴展監測記錄歷史窗口失敗:', error);
+    } finally {
+      floorExtendInFlightRef.current = false;
+    }
+  }, [isAuthenticated]);
 
   const addHealthRecord = useCallback(async (record: Omit<db.HealthRecord, '記錄id'>): Promise<db.HealthRecord> => {
     try {
@@ -875,6 +1048,7 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
     healthRecordLoading,
     healthRecordLoadFailed,
     fullHealthRecordsLoading,
+    __debugInstanceId: instanceIdRef.current,
     addHealthRecord,
     addHealthRecordsForSession,
     updateHealthRecord,
@@ -885,6 +1059,8 @@ export function MedicalProvider({ children }: MedicalProviderProps) {
     findDuplicateHealthRecords,
     batchDeleteDuplicateRecords,
     loadFullHealthRecords,
+    healthRecordsFloorDate,
+    ensureHealthRecordsFloor,
     refreshHealthRecordData,
     
     // 統一
@@ -1026,7 +1202,10 @@ export function useHealthRecord() {
     findDuplicateHealthRecords: ctx.findDuplicateHealthRecords,
     batchDeleteDuplicateRecords: ctx.batchDeleteDuplicateRecords,
     loadFullHealthRecords: ctx.loadFullHealthRecords,
+    healthRecordsFloorDate: ctx.healthRecordsFloorDate,
+    ensureHealthRecordsFloor: ctx.ensureHealthRecordsFloor,
     refreshHealthRecordData: ctx.refreshHealthRecordData,
+    __debugInstanceId: ctx.__debugInstanceId,
   };
 }
 
