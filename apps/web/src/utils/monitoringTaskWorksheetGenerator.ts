@@ -131,7 +131,14 @@ const fetchTasksForDate = async (targetDate: Date, patientIds?: Set<number>): Pr
   });
   return timeSlotTasks;
 };
-export const generateMonitoringTaskWorksheet = async (startDate: Date, patientIds?: Set<number>) => {
+export type WorksheetLayout = 'half' | 'full';
+
+export const generateMonitoringTaskWorksheet = async (
+  startDate: Date,
+  patientIds?: Set<number>,
+  options?: { layout?: WorksheetLayout }
+) => {
+  const layout = options?.layout ?? 'half';
   const daysData: DayData[] = [];
   for (let i = 0; i < 4; i++) {
     const targetDate = new Date(startDate);
@@ -150,8 +157,8 @@ export const generateMonitoringTaskWorksheet = async (startDate: Date, patientId
       tasks
     });
   }
-  // 配對：Day1+Day2 和 Day3+Day4，每對放在一張A4上（上半A5+下半A5）
-  const html = generatePairedHTML(daysData);
+  // 配對：Day1+Day2 和 Day3+Day4，每對放在一張A4上（half=上半A5+下半A5；full=每天佔滿整張A4）
+  const html = generatePairedHTML(daysData, layout);
   openPrintWindow(html);
 };
 // 生成時段表格的HTML
@@ -233,9 +240,10 @@ const generateDayContent = (day: DayData): string => {
     ` : ''}
   `;
 };
-// 高度估算常數 (單位: mm) - A5高度210mm，扣除margin後約202mm
+// 高度估算常數 (單位: mm)
+// 對半模式：A5高度210mm，扣除margin後約202mm；全頁直立模式：A4高度297mm，扣除margin後約289mm
 // 估算值比實際稍大10%，確保不會溢出
-const A5_CONTENT_HEIGHT = 200; // A5可用內容高度
+const A5_CONTENT_HEIGHT = 200;         // 對半模式（A4橫向對半=A5）可用內容高度；全頁模式同用此預算再 zoom 放大
 const HEADER_HEIGHT = 5.5;     // 頁眉高度
 const SLOT_TITLE_HEIGHT = 4.5; // 時段標題高度
 const TABLE_HEADER_HEIGHT = 4.5; // 表格欄位標題高度（14px ≈ 4mm + 10%）
@@ -255,11 +263,13 @@ interface PageContent {
     startIndex: number;  // 從第幾個任務開始
     endIndex: number;    // 到第幾個任務結束
   }>;
+  /** 本頁已用高度(mm)，供「複檢」空白列計算剩餘空間 */
+  usedHeight: number;
 }
-// 將一天的內容分割成多個A5頁面
-const splitDayIntoPages = (day: DayData): PageContent[] => {
+// 將一天的內容分割成多個頁面（預算高度依版面而定：對半=A5、全頁直立=A4 portrait）
+const splitDayIntoPages = (day: DayData, contentHeight: number = A5_CONTENT_HEIGHT): PageContent[] => {
   const pages: PageContent[] = [];
-  let currentPage: PageContent = { slots: [] };
+  let currentPage: PageContent = { slots: [], usedHeight: HEADER_HEIGHT };
   let currentHeight = HEADER_HEIGHT;
   const slots = [
     { name: '早餐', fullName: '早餐 (07:00-09:59)', tasks: day.tasks.早餐 },
@@ -274,13 +284,14 @@ const splitDayIntoPages = (day: DayData): PageContent[] => {
       // 計算這個時段標題+表頭需要的基礎高度
       const baseSlotHeight = SLOT_TITLE_HEIGHT + TABLE_HEADER_HEIGHT + SLOT_MARGIN;
       // 計算當前頁面還能容納多少行
-      const remainingHeight = A5_CONTENT_HEIGHT - currentHeight - baseSlotHeight;
+      const remainingHeight = contentHeight - currentHeight - baseSlotHeight;
       const maxRowsInCurrentPage = Math.max(0, Math.floor(remainingHeight / ROW_HEIGHT));
       if (maxRowsInCurrentPage <= 0) {
         // 當前頁放不下，開新頁
         if (currentPage.slots.length > 0) {
+          currentPage.usedHeight = currentHeight;
           pages.push(currentPage);
-          currentPage = { slots: [] };
+          currentPage = { slots: [], usedHeight: HEADER_HEIGHT };
           currentHeight = HEADER_HEIGHT;
         }
         continue;
@@ -298,29 +309,32 @@ const splitDayIntoPages = (day: DayData): PageContent[] => {
       taskIndex += tasksForThisPage;
       // 如果這個時段還沒處理完，開新頁繼續
       if (taskIndex < slot.tasks.length) {
+        currentPage.usedHeight = currentHeight;
         pages.push(currentPage);
-        currentPage = { slots: [] };
+        currentPage = { slots: [], usedHeight: HEADER_HEIGHT };
         currentHeight = HEADER_HEIGHT;
       }
     }
   }
   // 最後一頁
   if (currentPage.slots.length > 0) {
+    currentPage.usedHeight = currentHeight;
     pages.push(currentPage);
   }
   // 如果沒有任何內容，至少返回一個空白頁
   if (pages.length === 0) {
-    pages.push({ slots: [] });
+    pages.push({ slots: [], usedHeight: HEADER_HEIGHT });
   }
   return pages;
 };
 // 生成單個A5頁面的HTML內容
 const generateA5PageContent = (
-  day: DayData, 
-  pageContent: PageContent, 
-  pageNumber: number, 
+  day: DayData,
+  pageContent: PageContent,
+  pageNumber: number,
   totalPages: number,
-  isLeftHalf: boolean
+  isLeftHalf: boolean,
+  contentHeight: number = A5_CONTENT_HEIGHT
 ): string => {
   let slotsHTML = '';
   for (const slot of pageContent.slots) {
@@ -331,8 +345,17 @@ const generateA5PageContent = (
       </div>
     `;
   }
-  // 如果沒有內容，顯示空白頁提示
-  if (pageContent.slots.length === 0) {
+  // 複檢：只在每天最後一頁，於四個時段後加空白手寫列，填到 footer 前為止
+  let recheckHTML = '';
+  const isLastPage = pageNumber === totalPages;
+  if (isLastPage) {
+    const recheckRows = computeRecheckRows(pageContent.usedHeight ?? HEADER_HEIGHT, contentHeight);
+    if (pageContent.slots.length === 0 && recheckRows === 0) {
+      slotsHTML = '<div class="empty-page">（無監測任務）</div>';
+    } else {
+      recheckHTML = generateRecheckTableHTML(recheckRows);
+    }
+  } else if (pageContent.slots.length === 0) {
     slotsHTML = '<div class="empty-page">（無監測任務）</div>';
   }
   return `
@@ -342,6 +365,7 @@ const generateA5PageContent = (
     </div>
     <div class="header-line-main"></div>
     ${slotsHTML}
+    ${recheckHTML}
     <div class="page-number-inline">${day.dateShort}-${day.weekday}-第${pageNumber}/${totalPages}頁</div>
     ${isLeftHalf ? '<div class="print-note">雙面列印：長邊翻轉</div>' : ''}
   `;
@@ -386,6 +410,50 @@ const generateTimeSlotTableHTMLForPage = (tasks: MonitoringTask[], slotName: str
     </table>
   `;
 };
+// 「複檢」空白列：填滿每天最後一頁四個時段之後的剩餘空間（預留 footer 高度），供手寫數值
+const FOOTER_RESERVE = 7; // footer（頁碼/列印提示）預留高度(mm)
+const computeRecheckRows = (usedHeight: number, contentHeight: number): number => {
+  const base = SLOT_TITLE_HEIGHT + TABLE_HEADER_HEIGHT + SLOT_MARGIN + FOOTER_RESERVE;
+  return Math.max(0, Math.floor((contentHeight - usedHeight - base) / ROW_HEIGHT));
+};
+const generateRecheckTableHTML = (rowCount: number): string => {
+  const blankRow = `
+            <tr>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td class="value-cell"></td>
+              <td class="value-cell"></td>
+              <td class="value-cell"></td>
+              <td class="value-cell"></td>
+            </tr>
+          `;
+  return `
+      <div class="time-slot">
+        <h3 class="slot-title-main">複檢</h3>
+        <table class="task-table">
+          <thead>
+            <tr class="column-header-row">
+              <th style="width: 9%">床號</th>
+              <th style="width: 9%">姓名</th>
+              <th style="width: 9%">任務</th>
+              <th style="width: 9%">備註</th>
+              <th style="width: 7%">時間</th>
+              <th style="width: 14%">上壓</th>
+              <th style="width: 14%">下壓</th>
+              <th style="width: 14%">脈搏</th>
+              <th style="width: 15%">血糖</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Array(Math.max(0, rowCount)).fill(blankRow).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+};
 // 生成配對的HTML：Day1+Day2配對，Day3+Day4配對
 // A4橫向，雙面列印後可剪開
 // 
@@ -397,25 +465,41 @@ const generateTimeSlotTableHTMLForPage = (tasks: MonitoringTask[], slotName: str
 // 剪開後：
 // - 左半紙：正面Day1-P1，背面Day1-P2 ✓
 // - 右半紙：正面Day2-P1，背面Day2-P2 ✓
-const generatePairedHTML = (daysData: DayData[]): string => {
+const generatePairedHTML = (daysData: DayData[], layout: WorksheetLayout = 'half'): string => {
+  let a4PagesHTML = '';
+  if (layout === 'full') {
+    // 全頁模式：每天佔一整張 A4 直立；內容仍是 A5 半頁版面（分頁/時段/複檢邏輯與對半模式完全一致），
+    // 輸出時以 CSS zoom=√2 等比放大（A5→A4 恰好 √2 倍），字格同步變大方便手寫
+    daysData.forEach((day) => {
+      const pages = splitDayIntoPages(day);
+      pages.forEach((page, pIdx) => {
+        a4PagesHTML += `
+    <div class="a4-page">
+      <div class="a5-zoomed">
+        ${generateA5PageContent(day, page, pIdx + 1, pages.length, true)}
+      </div>
+    </div>
+  `;
+      });
+    });
+  } else {
   // 將每天的內容分割成頁面（最多2頁）
   const day1Pages = splitDayIntoPages(daysData[0]);
   const day2Pages = splitDayIntoPages(daysData[1]);
   const day3Pages = splitDayIntoPages(daysData[2]);
   const day4Pages = splitDayIntoPages(daysData[3]);
   // 確保最多2頁
-  const d1p1 = day1Pages[0] || { slots: [] };
+  const d1p1 = day1Pages[0] || { slots: [], usedHeight: HEADER_HEIGHT };
   const d1p2 = day1Pages[1] || null;
-  const d2p1 = day2Pages[0] || { slots: [] };
+  const d2p1 = day2Pages[0] || { slots: [], usedHeight: HEADER_HEIGHT };
   const d2p2 = day2Pages[1] || null;
-  const d3p1 = day3Pages[0] || { slots: [] };
+  const d3p1 = day3Pages[0] || { slots: [], usedHeight: HEADER_HEIGHT };
   const d3p2 = day3Pages[1] || null;
-  const d4p1 = day4Pages[0] || { slots: [] };
+  const d4p1 = day4Pages[0] || { slots: [], usedHeight: HEADER_HEIGHT };
   const d4p2 = day4Pages[1] || null;
   // 判斷是否需要第2張A4
   const pair1NeedsPage2 = d1p2 !== null || d2p2 !== null;
   const pair2NeedsPage2 = d3p2 !== null || d4p2 !== null;
-  let a4PagesHTML = '';
   // === 第一組：Day1 + Day2 ===
   // 第1張A4（正面）：左=Day1-P1，右=Day2-P1
   a4PagesHTML += `
@@ -430,10 +514,10 @@ const generatePairedHTML = (daysData: DayData[]): string => {
   `;
   // 第2張A4（背面）：左=Day2-P2，右=Day1-P2（交換位置！）
   if (pair1NeedsPage2) {
-    const leftContent = d2p2 
+    const leftContent = d2p2
       ? generateA5PageContent(daysData[1], d2p2, 2, day2Pages.length, true)
       : '<div class="empty-page"></div>';
-    const rightContent = d1p2 
+    const rightContent = d1p2
       ? generateA5PageContent(daysData[0], d1p2, 2, day1Pages.length, false)
       : '<div class="empty-page"></div>';
     a4PagesHTML += `
@@ -457,10 +541,10 @@ const generatePairedHTML = (daysData: DayData[]): string => {
   `;
   // 第2張A4（背面）：左=Day4-P2，右=Day3-P2（交換位置！）
   if (pair2NeedsPage2) {
-    const leftContent = d4p2 
+    const leftContent = d4p2
       ? generateA5PageContent(daysData[3], d4p2, 2, day4Pages.length, true)
       : '<div class="empty-page"></div>';
-    const rightContent = d3p2 
+    const rightContent = d3p2
       ? generateA5PageContent(daysData[2], d3p2, 2, day3Pages.length, false)
       : '<div class="empty-page"></div>';
     a4PagesHTML += `
@@ -469,6 +553,7 @@ const generatePairedHTML = (daysData: DayData[]): string => {
         <div class="a5-right">${rightContent}</div>
       </div>
     `;
+  }
   }
   return `
     <!DOCTYPE html>
@@ -479,7 +564,7 @@ const generatePairedHTML = (daysData: DayData[]): string => {
       <title>監測任務工作紙</title>
       <style>
         @page {
-          size: A4 landscape;
+          size: ${layout === 'full' ? 'A4 portrait' : 'A4 landscape'};
           margin: 4mm;
         }
         * {
@@ -492,12 +577,12 @@ const generatePairedHTML = (daysData: DayData[]): string => {
           font-size: 8pt;
           line-height: 1.15;
         }
-        /* A4橫向頁面容器 */
+        /* 頁面容器：對半=A4橫向(289×202mm)、全頁=A4直立(202×289mm) */
         .a4-page {
           display: flex;
           flex-direction: row;
-          width: 289mm;
-          height: 202mm;
+          width: ${layout === 'full' ? '202mm' : '289mm'};
+          height: ${layout === 'full' ? '289mm' : '202mm'};
           page-break-after: always;
           overflow: hidden;
         }
@@ -517,6 +602,15 @@ const generatePairedHTML = (daysData: DayData[]): string => {
         .a5-right {
           width: 50%;
           height: 100%;
+          padding: 2mm;
+          overflow: hidden;
+          position: relative;
+        }
+        /* 全頁模式：A5 半頁版面等比放大 √2 倍（A5→A4），內容幾何與對半模式完全一致 */
+        .a5-zoomed {
+          zoom: 1.414;
+          width: 142.5mm;   /* 放大後 ≈201.5mm，剛好放入 A4 直立內容闊 202mm */
+          height: 202mm;    /* 與對半模式半頁同高；放大後 ≈285.6mm ≤ 289mm */
           padding: 2mm;
           overflow: hidden;
           position: relative;

@@ -11,6 +11,7 @@ interface MonitoringTaskWorksheetModalProps {
 const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> = ({ onClose }) => {
   const { stations, patients } = usePatientData();
   const [selectedStationId, setSelectedStationId] = useState<string>('all');
+  const [layout, setLayout] = useState<'half' | 'full'>('half');
 
   const getHongKongDate = () => {
     const now = new Date();
@@ -71,12 +72,12 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
               .filter((p) => p.station_id === s.id && p.在住狀態 === '在住')
               .map((p) => p.院友id as number)
           );
-          await generateMonitoringTaskWorksheet(date, ids);
+          await generateMonitoringTaskWorksheet(date, ids, { layout });
           // 等待上一份打印視窗初始化後再生成下一份，避免打印對話框重疊
           await new Promise((r) => setTimeout(r, 1500));
         }
       } else {
-        await generateMonitoringTaskWorksheet(date, patientIdsForStation);
+        await generateMonitoringTaskWorksheet(date, patientIdsForStation, { layout });
       }
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -138,6 +139,20 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" onChange={(value) => setStartDate(value)} />
             
             <p className="mt-1 text-xs text-gray-500">預設為今天</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              版面
+            </label>
+            <select
+              value={layout}
+              onChange={(e) => setLayout(e.target.value as 'half' | 'full')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="half">對半（一張A4放兩天，現行）</option>
+              <option value="full">全頁（一張A4直立，一天一頁）</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">對半：左右各一天，中間裁開；全頁：每天一頁A4直立</p>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

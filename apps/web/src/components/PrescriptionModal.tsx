@@ -1098,7 +1098,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
               </div>
 
               <div>
-                <label className="form-label">服用時段（「或」=任一時段給服皆合處方要求；「及」=兩時段皆需給服）</label>
+                <label className="form-label">服用時段</label>
                 <div className="flex items-center gap-2">
                   <select
                     name="meal_timing"
@@ -1125,7 +1125,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                     onChange={handleChange}
                     className="form-input flex-1"
                   >
-                    <option value="">時段2（可留空）</option>
+                    <option value="">時段2</option>
                     {medSettings.服用時段.map(v => <option key={v} value={v}>{v}</option>)}
                   </select>
                 </div>
@@ -1247,14 +1247,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
             {/* 服用時間點 - 移到服用頻率區塊 */}
             <div className="mt-6 pt-4 border-t border-yellow-200">
               <label className="form-label">服用時間點</label>
-              
-              <div className="mb-3 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
-                <div className="text-sm text-yellow-800 space-y-1">
-                  <p><strong>非PRN藥物：</strong>服用時間點數量必須與每日服用次數相同</p>
-                  <p><strong>PRN藥物：</strong>可設定多個時間點，護士可在需要時選擇給予</p>
-                </div>
-              </div>
-              
+                       
               {/* 自動分配時間按鈕 */}
               <div className="mb-3">
                 <button

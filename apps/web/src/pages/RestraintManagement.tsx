@@ -19,7 +19,8 @@ import {
   ChevronDown,
   X,
   Copy,
-  Ban
+  Ban,
+  Table2
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type PatientRestraintAssessment } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -34,6 +35,8 @@ import { exportRestraintObservationsToExcel } from '../utils/restraintObservatio
 import { exportRestraintObservationsRangeHtml } from '../utils/restraintObservationHtmlExporter';
 import { printRestraintConsentForms } from '../utils/restraintConsentPrintGenerator';
 import { printRestraintUsageRecords } from '../utils/restraintUsageRecordPrintGenerator';
+import { printRestraintSummary } from '../utils/restraintSummaryPrintGenerator';
+import { getPrintBedNumber } from '../utils/bedTransferUtils';
 import * as db from '../lib/database';
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
@@ -580,6 +583,34 @@ const RestraintManagement: React.FC = () => {
     await printRestraintConsentForms(items);
   };
 
+  const handlePrintSummary = async () => {
+    if (selectedRows.size === 0) {
+      alert('請先勾選院友');
+      return;
+    }
+    const seenPatientIds = new Set<PatientRestraintAssessment['patient_id']>();
+    const items = allDisplayedAssessments
+      .filter(a => selectedRows.has(a.id))
+      .filter(a => {
+        if (seenPatientIds.has(a.patient_id)) return false;
+        seenPatientIds.add(a.patient_id);
+        return true;
+      })
+      .map(assessment => {
+        const patient = patients.find(p => p.院友id === assessment.patient_id);
+        return patient ? { assessment, patient } : null;
+      })
+      .filter((x): x is { assessment: PatientRestraintAssessment; patient: NonNullable<typeof x>['patient'] } => x !== null)
+      .sort((a, b) =>
+        getPrintBedNumber(a.patient).localeCompare(getPrintBedNumber(b.patient), 'zh-Hant', { numeric: true })
+      );
+    if (items.length === 0) {
+      alert('找不到對應院友資料');
+      return;
+    }
+    await printRestraintSummary(items);
+  };
+
   const getStatusBadge = (assessment: PatientRestraintAssessment) => {
     if (assessment.is_terminated) {
       return (
@@ -678,22 +709,43 @@ const RestraintManagement: React.FC = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+            <div className="relative group">
+              <button className="btn-secondary flex flex-wrap items-center gap-2">
+                <span>其他</span>
+              </button>
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <button
+                  onClick={handlePrintSummary}
+                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
+                >
+                  <Table2 className="h-4 w-4 text-blue-600" />
+                  <span>約束物品總表</span>
+                </button>
                 <button
                   onClick={handlePrintSelectedConsent}
-                  className="btn-secondary flex flex-wrap items-center gap-2"
+                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
                 >
-                  <FileText className="h-4 w-4" />
+                  <FileText className="h-4 w-4 text-blue-600" />
                   <span>列印同意書</span>
                 </button>
                 <button
                   onClick={handlePrintUsageRecord}
-                  className="btn-secondary flex flex-wrap items-center gap-2"
+                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
                 >
-                  <FileText className="h-4 w-4" />
+                  <FileText className="h-4 w-4 text-green-600" />
                   <span>列印使用紀錄</span>
                 </button>
+                <button
+                  onClick={() => setShowRecycleBin(true)}
+                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>回收筒</span>
+                </button>
               </div>
-            )}
+            </div>
             <button
               onClick={() => {
                 setSelectedAssessment(null);
@@ -703,14 +755,6 @@ const RestraintManagement: React.FC = () => {
             >
               <Plus className="h-4 w-4" />
               <span>新增約束物品評估</span>
-            </button>
-            <button
-              onClick={() => setShowRecycleBin(true)}
-              className="btn-secondary flex flex-wrap items-center gap-2"
-              title="回收筒"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span>回收筒</span>
             </button>
           </div>
         </div>
