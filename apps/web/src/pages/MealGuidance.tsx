@@ -19,7 +19,7 @@ import {
   Printer
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type MealGuidance, type MealCombinationType, type SpecialDietType } from '../context/PatientContext';
-import { useMeal } from '../context/records/MealContext';
+import { useMeal } from '../context/merged/RecordsContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import MealGuidanceModal from '../components/MealGuidanceModal';
 import PatientTooltip from '../components/PatientTooltip';
