@@ -44,16 +44,8 @@ export async function generateVaccineConsentPdf(patient: Patient): Promise<Uint8
   const form = pdfDoc.getForm();
 
   const values: Record<string, string> = {};
-  // 有啲院友紀錄只填咗「中文姓名」全名，冇拆姓氏/名字——兩邊都兜
-  let chSurname = (patient.中文姓氏 ?? '').trim();
-  let chGiven = (patient.中文名字 ?? '').trim();
-  if (!chSurname && !chGiven && patient.中文姓名) {
-    const full = patient.中文姓名.trim();
-    chSurname = full.slice(0, 1);
-    chGiven = full.slice(1);
-  }
-  values.p1_surname_ch = chSurname;
-  values.p1_firstname_ch = chGiven;
+  values.p1_surname_ch = patient.中文姓氏 ?? '';
+  values.p1_firstname_ch = patient.中文名字 ?? '';
   values.p1_surname_en = patient.英文姓氏 ?? '';
   values.p1_firstname_en = patient.英文名字 ?? '';
   const dob = patient.出生日期 ? parseDateParts(patient.出生日期) : null;
