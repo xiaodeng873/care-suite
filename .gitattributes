@@ -1,0 +1,7 @@
+# 二進制檔案唔可以俾 autocrlf 改動，否則會損壞（曾經整爛過 consent form PDF）
+*.pdf binary
+*.ttf binary
+*.png binary
+*.jpg binary
+*.woff binary
+*.woff2 binary
