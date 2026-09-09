@@ -889,6 +889,7 @@ const VaccinationRecords: React.FC = () => {
         <VaccinationRecordModal
           patientId={selectedPatientId}
           existingRecords={selectedPatientRecords}
+          suggestedVaccineNames={[messageSettings.vaccine_name, messageSettings.vaccine_name_2]}
           onClose={() => {
             setShowModal(false);
             setSelectedPatientId(undefined);
