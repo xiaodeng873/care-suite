@@ -6,6 +6,7 @@ import { UserQRCodeModal } from '../components/UserQRCodeModal';
 import FacilitySettingsPanel from '../components/FacilitySettingsPanel';
 import FacilityNatureSettings from '../components/FacilityNatureSettings';
 import MedicationSettingsPanel from '../components/MedicationSettingsPanel';
+import OcrPromptSettingsPanel from '../components/OcrPromptSettingsPanel';
 import { fuzzyMatch } from '../utils/searchUtils';
 import { uploadAvatar, getAvatarUrl, validateAvatarFile } from '../utils/avatarUpload';
 import { useAuth, supabase } from '../context/AuthContext';
@@ -1529,6 +1530,9 @@ const Settings: React.FC = () => {
           )}
 
           <div className="space-y-4">
+            {/* 智能識別 Prompt 設定 */}
+            <OcrPromptSettingsPanel />
+
             {/* 虛擬數據開關 */}
             <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-slate-700">
               <div className="flex-1">

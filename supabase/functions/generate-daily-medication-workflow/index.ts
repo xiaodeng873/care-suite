@@ -85,6 +85,44 @@ Deno.serve(async (req: Request) => {
     const [year, month, day] = targetDate.split('-').map(Number);
     const targetDateObj = new Date(year, month - 1, day);
 
+    // 一次性批量攞晒所有活躍處方嘅現有工作流程記錄（分 chunk 查，每 chunk 100 個處方、每頁 5000 行）
+    // 舊版逐個處方各查一次（N+1 查詢），處方一多就超時/資源爆
+    const normalizeTimeGlobal = (time: string | null | undefined): string => {
+      if (!time) return '00:00';
+      return time.substring(0, 5);
+    };
+
+    const prescriptionIds = (prescriptions || []).map((p: any) => p.id);
+    const existingByPrescription = new Map<string, { id: string; scheduled_date: string; scheduled_time: string }[]>();
+    if (prescriptionIds.length > 0) {
+      const ID_CHUNK = 100;
+      for (let i = 0; i < prescriptionIds.length; i += ID_CHUNK) {
+        const chunk = prescriptionIds.slice(i, i + ID_CHUNK);
+        let from = 0;
+        for (;;) {
+          const { data, error: fetchAllError } = await supabase
+            .from('medication_workflow_records')
+            .select('id, prescription_id, scheduled_date, scheduled_time')
+            .in('prescription_id', chunk)
+            .range(from, from + 4999);
+          if (fetchAllError) {
+            console.error(`批量查詢工作流程記錄失敗: ${fetchAllError.message}`);
+            break;
+          }
+          for (const r of data || []) {
+            const list = existingByPrescription.get(r.prescription_id) || [];
+            list.push(r);
+            existingByPrescription.set(r.prescription_id, list);
+          }
+          if (!data || data.length < 5000) break;
+          from += 5000;
+        }
+      }
+    }
+
+    // 需要刪除嘅記錄 id（離開處方有效範圍／過期處方），最後一次過分批刪
+    const recordsToDelete: string[] = [];
+
 
     for (const prescription of prescriptions || []) {
 
@@ -110,19 +148,14 @@ Deno.serve(async (req: Request) => {
       // 處方結束日期包含整天（直到23:59:59），只有在結束日期之後才算過期
       if (endDateStr && targetDateStr > endDateStr) {
 
-        // 刪除該處方在結束日期之後的所有工作流程記錄
+        // 收集該處方在結束日期之後的所有工作流程記錄（最後統一批量刪）
         const nextDay = new Date(new Date(endDateStr).getTime() + 24 * 60 * 60 * 1000)
           .toISOString().split('T')[0];
 
-        const { error: deleteError } = await supabase
-          .from('medication_workflow_records')
-          .delete()
-          .eq('prescription_id', prescription.id)
-          .gte('scheduled_date', nextDay);
-
-        if (deleteError) {
-          console.error(`刪除過期工作流程記錄失敗: ${deleteError.message}`);
-        } else {
+        for (const record of existingByPrescription.get(prescription.id) || []) {
+          if (record.scheduled_date >= nextDay) {
+            recordsToDelete.push(record.id);
+          }
         }
 
         continue;
@@ -179,29 +212,15 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // 清理該處方所有超出時間範圍的工作流程記錄
+      // 清理該處方所有超出時間範圍的工作流程記錄（用上面批量攞嘅記錄，唔再逐個處方查）
 
-      // 標準化時間格式
-      const normalizeTime = (time: string | null | undefined): string => {
-        if (!time) return '00:00';
-        return time.substring(0, 5);
-      };
+      const startTime = normalizeTimeGlobal(prescription.start_time) || '00:00';
 
-      const startTime = normalizeTime(prescription.start_time) || '00:00';
-      const endTime = normalizeTime(prescription.end_time) || '23:59';
-
-      // 查詢該處方的所有工作流程記錄
-      const { data: existingRecords, error: fetchError } = await supabase
-        .from('medication_workflow_records')
-        .select('id, scheduled_date, scheduled_time')
-        .eq('prescription_id', prescription.id);
-
-      if (!fetchError && existingRecords) {
-        const recordsToDelete: string[] = [];
-
+      const existingRecords = existingByPrescription.get(prescription.id) || [];
+      {
         for (const record of existingRecords) {
           const recordDate = record.scheduled_date;
-          const recordTime = normalizeTime(record.scheduled_time);
+          const recordTime = normalizeTimeGlobal(record.scheduled_time);
 
           let shouldDelete = false;
 
@@ -219,7 +238,7 @@ Deno.serve(async (req: Request) => {
           }
           // 檢查結束日期當天的時間（結束時間若未設定則視為23:59）
           else if (endDateStr && recordDate === endDateStr) {
-            const effectiveEndTime = prescription.end_time ? normalizeTime(prescription.end_time) : '23:59';
+            const effectiveEndTime = prescription.end_time ? normalizeTimeGlobal(prescription.end_time) : '23:59';
             if (recordTime > effectiveEndTime) {
               shouldDelete = true;
             }
@@ -229,51 +248,59 @@ Deno.serve(async (req: Request) => {
             recordsToDelete.push(record.id);
           }
         }
-
-        if (recordsToDelete.length > 0) {
-          const { error: deleteError } = await supabase
-            .from('medication_workflow_records')
-            .delete()
-            .in('id', recordsToDelete);
-
-          if (deleteError) {
-            console.error(`刪除超出範圍記錄失敗: ${deleteError.message}`);
-          } else {
-          }
-        } else {
-        }
       }
 
+    }
+
+    // 一次過分批刪除所有超出範圍嘅記錄（每批 500 個 id）
+    if (recordsToDelete.length > 0) {
+      const DELETE_CHUNK = 500;
+      for (let i = 0; i < recordsToDelete.length; i += DELETE_CHUNK) {
+        const chunk = recordsToDelete.slice(i, i + DELETE_CHUNK);
+        const { error: deleteError } = await supabase
+          .from('medication_workflow_records')
+          .delete()
+          .in('id', chunk);
+
+        if (deleteError) {
+          console.error(`批量刪除超出範圍記錄失敗: ${deleteError.message}`);
+        }
+      }
     }
 
 
     let actualInsertedCount = 0;
     if (workflowRecords.length > 0) {
-      const { data: insertedRecords, error: insertError } = await supabase
-        .from('medication_workflow_records')
-        .upsert(workflowRecords, {
-          onConflict: 'prescription_id,scheduled_date,scheduled_time',
-          ignoreDuplicates: true
-        })
-        .select();
+      // 分批 upsert（每批 500 行），一批失敗先逐筆補插嗰批
+      const UPSERT_CHUNK = 500;
+      for (let i = 0; i < workflowRecords.length; i += UPSERT_CHUNK) {
+        const batch = workflowRecords.slice(i, i + UPSERT_CHUNK);
+        const { data: insertedRecords, error: insertError } = await supabase
+          .from('medication_workflow_records')
+          .upsert(batch, {
+            onConflict: 'prescription_id,scheduled_date,scheduled_time',
+            ignoreDuplicates: true
+          })
+          .select();
 
-      if (insertError) {
-        console.error(`插入工作流程記錄時發生錯誤: ${insertError.message}`);
+        if (insertError) {
+          console.error(`插入工作流程記錄時發生錯誤: ${insertError.message}`);
 
-        for (const record of workflowRecords) {
-          const { error: singleInsertError } = await supabase
-            .from('medication_workflow_records')
-            .insert(record);
+          for (const record of batch) {
+            const { error: singleInsertError } = await supabase
+              .from('medication_workflow_records')
+              .insert(record);
 
-          if (!singleInsertError) {
-            actualInsertedCount++;
-          } else if (singleInsertError.code === '23505') {
-          } else {
-            console.error(`  插入記錄失敗:`, singleInsertError);
+            if (!singleInsertError) {
+              actualInsertedCount++;
+            } else if (singleInsertError.code === '23505') {
+            } else {
+              console.error(`  插入記錄失敗:`, singleInsertError);
+            }
           }
+        } else {
+          actualInsertedCount += insertedRecords?.length || 0;
         }
-      } else {
-        actualInsertedCount = insertedRecords?.length || 0;
       }
     }
 

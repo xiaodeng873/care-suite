@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, ChevronDown, ChevronUp, Upload, X, Loader, CheckCircle, AlertTriangle, RefreshCw, Save, RotateCcw } from 'lucide-react';
+import { Camera, ChevronDown, ChevronUp, Upload, X, Loader, CheckCircle, AlertTriangle } from 'lucide-react';
 import { processImageWithGeminiVision, validateImageFile } from '../utils/ocrProcessor';
-import { getPromptTemplates, getUserActivePrompt, saveUserPrompt, getDefaultPrompt, PromptTemplate } from '../utils/promptManager';
+import { getUserActivePrompt, getDefaultPrompt } from '../utils/promptManager';
 import ImageSourcePicker from './ImageSourcePicker';
 
 interface OCRPrescriptionBlockProps {
@@ -13,9 +13,8 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  // Prompt 只讀取使用；編輯已搬到「系統設定 → 輔助工具」
   const [prompt, setPrompt] = useState<string>('');
-  const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState<string>('');
   const [ocrResult, setOcrResult] = useState<any>(null);
@@ -26,46 +25,12 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
   }, []);
 
   const loadPromptData = async () => {
-    const templates = await getPromptTemplates();
-    setPromptTemplates(templates);
-
-    if (templates.length > 0) {
-      const defaultTemplate = templates.find(t => t.is_default) || templates[0];
-      setSelectedTemplateId(defaultTemplate.id);
-    }
-
     const userPrompt = await getUserActivePrompt();
     if (userPrompt) {
       setPrompt(userPrompt);
     } else {
       const defaultPrompt = await getDefaultPrompt();
       setPrompt(defaultPrompt);
-    }
-  };
-
-  const handleTemplateChange = (templateId: string) => {
-    setSelectedTemplateId(templateId);
-    const template = promptTemplates.find(t => t.id === templateId);
-    if (template) {
-      setPrompt(template.prompt_content);
-    }
-  };
-
-  const handleSavePrompt = async () => {
-    const success = await saveUserPrompt(prompt);
-    if (success) {
-      alert('Prompt已儲存為您的預設設定');
-    } else {
-      alert('儲存Prompt失敗，請重試');
-    }
-  };
-
-  const handleRestoreDefault = async () => {
-    const defaultPrompt = await getDefaultPrompt();
-    setPrompt(defaultPrompt);
-    const defaultTemplate = promptTemplates.find(t => t.is_default);
-    if (defaultTemplate) {
-      setSelectedTemplateId(defaultTemplate.id);
     }
   };
 
@@ -195,7 +160,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
 
       {isExpanded && (
         <div className="p-4 pt-0 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-4">
               <div>
                 <label className="form-label">
@@ -314,67 +279,6 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
                 </div>
               )}
             </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="form-label">Prompt模板</label>
-                <select
-                  value={selectedTemplateId}
-                  onChange={(e) => handleTemplateChange(e.target.value)}
-                  className="form-input"
-                  disabled={isProcessing}
-                >
-                  <option value="">選擇模板...</option>
-                  {promptTemplates.map(template => (
-                    <option key={template.id} value={template.id}>
-                      {template.name} {template.is_default ? '(預設)' : ''}
-                    </option>
-                  ))}
-                </select>
-                {promptTemplates.find(t => t.id === selectedTemplateId)?.description && (
-                  <p className="text-xs text-gray-600 mt-1">
-                    {promptTemplates.find(t => t.id === selectedTemplateId)?.description}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="form-label">AI識別指令 (Prompt)</label>
-                <textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  className="form-input font-mono text-sm"
-                  rows={8}
-                  placeholder="輸入AI識別指令..."
-                  disabled={isProcessing}
-                />
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-2">
-                  <p className="text-xs text-gray-500">
-                    自訂prompt可提高識別準確度
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleRestoreDefault}
-                      className="text-xs text-gray-600 hover:text-gray-800 flex items-center space-x-1"
-                      disabled={isProcessing}
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                      <span>恢復預設</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSavePrompt}
-                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center space-x-1"
-                      disabled={isProcessing}
-                    >
-                      <Save className="h-3 w-3" />
-                      <span>儲存為預設</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -386,7 +290,7 @@ const OCRPrescriptionBlock: React.FC<OCRPrescriptionBlockProps> = ({ onOCRComple
                   <li>請確保圖片清晰，文字可辨識</li>
                   <li>識別後的資料會自動填入對應欄位，請務必檢查並修正錯誤</li>
                   <li>低信心度的欄位會有特別標示，請特別注意</li>
-                  <li>可以修改Prompt來改善識別效果</li>
+                  <li>智能識別指令可到「系統設定 → 輔助工具」修改</li>
                 </ul>
               </div>
             </div>

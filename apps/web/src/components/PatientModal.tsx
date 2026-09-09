@@ -21,11 +21,21 @@ interface PatientModalProps {
     中文姓名?: string;
     英文姓名?: string;
     身份證號碼?: string;
+    身份證簽發日期?: string;
     出生日期?: string;
     性別?: string;
   };
   /** AI 助護帶入的身份證圖（base64 data URL），新增提交時一併寫入「身份證相片」欄 */
   idCardImage?: string;
+}
+
+/** 解析 OCR 日期：支援 YYYY-MM-DD、DD/MM/YYYY、DD-MM-YYYY（後兩者視為日-月-年），輸出 YYYY-MM-DD */
+function parseOcrDate(raw: string): string | null {
+  const iso = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(raw);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
+  const dmy = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/.exec(raw);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  return null;
 }
 
 const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefill, idCardImage }) => {
@@ -185,6 +195,15 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     // 處理出生日期
     if (extractedData.出生日期) {
       updates.出生日期 = String(extractedData.出生日期).trim();
+    }
+
+    // 處理身份證簽發日期（OCR 可能輸出 YYYY-MM-DD 或身份證印嘅 DD-MM-YYYY）
+    const issueRaw = extractedData.身份證簽發日期 || extractedData.簽發日期;
+    if (issueRaw) {
+      const parsedIssue = parseOcrDate(String(issueRaw).trim());
+      if (parsedIssue) {
+        updates.身份證簽發日期 = parsedIssue;
+      }
     }
 
     // 處理性別

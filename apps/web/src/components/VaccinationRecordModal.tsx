@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { X, Syringe, Calendar, Plus, Trash2, Search, Users, User } from 'lucide-react';
+import { X, Syringe, Calendar, Plus, Trash2, Search, Users } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type VaccinationRecord } from '../context/PatientContext';
-import PatientAutocomplete from './PatientAutocomplete';
+import { useStation } from '../context/facility';
 import BedNumberImprint from './BedNumberImprint';
 import OCRDocumentBlock from './OCRDocumentBlock';
 import { formatDisplayDate } from '../utils/dateFormat';
@@ -23,8 +23,6 @@ interface VaccinationItem {
   vaccine_item: string;
 }
 
-type TabMode = 'single' | 'batch';
-
 const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
   patientId,
   existingRecords = [],
@@ -34,6 +32,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
 }) => {
   const { vaccinationRecords, addVaccinationRecord } = usePatientData();
   const patients = useFilteredPatients();
+  const { stations } = useStation();
 
   const getHongKongDate = () => {
     const now = new Date();
@@ -43,7 +42,6 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
 
   const initialPatientId: number | undefined = prefilledData?.patient_id || patientId;
 
-  const [activeTab, setActiveTab] = useState<TabMode>(initialPatientId ? 'single' : 'batch');
   const [vaccinationItems, setVaccinationItems] = useState<VaccinationItem[]>([
     {
       id: Date.now().toString(),
@@ -51,12 +49,11 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
       vaccine_item: prefilledData?.vaccine_item || ''
     }
   ]);
-  // 單項 tab：一個院友；批量 tab：多位院友
-  const [selectedPatientId, setSelectedPatientId] = useState<number | undefined>(initialPatientId);
   const [selectedPatientIds, setSelectedPatientIds] = useState<Set<number>>(
     new Set(initialPatientId ? [initialPatientId] : [])
   );
   const [patientSearch, setPatientSearch] = useState('');
+  const [stationFilter, setStationFilter] = useState('');
   const [residencyFilter, setResidencyFilter] = useState('在住');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,26 +66,26 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
     return [...new Set(all)].sort((a, b) => a.localeCompare(b, 'zh-Hant'));
   }, [vaccinationRecords, suggestedVaccineNames]);
 
-  // 批量 tab 院友清單：按搜索 + 在住狀態篩選，按床號排序
+  // 院友清單：按搜索 + 居住區 + 在住狀態篩選，按床號排序
   const filteredPatients = useMemo(() => {
     const term = patientSearch.trim();
     return patients
       .filter(p => {
+        const matchesStation = !stationFilter || p.station_id === stationFilter;
         const matchesResidency = !residencyFilter || p.在住狀態 === residencyFilter;
         const matchesSearch = !term ||
           matchChineseName(p.中文姓氏, p.中文名字, p.中文姓名, term) ||
           matchEnglishName(p.英文姓氏, p.英文名字, p.英文姓名, term) ||
           matchPatientBedNumber(p, term);
-        return matchesResidency && matchesSearch;
+        return matchesStation && matchesResidency && matchesSearch;
       })
       .sort((a, b) => compareBedNumbers(a.床號 || '', b.床號 || ''));
-  }, [patients, patientSearch, residencyFilter]);
+  }, [patients, patientSearch, stationFilter, residencyFilter]);
 
   const handleOCRComplete = (extractedData: any) => {
     setOcrError('');
 
     if (extractedData.patient_id) {
-      setSelectedPatientId(extractedData.patient_id);
       setSelectedPatientIds(new Set([extractedData.patient_id]));
     }
 
@@ -169,17 +166,12 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
     setSelectedPatientIds(new Set());
   };
 
-  const selectedCount = activeTab === 'single' ? (selectedPatientId ? 1 : 0) : selectedPatientIds.size;
-  const totalRecords = vaccinationItems.length * selectedCount;
+  const totalRecords = vaccinationItems.length * selectedPatientIds.size;
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (activeTab === 'single') {
-      if (!selectedPatientId) {
-        newErrors.patient_id = '請選擇院友';
-      }
-    } else if (selectedPatientIds.size === 0) {
+    if (selectedPatientIds.size === 0) {
       newErrors.patients = '請勾選至少一位院友';
     }
 
@@ -206,12 +198,8 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      const targetPatientIds = activeTab === 'single'
-        ? [selectedPatientId!]
-        : Array.from(selectedPatientIds);
-
       let created = 0;
-      for (const pid of targetPatientIds) {
+      for (const pid of selectedPatientIds) {
         for (const item of vaccinationItems) {
           await addVaccinationRecord({
             patient_id: pid,
@@ -234,8 +222,6 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
     }
   };
 
-  const singlePatient = patients.find(p => p.院友id === selectedPatientId);
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -245,16 +231,9 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
               <Syringe className="h-6 w-6 text-green-600" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">新增疫苗記錄</h2>
+              <h2 className="text-xl font-semibold text-gray-900">批量新增疫苗記錄</h2>
               <p className="text-sm text-gray-500">
-                {activeTab === 'single' && singlePatient ? (
-                  <>
-                    {singlePatient.中文姓名} - 床號: <BedNumberImprint patient={singlePatient} size="sm" />
-                    {' '}× {vaccinationItems.length} 個疫苗項目
-                  </>
-                ) : (
-                  <>已勾選 {activeTab === 'single' ? 0 : selectedPatientIds.size} 位院友 × {vaccinationItems.length} 個疫苗項目</>
-                )}
+                已勾選 {selectedPatientIds.size} 位院友 × {vaccinationItems.length} 個疫苗項目
               </p>
             </div>
           </div>
@@ -279,122 +258,82 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
             </div>
           )}
 
-          <div className="border-b border-gray-200">
-            <div className="flex gap-1">
-              <button
-                type="button"
-                onClick={() => setActiveTab('single')}
-                className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 flex items-center gap-2 ${
-                  activeTab === 'single'
-                    ? 'border-green-600 text-green-700 bg-green-50'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <User className="h-4 w-4" />
-                <span>單項</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('batch')}
-                className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 flex items-center gap-2 ${
-                  activeTab === 'batch'
-                    ? 'border-green-600 text-green-700 bg-green-50'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Users className="h-4 w-4" />
-                <span>批量</span>
-              </button>
-            </div>
-          </div>
-
-          {activeTab === 'single' ? (
-            <div>
-              <label className="form-label flex flex-wrap items-center gap-2">
-                <span className="text-red-500">*</span>
-                <span>院友</span>
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <label className="form-label mb-0 flex items-center gap-2">
+                <Users className="h-4 w-4 text-gray-400" />
+                <span className="text-red-500">*</span> 選擇院友
               </label>
-              <PatientAutocomplete
-                value={selectedPatientId?.toString() || ''}
-                onChange={(patientIdStr) => {
-                  setSelectedPatientId(parseInt(patientIdStr));
-                  setErrors(prev => ({ ...prev, patient_id: '' }));
-                }}
-                placeholder="搜索院友姓名或床號..."
-                showResidencyFilter={true}
-                defaultResidencyStatus="在住"
-              />
-              {errors.patient_id && (
-                <p className="mt-1 text-sm text-red-600">{errors.patient_id}</p>
+              <span className="text-sm text-green-600 font-medium">已勾選 {selectedPatientIds.size} 人</span>
+            </div>
+
+            <div className="flex flex-col lg:flex-row gap-2 lg:items-center">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="搜索院友姓名或床號..."
+                  value={patientSearch}
+                  onChange={(e) => setPatientSearch(e.target.value)}
+                  className="form-input pl-10"
+                />
+              </div>
+              <select
+                value={stationFilter}
+                onChange={(e) => setStationFilter(e.target.value)}
+                className="form-input w-auto"
+              >
+                <option value="">全部居住區</option>
+                {stations.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <select
+                value={residencyFilter}
+                onChange={(e) => setResidencyFilter(e.target.value)}
+                className="form-input w-auto"
+              >
+                <option value="在住">在住</option>
+                <option value="待入住">待入住</option>
+                <option value="已退住">已退住</option>
+                <option value="">全部</option>
+              </select>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={selectAllFiltered} className="btn-secondary text-sm">全選</button>
+                <button type="button" onClick={invertFiltered} className="btn-secondary text-sm">反選</button>
+                <button type="button" onClick={clearSelection} className="btn-secondary text-sm text-red-600">清除</button>
+              </div>
+            </div>
+
+            <div className="border border-gray-200 rounded-lg max-h-56 overflow-y-auto p-2">
+              {filteredPatients.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
+                  {filteredPatients.map(p => (
+                    <label
+                      key={p.院友id}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50 ${
+                        selectedPatientIds.has(p.院友id) ? 'bg-green-50' : ''
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedPatientIds.has(p.院友id)}
+                        onChange={() => togglePatient(p.院友id)}
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      />
+                      <BedNumberImprint patient={p} size="sm" />
+                      <span className="text-sm text-gray-900">{p.中文姓名}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-4">冇符合條件嘅院友</p>
               )}
             </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <label className="form-label mb-0 flex items-center gap-2">
-                  <span className="text-red-500">*</span> 選擇院友
-                </label>
-                <span className="text-sm text-green-600 font-medium">已勾選 {selectedPatientIds.size} 人</span>
-              </div>
-
-              <div className="flex flex-col lg:flex-row gap-2 lg:items-center">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="搜索院友姓名或床號..."
-                    value={patientSearch}
-                    onChange={(e) => setPatientSearch(e.target.value)}
-                    className="form-input pl-10"
-                  />
-                </div>
-                <select
-                  value={residencyFilter}
-                  onChange={(e) => setResidencyFilter(e.target.value)}
-                  className="form-input w-auto"
-                >
-                  <option value="在住">在住</option>
-                  <option value="待入住">待入住</option>
-                  <option value="已退住">已退住</option>
-                  <option value="">全部</option>
-                </select>
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={selectAllFiltered} className="btn-secondary text-sm">全選</button>
-                  <button type="button" onClick={invertFiltered} className="btn-secondary text-sm">反選</button>
-                  <button type="button" onClick={clearSelection} className="btn-secondary text-sm text-red-600">清除</button>
-                </div>
-              </div>
-
-              <div className="border border-gray-200 rounded-lg max-h-56 overflow-y-auto p-2">
-                {filteredPatients.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
-                    {filteredPatients.map(p => (
-                      <label
-                        key={p.院友id}
-                        className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50 ${
-                          selectedPatientIds.has(p.院友id) ? 'bg-green-50' : ''
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedPatientIds.has(p.院友id)}
-                          onChange={() => togglePatient(p.院友id)}
-                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                        />
-                        <BedNumberImprint patient={p} size="sm" />
-                        <span className="text-sm text-gray-900">{p.中文姓名}</span>
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400 text-center py-4">冇符合條件嘅院友</p>
-                )}
-              </div>
-              {errors.patients && (
-                <p className="text-sm text-red-600">{errors.patients}</p>
-              )}
-            </div>
-          )}
+            {errors.patients && (
+              <p className="text-sm text-red-600">{errors.patients}</p>
+            )}
+          </div>
 
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -478,7 +417,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
             </datalist>
           </div>
 
-          {activeTab === 'single' && existingRecords.length > 0 && (
+          {existingRecords.length > 0 && (
             <div className="bg-gray-50 rounded-lg p-4">
               <h3 className="text-sm font-medium text-gray-900 mb-3">現有疫苗記錄</h3>
               <div className="space-y-2">
@@ -496,12 +435,12 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
 
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <p className="text-sm font-medium text-green-800">
-              預覽：{vaccinationItems.length} 個疫苗項目 × {selectedCount} 位院友 = 將新增 {totalRecords} 筆記錄
+              預覽：{vaccinationItems.length} 個疫苗項目 × {selectedPatientIds.size} 位院友 = 將新增 {totalRecords} 筆記錄
             </p>
             <ul className="mt-2 space-y-1">
               {vaccinationItems.map(item => (
                 <li key={item.id} className="text-sm text-green-700">
-                  ・{item.vaccine_item.trim() || '（未填名稱）'} @ {item.vaccination_date ? formatDisplayDate(item.vaccination_date) : '（未填日期）'} × {selectedCount} 人
+                  ・{item.vaccine_item.trim() || '（未填名稱）'} @ {item.vaccination_date ? formatDisplayDate(item.vaccination_date) : '（未填日期）'} × {selectedPatientIds.size} 人
                 </li>
               ))}
             </ul>
@@ -521,7 +460,7 @@ const VaccinationRecordModal: React.FC<VaccinationRecordModalProps> = ({
               className="btn-primary"
               disabled={isSubmitting}
             >
-              {isSubmitting ? '儲存中...' : `新增 ${totalRecords} 筆記錄`}
+              {isSubmitting ? '儲存中...' : `一鍵新增 ${totalRecords} 筆記錄`}
             </button>
           </div>
         </form>

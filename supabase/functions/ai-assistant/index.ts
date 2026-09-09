@@ -479,6 +479,7 @@ ${VACCINATION_OCR_PROMPT_CORE}
 - 英文姓名（格式：SURNAME, Given names）
 - 身份證號碼（HKID，含校驗碼括號，例如 A123456(7)）
 - 出生日期（YYYY-MM-DD）
+- 身份證簽發日期（YYYY-MM-DD；身份證上印 DD-MM-YYYY，必須轉換為 YYYY-MM-DD）
 - 性別（男 或 女）
 
 #### 監測工作紙 (health_worksheet)：

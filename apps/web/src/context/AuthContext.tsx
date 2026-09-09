@@ -795,6 +795,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 開發者擁有所有權限（Supabase auth 或自訂認證 developer）
     if (user || userProfile?.role === 'developer') return true;
 
+    // 護士/保健員（註冊護士、登記護士、保健員）一律開通「藥物設定」「基本設定」分頁所有權限
+    if (category === 'settings' && (feature === 'medication_settings' || feature === 'general_settings')) {
+      const pos = userProfile?.nursing_position;
+      if (pos === '註冊護士' || pos === '登記護士' || pos === '保健員') return true;
+    }
+
     // 檢查權限列表
     return permissions.some(
       p => p.category === category && p.feature === feature && p.action === action
