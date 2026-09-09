@@ -12,7 +12,8 @@ import {
   Calendar,
   ChevronUp,
   ChevronDown,
-  X
+  X,
+  MessageSquare
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type VaccinationRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -28,6 +29,15 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compar
 import { formatDisplayDate } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
 import { getAllPatientContacts, type PatientContact } from '../lib/database';
+import { useAuth } from '../context/AuthContext';
+import { getFacilitySettings } from '../utils/facilitySettings';
+import {
+  loadVaccinationMessageSettings,
+  buildVaccinationMessage,
+  DEFAULT_VACCINATION_MESSAGE_SETTINGS,
+  type VaccinationMessageSettings,
+} from '../utils/vaccinationMessageSettings';
+import VaccinationMessageSettingsModal from '../components/VaccinationMessageSettingsModal';
 
 
 type SortField = '院友姓名' | 'vaccination_date' | 'created_at';
@@ -43,11 +53,12 @@ interface AdvancedFilters {
 }
 
 // 電話號碼轉 WhatsApp 連結；8 位數字視為香港號碼，補 852 區號
-const toWhatsAppUrl = (phone: string): string | null => {
+const toWhatsAppUrl = (phone: string, message?: string): string | null => {
   const digits = phone.replace(/\D/g, '');
   if (!digits) return null;
   const intl = digits.length === 8 ? `852${digits}` : digits;
-  return `https://wa.me/${intl}`;
+  const base = `https://wa.me/${intl}`;
+  return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 };
 
 const VaccinationRecords: React.FC = () => {
@@ -77,6 +88,37 @@ const VaccinationRecords: React.FC = () => {
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [contactsByPatient, setContactsByPatient] = useState<Record<number, PatientContact[]>>({});
+  const { userProfile } = useAuth();
+  const userId = userProfile?.id;
+  const [showMessageSettings, setShowMessageSettings] = useState(false);
+  const [messageSettings, setMessageSettings] = useState<VaccinationMessageSettings>(DEFAULT_VACCINATION_MESSAGE_SETTINGS);
+  const [facilityNameZh, setFacilityNameZh] = useState('');
+
+  // 意向查詢對話設定：由 user_profiles 讀取（DB null 時用預設值）；無 userId（developer）時讀 localStorage
+  React.useEffect(() => {
+    let cancelled = false;
+    loadVaccinationMessageSettings(userId)
+      .then(settings => {
+        if (!cancelled) setMessageSettings(settings);
+      })
+      .catch(err => console.error('載入對話設定失敗:', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  // 院舍中文名稱：預先載入一次，供 WhatsApp 訊息代入
+  React.useEffect(() => {
+    let cancelled = false;
+    getFacilitySettings()
+      .then(settings => {
+        if (!cancelled) setFacilityNameZh(settings.facilityNameZh);
+      })
+      .catch(err => console.error('載入院舍設定失敗:', err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   React.useEffect(() => {
     setCurrentPage(1);
@@ -389,14 +431,30 @@ const VaccinationRecords: React.FC = () => {
               <Plus className="h-4 w-4" />
               <span>新增疫苗記錄</span>
             </button>
-            <button
-              onClick={() => setShowRecycleBin(true)}
-              className="btn-secondary flex items-center gap-2"
-              title="回收筒"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span>回收筒</span>
-            </button>
+            <div className="relative group">
+              <button
+                className="btn-secondary flex items-center gap-2"
+                title="其他"
+              >
+                <span>其他</span>
+              </button>
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <button
+                  onClick={() => setShowMessageSettings(true)}
+                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
+                >
+                  <MessageSquare className="h-4 w-4 text-green-600" />
+                  <span>對話設定</span>
+                </button>
+                <button
+                  onClick={() => setShowRecycleBin(true)}
+                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>回收筒</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -593,6 +651,10 @@ const VaccinationRecords: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedPatientGroups.map(group => {
                   const patient = patients.find(p => p.院友id === group.patientId);
+                  const whatsappMessage = buildVaccinationMessage(messageSettings, {
+                    院友名稱: patient?.中文姓名 || '',
+                    院舍名稱: facilityNameZh,
+                  });
                   const hasAnyDeleting = group.records.some(r => deletingIds.has(r.id));
                   const allSelected = group.records.every(r => selectedRows.has(r.id));
                   const someSelected = group.records.some(r => selectedRows.has(r.id));
@@ -711,7 +773,7 @@ const VaccinationRecords: React.FC = () => {
                                   <>
                                     <span className="text-gray-400"> · </span>
                                     <a
-                                      href={toWhatsAppUrl(c.聯絡電話) || '#'}
+                                      href={toWhatsAppUrl(c.聯絡電話, whatsappMessage) || '#'}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="text-blue-600 hover:text-blue-800 hover:underline"
@@ -873,6 +935,20 @@ const VaccinationRecords: React.FC = () => {
           dateField="vaccination_date"
           onRestored={() => { refreshDiagnosisData(); }}
           onClose={() => setShowRecycleBin(false)}
+        />
+      )}
+
+      {showMessageSettings && (
+        <VaccinationMessageSettingsModal
+          userId={userId}
+          settings={messageSettings}
+          facilityNameZh={facilityNameZh}
+          onClose={() => {
+            setShowMessageSettings(false);
+            loadVaccinationMessageSettings(userId)
+              .then(setMessageSettings)
+              .catch(err => console.error('重新載入對話設定失敗:', err));
+          }}
         />
       )}
     </div>

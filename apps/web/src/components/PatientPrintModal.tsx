@@ -50,6 +50,7 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
 { id: 'accident_report', name: '意外事件報告', category: '常用表格', defaultChecked: false },
 { id: 'medication_proxy', name: '要求院舍派發成藥確認書', category: '常用表格', defaultChecked: false },
 { id: 'self_medication', name: '自行存放及使用藥物同意書', category: '常用表格', defaultChecked: false },
+{ id: 'vaccine_consent', name: '衛生署疫苗接種同意書', category: '常用表格', defaultChecked: false },
 // 床頭記錄
 { id: 'bedhead_patrol_rounds', name: '院友巡房記錄表', category: '床頭記錄', defaultChecked: true },
 { id: 'bedhead_diaper', name: '換片及大便記錄', category: '床頭記錄', defaultChecked: true },
