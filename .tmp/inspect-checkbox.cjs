@@ -1,0 +1,22 @@
+const { PDFDocument, PDFName } = require('pdf-lib');
+const zlib = require('node:zlib');
+const fs = require('node:fs');
+(async () => {
+  const doc = await PDFDocument.load(fs.readFileSync('apps/web/public/rvp202627_consent_form_acroform.pdf'));
+  const form = doc.getForm();
+  const cb = form.getCheckBox('p1_sex_m');
+  const w = cb.acroField.getWidgets()[0];
+  const annot = w.dict ?? w;
+  console.log('checkbox rect:', JSON.stringify(w.getRectangle()));
+  const ap = doc.context.lookup(annot.get(PDFName.of('AP')));
+  const nRef = ap.get(PDFName.of('N'));
+  const n = doc.context.lookup(nRef);
+  const dict = n.dict ?? n;
+  console.log('AP/N keys:', dict.keys().map(k => k.toString()));
+  const data = n.contents;
+  const f = dict.get(PDFName.of('Filter'));
+  let raw = f?.toString?.().includes('Flate') ? zlib.inflateSync(Buffer.from(data)).toString('latin1') : Buffer.from(data).toString('latin1');
+  console.log('checkbox AP (' + raw.length + 'b):', JSON.stringify(raw));
+  const res = doc.context.lookup(dict.get(PDFName.of('Resources')));
+  console.log('resources:', res?.toString());
+})();

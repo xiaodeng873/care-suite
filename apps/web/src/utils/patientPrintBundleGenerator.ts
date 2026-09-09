@@ -657,22 +657,14 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
   const skipped: string[] = [];
   const failed: string[] = [];
 
-  // 疫苗接種同意書係 PDF（非 HTML）：對每位院友填表後合併成單一多頁 PDF，
+  // 疫苗接種同意書係 PDF（非 HTML）：所有院友喺一個 PDFDocument 入面直接畫字，
   // 用隱藏 iframe 叫出列印對話框（同全站其他 print generator 一貫做法，唔開新分頁）
   let vaccineConsentPrinted = false;
   if (hasVaccineConsent) {
     try {
-      const { PDFDocument } = await import('pdf-lib');
-      const { generateVaccineConsentPdf } = await import('./vaccineConsentForm');
-      const merged = await PDFDocument.create();
-      for (const patient of patients) {
-        const bytes = await generateVaccineConsentPdf(patient);
-        const doc = await PDFDocument.load(bytes);
-        const copied = await merged.copyPages(doc, doc.getPageIndices());
-        copied.forEach(page => merged.addPage(page));
-      }
-      const bytes = new Uint8Array(await merged.save());
-      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      const { generateVaccineConsentPdfs } = await import('./vaccineConsentForm');
+      const bytes = await generateVaccineConsentPdfs(patients);
+      const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' }));
       const iframe = document.createElement('iframe');
       iframe.id = `vaccine-consent-print-iframe-${Date.now()}`;
       iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';

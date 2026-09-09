@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>consent smoke</title></head>
+<body>
+<script type="module">
+  import { generateVaccineConsentPdfs } from '/src/utils/vaccineConsentForm.ts';
+  const mk = (chSurname, chGiven, enSurname, enGiven, hkid) => ({
+    院友id: 0, 床號: 'TEST', 在住狀態: '在住',
+    中文姓名: chSurname + chGiven, 中文姓氏: chSurname, 中文名字: chGiven,
+    英文姓氏: enSurname, 英文名字: enGiven,
+    性別: '女', 出生日期: '1918-01-01',
+    身份證號碼: hkid, 身份證簽發日期: null,
+  });
+  try {
+    // 兩位院友：驗證多院友合併都唔會跌字體
+    const bytes = await generateVaccineConsentPdfs([
+      mk('張', '行濤', 'CHEUNG', 'Hang Tor', 'B645276(6)'),
+      mk('郭', '耀', 'KWOK', 'Yiu', 'B288175(1)'),
+    ]);
+    window.__result = { ok: true, bytes: Array.from(bytes), size: bytes.length };
+  } catch (e) {
+    window.__result = { ok: false, error: String(e && e.stack || e) };
+  }
+</script>
+</body>
+</html>
