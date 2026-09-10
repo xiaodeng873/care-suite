@@ -1,6 +1,5 @@
 import type {
   Patient,
-  VaccinationRecord,
   HealthAssessment,
   FollowUpAppointment,
   IncidentReport,
@@ -20,7 +19,6 @@ import { supabase } from '../lib/supabase';
 import { getFacilitySettings } from './facilitySettings';
 import { getPrintBedNumber } from './bedTransferUtils';
 import { PRINT_DOCUMENTS, type PrintDocumentOptions } from '../components/PatientPrintModal';
-import { exportVaccinationRecordsToExcel } from './vaccinationRecordExcelGenerator';
 import { exportStatisticsReportToExcel, type StatisticsReportDocumentId } from './statisticsReportsExcelGenerator';
 import type { PatientFeeRecord, FeeItem } from '../lib/database';
 
@@ -138,6 +136,28 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
         const mod = await import('./bloodPressureRecordWorksheetGenerator');
         return async (ctx) => {
           return mod.generateBloodPressureRecordHtml(ctx.startDate, ctx.endDate, [ctx.patient.院友id], worksheetOptions(ctx));
+        };
+      }
+      case 'vaccination_record': {
+        const mod = await import('./vaccinationRecordPrintGenerator');
+        return async (ctx) => {
+          const patient = ctxPatient(ctx);
+          let records: import('../lib/database').VaccinationRecord[] = [];
+          if (ctx.contentMode === 'data') {
+            const { data, error } = await supabase
+              .from('vaccination_records')
+              .select('*')
+              .eq('patient_id', ctx.patient.院友id)
+              .order('vaccination_date', { ascending: true });
+            if (error) throw error;
+            records = (data || []).filter(r => {
+              if (ctx.startDate && (r.vaccination_date || '') < ctx.startDate) return false;
+              if (ctx.endDate && (r.vaccination_date || '') > ctx.endDate) return false;
+              return true;
+            });
+            if (records.length === 0) return '';
+          }
+          return mod.generateVaccinationRecordHtml(patient, records, ctx.facilityName);
         };
       }
       case 'health_assessment': {
@@ -645,13 +665,12 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     'diaper_statistics_report',
   ]);
 
-  // Excel 匯出文件（疫苗接種記錄 + 統計報表）與 HTML 文件分開處理
-  const hasVaccinationRecord = sortedDocumentIds.includes('vaccination_record');
+  // Excel 匯出文件（統計報表）與 HTML 文件分開處理
   const hasVaccineConsent = sortedDocumentIds.includes('vaccine_consent');
   const hasFeeStatisticsReport = sortedDocumentIds.includes('fee_statistics_report');
   const hasMealGuidanceCard = sortedDocumentIds.includes('meal_guidance_card');
   const statisticsDocumentIds = sortedDocumentIds.filter(id => STATISTICS_REPORT_IDS.has(id)) as StatisticsReportDocumentId[];
-  const htmlDocumentIds = sortedDocumentIds.filter(id => id !== 'vaccination_record' && id !== 'vaccine_consent' && id !== 'fee_statistics_report' && !STATISTICS_REPORT_IDS.has(id) && id !== 'meal_guidance_card');
+  const htmlDocumentIds = sortedDocumentIds.filter(id => id !== 'vaccine_consent' && id !== 'fee_statistics_report' && !STATISTICS_REPORT_IDS.has(id) && id !== 'meal_guidance_card');
 
   const pages: string[] = [];
   const skipped: string[] = [];
@@ -817,36 +836,6 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
   }
 
   let excelGenerated = false;
-  if (hasVaccinationRecord) {
-    try {
-      const patientIds = patients.map(p => p.院友id);
-      const { data, error } = await supabase
-        .from('vaccination_records')
-        .select('*')
-        .in('patient_id', patientIds)
-        .order('vaccination_date', { ascending: false });
-      if (error) throw error;
-      const records = (data || []) as VaccinationRecord[];
-      const effectiveStartDate = startDate || '';
-      const effectiveEndDate = endDate || '';
-      if (records.length > 0) {
-        await exportVaccinationRecordsToExcel({
-          patients,
-          records,
-          startDate: effectiveStartDate,
-          endDate: effectiveEndDate,
-          separateSheetsPerPatient: printOptions?.separateSheetsPerPatient ?? false,
-        });
-        excelGenerated = true;
-      } else {
-        skipped.push('疫苗接種記錄（日期範圍內沒有記錄）');
-      }
-    } catch (error: any) {
-      console.error('產生疫苗接種記錄 Excel 失敗:', error);
-      failed.push('疫苗接種記錄');
-    }
-  }
-
   if (statisticsDocumentIds.length > 0) {
     try {
       const patientIds = patients.map(p => p.院友id);

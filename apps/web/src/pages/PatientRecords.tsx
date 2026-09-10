@@ -10,6 +10,7 @@ import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { PatientQRCodeModal } from '../components/PatientQRCodeModal';
 import PatientPrintModal from '../components/PatientPrintModal';
+import RecordRecycleBinModal from '../components/RecordRecycleBinModal';
 import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { deletePatientSchedulesAfterDate } from '../lib/database';
@@ -39,8 +40,9 @@ interface AdvancedFilters {
 }
 
 const PatientRecords: React.FC = () => {
-  const { loading, deletePatient, updatePatient, hospitalEpisodes, updateHospitalEpisode } = usePatientData();
+  const { loading, deletePatient, updatePatient, hospitalEpisodes, updateHospitalEpisode, refreshData } = usePatientData();
   const patients = useFilteredPatients();
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [showAdmissionModal, setShowAdmissionModal] = useState(false);
@@ -626,6 +628,14 @@ const PatientRecords: React.FC = () => {
             >
               <Printer className="h-4 w-4" />
               <span>列印</span>
+            </button>
+            <button
+              onClick={() => setShowRecycleBin(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2"
+              title="回收筒"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>回收筒</span>
             </button>
             <button
               onClick={() => {
@@ -1218,6 +1228,24 @@ const PatientRecords: React.FC = () => {
               alert('列印失敗，請稍後再試');
             }
           }}
+        />
+      )}
+      {/* 院友回收筒：已刪除院友可喺度還原 */}
+      {showRecycleBin && (
+        <RecordRecycleBinModal
+          tables={['院友主表']}
+          title="院友回收筒"
+          patientIdFields={['院友id']}
+          summaryFields={[
+            { key: '床號', label: '床號' },
+            { key: '身份證號碼', label: '身份證號碼' },
+            { key: '性別', label: '性別' },
+            { key: '在住狀態', label: '在住狀態' },
+            { key: '入住日期', label: '入住日期' },
+          ]}
+          dateField="入住日期"
+          onRestored={() => refreshData()}
+          onClose={() => setShowRecycleBin(false)}
         />
       )}
     </div>

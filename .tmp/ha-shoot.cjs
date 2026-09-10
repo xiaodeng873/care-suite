@@ -5,9 +5,9 @@ const { chromium } = require('playwright-core');
     headless: true,
   });
   const page = await browser.newPage({ viewport: { width: 900, height: 1200 } });
-  await page.goto('file:///C:/Users/Admin/Desktop/care-suite/.tmp/ha-test.pdf');
+  await page.goto('file:///C:/Users/Admin/Desktop/care-suite/.tmp/vacc-test.pdf');
   await page.waitForTimeout(2500);
-  await page.screenshot({ path: '.tmp/ha-pdf-view.png', fullPage: true });
+  await page.screenshot({ path: '.tmp/vacc-pdf-view.png', fullPage: true });
   await browser.close();
   console.log('done');
 })().catch(e => { console.error(e.message); process.exit(1); });

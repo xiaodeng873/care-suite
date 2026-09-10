@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <title>疫苗接種記錄 - 陳大文</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 10mm 0.25in 12mm 0.25in;
+      @bottom-center { content: "第 " counter(page) " 頁"; font-family: "DFKai-SB", "BiauKai", "標楷體", serif; font-size: 12px; }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+      background-color: #fff;
+      width: 100%;
+      color: #000;
+      font-size: 13px;
+    }
+    .sheet {
+      display: flex;
+      flex-direction: column;
+      min-height: 271mm; /* 297 - 10 - 12 - 4(頁尾空位) */
+    }
+    .title-section { text-align: center; margin-bottom: 10px; }
+    .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+    .title-section h2 { margin: 4px 0 0 0; font-size: 22px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
+    .info-row { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 8px; }
+    .db-line-input { border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 13px; text-align: center; }
+    .vacc-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 6mm; }
+    .vacc-section h3 { font-size: 16px; font-weight: bold; margin-bottom: 2mm; }
+    .vacc-section table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .vacc-section th, .vacc-section td { border: 1px solid black; text-align: center; vertical-align: middle; height: 26px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="title-section">
+      <h1>善頤(福群)護老院</h1>
+      <h2>疫苗接種記錄</h2>
+    </div>
+    <div class="info-row">
+      <span>院友姓名：<input type="text" class="db-line-input" style="width: 70px;" value="陳大文" readonly></span>
+      <span>床號：<input type="text" class="db-line-input" style="width: 55px;" value="A101" readonly></span>
+      <span>性別：<input type="text" class="db-line-input" style="width: 35px;" value="男" readonly></span>
+      <span>年齡：<input type="text" class="db-line-input" style="width: 40px;" value="76" readonly></span>
+    </div>
+    
+    <div class="vacc-section">
+      <h3>一、流感疫苗</h3>
+      
+      <table>
+        <colgroup><col style="width: 38mm;"><col></colgroup>
+        <thead>
+          <tr><th>接種日期</th><th>疫苗名稱</th></tr>
+        </thead>
+        <tbody><tr><td>05/10/2024</td><td>流感疫苗</td></tr></tbody>
+      </table>
+    </div>
+    <div class="vacc-section">
+      <h3>二、肺炎鏈球菌疫苗</h3>
+      
+      <table>
+        <colgroup><col style="width: 38mm;"><col></colgroup>
+        <thead>
+          <tr><th>接種日期</th><th>疫苗名稱</th></tr>
+        </thead>
+        <tbody><tr><td>15/03/2024</td><td>肺炎鏈球菌疫苗</td></tr></tbody>
+      </table>
+    </div>
+    <div class="vacc-section">
+      <h3>三、新冠疫苗</h3>
+      
+      <table>
+        <colgroup><col style="width: 38mm;"><col></colgroup>
+        <thead>
+          <tr><th>接種日期</th><th>疫苗名稱</th></tr>
+        </thead>
+        <tbody><tr><td></td><td></td></tr></tbody>
+      </table>
+    </div>
+    <div class="vacc-section">
+      <h3>四、其他疫苗</h3>
+      
+      <table>
+        <colgroup><col style="width: 38mm;"><col></colgroup>
+        <thead>
+          <tr><th>接種日期</th><th>疫苗名稱</th></tr>
+        </thead>
+        <tbody><tr><td></td><td></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

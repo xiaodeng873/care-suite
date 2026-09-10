@@ -184,7 +184,6 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
     resolvedInitialStart > resolvedInitialEnd ? resolvedInitialStart : resolvedInitialEnd
   );
   const [contentMode, setContentMode] = useState<PrintContentMode>('data');
-  const [separateSheetsPerPatient, setSeparateSheetsPerPatient] = useState(false);
   const [separateSheetsPerStation, setSeparateSheetsPerStation] = useState(false);
   // 尿片統計報表月份範圍（預設最近 9 個月）
   const currentMonth = today.slice(0, 7);
@@ -270,7 +269,6 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
     setCheckedDocuments(next);
   };
 
-  const hasVaccinationRecord = checkedDocuments.has('vaccination_record');
   const STATISTICS_REPORT_IDS = new Set([
   'meal_statistics_report',
   'tube_care_statistics_report',
@@ -352,9 +350,8 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
     if (effectiveStartDate && effectiveEndDate && effectiveStartDate > effectiveEndDate) {
       [effectiveStartDate, effectiveEndDate] = [effectiveEndDate, effectiveStartDate];
     }
-    const printOptions: PrintDocumentOptions | undefined = hasVaccinationRecord || hasStatisticsReport || hasFeeReport || hasRosterDoc ?
+    const printOptions: PrintDocumentOptions | undefined = hasStatisticsReport || hasFeeReport || hasRosterDoc ?
     {
-      separateSheetsPerPatient,
       separateSheetsPerStation,
       ...(hasDiaperReport && diaperStartMonth && diaperEndMonth ?
       { diaperMonthRange: { startMonth: diaperStartMonth, endMonth: diaperEndMonth } } :
@@ -515,20 +512,6 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
               </div>
               <p className="text-xs text-gray-500">兩份文件統一使用「列印月份」的資料；預排表 A4 橫向，排班表 A4 直向。</p>
             </>
-          }
-          {hasVaccinationRecord &&
-          <div className="flex items-center gap-4">
-              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Excel 工作表：</label>
-              <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
-                <input
-                type="checkbox"
-                checked={separateSheetsPerPatient}
-                onChange={(e) => setSeparateSheetsPerPatient(e.target.checked)}
-                className="h-4 w-4" />
-              
-                按院友分開 sheet
-              </label>
-            </div>
           }
           {hasStatisticsReport &&
           <div className="flex items-center gap-4">

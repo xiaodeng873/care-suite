@@ -14,6 +14,8 @@ import {
 export interface SummaryField {
   key: string;
   label: string;
+  // 只顯示喺呢啲來源表嘅記錄（多表混合時用；冇指定就全部顯示）
+  tables?: string[];
 }
 
 interface RecordRecycleBinModalProps {
@@ -26,8 +28,8 @@ interface RecordRecycleBinModalProps {
   patientIdFields?: string[];
   // 每筆記錄要顯示嘅欄位
   summaryFields?: SummaryField[];
-  // 記錄日期欄位（顯示用，可選）
-  dateField?: string;
+  // 記錄日期欄位（顯示用，可選；多欄位時用第一個非空值，方便多表混合）
+  dateField?: string | string[];
   // 還原／永久刪除後通知上層重新載入列表
   onRestored?: () => void;
   onClose: () => void;
@@ -81,9 +83,19 @@ const RecordRecycleBinModal: React.FC<RecordRecycleBinModalProps> = ({
   const getPatientInfo = (record: DeletedRecord) => {
     const pid = getPatientId(record);
     const patient = pid !== null ? patients.find(p => p.院友id === pid) : undefined;
-    return patient
-      ? { patient, name: `${patient.中文姓氏}${patient.中文名字}`, bed: patient.床號 }
-      : { patient: undefined, name: '未知院友', bed: '-' };
+    if (patient) {
+      return { patient, name: `${patient.中文姓氏}${patient.中文名字}`, bed: patient.床號 };
+    }
+    // 院友本身已被刪除（例如院友主表嘅回收記錄）：用記錄原文顯示
+    const rawName = record.data?.['中文姓名'];
+    if (rawName) {
+      return {
+        patient: undefined,
+        name: String(rawName),
+        bed: record.data?.['床號'] ? String(record.data['床號']) : '-',
+      };
+    }
+    return { patient: undefined, name: '未知院友', bed: '-' };
   };
 
   const formatSummaryValue = (value: any): string => {
@@ -94,6 +106,20 @@ const RecordRecycleBinModal: React.FC<RecordRecycleBinModalProps> = ({
     return String(value);
   };
 
+  // 每筆記錄適用嘅 summary 欄位（多表混合時按 tables 過濾）
+  const fieldsFor = (record: DeletedRecord): SummaryField[] =>
+    summaryFields.filter(f => !f.tables || f.tables.includes(record.original_table));
+
+  const firstDate = (record: DeletedRecord): any => {
+    if (!dateField) return null;
+    const keys = Array.isArray(dateField) ? dateField : [dateField];
+    for (const k of keys) {
+      const v = record.data?.[k];
+      if (v) return v;
+    }
+    return null;
+  };
+
   const filteredRecords = records.filter(record => {
     if (!searchTerm) return true;
     const info = getPatientInfo(record);
@@ -101,7 +127,7 @@ const RecordRecycleBinModal: React.FC<RecordRecycleBinModalProps> = ({
       info.name,
       info.bed,
       record.deletion_reason,
-      ...summaryFields.map(f => formatSummaryValue(record.data?.[f.key])),
+      ...fieldsFor(record).map(f => formatSummaryValue(record.data?.[f.key])),
     ];
     if (info.patient) {
       haystacks.push(
@@ -109,6 +135,8 @@ const RecordRecycleBinModal: React.FC<RecordRecycleBinModalProps> = ({
         matchEnglishName(info.patient.英文姓氏, info.patient.英文名字, info.patient.英文姓名, searchTerm) ? searchTerm : '',
         info.patient.身份證號碼 ?? '',
       );
+    } else if (record.data?.['身份證號碼']) {
+      haystacks.push(String(record.data['身份證號碼']));
     }
     return haystacks.some(h => h && fuzzyMatch(h, searchTerm));
   });
@@ -305,7 +333,8 @@ const RecordRecycleBinModal: React.FC<RecordRecycleBinModalProps> = ({
               {filteredRecords.map((record) => {
                 const info = getPatientInfo(record);
                 const isSelected = selectedRecords.has(record.id);
-                const rawDate = dateField ? record.data?.[dateField] : null;
+                const recordFields = fieldsFor(record);
+                const rawDate = firstDate(record);
 
                 return (
                   <div
@@ -357,9 +386,9 @@ const RecordRecycleBinModal: React.FC<RecordRecycleBinModalProps> = ({
                           </div>
                         </div>
 
-                        {summaryFields.length > 0 && (
+                        {recordFields.length > 0 && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600 mb-2">
-                            {summaryFields.map((field) => (
+                            {recordFields.map((field) => (
                               <div key={field.key} className="flex flex-wrap items-center gap-2">
                                 <span className="font-medium text-gray-700">{field.label}:</span>
                                 <span>{formatSummaryValue(record.data?.[field.key])}</span>

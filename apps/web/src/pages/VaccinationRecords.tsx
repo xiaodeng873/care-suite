@@ -24,6 +24,7 @@ import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import PatientPrintModal from '../components/PatientPrintModal';
 import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
+import { printVaccinationRecord, VACCINE_CATEGORIES, guessVaccineCategory } from '../utils/vaccinationRecordPrintGenerator';
 
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, comparePatientsForSearch, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
@@ -168,12 +169,35 @@ const VaccinationRecords: React.FC = () => {
   };
 
   const [expandedPatientIds, setExpandedPatientIds] = useState<Set<number>>(new Set());
+  // 分類子摺疊：key = `${院友id}:${類別序}`
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const toggleVaccineCategory = (patientId: number, catIdx: number) => {
+    const key = `${patientId}:${catIdx}`;
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
-  // 主表格欄位：每種疫苗佔一欄（按中文排序）
-  const vaccineItems = useMemo(() => {
-    const items = [...new Set(vaccinationRecords.map(r => (r.vaccine_item || '').trim()).filter(Boolean))];
-    return items.sort((a, b) => a.localeCompare(b, 'zh-Hant'));
-  }, [vaccinationRecords]);
+  // 院友摺疊內排序：同疫苗接種記錄打印 HTML 一致——先按類別（流感→肺炎鏈球菌→新冠→其他），類別內接種日期由小至大
+  const vaccineCatIdx = (r: VaccinationRecord): number => {
+    const byCategory = VACCINE_CATEGORIES.indexOf(r.vaccine_category || '');
+    if (byCategory >= 0) return byCategory;
+    return VACCINE_CATEGORIES.indexOf(guessVaccineCategory(r.vaccine_item || ''));
+  };
+  const sortRecordsPrintOrder = (records: VaccinationRecord[]): VaccinationRecord[] =>
+    [...records].sort(
+      (a, b) =>
+        vaccineCatIdx(a) - vaccineCatIdx(b) ||
+        (a.vaccination_date || '').localeCompare(b.vaccination_date || '')
+    );
+  const latestByDate = (records: VaccinationRecord[]): VaccinationRecord | null =>
+    records.reduce<VaccinationRecord | null>(
+      (m, r) => (m === null || (r.vaccination_date || '') > (m.vaccination_date || '') ? r : m),
+      null
+    );
 
   const filteredPatientGroups = useMemo(() => {
     const groupedByPatient = vaccinationRecords.reduce((acc, record) => {
@@ -184,9 +208,7 @@ const VaccinationRecords: React.FC = () => {
     }, {} as Record<number, VaccinationRecord[]>);
     const patientGroups = Object.entries(groupedByPatient).map(([patientId, records]) => ({
       patientId: parseInt(patientId),
-      records: records.sort((a, b) =>
-        new Date(b.vaccination_date).getTime() - new Date(a.vaccination_date).getTime()
-      )
+      records: sortRecordsPrintOrder(records)
     }));
     return patientGroups.filter(group => {
     const patient = patients.find(p => p.院友id === group.patientId);
@@ -245,11 +267,11 @@ const VaccinationRecords: React.FC = () => {
       const bedCmp = compareBedNumbers(patientA?.床號 || '', patientB?.床號 || '');
       return sortDirection === 'asc' ? bedCmp : -bedCmp;
     } else if (sortField === 'vaccination_date') {
-      valueA = a.records[0]?.vaccination_date || '';
-      valueB = b.records[0]?.vaccination_date || '';
+      valueA = latestByDate(a.records)?.vaccination_date || '';
+      valueB = latestByDate(b.records)?.vaccination_date || '';
     } else if (sortField === 'created_at') {
-      valueA = a.records[0]?.created_at || '';
-      valueB = b.records[0]?.created_at || '';
+      valueA = a.records.reduce((m, r) => (r.created_at > m ? r.created_at : m), '');
+      valueB = b.records.reduce((m, r) => (r.created_at > m ? r.created_at : m), '');
     }
 
     if (typeof valueA === 'string') {
@@ -313,6 +335,15 @@ const VaccinationRecords: React.FC = () => {
     setSelectedPatientId(patientId);
     setSelectedPatientRecords(patientRecords);
     setShowModal(true);
+  };
+
+  const handlePrintPatient = async (patient: (typeof patients)[number], records: VaccinationRecord[]) => {
+    try {
+      await printVaccinationRecord(patient, records);
+    } catch (error) {
+      console.error('列印疫苗接種記錄失敗:', error);
+      alert('列印失敗，請稍後再試');
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -507,7 +538,7 @@ const VaccinationRecords: React.FC = () => {
                 <h3 className="text-sm font-medium text-gray-900 mb-3">進階篩選</h3>
 
                 <div className="mb-4">
-                  <label className="form-label">注射日期區間</label>
+                  <label className="form-label">接種日期區間</label>
                   <div className="flex flex-wrap items-center gap-2">
                     <DateInput value={advancedFilters.startDate}
                       onChange={(value) => updateAdvancedFilter('startDate', value)}
@@ -634,11 +665,10 @@ const VaccinationRecords: React.FC = () => {
                     />
                   </th>
                   <SortableHeader field="院友姓名">院友</SortableHeader>
-                  {vaccineItems.map(item => (
-                    <th key={item} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                      {item}
-                    </th>
-                  ))}
+                  <SortableHeader field="vaccination_date">接種日期</SortableHeader>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    疫苗項目
+                  </th>
                   <SortableHeader field="created_at">最新建立</SortableHeader>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     意向查詢
@@ -655,16 +685,28 @@ const VaccinationRecords: React.FC = () => {
                     院友名稱: patient?.中文姓名 || '',
                     院舍名稱: facilityNameZh,
                   });
-                  const hasAnyDeleting = group.records.some(r => deletingIds.has(r.id));
                   const allSelected = group.records.every(r => selectedRows.has(r.id));
                   const someSelected = group.records.some(r => selectedRows.has(r.id));
 
-                  return (
-                    <tr
-                      key={group.patientId}
-                      className={`hover:bg-gray-50 ${hasAnyDeleting ? 'opacity-50' : ''}`}
-                    >
-                      <td className="px-4 py-3 align-top">
+                  const isExpanded = expandedPatientIds.has(group.patientId);
+                  const latestRecord = latestByDate(group.records);
+                  const latestCreated = group.records.reduce((m, r) => (r.created_at > m ? r.created_at : m), '');
+
+                  // 分類子摺疊：四個類別各一，淨顯示非空類別；每類內接種日期由小至大（同打印次序）
+                  const catGroups = VACCINE_CATEGORIES.map((cat, idx) => ({
+                    cat,
+                    idx,
+                    records: group.records.filter(r => vaccineCatIdx(r) === idx),
+                  })).filter(g => g.records.length > 0);
+                  const isCatCollapsed = (idx: number) =>
+                    collapsedCategories.has(`${group.patientId}:${idx}`);
+                  const totalRows = isExpanded
+                    ? catGroups.reduce((s, g) => s + 1 + (isCatCollapsed(g.idx) ? 0 : g.records.length), 0)
+                    : 1;
+
+                  const renderFixedCells = (rowSpan: number) => (
+                    <>
+                      <td className="px-4 py-3 align-top" rowSpan={rowSpan}>
                         <input
                           type="checkbox"
                           checked={allSelected}
@@ -685,7 +727,7 @@ const VaccinationRecords: React.FC = () => {
                           className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                         />
                       </td>
-                      <td className="px-4 py-3 align-top">
+                      <td className="px-4 py-3 align-top" rowSpan={rowSpan}>
                         {patient ? (
                           <PatientTooltip patient={patient}>
                             <div className="flex flex-wrap items-center gap-3">
@@ -713,9 +755,9 @@ const VaccinationRecords: React.FC = () => {
                                   setExpandedPatientIds(newSet);
                                 }}
                                 className="ml-auto p-1 text-gray-400 hover:text-gray-600"
-                                title={expandedPatientIds.has(group.patientId) ? '收合歷史注射日期' : '展開全部注射日期'}
+                                title={isExpanded ? '收合歷史接種記錄' : '展開全部接種記錄'}
                               >
-                                {expandedPatientIds.has(group.patientId) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                               </button>
                             </div>
                           </PatientTooltip>
@@ -723,46 +765,40 @@ const VaccinationRecords: React.FC = () => {
                           <span className="text-gray-400">院友已刪除</span>
                         )}
                       </td>
-                      {vaccineItems.map(item => {
-                        const itemRecords = group.records.filter(r => (r.vaccine_item || '').trim() === item);
-                        const isExpanded = expandedPatientIds.has(group.patientId);
-                        const isDeletingAny = itemRecords.some(r => deletingIds.has(r.id));
-                        return (
-                          <td key={item} className={`px-4 py-3 align-top ${isDeletingAny ? 'opacity-50' : ''}`}>
-                            {itemRecords.length === 0 ? (
-                              <span className="text-gray-300">—</span>
-                            ) : isExpanded ? (
-                              <div className="space-y-1">
-                                {itemRecords.map(record => (
-                                  <div key={record.id} className="flex items-center gap-1">
-                                    <span className={`text-xs ${record.id === itemRecords[0].id ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
-                                      {formatDisplayDate(record.vaccination_date)}
-                                    </span>
-                                    <button
-                                      onClick={() => handleDelete(record.id)}
-                                      className="p-0.5 text-red-600 hover:bg-red-50 rounded"
-                                      title="刪除此記錄"
-                                      disabled={deletingIds.has(record.id)}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-sm font-medium text-gray-900">
-                                {formatDisplayDate(itemRecords[0].vaccination_date)}
-                              </span>
-                            )}
-                          </td>
-                        );
-                      })}
-                      <td className="px-4 py-3 align-top">
-                        <span className="text-gray-600 text-sm">
-                          {formatDisplayDate(group.records[0].created_at)}
-                        </span>
+                    </>
+                  );
+
+                  const renderRecordCells = (record: VaccinationRecord, emphasize: boolean) => (
+                    <>
+                      <td className="px-4 py-3 align-top whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <span className={`text-sm ${emphasize ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                            {formatDisplayDate(record.vaccination_date)}
+                          </span>
+                          <button
+                            onClick={() => handleDelete(record.id)}
+                            className="p-0.5 text-red-600 hover:bg-red-50 rounded"
+                            title="刪除此記錄"
+                            disabled={deletingIds.has(record.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
                       </td>
                       <td className="px-4 py-3 align-top">
+                        <span className="text-sm text-gray-900">{record.vaccine_item}</span>
+                      </td>
+                    </>
+                  );
+
+                  const renderTailCells = (rowSpan: number) => (
+                    <>
+                      <td className="px-4 py-3 align-top" rowSpan={rowSpan}>
+                        <span className="text-gray-600 text-sm">
+                          {formatDisplayDate(latestCreated)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 align-top" rowSpan={rowSpan}>
                         {(contactsByPatient[group.patientId] || []).length > 0 ? (
                           <div className="space-y-1">
                             {contactsByPatient[group.patientId].map(c => (
@@ -790,17 +826,80 @@ const VaccinationRecords: React.FC = () => {
                           <span className="text-gray-400 text-sm">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 align-top">
-                        <button
-                          onClick={() => handleAddForPatient(group.patientId)}
-                          className="btn-secondary text-sm flex items-center space-x-1"
-                          title="新增記錄"
-                        >
-                          <Plus className="h-4 w-4" />
-                          <span>新增</span>
-                        </button>
+                      <td className="px-4 py-3 align-top" rowSpan={rowSpan}>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleAddForPatient(group.patientId)}
+                            className="btn-secondary text-sm flex items-center space-x-1"
+                            title="新增記錄"
+                          >
+                            <Plus className="h-4 w-4" />
+                            <span>新增</span>
+                          </button>
+                          {patient && (
+                            <button
+                              onClick={() => handlePrintPatient(patient, group.records)}
+                              className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded"
+                              title="列印疫苗接種記錄"
+                            >
+                              <Printer className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
-                    </tr>
+                    </>
+                  );
+
+                  if (!isExpanded) {
+                    if (!latestRecord) return null;
+                    return (
+                      <tr
+                        key={group.patientId}
+                        className={`hover:bg-gray-50 ${deletingIds.has(latestRecord.id) ? 'opacity-50' : ''}`}
+                      >
+                        {renderFixedCells(1)}
+                        {renderRecordCells(latestRecord, true)}
+                        {renderTailCells(1)}
+                      </tr>
+                    );
+                  }
+
+                  let fixedCellsPlaced = false;
+                  return (
+                    <React.Fragment key={group.patientId}>
+                      {catGroups.map(cg => {
+                        const collapsed = isCatCollapsed(cg.idx);
+                        const placeFixed = !fixedCellsPlaced;
+                        if (placeFixed) fixedCellsPlaced = true;
+                        return (
+                          <React.Fragment key={cg.idx}>
+                            <tr className="bg-gray-50">
+                              {placeFixed && renderFixedCells(totalRows)}
+                              <td colSpan={2} className="px-4 py-2">
+                                <button
+                                  onClick={() => toggleVaccineCategory(group.patientId, cg.idx)}
+                                  className="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                                  title={collapsed ? `展開${cg.cat}` : `收合${cg.cat}`}
+                                >
+                                  {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                                  <span>{cg.cat}</span>
+                                  <span className="text-xs font-normal text-gray-400">{cg.records.length} 筆</span>
+                                </button>
+                              </td>
+                              {placeFixed && renderTailCells(totalRows)}
+                            </tr>
+                            {!collapsed && cg.records.map(record => (
+                              <tr
+                                key={record.id}
+                                className={`hover:bg-gray-50 ${deletingIds.has(record.id) ? 'opacity-50' : ''}`}
+                              >
+                                {renderRecordCells(record, false)}
+                              </tr>
+                            ))}
+                          </React.Fragment>
+                        );
+                      })}
+                    </React.Fragment>
                   );
                 })}
               </tbody>

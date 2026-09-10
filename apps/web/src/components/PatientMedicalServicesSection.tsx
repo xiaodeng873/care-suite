@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, Trash2, Calendar, Building2, Syringe } from 'lucide-react';
 import { type VaccinationRecord } from '../lib/database';
+import { VACCINE_CATEGORIES, guessVaccineCategory } from '../utils/vaccinationRecordPrintGenerator';
 import DateInput from './DateInput';
 
 interface PatientMedicalServicesSectionProps {
@@ -42,6 +43,7 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
       patient_id: patientId || 0,
       vaccination_date: getHongKongDate(),
       vaccine_item: '',
+      vaccine_category: '',
       vaccination_unit: '',
       remarks: '',
       created_at: '',
@@ -79,10 +81,10 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
 
   return (
     <div className="space-y-6">
-      {/* 疫苗注射記錄 */}
+      {/* 疫苗接種記錄 */}
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-          <label className="form-label mb-0">流行性感冒疫苗及肺炎球菌疫苗注射記錄</label>
+          <label className="form-label mb-0">流行性感冒疫苗及肺炎球菌疫苗接種記錄</label>
           <button
             type="button"
             onClick={addVaccinationItem}
@@ -108,11 +110,12 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
               }
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label flex flex-wrap items-center gap-2">
                     <Calendar className="h-4 w-4 text-gray-400" />
-                    <span>注射日期</span>
+                    <span className="text-red-500">*</span>
+                    <span>接種日期</span>
                   </label>
                   <DateInput
 
@@ -125,12 +128,18 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
                 <div>
                   <label className="form-label flex flex-wrap items-center gap-2">
                     <Syringe className="h-4 w-4 text-gray-400" />
+                    <span className="text-red-500">*</span>
                     <span>疫苗項目 / 名稱</span>
                   </label>
                   <input
                   type="text"
                   value={record.vaccine_item}
-                  onChange={(e) => updateVaccinationItem(index, 'vaccine_item', e.target.value)}
+                  onChange={(e) => {
+                    updateVaccinationItem(index, 'vaccine_item', e.target.value);
+                    if (!record.vaccine_category) {
+                      updateVaccinationItem(index, 'vaccine_category', guessVaccineCategory(e.target.value.trim()));
+                    }
+                  }}
                   className="form-input"
                   placeholder="例如：流感疫苗" />
                 
@@ -138,8 +147,26 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
 
                 <div>
                   <label className="form-label flex flex-wrap items-center gap-2">
+                    <Syringe className="h-4 w-4 text-gray-400" />
+                    <span className="text-red-500">*</span>
+                    <span>疫苗類別</span>
+                  </label>
+                  <select
+                    value={record.vaccine_category || ''}
+                    onChange={(e) => updateVaccinationItem(index, 'vaccine_category', e.target.value)}
+                    className="form-input"
+                  >
+                    <option value="">請選擇類別</option>
+                    {VACCINE_CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="form-label flex flex-wrap items-center gap-2">
                     <Building2 className="h-4 w-4 text-gray-400" />
-                    <span>注射單位 / 醫院</span>
+                    <span>接種單位 / 醫院</span>
                   </label>
                   <input
                   type="text"

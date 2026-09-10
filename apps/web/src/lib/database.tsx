@@ -609,6 +609,7 @@ export interface VaccinationRecord {
   vaccination_date: string;
   vaccine_item: string;
   vaccination_unit: string;
+  vaccine_category?: string | null;
   remarks?: string;
   created_at: string;
   updated_at: string;
@@ -3467,9 +3468,15 @@ export const deleteDiagnosisRecord = async (recordId: string): Promise<void> => 
   await softDeleteRecord('diagnosis_records', recordId);
 };
 export const getVaccinationRecords = async (): Promise<VaccinationRecord[]> => {
-  const { data, error } = await supabase.from('vaccination_records').select('*').order('vaccination_date', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  // 分批拉晒全部（Supabase 每條 query 預設上限 1000，唔可以截斷）
+  return (await fetchAllPagesParallel(async (from, to, withCount) =>
+    await supabase
+      .from('vaccination_records')
+      .select('*', withCount ? { count: 'exact' } : undefined)
+      .order('vaccination_date', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, to)
+  )) as VaccinationRecord[];
 };
 export const createVaccinationRecord = async (record: Omit<VaccinationRecord, 'id' | 'created_at' | 'updated_at'>): Promise<VaccinationRecord> => {
   const { data, error } = await supabase.from('vaccination_records').insert([record]).select().single();

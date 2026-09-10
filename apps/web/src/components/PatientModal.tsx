@@ -601,11 +601,12 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
         // 新增院友時同時寫入疫苗記錄
         for (const record of vaccinationRecords) {
-          if (record.vaccination_date.trim() && record.vaccine_item.trim() && record.vaccination_unit.trim()) {
+          if (record.vaccination_date.trim() && record.vaccine_item.trim() && record.vaccination_unit.trim() && record.vaccine_category?.trim()) {
             await addVaccinationRecord({
               patient_id: newPatientId,
               vaccination_date: record.vaccination_date,
               vaccine_item: record.vaccine_item.trim(),
+              vaccine_category: record.vaccine_category,
               vaccination_unit: record.vaccination_unit.trim(),
               remarks: record.remarks || ''
             });
@@ -641,7 +642,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
         }
 
         for (const record of vaccinationRecords) {
-          if (!record.vaccination_date.trim() || !record.vaccine_item.trim() || !record.vaccination_unit.trim()) {
+          if (!record.vaccination_date.trim() || !record.vaccine_item.trim() || !record.vaccination_unit.trim() || !record.vaccine_category?.trim()) {
             continue;
           }
           if (record.id && initialVaccinationRecordIds.has(record.id)) {
@@ -651,6 +652,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
               patient_id: patientIdToUse,
               vaccination_date: record.vaccination_date,
               vaccine_item: record.vaccine_item.trim(),
+              vaccine_category: record.vaccine_category,
               vaccination_unit: record.vaccination_unit.trim(),
               remarks: record.remarks || ''
             });

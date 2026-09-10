@@ -323,6 +323,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
       patient_id: prefill.matchedPatient?.院友id,
       vaccination_date: ed.疫苗接種日期 || ed.vaccination_date || '',
       vaccine_item: ed.疫苗項目 || ed.vaccine_item || '',
+      vaccine_category: ed.疫苗類別 || ed.vaccine_category || '',
       vaccination_unit: ed.接種單位 || ed.vaccination_unit || '',
     };
   };

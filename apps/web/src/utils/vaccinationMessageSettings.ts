@@ -9,7 +9,7 @@ export interface VaccinationMessageSettings {
 }
 
 export const DEFAULT_VACCINATION_MESSAGE_SETTINGS: VaccinationMessageSettings = {
-  message_template: '您好! 這是來自"{院舍名稱}"的訊息： 本院受惠於衛生署的疫苗接種計劃, 於"{接種日期}"將有註冊醫生及護士到院協助院友注射疫苗。本次注射的是"{疫苗名稱}"，鑑於"{院友名稱}"未能自行決定，所以詢問您對院友"{院友名稱}"接種疫苗的意向，我們已預備好同意書/ 反對書文件，請在"{截止日期}"前到本院簽署，謝謝。',
+  message_template: '您好! 這是來自"{院舍名稱}"的訊息： 本院受惠於衛生署的疫苗接種計劃, 於"{接種日期}"將有註冊醫生及護士到院協助院友接種疫苗。本次接種的是"{疫苗名稱}"，鑑於"{院友名稱}"未能自行決定，所以詢問您對院友"{院友名稱}"接種疫苗的意向，我們已預備好同意書/ 反對書文件，請在"{截止日期}"前到本院簽署，謝謝。',
   vaccine_name: '',
   vaccine_name_2: '',
   vaccination_date: '',
