@@ -2,7 +2,7 @@
 // 規則（可於此調整）：
 //   - 血壓、脈搏、血含氧量、呼吸：每周至少一次（間隔 ≤ 7 天）
 //   - 體溫：每天至少一次（間隔 ≤ 1 天）
-//   - 體重：每月至少一次（間隔 ≤ 31 天）
+// （體重已於 2026-09 由欠缺必要項目移除，唔再強制）
 
 export interface CoverageRequirement {
   /** 對應 health_record_type 的生命表徵類型 */
@@ -17,7 +17,6 @@ export const MONITORING_COVERAGE_REQUIREMENTS: CoverageRequirement[] = [
   { vital: '血含氧量', maxIntervalDays: 7 },
   { vital: '呼吸', maxIntervalDays: 7 },
   { vital: '體溫', maxIntervalDays: 1 },
-  { vital: '體重', maxIntervalDays: 31 },
 ];
 
 // 舊版「生命表徵」合併任務視為涵蓋以下逐項生命表徵

@@ -180,16 +180,33 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
 
   const renderActionButton = (patient: Patient, item: MissingItem) => {
     if (item.type === 'task' && item.missingTaskTypes) {
-      return item.missingTaskTypes.map(taskType => (
-        <button
-          key={taskType}
-          onClick={(e) => { e.stopPropagation(); onCreateTask(patient, taskType); }}
-          className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded transition-colors"
-          title={`新增${taskType}`}
-        >
-          +{taskType}
-        </button>
-      ));
+      // 四味生命表徵（血壓/脈搏/血含氧量/呼吸）合併做一個「+生命表徵」掣，新增時預設四味全選
+      const BOUND_VITALS = ['血壓', '脈搏', '血含氧量', '呼吸'];
+      const hasBoundVitals = item.missingTaskTypes.some(t => BOUND_VITALS.includes(t));
+      const otherTypes = item.missingTaskTypes.filter(t => !BOUND_VITALS.includes(t));
+      return (
+        <>
+          {otherTypes.map(taskType => (
+            <button
+              key={taskType}
+              onClick={(e) => { e.stopPropagation(); onCreateTask(patient, taskType); }}
+              className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded transition-colors"
+              title={`新增${taskType}`}
+            >
+              +{taskType}
+            </button>
+          ))}
+          {hasBoundVitals && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onCreateTask(patient, '生命表徵'); }}
+              className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded transition-colors"
+              title="新增生命表徵（血壓、脈搏、血含氧量、呼吸）"
+            >
+              +生命表徵
+            </button>
+          )}
+        </>
+      );
     }
 
     const buttonConfig: Record<string, { onClick: () => void; label: string }> = {
@@ -261,7 +278,7 @@ const MissingRequirementsCard: React.FC<MissingRequirementsCardProps> = ({
               </div>
               <div className="flex-1">
                 <span className="font-medium text-red-800">
-                  {group.patient.中文姓氏}{group.patient.中文名字} <BedNumberImprint patient={group.patient as any} size="sm" />
+                  {group.patient.中文姓名 || `${group.patient.中文姓氏 ?? ''}${group.patient.中文名字 ?? ''}`} <BedNumberImprint patient={group.patient as any} size="sm" />
                 </span>
               </div>
             </div>
