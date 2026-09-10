@@ -14,6 +14,7 @@ interface VaccPrintPatient {
   中文姓名?: string;
   中文姓氏?: string;
   中文名字?: string;
+  身份證號碼?: string;
   性別?: string;
   出生日期?: string;
 }
@@ -162,6 +163,7 @@ export const generateVaccinationRecordHtml = (
     </div>
     <div class="info-row">
       <span>院友姓名：<input type="text" class="db-line-input" style="width: 70px;" value="${escapeHtml(patientName)}" readonly></span>
+      <span>身份証號碼：<input type="text" class="db-line-input" style="width: 105px;" value="${escapeHtml(patient.身份證號碼 || '')}" readonly></span>
       <span>床號：<input type="text" class="db-line-input" style="width: 55px;" value="${escapeHtml(getPrintBedNumber({ original_bed_number: patient.original_bed_number ?? null, 床號: patient.床號 ?? null }))}" readonly></span>
       <span>性別：<input type="text" class="db-line-input" style="width: 35px;" value="${escapeHtml(patient.性別 || '')}" readonly></span>
       <span>年齡：<input type="text" class="db-line-input" style="width: 40px;" value="${escapeHtml(calculateAge(patient.出生日期))}" readonly></span>
