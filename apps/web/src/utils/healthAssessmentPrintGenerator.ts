@@ -261,7 +261,7 @@ const generateP2 = (assessment: HealthAssessment, facilityName: string): string 
           <colgroup>
             <col class="label-m"><col class="label-s"><col class="col-eval-6" span="6">
           </colgroup>
-          <tr style="height: 22px;">
+          <tr style="height: 20px;">
             <th colspan="2">觀察日期</th>
             ${dateCells(assessment.assessment_date)}
           </tr>
@@ -284,10 +284,10 @@ const generateP2 = (assessment: HealthAssessment, facilityName: string): string 
 
         <table>
           <colgroup><col style="width:25%"><col style="width:25%"><col style="width:25%"><col style="width:25%"></colgroup>
-          <tr style="height: 22px;"><th>飲食轉變原因</th><th></th><th>飲食轉變原因</th><th></th></tr>
-          <tr style="height: 22px;"><td></td><td></td><td></td><td></td></tr>
-          <tr style="height: 22px;"><td></td><td></td><td></td><td></td></tr>
-          <tr style="height: 22px;"><td></td><td></td><td></td><td></td></tr>
+          <tr style="height: 20px;"><th>飲食轉變原因</th><th></th><th>飲食轉變原因</th><th></th></tr>
+          <tr style="height: 20px;"><td></td><td></td><td></td><td></td></tr>
+          <tr style="height: 20px;"><td></td><td></td><td></td><td></td></tr>
+          <tr style="height: 20px;"><td></td><td></td><td></td><td></td></tr>
         </table>
 
         <div class="section-title">5. 視聽能力</div>
@@ -363,7 +363,7 @@ const generateP2 = (assessment: HealthAssessment, facilityName: string): string 
           <colgroup>
             <col class="label-m"><col class="label-s"><col class="col-eval-6" span="6">
           </colgroup>
-          <tr style="height: 22px;">
+          <tr style="height: 20px;">
             <th colspan="2">觀察日期</th>
             ${dateCells(assessment.assessment_date)}
           </tr>
@@ -378,7 +378,7 @@ const generateP2 = (assessment: HealthAssessment, facilityName: string): string 
           <colgroup>
             <col class="label-m"><col class="label-s"><col class="col-eval-6" span="6">
           </colgroup>
-          <tr style="height: 22px;">
+          <tr style="height: 20px;">
             <th colspan="2">觀察日期</th>
             ${dateCells(assessment.assessment_date)}
           </tr>
@@ -490,11 +490,11 @@ const generateP3 = (assessment: HealthAssessment, facilityName: string): string 
             <col class="label-col">
             <col class="col-eval" span="6">
           </colgroup>
-          <tr style="height: 22px;">
+          <tr style="height: 20px;">
             <th>觀察日期</th>
             ${dateCells(assessment.assessment_date)}
           </tr>
-          <tr style="height: 70px;">
+          <tr style="height: 55px;">
             <td></td>
             ${textCells(assessment.remarks || '')}
           </tr>
@@ -507,7 +507,7 @@ const generateP3 = (assessment: HealthAssessment, facilityName: string): string 
             <col class="label-col">
             <col class="col-eval" span="6">
           </colgroup>
-          <tr style="height: 45px;">
+          <tr style="height: 40px;">
             <td class="sign-label">評估者/記錄者<br>姓名,職位及簽署</td>
             ${textCells(assessment.assessor || '')}
           </tr>
@@ -527,6 +527,8 @@ export const generateHealthAssessmentHtml = (
   patient: PatientInfo,
   facilityName: string
 ): string => {
+  // 臨時診斷：兩條打印路徑（單份/批量 bundle）都行呢句，確認瀏覽器用緊新版
+  console.log('[健康評估打印 v2] generateHealthAssessmentHtml 行高20px 版本');
   return `<!DOCTYPE html>
 <html lang="zh-HK">
 <head>
@@ -591,13 +593,13 @@ export const generateHealthAssessmentHtml = (
       width: 100%;
       color: #000;
     }
-    .page-p2 .container { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; flex: 1; }
-    .page-p2 .title-box { position: relative; text-align: center; margin-bottom: 6px; }
+    .page-p2 .container { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; flex: 1; padding-top: 9mm; }
+    .page-p2 .title-box { position: relative; text-align: center; margin-bottom: 4px; }
     .page-p2 .title-box h1 { margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
     .page-p2 .title-box h2 { margin: 4px 0 0 0; font-size: 20px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
-    .page-p2 .section-title { font-size: 16px; font-weight: bold; margin: 6px 0 2px 15px; }
-    .page-p2 table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 8px; }
-    .page-p2 th, .page-p2 td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0px; height: 22px; font-size: 13px; }
+    .page-p2 .section-title { font-size: 16px; font-weight: bold; margin: 4px 0 1px 15px; }
+    .page-p2 table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 4px; }
+    .page-p2 th, .page-p2 td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 0px; height: 20px; font-size: 13px; }
     .page-p2 .bold { font-weight: bold; }
     .page-p2 .label-m { width: 10mm; font-weight: bold; font-size: 15px; line-height: 1.1; }
     .page-p2 .label-s { width: 25mm; font-weight: bold; text-align: left; padding-left: 3px; font-size: 12px; }
@@ -616,13 +618,13 @@ export const generateHealthAssessmentHtml = (
       width: 100%;
       color: #000;
     }
-    .page-p3 .container { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; flex: 1; }
-    .page-p3 .title-box { position: relative; text-align: center; margin-bottom: 6px; }
+    .page-p3 .container { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; flex: 1; padding-top: 9mm; }
+    .page-p3 .title-box { position: relative; text-align: center; margin-bottom: 4px; }
     .page-p3 .title-box h1 { margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
     .page-p3 .title-box h2 { margin: 4px 0 0 0; font-size: 20px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
-    .page-p3 .section-title { font-size: 14px; font-weight: bold; margin: 6px 0 2px 15px; }
+    .page-p3 .section-title { font-size: 14px; font-weight: bold; margin: 4px 0 1px 15px; }
     .page-p3 table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 0; }
-    .page-p3 th, .page-p3 td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 1px 2px; height: 22px; font-size: 11px; }
+    .page-p3 th, .page-p3 td { border: 1px solid black; text-align: center; vertical-align: middle; padding: 1px 2px; height: 20px; font-size: 11px; }
     .page-p3 .bold { font-weight: bold; }
     .page-p3 .label-col { width: 35mm; text-align: center; font-weight: bold; }
     .page-p3 .sign-label { text-align: left; vertical-align: top; padding: 4px; line-height: 1.3; }
@@ -647,6 +649,8 @@ export const printHealthAssessment = async (
 ): Promise<void> => {
   const settings = await getFacilitySettings();
   const html = generateHealthAssessmentHtml(assessment, patient, settings.facilityNameZh);
+  // 臨時診斷：確認瀏覽器載入咗新版（行高 20px）定舊版
+  console.log('[健康評估打印 v2] 行高20px 版本，html bytes =', html.length);
 
   const existingIframe = document.getElementById('health-assessment-print-iframe');
   if (existingIframe) {
