@@ -13,7 +13,7 @@ export interface OCRResult {
   error?: string;
   processingTimeMs?: number;
 }
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const TARGET_IMAGE_SIZE = 2 * 1024 * 1024;
 export async function compressImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

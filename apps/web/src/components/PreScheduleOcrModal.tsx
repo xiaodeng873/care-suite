@@ -261,7 +261,7 @@ export const PreScheduleOcrModal: React.FC<PreScheduleOcrModalProps> = ({
               className="block w-full text-sm text-gray-600 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:rounded-lg file:bg-gray-50 file:text-sm file:text-gray-700 hover:file:bg-gray-100"
             />
             <p className="text-xs text-gray-500 mt-1">
-              支援 JPG / PNG / WEBP（最大 5MB），亦可直接在此視窗貼上剪貼簿圖片。
+              支援 JPG / PNG / WEBP（最大 10MB），亦可直接在此視窗貼上剪貼簿圖片。
             </p>
           </div>
 

@@ -1,7 +1,7 @@
 import { supabase } from '../context/AuthContext';
 
 const AVATAR_BUCKET = 'avatars';
-const MAX_SIZE_MB = 2;
+const MAX_SIZE_MB = 10;
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 export interface AvatarUploadResult {
@@ -23,6 +23,38 @@ export function validateAvatarFile(file: File): AvatarUploadError | null {
   return null;
 }
 
+/** 頭像壓縮：最闊 400px、JPEG 0.85（頭像只係細圖顯示，冇必要存原圖） */
+async function compressAvatar(file: File): Promise<Blob> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('檔案讀取失敗'));
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('圖片載入失敗'));
+    image.src = dataUrl;
+  });
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('無法獲取 Canvas 上下文');
+  const maxWidth = 400;
+  let width = img.width;
+  let height = img.height;
+  if (width > maxWidth) {
+    height = height * maxWidth / width;
+    width = maxWidth;
+  }
+  canvas.width = width;
+  canvas.height = height;
+  ctx.drawImage(img, 0, 0, width, height);
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('圖片壓縮失敗'))), 'image/jpeg', 0.85);
+  });
+}
+
 export async function uploadAvatar(
   userId: string,
   file: File,
@@ -30,15 +62,16 @@ export async function uploadAvatar(
   const validation = validateAvatarFile(file);
   if (validation) throw new Error(validation.message);
 
-  const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
-  const path = `${userId}.${ext}`;
+  // 上傳前一律壓縮做 JPEG
+  const compressed = await compressAvatar(file);
+  const path = `${userId}.jpg`;
 
   const { error: uploadError } = await supabase.storage
     .from(AVATAR_BUCKET)
-    .upload(path, file, {
+    .upload(path, compressed, {
       cacheControl: '3600',
       upsert: true,
-      contentType: file.type,
+      contentType: 'image/jpeg',
     });
 
   if (uploadError) {

@@ -52,32 +52,58 @@ const DrugModal: React.FC<DrugModalProps> = ({ drug, onClose, onSave }) => {
     }));
   };
 
+  // 藥物相片壓縮：最闊 800px、JPEG 0.85（要睇得清楚藥名/劑型）
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { reject(new Error('無法獲取 Canvas 上下文')); return; }
+          const maxWidth = 800;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = height * maxWidth / width;
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = () => reject(new Error('圖片載入失敗'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('檔案讀取失敗'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handlePhotoUpload = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       alert('請選擇圖片文件');
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
-      alert('圖片大小不能超過 5MB');
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      alert('圖片大小不能超過 10MB');
       return;
     }
 
     setIsUploading(true);
-    
+
     try {
-      // Convert image to base64
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64String = e.target?.result as string;
-        setPhotoPreview(base64String);
-        setFormData(prev => ({
-          ...prev,
-          photo_url: base64String
-        }));
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
+      // 壓縮後先轉 base64（同院友相片做法一致）
+      const compressedBase64 = await compressImage(file);
+      setPhotoPreview(compressedBase64);
+      setFormData(prev => ({
+        ...prev,
+        photo_url: compressedBase64
+      }));
+      setIsUploading(false);
     } catch (error) {
       console.error('上傳照片失敗:', error);
       alert('上傳照片失敗，請重試');

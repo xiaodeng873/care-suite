@@ -384,8 +384,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {// 5MB limit
-      alert('圖片大小不能超過 5MB');
+    if (file.size > 10 * 1024 * 1024) {// 10MB limit
+      alert('圖片大小不能超過 10MB');
       return;
     }
 

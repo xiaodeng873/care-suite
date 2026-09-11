@@ -13,7 +13,7 @@ import ImageSourcePicker from '../ImageSourcePicker';
 import { mapOCRDataToPrescriptionForm } from '../../utils/ocrFieldMapper';
 import { supabase } from '../../lib/supabase';
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const VALID_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
 /** 把 base64 圖片壓縮為 JPEG data URL（按長邊縮放；院友相片慣例 400px、文件 1200px 保持可讀） */
@@ -58,7 +58,7 @@ const readImageFile = async (file: File): Promise<PendingImage | null> => {
     return null;
   }
   if (file.size > MAX_IMAGE_SIZE) {
-    alert('圖片檔案過大，請選擇小於 5MB 的圖片');
+    alert('圖片檔案過大，請選擇小於 10MB 的圖片');
     return null;
   }
   try {
