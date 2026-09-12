@@ -17,8 +17,11 @@ export function generateNursingAssessmentHtml(ctx: DocumentGeneratorContext): Pr
     admission_date: patient.入住日期 || '',
   };
 
-  // 將 nursing_assessment_json 內的布林值與文字值對應到範本欄位
+  // 將 nursing_assessment_json 內的布林值與文字值對應到範本欄位。
+  // 評估員資料（assessor_*）唔再映射——打印留白，職員手填。
+  const ASSESSOR_FIELDS = new Set(['assessor_name', 'assessor_rank', 'assessor_sign', 'assess_date']);
   Object.entries(nursing).forEach(([key, value]) => {
+    if (ASSESSOR_FIELDS.has(key)) return;
     if (value === true) {
       checkedBoxes.push(key);
     } else if (typeof value === 'string') {

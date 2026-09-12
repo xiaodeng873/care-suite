@@ -14,11 +14,14 @@ import {
   X,
   Printer,
   AlertTriangle,
+  CalendarDays,
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients, type PatientActivityRecord } from '../context/PatientContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import ActivityRecordModal from '../components/ActivityRecordModal';
-import ActivityRecordPrintModal from '../components/ActivityRecordPrintModal';
+import HomeActivitiesModal from '../components/HomeActivitiesModal';
+import PatientPrintModal from '../components/PatientPrintModal';
+import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
@@ -70,7 +73,8 @@ const ActivityRecords: React.FC = () => {
   const { activityRecords, deleteActivityRecord, loading } = usePatientData();
   const patients = useFilteredPatients();
   const [showModal, setShowModal] = useState(false);
-  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showHomeActivities, setShowHomeActivities] = useState(false);
+  const [showPatientPrintModal, setShowPatientPrintModal] = useState(false);
   const [editingRecord, setEditingRecord] = useState<PatientActivityRecord | null>(null);
   const [addForPatientId, setAddForPatientId] = useState<number | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
@@ -256,9 +260,13 @@ const ActivityRecords: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">活動記錄</h1>
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setShowPrintModal(true)} className="btn-secondary flex flex-wrap items-center gap-2">
+            <button onClick={() => setShowPatientPrintModal(true)} className="btn-secondary flex flex-wrap items-center gap-2">
               <Printer className="h-4 w-4" />
-              <span>列印活動記錄表</span>
+              <span>列印</span>
+            </button>
+            <button onClick={() => setShowHomeActivities(true)} className="btn-secondary flex flex-wrap items-center gap-2">
+              <CalendarDays className="h-4 w-4" />
+              <span>院舍活動報表</span>
             </button>
             <button onClick={handleAdd} className="btn-primary flex flex-wrap items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -586,8 +594,33 @@ const ActivityRecords: React.FC = () => {
         />
       )}
 
-      {showPrintModal && (
-        <ActivityRecordPrintModal onClose={() => setShowPrintModal(false)} />
+      {showHomeActivities && (
+        <HomeActivitiesModal onClose={() => setShowHomeActivities(false)} />
+      )}
+
+      {showPatientPrintModal && (
+        <PatientPrintModal
+          patients={patients}
+          initialTab="統計報表"
+          initialSelectedDocumentIds={['home_activities_report']}
+          onClose={() => setShowPatientPrintModal(false)}
+          onPrint={async (selectedPatients, documentIds, startDate, endDate, contentMode, printOptions) => {
+            setShowPatientPrintModal(false);
+            try {
+              await generatePatientPrintBundle({
+                patients: selectedPatients,
+                documentIds,
+                startDate,
+                endDate,
+                contentMode,
+                printOptions,
+              });
+            } catch (error) {
+              console.error('列印失敗:', error);
+              alert('列印失敗，請稍後再試');
+            }
+          }}
+        />
       )}
     </div>
   );

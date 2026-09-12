@@ -9,7 +9,6 @@ import PatientContactsSection from './PatientContactsSection';
 import PatientSocialStatusSection from './PatientSocialStatusSection';
 import PatientMedicalHistorySection from './PatientMedicalHistorySection';
 import PatientMedicalServicesSection from './PatientMedicalServicesSection';
-import { useAuth } from '../context/AuthContext';
 import PatientNursingAssessmentSection from './PatientNursingAssessmentSection';
 import DateInput from './DateInput';
 
@@ -42,15 +41,6 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   const { addPatient, updatePatient, stations, beds, patients, vaccinationRecords: allVaccinationRecords, addVaccinationRecord, updateVaccinationRecord, deleteVaccinationRecord } = usePatientData();
   const [activeSubTab, setActiveSubTab] = useState<'basic' | 'contacts' | 'social' | 'medical' | 'services'>('basic');
   const [activeMainTab, setActiveMainTab] = useState<'personal' | 'nursing'>('personal');
-  const { userProfile, user } = useAuth();
-  const currentUserName = userProfile?.name_zh || user?.user_metadata?.display_name || user?.email || '';
-  const currentUserRank =
-  userProfile?.nursing_position ||
-  userProfile?.allied_health_position ||
-  userProfile?.hygiene_position ||
-  userProfile?.other_position ||
-  userProfile?.department ||
-  '';
 
   // 獲取當天日期作為預設入住日期
   const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -124,18 +114,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     }
   }, [patient?.院友id, allVaccinationRecords]);
 
-  // 自動帶入現時登入者資料（若首次記錄職員姓名/職級為空）
-  useEffect(() => {
-    if (!currentUserName && !currentUserRank) return;
-    setFormData((prev) => {
-      if (prev.首次記錄職員姓名 && prev.首次記錄職級) return prev;
-      return {
-        ...prev,
-        首次記錄職員姓名: prev.首次記錄職員姓名 || currentUserName || '',
-        首次記錄職級: prev.首次記錄職級 || currentUserRank || ''
-      };
-    });
-  }, [currentUserName, currentUserRank]);
+  // 首次記錄（職員姓名/職級/簽署/日期）唔再預填、唔再有輸入欄位，打印出嚟手填
 
   const handleOCRComplete = (extractedData: any) => {
     setOcrError('');
@@ -601,13 +580,13 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
         // 新增院友時同時寫入疫苗記錄
         for (const record of vaccinationRecords) {
-          if (record.vaccination_date.trim() && record.vaccine_item.trim() && record.vaccination_unit.trim() && record.vaccine_category?.trim()) {
+          if (record.vaccination_date.trim() && record.vaccine_item.trim() && record.vaccine_category?.trim()) {
             await addVaccinationRecord({
               patient_id: newPatientId,
               vaccination_date: record.vaccination_date,
               vaccine_item: record.vaccine_item.trim(),
               vaccine_category: record.vaccine_category,
-              vaccination_unit: record.vaccination_unit.trim(),
+              vaccination_unit: record.vaccination_unit?.trim() || '',
               remarks: record.remarks || ''
             });
           }
@@ -642,7 +621,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
         }
 
         for (const record of vaccinationRecords) {
-          if (!record.vaccination_date.trim() || !record.vaccine_item.trim() || !record.vaccination_unit.trim() || !record.vaccine_category?.trim()) {
+          if (!record.vaccination_date.trim() || !record.vaccine_item.trim() || !record.vaccine_category?.trim()) {
             continue;
           }
           if (record.id && initialVaccinationRecordIds.has(record.id)) {
@@ -653,7 +632,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
               vaccination_date: record.vaccination_date,
               vaccine_item: record.vaccine_item.trim(),
               vaccine_category: record.vaccine_category,
-              vaccination_unit: record.vaccination_unit.trim(),
+              vaccination_unit: record.vaccination_unit?.trim() || '',
               remarks: record.remarks || ''
             });
           }
@@ -1294,9 +1273,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
             value={formData.nursing_assessment_json}
             onChange={(nursing_assessment_json) =>
             setFormData((prev) => ({ ...prev, nursing_assessment_json }))
-            }
-            currentUserName={currentUserName}
-            currentUserRank={currentUserRank} />
+            } />
 
           }
 

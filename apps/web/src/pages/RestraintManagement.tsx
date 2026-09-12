@@ -700,13 +700,7 @@ const RestraintManagement: React.FC = () => {
                       <FileText className="h-4 w-4 text-blue-600" />
                       <span>約束物品同意書</span>
                     </button>
-                    <button
-                      onClick={handleExportObservationChart}
-                      className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
-                    >
-                      <FileText className="h-4 w-4 text-green-600" />
-                      <span>約束物品觀察表</span>
-                    </button>
+                    {/* 約束物品觀察表（Excel 匯出）：保留 handleExportObservationChart 功能，暫時唔外顯 */}
                   </div>
                 </div>
               </div>

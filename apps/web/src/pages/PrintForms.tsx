@@ -620,7 +620,8 @@ const PrintForms: React.FC = () => {
               className="form-input"
             >
               <option value="">請選擇列印表格...</option>
-              {templates.map(template => (
+              {/* 約束物品觀察表：保留匯出功能，暫時唔外顯 */}
+              {templates.filter(t => t.type !== 'restraint-observation').map(template => (
                 <option key={template.id} value={template.id}>
                   {template.type === 'diaper-change-record' && '換片記錄'}
                   {template.type === 'personal-hygiene-record' && '個人衛生、清潔及大便記錄'}

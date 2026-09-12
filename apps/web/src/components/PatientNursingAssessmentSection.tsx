@@ -1,20 +1,15 @@
-import React, { useEffect } from 'react';
-import DateInput from './DateInput';
+import React from 'react';
 
 type NursingAssessmentValue = Record<string, string | boolean>;
 
 interface PatientNursingAssessmentSectionProps {
   value: NursingAssessmentValue;
   onChange: (value: NursingAssessmentValue) => void;
-  currentUserName?: string;
-  currentUserRank?: string;
 }
 
 const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionProps> = ({
   value,
-  onChange,
-  currentUserName,
-  currentUserRank
+  onChange
 }) => {
   const v = value || {};
 
@@ -24,28 +19,6 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
   const setVal = (key: string, val: string | boolean) => {
     onChange({ ...v, [key]: val });
   };
-
-  // 自動帶入現時登入者作為評估員姓名及職級（若欄位為空）
-  useEffect(() => {
-    if (!currentUserName && !currentUserRank) return;
-
-    const next: NursingAssessmentValue = { ...v };
-    let changed = false;
-
-    if (currentUserName && !getText('assessor_name')) {
-      next.assessor_name = currentUserName;
-      changed = true;
-    }
-    if (currentUserRank && !getText('assessor_rank')) {
-      next.assessor_rank = currentUserRank;
-      changed = true;
-    }
-
-    if (changed) {
-      onChange(next);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUserName, currentUserRank]);
 
   const Checkbox: React.FC<{k: string;label: React.ReactNode;disabled?: boolean;}> = ({
     k,
@@ -69,18 +42,7 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
     placeholder?: string;
     className?: string;
     disabled?: boolean;
-    type?: 'text' | 'date';
-  }> = ({ k, placeholder, className = 'form-input', disabled, type = 'text' }) =>
-  type === 'date' ?
-  <DateInput
-
-    value={getText(k)}
-
-    disabled={disabled}
-    className={className}
-    placeholder={placeholder} onChange={(value) => setVal(k, value)} /> :
-
-
+  }> = ({ k, placeholder, className = 'form-input', disabled }) =>
   <input
     type="text"
     value={getText(k)}
@@ -437,16 +399,6 @@ const PatientNursingAssessmentSection: React.FC<PatientNursingAssessmentSectionP
             <span className="text-sm text-gray-700">)</span>
           </div>
         }
-      </SectionCard>
-
-      {/* 評估員資料 */}
-      <SectionCard title="評估員資料">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <TextInput k="assessor_name" placeholder="評估員姓名" />
-          <TextInput k="assessor_rank" placeholder="職級" />
-          <TextInput k="assessor_sign" placeholder="簽署" />
-          <TextInput k="assess_date" type="date" placeholder="評估日期" />
-        </div>
       </SectionCard>
     </div>);
 

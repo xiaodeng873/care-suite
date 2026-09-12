@@ -437,13 +437,7 @@ const Scheduling: React.FC = () => {
                       <Settings className="h-4 w-4" />
                       <span>管理院友</span>
                     </button>
-                    <button
-                      onClick={() => handleDownloadForm(schedule)}
-                      className="btn-secondary flex items-center space-x-1"
-                    >
-                      <Download className="h-4 w-4" />
-                      <span>下載表格</span>
-                    </button>
+                    {/* 下載表格（Excel 匯出）：保留 handleDownloadForm 功能，暫時唔外顯 */}
                     <button
                       onClick={() => handlePrintWaitingList(schedule)}
                       className="btn-secondary flex items-center space-x-1"

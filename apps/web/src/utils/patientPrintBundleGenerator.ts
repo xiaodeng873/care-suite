@@ -634,7 +634,9 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
 
 export async function generatePatientPrintBundle(options: PrintBundleOptions): Promise<void> {
   const { patients, documentIds, startDate, endDate, contentMode, printOptions } = options;
-  if (patients.length === 0 || documentIds.length === 0) return;
+  // 院舍活動報表係院舍層級文件：單獨勾選時唔需要院友；其他文件至少要一位院友
+  const homeActivitiesOnly = documentIds.length > 0 && documentIds.every(id => id === 'home_activities_report');
+  if (documentIds.length === 0 || (patients.length === 0 && !homeActivitiesOnly)) return;
 
   // 清除床頭記錄選項卡快取，避免跨次列印使用舊資料
   cachedCareTabs = null;
@@ -669,8 +671,9 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
   const hasVaccineConsent = sortedDocumentIds.includes('vaccine_consent');
   const hasFeeStatisticsReport = sortedDocumentIds.includes('fee_statistics_report');
   const hasMealGuidanceCard = sortedDocumentIds.includes('meal_guidance_card');
+  const hasHomeActivitiesReport = sortedDocumentIds.includes('home_activities_report');
   const statisticsDocumentIds = sortedDocumentIds.filter(id => STATISTICS_REPORT_IDS.has(id)) as StatisticsReportDocumentId[];
-  const htmlDocumentIds = sortedDocumentIds.filter(id => id !== 'vaccine_consent' && id !== 'fee_statistics_report' && !STATISTICS_REPORT_IDS.has(id) && id !== 'meal_guidance_card');
+  const htmlDocumentIds = sortedDocumentIds.filter(id => id !== 'vaccine_consent' && id !== 'fee_statistics_report' && id !== 'home_activities_report' && !STATISTICS_REPORT_IDS.has(id) && id !== 'meal_guidance_card');
 
   const pages: string[] = [];
   const skipped: string[] = [];
@@ -835,6 +838,26 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     }
   }
 
+  if (hasHomeActivitiesReport) {
+    try {
+      const [{ getHomeActivities }, homeMod] = await Promise.all([
+        import('../lib/homeActivities'),
+        import('./homeActivitiesPrintFormHtml'),
+      ]);
+      let records = await getHomeActivities();
+      // 日期範圍過濾（對應列印綜合文件嘅日期範圍；院舍活動報表唔使用院友入住日期回退）
+      records = records.filter(r =>
+        (!startDate || r.activity_date >= startDate) && (!endDate || r.activity_date <= endDate)
+      );
+      // 範圍內冇記錄時，空白表格照出日期範圍嘅月份
+      const fallbackYm = (endDate || startDate || '').slice(0, 7) || undefined;
+      pages.push(homeMod.generateHomeActivitiesPrintFormHtml(records, facilityName, fallbackYm, printOptions?.homeActivitiesMonthSplit ?? true));
+    } catch (error: any) {
+      console.error('產生院舍活動報表失敗:', error);
+      failed.push('院舍活動報表');
+    }
+  }
+
   let excelGenerated = false;
   if (statisticsDocumentIds.length > 0) {
     try {
@@ -929,7 +952,6 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
     const { printGroupedHtml } = await import('./printUtils');
     printGroupedHtml(pages, 'patient-bundle-print-iframe');
   }
-
   // 回報未能列印/匯出的文件
   const notices: string[] = [];
   if (skipped.length > 0) notices.push(`以下文件在日期範圍內沒有記錄，未有列印/匯出：\n${skipped.join('\n')}`);

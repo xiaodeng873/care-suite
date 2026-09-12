@@ -140,18 +140,25 @@ const StationBedManagement: React.FC = () => {
   const isolationRoomIds = new Set(rooms.filter(r => r.is_isolation).map(r => r.id));
   const isCountableBed = (bed: any) => !bed.room_id || !isolationRoomIds.has(bed.room_id);
 
-  // 獲取每個站的統計資訊：只計「原屬本站且現正佔用本站床位」的院友
+  // 獲取每個站的統計資訊：以「實際佔用本站床位」計；暫調出嘅原床屬保留床，唔計可用
   const getStationStats = (stationId: string) => {
     const stationBeds = beds.filter(bed => bed.station_id === stationId && isCountableBed(bed));
     const stationBedIds = new Set(stationBeds.map(b => b.id));
-    // 已入住 = 原屬本站且現正佔用本站床位（含站內暫調）
+    // 實際佔用：任何在住院友而家瞓緊本站張床（含由他站暫調入嚟）
     const occupiedCount = patients.filter(p =>
       p.在住狀態 === '在住' &&
       p.bed_id &&
-      stationBedIds.has(p.bed_id) &&
-      getPatientHomeStationIdLocal(p) === stationId
+      stationBedIds.has(p.bed_id)
     ).length;
-    const availableCount = Math.max(0, stationBeds.length - occupiedCount);
+    // 保留床：本站床位係某在住暫調院友嘅原床（院友暫調出緊，張床唔可以派俾人）
+    const reservedCount = stationBeds.filter(bed =>
+      patients.some(p =>
+        p.在住狀態 === '在住' &&
+        p.bed_transfer_type === 'temporary' &&
+        p.original_bed_id === bed.id
+      )
+    ).length;
+    const availableCount = Math.max(0, stationBeds.length - occupiedCount - reservedCount);
     return {
       totalBeds: stationBeds.length,
       occupiedBeds: occupiedCount,
@@ -187,14 +194,13 @@ const StationBedManagement: React.FC = () => {
       });
     });
   }, [patients, beds, stations]);
-  // 獲取床位上的院友（床位表顯示原屬本站且現正佔用本站床位的院友，含站內暫調）
+  // 獲取床位上的院友（床位卡顯示實際瞓緊呢張床嘅在住院友；
+  // 由他站暫調入嚟嘅都顯示，卡片會以小字標示原床號）
   const getPatientInBed = (bedId: string) => {
     const patient = patients.find(p => p.bed_id === bedId && p.在住狀態 === '在住');
     if (!patient) return undefined;
     const bed = beds.find(b => b.id === bedId);
     if (!bed) return undefined;
-    // 若院友的原居住區不是本站，即暫調來本站，不顯示
-    if (getPatientHomeStationIdLocal(patient) !== bed.station_id) return undefined;
     return patient;
   };
   // 篩選床位

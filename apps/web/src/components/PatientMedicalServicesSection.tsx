@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, Calendar, Building2, Syringe } from 'lucide-react';
+import { Plus, Trash2, Calendar, Syringe } from 'lucide-react';
 import { type VaccinationRecord } from '../lib/database';
 import { VACCINE_CATEGORIES, guessVaccineCategory } from '../utils/vaccinationRecordPrintGenerator';
 import DateInput from './DateInput';
@@ -72,11 +72,6 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
 
   const updateService = (key: keyof typeof defaultMedicalServices, value: any) => {
     updateServices({ [key]: value } as any);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev: any) => ({ ...prev, [name]: value }));
   };
 
   return (
@@ -161,20 +156,6 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
-                </div>
-
-                <div>
-                  <label className="form-label flex flex-wrap items-center gap-2">
-                    <Building2 className="h-4 w-4 text-gray-400" />
-                    <span>接種單位 / 醫院</span>
-                  </label>
-                  <input
-                  type="text"
-                  value={record.vaccination_unit}
-                  onChange={(e) => updateVaccinationItem(index, 'vaccination_unit', e.target.value)}
-                  className="form-input"
-                  placeholder="例如：衛生署" />
-                
                 </div>
               </div>
             </div>
@@ -351,42 +332,6 @@ const PatientMedicalServicesSection: React.FC<PatientMedicalServicesSectionProps
               </div>
             }
           </div>
-        </div>
-      </div>
-
-      {/* 首次記錄 */}
-      <div>
-        <label className="form-label">首次記錄</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <input
-            type="text"
-            name="首次記錄職員姓名"
-            value={formData.首次記錄職員姓名}
-            onChange={handleChange}
-            className="form-input"
-            placeholder="職員姓名" />
-          
-          <input
-            type="text"
-            name="首次記錄職級"
-            value={formData.首次記錄職級}
-            onChange={handleChange}
-            className="form-input"
-            placeholder="職級" />
-          
-          <input
-            type="text"
-            name="首次記錄簽署"
-            value={formData.首次記錄簽署}
-            onChange={handleChange}
-            className="form-input"
-            placeholder="簽署" />
-          
-          <DateInput
-            name="首次記錄日期"
-            value={formData.首次記錄日期}
-            onChange={(value) => setFormData((prev) => ({ ...prev, ['首次記錄日期']: value }))}
-            className="form-input" />
         </div>
       </div>
     </div>);

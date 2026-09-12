@@ -67,6 +67,7 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
 { id: 'drug_sensitivity_statistics_report', name: '藥物敏感報表', category: '統計報表', defaultChecked: false },
 { id: 'diaper_statistics_report', name: '尿片統計報表', category: '統計報表', defaultChecked: false },
 { id: 'fee_statistics_report', name: '雜費記錄報表', category: '統計報表', defaultChecked: false },
+{ id: 'home_activities_report', name: '院舍活動報表', category: '統計報表', defaultChecked: false },
 // 排班管理
 { id: 'roster_pre_schedule', name: '假期預排表', category: '排班管理', defaultChecked: true },
 { id: 'roster_schedule', name: '排班表', category: '排班管理', defaultChecked: true }];
@@ -99,6 +100,8 @@ export interface PrintDocumentOptions {
   rosterUserIds?: string[];
   /** 排班管理：列印月份（YYYY-MM），兩份文件統一使用 */
   rosterYearMonth?: string;
+  /** 院舍活動報表：true（預設）按月分頁，false 整段日期範圍連續列表 */
+  homeActivitiesMonthSplit?: boolean;
 }
 
 /** 排班管理 tab 左側員工欄的項目 */
@@ -196,6 +199,8 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
   const [diaperEndMonth, setDiaperEndMonth] = useState(currentMonth);
   // 雜費記錄報表月份（預設當月）
   const [feeMonth, setFeeMonth] = useState(currentMonth);
+  // 院舍活動報表：按月分頁（預設開）
+  const [homeActivitiesByMonth, setHomeActivitiesByMonth] = useState(true);
   const [feeSkipEmptyPatients, setFeeSkipEmptyPatients] = useState(false);
 
   // 排班管理 tab 選項
@@ -213,7 +218,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
     () => new Set((rosterEmployees ?? []).map((e) => e.id))
   );
 
-  const [residencyFilter, setResidencyFilter] = useState<string>('');
+  const [residencyFilter, setResidencyFilter] = useState<string>('在住');
 
   const filteredPatients = useMemo(() => {
     return patients.filter((p) => {
@@ -280,6 +285,9 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
   const hasStatisticsReport = Array.from(checkedDocuments).some((id) => STATISTICS_REPORT_IDS.has(id));
   const hasDiaperReport = checkedDocuments.has('diaper_statistics_report');
   const hasFeeReport = checkedDocuments.has('fee_statistics_report');
+  const hasHomeActivitiesDoc = checkedDocuments.has('home_activities_report');
+  // 院舍活動報表係院舍層級文件：單獨勾選時唔需要選院友，只需日期範圍
+  const printNeedsPatients = Array.from(checkedDocuments).some((id) => id !== 'home_activities_report');
 
   // 排班管理 tab：院友選擇與日期範圍不適用
   const isRosterTab = activeTab === '排班管理';
@@ -328,7 +336,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
 
   const handlePrint = () => {
     const selected = patients.filter((p) => selectedPatientIds.has(p.院友id));
-    if (!isRosterTab && selected.length === 0) {
+    if (!isRosterTab && printNeedsPatients && selected.length === 0) {
       alert('請先選擇院友');
       return;
     }
@@ -350,7 +358,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
     if (effectiveStartDate && effectiveEndDate && effectiveStartDate > effectiveEndDate) {
       [effectiveStartDate, effectiveEndDate] = [effectiveEndDate, effectiveStartDate];
     }
-    const printOptions: PrintDocumentOptions | undefined = hasStatisticsReport || hasFeeReport || hasRosterDoc ?
+    const printOptions: PrintDocumentOptions | undefined = hasStatisticsReport || hasFeeReport || hasRosterDoc || hasHomeActivitiesDoc ?
     {
       separateSheetsPerStation,
       ...(hasDiaperReport && diaperStartMonth && diaperEndMonth ?
@@ -358,6 +366,9 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
       {}),
       ...(hasFeeReport ?
       { feeMonth, feeSkipEmptyPatients } :
+      {}),
+      ...(hasHomeActivitiesDoc ?
+      { homeActivitiesMonthSplit: homeActivitiesByMonth } :
       {}),
       ...(hasRosterDoc ?
       {
@@ -515,8 +526,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
           }
           {hasStatisticsReport &&
           <div className="flex items-center gap-4">
-              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">統計報表工作表：</label>
-              <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">統計報表工作表：</label>              <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
                 <input
                 type="checkbox"
                 checked={separateSheetsPerStation}
@@ -525,6 +535,20 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
               
                 按居住區分開 sheet
               </label>
+            </div>
+          }
+          {hasHomeActivitiesDoc &&
+          <div className="flex items-center gap-4">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">院舍活動報表：</label>
+              <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                <input
+                type="checkbox"
+                checked={homeActivitiesByMonth}
+                onChange={(e) => setHomeActivitiesByMonth(e.target.checked)}
+                className="h-4 w-4" />
+                按月分頁
+              </label>
+              <span className="text-xs text-gray-500">（唔勾則整段日期範圍連續列表，唔分月份）</span>
             </div>
           }
           {hasDiaperReport &&
@@ -736,11 +760,11 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
           <button onClick={onClose} className="btn-secondary px-4 py-2">取消</button>
           <button
             onClick={handlePrint}
-            disabled={isRosterTab ? checkedCount === 0 || rosterDepartments.size === 0 || selectedEmployeeIds.size === 0 : selectedCount === 0 || checkedCount === 0}
+            disabled={isRosterTab ? checkedCount === 0 || rosterDepartments.size === 0 || selectedEmployeeIds.size === 0 : (printNeedsPatients && selectedCount === 0) || checkedCount === 0}
             className="btn-primary flex items-center gap-2 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed">
             
             <Printer className="h-4 w-4" />
-            {isRosterTab ? '列印' : `列印 (${selectedCount} 位院友)`}
+            {isRosterTab ? '列印' : printNeedsPatients ? `列印 (${selectedCount} 位院友)` : '列印'}
           </button>
         </div>
       </div>

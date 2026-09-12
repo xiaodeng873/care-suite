@@ -1,0 +1,23 @@
+[
+ {
+  "e": {
+   "sc": "SC2026096",
+   "中文姓名": "",
+   "enFull": "WongGloria J",
+   "idFmt": "K0248843",
+   "入住日期": "2026-07-17",
+   "退住日期": "2026-08-01",
+   "入住類型": "買位",
+   "nursingRaw": "中度照顧",
+   "護理等級": "半護理",
+   "reasonRaw": "回家 (由家人照顧)",
+   "discharge_reason": "回家",
+   "reasonKey": "回家 (由家人照顧)",
+   "性別": "女",
+   "出生日期": "1947-05-07",
+   "通訊電話": null,
+   "通訊地址": null
+  },
+  "error": "null value in column \"中文姓名\" of relation \"院友主表\" violates not-null constraint"
+ }
+]

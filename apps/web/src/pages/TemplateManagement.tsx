@@ -58,7 +58,7 @@ const TemplateManagement: React.FC = () => {
     { value: 'blood-sugar', label: '血糖測試記錄表', description: '院友血糖監測記錄' },
     { value: 'weight-control', label: '體重記錄表', description: '院友體重監測記錄' },
     { value: 'follow-up-list', label: '覆診記錄表', description: '院友覆診安排記錄' },
-    { value: 'restraint-observation', label: '約束物品觀察表', description: '約束物品使用觀察記錄' },
+    // 約束物品觀察表：保留範本上載功能，暫時唔外顯
     { value: 'diaper-change-record', label: '換片記錄', description: '院友換片護理記錄表' },
     { value: 'personal-hygiene-record', label: '個人衛生記錄', description: '院友個人衛生護理記錄表' },
     { value: 'admission-layout', label: '入住排版', description: '院友入住相關文件排版' },

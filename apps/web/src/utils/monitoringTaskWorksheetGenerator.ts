@@ -279,25 +279,44 @@ const splitDayIntoPages = (day: DayData, contentHeight: number = A5_CONTENT_HEIG
   ];
   for (const slot of slots) {
     if (slot.tasks.length === 0) continue;
+    // 餐段不可跨頁中斷（avoid-break）：整段高度計晒先決定放唔放得落
+    const baseSlotHeight = SLOT_TITLE_HEIGHT + TABLE_HEADER_HEIGHT + SLOT_MARGIN;
+    const slotHeight = baseSlotHeight + (slot.tasks.length * ROW_HEIGHT);
+    if (slotHeight <= contentHeight - currentHeight) {
+      currentPage.slots.push({
+        name: slot.name,
+        fullName: slot.fullName,
+        tasks: slot.tasks,
+        startIndex: 0,
+        endIndex: slot.tasks.length - 1
+      });
+      currentHeight += slotHeight;
+      continue;
+    }
+    // 放唔落：封起現頁，成段搬去新頁
+    if (currentPage.slots.length > 0) {
+      currentPage.usedHeight = currentHeight;
+      pages.push(currentPage);
+      currentPage = { slots: [], usedHeight: HEADER_HEIGHT };
+      currentHeight = HEADER_HEIGHT;
+    }
+    if (slotHeight <= contentHeight - currentHeight) {
+      currentPage.slots.push({
+        name: slot.name,
+        fullName: slot.fullName,
+        tasks: slot.tasks,
+        startIndex: 0,
+        endIndex: slot.tasks.length - 1
+      });
+      currentHeight += slotHeight;
+      continue;
+    }
+    // 單一餐段已經超過一頁（極端情況）：退而求其次逐行分配
     let taskIndex = 0;
     while (taskIndex < slot.tasks.length) {
-      // 計算這個時段標題+表頭需要的基礎高度
-      const baseSlotHeight = SLOT_TITLE_HEIGHT + TABLE_HEADER_HEIGHT + SLOT_MARGIN;
-      // 計算當前頁面還能容納多少行
       const remainingHeight = contentHeight - currentHeight - baseSlotHeight;
-      const maxRowsInCurrentPage = Math.max(0, Math.floor(remainingHeight / ROW_HEIGHT));
-      if (maxRowsInCurrentPage <= 0) {
-        // 當前頁放不下，開新頁
-        if (currentPage.slots.length > 0) {
-          currentPage.usedHeight = currentHeight;
-          pages.push(currentPage);
-          currentPage = { slots: [], usedHeight: HEADER_HEIGHT };
-          currentHeight = HEADER_HEIGHT;
-        }
-        continue;
-      }
-      // 確定這一頁能放多少個任務
-      const tasksForThisPage = Math.min(maxRowsInCurrentPage, slot.tasks.length - taskIndex);
+      const maxRows = Math.max(1, Math.floor(remainingHeight / ROW_HEIGHT));
+      const tasksForThisPage = Math.min(maxRows, slot.tasks.length - taskIndex);
       currentPage.slots.push({
         name: slot.name,
         fullName: slot.fullName,
@@ -307,7 +326,6 @@ const splitDayIntoPages = (day: DayData, contentHeight: number = A5_CONTENT_HEIG
       });
       currentHeight += baseSlotHeight + (tasksForThisPage * ROW_HEIGHT);
       taskIndex += tasksForThisPage;
-      // 如果這個時段還沒處理完，開新頁繼續
       if (taskIndex < slot.tasks.length) {
         currentPage.usedHeight = currentHeight;
         pages.push(currentPage);
@@ -483,77 +501,47 @@ const generatePairedHTML = (daysData: DayData[], layout: WorksheetLayout = 'half
       });
     });
   } else {
-  // 將每天的內容分割成頁面（最多2頁）
+  // 將每天的內容分割成頁面；餐段 avoid-break 後一日可能有兩頁以上，配對邏輯要支援任意頁數
   const day1Pages = splitDayIntoPages(daysData[0]);
   const day2Pages = splitDayIntoPages(daysData[1]);
   const day3Pages = splitDayIntoPages(daysData[2]);
   const day4Pages = splitDayIntoPages(daysData[3]);
-  // 確保最多2頁
-  const d1p1 = day1Pages[0] || { slots: [], usedHeight: HEADER_HEIGHT };
-  const d1p2 = day1Pages[1] || null;
-  const d2p1 = day2Pages[0] || { slots: [], usedHeight: HEADER_HEIGHT };
-  const d2p2 = day2Pages[1] || null;
-  const d3p1 = day3Pages[0] || { slots: [], usedHeight: HEADER_HEIGHT };
-  const d3p2 = day3Pages[1] || null;
-  const d4p1 = day4Pages[0] || { slots: [], usedHeight: HEADER_HEIGHT };
-  const d4p2 = day4Pages[1] || null;
-  // 判斷是否需要第2張A4
-  const pair1NeedsPage2 = d1p2 !== null || d2p2 !== null;
-  const pair2NeedsPage2 = d3p2 !== null || d4p2 !== null;
+  // 生成指定日指定頁嘅內容；該日冇呢一頁就留白
+  const makeContent = (dayIdx: number, pageIdx: number, isLeftHalf: boolean): string => {
+    const pagesArr = [day1Pages, day2Pages, day3Pages, day4Pages][dayIdx];
+    const pc = pagesArr[pageIdx];
+    if (!pc) return '<div class="empty-page"></div>';
+    return generateA5PageContent(daysData[dayIdx], pc, pageIdx + 1, pagesArr.length, isLeftHalf);
+  };
+  // 輸出一對日（DayA+DayB）嘅雙面A4：每張正面 左=DayA-Pk/右=DayB-Pk，背面 左=DayB-P(k+1)/右=DayA-P(k+1)（交換！）
+  const emitPair = (dayA: number, dayB: number) => {
+    const maxPages = Math.max(
+      [day1Pages, day2Pages, day3Pages, day4Pages][dayA].length,
+      [day1Pages, day2Pages, day3Pages, day4Pages][dayB].length
+    );
+    for (let k = 0; k < maxPages; k += 2) {
+      // 正面
+      a4PagesHTML += `
+    <div class="a4-page">
+      <div class="a5-left">${makeContent(dayA, k, true)}</div>
+      <div class="a5-right">${makeContent(dayB, k, false)}</div>
+    </div>
+  `;
+      // 背面（其中一日有第 k+1 頁先印）
+      if (k + 1 < maxPages) {
+        a4PagesHTML += `
+      <div class="a4-page">
+        <div class="a5-left">${makeContent(dayB, k + 1, true)}</div>
+        <div class="a5-right">${makeContent(dayA, k + 1, false)}</div>
+      </div>
+    `;
+      }
+    }
+  };
   // === 第一組：Day1 + Day2 ===
-  // 第1張A4（正面）：左=Day1-P1，右=Day2-P1
-  a4PagesHTML += `
-    <div class="a4-page">
-      <div class="a5-left">
-        ${generateA5PageContent(daysData[0], d1p1, 1, day1Pages.length, true)}
-      </div>
-      <div class="a5-right">
-        ${generateA5PageContent(daysData[1], d2p1, 1, day2Pages.length, false)}
-      </div>
-    </div>
-  `;
-  // 第2張A4（背面）：左=Day2-P2，右=Day1-P2（交換位置！）
-  if (pair1NeedsPage2) {
-    const leftContent = d2p2
-      ? generateA5PageContent(daysData[1], d2p2, 2, day2Pages.length, true)
-      : '<div class="empty-page"></div>';
-    const rightContent = d1p2
-      ? generateA5PageContent(daysData[0], d1p2, 2, day1Pages.length, false)
-      : '<div class="empty-page"></div>';
-    a4PagesHTML += `
-      <div class="a4-page">
-        <div class="a5-left">${leftContent}</div>
-        <div class="a5-right">${rightContent}</div>
-      </div>
-    `;
-  }
+  emitPair(0, 1);
   // === 第二組：Day3 + Day4 ===
-  // 第1張A4（正面）：左=Day3-P1，右=Day4-P1
-  a4PagesHTML += `
-    <div class="a4-page">
-      <div class="a5-left">
-        ${generateA5PageContent(daysData[2], d3p1, 1, day3Pages.length, true)}
-      </div>
-      <div class="a5-right">
-        ${generateA5PageContent(daysData[3], d4p1, 1, day4Pages.length, false)}
-      </div>
-    </div>
-  `;
-  // 第2張A4（背面）：左=Day4-P2，右=Day3-P2（交換位置！）
-  if (pair2NeedsPage2) {
-    const leftContent = d4p2
-      ? generateA5PageContent(daysData[3], d4p2, 2, day4Pages.length, true)
-      : '<div class="empty-page"></div>';
-    const rightContent = d3p2
-      ? generateA5PageContent(daysData[2], d3p2, 2, day3Pages.length, false)
-      : '<div class="empty-page"></div>';
-    a4PagesHTML += `
-      <div class="a4-page">
-        <div class="a5-left">${leftContent}</div>
-        <div class="a5-right">${rightContent}</div>
-      </div>
-    `;
-  }
+  emitPair(2, 3);
   }
   return `
     <!DOCTYPE html>
