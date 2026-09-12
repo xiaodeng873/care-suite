@@ -1,9 +1,15 @@
-import { X, Plus, Trash2, Calendar, Clock, Guitar as Hospital, MapPin, Bed, User, AlertTriangle, Heart, Building2, FileText, Activity } from 'lucide-react';
+import { X, Plus, Trash2, Calendar, Clock, Guitar as Hospital, MapPin, User, AlertTriangle, Heart, Building2, FileText, Activity } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import { formatDisplayDate } from '../utils/dateFormat';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import DateInput from './DateInput';
+import InstitutionAutocomplete from './InstitutionAutocomplete';
+import {
+  getMedicationSettings,
+  getMedicationSettingsFromDB,
+  type MedicationSettingsData
+} from '../utils/medicationSettings';
 
 
 interface EpisodeEvent {
@@ -138,6 +144,14 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [medicationSettings, setMedicationSettings] = useState<MedicationSettingsData>(getMedicationSettings);
+
+  // 從藥物設定載入「醫管局 — 醫院」清單（先讀 DB，失敗退回 localStorage 快取）
+  useEffect(() => {
+    getMedicationSettingsFromDB()
+      .then(setMedicationSettings)
+      .catch(() => setMedicationSettings(getMedicationSettings()));
+  }, []);
 
   // 等待資料載入完成
   if (loading) {
@@ -151,18 +165,12 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
 
   }
 
-  // 常用醫院列表
-  const commonHospitals = [
-  '瑪麗醫院',
-  '伊利沙伯醫院',
-  '廣華醫院',
-  '東華醫院',
-  '律敦治醫院',
-  '聯合醫院',
-  '威爾斯親王醫院',
-  '沙田醫院',
-  '屯門醫院',
-  '天水圍醫院'];
+  // 醫院名稱選項來源：藥物設定「醫管局 — 醫院」清單（與覆診地點同一 InstitutionAutocomplete 做法）
+  const hospitalOptions = useMemo(() => {
+    const abbrMap = medicationSettings?.機構簡稱 || {};
+    const list = medicationSettings?.['機構_醫管局醫院'] || [];
+    return list.map((name) => ({ name, group: '醫管局 — 醫院', abbr: abbrMap[name] }));
+  }, [medicationSettings]);
 
 
   // 出院類型選項
@@ -681,25 +689,22 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                       {/* 醫院相關欄位 - 只在非渡假事件時顯示 */}
                       {!event.event_type.startsWith('vacation') &&
                       <>
-                          {/* 醫院名稱 - 調整 grid 佈局 */}
-                          <div className={event.event_type === 'transfer' ? 'md:col-span-2' : ''}>
+                          {/* 醫院名稱 - 與事件日期、事件時間同一列（佔兩格），病房落到下一列 */}
+                          <div className="lg:col-span-2">
                             <label className="form-label">
                               醫院名稱 <span className="text-red-500">*</span>
                             </label>
-                            <input
-                            list="hospital-list"
-                            value={event.hospital_name || ''}
-                            onChange={(e) => updateEvent(event.id, 'hospital_name', e.target.value)}
-                            className={`form-input ${errors[`hospital_name_${index}`] ? 'border-red-300' : ''}`}
-                            placeholder="選擇或輸入醫院名稱"
-                            required />
-                          
-                            <datalist id="hospital-list">
-                              {commonHospitals.map((hospital) =>
-                            <option key={hospital} value={hospital} />
-                            )}
-                            </datalist>
-                            {errors[`hospital_name_${index}`] &&
+                            <InstitutionAutocomplete
+                              value={event.hospital_name || ''}
+                              onChange={(v) => updateEvent(event.id, 'hospital_name', v)}
+                              medSettings={medicationSettings}
+                              options={hospitalOptions}
+                              className={`form-input ${errors[`hospital_name_${index}`] ? 'border-red-300' : ''}`}
+                              placeholder="輸入中文名或英文簡稱搜索…"
+                              emptyHint="清單以外的醫院可直接輸入任意名稱"
+                              required
+                            />
+                          {errors[`hospital_name_${index}`] &&
                           <p className="text-red-500 text-sm mt-1">{errors[`hospital_name_${index}`]}</p>
                           }
                           </div>
@@ -718,26 +723,11 @@ const HospitalEpisodeModal: React.FC<HospitalEpisodeModalProps> = ({
                             
                             </div>
                           </div>
-
-                          {/* 醫院床號 */}
-                          <div>
-                            <label className="form-label">醫院床號</label>
-                            <div className="relative">
-                              <Bed className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                              <input
-                              type="text"
-                              value={event.hospital_bed_number || ''}
-                              onChange={(e) => updateEvent(event.id, 'hospital_bed_number', e.target.value)}
-                              className="form-input pl-10"
-                              placeholder="例：A01" />
-                            
-                            </div>
-                          </div>
                         </>
                       }
 
-                      {/* 事件備註 */}
-                      <div className="md:col-span-3">
+                      {/* 事件備註 - 與病房同一列（病房一格、備註三格） */}
+                      <div className="md:col-span-2 lg:col-span-3">
                         <label className="form-label">事件備註</label>
                         <textarea
                           value={event.remarks || ''}

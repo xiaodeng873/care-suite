@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   packBlocksForSignatureEfficiency,
   orderPrescriptionsForSignatureEfficiency,
+  preparePages,
 } from './medicationRecordHtmlExporter';
 
 // 雷燕優（C209-1）2026-08 口服處方（真實資料）
@@ -104,5 +105,74 @@ describe('packBlocksForSignatureEfficiency（詹金花個案）', () => {
       const sorted = [...firsts].sort((a, b) => a - b);
       expect(firsts).toEqual(sorted);
     }
+  });
+});
+
+// ---- 「檢測項獨立分頁」選項 ----
+
+const PATIENT = { 院友id: 1, 中文姓氏: '陳', 中文名字: '大文' };
+
+const normalRx = (name: string, slots: string[]) => ({
+  medication_name: name,
+  administration_route: '口服',
+  medication_time_slots: slots,
+  inspection_rules: [],
+});
+
+const inspectionRx = (name: string, slots: string[]) => ({
+  medication_name: name,
+  administration_route: '口服',
+  medication_time_slots: slots,
+  inspection_rules: [
+    { vital_sign_type: '血壓', condition_operator: 'gte', condition_value: 90, action_if_met: 'block_dispensing' },
+  ],
+});
+
+const RXS = [
+  normalRx('AMLODIPINE TABLET 5MG', ['08:00']),
+  inspectionRx('METFORMIN HCL TABLET 500MG', ['08:00', '16:00']),
+  normalRx('SENNA TABLET 7.5MG', ['20:00']),
+];
+
+describe('preparePages（檢測項獨立分頁：關閉）', () => {
+  const pages = preparePages(PATIENT, RXS, true, 0, 'efficiency', false);
+
+  it('行為與原本一致：檢測項處方混入常規分頁，全部處方都在頁面上', () => {
+    expect(pages.flatMap((p) => p.blocks).map((b) => b.prescription.medication_name).sort())
+      .toEqual(RXS.map((r) => r.medication_name).sort());
+  });
+
+  it('含檢測項處方所在頁照常補空白列（fillerCount > 0）', () => {
+    const inspPages = pages.filter((p) => p.blocks.some((b) => b.prescription.inspection_rules.length > 0));
+    expect(inspPages.length).toBeGreaterThan(0);
+    expect(inspPages.every((p) => p.fillerCount > 0)).toBe(true);
+  });
+});
+
+describe('preparePages（檢測項獨立分頁：開啟）', () => {
+  const pages = preparePages(PATIENT, RXS, true, 0, 'efficiency', true);
+
+  it('每個含檢測項處方獨立一頁，排於常規頁之後', () => {
+    const inspPages = pages.filter((p) => p.blocks.length === 1 && p.blocks[0].prescription.inspection_rules.length > 0);
+    expect(inspPages).toHaveLength(1);
+    expect(inspPages[0].blocks[0].prescription.medication_name).toBe('METFORMIN HCL TABLET 500MG');
+    expect(pages[pages.length - 1]).toBe(inspPages[0]);
+  });
+
+  it('檢測項獨立頁即使勾了包含空白列也不補空白列（fillerCount = 0）', () => {
+    const inspPage = pages[pages.length - 1];
+    expect(inspPage.fillerCount).toBe(0);
+  });
+
+  it('唔含檢測項嘅處方維持原有分頁同行為（仍補空白列）', () => {
+    const normalPages = pages.slice(0, -1);
+    expect(normalPages.flatMap((p) => p.blocks).map((b) => b.prescription.medication_name).sort())
+      .toEqual(['AMLODIPINE TABLET 5MG', 'SENNA TABLET 7.5MG']);
+    expect(normalPages.some((p) => p.fillerCount > 0)).toBe(true);
+  });
+
+  it('口服途徑頁碼連貫：pageIndexInRoute 1..N，pageCountInRoute = N（含檢測項獨立頁）', () => {
+    expect(pages.map((p) => p.pageIndexInRoute)).toEqual(pages.map((_, i) => i + 1));
+    expect(pages.every((p) => p.pageCountInRoute === pages.length)).toBe(true);
   });
 });

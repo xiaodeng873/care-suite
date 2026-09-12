@@ -47,17 +47,44 @@ const DateInput: React.FC<DateInputProps> = ({
   const [display, setDisplay] = useState(() => formatDisplayDate(value));
   const [isInvalid, setIsInvalid] = useState(false);
   const dateRef = useRef<HTMLInputElement>(null);
+  const textRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // 用戶正在手動輸入時，唔好用外部 value 覆寫 display（避免游標漂移）；
+    // 等 blur 或日曆選擇時先 normalise
+    if (document.activeElement === textRef.current) return;
     setDisplay(formatDisplayDate(value));
     setIsInvalid(false);
   }, [value]);
 
+  // 只保留數字，自動喺第 2、4 位數字後插入 "/"，最多 8 位數字（DD/MM/YYYY）
+  const maskDate = (raw: string, cursorPos: number): { masked: string; newCursor: number } => {
+    const digits = raw.replace(/\D/g, '').slice(0, 8);
+    let masked = digits.slice(0, 2);
+    if (digits.length > 2) masked += '/' + digits.slice(2, 4);
+    if (digits.length > 4) masked += '/' + digits.slice(4, 8);
+    // 游標跟隨：以游標前有幾多個數字計算新位置，順帶跳過自動插入嘅 "/"
+    const digitsBeforeCursor = raw.slice(0, cursorPos).replace(/\D/g, '').length;
+    let newCursor = 0;
+    let count = 0;
+    while (newCursor < masked.length && count < digitsBeforeCursor) {
+      if (/\d/.test(masked[newCursor])) count++;
+      newCursor++;
+    }
+    if (masked[newCursor] === '/') newCursor++;
+    return { masked, newCursor };
+  };
+
   const handleDisplayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    setDisplay(raw);
-    const iso = parseDisplayDate(raw);
-    if (iso || raw === '') {
+    const { masked, newCursor } = maskDate(e.target.value, e.target.selectionStart ?? e.target.value.length);
+    setDisplay(masked);
+    // 還原游標位置（setDisplay 之後先好 setSelectionRange）
+    requestAnimationFrame(() => {
+      const el = textRef.current;
+      if (el && document.activeElement === el) el.setSelectionRange(newCursor, newCursor);
+    });
+    const iso = parseDisplayDate(masked);
+    if (iso || masked === '') {
       setIsInvalid(false);
       onChange(iso || '');
     } else {
@@ -97,6 +124,7 @@ const DateInput: React.FC<DateInputProps> = ({
   return (
     <div className="relative">
       <input
+        ref={textRef}
         id={id}
         name={name}
         type="text"

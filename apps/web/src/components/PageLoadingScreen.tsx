@@ -98,25 +98,23 @@ const BrandBlock: React.FC<{ pageName?: string }> = ({ pageName = '頁面' }) =>
 
   return (
     <div className="text-center mb-8">
-      <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg mb-4 overflow-hidden">
-        {settings.logoDataUri ? (
-          <img src={settings.logoDataUri} alt="院舍logo" className="w-full h-full object-contain" />
-        ) : (
-          <svg
-            className="w-10 h-10 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-            />
-          </svg>
-        )}
-      </div>
+      {settings.logoDataUri ? (
+        <img src={settings.logoDataUri} alt="院舍logo" className="h-24 w-auto object-contain mx-auto mb-4" />
+      ) : (
+        <svg
+          className="h-16 w-16 mx-auto mb-4 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+          />
+        </svg>
+      )}
       <h1 className="text-2xl font-bold text-gray-800 mb-1">
         {settings.facilityNameZh || settings.facilityNameEn || DEFAULT_FACILITY_SETTINGS.facilityNameZh}
       </h1>

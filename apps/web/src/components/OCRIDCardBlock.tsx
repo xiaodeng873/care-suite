@@ -268,10 +268,10 @@ const OCRIDCardBlock: React.FC<OCRIDCardBlockProps> = ({ onOCRComplete, onOCRErr
                         <span>{ocrResult.extractedData.身份證號碼}</span>
                       </div>
                     )}
-                    {ocrResult.extractedData.身份證簽發日期 && (
+                    {(ocrResult.extractedData.身份證簽發日期 || ocrResult.extractedData.簽發日期) && (
                       <div>
                         <span className="font-medium">身份證簽發日期：</span>
-                        <span>{ocrResult.extractedData.身份證簽發日期}</span>
+                        <span>{ocrResult.extractedData.身份證簽發日期 || ocrResult.extractedData.簽發日期}</span>
                       </div>
                     )}
                     {ocrResult.extractedData.出生日期 && (

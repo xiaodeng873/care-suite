@@ -96,9 +96,10 @@ export const exportMedicationRecordToHtml = async (
   includeWorkflowRecords = false,
   includeBlankRows = false,
   prescriptionSortOrder?: string,
-  template: MedicationRecordTemplate = 'template2'
+  template: MedicationRecordTemplate = 'template2',
+  separateInspectionPages = false
 ): Promise<void> => {
-  const html = await buildMedicationRecordHtml(patients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, template);
+  const html = await buildMedicationRecordHtml(patients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, template, separateInspectionPages);
   printViaIframe(html);
 };
 
@@ -109,9 +110,10 @@ export const exportSelectedMedicationRecordToHtml = async (
   includeWorkflowRecords = false,
   includeBlankRows = false,
   prescriptionSortOrder?: string,
-  template: MedicationRecordTemplate = 'template2'
+  template: MedicationRecordTemplate = 'template2',
+  separateInspectionPages = false
 ): Promise<void> => {
-  await exportMedicationRecordToHtml([{ ...patient, prescriptions }], selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, template);
+  await exportMedicationRecordToHtml([{ ...patient, prescriptions }], selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, template, separateInspectionPages);
 };
 
 // 空白藥紙 HTML 版：每位院友、每個選定途徑各產生一頁，填入 MAX_PRESCRIPTIONS_PER_PAGE 個空白處方列。
@@ -194,7 +196,8 @@ const buildMedicationRecordHtml = async (
   includeWorkflowRecords: boolean,
   includeBlankRows: boolean,
   prescriptionSortOrder?: string,
-  template: MedicationRecordTemplate = 'template2'
+  template: MedicationRecordTemplate = 'template2',
+  separateInspectionPages = false
 ): Promise<string> => {
   activeFacility = await getFacilitySettings();
   const drugWarningFlags = await fetchDrugWarningFlags();
@@ -222,7 +225,7 @@ const buildMedicationRecordHtml = async (
     const staffMapping = generateStaffCodeMapping(extractStaffNamesFromWorkflowRecords(workflowRecords));
     const staffCount = Object.keys(staffMapping).length;
 
-    for (const page of preparePages(patient, prescriptions, includeBlankRows, staffCount, prescriptionSortOrder)) {
+    for (const page of preparePages(patient, prescriptions, includeBlankRows, staffCount, prescriptionSortOrder, separateInspectionPages)) {
       renderedPages.push(renderPage(page, selectedMonth, workflowRecords, staffMapping, includeBlankRows, template));
     }
   }
@@ -230,12 +233,14 @@ const buildMedicationRecordHtml = async (
   return assembleDocument(renderedPages);
 };
 
-const preparePages = (
+// exported for testing（分頁／空白列邏輯驗證）
+export const preparePages = (
   patient: PatientWithPrescriptions,
   prescriptions: MedicationPrescription[],
   includeBlankRows: boolean,
   staffCount: number,
   prescriptionSortOrder?: string,
+  separateInspectionPages = false,
 ): PageData[] => {
   const categorized: Record<RouteKind, MedicationPrescription[]> = { oral: [], topical: [], subcutaneous: [], intramuscular: [] };
   for (const prescription of prescriptions) {
@@ -248,7 +253,21 @@ const preparePages = (
 
   const addRoute = (routeKind: PageRouteKind, rxList: MedicationPrescription[]): void => {
     if (rxList.length === 0) return;
-    const blocks = rxList.map((rx) => ({
+
+    // 「檢測項獨立分頁」：含檢測項（inspection_rules）的處方各自獨立一頁，
+    // 該頁永不插入處方空白列；其餘處方維持原有分頁方式
+    const inspectionRx = separateInspectionPages
+      ? rxList.filter((rx) => prescriptionHasInspection(rx))
+      : [];
+    const normalRx = separateInspectionPages
+      ? rxList.filter((rx) => !prescriptionHasInspection(rx))
+      : rxList;
+    const inspectionBlocks: PrescriptionBlock[] = inspectionRx.map((rx) => ({
+      prescription: rx,
+      timeSlots: resolvePrescriptionTimeSlots(rx),
+    }));
+
+    const blocks = normalRx.map((rx) => ({
       prescription: rx,
       timeSlots: resolvePrescriptionTimeSlots(rx),
     }));
@@ -275,7 +294,8 @@ const preparePages = (
       grouped = paginateBlocks(blocks, footerLegendMm);
     }
 
-    grouped.forEach((pb, i) => {
+    // 檢測項獨立頁排於本途徑常規頁之後
+    const routePages: PageData[] = grouped.map((pb, i) => {
       // 空白處方列是最後程序：在最終頁面組成後，依本頁實際剩餘高度計算可補列數
       let fillerCount = 0;
       if (includeBlankRows) {
@@ -284,13 +304,26 @@ const preparePages = (
         const roomForFillers = Math.floor((usableMm - realSumMm) / FILLER_BLOCK_MM);
         fillerCount = Math.max(0, roomForFillers);
       }
-      pages.push({
+      return {
         patient, routeKind, blocks: pb,
         pageIndexInRoute: i + 1, pageCountInRoute: grouped.length,
         fillerCount,
         oralQuantityStat: routeKind === 'oral' ? oralQuantityStat : undefined,
-      });
+      };
     });
+    for (const block of inspectionBlocks) {
+      routePages.push({
+        patient, routeKind, blocks: [block],
+        pageIndexInRoute: 0, pageCountInRoute: 0, // 下方統一重編頁碼
+        fillerCount: 0, // 檢測項獨立頁永不插入處方空白列
+        oralQuantityStat: routeKind === 'oral' ? oralQuantityStat : undefined,
+      });
+    }
+    routePages.forEach((page, i) => {
+      page.pageIndexInRoute = i + 1;
+      page.pageCountInRoute = routePages.length;
+    });
+    pages.push(...routePages);
   };
 
   addRoute('oral', categorized.oral);

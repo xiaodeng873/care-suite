@@ -78,7 +78,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
   const [blankRouteTopical, setBlankRouteTopical] = useState(true);
   const [batchRouteFilter, setBatchRouteFilter] = useState<Set<string>>(new Set());
   const [prescriptionSortOrder, setPrescriptionSortOrder] = useState<PrescriptionSortOrder>('efficiency');
-  const [includeBlankRows, setIncludeBlankRows] = useState(false);
+  const [includeBlankRows, setIncludeBlankRows] = useState(true);
+  const [separateInspectionPages, setSeparateInspectionPages] = useState(false);
   const [recordTemplate, setRecordTemplate] = useState<MedicationRecordTemplate>('template1');
   // 個人藥物記錄日期範圍（不受月份局限）
   const [listStartDate, setListStartDate] = useState<string>(() => {
@@ -387,7 +388,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
             ...currentPatient.patient,
             prescriptions: currentPatientPrescriptionsToExport
           }],
-          selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate);
+          selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate, separateInspectionPages);
         }
 
         if (shouldExportPersonalMedicationList) {
@@ -462,7 +463,7 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         }
 
         if (shouldExportMedicationRecord && selectedPatients.length > 0) {
-          await exportMedicationRecordToHtml(selectedPatients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate);
+          await exportMedicationRecordToHtml(selectedPatients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate, separateInspectionPages);
         }
 
         if (shouldExportPersonalMedicationList) {
@@ -720,6 +721,17 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
                   className="form-checkbox h-5 w-5 text-blue-600 rounded" />
                 
                   <span className="text-sm text-gray-700">包含處方空白列</span>
+                </label>
+              }
+              {!isBlankMode &&
+              <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                  type="checkbox"
+                  checked={separateInspectionPages}
+                  onChange={(e) => setSeparateInspectionPages(e.target.checked)}
+                  className="form-checkbox h-5 w-5 text-blue-600 rounded" />
+
+                  <span className="text-sm text-gray-700">檢測項獨立分頁</span>
                 </label>
               }
               {!isBlankMode &&

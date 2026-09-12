@@ -28,12 +28,17 @@ interface PatientModalProps {
   idCardImage?: string;
 }
 
-/** 解析 OCR 日期：支援 YYYY-MM-DD、DD/MM/YYYY、DD-MM-YYYY（後兩者視為日-月-年），輸出 YYYY-MM-DD */
+/** 解析 OCR 日期：支援 YYYY-MM-DD、DD/MM/YYYY、DD-MM-YYYY（後兩者視為日-月-年）、
+ * 點號分隔（DD.MM.YYYY）、中文年月日（2015年5月12日）及 ISO 日期時間，輸出 YYYY-MM-DD。
+ * 解析唔到回傳 null —— 调用方會靜默跳過該欄位，所以格式覆蓋要盡量寬。 */
 function parseOcrDate(raw: string): string | null {
-  const iso = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(raw);
+  const s = raw.trim();
+  const iso = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T ].*)?$/.exec(s);
   if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
-  const dmy = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/.exec(raw);
+  const dmy = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/.exec(s);
   if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  const cn = /^(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日?$/.exec(s);
+  if (cn) return `${cn[1]}-${cn[2].padStart(2, '0')}-${cn[3].padStart(2, '0')}`;
   return null;
 }
 
@@ -176,8 +181,10 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       updates.出生日期 = String(extractedData.出生日期).trim();
     }
 
-    // 處理身份證簽發日期（OCR 可能輸出 YYYY-MM-DD 或身份證印嘅 DD-MM-YYYY）
-    const issueRaw = extractedData.身份證簽發日期 || extractedData.簽發日期;
+    // 處理身份證簽發日期（OCR 可能輸出 YYYY-MM-DD 或身份證印嘅 DD-MM-YYYY；
+    // 模型有時用簡體「签发日期」或英文 key，一併兼容）
+    const issueRaw = extractedData.身份證簽發日期 || extractedData.簽發日期 || extractedData.签发日期
+      || extractedData['Date of Issue'] || extractedData['Issue Date'] || extractedData['HKID Issue Date'];
     if (issueRaw) {
       const parsedIssue = parseOcrDate(String(issueRaw).trim());
       if (parsedIssue) {
