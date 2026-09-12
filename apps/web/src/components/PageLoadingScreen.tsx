@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   getFacilitySettings,
+  getCurrentFacilityId,
   type FacilitySettings,
   DEFAULT_FACILITY_SETTINGS,
 } from '../utils/facilitySettings';
@@ -84,9 +85,12 @@ const AdPlaceholder: React.FC = () => {
   );
 };
 
-// 院舍品牌區塊：從 facility_settings 讀取院舍名稱與 logo
+// 院舍品牌區塊：從 facility_settings 讀取院舍名稱與 logo；
+// 未進入院舍（developer 維運模式），或者院舍設定未載入/未設定（仲係後備預設值）時，
+// 用 eHMS 品牌，唔顯示院舍名稱
 const BrandBlock: React.FC<{ pageName?: string }> = ({ pageName = '頁面' }) => {
   const [settings, setSettings] = useState<FacilitySettings>(DEFAULT_FACILITY_SETTINGS);
+  const isFacilityContext = getCurrentFacilityId() !== null;
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +99,36 @@ const BrandBlock: React.FC<{ pageName?: string }> = ({ pageName = '頁面' }) =>
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  // 院舍品牌只有喺「有院舍上下文」同「設定真係載入到院舍資料（有 logo 或有正式名稱）」先顯示；
+  // 「主控台」loading = 未進入院舍階段，一律用 eHMS 品牌，唔顯示院舍名稱
+  const hasFacilityBranding =
+    !!settings.logoDataUri ||
+    (!!settings.facilityNameZh && settings.facilityNameZh !== DEFAULT_FACILITY_SETTINGS.facilityNameZh);
+  const showFacilityBrand = isFacilityContext && hasFacilityBranding && pageName !== '主控台';
+
+  // eHMS 品牌（款式同 landing page 左上角）
+  if (!showFacilityBrand) {
+    return (
+      <div className="text-center mb-8">
+        <div className="mb-4">
+          <span
+            className="text-4xl font-extrabold tracking-tight"
+            style={{ color: '#1F3A6E', letterSpacing: '-0.02em' }}
+          >
+            eHMS
+          </span>
+          <div
+            className="text-xs font-semibold whitespace-nowrap"
+            style={{ color: '#1F3A6E', opacity: 0.85, letterSpacing: '0.04em' }}
+          >
+            e-Hostel Management Standard
+          </div>
+        </div>
+        <p className="text-gray-500">正在載入 {pageName}...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="text-center mb-8">

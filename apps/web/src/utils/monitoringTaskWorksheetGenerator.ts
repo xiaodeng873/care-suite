@@ -248,6 +248,7 @@ const HEADER_HEIGHT = 5.5;     // 頁眉高度
 const SLOT_TITLE_HEIGHT = 4.5; // 時段標題高度
 const TABLE_HEADER_HEIGHT = 4.5; // 表格欄位標題高度（14px ≈ 4mm + 10%）
 const ROW_HEIGHT = 4.6;        // 每行數據高度（16px ≈ 4.2mm + 10%）
+const RECHECK_ROW_HEIGHT = ROW_HEIGHT * 2; // 複檢空白列係雙倍行高
 const SLOT_MARGIN = 1.5;       // 時段之間的間距
 // 計算單個時段需要的高度
 const calculateSlotHeight = (taskCount: number): number => {
@@ -432,13 +433,11 @@ const generateTimeSlotTableHTMLForPage = (tasks: MonitoringTask[], slotName: str
 const FOOTER_RESERVE = 7; // footer（頁碼/列印提示）預留高度(mm)
 const computeRecheckRows = (usedHeight: number, contentHeight: number): number => {
   const base = SLOT_TITLE_HEIGHT + TABLE_HEADER_HEIGHT + SLOT_MARGIN + FOOTER_RESERVE;
-  return Math.max(0, Math.floor((contentHeight - usedHeight - base) / ROW_HEIGHT));
+  return Math.max(0, Math.floor((contentHeight - usedHeight - base) / RECHECK_ROW_HEIGHT));
 };
 const generateRecheckTableHTML = (rowCount: number): string => {
   const blankRow = `
-            <tr>
-              <td></td>
-              <td></td>
+            <tr class="recheck-row">
               <td></td>
               <td></td>
               <td></td>
@@ -455,10 +454,8 @@ const generateRecheckTableHTML = (rowCount: number): string => {
           <thead>
             <tr class="column-header-row">
               <th style="width: 9%">床號</th>
-              <th style="width: 9%">姓名</th>
-              <th style="width: 9%">任務</th>
-              <th style="width: 9%">備註</th>
-              <th style="width: 7%">時間</th>
+              <th style="width: 18%">姓名</th>
+              <th style="width: 16%">時間</th>
               <th style="width: 14%">上壓</th>
               <th style="width: 14%">下壓</th>
               <th style="width: 14%">脈搏</th>
@@ -653,6 +650,11 @@ const generatePairedHTML = (daysData: DayData[], layout: WorksheetLayout = 'half
         }
         .task-table tbody td:first-child {
           white-space: nowrap;
+        }
+        /* 複檢空白列：雙倍行高，方便手寫數值 */
+        .task-table tbody tr.recheck-row td {
+          height: 36px;
+          line-height: 34px;
         }
         .value-cell {
           background-color: #f9f9f9;

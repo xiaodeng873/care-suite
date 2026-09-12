@@ -7,7 +7,6 @@ import {
   Trash2, 
   Search, 
   Filter,
-  Download,
   User,
   Calendar,
   FileText,
@@ -30,8 +29,6 @@ import { useAssessment } from '../context/merged/RecordsContext';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
 import PatientTooltip from '../components/PatientTooltip';
 import BedNumberImprint from '../components/BedNumberImprint';
-import { exportRestraintConsentsToExcel } from '../utils/restraintConsentExcelGenerator';
-import { exportRestraintObservationsToExcel } from '../utils/restraintObservationChartExcelGenerator';
 import { exportRestraintObservationsRangeHtml } from '../utils/restraintObservationHtmlExporter';
 import { printRestraintConsentForms } from '../utils/restraintConsentPrintGenerator';
 import { printRestraintUsageRecords } from '../utils/restraintUsageRecordPrintGenerator';
@@ -414,22 +411,6 @@ const RestraintManagement: React.FC = () => {
     });
   };
 
-  const handleExportSelected = async (exportType: 'consent-form') => {
-    const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
-    
-    if (selectedAssessments.length === 0) {
-      alert('請先選擇要匯出的記錄');
-      return;
-    }
-
-    try {
-      await exportRestraintConsentsToExcel(selectedAssessments, patients);
-    } catch (error) {
-      console.error('匯出約束物品同意書失敗:', error);
-      alert('匯出失敗，請重試');
-    }
-  };
-
   const handleExportObservationChart = async () => {
     const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
     
@@ -439,42 +420,6 @@ const RestraintManagement: React.FC = () => {
     }
 
     setShowObservationDateRangeModal(true);
-  };
-
-  const handleConfirmObservationExport = async () => {
-    const selectedAssessments = allDisplayedAssessments.filter(a => selectedRows.has(a.id));
-    
-    if (!observationDateRange.startDate || !observationDateRange.endDate) {
-      alert('請選擇完整的日期範圍');
-      return;
-    }
-
-    if (new Date(observationDateRange.startDate) > new Date(observationDateRange.endDate)) {
-      alert('開始日期不能晚於結束日期');
-      return;
-    }
-
-    try {
-      // 按床號排序選中的評估記錄
-      const sortedAssessments = selectedAssessments.sort((a, b) => {
-        const patientA = patients.find(p => p.院友id === a.patient_id);
-        const patientB = patients.find(p => p.院友id === b.patient_id);
-        const bedNumberA = patientA?.床號 || '';
-        const bedNumberB = patientB?.床號 || '';
-        return bedNumberA.localeCompare(bedNumberB, 'zh-Hant', { numeric: true });
-      });
-
-      await exportRestraintObservationsToExcel(
-        sortedAssessments, 
-        patients, 
-        observationDateRange.startDate,
-        observationDateRange.endDate
-      );
-      setShowObservationDateRangeModal(false);
-    } catch (error) {
-      console.error('匯出約束物品觀察表失敗:', error);
-      alert('匯出失敗，請重試');
-    }
   };
 
   const handleConfirmObservationHtmlExport = async () => {
@@ -685,26 +630,6 @@ const RestraintManagement: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900">約束物品管理</h1>
           <div className="flex flex-wrap items-center gap-2">
-            {selectedRows.size > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative group">
-                  <button className="btn-secondary flex flex-wrap items-center gap-2">
-                    <Download className="h-4 w-4" />
-                    <span>匯出約束物品文件</span>
-                  </button>
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                    <button
-                      onClick={() => handleExportSelected('consent-form')}
-                      className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
-                    >
-                      <FileText className="h-4 w-4 text-blue-600" />
-                      <span>約束物品同意書</span>
-                    </button>
-                    {/* 約束物品觀察表（Excel 匯出）：保留 handleExportObservationChart 功能，暫時唔外顯 */}
-                  </div>
-                </div>
-              </div>
-            )}
             <div className="relative group">
               <button className="btn-secondary flex flex-wrap items-center gap-2">
                 <span>其他</span>
@@ -730,6 +655,13 @@ const RestraintManagement: React.FC = () => {
                 >
                   <FileText className="h-4 w-4 text-green-600" />
                   <span>列印使用紀錄</span>
+                </button>
+                <button
+                  onClick={handleExportObservationChart}
+                  className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-50 flex flex-wrap items-center gap-2"
+                >
+                  <FileText className="h-4 w-4 text-blue-600" />
+                  <span>約束物品觀察表</span>
                 </button>
                 <button
                   onClick={() => setShowRecycleBin(true)}
@@ -1271,7 +1203,7 @@ const RestraintManagement: React.FC = () => {
 
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                請選擇約束物品觀察表的觀察期間。期間會顯示在 Excel 匯出標題及 HTML 列印標題中。
+                請選擇約束物品觀察表的觀察期間。期間會顯示在 HTML 列印標題中。
               </p>
               
               <div>
@@ -1308,15 +1240,8 @@ const RestraintManagement: React.FC = () => {
 
             <div className="flex flex-col sm:flex-row gap-2 pt-4">
               <button
-                onClick={handleConfirmObservationExport}
-                className="btn-primary flex-1"
-                disabled={!observationDateRange.startDate || !observationDateRange.endDate}
-              >
-                確認匯出 Excel
-              </button>
-              <button
                 onClick={handleConfirmObservationHtmlExport}
-                className="btn-secondary flex-1"
+                className="btn-primary flex-1"
                 disabled={!observationDateRange.startDate || !observationDateRange.endDate}
               >
                 列印 HTML
