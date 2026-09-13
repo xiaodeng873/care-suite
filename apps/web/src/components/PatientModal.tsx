@@ -409,12 +409,22 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
   const handleCameraCapture = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // 後鏡頭（手機背面）拍攝院友
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      } catch {
+        // 裝置支援唔到指定鏡頭時退回預設鏡頭
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
 
       // Create a simple camera capture modal
       const video = document.createElement('video');
       video.srcObject = stream;
       video.autoplay = true;
+      video.playsInline = true;
+      video.muted = true;
+      video.className = 'absolute inset-0 w-full h-full object-cover';
 
       const modal = document.createElement('div');
       modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
@@ -429,7 +439,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
             </button>
           </div>
           <div class="space-y-4">
-            <div id="video-container" class="w-full h-64 bg-gray-100 rounded-lg overflow-hidden"></div>
+            <div id="video-container" class="relative w-full h-64 bg-gray-100 rounded-lg overflow-hidden"></div>
             <div class="flex flex-wrap gap-3">
               <button id="capture-btn" class="btn-primary flex-1">拍照</button>
               <button id="cancel-btn" class="btn-secondary flex-1">取消</button>
@@ -440,6 +450,16 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
       document.body.appendChild(modal);
       document.getElementById('video-container')?.appendChild(video);
+
+      // 指導線：十字線 + 中央頭部橢圓框，確保院友頭部置中
+      const guide = document.createElement('div');
+      guide.className = 'absolute inset-0 flex items-center justify-center pointer-events-none';
+      guide.innerHTML = `
+        <div style="position:absolute;left:0;right:0;top:50%;border-top:1px dashed rgba(255,255,255,0.8);"></div>
+        <div style="position:absolute;top:0;bottom:0;left:50%;border-left:1px dashed rgba(255,255,255,0.8);"></div>
+        <div style="width:52%;aspect-ratio:1/1.25;border:3px dashed rgba(255,255,255,0.95);border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,0.3);"></div>
+      `;
+      document.getElementById('video-container')?.appendChild(guide);
 
       const closeCamera = () => {
         stream.getTracks().forEach((track) => track.stop());
