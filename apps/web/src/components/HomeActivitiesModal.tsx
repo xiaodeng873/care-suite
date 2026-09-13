@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   X,
   Plus,
@@ -19,7 +19,6 @@ import {
   type HomeActivity,
   type HomeActivityInput,
 } from '../lib/homeActivities';
-import { exportHomeActivitiesExcel } from '../utils/homeActivitiesExcelGenerator';
 import { fuzzyMatch } from '../utils/searchUtils';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -74,6 +73,39 @@ const COLUMNS: ColumnDef[] = [
   { key: 'participant_count', label: '參加人數', className: 'w-20' },
   { key: null, label: '操作', className: 'w-24' },
 ];
+
+// memo 化嘅資料列：打開/關閉編輯表單、打字儲存呢啲 modal 狀態變化，
+// 唔會再令全部資料列 re-render（dev mode StrictMode 下尤其慢）
+interface HomeActivityRowProps {
+  record: HomeActivity;
+  index: number;
+  onEdit: (r: HomeActivity) => void;
+  onDelete: (r: HomeActivity) => void;
+}
+
+const HomeActivityRow: React.FC<HomeActivityRowProps> = React.memo(({ record: r, index, onEdit, onDelete }) => (
+  <tr className="hover:bg-gray-50 cursor-pointer" onDoubleClick={() => onEdit(r)} title="雙擊開啟編輯">
+    <td className="border border-gray-300 px-2 py-1.5 text-center text-gray-500">{index + 1}</td>
+    <td className="border border-gray-300 px-2 py-1.5 whitespace-nowrap">{formatDisplayDate(r.activity_date, '—')}</td>
+    <td className="border border-gray-300 px-2 py-1.5 whitespace-nowrap">{fmtTimeRange(r)}</td>
+    <td className="border border-gray-300 px-2 py-1.5">{r.organizer || '—'}</td>
+    <td className="border border-gray-300 px-2 py-1.5">{r.activity_name}</td>
+    <td className="border border-gray-300 px-2 py-1.5">{r.location || '—'}</td>
+    <td className="border border-gray-300 px-2 py-1.5 text-center">{r.volunteer_count}</td>
+    <td className="border border-gray-300 px-2 py-1.5 text-center">{r.participant_count}</td>
+    <td className="border border-gray-300 px-2 py-1.5" onDoubleClick={e => e.stopPropagation()}>
+      <div className="flex items-center justify-center gap-1">
+        <button onClick={() => onEdit(r)} className="p-1 text-blue-600 hover:text-blue-800" title="編輯">
+          <Edit3 className="h-4 w-4" />
+        </button>
+        <button onClick={() => onDelete(r)} className="p-1 text-red-600 hover:text-red-800" title="刪除">
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    </td>
+  </tr>
+));
+HomeActivityRow.displayName = 'HomeActivityRow';
 
 const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [records, setRecords] = useState<HomeActivity[]>([]);
@@ -150,7 +182,7 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     }
   };
 
-  const startEdit = (r: HomeActivity) => {
+  const startEdit = useCallback((r: HomeActivity) => {
     setEditing(r);
     setForm({
       activity_date: r.activity_date,
@@ -162,13 +194,14 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
       volunteer_count: r.volunteer_count || 0,
       participant_count: r.participant_count || 0,
     });
-  };
+  }, []);
 
   const startAdd = () => {
     setEditing('new');
     setForm(emptyForm());
   };
 
+  // 樂觀更新：先立即改畫面同關閉表單，後台同步；失敗先 rollback
   const handleSave = async () => {
     if (!form.activity_date.trim() || !form.activity_name.trim()) {
       alert('請填寫日期及活動名稱');
@@ -177,15 +210,42 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     setSaving(true);
     try {
       if (editing === 'new') {
-        const created = await addHomeActivity(form);
-        setRecords(prev => [created, ...prev]);
+        const tempId = `tmp-${Date.now()}`;
+        const optimistic: HomeActivity = {
+          id: tempId,
+          ...form,
+          start_time: form.start_time || null,
+          end_time: form.end_time || null,
+          organizer: form.organizer?.trim() || null,
+          activity_name: form.activity_name.trim(),
+          location: form.location?.trim() || null,
+          facility_id: null,
+          created_at: '',
+          updated_at: '',
+        };
+        setRecords(prev => [optimistic, ...prev]);
+        setEditing(null);
+        try {
+          const created = await addHomeActivity(form);
+          setRecords(prev => prev.map(r => (r.id === tempId ? created : r)));
+        } catch (err: any) {
+          setRecords(prev => prev.filter(r => r.id !== tempId));
+          throw err;
+        }
       } else if (editing) {
-        await updateHomeActivity(editing.id, form);
+        const editingId = editing.id;
+        const previous = records.find(r => r.id === editingId);
         setRecords(prev =>
-          prev.map(r => (r.id === editing.id ? { ...r, ...form, start_time: form.start_time || null, end_time: form.end_time || null } : r))
+          prev.map(r => (r.id === editingId ? { ...r, ...form, start_time: form.start_time || null, end_time: form.end_time || null } : r))
         );
+        setEditing(null);
+        try {
+          await updateHomeActivity(editingId, form);
+        } catch (err: any) {
+          if (previous) setRecords(prev => prev.map(r => (r.id === editingId ? previous : r)));
+          throw err;
+        }
       }
-      setEditing(null);
     } catch (err: any) {
       alert(err?.message || '儲存失敗，請稍後再試');
     } finally {
@@ -193,7 +253,7 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     }
   };
 
-  const handleDelete = async (r: HomeActivity) => {
+  const handleDelete = useCallback(async (r: HomeActivity) => {
     if (!window.confirm(`確定刪除「${r.activity_name}」（${formatDisplayDate(r.activity_date, '')}）？`)) return;
     try {
       await deleteHomeActivity(r.id);
@@ -201,7 +261,7 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     } catch (err: any) {
       alert(err?.message || '刪除失敗，請稍後再試');
     }
-  };
+  }, []);
 
   const setPreset = (preset: 'this' | 'last' | 'all') => {
     if (preset === 'all') {
@@ -219,11 +279,11 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div
-        className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col"
+        className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* 標題列 */}
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className="shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-blue-600" />
@@ -237,7 +297,7 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
         </div>
 
         {/* 篩選工具列 */}
-        <div className="px-6 py-3 border-b border-gray-100 space-y-2">
+        <div className="shrink-0 px-6 py-3 border-b border-gray-100 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-gray-600">日期範圍：</span>
             <DateInput value={dateFrom} onChange={setDateFrom} className="form-input w-36" placeholder="開始日期" />
@@ -267,10 +327,10 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
           </div>
         </div>
 
-        {/* 表格 */}
-        <div className="flex-1 overflow-y-auto px-6 py-3">
-          {editing && (
-            <div className="border border-blue-200 bg-blue-50 rounded-lg p-3 mb-3 space-y-2">
+        {/* 編輯表單（固定喺篩選列同表格之間，唔會被滾動帶走） */}
+        {editing && (
+          <div className="shrink-0 px-6 pt-3">
+            <div className="border border-blue-200 bg-blue-50 rounded-lg p-3 space-y-2">
               <h3 className="text-sm font-medium text-blue-900">{editing === 'new' ? '新增活動' : '編輯活動'}</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div>
@@ -325,18 +385,22 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                 <button onClick={() => setEditing(null)} className="btn-secondary text-sm">取消</button>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
+        {/* 表格 */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-3">
           {loading ? (
             <div className="text-center py-12 text-gray-500">載入中...</div>
           ) : (
             <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 bg-gray-50">
+              <thead>
                 <tr>
                   {COLUMNS.map(col => (
                     <th
                       key={col.label}
-                      className={`border border-gray-300 px-2 py-2 text-left font-semibold text-gray-700 ${col.className || ''}`}
+                      style={{ backgroundClip: 'padding-box' }}
+                      className={`sticky top-0 z-10 bg-gray-50 border border-gray-300 px-2 py-2 text-left font-semibold text-gray-700 ${col.className || ''}`}
                     >
                       {col.key ? (
                         <button
@@ -366,54 +430,29 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                   </tr>
                 )}
                 {sorted.map((r, i) => (
-                  <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-2 py-1.5 text-center text-gray-500">{i + 1}</td>
-                    <td className="border border-gray-300 px-2 py-1.5 whitespace-nowrap">{formatDisplayDate(r.activity_date, '—')}</td>
-                    <td className="border border-gray-300 px-2 py-1.5 whitespace-nowrap">{fmtTimeRange(r)}</td>
-                    <td className="border border-gray-300 px-2 py-1.5">{r.organizer || '—'}</td>
-                    <td className="border border-gray-300 px-2 py-1.5">{r.activity_name}</td>
-                    <td className="border border-gray-300 px-2 py-1.5">{r.location || '—'}</td>
-                    <td className="border border-gray-300 px-2 py-1.5 text-center">{r.volunteer_count}</td>
-                    <td className="border border-gray-300 px-2 py-1.5 text-center">{r.participant_count}</td>
-                    <td className="border border-gray-300 px-2 py-1.5">
-                      <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => startEdit(r)} className="p-1 text-blue-600 hover:text-blue-800" title="編輯">
-                          <Edit3 className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => handleDelete(r)} className="p-1 text-red-600 hover:text-red-800" title="刪除">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                  <HomeActivityRow key={r.id} record={r} index={i} onEdit={startEdit} onDelete={handleDelete} />
                 ))}
               </tbody>
-              <tfoot className="sticky bottom-0 bg-gray-100">
-                <tr>
-                  <td colSpan={4} className="border border-gray-300 px-2 py-2 font-semibold text-gray-800">
-                    合計（跟篩選結果計）
-                  </td>
-                  <td className="border border-gray-300 px-2 py-2 font-semibold text-gray-800">
-                    活動 {totals.sessions} 場
-                  </td>
-                  <td className="border border-gray-300 px-2 py-2"></td>
-                  <td className="border border-gray-300 px-2 py-2 text-center font-semibold text-gray-800">
-                    義工 {totals.volunteers} 人
-                  </td>
-                  <td className="border border-gray-300 px-2 py-2 text-center font-semibold text-gray-800">
-                    參加 {totals.participants} 人
-                  </td>
-                  <td className="border border-gray-300 px-2 py-2"></td>
-                </tr>
-              </tfoot>
             </table>
           )}
         </div>
 
+        {/* 合計列：固定喺滾動區之外，唔靠 sticky，唔會再穿底 */}
+        <div className="shrink-0 bg-gray-100 border-t border-gray-300 px-6 py-2 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm font-semibold text-gray-800">
+          <span>合計（跟篩選結果計）</span>
+          <span>活動 {totals.sessions} 場</span>
+          <span>義工 {totals.volunteers} 人</span>
+          <span>參加 {totals.participants} 人</span>
+        </div>
+
         {/* 底部按鈕 */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-3 flex justify-end gap-2">
+        <div className="shrink-0 bg-white border-t border-gray-200 px-6 py-3 flex justify-end gap-2">
           <button
-            onClick={() => exportHomeActivitiesExcel(sorted)}
+            onClick={async () => {
+              // 動態載入 exceljs（1MB+），唔阻塞頁面/modal 載入同互動
+              const mod = await import('../utils/homeActivitiesExcelGenerator');
+              mod.exportHomeActivitiesExcel(sorted);
+            }}
             disabled={sorted.length === 0}
             className="btn-secondary flex items-center gap-2"
           >
