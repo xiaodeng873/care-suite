@@ -85,15 +85,15 @@ interface HomeActivityRowProps {
 
 const HomeActivityRow: React.FC<HomeActivityRowProps> = React.memo(({ record: r, index, onEdit, onDelete }) => (
   <tr className="hover:bg-gray-50 cursor-pointer" onDoubleClick={() => onEdit(r)} title="雙擊開啟編輯">
-    <td className="border border-gray-300 px-2 py-1.5 text-center text-gray-500">{index + 1}</td>
-    <td className="border border-gray-300 px-2 py-1.5 whitespace-nowrap">{formatDisplayDate(r.activity_date, '—')}</td>
-    <td className="border border-gray-300 px-2 py-1.5 whitespace-nowrap">{fmtTimeRange(r)}</td>
-    <td className="border border-gray-300 px-2 py-1.5">{r.organizer || '—'}</td>
-    <td className="border border-gray-300 px-2 py-1.5">{r.activity_name}</td>
-    <td className="border border-gray-300 px-2 py-1.5">{r.location || '—'}</td>
-    <td className="border border-gray-300 px-2 py-1.5 text-center">{r.volunteer_count}</td>
-    <td className="border border-gray-300 px-2 py-1.5 text-center">{r.participant_count}</td>
-    <td className="border border-gray-300 px-2 py-1.5" onDoubleClick={e => e.stopPropagation()}>
+    <td className="shadow-[inset_0_0_0_1px_#d1d5db] px-2 py-1.5 text-center text-gray-500">{index + 1}</td>
+    <td className="shadow-[inset_0_0_0_1px_#d1d5db] px-2 py-1.5 whitespace-nowrap">{formatDisplayDate(r.activity_date, '—')}</td>
+    <td className="shadow-[inset_0_0_0_1px_#d1d5db] px-2 py-1.5 whitespace-nowrap">{fmtTimeRange(r)}</td>
+    <td className="shadow-[inset_0_0_0_1px_#d1d5db] px-2 py-1.5">{r.organizer || '—'}</td>
+    <td className="shadow-[inset_0_0_0_1px_#d1d5db] px-2 py-1.5">{r.activity_name}</td>
+    <td className="shadow-[inset_0_0_0_1px_#d1d5db] px-2 py-1.5">{r.location || '—'}</td>
+    <td className="shadow-[inset_0_0_0_1px_#d1d5db] px-2 py-1.5 text-center">{r.volunteer_count}</td>
+    <td className="shadow-[inset_0_0_0_1px_#d1d5db] px-2 py-1.5 text-center">{r.participant_count}</td>
+    <td className="shadow-[inset_0_0_0_1px_#d1d5db] px-2 py-1.5" onDoubleClick={e => e.stopPropagation()}>
       <div className="flex items-center justify-center gap-1">
         <button onClick={() => onEdit(r)} className="p-1 text-blue-600 hover:text-blue-800" title="編輯">
           <Edit3 className="h-4 w-4" />
@@ -388,19 +388,20 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
           </div>
         )}
 
-        {/* 表格 */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-3">
+        {/* 表格（滾動區頂部唔可以有 padding，否則 sticky 表頭同頂部之間會有罅隙俾內容穿過） */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-3">
           {loading ? (
             <div className="text-center py-12 text-gray-500">載入中...</div>
           ) : (
-            <table className="w-full border-collapse text-sm">
+            <>
+            {/* border-separate + inset shadow 格線：sticky 表頭喺 collapsed table 會俾內容穿過，呢個組合先係穩陣 */}
+            <table className="w-full border-separate border-spacing-0 text-sm">
               <thead>
                 <tr>
                   {COLUMNS.map(col => (
                     <th
                       key={col.label}
-                      style={{ backgroundClip: 'padding-box' }}
-                      className={`sticky top-0 z-10 bg-gray-50 border border-gray-300 px-2 py-2 text-left font-semibold text-gray-700 ${col.className || ''}`}
+                      className={`sticky top-0 z-10 bg-gray-50 shadow-[inset_0_0_0_1px_#d1d5db] px-2 py-2 text-left font-semibold text-gray-700 ${col.className || ''}`}
                     >
                       {col.key ? (
                         <button
@@ -424,7 +425,7 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
               <tbody>
                 {sorted.length === 0 && (
                   <tr>
-                    <td colSpan={COLUMNS.length} className="border border-gray-300 px-2 py-8 text-center text-gray-400">
+                    <td colSpan={COLUMNS.length} className="shadow-[inset_0_0_0_1px_#d1d5db] px-2 py-8 text-center text-gray-400">
                       暫無活動記錄
                     </td>
                   </tr>
@@ -434,6 +435,7 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                 ))}
               </tbody>
             </table>
+            </>
           )}
         </div>
 
