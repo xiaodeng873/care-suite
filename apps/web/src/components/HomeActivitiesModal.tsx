@@ -170,6 +170,15 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     [sorted]
   );
 
+  // 主辦機構/團體 autocomplete 清單：由現有記錄嘅主辦機構去重整出嚟，重用常用名稱
+  const organizerOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(records.map(r => (r.organizer || '').trim()).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b, 'zh-Hant')),
+    [records]
+  );
+
   const toggleSort = (key: SortKey) => {
     if (sortKey !== key) {
       setSortKey(key);
@@ -347,7 +356,17 @@ const HomeActivitiesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                 </div>
                 <div>
                   <label className="form-label">主辦機構/團體</label>
-                  <input type="text" value={form.organizer || ''} onChange={e => updateForm({ organizer: e.target.value })} className="form-input" placeholder="例如：香港中國婦女會" />
+                  <input
+                    type="text"
+                    list="home-activity-organizers"
+                    value={form.organizer || ''}
+                    onChange={e => updateForm({ organizer: e.target.value })}
+                    className="form-input"
+                    placeholder="例如：香港中國婦女會"
+                  />
+                  <datalist id="home-activity-organizers">
+                    {organizerOptions.map(name => <option key={name} value={name} />)}
+                  </datalist>
                 </div>
                 <div className="col-span-2">
                   <label className="form-label"><span className="text-red-500">*</span> 活動名稱</label>
