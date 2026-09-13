@@ -36,6 +36,11 @@ import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator
 type SortField = '院友姓名' | 'meal_combination' | 'guidance_date' | 'guidance_source' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 
+/** 舊記錄「糊飯+糊餸」統一視作「全糊」 */
+const normMealCombination = (v: string): MealCombinationType =>
+  (v === '糊飯+糊餸' ? '全糊' : v) as MealCombinationType;
+
+
 interface AdvancedFilters {
   床號: string;
   中文姓名: string;
@@ -107,7 +112,7 @@ const MealGuidance: React.FC = () => {
     if (advancedFilters.中文姓名 && !matchChineseName(patient?.中文姓氏, patient?.中文名字, patient?.中文姓名, advancedFilters.中文姓名)) {
       return false;
     }
-    if (advancedFilters.meal_combination && guidance.meal_combination !== advancedFilters.meal_combination) {
+    if (advancedFilters.meal_combination && normMealCombination(guidance.meal_combination) !== advancedFilters.meal_combination) {
       return false;
     }
     if (advancedFilters.special_diets && !guidance.special_diets.includes(advancedFilters.special_diets as SpecialDietType)) {
@@ -384,7 +389,7 @@ const MealGuidance: React.FC = () => {
       return {
         床號: patient?.床號 || '',
         中文姓名: patient ? `${patient.中文姓氏}${patient.中文名字}` : '',
-        餐膳組合: guidance.meal_combination,
+        餐膳組合: normMealCombination(guidance.meal_combination),
         特殊餐膳: guidance.special_diets.join(', ') || '無',
         需要凝固粉: guidance.needs_thickener ? '是' : '否',
         凝固粉分量: guidance.thickener_amount ? `${guidance.thickener_amount}${guidance.thickener_formula ? `（${guidance.thickener_formula}）` : ''}` : '',
@@ -418,6 +423,7 @@ const MealGuidance: React.FC = () => {
   const getMealCombinationColor = (combination: MealCombinationType) => {
     if (combination.includes('正飯')) return 'bg-green-100 text-green-800';
     if (combination.includes('軟飯')) return 'bg-yellow-100 text-yellow-800';
+    if (combination === '全糊') return 'bg-orange-100 text-orange-800';
     if (combination.includes('糊飯')) return 'bg-orange-100 text-orange-800';
     return 'bg-gray-100 text-gray-800';
   };
@@ -461,15 +467,15 @@ const MealGuidance: React.FC = () => {
     軟飯正餸: filteredGuidances.filter(g => g.meal_combination === '軟飯+正餸').length,
     軟飯碎餸: filteredGuidances.filter(g => g.meal_combination === '軟飯+碎餸').length,
     軟飯糊餸: filteredGuidances.filter(g => g.meal_combination === '軟飯+糊餸').length,
-    糊飯糊餸: filteredGuidances.filter(g => g.meal_combination === '糊飯+糊餸').length,
+    糊飯糊餸: filteredGuidances.filter(g => normMealCombination(g.meal_combination) === '全糊').length,
     
     // 分類統計
     正飯: filteredGuidances.filter(g => g.meal_combination.includes('正飯')).length,
     軟飯: filteredGuidances.filter(g => g.meal_combination.includes('軟飯')).length,
-    糊飯: filteredGuidances.filter(g => g.meal_combination.includes('糊飯')).length,
+    糊飯: filteredGuidances.filter(g => g.meal_combination.includes('糊飯') || normMealCombination(g.meal_combination) === '全糊').length,
     正餸: filteredGuidances.filter(g => g.meal_combination.includes('正餸')).length,
     碎餸: filteredGuidances.filter(g => g.meal_combination.includes('碎餸')).length,
-    糊餸: filteredGuidances.filter(g => g.meal_combination.includes('糊餸')).length,
+    糊餸: filteredGuidances.filter(g => g.meal_combination.includes('糊餸') || normMealCombination(g.meal_combination) === '全糊').length,
     
     // 特殊餐膳統計
     糖尿餐: filteredGuidances.filter(g => g.special_diets.includes('糖尿餐')).length,
@@ -649,7 +655,7 @@ const MealGuidance: React.FC = () => {
               </div>
               <div className="text-center p-3 bg-orange-50 rounded-lg">
                 <div className="text-lg font-bold text-orange-600">{statistics.糊飯糊餸}</div>
-                <div className="text-xs text-gray-600">糊飯+糊餸</div>
+                <div className="text-xs text-gray-600">全糊</div>
               </div>
             </div>
           </div>
@@ -758,7 +764,7 @@ const MealGuidance: React.FC = () => {
                     <option value="軟飯+正餸">軟飯+正餸</option>
                     <option value="軟飯+碎餸">軟飯+碎餸</option>
                     <option value="軟飯+糊餸">軟飯+糊餸</option>
-                    <option value="糊飯+糊餸">糊飯+糊餸</option>
+                    <option value="全糊">全糊</option>
                   </select>
                 </div>
                 
@@ -949,8 +955,8 @@ const MealGuidance: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getMealCombinationColor(guidance.meal_combination)}`}>
-                          {guidance.meal_combination}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getMealCombinationColor(normMealCombination(guidance.meal_combination))}`}>
+                          {normMealCombination(guidance.meal_combination)}
                         </span>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">

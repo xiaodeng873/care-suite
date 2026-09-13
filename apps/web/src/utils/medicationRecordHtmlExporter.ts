@@ -903,7 +903,7 @@ const renderBodyTable = (
     // c-name / c-route 仍以 rowspan=MIN_SLOT_ROWS 合併
     const fillerRow1 = `<tr class="mr-sign-row mr-filler-row">`
       + `<td class="c-date mr-filler-date">開始日期</td>`
-      + `<td class="c-name" rowspan="${MIN_SLOT_ROWS}">&nbsp;</td>`
+      + `<td class="c-name" rowspan="${MIN_SLOT_ROWS}"><div class="mr-med-source mr-filler-source">藥物來源：</div></td>`
       + `<td class="c-route" rowspan="${MIN_SLOT_ROWS}">&nbsp;</td>`
       + `<td class="c-time">&nbsp;</td>${dayCells}</tr>`;
     const fillerRow2 = `<tr class="mr-sign-row mr-filler-row"><td class="c-date mr-filler-date mr-filler-nobt">&nbsp;</td><td class="c-time">&nbsp;</td>${dayCells}</tr>`;
@@ -960,7 +960,7 @@ const renderPrescriptionBlock = (
     + (() => {
       const sourceParts = [prescription.medication_source, prescription.medication_source_specialty].filter(Boolean);
       return sourceParts.length > 0
-        ? `<div class="mr-med-source">來源：${escapeHtml(sourceParts.join(' / '))}</div>`
+        ? `<div class="mr-med-source">藥物來源：${escapeHtml(sourceParts.join(' / '))}</div>`
         : '';
     })();
   // 途徑 / 次數：route、PRN、meal timing、頻率、特殊用法、劑量各佔一行
@@ -1638,6 +1638,9 @@ td.c-day { position: relative; }
 td.mr-filler-date { color: #94a3b8; font-size: 7.5pt; text-align: left; padding: 0.4mm 1mm; vertical-align: middle; }
 /* c-date 第 2-4 行：取消上框線 */
 td.mr-filler-nobt { border-top: none !important; }
+/* 空白處方列：藥物來源手寫欄貼藥名欄底部 */
+.mr-filler-block td.c-name { vertical-align: bottom; padding-bottom: 0; }
+.mr-filler-block td.c-name .mr-filler-source { margin-top: 0; margin-bottom: 0; line-height: 1.1; color: #94a3b8; font-size: 7.5pt; }
 
 /* 底部給藥彙總（左側標籤格內含簽署指引） */
 .mr-footer-region { flex: 0 0 auto; margin-top: auto; }

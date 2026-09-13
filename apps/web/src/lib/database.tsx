@@ -180,7 +180,7 @@ export interface FollowUpAppointment {
   創建時間: string;
   更新時間: string;
 }
-export type MealCombinationType = '正飯+正餸' | '正飯+碎餸' | '正飯+糊餸' | '軟飯+正餸' | '軟飯+碎餸' | '軟飯+糊餸' | '糊飯+糊餸' | '不適用';
+export type MealCombinationType = '正飯+正餸' | '正飯+碎餸' | '正飯+糊餸' | '軟飯+正餸' | '軟飯+碎餸' | '軟飯+糊餸' | '全糊' | '不適用';
 export type SpecialDietType = '糖尿餐' | '痛風餐' | '低鹽餐' | '鼻胃飼' | '雞蛋' | '素食';
 export interface MealGuidance {
   id: string;

@@ -52,7 +52,7 @@ interface FacilitySettingsInfo {
 const MEAL_COMBINATIONS: MealCombinationType[] = [
   '正飯+正餸', '正飯+碎餸', '正飯+糊餸',
   '軟飯+正餸', '軟飯+碎餸', '軟飯+糊餸',
-  '糊飯+糊餸', '不適用'
+  '全糊', '不適用'
 ];
 
 const SPECIAL_DIETS: SpecialDietType[] = ['糖尿餐', '痛風餐', '低鹽餐', '鼻胃飼'];
@@ -327,7 +327,7 @@ const page1 = (patient: Patient, episode: HospitalEpisode, activePrescriptions: 
 };
 
 const mealSection = (mealGuidance?: MealGuidance) => {
-  const selected = mealGuidance?.meal_combination || '';
+  const selected = mealGuidance?.meal_combination === ('糊飯+糊餸' as MealCombinationType) ? '全糊' : (mealGuidance?.meal_combination || '');
   const isTube = (mealGuidance?.special_diets || []).includes('鼻胃飼');
   return `
   ${sectionHeader('6', '餐食種類 Diet')}

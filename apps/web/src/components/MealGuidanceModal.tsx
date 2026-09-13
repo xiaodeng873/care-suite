@@ -11,6 +11,10 @@ interface MealGuidanceModalProps {
   onClose: () => void;
 }
 
+/** 舊記錄「糊飯+糊餸」統一顯示為「全糊」 */
+const normalizeMealCombination = (v: MealCombinationType | undefined): MealCombinationType | undefined =>
+  v === ('糊飯+糊餸' as MealCombinationType) ? '全糊' : v;
+
 const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose }) => {
   const { patients, mealGuidances, addMealGuidance, updateMealGuidance } = usePatientData();
 
@@ -23,7 +27,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
 
   const [formData, setFormData] = useState({
     patient_id: guidance?.patient_id?.toString() || '',
-    meal_combination: guidance?.meal_combination || '正飯+正餸' as MealCombinationType,
+    meal_combination: normalizeMealCombination(guidance?.meal_combination) || '正飯+正餸' as MealCombinationType,
     special_diets: guidance?.special_diets || [] as SpecialDietType[],
     needs_thickener: guidance?.needs_thickener || false,
     needs_feeding: guidance?.needs_feeding || false,
@@ -44,7 +48,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
     '軟飯+正餸',
     '軟飯+碎餸',
     '軟飯+糊餸',
-    '糊飯+糊餸',
+    '全糊',
     '不適用'
   ];
 
@@ -111,7 +115,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
           // Update form data with existing guidance
           setFormData({
             patient_id: existingGuidance.patient_id.toString(),
-            meal_combination: existingGuidance.meal_combination,
+            meal_combination: normalizeMealCombination(existingGuidance.meal_combination)!,
             special_diets: existingGuidance.special_diets || [],
             needs_thickener: existingGuidance.needs_thickener || false,
             needs_feeding: existingGuidance.needs_feeding || false,

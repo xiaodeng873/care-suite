@@ -43,6 +43,14 @@ function parseTextToArray(value: unknown): string[] {
 
 const formatDate = (dateStr?: string | null): string => formatDisplayDate(dateStr);
 
+/** P1/P2/P3 共用表頭：院友姓名、床號、身份證號碼 */
+const patientInfoRow = (patient: PatientInfo): string => `
+        <div class="info-row">
+          <span>院友姓名：<input type="text" class="db-line-input" style="width: 120px;" value="${escapeHtml(patient.中文姓名 || '')}"></span>
+          <span>床號：<input type="text" class="db-line-input" style="width: 60px;" value="${escapeHtml(getPrintBedNumber(patient))}"></span>
+          <span>身份證號碼：<input type="text" class="db-line-input" style="width: 150px;" value="${escapeHtml(patient.身份證號碼 || '')}"></span>
+        </div>`;
+
 /** Six evaluation-date columns; only the first column is filled. */
 const checkboxCells = (checked: boolean): string => {
   return Array.from({ length: 6 }).map((_, i) => {
@@ -161,12 +169,7 @@ const generateP1 = (
           <h1>${escapeHtml(facilityName)}</h1>
           <h2>院友健康評估及記錄(3 頁)</h2>
         </div>
-
-        <div class="info-row">
-          <span>院友姓名：<input type="text" class="db-line-input" style="width: 120px;" value="${escapeHtml(patient.中文姓名 || '')}"></span>
-          <span>床號：<input type="text" class="db-line-input" style="width: 60px;" value="${escapeHtml(getPrintBedNumber(patient))}"></span>
-          <span>身份證號碼：<input type="text" class="db-line-input" style="width: 150px;" value="${escapeHtml(patient.身份證號碼 || '')}"></span>
-        </div>
+        ${patientInfoRow(patient)}
 
         <div class="habit-row">
           1. 吸煙習慣：<span class="opt-span"><input type="checkbox" class="db-checkbox" ${isSmoking('從不') ? 'checked' : ''}>從不</span>
@@ -232,7 +235,7 @@ const generateP1 = (
   `;
 };
 
-const generateP2 = (assessment: HealthAssessment, facilityName: string): string => {
+const generateP2 = (assessment: HealthAssessment, patient: PatientInfo, facilityName: string): string => {
   const nd = assessment.nutrition_diet || {};
   const vh = assessment.vision_hearing || {};
   const condition = nd.condition || '';
@@ -256,6 +259,7 @@ const generateP2 = (assessment: HealthAssessment, facilityName: string): string 
           <h1>${escapeHtml(facilityName)}</h1>
           <h2>院友健康評估及記錄(3 頁)</h2>
         </div>
+        ${patientInfoRow(patient)}
         <div class="section-title">4. 飲食營養</div>
         <table>
           <colgroup>
@@ -402,7 +406,7 @@ const generateP2 = (assessment: HealthAssessment, facilityName: string): string 
   `;
 };
 
-const generateP3 = (assessment: HealthAssessment, facilityName: string): string => {
+const generateP3 = (assessment: HealthAssessment, patient: PatientInfo, facilityName: string): string => {
   const bb = assessment.bowel_bladder_control || {};
   const emotional = parseTextToArray(assessment.emotional_expression);
   const behavior = parseTextToArray(assessment.behavior_expression);
@@ -421,7 +425,8 @@ const generateP3 = (assessment: HealthAssessment, facilityName: string): string 
           <h1>${escapeHtml(facilityName)}</h1>
           <h2>院友健康評估及記錄(3 頁)</h2>
         </div>
-        <div class="section-title">7. 大小便自制能力</div>
+        ${patientInfoRow(patient)}
+        <div class="section-title">8. 大小便自制能力</div>
         <table>
           <colgroup>
             <col class="label-m"><col class="label-s"><col class="col-eval" span="6">
@@ -455,7 +460,7 @@ const generateP3 = (assessment: HealthAssessment, facilityName: string): string 
           <tr><td class="label-s">需要輔助器：</td>${textCells(bladder === '需要輔助器' ? (bb.bladder_aid || '') : '')}</tr>
         </table>
 
-        <div class="section-title">8. 情緒表現</div>
+        <div class="section-title">9. 情緒表現</div>
         <table>
           <colgroup>
             <col class="label-s" style="width: 35mm;"><col class="col-eval" span="6">
@@ -472,7 +477,7 @@ const generateP3 = (assessment: HealthAssessment, facilityName: string): string 
           <tr><td class="label-s">其他</td>${checkboxCells(emotional.includes('其他'))}</tr>
         </table>
 
-        <div class="section-title">9. 行為表現</div>
+        <div class="section-title">10. 行為表現</div>
         <table>
           <colgroup>
             <col class="label-s" style="width: 35mm;"><col class="col-eval" span="6">
@@ -484,7 +489,7 @@ const generateP3 = (assessment: HealthAssessment, facilityName: string): string 
           ${behaviorRows}
         </table>
 
-        <div class="section-title">10. 備註</div>
+        <div class="section-title">11. 備註</div>
         <table>
           <colgroup>
             <col class="label-col">
@@ -568,8 +573,8 @@ export const generateHealthAssessmentHtml = (
     .page-p1 .title-box { position: relative; text-align: center; margin-bottom: 8px; }
     .page-p1 .title-box h1 { margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; }
     .page-p1 .title-box h2 { margin: 4px 0 0 0; font-size: 20px; font-weight: bold; display: inline-block; border-bottom: 1.5px solid black; padding-bottom: 2px; }
-    .page-p1 .info-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-weight: bold; }
-    .page-p1 .db-line-input { border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 13px; }
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-weight: bold; }
+    .db-line-input { border: none; border-bottom: 1px solid black; background: transparent; font-family: inherit; font-size: 13px; }
     .page-p1 .habit-row { font-weight: bold; line-height: 1.2; margin-bottom: 2px; }
     .page-p1 .db-checkbox { width: 13px; height: 13px; vertical-align: middle; cursor: pointer; }
     .page-p1 .opt-span { margin-right: 8px; white-space: nowrap; font-size: 12px; }
@@ -637,8 +642,8 @@ export const generateHealthAssessmentHtml = (
 </head>
 <body>
   ${generateP1(assessment, patient, facilityName)}
-  ${generateP2(assessment, facilityName)}
-  ${generateP3(assessment, facilityName)}
+  ${generateP2(assessment, patient, facilityName)}
+  ${generateP3(assessment, patient, facilityName)}
 </body>
 </html>`;
 };
