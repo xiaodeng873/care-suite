@@ -66,6 +66,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     不良藥物反應: patient?.不良藥物反應 || [],
     出生日期: patient?.出生日期 || '',
     院友相片: patient?.院友相片 || '',
+    院友相片高清: patient?.院友相片高清 || '',
     入住日期: patient?.入住日期 || getTodayDate(), // 新增時預設為當天
     退住日期: patient?.退住日期 || '',
     護理等級: patient?.護理等級 || '',
@@ -322,7 +323,7 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     }));
   };
 
-  const compressImage = (file: File): Promise<string> => {
+  const compressImage = (file: File, maxWidth = 400, quality = 0.85): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -337,7 +338,6 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
           }
 
           // 設定目標寬度，保持比例
-          const maxWidth = 400;
           let width = img.width;
           let height = img.height;
 
@@ -352,8 +352,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
           // 繪製圖片
           ctx.drawImage(img, 0, 0, width, height);
 
-          // 轉換為 JPEG base64，品質 0.85
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+          // 轉換為 JPEG base64
+          const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
           resolve(compressedBase64);
         };
         img.onerror = () => reject(new Error('圖片載入失敗'));
@@ -378,12 +378,14 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     setIsUploading(true);
 
     try {
-      // 壓縮圖片
-      const compressedBase64 = await compressImage(file);
+      // 雙版本：400px 壓縮版（日常頭像）+ 1600px 高清版（匯出餐卡/藥紙等文件）
+      const compressedBase64 = await compressImage(file, 400, 0.85);
+      const hdBase64 = await compressImage(file, 1600, 0.9);
       setPhotoPreview(compressedBase64);
       setFormData((prev) => ({
         ...prev,
-        院友相片: compressedBase64
+        院友相片: compressedBase64,
+        院友相片高清: hdBase64
       }));
       setIsUploading(false);
     } catch (error) {
@@ -403,7 +405,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     setPhotoPreview(null);
     setFormData((prev) => ({
       ...prev,
-      院友相片: ''
+      院友相片: '',
+      院友相片高清: ''
     }));
   };
 
@@ -470,21 +473,25 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       document.getElementById('cancel-btn')?.addEventListener('click', closeCamera);
 
       document.getElementById('capture-btn')?.addEventListener('click', () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        // 雙版本：1600px 高清（0.9）+ 400px 壓縮（0.85）
+        const drawScaled = (maxWidth: number): string => {
+          const scale = Math.min(1, maxWidth / video.videoWidth);
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(video.videoWidth * scale));
+          c.height = Math.max(1, Math.round(video.videoHeight * scale));
+          c.getContext('2d')?.drawImage(video, 0, 0, c.width, c.height);
+          return c.toDataURL('image/jpeg', maxWidth > 400 ? 0.9 : 0.85);
+        };
 
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(video, 0, 0);
-          const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+        const dataURL = drawScaled(400);
+        const hdURL = drawScaled(1600);
 
-          setPhotoPreview(dataURL);
-          setFormData((prev) => ({
-            ...prev,
-            院友相片: dataURL
-          }));
-        }
+        setPhotoPreview(dataURL);
+        setFormData((prev) => ({
+          ...prev,
+          院友相片: dataURL,
+          院友相片高清: hdURL
+        }));
 
         closeCamera();
       });

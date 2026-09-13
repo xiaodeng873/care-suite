@@ -18,6 +18,7 @@ export interface Patient {
   身份證簽發日期?: string;
   出生日期?: string;
   院友相片?: string;
+  院友相片高清?: string;
   身份證相片?: string;
   藥物敏感?: string[];
   不良藥物反應?: string[];
@@ -1418,6 +1419,39 @@ export const getPatientsLight = async (): Promise<Patient[]> => {
     ...p,
     original_bed_number: p.original_bed_id ? bedMap.get(p.original_bed_id) || p.床號 : p.床號,
   }));
+};
+
+// 在住院友高清相片（1600px）：院友id → 院友相片高清
+// 只喺匯出文件（餐卡/藥紙/print bundle）時先拎，日常列表唔會載入
+export const getHdPatientPhotos = async (patientIds: Array<number | string>): Promise<Map<string, string>> => {
+  const ids = [...new Set(patientIds.map(String).filter(Boolean))];
+  const map = new Map<string, string>();
+  if (ids.length === 0) return map;
+  const { data, error } = await supabase
+    .from('院友主表')
+    .select('院友id, 院友相片高清' as any)
+    .in('院友id', ids);
+  if (error) {
+    console.warn('載入高清相片失敗，匯出改用壓縮版:', error.message);
+    return map;
+  }
+  for (const row of (data || []) as any[]) {
+    if (row.院友相片高清) map.set(String(row.院友id), row.院友相片高清);
+  }
+  return map;
+};
+
+// 匯出文件用：院友物件嘅 院友相片 欄位優先換成高清版（冇高清則維持壓縮版）
+export const withHdPatientPhotos = async <T extends { 院友id: number | string; 院友相片?: string }>(
+  patients: T[]
+): Promise<T[]> => {
+  if (patients.length === 0) return patients;
+  const hdMap = await getHdPatientPhotos(patients.map(p => p.院友id));
+  if (hdMap.size === 0) return patients;
+  return patients.map(p => {
+    const hd = hdMap.get(String(p.院友id));
+    return hd ? { ...p, 院友相片: hd } : p;
+  });
 };
 
 // 背景補載有相片的院友：院友id → 院友相片

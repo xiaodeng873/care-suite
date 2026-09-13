@@ -44,7 +44,9 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ patient, onClose, onCon
       bed_id: null,
       discharge_reason: dischargeReason,
       death_date: dischargeReason === '死亡' ? deathDate : null,
-      transfer_facility_name: dischargeReason === '轉往其他機構' ? transferFacility : null
+      transfer_facility_name: dischargeReason === '轉往其他機構' ? transferFacility : null,
+      // 退住時清走高清相片，只保留壓縮版（控制雲端儲存成本）
+      院友相片高清: ''
     };
     onConfirm(updatedPatient, dischargeDate);
   };

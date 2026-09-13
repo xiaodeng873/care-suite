@@ -4,6 +4,7 @@ import { exportMedicationRecordToHtml, exportBlankMedicationRecordToHtml, orderP
 import { exportMedicationListToHtml, classifyMedicationTerm } from '../utils/medicationListHtmlGenerator';
 import { useStationData } from '../context/facility/StationContext';
 import { supabase } from '../lib/supabase';
+import { withHdPatientPhotos } from '../lib/database';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
 import BedNumberImprint from './BedNumberImprint';
 import { formatMealTiming } from '../utils/mealTiming';
@@ -383,11 +384,12 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
 
       if (exportMode === 'current' && currentPatient) {
         if (shouldExportMedicationRecord) {
-          await exportMedicationRecordToHtml([
+          const hdCurrentPatients = await withHdPatientPhotos([
           {
             ...currentPatient.patient,
             prescriptions: currentPatientPrescriptionsToExport
-          }],
+          }]);
+          await exportMedicationRecordToHtml(hdCurrentPatients,
           selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate, separateInspectionPages);
         }
 
@@ -401,7 +403,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           if (currentListPrescriptions.length === 0) {
             alert('所選院友沒有符合長期/短期篩選的處方，無法匯出個人藥物記錄');
           } else {
-            exportMedicationListToHtml([{ ...currentPatient.patient, prescriptions: currentListPrescriptions }], {
+            const hdCurrentList = await withHdPatientPhotos([{ ...currentPatient.patient, prescriptions: currentListPrescriptions }]);
+            exportMedicationListToHtml(hdCurrentList, {
               startDate: listStartDate,
               endDate: listEndDate
             });
@@ -463,7 +466,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
         }
 
         if (shouldExportMedicationRecord && selectedPatients.length > 0) {
-          await exportMedicationRecordToHtml(selectedPatients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate, separateInspectionPages);
+          const hdSelectedPatients = await withHdPatientPhotos(selectedPatients);
+          await exportMedicationRecordToHtml(hdSelectedPatients, selectedMonth, includeWorkflowRecords, includeBlankRows, prescriptionSortOrder, recordTemplate, separateInspectionPages);
         }
 
         if (shouldExportPersonalMedicationList) {
@@ -487,7 +491,8 @@ const MedicationRecordExportModal: React.FC<MedicationRecordExportModalProps> = 
           }).
           filter((p) => p.prescriptions.length > 0);
           if (patientsForList.length > 0) {
-            exportMedicationListToHtml(patientsForList, {
+            const hdPatientsForList = await withHdPatientPhotos(patientsForList);
+            exportMedicationListToHtml(hdPatientsForList, {
               startDate: listStartDate,
               endDate: listEndDate
             });

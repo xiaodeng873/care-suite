@@ -15,6 +15,7 @@ import type {
   Station,
   DiaperChangeRecord,
 } from '../lib/database';
+import { withHdPatientPhotos } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { getFacilitySettings } from './facilitySettings';
 import { getPrintBedNumber } from './bedTransferUtils';
@@ -666,10 +667,13 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
 // ─── 主入口 ──────────────────────────────────────────────────────────────────
 
 export async function generatePatientPrintBundle(options: PrintBundleOptions): Promise<void> {
-  const { patients, documentIds, startDate, endDate, contentMode, printOptions } = options;
+  const { patients: inputPatients, documentIds, startDate, endDate, contentMode, printOptions } = options;
   // 院舍活動報表係院舍層級文件：單獨勾選時唔需要院友；其他文件至少要一位院友
   const homeActivitiesOnly = documentIds.length > 0 && documentIds.every(id => id === 'home_activities_report');
-  if (documentIds.length === 0 || (patients.length === 0 && !homeActivitiesOnly)) return;
+  if (documentIds.length === 0 || (inputPatients.length === 0 && !homeActivitiesOnly)) return;
+
+  // 匯出文件用高清相片（有先；冇高清則維持壓縮版）
+  const patients = await withHdPatientPhotos(inputPatients);
 
   // 清除床頭記錄選項卡快取，避免跨次列印使用舊資料
   cachedCareTabs = null;
