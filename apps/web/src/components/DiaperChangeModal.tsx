@@ -130,21 +130,49 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
     return parts.join(' / ') || '無記錄';
   };
 
-  const handleCheckboxChange = (type: 'urine' | 'stool' | 'none') => {
-    if (type === 'none') {
-      setHasNone(!hasNone);
-      if (!hasNone) {
-        setHasUrine(false);
-        setHasStool(false);
-      }
-    } else {
-      setHasNone(false);
-      if (type === 'urine') {
-        setHasUrine(!hasUrine);
-      } else {
-        setHasStool(!hasStool);
-      }
+  // 無：切換；選無會清空小便/大便
+  const toggleNone = () => {
+    if (isSpecialStatus) return;
+    const next = !hasNone;
+    setHasNone(next);
+    if (next) {
+      setHasUrine(false);
+      setHasStool(false);
+      setUrineAmount('');
+      setStoolColor('');
+      setStoolTexture('');
+      setStoolAmount('');
     }
+  };
+
+  // 小便：選子選項 = 連動選中小便；再點同一個 = 取消（無小便）
+  const toggleUrineAmount = (option: string) => {
+    if (isSpecialStatus) return;
+    const next = urineAmount === option ? '' : option;
+    setUrineAmount(next);
+    setHasUrine(!!next);
+    if (next) setHasNone(false);
+  };
+
+  // 大便：三組子選項各自可切換；任何一組有選擇 = 選中大便，全部取消 = 無大便
+  const toggleStoolField = (field: 'color' | 'texture' | 'amount', option: string) => {
+    if (isSpecialStatus) return;
+    const color = field === 'color' ? (stoolColor === option ? '' : option) : stoolColor;
+    const texture = field === 'texture' ? (stoolTexture === option ? '' : option) : stoolTexture;
+    const amount = field === 'amount' ? (stoolAmount === option ? '' : option) : stoolAmount;
+    setStoolColor(color);
+    setStoolTexture(texture);
+    setStoolAmount(amount);
+    const any = !!(color || texture || amount);
+    setHasStool(any);
+    if (any) setHasNone(false);
+  };
+
+  // 尿片/片芯：加減按鈕，每按 +/-1；0 視為無（存空字串）
+  const stepCount = (current: string, delta: number, setter: (v: string) => void) => {
+    const n = current === '' ? 0 : parseInt(current, 10);
+    const next = Math.max(0, n + delta);
+    setter(next === 0 ? '' : String(next));
   };
 
   const handleNoteButtonClick = (value: string) => {
@@ -235,136 +263,119 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
             <label className="block text-sm font-medium text-gray-900 mb-3">
               排泄情況 *
             </label>
-            <div className="space-y-2">
-              <label className={`flex flex-wrap items-center gap-2 ${isSpecialStatus ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-                <input
-                  type="checkbox"
-                  checked={hasUrine}
-                  onChange={() => handleCheckboxChange('urine')}
-                  disabled={isSpecialStatus}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                <span>小便</span>
-              </label>
-              <label className={`flex flex-wrap items-center gap-2 ${isSpecialStatus ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-                <input
-                  type="checkbox"
-                  checked={hasStool}
-                  onChange={() => handleCheckboxChange('stool')}
-                  disabled={isSpecialStatus}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                <span>大便</span>
-              </label>
-              <label className={`flex flex-wrap items-center gap-2 ${isSpecialStatus ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-                <input
-                  type="checkbox"
-                  checked={hasNone}
-                  onChange={() => handleCheckboxChange('none')}
-                  disabled={isSpecialStatus}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                <span>無</span>
-              </label>
+            <div className={`space-y-3 ${isSpecialStatus ? 'pointer-events-none opacity-50' : ''}`}>
+              {/* 無 */}
+              <button
+                type="button"
+                onClick={toggleNone}
+                className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+                  hasNone ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                無
+              </button>
+
+              {/* 小便：子選項常駐，點選即連動選中小便 */}
+              <div className="border border-gray-200 rounded-lg p-3">
+                <div className={`text-sm font-medium mb-2 ${hasUrine ? 'text-blue-600' : 'text-gray-700'}`}>小便</div>
+                <div className="flex gap-2">
+                  {['少', '中', '多'].map(option => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => toggleUrineAmount(option)}
+                      className={`flex-1 py-3 px-3 rounded-lg font-medium transition-colors ${
+                        hasUrine && urineAmount === option ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 大便：子選項常駐，任何一組有選擇即選中大便 */}
+              <div className="border border-gray-200 rounded-lg p-3 space-y-2">
+                <div className={`text-sm font-medium ${hasStool ? 'text-blue-600' : 'text-gray-700'}`}>大便</div>
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">顏色</div>
+                  <div className="flex gap-2 flex-wrap">
+                    {['黃', '啡', '綠', '黑', '紅'].map(option => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => toggleStoolField('color', option)}
+                        className={`flex-1 min-w-[3rem] py-2 px-3 rounded-lg font-medium transition-colors ${
+                          stoolColor === option ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">質地</div>
+                  <div className="flex gap-2 flex-wrap">
+                    {['硬', '軟', '稀', '水狀'].map(option => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => toggleStoolField('texture', option)}
+                        className={`flex-1 min-w-[3rem] py-2 px-3 rounded-lg font-medium transition-colors ${
+                          stoolTexture === option ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">量</div>
+                  <div className="flex gap-2">
+                    {['少', '中', '多'].map(option => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => toggleStoolField('amount', option)}
+                        className={`flex-1 py-2 px-3 rounded-lg font-medium transition-colors ${
+                          stoolAmount === option ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-
-          {hasUrine && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                小便量
-              </label>
-              <div className="flex gap-4">
-                {['少', '中', '多'].map(option => (
-                  <label key={option} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="urineAmount"
-                      value={option}
-                      checked={urineAmount === option}
-                      onChange={(e) => setUrineAmount(e.target.value)}
-                      className="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">{option}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {hasStool && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  大便顏色
-                </label>
-                <div className="flex gap-3 flex-wrap">
-                  {['黃', '啡', '綠', '黑', '紅'].map(option => (
-                    <label key={option} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="stoolColor"
-                        value={option}
-                        checked={stoolColor === option}
-                        onChange={(e) => setStoolColor(e.target.value)}
-                        className="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  大便質地
-                </label>
-                <div className="flex gap-3 flex-wrap">
-                  {['硬', '軟', '稀', '水狀'].map(option => (
-                    <label key={option} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="stoolTexture"
-                        value={option}
-                        checked={stoolTexture === option}
-                        onChange={(e) => setStoolTexture(e.target.value)}
-                        className="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  大便量
-                </label>
-                <div className="flex gap-4">
-                  {['少', '中', '多'].map(option => (
-                    <label key={option} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="stoolAmount"
-                        value={option}
-                        checked={stoolAmount === option}
-                        onChange={(e) => setStoolAmount(e.target.value)}
-                        className="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               尿片
             </label>
-            <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
-              {urineCount !== '' && urineCount !== null && urineCount !== undefined ? urineCount : '—'}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => stepCount(urineCount, -1, setUrineCount)}
+                className="w-12 h-12 shrink-0 rounded-lg bg-gray-100 text-2xl font-bold text-gray-700 hover:bg-gray-200 active:bg-gray-300 transition-colors"
+                aria-label="減少尿片"
+              >
+                −
+              </button>
+              <div className="flex-1 py-2 border border-gray-200 rounded-lg bg-gray-50 text-center text-xl font-semibold text-gray-800">
+                {urineCount === '' ? '—' : urineCount}
+              </div>
+              <button
+                type="button"
+                onClick={() => stepCount(urineCount, 1, setUrineCount)}
+                className="w-12 h-12 shrink-0 rounded-lg bg-blue-600 text-2xl font-bold text-white hover:bg-blue-700 active:bg-blue-800 transition-colors"
+                aria-label="增加尿片"
+              >
+                +
+              </button>
             </div>
           </div>
 
@@ -372,8 +383,26 @@ const DiaperChangeModal: React.FC<DiaperChangeModalProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               片芯
             </label>
-            <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
-              {coreCount !== '' && coreCount !== null && coreCount !== undefined ? coreCount : '—'}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => stepCount(coreCount, -1, setCoreCount)}
+                className="w-12 h-12 shrink-0 rounded-lg bg-gray-100 text-2xl font-bold text-gray-700 hover:bg-gray-200 active:bg-gray-300 transition-colors"
+                aria-label="減少片芯"
+              >
+                −
+              </button>
+              <div className="flex-1 py-2 border border-gray-200 rounded-lg bg-gray-50 text-center text-xl font-semibold text-gray-800">
+                {coreCount === '' ? '—' : coreCount}
+              </div>
+              <button
+                type="button"
+                onClick={() => stepCount(coreCount, 1, setCoreCount)}
+                className="w-12 h-12 shrink-0 rounded-lg bg-blue-600 text-2xl font-bold text-white hover:bg-blue-700 active:bg-blue-800 transition-colors"
+                aria-label="增加片芯"
+              >
+                +
+              </button>
             </div>
           </div>
 
