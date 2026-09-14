@@ -18,6 +18,7 @@ import {
   Eraser
 } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
+import { useAuth } from '../context/AuthContext';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import DiaperUsageRecordModal from '../components/DiaperUsageRecordModal';
 import { matchChineseName, matchEnglishName, matchBedNumber, compareBedNumbers, matchPatientBedNumber} from '../utils/searchUtils';
@@ -30,6 +31,7 @@ import { parseDiaperSlotStartTime, getActualSlotDate } from '../utils/careRecord
 
 const DiaperUsageRecords: React.FC = () => {
   const { loading, admissionRecords, hospitalEpisodes } = usePatientData();
+  const { isAdmin } = useAuth();
   const patients = useFilteredPatients();
   const [records, setRecords] = useState<DiaperUsageRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
@@ -52,8 +54,8 @@ const DiaperUsageRecords: React.FC = () => {
       const data = await db.getDiaperUsageRecords();
       setRecords(data);
     } catch (error) {
-      console.error('載入尿片記錄失敗:', error);
-      alert('載入尿片記錄失敗，請重試');
+      console.error('載入理遺記錄失敗:', error);
+      alert('載入理遺記錄失敗，請重試');
     } finally {
       setRecordsLoading(false);
     }
@@ -166,8 +168,8 @@ const DiaperUsageRecords: React.FC = () => {
         const grid = generateMonthGrid({
           year: record.year,
           month: record.month,
-          monthlyDiaper: record.monthly_diaper_estimate ?? 0,
-          monthlyCore: record.monthly_core_estimate ?? 0,
+          weeklyDiaper: record.weekly_diaper_estimate ?? 0,
+          weeklyCore: record.weekly_core_estimate ?? 0,
           dailyMinDiaper: record.daily_min_diaper ?? 0,
           dailyMaxDiaper: record.daily_max_diaper ?? Number.MAX_SAFE_INTEGER,
           dailyMinCore: record.daily_min_core ?? 0,
@@ -263,14 +265,14 @@ const DiaperUsageRecords: React.FC = () => {
   const handleDelete = async (id: string) => {
     const record = records.find(r => r.id === id);
     const patient = patients.find(p => p.院友id === record?.patient_id);
-    if (!confirm(`確定要刪除 ${patient?.中文姓名 ?? ''} ${record?.year}年${record?.month}月 的尿片記錄嗎？`)) return;
+    if (!confirm(`確定要刪除 ${patient?.中文姓名 ?? ''} ${record?.year}年${record?.month}月 的理遺記錄嗎？`)) return;
     try {
       setDeletingIds(prev => new Set(prev).add(id));
       await db.deleteDiaperUsageRecord(id);
       await loadRecords();
     } catch (error) {
-      console.error('刪除尿片記錄失敗:', error);
-      alert('刪除尿片記錄失敗，請重試');
+      console.error('刪除理遺記錄失敗:', error);
+      alert('刪除理遺記錄失敗，請重試');
     } finally {
       setDeletingIds(prev => {
         const newSet = new Set(prev);
@@ -283,20 +285,31 @@ const DiaperUsageRecords: React.FC = () => {
   const hasGenerated = (record: DiaperUsageRecord): boolean =>
     !!record.generated_data && Object.keys(record.generated_data).length > 0;
 
-  const dailyAverage = (monthly: number | null | undefined, year: number, month: number): string => {
-    if (!monthly || monthly <= 0) return '-';
-    return (monthly / daysInMonth(year, month)).toFixed(1);
+  const dailyAverage = (weekly: number | null | undefined): string => {
+    if (!weekly || weekly <= 0) return '-';
+    return (weekly / 7).toFixed(1);
   };
 
+  // 只限主管/開發者使用
+  if (!isAdmin()) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-gray-500">
+        <Layers className="h-12 w-12 mb-4 text-gray-300" />
+        <p className="text-lg font-medium">無權限瀏覽理遺記錄</p>
+        <p className="text-sm mt-1">此頁面只限主管及開發者使用</p>
+      </div>
+    );
+  }
+
   if (loading || recordsLoading) {
-    return <LoadingScreen pageName="尿片記錄" />;
+    return <LoadingScreen pageName="理遺記錄" />;
   }
 
   return (
     <div className="space-y-6">
       <div className="sticky top-0 bg-white z-30 py-4 border-b border-gray-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">尿片記錄</h1>
+          <h1 className="text-2xl font-bold text-gray-900">理遺記錄</h1>
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleBulkGenerate}
@@ -323,7 +336,7 @@ const DiaperUsageRecords: React.FC = () => {
               className="btn-primary flex flex-wrap items-center gap-2"
             >
               <Plus className="h-4 w-4" />
-              <span>新增尿片記錄</span>
+              <span>新增理遺記錄</span>
             </button>
           </div>
         </div>
@@ -364,7 +377,7 @@ const DiaperUsageRecords: React.FC = () => {
         </div>
       </div>
 
-      {/* 尿片記錄列表 */}
+      {/* 理遺記錄列表 */}
       <div className="card overflow-hidden">
         {paginatedGroups.length > 0 ? (
           <div className="overflow-x-auto">
@@ -382,7 +395,7 @@ const DiaperUsageRecords: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">展開</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">院友</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">年月</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">每月估算（尿片/片芯）</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">每週數量（尿片/片芯）</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">每日範圍（尿片/片芯）</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">估計每天量</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
@@ -461,13 +474,13 @@ const DiaperUsageRecords: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {record.monthly_diaper_estimate ?? '-'} / {record.monthly_core_estimate ?? '-'}
+                        {record.weekly_diaper_estimate ?? '-'} / {record.weekly_core_estimate ?? '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         {record.daily_min_diaper ?? 0}-{record.daily_max_diaper ?? '-'} / {record.daily_min_core ?? 0}-{record.daily_max_core ?? '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {dailyAverage(record.monthly_diaper_estimate, record.year, record.month)} / {dailyAverage(record.monthly_core_estimate, record.year, record.month)}
+                        {dailyAverage(record.weekly_diaper_estimate)} / {dailyAverage(record.weekly_core_estimate)}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         {hasGenerated(record) ? (
@@ -534,7 +547,7 @@ const DiaperUsageRecords: React.FC = () => {
           <div className="text-center py-12">
             <Layers className="h-24 w-24 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm ? '找不到符合條件的尿片記錄' : '暫無尿片記錄'}
+              {searchTerm ? '找不到符合條件的理遺記錄' : '暫無理遺記錄'}
             </h3>
             <p className="text-gray-600 mb-4">
               {searchTerm ? '請嘗試調整搜索條件' : '開始為使用本院尿片/片芯的院友建立記錄'}
@@ -548,7 +561,7 @@ const DiaperUsageRecords: React.FC = () => {
                 }}
                 className="btn-primary"
               >
-                新增尿片記錄
+                新增理遺記錄
               </button>
             ) : (
               <button

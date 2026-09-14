@@ -25,7 +25,7 @@ const routeNames: Record<string, string> = {
   '/tasks': '任務管理',
   '/meal-guidance': '飲食指導',
   '/patient-logs': '院友日誌',
-  '/diaper-usage-records': '尿片記錄',
+  '/diaper-usage-records': '理遺記錄',
   '/restraint': '約束物品',
   '/tube-care': '喉管護理',
   '/admission-records': '入院記錄',
@@ -91,6 +91,7 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   feature?: string; // 對應權限的 feature key
+  adminOnly?: boolean; // 只限主管/開發者
 }
 
 interface NavCategory {
@@ -116,7 +117,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [facilitySettings, setFacilitySettings] = useState<FacilitySettings>(DEFAULT_FACILITY_SETTINGS);
-  const { displayName, hasPermission, hasCategoryViewPermission, isDeveloper, userProfile, customLogout } = useAuth();
+  const { displayName, hasPermission, hasCategoryViewPermission, isDeveloper, isAdmin, userProfile, customLogout } = useAuth();
   const { isNavigating, navigatingTo, isInitialLoad, startNavigation, finishNavigation } = useNavigation();
   const { loading: patientLoading, stations } = usePatientData();
   const { selectedStationIds, setSelectedStationIds, isFiltered } = useStationFilter();
@@ -210,7 +211,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       items: [
         { name: '監測記錄', href: '/health', icon: Activity, feature: 'health_monitoring' },
         { name: '床頭記錄', href: '/care-records', icon: ClipboardCheck, feature: 'care_records' },
-        { name: '尿片記錄', href: '/diaper-usage-records', icon: Layers },
+        { name: '理遺記錄', href: '/diaper-usage-records', icon: Layers, adminOnly: true },
         { name: '院友日誌', href: '/patient-logs', icon: BookOpen, feature: 'patient_logs' },
         { name: '診斷記錄', href: '/diagnosis-records', icon: FileText, feature: 'diagnosis_records' },
         { name: '疫苗記錄', href: '/vaccination-records', icon: Syringe, feature: 'vaccination_records' },
@@ -294,6 +295,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
 
         // 過濾有查看權限的項目
         const filteredItems = category.items.filter(item => {
+          if (item.adminOnly && !isAdmin()) return false;
           if (!item.feature) return true;
           return hasPermission(category.category!, item.feature, 'view');
         });
@@ -304,7 +306,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
         };
       })
       .filter(category => category.items.length > 0); // 移除沒有項目的類別
-  }, [isDeveloper, hasPermission]);
+  }, [isDeveloper, isAdmin, hasPermission]);
 
   // 關閉所有下拉選單
   useEffect(() => {

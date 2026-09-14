@@ -400,27 +400,20 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
             {formData.needs_thickener && (
               <div className="ml-7 space-y-3">
                 <div>
-                  <label className="form-label">凝固粉配方 *</label>
+                  <label className="form-label">凝固粉配方（不勾選 = 普通配方，無須特別說明）</label>
                   <div className="flex flex-wrap items-center gap-4 mt-1">
                     <label className="flex items-center gap-2 text-sm text-gray-700">
                       <input
-                        type="radio"
+                        type="checkbox"
                         name="thickener_formula"
-                        value="普遍配方"
-                        checked={formData.thickener_formula === '普遍配方'}
-                        onChange={handleChange}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      普遍配方
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="radio"
-                        name="thickener_formula"
-                        value="清透配方"
                         checked={formData.thickener_formula === '清透配方'}
-                        onChange={handleChange}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            thickener_formula: e.target.checked ? '清透配方' : '普遍配方'
+                          }))
+                        }
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                       清透配方
                     </label>
@@ -512,7 +505,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-gray-600">凝固粉:</span>
                   <span className="font-medium text-blue-600">
-                    {formData.thickener_amount || '待填寫分量'}（{formData.thickener_formula}）
+                    {formData.thickener_amount || '待填寫分量'}{formData.thickener_formula === '清透配方' ? '（清透配方）' : ''}
                   </span>
                 </div>
               )}

@@ -658,14 +658,14 @@ export interface DiaperChangeRecord {
   updated_at: string;
 }
 
-// 尿片記錄：院友每月尿片/片芯用量估算與虛擬生成數據
+// 理遺記錄：院友每週尿片/片芯用量估算與虛擬生成數據
 export interface DiaperUsageRecord {
   id: string;
   patient_id: number;
   year: number;
   month: number; // 1-12
-  monthly_diaper_estimate?: number | null;
-  monthly_core_estimate?: number | null;
+  weekly_diaper_estimate?: number | null;
+  weekly_core_estimate?: number | null;
   daily_min_diaper?: number | null;
   daily_max_diaper?: number | null;
   daily_min_core?: number | null;

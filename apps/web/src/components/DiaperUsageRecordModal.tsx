@@ -52,8 +52,8 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
     record ? `${record.year}-${String(record.month).padStart(2, '0')}`
       : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   );
-  const [monthlyDiaper, setMonthlyDiaper] = useState<string>(source?.monthly_diaper_estimate != null ? String(source.monthly_diaper_estimate) : '');
-  const [monthlyCore, setMonthlyCore] = useState<string>(source?.monthly_core_estimate != null ? String(source.monthly_core_estimate) : '');
+  const [weeklyDiaper, setWeeklyDiaper] = useState<string>(source?.weekly_diaper_estimate != null ? String(source.weekly_diaper_estimate) : '');
+  const [weeklyCore, setWeeklyCore] = useState<string>(source?.weekly_core_estimate != null ? String(source.weekly_core_estimate) : '');
   const [minDiaper, setMinDiaper] = useState<string>(source?.daily_min_diaper != null ? String(source.daily_min_diaper) : '0');
   const [maxDiaper, setMaxDiaper] = useState<string>(source?.daily_max_diaper != null ? String(source.daily_max_diaper) : '');
   const [minCore, setMinCore] = useState<string>(source?.daily_min_core != null ? String(source.daily_min_core) : '0');
@@ -79,10 +79,10 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
   }, [yearMonth]);
 
   const monthDays = daysInMonth(year, month);
-  const dailyAvgDiaper = monthlyDiaper && Number(monthlyDiaper) > 0 ? (Number(monthlyDiaper) / monthDays).toFixed(1) : '-';
-  const dailyAvgCore = monthlyCore && Number(monthlyCore) > 0 ? (Number(monthlyCore) / monthDays).toFixed(1) : '-';
+  const dailyAvgDiaper = weeklyDiaper && Number(weeklyDiaper) > 0 ? (Number(weeklyDiaper) / 7).toFixed(1) : '-';
+  const dailyAvgCore = weeklyCore && Number(weeklyCore) > 0 ? (Number(weeklyCore) / 7).toFixed(1) : '-';
 
-  // 生成合計與每月估算的偏差
+  // 生成合計與每週估算的偏差
   const generatedTotals = useMemo(() => {
     let urine = 0;
     let core = 0;
@@ -95,11 +95,13 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
     return { urine, core };
   }, [grid]);
 
-  const diffLabel = (total: number, monthly: string): string => {
-    const m = Number(monthly);
-    if (!monthly || m <= 0) return '（無每月估算）';
-    const pct = Math.round(((total - m) / m) * 100);
-    return `（較每月估算 ${pct >= 0 ? '+' : ''}${pct}%）`;
+  const diffLabel = (total: number, weeklyEstimate: string): string => {
+    const w = Number(weeklyEstimate);
+    if (!weeklyEstimate || w <= 0) return '（無每週估算）';
+    // 每月預期 ≈ 每週估算 × 當月日數 ÷ 7
+    const expected = w * monthDays / 7;
+    const pct = Math.round(((total - expected) / expected) * 100);
+    return `（較每週估算 ${pct >= 0 ? '+' : ''}${pct}%）`;
   };
 
   const monthDates = useMemo(
@@ -162,7 +164,7 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
   const handleGenerate = async () => {
     const err = validateBase();
     if (err) { setValidationError(err); return; }
-    if (!monthlyDiaper && !monthlyCore) { setValidationError('請輸入估計每月尿片或片芯使用量'); return; }
+    if (!weeklyDiaper && !weeklyCore) { setValidationError('請輸入每週尿片或片芯數量'); return; }
     setValidationError('');
     // 重新拉一次，確保用最新真實換片記錄判斷跳過
     let slots = existingSlots;
@@ -181,8 +183,8 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
     const generated = generateMonthGrid({
       year,
       month,
-      monthlyDiaper: Number(monthlyDiaper) || 0,
-      monthlyCore: Number(monthlyCore) || 0,
+      weeklyDiaper: Number(weeklyDiaper) || 0,
+      weeklyCore: Number(weeklyCore) || 0,
       dailyMinDiaper: Number(minDiaper) || 0,
       dailyMaxDiaper: maxDiaper === '' ? Number.MAX_SAFE_INTEGER : Number(maxDiaper),
       dailyMinCore: Number(minCore) || 0,
@@ -220,8 +222,8 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
     patient_id: Number(patientId),
     year,
     month,
-    monthly_diaper_estimate: monthlyDiaper === '' ? null : Number(monthlyDiaper),
-    monthly_core_estimate: monthlyCore === '' ? null : Number(monthlyCore),
+    weekly_diaper_estimate: weeklyDiaper === '' ? null : Number(weeklyDiaper),
+    weekly_core_estimate: weeklyCore === '' ? null : Number(weeklyCore),
     daily_min_diaper: minDiaper === '' ? 0 : Number(minDiaper),
     daily_max_diaper: maxDiaper === '' ? null : Number(maxDiaper),
     daily_min_core: minCore === '' ? 0 : Number(minCore),
@@ -308,7 +310,7 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
               <Layers className="h-6 w-6 text-blue-600" />
             </div>
             <h2 className="text-xl font-bold text-gray-900">
-              {record ? '編輯尿片記錄' : '新增尿片記錄'}
+              {record ? '編輯理遺記錄' : '新增理遺記錄'}
             </h2>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -357,12 +359,12 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
             <h3 className="text-base font-medium text-gray-900">用量估算</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="form-label">估計每月尿片使用量</label>
-                <input type="number" min="0" value={monthlyDiaper} onChange={(e) => setMonthlyDiaper(e.target.value)} className="form-input" placeholder="例如 120" />
+                <label className="form-label">每週尿片數量</label>
+                <input type="number" min="0" value={weeklyDiaper} onChange={(e) => setWeeklyDiaper(e.target.value)} className="form-input" placeholder="例如 30" />
               </div>
               <div>
-                <label className="form-label">估計每月片芯使用量</label>
-                <input type="number" min="0" value={monthlyCore} onChange={(e) => setMonthlyCore(e.target.value)} className="form-input" placeholder="例如 60" />
+                <label className="form-label">每週片芯數量</label>
+                <input type="number" min="0" value={weeklyCore} onChange={(e) => setWeeklyCore(e.target.value)} className="form-input" placeholder="例如 15" />
               </div>
               <div>
                 <label className="form-label">每日尿片（最少 - 最多）</label>
@@ -398,11 +400,11 @@ const DiaperUsageRecordModal: React.FC<DiaperUsageRecordModalProps> = ({ record,
               </div>
             </div>
             <div className="text-sm text-gray-700">
-              {year}年{month}月共 {monthDays} 日；估計每天使用量：尿片 <span className="font-medium">{dailyAvgDiaper}</span> 條、片芯 <span className="font-medium">{dailyAvgCore}</span> 條
+              {year}年{month}月共 {monthDays} 日；按每週數量 ÷ 7 估算每天使用量：尿片 <span className="font-medium">{dailyAvgDiaper}</span> 條、片芯 <span className="font-medium">{dailyAvgCore}</span> 條
             </div>
             {hasGrid && (
               <div className="text-sm text-gray-700">
-                本次生成合計：尿片 <span className="font-medium">{generatedTotals.urine}</span> 條{diffLabel(generatedTotals.urine, monthlyDiaper)}、片芯 <span className="font-medium">{generatedTotals.core}</span> 條{diffLabel(generatedTotals.core, monthlyCore)}
+                本次生成合計：尿片 <span className="font-medium">{generatedTotals.urine}</span> 條{diffLabel(generatedTotals.urine, weeklyDiaper)}、片芯 <span className="font-medium">{generatedTotals.core}</span> 條{diffLabel(generatedTotals.core, weeklyCore)}
               </div>
             )}
             <div className="flex flex-wrap gap-2">

@@ -14,8 +14,8 @@ const seededRng = (seed: number) => {
 const baseParams = {
   year: 2026,
   month: 8,
-  monthlyDiaper: 120,
-  monthlyCore: 60,
+  weeklyDiaper: 120,
+  weeklyCore: 60,
   dailyMinDiaper: 2,
   dailyMaxDiaper: 6,
   dailyMinCore: 0,

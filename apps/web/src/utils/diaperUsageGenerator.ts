@@ -1,8 +1,8 @@
-// 尿片記錄：每月虛擬尿片/片芯用量數據生成器
+// 尿片記錄：每週虛擬尿片/片芯用量數據生成器
 // 以床頭記錄換片介面的 6 個 4 小時時段（07:00 起）為基底。
 // 生成數據隨機自然（有多有少），院友外出/渡假/入院/無記錄/無大小便的時段會跳過不生成。
 // 生成依據（每日與每次條件共同生效）：
-// 每日總量（月估算÷日數波動，限每日 min~max）分配到 6 時段，
+// 每日總量（每週估算÷7 波動，限每日 min~max）分配到 6 時段，
 // 每格受每次上限限制（超出捨棄），生成的格不可低於每次下限。
 
 import { DIAPER_CHANGE_SLOTS, parseDiaperSlotStartTime, getActualSlotDate, isInHospital } from './careRecordHelper';
@@ -73,8 +73,8 @@ export const getSlotAbsence = (
 export interface GenerateMonthGridParams {
   year: number;
   month: number; // 1-12
-  monthlyDiaper: number;
-  monthlyCore: number;
+  weeklyDiaper: number;
+  weeklyCore: number;
   dailyMinDiaper: number;
   dailyMaxDiaper: number;
   dailyMinCore: number;
@@ -112,7 +112,7 @@ const randomDailyTotal = (avg: number, min: number, max: number, rng: () => numb
 
 /**
  * 生成整月虛擬數據表。
- * - 每日總量：以「每月估算 ÷ 日數」為中心隨機波動，限制在用戶自設 min~max。
+ * - 每日總量：以「每週估算 ÷ 7」為中心隨機波動，限制在用戶自設 min~max。
  * - 時段分配：先隨機分配到全部 6 個時段（允許 0，不會每格一樣），
  *   再剔除被跳過時段的份量——跳過（入院/渡假/無記錄/無大小便）會令當日用量自然減少。
  * - 生成的格不可低於每次下限（當日總量為 0 則全 0，不憑空生成）；
@@ -121,7 +121,7 @@ const randomDailyTotal = (avg: number, min: number, max: number, rng: () => numb
  */
 export const generateMonthGrid = (params: GenerateMonthGridParams): DiaperUsageGrid => {
   const {
-    year, month, monthlyDiaper, monthlyCore,
+    year, month, weeklyDiaper, weeklyCore,
     dailyMinDiaper, dailyMaxDiaper, dailyMinCore, dailyMaxCore,
     perChangeMinDiaper = 0, perChangeMaxDiaper,
     perChangeMinCore = 0, perChangeMaxCore,
@@ -129,8 +129,9 @@ export const generateMonthGrid = (params: GenerateMonthGridParams): DiaperUsageG
   } = params;
 
   const days = daysInMonth(year, month);
-  const avgDiaper = monthlyDiaper > 0 ? monthlyDiaper / days : 0;
-  const avgCore = monthlyCore > 0 ? monthlyCore / days : 0;
+  // 每週估算 ÷ 7 = 每日平均
+  const avgDiaper = weeklyDiaper > 0 ? weeklyDiaper / 7 : 0;
+  const avgCore = weeklyCore > 0 ? weeklyCore / 7 : 0;
   const grid: DiaperUsageGrid = {};
 
   for (let d = 1; d <= days; d++) {
@@ -143,7 +144,7 @@ export const generateMonthGrid = (params: GenerateMonthGridParams): DiaperUsageG
     if (available.length === 0) continue; // 整日跳過
 
     // 每日與每次條件共同生效：
-    // 每日總量（月估算÷日數波動，限 dailyMin~dailyMax）分配到全部 6 個時段，
+    // 每日總量（每週估算÷7 波動，限 dailyMin~dailyMax）分配到全部 6 個時段，
     // 每格受每次上限限制（超出捨棄）；
     // 再只保留可用時段（跳過時段的份量隨之失去），
     // 保留的格不可低於每次下限（當日總量為 0 則保持 0，不憑空生成）。

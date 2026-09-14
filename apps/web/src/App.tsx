@@ -51,7 +51,7 @@ const routeNames: Record<string, string> = {
   '/diagnosis-records': '診斷記錄',
   '/vaccination-records': '疫苗記錄',
   '/care-records': '床頭記錄',
-  '/diaper-usage-records': '尿片記錄',
+  '/diaper-usage-records': '理遺記錄',
   '/patients': '院友列表',
   '/patient-contacts': '院友聯絡人',
   '/templates': '範本管理',
