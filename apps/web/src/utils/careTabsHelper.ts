@@ -101,6 +101,20 @@ export async function initializePatientCareTabs(
   return data || [];
 }
 
+/**
+ * 確保全護理院友有換片記錄 tab：冇（或已隱藏）就補建／恢復，回傳最新 tabs
+ */
+export async function ensureFullCareDiaperTab(
+  patient: Patient,
+  currentTabs: PatientCareTab[]
+): Promise<PatientCareTab[]> {
+  if (patient.護理等級 !== '全護理') return currentTabs;
+  if (currentTabs.some(t => t.tab_type === 'diaper' && !t.is_hidden)) return currentTabs;
+  const created = await addPatientCareTab(patient.院友id, 'diaper');
+  if (!created) return currentTabs;
+  return [...currentTabs.filter(t => t.tab_type !== 'diaper'), created];
+}
+
 export async function addPatientCareTab(
   patientId: number,
   tabType: 'patrol' | 'diaper' | 'intake_output' | 'restraint' | 'position' | 'toilet_training' | 'hygiene'

@@ -9,7 +9,7 @@ import {
   generateWeekDates, getWeekStartDate, formatDate, isInHospital,
   isSlotOverdue, getActualSlotDate, parseDiaperSlotStartTime,
 } from '../../utils/careRecordHelper';
-import { loadPatientCareTabs, getVisibleTabTypes } from '../../utils/careTabsHelper';
+import { loadPatientCareTabs, getVisibleTabTypes, ensureFullCareDiaperTab } from '../../utils/careTabsHelper';
 import NursePatrolRoundModal from '../modals/NursePatrolRoundModal';
 import DiaperChangeModal from '../../components/DiaperChangeModal';
 import RestraintObservationModal from '../../components/RestraintObservationModal';
@@ -121,7 +121,7 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelec
           db.getHygieneRecordsInDateRange(displayDate, displayDate),
           db.getIntakeOutputRecordsByPatient(pid, displayDate, displayDate),
         ]);
-        setPatientCareTabs(careTabs);
+        setPatientCareTabs(await ensureFullCareDiaperTab(patient, careTabs));
         setDiaperRecords(diaper.filter(r => r.patient_id === pid));
         setRestraintRecords(restraint.filter(r => r.patient_id === pid));
         setPositionRecords(position.filter(r => r.patient_id === pid));

@@ -47,7 +47,8 @@ import {
   initializePatientCareTabs,
   addPatientCareTab,
   hidePatientCareTab,
-  getVisibleTabTypes
+  getVisibleTabTypes,
+  ensureFullCareDiaperTab
 } from '../utils/careTabsHelper';
 import { formatDisplayDate } from '../utils/dateFormat';
 
@@ -138,18 +139,21 @@ const CareRecords: React.FC = () => {
     const loadAndInitializeTabs = async () => {
       if (!selectedPatient) return;
       const existingTabs = await loadPatientCareTabs(selectedPatient.院友id);
+      let tabs: Awaited<ReturnType<typeof loadPatientCareTabs>>;
       if (existingTabs.length === 0) {
         const healthTasks: any[] = [];
-        const initializedTabs = await initializePatientCareTabs(
+        tabs = await initializePatientCareTabs(
           selectedPatient,
           healthAssessments,
           patientRestraintAssessments,
           healthTasks
         );
-        setPatientCareTabs(initializedTabs);
       } else {
-        setPatientCareTabs(existingTabs);
+        tabs = existingTabs;
       }
+      // 全護理院友確保有換片記錄 tab（冇就自動補建）
+      tabs = await ensureFullCareDiaperTab(selectedPatient, tabs);
+      setPatientCareTabs(tabs);
     };
     loadAndInitializeTabs();
   }, [selectedPatient, healthAssessments, patientRestraintAssessments]);
