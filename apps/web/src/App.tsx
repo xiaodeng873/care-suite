@@ -22,6 +22,7 @@ import { LoadingScreen } from './components/PageLoadingScreen';
 import { NavigationProvider } from './context/NavigationContext';
 import { AiAssistantButton } from './components/AiAssistant';
 import { ThemeProvider } from './context/ThemeContext';
+import { PermissionGuard } from './components/PermissionGuard';
 import { getMedicationSettingsFromDB } from './utils/medicationSettings';
 import './App.css';
 
@@ -321,6 +322,7 @@ function AuthenticatedContent({
       <NavigationProvider>
         <Layout user={effectiveUser} onSignOut={onSignOut}>
           <Suspense fallback={<RouteLoadingFallback />}>
+          <PermissionGuard>
           <Routes>
 
             <Route path="/" element={<Dashboard />} />
@@ -362,6 +364,7 @@ function AuthenticatedContent({
             <Route path="/infection-control" element={<InfectionControl />} />
             <Route path="/roster-management" element={<RosterManagement />} />
           </Routes>
+          </PermissionGuard>
           </Suspense>
         </Layout>
       </NavigationProvider>

@@ -547,6 +547,7 @@ export const PERMISSION_STRUCTURE: Record<PermissionCategory, FeatureDefinition[
   records: [
     { key: 'health_monitoring', name_zh: '監測記錄', route: '/health' },
     { key: 'care_records', name_zh: '床頭記錄', route: '/care-records' },
+    { key: 'diaper_usage_records', name_zh: '理遺記錄', route: '/diaper-usage-records' },
     { key: 'patient_logs', name_zh: '院友日誌', route: '/patient-logs' },
     { key: 'diagnosis_records', name_zh: '診斷記錄', route: '/diagnosis-records' },
     { key: 'vaccination_records', name_zh: '疫苗記錄', route: '/vaccination-records' },

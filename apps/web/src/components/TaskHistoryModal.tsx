@@ -123,6 +123,32 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
       return patientMatch && typeMatch && dateMatch;
     });
 
+    // [容差修復] 與主控台一致：記錄時間與特定時間點相差 ±30 分鐘內即算完成，
+    // 避免「16:00 量的 15:30 任務」主控台過關、小日曆卻顯示逾期
+    const TIME_TOLERANCE_MIN = 30;
+    const toMinutes = (t: string) => {
+      const [h, m] = t.substring(0, 5).split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+    const recordMatchesTime = (recordTime: string, targetTime: string) =>
+      Math.abs(toMinutes(recordTime) - toMinutes(targetTime)) <= TIME_TOLERANCE_MIN;
+
+    // 標準化時間格式為 HH:MM（去除秒數）
+    const normalizeTime = (time: string) => {
+      if (!time) return '';
+      return time.substring(0, 5);
+    };
+
+    // 當日、屬於此任務（或院友+類型後備）的記錄時間（HH:MM 列表）
+    const dayRecordTimes = () => healthRecords
+      .filter(r => {
+        if (r.任務id && r.任務id === task.id) return r.記錄日期 === dateStr;
+        const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
+        const typeMatch = taskRecordVitalTypes(task.health_record_type).includes(r.監測類型);
+        return patientMatch && typeMatch && r.記錄日期 === dateStr;
+      })
+      .map(r => r.記錄時間);
+
     // [修改] 如果指定了 specificTime，只檢查那個時間點
     if (specificTime) {
       // 體重等不講求具體時間的監測，只要當日有記錄即可
@@ -134,27 +160,9 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
         return 'none';
       }
 
-      // [修正] 標準化時間格式為 HH:MM
-      const normalizeTime = (time: string) => {
-        if (!time) return '';
-        return time.substring(0, 5); // 取前5個字符 "HH:MM"
-      };
-
       const normalizedSpecificTime = normalizeTime(specificTime);
 
-      const hasRecord = healthRecords.some(r => {
-        const normalizedRecordTime = normalizeTime(r.記錄時間);
-
-        if (r.任務id && r.任務id === task.id) {
-          return r.記錄日期 === dateStr && normalizedRecordTime === normalizedSpecificTime;
-        }
-        const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
-        const typeMatch = taskRecordVitalTypes(task.health_record_type).includes(r.監測類型);
-        const dateMatch = r.記錄日期 === dateStr;
-        const timeMatch = normalizedRecordTime === normalizedSpecificTime;
-
-        return patientMatch && typeMatch && dateMatch && timeMatch;
-      });
+      const hasRecord = dayRecordTimes().some(rt => recordMatchesTime(rt, normalizedSpecificTime));
 
       // 未來日期不顯示為逾期
       if (checkDate > today) {
@@ -194,26 +202,11 @@ const TaskHistoryModal: React.FC<TaskHistoryModalProps> = ({
         return 'none';
       }
 
-      const timeRecords = healthRecords.filter(r => {
-        if (r.任務id && r.任務id === task.id) {
-          return r.記錄日期 === dateStr;
-        }
-        const patientMatch = r.院友id?.toString() === task.patient_id?.toString();
-        const typeMatch = taskRecordVitalTypes(task.health_record_type).includes(r.監測類型);
-        const dateMatch = r.記錄日期 === dateStr;
-
-        return patientMatch && typeMatch && dateMatch;
-      });
-
-      // 檢查所有時間點是否都有記錄
-      const normalizeTime = (time: string) => {
-        if (!time) return '';
-        return time.substring(0, 5);
-      };
-
-      const completedTimes = new Set(timeRecords.map(r => normalizeTime(r.記錄時間)));
       const normalizedTaskTimes = task.specific_times.map(normalizeTime);
-      const allTimesCompleted = normalizedTaskTimes.every((time: string) => completedTimes.has(time));
+      const todaysRecordTimes = dayRecordTimes();
+      const allTimesCompleted = normalizedTaskTimes.every((time: string) =>
+        todaysRecordTimes.some(rt => recordMatchesTime(rt, time))
+      );
 
       // 未來日期不顯示為逾期
       if (checkDate > today) {
