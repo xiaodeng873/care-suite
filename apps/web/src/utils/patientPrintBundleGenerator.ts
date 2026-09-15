@@ -985,7 +985,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
   if (pages.length > 0) {
     // 使用 printGroupedHtml：依 @page 設定分組，同組合併到單一 iframe 列印
     const { printGroupedHtml } = await import('./printUtils');
-    printGroupedHtml(pages, 'patient-bundle-print-iframe');
+    printGroupedHtml(pages, 'patient-bundle-print-iframe', printOptions?.duplexPadding === true);
   }
   // 回報未能列印/匯出的文件
   const notices: string[] = [];

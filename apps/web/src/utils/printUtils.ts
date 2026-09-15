@@ -168,7 +168,8 @@ const measurePrintedPageCount = (
 export const padOddPageDocuments = (
   iframeDoc: Document,
   wrappers: { selector: string; config: PageConfig; pageName?: string }[],
-  allCssText: string
+  allCssText: string,
+  duplexPadding = true
 ): void => {
   if (wrappers.length < 2) return;
   const win = iframeDoc.defaultView;
@@ -202,6 +203,7 @@ export const padOddPageDocuments = (
       }
     }
 
+    if (!duplexPadding) return; // 唔勾雙面列印就唔補空白頁（logo 注入照做）
     if (idx === wrappers.length - 1) return; // 最後一份唔使補空白頁
     if (pageCount % 2 === 0) return;
     const spacer = iframeDoc.createElement('div');
@@ -665,7 +667,7 @@ export const MAX_PAGES_PER_IFRAME = 30;
  * - 每批列印前會量度各文件嘅印刷頁數，奇數頁文件後補一頁空白
  *   （padOddPageDocuments），令雙面列印時每份文件都由新一張紙嘅正面開始
  */
-export const printGroupedHtml = (pages: string[], iframeId: string): void => {
+export const printGroupedHtml = (pages: string[], iframeId: string, duplexPadding = true): void => {
   const groups = groupPagesByConfig(pages);
   // 每組再按 30 份一批切分
   const batches: { config: PageConfig; pages: string[] }[] = [];
@@ -758,7 +760,8 @@ ${parts.map((p) => p.body).join('\n')}
             config: { ...p.pageConfig, size: config.size },
             pageName: p.pageName,
           })),
-          `${baseCss}\n${parts.map((p) => p.styles).join('\n')}`
+          `${baseCss}\n${parts.map((p) => p.styles).join('\n')}`,
+          duplexPadding
         );
       } catch {
         // 量度失敗就照印（行為同未補頁一樣）

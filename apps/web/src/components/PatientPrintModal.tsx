@@ -102,6 +102,8 @@ export interface PrintDocumentOptions {
   rosterYearMonth?: string;
   /** 院舍活動報表：true（預設）按月分頁，false 整段日期範圍連續列表 */
   homeActivitiesMonthSplit?: boolean;
+  /** 雙面列印：true 時奇數頁文件後補一頁空白，每份文件由新一張紙正面開始 */
+  duplexPadding?: boolean;
 }
 
 /** 排班管理 tab 左側員工欄的項目 */
@@ -202,6 +204,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
   // 院舍活動報表：按月分頁（預設開）
   const [homeActivitiesByMonth, setHomeActivitiesByMonth] = useState(true);
   const [feeSkipEmptyPatients, setFeeSkipEmptyPatients] = useState(false);
+  const [duplexPadding, setDuplexPadding] = useState(false);
 
   // 排班管理 tab 選項
   const [rosterDepartments, setRosterDepartments] = useState<Set<string>>(() => new Set(ROSTER_PRINT_DEPARTMENTS));
@@ -358,32 +361,35 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
     if (effectiveStartDate && effectiveEndDate && effectiveStartDate > effectiveEndDate) {
       [effectiveStartDate, effectiveEndDate] = [effectiveEndDate, effectiveStartDate];
     }
-    const printOptions: PrintDocumentOptions | undefined = hasStatisticsReport || hasFeeReport || hasRosterDoc || hasHomeActivitiesDoc ?
-    {
-      separateSheetsPerStation,
-      ...(hasDiaperReport && diaperStartMonth && diaperEndMonth ?
-      { diaperMonthRange: { startMonth: diaperStartMonth, endMonth: diaperEndMonth } } :
-      {}),
-      ...(hasFeeReport ?
-      { feeMonth, feeSkipEmptyPatients } :
-      {}),
-      ...(hasHomeActivitiesDoc ?
-      { homeActivitiesMonthSplit: homeActivitiesByMonth } :
-      {}),
-      ...(hasRosterDoc ?
+    const printOptions: PrintDocumentOptions = {
+      duplexPadding,
+      ...(hasStatisticsReport || hasFeeReport || hasRosterDoc || hasHomeActivitiesDoc ?
       {
-        rosterDepartments: ROSTER_PRINT_DEPARTMENTS.filter((d) => rosterDepartments.has(d)),
-        rosterOutputMode,
-        rosterIncludeBalance,
-        rosterIncludeCompliance,
-        rosterUserIds: (rosterEmployees ?? []).
-        map((e) => e.id).
-        filter((id) => selectedEmployeeIds.has(id)),
-        rosterYearMonth
+        separateSheetsPerStation,
+        ...(hasDiaperReport && diaperStartMonth && diaperEndMonth ?
+        { diaperMonthRange: { startMonth: diaperStartMonth, endMonth: diaperEndMonth } } :
+        {}),
+        ...(hasFeeReport ?
+        { feeMonth, feeSkipEmptyPatients } :
+        {}),
+        ...(hasHomeActivitiesDoc ?
+        { homeActivitiesMonthSplit: homeActivitiesByMonth } :
+        {}),
+        ...(hasRosterDoc ?
+        {
+          rosterDepartments: ROSTER_PRINT_DEPARTMENTS.filter((d) => rosterDepartments.has(d)),
+          rosterOutputMode,
+          rosterIncludeBalance,
+          rosterIncludeCompliance,
+          rosterUserIds: (rosterEmployees ?? []).
+          map((e) => e.id).
+          filter((id) => selectedEmployeeIds.has(id)),
+          rosterYearMonth
+        } :
+        {})
       } :
       {})
-    } :
-    undefined;
+    };
     onPrint(selected, Array.from(checkedDocuments), effectiveStartDate, effectiveEndDate, contentMode, printOptions);
   };
 
@@ -757,6 +763,14 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
         </div>
 
         <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+          <label className="mr-auto flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={duplexPadding}
+              onChange={(e) => setDuplexPadding(e.target.checked)}
+              className="h-4 w-4" />
+            雙面列印（文件之間自動補空白頁對齊）
+          </label>
           <button onClick={onClose} className="btn-secondary px-4 py-2">取消</button>
           <button
             onClick={handlePrint}
