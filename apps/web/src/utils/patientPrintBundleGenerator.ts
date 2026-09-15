@@ -849,21 +849,10 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
 
   if (hasFeeStatisticsReport) {
     try {
-      const patientIds = patients.map(p => p.院友id);
-      const [{ data: recordsData, error: recordsError }, { data: feeItemsData, error: feeItemsError }] = await Promise.all([
-        supabase.from('patient_fee_records').select('*').in('patient_id', patientIds).order('record_date', { ascending: true }),
-        supabase.from('fee_items').select('*').eq('is_active', true),
-      ]);
-      if (recordsError) throw recordsError;
-      if (feeItemsError) throw feeItemsError;
-      const records = (recordsData || []) as PatientFeeRecord[];
-      const feeItems = (feeItemsData || []) as FeeItem[];
-
       const feeMod = await import('./feeStatementPrintFormHtml');
       const feeMonth = printOptions?.feeMonth || (endDate ? endDate.slice(0, 7) : new Date().toISOString().slice(0, 7));
-      const feeHtml = feeMod.generateFeeStatisticsReportHtml(patients, records, feeItems, {
+      const feeHtml = feeMod.generateFeeStatisticsReportHtml(patients, {
         month: feeMonth,
-        skipEmptyPatients: printOptions?.feeSkipEmptyPatients ?? false,
         facilityName,
       });
       pages.push(feeHtml);

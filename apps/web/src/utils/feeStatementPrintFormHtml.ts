@@ -1,309 +1,187 @@
 /**
- * 雜費記錄報表 HTML 產生器
- * 支援 A4 卡片式列印：每頁最多 6 位院友（2 列 × 3 行），
- * 每位院友一個卡片，最多 8 項記錄；超過則自動佔用下一個卡片位置。
+ * 雜費記錄報表 HTML 產生器（A4 橫向矩陣版）
+ * 每位院友獨立一頁：每頁上下兩個月矩陣，X 軸 = 日期 1–31 日，
+ * Y 軸 = 固定收費項目（13 項 + 2 空白手寫列）。
+ * 格仔留空手寫，暫不映射費用記錄；不設月總計。
  */
 
-import type { Patient, FeeItem, PatientFeeRecord } from '../lib/database';
-import { getFacilitySettings } from './facilitySettings';
+import type { Patient } from '../lib/database';
 import { getPrintBedNumber } from './bedTransferUtils';
-import { formatDisplayDate } from './dateFormat';
-
-export interface FeeStatementLineItem {
-  date: string;
-  itemName: string;
-  start_time?: string | null;
-  end_time?: string | null;
-  quantity: number;
-  unit: string;
-  unitPrice: number;
-  amount: number;
-  notes?: string | null;
-}
-
-const MAX_CARD_ROWS = 8;
-const CARDS_PER_PAGE = 6;
-const CARDS_PER_ROW = 2;
 
 export interface FeeStatisticsReportOptions {
-  month: string; // YYYY-MM
-  skipEmptyPatients?: boolean;
+  /** 起始月份（YYYY-MM）；每頁列該月及下一個月 */
+  month: string;
   facilityName: string;
 }
 
-export interface FeeStatisticsReportCard {
-  patient: Patient;
-  month: string;
-  cardIndex: number; // 0 = first card for this patient
-  items: FeeStatementLineItem[];
-  subtotal: number;
-  isContinuation: boolean;
-}
+/** Y 軸固定收費項目（尾兩列空白手寫） */
+const FEE_MATRIX_ROWS = [
+  '陪診(首4小時)',
+  '陪診(4小時後)',
+  '施樂車',
+  'CGAT取藥',
+  'PGT取藥',
+  '其他代辦',
+  '尿片',
+  '片芯',
+  '驗血糖',
+  '氣墊床',
+  '醫院攪床',
+  '電動床',
+  '電費',
+  '',
+  '',
+];
 
-/** Build cards for each patient: one card holds up to MAX_CARD_ROWS items; overflow creates continuation cards. */
-export const buildFeeStatisticsCards = (
-  patients: Patient[],
-  records: PatientFeeRecord[],
-  feeItems: FeeItem[],
-  month: string,
-  skipEmptyPatients: boolean
-): FeeStatisticsReportCard[] => {
-  const cards: FeeStatisticsReportCard[] = [];
-  for (const patient of patients) {
-    const patientRecords = records.filter(
-      r => r.patient_id === patient.院友id && r.record_date.startsWith(month)
-    );
-    if (skipEmptyPatients && patientRecords.length === 0) continue;
-
-    const items = patientRecords
-      .sort((a, b) => a.record_date.localeCompare(b.record_date) || (a.created_at || '').localeCompare(b.created_at || ''))
-      .map(record => {
-        const feeItem = record.fee_item_id
-          ? feeItems.find(item => item.id === record.fee_item_id)
-          : undefined;
-        const dateText = formatDisplayDate(record.record_date, '');
-        const timeText =
-          record.unit === '小時' && record.start_time && record.end_time
-            ? ` ${record.start_time}-${record.end_time}`
-            : '';
-        return {
-          date: `${dateText}${timeText}`,
-          itemName: feeItem?.name_zh || record.item_name,
-          quantity: record.quantity,
-          unit: record.unit,
-          unitPrice: record.unit_price,
-          amount: record.amount,
-          notes: record.notes,
-        } satisfies FeeStatementLineItem;
-      });
-
-    const chunks = chunkItems(items, MAX_CARD_ROWS);
-    chunks.forEach((chunk, idx) => {
-      cards.push({
-        patient,
-        month,
-        cardIndex: idx,
-        items: chunk,
-        subtotal: chunk.reduce((sum, item) => sum + item.amount, 0),
-        isContinuation: idx > 0,
-      });
-    });
-  }
-  return cards;
+/** 'YYYY-MM' 加一個月（處理跨年） */
+const addMonth = (month: string): string => {
+  const [y, m] = month.split('-').map(Number);
+  const next = new Date(y, m, 1); // m 係 0-based 嘅「下一個月」
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
 };
 
-const chunkItems = (items: FeeStatementLineItem[], size: number): FeeStatementLineItem[][] => {
-  const chunks: FeeStatementLineItem[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-  return chunks.length === 0 ? [[]] : chunks;
+/** 'YYYY-MM' 減一個月（處理跨年） */
+const subMonth = (month: string): string => {
+  const [y, m] = month.split('-').map(Number);
+  const prev = new Date(y, m - 2, 1); // m-1 係本月 0-based；m-2 係上月
+  return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
 };
 
-const cardHtml = (card: FeeStatisticsReportCard): string => {
-  const patient = card.patient;
+/** 'YYYY-MM' 當月實際日數（28/29/30/31） */
+const daysInMonth = (month: string): number => {
+  const [y, m] = month.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+};
+
+/**
+ * 截數期標籤：每月 24 日截數，25 日起算至下月 24 日。
+ * 'YYYY-MM' 指「截數月」，例如 2026-09 = 2026年8月25日 至 2026年9月24日。
+ */
+const periodLabel = (month: string): string => {
+  const prev = subMonth(month);
+  const [py, pm] = prev.split('-').map(Number);
+  const [y, m] = month.split('-').map(Number);
+  return `${py}年${pm}月25日 至 ${y !== py ? `${y}年` : ''}${m}月24日`;
+};
+
+const matrixTableHtml = (month: string): string => {
+  // 截數期欄序：上月 25 日…上月最後一日，跟住本月 1…24 日
+  const prevDays = daysInMonth(subMonth(month));
+  const colDays = [
+    ...Array.from({ length: prevDays - 24 }, (_, i) => 25 + i),
+    ...Array.from({ length: 24 }, (_, i) => i + 1),
+  ];
+  const head = `<tr><th class="row-label">項目＼日期</th>${
+    colDays.map((d) => `<th>${d}</th>`).join('')
+  }</tr>`;
+  const body = FEE_MATRIX_ROWS.map(
+    (label) =>
+      `<tr><td class="row-label">${escapeHtml(label)}</td>${
+        '<td>&nbsp;</td>'.repeat(colDays.length)
+      }</tr>`
+  ).join('');
+  return `<table class="fee-matrix">${head}${body}</table>`;
+};
+
+const patientPageHtml = (
+  patient: Patient,
+  monthA: string,
+  monthB: string,
+  facilityName: string
+): string => {
   const patientName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const bed = getPrintBedNumber(patient);
-  const monthLabel = formatMonthLabel(card.month);
-  const titleSuffix = card.isContinuation ? '（續）' : '';
-
-  const rows = Array.from({ length: MAX_CARD_ROWS }).map((_, i) => {
-    const item = card.items[i];
-    if (!item) {
-      return '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
-    }
-    return `
-      <tr>
-        <td>${escapeHtml(item.date)}</td>
-        <td>${escapeHtml(item.itemName)}</td>
-        <td>${escapeHtml(item.notes || '')}</td>
-        <td>${formatMoney(item.amount)}</td>
-      </tr>
-    `;
-  }).join('');
-
+  const periodStart = periodLabel(monthA).split(' 至 ')[0];
+  const periodEnd = periodLabel(monthB).split(' 至 ')[1];
   return `
-    <div class="fee-card">
-      <div class="fee-card-header">
-        <div class="fee-card-bed">${escapeHtml(bed)}</div>
-        <div class="fee-card-name">${escapeHtml(patientName)}${titleSuffix}</div>
-        <div class="fee-card-month">${monthLabel}</div>
+    <div class="page">
+      <div class="report-head">
+        <div class="facility">${escapeHtml(facilityName)}</div>
+        <div class="doc-title">雜費記錄報表</div>
       </div>
-      <table class="fee-card-table">
-        <thead>
-          <tr>
-            <th style="width: 20%;">日期</th>
-            <th style="width: 40%;">項目</th>
-            <th style="width: 22%;">備註</th>
-            <th style="width: 18%;">金額</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows}
-          <tr class="fee-card-total">
-            <td colspan="3" style="text-align: right; font-weight: bold;">合計</td>
-            <td style="font-weight: bold;">${formatMoney(card.subtotal)}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  `;
-};
-
-const formatMonthLabel = (month: string): string => {
-  const [year, mon] = month.split('-');
-  return `${year}年${mon}月`;
-};
-
-const feeStatisticsPageHtml = (pageCards: FeeStatisticsReportCard[], facilityName: string): string => {
-  const cardsHtml = pageCards.map(cardHtml).join('');
-  return `
-    <div class="page fee-statistics-page">
-      <div class="fee-statistics-title">
-        <h1>${escapeHtml(facilityName)}</h1>
-        <h2>雜費記錄報表</h2>
+      <div class="patient-line">
+        <span>院友姓名：${escapeHtml(patientName)}</span>
+        <span>床號：${escapeHtml(bed)}</span>
+        <span>期間：${periodStart} 至 ${periodEnd}</span>
       </div>
-      <div class="fee-card-grid">
-        ${cardsHtml}
+      <div class="month-block">
+        <div class="month-label">${periodLabel(monthA)}</div>
+        ${matrixTableHtml(monthA)}
+      </div>
+      <div class="month-block">
+        <div class="month-label">${periodLabel(monthB)}</div>
+        ${matrixTableHtml(monthB)}
       </div>
     </div>
   `;
 };
 
-const feeStatisticsWrapHtml = (pages: string, facilityName: string): string => `<!DOCTYPE html>
+const wrapHtml = (pages: string): string => `<!DOCTYPE html>
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
   <title>雜費記錄報表</title>
   <style>
-    @page { size: A4; margin: 8mm; }
+    @page { size: A4 landscape; margin: 6mm; }
     * { box-sizing: border-box; }
     body {
       font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang TC", sans-serif;
       margin: 0;
       padding: 0;
-      background: #f4f4f4;
       color: #000;
-      line-height: 1.3;
-      font-size: 12px;
-    }
-    .no-print { text-align: center; margin: 10px; }
-    .no-print button {
-      padding: 8px 20px;
-      font-size: 14px;
-      background: #2563eb;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
+      line-height: 1.2;
     }
     .page {
       width: 100%;
-      min-height: 277mm;
-      background: #fff;
+      min-height: 192mm;
       page-break-after: always;
-      padding: 6mm;
     }
     .page:last-of-type { page-break-after: auto; }
-    .fee-statistics-title { text-align: center; margin-bottom: 8px; }
-    .fee-statistics-title h1 { margin: 0; font-size: 18px; font-weight: bold; }
-    .fee-statistics-title h2 { margin: 4px 0 0 0; font-size: 16px; font-weight: bold; }
-    .fee-card-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: repeat(3, 1fr);
-      gap: 6mm;
-      height: 245mm;
-    }
-    .fee-card {
-      border: 1px solid #000;
+    .report-head { text-align: center; }
+    .facility { font-size: 15px; font-weight: bold; }
+    .doc-title { font-size: 13px; font-weight: bold; margin-top: 1mm; }
+    .patient-line {
       display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .fee-card-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 4px 6px;
-      border-bottom: 1px solid #000;
-      background: #f0f0f0;
+      justify-content: space-between;
+      font-size: 10.5px;
       font-weight: bold;
-      font-size: 13px;
-      flex-wrap: nowrap;
+      margin: 2mm 0;
     }
-    .fee-card-bed { min-width: 36px; }
-    .fee-card-name { flex: 1; }
-    .fee-card-month { margin-left: auto; font-size: 12px; }
-    .fee-card-table {
+    .month-block { margin-top: 1mm; }
+    .month-label { font-size: 10px; font-weight: bold; margin-bottom: 0.5mm; }
+    .fee-matrix {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
-      flex: 1;
     }
-    .fee-card-table th, .fee-card-table td {
-      border: 1px solid #000;
+    .fee-matrix th, .fee-matrix td {
+      border: 0.5pt solid #000;
       text-align: center;
       vertical-align: middle;
-      padding: 2px 3px;
-      font-size: 11px;
+      padding: 0;
     }
-    .fee-card-table th { background-color: #f9f9f9; font-weight: bold; }
-    .fee-card-table td { height: 18px; }
-    .fee-card-total td { background-color: #fafafa; }
-    @media print {
-      body { background: #fff; }
-      .no-print { display: none !important; }
-      .page { box-shadow: none; margin: 0; padding: 0; }
-    }
+    .fee-matrix th { font-size: 7pt; font-weight: bold; height: 4mm; }
+    .fee-matrix td { height: 5.2mm; font-size: 7pt; }
+    .fee-matrix .row-label { width: 28mm; }
+    .fee-matrix td.row-label { text-align: left; padding-left: 1mm; font-weight: bold; white-space: nowrap; }
   </style>
 </head>
 <body>
-  <div class="no-print"><button onclick="window.print()">列印</button></div>
-  ${pages}
+${pages}
 </body>
 </html>`;
 
-/** Generate an A4 report with up to 6 patient cards (2 cols x 3 rows) per page. */
+/** 每位院友一頁 A4 橫向矩陣（起始月份 + 下一個月） */
 export const generateFeeStatisticsReportHtml = (
   patients: Patient[],
-  records: PatientFeeRecord[],
-  feeItems: FeeItem[],
   options: FeeStatisticsReportOptions
 ): string => {
-  const cards = buildFeeStatisticsCards(patients, records, feeItems, options.month, options.skipEmptyPatients ?? false);
-  const pages: string[] = [];
-  for (let i = 0; i < cards.length; i += CARDS_PER_PAGE) {
-    pages.push(feeStatisticsPageHtml(cards.slice(i, i + CARDS_PER_PAGE), options.facilityName));
-  }
-  return feeStatisticsWrapHtml(pages.join(''), options.facilityName);
+  const monthB = addMonth(options.month);
+  const pages = patients
+    .map((p) => patientPageHtml(p, options.month, monthB, options.facilityName))
+    .join('');
+  return wrapHtml(pages);
 };
-
-export async function printFeeStatisticsReport(
-  patients: Patient[],
-  records: PatientFeeRecord[],
-  feeItems: FeeItem[],
-  options: FeeStatisticsReportOptions
-): Promise<void> {
-  const html = generateFeeStatisticsReportHtml(patients, records, feeItems, options);
-  const old = document.getElementById('fee-statistics-report-print-iframe');
-  if (old) old.remove();
-  const iframe = document.createElement('iframe');
-  iframe.id = 'fee-statistics-report-print-iframe';
-  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';
-  document.body.appendChild(iframe);
-  const doc = iframe.contentWindow?.document;
-  if (doc) {
-    doc.open();
-    doc.write(html);
-    doc.close();
-    iframe.onload = () => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    };
-  }
-}
-
 
 const escapeHtml = (text: string): string => {
   if (!text) return '';
@@ -316,6 +194,3 @@ const escapeHtml = (text: string): string => {
   };
   return text.replace(/[&<>"']/g, m => map[m]);
 };
-
-const formatMoney = (value: number): string =>
-  Number(value).toLocaleString('zh-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
