@@ -10,7 +10,8 @@ import type {
   PublicHoliday,
 } from '@care-suite/shared';
 import { SHIFT_NAME_LABELS, getEmploymentPosition, LEAVE_TYPE_LABELS } from '@care-suite/shared';
-import { supabase, useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import RosterShiftCard from './RosterShiftCard';
 import RosterConflictModal from './RosterConflictModal';
 import ConfirmOverrideModal from './ConfirmOverrideModal';

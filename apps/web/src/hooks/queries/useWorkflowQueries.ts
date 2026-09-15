@@ -702,7 +702,7 @@ export function useAddDrug() {
   
   return useMutation({
     mutationFn: async (drug: Omit<any, 'id' | 'created_at' | 'updated_at'>) => {
-      const { error } = await supabase.from('medication_drug_database').insert(drug);
+      const { error } = await supabase.from('medication_drug_database').insert(drug.drug_name ? { ...drug, drug_name: String(drug.drug_name).toUpperCase() } : drug);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -732,10 +732,10 @@ export function useUpdateDrug() {
       }
       const { error } = await supabase
         .from('medication_drug_database')
-        .update({ ...updateData, updated_at: new Date().toISOString() })
+        .update({ ...(updateData.drug_name ? { ...updateData, drug_name: String(updateData.drug_name).toUpperCase() } : updateData), updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
-      await db.cascadeDrugRenameToPrescriptions(oldName, updateData.drug_name);
+      await db.cascadeDrugRenameToPrescriptions(oldName, updateData.drug_name ? String(updateData.drug_name).toUpperCase() : updateData.drug_name);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workflow.drugDatabase.all });

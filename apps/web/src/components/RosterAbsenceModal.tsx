@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import type { UserProfile } from '@care-suite/shared';
-import { supabase } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 interface RosterAbsenceModalProps {
   isOpen: boolean;

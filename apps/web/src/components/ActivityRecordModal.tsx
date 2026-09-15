@@ -51,7 +51,7 @@ const makeEmptyActivity = (recorderDefault: string): ActivityState => {
 const ActivityRecordModal: React.FC<ActivityRecordModalProps> = ({ onClose, defaultPatientId, record }) => {
   const { stations, healthAssessments, hospitalEpisodes, addActivityRecords, updateActivityRecord } = usePatientData();
   const patients = useFilteredPatients();
-  const { displayName } = useAuth();
+  const { displayName, isDeveloper } = useAuth();
   const isEdit = !!record;
 
   const [recordDate, setRecordDate] = useState(record?.record_date ?? getHongKongDate());
@@ -73,7 +73,7 @@ const ActivityRecordModal: React.FC<ActivityRecordModalProps> = ({ onClose, defa
       ACTIVITY_BOOLEAN_FIELDS.forEach(f => { base[f] = !!(record as Record<ActivityBooleanField, boolean>)[f]; });
       return base as ActivityState;
     }
-    return makeEmptyActivity(displayName ?? '');
+    return makeEmptyActivity(isDeveloper() ? '' : displayName ?? '');
   });
 
   // 缺席狀態由系統邏輯判斷（來自 hospital_episodes），用戶不可手動更改

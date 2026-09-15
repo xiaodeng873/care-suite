@@ -87,7 +87,7 @@ const getInitialActiveTypes = (
 
 const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGroup, initialData, onClose, onTaskCompleted }) => {
   const { updateHealthRecord, addHealthRecordsForSession, deleteHealthRecord, patients, hospitalEpisodes, admissionRecords } = usePatientData();
-  const { displayName } = useAuth();
+  const { displayName, isDeveloper } = useAuth();
 
   const getHKNow = () => {
     const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Hong_Kong' }));
@@ -188,12 +188,16 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
 
   const defaultDT = getDefaultDateTime();
   const groupFirst = recordGroup?.[0];
+  // 從備註解析缺席原因；「其他 - 具體原因」格式拆出 absenceDetail
+  const initialAbsenceReasonRaw = (record?.備註 || groupFirst?.備註)?.match(/無法量度原因:\s*(.+)/)?.[1]?.trim() || '';
+  const initialIsOtherReason = initialAbsenceReasonRaw.startsWith('其他 - ');
   const [formData, setFormData] = useState({
     院友id: record?.院友id?.toString() || groupFirst?.院友id?.toString() || initialData?.patient?.院友id?.toString() || '',
     記錄日期: defaultDT.date, 記錄時間: defaultDT.time,
-    備註: record?.備註 || groupFirst?.備註 || '', 記錄人員: record?.記錄人員 || groupFirst?.記錄人員 || displayName || '',
+    備註: record?.備註 || groupFirst?.備註 || '', 記錄人員: record?.記錄人員 || groupFirst?.記錄人員 || (isDeveloper() ? '' : displayName || ''),
     isAbsent: !!(record?.備註?.includes('無法量度') || groupFirst?.備註?.includes('無法量度')),
-    absenceReason: (record?.備註 || groupFirst?.備註)?.match(/無法量度原因:\s*(.+)/)?.[1]?.trim() || '',
+    absenceReason: initialIsOtherReason ? '其他' : initialAbsenceReasonRaw,
+    absenceDetail: initialIsOtherReason ? initialAbsenceReasonRaw.slice('其他 - '.length) : '',
   });
 
   const [vitalEntries, setVitalEntries] = useState<Record<string, VitalEntry>>(() => {
@@ -473,6 +477,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
     if (!formData.記錄日期) { alert('請填寫記錄日期'); return; }
     if (!isTypeFixed && activeTypes.length === 0) { alert('請選擇至少一種監測項目'); return; }
     if (formData.isAbsent && !formData.absenceReason) { alert('請選擇無法量度原因'); return; }
+    if (formData.isAbsent && formData.absenceReason === '其他' && !formData.absenceDetail.trim()) { alert('請輸入具體原因'); return; }
     const today = getHKNow().date;
     if (formData.記錄日期 < today) {
       dwHandlers.current = { confirm: async () => { setShowDateWarning(false); await doSave(); }, cancel: () => setShowDateWarning(false) };
@@ -578,7 +583,7 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
                 <input type="checkbox" id="isAbsent" checked={formData.isAbsent}
                   onChange={e => {
                     const checked = e.target.checked;
-                    setFormData(prev => ({ ...prev, isAbsent: checked, absenceReason: checked ? prev.absenceReason : '', 備註: checked ? (prev.absenceReason ? `無法量度原因: ${prev.absenceReason}` : '無法量度') : '' }));
+                    setFormData(prev => ({ ...prev, isAbsent: checked, absenceReason: checked ? prev.absenceReason : '', absenceDetail: checked ? prev.absenceDetail : '', 備註: checked ? (prev.absenceReason ? (prev.absenceReason === '其他' && prev.absenceDetail.trim() ? `無法量度原因: 其他 - ${prev.absenceDetail}` : `無法量度原因: ${prev.absenceReason}`) : '無法量度') : '' }));
                   }}
                   className="h-4 w-4 rounded border-gray-300" />
                 <label htmlFor="isAbsent" className={`text-sm font-medium cursor-pointer ${currentIsPatientAbsent ? 'text-red-800' : 'text-orange-800'}`}>
@@ -586,18 +591,30 @@ const HealthRecordModal: React.FC<HealthRecordModalProps> = ({ record, recordGro
                 </label>
               </div>
               {formData.isAbsent && (
+                <>
                 <div className="mt-2 flex items-center gap-2">
                   <label className="text-sm text-gray-600 flex-shrink-0">原因:</label>
                   <select value={formData.absenceReason}
-                    onChange={e => { const r = e.target.value; setFormData(prev => ({ ...prev, absenceReason: r, 備註: r ? `無法量度原因: ${r}` : '無法量度' })); }}
+                    onChange={e => { const r = e.target.value; setFormData(prev => ({ ...prev, absenceReason: r, absenceDetail: '', 備註: r ? `無法量度原因: ${r}` : '無法量度' })); }}
                     className="form-input text-sm flex-1" required={formData.isAbsent} disabled={currentIsPatientAbsent && formData.absenceReason === '入院'}>
                     <option value="">請選擇</option>
                     <option value="入院">入院</option>
                     <option value="回家">回家</option>
+                    <option value="外出">外出</option>
                     <option value="拒絕">拒絕</option>
                     <option value="其他">其他</option>
                   </select>
                 </div>
+                {formData.absenceReason === '其他' && (
+                  <input
+                    type="text"
+                    value={formData.absenceDetail}
+                    onChange={e => { const d = e.target.value; setFormData(prev => ({ ...prev, absenceDetail: d, 備註: d.trim() ? `無法量度原因: 其他 - ${d}` : '無法量度原因: 其他' })); }}
+                    className="form-input text-sm w-full mt-2"
+                    placeholder="請輸入具體原因"
+                  />
+                )}
+                </>
               )}
             </div>
             {canScan && (

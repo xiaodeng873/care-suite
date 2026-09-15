@@ -1,4 +1,4 @@
-import { supabase } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 const AVATAR_BUCKET = 'avatars';
 const MAX_SIZE_MB = 10;

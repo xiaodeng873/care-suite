@@ -22,7 +22,7 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
   defaultContent
 }) => {
   const { addPatientLog, updatePatientLog, allPatients } = usePatientData();
-  const { user, displayName } = useAuth();
+  const { user, displayName, isDeveloper } = useAuth();
 
   // 香港時區輔助函數
   const getHongKongDate = () => {
@@ -36,7 +36,7 @@ const PatientLogModal: React.FC<PatientLogModalProps> = ({
     log_date: log?.log_date || getHongKongDate(),
     log_type: log?.log_type?.toString() || defaultLogType || '日常護理',
     content: log?.content || defaultContent || '',
-    recorder: log?.recorder || displayName || user?.email || ''
+    recorder: log?.recorder || (log || !isDeveloper() ? (displayName || user?.email || '') : '')
   });
 
   const selectedPatient = useMemo(

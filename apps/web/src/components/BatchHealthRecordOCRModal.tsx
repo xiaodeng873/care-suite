@@ -65,7 +65,7 @@ const parseNum = (v: string): number | undefined => {
 
 const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ onClose, initialRecords }) => {
   const { patients, addHealthRecordsForSession } = usePatientData();
-  const { displayName } = useAuth();
+  const { displayName, isDeveloper } = useAuth();
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -217,7 +217,7 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
       記錄日期: r.記錄日期,
       記錄時間: r.記錄時間,
       備註: r.備註 || undefined,
-      記錄人員: displayName || undefined,
+      記錄人員: isDeveloper() ? undefined : displayName || undefined,
     };
     const rows: Omit<HealthRecord, '記錄id' | '建立時間'>[] = [];
     if (r.血壓收縮壓 != null && r.血壓舒張壓 != null) {
@@ -248,7 +248,7 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
     } finally {
       setSavingRows(prev => { const n = new Set(prev); n.delete(record.tempId); return n; });
     }
-  }, [addHealthRecordsForSession, displayName, parsedRecords]);
+  }, [addHealthRecordsForSession, displayName, isDeveloper, parsedRecords]);
 
   const handleSaveBatch = useCallback(async () => {
     let saved = 0, failed = 0;
@@ -269,7 +269,7 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
       }
     }
     setBatchResult({ saved, failed });
-  }, [parsedRecords, addHealthRecordsForSession, displayName]);
+  }, [parsedRecords, addHealthRecordsForSession, displayName, isDeveloper]);
 
   const numInput = (
     value: number | undefined,

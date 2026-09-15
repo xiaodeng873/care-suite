@@ -98,8 +98,9 @@ const CareRecords: React.FC = () => {
   const [positionChangeRecords, setPositionChangeRecords] = useState<PositionChangeRecord[]>([]);
   const [hygieneRecords, setHygieneRecords] = useState<HygieneRecord[]>([]);
   const [intakeOutputRecords, setIntakeOutputRecords] = useState<IntakeOutputRecord[]>([]);
-  const { user } = useAuth();
-  const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || '未知';
+  const { user, isDeveloper } = useAuth();
+  // 開發者登入時不預填記錄人員（留空由用戶手動輸入）
+  const displayName = isDeveloper() ? '' : user?.user_metadata?.display_name || user?.email?.split('@')[0] || '未知';
   const [activeTab, setActiveTab] = useState<TabType>('patrol');
   const [weekStartDate, setWeekStartDate] = useState(getWeekStartDate());
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');

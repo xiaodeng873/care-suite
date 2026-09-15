@@ -896,5 +896,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-export { supabase };

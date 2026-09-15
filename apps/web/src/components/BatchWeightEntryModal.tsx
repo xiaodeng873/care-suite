@@ -28,7 +28,7 @@ const todayStr = () => new Date().toISOString().split('T')[0];
 
 const BatchWeightEntryModal: React.FC<BatchWeightEntryModalProps> = ({ onClose }) => {
   const { patients, addHealthRecordsForSession } = usePatientData();
-  const { displayName } = useAuth();
+  const { displayName, isDeveloper } = useAuth();
   const { stations } = useStation();
 
   const [columns, setColumns] = useState<Column[]>([{ tempId: genId(), date: todayStr(), time: '08:00' }]);
@@ -129,11 +129,11 @@ const BatchWeightEntryModal: React.FC<BatchWeightEntryModalProps> = ({ onClose }
         記錄時間: col.time,
         監測類型: '體重',
         數值: value,
-        記錄人員: displayName || undefined,
+        記錄人員: isDeveloper() ? undefined : displayName || undefined,
       });
     }
     return records;
-  }, [columns, displayName]);
+  }, [columns, displayName, isDeveloper]);
 
   const handleSaveRow = useCallback(async (row: WeightRow) => {
     const err = validateRow(row);

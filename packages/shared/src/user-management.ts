@@ -565,7 +565,8 @@ export const PERMISSION_STRUCTURE: Record<PermissionCategory, FeatureDefinition[
   periodic: [
     { key: 'annual_checkup', name_zh: '年度體檢', route: '/annual-health-checkup' },
     { key: 'health_assessment', name_zh: '健康評估', route: '/health-assessments' },
-    { key: 'care_plan', name_zh: '個人照顧計劃', route: '/care-plan' },
+    { key: 'care_plan', name_zh: '個人照顧計劃', route: '/individual-care-plan' },
+    { key: 'evening_care_plan', name_zh: '晚晴計劃', route: '/evening-care-plan' },
     { key: 'restraint', name_zh: '約束物品', route: '/restraint' },
     { key: 'wound_management', name_zh: '傷口管理', route: '/wound' },
     { key: 'tube_care', name_zh: '喉管護理', route: '/tube-care' },
@@ -577,6 +578,7 @@ export const PERMISSION_STRUCTURE: Record<PermissionCategory, FeatureDefinition[
     { key: 'task_management', name_zh: '任務管理', route: '/tasks' },
     { key: 'meal_guidance', name_zh: '餐膳指引', route: '/meal-guidance' },
     { key: 'incident_reports', name_zh: '意外事件報告', route: '/incident-reports' },
+    { key: 'infection_control', name_zh: '感染控制', route: '/infection-control' },
     { key: 'roster_management', name_zh: '排班管理', route: '/roster-management' },
   ],
   print: [
@@ -584,6 +586,7 @@ export const PERMISSION_STRUCTURE: Record<PermissionCategory, FeatureDefinition[
     { key: 'template_management', name_zh: '範本管理', route: '/templates' },
   ],
   settings: [
+    { key: 'system_settings', name_zh: '系統設定', route: '/settings' },
     { key: 'user_management', name_zh: '用戶管理', route: '/settings' },
     { key: 'facility_settings', name_zh: '院舍設定', route: '/settings' },
     { key: 'medication_settings', name_zh: '藥物設定', route: '/settings' },

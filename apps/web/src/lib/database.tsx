@@ -1034,7 +1034,7 @@ export const getDrugDatabase = async (): Promise<DrugData[]> => {
   return data || [];
 };
 export const createDrug = async (drug: any): Promise<DrugData> => {
-  const { data, error } = await supabase.from('medication_drug_database').insert([drug]).select().single();
+  const { data, error } = await supabase.from('medication_drug_database').insert([drug.drug_name ? { ...drug, drug_name: String(drug.drug_name).toUpperCase() } : drug]).select().single();
   if (error) throw error;
   return data;
 };
@@ -1049,9 +1049,9 @@ export const updateDrug = async (drug: any): Promise<DrugData> => {
       .single();
     oldName = existing?.drug_name;
   }
-  const { data, error } = await supabase.from('medication_drug_database').update(drug).eq('id', drug.id).select().single();
+  const { data, error } = await supabase.from('medication_drug_database').update(drug.drug_name ? { ...drug, drug_name: String(drug.drug_name).toUpperCase() } : drug).eq('id', drug.id).select().single();
   if (error) throw error;
-  await cascadeDrugRenameToPrescriptions(oldName, drug.drug_name);
+  await cascadeDrugRenameToPrescriptions(oldName, drug.drug_name ? String(drug.drug_name).toUpperCase() : drug.drug_name);
   return data;
 };
 /** 藥物改名連動：所有使用舊藥名的處方（不分有效/停服/歷史）一併改為新名 */
@@ -1140,7 +1140,7 @@ export const getPrescriptions = async (patientId?: number): Promise<MedicationPr
 };
 export const getMedicationPrescriptions = getPrescriptions; // Alias
 export const createPrescription = async (prescription: Omit<MedicationPrescription, 'id' | 'created_at' | 'updated_at'>): Promise<MedicationPrescription> => {
-  const { data, error } = await supabase.from('new_medication_prescriptions').insert([prescription]).select().single();
+  const { data, error } = await supabase.from('new_medication_prescriptions').insert([prescription.medication_name ? { ...prescription, medication_name: String(prescription.medication_name).toUpperCase() } : prescription]).select().single();
   if (error) throw error;
   return data;
 };
@@ -1155,7 +1155,7 @@ export const updatePrescription = async (prescription: Partial<MedicationPrescri
       cleanedData[key] = null;
     }
   });
-  const { data, error } = await supabase.from('new_medication_prescriptions').update(cleanedData).eq('id', id).select().single();
+  const { data, error } = await supabase.from('new_medication_prescriptions').update(cleanedData.medication_name ? { ...cleanedData, medication_name: String(cleanedData.medication_name).toUpperCase() } : cleanedData).eq('id', id).select().single();
   if (error) throw error;
   return data;
 };
@@ -3194,12 +3194,12 @@ export const deleteMedicationInspectionRule = async (ruleId: string): Promise<vo
   if (error) throw error;
 };
 export const createMedicationPrescription = async (prescriptionData: any): Promise<MedicationPrescription> => {
-  const { data, error } = await supabase.from('new_medication_prescriptions').insert([prescriptionData]).select().single();
+  const { data, error } = await supabase.from('new_medication_prescriptions').insert([prescriptionData.medication_name ? { ...prescriptionData, medication_name: String(prescriptionData.medication_name).toUpperCase() } : prescriptionData]).select().single();
   if (error) throw error;
   return data;
 };
 export const updateMedicationPrescription = async (prescriptionData: any): Promise<MedicationPrescription> => {
-  const { data, error } = await supabase.from('new_medication_prescriptions').update(prescriptionData).eq('id', prescriptionData.id).select().single();
+  const { data, error } = await supabase.from('new_medication_prescriptions').update(prescriptionData.medication_name ? { ...prescriptionData, medication_name: String(prescriptionData.medication_name).toUpperCase() } : prescriptionData).eq('id', prescriptionData.id).select().single();
   if (error) throw error;
   return data;
 };

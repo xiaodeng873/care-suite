@@ -9,7 +9,8 @@ import MedicationSettingsPanel from '../components/MedicationSettingsPanel';
 import OcrPromptSettingsPanel from '../components/OcrPromptSettingsPanel';
 import { fuzzyMatch } from '../utils/searchUtils';
 import { uploadAvatar, getAvatarUrl, validateAvatarFile } from '../utils/avatarUpload';
-import { useAuth, supabase } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 import {
   getToolsSettings,
@@ -404,7 +405,6 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
                   placeholder="請輸入帳號（非 Email）"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   required
-                  disabled={!!user}
                 />
               </div>
               <div>
@@ -463,7 +463,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user, is
                     移除相片
                   </button>
                 )}
-                <p className="text-xs text-gray-500">PNG / JPEG / WEBP，最大 2MB</p>
+                <p className="text-xs text-gray-500">PNG / JPEG / WEBP，最大 10MB</p>
               </div>
             </div>
 
@@ -950,7 +950,7 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
 // =====================================================
 
 const Settings: React.FC = () => {
-  const { canManageUsers, isDeveloper, isAdmin, customToken, user, session, hasPermission } = useAuth();
+  const { canManageUsers, isDeveloper, isAdmin, customToken, user, session, hasPermission, isAuthenticated } = useAuth();
   const { theme, setTheme } = useTheme();
   
   // 設定分類
@@ -980,6 +980,7 @@ const Settings: React.FC = () => {
 
   // 用戶列表狀態
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [usersError, setUsersError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1015,6 +1016,7 @@ const Settings: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
+      setUsersError(null);
       // 離職日當日起帳戶自動停用（載入時同步，香港時區）
       const hkToday = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
       await supabase
@@ -1032,6 +1034,7 @@ const Settings: React.FC = () => {
       setUsers(data || []);
     } catch (err) {
       console.error('Fetch users error:', err);
+      setUsersError(`無法載入用戶列表：${err instanceof Error ? err.message : '未知錯誤'}`);
     } finally {
       setLoading(false);
       setHasLoadedOnce(true);
@@ -1040,14 +1043,15 @@ const Settings: React.FC = () => {
 
   // 依賴布林值而非函數引用：AuthContext state 更新只改變函數 identity 時不再重複 fetch
   const canManage = canManageUsers();
+  const authed = isAuthenticated();
   useEffect(() => {
-    if (canManage) {
+    if (canManage && authed) {
       fetchUsers();
     } else {
-      // 無用戶管理權限嘅帳號永遠唔會跑 fetchUsers，都要解除 loading 閘門
+      // 無用戶管理權限或未完成登入（dbToken 未就緒）嘅帳號唔會跑 fetchUsers，都要解除 loading 閘門
       setHasLoadedOnce(true);
     }
-  }, [canManage, fetchUsers]);
+  }, [canManage, authed, fetchUsers]);
 
   // 獲取用戶權限
   const fetchUserPermissions = async (userId: string) => {
@@ -1084,9 +1088,22 @@ const Settings: React.FC = () => {
 
     if (formData.id) {
       // 編輯用戶
+      // 登入帳號可變更，但必須全庫唯一（登入以 username 查找，重複會導致登入異常）
+      const trimmedUsername = formData.username.trim();
+      if (!trimmedUsername) throw new Error('登入帳號不能為空');
+      const { data: dupUsers, error: dupError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('username', trimmedUsername)
+        .neq('id', formData.id)
+        .limit(1);
+      if (dupError) throw dupError;
+      if (dupUsers && dupUsers.length > 0) throw new Error('此登入帳號已被使用');
+
       const avatarUrl = await uploadAvatarIfNeeded(formData.id);
 
       const updateData: any = {
+        username: trimmedUsername,
         name_zh: formData.name_zh,
         name_en: formData.name_en || null,
         id_number: formData.id_number || null,
@@ -1660,6 +1677,11 @@ const Settings: React.FC = () => {
             <div className="text-center py-12">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
               <p className="mt-2 text-gray-500">載入中...</p>
+            </div>
+          ) : usersError ? (
+            <div className="text-center py-12">
+              <Users className="h-12 w-12 text-red-300 mx-auto mb-4" />
+              <p className="text-red-600">{usersError}</p>
             </div>
           ) : filteredUsers.length === 0 ? (
             <div className="text-center py-12">

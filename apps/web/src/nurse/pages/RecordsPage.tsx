@@ -48,7 +48,7 @@ interface ModalState {
 }
 
 const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelectPatient, initialDate }) => {
-  const { displayName } = useAuth();
+  const { displayName, isDeveloper } = useAuth();
   const { admissionRecords, hospitalEpisodes, patientRestraintAssessments, restraintObservationRecords, beds, patients } = usePatientData();
 
   // ─── Today only view ─────────────────────────────────────────
@@ -341,7 +341,8 @@ const RecordsPage: React.FC<RecordsPageProps> = ({ bed, patient, onBack, onSelec
     wrapSave(async () => { await db.deleteIntakeOutputRecord(id); closeModal(); loadData(); });
 
   // ─── Helpers ──────────────────────────────────────────────────
-  const staffName = displayName || '护理员';
+  // 開發者登入時不預填記錄人員（留空由用戶手動輸入）
+  const staffName = isDeveloper() ? '' : (displayName || '护理员');
 
   // ─── Render ───────────────────────────────────────────────────
   return (
