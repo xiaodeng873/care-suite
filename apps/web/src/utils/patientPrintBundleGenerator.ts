@@ -76,6 +76,7 @@ const EXTRA_PAGE_LOGO_IDS = new Set([
   'medication_list_short',   // 院友服用藥物一覽表（短期藥）
   'medication_list_long',    // 院友服用藥物一覽表（長期藥）
   'vaccination_record',      // 疫苗接種記錄
+  'vital_signs_record',      // 生命表徵觀察記錄表
   'temperature_record',      // 院友體溫記錄
   'bodyweight_record',       // 院友體重記錄
   'blood_sugar_record',      // 院友血糖記錄

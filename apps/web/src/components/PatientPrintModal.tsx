@@ -21,7 +21,6 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
 // 入住文件
 { id: 'personal_health_record', name: '院友個人及健康記錄', category: '入住文件', defaultChecked: true },
 { id: 'nursing_assessment', name: '院友護理評估記錄', category: '入住文件', defaultChecked: true },
-{ id: 'vital_signs_record', name: '生命表徵觀察記錄表', category: '入住文件', defaultChecked: true },
 { id: 'health_assessment', name: '院友健康評估及記錄', category: '入住文件', defaultChecked: true },
 { id: 'er_record', name: '使用急症室留院記錄', category: '入住文件', defaultChecked: true },
 { id: 'follow_up_record', name: '院友覆診記錄表', category: '入住文件', defaultChecked: true },
@@ -39,6 +38,7 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
 { id: 'medication_list_short', name: '院友服用藥物一覽表（短期藥）', category: '常用表格', defaultChecked: true },
 { id: 'medication_list_long', name: '院友服用藥物一覽表（長期藥）', category: '常用表格', defaultChecked: false },
 { id: 'vaccination_record', name: '疫苗接種記錄', category: '常用表格', defaultChecked: false },
+{ id: 'vital_signs_record', name: '生命表徵觀察記錄表', category: '常用表格', defaultChecked: true },
 { id: 'temperature_record', name: '院友體溫記錄', category: '常用表格', defaultChecked: false },
 { id: 'bodyweight_record', name: '院友體重記錄', category: '常用表格', defaultChecked: false },
 { id: 'blood_sugar_record', name: '院友血糖記錄', category: '常用表格', defaultChecked: false },

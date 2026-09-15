@@ -34,10 +34,8 @@ import { usePatientData, useFilteredPatients, DuplicateRecordGroup } from '../co
 import HealthRecordModal from '../components/HealthRecordModal';
 import DeduplicateRecordsModal from '../components/DeduplicateRecordsModal';
 import RecycleBinModal from '../components/RecycleBinModal';
-import TemperatureWorksheetModal from '../components/TemperatureWorksheetModal';
-import BodyweightWorksheetModal from '../components/BodyweightWorksheetModal';
-import GlucoseWorksheetModal from '../components/GlucoseWorksheetModal';
-import BloodPressureWorksheetModal from '../components/BloodPressureWorksheetModal';
+import PatientPrintModal from '../components/PatientPrintModal';
+import { generatePatientPrintBundle } from '../utils/patientPrintBundleGenerator';
 import GenerateTemperatureModal from '../components/GenerateTemperatureModal';
 import { exportVitalSignsToExcel, type VitalSignExportData } from '../utils/vitalsignExcelGenerator';
 import { exportBloodSugarToExcel, type BloodSugarExportData } from '../utils/bloodSugarExcelGenerator';
@@ -113,11 +111,7 @@ const HealthAssessment: React.FC = () => {
   const [isAnalyzingDuplicates, setIsAnalyzingDuplicates] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [showPrintMenu, setShowPrintMenu] = useState(false);
-  const [showTemperatureModal, setShowTemperatureModal] = useState(false);
-  const [showBodyweightModal, setShowBodyweightModal] = useState(false);
-  const [showGlucoseModal, setShowGlucoseModal] = useState(false);
-  const [showBloodPressureModal, setShowBloodPressureModal] = useState(false);
+  const [showPatientPrintModal, setShowPatientPrintModal] = useState(false);
   const [showGenerateTemperatureModal, setShowGenerateTemperatureModal] = useState(false);
   const [showBatchWeightModal, setShowBatchWeightModal] = useState(false);
   const [showOCRModal, setShowOCRModal] = useState(false);
@@ -685,66 +679,15 @@ const HealthAssessment: React.FC = () => {
                 </div>
               </div>
             )}
-            {/* 列印下拉選單 */}
-            <div className="relative">
-              <button
-                onClick={() => setShowPrintMenu(!showPrintMenu)}
-                className="btn-secondary flex flex-wrap items-center gap-2 whitespace-nowrap"
-                title="列印"
-              >
-                <Printer className="h-4 w-4" />
-                <span>列印</span>
-              </button>
-              {showPrintMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowPrintMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 min-w-[200px]">
-                    <div className="py-1">
-                      <button
-                        onClick={() => {
-                          setShowTemperatureModal(true);
-                          setShowPrintMenu(false);
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
-                      >
-                        <Thermometer className="h-4 w-4 text-orange-600" />
-                        <span>體溫記錄</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowBodyweightModal(true);
-                          setShowPrintMenu(false);
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
-                      >
-                        <Scale className="h-4 w-4 text-green-600" />
-                        <span>體重記錄</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowGlucoseModal(true);
-                          setShowPrintMenu(false);
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
-                      >
-                        <Droplets className="h-4 w-4 text-red-600" />
-                        <span>血糖記錄</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowBloodPressureModal(true);
-                          setShowPrintMenu(false);
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex flex-wrap items-center gap-2"
-                      >
-                        <Activity className="h-4 w-4 text-blue-600" />
-                        <span>生命表徵觀察記錄</span>
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+            {/* 列印按鈕：開啟綜合列印文件 */}
+            <button
+              onClick={() => setShowPatientPrintModal(true)}
+              className="btn-secondary flex flex-wrap items-center gap-2 whitespace-nowrap"
+              title="列印"
+            >
+              <Printer className="h-4 w-4" />
+              <span>列印</span>
+            </button>
             {/* 其他功能下拉選單 */}
             <div className="relative">
               <button
@@ -1289,24 +1232,23 @@ const HealthAssessment: React.FC = () => {
           onClose={() => setShowRecycleBin(false)}
         />
       )}
-      {showTemperatureModal && (
-        <TemperatureWorksheetModal
-          onClose={() => setShowTemperatureModal(false)}
-        />
-      )}
-      {showBodyweightModal && (
-        <BodyweightWorksheetModal
-          onClose={() => setShowBodyweightModal(false)}
-        />
-      )}
-      {showGlucoseModal && (
-        <GlucoseWorksheetModal
-          onClose={() => setShowGlucoseModal(false)}
-        />
-      )}
-      {showBloodPressureModal && (
-        <BloodPressureWorksheetModal
-          onClose={() => setShowBloodPressureModal(false)}
+      {showPatientPrintModal && (
+        <PatientPrintModal
+          patients={patients}
+          initialTab="常用表格"
+          initialSelectedDocumentIds={['vital_signs_record', 'temperature_record', 'bodyweight_record', 'blood_sugar_record']}
+          onClose={() => setShowPatientPrintModal(false)}
+          onPrint={(selected, docs, start, end, mode, printOptions) => {
+            setShowPatientPrintModal(false);
+            generatePatientPrintBundle({
+              patients: selected,
+              documentIds: docs,
+              startDate: start,
+              endDate: end,
+              contentMode: mode,
+              printOptions,
+            });
+          }}
         />
       )}
       {showBatchWeightModal && (
