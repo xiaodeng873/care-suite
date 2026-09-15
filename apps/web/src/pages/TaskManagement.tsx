@@ -308,6 +308,19 @@ const TaskManagement: React.FC = () => {
         groups.find(g => g.patientId === t.patient_id)!.tasks.push(t);
       }
     });
+    // 每個院友組內一律按執行時序（特定時間的最早時:分，無特定時間用 next_due_at）升序排列
+    const timeOfDay = (t: PatientHealthTask) => {
+      if (t.specific_times && t.specific_times.length > 0) {
+        const mins = t.specific_times.map(tm => {
+          const [h, m] = tm.slice(0, 5).split(':').map(Number);
+          return (h || 0) * 60 + (m || 0);
+        });
+        return Math.min(...mins);
+      }
+      const d = new Date(t.next_due_at);
+      return d.getHours() * 60 + d.getMinutes();
+    };
+    groups.forEach(g => g.tasks.sort((a, b) => timeOfDay(a) - timeOfDay(b)));
     return groups;
   }, [sortedTasks]);
 
