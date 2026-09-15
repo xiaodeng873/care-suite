@@ -63,26 +63,25 @@ describe('extractPageConfig', () => {
 });
 
 describe('groupPagesByConfig', () => {
-  it('groups pages by identical config', () => {
+  it('groups pages by size only, mixing orientations (landscape prints in the same iframe)', () => {
     const p1 = makeHtml('@page { size: A4; margin: 5mm; }');
     const p2 = makeHtml('@page { size: A4; margin: 5mm 5mm; }');
     const p3 = makeHtml('@page { size: A4 landscape; margin: 5mm; }');
     const groups = groupPagesByConfig([p1, p2, p3]);
-    expect(groups.size).toBe(2);
-    const entries = Array.from(groups.values());
-    expect(entries.find((g) => g.config.orientation === 'portrait')?.pages).toHaveLength(2);
-    expect(entries.find((g) => g.config.orientation === 'landscape')?.pages).toHaveLength(1);
+    expect(groups.size).toBe(1);
+    expect(Array.from(groups.values())[0].pages).toHaveLength(3);
   });
 
-  it('groups by size + orientation regardless of margin', () => {
+  it('groups by size regardless of orientation and margin', () => {
     const p1 = makeHtml('@page { size: A4; margin: 5mm 0.25in; }');
     const p2 = makeHtml('@page { size: A4; margin: 0; }');
     const p3 = makeHtml('@page { size: A4 landscape; margin: 6mm; }');
-    const groups = groupPagesByConfig([p1, p2, p3]);
+    const p4 = makeHtml('@page { size: A5; margin: 5mm; }');
+    const groups = groupPagesByConfig([p1, p2, p3, p4]);
     expect(groups.size).toBe(2);
     const entries = Array.from(groups.values());
-    expect(entries.find((g) => g.config.orientation === 'portrait')?.pages).toHaveLength(2);
-    expect(entries.find((g) => g.config.orientation === 'landscape')?.pages).toHaveLength(1);
+    expect(entries.find((g) => g.config.size === 'A4')?.pages).toHaveLength(3);
+    expect(entries.find((g) => g.config.size === 'A5')?.pages).toHaveLength(1);
   });
 
   it('skips empty pages', () => {

@@ -28,7 +28,6 @@ export async function generateFinancialReturnHtml(ctx: DocumentGeneratorContext)
   const residentName = isBlank
     ? ''
     : patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
-  const residentHkid = isBlank ? '' : patient.身份證號碼 || '';
 
   return `<!DOCTYPE html>
 <html lang="zh-HK">
@@ -175,7 +174,7 @@ export async function generateFinancialReturnHtml(ctx: DocumentGeneratorContext)
 
   <div class="content">
     <div class="paragraph">
-      本人（姓名）<input type="text" class="db-line-input" style="width: 230px;" value="${escapeHtml(residentName)}" readonly>（身份證號碼 <input type="text" class="db-line-input" style="width: 200px;" value="${escapeHtml(residentHkid)}" readonly>）為*貴院院友／貴院院友（院友姓名）<input type="text" class="db-line-input" style="width: 200px;" value="${escapeHtml(residentName)}" readonly>的*監護人／保證人／家人／親屬，於（日期）<input type="text" class="db-line-input" style="width: 180px;" readonly>與貴院核對記錄後，現已領回及妥收*本人／該院友日前寄存於貴院之下列物品：
+      本人（姓名）<input type="text" class="db-line-input" style="width: 230px;" readonly>（身份證號碼 <input type="text" class="db-line-input" style="width: 200px;" readonly>）為*貴院院友／貴院院友（院友姓名）<input type="text" class="db-line-input" style="width: 200px;" value="${escapeHtml(residentName)}" readonly>的*監護人／保證人／家人／親屬，於（日期）<input type="text" class="db-line-input" style="width: 180px;" readonly>與貴院核對記錄後，現已領回及妥收*本人／該院友日前寄存於貴院之下列物品：
     </div>
 
     <ol class="items-list">

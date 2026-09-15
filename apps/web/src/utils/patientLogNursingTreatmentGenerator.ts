@@ -5,7 +5,7 @@ import { printCombinedHtml } from './printUtils';
 import { getPrintBedNumber } from './bedTransferUtils';
 
 
-const MAX_ROWS_PER_PAGE = 35;
+const MAX_ROWS_PER_PAGE = 34;
 // 護理/治療欄寬度約可容納 38 個 14px 中文字（含左右 padding）。
 // 以「中文字 = 1.0 單位」換算，英文/數字等較窄字元可佔更少單位，
 // 從而按內容實際寬度決定何時折行，避免強行切斷英數混雜文字。
@@ -320,7 +320,7 @@ const buildPatientHtml = (
       display: flex;
       align-items: flex-start;
       justify-content: center;
-      margin-bottom: 12px;
+      margin-bottom: 5px;
       position: relative;
     }
     .header-center { flex: 1; text-align: center; }

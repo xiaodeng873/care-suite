@@ -9,6 +9,7 @@
 import type { Patient, HygieneRecord } from '../lib/database';
 
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+import { getFacilityLogoSrc, injectPageLogo } from './printPageLogo';
 import { getPrintBedNumber } from './bedTransferUtils';
 
 
@@ -236,7 +237,10 @@ ${pages}
 
 export const printHygieneRecordForm = async (patients: Patient[], monthsData: HygieneMonthData[]): Promise<void> => {
   const settings = await getFacilitySettings();
-  const html = generateHygieneRecordPrintFormHtml(patients, monthsData, settings.facilityNameZh);
+  const html = injectPageLogo(
+    generateHygieneRecordPrintFormHtml(patients, monthsData, settings.facilityNameZh),
+    await getFacilityLogoSrc()
+  );
   const old = document.getElementById('hygiene-printform-iframe');
   if (old) old.remove();
   const iframe = document.createElement('iframe');
@@ -302,7 +306,10 @@ export const printHygieneRecordFormForDateRange = async (
   endDate: string
 ): Promise<void> => {
   const settings = await getFacilitySettings();
-  const html = generateHygieneRecordFormForDateRange(patient, records, startDate, endDate, settings.facilityNameZh);
+  const html = injectPageLogo(
+    generateHygieneRecordFormForDateRange(patient, records, startDate, endDate, settings.facilityNameZh),
+    await getFacilityLogoSrc()
+  );
   const old = document.getElementById('hygiene-printform-iframe');
   if (old) old.remove();
   const iframe = document.createElement('iframe');

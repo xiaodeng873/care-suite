@@ -33,6 +33,7 @@ export interface IntakeOutputHtmlInput {
 }
 
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+import { getFacilityLogoSrc, injectPageLogo } from './printPageLogo';
 const CLINICAL_SLOTS = [
   '07:00','08:00','09:00','10:00','11:00','12:00',
   '13:00','14:00','15:00','16:00','17:00','18:00',
@@ -342,10 +343,13 @@ body {
 
 export async function printIntakeOutputForm(input: IntakeOutputHtmlInput): Promise<void> {
   const settings = await getFacilitySettings();
-  const html = generateIntakeOutputHtml({
-    ...input,
-    facilityName: input.facilityName ?? settings.facilityNameZh,
-  });
+  const html = injectPageLogo(
+    generateIntakeOutputHtml({
+      ...input,
+      facilityName: input.facilityName ?? settings.facilityNameZh,
+    }),
+    await getFacilityLogoSrc()
+  );
   const old = document.getElementById('io-printframe');
   if (old) old.remove();
   const iframe = document.createElement('iframe');
@@ -447,7 +451,9 @@ export const exportIntakeOutputRangeHtml = async (
 ): Promise<void> => {
   const settings = await getFacilitySettings();
   const facilityName = baseInput.facilityName ?? settings.facilityNameZh;
-  const pages = generateIntakeOutputRangeHtml(baseInput, allRecords, startDate, endDate, facilityName);
+  const logoSrc = await getFacilityLogoSrc();
+  const pages = generateIntakeOutputRangeHtml(baseInput, allRecords, startDate, endDate, facilityName)
+    .map(p => injectPageLogo(p, logoSrc));
   import('./printUtils').then(({ printCombinedHtml }) => {
     printCombinedHtml(pages, 'io-printframe');
   });

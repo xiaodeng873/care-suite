@@ -18,6 +18,7 @@ import type {
 import { withHdPatientPhotos } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { getFacilitySettings } from './facilitySettings';
+import { getFacilityLogoSrc, injectPageLogo } from './printPageLogo';
 import { getPrintBedNumber } from './bedTransferUtils';
 import { PRINT_DOCUMENTS, type PrintDocumentOptions } from '../components/PatientPrintModal';
 import { exportStatisticsReportToExcel, type StatisticsReportDocumentId } from './statisticsReportsExcelGenerator';
@@ -68,9 +69,7 @@ const ctxPatient = (ctx: DocumentGeneratorContext): Patient =>
   ctx.contentMode === 'blank' ? stripPatient(ctx.patient) : ctx.patient;
 
 // ─── 入住文件每頁右上角院舍 logo ─────────────────────────────────────────────
-// 列印 CSS 入面 position: fixed 會喺每一頁重複出現，用佢嚟做每頁頁首 logo。
-// logo 來源同 loading/活動報表一致：facility_settings.logoDataUri，後備用 /sc-logo.png
-const PAGE_LOGO_CSS = `<style>@media print{.admission-page-logo{position:fixed;top:2mm;right:2mm;width:32mm;height:auto;z-index:2147483647;}}</style>`;
+// 共用嘅 logo 注入工具（PAGE_LOGO_CSS / injectPageLogo / getFacilityLogoSrc）喺 ./printPageLogo
 
 // 除咗「入住文件」類別全部文件外，常用表格入面呢啲文件每頁都要有院舍 logo
 const EXTRA_PAGE_LOGO_IDS = new Set([
@@ -84,21 +83,14 @@ const EXTRA_PAGE_LOGO_IDS = new Set([
   'wound_assessment',        // 傷口評估記錄表
   'accident_report',         // 意外事件報告
   'restraint_usage_common',  // 使用約束物品紀錄
+  'bedhead_patrol_rounds',   // 院友巡房記錄表
+  'bedhead_diaper',          // 換片及大便記錄
+  'bedhead_intake_output',   // 個人出入量記錄表
+  'bedhead_hygiene',         // 個人衛生、清潔及大便記錄
 ]);
 
 const needsPageLogo = (docId: string, category?: string): boolean =>
   category === '入住文件' || EXTRA_PAGE_LOGO_IDS.has(docId);
-
-const injectPageLogo = (html: string, logoSrc: string): string => {
-  if (!html) return html;
-  const img = `<img class="admission-page-logo" src="${logoSrc}" alt="院舍標誌">`;
-  let out = html;
-  if (/<\/head>/i.test(out)) out = out.replace(/<\/head>/i, `${PAGE_LOGO_CSS}</head>`);
-  else out = PAGE_LOGO_CSS + out;
-  if (/<body[^>]*>/i.test(out)) out = out.replace(/<body([^>]*)>/i, `<body$1>${img}`);
-  else out = img + out;
-  return out;
-};
 
 /** 空白/基本資料模式的 worksheet 選項 */
 const worksheetOptions = (ctx: DocumentGeneratorContext) => ({
@@ -682,7 +674,7 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
   const settings = await getFacilitySettings();
   const facilityName = settings.facilityNameZh;
   // 入住文件每頁右上角 logo：院舍設定嘅 logo，冇就用 public 嘅 sc-logo.png（同院舍活動報表一致）
-  const pageLogoSrc = settings.logoDataUri || '/sc-logo.png';
+  const pageLogoSrc = await getFacilityLogoSrc();
 
   const orderMap = new Map(PRINT_DOCUMENTS.map((d, i) => [d.id, i]));
   const categoryWeight: Record<string, number> = { '入住文件': 0, '常用表格': 1, '床頭記錄': 2, '統計報表': 3 };
@@ -767,7 +759,6 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
       if (!generator) continue;
       const doc = PRINT_DOCUMENTS.find(d => d.id === docId);
       const docName = doc?.name || docId;
-      const isBedhead = doc?.category === '床頭記錄';
 
       try {
         let html = await generator({
@@ -781,9 +772,9 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
           stations: options.stations,
           mealGuidances: options.mealGuidances,
         });
-        // 「含既有輸入內容」模式：有內容則印內容，無內容則回退印基本資料
-        // 床頭記錄除外：data 模式下院友沒有該 tab 或沒有記錄時必須整份跳過，不回退
-        if (!html && contentMode === 'data' && !isBedhead) {
+        // 「含既有輸入內容」模式：有內容則印內容，無內容則回退印基本資料（空白表格連院友資料）
+        // 所有文件一視同仁：就算院友完全沒有該文件嘅記錄，都要匯出空白表格
+        if (!html && contentMode === 'data') {
           html = await generator({
             patient,
             startDate: startDate || patient.入住日期 || '',
@@ -796,13 +787,15 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
             mealGuidances: options.mealGuidances,
           });
         }
-        // 入住文件 + 指定常用表格：每頁右上角加院舍 logo（如同院舍活動報表 HTML）
-        const withPageLogo = (h: string) => (needsPageLogo(docId, doc?.category) ? injectPageLogo(h, pageLogoSrc) : h);
+        // 入住文件 + 指定常用表格：每頁右上角加院舍 logo（fixed 統一位置；
+        // 合併列印時各文件 logo 精準疊合，每頁視覺上只有一個）
+        const withPageLogo = (h: string) =>
+          needsPageLogo(docId, doc?.category) ? injectPageLogo(h, pageLogoSrc) : h;
         if (Array.isArray(html)) {
           pages.push(...html.filter(Boolean).map(withPageLogo));
         } else if (html) {
           pages.push(withPageLogo(html));
-        } else if (contentMode === 'data' && !isBedhead) {
+        } else if (contentMode === 'data') {
           skipped.push(`${docName}（${patientName}）`);
         }
       } catch (error: any) {

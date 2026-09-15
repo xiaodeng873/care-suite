@@ -13,7 +13,7 @@ import { getFacilitySettings } from './facilitySettings';
 import { getPrintBedNumber } from './bedTransferUtils';
 
 
-const ROWS_PER_PAGE = 25;
+const ROWS_PER_PAGE = 20;
 const DOC_CODE = 'A19D FK (11.2020)';
 
 // 16 個勾選欄位的直排表頭文字，順序須與 doc_html 一致

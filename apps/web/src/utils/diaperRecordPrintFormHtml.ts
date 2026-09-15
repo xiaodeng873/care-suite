@@ -14,6 +14,7 @@
 
 import type { Patient, DiaperChangeRecord } from '../lib/database';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
+import { getFacilityLogoSrc, injectPageLogo } from './printPageLogo';
 import { getPrintBedNumber } from './bedTransferUtils';
 import { formatDisplayDate } from './dateFormat';
 
@@ -113,7 +114,10 @@ ${pages}
 
 export const printDiaperRecordForm = async (patients: Patient[], yearMonth: string): Promise<void> => {
   const settings = await getFacilitySettings();
-  const html = generateDiaperRecordPrintFormHtml(patients, yearMonth, settings.facilityNameZh);
+  const html = injectPageLogo(
+    generateDiaperRecordPrintFormHtml(patients, yearMonth, settings.facilityNameZh),
+    await getFacilityLogoSrc()
+  );
   const old = document.getElementById('diaper-printform-iframe');
   if (old) old.remove();
   const iframe = document.createElement('iframe');
@@ -307,7 +311,10 @@ export const printDiaperRecordFormForDateRange = async (
   showData: boolean = true
 ): Promise<void> => {
   const settings = await getFacilitySettings();
-  const html = generateDiaperRecordFormForDateRange(patient, records, startDate, endDate, settings.facilityNameZh, showData);
+  const html = injectPageLogo(
+    generateDiaperRecordFormForDateRange(patient, records, startDate, endDate, settings.facilityNameZh, showData),
+    await getFacilityLogoSrc()
+  );
   const old = document.getElementById('diaper-printform-iframe');
   if (old) old.remove();
   const iframe = document.createElement('iframe');

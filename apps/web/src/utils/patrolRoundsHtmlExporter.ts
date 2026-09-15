@@ -1,5 +1,6 @@
 import { TIME_SLOTS } from './careRecordHelper';
 import { getFacilitySettings } from './facilitySettings';
+import { getFacilityLogoSrc, injectPageLogo } from './printPageLogo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -277,7 +278,10 @@ export function generatePatrolRoundsRangeHtml(options: PatrolRoundsExportOptions
 export async function exportPatrolRoundsRangeHtml(options: PatrolRoundsExportOptions): Promise<void> {
   const settings = await getFacilitySettings();
   const facilityName = options.facilityName ?? settings.facilityNameZh;
-  const html = generatePatrolRoundsRangeHtml({ ...options, facilityName });
+  const html = injectPageLogo(
+    generatePatrolRoundsRangeHtml({ ...options, facilityName }),
+    await getFacilityLogoSrc()
+  );
   printViaIframe(html);
 }
 
