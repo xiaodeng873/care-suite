@@ -98,38 +98,42 @@ export function generateNursingSummaryHtml(ctx: DocumentGeneratorContext): strin
   @page { size: A4 landscape; margin: 10mm; }
   * { box-sizing: border-box; }
   body {
-    font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang TC", sans-serif;
+    font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
     margin: 0;
-    color: #000;
+    color: #1e293b;
     line-height: 1.25;
   }
-  .ns-u { display: inline-block; border-bottom: 0.8pt solid #000; height: 1em; }
+  .ns-u { display: inline-block; border-bottom: 0.8pt solid #475569; height: 1em; }
   .ns-head { text-align: center; }
-  .ns-facility { font-size: 15px; font-weight: bold; }
-  .ns-title { font-size: 20px; font-weight: bold; letter-spacing: 4px; margin: 1mm 0; }
+  .ns-facility { font-size: 15px; font-weight: bold; color: #0f766e; letter-spacing: 1px; }
+  .ns-title { font-size: 20px; font-weight: bold; letter-spacing: 4px; margin: 1mm 0; color: #334155; }
   .ns-meta {
     display: flex;
     justify-content: space-between;
     font-size: 11px;
     font-weight: bold;
-    border: 1px solid #000;
-    padding: 1.5mm 2mm;
+    border: 0.75pt solid #99f6e4;
+    background: #f0fdfa;
+    border-radius: 1.5mm;
+    padding: 1.5mm 2.5mm;
     margin: 2mm 0 3mm;
+    color: #134e4a;
   }
   .ns-body { display: flex; gap: 4mm; }
   .ns-left { width: 62%; }
   .ns-right { flex: 1; }
-  .ns-sec { border: 1px solid #000; margin-bottom: 3mm; }
+  .ns-sec { border: 0.75pt solid #99f6e4; border-radius: 1.5mm; overflow: hidden; margin-bottom: 3mm; }
   .ns-sec-title {
-    background: #eee;
+    background: #ccfbf1;
+    color: #0f766e;
     font-size: 10.5px;
     font-weight: bold;
     padding: 1mm 2mm;
-    border-bottom: 1px solid #000;
+    border-bottom: 0.75pt solid #99f6e4;
   }
   .ns-sec-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   .ns-sec-table td {
-    border: 0.5pt solid #000;
+    border: 0.5pt solid #e2e8f0;
     font-size: 10px;
     padding: 1.6mm 1.5mm;
     height: 8mm;
@@ -137,20 +141,24 @@ export function generateNursingSummaryHtml(ctx: DocumentGeneratorContext): strin
     overflow: hidden;
     white-space: nowrap;
   }
-  .ns-group { border: 1px solid #000; margin-bottom: 3mm; }
+  .ns-group { border: 0.75pt solid #99f6e4; border-radius: 1.5mm; overflow: hidden; margin-bottom: 3mm; }
   .ns-group-title {
-    background: #eee;
+    background: #ccfbf1;
+    color: #0f766e;
     font-size: 10.5px;
     font-weight: bold;
     padding: 1mm 2mm;
-    border-bottom: 1px solid #000;
+    border-bottom: 0.75pt solid #99f6e4;
   }
   .ns-checks { padding: 1mm 2mm 1.5mm; }
   .ns-check { font-size: 10px; padding: 0.9mm 0; white-space: nowrap; }
   .ns-remark-lines { padding: 1mm 2mm; }
-  .ns-remark-line { border-bottom: 0.8pt solid #000; height: 7mm; }
-  .ns-foot { margin-top: 2mm; font-size: 9.5px; }
-  .ns-hint { margin-bottom: 1mm; }
+  .ns-remark-line { border-bottom: 0.8pt solid #94a3b8; height: 7mm; }
+  .ns-foot { margin-top: 2mm; font-size: 9.5px; color: #64748b; }
+  .ns-hint { margin-bottom: 1mm; color: #0f766e; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
 </style>
 </head>
 <body>

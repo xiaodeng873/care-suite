@@ -7,10 +7,10 @@
     @page { size: A4 landscape; margin: 6mm; }
     * { box-sizing: border-box; }
     body {
-      font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang TC", sans-serif;
+      font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
       margin: 0;
       padding: 0;
-      color: #000;
+      color: #1e293b;
       line-height: 1.2;
     }
     .page {
@@ -20,32 +20,66 @@
     }
     .page:last-of-type { page-break-after: auto; }
     .report-head { text-align: center; }
-    .facility { font-size: 15px; font-weight: bold; }
-    .doc-title { font-size: 13px; font-weight: bold; margin-top: 1mm; }
+    .facility { font-size: 15px; font-weight: bold; color: #0f766e; letter-spacing: 1px; }
+    .doc-title { font-size: 13px; font-weight: bold; margin-top: 0.5mm; color: #334155; letter-spacing: 3px; }
     .patient-line {
       display: flex;
       justify-content: space-between;
       font-size: 10.5px;
       font-weight: bold;
       margin: 2mm 0;
+      padding: 1.2mm 3mm;
+      background: #f0fdfa;
+      border: 0.75pt solid #99f6e4;
+      border-radius: 1.5mm;
+      color: #134e4a;
     }
-    .month-block { margin-top: 1mm; }
-    .month-label { font-size: 10px; font-weight: bold; margin-bottom: 0.5mm; }
+    .month-block {
+      margin-top: 1mm;
+      border: 0.75pt solid #99f6e4;
+      border-radius: 1.5mm;
+      overflow: hidden;
+    }
+    .month-label {
+      font-size: 10px;
+      font-weight: bold;
+      padding: 0.6mm 2.5mm;
+      background: #ccfbf1;
+      color: #0f766e;
+      border-bottom: 0.75pt solid #99f6e4;
+    }
     .fee-matrix {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
     }
     .fee-matrix th, .fee-matrix td {
-      border: 0.5pt solid #000;
+      border: 0.5pt solid #cbd5e1;
       text-align: center;
       vertical-align: middle;
       padding: 0;
     }
-    .fee-matrix th { font-size: 7pt; font-weight: bold; height: 4mm; }
+    .fee-matrix th {
+      font-size: 7pt;
+      font-weight: bold;
+      height: 4mm;
+      background: #f8fafc;
+      color: #475569;
+      border-bottom: 0.75pt solid #94a3b8;
+    }
     .fee-matrix td { height: 5.2mm; font-size: 7pt; }
     .fee-matrix .row-label { width: 28mm; }
-    .fee-matrix td.row-label { text-align: left; padding-left: 1mm; font-weight: bold; white-space: nowrap; }
+    .fee-matrix td.row-label {
+      text-align: left;
+      padding-left: 1.5mm;
+      font-weight: bold;
+      white-space: nowrap;
+      background: #f0fdfa;
+      color: #134e4a;
+    }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
   </style>
 </head>
 <body>

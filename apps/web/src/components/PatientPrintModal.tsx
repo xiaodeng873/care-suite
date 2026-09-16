@@ -1,9 +1,10 @@
 import { X, Search, Printer } from 'lucide-react';
-import type { Patient } from '../lib/database';
+import type { Patient, Station } from '../lib/database';
+import { supabase } from '../lib/supabase';
 import type { PrintContentMode } from '../utils/patientPrintBundleGenerator';
 import { ROSTER_PRINT_DEPARTMENTS } from '../utils/rosterPrintGenerator';
 import BedNumberImprint from './BedNumberImprint';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import DateInput from './DateInput';
 
 export type PrintDocumentCategory = '入住文件' | '常用表格' | '床頭記錄' | '統計報表' | '排班管理';
@@ -52,13 +53,13 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
 { id: 'self_medication', name: '自行存放及使用藥物同意書', category: '常用表格', defaultChecked: false },
 { id: 'vaccine_consent', name: '衛生署疫苗接種同意書', category: '常用表格', defaultChecked: false },
 // 床頭記錄
+{ id: 'nursing_summary', name: '護理摘要', category: '床頭記錄', defaultChecked: false },
 { id: 'bedhead_patrol_rounds', name: '院友巡房記錄表', category: '床頭記錄', defaultChecked: true },
 { id: 'bedhead_diaper', name: '換片及大便記錄', category: '床頭記錄', defaultChecked: true },
 { id: 'bedhead_intake_output', name: '個人出入量記錄表', category: '床頭記錄', defaultChecked: true },
 { id: 'bedhead_hygiene', name: '個人衛生、清潔及大便記錄', category: '床頭記錄', defaultChecked: true },
 { id: 'bedhead_restraint_observation', name: '身體約束物品觀察記錄表', category: '床頭記錄', defaultChecked: true },
 { id: 'bedhead_position_change', name: '轉身記錄', category: '床頭記錄', defaultChecked: true },
-{ id: 'nursing_summary', name: '護理摘要', category: '床頭記錄', defaultChecked: false },
 { id: 'bedhead_toilet_training', name: '如廁訓練', category: '床頭記錄', defaultChecked: false, disabled: true, disabledHint: '未開放' },
 // 統計報表
 { id: 'meal_statistics_report', name: '餐膳統計報表', category: '統計報表', defaultChecked: false },
@@ -223,22 +224,43 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
   );
 
   const [residencyFilter, setResidencyFilter] = useState<string>('在住');
+  // 居住區過濾器（搜索院友下面）
+  const [stationFilter, setStationFilter] = useState<string>('');
+  const [stations, setStations] = useState<Station[]>([]);
+  useEffect(() => {
+    supabase
+      .from('stations')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .then(({ data }) => setStations((data ?? []) as Station[]));
+  }, []);
+
+  // 文件搜索（日期範圍行）：輸入關鍵字跨分類搵文件
+  const [docSearch, setDocSearch] = useState('');
 
   const filteredPatients = useMemo(() => {
     return patients.filter((p) => {
       const matchesResidency = !residencyFilter || p.在住狀態 === residencyFilter;
-      if (!patientSearch.trim()) return matchesResidency;
+      const matchesStation = !stationFilter || p.station_id === stationFilter;
+      if (!patientSearch.trim()) return matchesResidency && matchesStation;
       const term = patientSearch.toLowerCase();
       const matchesSearch =
       p.中文姓名 && p.中文姓名.toLowerCase().includes(term) ||
       p.中文姓氏 && p.中文姓氏.toLowerCase().includes(term) ||
       p.中文名字 && p.中文名字.toLowerCase().includes(term) ||
       p.床號 && p.床號.toLowerCase().includes(term);
-      return matchesResidency && matchesSearch;
+      return matchesResidency && matchesStation && matchesSearch;
     });
-  }, [patients, patientSearch, residencyFilter]);
+  }, [patients, patientSearch, residencyFilter, stationFilter]);
 
   const tabDocuments = useMemo(() => PRINT_DOCUMENTS.filter((d) => d.category === activeTab), [activeTab]);
+
+  // 有關鍵字時：跨全部分類搵文件（顯示分類標籤）；冇關鍵字：跟返目前 tab
+  const visibleDocuments = useMemo(() => {
+    const term = docSearch.trim();
+    if (!term) return tabDocuments;
+    return PRINT_DOCUMENTS.filter((d) => d.name.includes(term));
+  }, [docSearch, tabDocuments]);
 
   const togglePatient = (id: number) => {
     const next = new Set(selectedPatientIds);
@@ -271,7 +293,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
 
   const toggleAllDocuments = (checked: boolean) => {
     const next = new Set(checkedDocuments);
-    tabDocuments.forEach((doc) => {
+    visibleDocuments.forEach((doc) => {
       if (doc.disabled) return;
       if (checked) next.add(doc.id);else next.delete(doc.id);
     });
@@ -410,7 +432,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
         <div className="p-4 border-b border-gray-200 space-y-3">
           {!isRosterTab &&
           <>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <label className="text-sm font-medium text-gray-700 whitespace-nowrap">日期範圍：</label>
                 <DateInput
 
@@ -418,15 +440,24 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
 
                 className="form-input text-sm"
                 placeholder="入住日期" onChange={(value) => setStartDate(value)} />
-              
+
                 <span className="text-sm text-gray-500">至</span>
                 <DateInput
 
                 value={endDate}
 
                 className="form-input text-sm" onChange={(value) => setEndDate(value)} />
-              
-                <span className="text-xs text-gray-500">（預設最近一個月）</span>
+
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap ml-auto">文件搜索：</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="輸入關鍵字找出文件"
+                    value={docSearch}
+                    onChange={(e) => setDocSearch(e.target.value)}
+                    className="pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded w-56" />
+                </div>
               </div>
               <div className="flex items-center gap-4">
                 <label className="text-sm font-medium text-gray-700 whitespace-nowrap">列印內容：</label>
@@ -618,11 +649,21 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
                 value={residencyFilter}
                 onChange={(e) => setResidencyFilter(e.target.value)}
                 className="w-full text-sm border border-gray-300 rounded py-2 px-3">
-                
+
                 <option value="">全部在住狀態</option>
                 <option value="在住">在住</option>
                 <option value="待入住">待入住</option>
                 <option value="已退住">已退住</option>
+              </select>
+              <select
+                value={stationFilter}
+                onChange={(e) => setStationFilter(e.target.value)}
+                className="w-full text-sm border border-gray-300 rounded py-2 px-3">
+
+                <option value="">全部居住區</option>
+                {stations.map((s) =>
+                <option key={s.id} value={s.id}>{s.name}</option>
+                )}
               </select>
             </div>
             <div className="p-3 border-b border-gray-200 flex items-center gap-2 text-sm">
@@ -734,7 +775,7 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto p-3">
-              {tabDocuments.map((doc, index) =>
+              {visibleDocuments.map((doc, index) =>
               <label
                 key={doc.id}
                 className={`flex items-center gap-2 p-2 rounded ${
@@ -743,16 +784,19 @@ const PatientPrintModal: React.FC<PatientPrintModalProps> = ({
                 'hover:bg-gray-50 cursor-pointer'}`
                 }
                 title={doc.disabled ? doc.disabledHint : undefined}>
-                
+
                   <input
                   type="checkbox"
                   checked={checkedDocuments.has(doc.id)}
                   onChange={() => !doc.disabled && toggleDocument(doc.id)}
                   disabled={doc.disabled}
                   className="h-4 w-4 disabled:opacity-50" />
-                
+
                   <span className="text-sm">
-                    {index + 1}. {doc.name}
+                    {docSearch.trim() ?
+                  <span className="mr-1 text-xs text-blue-500">[{doc.category}]</span> :
+                  `${index + 1}. `}
+                    {doc.name}
                     {doc.disabled && doc.disabledHint &&
                   <span className="ml-1 text-xs text-gray-400">（{doc.disabledHint}）</span>
                   }

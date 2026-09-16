@@ -50,5 +50,7 @@ const stubPlugin = {
     const text = tc.items.map((it) => it.str).join('');
     console.log(`p${p}: ${mm(vp.width).toFixed(0)}x${mm(vp.height).toFixed(0)}mm | ${text.slice(0, 60).replace(/\s+/g, ' ')}`);
   }
+  await page.setViewportSize({ width: 1123, height: 794 });
+  await page.screenshot({ path: path.join(__dirname, 'fee-matrix-screen.png') });
   await browser.close();
 })();
