@@ -3,7 +3,7 @@ import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, matchP
 import { formatMealTiming } from '../utils/mealTiming';
 import { LoadingScreen } from '../components/PageLoadingScreen';
 import { useSearchParams } from 'react-router-dom';
-import { Pill, Plus, Trash2, Search, Filter, Download, User, Calendar, AlertTriangle, CheckCircle, ArrowRight, X, ChevronUp, ChevronDown, Settings, FileText, Activity, ChevronRight, ChevronLeft, Heart, Shield, History } from 'lucide-react';
+import { Pill, Plus, Trash2, Search, Filter, Download, User, Calendar, AlertTriangle, CheckCircle, ArrowRight, X, ChevronUp, ChevronDown, Settings, FileText, Activity, ChevronRight, ChevronLeft, Heart, Shield, History, Copy } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import { useWorkflow } from '../context/merged/WorkflowContext';
 import PrescriptionModal from '../components/PrescriptionModal';
@@ -497,6 +497,15 @@ const PrescriptionManagement: React.FC = () => {
     setShowTransferModal(true);
   };
 
+  // 另存：繼承全部資料預填，處方日期/開始日期用今天；冇 id、冇 status → 儲存時當新增，落「待變更處方」
+  const handleSaveAs = (prescription: any) => {
+    // 用香港時區計「今天」，同 PrescriptionModal 嘅 getHongKongDate 一致
+    const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const { id, created_at, updated_at, status, ...rest } = prescription;
+    setSelectedPrescription({ ...rest, prescription_date: today, start_date: today });
+    setShowModal(true);
+  };
+
   const handleStatusChange = async (prescription: any, targetStatus: 'active' | 'pending_change' | 'inactive') => {
     try {
       await updatePrescription({ id: prescription.id, status: targetStatus });
@@ -935,6 +944,7 @@ const PrescriptionManagement: React.FC = () => {
             onBatchUpdate={() => setShowBatchUpdateModal(true)}
             onEdit={handleEdit}
             onTransfer={handleTransfer}
+            onSaveAs={handleSaveAs}
             onStatusChange={handleStatusChange}
             onDelete={handleDelete}
             onUpdatePrescription={updatePrescription}
@@ -1042,6 +1052,7 @@ interface IntegratedPrescriptionCardProps {
   onBatchUpdate: () => void;
   onEdit: (prescription: any) => void;
   onTransfer: (prescription: any) => void;
+  onSaveAs: (prescription: any) => void;
   onStatusChange: (prescription: any, targetStatus: 'active' | 'pending_change' | 'inactive') => void;
   onDelete: (id: string) => void;
   onUpdatePrescription: (prescription: any) => Promise<void>;
@@ -1063,6 +1074,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
   onBatchUpdate,
   onEdit,
   onTransfer,
+  onSaveAs,
   onStatusChange,
   onDelete,
   onUpdatePrescription,
@@ -1145,9 +1157,10 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
     onSelect: () => void;
     onEdit: () => void;
     onTransfer: () => void;
+    onSaveAs: () => void;
     onStatusChange: (targetStatus: 'active' | 'pending_change' | 'inactive') => void;
     onDelete: () => void;
-  }> = ({ prescription, status, isSelected, onSelect, onEdit, onTransfer, onStatusChange, onDelete }) => {
+  }> = ({ prescription, status, isSelected, onSelect, onEdit, onTransfer, onSaveAs, onStatusChange, onDelete }) => {
     const clickTimer = useRef<number | null>(null);
     const handleCardClick = () => {
       if (clickTimer.current) {
@@ -1296,6 +1309,13 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
               title="轉移處方"
             >
               <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              onClick={onSaveAs}
+              className="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50"
+              title="另存（複製為新處方，處方/開始日期用今天，落待變更處方）"
+            >
+              <Copy className="h-4 w-4" />
             </button>
             <button
               onClick={onDelete}
@@ -1456,6 +1476,7 @@ const IntegratedPrescriptionCard: React.FC<IntegratedPrescriptionCardProps> = ({
                 onSelect={() => onSelectRow(prescription.id)}
                 onEdit={() => onEdit(prescription)}
                 onTransfer={() => onTransfer(prescription)}
+                onSaveAs={() => onSaveAs(prescription)}
                 onStatusChange={(targetStatus) => onStatusChange(prescription, targetStatus)}
                 onDelete={() => onDelete(prescription.id)}
               />

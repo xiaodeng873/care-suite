@@ -705,13 +705,17 @@ const formatSlotShortLabel = (slot: string): string => {
   return minute === '00' ? `${hour12}${suffix}` : `${hour12}:${minute}${suffix}`;
 };
 
-// 統計全部口服藥物中單位為「粒」的藥物，於各時間點的總數量（如：藥物數量統計 8A(10) 10A(5.5) 4P(6)）
+// 統計全部口服藥物中單位為「粒」的藥物，於各時間點的總數量（如：藥物數量參考 8A(10) 10A(5.5) 4P(6)）
 // 非每日頻率（隔日/每N日/逢星期/單雙日等）的藥物只計入「可能總量」；
 // 某時間點兩數不同時以「必定/可能」範圍顯示（如 8A(7/8)），相同時維持單一數字。
 // PRN 不計入必定總量：只有設定了服用時間點才計入可能總量（需要時先決定當日是否服用）。
+// 單雙日交替藥互斥：同一時間點嘅單日藥同雙日藥唔會同日出現，
+// 「可能總量」取單日總和／雙日總和較大者，而唔係兩張相加。
 const computeOralQuantityStat = (oralPrescriptions: MedicationPrescription[]): string => {
   const certainTotals = new Map<string, number>();
   const possibleTotals = new Map<string, number>();
+  // 單雙日分組：slot → { odd, even }（is_odd_even_day 第三值「單雙日」兩日都服，當一般可能量處理）
+  const oddEvenBySlot = new Map<string, { odd: number; even: number }>();
   for (const rx of oralPrescriptions) {
     const unit = String(rx.dosage_unit ?? '').trim();
     if (unit !== '粒') continue;
@@ -723,12 +727,23 @@ const computeOralQuantityStat = (oralPrescriptions: MedicationPrescription[]): s
       || freqType === 'each_time'
       || (freqType === 'every_x_days' && (Number(rx.frequency_value) || 1) === 1)
     );
+    const isAlternating = freqType === 'odd_even_days' && (rx.is_odd_even_day === 'odd' || rx.is_odd_even_day === 'even');
     for (const slot of resolvePrescriptionTimeSlots(rx)) {
       if (isCertain) {
         certainTotals.set(slot, (certainTotals.get(slot) ?? 0) + amount);
       }
-      possibleTotals.set(slot, (possibleTotals.get(slot) ?? 0) + amount);
+      if (isAlternating) {
+        const g = oddEvenBySlot.get(slot) ?? { odd: 0, even: 0 };
+        if (rx.is_odd_even_day === 'even') g.even += amount; else g.odd += amount;
+        oddEvenBySlot.set(slot, g);
+      } else {
+        possibleTotals.set(slot, (possibleTotals.get(slot) ?? 0) + amount);
+      }
     }
+  }
+  // 交替組每個時段只計較大嗰邊（任何一日只會食單日藥或雙日藥其中一邊）
+  for (const [slot, g] of oddEvenBySlot) {
+    possibleTotals.set(slot, (possibleTotals.get(slot) ?? 0) + Math.max(g.odd, g.even));
   }
   if (possibleTotals.size === 0) return '';
   const fmtQty = (n: number): string => Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(2)));
@@ -739,7 +754,7 @@ const computeOralQuantityStat = (oralPrescriptions: MedicationPrescription[]): s
     const qtyStr = min === max ? fmtQty(max) : `${fmtQty(min)}/${fmtQty(max)}`;
     return `${formatSlotShortLabel(slot)}(${qtyStr})`;
   });
-  return `藥物數量統計 ${parts.join(' ')}`;
+  return `藥物數量參考 ${parts.join(' ')}`;
 };
 
 const classifyRoute = (prescription: MedicationPrescription): RouteKind => {
@@ -964,10 +979,11 @@ const renderPrescriptionBlock = (
         : '';
     })();
   // 途徑 / 次數：route、PRN、meal timing、頻率、特殊用法、劑量各佔一行
-  // 每日服用次數為「無」(0) 或頻率類型為「每次」時，不顯示頻率類型
-  const frequencyLine = (prescription.daily_frequency === 0 || prescription.daily_frequency == null || prescription.frequency_type === 'each_time')
-    ? ''
-    : getFrequencyDescription(prescription);
+  // 每日服用次數為「無」(0) 或頻率類型為「每次」時，不顯示頻率類型；
+  // hourly（每N小時）嘅次數由「每N小時」表達，唔受「無」壓制
+  const suppressFrequency = prescription.frequency_type === 'each_time' ||
+    (prescription.frequency_type !== 'hourly' && (prescription.daily_frequency === 0 || prescription.daily_frequency == null));
+  const frequencyLine = suppressFrequency ? '' : getFrequencyDescription(prescription);
   const specialLine = prescription.special_dosage_instruction?.trim();
   const dosageLine = (() => {
     if (!prescription.dosage_amount) return '';
@@ -1021,6 +1037,8 @@ const renderPrescriptionBlock = (
       + `<td class="c-name" rowspan="${totalRowCount}">${nameInfo}</td>`
       + `<td class="c-route" rowspan="${totalRowCount}">${routeInfo || '&nbsp;'}</td>`;
   };
+  // hourly（每N小時）PRN 無固定服用時間點：唔强加時間點落時間欄，格仔照舊灰斜線（= 冇預定時間），
+  // 只係左欄頻率行顯示「每N小時1次」標明呢張係真處方而唔係補白列。
   const rows: string[] = [];
 
   // --- AM 時段（依序渲染簽署列＋檢測列）---
