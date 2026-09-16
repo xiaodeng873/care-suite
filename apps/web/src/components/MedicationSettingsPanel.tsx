@@ -280,7 +280,7 @@ const MedicationSettingsPanel: React.FC = () => {
         </h3>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <h4 className="text-sm font-semibold text-gray-800 mb-1">每日服用次數</h4>
-          <p className="text-xs text-gray-400 mb-3">QD / BD / TDS / QID 等標籤由系統自動對應</p>
+          <p className="text-xs text-gray-400 mb-3">QD / BD / TDS / QID 等標籤由系統自動對應；指施藥當日應施次數，邊日施藥由處方頻率類型決定</p>
           <div className="mb-3 flex gap-2 max-w-xs">
             <input type="number" min={1} max={24} value={newFreq}
               onChange={e => setNewFreq(e.target.value)}

@@ -31,6 +31,8 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
     special_diets: guidance?.special_diets || [] as SpecialDietType[],
     needs_thickener: guidance?.needs_thickener || false,
     needs_feeding: guidance?.needs_feeding || false,
+    needs_water_restriction: guidance?.needs_water_restriction || false,
+    water_restriction_amount_ml: guidance?.water_restriction_amount_ml?.toString() || '',
     thickener_amount: guidance?.thickener_amount || '',
     thickener_formula: guidance?.thickener_formula || '普通配方',
     egg_quantity: guidance?.egg_quantity?.toString() || '',
@@ -119,6 +121,8 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
             special_diets: existingGuidance.special_diets || [],
             needs_thickener: existingGuidance.needs_thickener || false,
             needs_feeding: existingGuidance.needs_feeding || false,
+            needs_water_restriction: existingGuidance.needs_water_restriction || false,
+            water_restriction_amount_ml: existingGuidance.water_restriction_amount_ml?.toString() || '',
             thickener_amount: existingGuidance.thickener_amount || '',
             thickener_formula: existingGuidance.thickener_formula || '普通配方',
             egg_quantity: existingGuidance.egg_quantity?.toString() || '',
@@ -139,6 +143,11 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
 
     if (formData.needs_thickener && !formData.thickener_amount.trim()) {
       alert('使用凝固粉時請輸入分量');
+      return;
+    }
+
+    if (formData.needs_water_restriction && (!formData.water_restriction_amount_ml || parseInt(formData.water_restriction_amount_ml) < 1)) {
+      alert('勾選需限水時請輸入有效的每日限水量（ml）');
       return;
     }
 
@@ -165,6 +174,8 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
         special_diets: formData.special_diets,
         needs_thickener: formData.needs_thickener,
         needs_feeding: formData.needs_feeding,
+        needs_water_restriction: formData.needs_water_restriction,
+        water_restriction_amount_ml: formData.needs_water_restriction ? parseInt(formData.water_restriction_amount_ml) : null,
         thickener_amount: formData.needs_thickener ? formData.thickener_amount : null,
         thickener_formula: formData.needs_thickener ? formData.thickener_formula : null,
         egg_quantity: formData.special_diets.includes('雞蛋') ? parseInt(formData.egg_quantity) : null,
@@ -426,6 +437,40 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
             <div className="flex flex-wrap items-center gap-3">
               <input
                 type="checkbox"
+                id="needs_water_restriction"
+                name="needs_water_restriction"
+                checked={formData.needs_water_restriction}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="needs_water_restriction" className="text-sm font-medium text-gray-700 flex items-center">
+                <Droplets className="h-4 w-4 mr-1" />
+                需要限水
+              </label>
+            </div>
+
+            {formData.needs_water_restriction && (
+              <div className="ml-7">
+                <label className="form-label">每日限水量（ml） *</label>
+                <input
+                  type="number"
+                  name="water_restriction_amount_ml"
+                  value={formData.water_restriction_amount_ml}
+                  onChange={handleChange}
+                  className="form-input w-32"
+                  placeholder="例如：1000"
+                  min="1"
+                  required={formData.needs_water_restriction}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  請輸入每日限水量（ml）
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="checkbox"
                 id="needs_feeding"
                 name="needs_feeding"
                 checked={formData.needs_feeding}
@@ -433,7 +478,7 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="needs_feeding" className="text-sm font-medium text-gray-700 flex items-center">
-                需喂食
+                需要喂食
               </label>
             </div>
           </div>
@@ -509,10 +554,17 @@ const MealGuidanceModal: React.FC<MealGuidanceModalProps> = ({ guidance, onClose
                   </span>
                 </div>
               )}
+
+              {formData.needs_water_restriction && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-gray-600">需要限水:</span>
+                  <span className="font-medium text-blue-600">{formData.water_restriction_amount_ml || '待填寫'}ml</span>
+                </div>
+              )}
               
               {formData.needs_feeding && (
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-gray-600">需喂食:</span>
+                  <span className="text-gray-600">需要喂食:</span>
                   <span className="font-medium text-blue-600">是</span>
                 </div>
               )}

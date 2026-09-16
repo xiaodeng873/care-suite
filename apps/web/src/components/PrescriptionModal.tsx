@@ -1032,7 +1032,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
               </div>
 
               <div>
-                <label className="form-label">每日服用次數</label>
+                <label className="form-label">當日服用次數</label>
                 <select
                   name="daily_frequency"
                   value={formData.daily_frequency}
@@ -1048,10 +1048,10 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                   <option value={0}>無</option>
                   {medSettings.每日次數.map(n => {
                     const labels: Record<number,string> = {1:'QD',2:'BD',3:'TDS',4:'QID'};
-                    return <option key={n} value={n}>{labels[n] ? `${labels[n]} (每日${n}次)` : `每日${n}次`}</option>;
+                    return <option key={n} value={n}>{labels[n] ? `${labels[n]} (當日${n}次)` : `當日${n}次`}</option>;
                   })}
                 </select>
-              </div>
+                </div>
 
               {/* 服用份量/單位 與 特殊用法 可同時並存 */}
               <div className="space-y-3">

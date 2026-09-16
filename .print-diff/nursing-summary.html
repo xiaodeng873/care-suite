@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<title>護理摘要</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang TC", sans-serif;
+    margin: 0;
+    color: #000;
+    line-height: 1.25;
+  }
+  .ns-head { text-align: center; }
+  .ns-facility { font-size: 15px; font-weight: bold; }
+  .ns-title { font-size: 20px; font-weight: bold; letter-spacing: 4px; margin: 1mm 0; }
+  .ns-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: bold;
+    border: 1px solid #000;
+    padding: 1.5mm 2mm;
+    margin: 2mm 0 3mm;
+  }
+  .ns-body { display: flex; gap: 4mm; }
+  .ns-left { width: 62%; }
+  .ns-right { flex: 1; }
+  .ns-sec { border: 1px solid #000; margin-bottom: 3mm; }
+  .ns-sec-title {
+    background: #eee;
+    font-size: 10.5px;
+    font-weight: bold;
+    padding: 1mm 2mm;
+    border-bottom: 1px solid #000;
+  }
+  .ns-sec-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .ns-sec-table td {
+    border: 0.5pt solid #000;
+    font-size: 10px;
+    padding: 1.6mm 1.5mm;
+    height: 8mm;
+    vertical-align: middle;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .ns-group { border: 1px solid #000; margin-bottom: 3mm; }
+  .ns-group-title {
+    background: #eee;
+    font-size: 10.5px;
+    font-weight: bold;
+    padding: 1mm 2mm;
+    border-bottom: 1px solid #000;
+  }
+  .ns-checks { padding: 1mm 2mm 1.5mm; }
+  .ns-check { font-size: 10px; padding: 0.9mm 0; }
+  .ns-remark-lines { padding: 1mm 2mm; }
+  .ns-remark-line { border-bottom: 0.5pt solid #000; height: 7mm; }
+  .ns-foot { margin-top: 2mm; font-size: 9.5px; }
+  .ns-hint { margin-bottom: 1mm; }
+</style>
+</head>
+<body>
+  <div class="ns-head">
+    <div class="ns-facility">善頤(福群)護老院</div>
+    <div class="ns-title">護理摘要</div>
+  </div>
+  <div class="ns-meta">
+    <span>床號：A101-2</span>
+    <span>院友姓名：陳大文</span>
+    <span>更新日期：＿＿＿＿＿＿</span>
+    <span>職員簽署：＿＿＿＿＿＿</span>
+  </div>
+  <div class="ns-body">
+    <div class="ns-left">
+      
+    <div class="ns-sec">
+      <div class="ns-sec-title">膳食</div>
+      <table class="ns-sec-table"><tr><td>□ 正常</td><td>□ 糊餐</td><td>□ 飯：好</td></tr><tr><td>□ 飯：爛</td><td>□ 飯：糊</td><td>□ 餸：正常</td></tr><tr><td>□ 餸：剪碎</td><td>□ 餸：攪碎</td><td>□ 低鉀</td></tr><tr><td>□ 齋</td><td>□ 其他：＿＿＿＿</td><td colspan="1"></td></tr></table>
+    </div>
+  
+    <div class="ns-sec">
+      <div class="ns-sec-title">流質</div>
+      <table class="ns-sec-table"><tr><td>□ 正常</td><td>□ 凝固粉（每日＿＿匙）</td><td>□ 每日限水＿＿L</td></tr><tr><td>□ 每天鼓勵進水</td><td colspan="2"></td></tr></table>
+    </div>
+  
+    <div class="ns-sec">
+      <div class="ns-sec-title">活動能力</div>
+      <table class="ns-sec-table"><tr><td>□ 自行走動</td><td>□ 拐杖</td><td>□ 助行架</td></tr><tr><td>□ 輪椅</td><td>□ 長期臥床</td><td>□ 跌倒風險</td></tr></table>
+    </div>
+  
+    <div class="ns-sec">
+      <div class="ns-sec-title">排泄能力</div>
+      <table class="ns-sec-table"><tr><td>□ 使用尿片</td><td>□ 正常如廁</td><td>□ 尿壺</td></tr><tr><td>□ 便椅</td><td>□ 尿喉</td><td colspan="1"></td></tr></table>
+    </div>
+  
+    <div class="ns-sec">
+      <div class="ns-sec-title">約束衣物</div>
+      <table class="ns-sec-table"><tr><td>□ 安全衣</td><td>□ 防滑襪</td><td>□ 保護手套</td></tr><tr><td>□ 手腕帶</td><td>□ 安全帶</td><td colspan="1"></td></tr></table>
+    </div>
+  
+    </div>
+    <div class="ns-right">
+      
+  <div class="ns-group">
+    <div class="ns-group-title">自理能力</div>
+    <div class="ns-checks"><div class="ns-check">□ 全自理</div><div class="ns-check">□ 需協助</div><div class="ns-check">□ 全護理</div></div>
+  </div>
+
+      
+  <div class="ns-group">
+    <div class="ns-group-title">特別護理</div>
+    <div class="ns-checks"><div class="ns-check">□ 每兩小時協助轉身</div><div class="ns-check">□ 口腔護理</div><div class="ns-check">□ 鼻胃飼 每日＿＿餐 ＿＿ml + H₂O ＿＿ml</div><div class="ns-check">□ 尿喉護理</div><div class="ns-check">□ 傷口護理</div><div class="ns-check">□ 血液透析</div><div class="ns-check">□ 腹膜透析</div><div class="ns-check">□ 長期氧氣治療（O₂）＿＿L/min</div><div class="ns-check">□ 遊走風險高</div></div>
+  </div>
+
+      
+  <div class="ns-group">
+    <div class="ns-group-title">扶抱</div>
+    <div class="ns-checks"><div class="ns-check">□ 單人扶抱</div><div class="ns-check">□ 雙人扶抱</div><div class="ns-check">□ 輔助工具（註明：＿＿＿＿＿＿）</div></div>
+  </div>
+
+      <div class="ns-group">
+        <div class="ns-group-title">備註</div>
+        <div class="ns-remark-lines">
+          <div class="ns-remark-line"></div>
+          <div class="ns-remark-line"></div>
+          <div class="ns-remark-line"></div>
+        </div>
+      </div>
+      <div class="ns-foot">
+        <div class="ns-hint">#請用紅色白板筆圈出適用項目。</div>
+        <div>Last Updated: ＿＿＿＿＿＿</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<title>護理摘要</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang TC", sans-serif;
+    margin: 0;
+    color: #000;
+    line-height: 1.25;
+  }
+  .ns-head { text-align: center; }
+  .ns-facility { font-size: 15px; font-weight: bold; }
+  .ns-title { font-size: 20px; font-weight: bold; letter-spacing: 4px; margin: 1mm 0; }
+  .ns-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: bold;
+    border: 1px solid #000;
+    padding: 1.5mm 2mm;
+    margin: 2mm 0 3mm;
+  }
+  .ns-body { display: flex; gap: 4mm; }
+  .ns-left { width: 62%; }
+  .ns-right { flex: 1; }
+  .ns-sec { border: 1px solid #000; margin-bottom: 3mm; }
+  .ns-sec-title {
+    background: #eee;
+    font-size: 10.5px;
+    font-weight: bold;
+    padding: 1mm 2mm;
+    border-bottom: 1px solid #000;
+  }
+  .ns-sec-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .ns-sec-table td {
+    border: 0.5pt solid #000;
+    font-size: 10px;
+    padding: 1.6mm 1.5mm;
+    height: 8mm;
+    vertical-align: middle;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .ns-group { border: 1px solid #000; margin-bottom: 3mm; }
+  .ns-group-title {
+    background: #eee;
+    font-size: 10.5px;
+    font-weight: bold;
+    padding: 1mm 2mm;
+    border-bottom: 1px solid #000;
+  }
+  .ns-checks { padding: 1mm 2mm 1.5mm; }
+  .ns-check { font-size: 10px; padding: 0.9mm 0; }
+  .ns-remark-lines { padding: 1mm 2mm; }
+  .ns-remark-line { border-bottom: 0.5pt solid #000; height: 7mm; }
+  .ns-foot { margin-top: 2mm; font-size: 9.5px; }
+  .ns-hint { margin-bottom: 1mm; }
+</style>
+</head>
+<body>
+  <div class="ns-head">
+    <div class="ns-facility">善頤(福群)護老院</div>
+    <div class="ns-title">護理摘要</div>
+  </div>
+  <div class="ns-meta">
+    <span>床號：B202-1</span>
+    <span>院友姓名：李美玲</span>
+    <span>更新日期：＿＿＿＿＿＿</span>
+    <span>職員簽署：＿＿＿＿＿＿</span>
+  </div>
+  <div class="ns-body">
+    <div class="ns-left">
+      
+    <div class="ns-sec">
+      <div class="ns-sec-title">膳食</div>
+      <table class="ns-sec-table"><tr><td>□ 正常</td><td>□ 糊餐</td><td>□ 飯：好</td></tr><tr><td>□ 飯：爛</td><td>□ 飯：糊</td><td>□ 餸：正常</td></tr><tr><td>□ 餸：剪碎</td><td>□ 餸：攪碎</td><td>□ 低鉀</td></tr><tr><td>□ 齋</td><td>□ 其他：＿＿＿＿</td><td colspan="1"></td></tr></table>
+    </div>
+  
+    <div class="ns-sec">
+      <div class="ns-sec-title">流質</div>
+      <table class="ns-sec-table"><tr><td>□ 正常</td><td>□ 凝固粉（每日＿＿匙）</td><td>□ 每日限水＿＿L</td></tr><tr><td>□ 每天鼓勵進水</td><td colspan="2"></td></tr></table>
+    </div>
+  
+    <div class="ns-sec">
+      <div class="ns-sec-title">活動能力</div>
+      <table class="ns-sec-table"><tr><td>□ 自行走動</td><td>□ 拐杖</td><td>□ 助行架</td></tr><tr><td>□ 輪椅</td><td>□ 長期臥床</td><td>□ 跌倒風險</td></tr></table>
+    </div>
+  
+    <div class="ns-sec">
+      <div class="ns-sec-title">排泄能力</div>
+      <table class="ns-sec-table"><tr><td>□ 使用尿片</td><td>□ 正常如廁</td><td>□ 尿壺</td></tr><tr><td>□ 便椅</td><td>□ 尿喉</td><td colspan="1"></td></tr></table>
+    </div>
+  
+    <div class="ns-sec">
+      <div class="ns-sec-title">約束衣物</div>
+      <table class="ns-sec-table"><tr><td>□ 安全衣</td><td>□ 防滑襪</td><td>□ 保護手套</td></tr><tr><td>□ 手腕帶</td><td>□ 安全帶</td><td colspan="1"></td></tr></table>
+    </div>
+  
+    </div>
+    <div class="ns-right">
+      
+  <div class="ns-group">
+    <div class="ns-group-title">自理能力</div>
+    <div class="ns-checks"><div class="ns-check">□ 全自理</div><div class="ns-check">□ 需協助</div><div class="ns-check">□ 全護理</div></div>
+  </div>
+
+      
+  <div class="ns-group">
+    <div class="ns-group-title">特別護理</div>
+    <div class="ns-checks"><div class="ns-check">□ 每兩小時協助轉身</div><div class="ns-check">□ 口腔護理</div><div class="ns-check">□ 鼻胃飼 每日＿＿餐 ＿＿ml + H₂O ＿＿ml</div><div class="ns-check">□ 尿喉護理</div><div class="ns-check">□ 傷口護理</div><div class="ns-check">□ 血液透析</div><div class="ns-check">□ 腹膜透析</div><div class="ns-check">□ 長期氧氣治療（O₂）＿＿L/min</div><div class="ns-check">□ 遊走風險高</div></div>
+  </div>
+
+      
+  <div class="ns-group">
+    <div class="ns-group-title">扶抱</div>
+    <div class="ns-checks"><div class="ns-check">□ 單人扶抱</div><div class="ns-check">□ 雙人扶抱</div><div class="ns-check">□ 輔助工具（註明：＿＿＿＿＿＿）</div></div>
+  </div>
+
+      <div class="ns-group">
+        <div class="ns-group-title">備註</div>
+        <div class="ns-remark-lines">
+          <div class="ns-remark-line"></div>
+          <div class="ns-remark-line"></div>
+          <div class="ns-remark-line"></div>
+        </div>
+      </div>
+      <div class="ns-foot">
+        <div class="ns-hint">#請用紅色白板筆圈出適用項目。</div>
+        <div>Last Updated: ＿＿＿＿＿＿</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<title>護理摘要</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang TC", sans-serif;
+    margin: 0;
+    color: #000;
+    line-height: 1.25;
+  }
+  .ns-head { text-align: center; }
+  .ns-facility { font-size: 15px; font-weight: bold; }
+  .ns-title { font-size: 20px; font-weight: bold; letter-spacing: 4px; margin: 1mm 0; }
+  .ns-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: bold;
+    border: 1px solid #000;
+    padding: 1.5mm 2mm;
+    margin: 2mm 0 3mm;
+  }
+  .ns-body { display: flex; gap: 4mm; }
+  .ns-left { width: 62%; }
+  .ns-right { flex: 1; }
+  .ns-sec { border: 1px solid #000; margin-bottom: 3mm; }
+  .ns-sec-title {
+    background: #eee;
+    font-size: 10.5px;
+    font-weight: bold;
+    padding: 1mm 2mm;
+    border-bottom: 1px solid #000;
+  }
+  .ns-sec-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .ns-sec-table td {
+    border: 0.5pt solid #000;
+    font-size: 10px;
+    padding: 1.6mm 1.5mm;
+    height: 8mm;
+    vertical-align: middle;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .ns-group { border: 1px solid #000; margin-bottom: 3mm; }
+  .ns-group-title {
+    background: #eee;
+    font-size: 10.5px;
+    font-weight: bold;
+    padding: 1mm 2mm;
+    border-bottom: 1px solid #000;
+  }
+  .ns-checks { padding: 1mm 2mm 1.5mm; }
+  .ns-check { font-size: 10px; padding: 0.9mm 0; }
+  .ns-remark-lines { padding: 1mm 2mm; }
+  .ns-remark-line { border-bottom: 0.5pt solid #000; height: 7mm; }
+  .ns-foot { margin-top: 2mm; font-size: 9.5px; }
+  .ns-hint { margin-bottom: 1mm; }
+</style>
+</head>
+<body>
+  <div class="ns-head">
+    <div class="ns-facility">善頤(福群)護老院</div>
+    <div class="ns-title">護理摘要</div>
+  </div>
+  <div class="ns-meta">
+    <span>床號：</span>
+    <span>院友姓名：黃志明</span>
+    <span>更新日期：＿＿＿＿＿＿</span>
+    <span>職員簽署：＿＿＿＿＿＿</span>
+  </div>
+  <div class="ns-body">
+    <div class="ns-left">
+      
+    <div class="ns-sec">
+      <div class="ns-sec-title">膳食</div>
+      <table class="ns-sec-table"><tr><td>□ 正常</td><td>□ 糊餐</td><td>□ 飯：好</td></tr><tr><td>□ 飯：爛</td><td>□ 飯：糊</td><td>□ 餸：正常</td></tr><tr><td>□ 餸：剪碎</td><td>□ 餸：攪碎</td><td>□ 低鉀</td></tr><tr><td>□ 齋</td><td>□ 其他：＿＿＿＿</td><td colspan="1"></td></tr></table>
+    </div>
+  
+    <div class="ns-sec">
+      <div class="ns-sec-title">流質</div>
+      <table class="ns-sec-table"><tr><td>□ 正常</td><td>□ 凝固粉（每日＿＿匙）</td><td>□ 每日限水＿＿L</td></tr><tr><td>□ 每天鼓勵進水</td><td colspan="2"></td></tr></table>
+    </div>
+  
+    <div class="ns-sec">
+      <div class="ns-sec-title">活動能力</div>
+      <table class="ns-sec-table"><tr><td>□ 自行走動</td><td>□ 拐杖</td><td>□ 助行架</td></tr><tr><td>□ 輪椅</td><td>□ 長期臥床</td><td>□ 跌倒風險</td></tr></table>
+    </div>
+  
+    <div class="ns-sec">
+      <div class="ns-sec-title">排泄能力</div>
+      <table class="ns-sec-table"><tr><td>□ 使用尿片</td><td>□ 正常如廁</td><td>□ 尿壺</td></tr><tr><td>□ 便椅</td><td>□ 尿喉</td><td colspan="1"></td></tr></table>
+    </div>
+  
+    <div class="ns-sec">
+      <div class="ns-sec-title">約束衣物</div>
+      <table class="ns-sec-table"><tr><td>□ 安全衣</td><td>□ 防滑襪</td><td>□ 保護手套</td></tr><tr><td>□ 手腕帶</td><td>□ 安全帶</td><td colspan="1"></td></tr></table>
+    </div>
+  
+    </div>
+    <div class="ns-right">
+      
+  <div class="ns-group">
+    <div class="ns-group-title">自理能力</div>
+    <div class="ns-checks"><div class="ns-check">□ 全自理</div><div class="ns-check">□ 需協助</div><div class="ns-check">□ 全護理</div></div>
+  </div>
+
+      
+  <div class="ns-group">
+    <div class="ns-group-title">特別護理</div>
+    <div class="ns-checks"><div class="ns-check">□ 每兩小時協助轉身</div><div class="ns-check">□ 口腔護理</div><div class="ns-check">□ 鼻胃飼 每日＿＿餐 ＿＿ml + H₂O ＿＿ml</div><div class="ns-check">□ 尿喉護理</div><div class="ns-check">□ 傷口護理</div><div class="ns-check">□ 血液透析</div><div class="ns-check">□ 腹膜透析</div><div class="ns-check">□ 長期氧氣治療（O₂）＿＿L/min</div><div class="ns-check">□ 遊走風險高</div></div>
+  </div>
+
+      
+  <div class="ns-group">
+    <div class="ns-group-title">扶抱</div>
+    <div class="ns-checks"><div class="ns-check">□ 單人扶抱</div><div class="ns-check">□ 雙人扶抱</div><div class="ns-check">□ 輔助工具（註明：＿＿＿＿＿＿）</div></div>
+  </div>
+
+      <div class="ns-group">
+        <div class="ns-group-title">備註</div>
+        <div class="ns-remark-lines">
+          <div class="ns-remark-line"></div>
+          <div class="ns-remark-line"></div>
+          <div class="ns-remark-line"></div>
+        </div>
+      </div>
+      <div class="ns-foot">
+        <div class="ns-hint">#請用紅色白板筆圈出適用項目。</div>
+        <div>Last Updated: ＿＿＿＿＿＿</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

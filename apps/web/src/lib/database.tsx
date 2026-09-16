@@ -190,6 +190,8 @@ export interface MealGuidance {
   special_diets: SpecialDietType[];
   needs_thickener: boolean;
   needs_feeding?: boolean;
+  needs_water_restriction?: boolean;
+  water_restriction_amount_ml?: number;
   thickener_amount?: string;
   thickener_formula?: string;
   egg_quantity?: number;

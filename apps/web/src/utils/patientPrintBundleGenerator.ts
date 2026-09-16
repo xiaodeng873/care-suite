@@ -81,6 +81,7 @@ const EXTRA_PAGE_LOGO_IDS = new Set([
   'bodyweight_record',       // 院友體重記錄
   'blood_sugar_record',      // 院友血糖記錄
   'nursing_treatment',       // 護理及治療記錄
+  'nursing_summary',         // 護理摘要
   'wound_assessment',        // 傷口評估記錄表
   'accident_report',         // 意外事件報告
   'restraint_usage_common',  // 使用約束物品紀錄
@@ -158,6 +159,18 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
       case 'nursing_assessment': {
         const mod = await import('./docHtmlGenerators/nursingAssessmentGenerator');
         return mod.generateNursingAssessmentHtml;
+      }
+      case 'nursing_summary': {
+        const mod = await import('./docHtmlGenerators/nursingSummaryGenerator');
+        return async (ctx) => {
+          // data 模式由餐膳指引映射餐類組合/特殊餐膳/凝固粉；basic/blank 空白表格
+          let mealGuidances = ctx.mealGuidances || [];
+          if (ctx.contentMode === 'data' && mealGuidances.length === 0) {
+            const db = await import('../lib/database');
+            mealGuidances = await db.getMealGuidances();
+          }
+          return mod.generateNursingSummaryHtml({ ...ctx, mealGuidances });
+        };
       }
       case 'vital_signs_record': {
         const mod = await import('./bloodPressureRecordWorksheetGenerator');

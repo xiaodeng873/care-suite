@@ -77,13 +77,19 @@ const getFrequencyDescription = (prescription: any) => {
   };
 
   const timeSlotsCount = medication_time_slots?.length || 0;
-  const perDay = daily_frequency || timeSlotsCount || frequency_value || 1;
+  // 兩個正交軸：frequency_type 決定「逢邊日施藥」；daily_frequency 決定「施藥當日施幾多次」。
+  // frequency_value 係間隔天數，唔係當日次數，唔用嚟推算 perDay。
+  const perDay = daily_frequency || timeSlotsCount || 1;
 
   switch (frequency_type) {
     case 'daily':
       return getFrequencyAbbreviation(perDay);
-    case 'every_x_days':
-      return `每${frequency_value}日${perDay}次`;
+    case 'every_x_days': {
+      const gap = Number(frequency_value) || 1;
+      if (gap === 1) return getFrequencyAbbreviation(perDay);
+      if (gap === 2) return `隔日${perDay}次`;
+      return `每${gap}日${perDay}次`;
+    }
     case 'every_x_weeks':
       return `每${frequency_value}星期${perDay}次`;
     case 'every_x_months':

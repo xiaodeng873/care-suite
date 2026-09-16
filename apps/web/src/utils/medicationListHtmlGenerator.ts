@@ -121,14 +121,16 @@ function formatHKID(id?: string): string {
 function getFrequencyDescription(p: MedicationPrescription): string {
   const slots = p.medication_time_slots ?? [];
   const dailyCount = (count: number): string => `每日${count}次`;
-  // 頻率以每日次數為準，沒有才按服用時間點數目推算（PRN 可每日3次但只設一個時間點）
-  const perDay = p.daily_frequency || slots.length || p.frequency_value || 1;
+  // 兩個正交軸：frequency_type 決定「逢邊日施藥」；daily_frequency 決定「施藥當日施幾多次」，
+  // 冇登記先按服用時間點數目推算（PRN 可每日3次但只設一個時間點）。
+  // frequency_value 係「間隔天數」，唔係當日次數，唔用嚟推算 perDay。
+  const perDay = p.daily_frequency || slots.length || 1;
   switch (p.frequency_type) {
     case 'daily': return dailyCount(perDay);
     case 'every_x_days': {
       const gap = Number(p.frequency_value) || 1;
       if (gap === 1) return dailyCount(perDay);
-      if (gap === 2) return perDay === 1 ? '隔日' : `隔日${perDay}次`;
+      if (gap === 2) return `隔日${perDay}次`;
       return `每${gap}日${perDay}次`;
     }
     case 'every_x_weeks': return `每${p.frequency_value}星期${perDay}次`;

@@ -45,7 +45,8 @@ const getFrequencyDescription = (prescription: MedicationPrescription) => {
   };
 
   const timeSlotsCount = medication_time_slots?.length || 0;
-  const perDay = daily_frequency || timeSlotsCount || frequency_value || 1;
+  // 兩個正交軸：frequency_type 決定「逢邊日施藥」；daily_frequency 決定「施藥當日施幾多次」
+  const perDay = daily_frequency || timeSlotsCount || 1;
 
   switch (frequency_type) {
     case 'daily':
@@ -53,7 +54,7 @@ const getFrequencyDescription = (prescription: MedicationPrescription) => {
     case 'every_x_days': {
       const gap = Number(frequency_value) || 1;
       if (gap === 1) return getFrequencyAbbreviation(perDay);
-      if (gap === 2) return perDay === 1 ? '隔日' : `隔日${perDay}次`;
+      if (gap === 2) return `隔日${perDay}次`;
       return `隔${gap}日${perDay}次`;
     }
     case 'every_x_weeks':

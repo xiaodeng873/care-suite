@@ -1394,21 +1394,18 @@ const parseTimeToMinutes = (timeStr: string): number => {
 };
 
 const getFrequencyDescription = (prescription: MedicationPrescription): string => {
-  const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency, is_prn } = prescription;
+  const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
   const timeSlotsCount = medication_time_slots?.length ?? 0;
-  // 頻率以處方登記的每日次數為準，沒有才按服用時間點數目推算；
-  // PRN 常見 TDS 只設一個時間點，此時仍應顯示 TDS（每日3次）。
-  const perDay = daily_frequency || timeSlotsCount || frequency_value || 1;
-
-  // PRN 的「每N日/每N星期」只是護理安排（需要時決定哪天服），處方本身仍是每日，文字須跟處方；
+  // 兩個正交軸：frequency_type 決定「逢邊日施藥」，daily_frequency 決定「施藥當日施幾多次」。
+  // PRN 只係「需要時」，唔改變逢日規則——PRN 隔日照印「隔日N次」，唔會强制變「每日N次」；
   // 非服藥日安排已由日期格的灰化表達。
-  if (is_prn && (frequency_type === 'every_x_days' || frequency_type === 'every_x_weeks')) return `每日${perDay}次`;
+  const perDay = daily_frequency || timeSlotsCount || 1;
 
   switch (frequency_type) {
     case 'every_x_days': {
       const gap = Number(frequency_value) || 1;
       if (gap === 1) return `每日${perDay}次`;
-      if (gap === 2) return perDay === 1 ? '隔日' : `隔日${perDay}次`;
+      if (gap === 2) return `隔日${perDay}次`;
       return `每${gap}日${perDay}次`;
     }
     case 'every_x_weeks': {

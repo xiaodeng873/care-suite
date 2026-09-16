@@ -59,14 +59,20 @@ const renderMealInfo = (g: MealGuidance | undefined): string => {
   return `<div class="mg-info">${lines.join('')}</div>`;
 };
 
-/** 備註列：有用凝固粉就寫，清透配方先加注；空白唔加「—」 */
+/** 備註列：有用凝固粉／需限水就寫，以「；」分隔；指示用紅色字，空白唔加「—」 */
 const renderFooterRemark = (g: MealGuidance | undefined): string => {
   const parts: string[] = [];
   if (g?.needs_thickener) {
     const amount = g.thickener_amount ? ` ${esc(g.thickener_amount)}` : '';
     parts.push(`凝固粉${amount}${g.thickener_formula === '清透配方' ? '（清透配方）' : ''}`);
   }
-  return `<div class="mg-footer"><span class="mg-footer-label">備註：</span>${parts.join('；')}</div>`;
+  if (g?.needs_water_restriction) {
+    parts.push(`每日限水 ${g.water_restriction_amount_ml ? `${g.water_restriction_amount_ml}ml` : '＿＿ml'}`);
+  }
+  const joined = parts.join('；');
+  // 兩項指示時內容變長：細字加換行，避免俾卡邊裁走
+  const wrapCls = joined.length > 14 ? ' mg-footer-wrap' : '';
+  return `<div class="mg-footer${wrapCls}"><span class="mg-footer-label">備註：</span><span class="mg-footer-red">${joined}</span></div>`;
 };
 
 const renderCard = (patient: Patient, guidance: MealGuidance | undefined, stationColor: string): string => {
@@ -269,6 +275,14 @@ body {
 }
 .mg-footer-label {
   font-weight: bold;
+}
+.mg-footer-red {
+  color: #dc2626;
+}
+.mg-footer-wrap {
+  white-space: normal;
+  font-size: 11pt;
+  line-height: 1.25;
 }
 @media print {
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

@@ -3204,17 +3204,15 @@ const MedicationWorkflow: React.FC = () => {
                                     )}
                                     <div>
                                       {(() => {
-                                        const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency, is_prn } = prescription;
-                                        const perDay = daily_frequency || (medication_time_slots?.length) || frequency_value || 1;
-                                        // PRN 的「每N日/每N星期」只是護理安排，處方本身仍是每日，文字須跟處方
-                                        if (is_prn && (frequency_type === 'every_x_days' || frequency_type === 'every_x_weeks')) {
-                                          return `每日${perDay}次`;
-                                        }
+                                        const { frequency_type, frequency_value, specific_weekdays, is_odd_even_day, medication_time_slots, daily_frequency } = prescription;
+                                        const perDay = daily_frequency || (medication_time_slots?.length) || 1;
+                                        // 兩個正交軸：frequency_type 決定「逢邊日施藥」，daily_frequency 決定「施藥當日施幾多次」；
+                                        // PRN 只係「需要時」，唔改變逢日規則（PRN 隔日照印「隔日N次」）
                                         switch (frequency_type) {
                                           case 'every_x_days': {
                                             const gap = Number(frequency_value) || 1;
                                             if (gap === 1) return `每日${perDay}次`;
-                                            if (gap === 2) return perDay === 1 ? '隔日' : `隔日${perDay}次`;
+                                            if (gap === 2) return `隔日${perDay}次`;
                                             return `每${gap}日${perDay}次`;
                                           }
                                           case 'every_x_weeks': {
