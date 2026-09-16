@@ -28,7 +28,7 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
     const start = new Date(startDate);
     const dates = [];
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 2; i++) {
       const date = new Date(start);
       date.setDate(start.getDate() + i);
       const weekday = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][date.getDay()];
@@ -41,7 +41,7 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
   const getFileName = () => {
     const start = new Date(startDate);
     const end = new Date(start);
-    end.setDate(start.getDate() + 3);
+    end.setDate(start.getDate() + 1);
 
     const formatDate = (date: Date) => {
       return date.toISOString().split('T')[0].replace(/-/g, '');
@@ -157,7 +157,7 @@ const MonitoringTaskWorksheetModal: React.FC<MonitoringTaskWorksheetModalProps> 
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm font-medium text-gray-900 mb-2">
-              將匯出連續4天的工作紙：
+              將匯出連續2天的工作紙：
             </p>
             <ul className="space-y-1 text-sm text-gray-700">
               {dates.map((date, index) =>

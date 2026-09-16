@@ -40,7 +40,7 @@ type SortDirection = 'asc' | 'desc';
 interface TaskFilters {
   searchTerm: string;
   filterType: 'all' | HealthTaskType;
-  filterStatus: 'all' | 'overdue' | 'due_soon' | 'pending' | 'scheduled';
+  filterStatus: 'all' | 'overdue' | 'due_soon' | 'pending' | 'scheduled' | 'ended';
   床號: string;
   中文姓名: string;
   health_record_type: string;
@@ -547,6 +547,13 @@ const TaskManagement: React.FC = () => {
             排程中
           </span>
         );
+      case 'ended':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            已結束
+          </span>
+        );
     }
   };
 
@@ -720,6 +727,7 @@ const TaskManagement: React.FC = () => {
                     <option value="pending">未完成</option>
                     <option value="due_soon">即將到期</option>
                     <option value="scheduled">排程中</option>
+                    <option value="ended">已結束</option>
                   </select>
                 </div>
                 

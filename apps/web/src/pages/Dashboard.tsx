@@ -5,7 +5,7 @@ import { LoadingScreen } from '../components/PageLoadingScreen';
 import TaskModal from '../components/TaskModal';
 import { Hop as Home, Users, Calendar, Heart, SquareCheck as CheckSquare, TriangleAlert as AlertTriangle, Clock, TrendingUp, TrendingDown, Activity, Droplets, Scale, FileText, Stethoscope, Shield, CalendarCheck, Utensils, BookOpen, Guitar as Hospital, Pill, Building2, X, User, ArrowRight, Repeat, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { isTaskOverdue, isTaskPendingToday, isTaskDueSoon, getTaskStatus, isDocumentTask, isMonitoringTask, isNursingTask, isRestraintAssessmentOverdue, isRestraintAssessmentDueSoon, isHealthAssessmentOverdue, isHealthAssessmentDueSoon, isTubeCareOverdue, isTubeCareDueSoon, calculateNextDueDate, isTaskScheduledForDate, formatFrequencyDescription, findFirstMissingDate, taskHasRecordLookup, taskRecordVitalTypes } from '../utils/taskScheduler';
+import { isTaskOverdue, isTaskPendingToday, isTaskDueSoon, getTaskStatus, isDocumentTask, isMonitoringTask, isNursingTask, isRestraintAssessmentOverdue, isRestraintAssessmentDueSoon, isHealthAssessmentOverdue, isHealthAssessmentDueSoon, isTubeCareOverdue, isTubeCareDueSoon, calculateNextDueDate, isTaskScheduledForDate, formatFrequencyDescription, findFirstMissingDate, taskHasRecordLookup, taskRecordVitalTypes, isTaskCompletedForDate } from '../utils/taskScheduler';
 import { computeEstimatedEndDate, daysUntil } from '../utils/estimatedEndDate';
 import HealthRecordModal from '../components/HealthRecordModal';
 import MealGuidanceModal from '../components/MealGuidanceModal';
@@ -220,14 +220,7 @@ const Dashboard: React.FC = () => {
           }
           continue;
         }
-        let isDateCompleted = false;
-        if (normalizedTaskTimes.length > 0 && task.health_record_type !== '體重') {
-          isDateCompleted = normalizedTaskTimes.every(time =>
-            hasRecordWithinTolerance([`${task.id}_${dateStr}`, ...taskRecordVitalTypes(task.health_record_type).map(tp => `${task.patient_id?.toString()}_${tp}_${dateStr}`)], time)
-          );
-        } else {
-          isDateCompleted = taskHasRecordLookup(task, recordLookup, dateStr);
-        }
+        const isDateCompleted = isTaskCompletedForDate(task, dateStr, recordLookup, recordTimes);
         if (!isDateCompleted) {
           targetDate = dateStr;
           if (isLyuPatient) {
@@ -241,18 +234,25 @@ const Dashboard: React.FC = () => {
         targetDate = formatLocalDate(today);
       }
     }
+    // [修正] 只彈出目標日期未完成嘅任務類型：已完成嘅類型唔再顯示，
+    // 避免逾期補錄後再點卡片重複彈出已輸入嘅項目（例如補完生命表徵後應該只彈血糖）
+    const effectiveDate = targetDate;
+    const candidateTasks = groupTasks && groupTasks.length > 0 ? groupTasks : [task];
+    const remainingTasks = candidateTasks.filter(t => !isTaskCompletedForDate(t, effectiveDate, recordLookup, recordTimes));
+    const tasksForModal = remainingTasks.length > 0 ? remainingTasks : candidateTasks;
+    const primaryTask = tasksForModal[0];
     let selectedTime: string | undefined;
-    if (task.specific_times && task.specific_times.length > 0) {
+    if (primaryTask.specific_times && primaryTask.specific_times.length > 0) {
       const dateRecords = healthRecords.filter(r => {
-        if (r.任務id && r.任務id === task.id) {
-          return r.記錄日期 === targetDate;
+        if (r.任務id && r.任務id === primaryTask.id) {
+          return r.記錄日期 === effectiveDate;
         }
-        return r.院友id.toString() === task.patient_id.toString() &&
-               taskRecordVitalTypes(task.health_record_type).includes(r.監測類型) &&
-               r.記錄日期 === targetDate;
+        return r.院友id.toString() === primaryTask.patient_id.toString() &&
+               taskRecordVitalTypes(primaryTask.health_record_type).includes(r.監測類型) &&
+               r.記錄日期 === effectiveDate;
       });
       const completedTimes = new Set(dateRecords.map(r => normalizeTime(r.記錄時間)));
-      selectedTime = task.specific_times.find(time => !completedTimes.has(normalizeTime(time)));
+      selectedTime = primaryTask.specific_times.find(time => !completedTimes.has(normalizeTime(time)));
     }
     const initialDataForModal = {
       patient: patient ? {
@@ -261,18 +261,18 @@ const Dashboard: React.FC = () => {
         床號: patient.床號
       } : undefined,
       task: {
-        id: task.id,
-        health_record_type: task.health_record_type,
-        next_due_at: task.next_due_at,
-        specific_times: task.specific_times,
-        notes: task.notes
+        id: primaryTask.id,
+        health_record_type: primaryTask.health_record_type,
+        next_due_at: primaryTask.next_due_at,
+        specific_times: primaryTask.specific_times,
+        notes: primaryTask.notes
       },
-      任務清單: (groupTasks && groupTasks.length > 0 ? groupTasks : [task]).map(t => ({
+      任務清單: tasksForModal.map(t => ({
         id: t.id,
         health_record_type: t.health_record_type,
         notes: t.notes,
       })),
-      預設日期: targetDate,
+      預設日期: effectiveDate,
       預設時間: selectedTime
     };
     setSelectedHealthRecordInitialData(initialDataForModal);
@@ -608,14 +608,7 @@ const Dashboard: React.FC = () => {
         if (!isTaskScheduledForDate(task, checkDate)) {
           continue;
         }
-        let isDateCompleted = false;
-        if (normalizedTaskTimes.length > 0 && task.health_record_type !== '體重') {
-          isDateCompleted = normalizedTaskTimes.every(time =>
-            hasRecordWithinTolerance([`${task.id}_${dateStr}`, ...taskRecordVitalTypes(task.health_record_type).map(tp => `${task.patient_id?.toString()}_${tp}_${dateStr}`)], time)
-          );
-        } else {
-          isDateCompleted = taskHasRecordLookup(task, recordLookup, dateStr);
-        }
+        const isDateCompleted = isTaskCompletedForDate(task, dateStr, recordLookup, recordTimes);
         if (!isDateCompleted) {
           const incompleteDate = new Date(checkDate);
           incompleteDates.push(incompleteDate);
@@ -1042,6 +1035,7 @@ const Dashboard: React.FC = () => {
       case '特別關顧': return 'bg-orange-500 text-white';
       case '異常監察': return 'bg-purple-500 text-white';
       case '最近出院': return 'bg-teal-500 text-white';
+      case '新入住': return 'bg-indigo-500 text-white';
       default: return 'bg-gray-500 text-white';
     }
   };
@@ -1507,8 +1501,8 @@ const Dashboard: React.FC = () => {
                              {task.notes && <p className="text-xs text-gray-500 mt-1">{task.notes}</p>}
                             <p className="text-xs text-gray-500">到期: {formatDisplayDate(task.next_due_at)}</p>
                         </div>
-                         <span className={`status-badge ${status === 'overdue' ? 'bg-red-100 text-red-800' : status === 'pending' ? 'bg-green-100 text-green-800' : status === 'due_soon' ? 'bg-orange-100 text-orange-800' : 'bg-purple-100 text-purple-800'}`}>
-                            {status === 'overdue' ? '逾期' : status === 'pending' ? '未完成' : status === 'due_soon' ? '即將到期' : '排程中'}
+                         <span className={`status-badge ${status === 'overdue' ? 'bg-red-100 text-red-800' : status === 'pending' ? 'bg-green-100 text-green-800' : status === 'due_soon' ? 'bg-orange-100 text-orange-800' : status === 'ended' ? 'bg-gray-100 text-gray-500' : 'bg-purple-100 text-purple-800'}`}>
+                            {status === 'overdue' ? '逾期' : status === 'pending' ? '未完成' : status === 'due_soon' ? '即將到期' : status === 'ended' ? '已結束' : '排程中'}
                         </span>
                     </div>
                  )

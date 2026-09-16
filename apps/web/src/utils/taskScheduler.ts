@@ -30,6 +30,32 @@ export function taskHasRecordLookup(task: PatientHealthTask, recordLookup: Set<s
     (tp) => recordLookup.has(`${pid}_${tp}_${dateStr}${suffix}`)
   );
 }
+
+// 判斷任務喺某日期係咪已完成（同 Dashboard 逾期掃描完全一致嘅語義）：
+// - 有特定時間點（體重除外）：每個時間點 ±toleranceMin 分鐘內有記錄（任務id 或 院友+類型 後備鍵）
+// - 冇特定時間點（或體重）：當日有記錄即可（唔分時間）
+// recordLookup / recordTimes 嘅鍵格式同 Dashboard 嘅 useMemo 一致
+export function isTaskCompletedForDate(
+  task: PatientHealthTask,
+  dateStr: string,
+  recordLookup: Set<string>,
+  recordTimes: Map<string, number[]>,
+  toleranceMin = 30,
+): boolean {
+  const toMin = (t: string) => { const [h, m] = t.substring(0, 5).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+  const times = (task.specific_times || []).map(t => t.substring(0, 5));
+  const keys = [
+    `${task.id}_${dateStr}`,
+    ...taskRecordVitalTypes(task.health_record_type).map(tp => `${task.patient_id?.toString()}_${tp}_${dateStr}`),
+  ];
+  if (times.length > 0 && task.health_record_type !== '體重') {
+    return times.every(time => {
+      const target = toMin(time);
+      return keys.some(k => (recordTimes.get(k) || []).some(min => Math.abs(min - target) <= toleranceMin));
+    });
+  }
+  return taskHasRecordLookup(task, recordLookup, dateStr);
+}
 // 判斷是否為護理任務
 export function isNursingTask(taskType: string): boolean {
   // 導尿管更換、鼻胃飼管更換 已移至「喉管護理」獨立管理；此處只保留 傷口換症
@@ -47,6 +73,15 @@ export function isTaskScheduledForDate(task: any, date: Date): boolean {
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   };
+  // [修正] 非循環限期任務（藥物調節等）：end_date 之後嘅日子唔再排程，
+  // 等任務到期後自行結束，唔會永遠掛住逾期/未完成
+  if (task.is_recurring === false && task.end_date) {
+    const endDay = new Date(task.end_date);
+    endDay.setHours(0, 0, 0, 0);
+    const targetDay = new Date(date);
+    targetDay.setHours(0, 0, 0, 0);
+    if (targetDay.getTime() > endDay.getTime()) return false;
+  }
   // [時區修復] 以 UTC 日曆日作為「建立邊界」，與 next_due_at（以 UTC 午夜儲存）一致。
   // 避免 created_at 働晚時間（UTC）在正時區被進位到隳天，導致任務在其自身應做日被誤判為「尚未建立」而跳過。
   const createdBoundaryStr = task.created_at
@@ -294,7 +329,14 @@ export async function findFirstMissingDate(
   return calculateNextDueDate(task, checkDate);
 }
 // 補回其他函式以避免錯誤
+// 非循環限期任務（is_recurring=false 且有 end_date）喺結束時間過後即視為「已結束」：
+// 唔再排程、唔算逾期/待辦/即將到期，任務到期自行結束
+export function isTaskEnded(task: { is_recurring?: boolean; end_date?: string | null }, now: Date = new Date()): boolean {
+  if (task.is_recurring !== false || !task.end_date) return false;
+  return new Date(task.end_date).getTime() < now.getTime();
+}
 export function isTaskOverdue(task: PatientHealthTask, recordLookup?: Set<string>, todayStr?: string): boolean {
+  if (isTaskEnded(task)) return false;
   if (!task.next_due_at) return false;
   // [分界線檢查] 如果 next_due_at 在分界線之前或當天，視為「歷史任務」，不算逾期
   const CUTOFF_DATE = new Date(SYNC_CUTOFF_DATE_STR);
@@ -348,6 +390,7 @@ export function isTaskOverdue(task: PatientHealthTask, recordLookup?: Set<string
   return dueDate < todayStart;
 }
 export function isTaskPendingToday(task: PatientHealthTask, recordLookup?: Set<string>, todayStr?: string): boolean {
+  if (isTaskEnded(task)) return false;
   if (!task.next_due_at) return false;
   // [分界線檢查] 如果 next_due_at 在分界線之前或當天，視為「歷史任務」，不算今天待辦
   const CUTOFF_DATE = new Date(SYNC_CUTOFF_DATE_STR);
@@ -402,6 +445,7 @@ export function isTaskPendingToday(task: PatientHealthTask, recordLookup?: Set<s
   return dueDate >= todayStart && dueDate <= todayEnd;
 }
 export function isTaskDueSoon(task: PatientHealthTask, recordLookup?: Set<string>, todayStr?: string): boolean {
+  if (isTaskEnded(task)) return false;
   if (!task.next_due_at) return false;
   // [分界線檢查] 如果 next_due_at 在分界線之前或當天，視為「歷史任務」，不算即將到期
   const CUTOFF_DATE = new Date(SYNC_CUTOFF_DATE_STR);
@@ -462,7 +506,9 @@ export function isTaskScheduled(task: PatientHealthTask): boolean {
   if (dueDate >= tomorrowStart) return true;
   return false;
 }
-export function getTaskStatus(task: PatientHealthTask, recordLookup?: Set<string>, todayStr?: string): 'overdue' | 'pending' | 'due_soon' | 'scheduled' {
+export function getTaskStatus(task: PatientHealthTask, recordLookup?: Set<string>, todayStr?: string): 'overdue' | 'pending' | 'due_soon' | 'scheduled' | 'ended' {
+  // [修正] 非循環限期任務過咗 end_date 就係「已結束」，唔再參與逾期/待辦判定
+  if (isTaskEnded(task)) return 'ended';
   // [統一邏輯] 監測類任務改用與主畫面相同的「首個未完成日期」掃描，避免 next_due_at 過時造成狀態不一致
   if (isMonitoringTask(task.health_record_type)) {
     const first = getFirstIncompleteMonitoringDate(task, recordLookup, todayStr);
@@ -480,6 +526,8 @@ export function getTaskStatus(task: PatientHealthTask, recordLookup?: Set<string
 // [統一邏輯] 計算監測類任務首個未完成的應做日期（由今天往回掃描 28 天），與 Dashboard.urgentMonitoringTasks 一致
 export function getFirstIncompleteMonitoringDate(task: PatientHealthTask, recordLookup?: Set<string>, _todayStr?: string): Date | null {
   if (!isMonitoringTask(task.health_record_type)) return null;
+  // [修正] 非循環限期任務過咗 end_date：冇未完成日期可言（任務已結束）
+  if (isTaskEnded(task)) return null;
   const fmt = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const normalize = (time: string) => time ? time.substring(0, 5) : '';
   const today = new Date();

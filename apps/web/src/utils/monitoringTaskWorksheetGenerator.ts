@@ -140,7 +140,7 @@ export const generateMonitoringTaskWorksheet = async (
 ) => {
   const layout = options?.layout ?? 'half';
   const daysData: DayData[] = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 2; i++) {
     const targetDate = new Date(startDate);
     targetDate.setDate(startDate.getDate() + i);
     const tasks = await fetchTasksForDate(targetDate, patientIds);
@@ -157,7 +157,7 @@ export const generateMonitoringTaskWorksheet = async (
       tasks
     });
   }
-  // 配對：Day1+Day2 和 Day3+Day4，每對放在一張A4上（half=上半A5+下半A5；full=每天佔滿整張A4）
+  // 配對：Day1+Day2 一對，放在一張A4上（half=上半A5+下半A5；full=每天佔滿整張A4）
   const html = generatePairedHTML(daysData, layout);
   openPrintWindow(html);
 };
@@ -371,7 +371,8 @@ const generateA5PageContent = (
     const recheckRows = computeRecheckRows(pageContent.usedHeight ?? HEADER_HEIGHT, contentHeight);
     if (pageContent.slots.length === 0 && recheckRows === 0) {
       slotsHTML = '<div class="empty-page">（無監測任務）</div>';
-    } else {
+    } else if (recheckRows > 0) {
+      // [修正] 剩餘空間唔夠一行複檢空白列（雙倍行高）就成段唔顯示，唔好淨係擠個表頭落頁尾
       recheckHTML = generateRecheckTableHTML(recheckRows);
     }
   } else if (pageContent.slots.length === 0) {
@@ -499,23 +500,17 @@ const generatePairedHTML = (daysData: DayData[], layout: WorksheetLayout = 'half
     });
   } else {
   // 將每天的內容分割成頁面；餐段 avoid-break 後一日可能有兩頁以上，配對邏輯要支援任意頁數
-  const day1Pages = splitDayIntoPages(daysData[0]);
-  const day2Pages = splitDayIntoPages(daysData[1]);
-  const day3Pages = splitDayIntoPages(daysData[2]);
-  const day4Pages = splitDayIntoPages(daysData[3]);
+  const dayPagesArr = daysData.map(d => splitDayIntoPages(d));
   // 生成指定日指定頁嘅內容；該日冇呢一頁就留白
   const makeContent = (dayIdx: number, pageIdx: number, isLeftHalf: boolean): string => {
-    const pagesArr = [day1Pages, day2Pages, day3Pages, day4Pages][dayIdx];
+    const pagesArr = dayPagesArr[dayIdx];
     const pc = pagesArr[pageIdx];
     if (!pc) return '<div class="empty-page"></div>';
     return generateA5PageContent(daysData[dayIdx], pc, pageIdx + 1, pagesArr.length, isLeftHalf);
   };
   // 輸出一對日（DayA+DayB）嘅雙面A4：每張正面 左=DayA-Pk/右=DayB-Pk，背面 左=DayB-P(k+1)/右=DayA-P(k+1)（交換！）
   const emitPair = (dayA: number, dayB: number) => {
-    const maxPages = Math.max(
-      [day1Pages, day2Pages, day3Pages, day4Pages][dayA].length,
-      [day1Pages, day2Pages, day3Pages, day4Pages][dayB].length
-    );
+    const maxPages = Math.max(dayPagesArr[dayA].length, dayPagesArr[dayB].length);
     for (let k = 0; k < maxPages; k += 2) {
       // 正面
       a4PagesHTML += `
@@ -535,10 +530,10 @@ const generatePairedHTML = (daysData: DayData[], layout: WorksheetLayout = 'half
       }
     }
   };
-  // === 第一組：Day1 + Day2 ===
-  emitPair(0, 1);
-  // === 第二組：Day3 + Day4 ===
-  emitPair(2, 3);
+  // === 逐對輸出：Day1+Day2、Day3+Day4…（天數由呼叫方決定，而家係 2 天）===
+  for (let p = 0; p + 1 < daysData.length; p += 2) {
+    emitPair(p, p + 1);
+  }
   }
   return `
     <!DOCTYPE html>

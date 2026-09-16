@@ -318,7 +318,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, onClose, onUpdate, prefill 
   };
 
   const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
-  const noteOptions = ['注射前', '服藥前', '定期', '特別關顧', '藥物調節', '異常監察', '最近出院'];
+  const noteOptions = ['注射前', '服藥前', '定期', '特別關顧', '藥物調節', '異常監察', '最近出院', '新入住'];
   const timeOptions = Array.from({ length: 48 }, (_, i) => {
     const hours = Math.floor(i / 2).toString().padStart(2, '0');
     const minutes = (i % 2 === 0) ? '00' : '30';
