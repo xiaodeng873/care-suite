@@ -1254,30 +1254,53 @@ ul, ol {
 }
 
 /* Scene images */
-.scene-image {
+  .scene-image {
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-md);
   border: 1px solid var(--color-border);
   background-color: var(--color-bg-elevated);
-}
-
-.scene-image img,
-.scene-image .placeholder {
+  }
+  
+  .scene-image img,
+  .scene-image .placeholder {
   width: 100%;
   aspect-ratio: 16 / 10;
   object-fit: cover;
   display: block;
-}
-
-.scene-image .placeholder {
+  }
+  
+  .scene-image .placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-bg-soft) 100%);
   color: var(--color-primary);
   font-size: 3rem;
-}
+  }
+
+  /* About page: two equal editorial frames create a calm visual pause before the story. */
+  .image-frame-scene {
+  padding: 10px;
+  overflow: visible;
+  }
+
+  .image-frame-scene .image-frame-inner {
+  aspect-ratio: 16 / 10;
+  min-height: 240px;
+  padding: 24px;
+  }
+
+  .image-frame-scene figcaption {
+  min-height: 3.2em;
+  }
+
+  @media (max-width: 767px) {
+  .image-frame-scene .image-frame-inner {
+  min-height: 190px;
+  padding: 18px;
+  }
+  }
 
 /* Feature sub-nav */
 .feature-nav {
