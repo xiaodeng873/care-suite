@@ -14,8 +14,26 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, apikey, X-Db-Token"
 };
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+// 新制 secret key（SUPABASE_SECRET_KEYS 為 JSON dict，key 名為 default）；讀不到時 fallback 到 legacy service_role key
+const supabaseServiceKey = (() => {
+  try {
+    const keys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}");
+    if (keys.default) return keys.default as string;
+  } catch {
+    // JSON 解析失敗時 fallback
+  }
+  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+})();
+// 新制 publishable key（SUPABASE_PUBLISHABLE_KEYS 為 JSON dict，key 名為 default）；讀不到時 fallback 到 legacy anon key
+const supabaseAnonKey = (() => {
+  try {
+    const keys = JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") ?? "{}");
+    if (keys.default) return keys.default as string;
+  } catch {
+    // JSON 解析失敗時 fallback
+  }
+  return Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+})();
 function getSupabaseClient() {
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {

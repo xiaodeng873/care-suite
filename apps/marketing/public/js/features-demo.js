@@ -684,16 +684,17 @@
       '<div class="flex items-center gap-2 text-xs">' + LEAVE_TYPES.map(function (t) {
         return '<span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-full ' + t.color + '"></span>' + t.label + '</span>';
       }).join('') + '</div></div>' +
-      '<div class="overflow-x-auto"><table class="min-w-full text-xs border border-gray-200 rounded-lg overflow-hidden">' +
+      '<div class="overflow-x-auto"><table class="min-w-full table-fixed text-xs border border-gray-200 rounded-lg overflow-hidden">' +
+      '<colgroup><col class="w-32" />' + LEAVE_DAYS.map(function () { return '<col />'; }).join('') + '</colgroup>' +
       '<thead class="bg-gray-50"><tr><th class="px-2 py-2 text-left font-medium text-gray-700 sticky left-0 bg-gray-50">員工</th>' +
-      LEAVE_DAYS.map(function (d) { return '<th class="px-1 py-1 text-center font-medium text-gray-700 w-8">' + d + '</th>'; }).join('') +
+      LEAVE_DAYS.map(function (d) { return '<th class="px-1 py-1 text-center font-medium text-gray-700">' + d + '</th>'; }).join('') +
       '</tr></thead><tbody class="divide-y divide-gray-200 bg-white">';
     ROSTER_STAFF.forEach(function (s) {
       html += '<tr><td class="px-2 py-2 font-medium text-gray-900 sticky left-0 bg-white">' + s + '</td>';
       LEAVE_DAYS.forEach(function (d) {
         var type = leaveData[s][d];
         var label = type ? LEAVE_TYPES.filter(function (t) { return t.key === type; })[0] : null;
-        html += '<td class="p-1"><button type="button" class="w-7 h-7 rounded text-xs font-medium flex items-center justify-center ' +
+        html += '<td class="p-1"><button type="button" class="w-full h-8 rounded text-xs font-medium flex items-center justify-center ' +
           (label ? label.color + ' text-white' : 'text-gray-400 hover:bg-gray-100') + '" data-staff="' + s + '" data-day="' + d + '">' + (type || '') + '</button></td>';
       });
       html += '</tr>';

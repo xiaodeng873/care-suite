@@ -15,7 +15,16 @@ const corsHeaders = {
 
 // 從環境變數獲取 Supabase 配置
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+// 新制 secret key（SUPABASE_SECRET_KEYS 為 JSON dict，key 名為 default）；讀不到時 fallback 到 legacy service_role key
+const supabaseServiceKey = (() => {
+  try {
+    const keys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}");
+    if (keys.default) return keys.default as string;
+  } catch {
+    // JSON 解析失敗時 fallback
+  }
+  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+})();
 // 專案 JWT secret，用於簽發帶 facility_id claim 的資料庫存取 token
 const jwtSecret = Deno.env.get("JWT_SECRET") ?? "";
 

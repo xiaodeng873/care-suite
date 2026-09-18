@@ -572,7 +572,7 @@ ul, ol {
 
 @media (min-width: 1024px) {
   .hero-layout {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -640,32 +640,6 @@ ul, ol {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-/* Hero image */
-.hero-image {
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--color-border);
-  background-color: var(--color-bg-elevated);
-}
-
-.hero-image img,
-.hero-image .placeholder {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  display: block;
-}
-
-.hero-image .placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-bg-soft) 100%);
-  color: var(--color-primary);
-  font-size: 4rem;
 }
 
 /* Feature section */
