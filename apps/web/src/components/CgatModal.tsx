@@ -1,10 +1,10 @@
-import { X, User, Pill, Calendar, Stethoscope, DollarSign, FileText, AlertTriangle, Loader2 } from 'lucide-react';
+import { X, User, Pill, Calendar, Stethoscope, DollarSign, FileText, AlertTriangle, Loader2, Bell } from 'lucide-react';
 import { usePatientData } from '../context/PatientContext';
 import { useCgat } from '../context/CgatContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import CgatDoctorVisitPicker from './CgatDoctorVisitPicker';
 import { getFeeExemptEligibility, calcCgatFee } from '../utils/cgatFeeHelper';
-import CgatMedicationEndDateTable from './CgatMedicationEndDateTable';
+import { calcEstimatedMedicationEndDate } from '../utils/cgatDateHelper';
 import type { CgatRecord } from '../lib/database';
 import React, { useState, useMemo } from 'react';
 import DateInput from './DateInput';
@@ -21,42 +21,57 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
 
   // 另存續期：以 renewFrom 內容預填，但視為新增（不帶 id）
   const source = record ?? renewFrom ?? null;
+  // 編輯中嘅記錄；儲存後「另存新列」會清掉，令下次儲存走新增
+  const [editingRecord, setEditingRecord] = useState<CgatRecord | null>(record ?? null);
 
-  const [form, setForm] = useState({
-    patient_id: source?.patient_id ? String(source.patient_id) : '',
+  const buildForm = (src: CgatRecord | null) => ({
+    patient_id: src?.patient_id ? String(src.patient_id) : '',
     // 個案類型
-    case_type: source?.case_type ?? '',
-    is_cgas: source?.is_cgas ?? false,
-    is_eol: source?.is_eol ?? false,
+    case_type: src?.case_type ?? '',
+    is_cgas: src?.is_cgas ?? false,
+    is_eol: src?.is_eol ?? false,
     // 藥物配發
-    medication_end_date: source?.medication_end_date ?? '',
-    pharmacy_arrangement: source?.pharmacy_arrangement ?? '',
-    is_urgent_medication: source?.is_urgent_medication ?? false,
+    medication_end_date: src?.medication_end_date ?? '',
+    pharmacy_arrangement: src?.pharmacy_arrangement ?? '',
+    is_urgent_medication: src?.is_urgent_medication ?? false,
     // 侯診原因
-    reason_renew: source?.reason_renew ?? false,
-    reason_discharge: source?.reason_discharge ?? false,
-    reason_sign_letter: source?.reason_sign_letter ?? false,
-    reason_referral_letter: source?.reason_referral_letter ?? false,
-    reason_view_report: source?.reason_view_report ?? false,
-    report_bld: source?.report_bld ?? false,
-    report_xray: source?.report_xray ?? false,
-    report_ct: source?.report_ct ?? false,
-    report_usg: source?.report_usg ?? false,
-    report_other: source?.report_other ?? '',
+    reason_renew: src?.reason_renew ?? false,
+    reason_discharge: src?.reason_discharge ?? false,
+    reason_sign_letter: src?.reason_sign_letter ?? false,
+    reason_referral_letter: src?.reason_referral_letter ?? false,
+    reason_view_report: src?.reason_view_report ?? false,
+    report_bld: src?.report_bld ?? false,
+    report_xray: src?.report_xray ?? false,
+    report_ct: src?.report_ct ?? false,
+    report_usg: src?.report_usg ?? false,
+    report_other: src?.report_other ?? '',
     // CGAT 到診安排
-    cgat_visit_date: source?.cgat_visit_date ?? '',
-    cgat_visit_unknown: source?.cgat_visit_unknown ?? false,
-    medication_pickup_arrangement: source?.medication_pickup_arrangement ?? '每次詢問',
+    cgat_visit_date: src?.cgat_visit_date ?? '',
+    cgat_visit_unknown: src?.cgat_visit_unknown ?? false,
+    medication_pickup_arrangement: src?.medication_pickup_arrangement ?? '每次詢問' as '家人前往' | '院舍代勞' | '每次詢問',
     // 費用結算
-    fee_exempted: source?.fee_exempted ?? false,
-    consultation_fee: source?.consultation_fee ?? 100,
-    medication_fee_per_item: source?.medication_fee_per_item ?? 20,
-    prescription_count: source?.prescription_count ?? undefined as number | undefined,
-    treatment_weeks: source?.treatment_weeks ?? undefined as number | undefined,
-    remarks: source?.remarks ?? ''
+    fee_exempted: src?.fee_exempted ?? false,
+    consultation_fee: src?.consultation_fee ?? 100,
+    medication_fee_per_item: src?.medication_fee_per_item ?? 20,
+    prescription_count: src?.prescription_count ?? undefined as number | undefined,
+    treatment_weeks: src?.treatment_weeks ?? undefined as number | undefined,
+    remarks: src?.remarks ?? ''
   });
+  const [form, setForm] = useState(() => buildForm(source));
   const [saving, setSaving] = useState(false);
   const [showVisitPicker, setShowVisitPicker] = useState(false);
+  // 藥完日期：預計模式（自動推算，預設）/ 手動模式（互斥）
+  const [manualEndDate, setManualEndDate] = useState(false);
+  // 儲存後提醒（有療程先彈）：顯示推算藥完日期，問用戶要唔要另存新列
+  const [showRenewPrompt, setShowRenewPrompt] = useState(false);
+  const [renewEndDate, setRenewEndDate] = useState<string | undefined>(undefined);
+  const [renewIsDerived, setRenewIsDerived] = useState(false);
+
+  // 藥完日期 = 到診日期 + 療程周數 × 7；療程留空或到診未知 → 唔郁
+  const deriveAndSetEndDate = (visitDate: string, weeks: number | undefined, unknown: boolean) => {
+    const derived = calcEstimatedMedicationEndDate(visitDate, weeks, unknown);
+    if (derived) set({ medication_end_date: derived });
+  };
 
   const patient = useMemo(
     () => allPatients.find((p) => String(p.院友id) === String(form.patient_id)),
@@ -70,11 +85,11 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
   const usedCountByDate = useMemo(() => {
     const map: Record<string, number> = {};
     for (const r of cgatRecords) {
-      if (record && r.id === record.id) continue;
+      if (editingRecord && r.id === editingRecord.id) continue;
       if (r.cgat_visit_date) map[r.cgat_visit_date] = (map[r.cgat_visit_date] || 0) + 1;
     }
     return map;
-  }, [cgatRecords, record]);
+  }, [cgatRecords, editingRecord]);
 
   // 費用即時計算
   const feeResult = useMemo(() => calcCgatFee({
@@ -138,17 +153,38 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
         total_fee: feeResult.skipped ? 0 : feeResult.total,
         remarks: form.remarks || undefined
       };
-      if (record) {
-        await updateCgatRecord({ id: record.id, ...payload });
+      if (editingRecord) {
+        await updateCgatRecord({ id: editingRecord.id, ...payload });
       } else {
         await addCgatRecord(payload);
       }
-      onClose();
+      // 儲存時有療程 → 彈出提醒：顯示推算藥完日期，問用戶要唔要另存新列
+      if (form.treatment_weeks) {
+        const derived = calcEstimatedMedicationEndDate(form.cgat_visit_date, form.treatment_weeks, form.cgat_visit_unknown);
+        setRenewEndDate(derived ?? (form.medication_end_date || undefined));
+        setRenewIsDerived(!!derived);
+        setShowRenewPrompt(true);
+      } else {
+        onClose();
+      }
     } catch (e: any) {
       alert(`儲存失敗：${e?.message ?? '請重試'}`);
     } finally {
       setSaving(false);
     }
+  };
+
+  // 提醒 modal「另存新列」：重置為新增，預填同院友 + 侯診原因=續藥 + 藥完日期=上次推算值
+  const handleRenewSaveAs = () => {
+    setEditingRecord(null);
+    setForm({
+      ...buildForm(null),
+      patient_id: form.patient_id,
+      reason_renew: true,
+      medication_end_date: renewEndDate ?? ''
+    });
+    setManualEndDate(false);
+    setShowRenewPrompt(false);
   };
 
   const sectionTitle = (icon: React.ReactNode, text: string) =>
@@ -159,7 +195,7 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">{record ? '編輯 CGAT 記錄' : '新增 CGAT 記錄'}</h2>
+          <h2 className="text-xl font-semibold text-gray-900">{editingRecord ? '編輯 CGAT 記錄' : '新增 CGAT 記錄'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="h-6 w-6" /></button>
         </div>
 
@@ -226,22 +262,45 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
           <section>
             {sectionTitle(<Pill className="h-4 w-4 text-blue-600" />, '藥物配發')}
             <div className="space-y-3">
-              <div>
-                <label className="form-label">藥完日期</label>
-                <div className="flex gap-2">
-                  <DateInput className="form-input flex-1" value={form.medication_end_date} onChange={(value) => set({ medication_end_date: value })} />
-                  
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">療程（周）</label>
+                  <input
+                    type="number" min={0} className="form-input" value={form.treatment_weeks ?? ''}
+                    onChange={(e) => {
+                      const weeks = e.target.value === '' ? undefined : parseInt(e.target.value) || 0;
+                      set({ treatment_weeks: weeks });
+                      // 有到診日期就自動推算藥完日期（到診未知 / 療程留空 → 唔郁）
+                      if (!manualEndDate) deriveAndSetEndDate(form.cgat_visit_date, weeks, form.cgat_visit_unknown);
+                    }}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    留空則藥完日期不更新
+                  </p>
                 </div>
-                <div className="mt-2">
-                  <CgatMedicationEndDateTable
-                    patientId={form.patient_id}
-                    selectedDate={form.medication_end_date}
-                    onSelect={(d) => set({ medication_end_date: d })} />
-                  
+                <div>
+                  <label className="form-label">藥完日期</label>
+                  {manualEndDate ?
+                    <DateInput className="form-input" value={form.medication_end_date} onChange={(value) => set({ medication_end_date: value })} /> :
+                    <div className="form-input bg-gray-50 flex items-center">
+                      {form.medication_end_date ?
+                        <span className="text-gray-900">{form.medication_end_date}</span> :
+                        <span className="text-gray-400">未有</span>}
+                    </div>
+                  }
+                  <label className="flex items-center gap-1.5 mt-1 cursor-pointer">
+                    <input
+                      type="checkbox" checked={manualEndDate}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setManualEndDate(checked);
+                        // 返回預計模式時，有到診日期+療程就重算（推唔到就保留現值）
+                        if (!checked) deriveAndSetEndDate(form.cgat_visit_date, form.treatment_weeks, form.cgat_visit_unknown);
+                      }}
+                    />
+                    <span className="text-xs text-gray-500">手動輸入（預設由「到診日期 + 療程」自動推算）</span>
+                  </label>
                 </div>
-                {form.medication_end_date &&
-                <p className="text-xs text-gray-600 mt-1">已選藥完日期：<span className="font-medium text-blue-600">{form.medication_end_date}</span></p>
-                }
               </div>
               <div>
                 <label className="form-label">藥房安排 *</label>
@@ -356,7 +415,7 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
               </div> :
 
             <div className="space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="form-label text-xs">診金</label>
                     <input type="number" className="form-input" value={form.consultation_fee}
@@ -372,12 +431,8 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
                     <input type="number" min={0} className="form-input" value={form.prescription_count ?? ''}
                   onChange={(e) => set({ prescription_count: e.target.value === '' ? undefined : parseInt(e.target.value) || 0 })} />
                   </div>
-                  <div>
-                    <label className="form-label text-xs">療程（周）</label>
-                    <input type="number" min={0} className="form-input" value={form.treatment_weeks ?? ''}
-                  onChange={(e) => set({ treatment_weeks: e.target.value === '' ? undefined : parseInt(e.target.value) || 0 })} />
-                  </div>
                 </div>
+
                 <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
                   <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                   <span>請留意自費藥物不應列作計算，請自行扣除。</span>
@@ -402,7 +457,7 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
         <div className="flex gap-2 p-4 border-t">
           <button onClick={handleSubmit} disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {record ? '更新記錄' : '建立記錄'}
+            {editingRecord ? '更新記錄' : '建立記錄'}
           </button>
           <button onClick={onClose} className="btn-secondary flex-1">取消</button>
         </div>
@@ -411,10 +466,44 @@ const CgatModal: React.FC<CgatModalProps> = ({ record, renewFrom, onClose }) => 
       {showVisitPicker &&
       <CgatDoctorVisitPicker
         usedCountByDate={usedCountByDate}
-        onSelect={(d) => {set({ cgat_visit_date: d });setShowVisitPicker(false);}}
+        onSelect={(d) => {set({ cgat_visit_date: d });setShowVisitPicker(false);if (!manualEndDate) deriveAndSetEndDate(d, form.treatment_weeks, form.cgat_visit_unknown);}}
         onScheduleChanged={() => {refreshVisitDates();}}
         onClose={() => setShowVisitPicker(false)} />
 
+      }
+
+      {/* 儲存後提醒：有療程時顯示推算藥完日期，問用戶要唔要另存新列 */}
+      {showRenewPrompt &&
+      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[60]" onClick={onClose}>
+        <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-2 rounded-lg bg-blue-100">
+              <Bell className="h-5 w-5 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">記錄已儲存</h3>
+          </div>
+          <div className="text-sm text-gray-700 space-y-2 mb-4">
+            {renewEndDate ?
+            <>
+                <p>
+                  {renewIsDerived ? `根據療程 ${form.treatment_weeks} 周推算，` : ''}藥完日期為
+                  <span className="font-medium text-blue-600"> {renewEndDate}</span>。
+                </p>
+                <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                  下次 CGAT 到診應安排喺藥完日期或之前。
+                </p>
+              </> :
+
+            <p>本次記錄有療程但未有藥完日期（到診日期未知），請留意人手安排下次到診。</p>
+            }
+            <p>要唔要根據呢個藥完日期另存新列（預填：同院友、侯診原因=續藥）？</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button onClick={handleRenewSaveAs} className="btn-primary flex-1">另存新列</button>
+            <button onClick={onClose} className="btn-secondary flex-1">唔需要</button>
+          </div>
+        </div>
+      </div>
       }
     </div>);
 
