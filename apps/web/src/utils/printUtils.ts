@@ -157,16 +157,19 @@ const measurePrintedPageCount = (
  * spacer 嘅 class 含 "print-doc-"，令 `[class*="print-doc-"] + [class*="print-doc-"]`
  * 分頁規則喺 spacer 前後都生效。
  *
- * 同時將每份文件嘅 fixed logo 同打孔指引（.punch-guide-fixed）喺**雙面**時換成
- * 逐頁 absolute 副本：雙面背面要轉邊（直向打右邊、橫向打底邊），fixed 做唔到
- * 逐頁轉邊；補白頁亦唔應出現 logo/圓圈。副本放喺每頁開頭嘅頁元素（未 fragmented，
- * absolute 定位先精準）入面嘅零尺寸 absolute 載體；頁內座標 = 紙面目標（圓圈鏡像、
- * logo 唔鏡像）− 頁元素實量紙面偏移，y 要換算做 wrapper 全局（k × 內容盒高 + 頁內 y）
- * 先唔會變負數竄頁。頁元素盒外嘅副本（overflow:hidden 會裁）同搵唔到頁首元素嘅
- * 頁，退回 wrapper 級 clone（fragmented 容器 absolute 喺部分 Chrome 有偏移，殘缺
- * 好過冇）。非雙面維持 fixed 原生每頁重複——fixed 喺「無橫向溢出」時精準，
- * injectPunchGuide 已經喺 body 加 `overflow-x: clip`（橫向溢出會破壞 Chromium
- * 列印嘅 fixed 垂直座標，clip 喺內容盒邊緣裁剪，視覺上同紙邊裁剪一模一樣）。
+ * 同時將每份文件嘅 fixed logo 同打孔指引（.punch-guide-fixed）換成逐頁 absolute
+ * 副本。必須轉換嘅情況：
+ * - **雙面**：背面要轉邊（直向打右邊、橫向打底邊），fixed 做唔到逐頁轉邊；
+ *   補白頁亦唔應出現 logo/圓圈。
+ * - **非雙面多份合併**：每份文件各有自己嘅 fixed 圓圈/logo，Chrome 列印時 fixed
+ *   元素會喺成個合併文件嘅**每一頁**重複——直向文件會見到橫向文件嘅孔位、多份
+ *   文件嘅 logo 疊埋移位（單份文件冇交叉污染，先至可以安全用 fixed 原生重複）。
+ * 非雙面轉換唔鏡像（全部頁當正面：孔左、logo 右上）、唔補空白頁。
+ * 副本放喺每頁開頭嘅頁元素（未 fragmented，absolute 定位先精準）入面嘅零尺寸
+ * absolute 載體；頁內座標 = 紙面目標（圓圈鏡像、logo 唔鏡像）− 頁元素實量紙面
+ * 偏移，y 要換算做 wrapper 全局（k × 內容盒高 + 頁內 y）先唔會變負數竄頁。頁元素
+ * 盒外嘅副本（overflow:hidden 會裁）同搵唔到頁首元素嘅頁，退回 wrapper 級 clone
+ * （fragmented 容器 absolute 喺部分 Chrome 有偏移，殘缺好過冇）。
  */
 export const padOddPageDocuments = (
   iframeDoc: Document,
@@ -185,9 +188,13 @@ export const padOddPageDocuments = (
     if (contentHeightPx <= 0) return;
     const pageCount = measurePrintedPageCount(win, wrapper, contentHeightPx, breakSelectors);
 
-    if (!duplexPadding) return; // 非雙面：打孔指引維持 fixed 每頁左邊（overflow-x:clip 已由 injectPunchGuide 保證座標精準）；logo 維持 fixed 每頁重複
+    // 非雙面單份文件：打孔指引/logo 維持 fixed 原生每頁重複（無交叉污染，座標
+    // 精準——injectPunchGuide 已經喺 body 加 overflow-x:clip 保證 fixed 垂直座標）。
+    // 雙面、或非雙面多份合併：行下面嘅逐頁 absolute 轉換。
+    if (!duplexPadding && wrappers.length < 2) return;
+    const duplex = duplexPadding; // 非雙面轉換：唔鏡像、唔補空白頁
 
-    // 雙面：fixed 圓圈/logo 換成逐頁 absolute 副本（背面鏡像轉邊；補白頁自然冇）。
+    // fixed 圓圈/logo 換成逐頁 absolute 副本（雙面背面鏡像轉邊；補白頁自然冇）。
     // 主機制：每頁開頭嘅 in-flow 頁元素（未 fragmented，定位精準）入面嘅零尺寸
     // absolute 載體。圓圈喺每張紙嘅位置固定（直向 x 隻頁數鏡像去右、橫向 y 鏡像去底），
     // 所以頁內座標 = 紙面目標 − 頁元素紙面偏移（實量 rect），再除 ancestor zoom。
@@ -248,6 +255,7 @@ export const padOddPageDocuments = (
       const origMl = parseFloat(punchEls[0]?.dataset.origMl || '0') || 0;
       // 打孔讓位實際 baseline：內容而家坐喺 body padding（打孔區 20mm）之後
       const wrapperPadLeftMm = parseFloat(win.getComputedStyle(wrapper).paddingLeft) / PX_PER_MM;
+      const wrapperPadTopMm = parseFloat(win.getComputedStyle(wrapper).paddingTop) / PX_PER_MM;
       const targets: { x: number; y: number; w: number; h: number | null; mirror: boolean }[] = [];
       punchEls.forEach((src) => {
         const px = parseFloat(src.dataset.paperLeft || '0') || 0;
@@ -277,7 +285,8 @@ export const padOddPageDocuments = (
           // 否則內容偏向孔位（打孔會打穿內容）。正面靠 wrapper padding（打孔區 20mm）
           // 讓位；背面要還原返文件嘅原始左/上出血（淨係避開打孔區，唔係推到貼紙邊），
           // 所以偏移量 = 原 margin − 讓位 baseline。無打孔指引嘅文件（純 logo）唔郁。
-          const back = k % 2 === 1;
+          // 非雙面轉換全部頁當正面：唔鏡像、唔移位。
+          const back = duplex && k % 2 === 1;
           if (back && punchEls.length > 0 && !landscape) {
             // 背面內容讓位（直向）：打孔喺右，內容向左移，左邊出血還原做文件
             // 原始 margin（淨係避開打孔區，唔係推到貼紙邊）。橫向唔郁：分頁座標係
@@ -291,7 +300,6 @@ export const padOddPageDocuments = (
           }
           const elRect = el.getBoundingClientRect();
           const elPaperX = mlFinal + (elRect.left - wRect.left) / PX_PER_MM;
-          const elPaperY = mtFinal + (elRect.top - wRect.top) / PX_PER_MM;
           const elW = elRect.width / PX_PER_MM;
           const elH = elRect.height / PX_PER_MM;
           let zoom = 1;
@@ -320,11 +328,16 @@ export const padOddPageDocuments = (
             // logo 每頁右上角唔鏡像
             const tx = back && t.mirror && !landscape ? paper.w - t.x - t.w : t.x;
             const ty = back && t.mirror && landscape ? paper.h - t.y - (t.h ?? 0) : t.y;
-            // t.y 係「單張紙內」座標；頁元素頂 = wrapper 全局 k × 內容盒高 + mt，
-            // 所以目標 wrapper 全局 y = k × 內容盒高 + ty（x 唔使，每張紙 x 對齊）
-            const wrapY = k * contentHeightMm + ty;
+            // 頁首元素（carrier）必定喺所屬頁內容頂（wrapper 每頁 fragment 由 @page
+            // 上 margin + wrapper padding-top 開始），所以頁內 y = 紙面目標 − mt −
+            // wrapper padding-top——直接用紙面座標，唔好靠 screen offsetTop 換算
+            // （screen 用自然高度堆疊、print 有分頁擴張，容器高度≠內容盒高時會錯，
+            // 如急症室記錄 175mm 容器喺 205mm 內容盒，舊公式偏差 10mm/頁）。
+            // x 繼續用實量 elPaperX：背面內容 margin-left 偏移後，logo 要跟返紙面座標。
             const localX = (tx - elPaperX) / zoom;
-            const localY = (wrapY - elPaperY) / zoom;
+            // wrapper padding-top 只在第 0 頁生效（padding 喺 wrapper 開頭一次過），
+            // 第 k 頁由該頁 content 頂重新開始，唔會每頁重複減 padTop
+            const localY = (ty - mtFinal - (k === 0 ? wrapperPadTopMm : 0)) / zoom;
             const w = t.w / zoom;
             const h = t.h === null ? null : t.h / zoom;
             const fits = localX >= -0.5 && localY >= -0.5 &&
@@ -350,7 +363,7 @@ export const padOddPageDocuments = (
         // wrapper 級 logo 同圓圈副本（至少齊件；位置精度不如載體方案）
         for (let k = 0; k < pageCount; k++) {
           if (used.has(k)) continue;
-          const back = k % 2 === 1;
+          const back = duplex && k % 2 === 1;
           targets.forEach((t, i) => {
             const src = i < punchEls.length ? punchEls[i] : logoEls[i - punchEls.length];
             const tx = back && t.mirror && !landscape ? paper.w - t.x - t.w : t.x;
@@ -365,7 +378,7 @@ export const padOddPageDocuments = (
         punchEls.forEach((src) => {
           const t = targets[punchEls.indexOf(src)];
           for (let k = 0; k < pageCount; k++) {
-            const back = k % 2 === 1;
+            const back = duplex && k % 2 === 1;
             const tx = back && t.mirror && !landscape ? paper.w - t.x - t.w : t.x;
             const ty = back && t.mirror && landscape ? paper.h - t.y - (t.h ?? 0) : t.y;
             wrapperClone(src, tx, ty, t.w, t.h, k);
@@ -382,6 +395,7 @@ export const padOddPageDocuments = (
       }
     }
 
+    if (!duplex) return; // 非雙面唔補空白頁（轉換歸轉換，補頁只屬雙面對齊）
     if (wrappers.length < 2) return; // 單份文件唔使補空白頁（打孔指引轉換上面已做）
     if (idx === wrappers.length - 1) return; // 最後一份唔使補空白頁
     if (pageCount % 2 === 0) return;
