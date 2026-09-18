@@ -8,6 +8,7 @@ import {
   getPrintBedNumber,
   enrichPatientsWithOriginalBedNumber,
 } from './bedTransferUtils';
+import { injectPunchGuide } from './punchGuide';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 院友體重記錄表（A4 直印）
@@ -361,7 +362,7 @@ export const generateBodyweightRecordHtml = async (
     });
   });
 
-  return buildHtml(pagesHtml);
+  return injectPunchGuide(buildHtml(pagesHtml));
 };
 
 /**

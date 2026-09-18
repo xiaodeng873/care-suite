@@ -19,6 +19,7 @@ import { withHdPatientPhotos } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { getFacilitySettings } from './facilitySettings';
 import { getFacilityLogoSrc, injectPageLogo } from './printPageLogo';
+import { injectPunchGuide } from './punchGuide';
 import { getPrintBedNumber } from './bedTransferUtils';
 import { PRINT_DOCUMENTS, type PrintDocumentOptions } from '../components/PatientPrintModal';
 import { exportStatisticsReportToExcel, type StatisticsReportDocumentId } from './statisticsReportsExcelGenerator';
@@ -356,13 +357,9 @@ async function getGenerator(id: string): Promise<DocumentGenerator | null> {
         const mod = await import('./docHtmlGenerators/personalBelongingsGenerator');
         return mod.generatePersonalBelongingsHtml;
       }
-      case 'financial_proxy_p1': {
+      case 'financial_proxy': {
         const mod = await import('./docHtmlGenerators/financialProxyGenerator');
-        return mod.generateFinancialProxyP1Html;
-      }
-      case 'financial_proxy_p2': {
-        const mod = await import('./docHtmlGenerators/financialProxyGenerator');
-        return mod.generateFinancialProxyP2Html;
+        return mod.generateFinancialProxyHtml;
       }
       case 'financial_return': {
         const mod = await import('./docHtmlGenerators/financialReturnGenerator');
@@ -805,10 +802,17 @@ export async function generatePatientPrintBundle(options: PrintBundleOptions): P
         // 合併列印時各文件 logo 精準疊合，每頁視覺上只有一個）
         const withPageLogo = (h: string) =>
           needsPageLogo(docId, doc?.category) ? injectPageLogo(h, pageLogoSrc) : h;
+        // 入住文件全部加打孔虛線指引（常用表格 3-9 由各自 generator 注入）
+        const withPunch = (h: string) =>
+          doc?.category === '入住文件' ? injectPunchGuide(h) : h;
+        // 順序：先 logo（將 @page 上/右 margin 一律歸零並以 body padding 補償），
+        // 後打孔（讀取歸零後嘅 margin 計算圓圈 fixed 偏移；若次序相反，
+        // 圓圈會用舊 margin 計偏移、落地 margin 已變，紙上位置漂移）
+        const decorate = (h: string) => withPunch(withPageLogo(h));
         if (Array.isArray(html)) {
-          pages.push(...html.filter(Boolean).map(withPageLogo));
+          pages.push(...html.filter(Boolean).map(decorate));
         } else if (html) {
-          pages.push(withPageLogo(html));
+          pages.push(decorate(html));
         } else if (contentMode === 'data') {
           skipped.push(`${docName}（${patientName}）`);
         }

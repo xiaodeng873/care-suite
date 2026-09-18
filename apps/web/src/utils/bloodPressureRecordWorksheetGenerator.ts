@@ -8,6 +8,7 @@ import {
   getPrintBedNumber,
   enrichPatientsWithOriginalBedNumber,
 } from './bedTransferUtils';
+import { injectPunchGuide } from './punchGuide';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 生命表徵觀察記錄表（A4 直印）
@@ -445,7 +446,7 @@ export const generateBloodPressureRecordHtml = async (
     });
   });
 
-  return buildHtml(pagesHtml);
+  return injectPunchGuide(buildHtml(pagesHtml));
 };
 
 /**

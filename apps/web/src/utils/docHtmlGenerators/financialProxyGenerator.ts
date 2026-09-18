@@ -1,6 +1,6 @@
 import financialProxyP1Template from '../../../../../upload/doc_html/託管院友財物授權書P1.html?raw';
 import financialProxyP2Template from '../../../../../upload/doc_html/託管院友財物授權書P2.html?raw';
-import { processDocHtmlTemplate, fillInputAfterLabel } from './baseTemplateProcessor';
+import { processDocHtmlTemplate, combineDocHtmlDocuments, fillInputAfterLabel } from './baseTemplateProcessor';
 import type { DocumentGeneratorContext } from '../patientPrintBundleGenerator';
 
 export function generateFinancialProxyP1Html(ctx: DocumentGeneratorContext): Promise<string> {
@@ -14,4 +14,17 @@ export function generateFinancialProxyP1Html(ctx: DocumentGeneratorContext): Pro
 
 export function generateFinancialProxyP2Html(ctx: DocumentGeneratorContext): Promise<string> {
   return Promise.resolve(processDocHtmlTemplate(financialProxyP2Template, ctx));
+}
+
+/** 合併版：託管院友財物授權書（P1 + P2 合一份 2 頁文件） */
+export function generateFinancialProxyHtml(ctx: DocumentGeneratorContext): Promise<string> {
+  let html = combineDocHtmlDocuments([
+    processDocHtmlTemplate(financialProxyP1Template, ctx),
+    processDocHtmlTemplate(financialProxyP2Template, ctx),
+  ]);
+  if (ctx.contentMode !== 'blank') {
+    // 第一個身份證號碼欄位屬院友（在委託人欄位之前）
+    html = fillInputAfterLabel(html, '身份證號碼', ctx.patient.身份證號碼 || '');
+  }
+  return Promise.resolve(html);
 }

@@ -2,6 +2,7 @@ import type { PatientLog, Patient } from '../lib/database';
 import { formatDisplayDate } from './dateFormat';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 import { printCombinedHtml } from './printUtils';
+import { injectPunchGuide } from './punchGuide';
 import { getPrintBedNumber } from './bedTransferUtils';
 
 
@@ -454,7 +455,7 @@ export async function generatePatientLogNursingTreatmentHtml(
     pages.push(buildPatientHtml(patient, patientLogs, facilityName));
   }
 
-  return `<!DOCTYPE html>
+  return injectPunchGuide(`<!DOCTYPE html>
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
@@ -463,7 +464,7 @@ export async function generatePatientLogNursingTreatmentHtml(
 <body>
   ${pages.join('\n')}
 </body>
-</html>`;
+</html>`);
 }
 
 export async function printPatientLogNursingTreatment(

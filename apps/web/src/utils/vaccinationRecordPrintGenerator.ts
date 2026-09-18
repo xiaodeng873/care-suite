@@ -2,6 +2,7 @@ import { formatDisplayDate } from './dateFormat';
 import { getPrintBedNumber } from './bedTransferUtils';
 import type { VaccinationRecord } from '../lib/database';
 import { getFacilitySettings } from './facilitySettings';
+import { injectPunchGuide } from './punchGuide';
 
 // 疫苗接種記錄（A4 直印，每位院友獨立一張）
 // 表頭樣式參考生命表徵觀察記錄表／入住文件；頁尾只有頁碼，無文件編碼。
@@ -120,7 +121,7 @@ export const generateVaccinationRecordHtml = (
     </div>`).join('');
   }).join('');
 
-  return `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
@@ -172,6 +173,7 @@ export const generateVaccinationRecordHtml = (
   </div>
 </body>
 </html>`;
+  return injectPunchGuide(html);
 };
 
 /** 個別列印：主表格操作列嘅列印圖標用 */

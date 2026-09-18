@@ -72,6 +72,8 @@ const pageBlock = (patient: Patient, pageRecords: PatientActivityRecord[], pageI
       <h2>院友健康教育 / 活動記錄表</h2>
     </div>
   </div>
+  <br>
+  <br>
   <div class="page-content">
     <div class="user-info">
       <div>院友姓名：<input type="text" class="db-line-input" style="width: 140px;" value="${escapeHtml(patientName)}" readonly></div>

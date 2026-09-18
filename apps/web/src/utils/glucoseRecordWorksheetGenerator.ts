@@ -8,6 +8,7 @@ import {
   getPrintBedNumber,
   enrichPatientsWithOriginalBedNumber,
 } from './bedTransferUtils';
+import { injectPunchGuide } from './punchGuide';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 院友血糖記錄表（A4 直印）
@@ -355,7 +356,7 @@ export const generateGlucoseRecordHtml = async (
     });
   });
 
-  return buildHtml(pagesHtml);
+  return injectPunchGuide(buildHtml(pagesHtml));
 };
 
 /**

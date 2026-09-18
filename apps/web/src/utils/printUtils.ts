@@ -157,13 +157,16 @@ const measurePrintedPageCount = (
  * spacer 嘅 class 含 "print-doc-"，令 `[class*="print-doc-"] + [class*="print-doc-"]`
  * 分頁規則喺 spacer 前後都生效。
  *
- * 同時將每份文件嘅 fixed logo 換成「逐頁 absolute logo」：fixed 會喺包括空白補頁
- * 在內嘅每一頁重複，換成按量度頁數注入嘅 absolute 副本後，空白頁冇 logo，
- * 而且每頁只會顯示自己文件嘅 logo（唔再係全部文件嘅 logo 疊埋一齊）。
- * 第 k 頁嘅 logo top = k × 內容盒高 + (LOGO_EDGE_MM − marginTop)：Chrome 對 fragmented
- * relative 容器入面嘅 absolute 子元素，係以「內容流座標」（每頁推進一個內容盒高，
- * 唔係紙高）定位；扣減 margin 後 logo 喺紙張上同其他文件同一絕對位置（右上角，
- * 距紙邊 LOGO_EDGE_MM）。
+ * 同時將每份文件嘅 fixed logo 同打孔指引（.punch-guide-fixed）喺**雙面**時換成
+ * 逐頁 absolute 副本：雙面背面要轉邊（直向打右邊、橫向打底邊），fixed 做唔到
+ * 逐頁轉邊；補白頁亦唔應出現 logo/圓圈。副本放喺每頁開頭嘅頁元素（未 fragmented，
+ * absolute 定位先精準）入面嘅零尺寸 absolute 載體；頁內座標 = 紙面目標（圓圈鏡像、
+ * logo 唔鏡像）− 頁元素實量紙面偏移，y 要換算做 wrapper 全局（k × 內容盒高 + 頁內 y）
+ * 先唔會變負數竄頁。頁元素盒外嘅副本（overflow:hidden 會裁）同搵唔到頁首元素嘅
+ * 頁，退回 wrapper 級 clone（fragmented 容器 absolute 喺部分 Chrome 有偏移，殘缺
+ * 好過冇）。非雙面維持 fixed 原生每頁重複——fixed 喺「無橫向溢出」時精準，
+ * injectPunchGuide 已經喺 body 加 `overflow-x: clip`（橫向溢出會破壞 Chromium
+ * 列印嘅 fixed 垂直座標，clip 喺內容盒邊緣裁剪，視覺上同紙邊裁剪一模一樣）。
  */
 export const padOddPageDocuments = (
   iframeDoc: Document,
@@ -171,7 +174,6 @@ export const padOddPageDocuments = (
   allCssText: string,
   duplexPadding = true
 ): void => {
-  if (wrappers.length < 2) return;
   const win = iframeDoc.defaultView;
   if (!win) return;
   const breakSelectors = extractBreakSelectors(allCssText);
@@ -183,27 +185,204 @@ export const padOddPageDocuments = (
     if (contentHeightPx <= 0) return;
     const pageCount = measurePrintedPageCount(win, wrapper, contentHeightPx, breakSelectors);
 
-    const fixedImg = wrapper.querySelector('img.admission-page-logo');
-    if (fixedImg) {
-      const src = fixedImg.getAttribute('src') || '';
-      fixedImg.remove();
+    if (!duplexPadding) return; // 非雙面：打孔指引維持 fixed 每頁左邊（overflow-x:clip 已由 injectPunchGuide 保證座標精準）；logo 維持 fixed 每頁重複
+
+    // 雙面：fixed 圓圈/logo 換成逐頁 absolute 副本（背面鏡像轉邊；補白頁自然冇）。
+    // 主機制：每頁開頭嘅 in-flow 頁元素（未 fragmented，定位精準）入面嘅零尺寸
+    // absolute 載體。圓圈喺每張紙嘅位置固定（直向 x 隻頁數鏡像去右、橫向 y 鏡像去底），
+    // 所以頁內座標 = 紙面目標 − 頁元素紙面偏移（實量 rect），再除 ancestor zoom。
+    // 頁元素盒外（如託管書正面孔位喺 20mm 讓位區左邊）會俾 overflow:hidden 裁剪，
+    // 呢啲副本改用 wrapper 級（fragmented 容器 absolute 喺部分 Chrome 有偏移，殘缺好過冇）。
+    const paper = pagePaperSizeMm(config);
+    const landscape = config.orientation === 'landscape';
+    const [mtFinal, , , mlFinal] = normalizeMargin(config.margin).split(/\s+/).map(cssLengthToMm);
+    const punchEls = Array.from(wrapper.querySelectorAll<HTMLElement>('.punch-guide-fixed'));
+    const logoEls = Array.from(wrapper.querySelectorAll<HTMLElement>('img.admission-page-logo'));
+    if (punchEls.length > 0 || logoEls.length > 0) {
       wrapper.style.position = 'relative';
-      const [mt, mr] = normalizeMargin(config.margin).split(/\s+/).map(cssLengthToMm);
-      // injectPageLogo 已將 margin 收窄到 ≤ LOGO_EDGE_MM，偏移保證 ≥ 0（負值會竄頁/出幽靈副本）
-      const logoTop = Math.max(0, LOGO_EDGE_MM - mt);
-      const logoRight = Math.max(0, LOGO_EDGE_MM - mr);
-      for (let k = 0; k < pageCount; k++) {
-        const img = iframeDoc.createElement('img');
-        img.className = 'admission-page-logo';
-        img.src = src;
-        img.alt = '院舍標誌';
-        // +0.3mm：k×內容盒高啱啱喺 fragment 邊界，Chrome 會歸去前一頁底部；微調入 fragment 內
-        img.style.cssText = `position:absolute;top:${(k * contentHeightMm + logoTop + 0.3).toFixed(1)}mm;right:${logoRight.toFixed(1)}mm;width:32mm;height:auto;z-index:2147483647;`;
-        wrapper.appendChild(img);
+      const wRect = wrapper.getBoundingClientRect();
+
+      const forcedBreakAfter = (el: HTMLElement): boolean => {
+        const cs = win.getComputedStyle(el);
+        return isForcedBreak(cs.pageBreakAfter) || isForcedBreak((cs as CSSStyleDeclaration & { breakAfter?: string }).breakAfter ?? '');
+      };
+      const forcedBreakBefore = (el: HTMLElement): boolean => {
+        const cs = win.getComputedStyle(el);
+        return isForcedBreak(cs.pageBreakBefore) || isForcedBreak((cs as CSSStyleDeclaration & { breakBefore?: string }).breakBefore ?? '');
+      };
+
+      // 檢測頁首元素（每頁開頭嘅 in-flow 直接子元素）：
+      // 順序追蹤——強制分頁（break-before / 上一個 break-after）= 新頁；
+      // 否則 offsetTop − 基線 ≈ k × 內容盒高（±3mm）= 自然滿版頁（如託管書 297mm 容器）。
+      // 基線 = 第一個 in-flow 子元素嘅 offsetTop：logo 補償會喺 body 加 padding-top
+      // （原 mt，如 5mm），令第一頁 offsetTop 唔係 0——第一個 in-flow 子元素定義上
+      // 必定喺第 0 頁，用佢做基線先唔會被呢個 padding 整死。
+      // 讓位後高度縮咗嘅頁（如急症室記錄 175mm）offsetTop 對唔上 k × 內容高，
+      // 靠強制分頁先搵到，所以兩條規則都要有。
+      const used = new Set<number>();
+      const carriers: { el: HTMLElement; k: number }[] = [];
+      let prevK = -1;
+      let prevBreakAfter = false;
+      let baseTopPx: number | null = null;
+      Array.from(wrapper.children).forEach((child) => {
+        const el = child as HTMLElement;
+        if (!(el instanceof win.HTMLElement)) return;
+        if (el.classList.contains('punch-guide-fixed') || el.classList.contains('admission-page-logo')) return;
+        if (win.getComputedStyle(el).display === 'none') return; // 隱藏元素（如範本嘅 .no-print 按鈕）唔會係頁首
+        if (baseTopPx === null) baseTopPx = el.offsetTop;
+        const relTop = el.offsetTop - baseTopPx;
+        const kGeo = Math.round(relTop / contentHeightPx);
+        let k = -1;
+        if (prevK >= 0 && (forcedBreakBefore(el) || prevBreakAfter)) k = prevK + 1;
+        else if (prevK === -1) k = 0; // 第一個 in-flow 子元素必定喺第 0 頁
+        else if (kGeo > prevK && Math.abs(relTop - kGeo * contentHeightPx) <= 3 * PX_PER_MM) k = kGeo;
+        prevBreakAfter = forcedBreakAfter(el);
+        if (k < 0 || k >= pageCount || used.has(k)) return;
+        used.add(k);
+        carriers.push({ el, k });
+        prevK = k;
+      });
+
+      const dia = parseFloat(punchEls[0]?.style.width || '6') || 6;
+      // 雙面背面內容讓位嘅原始左 margin（歸零前，由 punchGuide 記錄喺 data-orig-*）
+      const origMl = parseFloat(punchEls[0]?.dataset.origMl || '0') || 0;
+      // 打孔讓位實際 baseline：內容而家坐喺 body padding（打孔區 20mm）之後
+      const wrapperPadLeftMm = parseFloat(win.getComputedStyle(wrapper).paddingLeft) / PX_PER_MM;
+      const targets: { x: number; y: number; w: number; h: number | null; mirror: boolean }[] = [];
+      punchEls.forEach((src) => {
+        const px = parseFloat(src.dataset.paperLeft || '0') || 0;
+        const py = parseFloat(src.dataset.paperTop || '0') || 0;
+        targets.push({ x: px, y: py, w: dia, h: dia, mirror: true });
+      });
+      logoEls.forEach(() => {
+        targets.push({ x: paper.w - LOGO_EDGE_MM - 32, y: LOGO_EDGE_MM, w: 32, h: null, mirror: false });
+      });
+
+      const wrapperClone = (src: HTMLElement, tx: number, ty: number, wMm: number, hMm: number | null, k: number) => {
+        // wrapper 級副本：wrapper 邊界 = 頁內容原點；第 k 頁 = k × 內容盒高 + 頁內座標
+        const clone = src.cloneNode(true) as HTMLElement;
+        clone.style.position = 'absolute';
+        clone.style.boxSizing = 'border-box';
+        clone.style.width = `${wMm.toFixed(2)}mm`;
+        if (hMm !== null) clone.style.height = `${hMm.toFixed(2)}mm`;
+        clone.style.left = `${(tx - mlFinal).toFixed(2)}mm`;
+        clone.style.top = `${(k * contentHeightMm + ty - mtFinal).toFixed(2)}mm`;
+        wrapper.appendChild(clone);
+      };
+
+      if (carriers.length > 0) {
+        carriers.forEach(({ el, k }) => {
+          if (win.getComputedStyle(el).position === 'static') el.style.position = 'relative';
+          // 背面（雙數頁）打孔喺另一邊（直向右、橫向底）——內容讓位方向要同孔位相反，
+          // 否則內容偏向孔位（打孔會打穿內容）。正面靠 wrapper padding（打孔區 20mm）
+          // 讓位；背面要還原返文件嘅原始左/上出血（淨係避開打孔區，唔係推到貼紙邊），
+          // 所以偏移量 = 原 margin − 讓位 baseline。無打孔指引嘅文件（純 logo）唔郁。
+          const back = k % 2 === 1;
+          if (back && punchEls.length > 0 && !landscape) {
+            // 背面內容讓位（直向）：打孔喺右，內容向左移，左邊出血還原做文件
+            // 原始 margin（淨係避開打孔區，唔係推到貼紙邊）。橫向唔郁：分頁座標係
+            // 跨頁連續嘅，任何垂直移位（margin/relative）都會令內容跨過分頁界，
+            // 將下一頁標題拉返上上一頁底（孤兒頁）；橫向背面孔喺底，內容盒經已
+            // 由 min-height 縮減避開（見 punchGuide），唔使再郁
+            const shiftMm = origMl - wrapperPadLeftMm;
+            if (Math.abs(shiftMm) > 0.01) {
+              el.style.marginLeft = `${shiftMm.toFixed(2)}mm`;
+            }
+          }
+          const elRect = el.getBoundingClientRect();
+          const elPaperX = mlFinal + (elRect.left - wRect.left) / PX_PER_MM;
+          const elPaperY = mtFinal + (elRect.top - wRect.top) / PX_PER_MM;
+          const elW = elRect.width / PX_PER_MM;
+          const elH = elRect.height / PX_PER_MM;
+          let zoom = 1;
+          let n: HTMLElement | null = el;
+          while (n && n !== wrapper) {
+            const zz = parseFloat((win.getComputedStyle(n).zoom as unknown as string) || '1');
+            if (zz > 0 && zz !== 1) zoom *= zz;
+            n = n.parentElement;
+          }
+          // 裁剪檢查：頁元素同 wrapper 之間有冇 overflow 裁剪（孔位喺盒外先有意義）
+          const clippedByAncestor = (): boolean => {
+            let a: HTMLElement | null = el;
+            while (a && a !== wrapper) {
+              const cs = win.getComputedStyle(a);
+              if (/hidden|clip|scroll|auto/.test(cs.overflowX) || /hidden|clip|scroll|auto/.test(cs.overflowY)) return true;
+              a = a.parentElement;
+            }
+            return false;
+          };
+          const clips = clippedByAncestor();
+          const carrier = iframeDoc.createElement('div');
+          carrier.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none;';
+          el.appendChild(carrier);
+          const place = (src: HTMLElement, t: { x: number; y: number; w: number; h: number | null; mirror: boolean }) => {
+            // 背面鏡像（只限圓圈）：直向以紙寬鏡 x（打右邊）；橫向以紙高鏡 y（打底邊）；
+            // logo 每頁右上角唔鏡像
+            const tx = back && t.mirror && !landscape ? paper.w - t.x - t.w : t.x;
+            const ty = back && t.mirror && landscape ? paper.h - t.y - (t.h ?? 0) : t.y;
+            // t.y 係「單張紙內」座標；頁元素頂 = wrapper 全局 k × 內容盒高 + mt，
+            // 所以目標 wrapper 全局 y = k × 內容盒高 + ty（x 唔使，每張紙 x 對齊）
+            const wrapY = k * contentHeightMm + ty;
+            const localX = (tx - elPaperX) / zoom;
+            const localY = (wrapY - elPaperY) / zoom;
+            const w = t.w / zoom;
+            const h = t.h === null ? null : t.h / zoom;
+            const fits = localX >= -0.5 && localY >= -0.5 &&
+              localX + w <= elW / zoom + 0.5 && (h === null || localY + h <= elH / zoom + 0.5);
+            if (!fits && clips) {
+              wrapperClone(src, tx, ty, t.w, t.h, k);
+              return;
+            }
+            const clone = src.cloneNode(true) as HTMLElement;
+            clone.style.position = 'absolute';
+            clone.style.boxSizing = 'border-box';
+            clone.style.width = `${w.toFixed(2)}mm`;
+            if (h !== null) clone.style.height = `${h.toFixed(2)}mm`;
+            clone.style.left = `${localX.toFixed(2)}mm`;
+            clone.style.top = `${localY.toFixed(2)}mm`;
+            if (clone.style.right !== undefined) clone.style.right = 'auto'; // logo 範本 CSS 有 right:2mm
+            carrier.appendChild(clone);
+          };
+          punchEls.forEach((src, i) => place(src, targets[i]));
+          logoEls.forEach((src, i) => place(src, targets[punchEls.length + i]));
+        });
+        // 冇頁首元素嘅頁（純流動內容跨頁，如健康評估/活動記錄表）：每頁補返
+        // wrapper 級 logo 同圓圈副本（至少齊件；位置精度不如載體方案）
+        for (let k = 0; k < pageCount; k++) {
+          if (used.has(k)) continue;
+          const back = k % 2 === 1;
+          targets.forEach((t, i) => {
+            const src = i < punchEls.length ? punchEls[i] : logoEls[i - punchEls.length];
+            const tx = back && t.mirror && !landscape ? paper.w - t.x - t.w : t.x;
+            const ty = back && t.mirror && landscape ? paper.h - t.y - (t.h ?? 0) : t.y;
+            wrapperClone(src, tx, ty, t.w, t.h, k);
+          });
+        }
+        punchEls.forEach((el) => el.remove());
+        logoEls.forEach((el) => el.remove());
+      } else {
+        // 退化：搵唔到頁首元素（純流動內容），全部 wrapper 級 clone（位置可能偏移）
+        punchEls.forEach((src) => {
+          const t = targets[punchEls.indexOf(src)];
+          for (let k = 0; k < pageCount; k++) {
+            const back = k % 2 === 1;
+            const tx = back && t.mirror && !landscape ? paper.w - t.x - t.w : t.x;
+            const ty = back && t.mirror && landscape ? paper.h - t.y - (t.h ?? 0) : t.y;
+            wrapperClone(src, tx, ty, t.w, t.h, k);
+          }
+          src.remove();
+        });
+        logoEls.forEach((src) => {
+          for (let k = 0; k < pageCount; k++) {
+            const t = targets[punchEls.length + logoEls.indexOf(src)];
+            wrapperClone(src, t.x, t.y, t.w, t.h, k);
+          }
+          src.remove();
+        });
       }
     }
 
-    if (!duplexPadding) return; // 唔勾雙面列印就唔補空白頁（logo 注入照做）
+    if (wrappers.length < 2) return; // 單份文件唔使補空白頁（打孔指引轉換上面已做）
     if (idx === wrappers.length - 1) return; // 最後一份唔使補空白頁
     if (pageCount % 2 === 0) return;
     const spacer = iframeDoc.createElement('div');
@@ -588,7 +767,7 @@ export const printCombinedHtml = (pages: string[], iframeId: string, sequential 
     const widthPx = pageContentBoxMm(config).w * PX_PER_MM;
     return {
       config,
-      // border-box：logo 文件嘅 @page 上/右 margin 已被 injectPageLogo 收窄並以
+      // border-box：logo 文件嘅 @page 上/右 margin 已被 injectPageLogo 歸零並以
       // body padding 補償，wrapper 闊度要連 padding 先啱啱填滿內容盒
       ...scopeDocumentHtml(page, `print-doc-${i}`, 'scope', `box-sizing:border-box;width:${widthPx.toFixed(1)}px;`),
     };
@@ -699,7 +878,7 @@ export const printGroupedHtml = (pages: string[], iframeId: string, duplexPaddin
         pageRules.push(`@page ${pageName} { size: ${config.size} ${pageConfig.orientation}; margin: ${margin}; }`);
       }
       const widthPx = pageContentBoxMm({ ...pageConfig, size: config.size }).w * PX_PER_MM;
-      // border-box：logo 文件嘅 @page 上/右 margin 已被 injectPageLogo 收窄並以
+      // border-box：logo 文件嘅 @page 上/右 margin 已被 injectPageLogo 歸零並以
       // body padding 補償，wrapper 闊度要連 padding 先啱啱填滿內容盒
       const wrapperStyle = `page: ${pageName};box-sizing:border-box;width:${widthPx.toFixed(1)}px;`;
       return { pageConfig, pageName, ...scopeDocumentHtml(page, `print-doc-${batchIndex}-${i}`, 'strip', wrapperStyle) };

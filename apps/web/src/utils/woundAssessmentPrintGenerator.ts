@@ -11,6 +11,7 @@ import { computeNextAssessmentDue } from '../lib/database';
 import { getFacilitySettings } from './facilitySettings';
 import { formatDisplayDate } from '../utils/dateFormat';
 import { getPrintBedNumber } from './bedTransferUtils';
+import { injectPunchGuide } from './punchGuide';
 
 
 
@@ -322,13 +323,13 @@ export const generateWoundAssessmentHtml = async (
   const pages = Array.from({ length: totalPages }, (_, i) =>
     buildPage(wound, patient, sorted.slice(i * COLS_PER_PAGE, (i + 1) * COLS_PER_PAGE), i + 1, totalPages, stationCode, settings.facilityNameZh)(diagramDataUri)
   );
-  return `<!DOCTYPE html>
+  return injectPunchGuide(`<!DOCTYPE html>
 <html lang="zh-HK"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1050">
 <title>傷口評估記錄表 - ${esc(wound.wound_name ?? wound.wound_code)}</title>
 <style>${CSS}</style>
-</head><body>${pages.join('\n')}</body></html>`;
+</head><body>${pages.join('\n')}</body></html>`);
 };
 
 export const printWoundAssessment = async (

@@ -32,8 +32,7 @@ export const PRINT_DOCUMENTS: PrintDocumentOption[] = [
 { id: 'publicity_consent', name: '發佈資料同意書', category: '入住文件', defaultChecked: true },
 { id: 'outing_consent', name: '院友外出同意書', category: '入住文件', defaultChecked: true },
 { id: 'personal_belongings', name: '私人物品記錄表', category: '入住文件', defaultChecked: true },
-{ id: 'financial_proxy_p1', name: '託管院友財物授權書P1', category: '入住文件', defaultChecked: true },
-{ id: 'financial_proxy_p2', name: '託管院友財物授權書P2', category: '入住文件', defaultChecked: true },
+{ id: 'financial_proxy', name: '託管院友財物授權書', category: '入住文件', defaultChecked: true },
 { id: 'financial_return', name: '領回託管財物證明書', category: '入住文件', defaultChecked: true },
 // 常用表格
 { id: 'medication_list_short', name: '院友服用藥物一覽表（短期藥）', category: '常用表格', defaultChecked: true },

@@ -1,0 +1,37 @@
+[
+  {
+    "size": "A4",
+    "orientation": "portrait",
+    "margin": "0mm 0mm 5mm 0"
+  },
+  {
+    "size": "A4",
+    "orientation": "portrait",
+    "margin": "0mm 0mm 5mm 0"
+  },
+  {
+    "size": "A4",
+    "orientation": "portrait",
+    "margin": "0mm 0mm 0mm 0"
+  },
+  {
+    "size": "A4",
+    "orientation": "portrait",
+    "margin": "0mm 0mm 5mm 0"
+  },
+  {
+    "size": "A4",
+    "orientation": "landscape",
+    "margin": "0 0mm 5mm 10mm"
+  },
+  {
+    "size": "A4",
+    "orientation": "portrait",
+    "margin": "0mm 0mm 5mm 0"
+  },
+  {
+    "size": "A4",
+    "orientation": "portrait",
+    "margin": "0mm 0mm 5mm 0"
+  }
+]
