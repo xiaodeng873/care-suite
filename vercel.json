@@ -1,4 +1,5 @@
 {
+  "devCommand": "npm run dev",
   "buildCommand": "npm run build -w apps/marketing",
   "outputDirectory": "apps/marketing/dist",
   "installCommand": "npm install",

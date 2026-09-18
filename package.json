@@ -8,6 +8,7 @@
   "scripts": {
     "build": "npm -ws run build --if-present",
     "dev": "npm --prefix apps/marketing run dev",
+    "preview": "npm --prefix apps/marketing run preview",
     "lint": "npm -ws run lint --if-present"
   },
   "devDependencies": {
