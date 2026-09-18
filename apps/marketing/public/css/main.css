@@ -2,6 +2,8 @@
    Aligned with web app (Tailwind blue/slate palette)
    Auto dark mode via prefers-color-scheme + manual toggle */
 
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap');
+
 :root {
   /* Primary: blue-600 (matches web app) */
   --color-primary: #2563EB;

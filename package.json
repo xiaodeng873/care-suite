@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "build": "npm -ws run build --if-present",
-    "dev": "npm -ws run dev --if-present",
+    "dev": "npm run dev --workspace=care-suite-marketing",
     "lint": "npm -ws run lint --if-present"
   },
   "devDependencies": {

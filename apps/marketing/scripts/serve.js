@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const root = process.argv[2] ? path.resolve(process.argv[2]) : path.resolve(__dirname, '../dist');
-const port = parseInt(process.argv[3] || '5173', 10);
+const port = parseInt(process.argv[3] || '3000', 10);
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
