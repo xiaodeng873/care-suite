@@ -576,6 +576,17 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       };
     }
 
+    // 入住日期留白 → 必為待入住，不可保留床位（新增及編輯均適用）
+    if (!finalFormData.入住日期) {
+      finalFormData = {
+        ...finalFormData,
+        在住狀態: '待入住',
+        station_id: '',
+        bed_id: '',
+        床號: '待分配'
+      };
+    }
+
     // 合併中文姓名和英文姓名
     const 中文姓名 = (finalFormData.中文姓氏 + finalFormData.中文名字).trim();
     const 英文姓名 = finalFormData.英文姓氏 && finalFormData.英文名字 ?
@@ -795,7 +806,9 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
               <div>
               <label className="form-label">居住區和床位 (可選)</label>
-              <SimpleStationBedSelector
+              {formData.入住日期 ? (
+                <>
+                  <SimpleStationBedSelector
                   selectedStationId={formData.station_id}
                   selectedBedId={formData.bed_id}
                   currentPatientId={patient?.院友id}
@@ -808,10 +821,18 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
                       在住狀態: stationId && bedId ? '在住' : '待入住'
                     }));
                   }} />
-                
+
               <p className="text-xs text-gray-500 mt-1">
                 如不選擇床位，院友狀態將設為「待入住」，可稍後在床位管理頁面指派
               </p>
+                </>
+              ) : (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    入住日期留白，院友將設為「待入住」，不可在此指派床位；請到「床位管理」頁面指派床位，指派時需補上入住日期。
+                  </p>
+                </div>
+              )}
             </div>
               }
 
@@ -884,7 +905,12 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
 
             <div>
               <label className="form-label">入住日期</label>
-              <DateInput name="入住日期" value={formData.入住日期} className="form-input" onChange={(value) => setFormData((prev) => ({ ...prev, 入住日期: value }))} />
+              <DateInput name="入住日期" value={formData.入住日期} className="form-input" onChange={(value) => setFormData((prev) => ({
+                ...prev,
+                入住日期: value,
+                // 入住日期留白 → 必為待入住，不可保留床位
+                ...(value ? {} : { station_id: '', bed_id: '', 床號: '', 在住狀態: '待入住' })
+              }))} />
             </div>
           </div>
 

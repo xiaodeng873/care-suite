@@ -1,8 +1,9 @@
 import React, { useState, useDeferredValue } from 'react';
-import { X, Bed, User, Search, ArrowRightLeft, Home } from 'lucide-react';
+import { X, Bed, User, Search, ArrowRightLeft, Home, Calendar } from 'lucide-react';
 import { usePatientData, useFilteredPatients } from '../context/PatientContext';
 import PatientTooltip from './PatientTooltip';
 import BedNumberImprint from './BedNumberImprint';
+import DateInput from './DateInput';
 import { fuzzyMatch, matchChineseName, matchEnglishName, matchBedNumber, comparePatientsForSearch, matchPatientBedNumber} from '../utils/searchUtils';
 import type { BedTransferType } from '../lib/database';
 
@@ -12,12 +13,14 @@ interface BedAssignmentModalProps {
 }
 
 const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose }) => {
-  const { stations, beds, patients, assignPatientToBed } = usePatientData();
+  const { stations, beds, patients, assignPatientToBed, updatePatient } = usePatientData();
   const filteredPatients = useFilteredPatients();
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [transferType, setTransferType] = useState<BedTransferType>('routine');
+  const [showAdmissionDateModal, setShowAdmissionDateModal] = useState(false);
+  const [admissionDate, setAdmissionDate] = useState('');
 
   const station = stations.find(s => s.id === bed.station_id);
 
@@ -68,11 +71,33 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
       return;
     }
 
+    // 院友未填寫入住日期：先彈出補填，確認後一併儲存及指派
+    if (!selectedPatient.入住日期) {
+      setAdmissionDate('');
+      setShowAdmissionDateModal(true);
+      return;
+    }
+
     try {
       await assignPatientToBed(selectedPatient.院友id, bed.id, transferType);
       onClose();
     } catch (error) {
       console.error('指派院友到床位失敗:', error);
+      alert(error instanceof Error ? error.message : '指派失敗，請重試');
+    }
+  };
+
+  const handleConfirmAdmissionDate = async () => {
+    if (!admissionDate) {
+      alert('請填寫入住日期');
+      return;
+    }
+    try {
+      await updatePatient({ ...selectedPatient, 入住日期: admissionDate });
+      await assignPatientToBed(selectedPatient.院友id, bed.id, transferType);
+      onClose();
+    } catch (error) {
+      console.error('補填入住日期及指派床位失敗:', error);
       alert(error instanceof Error ? error.message : '指派失敗，請重試');
     }
   };
@@ -268,6 +293,7 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
                     <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <p className="text-sm text-blue-800">
                         <strong>提示：</strong>此院友目前為待入住狀態，指派床位後將自動更新為在住狀態。
+                        {!patient.入住日期 && '此院友尚未填寫入住日期，確認指派時需先補上。'}
                       </p>
                     </div>
                   )}
@@ -305,6 +331,47 @@ const BedAssignmentModal: React.FC<BedAssignmentModalProps> = ({ bed, onClose })
           </div>
         </div>
       </div>
+
+      {/* 補填入住日期 modal：院友無入住日期時，補上後才可入床 */}
+      {showAdmissionDateModal && selectedPatient && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[60]"
+          onClick={() => setShowAdmissionDateModal(false)}
+        >
+          <div className="bg-white rounded-lg max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-lg bg-blue-100">
+                <Calendar className="h-5 w-5 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">補充入住日期</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              院友「{selectedPatient.中文姓氏}{selectedPatient.中文名字}」尚未填寫入住日期，請補上後方可指派床位。
+            </p>
+            <label className="form-label">入住日期</label>
+            <DateInput
+              name="補填入住日期"
+              value={admissionDate}
+              className="form-input"
+              onChange={(value) => setAdmissionDate(value)}
+            />
+            <div className="flex flex-col sm:flex-row gap-2 mt-4">
+              <button
+                onClick={handleConfirmAdmissionDate}
+                className="btn-primary flex-1"
+              >
+                確認並指派
+              </button>
+              <button
+                onClick={() => setShowAdmissionDateModal(false)}
+                className="btn-secondary flex-1"
+              >
+                返回
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
