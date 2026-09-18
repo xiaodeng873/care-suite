@@ -11,7 +11,7 @@
     "react-dom": "^18.3.1"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "node ../marketing/scripts/build.js && node ../marketing/scripts/serve.js ../marketing/dist 3000",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
