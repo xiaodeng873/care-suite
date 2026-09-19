@@ -28,7 +28,7 @@ const RELIGION_CHECKBOX: Record<string, string> = {
   '回教': 'rel_islam',
 };
 
-export function generatePersonalHealthRecordHtml(ctx: DocumentGeneratorContext): Promise<string> {
+export async function generatePersonalHealthRecordHtml(ctx: DocumentGeneratorContext): Promise<string> {
   const { patient } = ctx;
   const chineseName = patient.中文姓名 || `${patient.中文姓氏 || ''}${patient.中文名字 || ''}`;
   const englishName = patient.英文姓名 || `${patient.英文姓氏 || ''}${patient.英文名字 || ''}`;
@@ -54,6 +54,41 @@ export function generatePersonalHealthRecordHtml(ctx: DocumentGeneratorContext):
   if (patient.宗教信仰 && RELIGION_CHECKBOX[patient.宗教信仰]) p1Checked.push(RELIGION_CHECKBOX[patient.宗教信仰]);
   if (patient.discharge_reason === '轉往其他機構') p1Checked.push('leave_reason_transfer');
   if (patient.discharge_reason === '死亡') p1Checked.push('leave_reason_death');
+
+  // ── 緊急聯絡人映射：第一聯絡人必為保證人；第二、三優先緊急聯絡人；最多三個 ──
+  if (ctx.contentMode !== 'blank') {
+    const db = await import('../../lib/database');
+    const contacts = await db.getPatientContacts(patient.院友id).catch(() => []);
+    const purposesOf = (c: (typeof contacts)[number]) => c.purposes || [];
+    // 舊資料無 purposes 時，以關係文字 / 舊 is_primary 欄位推斷身份
+    const isGuarantor = (c: (typeof contacts)[number]) =>
+      purposesOf(c).some(p => p.includes('保證人')) ||
+      (purposesOf(c).length === 0 && ((c.關係 || '').includes('保證人') || c.is_primary));
+    const isEmergency = (c: (typeof contacts)[number]) =>
+      purposesOf(c).includes('緊急聯絡人') || (c.關係 || '').includes('緊急');
+
+    const picked: (typeof contacts)[number][] = [];
+    const take = (pool: typeof contacts) => {
+      const c = pool.find(x => !picked.includes(x));
+      if (c) picked.push(c);
+    };
+    take(contacts.filter(isGuarantor));      // 第一聯絡人：保證人
+    if (picked.length === 0) take(contacts); // 無保證人時以首個聯絡人頂上
+    take(contacts.filter(isEmergency));      // 第二：優先緊急聯絡人，否則任取
+    take(contacts);
+    take(contacts.filter(isEmergency));      // 第三：優先緊急聯絡人，否則任取
+    take(contacts);
+
+    picked.slice(0, 3).forEach((c, i) => {
+      const n = i + 1;
+      p1FieldValues[`c${n}_name_id`] = [c.聯絡人姓名, c.身份證號碼].filter(Boolean).join('\n');
+      p1FieldValues[`c${n}_relation`] = c.關係 || '';
+      p1FieldValues[`c${n}_contact_detail`] = [c.聯絡電話, c.電郵, c.地址].filter(Boolean).join('\n');
+      p1FieldValues[`c${n}_remark`] = c.備註 || '';
+    });
+    // 「第一聯絡人」checkbox 只標記放喺第一格嗰位
+    if (picked.length > 0) p1Checked.push('c1_is_emergency');
+  }
 
   // ── P2：表頭基本資料 ────────────────────────────────────────────────────
   // （首次記錄職員/修訂記錄屬職員手填欄位，留白）

@@ -26,7 +26,9 @@ export function getRootBedNumber(patient: Patient, beds?: Bed[]): string {
 }
 
 export function getPrintBedNumber(patient: { original_bed_number?: string | null; 床號?: string | null; [key: string]: any }): string {
-  return patient.original_bed_number || patient.床號 || '';
+  const bed = patient.original_bed_number || patient.床號 || '';
+  // 待入住院友無床號：留白，不印「待分配」
+  return bed === '待分配' ? '' : bed;
 }
 
 export async function enrichPatientsWithOriginalBedNumber<T extends { original_bed_id?: string | null; 床號?: string | null }>(

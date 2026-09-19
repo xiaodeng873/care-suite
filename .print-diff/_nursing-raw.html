@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <title>護理及治療記錄</title>
+<style>
+  body { padding-left: 20mm; overflow-x: clip; }
+  /* 固定 210mm 闊嘅滿版容器（託管書/健康記錄等，可能嵌套喺 doc-page 入面）：
+     內容盒讓位 20mm 後自動縮闊，右邊維持貼紙邊，唔會再被裁走右邊文字 */
+  body > *, body .a4-container { max-width: 100%; }
+  .punch-guide-fixed { position: fixed; pointer-events: none; z-index: 2147483646; }
+  </style></head>
+<body><div class="punch-guide-fixed" data-paper-left="12.00" data-paper-top="105.50" data-orig-ml="6.35" data-orig-mt="5.00" style="left:12.00mm;top:100.50mm;width:6mm;height:6mm;border:0.35mm dashed #999;border-radius:50%;"></div><div class="punch-guide-fixed" data-paper-left="12.00" data-paper-top="185.50" data-orig-ml="6.35" data-orig-mt="5.00" style="left:12.00mm;top:180.50mm;width:6mm;height:6mm;border:0.35mm dashed #999;border-radius:50%;"></div>
+  <!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <title>護理及治療記錄 - 善頤(福群)護老院</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 5mm 6.35mm 5mm 0;
+    }
+    body {
+      font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
+      margin: 0; padding: 0;
+      background-color: #fff;
+      color: #000;
+      line-height: 1.2;
+    }
+    .page {
+      min-height: 287mm;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      page-break-after: always;
+      break-after: page;
+    }
+    .page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+    .page-header {
+      flex-shrink: 0;
+    }
+    .page-content {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      overflow: hidden;
+    }
+    .footer {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: flex-end;
+      position: relative;
+      height: 30px;
+      padding: 2px 0;
+      margin-top: auto;
+    }
+    .footer .page-num {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      font-weight: bold;
+      bottom: 0;
+    }
+    .footer .doc-code {
+      font-size: 11px;
+      font-weight: bold;
+      align-self: flex-end;
+    }
+    .header-section {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      margin-bottom: 5px;
+      position: relative;
+    }
+    .header-center { flex: 1; text-align: center; }
+    .header-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
+    .header-section h2 {
+      margin: 4px 0 0 0;
+      font-size: 22px;
+      font-weight: bold;
+      display: inline-block;
+      border-bottom: 1.5px solid black;
+      padding-bottom: 2px;
+    }
+    .page-indicator {
+      position: absolute;
+      right: 0;
+      top: 40px;
+      font-size: 10px;
+      font-weight: bold;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 5px;
+      table-layout: fixed;
+    }
+    .info-table td {
+      border: none;
+      padding: 2px 0;
+      vertical-align: bottom;
+      font-size: 16px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    .db-line-input {
+      width: 90%;
+      border: none;
+      border-bottom: 1px solid black;
+      background: transparent;
+      font-family: inherit;
+      font-size: 16px;
+      outline: none;
+      padding: 0 5px;
+    }
+    table.main-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      border: 1.5px solid black;
+    }
+    table.main-table th, table.main-table td {
+      border: 1px solid black;
+      text-align: center;
+      vertical-align: middle;
+      padding: 0;
+    }
+    table.main-table th {
+      font-size: 14px;
+      font-weight: bold;
+      height: 28px;
+      background-color: #fff;
+    }
+    .col-date { width: 14%; }
+    .col-content { width: 74%; }
+    .col-sign { width: 12%; }
+    .data-row { height: 25.5px; }
+    .center-input { text-align: center; padding: 0; font-size: 14px; }
+    .content-cell { text-align: left; padding: 0; }
+    .content-wrap {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      padding: 0 8px;
+      box-sizing: border-box;
+      font-size: 14px;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .strike-fill {
+      flex-grow: 1;
+      position: relative;
+      height: 1em;
+      margin-left: 2px;
+    }
+    .strike-fill::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      border-top: 1px solid black;
+    }
+  </style>
+</head>
+<body>
+  
+  <div class="page">
+    <div class="page-header">
+      <div class="header-section">
+        <div class="header-center">
+          <h1>善頤(福群)護老院</h1>
+          <h2>護理及治療記錄</h2>
+        </div>
+        <div class="page-indicator">第 1 頁</div>
+      </div>
+      <table class="info-table">
+        <colgroup>
+          <col style="width: 85px;">
+          <col style="width: auto;">
+          <col style="width: 60px;">
+          <col style="width: 150px;">
+          <col style="width: 95px;">
+          <col style="width: 150px;">
+        </colgroup>
+        <tr>
+          <td>院友姓名：</td>
+          <td><input type="text" class="db-line-input" value="測試院友"></td>
+          <td>床號：</td>
+          <td><input type="text" class="db-line-input" value="A103-2"></td>
+          <td>性別/年齡：</td>
+          <td><input type="text" class="db-line-input" value="女/97"></td>
+        </tr>
+      </table>
+    </div>
+    <div class="page-content">
+      <table class="main-table">
+        <colgroup>
+          <col class="col-date">
+          <col class="col-content">
+          <col class="col-sign">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>日期/更期</th>
+            <th>護理/治療</th>
+            <th>簽名</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="data-row">
+      <td class="center-input"></td>
+      <td class="content-cell"><div class="content-wrap"><span></span></div></td>
+      <td class="center-input"></td>
+    </tr>
+          <tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr><tr class="data-row"><td class="center-input"></td><td class="content-cell"><div class="content-wrap"><span></span></div></td><td class="center-input"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="footer">
+      <div class="page-num">6</div>
+      <div class="doc-code">B14 FK (11.2020)</div>
+    </div>
+  </div>
+</body>
+</html>
+</body>
+</html>

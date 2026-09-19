@@ -342,7 +342,10 @@ export const padOddPageDocuments = (
             const h = t.h === null ? null : t.h / zoom;
             const fits = localX >= -0.5 && localY >= -0.5 &&
               localX + w <= elW / zoom + 0.5 && (h === null || localY + h <= elH / zoom + 0.5);
-            if (!fits && clips) {
+            // 負值座標（超出頁首元素頂/左）喺 Chrome 列印會被丟棄或竄頁（logo 補償
+            // padding 令第 0 頁 carrier 低於紙面原點時 localY 會變負），必須轉
+            // wrapper 級副本；右/下方溢出無裁剪祖先時 carrier 副本仍正常繪出
+            if (!fits && (clips || localX < 0 || localY < 0)) {
               wrapperClone(src, tx, ty, t.w, t.h, k);
               return;
             }
@@ -373,6 +376,24 @@ export const padOddPageDocuments = (
         }
         punchEls.forEach((el) => el.remove());
         logoEls.forEach((el) => el.remove());
+
+        // wrapper 級副本（carrier 之外的後備方案）會加喺 wrapper 最尾，令原本係
+        // :last-child 嘅最後頁元素（如護理記錄 .page）唔再係最後一個，scoped 嘅
+        // page-break-after: always 隨即生效，喺文件末尾無端端多一張空白頁。
+        // 後面有下一份文件/補頁 spacer 時佢哋自帶 break-before，撤銷呢個尾部分頁
+        // 唔會影響雙面對齊；淨係撤銷 in-flow 最後一個非副本子元素。
+        const wrapperKids = Array.from(wrapper.children);
+        for (let ci = wrapperKids.length - 1; ci >= 0; ci--) {
+          const el = wrapperKids[ci] as HTMLElement;
+          if (!(el instanceof win.HTMLElement)) continue;
+          if (el.classList.contains('punch-guide-fixed') || el.classList.contains('admission-page-logo')) continue;
+          const cs = win.getComputedStyle(el);
+          if (isForcedBreak(cs.pageBreakAfter) || isForcedBreak((cs as CSSStyleDeclaration & { breakAfter?: string }).breakAfter ?? '')) {
+            el.style.pageBreakAfter = 'auto';
+            (el.style as CSSStyleDeclaration & { breakAfter?: string }).breakAfter = 'auto';
+          }
+          break;
+        }
       } else {
         // 退化：搵唔到頁首元素（純流動內容），全部 wrapper 級 clone（位置可能偏移）
         punchEls.forEach((src) => {
@@ -489,31 +510,34 @@ const parsePageBlockDeclarations = (block: string): Record<string, string> => {
 /** Extract the first @page block content (inside the braces) from CSS text */
 const extractFirstPageBlock = (css: string): string | null => {
   // strip comments to avoid matching @page inside comments
+  // 成個解析都喺 noComments 上面做：idx 同 brace 位置必須用同一份字串，
+  // 否則 @page 前面有註釋時（如 injectPunchGuide 注入嘅 style），
+  // 去註釋後嘅 idx 套落原字串會搵錷 '{'（跌入前面規則嘅 block）
   const noComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
   const idx = noComments.search(/@page(?:\s+[\w-]+)?\s*\{/i);
   if (idx === -1) return null;
-  const braceIdx = css.indexOf('{', idx);
+  const braceIdx = noComments.indexOf('{', idx);
   if (braceIdx === -1) return null;
   let depth = 0;
   let quote = '';
   let j = braceIdx;
-  while (j < css.length) {
-    const ch = css[j];
+  while (j < noComments.length) {
+    const ch = noComments[j];
     if (quote) {
       if (ch === '\\') j++;
       else if (ch === quote) quote = '';
     } else if (ch === '"' || ch === "'") {
       quote = ch;
-    } else if (ch === '/' && css[j + 1] === '*') {
-      const end = css.indexOf('*/', j + 2);
-      j = end === -1 ? css.length : end + 1;
+    } else if (ch === '/' && noComments[j + 1] === '*') {
+      const end = noComments.indexOf('*/', j + 2);
+      j = end === -1 ? noComments.length : end + 1;
       continue;
     } else if (ch === '{') {
       depth++;
     } else if (ch === '}') {
       depth--;
       if (depth === 0) {
-        return css.slice(braceIdx + 1, j);
+        return noComments.slice(braceIdx + 1, j);
       }
     }
     j++;

@@ -241,7 +241,7 @@ const buildPageHtml = (
   </div>`;
 };
 
-const buildPatientHtml = (
+const buildPatientPagesHtml = (
   patient: Patient | undefined,
   logs: PatientLog[],
   facilityName: string
@@ -252,10 +252,14 @@ const buildPatientHtml = (
     pages.push([]);
   }
 
+  // 雙面文件：每頁內容印兩次（正面/背面同一內容），同一頁碼
   const pageHtmls = pages.map((pageRows, idx) =>
     buildPageHtml(pageRows, idx + 1, patient, facilityName)
   );
+  return pageHtmls.flatMap((html) => [html, html]).join('\n');
+};
 
+const buildDocumentHtml = (pagesHtml: string, facilityName: string): string => {
   return `<!DOCTYPE html>
 <html lang="zh-HK">
 <head>
@@ -268,7 +272,9 @@ const buildPatientHtml = (
     }
     body {
       font-family: "DFKai-SB", "BiauKai", "標楷體", serif;
-      margin: 0; padding: 0;
+      /* 唔好寫 padding:0：bundle 路徑入面打孔指引（padding-left:20mm）同
+         logo 補償（padding-top/right）都靠 body padding 生效，呢度一清零就會打斷 */
+      margin: 0;
       background-color: #fff;
       color: #000;
       line-height: 1.2;
@@ -420,7 +426,7 @@ const buildPatientHtml = (
   </style>
 </head>
 <body>
-  ${pageHtmls.join('\n')}
+  ${pagesHtml}
 </body>
 </html>`;
 };
@@ -452,19 +458,10 @@ export async function generatePatientLogNursingTreatmentHtml(
   const pages: string[] = [];
   for (const [patientId, patientLogs] of byPatient) {
     const patient = patients.find((p) => p.院友id === patientId);
-    pages.push(buildPatientHtml(patient, patientLogs, facilityName));
+    pages.push(buildPatientPagesHtml(patient, patientLogs, facilityName));
   }
 
-  return injectPunchGuide(`<!DOCTYPE html>
-<html lang="zh-HK">
-<head>
-  <meta charset="UTF-8">
-  <title>護理及治療記錄</title>
-</head>
-<body>
-  ${pages.join('\n')}
-</body>
-</html>`);
+  return injectPunchGuide(buildDocumentHtml(pages.join('\n'), facilityName));
 }
 
 export async function printPatientLogNursingTreatment(

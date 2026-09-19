@@ -1,0 +1,11 @@
+import { PDFDocument, PDFName } from 'pdf-lib';
+import fs from 'fs';
+const buf = fs.readFileSync('repro-nursing.pdf');
+const doc = await PDFDocument.load(buf);
+const p = doc.getPages()[0];
+const c = p.node.get(PDFName.of('Contents'));
+console.log('contents type:', c?.constructor.name);
+const resolved = doc.context.lookup(c);
+console.log('resolved type:', resolved?.constructor.name);
+console.log('proto methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(resolved)));
+console.log('has contents prop:', resolved?.contents ? 'yes len ' + resolved.contents.length : 'no');
