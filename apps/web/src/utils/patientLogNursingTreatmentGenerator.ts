@@ -461,6 +461,7 @@ export async function generatePatientLogNursingTreatmentHtml(
     pages.push(buildPatientPagesHtml(patient, patientLogs, facilityName));
   }
 
+  // 雙面文件：背面打孔圈鏡像去右邊，內容同時向左讓位避開打孔區
   return injectPunchGuide(buildDocumentHtml(pages.join('\n'), facilityName));
 }
 

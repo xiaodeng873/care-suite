@@ -193,13 +193,13 @@ const padResult = await page.evaluate((args) => {
     pageName: p.pageName,
   })),
   css: `${baseCss}\n${parts.map((p) => p.styles).join('\n')}`,
-  duplex: true,
+  duplex: process.env.DUPLEX !== "off",
 });
 console.log('=== padOddPageDocuments ===', JSON.stringify(padResult, null, 1));
 
 // ---- 出 PDF ----
 const pdfBuf = await page.pdf({ format: 'A4', printBackground: true });
-fs.writeFileSync(path.join(__dirname, 'repro-nursing.pdf'), pdfBuf);
+fs.writeFileSync(path.join(__dirname, 'repro-nursing-duplex.pdf'), pdfBuf);
 await browser.close();
 
 // ---- 解析 PDF 內容流 ----

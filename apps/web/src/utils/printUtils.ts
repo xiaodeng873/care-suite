@@ -164,7 +164,8 @@ const measurePrintedPageCount = (
  * - **非雙面多份合併**：每份文件各有自己嘅 fixed 圓圈/logo，Chrome 列印時 fixed
  *   元素會喺成個合併文件嘅**每一頁**重複——直向文件會見到橫向文件嘅孔位、多份
  *   文件嘅 logo 疊埋移位（單份文件冇交叉污染，先至可以安全用 fixed 原生重複）。
- * 非雙面轉換唔鏡像（全部頁當正面：孔左、logo 右上）、唔補空白頁。
+ * 非雙面轉換唔補空白頁；有打孔圈嘅文件背面孔位照樣鏡像（雙面裝訂係實體事實），
+ * 純 logo 文件全部頁維持正面位（logo 右上）。
  * 副本放喺每頁開頭嘅頁元素（未 fragmented，absolute 定位先精準）入面嘅零尺寸
  * absolute 載體；頁內座標 = 紙面目標（圓圈鏡像、logo 唔鏡像）− 頁元素實量紙面
  * 偏移，y 要換算做 wrapper 全局（k × 內容盒高 + 頁內 y）先唔會變負數竄頁。頁元素
@@ -189,22 +190,25 @@ export const padOddPageDocuments = (
     const pageCount = measurePrintedPageCount(win, wrapper, contentHeightPx, breakSelectors);
 
     // 非雙面單份文件：打孔指引/logo 維持 fixed 原生每頁重複（無交叉污染，座標
-    // 精準——injectPunchGuide 已經喺 body 加 overflow-x:clip 保證 fixed 垂直座標）。
-    // 雙面、或非雙面多份合併：行下面嘅逐頁 absolute 轉換。
-    if (!duplexPadding && wrappers.length < 2) return;
-    const duplex = duplexPadding; // 非雙面轉換：唔鏡像、唔補空白頁
-
-    // fixed 圓圈/logo 換成逐頁 absolute 副本（雙面背面鏡像轉邊；補白頁自然冇）。
-    // 主機制：每頁開頭嘅 in-flow 頁元素（未 fragmented，定位精準）入面嘅零尺寸
-    // absolute 載體。圓圈喺每張紙嘅位置固定（直向 x 隻頁數鏡像去右、橫向 y 鏡像去底），
-    // 所以頁內座標 = 紙面目標 − 頁元素紙面偏移（實量 rect），再除 ancestor zoom。
-    // 頁元素盒外（如託管書正面孔位喺 20mm 讓位區左邊）會俾 overflow:hidden 裁剪，
-    // 呢啲副本改用 wrapper 級（fragmented 容器 absolute 喺部分 Chrome 有偏移，殘缺好過冇）。
+    // 精準——injectPunchGuide 已經喺 body 加 overflow-x:clip 保證 fixed 垂直座標），
+    // 所以「逐頁 absolute 轉換」喺後面按 shouldConvert 閘住；但頁首上出血補償
+    // 係版式修正，所有模式都要行（單面多頁文件第 2 頁起一樣會貼紙頂）。
     const paper = pagePaperSizeMm(config);
     const landscape = config.orientation === 'landscape';
     const [mtFinal, , , mlFinal] = normalizeMargin(config.margin).split(/\s+/).map(cssLengthToMm);
     const punchEls = Array.from(wrapper.querySelectorAll<HTMLElement>('.punch-guide-fixed'));
     const logoEls = Array.from(wrapper.querySelectorAll<HTMLElement>('img.admission-page-logo'));
+    // 有打孔圈嘅文件係雙面裝訂表格：背面孔位喺另一邊係實體事實，唔跟
+    // 「雙面補白頁」checkbox——呢類文件一定要轉換先可以逐頁鏡像孔位
+    const shouldConvert = duplexPadding || wrappers.length >= 2 || punchEls.length > 0;
+    const duplex = duplexPadding; // 非雙面轉換：唔補空白頁（孔位鏡像照做，見 back 註解）
+
+    // fixed 圓圈/logo 換成逐頁 absolute 副本（背面鏡像轉邊；補白頁自然冇）。
+    // 主機制：每頁開頭嘅 in-flow 頁元素（未 fragmented，定位精準）入面嘅零尺寸
+    // absolute 載體。圓圈喺每張紙嘅位置固定（直向 x 隻頁數鏡像去右、橫向 y 鏡像去底），
+    // 所以頁內座標 = 紙面目標 − 頁元素紙面偏移（實量 rect），再除 ancestor zoom。
+    // 頁元素盒外（如託管書正面孔位喺 20mm 讓位區左邊）會俾 overflow:hidden 裁剪，
+    // 呢啲副本改用 wrapper 級（fragmented 容器 absolute 喺部分 Chrome 有偏移，殘缺好過冇）。
     if (punchEls.length > 0 || logoEls.length > 0) {
       wrapper.style.position = 'relative';
       const wRect = wrapper.getBoundingClientRect();
@@ -253,6 +257,9 @@ export const padOddPageDocuments = (
       const dia = parseFloat(punchEls[0]?.style.width || '6') || 6;
       // 雙面背面內容讓位嘅原始左 margin（歸零前，由 punchGuide 記錄喺 data-orig-*）
       const origMl = parseFloat(punchEls[0]?.dataset.origMl || '0') || 0;
+      // 「雙面文件 = 內容相同」嘅表格（如護理及治療記錄）：背面內容唔讓位
+      // （打孔圈照樣鏡像去右邊對齊實體孔位）
+      const punchNoShift = punchEls[0]?.dataset.duplexShift === 'off';
       // 打孔讓位實際 baseline：內容而家坐喺 body padding（打孔區 20mm）之後
       const wrapperPadLeftMm = parseFloat(win.getComputedStyle(wrapper).paddingLeft) / PX_PER_MM;
       const wrapperPadTopMm = parseFloat(win.getComputedStyle(wrapper).paddingTop) / PX_PER_MM;
@@ -278,6 +285,29 @@ export const padOddPageDocuments = (
         wrapper.appendChild(clone);
       };
 
+      // 頁首上出血補償（所有列印模式都做）：logo 歸零化將 @page 上 margin 轉咗做
+      // wrapper padding-top，但 CSS 分頁時 padding 只喺第 0 頁 fragment 生效，
+      // 第 k≥1 頁內容會貼紙頂。逐個頁首元素補返相同 padding-top。
+      // 用 padding（唔係 margin）避開分頁邊界嘅 margin 截斷語義；border-box 且有
+      // 高度限制嘅容器（如 .page min-height）padding 喺盒內消化、唔加高度；
+      // 其他容器要有餘量先加，唔夠位就跳過（保持現狀好過超頁）
+      if (carriers.length > 0 && wrapperPadTopMm > 0.01) {
+        carriers.forEach(({ el, k }) => {
+          if (k === 0) return;
+          const csEl = win.getComputedStyle(el);
+          const elH = el.getBoundingClientRect().height / PX_PER_MM;
+          const heightConstrained = csEl.boxSizing === 'border-box' &&
+            ((csEl.minHeight !== '0px' && csEl.minHeight !== 'none') || csEl.height !== 'auto');
+          if (heightConstrained || elH + wrapperPadTopMm <= contentHeightMm - 1) {
+            const existingTopMm = parseFloat(csEl.paddingTop) / PX_PER_MM || 0;
+            el.style.paddingTop = `${(existingTopMm + wrapperPadTopMm).toFixed(2)}mm`;
+          }
+        });
+      }
+
+      // 非雙面、單份、無打孔圈：logo 維持 fixed 原生每頁重複，唔做逐頁轉換（上出血已補）
+      if (!shouldConvert) return;
+
       if (carriers.length > 0) {
         carriers.forEach(({ el, k }) => {
           if (win.getComputedStyle(el).position === 'static') el.style.position = 'relative';
@@ -286,8 +316,8 @@ export const padOddPageDocuments = (
           // 讓位；背面要還原返文件嘅原始左/上出血（淨係避開打孔區，唔係推到貼紙邊），
           // 所以偏移量 = 原 margin − 讓位 baseline。無打孔指引嘅文件（純 logo）唔郁。
           // 非雙面轉換全部頁當正面：唔鏡像、唔移位。
-          const back = duplex && k % 2 === 1;
-          if (back && punchEls.length > 0 && !landscape) {
+          const back = k % 2 === 1; // 有打孔圈嘅文件係雙面表格：背面孔位鏡像係實體事實，唔跟補白頁 checkbox
+          if (back && punchEls.length > 0 && !punchNoShift && !landscape) {
             // 背面內容讓位（直向）：打孔喺右，內容向左移，左邊出血還原做文件
             // 原始 margin（淨係避開打孔區，唔係推到貼紙邊）。橫向唔郁：分頁座標係
             // 跨頁連續嘅，任何垂直移位（margin/relative）都會令內容跨過分頁界，
@@ -366,7 +396,7 @@ export const padOddPageDocuments = (
         // wrapper 級 logo 同圓圈副本（至少齊件；位置精度不如載體方案）
         for (let k = 0; k < pageCount; k++) {
           if (used.has(k)) continue;
-          const back = duplex && k % 2 === 1;
+          const back = k % 2 === 1; // 有打孔圈嘅文件係雙面表格：背面孔位鏡像係實體事實，唔跟補白頁 checkbox
           targets.forEach((t, i) => {
             const src = i < punchEls.length ? punchEls[i] : logoEls[i - punchEls.length];
             const tx = back && t.mirror && !landscape ? paper.w - t.x - t.w : t.x;
@@ -399,7 +429,7 @@ export const padOddPageDocuments = (
         punchEls.forEach((src) => {
           const t = targets[punchEls.indexOf(src)];
           for (let k = 0; k < pageCount; k++) {
-            const back = duplex && k % 2 === 1;
+            const back = k % 2 === 1; // 有打孔圈嘅文件係雙面表格：背面孔位鏡像係實體事實，唔跟補白頁 checkbox
             const tx = back && t.mirror && !landscape ? paper.w - t.x - t.w : t.x;
             const ty = back && t.mirror && landscape ? paper.h - t.y - (t.h ?? 0) : t.y;
             wrapperClone(src, tx, ty, t.w, t.h, k);

@@ -75,9 +75,14 @@ const zeroMargin = (html: string, axis: 'left' | 'top', mt: number, mr: number, 
  * 同時將 @page 打孔側 margin 歸零並以 body padding 讓位（內容遷就打孔區、
  * 其他邊唔郁）。直向打孔區喺左、橫向喺頂。所有座標以紙張邊緣計（歸零後
  * fixed 原點 = 紙緣），並記錄喺 data-paper-left/data-paper-top 供雙面鏡像用。
+ *
+ * options.duplexShift = false：雙面背面內容唔讓位（正背面版式一致），但打孔圈
+ * 仍然鏡像去背面右邊（實體長邊翻頁打孔對齊）——適用於「雙面文件 = 內容相同」
+ * 嘅表格（如護理及治療記錄）；預設 true（入住文件等背面內容要避開孔位嘅文件）。
  */
-export const injectPunchGuide = (html: string): string => {
+export const injectPunchGuide = (html: string, options?: { duplexShift?: boolean }): string => {
   if (!html || html.includes('punch-guide-fixed')) return html;
+  const shiftAttr = options?.duplexShift === false ? ' data-duplex-shift="off"' : '';
 
   const config = extractPageConfig(html);
   const [mtRaw, mrRaw, mbRaw, mlRaw] = normalizeMargin(config.margin).split(/\s+/);
@@ -105,7 +110,7 @@ export const injectPunchGuide = (html: string): string => {
     const { x, y } = circlePos(mid);
     const inlineLeft = x - (landscape ? ml : 0);
     const inlineTop = y - (landscape ? 0 : mt);
-    return `<div class="punch-guide-fixed" data-paper-left="${x.toFixed(2)}" data-paper-top="${y.toFixed(2)}" data-orig-ml="${origMl.toFixed(2)}" data-orig-mt="${origMt.toFixed(2)}" style="left:${inlineLeft.toFixed(2)}mm;top:${inlineTop.toFixed(2)}mm;width:${PUNCH_HOLE_DIA_MM}mm;height:${PUNCH_HOLE_DIA_MM}mm;border:0.35mm dashed #999;border-radius:50%;"></div>`;
+    return `<div class="punch-guide-fixed" data-paper-left="${x.toFixed(2)}" data-paper-top="${y.toFixed(2)}" data-orig-ml="${origMl.toFixed(2)}" data-orig-mt="${origMt.toFixed(2)}"${shiftAttr} style="left:${inlineLeft.toFixed(2)}mm;top:${inlineTop.toFixed(2)}mm;width:${PUNCH_HOLE_DIA_MM}mm;height:${PUNCH_HOLE_DIA_MM}mm;border:0.35mm dashed #999;border-radius:50%;"></div>`;
   };
 
   const padDecl = landscape ? `padding-top: ${PUNCH_ZONE_MM}mm;` : `padding-left: ${PUNCH_ZONE_MM}mm;`;
