@@ -409,14 +409,8 @@ const generateP2 = (assessment: HealthAssessment, patient: PatientInfo, facility
 const generateP3 = (assessment: HealthAssessment, patient: PatientInfo, facilityName: string): string => {
   const bb = assessment.bowel_bladder_control || {};
   const emotional = parseTextToArray(assessment.emotional_expression);
-  const behavior = parseTextToArray(assessment.behavior_expression);
   const bowel = bb.bowel || '';
   const bladder = bb.bladder || '';
-
-  const behaviorOptions = ['遊走', '逃跑', '暴力', '偷竊', '夢遊', '囤積'];
-  const behaviorRows = behaviorOptions.map(option => {
-    return `<tr><td class="label-s">${option}</td>${checkboxCells(behavior.includes(option))}</tr>`;
-  }).join('');
 
   return `
     <div class="page-p3 print-page">
@@ -477,19 +471,7 @@ const generateP3 = (assessment: HealthAssessment, patient: PatientInfo, facility
           <tr><td class="label-s">其他</td>${checkboxCells(emotional.includes('其他'))}</tr>
         </table>
 
-        <div class="section-title">10. 行為表現</div>
-        <table>
-          <colgroup>
-            <col class="label-s" style="width: 35mm;"><col class="col-eval" span="6">
-          </colgroup>
-          <tr>
-            <th>觀察日期</th>
-            ${dateCells(assessment.assessment_date)}
-          </tr>
-          ${behaviorRows}
-        </table>
-
-        <div class="section-title">11. 備註</div>
+        <div class="section-title">10. 備註</div>
         <table>
           <colgroup>
             <col class="label-col">
