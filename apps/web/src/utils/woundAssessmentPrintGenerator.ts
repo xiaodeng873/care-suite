@@ -203,8 +203,9 @@ const makeRows = (cols: (WoundAssessment | null)[], wound: Wound): string => `
 const CSS = `
 @page { size: A4; margin: 0.4in 0.25in; }
 @media print { html,body{background:#fff;} .no-print{display:none!important;} }
-body { font-family:"DFKai-SB","BiauKai","標楷體",serif; margin:0; padding:0; background:#fff; width:100%; }
-.container { width:100%; box-sizing:border-box; display:flex; flex-direction:column; min-height:276mm; }
+body { font-family:"DFKai-SB","BiauKai","標楷體",serif; margin:0; background:#fff; width:100%; } /* 唔好寫 padding:0——bundle 路徑打孔指引（padding-left:20mm）同 logo 補償靠 body padding 生效 */
+.container { width:100%; box-sizing:border-box; display:flex; flex-direction:column; min-height:276mm; page-break-after:always; }
+.container:last-of-type { page-break-after:auto; }
 .header { display:flex; justify-content:center; align-items:flex-start; margin-bottom:6px; position:relative; }
 .header-left { position:absolute; left:0; top:0; width:18%; display:flex; }
 .station-box { display:none; }
@@ -323,13 +324,15 @@ export const generateWoundAssessmentHtml = async (
   const pages = Array.from({ length: totalPages }, (_, i) =>
     buildPage(wound, patient, sorted.slice(i * COLS_PER_PAGE, (i + 1) * COLS_PER_PAGE), i + 1, totalPages, stationCode, settings.facilityNameZh)(diagramDataUri)
   );
+  // 雙面文件：每頁印兩次（正面＋背面，內容相同），背面打孔圈鏡像由 printUtils 處理
+  const duplexPages = pages.flatMap((p) => [p, p]);
   return injectPunchGuide(`<!DOCTYPE html>
 <html lang="zh-HK"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1050">
 <title>傷口評估記錄表 - ${esc(wound.wound_name ?? wound.wound_code)}</title>
 <style>${CSS}</style>
-</head><body>${pages.join('\n')}</body></html>`);
+</head><body>${duplexPages.join('\n')}</body></html>`);
 };
 
 export const printWoundAssessment = async (

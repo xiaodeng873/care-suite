@@ -264,7 +264,7 @@ const buildHtml = (pages: string[]): string => `<!DOCTYPE html>
 <style>
   @page { size: A4; margin: 5mm 0.2in; }
   * { box-sizing: border-box; }
-  body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; padding: 0; background-color: #fff; color: #000; line-height: 1.1; }
+  body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; background-color: #fff; color: #000; line-height: 1.1; } /* 唔好寫 padding:0——bundle 路徑打孔指引（padding-left:20mm）同 logo 補償靠 body padding 生效 */
   .container { width: 100%; box-sizing: border-box; page-break-after: always; display: flex; flex-direction: column; min-height: 287mm; }
   .container:last-of-type { page-break-after: auto; }
   .title-section { text-align: center; margin-bottom: 12px; }
@@ -352,7 +352,9 @@ export const generateTemperatureRecordHtml = async (
     const pages = chunkCellsIntoPages(cells);
     pages.forEach((pageCells, index) => {
       const pageLabel = pages.length > 1 ? `${index + 1} / ${pages.length}` : '1';
-      pagesHtml.push(renderPage(patient, pageCells, pageLabel));
+      // 雙面文件：每頁印兩次（正面＋背面，內容相同），背面打孔圈鏡像由 printUtils 處理
+      const pageHtml = renderPage(patient, pageCells, pageLabel);
+      pagesHtml.push(pageHtml, pageHtml);
     });
   });
 

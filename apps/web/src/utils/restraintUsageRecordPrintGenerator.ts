@@ -8,6 +8,8 @@
 import type { Patient, PatientRestraintAssessment } from '../lib/database';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 import { getPrintBedNumber } from './bedTransferUtils';
+import { injectPunchGuide } from './punchGuide';
+import { combineDocHtmlDocuments } from './docHtmlGenerators/baseTemplateProcessor';
 
 
 
@@ -130,7 +132,7 @@ export const generateRestraintUsageRecordHtml = (
     ...Array(totalRows - usageRows.length).fill(null).map(renderEmptyRow),
   ].join('\n');
 
-  return `<!DOCTYPE html>
+  const singleDoc = `<!DOCTYPE html>
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
@@ -142,7 +144,7 @@ export const generateRestraintUsageRecordHtml = (
 
 body {
   font-family: "DFKai-SB","BiauKai","標楷體",serif;
-  margin: 0; padding: 0; background: #fff; color: #000;
+  margin: 0; background: #fff; color: #000; /* 唔好寫 padding:0——bundle 路徑打孔指引（padding-left:20mm）同 logo 補償靠 body padding 生效 */
   font-size: 11px; line-height: 1.1;
 }
 .page {
@@ -150,7 +152,7 @@ body {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  min-height: 277mm;
+  min-height: 276mm; /* 預留 1mm 等背面頁首上出血補償（+5mm padding-top）放得落內容盒 */
 }
 .title-section { text-align: center; margin-bottom: 5px; }
 .title-section h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }
@@ -226,6 +228,9 @@ body {
 </div>
 </body>
 </html>`;
+
+  // 雙面文件：每頁印兩次（正面＋背面，內容相同），背面打孔圈鏡像由 printUtils 處理
+  return injectPunchGuide(combineDocHtmlDocuments([singleDoc, singleDoc]));
 };
 
 // ── 列印入口 ──────────────────────────────────────────────────────────────────

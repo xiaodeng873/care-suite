@@ -11,6 +11,7 @@ import type { Patient, HygieneRecord } from '../lib/database';
 import { getFacilitySettings, DEFAULT_FACILITY_SETTINGS } from './facilitySettings';
 import { getFacilityLogoSrc, injectPageLogo } from './printPageLogo';
 import { getPrintBedNumber } from './bedTransferUtils';
+import { injectPunchGuide } from './punchGuide';
 
 
 const ROWS_PER_PAGE = 20;
@@ -189,11 +190,15 @@ export const generateHygieneRecordPrintFormHtml = (
   monthsData: HygieneMonthData[],
   facilityName: string
 ): string => {
+  // 雙面文件：每頁印兩次（正面＋背面，內容相同），背面打孔圈鏡像由 printUtils 處理
   const pages = patients
-    .map(p => monthsData.map(m => pageBlock(p, m, facilityName)).join(''))
+    .map(p => monthsData.map(m => {
+      const block = pageBlock(p, m, facilityName);
+      return block + block;
+    }).join(''))
     .join('');
 
-  return `<!DOCTYPE html>
+  return injectPunchGuide(`<!DOCTYPE html>
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
@@ -201,7 +206,7 @@ export const generateHygieneRecordPrintFormHtml = (
 <style>
   @page { size: A4; margin: 5mm 0.2in; }
   * { box-sizing: border-box; }
-  body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; padding: 0; background-color: #fff; color: #000; line-height: 1.1; }
+  body { font-family: "DFKai-SB", "BiauKai", "標楷體", serif; margin: 0; background-color: #fff; color: #000; line-height: 1.1; } /* 唔好寫 padding:0——bundle 路徑打孔指引（padding-left:20mm）同 logo 補償靠 body padding 生效 */
   .no-print { text-align: center; margin: 10px; }
   .no-print button { padding: 8px 20px; font-size: 12px; background: #2563eb; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
   .container { width: 100%; box-sizing: border-box; page-break-after: always; zoom: 0.9; display: flex; flex-direction: column; min-height: 287mm; }
@@ -232,7 +237,7 @@ export const generateHygieneRecordPrintFormHtml = (
 <div class="no-print"><button onclick="window.print()">列印</button></div>
 ${pages}
 </body>
-</html>`;
+</html>`);
 };
 
 export const printHygieneRecordForm = async (patients: Patient[], monthsData: HygieneMonthData[]): Promise<void> => {
