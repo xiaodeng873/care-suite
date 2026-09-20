@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CalendarDays, CheckSquare, Utensils, BookOpen, Shield, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key, Search, Receipt, Layers, HeartHandshake } from 'lucide-react';
+import { Users, FileText, BarChart3, Home, LogOut, User, Clock, BicepsFlexed, CalendarCheck, CalendarDays, CheckSquare, Utensils, BookOpen, Shield, ShieldAlert, Printer, Settings, Ambulance, Activity, Hospital, Bed, Stethoscope, Database, Scissors, UserSearch, Pill, AlertTriangle, Syringe, ScanLine, ClipboardCheck, ClipboardList, ChevronDown, Menu, X, Building2, PartyPopper, Key, Search, Receipt, Layers, HeartHandshake } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
@@ -224,6 +224,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       items: [
         { name: '處方管理', href: '/prescriptions', icon: Pill, feature: 'prescription_management' },
         { name: '處方搜尋', href: '/prescription-search', icon: Search, feature: 'prescription_management' },
+        { name: '藥物反應', href: '/drug-reactions', icon: ShieldAlert, feature: 'drug_reactions' },
         { name: 'eMAR', href: '/medication-workflow', icon: CheckSquare, feature: 'medication_workflow' },
         { name: '藥物資料庫', href: '/drug-database', icon: Database, feature: 'drug_database' },
       ]

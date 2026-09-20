@@ -698,7 +698,7 @@ export async function exportSpecialCareStatisticsToExcel(options: SpecialCareSta
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
-// 藥物敏感報表
+// 藥物反應報表
 // ───────────────────────────────────────────────────────────────────────────────
 
 const DRUG_SENSITIVITY_COLUMNS: SheetColumn[] = [
@@ -735,7 +735,7 @@ export async function exportDrugSensitivityStatisticsToExcel(options: DrugSensit
     const adverseReactions = parseDrugArray(p.不良藥物反應);
     return allergies.length > 0 || adverseReactions.length > 0;
   })) {
-    alert('沒有可匯出的藥物敏感記錄');
+    alert('沒有可匯出的藥物反應記錄');
     return;
   }
 
@@ -767,7 +767,7 @@ export async function exportDrugSensitivityStatisticsToExcel(options: DrugSensit
     for (const group of groups) {
       const rows = buildRows(group.patients);
       const worksheet = workbook.addWorksheet(group.stationName.slice(0, 31));
-      createSheetCore(worksheet, `${group.stationName} 藥物敏感報表`, exportDate, DRUG_SENSITIVITY_COLUMNS);
+      createSheetCore(worksheet, `${group.stationName} 藥物反應報表`, exportDate, DRUG_SENSITIVITY_COLUMNS);
       fillDataRows(worksheet, rows, 5, DRUG_SENSITIVITY_COLUMNS);
     }
   } else {
@@ -779,12 +779,12 @@ export async function exportDrugSensitivityStatisticsToExcel(options: DrugSensit
       }
       allRows.push(...groupRows);
     }
-    const worksheet = workbook.addWorksheet('藥物敏感報表');
-    createSheetCore(worksheet, '藥物敏感報表', exportDate, DRUG_SENSITIVITY_COLUMNS);
+    const worksheet = workbook.addWorksheet('藥物反應報表');
+    createSheetCore(worksheet, '藥物反應報表', exportDate, DRUG_SENSITIVITY_COLUMNS);
     fillDataRows(worksheet, allRows, 5, DRUG_SENSITIVITY_COLUMNS);
   }
 
-  await writeWorkbook(workbook, filename || `藥物敏感報表_${new Date().toISOString().split('T')[0]}.xlsx`);
+  await writeWorkbook(workbook, filename || `藥物反應報表_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 // ───────────────────────────────────────────────────────────────────────────────

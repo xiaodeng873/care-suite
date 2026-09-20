@@ -1488,7 +1488,7 @@ const Reports: React.FC = () => {
           )}
         </div>
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4">藥物敏感報表 (共 {drugSensitivityPatients.length} 人)</h3>
+          <h3 className="text-lg font-semibold mb-4">藥物反應報表 (共 {drugSensitivityPatients.length} 人)</h3>
           <div className="space-y-4">
             {drugSensitivityPatients.length === 0 ? (
               <p className="text-gray-500 text-center py-8">暫無藥物敏感或不良反應記錄</p>
@@ -1842,7 +1842,7 @@ const Reports: React.FC = () => {
             className={`px-4 py-2 font-medium ${activeTab === 'drugSensitivity' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
           >
             <AlertCircle className="h-4 w-4 inline mr-1" />
-            藥物敏感報表
+            藥物反應報表
           </button>
           <button
             onClick={() => setActiveTab('diaper')}

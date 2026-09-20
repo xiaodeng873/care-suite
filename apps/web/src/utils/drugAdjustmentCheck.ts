@@ -3,7 +3,8 @@
 // 規則：院友有標籤藥（藥物資料庫 is_diabetic_drug / is_antihypertensive_drug）的在服處方，
 // 而該處方最後修改時間之後，沒有對應的「藥物調節」監測任務
 // （糖尿病藥 → 血糖值；降血壓藥 → 生命表徵），即列入提醒。
-// 「不再提醒」按 院友+藥物+監測類型 存於 localStorage，永久壓制該項提醒。
+// 「不再提醒」按 院友+藥物+監測類型 存於伺服器（drug_adjustment_reminder_dismissals 表，
+// 見 lib/database.tsx），全院工作站共用；舊版 localStorage 紀錄會一次性遷移上去。
 
 export interface DrugAdjustmentReminderItem {
   patient_id: number;
@@ -22,21 +23,20 @@ const DISMISS_STORAGE_KEY = 'drug_adjustment_reminder_dismissed';
 export const drugAdjustItemKey = (item: Pick<DrugAdjustmentReminderItem, 'patient_id' | 'medication_name' | 'taskType'>): string =>
   `${item.patient_id}|${item.medication_name}|${item.taskType}`;
 
-export function getDismissedDrugAdjustKeys(): Set<string> {
+// 舊版 localStorage 壓制紀錄（一次性遷移上伺服器用；遷移後清除）
+export function getLegacyDismissedDrugAdjustKeys(): string[] {
   try {
     const raw = localStorage.getItem(DISMISS_STORAGE_KEY);
     const arr = raw ? JSON.parse(raw) : [];
-    return new Set(Array.isArray(arr) ? arr.map(String) : []);
+    return Array.isArray(arr) ? arr.map(String) : [];
   } catch {
-    return new Set();
+    return [];
   }
 }
 
-export function dismissDrugAdjustItem(key: string): void {
+export function clearLegacyDismissedDrugAdjustKeys(): void {
   try {
-    const set = getDismissedDrugAdjustKeys();
-    set.add(key);
-    localStorage.setItem(DISMISS_STORAGE_KEY, JSON.stringify([...set]));
+    localStorage.removeItem(DISMISS_STORAGE_KEY);
   } catch { /* ignore */ }
 }
 

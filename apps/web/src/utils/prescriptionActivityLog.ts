@@ -34,6 +34,37 @@ const ODD_EVEN_LABELS: Record<string, string> = {
 
 const WEEKDAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
 
+// 檢測項規則 → 中文句式（同藥物一覽表注意事項欄一致，行動用「注意」）
+const INSPECTION_OP_LABELS: Record<string, string> = {
+  gt: '大於',
+  lt: '小於',
+  gte: '大於或等於',
+  lte: '小於或等於',
+};
+const INSPECTION_ACTION_LABELS: Record<string, string> = {
+  block_dispensing: '停服',
+  warning_only: '注意',
+};
+const INSPECTION_UNIT_LABELS: Record<string, string> = {
+  上壓: 'mmHg',
+  下壓: 'mmHg',
+  脈搏: '/min',
+  血糖值: 'mmol/L',
+  呼吸: '/min',
+  血含氧量: '%',
+  體溫: '°C',
+};
+const formatInspectionRuleValue = (value: any): string => {
+  if (!Array.isArray(value)) return String(value);
+  if (value.length === 0) return '（空）';
+  return value.map((r: any) => {
+    const op = INSPECTION_OP_LABELS[r?.condition_operator ?? ''] ?? '';
+    const action = INSPECTION_ACTION_LABELS[r?.action_if_met ?? ''] ?? (r?.action_if_met ?? '');
+    const unit = INSPECTION_UNIT_LABELS[r?.vital_sign_type ?? ''] ?? '';
+    return `${r?.vital_sign_type ?? ''}${op}${r?.condition_value ?? ''}${unit}時${action}`;
+  }).join('、');
+};
+
 export const ACTION_TYPE_LABELS: Record<string, string> = {
   create: '新增處方',
   update: '更新處方',
@@ -70,6 +101,7 @@ const FIELD_DEFINITIONS: { field: string; label: string }[] = [
   { field: 'medication_quantity', label: '藥物數量' },
   { field: 'medication_days', label: '藥物日數' },
   { field: 'cannot_crush', label: '不可磨碎' },
+  { field: 'inspection_rules', label: '檢測項' },
   { field: 'notes', label: '備註' },
   { field: 'status', label: '處方狀態' },
 ];
@@ -78,6 +110,8 @@ export function formatFieldValue(field: string, value: any): string {
   if (value === null || value === undefined || value === '') return '（空）';
 
   switch (field) {
+    case 'inspection_rules':
+      return formatInspectionRuleValue(value);
     case 'status':
       return PRESCRIPTION_STATUS_LABELS[value] || String(value);
     case 'frequency_type':
@@ -109,7 +143,11 @@ export function formatFieldValue(field: string, value: any): string {
 function normalizeForCompare(field: string, value: any): string {
   if (value === null || value === undefined) return '';
   if (Array.isArray(value)) {
-    return JSON.stringify([...value].sort());
+    if (value.length === 0) return ''; // 空陣列視同空值（undefined ↔ [] 唔算變更）
+    // 物件陣列（檢測項）順序冇意義嘅 sort 做唔到，直接序列化；原始陣列（星期/時段）排序後比較
+    return typeof value[0] === 'object' && value[0] !== null
+      ? JSON.stringify(value)
+      : JSON.stringify([...value].sort());
   }
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   return String(value);

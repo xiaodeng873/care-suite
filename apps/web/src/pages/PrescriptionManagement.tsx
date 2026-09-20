@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { fuzzyMatch, matchChineseName, matchEnglishName , matchBedNumber, matchPatientBedNumber} from '../utils/searchUtils';
 import { formatMealTiming } from '../utils/mealTiming';
 import { LoadingScreen } from '../components/PageLoadingScreen';
@@ -16,12 +16,18 @@ import MedicationRecordExportModal from '../components/MedicationRecordExportMod
 import PrescriptionMatrixTable from '../components/PrescriptionMatrixTable';
 import PrescriptionMonitoringReminderModal from '../components/PrescriptionMonitoringReminderModal';
 import DrugAdjustmentReminderModal from '../components/DrugAdjustmentReminderModal';
+import PatientDrugSafetyModal from '../components/PatientDrugSafetyModal';
 import { findMissingMonitoringTasks } from '../utils/prescriptionMonitoringCheck';
 import {
   findDrugAdjustmentReminders,
-  getDismissedDrugAdjustKeys,
+  getLegacyDismissedDrugAdjustKeys,
+  clearLegacyDismissedDrugAdjustKeys,
   type DrugAdjustmentReminderItem,
 } from '../utils/drugAdjustmentCheck';
+import {
+  getDrugAdjustmentReminderDismissals,
+  dismissDrugAdjustmentReminder,
+} from '../lib/database';
 import { getFormattedEnglishName } from '../utils/nameFormatter';
 import { getHongKongNow, isPrescriptionExpired } from '../utils/prescriptionExpiry';
 import { formatDisplayDate, formatTimeToHHMM } from '../utils/dateFormat';
@@ -127,7 +133,7 @@ interface PatientDropdownFilters {
 }
 
 const PrescriptionManagement: React.FC = () => {
-  const { prescriptions, deletePrescription, updatePrescription, loading, patientHealthTasks, refreshHealthTaskData, drugDatabase } = usePatientData();
+  const { prescriptions, deletePrescription, updatePrescription, loading, patientHealthTasks, refreshHealthTaskData, drugDatabase, updatePatient } = usePatientData();
   const patients = useFilteredPatients();
   const { refreshPrescriptionData } = useWorkflow();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -171,7 +177,34 @@ const PrescriptionManagement: React.FC = () => {
   // 藥物調節監測提醒：糖尿病／降血壓標籤藥的在服處方，欠對應「藥物調節」監測任務
   const [showDrugAdjustReminder, setShowDrugAdjustReminder] = useState(false);
   const drugAdjustRemindedRef = useRef(false);
-  const [drugAdjustDismissed, setDrugAdjustDismissed] = useState<Set<string>>(() => getDismissedDrugAdjustKeys());
+  const [drugAdjustDismissed, setDrugAdjustDismissed] = useState<Set<string>>(new Set());
+  // 藥物安全資訊：新增藥物敏感／不良藥物反應彈窗
+  const [drugSafetyModal, setDrugSafetyModal] = useState<{ type: 'allergy' | 'adr' } | null>(null);
+  // 由伺服器載入壓制紀錄；舊版 localStorage 紀錄一次性遷移上伺服器後清除
+  const refreshDrugAdjustDismissed = useCallback(async () => {
+    try {
+      const legacy = getLegacyDismissedDrugAdjustKeys();
+      if (legacy.length > 0) {
+        await Promise.all(legacy.map((key) => {
+          const parts = key.split('|');
+          const patientId = Number(parts[0]);
+          const taskType = parts[parts.length - 1];
+          const name = parts.slice(1, -1).join('|');
+          if (!patientId || !name || !taskType) return Promise.resolve();
+          return dismissDrugAdjustmentReminder(
+            { patient_id: patientId, medication_name: name, task_type: taskType }
+          ).catch(() => undefined);
+        }));
+        clearLegacyDismissedDrugAdjustKeys();
+      }
+      setDrugAdjustDismissed(await getDrugAdjustmentReminderDismissals());
+    } catch (err) {
+      console.error('載入藥物調節提醒壓制紀錄失敗:', err);
+    }
+  }, []);
+  useEffect(() => {
+    void refreshDrugAdjustDismissed();
+  }, [refreshDrugAdjustDismissed]);
   const [drugAdjustSaveItems, setDrugAdjustSaveItems] = useState<DrugAdjustmentReminderItem[]>([]);
   const drugAdjustItems = useMemo(
     () => findDrugAdjustmentReminders(prescriptions || [], patientHealthTasks || [], drugDatabase || [], drugAdjustDismissed),
@@ -884,6 +917,10 @@ const PrescriptionManagement: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-2 flex-wrap">
                           <AlertTriangle className="h-4 w-4 text-orange-600" />
                           <h4 className="text-sm font-medium text-orange-900">藥物敏感</h4>
+                          <button
+                            onClick={() => setDrugSafetyModal({ type: 'allergy' })}
+                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                          >+ 新增</button>
                           {(!currentPatient.patient.藥物敏感 || currentPatient.patient.藥物敏感.length === 0) ? (
                             <span className="text-xs text-gray-500 ml-2">無記錄</span>
                           ) : (
@@ -907,6 +944,10 @@ const PrescriptionManagement: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-2 flex-wrap">
                           <Heart className="h-4 w-4 text-red-600" />
                           <h4 className="text-sm font-medium text-red-900">不良藥物反應</h4>
+                          <button
+                            onClick={() => setDrugSafetyModal({ type: 'adr' })}
+                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                          >+ 新增</button>
                           {(!currentPatient.patient.不良藥物反應 || currentPatient.patient.不良藥物反應.length === 0) ? (
                             <span className="text-xs text-gray-500 ml-2">無記錄</span>
                           ) : (
@@ -1019,7 +1060,7 @@ const PrescriptionManagement: React.FC = () => {
         <DrugAdjustmentReminderModal
           items={drugAdjustItems}
           onClose={() => setShowDrugAdjustReminder(false)}
-          onDismissed={() => setDrugAdjustDismissed(getDismissedDrugAdjustKeys())}
+          onDismissed={() => { void refreshDrugAdjustDismissed(); }}
           onTaskCreated={() => { refreshHealthTaskData(); }}
         />
       )}
@@ -1029,10 +1070,24 @@ const PrescriptionManagement: React.FC = () => {
           items={drugAdjustSaveItems}
           onClose={() => setDrugAdjustSaveItems([])}
           onDismissed={() => {
-            setDrugAdjustDismissed(getDismissedDrugAdjustKeys());
+            void refreshDrugAdjustDismissed();
             setDrugAdjustSaveItems([]);
           }}
           onTaskCreated={() => { refreshHealthTaskData(); }}
+        />
+      )}
+
+      {drugSafetyModal && currentPatient && (
+        <PatientDrugSafetyModal
+          type={drugSafetyModal.type}
+          patientName={`${currentPatient.patient.中文姓氏 ?? ''}${currentPatient.patient.中文名字 ?? ''}` || currentPatient.patient.中文姓名 || ''}
+          onClose={() => setDrugSafetyModal(null)}
+          onSave={async (text) => {
+            const key = drugSafetyModal.type === 'allergy' ? '藥物敏感' : '不良藥物反應';
+            const existing = Array.isArray(currentPatient.patient[key]) ? currentPatient.patient[key] : [];
+            await updatePatient({ ...currentPatient.patient, [key]: [...existing, text] });
+            setDrugSafetyModal(null);
+          }}
         />
       )}
     </div>

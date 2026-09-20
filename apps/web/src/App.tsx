@@ -45,6 +45,7 @@ const routeNames: Record<string, string> = {
   '/prescriptions': '處方管理',
   '/prescription-search': '處方搜尋',
   '/drug-database': '藥物資料庫',
+  '/drug-reactions': '藥物反應',
   '/medication-workflow': 'eMAR',
   '/hospital-outreach': 'CGAT',
   '/annual-health-checkup': '年度體檢',
@@ -98,6 +99,7 @@ const WoundManagement = lazy(() => import('./pages/WoundManagement'));
 const WoundManagementNew = lazy(() => import('./pages/WoundManagementNew'));
 const PrescriptionManagement = lazy(() => import('./pages/PrescriptionManagement'));
 const DrugDatabase = lazy(() => import('./pages/DrugDatabase'));
+const DrugReactions = lazy(() => import('./pages/DrugReactions'));
 const PrescriptionSearch = lazy(() => import('./pages/PrescriptionSearch'));
 const MedicationWorkflow = lazy(() => import('./pages/MedicationWorkflow'));
 const HospitalOutreach = lazy(() => import('./pages/Cgat'));
@@ -344,6 +346,7 @@ function AuthenticatedContent({
             <Route path="/prescriptions" element={<PrescriptionManagement />} />
             <Route path="/prescription-search" element={<PrescriptionSearch />} />
             <Route path="/drug-database" element={<DrugDatabase />} />
+            <Route path="/drug-reactions" element={<DrugReactions />} />
             <Route path="/medication-workflow" element={<MedicationWorkflow />} />
             <Route path="/hospital-outreach" element={<HospitalOutreach />} />
             <Route path="/annual-health-checkup" element={<AnnualHealthCheckup />} />

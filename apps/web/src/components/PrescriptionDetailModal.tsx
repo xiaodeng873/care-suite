@@ -86,7 +86,7 @@ const operatorLabels: Record<string, string> = {
 
 const actionLabels: Record<string, string> = {
   block_dispensing: '停服',
-  warning_only: '警告',
+  warning_only: '注意',
 };
 
 const preparationLabels: Record<string, string> = {

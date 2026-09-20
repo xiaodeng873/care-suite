@@ -557,6 +557,7 @@ export const PERMISSION_STRUCTURE: Record<PermissionCategory, FeatureDefinition[
     { key: 'prescription_management', name_zh: '處方管理', route: '/prescriptions' },
     { key: 'medication_workflow', name_zh: '藥物工作流程', route: '/medication-workflow' },
     { key: 'drug_database', name_zh: '藥物資料庫', route: '/drugs' },
+    { key: 'drug_reactions', name_zh: '藥物反應', route: '/drug-reactions' },
   ],
   treatment: [
     { key: 'vmo_schedule', name_zh: 'VMO排程', route: '/scheduling' },

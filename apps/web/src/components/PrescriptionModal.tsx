@@ -1404,7 +1404,7 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({ prescription, onC
                           className="form-input"
                         >
                           <option value="block_dispensing">停服</option>
-                          <option value="warning_only">警告</option>
+                          <option value="warning_only">注意</option>
                         </select>
                       </div>
                     </div>

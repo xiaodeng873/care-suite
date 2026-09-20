@@ -6,8 +6,8 @@ import TaskModal from './TaskModal';
 import {
   type DrugAdjustmentReminderItem,
   drugAdjustItemKey,
-  dismissDrugAdjustItem,
 } from '../utils/drugAdjustmentCheck';
+import { dismissDrugAdjustmentReminder } from '../lib/database';
 
 interface DrugAdjustmentReminderModalProps {
   items: DrugAdjustmentReminderItem[];
@@ -39,8 +39,16 @@ const DrugAdjustmentReminderModal: React.FC<DrugAdjustmentReminderModalProps> = 
     return hk.toISOString().split('T')[0];
   };
 
-  const handleDismiss = (item: DrugAdjustmentReminderItem) => {
-    dismissDrugAdjustItem(drugAdjustItemKey(item));
+  const handleDismiss = async (item: DrugAdjustmentReminderItem) => {
+    try {
+      await dismissDrugAdjustmentReminder({
+        patient_id: item.patient_id,
+        medication_name: item.medication_name,
+        task_type: item.taskType,
+      });
+    } catch (err) {
+      console.error('儲存「不再提醒」失敗:', err);
+    }
     onDismissed?.();
   };
 

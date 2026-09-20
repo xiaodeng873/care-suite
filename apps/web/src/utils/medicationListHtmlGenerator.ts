@@ -161,8 +161,7 @@ function formatDrugCell(p: MedicationPrescription): string {
   if (p.dosage_amount != null && p.dosage_amount !== '') {
     parts.push(`每次${escapeHtml(String(p.dosage_amount))}${escapeHtml(p.dosage_unit ?? '')}`);
   }
-  const inspection = formatInspectionRules(p);
-  if (inspection) parts.push(escapeHtml(inspection));
+  // 檢測項規則唔放藥名欄，映射去注意事項欄（見 formatNoticeCell）
   return parts.join(',');
 }
 
@@ -176,7 +175,7 @@ function formatInspectionRules(p: MedicationPrescription): string {
   };
   const actionMap: Record<string, string> = {
     block_dispensing: '停服',
-    warning_only: '警告',
+    warning_only: '注意',
   };
   const unitMap: Record<string, string> = {
     上壓: 'mmHg',
@@ -197,8 +196,8 @@ function formatInspectionRules(p: MedicationPrescription): string {
 }
 
 function formatNoticeCell(p: MedicationPrescription): string {
-  // 暫時留空，待需求確認後再映射內容
-  return '';
+  // 注意事項欄映射檢測項規則（如「血糖值小於或等於4mmol/L時注意」）
+  return escapeHtml(formatInspectionRules(p));
 }
 
 function classifyMedicationTerm(p: MedicationPrescription): MedicationTermType {
@@ -234,12 +233,14 @@ function formatSourceCell(p: MedicationPrescription): string {
 }
 
 function renderMedicationRow(p: MedicationPrescription): string {
+  // 用 div 唔用 textarea：textarea 固定高度，內容多過兩行會出滾動軸（箭咀），
+  // 列印時更加直接截斷；div 行高跟內容自動伸縮，冇滾動軸、列印全顯示
   return `<tr class="data-row">
-    <td><textarea class="db-text-cell">${formatDrugCell(p)}</textarea></td>
-    <td><textarea class="db-text-cell" style="text-align:center;">${escapeHtml(formatSourceCell(p))}</textarea></td>
+    <td><div class="db-text-div">${formatDrugCell(p)}</div></td>
+    <td><div class="db-text-div" style="text-align:center;">${escapeHtml(formatSourceCell(p))}</div></td>
     <td><input type="text" class="db-text-cell" style="text-align:center;" value="${escapeHtml(formatDate(p.start_date || p.prescription_date))}"></td>
     <td><input type="text" class="db-text-cell" style="text-align:center;" value="${escapeHtml(p.end_date ? formatDate(p.end_date) : '')}"></td>
-    <td><textarea class="db-text-cell">${formatNoticeCell(p)}</textarea></td>
+    <td><div class="db-text-div">${formatNoticeCell(p)}</div></td>
     <td><input type="text" class="db-text-cell"></td>
   </tr>`;
 }
@@ -380,6 +381,13 @@ function assembleDocument(pages: string[], usedTemplates: string[]): string {
     /* 覆蓋：欄寬調整 */
     .col-drug { width: 45% !important; }
     .col-notice { width: 11% !important; }
+    /* 藥物內容格（div 版 .db-text-cell）：行高自動伸縮、長藥名任意斷行、無滾動軸 */
+    .db-text-div {
+      width: 100%; border: none; background: transparent;
+      font-family: inherit; font-size: 13px; text-align: left;
+      padding: 2px 4px; box-sizing: border-box;
+      white-space: pre-wrap; word-break: break-word; line-height: 1.25;
+    }
     /* 覆蓋：標題區 */
     .title-box { margin-right: 0 !important; text-align: center; }
     .title-box h1 { margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 2px; }

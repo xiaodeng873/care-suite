@@ -1295,6 +1295,45 @@ export const createPrescriptionActivityLogEntry = async (
   if (error) throw error;
 };
 
+// ========== 藥物調節監測提醒「不再提醒」壓制紀錄（伺服器端）==========
+// key 格式同 utils/drugAdjustmentCheck.ts 嘅 drugAdjustItemKey：院友|藥物名稱|監測類型
+
+export interface DrugAdjustmentReminderDismissal {
+  id: string;
+  patient_id: number;
+  medication_name: string;
+  task_type: string;
+  dismissed_by: string | null;
+  dismissed_by_name: string | null;
+  facility_id: number | null;
+  created_at: string;
+}
+
+export const getDrugAdjustmentReminderDismissals = async (): Promise<Set<string>> => {
+  const { data, error } = await supabase
+    .from('drug_adjustment_reminder_dismissals')
+    .select('patient_id, medication_name, task_type');
+  if (error) throw error;
+  return new Set(
+    (data || []).map((r: any) => `${r.patient_id}|${r.medication_name}|${r.task_type}`)
+  );
+};
+
+export const dismissDrugAdjustmentReminder = async (
+  item: { patient_id: number; medication_name: string; task_type: string },
+  actor?: { userId?: string | null; name?: string | null }
+): Promise<void> => {
+  const { error } = await supabase.from('drug_adjustment_reminder_dismissals').insert([{
+    patient_id: item.patient_id,
+    medication_name: item.medication_name,
+    task_type: item.task_type,
+    dismissed_by: actor?.userId ?? null,
+    dismissed_by_name: actor?.name ?? null,
+  }]);
+  // 23505 = 重複壓制（已存在），視為成功
+  if (error && (error as any).code !== '23505') throw error;
+};
+
 // ========== 床位調動類型與日誌（Bed Transfer）==========
 export type BedTransferType = 'routine' | 'temporary';
 export type BedTransferActionType =
