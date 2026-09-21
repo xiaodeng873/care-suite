@@ -4,6 +4,6 @@
   "installCommand": "npm install",
   "rewrites": [
     { "source": "/login/:path*", "destination": "/login/index.html" },
-    { "source": "/:appRoute(dashboard|scheduling|station-bed|follow-up|tasks|meal-guidance|patient-logs|restraint|evening-care-plan|tube-care|admission-records|print-forms|wound|wound-old|activity-records|fee-records|prescriptions|prescription-search|drug-database|drug-reactions|medication-workflow|hospital-outreach|annual-health-checkup|incident-reports|diagnosis-records|vaccination-records|care-records|diaper-usage-records|patients|patient-contacts|templates|health|health-assessments|individual-care-plan|reports|settings|rehabilitation|infection-control|roster-management)/:rest*", "destination": "/login/index.html" }
+    { "source": "/:appRoute(dashboard|pgt|scheduling|station-bed|follow-up|tasks|meal-guidance|patient-logs|restraint|evening-care-plan|tube-care|admission-records|print-forms|wound|wound-old|activity-records|fee-records|prescriptions|prescription-search|drug-database|drug-reactions|medication-workflow|hospital-outreach|annual-health-checkup|incident-reports|diagnosis-records|vaccination-records|care-records|diaper-usage-records|patients|patient-contacts|templates|health|health-assessments|individual-care-plan|reports|settings|rehabilitation|infection-control|roster-management)/:rest*", "destination": "/login/index.html" }
   ]
 }

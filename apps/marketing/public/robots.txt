@@ -2,6 +2,7 @@ User-agent: *
 Allow: /
 Disallow: /login
 Disallow: /dashboard
+Disallow: /pgt
 Disallow: /scheduling
 Disallow: /station-bed
 Disallow: /follow-up
