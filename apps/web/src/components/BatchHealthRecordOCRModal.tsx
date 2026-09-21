@@ -5,6 +5,7 @@ import { usePatientData } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
 import PatientAutocomplete from './PatientAutocomplete';
 import ImageSourcePicker from './ImageSourcePicker';
+import ImageCropModal from './ImageCropModal';
 import type { HealthRecord } from '../lib/database';
 import DateInput from './DateInput';
 
@@ -69,6 +70,8 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  // 裁剪隊列：揀咗嘅圖先逐張入裁剪 modal（去周邊像素，提升 OCR 準確度同速度），確認先加入
+  const [cropQueue, setCropQueue] = useState<string[]>([]);
   const [parsedRecords, setParsedRecords] = useState<ParsedHealthRecord[]>([]);
   const [phase, setPhase] = useState<Phase>('idle');
   const [processingError, setProcessingError] = useState<string | null>(null);
@@ -129,12 +132,24 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
   const handleFiles = useCallback((files: FileList | File[]) => {
     const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
     if (!arr.length) return;
-    setSelectedFiles(prev => [...prev, ...arr]);
+    // 先讀成 dataURL 排入裁剪隊列，逐張裁剪後先加入
     arr.forEach(file => {
       const reader = new FileReader();
-      reader.onload = (e) => setImagePreviews(prev => [...prev, e.target?.result as string]);
+      reader.onload = (e) => setCropQueue(prev => [...prev, e.target?.result as string]);
       reader.readAsDataURL(file);
     });
+  }, []);
+
+  const handleCropConfirm = useCallback(async (dataUrl: string) => {
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], 'worksheet.jpg', { type: 'image/jpeg' });
+    setSelectedFiles(prev => [...prev, file]);
+    setImagePreviews(prev => [...prev, dataUrl]);
+    setCropQueue(prev => prev.slice(1));
+  }, []);
+
+  const handleCropCancel = useCallback(() => {
+    setCropQueue(prev => prev.slice(1));
   }, []);
 
   const handleRemoveFile = useCallback((idx: number) => {
@@ -505,6 +520,18 @@ const BatchHealthRecordOCRModal: React.FC<BatchHealthRecordOCRModalProps> = ({ o
           )}
         </div>
       </div>
+
+      {/* 裁剪步驟：逐張去除周邊像素後先加入識別 */}
+      {cropQueue.length > 0 && (
+        <ImageCropModal
+          imageSrc={cropQueue[0]}
+          mode="free"
+          title="裁剪工作紙圖片"
+          maxOutput={2000}
+          onConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+        />
+      )}
     </div>
   );
 };
