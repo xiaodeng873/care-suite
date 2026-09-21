@@ -18,7 +18,7 @@ import type { PermissionCategory } from '@care-suite/shared';
 
 // 路由名稱對照表
 const routeNames: Record<string, string> = {
-  '/': '主頁',
+  '/dashboard': '主頁',
   '/scheduling': 'VMO排程',
   '/station-bed': '床位管理',
   '/follow-up': '覆診管理',
@@ -235,6 +235,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
       items: [
         { name: 'VMO排程', href: '/scheduling', icon: Stethoscope, feature: 'vmo_schedule' },
         { name: 'CGAT', href: '/hospital-outreach', icon: Hospital, feature: 'hospital_outreach' },
+        { name: 'PGT', href: '/pgt', icon: Stethoscope, feature: 'pgt' },
         { name: '復康服務', href: '/rehabilitation', icon: BicepsFlexed, feature: 'rehabilitation' },
       ]
     },
@@ -407,14 +408,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onSignOut }) => {
             <div className="flex items-center flex-1">
               {/* Logo */}
               <Link 
-                to="/" 
+                to="/dashboard" 
                 className="flex items-center gap-2 mr-8 flex-shrink-0"
                 onClick={(e) => {
-                  if (isActive('/')) {
+                  if (isActive('/dashboard')) {
                     e.preventDefault();
                     return;
                   }
-                  startNavigation('/');
+                  startNavigation('/dashboard');
                 }}
               >
                 <Home className="h-6 w-6 text-blue-600" />

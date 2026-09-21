@@ -11,7 +11,7 @@ import type { HomeActivity } from '../lib/homeActivities';
 
 const ROWS_PER_PAGE = 11;
 const DOC_CODE = 'A19C FK (11.2020)(附件 3.2)';
-const LOGO_SRC = '/sc-logo.png';
+const LOGO_SRC = `${import.meta.env.BASE_URL}sc-logo.png`;
 
 const escapeHtml = (text: string): string => {
   if (!text) return '';

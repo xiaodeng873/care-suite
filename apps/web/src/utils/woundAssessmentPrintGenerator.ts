@@ -316,7 +316,7 @@ export const generateWoundAssessmentHtml = async (
   stationCode = '',
 ): Promise<string> => {
   const settings = await getFacilitySettings();
-  const diagramDataUri = await fetchImageAsDataUri('/human-body-diagram2.png');
+  const diagramDataUri = await fetchImageAsDataUri(`${import.meta.env.BASE_URL}human-body-diagram2.png`);
   const sorted = [...assessments].sort(
     (a, b) => new Date(a.assessment_date).getTime() - new Date(b.assessment_date).getTime()
   );

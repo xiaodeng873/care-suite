@@ -75,7 +75,7 @@ const logoImgTag = (logoSrc: string, orig: { mt: number; mr: number; mb: number;
 /** 取得院舍 logo 來源（data URI 或後備路徑） */
 export const getFacilityLogoSrc = async (): Promise<string> => {
   const settings = await getFacilitySettings();
-  return settings.logoDataUri || DEFAULT_FACILITY_SETTINGS.logoDataUri || '/sc-logo.png';
+  return settings.logoDataUri || DEFAULT_FACILITY_SETTINGS.logoDataUri || `${import.meta.env.BASE_URL}sc-logo.png`;
 };
 
 /**

@@ -44,8 +44,8 @@ function loadIncludes() {
 }
 
 // Web app（登入入口）的網址。部署時以環境變數 APP_URL 指定（例如 https://app.example.com），
-// 未設定時預設 '/app'（配合 PRD 的單一 domain 子路徑設計）。
-const APP_URL = process.env.APP_URL || '/app';
+// 未設定時預設 '/login'（ehms.vercel.app 合併部署：主 App 掛在 /login 子路徑，與 landing page 同源）。
+const APP_URL = process.env.APP_URL || '/login';
 
 function processHtml(content, includes, relativeDir) {
   // Replace <!-- INCLUDE: filename.html -->

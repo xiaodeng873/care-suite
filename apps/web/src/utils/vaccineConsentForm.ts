@@ -2,8 +2,8 @@ import { PDFDocument, PDFName, PDFHexString, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import type { Patient } from '../lib/database';
 
-const FORM_URL = '/rvp202627_consent_form_acroform.pdf';
-const FONT_URL = '/fonts/kaiu.ttf';
+const FORM_URL = `${import.meta.env.BASE_URL}rvp202627_consent_form_acroform.pdf`;
+const FONT_URL = `${import.meta.env.BASE_URL}fonts/kaiu.ttf`;
 
 interface DateParts {
   dd: string;

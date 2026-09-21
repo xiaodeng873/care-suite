@@ -1,5 +1,45 @@
 User-agent: *
 Allow: /
+Disallow: /login
+Disallow: /dashboard
+Disallow: /scheduling
+Disallow: /station-bed
+Disallow: /follow-up
+Disallow: /tasks
+Disallow: /meal-guidance
+Disallow: /patient-logs
+Disallow: /restraint
+Disallow: /evening-care-plan
+Disallow: /tube-care
+Disallow: /admission-records
+Disallow: /print-forms
+Disallow: /wound
+Disallow: /wound-old
+Disallow: /activity-records
+Disallow: /fee-records
+Disallow: /prescriptions
+Disallow: /prescription-search
+Disallow: /drug-database
+Disallow: /drug-reactions
+Disallow: /medication-workflow
+Disallow: /hospital-outreach
+Disallow: /annual-health-checkup
+Disallow: /incident-reports
+Disallow: /diagnosis-records
+Disallow: /vaccination-records
+Disallow: /care-records
+Disallow: /diaper-usage-records
+Disallow: /patients
+Disallow: /patient-contacts
+Disallow: /templates
+Disallow: /health
+Disallow: /health-assessments
+Disallow: /individual-care-plan
+Disallow: /reports
+Disallow: /settings
+Disallow: /rehabilitation
+Disallow: /infection-control
+Disallow: /roster-management
 
 # 上線後請加入絕對網址的 Sitemap 行，例如：
 # Sitemap: https://your-domain.com/sitemap.xml

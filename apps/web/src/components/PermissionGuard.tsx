@@ -48,7 +48,7 @@ export const PermissionGuard: React.FC<{ children: React.ReactNode }> = ({ child
       <h2 className="text-lg font-medium text-gray-900 mb-2">無權限存取此頁面</h2>
       <p className="text-sm text-gray-500 mb-6">如需要存取權限，請聯絡系統管理員。</p>
       <Link
-        to="/"
+        to="/dashboard"
         className="inline-flex items-center px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700"
       >
         返回主頁

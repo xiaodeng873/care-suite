@@ -3,9 +3,11 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: '/',
+  // ehms.vercel.app 合併部署：production build 嘅靜態資產放喺 /login/ 子目錄（避免同 landing page 撞名），
+  // 但 App 路由係根路徑（/health、/care-records…），dev server 都係根路徑，唔好被 base 影響
+  base: command === 'build' ? '/login/' : '/',
   resolve: {
     alias: {
       '@care-suite/shared': path.resolve(__dirname, '../../packages/shared/src/index.ts'),
@@ -56,4 +58,4 @@ export default defineConfig({
     __SUPABASE_URL__: JSON.stringify(process.env.VITE_SUPABASE_URL || 'https://mzeptzwuqvpjspxgnzkp.supabase.co'),
     __SUPABASE_ANON_KEY__: JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZXB0end1cXZwanNweGduemtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwMjM4NjEsImV4cCI6MjA2NzU5OTg2MX0.Uo4fgr2XdUxWY5LZ5Q7A0j6XoCyuUsHhb4WO-eabJWk')
   }
-});
+}));

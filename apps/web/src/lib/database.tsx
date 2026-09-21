@@ -1228,6 +1228,53 @@ export const deleteCgatRecord = async (id: string): Promise<void> => {
   if (error) throw error;
 };
 
+// ========== PGT 記錄（與 CGAT 同級治療頁，無費用/CGAS/EOL）==========
+export interface PgtRecord {
+  id: string;
+  patient_id: number;
+  // 個案類型
+  case_type?: '新症' | '舊症';
+  // 藥物配發
+  medication_end_date?: string;
+  pharmacy_arrangement?: '個別取藥' | '集體取藥';
+  is_urgent_medication: boolean;
+  // 侯診原因
+  reason_renew: boolean;
+  reason_sign_letter: boolean;
+  reason_referral_letter: boolean;
+  // PGT 到診安排
+  pgt_visit_date?: string;
+  pgt_visit_unknown?: boolean;
+  medication_pickup_arrangement?: '家人前往' | '院舍代勞' | '每次詢問';
+  treatment_weeks?: number;
+  remarks?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const getPgtRecords = async (patientId?: number): Promise<PgtRecord[]> => {
+  let query = supabase.from('pgt_records').select('*').order('created_at', { ascending: false });
+  if (patientId) query = query.eq('patient_id', patientId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+};
+export const createPgtRecord = async (record: Omit<PgtRecord, 'id' | 'created_at' | 'updated_at'>): Promise<PgtRecord> => {
+  const { data, error } = await supabase.from('pgt_records').insert([record]).select().single();
+  if (error) throw error;
+  return data;
+};
+export const updatePgtRecord = async (record: Partial<PgtRecord> & { id: string }): Promise<PgtRecord> => {
+  const { id, ...updateData } = record;
+  const { data, error } = await supabase.from('pgt_records').update(updateData).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+};
+export const deletePgtRecord = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('pgt_records').delete().eq('id', id);
+  if (error) throw error;
+};
+
 // ========== 處方日誌（Prescription Activity Log）==========
 export type PrescriptionActivityActionType =
   | 'create'

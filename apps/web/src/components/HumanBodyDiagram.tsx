@@ -73,7 +73,7 @@ const HumanBodyDiagram: React.FC<HumanBodyDiagramProps> = ({
         >
           {/* Background image - 橫向 human-body-diagram2 */}
           <img
-            src="/human-body-diagram2.png"
+            src={`${import.meta.env.BASE_URL}human-body-diagram2.png`}
             alt="人體圖"
             className="w-full h-full object-contain rounded-lg"
             style={{

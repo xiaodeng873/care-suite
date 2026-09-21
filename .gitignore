@@ -4,4 +4,5 @@ node_modules
 .agents/last-tokens.txt
 .expo/
 apps/marketing/dist/
+dist-portal/
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import NurseApp from './nurse/NurseApp';
 import { BrowserRouter } from 'react-router-dom';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from './lib/queryClient';
@@ -11,6 +11,7 @@ import { AuthModal } from './components/AuthModal';
 import { DeveloperFacilityGate } from './components/DeveloperFacilityGate';
 import { PatientProvider, usePatientData, PatientFilterProvider } from './context/PatientContext';
 import { CgatProvider } from './context/CgatContext';
+import { PgtProvider } from './context/PgtContext';
 import { StationProvider } from './context/facility';
 import { StationFilterProvider } from './context/StationFilterContext';
 // 使用合併的 Context（減少 Provider 嵌套層級，提升性能）
@@ -28,7 +29,7 @@ import './App.css';
 
 // 路由名稱對照表
 const routeNames: Record<string, string> = {
-  '/': '主頁',
+  '/dashboard': '主頁',
   '/scheduling': 'VMO排程',
   '/station-bed': '床位管理',
   '/follow-up': '覆診管理',
@@ -48,6 +49,7 @@ const routeNames: Record<string, string> = {
   '/drug-reactions': '藥物反應',
   '/medication-workflow': 'eMAR',
   '/hospital-outreach': 'CGAT',
+  '/pgt': 'PGT',
   '/annual-health-checkup': '年度體檢',
   '/incident-reports': '意外事故報告',
   '/diagnosis-records': '診斷記錄',
@@ -103,6 +105,7 @@ const DrugReactions = lazy(() => import('./pages/DrugReactions'));
 const PrescriptionSearch = lazy(() => import('./pages/PrescriptionSearch'));
 const MedicationWorkflow = lazy(() => import('./pages/MedicationWorkflow'));
 const HospitalOutreach = lazy(() => import('./pages/Cgat'));
+const Pgt = lazy(() => import('./pages/Pgt'));
 const AnnualHealthCheckup = lazy(() => import('./pages/AnnualHealthCheckup'));
 const IncidentReports = lazy(() => import('./pages/IncidentReports'));
 const DiagnosisRecords = lazy(() => import('./pages/DiagnosisRecords'));
@@ -320,14 +323,18 @@ function AuthenticatedContent({
   // 令 Dashboard 可以真正渲染並回報 ready，資料齊後立即進入，
   // 不再硬等 8 秒 fallback 超時。
   return (
-    <BrowserRouter basename="/">
+    <BrowserRouter>
       <NavigationProvider>
         <Layout user={effectiveUser} onSignOut={onSignOut}>
           <Suspense fallback={<RouteLoadingFallback />}>
           <PermissionGuard>
           <Routes>
 
-            <Route path="/" element={<Dashboard />} />
+            {/* 主 App 根路徑路由：/ 留俾 landing page，Dashboard 搬去 /dashboard；
+                /login 係登入入口：未登入時 AppContent 已全屏彈 AuthModal（行唔到呢度），
+                登入後 AuthenticatedContent 先 mount，統一跳 /dashboard */}
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/login" element={<Navigate to="/dashboard" replace />} />
             <Route path="/scheduling" element={<Scheduling />} />
             <Route path="/station-bed" element={<StationBedManagement />} />
             <Route path="/follow-up" element={<FollowUpManagement />} />
@@ -349,6 +356,7 @@ function AuthenticatedContent({
             <Route path="/drug-reactions" element={<DrugReactions />} />
             <Route path="/medication-workflow" element={<MedicationWorkflow />} />
             <Route path="/hospital-outreach" element={<HospitalOutreach />} />
+            <Route path="/pgt" element={<Pgt />} />
             <Route path="/annual-health-checkup" element={<AnnualHealthCheckup />} />
             <Route path="/incident-reports" element={<IncidentReports />} />
             <Route path="/diagnosis-records" element={<DiagnosisRecords />} />
@@ -407,7 +415,9 @@ function App() {
                     <PatientProvider>
                       <PatientFilterProvider>
                         <CgatProvider>
-                          <AppContent />
+                          <PgtProvider>
+                            <AppContent />
+                          </PgtProvider>
                         </CgatProvider>
                       </PatientFilterProvider>
                     </PatientProvider>

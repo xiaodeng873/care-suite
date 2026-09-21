@@ -5,7 +5,6 @@
 
 import { supabase } from '../lib/supabase';
 import type {
-  CgatRecord,
   Patient,
   HealthRecord,
   MedicationPrescription,
@@ -69,10 +68,17 @@ type HospitalEpisode = {
   episode_events?: EpisodeEvent[];
 };
 
+/** 摘要只用 patient_id 分組，CGAT / PGT 記錄皆可傳入 */
+export interface SummaryRecordRef {
+  patient_id: number;
+}
+
 export interface CgatSummaryInput {
-  records: CgatRecord[];
+  records: SummaryRecordRef[];
   patients: Patient[];
   facilityName?: string;
+  /** 摘要標題（預設 'CGAT 診症摘要'，PGT 頁傳 'PGT 診症摘要'） */
+  title?: string;
 }
 
 const VITAL_TYPES: Array<'血壓' | '脈搏' | '血含氧量' | '呼吸' | '血糖值' | '體重'> = [
@@ -682,10 +688,11 @@ function buildPageStyles(): string {
 
 async function buildPatientPages(
   patient: Patient,
-  records: CgatRecord[],
+  records: SummaryRecordRef[],
   data: Awaited<ReturnType<typeof fetchSummaryData>>,
   facilityName: string,
   range: { start: string; end: string },
+  title: string,
 ): Promise<string> {
   const healthRecords = data.healthRecords.filter((r) => r.院友id === patient.院友id);
   const prescriptions = data.prescriptions.filter((p) => p.patient_id === patient.院友id);
@@ -702,7 +709,7 @@ async function buildPatientPages(
   const page = `
     ${styles}
     <div class="print-page">
-      <h1>CGAT 診症摘要</h1>
+      <h1>${escapeHtml(title)}</h1>
       ${header}
       <div class="three-col section">
         <div class="col">${buildVitalSetSection(healthRecords, range)}</div>
@@ -724,13 +731,14 @@ async function buildPatientPages(
 
 export async function printCgatSummary(input: CgatSummaryInput): Promise<void> {
   const { records, patients } = input;
+  const title = input.title || 'CGAT 診症摘要';
   if (records.length === 0) {
     alert('請先選擇要列印的 CGAT 記錄');
     return;
   }
 
   const patientMap = new Map(patients.map((p) => [p.院友id, p]));
-  const grouped = new Map<number, CgatRecord[]>();
+  const grouped = new Map<number, SummaryRecordRef[]>();
   for (const r of records) {
     const list = grouped.get(r.patient_id) || [];
     list.push(r);
@@ -754,7 +762,7 @@ export async function printCgatSummary(input: CgatSummaryInput): Promise<void> {
     const patient = patientMap.get(patientId);
     if (!patient) continue;
     const patientRecords = grouped.get(patientId) || [];
-    const page = await buildPatientPages(patient, patientRecords, data, facilityName, range);
+    const page = await buildPatientPages(patient, patientRecords, data, facilityName, range, title);
     pages.push(page);
   }
 

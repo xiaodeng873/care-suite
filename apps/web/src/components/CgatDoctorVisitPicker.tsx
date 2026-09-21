@@ -18,6 +18,8 @@ interface CgatDoctorVisitPickerProps {
   /** 到診日期清單被新增/修改/刪除後觸發，等外層可以刷新清單快取 */
   onScheduleChanged?: () => void;
   onClose: () => void;
+  /** 顯示名稱（預設 CGAT；PGT 頁重用時傳 'PGT'） */
+  serviceName?: string;
 }
 
 const getHongKongDate = () => {
@@ -25,7 +27,7 @@ const getHongKongDate = () => {
   return new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
 };
 
-const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCountByDate, onSelect, onScheduleChanged, onClose }) => {
+const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCountByDate, onSelect, onScheduleChanged, onClose, serviceName = 'CGAT' }) => {
   const [visits, setVisits] = useState<DoctorVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -113,7 +115,7 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-blue-600" /> CGAT到診日期
+            <Calendar className="h-5 w-5 text-blue-600" /> {serviceName}到診日期
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="h-6 w-6" /></button>
         </div>
@@ -159,7 +161,7 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
           {loading ? (
             <div className="text-center py-8 text-gray-400"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
           ) : uniqueVisits.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">尚無 CGAT到診日期</div>
+            <div className="text-center py-8 text-gray-400">尚無{serviceName}到診日期</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -199,7 +201,7 @@ const CgatDoctorVisitPicker: React.FC<CgatDoctorVisitPickerProps> = ({ usedCount
               </tbody>
             </table>
           )}
-          <p className="text-xs text-gray-400 mt-3">點擊到診日期即回填 CGAT 到診日期。</p>
+          <p className="text-xs text-gray-400 mt-3">點擊到診日期即回填 {serviceName} 到診日期。</p>
         </div>
       </div>
     </div>
