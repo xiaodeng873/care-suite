@@ -40,11 +40,19 @@ const marketingPages = fs.readdirSync(marketingSrc)
   .map(f => f.replace(/\.html$/, ''));
 const collisions = appRoutes.filter(r => marketingPages.includes(r));
 
+// marketing 頂層頁（index/404 除外）要靠 vercel.json 嘅 :mktPage(...) rewrite
+// 先可以用 clean URL（/pricing → /pricing.html）— Vercel 冇自動 clean URL
+const mktRewrite = vercel.rewrites.find(r => r.source.includes(':mktPage('));
+const inMktRewrite = mktRewrite ? mktRewrite.source.match(/:mktPage\(([^)]*)\)/)[1].split('|') : [];
+const mktNeedsRewrite = marketingPages.filter(p => p !== 'index' && p !== '404');
+const missingMktRewrite = mktNeedsRewrite.filter(p => !inMktRewrite.includes(p));
+
 let ok = true;
 if (missingInVercel.length) { console.error('❌ vercel.json :appRoute 漏咗:', missingInVercel.join(', ')); ok = false; }
 if (staleInVercel.length) { console.error('❌ vercel.json :appRoute 有已刪除嘅路由:', staleInVercel.join(', ')); ok = false; }
 if (missingInRobots.length) { console.error('❌ robots.txt 漏咗 Disallow:', missingInRobots.map(r => `/${r}`).join(', ')); ok = false; }
 if (collisions.length) { console.error('❌ App 路由同 marketing 頁面撞名（filesystem 優先，App 頁會失效）:', collisions.map(r => `/${r}`).join(', ')); ok = false; }
+if (missingMktRewrite.length) { console.error('❌ vercel.json :mktPage 漏咗 marketing 頁（clean URL 會 404）:', missingMktRewrite.map(p => `/${p}`).join(', ')); ok = false; }
 
 if (!ok) process.exit(1);
 console.log(`✓ 部署路由同步：${appRoutes.length} 條 App 路由已對齊 vercel.json 同 robots.txt`);
