@@ -11,6 +11,7 @@ import PatientMedicalHistorySection from './PatientMedicalHistorySection';
 import PatientMedicalServicesSection from './PatientMedicalServicesSection';
 import PatientNursingAssessmentSection from './PatientNursingAssessmentSection';
 import DateInput from './DateInput';
+import ImageCropModal from './ImageCropModal';
 
 interface PatientModalProps {
   patient?: any;
@@ -94,6 +95,8 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(patient?.院友相片 || null);
   const [isUploading, setIsUploading] = useState(false);
+  // 上傳照片裁剪步驟：揀咗檔案先入裁剪 modal，確認先壓縮寫入
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [newAllergy, setNewAllergy] = useState('');
   const [newAdverseReaction, setNewAdverseReaction] = useState('');
   const [socialWelfareType, setSocialWelfareType] = useState(
@@ -323,48 +326,48 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
     }));
   };
 
-  const compressImage = (file: File, maxWidth = 400, quality = 0.85): Promise<string> => {
+  const compressDataUrl = (dataUrl: string, maxWidth = 400, quality = 0.85): Promise<string> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
 
-          if (!ctx) {
-            reject(new Error('無法獲取 Canvas 上下文'));
-            return;
-          }
+        if (!ctx) {
+          reject(new Error('無法獲取 Canvas 上下文'));
+          return;
+        }
 
-          // 設定目標寬度，保持比例
-          let width = img.width;
-          let height = img.height;
+        // 設定目標寬度，保持比例
+        let width = img.width;
+        let height = img.height;
 
-          if (width > maxWidth) {
-            height = height * maxWidth / width;
-            width = maxWidth;
-          }
+        if (width > maxWidth) {
+          height = height * maxWidth / width;
+          width = maxWidth;
+        }
 
-          canvas.width = width;
-          canvas.height = height;
+        canvas.width = width;
+        canvas.height = height;
 
-          // 繪製圖片
-          ctx.drawImage(img, 0, 0, width, height);
+        // 繪製圖片
+        ctx.drawImage(img, 0, 0, width, height);
 
-          // 轉換為 JPEG base64
-          const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-          resolve(compressedBase64);
-        };
-        img.onerror = () => reject(new Error('圖片載入失敗'));
-        img.src = e.target?.result as string;
+        // 轉換為 JPEG base64
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedBase64);
       };
-      reader.onerror = () => reject(new Error('檔案讀取失敗'));
-      reader.readAsDataURL(file);
+      img.onerror = () => reject(new Error('圖片載入失敗'));
+      img.src = dataUrl;
     });
   };
 
-  const handlePhotoUpload = async (file: File) => {
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // 重置 input，等用戶可以重新揀返同一個檔案
+    e.target.value = '';
+    if (!file) return;
+
     if (!file.type.startsWith('image/')) {
       alert('請選擇圖片文件');
       return;
@@ -375,12 +378,21 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       return;
     }
 
+    // 先入裁剪步驟
+    const reader = new FileReader();
+    reader.onload = (ev) => setCropSrc(ev.target?.result as string);
+    reader.onerror = () => alert('檔案讀取失敗');
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropConfirm = async (croppedDataUrl: string) => {
     setIsUploading(true);
+    setCropSrc(null);
 
     try {
       // 雙版本：400px 壓縮版（日常頭像）+ 1600px 高清版（匯出餐卡/藥紙等文件）
-      const compressedBase64 = await compressImage(file, 400, 0.85);
-      const hdBase64 = await compressImage(file, 1600, 0.9);
+      const compressedBase64 = await compressDataUrl(croppedDataUrl, 400, 0.85);
+      const hdBase64 = await compressDataUrl(croppedDataUrl, 1600, 0.9);
       setPhotoPreview(compressedBase64);
       setFormData((prev) => ({
         ...prev,
@@ -392,12 +404,6 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
       console.error('上傳照片失敗:', error);
       alert('上傳照片失敗，請重試');
       setIsUploading(false);
-    }
-  };
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handlePhotoUpload(e.target.files[0]);
     }
   };
 
@@ -1441,6 +1447,14 @@ const PatientModal: React.FC<PatientModalProps> = ({ patient, onClose, ocrPrefil
           </div>
         }
       </div>
+
+      {cropSrc && (
+        <ImageCropModal
+          imageSrc={cropSrc}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropSrc(null)}
+        />
+      )}
     </div>);
 
 };

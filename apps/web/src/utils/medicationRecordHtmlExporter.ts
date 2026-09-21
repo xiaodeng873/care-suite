@@ -706,15 +706,15 @@ const formatSlotShortLabel = (slot: string): string => {
 };
 
 // 統計全部口服藥物中單位為「粒」的藥物，於各時間點的總數量（如：藥物數量參考 8A(10) 10A(5.5) 4P(6)）
-// 非每日頻率（隔日/每N日/逢星期/單雙日等）的藥物只計入「可能總量」；
-// 某時間點兩數不同時以「必定/可能」範圍顯示（如 8A(7/8)），相同時維持單一數字。
-// PRN 不計入必定總量：只有設定了服用時間點才計入可能總量（需要時先決定當日是否服用）。
+// 規則：有時間點就計、無時間點就唔計（PRN 與否不影響——有時間點即當已編排）。
+// 每日/每次/每1日 計入「必定總量」；隔日、每N日(N>1)、逢星期等非每日頻率當日服唔服唔確定，
+// 只計入「可能總量」——兩數不同時以「必定/可能」範圍顯示（如 8A(7.5/8.5)），相同時維持單一數字。
 // 單雙日交替藥互斥：同一時間點嘅單日藥同雙日藥唔會同日出現，
-// 「可能總量」取單日總和／雙日總和較大者，而唔係兩張相加。
+// 必定計較細嗰邊、可能計較大嗰邊（兩邊相同時自然顯示單一數字；唔同時顯示如 2/3）。
 const computeOralQuantityStat = (oralPrescriptions: MedicationPrescription[]): string => {
   const certainTotals = new Map<string, number>();
   const possibleTotals = new Map<string, number>();
-  // 單雙日分組：slot → { odd, even }（is_odd_even_day 第三值「單雙日」兩日都服，當一般可能量處理）
+  // 單雙日分組：slot → { odd, even }（is_odd_even_day 第三值「單雙日」兩日都服，當一般藥處理）
   const oddEvenBySlot = new Map<string, { odd: number; even: number }>();
   for (const rx of oralPrescriptions) {
     const unit = String(rx.dosage_unit ?? '').trim();
@@ -722,27 +722,24 @@ const computeOralQuantityStat = (oralPrescriptions: MedicationPrescription[]): s
     const amount = parseFloat(String(rx.dosage_amount ?? ''));
     if (!Number.isFinite(amount) || amount <= 0) continue;
     const freqType = rx.frequency_type ?? 'daily';
-    const isCertain = !rx.is_prn && (
-      freqType === 'daily'
-      || freqType === 'each_time'
-      || (freqType === 'every_x_days' && (Number(rx.frequency_value) || 1) === 1)
-    );
     const isAlternating = freqType === 'odd_even_days' && (rx.is_odd_even_day === 'odd' || rx.is_odd_even_day === 'even');
+    const isCertain = freqType === 'daily'
+      || freqType === 'each_time'
+      || (freqType === 'every_x_days' && (Number(rx.frequency_value) || 1) === 1);
     for (const slot of resolvePrescriptionTimeSlots(rx)) {
-      if (isCertain) {
-        certainTotals.set(slot, (certainTotals.get(slot) ?? 0) + amount);
-      }
       if (isAlternating) {
         const g = oddEvenBySlot.get(slot) ?? { odd: 0, even: 0 };
         if (rx.is_odd_even_day === 'even') g.even += amount; else g.odd += amount;
         oddEvenBySlot.set(slot, g);
       } else {
+        if (isCertain) certainTotals.set(slot, (certainTotals.get(slot) ?? 0) + amount);
         possibleTotals.set(slot, (possibleTotals.get(slot) ?? 0) + amount);
       }
     }
   }
-  // 交替組每個時段只計較大嗰邊（任何一日只會食單日藥或雙日藥其中一邊）
+  // 交替組每個時段兩邊互斥：必定計較細嗰邊、可能計較大嗰邊
   for (const [slot, g] of oddEvenBySlot) {
+    certainTotals.set(slot, (certainTotals.get(slot) ?? 0) + Math.min(g.odd, g.even));
     possibleTotals.set(slot, (possibleTotals.get(slot) ?? 0) + Math.max(g.odd, g.even));
   }
   if (possibleTotals.size === 0) return '';

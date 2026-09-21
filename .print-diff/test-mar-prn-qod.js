@@ -77,7 +77,8 @@ global.document = {
       preparation_method: 'advanced', start_date: '2026-09-14', prescription_date: '2026-09-14',
       status: 'active',
     },
-    // 盧葉慧卿個案：每日藥 1 粒 8A + THYROXINE 100MCG 單日 1 粒 8A + 50MCG 雙日 1 粒 8A
+    // 盧葉慧卿個案：每日藥 1 粒 8A + THYROXINE 100MCG 單日 2 粒 8A + 50MCG 雙日 1 粒 8A
+    // （兩邊粒數唔同：必定計較細邊 1、可能計較大邊 2）
     {
       id: 'r5', medication_name: 'DAILY VITAMIN TAB', dosage_form: '藥丸',
       administration_route: '口服', frequency_type: 'daily', frequency_value: 1,
@@ -90,7 +91,7 @@ global.document = {
       id: 'r6', medication_name: 'THYROXINE SODIUM TAB 100MCG', dosage_form: '藥丸',
       administration_route: '口服', frequency_type: 'odd_even_days',
       is_odd_even_day: 'odd', daily_frequency: 1, is_prn: false, medication_time_slots: ['08:00'],
-      dosage_amount: 1, dosage_unit: '粒',
+      dosage_amount: 2, dosage_unit: '粒',
       preparation_method: 'immediate', start_date: '2026-09-14', prescription_date: '2026-09-14',
       status: 'active',
     },
@@ -98,6 +99,15 @@ global.document = {
       id: 'r7', medication_name: 'THYROXINE SODIUM TAB 50MCG', dosage_form: '藥丸',
       administration_route: '口服', frequency_type: 'odd_even_days',
       is_odd_even_day: 'even', daily_frequency: 1, is_prn: false, medication_time_slots: ['08:00'],
+      dosage_amount: 1, dosage_unit: '粒',
+      preparation_method: 'immediate', start_date: '2026-09-14', prescription_date: '2026-09-14',
+      status: 'active',
+    },
+    // 鄧慧珠個案：鈣片隔日 1 粒 8A → 8A 應顯示必定/可能範圍
+    {
+      id: 'r8', medication_name: 'CALCIUM CARBONATE TAB', dosage_form: '藥丸',
+      administration_route: '口服', frequency_type: 'every_x_days', frequency_value: 2,
+      daily_frequency: 1, is_prn: false, medication_time_slots: ['08:00'],
       dosage_amount: 1, dosage_unit: '粒',
       preparation_method: 'immediate', start_date: '2026-09-14', prescription_date: '2026-09-14',
       status: 'active',
@@ -114,7 +124,7 @@ global.document = {
     ['hourly 處方時間欄冇强行加「每N小時」', !capturedHtml.includes('class="c-time">每6小時<')],
     ['hourly 頻率行「每6小時1次」', stripTags.includes('每6小時1次')],
     ['標籤改名「藥物數量參考」', stripTags.includes('藥物數量參考') && !stripTags.includes('藥物數量統計')],
-    ['單雙日互斥：8A 係 (1/2) 唔係 (1/3)', stripTags.includes('8A(1/2)') && !stripTags.includes('8A(1/3)')],
+    ['單雙日互斥+隔日範圍：8A 係 (2/4)（必定=每日1+單雙日較細邊1=2；可能=每日1+較大邊2+隔日鈣片1=4）', stripTags.includes('8A(2/4)')],
     ['QOD 藥膏冇「每日1次」', !capturedHtml.slice(capturedHtml.indexOf('CLOSTRIDIOPEPTIDASE'), capturedHtml.indexOf('PRN EVERY 3 DAYS')).replace(/<[^>]+>/g, ' ').includes('每日1次')],
     ['有「需要時」', stripTags.includes('需要時')],
   ];
