@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, Crop } from 'lucide-react';
+import { detectDocumentBounds } from '../utils/ocrProcessor';
 
 interface ImageCropModalProps {
   imageSrc: string;
@@ -54,7 +55,30 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, on
         const h = image.naturalHeight * s;
         setDisp({ w, h });
         // 預設全圖裁剪（留少少 inset 等用戶見到四角手柄）
-        setRect({ x: w * 0.02, y: h * 0.02, w: w * 0.96, h: h * 0.96 });
+        const fallback = { x: w * 0.02, y: h * 0.02, w: w * 0.96, h: h * 0.96 };
+        // 自動偵測文件邊界：偵測到就直接框住張紙，失敗先落返全圖
+        let initial = fallback;
+        try {
+          const dc = document.createElement('canvas');
+          dc.width = Math.round(w);
+          dc.height = Math.round(h);
+          const dctx = dc.getContext('2d');
+          if (dctx && dc.width > 0 && dc.height > 0) {
+            dctx.drawImage(image, 0, 0, dc.width, dc.height);
+            const bounds = detectDocumentBounds(dc);
+            if (bounds) {
+              initial = {
+                x: Math.max(0, bounds.x),
+                y: Math.max(0, bounds.y),
+                w: Math.min(bounds.w, w),
+                h: Math.min(bounds.h, h)
+              };
+            }
+          }
+        } catch {
+          // 偵測失敗（例如跨域圖片）→ 維持全圖預設
+        }
+        setRect(initial);
       }
     };
     image.src = imageSrc;
@@ -276,7 +300,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({ imageSrc, onConfirm, on
                 )}
               </div>
             </div>
-            <p className="text-xs text-gray-500 mt-3">拖曳四角調整裁剪範圍，拖曳框內移動位置；去除周邊無關像素可提升識別準確度同速度。</p>
+            <p className="text-xs text-gray-500 mt-3">已自動框住文件範圍；拖曳四角或框內微調，去除周邊無關像素可提升識別準確度同速度。</p>
           </>
         )}
 
