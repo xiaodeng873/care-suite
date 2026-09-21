@@ -1,8 +1,8 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+  "installCommand": "echo 'redirect-only deployment'",
+  "buildCommand": "echo 'redirect-only deployment'",
+  "outputDirectory": "public",
+  "redirects": [
+    { "source": "/:path*", "destination": "https://ehms-sand.vercel.app/:path*", "permanent": true }
   ]
 }
